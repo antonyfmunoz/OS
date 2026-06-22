@@ -29,32 +29,19 @@ _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 _TASK_TEMPLATES: dict[str, list[tuple[str, str, str]]] = {
     "feature": [
-        ("research", "Research", "Analyze requirements and existing code"),
-        ("planning", "Design", "Design implementation approach"),
-        ("implementation", "Implement", "Write the implementation"),
-        ("testing", "Test", "Write and run tests"),
-        ("verification", "Verify", "Verify integration and quality"),
+        ("implementation", "Execute", "Implement, test, and verify"),
     ],
     "bugfix": [
-        ("research", "Diagnose", "Identify root cause"),
-        ("implementation", "Fix", "Implement the fix"),
-        ("testing", "Test", "Verify fix and add regression test"),
+        ("implementation", "Fix", "Diagnose, fix, test, and verify"),
     ],
     "refactor": [
-        ("research", "Analyze", "Analyze current state and plan changes"),
-        ("implementation", "Refactor", "Apply refactoring"),
-        ("testing", "Test", "Verify behavior preserved"),
-        ("verification", "Verify", "Run full gate checks"),
+        ("implementation", "Refactor", "Analyze, refactor, test, and verify"),
     ],
     "infrastructure": [
-        ("planning", "Plan", "Plan infrastructure change"),
-        ("implementation", "Implement", "Apply infrastructure change"),
-        ("verification", "Verify", "Verify deployment and health"),
+        ("implementation", "Execute", "Plan, implement, and verify"),
     ],
     "research": [
-        ("research", "Research", "Investigate the topic"),
-        ("planning", "Synthesize", "Synthesize findings"),
-        ("verification", "Recommend", "Produce recommendations"),
+        ("research", "Research", "Investigate, synthesize, and recommend"),
     ],
 }
 

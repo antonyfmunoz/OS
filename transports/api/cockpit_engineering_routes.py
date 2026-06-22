@@ -56,6 +56,7 @@ def _get_gap_engine() -> Any:
 
 
 _planners: dict[str, Any] = {}
+_active_dispatches: dict[str, Any] = {}
 
 
 def _get_or_create_planner() -> Any:
@@ -135,7 +136,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     @router.post("/engineering/plans/{plan_id}/dispatch", dependencies=auth)
     async def dispatch_plan(plan_id: str, body: dict[str, Any] = {}) -> dict[str, Any]:
-        """Dispatch approved plan's work packets to a connected node for execution."""
+        """Dispatch approved plan's work packets to a connected node for execution.
+
+        Starts dispatch as a background asyncio task and returns 202 immediately.
+        The Fly.io→Tailscale tunnel has a 60s proxy timeout — long dispatches
+        would get cancelled if awaited in the handler.
+        """
+        import asyncio
+
         planner = _get_or_create_planner()
         if not planner:
             raise HTTPException(status_code=503, detail="Planner unavailable")
@@ -144,16 +152,47 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if not plan:
             raise HTTPException(status_code=404, detail=f"Plan {plan_id} not found")
 
+        plan_status = plan.status if hasattr(plan, "status") else ""
+        if plan_status not in ("approved", "dispatching"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Plan status is '{plan_status}', must be approved to dispatch",
+            )
+
+        if plan_id in _active_dispatches:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Dispatch already in progress for plan {plan_id}",
+            )
+
         node_id = body.get("node_id", "windows-desktop")
         cwd = body.get("cwd", r"C:\dev\dev\LYFEOS")
 
-        from transports.api._mesh_dispatch import dispatch_plan_to_node
+        from transports.api._mesh_dispatch import (
+            _validate_cwd,
+            _validate_node_id,
+            dispatch_plan_to_node,
+        )
 
         try:
-            result = await dispatch_plan_to_node(plan, node_id=node_id, cwd=cwd)
+            _validate_node_id(node_id)
+            _validate_cwd(cwd)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
-        return result
+
+        _active_dispatches[plan_id] = True
+
+        async def _run_dispatch() -> None:
+            try:
+                result = await dispatch_plan_to_node(plan, node_id=node_id, cwd=cwd)
+                logger.info("dispatch %s completed: %d dispatched", plan_id, result.get("dispatched", 0))
+            except Exception as exc:
+                logger.error("dispatch %s background failed: %s", plan_id, exc)
+            finally:
+                _active_dispatches.pop(plan_id, None)
+
+        asyncio.create_task(_run_dispatch())
+        return {"ok": True, "status": "dispatching", "plan_id": plan_id, "node_id": node_id}
 
     @router.post("/engineering/plans/{plan_id}/reject", dependencies=auth)
     async def reject_plan(plan_id: str) -> dict[str, Any]:

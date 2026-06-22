@@ -437,7 +437,9 @@ class NodeClient:
                 return
 
             t0 = time.monotonic()
-            request_timeout = params.get("timeout_seconds", _CONTROL_TIMEOUT_S)
+            _MAX_CAPABILITY_TIMEOUT_S = 300.0
+            raw_timeout = params.get("timeout_seconds", _CONTROL_TIMEOUT_S)
+            request_timeout = max(1.0, min(float(raw_timeout), _MAX_CAPABILITY_TIMEOUT_S))
             has_async = hasattr(adapter, "execute_async") and callable(adapter.execute_async)
 
             try:
@@ -449,12 +451,14 @@ class NodeClient:
                 else:
                     loop = asyncio.get_event_loop()
                     executor = self._camera_executor if adapter_key == "camera" else None
+                    if "timeout" not in cap_params and request_timeout > _CONTROL_TIMEOUT_S:
+                        cap_params["timeout"] = int(request_timeout)
                     result = await asyncio.wait_for(
                         loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
-                        timeout=_CONTROL_TIMEOUT_S,
+                        timeout=request_timeout,
                     )
             except asyncio.TimeoutError:
-                effective_timeout = request_timeout if has_async else _CONTROL_TIMEOUT_S
+                effective_timeout = request_timeout
                 logger.warning("capability %s timed out after %.0fs", cap_name, effective_timeout)
                 result = {"success": False, "error": f"{cap_name} timed out"}
             duration = (time.monotonic() - t0) * 1000

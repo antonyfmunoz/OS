@@ -7,6 +7,7 @@ After execution, assembles a proof package for operator review.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
@@ -51,7 +52,7 @@ async def dispatch_plan_to_node(
     plan: Any,
     node_id: str = "windows-desktop",
     cwd: str = r"C:\dev\dev\LYFEOS",
-    timeout_per_task: int = 300,
+    timeout_per_task: int = 540,
 ) -> dict[str, Any]:
     """Dispatch all tasks from an engineering plan to a mesh node.
 
@@ -59,7 +60,7 @@ async def dispatch_plan_to_node(
     Each task sends an argv list (not a shell string) to avoid injection.
     After all tasks complete, assembles a proof package for review.
     """
-    import httpx
+    import asyncio
 
     _validate_node_id(node_id)
     _validate_cwd(cwd)
@@ -70,6 +71,14 @@ async def dispatch_plan_to_node(
 
     tasks = plan.tasks if hasattr(plan, "tasks") else []
 
+    try:
+        import urllib.request
+        health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
+        urllib.request.urlopen(health_url, timeout=5)
+        logger.info("mesh relay warmup ok")
+    except Exception as warmup_exc:
+        logger.warning("mesh relay warmup failed (proceeding anyway): %r", warmup_exc)
+
     for task in tasks:
         description = task.description if hasattr(task, "description") else str(task)
         task_id = task.task_id if hasattr(task, "task_id") else ""
@@ -78,22 +87,47 @@ async def dispatch_plan_to_node(
         argv = ["claude", "-p", prompt, "--output-format", "json"]
 
         try:
-            req_headers = {}
+            req_headers = {"Content-Type": "application/json"}
             if _MESH_RELAY_SECRET:
                 req_headers["Authorization"] = f"Bearer {_MESH_RELAY_SECRET}"
-            async with httpx.AsyncClient(timeout=timeout_per_task + 10) as client:
-                resp = await client.post(
-                    _MESH_RELAY_URL,
-                    headers=req_headers,
-                    json={
-                        "node_id": node_id,
-                        "capability": "shell",
-                        "params": {"argv": argv, "cwd": cwd},
-                        "timeout": timeout_per_task,
-                    },
-                )
-                data = resp.json()
+            logger.info("dispatch task %s sending to %s (timeout=%d)", task_id, _MESH_RELAY_URL, timeout_per_task)
+            payload = {
+                "node_id": node_id,
+                "capability": "shell",
+                "params": {"argv": argv, "cwd": cwd},
+                "timeout": timeout_per_task,
+            }
+            data = None
+            import urllib.request
+            import urllib.error
+            import concurrent.futures
 
+            def _sync_post(url: str, hdrs: dict, body: bytes, timeout_s: int) -> tuple[int, str]:
+                req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
+                resp = urllib.request.urlopen(req, timeout=timeout_s)
+                return resp.status, resp.read().decode()
+
+            body_bytes = json.dumps(payload).encode()
+            loop = asyncio.get_event_loop()
+            for attempt in range(5):
+                try:
+                    if attempt > 0:
+                        await asyncio.sleep(2)
+                    status, raw = await loop.run_in_executor(
+                        None, _sync_post, _MESH_RELAY_URL, req_headers, body_bytes, timeout_per_task + 30
+                    )
+                    raw = raw.strip()
+                    logger.info("dispatch task %s got HTTP %d, %d bytes", task_id, status, len(raw))
+                    data = json.loads(raw)
+                    break
+                except (urllib.error.URLError, ConnectionError, OSError, asyncio.TimeoutError) as retry_err:
+                    if attempt < 4:
+                        logger.warning("dispatch task %s %s on attempt %d, retrying: %r", task_id, type(retry_err).__name__, attempt + 1, retry_err)
+                        await asyncio.sleep(5)
+                        continue
+                    raise
+
+            logger.info("dispatch task %s response: ok=%s latency=%s", task_id, data.get("ok"), data.get("latency_ms"))
             if data.get("ok"):
                 dispatched += 1
                 results.append({
@@ -105,6 +139,7 @@ async def dispatch_plan_to_node(
                 })
             else:
                 failed += 1
+                logger.warning("dispatch task %s not ok: %s", task_id, json.dumps(data)[:500])
                 results.append({
                     "task_id": task_id,
                     "description": description[:120],
@@ -114,7 +149,7 @@ async def dispatch_plan_to_node(
 
         except Exception as exc:
             failed += 1
-            logger.error("dispatch task %s failed: %s", task_id, exc)
+            logger.error("dispatch task %s failed: %r", task_id, exc)
             results.append({
                 "task_id": task_id,
                 "description": description[:120],

@@ -33,6 +33,20 @@ BENCHMARK_TYPES = frozenset({
     "outcome_quality",
     "compounding",
     "projection_readiness",
+    "autonomous_execution",
+    "outcome_accuracy",
+    "efficiency",
+    "reliability",
+    "context_capacity",
+    "operational_awareness",
+    "source_truth",
+    "organism_awareness",
+    "empire_readiness",
+    "model_correspondence",
+    "strategic_compression",
+    "human_amplification",
+    "external_benchmark",
+    "competitive_matrix",
 })
 
 TRACK_TYPES = frozenset({"reuse_on", "reuse_off", "baseline"})

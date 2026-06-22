@@ -138,6 +138,7 @@ class AdvisorConversation:
                 return response
 
         intent = classify_intent(content)
+        logger.info("CONVERSE classify_intent(%r) => %s", content[:80], intent.value)
         context_summary = self._build_context_summary(view_context)
 
         if intent == CommandIntent.UNKNOWN:

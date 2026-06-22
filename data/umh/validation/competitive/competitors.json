@@ -1,0 +1,368 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "2026-06-21",
+  "competitors": {
+    "claude_code": {
+      "name": "Claude Code",
+      "vendor": "Anthropic",
+      "market_category": "coding_model",
+      "architecture": "cli_agent",
+      "pricing_model": "subscription",
+      "published_scores": {
+        "swe_bench_verified": 87.6,
+        "swe_bench_pro": 49.8,
+        "terminal_bench": 83.1,
+        "aider_polyglot": 89.4
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "swebench.com", "date": "2026-06", "metric": "swe_bench_verified"},
+        {"url": "codingfleet.com/blog/terminal-bench-leaderboard-2026", "date": "2026-06", "metric": "terminal_bench"},
+        {"url": "llm-stats.com/benchmarks/aider-polyglot", "date": "2026-06", "metric": "aider_polyglot"}
+      ]
+    },
+    "codex": {
+      "name": "OpenAI Codex",
+      "vendor": "OpenAI",
+      "market_category": "coding_model",
+      "architecture": "cloud_sandbox_agent",
+      "pricing_model": "subscription",
+      "published_scores": {
+        "swe_bench_verified": 85.0,
+        "swe_bench_pro": 46.5,
+        "terminal_bench": 83.4
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "codeant.ai", "date": "2026-06", "metric": "swe_bench_verified"},
+        {"url": "labs.scale.com/leaderboard/swe_bench_pro_public", "date": "2026-06", "metric": "swe_bench_pro"}
+      ]
+    },
+    "cursor": {
+      "name": "Cursor",
+      "vendor": "Anysphere",
+      "market_category": "ide_agent",
+      "architecture": "ide_integrated",
+      "pricing_model": "subscription",
+      "published_scores": {
+        "swe_bench_verified": 51.7,
+        "swe_bench_pro": 50.2
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "tech-insider.org", "date": "2026-06", "metric": "swe_bench_verified"},
+        {"url": "labs.scale.com/leaderboard/swe_bench_pro_public", "date": "2026-06", "metric": "swe_bench_pro"}
+      ]
+    },
+    "cursor_origin": {
+      "name": "Cursor Origin",
+      "vendor": "Anysphere",
+      "market_category": "ide_agent",
+      "architecture": "ide_integrated",
+      "pricing_model": "subscription",
+      "published_scores": {},
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": []
+    },
+    "replit": {
+      "name": "Replit Agent",
+      "vendor": "Replit",
+      "market_category": "runtime_platform",
+      "architecture": "browser_ide",
+      "pricing_model": "subscription",
+      "published_scores": {},
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": true,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": []
+    },
+    "devin": {
+      "name": "Devin",
+      "vendor": "Cognition",
+      "market_category": "autonomous_developer",
+      "architecture": "cloud_agent",
+      "pricing_model": "subscription",
+      "published_scores": {
+        "swe_bench_verified": 45.8
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": true,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "cognition.ai", "date": "2026-06", "metric": "swe_bench_verified"}
+      ]
+    },
+    "openhands": {
+      "name": "OpenHands",
+      "vendor": "All Hands AI",
+      "market_category": "autonomous_developer",
+      "architecture": "open_source_agent",
+      "pricing_model": "open_source",
+      "published_scores": {
+        "swe_bench_verified": 68.4
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "morphllm.com", "date": "2026-06", "metric": "swe_bench_verified"}
+      ]
+    },
+    "windsurf": {
+      "name": "Windsurf",
+      "vendor": "Cognition (acquired from Codeium)",
+      "market_category": "ide_agent",
+      "architecture": "ide_integrated",
+      "pricing_model": "subscription",
+      "published_scores": {
+        "swe_bench_verified": 72.5
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "shareuhack.com", "date": "2026-06", "metric": "swe_bench_verified"}
+      ]
+    },
+    "augment": {
+      "name": "Augment Code",
+      "vendor": "Augment",
+      "market_category": "ide_agent",
+      "architecture": "ide_integrated",
+      "pricing_model": "subscription",
+      "published_scores": {
+        "swe_bench_verified": 70.6,
+        "swe_bench_pro": 51.8
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "augmentcode.com/blog/auggie-tops-swe-bench-pro", "date": "2026-06", "metric": "swe_bench_pro"},
+        {"url": "augmentcode.com", "date": "2026-06", "metric": "swe_bench_verified"}
+      ]
+    },
+    "roo_code": {
+      "name": "Roo Code",
+      "vendor": "Roo Code (archived)",
+      "market_category": "ide_agent",
+      "architecture": "vscode_extension",
+      "pricing_model": "open_source",
+      "published_scores": {},
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "roocode.com", "date": "2026-05", "metric": "archived"}
+      ]
+    },
+    "cline": {
+      "name": "Cline",
+      "vendor": "Cline",
+      "market_category": "ide_agent",
+      "architecture": "vscode_extension",
+      "pricing_model": "open_source",
+      "published_scores": {},
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": []
+    },
+    "aider": {
+      "name": "Aider",
+      "vendor": "Aider",
+      "market_category": "ide_agent",
+      "architecture": "cli_tool",
+      "pricing_model": "open_source",
+      "published_scores": {
+        "aider_polyglot": 89.4
+      },
+      "capabilities": {
+        "autonomous_execution": false,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": false,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "llm-stats.com/benchmarks/aider-polyglot", "date": "2026-06", "metric": "aider_polyglot"}
+      ]
+    },
+    "antigravity": {
+      "name": "Antigravity",
+      "vendor": "Google",
+      "market_category": "runtime_platform",
+      "architecture": "multi_agent_ide",
+      "pricing_model": "subscription",
+      "published_scores": {
+        "terminal_bench": 76.2
+      },
+      "capabilities": {
+        "autonomous_execution": true,
+        "multi_file_editing": true,
+        "test_generation": true,
+        "deployment": true,
+        "self_model": false,
+        "capability_reuse": false,
+        "compounding": false,
+        "organism_awareness": false,
+        "lineage_tracking": false,
+        "projection_acceleration": false,
+        "reliability_tracking": false,
+        "cost_tracking": false,
+        "reality_model": false
+      },
+      "sources": [
+        {"url": "codingfleet.com/blog/terminal-bench-leaderboard-2026", "date": "2026-06", "metric": "terminal_bench"}
+      ]
+    }
+  }
+}
