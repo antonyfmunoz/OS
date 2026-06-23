@@ -1,0 +1,63 @@
+{
+  "subsystem": "governance",
+  "rating": "PARTIAL",
+  "timestamp": "2026-06-23T00:00:00Z",
+  "endpoints_tested": [
+    {
+      "path": "/api/umh/governance",
+      "status_code": 200,
+      "valid_json": true,
+      "data_state": "error_response",
+      "notes": "Returns {\"error\": \"policy engine not available\"} — endpoint reachable but policy engine not wired to runtime"
+    },
+    {
+      "path": "/api/umh/approvals",
+      "status_code": 200,
+      "valid_json": true,
+      "data_state": "empty_array",
+      "notes": "Returns [] — no pending approvals, correct when no work packets are in flight"
+    },
+    {
+      "path": "/api/umh/trust/scores",
+      "status_code": 200,
+      "valid_json": true,
+      "data_state": "structured_zeroes",
+      "notes": "Returns {total:0, by_level:{untrusted:0,low:0,medium:0,high:0,full:0}, promotion_eligible:0, promotion_blocked:0} — schema correct, no scores persisted"
+    },
+    {
+      "path": "/api/umh/organism/operator-acceptance",
+      "status_code": 200,
+      "valid_json": true,
+      "data_state": "structured",
+      "notes": "Returns {total_runs:0, completed_runs:0, failed_runs:0, total_artifacts:6, latest_run:null} — schema correct, 6 artifacts registered, no runs executed"
+    },
+    {
+      "path": "/api/umh/organism/operator-acceptance/runs",
+      "status_code": 200,
+      "valid_json": true,
+      "data_state": "empty_array",
+      "notes": "Returns [] — no runs yet, expected since acceptance tests haven't been executed"
+    },
+    {
+      "path": "/api/umh/organism/operator-acceptance/scenarios",
+      "status_code": 200,
+      "valid_json": true,
+      "data_state": "populated",
+      "notes": "Returns rich scenario definitions (oas-a through oas-b+) with scenario_id, name, input_text, expected_intent_type, expected_steps, expected_artifacts, success_criteria — well-structured, real content"
+    },
+    {
+      "path": "/api/umh/organism/operator-acceptance/readiness",
+      "status_code": 0,
+      "valid_json": false,
+      "data_state": "timeout",
+      "notes": "Hangs and times out after 30s — upstream find command in operational_truth module times out scanning /app. Known issue from operator logs."
+    }
+  ],
+  "evidence": "6/7 endpoints return 200 with valid JSON. 1 (readiness) hangs on an internal find command timeout. Governance overview returns an error about policy engine unavailability — the endpoint exists but the backend subsystem isn't wired. Approvals returns empty (correct for idle state). Trust scores schema is correct but empty. Operator acceptance has rich scenarios defined but no runs executed. Readiness endpoint is BROKEN due to find timeout in operational_truth module.",
+  "gaps": [
+    "governance overview returns 'policy engine not available' — policy engine not wired to runtime",
+    "trust scores all zero — no trust computation persisted across restarts",
+    "readiness endpoint hangs (find command timeout in operational_truth scanning /app filesystem)",
+    "no acceptance runs executed — scenarios defined but never run"
+  ]
+}

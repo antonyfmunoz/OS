@@ -1,0 +1,25 @@
+{
+  "subsystem": "organism_runtime",
+  "rating": "FUNCTIONAL",
+  "tested_at": "2026-06-23T00:00:00Z",
+  "endpoints_tested": [
+    {"path": "/api/umh/organism/status", "status": 200, "valid_json": true, "populated": true, "snippet": "running=true, tick_count=2, graph_available=true, supervisor_available=true, 16 tick stages"},
+    {"path": "/api/umh/organism/agents", "status": 200, "valid_json": true, "populated": true, "snippet": "3 agents: researcher, builder, auto-research; all idle"},
+    {"path": "/api/umh/organism/events", "status": 200, "valid_json": true, "populated": true, "snippet": "50 events; domains: observability, next_action_changed; priority scoring present"},
+    {"path": "/api/umh/organism/tick", "status": 200, "valid_json": true, "populated": true, "snippet": "is_killed=false, is_paused=false, interval=25.5s, cycle_count=2, 16+ stages"},
+    {"path": "/api/umh/organism/metrics", "status": 200, "valid_json": true, "populated": true, "snippet": "6 dimensions: time_compression=1.0, composite=0.4667, 6 tasks tracked, 600s saved"},
+    {"path": "/api/umh/organism/loop/status", "status": 200, "valid_json": true, "populated": false, "snippet": "cycles=[], count=0 (no loop executions recorded)"},
+    {"path": "/api/umh/organism/projections", "status": 200, "valid_json": true, "populated": true, "snippet": "3 projections: lyfeos(healthy), eos(healthy), cos(healthy); live Fly health checks"},
+    {"path": "/api/umh/organism/leverage", "status": 200, "valid_json": true, "populated": true, "snippet": "composite=0.4667, 6 tasks, 600s operator time saved, $0 cost"},
+    {"path": "/api/umh/organism/bottlenecks", "status": 200, "valid_json": true, "populated": true, "snippet": "9 active bottlenecks; top: cc_sdk slow_runtime (medium), 10000ms avg latency"},
+    {"path": "/api/umh/organism/physics", "status": 200, "valid_json": true, "populated": false, "snippet": "0 objectives, no blocking nodes, no critical paths (physics cold-start)"},
+    {"path": "/api/umh/organism/compression", "status": 200, "valid_json": true, "populated": false, "snippet": "compression_ratio=1.0, 6 autonomous, 0 manual, 0 automation candidates"}
+  ],
+  "evidence": "11/11 endpoints return 200 with valid JSON. 8/11 populated with real data. 3/11 return empty/cold-start data (loop/status, physics, compression) which is expected for a system with only 2 tick cycles. Organism status shows full runtime with 16+ tick stages, 3 registered agents, 50 events, live projection health checks probing all 3 Fly apps. Bottleneck detection active with 9 findings including cc_sdk latency. Leverage tracking operational at composite 0.4667.",
+  "gaps": [
+    {"id": "d5-gap-1", "description": "loop/status returns empty — no loop executions recorded yet", "severity": "LOW"},
+    {"id": "d5-gap-2", "description": "physics returns 0 objectives — no objective graph populated", "severity": "LOW"},
+    {"id": "d5-gap-3", "description": "compression shows 0 automation candidates — cold start", "severity": "LOW"},
+    {"id": "d5-gap-4", "description": "operator-acceptance/readiness endpoint caused operator hang on find command timeout — stability issue", "severity": "MEDIUM"}
+  ]
+}
