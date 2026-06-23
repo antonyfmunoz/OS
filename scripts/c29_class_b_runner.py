@@ -22,8 +22,10 @@ import asyncio
 import logging
 import os
 import platform
+import re
 import sys
 import time
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -194,6 +196,26 @@ def _auth_state_path() -> Path:
 # ---------------------------------------------------------------------------
 
 
+_SENSITIVE_RE = re.compile(
+    r'(eyJ[A-Za-z0-9_-]{20,}\.)'
+    r'|(Bearer\s+\S+)'
+    r'|(__session=[^\s&;]+)'
+    r'|(sk_live_\S+)'
+    r'|(clerk_\S+)'
+    r'|(token=[^\s&;]+)',
+    re.IGNORECASE,
+)
+
+
+def _scrub(text: str) -> str:
+    return _SENSITIVE_RE.sub("[REDACTED]", text)
+
+
+def _scrub_url(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    return urllib.parse.urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
+
+
 class EvidenceCollector:
     """Captures console messages and network responses during a run."""
 
@@ -205,15 +227,15 @@ class EvidenceCollector:
         self.screenshots: list[str] = []
 
     def on_console(self, msg: Any) -> None:
-        text = f"[{msg.type}] {msg.text}"
+        text = _scrub(f"[{msg.type}] {msg.text}")
         if msg.type in ("error", "warning"):
             self.console_errors.append(text)
         self.console_log.append(text)
 
     def on_response(self, response: Any) -> None:
         status = response.status
-        url = response.url
-        entry = f"{status} {url}"
+        clean_url = _scrub_url(response.url)
+        entry = f"{status} {clean_url}"
         self.network_traces.append(entry)
         if status >= 400:
             self.network_errors.append(entry)
