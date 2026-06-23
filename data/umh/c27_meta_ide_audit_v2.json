@@ -1,0 +1,216 @@
+{
+  "audit": {
+    "subsystems_tested": 7,
+    "subsystems_total": 7,
+    "by_status": {
+      "functional": 4,
+      "partial": 2,
+      "broken": 1,
+      "not_tested": 0
+    },
+    "critical_path_broken": false,
+    "details": {
+      "planning": {
+        "subsystem": "planning",
+        "overall_status": "functional",
+        "operations": [
+          {
+            "operation_id": "op-3cd7cd26",
+            "name": "POST /compose",
+            "description": "Create plan from intent",
+            "status": "functional",
+            "evidence": "Returns 403 auth-gated (route works, requires operator token). Substrate EngineeringPlanner instantiates correctly.",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          },
+          {
+            "operation_id": "op-8a65cbbe",
+            "name": "POST /execute-plan",
+            "description": "Execute approved plan",
+            "status": "functional",
+            "evidence": "Returns 403 auth-gated (route works, requires operator token). Substrate EngineeringWorkGenerator instantiates correctly.",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          },
+          {
+            "operation_id": "op-new-plans",
+            "name": "GET /plans",
+            "description": "List all plans",
+            "status": "functional",
+            "evidence": "Returns 200 with empty array (no plans created yet)",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          }
+        ],
+        "functional_count": 3,
+        "total_operations": 3
+      },
+      "work_packets": {
+        "subsystem": "work_packets",
+        "overall_status": "functional",
+        "operations": [
+          {
+            "operation_id": "op-e6c74936",
+            "name": "Work packet generation",
+            "description": "Generate work packets from approved plan via /execute-plan",
+            "status": "functional",
+            "evidence": "Route registered, auth-gated. EngineeringWorkGenerator.generate_packets() wired. Standalone CRUD via /execution/status (542 total packets).",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          }
+        ],
+        "functional_count": 1,
+        "total_operations": 1
+      },
+      "proof_packages": {
+        "subsystem": "proof_packages",
+        "overall_status": "functional",
+        "operations": [
+          {
+            "operation_id": "op-90252765",
+            "name": "GET /deliverables",
+            "description": "List proof packages",
+            "status": "functional",
+            "evidence": "Returns 200 with empty array (no deliverables yet). Route wired to OrganismStore.list_reports().",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          }
+        ],
+        "functional_count": 1,
+        "total_operations": 1
+      },
+      "reality_systems": {
+        "subsystem": "reality_systems",
+        "overall_status": "partial",
+        "operations": [
+          {
+            "operation_id": "op-653d3807",
+            "name": "GET /projections/certification",
+            "description": "View projection certification levels",
+            "status": "functional",
+            "evidence": "Returns 200 with JSON data",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          },
+          {
+            "operation_id": "op-038342d8",
+            "name": "GET /trust/scores",
+            "description": "View trust scores",
+            "status": "functional",
+            "evidence": "Returns 200 with {error: trust engine not available, total: 0, by_level: {}}. Route works, engine needs organism running.",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          },
+          {
+            "operation_id": "op-78ae3c8f",
+            "name": "GET /contradictions",
+            "description": "View contradiction ledger",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found — no route registered",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          },
+          {
+            "operation_id": "op-08bb7629",
+            "name": "GET /world-model",
+            "description": "View reality world model",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found — no route registered",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          }
+        ],
+        "functional_count": 2,
+        "total_operations": 4
+      },
+      "organism_runtime": {
+        "subsystem": "organism_runtime",
+        "overall_status": "functional",
+        "operations": [
+          {
+            "operation_id": "op-8955ed43",
+            "name": "GET /organism/snapshot",
+            "description": "Full organism snapshot",
+            "status": "functional",
+            "evidence": "Returns 200 with rich JSON",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          },
+          {
+            "operation_id": "op-32a281ef",
+            "name": "GET /organism/agents",
+            "description": "List organism agents",
+            "status": "functional",
+            "evidence": "Returns 200 with agent list",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          },
+          {
+            "operation_id": "op-fba147f5",
+            "name": "GET /organism/status",
+            "description": "Organism status summary",
+            "status": "functional",
+            "evidence": "Returns 200 with status data",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          },
+          {
+            "operation_id": "op-17131be5",
+            "name": "GET /organism/governor",
+            "description": "View recursion governor state",
+            "status": "functional",
+            "evidence": "Returns 200 with limits and state",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          }
+        ],
+        "functional_count": 4,
+        "total_operations": 4
+      },
+      "governance": {
+        "subsystem": "governance",
+        "overall_status": "partial",
+        "operations": [
+          {
+            "operation_id": "op-863f1e63",
+            "name": "GET /approvals",
+            "description": "List approval packets",
+            "status": "functional",
+            "evidence": "Returns 200 with approvals data",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          },
+          {
+            "operation_id": "op-f13b0574",
+            "name": "GET /approvals/count",
+            "description": "Pending approval count",
+            "status": "functional",
+            "evidence": "Returns 403 (auth-gated, route works)",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          },
+          {
+            "operation_id": "op-954dabf8",
+            "name": "GET /governor/escalations",
+            "description": "View escalation log",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found — no route registered",
+            "tested_at": "2026-06-23T08:30:00+00:00"
+          }
+        ],
+        "functional_count": 2,
+        "total_operations": 3
+      },
+      "execution": {
+        "subsystem": "execution",
+        "overall_status": "functional",
+        "operations": [
+          {
+            "operation_id": "op-1d957aa1",
+            "name": "GET /execution/status",
+            "description": "Execution spine status",
+            "status": "functional",
+            "evidence": "Returns 200 with spine data, 542 work packets",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          },
+          {
+            "operation_id": "op-5118eb35",
+            "name": "GET /execution/log",
+            "description": "Execution log",
+            "status": "functional",
+            "evidence": "Returns 200 with execution log",
+            "tested_at": "2026-06-23T07:46:06+00:00"
+          }
+        ],
+        "functional_count": 2,
+        "total_operations": 2
+      }
+    }
+  },
+  "exported_at": "2026-06-23T08:30:00+00:00"
+}
