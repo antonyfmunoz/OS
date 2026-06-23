@@ -476,32 +476,72 @@ Build the corpus of 40+ real tasks from actual project roadmaps. NOT synthetic.
 
 ---
 
-### Phase 3 — Benchmark Execution (the actual runs)
+### Phase 3 — Benchmark Execution (two-stage)
 
-Execute tasks on both tracks. Runs until statistical significance is achieved.
+Two-stage execution: Class B controlled runs establish the baseline dataset,
+then Class A production runs prove the territory matches the map.
 
-**3.1 — Track A execution (legacy workflow)**
-- Operator performs task using legacy tools
-- Records all fields including cognitive load (reconstruction steps, context searches, etc.)
-- For interruption tests: switch projects, return, log resume effort
-- For drift tests: operator must detect planted divergence manually
+**Stage 1: Class B Controlled Runs (Playwright on Beast)**
 
-**3.2 — Track B execution (UMH workflow)**
-- Operator performs task through cockpit with browser evidence
-- Mandatory test path per spec
-- Every escape logged with reason
-- Cognitive load measured from browser evidence (panel hops, searches)
-- Interruption resistance measured from TTRC + context accuracy
-- Reality drift detection measured from cockpit alerting
+Playwright drives Chromium on Beast Session 1 against the live cockpit at
+universalmetaharness.tech. Scripts interact via real clicks, real typing,
+real navigation — same browser actions a human performs. The only difference
+from Class A is the scenario is scripted.
 
-**3.3 — Longitudinal checkpoints (every 10 runs)**
-- 5-question recall challenge on both tracks
-- Tests whether UMH continuity system retains institutional memory
+**3.1 — Controlled Legacy simulation (Track A)**
+- Playwright script simulates legacy workflow for each task category:
+  - BUG_FIX: terminal + grep + editor + manual git flow
+  - FEATURE: VS Code + terminal + manual deploy
+  - REFACTOR: editor + file navigation + manual verification
+  - DEPLOY: CLI deploy commands + manual health checks
+  - RECOVERY: terminal diagnostics + manual rollback
+- Measures: duration, context switches, manual reconstructions, cognitive load
+- Evidence class: B_CONTROLLED (weight 0.625)
 
-**3.4 — Incremental scoring**
-- After every 5 run pairs, recompute all scores
-- Dashboard: running HTI, 10 comparative scores, 10 UMH metrics, workday coverage
-- Benchmark ends when: (a) minimum 20 runs AND (b) HTI confidence ±5 or narrower
+**3.2 — Controlled UMH execution (Track B)**
+- Playwright script drives the cockpit for each task:
+  - Navigate to relevant panel via sidebar clicks
+  - Use Meta IDE for code tasks (file tree, editor, preview)
+  - Check governance panel for approval workflows
+  - Verify awareness (repos, branches, containers visible in cockpit)
+  - Test continuity: close tab, reopen, measure context recovery
+  - Test interruption: switch projects mid-task, measure resume time
+  - For drift tasks: check if cockpit surfaces the planted divergence
+  - Capture: screenshots, panel hops, context searches, TTRC
+- All interactions via page.click(), page.fill(), page.waitForSelector()
+- No API calls, no data injection, no UI bypass
+- Evidence class: B_CONTROLLED (weight 0.625)
+
+**3.3 — Controlled checkpoints (every 10 runs)**
+- Automated recall challenge: can cockpit surface answers to 5 questions
+  about prior runs without operator memory?
+- Track A baseline: scripted search through terminal history
+- Track B test: navigate cockpit panels to find the answers
+
+**3.4 — Controlled incremental scoring**
+- After every 5 run pairs: --dashboard shows running scores
+- Class B dataset identifies: where UMH wins, where it loses, coverage gaps
+- Output: prioritized list for Stage 2 field testing
+
+**Stage 2: Class A Production Field Testing (operator-driven)**
+
+Operator performs real roadmap work informed by Class B results. Targeted,
+not blind — focus on the tasks where Class B showed the biggest delta.
+
+**3.5 — Production field test (Track A)**
+- Operator does real work using legacy tools (Claude Code + Termius + VS Code)
+- Records observations during natural workflow
+- Minimum 15 Class A+B runs required for certification
+
+**3.6 — Production field test (Track B)**
+- Operator does the same real work through cockpit
+- Browser evidence collected automatically by Playwright observer
+- All cockpit escapes logged with reason
+
+**3.7 — Final scoring**
+- --dashboard shows combined Class A + B scores
+- Evidence-weighted means ensure Class A dominates the verdict
+- Benchmark ends when: (a) minimum 20 runs AND (b) 15+ A+B runs
 
 ---
 
@@ -549,16 +589,21 @@ Execute tasks on both tracks. Runs until statistical significance is achieved.
 ## Dependencies & Ordering
 
 ```
-Phase 1 (framework) ─── BLOCKS ALL
+Phase 1 (framework) ─── DONE (191 tests, 6 files, 5523 lines)
     │
-    ├── Phase 2 (task corpus) ─── can start during Phase 1 as task list
+    ├── Phase 2 (task corpus) ─── DONE (58 tasks, all distribution reqs met)
     │
-    └── Phase 3 (execution) ─── needs Phase 1 + Phase 2
-            │
-            └── Phase 4 (certification) ─── needs Phase 3 complete
+    ├── Phase 3 Stage 1 (Class B controlled) ─── NEXT (Playwright on Beast)
+    │       │
+    │       └── Phase 3 Stage 2 (Class A production) ─── operator field test
+    │               │
+    │               └── Phase 4 (certification) ─── needs 20+ runs, 15+ A+B
+    │
+    └── Operational tooling ─── DONE (--next, --list-tasks, --dashboard)
 ```
 
-Phase 1 is the only build phase. Phases 2-4 are operational.
+Phases 1-2 are build phases (complete). Phase 3 Stage 1 is automated.
+Phase 3 Stage 2 and Phase 4 require operator participation.
 
 ---
 
