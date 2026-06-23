@@ -86,7 +86,7 @@ export const useActionsStore = create<ActionsState>((set, get) => ({
   executeAction: async (actionId: string, params: Record<string, string>) => {
     set({ executing: actionId, error: null })
     try {
-      const data = await fetchApi('/api/umh/actions/execute', {
+      const data = await fetchApi('/actions/execute', {
         method: 'POST',
         body: JSON.stringify({ action_id: actionId, parameters: params }),
       })
@@ -101,7 +101,7 @@ export const useActionsStore = create<ActionsState>((set, get) => ({
 
   approveAction: async (planId: string) => {
     try {
-      const data = await fetchApi(`/api/umh/actions/${planId}/approve`, {
+      const data = await fetchApi(`/actions/${planId}/approve`, {
         method: 'POST',
       })
       get().fetchHistory()
@@ -114,7 +114,7 @@ export const useActionsStore = create<ActionsState>((set, get) => ({
 
   fetchHistory: async (limit = 20) => {
     try {
-      const data = await fetchApi(`/api/umh/actions/history?limit=${limit}`)
+      const data = await fetchApi(`/actions/history?limit=${limit}`)
       set({ history: data.history ?? [] })
     } catch {
       // silent — history is non-critical

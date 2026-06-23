@@ -138,7 +138,7 @@ export function CommandsPanel() {
 
   const handleApprove = async (commandId: string) => {
     try {
-      await fetchApi(`/api/umh/command/${commandId}/approve`, { method: 'POST' })
+      await fetchApi(`/command/${commandId}/approve`, { method: 'POST' })
       refresh()
     } catch (e) {
       console.error('approve failed:', e)
@@ -147,7 +147,7 @@ export function CommandsPanel() {
 
   const handleReject = async (commandId: string) => {
     try {
-      await fetchApi(`/api/umh/command/${commandId}/reject`, {
+      await fetchApi(`/command/${commandId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: 'Rejected via cockpit' }),
