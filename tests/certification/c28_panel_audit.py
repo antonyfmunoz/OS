@@ -18,26 +18,30 @@ from typing import Any
 
 AUTH_STATE_DIR = os.path.join(os.path.expanduser("~"), ".umh", "playwright-auth")
 
+# (route_id, label) — must match cockpit/src/renderer/types/routes.ts
+# Only primary+system visibility panels shown in LeftRail
 PANELS = [
-    ("command-center", "Command Center"),
-    ("meta-ide", "Meta IDE"),
-    ("execution", "Execution"),
-    ("unified-execution", "Unified Execution"),
+    ("commandcenter", "Command Center"),
     ("work", "Work"),
-    ("planning", "Planning"),
-    ("organism-map", "Organism Map"),
-    ("governance", "Governance"),
+    ("agents", "Agents"),
+    ("approvals", "Approvals"),
+    ("activity", "Activity"),
+    ("editor", "Meta IDE"),
+    ("execution", "Execution"),
+    ("organismmap", "Organism Map"),
+    ("rooms", "Conference Rooms"),
+    ("vision", "Vision"),
+    ("broadcast", "Broadcast"),
+    ("knowledge", "Knowledge"),
     ("settings", "Settings"),
-    ("deliverables", "Deliverables"),
-    ("actions", "Actions"),
-    ("distributed-runtime", "Distributed Runtime"),
-    ("operator-continuity", "Operator Continuity"),
-    ("operator-home", "Operator Home"),
-    ("screen-awareness", "Screen Awareness"),
-    ("service-graph", "Service Graph"),
-    ("state-authority", "State Authority"),
-    ("umh-nodes", "UMH Nodes"),
-    ("workspace-topology", "Workspace Topology"),
+    ("unifiedexecution", "Unified Execution"),
+    ("buildloop", "Build Loop"),
+    ("projectionintegration", "Projection Integration"),
+    ("orchestratorawareness", "Orchestrator"),
+    ("operatingloopview", "Operating Loop"),
+    ("sessionresume", "Session Resume"),
+    ("delegation", "Delegation"),
+    ("operations", "Operations"),
 ]
 
 
@@ -72,7 +76,6 @@ class PanelEvidence:
 
 
 def _get_auth_state(browser_type: str = "chromium") -> str:
-    """Get Clerk auth state path."""
     return os.path.join(AUTH_STATE_DIR, f"{browser_type}_state.json")
 
 
@@ -81,10 +84,7 @@ def audit_panels(
     screenshot_dir: str = "",
     panels: list[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
-    """Run panel audit with Playwright.
-
-    Returns structured evidence dict.
-    """
+    """Run panel audit with Playwright. Returns structured evidence dict."""
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -95,7 +95,7 @@ def audit_panels(
 
     if not screenshot_dir:
         screenshot_dir = os.path.join(
-            os.environ.get("UMH_ROOT", "C:\\dev\\dev\\OS"),
+            os.environ.get("UMH_ROOT", r"C:\dev\dev\OS"),
             "data", "certification", "c28", "screenshots",
         )
     os.makedirs(screenshot_dir, exist_ok=True)
@@ -135,7 +135,7 @@ def audit_panels(
         page.on("response", on_response)
 
         page.goto(url, wait_until="load", timeout=30000)
-        time.sleep(3)
+        time.sleep(5)
 
         if not has_auth:
             print("WARNING: No auth state — panels may not render behind Clerk", file=sys.stderr)
@@ -150,34 +150,51 @@ def audit_panels(
             )
 
             try:
-                nav_item = page.locator(f'[data-panel="{panel_id}"], a[href*="{panel_id}"]')
-                if nav_item.count() > 0:
-                    nav_item.first.click()
+                # Strategy 1: Click nav button by title attribute (collapsed LeftRail)
+                nav_btn = page.locator(f'button[title="{panel_label}"]')
+                if nav_btn.count() > 0:
+                    nav_btn.first.click()
                     time.sleep(2)
                     evidence.navigated = True
                 else:
-                    js_nav = f"""
-                        const store = window.__cockpitStore || window.__zustand_stores?.cockpit;
-                        if (store) {{
-                            store.getState().setActivePanel('{panel_id}');
-                            true;
-                        }} else {{
-                            false;
-                        }}
-                    """
-                    try:
-                        navigated = page.evaluate(js_nav)
+                    # Strategy 2: Click by visible text (expanded LeftRail)
+                    text_btn = page.locator(f'button:has-text("{panel_label}")')
+                    if text_btn.count() > 0:
+                        text_btn.first.click()
+                        time.sleep(2)
+                        evidence.navigated = True
+                    else:
+                        # Strategy 3: Use keyboard shortcut if available
+                        # Strategy 4: Use page.evaluate to call store directly
+                        navigated = page.evaluate(f"""() => {{
+                            // Find the Zustand store via React internals
+                            const root = document.getElementById('root');
+                            if (!root || !root._reactRootContainer && !root.__reactFiber) {{
+                                // Try direct store manipulation via module scope
+                                const buttons = document.querySelectorAll('nav button');
+                                for (const b of buttons) {{
+                                    if (b.title === '{panel_label}' ||
+                                        b.textContent?.trim().toUpperCase() === '{panel_label}'.toUpperCase()) {{
+                                        b.click();
+                                        return true;
+                                    }}
+                                }}
+                                return false;
+                            }}
+                            return false;
+                        }}""")
                         evidence.navigated = bool(navigated)
                         if evidence.navigated:
                             time.sleep(2)
-                    except Exception:
-                        evidence.navigated = False
-                        evidence.notes = "Panel not reachable via nav or store"
+                        else:
+                            evidence.notes = f"Panel '{panel_label}' not reachable via nav buttons"
 
                 if evidence.navigated:
+                    # Check if content rendered
                     main_content = page.locator('main, [role="main"], .panel-content, [class*="panel"]')
                     evidence.rendered = main_content.count() > 0
 
+                    # Count interactive elements
                     buttons = page.locator('button:visible')
                     inputs = page.locator('input:visible, select:visible, textarea:visible')
                     evidence.interactive_elements = buttons.count() + inputs.count()
@@ -195,7 +212,8 @@ def audit_panels(
             evidence.console_messages = list(console_errors)
 
             results[panel_id] = evidence.to_dict()
-            print(f"  {panel_label}: navigated={evidence.navigated} "
+            status = "PASS" if evidence.navigated and evidence.rendered else "FAIL"
+            print(f"  [{status}] {panel_label}: navigated={evidence.navigated} "
                   f"rendered={evidence.rendered} "
                   f"errors={evidence.console_errors} "
                   f"interactive={evidence.interactive_elements}",
@@ -218,7 +236,8 @@ def main():
     panels = None
     if args.panels:
         panel_ids = [p.strip() for p in args.panels.split(",")]
-        panels = [(pid, pid) for pid in panel_ids]
+        panel_map = {pid: plabel for pid, plabel in PANELS}
+        panels = [(pid, panel_map.get(pid, pid)) for pid in panel_ids]
 
     result = audit_panels(
         url=args.url,
@@ -230,11 +249,18 @@ def main():
         print(json.dumps(result, indent=2))
     else:
         audit = result.get("panel_audit", {})
+        nav_count = sum(1 for d in audit.values() if d.get("navigated"))
+        render_count = sum(1 for d in audit.values() if d.get("rendered"))
+        error_count = sum(d.get("console_errors", 0) for d in audit.values())
+        print(f"\n{'='*50}")
+        print(f"Panel Audit Summary: {nav_count}/{len(audit)} navigated, "
+              f"{render_count}/{len(audit)} rendered, {error_count} total console errors")
         for pid, data in audit.items():
             status = "PASS" if data.get("rendered") and data.get("console_errors", 0) == 0 else "FAIL"
-            print(f"[{status}] {data.get('panel_label', pid)}: "
+            print(f"  [{status}] {data.get('panel_label', pid)}: "
                   f"nav={data.get('navigated')} render={data.get('rendered')} "
-                  f"errors={data.get('console_errors', 0)}")
+                  f"errors={data.get('console_errors', 0)} "
+                  f"interactive={data.get('interactive_elements', 0)}")
 
 
 if __name__ == "__main__":
