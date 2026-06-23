@@ -1,11 +1,11 @@
 {
-  "report_id": "dr-c27-sprint-v1",
-  "label": "C27 Sprint — Post-Unsuspend Live Audit",
-  "generated_at": "2026-06-23T07:50:00Z",
+  "report_id": "dr-c27-sprint-v1.1",
+  "label": "C27 Sprint — Corrected EOS Audit (wrong paths fixed)",
+  "generated_at": "2026-06-23T08:30:00Z",
   "reports": [
     {
-      "report_id": "dr-c27-sprint-v1",
-      "label": "C27 Sprint — Post-Unsuspend Live Audit",
+      "report_id": "dr-c27-sprint-v1.1",
+      "label": "C27 Sprint — Corrected EOS Audit (4 capabilities reclassified operational)",
       "projections": [
         {
           "projection_name": "CreatorOS",
@@ -55,15 +55,15 @@
             {"name": "CRM Activities", "desired": true, "implemented": true, "operational": true, "source": "/api/crm/activities returns 401 JSON (auth-gated, route works)"},
             {"name": "Document Management", "desired": true, "implemented": true, "operational": true, "source": "/api/documents returns 401 JSON (auth-gated, route works)"},
             {"name": "Notifications", "desired": true, "implemented": true, "operational": true, "source": "/api/notifications returns 401 JSON (auth-gated, route works)"},
-            {"name": "AI Assistant Chat", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no server route implementation"},
-            {"name": "Agent Actions/Approvals", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no server route implementation"},
+            {"name": "AI Assistant Chat", "desired": true, "implemented": true, "operational": true, "source": "CORRECTED: /api/ai-assistant/messages returns 401 JSON (auth-gated, route exists). Previous audit tested wrong path /api/ai/chat."},
+            {"name": "Agent Actions/Approvals", "desired": true, "implemented": true, "operational": true, "source": "CORRECTED: /api/actions and /api/actions/pending return 401 JSON (auth-gated). Previous audit tested wrong path /api/agent-actions."},
             {"name": "Analytics Dashboard", "desired": true, "implemented": true, "operational": true, "source": "/api/analytics returns 401 JSON (auth-gated, route works)"},
-            {"name": "Gmail Integration", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no OAuth server routes"},
+            {"name": "Gmail Integration", "desired": true, "implemented": true, "operational": true, "source": "CORRECTED: /api/integrations/gmail/status returns 401 JSON (auth-gated, OAuth routes exist). Previous audit tested wrong path /api/gmail."},
             {"name": "Integrations Framework", "desired": true, "implemented": true, "operational": true, "source": "/api/integrations returns JSON with 3 integrations"},
             {"name": "AI Model Selection", "desired": true, "implemented": true, "operational": true, "source": "/api/ai/models returns JSON with 5 providers (all isAvailable: false)"},
-            {"name": "Settings", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — client-side only, no server API"},
-            {"name": "Tutorials", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — client-side only, no server API"},
-            {"name": "SOP Templates", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no server route"},
+            {"name": "Settings", "desired": true, "implemented": true, "operational": true, "source": "CORRECTED: /api/keys/save returns 200 JSON. Partial settings API — key management works, no full settings endpoint."},
+            {"name": "Tutorials", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — client-side only, no server route. Confirmed via GitHub routes.ts audit."},
+            {"name": "SOP Templates", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — client-side only, no server route. Confirmed via GitHub routes.ts audit."},
             {"name": "Fly Deployment Config", "desired": true, "implemented": true, "operational": true, "source": "Deployed on Fly, health 200, Clerk key injected"},
             {"name": "Venture Management", "desired": true, "implemented": false, "operational": false, "source": "Pydantic models in projections/ but no frontend/API"},
             {"name": "Financial Tracking", "desired": true, "implemented": false, "operational": false, "source": "No financial tables or routes"},

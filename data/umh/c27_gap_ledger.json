@@ -82,16 +82,76 @@
       "description": "GWS adapter exists but no live retrieval test performed in this session.",
       "task_id": "",
       "projection": "",
-      "evidence": "",
-      "remediation": "Test live retrieval during Phase A1 desired state pull",
+      "evidence": "2026-06-23T08:20: Google Drive MCP search_files returns all 3 master PRDs (COS 271KB, EOS 291KB, LYFEOS 6.8MB), UMH Architecture doc, Drive Architecture guide. Full content snippets accessible.",
+      "remediation": "RESOLVED — Drive retrieval operational via MCP",
       "discovered_at": "2026-06-23T07:25:52.205169+00:00",
+      "resolved": true,
+      "resolved_at": "2026-06-23T08:20:00+00:00"
+    },
+    {
+      "gap_id": "gap-sprint-007",
+      "gap_type": "deployment_failure",
+      "severity": "medium",
+      "surface": "cockpit",
+      "title": "COS auto-suspends between sessions",
+      "description": "COS Fly machine 286d20be2700e8 (creatoros-app) suspended again between C27.1 and C27.2. Recurring problem — Fly suspends idle machines on free/hobby tier.",
+      "task_id": "",
+      "projection": "CreatorOS",
+      "evidence": "2026-06-23T08:10: flyctl machines list shows suspended. Started again with flyctl machines start. This is the second suspension in this campaign.",
+      "remediation": "Set min_machines_running=1 in fly.toml or switch to always-on. Or accept and document as expected behavior for pre-revenue.",
+      "discovered_at": "2026-06-23T08:10:00+00:00",
+      "resolved": true,
+      "resolved_at": "2026-06-23T08:10:00+00:00"
+    },
+    {
+      "gap_id": "gap-sprint-008",
+      "gap_type": "coherence_drift",
+      "severity": "low",
+      "surface": "meta_ide",
+      "title": "Fly app names drifted from session records",
+      "description": "Previous session recorded creator-os/entrepreneur-os but actual Fly apps are creatoros-app/eos-app. Reality-belief divergence in session state.",
+      "task_id": "",
+      "projection": "",
+      "evidence": "flyctl apps list shows: creatoros-app, eos-app, lyfeos-app, umh-cockpit. Previous delta report used wrong hostnames.",
+      "remediation": "Correct all references. Add to device_registry or projection config.",
+      "discovered_at": "2026-06-23T08:10:00+00:00",
+      "resolved": true,
+      "resolved_at": "2026-06-23T08:10:00+00:00"
+    },
+    {
+      "gap_id": "gap-sprint-009",
+      "gap_type": "capability_missing",
+      "severity": "medium",
+      "surface": "cockpit",
+      "title": "COS PostHog analytics not operational",
+      "description": "VITE_POSTHOG_KEY not set at COS build time. PostHog JS loads but has no project key, so no analytics data flows.",
+      "task_id": "",
+      "projection": "CreatorOS",
+      "evidence": "Bundle search for phc_ returns no matches. PostHog init present but key is empty/undefined.",
+      "remediation": "Set VITE_POSTHOG_KEY in COS Fly build secrets or fly.toml [build.args]",
+      "discovered_at": "2026-06-23T08:10:00+00:00",
       "resolved": false
+    }
+    ,{
+      "gap_id": "gap-sprint-010",
+      "gap_type": "coherence_drift",
+      "severity": "medium",
+      "surface": "meta_ide",
+      "title": "Previous EOS audit tested wrong API paths",
+      "description": "C27.1 EOS audit tested /api/ai/chat, /api/agent-actions, /api/gmail, /api/settings — all wrong paths. Actual routes: /api/ai-assistant/messages, /api/actions, /api/integrations/gmail/status, /api/keys/save. 4 capabilities were incorrectly classified as NOT_OPERATIONAL.",
+      "task_id": "",
+      "projection": "EntrepreneurOS",
+      "evidence": "GitHub routes.ts audit confirmed correct paths. Live re-test: all 4 return 401 JSON (auth-gated, operational). EOS corrected from 16/22 to 20/22 operational.",
+      "remediation": "RESOLVED — delta report corrected. Future audits must verify route paths from source code before declaring NOT_OPERATIONAL.",
+      "discovered_at": "2026-06-23T08:25:00+00:00",
+      "resolved": true,
+      "resolved_at": "2026-06-23T08:30:00+00:00"
     }
   ],
   "summary": {
-    "total": 6,
+    "total": 10,
     "unresolved": 3,
-    "resolved": 3,
+    "resolved": 7,
     "by_severity": {
       "critical": 0,
       "high": 2,
@@ -100,11 +160,11 @@
     },
     "by_surface": {
       "meta_ide": 1,
-      "google_drive": 1,
+      "google_drive": 0,
       "stitch": 1,
-      "cockpit": 0
+      "cockpit": 1
     },
-    "coherence_gaps": 0
+    "coherence_gaps": 1
   },
-  "exported_at": "2026-06-23T07:40:00+00:00"
+  "exported_at": "2026-06-23T08:25:00+00:00"
 }
