@@ -415,11 +415,13 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
 
     browse_reqs = [r for r in network_log if "/workspace/browse" in r["url"] or "/workspace/remote-browse" in r["url"]]
     error_reqs = [r for r in browse_reqs if not r["ok"]]
+    all_failed = [r for r in network_log if not r["ok"]]
     network_layer = {
         "endpoints_checked": list({r["url"].split("?")[0].split("/api/umh")[-1] for r in browse_reqs}),
         "total_requests": len(browse_reqs),
         "error_count": len(error_reqs),
         "errors": error_reqs,
+        "all_failed_requests": [{"url": r["url"], "status": r["status"]} for r in all_failed[:10]],
     }
 
     # Layer 3: Console

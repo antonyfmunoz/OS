@@ -262,7 +262,7 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
     set({ loading: true, error: null })
     try {
       const data = await fetchApi<{ repositories: Repository[]; generated_at: number }>(
-        '/api/umh/meta-ide/repositories',
+        '/meta-ide/repositories',
       )
       set({ repositories: data.repositories, loading: false })
     } catch (err) {
@@ -273,7 +273,7 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   fetchWorkspace: async () => {
     set({ loading: true, error: null })
     try {
-      const data = await fetchApi<WorkspaceData>('/api/umh/meta-ide/workspace')
+      const data = await fetchApi<WorkspaceData>('/meta-ide/workspace')
       set({ workspace: data, loading: false })
     } catch (err) {
       set({ error: String(err), loading: false })
@@ -283,7 +283,7 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   fetchRoadmap: async () => {
     set({ loading: true, error: null })
     try {
-      const data = await fetchApi<RoadmapData>('/api/umh/meta-ide/roadmap')
+      const data = await fetchApi<RoadmapData>('/meta-ide/roadmap')
       set({ roadmap: data, loading: false })
     } catch (err) {
       set({ error: String(err), loading: false })
@@ -294,7 +294,7 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
     set({ loading: true, error: null })
     try {
       const data = await fetchApi<{ risks: RiskItem[]; overall_risk: string }>(
-        '/api/umh/meta-ide/risks',
+        '/meta-ide/risks',
       )
       set({ risks: data.risks, overallRisk: data.overall_risk, loading: false })
     } catch (err) {
@@ -306,7 +306,7 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
     set({ loading: true, error: null })
     try {
       const data = await fetchApi<WorkspaceObservation>(
-        '/api/umh/meta-ide/workspace-observation',
+        '/meta-ide/workspace-observation',
       )
       set({ observation: data, loading: false })
     } catch (err) {

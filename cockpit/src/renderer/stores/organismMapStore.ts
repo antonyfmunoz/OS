@@ -33,7 +33,7 @@ export const useOrganismMapStore = create<OrganismMapState>((set) => ({
   fetchTopology: async () => {
     set({ loading: true, error: null })
     try {
-      const data = await fetchApi('/api/umh/organism-map/topology')
+      const data = await fetchApi('/organism-map/topology')
       set({
         topology: {
           nodes: data.nodes ?? [],
@@ -48,7 +48,7 @@ export const useOrganismMapStore = create<OrganismMapState>((set) => ({
 
   fetchHealth: async () => {
     try {
-      const data = await fetchApi('/api/umh/organism-map/health')
+      const data = await fetchApi('/organism-map/health')
       set({ health: data })
     } catch (e) {
       set({ error: String(e) })
@@ -58,7 +58,7 @@ export const useOrganismMapStore = create<OrganismMapState>((set) => ({
   fetchNodeDetail: async (nodeId: string) => {
     set({ loading: true })
     try {
-      const data = await fetchApi(`/api/umh/organism-map/node/${encodeURIComponent(nodeId)}`)
+      const data = await fetchApi(`/organism-map/node/${encodeURIComponent(nodeId)}`)
       set({ selectedNode: data, loading: false })
     } catch (e) {
       set({ error: String(e), loading: false })

@@ -43,7 +43,7 @@ export function ResumeCard() {
       }
     }
 
-    fetchApi<ResumeSnapshot>('/api/umh/workstation/resume')
+    fetchApi<ResumeSnapshot>('/workstation/resume')
       .then(data => {
         if (data.active_project || data.active_file || data.current_objective) {
           setSnapshot(data)

@@ -121,10 +121,10 @@ export function WorkstationPanel() {
   const refresh = useCallback(async () => {
     try {
       const [stateRes, tplRes, snapRes, recRes] = await Promise.all([
-        fetchApi('/api/umh/workstation/state'),
-        fetchApi('/api/umh/workstation/templates'),
-        fetchApi('/api/umh/workstation/snapshots?limit=20'),
-        fetchApi('/api/umh/workstation/recommendations'),
+        fetchApi('/workstation/state'),
+        fetchApi('/workstation/templates'),
+        fetchApi('/workstation/snapshots?limit=20'),
+        fetchApi('/workstation/recommendations'),
       ])
       if (stateRes?.success) setState(stateRes.state)
       if (tplRes?.success) setTemplates(tplRes.templates || [])
@@ -140,7 +140,7 @@ export function WorkstationPanel() {
     if (!intentInput.trim() || loading) return
     setLoading(true)
     try {
-      const res = await fetchApi('/api/umh/workstation/prepare', {
+      const res = await fetchApi('/workstation/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intent: intentInput }),
@@ -153,7 +153,7 @@ export function WorkstationPanel() {
   const handleSnapshot = async () => {
     setLoading(true)
     try {
-      await fetchApi('/api/umh/workstation/snapshots/take', {
+      await fetchApi('/workstation/snapshots/take', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trigger: 'manual', operator_notes: '' }),
@@ -166,7 +166,7 @@ export function WorkstationPanel() {
   const handleRestore = async (snapshotId: string) => {
     setLoading(true)
     try {
-      const res = await fetchApi('/api/umh/workstation/restore', {
+      const res = await fetchApi('/workstation/restore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ snapshot_id: snapshotId }),
