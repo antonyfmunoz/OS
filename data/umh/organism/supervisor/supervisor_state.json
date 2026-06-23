@@ -87,6 +87,17 @@
       "backoff_seconds": 5.0,
       "is_paused": false,
       "error": ""
+    },
+    "mesh:windows-desktop": {
+      "runtime_id": "mesh:windows-desktop",
+      "health": "alive",
+      "generation": 0,
+      "restart_count": 0,
+      "daily_restart_count": 0,
+      "crashes_in_window": 0,
+      "backoff_seconds": 5.0,
+      "is_paused": false,
+      "error": ""
     }
   }
 }
