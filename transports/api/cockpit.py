@@ -212,6 +212,37 @@ def _mount_spine_router() -> None:
 
 _mount_spine_router()
 
+# ── C27: Chat routes extracted to cockpit_chat_routes.py ─────────────────────
+
+
+def _mount_chat_router() -> None:
+    from transports.api import cockpit_chat_routes
+
+    cockpit_chat_routes.configure(
+        get_organism_fn=_get_organism,
+        push_chat_message_fn=cockpit_core_routes.push_chat_message,
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_chat_routes.chat_router)
+
+
+_mount_chat_router()
+
+# ── C27: Execution/loop routes extracted to cockpit_execution_loop_routes.py ──
+
+
+def _mount_execution_loop_router() -> None:
+    from transports.api import cockpit_execution_loop_routes
+
+    cockpit_execution_loop_routes.configure(
+        get_organism_fn=_get_organism,
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_execution_loop_routes.execution_loop_router)
+
+
+_mount_execution_loop_router()
+
 # ── Phase 10.0: Organism core routes extracted to cockpit_organism_routes.py ──
 
 
@@ -240,6 +271,22 @@ def _mount_entity_router() -> None:
 
 
 _mount_entity_router()
+
+
+def _mount_meta_ide_critical_router() -> None:
+    from transports.api import cockpit_meta_ide_critical_routes
+
+    cockpit_meta_ide_critical_routes.configure(
+        get_organism_fn=_get_organism,
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_meta_ide_critical_routes.meta_ide_critical_router)
+
+
+try:
+    _mount_meta_ide_critical_router()
+except Exception:
+    logger.warning("meta-ide-critical routes failed to mount", exc_info=True)
 
 
 def _mount_economy_router() -> None:
