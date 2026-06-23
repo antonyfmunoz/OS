@@ -1,0 +1,13 @@
+{
+  "coding": true,
+  "debugging": true,
+  "review": true,
+  "deployment": true,
+  "planning": true,
+  "continuity": true,
+  "documentation": true,
+  "approvals": true,
+  "knowledge_retrieval": true,
+  "runtime_inspection": true,
+  "coverage_score": 1.0
+}
