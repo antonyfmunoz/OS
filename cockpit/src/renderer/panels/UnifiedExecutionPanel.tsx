@@ -10,6 +10,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { useUnifiedExecutionStore } from '../stores/unifiedExecutionStore'
+import { ExecutorBadge } from '../components/ExecutorBadge'
 
 type Tab = 'active' | 'approvals' | 'history'
 
@@ -108,6 +109,7 @@ export function UnifiedExecutionPanel() {
                        <Clock size={12} className="text-yellow-400" />}
                       <span className="text-xs font-mono text-text-primary">
                         {(s as Record<string, unknown>).label as string ?? `Stream ${i}`}
+                        <ExecutorBadge executorType={(s as Record<string, unknown>).executor_type as string} targetMachine={(s as Record<string, unknown>).target_machine as string} />
                       </span>
                     </div>
                     <span className={`text-[9px] font-mono px-2 py-0.5 rounded ${STATUS_COLORS[status] ?? 'text-text-tertiary bg-surface-raised'}`}>

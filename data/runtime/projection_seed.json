@@ -1,0 +1,20 @@
+[
+  {
+    "projection_id": "creatoros",
+    "name": "CreatorOS",
+    "preview_url": "https://creatoros-app.fly.dev",
+    "health_url": "https://creatoros-app.fly.dev/api/health"
+  },
+  {
+    "projection_id": "eos",
+    "name": "EntrepreneurOS",
+    "preview_url": "https://eos-app.fly.dev",
+    "health_url": "https://eos-app.fly.dev/api/health"
+  },
+  {
+    "projection_id": "lyfeos",
+    "name": "LyfeOS",
+    "preview_url": "https://lyfeos-app.fly.dev",
+    "health_url": "https://lyfeos-app.fly.dev/api/health"
+  }
+]

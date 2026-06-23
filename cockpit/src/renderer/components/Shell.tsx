@@ -82,8 +82,19 @@ import { PredictionPanel } from '../panels/PredictionPanel'
 import { ExecutivePanel } from '../panels/ExecutivePanel'
 import { GovernancePanel } from '../panels/GovernancePanel'
 import { OperationsPanel } from '../panels/OperationsPanel'
+import { ActionsPanel } from '../panels/ActionsPanel'
+import { DistributedRuntimePanel } from '../panels/DistributedRuntimePanel'
+import OperatorContinuityPanel from '../panels/OperatorContinuityPanel'
+import OperatorHomePanel from '../panels/OperatorHomePanel'
+import ScreenAwarenessPanel from '../panels/ScreenAwarenessPanel'
+import ServiceGraphPanel from '../panels/ServiceGraphPanel'
+import StateAuthorityPanel from '../panels/StateAuthorityPanel'
+import UMHNodePanel from '../panels/UMHNodePanel'
+import WorkspaceTopologyPanel from '../panels/WorkspaceTopologyPanel'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
+import { ResumeCard } from './ResumeCard'
+import { VoiceCommandBar } from './VoiceCommandBar'
 
 function ActivePanel() {
   const activePanel = useCockpitStore((s) => s.activePanel)
@@ -231,6 +242,24 @@ function ActivePanel() {
       return <GovernancePanel />
     case 'operations':
       return <OperationsPanel />
+    case 'actions':
+      return <ActionsPanel />
+    case 'distributedruntime':
+      return <DistributedRuntimePanel />
+    case 'operatorcontinuity':
+      return <OperatorContinuityPanel />
+    case 'operatorhome':
+      return <OperatorHomePanel />
+    case 'screenawareness':
+      return <ScreenAwarenessPanel />
+    case 'servicegraph':
+      return <ServiceGraphPanel />
+    case 'stateauthority':
+      return <StateAuthorityPanel />
+    case 'umhnode':
+      return <UMHNodePanel />
+    case 'workspacetopology':
+      return <WorkspaceTopologyPanel />
 
     default:
       return <DashboardPanel />
@@ -286,6 +315,7 @@ export function Shell() {
           <main className="flex-1 overflow-hidden bg-surface relative">
             <ActivePanel />
             <CallOverlay />
+            <ResumeCard />
           </main>
         </div>
 
@@ -293,6 +323,7 @@ export function Shell() {
       </div>
 
       <HudBar />
+      <VoiceCommandBar />
       <CommandPalette />
     </div>
   )

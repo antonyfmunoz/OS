@@ -63,6 +63,10 @@ class ProjectionRegistration:
     capabilities_consumed: list[str] = field(default_factory=list)
     routes_mounted: list[str] = field(default_factory=list)
     substrate_imports: list[str] = field(default_factory=list)
+    preview_url: str = ""
+    health_url: str = ""
+    last_build: str = ""
+    last_error: str = ""
     registered_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -251,6 +255,41 @@ class ProjectionPort:
             "all_clean": total_violations == 0,
         }
 
+    # ── Preview ─────────────────────────────────────────────────────
+
+    def get_preview(self, projection_id: str) -> dict[str, Any] | None:
+        reg = self._registrations.get(projection_id)
+        if reg is None:
+            return None
+        return {
+            "projection_id": reg.projection_id,
+            "name": reg.name,
+            "preview_url": reg.preview_url,
+            "health_url": reg.health_url,
+            "last_build": reg.last_build,
+            "last_error": reg.last_error,
+        }
+
+    def seed_from_config(self, config_path: str = "") -> int:
+        """Seed projections from a JSON config file (instance data, not substrate)."""
+        if not config_path:
+            config_path = os.path.join(_REPO_ROOT, "data", "runtime", "projection_seed.json")
+        if not os.path.exists(config_path):
+            return 0
+        try:
+            with open(config_path, "r") as f:
+                entries = json.load(f)
+            added = 0
+            for entry in entries:
+                reg = ProjectionRegistration.from_dict(entry)
+                if reg.projection_id not in self._registrations:
+                    self.register(reg)
+                    added += 1
+            return added
+        except Exception as exc:
+            logger.debug("Failed to seed from config: %s", exc)
+            return 0
+
     # ── Summary ────────────────────────────────────────────────────
 
     def summary(self) -> dict[str, Any]:
@@ -260,6 +299,8 @@ class ProjectionPort:
                 {
                     "name": r.name,
                     "projection_id": r.projection_id,
+                    "preview_url": r.preview_url,
+                    "health_url": r.health_url,
                     "capabilities_count": len(r.capabilities_consumed),
                     "routes_count": len(r.routes_mounted),
                 }

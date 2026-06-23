@@ -73,6 +73,15 @@ export type Panel =
   | 'executive'
   | 'governance'
   | 'operations'
+  | 'actions'
+  | 'distributedruntime'
+  | 'operatorcontinuity'
+  | 'operatorhome'
+  | 'screenawareness'
+  | 'servicegraph'
+  | 'stateauthority'
+  | 'umhnode'
+  | 'workspacetopology'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

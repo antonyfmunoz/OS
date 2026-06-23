@@ -44,6 +44,11 @@ import {
   Puzzle,
   CheckCircle2,
   Compass,
+  Home,
+  Network,
+  GitBranch,
+  Shield,
+  MonitorDot,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -137,6 +142,17 @@ export const ROUTES: RouteEntry[] = [
   { id: 'portfolio', label: 'Portfolio', icon: Briefcase, group: 'primary', visibility: 'dev', key: 'p' },
   { id: 'company', label: 'Company', icon: Building2, group: 'primary', visibility: 'dev', key: 'c' },
   { id: 'profile', label: 'Profile', icon: User, group: 'primary', visibility: 'dev', key: 'u' },
+
+  // C28 Phase 1.3 — Previously orphaned panels, now reachable via CommandPalette
+  { id: 'actions', label: 'Actions', icon: Zap, group: 'primary', visibility: 'dev', key: 'M' },
+  { id: 'distributedruntime', label: 'Distributed Runtime', icon: Network, group: 'primary', visibility: 'dev', key: ',' },
+  { id: 'operatorcontinuity', label: 'Operator Continuity', icon: RefreshCw, group: 'primary', visibility: 'dev', key: '.' },
+  { id: 'operatorhome', label: 'Operator Home', icon: Home, group: 'primary', visibility: 'dev', key: ';' },
+  { id: 'screenawareness', label: 'Screen Awareness', icon: MonitorDot, group: 'primary', visibility: 'dev', key: '[' },
+  { id: 'servicegraph', label: 'Service Graph', icon: GitBranch, group: 'primary', visibility: 'dev', key: ']' },
+  { id: 'stateauthority', label: 'State Authority', icon: Shield, group: 'primary', visibility: 'dev', key: '-' },
+  { id: 'umhnode', label: 'UMH Node', icon: Server, group: 'primary', visibility: 'dev', key: '=' },
+  { id: 'workspacetopology', label: 'Workspace Topology', icon: Map, group: 'primary', visibility: 'dev', key: '\\' },
 
   // Planned (searchable with [PLANNED] badge)
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'primary', visibility: 'planned', key: '6' },

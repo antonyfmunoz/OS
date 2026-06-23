@@ -23,6 +23,7 @@ from typing import Any
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
+from substrate.execution.cpu_gate import gated_subprocess_run
 
 logger = logging.getLogger(__name__)
 
@@ -407,33 +408,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             )
 
         return compute_nodes + network_nodes + service_nodes
-
-    @router.get("/approvals")
-    async def approvals():
-        daemon = _get_organism()
-        if daemon is None:
-            return []
-        return daemon.approval_store.list_approvals()
-
-    @router.post("/approvals/{approval_id}/approve", dependencies=[Depends(_require_operator_role)])
-    async def approve_item(approval_id: str):
-        daemon = _get_organism()
-        if daemon is None:
-            return {"ok": False, "error": "organism not running"}
-        result = daemon.approval_store.decide(approval_id, "approved")
-        if result is None:
-            return {"ok": False, "error": "approval not found"}
-        return {"ok": True}
-
-    @router.post("/approvals/{approval_id}/deny", dependencies=[Depends(_require_operator_role)])
-    async def deny_item(approval_id: str, payload: dict | None = None):
-        daemon = _get_organism()
-        if daemon is None:
-            return {"ok": False, "error": "organism not running"}
-        result = daemon.approval_store.decide(approval_id, "denied")
-        if result is None:
-            return {"ok": False, "error": "approval not found"}
-        return {"ok": True}
 
     @router.get("/agents")
     async def agents():
@@ -1212,207 +1186,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
         return events[:limit]
 
-    # ── Governance Controls ──────────────────────────────────────────────
-
-    def _get_policy_engine():
-        """Access the pipeline's PolicyEngine instance."""
-        try:
-            from transports.api.app import _pipeline
-
-            return _pipeline._policy
-        except (ImportError, AttributeError):
-            return None
-
-    @router.get("/governance")
-    async def governance_policy():
-        """Return current governance policy table — risk class → authority level."""
-        from substrate.governance.authority import AuthorityLevel
-        from substrate.governance.risk_classes import RiskClass
-
-        engine = _get_policy_engine()
-        if engine is None:
-            return {"error": "policy engine not available"}
-
-        from substrate.governance.policy_engine import _DEFAULT_POLICY
-
-        result = []
-        for rc in RiskClass:
-            authority = _DEFAULT_POLICY.get(rc, AuthorityLevel.DENY)
-            result.append(
-                {
-                    "risk_class": rc.value,
-                    "risk_level": rc.to_risk_level().value,
-                    "authority": authority.name,
-                    "requires_human": authority.requires_human,
-                    "is_blocked": authority.is_blocked,
-                    "is_blocking_class": rc.is_blocking,
-                }
-            )
-
-        return {
-            "policies": result,
-            "safe_roots": engine.safe_roots,
-            "allowed_shell_prefixes": engine.allowed_shell_prefixes,
-        }
-
-    @router.patch("/governance", dependencies=[Depends(_require_operator_role)])
-    async def update_governance(payload: dict):
-        """Update governance policy at runtime.
-
-        Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
-        Example: {"policies": {"SAFE_WRITE": "AUTONOMOUS", "REVERSIBLE_WRITE": "APPROVE"}}
-        """
-        from substrate.governance.authority import AuthorityLevel
-        from substrate.governance.policy_engine import _DEFAULT_POLICY
-        from substrate.governance.risk_classes import RiskClass
-
-        policies = payload.get("policies", {})
-        applied = []
-
-        for rc_name, auth_name in policies.items():
-            try:
-                rc = RiskClass[rc_name]
-                auth = AuthorityLevel[auth_name]
-                _DEFAULT_POLICY[rc] = auth
-                applied.append({"risk_class": rc_name, "authority": auth_name})
-            except KeyError:
-                continue
-
-        return {"ok": True, "applied": applied}
-
-    @router.get("/governance/tiers")
-    async def permission_tiers():
-        """Return the 4-tier permission model with action mappings."""
-        from substrate.types import PermissionTier, TIER_ACTION_MAP, _PERMISSION_TIER_RANK
-
-        tiers = []
-        for tier in PermissionTier:
-            tiers.append(
-                {
-                    "tier": tier.value,
-                    "rank": tier.rank,
-                    "actions": sorted(TIER_ACTION_MAP[tier]),
-                }
-            )
-        return {"tiers": tiers}
-
-    @router.get("/governance/tier-check")
-    async def tier_check(action: str, tier: str = "execute"):
-        """Check if a permission tier allows a specific action."""
-        from substrate.types import PermissionTier, required_tier_for_action
-
-        try:
-            caller_tier = PermissionTier(tier)
-        except ValueError:
-            return {
-                "error": f"invalid tier: {tier}",
-                "valid_tiers": [t.value for t in PermissionTier],
-            }
-
-        required = required_tier_for_action(action)
-        permitted = caller_tier.permits(required)
-        return {
-            "action": action,
-            "caller_tier": caller_tier.value,
-            "required_tier": required.value,
-            "permitted": permitted,
-        }
-
-    # ─── EOS Projection Endpoints ─────────────────────────────────────────────
-
-    @router.get("/eos/pipeline")
-    async def eos_pipeline():
-        """Pipeline view — CRM data projected into sales stages."""
-        try:
-            from projections.eos.views.pipeline import PipelineView
-
-            org_id = _get_org_id()
-            view = PipelineView(org_id=org_id)
-            snap = view.snapshot()
-            return {
-                "stages": [
-                    {"name": s.name, "count": s.count, "value": s.total_value} for s in snap.stages
-                ],
-                "total_leads": snap.total_leads,
-                "total_value": snap.total_value,
-                "conversion_rate": snap.conversion_rate,
-            }
-        except Exception as e:
-            return {"error": str(e), "stages": []}
-
-    @router.get("/eos/kpis")
-    async def eos_kpis():
-        """KPI dashboard — business metrics as cards."""
-        try:
-            from projections.eos.views.kpis import KPIView
-
-            org_id = _get_org_id()
-            view = KPIView(org_id=org_id)
-            dash = view.dashboard()
-            return {
-                "cards": [
-                    {
-                        "name": c.name,
-                        "value": c.value,
-                        "unit": c.unit,
-                        "trend": c.trend,
-                        "period": c.period,
-                    }
-                    for c in dash.cards
-                ],
-                "venture_id": dash.venture_id,
-            }
-        except Exception as e:
-            return {"error": str(e), "cards": []}
-
-    @router.get("/eos/activity")
-    async def eos_activity(limit: int = 30):
-        """Activity feed — recent system events in chronological order."""
-        try:
-            from projections.eos.views.activity import ActivityView
-
-            org_id = _get_org_id()
-            view = ActivityView(org_id=org_id)
-            feed = view.feed(limit=limit)
-            return {
-                "entries": [
-                    {
-                        "event_type": e.event_type,
-                        "summary": e.summary,
-                        "agent": e.agent,
-                        "timestamp": e.timestamp,
-                    }
-                    for e in feed.entries
-                ],
-                "total_count": feed.total_count,
-            }
-        except Exception as e:
-            return {"error": str(e), "entries": []}
-
-    @router.get("/eos/accountability")
-    async def eos_accountability():
-        """Accountability stats — commitment tracking, streaks, fulfillment rate."""
-        try:
-            from substrate.governance.accountability.accountability import AccountabilityEngine
-            from substrate.state.context.context import load_context_from_env
-
-            ctx = load_context_from_env()
-            ae = AccountabilityEngine(ctx)
-            return ae.stats()
-        except Exception as e:
-            return {"error": str(e)}
-
-    @router.get("/eos/intelligence")
-    async def eos_intelligence():
-        """Intelligence layer health — pattern/decision stats."""
-        try:
-            from substrate.intelligence.runtime import IntelligenceRuntime
-
-            intel = IntelligenceRuntime()
-            return intel.health()
-        except Exception as e:
-            return {"error": str(e)}
-
     @router.post("/organism/handoff", dependencies=[Depends(_require_operator_role)])
     async def organism_handoff(payload: dict):
         """Submit a task handoff between agents."""
@@ -1441,147 +1214,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         if daemon is None:
             return {"error": "organism not running", "followups": []}
         return {"followups": daemon.check_delegations()}
-
-    def _get_org_id() -> str:
-        """Get org_id from context for projection queries."""
-        try:
-            from substrate.state.context.context import load_context_from_env
-
-            ctx = load_context_from_env()
-            return str(ctx.org_id)
-        except Exception:
-            return ""
-
-    # ── Notifications ────────────────────────────────────────────────────────────
-
-    @router.get("/notifications")
-    async def notification_history(limit: int = 50):
-        """Recent notification history."""
-        try:
-            from substrate.sockets.notification_engine import get_notification_engine
-
-            engine = get_notification_engine()
-            return {
-                "history": engine.recent_history(limit),
-                "stats": engine.stats,
-                "channels": engine.available_channels,
-            }
-        except Exception as e:
-            return {"error": str(e), "history": []}
-
-    # ── RLHF Feedback ──────────────────────────────────────────────────────────
-
-    @router.post("/feedback")
-    async def record_feedback(payload: dict):
-        """Record explicit RLHF feedback for an interaction.
-
-        Body: {interaction_id, rating, outcome_type, notes?}
-        rating: thumbs_up | thumbs_down | 1-5
-        outcome_type: helpful | unhelpful | incorrect | harmful
-        """
-        from substrate.execution.feedback_loop import (
-            FeedbackEntry,
-            OutcomeCategory,
-            Rating,
-            get_feedback_loop,
-        )
-
-        interaction_id = payload.get("interaction_id", "")
-        if not interaction_id:
-            return {"ok": False, "error": "interaction_id required"}
-
-        try:
-            rating = Rating(str(payload.get("rating", "")))
-        except ValueError:
-            valid = [r.value for r in Rating]
-            return {"ok": False, "error": f"invalid rating, must be one of: {valid}"}
-
-        try:
-            outcome_type = OutcomeCategory(payload.get("outcome_type", ""))
-        except ValueError:
-            valid = [o.value for o in OutcomeCategory]
-            return {"ok": False, "error": f"invalid outcome_type, must be one of: {valid}"}
-
-        loop = get_feedback_loop()
-        entry = FeedbackEntry(
-            interaction_id=interaction_id,
-            rating=rating,
-            outcome_type=outcome_type,
-            notes=payload.get("notes", ""),
-        )
-        success = loop.record_feedback(entry)
-        return {"ok": success}
-
-    @router.get("/feedback/stats")
-    async def feedback_stats(agent: str = ""):
-        """Aggregate RLHF feedback statistics, optionally filtered by agent."""
-        from substrate.execution.feedback_loop import get_feedback_loop
-
-        loop = get_feedback_loop()
-        return loop.get_feedback_stats(agent=agent)
-
-    @router.get("/feedback/skills")
-    async def feedback_skill_effectiveness(
-        agent: str = "",
-        skill: str = "",
-        window_days: int = 30,
-    ):
-        """Skill effectiveness based on RLHF feedback.
-
-        Query: ?agent=eos-sales&skill=analyze_icp_signal&window_days=30
-        """
-        from substrate.execution.feedback_loop import get_feedback_loop
-
-        if not agent or not skill:
-            return {"error": "both agent and skill query params required"}
-
-        loop = get_feedback_loop()
-        return loop.skill_effectiveness(agent=agent, skill=skill, window_days=window_days)
-
-    @router.get("/feedback/recommendations")
-    async def feedback_recommendations():
-        """Routing adjustment recommendations based on RLHF feedback patterns."""
-        from substrate.execution.feedback_loop import get_feedback_loop
-
-        loop = get_feedback_loop()
-        return {"recommendations": loop.recommend_routing_adjustment()}
-
-    @router.post("/notifications/send", dependencies=[Depends(_require_operator_role)])
-    async def send_notification(payload: dict):
-        """Send a notification through the engine."""
-        try:
-            from substrate.sockets.notification_engine import (
-                get_notification_engine,
-                Notification,
-                NotificationPriority,
-                NotificationChannel,
-            )
-
-            engine = get_notification_engine()
-            channels = []
-            for ch in payload.get("channels", []):
-                try:
-                    channels.append(NotificationChannel(ch))
-                except ValueError:
-                    pass
-
-            notification = Notification(
-                title=payload.get("title", ""),
-                body=payload.get("body", ""),
-                priority=NotificationPriority(payload.get("priority", "normal")),
-                channel_preference=channels,
-                source=payload.get("source", "cockpit"),
-                target_user=payload.get("target_user", ""),
-            )
-            result = engine.send(notification)
-            return {
-                "sent": result.sent,
-                "channel": result.channel.value if result.channel else None,
-                "error": result.error,
-                "attempts": result.attempts,
-            }
-        except Exception as e:
-            return {"error": str(e), "sent": False}
 
     # ─── WebSocket: live cockpit data stream ──────────────────────────────────────
 
@@ -2042,614 +1674,286 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             "event_id": event_id,
         }
 
-    # ── Bootstrap (single-request boot) ──────────────────────────────────────────
+    # ── Projection preview routes (Phase 2.1) ──────────────────────────────────
 
-    @router.get("/bootstrap")
-    async def bootstrap():
-        """Aggregate boot-critical data in one response.
+    @router.get("/projections")
+    async def list_projections_api():
+        """List all registered projections with preview URLs."""
+        from substrate.sockets.projection_port import ProjectionPort
 
-        Replaces ~15 parallel GET requests the cockpit fires on page load.
-        Each source is independently faulted — partial data is fine.
-        Runs blocking work in a thread to avoid stalling the event loop,
-        with a 15-second ceiling so Fly never 504s.
-        """
-        try:
-            return await asyncio.wait_for(
-                asyncio.to_thread(_bootstrap_sync), timeout=15,
-            )
-        except asyncio.TimeoutError:
-            return {"ok": False, "ts": "", "_errors": ["bootstrap timed out after 15s"]}
+        port = ProjectionPort()
+        port.seed_from_config()
+        return {"projections": [r.to_dict() for r in port.list_registrations()]}
 
-    _SAFE_PATH_RE = re.compile(r'^[A-Za-z]:\\[A-Za-z0-9_\\\-. ]*$')
+    @router.get("/projections/{projection_id}/preview")
+    async def projection_preview(projection_id: str):
+        """Get preview metadata for a specific projection."""
+        from substrate.sockets.projection_port import ProjectionPort
 
-    def _fetch_windows_files() -> dict[str, Any]:
-        """SSH to Beast for filesystem root listing — isolated so it can be deadline-capped."""
-        from transports.api.cockpit_workspace_routes import _ssh_cmd
-        _win_root = "C:\\"
-        if not _SAFE_PATH_RE.match(_win_root):
-            logger.warning("Rejected unsafe Windows path from device registry: %s", _win_root)
-            return {"ok": False, "entries": []}
-        _win_root_escaped = _win_root.replace("'", "''")
-        _win_ok, _win_out = _ssh_cmd(
-            f'powershell -Command "Get-ChildItem -LiteralPath \'{_win_root_escaped}\''
-            ' | ForEach-Object { $_.Name + \'|\''
-            ' + $(if($_.PSIsContainer){\'directory\'}else{\'file\'})'
-            ' + \'|\' + $_.Length }"'
-        )
-        _win_entries: list[dict[str, Any]] = []
-        if _win_ok:
-            for _line in _win_out.strip().splitlines():
-                _parts = _line.strip().split("|")
-                if len(_parts) >= 2:
-                    _win_entries.append({
-                        "name": _parts[0],
-                        "path": _win_root + "\\" + _parts[0],
-                        "type": _parts[1],
-                        "source_env": "windows",
-                    })
-        return {"ok": _win_ok, "entries": _win_entries}
+        port = ProjectionPort()
+        port.seed_from_config()
+        preview = port.get_preview(projection_id)
+        if preview is None:
+            return {"error": f"projection '{projection_id}' not found"}
+        return preview
 
-    def _bootstrap_sync() -> dict[str, Any]:
-        """Fast-tier bootstrap — local reads only, no SSH, no slow I/O.
+    # ── Proof packages (Phase 4.5) ─────────────────────────────────────────────
 
-        Subsystem reads run in parallel (4 threads) to cut wall-clock from
-        5-15s (sequential) to ~2-4s (bounded by slowest subsystem).
-        """
-        import concurrent.futures
-        import datetime as _dt
+    @router.get("/proofs")
+    async def list_proofs(status: str = "", limit: int = 50, offset: int = 0):
+        from substrate.organism.proof_store import get_proof_store
 
-        errors: list[str] = []
-        result: dict[str, Any] = {
-            "ok": True,
-            "ts": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+        store = get_proof_store()
+        packages = store.query(status=status, limit=limit, offset=offset)
+        return {
+            "packages": [p.to_dict() for p in packages],
+            "summary": store.summary(),
         }
 
-        # ── Independent subsystem fetchers ────────────────────────────────
+    @router.get("/proofs/{proof_id}")
+    async def get_proof(proof_id: str):
+        from substrate.organism.proof_store import get_proof_store
 
-        def _fetch_config() -> dict[str, Any]:
-            from substrate.sockets.config_port import get_all_config
-            return get_all_config()
+        pkg = get_proof_store().get(proof_id)
+        if pkg is None:
+            return {"error": f"proof '{proof_id}' not found"}
+        return pkg.to_dict()
 
-        def _fetch_pulse() -> dict[str, Any]:
-            node_metrics = _build_node_metrics()
-            vps = node_metrics.get("vps", {})
-            traces = _read_jsonl(TRACE_STORE)
-            pending_traces = sum(1 for t in traces[-500:] if t.get("status") == "pending")
-            uptime = int(time.time() - psutil.boot_time())
+    @router.post("/proofs/{proof_id}/approve", dependencies=[Depends(_require_operator_role)])
+    async def approve_proof(proof_id: str, payload: dict | None = None):
+        from substrate.organism.proof_store import get_proof_store
+
+        notes = (payload or {}).get("notes", "")
+        pkg = get_proof_store().approve(proof_id, notes=notes)
+        if pkg is None:
+            return {"error": f"proof '{proof_id}' not found"}
+        return {"ok": True, "proof_id": proof_id, "status": pkg.status}
+
+    @router.post("/proofs/{proof_id}/reject", dependencies=[Depends(_require_operator_role)])
+    async def reject_proof(proof_id: str, payload: dict | None = None):
+        from substrate.organism.proof_store import get_proof_store
+
+        notes = (payload or {}).get("notes", "")
+        pkg = get_proof_store().reject(proof_id, notes=notes)
+        if pkg is None:
+            return {"error": f"proof '{proof_id}' not found"}
+        return {"ok": True, "proof_id": proof_id, "status": pkg.status}
+
+    # ── Workstation snapshot & resume (Phase 5) ────────────────────────────────
+
+    @router.get("/workstation/snapshot")
+    async def workstation_snapshot():
+        """Full workstation state snapshot for continuity."""
+        import time as _time
+
+        snap: dict = {"snapshot_at": _time.time()}
+        try:
+            from substrate.sockets.projection_port import ProjectionPort
+
+            port = ProjectionPort()
+            port.seed_from_config()
+            regs = port.list_registrations()
+            if regs:
+                snap["active_project"] = regs[0].name
+                snap["active_preview"] = regs[0].preview_url
+        except Exception:
+            pass
+        try:
+            from substrate.organism.executor_runtime import load_executor_preference
+
+            pref = load_executor_preference()
+            snap["executor_type"] = pref[0] if pref else "simulation"
+        except Exception:
+            snap["executor_type"] = "simulation"
+        try:
+            from substrate.organism.execution_ledger import get_execution_ledger
+
+            ledger = get_execution_ledger()
+            entries = ledger.query(limit=1)
+            if entries:
+                last = entries[0]
+                snap["last_execution_status"] = last.status
+                snap["last_execution_executor"] = last.executor_type
+                snap["last_execution_target"] = last.target_machine
+                elapsed = _time.time() - last.ended_at if last.ended_at else _time.time() - last.created_at
+                if elapsed < 60:
+                    snap["last_execution_ago"] = f"{int(elapsed)}s ago"
+                elif elapsed < 3600:
+                    snap["last_execution_ago"] = f"{int(elapsed / 60)}m ago"
+                else:
+                    snap["last_execution_ago"] = f"{int(elapsed / 3600)}h ago"
+        except Exception:
+            pass
+        try:
+            snap["pending_approvals"] = 0
             daemon = _get_organism()
-            active_agents = 0
-            pending_approvals_count = 0
-            if daemon is not None:
-                active_agents = sum(
-                    1 for a in daemon.advisor.list_agents() if a.get("status") != "offline"
-                )
-                pending_approvals_count = daemon.approval_store.pending_count()
-            return {
-                "uptime": uptime,
-                "cpu_percent": vps.get("cpu", 0),
-                "memory_percent": vps.get("memory", 0),
-                "disk_percent": vps.get("disk", 0),
-                "active_agents": active_agents,
-                "pending_tasks": pending_traces,
-                "pending_approvals": pending_approvals_count,
-                "trace_rate": round(len(traces) / max(uptime / 3600, 1), 1),
-                "node_metrics": node_metrics,
-            }
-
-        def _fetch_organism() -> dict[str, Any]:
-            daemon = _get_organism()
-            if daemon is not None:
-                return {
-                    "running": True,
-                    "agent_count": len(daemon.advisor.list_agents()),
-                    "workcell_count": len(getattr(daemon, "workcells", [])),
-                }
-            return {"running": False}
-
-        def _fetch_mode_composite() -> dict[str, Any]:
-            from substrate.workstation.mode_resolver import resolve_composite_mode
-            return resolve_composite_mode()
-
-        def _fetch_continuity() -> dict[str, Any]:
-            try:
-                from substrate.workstation.continuity_engine import ContinuityEngine
-                engine = ContinuityEngine()
-                composite = engine.get_composite_state()
-                return composite.to_dict()
-            except Exception:
-                from transports.api.cockpit_workstation_control_routes import (
-                    _get_continuity_machine,
-                )
-                machine = _get_continuity_machine()
-                return {
-                    "current_state": machine.current_state.value,
-                    "valid_transitions": [s.value for s in machine.valid_transitions()],
-                }
-
-        def _fetch_command_center() -> dict[str, Any]:
-            from transports.api.cockpit_command_center_routes import (
-                _load_workcell_heartbeats,
-                _load_approvals,
-                _load_work_packets,
-                _load_blocked_packets,
-                _load_journal_recent,
-            )
-            heartbeats = _load_workcell_heartbeats()
-            pending = _load_approvals(status_filter="pending")
-            packets = _load_work_packets(limit=100)
-            blocked = _load_blocked_packets()
-            journal = _load_journal_recent(50)
-
-            active_agents = [h for h in heartbeats if h.get("status") == "active"]
-            idle_agents = [h for h in heartbeats if h.get("status") == "idle"]
-            completed = [j for j in journal if j.get("phase") == "EXECUTION_COMPLETED"]
-            failed = [j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED")]
-            by_status: dict[str, int] = {}
-            for p in packets:
-                s = p.get("status", "unknown")
-                by_status[s] = by_status.get(s, 0) + 1
-            executing = [p for p in packets if p.get("status") in ("executing", "delegated")]
-            next_packet = None
-            ready = [p for p in packets if p.get("status") in ("approved", "ready_for_review", "planned")]
-            if ready:
-                ready.sort(key=lambda p: p.get("leverage_score", 0), reverse=True)
-                next_packet = {
-                    "packet_id": ready[0].get("packet_id", ""),
-                    "title": ready[0].get("title", ""),
-                    "status": ready[0].get("status", ""),
-                    "leverage_score": ready[0].get("leverage_score", 0),
-                }
-
-            checkpoint_path = os.path.join(
-                os.environ.get("UMH_ROOT", "/opt/OS"),
-                "data", "umh", "organism", "workstation_state", "latest_checkpoint.json",
-            )
-            checkpoint_detail: dict[str, Any] = {}
-            cc_continuity = "active"
-            if os.path.exists(checkpoint_path):
-                try:
-                    with open(checkpoint_path) as f:
-                        checkpoint_detail = json.load(f)
-                    cc_continuity = checkpoint_detail.get(
-                        "continuity_state",
-                        checkpoint_detail.get("new_continuity_state", "active"),
-                    )
-                except (json.JSONDecodeError, OSError):
-                    pass
-
-            return {
-                "command_center": {
-                    "active_workcells": len(active_agents),
-                    "idle_workcells": len(idle_agents),
-                    "pending_approvals": len(pending),
-                },
-                "command_center_summary": {
-                    "ok": True,
-                    "checkpoint": {
-                        "last_checkpoint_id": checkpoint_detail.get("checkpoint_id", ""),
-                        "continuity_state": cc_continuity,
-                        "lifecycle_mode": checkpoint_detail.get("lifecycle_mode", ""),
-                        "active_node": checkpoint_detail.get("active_node", ""),
-                        "active_environment": checkpoint_detail.get("active_environment", ""),
-                        "open_loops": checkpoint_detail.get("open_loops", []),
-                        "recommended_next_action": checkpoint_detail.get("recommended_next_action", ""),
-                        "transition_reason": checkpoint_detail.get("transition_reason", ""),
-                    },
-                    "what_is_happening": {
-                        "continuity_state": cc_continuity,
-                        "active_agents": len(active_agents),
-                        "idle_agents": len(idle_agents),
-                        "total_agents": len(heartbeats),
-                        "executing_packets": len(executing),
-                    },
-                    "who_is_working": [
-                        {"agent_id": h.get("workcell_id", ""), "role": h.get("role", ""), "status": h.get("status", "")}
-                        for h in heartbeats
-                    ],
-                    "what_is_blocked": {
-                        "count": len(blocked),
-                        "items": [{"id": b.get("packet_id", ""), "title": b.get("title", ""), "blockers": b.get("blockers", [])} for b in blocked[:5]],
-                    },
-                    "what_needs_approval": {
-                        "count": len(pending),
-                        "items": [{"id": a.get("id", ""), "title": a.get("title", ""), "risk_level": a.get("risk_level", "")} for a in pending[:5]],
-                    },
-                    "what_finished": {
-                        "recent_completed": len(completed),
-                        "latest": completed[-1].get("details", {}).get("intent", "") if completed else "",
-                    },
-                    "what_failed": {
-                        "recent_failed": len(failed),
-                        "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", "")) if failed else "",
-                    },
-                    "what_should_resume_next": next_packet,
-                    "packets_by_status": by_status,
-                    "total_packets": len(packets),
-                    "source_env": os.environ.get("UMH_ENV", "container"),
-                    "node": os.uname().nodename,
-                },
-                "approvals": [
-                    {"id": a.get("id", ""), "title": a.get("title", ""), "risk_level": a.get("risk_level", ""), "status": a.get("status", "")}
-                    for a in pending[:10]
-                ],
-            }
-
-        def _fetch_overnight() -> dict[str, Any]:
-            from substrate.workstation.overnight_queue import OvernightQueue
-            queue = OvernightQueue()
-            return queue.morning_summary()
-
-        def _fetch_mesh_nodes() -> dict[str, Any]:
-            nm = _build_node_metrics()
-            _repo = os.environ.get("UMH_ROOT", "/opt/OS")
-            _registry_path = os.path.join(_repo, "infra", "device_registry.json")
-            _mesh_hb_path = os.path.join(_repo, "data", "runtime", "mesh_nodes.json")
-            _registry: list[dict[str, Any]] = []
-            _hb_map: dict[str, dict[str, Any]] = {}
-            try:
-                with open(_registry_path) as f:
-                    _registry = json.load(f)
-            except (json.JSONDecodeError, OSError, FileNotFoundError):
-                pass
-            try:
-                with open(_mesh_hb_path) as f:
-                    for _n in json.load(f):
-                        _hb_map[_n.get("id", "")] = _n
-            except (json.JSONDecodeError, OSError, FileNotFoundError):
-                pass
-            _mesh_list = []
-            for _dev in _registry:
-                _mid = _dev.get("mesh_node_id", "")
-                _hb = _hb_map.get(_mid, {})
-                _st = "online" if _dev.get("always_online") else _hb.get("status", "offline")
-                _mesh_list.append({
-                    "id": _dev["id"],
-                    "name": _dev.get("display_name", _dev.get("tailscale_name", _dev["id"])),
-                    "os": _dev.get("os", ""),
-                    "status": _st,
-                    "ip": _dev.get("tailscale_ip", ""),
-                    "device_type": _dev.get("device_type", ""),
-                    "last_heartbeat": _hb.get("last_heartbeat", ""),
-                })
-            return {"mesh": {"node_count": len(nm)}, "mesh_nodes": _mesh_list}
-
-        def _fetch_dex() -> dict[str, Any]:
-            conv = _get_dex_conversation()
-            avail = conv is not None
-            return {"dex_available": avail, "chat_available": avail}
-
-        # ── Run all fetchers in parallel ──────────────────────────────────
-
-        fetchers: dict[str, Any] = {
-            "config": _fetch_config,
-            "pulse": _fetch_pulse,
-            "organism": _fetch_organism,
-            "mode_composite": _fetch_mode_composite,
-            "continuity": _fetch_continuity,
-            "command_center": _fetch_command_center,
-            "overnight": _fetch_overnight,
-            "mesh_nodes": _fetch_mesh_nodes,
-            "dex": _fetch_dex,
-        }
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-            futures = {key: pool.submit(fn) for key, fn in fetchers.items()}
-            for key, future in futures.items():
-                try:
-                    val = future.result(timeout=10)
-                    if key == "command_center":
-                        result["command_center"] = val["command_center"]
-                        result["command_center_summary"] = val["command_center_summary"]
-                        result["approvals"] = val["approvals"]
-                    elif key == "mesh_nodes":
-                        result["mesh"] = val["mesh"]
-                        result["mesh_nodes"] = val["mesh_nodes"]
-                    elif key == "dex":
-                        result["dex_available"] = val["dex_available"]
-                        result["chat_available"] = val["chat_available"]
-                    else:
-                        result[key] = val
-                except Exception as e:
-                    errors.append(f"{key}: {e}")
-                    if key == "command_center":
-                        result["command_center"] = {}
-                        result["command_center_summary"] = {}
-                        result["approvals"] = []
-                    elif key == "mesh_nodes":
-                        result["mesh"] = {"node_count": 0}
-                        result["mesh_nodes"] = []
-                    elif key == "dex":
-                        result["dex_available"] = False
-                        result["chat_available"] = False
-                    elif key == "organism":
-                        result[key] = {"running": False}
-                    else:
-                        result[key] = {}
-
-        result["_errors"] = errors
-        if errors:
-            result["ok"] = False
-        return result
-
-    @router.get("/bootstrap/slow")
-    async def bootstrap_slow():
-        """Slow-tier bootstrap — file trees and workstation nodes (SSH, browse)."""
-        try:
-            return await asyncio.wait_for(
-                asyncio.to_thread(_bootstrap_slow_sync), timeout=15,
-            )
-        except asyncio.TimeoutError:
-            return {"ok": False, "_errors": ["slow bootstrap timed out"]}
-
-    def _bootstrap_slow_sync() -> dict[str, Any]:
-        """Slow-tier: VPS files, Windows files (SSH), workstation nodes."""
-        import concurrent.futures
-        errors: list[str] = []
-        result: dict[str, Any] = {"ok": True}
-
-        win_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        win_future = win_executor.submit(_fetch_windows_files)
-
-        try:
-            from transports.api.cockpit_workstation_control_routes import (
-                _read_vps_node, _read_mesh_snapshot,
-            )
-            vps_node = _read_vps_node()
-            mesh_snapshot = _read_mesh_snapshot()
-            result["workstation_nodes"] = {
-                "ok": True, "nodes": [vps_node] + mesh_snapshot,
-                "count": 1 + len(mesh_snapshot),
-                "vps": vps_node, "remote_nodes": mesh_snapshot,
-            }
-        except Exception as e:
-            errors.append(f"workstation_nodes: {e}")
-            result["workstation_nodes"] = {}
-
-        try:
-            from substrate.workstation.file_browser import browse_directory
-            result["vps_files"] = browse_directory("/").to_dict()
-        except Exception as e:
-            errors.append(f"vps_files: {e}")
-            result["vps_files"] = {}
-
-        try:
-            result["windows_files"] = win_future.result(timeout=10)
-        except concurrent.futures.TimeoutError:
-            errors.append("windows_files: SSH timed out")
-            result["windows_files"] = {"ok": False, "entries": []}
-        except Exception as e:
-            errors.append(f"windows_files: {e}")
-            result["windows_files"] = {"ok": False, "entries": []}
-        finally:
-            win_executor.shutdown(wait=False)
-
-        result["_errors"] = errors
-        if errors:
-            result["ok"] = False
-        return result
-
-    # ── Config endpoints ──────────────────────────────────────────────────────────
-
-    @router.get("/config")
-    async def config_get():
-        """Get resolved config (ai_name, timezone, theme, etc.)."""
-        try:
-            from substrate.sockets.config_port import get_all_config
-
-            return get_all_config()
-        except Exception as e:
-            logger.error("config_get failed: %s", e)
-            return {}
-
-    @router.patch("/config", dependencies=[Depends(_require_operator_role)])
-    async def config_patch(request: Request):
-        """Set a config value. Body: {key, value, layer?}."""
-        body = await request.json()
-        key = body.get("key")
-        value = body.get("value")
-        layer = body.get("layer", "system")
-        if not key:
-            return JSONResponse({"error": "key is required"}, status_code=400)
-        if value is None:
-            return JSONResponse({"error": "value is required"}, status_code=400)
-        try:
-            from substrate.state.config.config_store import VALID_KEYS
-            from substrate.sockets.config_port import set_config, get_config
-
-            if key not in VALID_KEYS:
-                return JSONResponse({"error": f"invalid config key: {key}"}, status_code=400)
-            set_config(key, value, layer=layer)
-            return {"ok": True, "key": key, "value": get_config(key), "layer": layer}
-        except Exception as e:
-            logger.error("config_patch failed: %s", e)
-            return JSONResponse({"error": str(e)}, status_code=500)
-
-    # ── Late routes (Claude Code bridge, tmux, council, device presence) ──
-
-    # ── Claude Code Session Bridge ────────────────────────────────────────
-
-    def _log_cc_trace(session: str, text: str, packet_id: str, action: str) -> None:
-        """Log Claude Code bridge action to execution journal."""
-        import json as _json
-
-        entry = {
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "source": "cc_bridge",
-            "action": action,
-            "session": session,
-            "packet_id": packet_id,
-            "text_preview": text[:100] if text else "",
-        }
-        journal = os.path.join(
-            os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data",
-            "umh",
-            "organism",
-            "execution_journal.jsonl",
-        )
-        try:
-            os.makedirs(os.path.dirname(journal), exist_ok=True)
-            with open(journal, "a") as f:
-                f.write(_json.dumps(entry) + "\n")
+            if daemon and hasattr(daemon, "approval_store"):
+                snap["pending_approvals"] = len(daemon.approval_store.list_approvals())
         except Exception:
             pass
 
-    _RISKY_KEYWORDS = [
-        "delete",
-        "drop",
-        "rm -rf",
-        "force push",
-        "reset --hard",
-        "truncate",
-        "--no-verify",
-        "destroy",
-    ]
-
-    @router.post("/claude-session/send")
-    async def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
-        """Send a prompt to a Claude Code session via tmux bridge. Governed."""
-        from substrate.execution.bridge.claude_session_bridge import (
-            ensure_session,
-            send_message,
+        _snapshot_path = os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "runtime", "workstation_snapshot.json",
         )
-
-        session_name = payload.get("session_name", "")
-        text = payload.get("text", "")
-        target = payload.get("target", "local")
-        work_packet_id = payload.get("work_packet_id", "")
-        if not session_name or not text:
-            return {"error": "session_name and text required"}
-        text_lower = text.lower()
-        blocked = [kw for kw in _RISKY_KEYWORDS if kw in text_lower]
-        if blocked:
-            return {
-                "error": "risky_prompt_blocked",
-                "reason": "Prompt contains risky keywords.",
-                "blocked_keywords": blocked,
-            }
-        ensure_result = ensure_session(target, session_name)
-        if not ensure_result.get("ok"):
-            return {"error": "session not available: %s" % ensure_result.get("reason", "unknown")}
-        send_result = send_message(target, session_name, text)
-        _log_cc_trace(session_name, text, work_packet_id, "send")
-        base: dict = send_result if isinstance(send_result, dict) else {"ok": True}  # type: ignore[assignment]
-        return {**base, "work_packet_id": work_packet_id, "traced": True}
-
-    @router.post("/claude-session/capture")
-    async def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-arg]
-        """Capture output from a Claude Code session."""
-        from substrate.execution.bridge.claude_session_bridge import capture_output
-
-        session_name = payload.get("session_name", "")
-        target = payload.get("target", "local")
-        work_packet_id = payload.get("work_packet_id", "")
-        if not session_name:
-            return {"error": "session_name required"}
-        result = capture_output(target, session_name)
-        _log_cc_trace(session_name, "", work_packet_id, "capture")
-        base: dict = result if isinstance(result, dict) else {"output": str(result)}  # type: ignore[assignment]
-        return {**base, "work_packet_id": work_packet_id}
-
-    @router.get("/claude-session/list")
-    async def claude_session_list() -> dict:  # type: ignore[type-arg]
-        """List active Claude Code sessions."""
-        from substrate.execution.bridge.claude_session_bridge import list_sessions
-
-        return list_sessions()  # type: ignore[return-value]
-
-    @router.post("/tmux/send")
-    async def tmux_send(payload: dict) -> dict:  # type: ignore[type-arg]
-        """Send keys to a tmux session (governed via TmuxOperationalAdapter)."""
-        session_name = payload.get("session_name", "")
-        text = payload.get("text", "")
-        if not session_name or not text:
-            return {"error": "session_name and text required"}
         try:
-            from substrate.execution.workers.workstation.tmux_operational_adapter_v1 import (
-                TmuxOperationalAdapter,
-            )
+            os.makedirs(os.path.dirname(_snapshot_path), exist_ok=True)
+            with open(_snapshot_path, "w") as f:
+                json.dump(snap, f, indent=2, default=str)
+        except Exception:
+            pass
 
-            adapter = TmuxOperationalAdapter()
-            result = adapter.send_approved_command(session_name, text)
-            if hasattr(result, "to_dict"):
-                return result.to_dict()  # type: ignore[union-attr]
-            return result if isinstance(result, dict) else {"ok": True}
-        except Exception as exc:
-            return {"error": str(exc)}
+        return snap
 
-    @router.post("/council/review")
-    async def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
-        """Trigger council review for a decision."""
-        from substrate.organism.council import Council
+    @router.get("/workstation/resume")
+    async def workstation_resume():
+        """Resume brief — what the operator was doing and what happened since."""
+        import time as _time
 
-        council = Council()
-        review = council.review(
-            decision_context=payload.get("context", ""),
-            proposed_plan=payload.get("plan", ""),
-            artifacts=payload.get("artifacts"),
+        _snapshot_path = os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "runtime", "workstation_snapshot.json",
         )
-        return {"ok": True, "review": review.to_dict()}
+        snap: dict = {}
+        try:
+            if os.path.exists(_snapshot_path):
+                with open(_snapshot_path) as f:
+                    snap = json.load(f)
+        except Exception:
+            pass
 
-    # ─── Device Presence Registry ─────────────────────────────────────────────────
+        if not snap:
+            try:
+                from substrate.sockets.projection_port import ProjectionPort
 
-    @router.post("/device/register")
-    async def device_register(payload: dict) -> dict:
-        """Register a device session with the presence registry."""
-        from substrate.workstation.device_presence import DeviceSession, get_registry
+                port = ProjectionPort()
+                port.seed_from_config()
+                regs = port.list_registrations()
+                if regs:
+                    snap["active_project"] = regs[0].name
+            except Exception:
+                pass
 
-        session_id = payload.get("session_id", "")
-        device_id = payload.get("device_id", "")
-        if not session_id or not device_id:
-            raise HTTPException(status_code=400, detail="session_id and device_id required")
+        snap.setdefault("active_project", "")
+        snap.setdefault("active_repo", "")
+        snap.setdefault("active_branch", "")
+        snap.setdefault("active_file", "")
+        snap.setdefault("current_objective", "")
+        snap.setdefault("pending_approvals", 0)
+        snap.setdefault("next_action", "")
+        snap.setdefault("since_away", [])
 
-        session = DeviceSession(
-            device_id=device_id,
-            session_id=session_id,
-            operator_id=payload.get("operator_id", "default"),
-            client_type=payload.get("client_type", "desktop_browser"),
-            device_label=payload.get("device_label", ""),
-            control_surface=payload.get("control_surface", "fly_cockpit"),
-            current_panel=payload.get("current_panel", ""),
-            can_capture_audio=bool(payload.get("can_capture_audio", True)),
-            can_play_audio=bool(payload.get("can_play_audio", True)),
-            reachable_nodes=payload.get("reachable_nodes", ["cockpit", "vps"]),
-        )
-        get_registry().register_session(session)
-        return {"ok": True, "session_id": session_id}
+        try:
+            from substrate.organism.execution_ledger import get_execution_ledger
 
-    @router.post("/device/heartbeat")
-    async def device_heartbeat(payload: dict) -> dict:
-        """Heartbeat — refresh session last_seen and apply optional field updates."""
-        from substrate.workstation.device_presence import get_registry
+            ledger = get_execution_ledger()
+            entries = ledger.query(limit=1)
+            if entries:
+                last = entries[0]
+                snap["last_execution_status"] = last.status
+                snap["last_execution_executor"] = last.executor_type
+                snap["last_execution_target"] = last.target_machine
+                elapsed = _time.time() - last.ended_at if last.ended_at else _time.time() - last.created_at
+                if elapsed < 60:
+                    snap["last_execution_ago"] = f"{int(elapsed)}s ago"
+                elif elapsed < 3600:
+                    snap["last_execution_ago"] = f"{int(elapsed / 60)}m ago"
+                else:
+                    snap["last_execution_ago"] = f"{int(elapsed / 3600)}h ago"
+        except Exception:
+            pass
 
-        session_id = payload.get("session_id", "")
-        if not session_id:
-            raise HTTPException(status_code=400, detail="session_id required")
+        try:
+            daemon = _get_organism()
+            if daemon and hasattr(daemon, "approval_store"):
+                snap["pending_approvals"] = len(daemon.approval_store.list_approvals())
+        except Exception:
+            pass
 
-        updates = {k: v for k, v in payload.items() if k != "session_id"}
-        found = get_registry().heartbeat(session_id, updates=updates or None)
-        if not found:
-            return {"ok": False, "reason": "session not found"}
-        return {"ok": True}
+        return snap
 
-    @router.get("/device/sessions")
-    async def device_sessions() -> dict:
-        """List all active device sessions."""
-        from substrate.workstation.device_presence import get_registry
+    # ── Workspace context (Phase 3.5) ──────────────────────────────────────────
 
-        sessions = get_registry().get_active_sessions()
-        return {"sessions": [s.to_dict() for s in sessions]}
+    @router.get("/workspace/context")
+    async def workspace_context_api():
+        """Current workspace context — active project, repo, branch, file."""
+        result: dict[str, str] = {}
+        try:
+            from substrate.sockets.projection_port import ProjectionPort
 
-    @router.post("/device/disconnect")
-    async def device_disconnect(payload: dict) -> dict:
-        """Mark a session as disconnected."""
-        from substrate.workstation.device_presence import get_registry
+            port = ProjectionPort()
+            regs = port.list_registrations()
+            if regs:
+                result["active_project"] = regs[0].name
+                result["active_preview"] = regs[0].preview_url
+        except Exception:
+            pass
+        try:
+            from substrate.organism.executor_runtime import load_executor_preference, preferred_executor
 
-        session_id = payload.get("session_id", "")
-        if not session_id:
-            raise HTTPException(status_code=400, detail="session_id required")
+            pref = load_executor_preference()
+            result["executor_type"] = pref[0] if pref else "simulation"
+        except Exception:
+            result["executor_type"] = "simulation"
+        return result
 
-        get_registry().mark_disconnected(session_id)
-        return {"ok": True}
+    # ── Execution ledger & executor preference (Phase 3) ──────────────────────
+
+    @router.get("/execution/ledger")
+    async def execution_ledger_api(
+        status: str = "",
+        executor_type: str = "",
+        limit: int = 50,
+        offset: int = 0,
+    ):
+        """Paginated execution ledger — filterable by status/executor."""
+        from substrate.organism.execution_ledger import get_execution_ledger
+
+        ledger = get_execution_ledger()
+        entries = ledger.query(status=status, executor_type=executor_type, limit=limit, offset=offset)
+        return {
+            "entries": [e.to_dict() for e in entries],
+            "summary": ledger.summary(),
+        }
+
+    @router.get("/execution/preference")
+    async def executor_preference_api():
+        """Current executor preference order."""
+        from substrate.organism.executor_runtime import load_executor_preference
+
+        return {"order": load_executor_preference()}
+
+    @router.patch("/execution/preference", dependencies=[Depends(_require_operator_role)])
+    async def update_executor_preference(payload: dict):
+        """Update executor preference order."""
+        from substrate.organism.executor_runtime import save_executor_preference, load_executor_preference
+
+        order = payload.get("order", [])
+        if not isinstance(order, list) or not order:
+            return {"error": "order must be a non-empty list of executor types"}
+        save_executor_preference(order)
+        return {"ok": True, "order": load_executor_preference()}
+
+    # ── Bootstrap, config, session, feedback, governance, EOS routes ──────────
+    # Delegated to split files (see end of function)
+
+    # ── Delegated route registrations (Phase 0.3 split) ────────────────────────
+    _helpers = {
+        "_build_node_metrics": _build_node_metrics,
+        "_read_jsonl": _read_jsonl,
+        "_get_organism": _get_organism,
+    }
+
+    from transports.api.cockpit_core_bootstrap_routes import register_bootstrap_routes
+    from transports.api.cockpit_core_session_routes import register_session_routes
+    from transports.api.cockpit_core_feedback_routes import register_feedback_routes
+    from transports.api.cockpit_core_governance_routes import register_governance_routes
+    from transports.api.cockpit_core_eos_routes import register_eos_routes
+
+    register_bootstrap_routes(router, _require_operator_role, _helpers)
+    register_session_routes(router, _require_operator_role, _helpers)
+    register_feedback_routes(router, _require_operator_role, _helpers)
+    register_governance_routes(router, _require_operator_role, _helpers)
+    register_eos_routes(router, _require_operator_role, _helpers)
 
     return router, ws_router, push_chat_message, push_organism_event

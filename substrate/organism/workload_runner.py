@@ -32,6 +32,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from substrate.execution.cpu_gate import gated_subprocess_run
 from substrate.organism.action_envelope import (
     ActionEnvelope,
     ActionType,

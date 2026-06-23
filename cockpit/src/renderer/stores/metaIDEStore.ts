@@ -160,6 +160,7 @@ interface MetaIDEState {
   risks: RiskItem[]
   overallRisk: string
   observation: WorkspaceObservation | null
+  previewExpanded: boolean
   loading: boolean
   error: string | null
 
@@ -189,6 +190,8 @@ interface MetaIDEState {
   setWindowsExpanded: (v: boolean) => void
   toggleDir: (path: string) => void
   isDirExpanded: (path: string) => boolean
+  setPreviewExpanded: (expanded: boolean) => void
+  togglePreviewExpanded: () => void
   fetchRepositories: () => Promise<void>
   fetchWorkspace: () => Promise<void>
   fetchRoadmap: () => Promise<void>
@@ -210,6 +213,7 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   roadmap: null,
   risks: [],
   overallRisk: 'none',
+  previewExpanded: false,
   observation: null,
   loading: false,
   error: null,
@@ -222,6 +226,8 @@ export const useMetaIDEStore = create<MetaIDEState>((set) => ({
   windowsExpanded: true,
   expandedDirs: new Set<string>(),
 
+  setPreviewExpanded: (expanded) => set({ previewExpanded: expanded }),
+  togglePreviewExpanded: () => set((s) => ({ previewExpanded: !s.previewExpanded })),
   setActiveTab: (tab) => set({ activeTab: tab }),
   setActiveSidebar: (tab) => set({ activeSidebar: tab, showSidebar: true }),
   setShowSidebar: (show) => set({ showSidebar: show }),

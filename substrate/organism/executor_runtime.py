@@ -1455,3 +1455,52 @@ def get_executor_runtime() -> ExecutorRuntime:
 def reset_executor_runtime() -> None:
     global _singleton
     _singleton = None
+
+
+# ── Executor Preference ──────────────────────────────────────────
+
+_PREF_PATH = os.path.join(_repo_root(), "data", "runtime", "executor_preference.json")
+
+_DEFAULT_PREFERENCE_ORDER = [
+    ExecutorType.WORKSTATION.value,
+    ExecutorType.AGENT.value,
+    ExecutorType.VPS.value,
+    ExecutorType.CONTAINER.value,
+    ExecutorType.BROWSER.value,
+    ExecutorType.EXTERNAL.value,
+    ExecutorType.MOBILE.value,
+]
+
+
+def load_executor_preference() -> list[str]:
+    """Load executor preference order from persistent config."""
+    try:
+        if os.path.exists(_PREF_PATH):
+            with open(_PREF_PATH, "r") as f:
+                data = json.load(f)
+            return data.get("order", _DEFAULT_PREFERENCE_ORDER)
+    except Exception as exc:
+        logger.debug("Failed to load executor preference: %s", exc)
+    return list(_DEFAULT_PREFERENCE_ORDER)
+
+
+def save_executor_preference(order: list[str]) -> None:
+    """Save executor preference order to persistent config."""
+    try:
+        os.makedirs(os.path.dirname(_PREF_PATH), exist_ok=True)
+        with open(_PREF_PATH, "w") as f:
+            json.dump({"order": order, "updated_at": time.time()}, f, indent=2)
+    except Exception as exc:
+        logger.warning("Failed to save executor preference: %s", exc)
+
+
+def preferred_executor(
+    available: list[str] | None = None,
+) -> str:
+    """Return the highest-priority available executor type."""
+    order = load_executor_preference()
+    if available:
+        for ex in order:
+            if ex in available:
+                return ex
+    return order[0] if order else ExecutorType.WORKSTATION.value
