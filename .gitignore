@@ -131,5 +131,9 @@ data/audits/2026-06-23_full_filesystem_inventory.json
 data/audits/2026-06-23_full_filesystem_inventory.tsv
 data/audits/line_audit_2026-06-23/
 
+# C29 benchmark auth state and run artifacts (screenshots, evidence, traces)
+data/certification/c29/c29_auth_state.json
+data/certification/c29/runs/
+
 # Root-level runtime artifacts
 runtime/
