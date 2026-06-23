@@ -46,7 +46,7 @@ export const useIntentStore = create<IntentState>((set) => ({
   fetchActive: async () => {
     set({ loading: true, error: null })
     try {
-      const data = await fetchApi('/api/umh/intent/active')
+      const data = await fetchApi('/intent/active')
       set({ activeIntents: data.intents ?? [], loading: false })
     } catch (e) {
       set({ error: String(e), loading: false })
@@ -55,7 +55,7 @@ export const useIntentStore = create<IntentState>((set) => ({
 
   fetchSummary: async () => {
     try {
-      const data = await fetchApi('/api/umh/intent/summary')
+      const data = await fetchApi('/intent/summary')
       set({ summary: data.summary ?? null })
     } catch (e) {
       set({ error: String(e) })
@@ -64,7 +64,7 @@ export const useIntentStore = create<IntentState>((set) => ({
 
   fetchConflicts: async () => {
     try {
-      const data = await fetchApi('/api/umh/intent/conflicts')
+      const data = await fetchApi('/intent/conflicts')
       set({ conflicts: data.conflicts ?? [] })
     } catch (e) {
       set({ error: String(e) })
@@ -74,7 +74,7 @@ export const useIntentStore = create<IntentState>((set) => ({
   captureIntent: async (scope: string, statement: string, rationale?: string) => {
     set({ loading: true, error: null })
     try {
-      const data = await fetchApi('/api/umh/intent/capture', {
+      const data = await fetchApi('/intent/capture', {
         method: 'POST',
         body: JSON.stringify({ scope, statement, rationale: rationale ?? '' }),
       })

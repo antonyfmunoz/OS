@@ -34,7 +34,7 @@ export function LivePreview({
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
-    fetchApi<{ projections: any[] }>('/api/umh/projections')
+    fetchApi<{ projections: any[] }>('/projections')
       .then((data) => {
         const projs: ProjectionInfo[] = (data.projections || [])
           .filter((p: any) => p.preview_url)

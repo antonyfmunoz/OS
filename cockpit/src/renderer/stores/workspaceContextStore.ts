@@ -55,7 +55,7 @@ export const useWorkspaceContextStore = create<WorkspaceContext>()(
 
       fetchContext: async () => {
         try {
-          const data = await fetchApi<Record<string, string>>('/api/umh/workspace/context')
+          const data = await fetchApi<Record<string, string>>('/workspace/context')
           set({
             activeProject: data.active_project || get().activeProject,
             activeRepo: data.active_repo || get().activeRepo,

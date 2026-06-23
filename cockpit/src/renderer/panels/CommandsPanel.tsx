@@ -97,10 +97,10 @@ export function CommandsPanel() {
   const refresh = useCallback(async () => {
     try {
       const [statusRes, historyRes, pendingRes, timelineRes] = await Promise.all([
-        fetchApi('/api/umh/command/status'),
-        fetchApi('/api/umh/command/history?limit=50'),
-        fetchApi('/api/umh/command/pending'),
-        fetchApi('/api/umh/command/timeline?limit=50'),
+        fetchApi('/command/status'),
+        fetchApi('/command/history?limit=50'),
+        fetchApi('/command/pending'),
+        fetchApi('/command/timeline?limit=50'),
       ])
       if (statusRes.success) setStatus(statusRes as unknown as CommandStatus)
       if (historyRes.success) setCommands(historyRes.commands || [])
@@ -119,7 +119,7 @@ export function CommandsPanel() {
     setLoading(true)
     setSubmitResult(null)
     try {
-      const res = await fetchApi('/api/umh/command/submit', {
+      const res = await fetchApi('/command/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ raw_input: commandInput, source: 'cockpit' }),
