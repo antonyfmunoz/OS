@@ -1,0 +1,88 @@
+{
+  "report_id": "dr-c27-baseline",
+  "label": "C27 Baseline — Pre-Campaign",
+  "generated_at": "2026-06-23T00:00:00Z",
+  "reports": [
+    {
+      "report_id": "dr-c27-baseline",
+      "label": "C27 Baseline — Pre-Campaign",
+      "projections": [
+        {
+          "projection_name": "CreatorOS",
+          "capabilities": [
+            {"name": "Auth/Onboarding (Clerk)", "desired": true, "implemented": true, "operational": false, "source": "Clerk integration exists, app suspended"},
+            {"name": "User Profiles", "desired": true, "implemented": true, "operational": false, "source": "users table, EditProfilePage, ProfileFeed"},
+            {"name": "Content Feed", "desired": true, "implemented": true, "operational": false, "source": "posts table, Post component, FilterDropdown"},
+            {"name": "Stories (24h)", "desired": true, "implemented": true, "operational": false, "source": "stories table with expiry, StoryCreator"},
+            {"name": "Content Creation (Multi-format)", "desired": true, "implemented": true, "operational": false, "source": "TextComposer, PhotoUploader, VideoRecorder, VoiceRecorder"},
+            {"name": "Comments & Engagement", "desired": true, "implemented": true, "operational": false, "source": "comments table (threaded), CommentSection"},
+            {"name": "Follow System", "desired": true, "implemented": true, "operational": false, "source": "followers table, follower/following pages"},
+            {"name": "Saved Posts", "desired": true, "implemented": true, "operational": false, "source": "savedPosts junction table"},
+            {"name": "Tagging", "desired": true, "implemented": true, "operational": false, "source": "taggedUsers with position tracking"},
+            {"name": "Marketplace/Products", "desired": true, "implemented": true, "operational": false, "source": "products table, ProductCard, marketplace page"},
+            {"name": "AI Agents/Chat", "desired": true, "implemented": true, "operational": false, "source": "aiAgents + aiChats tables, ChatInterface"},
+            {"name": "Communities/Channels", "desired": true, "implemented": true, "operational": false, "source": "communities + channels tables, ChatMessage"},
+            {"name": "Direct Messaging", "desired": true, "implemented": true, "operational": false, "source": "conversations + directMessages with reactions/replies"},
+            {"name": "Notifications", "desired": true, "implemented": true, "operational": false, "source": "notifications table, NotificationBell"},
+            {"name": "Documents/Editor", "desired": true, "implemented": true, "operational": false, "source": "documents table, DocumentEditor"},
+            {"name": "Revenue Dashboard", "desired": true, "implemented": true, "operational": false, "source": "revenue table, RevenueChart, StatCard"},
+            {"name": "CRM/Contacts", "desired": true, "implemented": true, "operational": false, "source": "contacts table, ContactList"},
+            {"name": "Explore/Discovery", "desired": true, "implemented": true, "operational": false, "source": "explore page"},
+            {"name": "PostHog Analytics", "desired": true, "implemented": true, "operational": false, "source": "posthog.ts client + server"},
+            {"name": "File Upload", "desired": true, "implemented": true, "operational": false, "source": "upload.ts, ImagePicker components"},
+            {"name": "Fly Deployment Config", "desired": true, "implemented": true, "operational": false, "source": "Dockerfile with VITE_CLERK pattern"},
+            {"name": "Publishing Orchestration", "desired": true, "implemented": false, "operational": false, "source": "No cross-platform publishing pipeline"},
+            {"name": "Public Portfolio/Showcase", "desired": true, "implemented": false, "operational": false, "source": "Profile is app-internal only"},
+            {"name": "Creator Analytics (Advanced)", "desired": true, "implemented": false, "operational": false, "source": "No engagement/audience/growth analytics"},
+            {"name": "Content Pipeline (Draft→Publish)", "desired": true, "implemented": false, "operational": false, "source": "Posts are immediate only, no drafts/scheduling"},
+            {"name": "Creator Onboarding Flow", "desired": true, "implemented": false, "operational": false, "source": "No guided creator onboarding wizard"},
+            {"name": "Monetization Tools", "desired": true, "implemented": false, "operational": false, "source": "No subscriptions/paid content/payouts"},
+            {"name": "Search", "desired": true, "implemented": false, "operational": false, "source": "No search functionality"}
+          ]
+        },
+        {
+          "projection_name": "EntrepreneurOS",
+          "capabilities": [
+            {"name": "Auth/Onboarding (Clerk)", "desired": true, "implemented": true, "operational": false, "source": "Clerk + Firebase auth, L5 certified C26"},
+            {"name": "Agent Management", "desired": true, "implemented": true, "operational": false, "source": "agents table, CRUD routes, agent-card.tsx"},
+            {"name": "Agent Chat", "desired": true, "implemented": true, "operational": false, "source": "POST /api/agents/:id/chat, messages table"},
+            {"name": "Agent Hierarchy", "desired": true, "implemented": true, "operational": false, "source": "roleLevel, department, parentAgentId"},
+            {"name": "Agent Metrics", "desired": true, "implemented": true, "operational": false, "source": "agentMetrics table, performance-analytics.tsx"},
+            {"name": "Task Board", "desired": true, "implemented": true, "operational": false, "source": "tasks table, CRUD, task-board-page.tsx"},
+            {"name": "Multi-Agent Collaboration", "desired": true, "implemented": true, "operational": false, "source": "POST /api/ai/multi-agent, collaborators"},
+            {"name": "CRM Contacts", "desired": true, "implemented": true, "operational": false, "source": "crmContacts table, crm-page.tsx"},
+            {"name": "CRM Deals", "desired": true, "implemented": true, "operational": false, "source": "crmDeals table, CRUD routes"},
+            {"name": "CRM Activities", "desired": true, "implemented": true, "operational": false, "source": "crmActivities table, CRUD routes"},
+            {"name": "Document Management", "desired": true, "implemented": true, "operational": false, "source": "documents + folders tables, documents-page.tsx"},
+            {"name": "Notifications", "desired": true, "implemented": true, "operational": false, "source": "notifications table, notification-dropdown.tsx"},
+            {"name": "AI Assistant Chat", "desired": true, "implemented": true, "operational": false, "source": "aiMessages table, POST /api/ai-assistant"},
+            {"name": "Agent Actions/Approvals", "desired": true, "implemented": true, "operational": false, "source": "agentActions table, approve/reject routes"},
+            {"name": "Analytics Dashboard", "desired": true, "implemented": true, "operational": false, "source": "GET /api/analytics, analytics-page.tsx"},
+            {"name": "Gmail Integration", "desired": true, "implemented": true, "operational": false, "source": "OAuth routes, gmail-connect-button.tsx"},
+            {"name": "Integrations Framework", "desired": true, "implemented": true, "operational": false, "source": "GET /api/integrations, integrations-page.tsx"},
+            {"name": "AI Model Selection", "desired": true, "implemented": true, "operational": false, "source": "GET /api/ai/models, ai-model-selector.tsx"},
+            {"name": "Settings", "desired": true, "implemented": true, "operational": false, "source": "settings-page.tsx"},
+            {"name": "Tutorials", "desired": true, "implemented": true, "operational": false, "source": "tutorials-page.tsx"},
+            {"name": "SOP Templates", "desired": true, "implemented": true, "operational": false, "source": "sop-template-button.tsx"},
+            {"name": "Fly Deployment Config", "desired": true, "implemented": true, "operational": false, "source": "Dockerfile with Clerk pattern, C26 L5"},
+            {"name": "Venture Management", "desired": true, "implemented": false, "operational": false, "source": "Pydantic models in projections/ but no frontend/API"},
+            {"name": "Financial Tracking", "desired": true, "implemented": false, "operational": false, "source": "No financial tables or routes"},
+            {"name": "Offer Management", "desired": true, "implemented": false, "operational": false, "source": "No offers/products in schema"},
+            {"name": "Client Pipeline (automated)", "desired": true, "implemented": false, "operational": false, "source": "CRM exists but no pipeline automation"},
+            {"name": "Outreach Automation", "desired": true, "implemented": false, "operational": false, "source": "UMH-side workflows exist but not wired to frontend"},
+            {"name": "UMH Integration", "desired": true, "implemented": false, "operational": false, "source": "projections/eos/ exists but EOS app has zero UMH awareness"}
+          ]
+        },
+        {
+          "projection_name": "LyfeOS",
+          "capabilities": [
+            {"name": "Auth/Onboarding", "desired": true, "implemented": true, "operational": true, "source": "Clerk integration, L5 certified"},
+            {"name": "Core App", "desired": true, "implemented": true, "operational": true, "source": "Deployed, health 200, L5 certified C26"},
+            {"name": "UI Renders", "desired": true, "implemented": true, "operational": true, "source": "Bundle contains Clerk key, login page renders"},
+            {"name": "Health Endpoint", "desired": true, "implemented": true, "operational": true, "source": "GET /api/health returns 200"}
+          ]
+        }
+      ]
+    }
+  ]
+}

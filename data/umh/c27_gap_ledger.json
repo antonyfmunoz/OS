@@ -1,0 +1,106 @@
+{
+  "gaps": [
+    {
+      "gap_id": "gap-baseline-001",
+      "gap_type": "surface_degraded",
+      "severity": "critical",
+      "surface": "cockpit",
+      "title": "Cockpit API returns 502",
+      "description": "Frontend loads (200) but /api/health returns 502. Backend not responding.",
+      "task_id": "",
+      "projection": "",
+      "evidence": "",
+      "remediation": "Investigate cockpit backend, check Fly logs, redeploy if needed",
+      "discovered_at": "2026-06-23T07:25:52.205127+00:00",
+      "resolved": false
+    },
+    {
+      "gap_id": "gap-baseline-002",
+      "gap_type": "deployment_failure",
+      "severity": "high",
+      "surface": "cockpit",
+      "title": "COS Fly app suspended",
+      "description": "creatoros-app on Fly is suspended. 0 operational capabilities.",
+      "task_id": "",
+      "projection": "CreatorOS",
+      "evidence": "",
+      "remediation": "Unsuspend via flyctl scale, redeploy, run L0-L5 certification",
+      "discovered_at": "2026-06-23T07:25:52.205156+00:00",
+      "resolved": false
+    },
+    {
+      "gap_id": "gap-baseline-003",
+      "gap_type": "deployment_failure",
+      "severity": "high",
+      "surface": "cockpit",
+      "title": "EOS Fly app suspended",
+      "description": "eos-app on Fly is suspended. 0 operational capabilities.",
+      "task_id": "",
+      "projection": "EntrepreneurOS",
+      "evidence": "",
+      "remediation": "Unsuspend via flyctl scale, redeploy, run L0-L5 certification",
+      "discovered_at": "2026-06-23T07:25:52.205161+00:00",
+      "resolved": false
+    },
+    {
+      "gap_id": "gap-baseline-004",
+      "gap_type": "integration_missing",
+      "severity": "high",
+      "surface": "stitch",
+      "title": "Stitch has zero substrate integration",
+      "description": "Tool skill exists but no organism-level integration. Cannot programmatically pull design assets.",
+      "task_id": "",
+      "projection": "",
+      "evidence": "",
+      "remediation": "Document as gap for C28 or build adapter during C27.2 if COS design work requires it",
+      "discovered_at": "2026-06-23T07:25:52.205164+00:00",
+      "resolved": false
+    },
+    {
+      "gap_id": "gap-baseline-005",
+      "gap_type": "integration_missing",
+      "severity": "high",
+      "surface": "meta_ide",
+      "title": "EOS has zero UMH awareness",
+      "description": "projections/eos/ substrate code exists (views, workflows, integration) but EOS app does not consume it.",
+      "task_id": "",
+      "projection": "EntrepreneurOS",
+      "evidence": "",
+      "remediation": "Wire EOS app to UMH substrate via API or direct integration during C27.2",
+      "discovered_at": "2026-06-23T07:25:52.205167+00:00",
+      "resolved": false
+    },
+    {
+      "gap_id": "gap-baseline-006",
+      "gap_type": "surface_degraded",
+      "severity": "medium",
+      "surface": "google_drive",
+      "title": "Google Drive retrieval untested live",
+      "description": "GWS adapter exists but no live retrieval test performed in this session.",
+      "task_id": "",
+      "projection": "",
+      "evidence": "",
+      "remediation": "Test live retrieval during Phase A1 desired state pull",
+      "discovered_at": "2026-06-23T07:25:52.205169+00:00",
+      "resolved": false
+    }
+  ],
+  "summary": {
+    "total": 6,
+    "unresolved": 6,
+    "by_severity": {
+      "critical": 1,
+      "high": 4,
+      "medium": 1,
+      "low": 0
+    },
+    "by_surface": {
+      "meta_ide": 1,
+      "google_drive": 1,
+      "stitch": 1,
+      "cockpit": 3
+    },
+    "coherence_gaps": 0
+  },
+  "exported_at": "2026-06-23T07:25:52.205222+00:00"
+}
