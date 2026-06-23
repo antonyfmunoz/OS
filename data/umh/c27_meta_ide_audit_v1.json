@@ -1,0 +1,242 @@
+{
+  "audit": {
+    "subsystems_tested": 7,
+    "subsystems_total": 7,
+    "by_status": {
+      "functional": 2,
+      "partial": 0,
+      "broken": 5,
+      "not_tested": 0
+    },
+    "critical_path_broken": true,
+    "details": {
+      "planning": {
+        "subsystem": "planning",
+        "overall_status": "broken",
+        "operations": [
+          {
+            "operation_id": "op-3cd7cd26",
+            "name": "POST /compose",
+            "description": "Create plan from intent",
+            "status": "partial",
+            "evidence": "Returns 405 Method Not Allowed \u2014 route exists but needs proper POST with body and auth",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846484+00:00"
+          },
+          {
+            "operation_id": "op-8a65cbbe",
+            "name": "POST /execute-plan",
+            "description": "Execute approved plan",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found \u2014 route not registered or not reachable",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846510+00:00"
+          }
+        ],
+        "functional_count": 0,
+        "total_operations": 2
+      },
+      "work_packets": {
+        "subsystem": "work_packets",
+        "overall_status": "broken",
+        "operations": [
+          {
+            "operation_id": "op-e6c74936",
+            "name": "Work packet CRUD",
+            "description": "Create/read/update work packets",
+            "status": "broken",
+            "evidence": "No standalone CRUD endpoint \u2014 nested under /execute-plan which returns 404",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846530+00:00"
+          }
+        ],
+        "functional_count": 0,
+        "total_operations": 1
+      },
+      "proof_packages": {
+        "subsystem": "proof_packages",
+        "overall_status": "broken",
+        "operations": [
+          {
+            "operation_id": "op-90252765",
+            "name": "GET /deliverables",
+            "description": "List proof packages",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846536+00:00"
+          }
+        ],
+        "functional_count": 0,
+        "total_operations": 1
+      },
+      "reality_systems": {
+        "subsystem": "reality_systems",
+        "overall_status": "broken",
+        "operations": [
+          {
+            "operation_id": "op-653d3807",
+            "name": "GET /projections/certification",
+            "description": "View projection certification levels",
+            "status": "functional",
+            "evidence": "Returns 200 with JSON data",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846541+00:00"
+          },
+          {
+            "operation_id": "op-038342d8",
+            "name": "GET /trust/scores",
+            "description": "View trust scores",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846545+00:00"
+          },
+          {
+            "operation_id": "op-78ae3c8f",
+            "name": "GET /contradictions",
+            "description": "View contradiction ledger",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846548+00:00"
+          },
+          {
+            "operation_id": "op-08bb7629",
+            "name": "GET /world-model",
+            "description": "View reality world model",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846551+00:00"
+          }
+        ],
+        "functional_count": 1,
+        "total_operations": 4
+      },
+      "organism_runtime": {
+        "subsystem": "organism_runtime",
+        "overall_status": "functional",
+        "operations": [
+          {
+            "operation_id": "op-8955ed43",
+            "name": "GET /organism/snapshot",
+            "description": "Full organism snapshot",
+            "status": "functional",
+            "evidence": "Returns 200 with rich JSON (system_mode, objectives, work_units, runtimes)",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846557+00:00"
+          },
+          {
+            "operation_id": "op-32a281ef",
+            "name": "GET /organism/agents",
+            "description": "List organism agents",
+            "status": "functional",
+            "evidence": "Returns 200 with agent list (researcher, builder, auto-research)",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846560+00:00"
+          },
+          {
+            "operation_id": "op-fba147f5",
+            "name": "GET /organism/status",
+            "description": "Organism status summary",
+            "status": "functional",
+            "evidence": "Returns 200 with status data",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846563+00:00"
+          },
+          {
+            "operation_id": "op-17131be5",
+            "name": "GET /organism/governor",
+            "description": "View recursion governor state",
+            "status": "functional",
+            "evidence": "Returns 200 with limits and state (max_depth, budget, elapsed)",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846566+00:00"
+          }
+        ],
+        "functional_count": 4,
+        "total_operations": 4
+      },
+      "governance": {
+        "subsystem": "governance",
+        "overall_status": "broken",
+        "operations": [
+          {
+            "operation_id": "op-863f1e63",
+            "name": "GET /approvals",
+            "description": "List approval packets",
+            "status": "functional",
+            "evidence": "Returns 200 with approvals data",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846570+00:00"
+          },
+          {
+            "operation_id": "op-f13b0574",
+            "name": "GET /approvals/count",
+            "description": "Pending approval count",
+            "status": "functional",
+            "evidence": "Returns 403 Operator token required \u2014 route works, auth-gated",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846573+00:00"
+          },
+          {
+            "operation_id": "op-954dabf8",
+            "name": "GET /governor/escalations",
+            "description": "View escalation log",
+            "status": "broken",
+            "evidence": "Returns 404 Not Found",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846576+00:00"
+          }
+        ],
+        "functional_count": 2,
+        "total_operations": 3
+      },
+      "execution": {
+        "subsystem": "execution",
+        "overall_status": "functional",
+        "operations": [
+          {
+            "operation_id": "op-1d957aa1",
+            "name": "GET /execution/status",
+            "description": "Execution spine status",
+            "status": "functional",
+            "evidence": "Returns 200 with spine data, envelope counts, work_packets (542 total)",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846580+00:00"
+          },
+          {
+            "operation_id": "op-5118eb35",
+            "name": "GET /execution/log",
+            "description": "Execution log",
+            "status": "functional",
+            "evidence": "Returns 200 with execution log data",
+            "screenshot_path": "",
+            "notes": "",
+            "tested_at": "2026-06-23T07:46:06.846583+00:00"
+          }
+        ],
+        "functional_count": 2,
+        "total_operations": 2
+      }
+    }
+  },
+  "exported_at": "2026-06-23T07:46:06.846666+00:00"
+}
