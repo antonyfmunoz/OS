@@ -1,0 +1,98 @@
+{
+  "certification_id": "c27-daily-driver-v1",
+  "campaign": "C27 — Daily Driver Readiness Certification",
+  "version": "v1",
+  "generated_at": "2026-06-23T09:00:00+00:00",
+  "gates": {
+    "gate_1_surface_completeness": {
+      "status": "PASS",
+      "score": "4/4 surfaces responding",
+      "details": {
+        "cockpit": {
+          "status": "operational",
+          "health_check": "200 via universalmetaharness.tech",
+          "route_count": 1158,
+          "evidence": "Full API responding, organism running, 106 route files"
+        },
+        "creatoros": {
+          "status": "operational",
+          "health_check": "200",
+          "operational_capabilities": "20/27",
+          "evidence": "Fly machine running, Clerk auth working, 20 API routes returning data"
+        },
+        "entrepreneuros": {
+          "status": "operational",
+          "health_check": "200",
+          "operational_capabilities": "16/28",
+          "evidence": "Fly machine running, Clerk auth working, 16 API routes operational"
+        },
+        "lyfeos": {
+          "status": "operational",
+          "health_check": "200",
+          "operational_capabilities": "4/4",
+          "evidence": "Deployed, L5 certified in C26"
+        }
+      }
+    },
+    "gate_2_production": {
+      "status": "PARTIAL",
+      "score": "40/59 operational capabilities (67.8%)",
+      "details": {
+        "cos_operational": "20/27 (74.1%)",
+        "cos_missing": ["Publishing Orchestration", "Public Portfolio", "Creator Analytics", "Content Pipeline", "Creator Onboarding", "Monetization", "Search"],
+        "eos_operational": "16/28 (57.1%)",
+        "eos_missing": ["AI Assistant Chat (no server route)", "Agent Actions/Approvals (no server route)", "Gmail Integration (no OAuth)", "Settings (client-only)", "Tutorials (client-only)", "SOP Templates (no server route)", "Venture Management", "Financial Tracking", "Offer Management", "Client Pipeline", "Outreach Automation", "UMH Integration"],
+        "lyfeos_operational": "4/4 (100%)",
+        "note": "EOS/COS code repos live on Beast, not VPS. Server route gaps require Beast-side development."
+      }
+    },
+    "gate_3_meta_ide_completeness": {
+      "status": "PASS",
+      "score": "7/7 subsystems functional",
+      "details": {
+        "planning": "functional — /compose, /execute-plan, /plans all operational",
+        "work_packets": "functional — /execution/status shows 542 packets, CRUD operational",
+        "proof_packages": "functional — /deliverables returns 200",
+        "reality_systems": "functional — /reality-model/status + 13 sub-routes, /trust/scores, /loop-coherence/contradictions, /reality-intelligence/contradictions",
+        "organism_runtime": "functional — /organism/snapshot, /agents, /status, /governor",
+        "governance": "functional — /approvals, /approvals/count, /organism/recursion/escalations",
+        "execution": "functional — /execution/status, /execution/log, /execution/start"
+      }
+    },
+    "gate_4_coherence": {
+      "status": "PASS",
+      "score": "coherence maintained through cockpit split",
+      "details": {
+        "route_split": "cockpit_core_routes.py 3472 → 2655 lines (under 3000 gate)",
+        "dependency_direction": "all new files pass check_dependency_direction.py",
+        "cross_subsystem_data": "organism snapshot, execution status, loops, reality model all responding consistently",
+        "compilation": "all 6 modified/new cockpit route files compile clean",
+        "runtime_imports": "full cockpit router loads 1158 routes without errors",
+        "test_suite": "136/137 pass (1 pre-existing flaky test unrelated to changes)",
+        "docker_restart": "os-operator restarts clean with no import errors"
+      }
+    }
+  },
+  "overall_status": "CONDITIONAL_PASS",
+  "summary": "C27 passes 3/4 gates fully (Surface, Meta IDE, Coherence). Gate 2 (Production) at 67.8% — EOS/COS advancement blocked by repo access (Beast-side). The cockpit quality gate split was the main technical achievement: cockpit_core_routes.py brought under the 3000-line limit, Meta IDE critical path routes created, all 7 subsystems verified functional. Zero coherence regressions.",
+  "blockers": [
+    "EOS/COS server-side development requires Beast access (repos not on VPS)",
+    "EOS has 6 frontend pages with no server routes (SPA HTML returns)",
+    "COS missing 7 capabilities (search, content pipeline, analytics, etc.)"
+  ],
+  "achievements": [
+    "Cockpit 502 resolved (os-operator container restart)",
+    "COS and EOS unsuspended from Fly",
+    "cockpit_core_routes.py split: 3472 → 2655 lines (3 new route files extracted)",
+    "push_chat_message/push_organism_event hoisted to module-level exports",
+    "Meta IDE critical path routes created (planning, work_packets, proof_packages, trust scores)",
+    "Meta IDE audit: 2/7 → 7/7 functional (v1 tested wrong paths, v3 corrected)",
+    "cockpit_rooms_routes.py import path fixed (push_organism_event)",
+    "Projection delta measured: 40/59 operational (67.8%)",
+    "Gap ledger: 6 gaps tracked, 3 resolved",
+    "All pre-commit gates pass (dependency direction, type coherence)"
+  ],
+  "gap_ledger_ref": "data/umh/c27_gap_ledger.json",
+  "projection_delta_ref": "data/umh/c27_projection_delta_v1.json",
+  "meta_ide_audit_ref": "data/umh/c27_meta_ide_audit_v3.json"
+}
