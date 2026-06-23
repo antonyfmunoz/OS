@@ -8,11 +8,14 @@ C26E: Reality Correspondence Certification — Phase 2.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -102,11 +105,60 @@ class TrustScore:
 # ── Engine ───────────────────────────────────────────────────────────────
 
 
+_TRUST_STORE_PATH = Path(
+    os.environ.get("UMH_ROOT", "/opt/OS")
+) / "data" / "runtime" / "trust_scores.jsonl"
+
+
 class TrustScoreEngine:
     """Computes composite trust scores. Weakest link determines confidence."""
 
-    def __init__(self) -> None:
+    def __init__(self, persist_path: Path | None = None) -> None:
+        self._persist_path = persist_path or _TRUST_STORE_PATH
         self._scores: dict[str, TrustScore] = {}
+        self._load()
+
+    def _load(self) -> None:
+        """Load trust scores from JSONL persistence."""
+        if not self._persist_path.exists():
+            return
+        try:
+            for line in self._persist_path.read_text().strip().splitlines():
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                work_id = row.get("work_id", "")
+                if not work_id:
+                    continue
+                dims = []
+                for d in row.get("dimensions", []):
+                    dims.append(DimensionScore(
+                        dimension=TrustDimension(d["dimension"]),
+                        score=d["score"],
+                        evidence=d.get("evidence", []),
+                        source=d.get("source", ""),
+                    ))
+                ts = TrustScore(
+                    trust_id=row.get("trust_id", ""),
+                    work_id=work_id,
+                    dimensions=dims,
+                    composite_trust=row.get("composite_trust", 0.0),
+                    trust_level=TrustLevel(row.get("trust_level", "untrusted")),
+                    computed_at=datetime.fromisoformat(row["computed_at"]) if "computed_at" in row else datetime.now(timezone.utc),
+                )
+                self._scores[work_id] = ts
+            logger.info("Loaded %d trust scores from %s", len(self._scores), self._persist_path)
+        except Exception as exc:
+            logger.warning("Failed to load trust scores: %s", exc)
+
+    def _save(self, score: TrustScore) -> None:
+        """Append a trust score to JSONL persistence."""
+        try:
+            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._persist_path, "a") as f:
+                f.write(json.dumps(score.to_dict(), default=str) + "\n")
+        except Exception as exc:
+            logger.warning("Failed to persist trust score: %s", exc)
 
     @staticmethod
     def classify(score: float) -> TrustLevel:
@@ -167,6 +219,7 @@ class TrustScoreEngine:
         )
 
         self._scores[work_id] = trust_score
+        self._save(trust_score)
 
         logger.info(
             "Trust score for %s: composite=%.2f level=%s (claim=%.2f verify=%.2f reality=%.2f)",

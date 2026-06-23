@@ -206,42 +206,31 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
     root = Path(repo_root or os.environ.get("UMH_ROOT", "/opt/OS"))
     snap = OperationalTruthSnapshot()
 
+    _SKIP_DIRS = {".git", "node_modules", "__pycache__", ".mypy_cache", ".ruff_cache", ".pytest_cache"}
+    _MAX_DEPTH = 3
+
     try:
-        result = gated_subprocess_run(
-            [
-                "find", str(root), "-type", "f",
-                "-not", "-path", "*/.git/*",
-                "-not", "-path", "*/node_modules/*",
-                "-not", "-path", "*/__pycache__/*",
-                "-not", "-path", "*/.mypy_cache/*",
-                "-not", "-path", "*/.ruff_cache/*",
-                "-not", "-path", "*/.pytest_cache/*",
-            ],
-            capture_output=True, text=True, timeout=30,
-        )
-        snap.repo_file_count = len(result.stdout.strip().split("\n")) if result.stdout.strip() else 0
+        total = 0
+        py_count = 0
+        ts_count = 0
+        root_depth = str(root).count(os.sep)
+        for dirpath, dirnames, filenames in os.walk(root):
+            depth = dirpath.count(os.sep) - root_depth
+            if depth >= _MAX_DEPTH:
+                dirnames.clear()
+                continue
+            dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+            total += len(filenames)
+            for fn in filenames:
+                if fn.endswith(".py"):
+                    py_count += 1
+                elif fn.endswith((".ts", ".tsx")):
+                    ts_count += 1
+        snap.repo_file_count = total
+        snap.active_python_files = py_count
+        snap.active_ts_files = ts_count
     except Exception as exc:
         logger.warning("file count failed: %s", exc)
-
-    try:
-        result = gated_subprocess_run(
-            ["find", str(root), "-name", "*.py", "-not", "-path", "*/__pycache__/*",
-             "-not", "-path", "*/.git/*", "-not", "-path", "*/node_modules/*"],
-            capture_output=True, text=True, timeout=30,
-        )
-        snap.active_python_files = len(result.stdout.strip().split("\n")) if result.stdout.strip() else 0
-    except Exception:
-        pass
-
-    try:
-        result = gated_subprocess_run(
-            ["find", str(root), "-name", "*.ts", "-o", "-name", "*.tsx",
-             "-not", "-path", "*/.git/*", "-not", "-path", "*/node_modules/*"],
-            capture_output=True, text=True, timeout=30,
-        )
-        snap.active_ts_files = len(result.stdout.strip().split("\n")) if result.stdout.strip() else 0
-    except Exception:
-        pass
 
     try:
         usage = shutil.disk_usage("/")

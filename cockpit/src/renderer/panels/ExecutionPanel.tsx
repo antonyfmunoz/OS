@@ -8,6 +8,7 @@ import { formatDuration, relativeTime } from '../lib/time'
 import { ExecutionTimeline } from '../components/ExecutionTimeline'
 import { EventConsole } from '../components/EventConsole'
 import { ConnectionBanner } from '../components/ConnectionBanner'
+import { ExecutorBadge } from '../components/ExecutorBadge'
 
 const RISK_BADGE: Record<string, string> = {
   low: 'text-ok',
@@ -48,6 +49,7 @@ export function ExecutionPanel() {
         <StatusChip label="Mode" value={executionMode?.current_mode?.toUpperCase() ?? '—'} />
         <StatusChip label="Guard" value={guard?.mode?.replace('_', ' ')?.toUpperCase() ?? '—'} />
         <StatusChip label="Gateway" value={gateway?.policy?.toUpperCase() ?? '—'} />
+        <ExecutorBadge executorType={executionMode?.default_executor ?? 'simulation'} targetMachine={executionMode?.target_machine} />
         <div className="flex-1" />
         {spine && (
           <div className="flex gap-3 text-[10px]">

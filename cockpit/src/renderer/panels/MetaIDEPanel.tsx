@@ -1017,18 +1017,14 @@ function PhaseRow({ phase }: { phase: { phase_number: string; phase_name: string
 // ─── Right Preview Sidebar ───────────────────────────────────────
 
 function PreviewSidebar() {
-  const { observation } = useMetaIDEStore()
-  const previews = observation?.previews || []
-  const healthy = previews.filter((p) => p.health === 'healthy')
-  const previewUrl = healthy.length > 0 ? healthy[0].url : undefined
-  const proxyUrl = previewUrl ? '/preview/' : '/preview/'
+  const { previewExpanded, togglePreviewExpanded } = useMetaIDEStore()
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="flex items-center h-8 px-3 shrink-0 border-b border-border">
-        <span className="wv-label text-[10px] text-cyan">Preview</span>
-      </div>
-      <LivePreview url={proxyUrl} defaultUrl="/preview/" />
+      <LivePreview
+        expanded={previewExpanded}
+        onToggleExpand={togglePreviewExpanded}
+      />
     </div>
   )
 }

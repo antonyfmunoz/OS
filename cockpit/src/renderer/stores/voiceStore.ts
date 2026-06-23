@@ -45,6 +45,13 @@ export type VoiceOutcome =
   | 'TIMEOUT'
   | 'RECORDING_FORMAT_UNSUPPORTED'
 
+export interface VoiceCommandEntry {
+  transcript: string
+  intent: string
+  result: string
+  timestamp: number
+}
+
 interface VoiceState {
   micState: MicState
   ttsState: TtsState
@@ -62,6 +69,7 @@ interface VoiceState {
   voicePresentationStatus: PresentationStatus
   activeTtsJobId: string | null
   heldEnvelope: OrganismResponseEnvelope | null
+  commandHistory: VoiceCommandEntry[]
 
   setMicState: (state: MicState) => void
   setTtsState: (state: TtsState) => void
@@ -80,6 +88,7 @@ interface VoiceState {
   setVoicePresentationStatus: (status: PresentationStatus) => void
   setActiveTtsJobId: (id: string | null) => void
   setHeldEnvelope: (envelope: OrganismResponseEnvelope | null) => void
+  addCommandToHistory: (entry: VoiceCommandEntry) => void
   reset: () => void
 }
 
@@ -100,6 +109,7 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   voicePresentationStatus: 'idle',
   activeTtsJobId: null,
   heldEnvelope: null,
+  commandHistory: [],
 
   setMicState: (micState) => set({ micState }),
   setTtsState: (ttsState) => set({ ttsState }),
@@ -118,6 +128,9 @@ export const useVoiceStore = create<VoiceState>((set) => ({
   setVoicePresentationStatus: (voicePresentationStatus) => set({ voicePresentationStatus }),
   setActiveTtsJobId: (activeTtsJobId) => set({ activeTtsJobId }),
   setHeldEnvelope: (heldEnvelope) => set({ heldEnvelope }),
+  addCommandToHistory: (entry) => set((s) => ({
+    commandHistory: [entry, ...s.commandHistory].slice(0, 20),
+  })),
   reset: () => set({
     micState: 'idle',
     ttsState: 'idle',

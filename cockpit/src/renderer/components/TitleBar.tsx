@@ -22,7 +22,20 @@ declare global {
   }
 }
 
+import { useCockpitStore } from '../stores/cockpitStore'
+import { useWorkspaceContextStore } from '../stores/workspaceContextStore'
+import { ROUTES } from '../types/routes'
+
+function getPanelLabel(panelId: string): string {
+  const route = ROUTES.find(r => r.id === panelId)
+  return route?.label ?? panelId
+}
+
 export function TitleBar() {
+  const activePanel = useCockpitStore(s => s.activePanel)
+  const panelLabel = getPanelLabel(activePanel)
+  const contextLine = useWorkspaceContextStore(s => s.contextLine())
+
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {})
@@ -36,9 +49,14 @@ export function TitleBar() {
       className="titlebar-drag flex items-center px-3 select-none bg-surface border-b border-border"
       style={{ height: 'var(--spacing-titlebar-height)' }}
     >
-      <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-cyan">
-        UMH
+      <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
+        {panelLabel}
       </span>
+      {contextLine && (
+        <span className="ml-3 font-mono text-[10px] leading-none text-text-tertiary truncate max-w-[400px]">
+          {contextLine}
+        </span>
+      )}
 
       <div className="flex-1" />
 
