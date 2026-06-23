@@ -1,0 +1,113 @@
+{
+  "subsystem": "execution",
+  "rating": "PARTIAL",
+  "tested_at": "2026-06-23",
+  "summary": "6/9 endpoints return valid JSON with real data. 1 timed out (automation-candidates), 2 returned recv failure (maintenance, assisted + assisted/audit). Core execution status and workload data work. Workloads have real outcomes but 4/6 failed with 'gated_subprocess_run not defined' import error.",
+  "endpoints_tested": [
+    {
+      "path": "/api/umh/execution/status",
+      "http_status": 200,
+      "valid_json": true,
+      "data_populated": true,
+      "key_fields": ["spine", "envelopes.pending/active/completed", "work_packets.total=82"],
+      "notes": "82 classified work packets. No active envelopes."
+    },
+    {
+      "path": "/api/umh/organism/execution-mode",
+      "http_status": 200,
+      "valid_json": true,
+      "data_populated": true,
+      "key_fields": ["current_mode=observe", "reliability=0.3333", "success_count=2", "failure_count=4"],
+      "notes": "Mode is 'observe' with 33% reliability from 6 decisions. Real data."
+    },
+    {
+      "path": "/api/umh/organism/workloads",
+      "http_status": 200,
+      "valid_json": true,
+      "data_populated": true,
+      "key_fields": ["total_runs=6", "total_successes=2", "total_failures=4", "success_rate=0.3333"],
+      "notes": "6 workload runs recorded. 4 failures due to gated_subprocess_run not imported in container."
+    },
+    {
+      "path": "/api/umh/organism/workloads/outcomes",
+      "http_status": 200,
+      "valid_json": true,
+      "data_populated": true,
+      "key_fields": ["array of outcome objects", "workload_type", "error", "decision.mode"],
+      "notes": "Detailed outcomes with errors. Real execution trace data."
+    },
+    {
+      "path": "/api/umh/organism/workload",
+      "http_status": 200,
+      "valid_json": true,
+      "data_populated": true,
+      "key_fields": ["docker.running=0", "disk.usage_percent=48.6", "memory.usage_percent=18.8", "repo.branch=main", "repo.stale_branches"],
+      "notes": "Live system telemetry. Docker shows 0 running (probe may not work inside container). Disk/memory real."
+    },
+    {
+      "path": "/api/umh/organism/automation-candidates",
+      "http_status": "timeout",
+      "valid_json": false,
+      "data_populated": false,
+      "key_fields": [],
+      "notes": "Timed out after 10s. Endpoint hangs, does not respond."
+    },
+    {
+      "path": "/api/umh/organism/maintenance",
+      "http_status": "recv_failure",
+      "valid_json": false,
+      "data_populated": false,
+      "key_fields": [],
+      "notes": "Connection reset (curl exit 56). Server-side crash or hang."
+    },
+    {
+      "path": "/api/umh/organism/assisted",
+      "http_status": "recv_failure",
+      "valid_json": false,
+      "data_populated": false,
+      "key_fields": [],
+      "notes": "Connection reset (curl exit 56). Server-side crash or hang."
+    },
+    {
+      "path": "/api/umh/organism/assisted/audit",
+      "http_status": "recv_failure",
+      "valid_json": false,
+      "data_populated": false,
+      "key_fields": [],
+      "notes": "Connection reset (curl exit 56). Server-side crash or hang."
+    }
+  ],
+  "evidence": "6 of 9 endpoints return 200 with real data. execution-mode shows observe mode at 33% reliability. workload shows live disk/memory/repo data. workloads show 6 real runs with 4 failures from missing import. 3 endpoints are broken (timeout or crash).",
+  "gaps": [
+    {
+      "id": "exec-gap-1",
+      "severity": "HIGH",
+      "description": "automation-candidates endpoint hangs (timeout). No automation proposals visible.",
+      "endpoint": "/api/umh/organism/automation-candidates"
+    },
+    {
+      "id": "exec-gap-2",
+      "severity": "HIGH",
+      "description": "maintenance endpoint crashes connection (recv failure). Maintenance status invisible.",
+      "endpoint": "/api/umh/organism/maintenance"
+    },
+    {
+      "id": "exec-gap-3",
+      "severity": "HIGH",
+      "description": "assisted + assisted/audit endpoints crash connection. Assisted execution invisible.",
+      "endpoints": ["/api/umh/organism/assisted", "/api/umh/organism/assisted/audit"]
+    },
+    {
+      "id": "exec-gap-4",
+      "severity": "MEDIUM",
+      "description": "4/6 workloads failed with 'gated_subprocess_run not defined' — import missing in Docker container context.",
+      "detail": "stale_branch_scan, docker_health, disk_pressure, repo_health all fail"
+    },
+    {
+      "id": "exec-gap-5",
+      "severity": "LOW",
+      "description": "Docker probe shows 0 running containers — probe likely can't see host Docker from inside container.",
+      "endpoint": "/api/umh/organism/workload"
+    }
+  ]
+}
