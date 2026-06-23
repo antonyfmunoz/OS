@@ -65,7 +65,7 @@ CLERK_EMAIL = "antonyfm@theempyreancreative.com"
 AUTH_STATE_FILE = "c29_auth_state.json"
 
 # Timeouts (milliseconds for Playwright)
-TIMEOUT_PAGE_LOAD = 10_000
+TIMEOUT_PAGE_LOAD = 30_000
 TIMEOUT_ELEMENT = 5_000
 TIMEOUT_LOGIN = 30_000
 
@@ -416,7 +416,7 @@ async def navigate_to_panel(page: Any, label: str) -> float:
     # Wait for panel content to load
     await page.wait_for_timeout(1500)
     try:
-        await page.wait_for_load_state("networkidle", timeout=TIMEOUT_PAGE_LOAD)
+        await page.wait_for_load_state("load", timeout=TIMEOUT_PAGE_LOAD)
     except Exception:
         pass
 
@@ -857,8 +857,8 @@ async def run_track_b(page: Any, task: BenchmarkTask, collector: EvidenceCollect
     panel_times: list[float] = []
     screenshots: list[str] = []
 
-    # Navigate to cockpit home first
-    await page.goto(COCKPIT_URL, wait_until="networkidle", timeout=TIMEOUT_PAGE_LOAD)
+    # Navigate to cockpit home first (domcontentloaded — cockpit has persistent WS)
+    await page.goto(COCKPIT_URL, wait_until="domcontentloaded", timeout=TIMEOUT_PAGE_LOAD)
     await page.wait_for_timeout(1000)
 
     # Take initial screenshot
