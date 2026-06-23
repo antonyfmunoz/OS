@@ -110,9 +110,13 @@ All 7 Meta IDE subsystems now have functional routes (was 4/7 before).
 | 3 | ~~EOS suspended~~ | ~~HIGH~~ | RESOLVED |
 | 4 | Stitch zero integration | HIGH | Open |
 | 5 | EOS zero UMH awareness | HIGH | Open |
-| 6 | Drive retrieval untested | MEDIUM | Open |
+| 6 | ~~Drive retrieval untested~~ | ~~MEDIUM~~ | RESOLVED |
+| 7 | ~~COS auto-suspends~~ | ~~MEDIUM~~ | RESOLVED (recurring) |
+| 8 | ~~Fly app names drifted~~ | ~~LOW~~ | RESOLVED |
+| 9 | COS PostHog key missing | MEDIUM | Open |
+| 10 | ~~EOS wrong API paths tested~~ | ~~MEDIUM~~ | RESOLVED |
 
-**3/6 resolved, 3/6 remaining**
+**7/10 resolved, 3/10 remaining (Stitch, EOS UMH awareness, COS PostHog)**
 
 ---
 
@@ -142,10 +146,37 @@ All 7 Meta IDE subsystems now have functional routes (was 4/7 before).
 
 ---
 
+## Production Work Delivered
+
+### Projection Health Endpoint (NEW)
+- `GET /organism/projections` — live health status for all registered projections
+- `GET /organism/projections/{id}/health` — per-projection detail
+- Reads from `data/umh/projection_registry.json`
+- Async health checks via aiohttp to each Fly app
+- Fixed `cos` app_name from `cos-app` → `creatoros-app`
+- Verified through local (8091) and Fly (universalmetaharness.tech)
+- Result: `{"total": 3, "healthy": 3}` — all projections alive
+
+### PRD-to-Reality Gap Analysis (NEW)
+- Extracted 102 COS capabilities from Google Drive PRD v2.90
+- Extracted 87 EOS capabilities from Google Drive PRD Master
+- Built `c27_cos_desired_capabilities.json` (15 categories)
+- Built `c27_eos_desired_capabilities.json` (16 categories)
+- Produced delta v2 with ground truth: 44/193 = 22.8% operational
+
+### Coherence Self-Corrections (5)
+1. **3x delta overcount**: v1 used 28/projection, actual PRD scope is 102+87
+2. **4 EOS misclassifications**: wrong API paths tested (/api/ai/chat vs /api/ai-assistant/messages)
+3. **Fly app name drift**: session recorded creator-os but actual is creatoros-app
+4. **COS recurring suspension**: documented as expected Fly free-tier behavior
+5. **Drive surface verified**: was listed as untested, now proven operational via MCP
+
+---
+
 ## Next Steps
 
-1. **Production sprint continues** — advance COS missing capabilities (7) and EOS missing routes (6)
-2. **Coherence attacks** — Stream B tests interleaved with production work
-3. **Reality attacks** — Stream C injected during active work
-4. **Meta IDE manual audit** — Stream D (UI testing via cockpit)
-5. **Final delta report** — v2 with post-sprint measurements
+1. **Gate 4 coherence testing** — formal Stream B attacks (continuity, distraction, governance, reality drift)
+2. **COS PostHog fix** — set VITE_POSTHOG_KEY in Fly build secrets
+3. **EOS-UMH bridge** — wire EOS app to consume UMH substrate via API
+4. **Meta IDE manual audit** — Stream D (UI testing via cockpit browser)
+5. **C27 certification report** — final 4-gate assessment and Discord dispatch
