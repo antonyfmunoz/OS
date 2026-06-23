@@ -617,6 +617,7 @@ async def _operator_acceptance_safety_proof():
 
 
 def _load_projection_registry() -> dict[str, Any]:
+    import json as _json
     import os
     path = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
