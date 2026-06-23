@@ -52,7 +52,7 @@ async def dispatch_plan_to_node(
     plan: Any,
     node_id: str = "windows-desktop",
     cwd: str = r"C:\dev\dev\LYFEOS",
-    timeout_per_task: int = 540,
+    timeout_per_task: int = 300,
 ) -> dict[str, Any]:
     """Dispatch all tasks from an engineering plan to a mesh node.
 
@@ -60,7 +60,7 @@ async def dispatch_plan_to_node(
     Each task sends an argv list (not a shell string) to avoid injection.
     After all tasks complete, assembles a proof package for review.
     """
-    import asyncio
+    import httpx
 
     _validate_node_id(node_id)
     _validate_cwd(cwd)
@@ -72,10 +72,10 @@ async def dispatch_plan_to_node(
     tasks = plan.tasks if hasattr(plan, "tasks") else []
 
     try:
-        import urllib.request
-        health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
-        urllib.request.urlopen(health_url, timeout=5)
-        logger.info("mesh relay warmup ok")
+        async with httpx.AsyncClient(timeout=10) as warmup:
+            health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
+            await warmup.get(health_url)
+            logger.info("mesh relay warmup ok")
     except Exception as warmup_exc:
         logger.warning("mesh relay warmup failed (proceeding anyway): %r", warmup_exc)
 
@@ -87,10 +87,11 @@ async def dispatch_plan_to_node(
         argv = ["claude", "-p", prompt, "--output-format", "json"]
 
         try:
-            req_headers = {"Content-Type": "application/json"}
+            req_headers = {}
             if _MESH_RELAY_SECRET:
                 req_headers["Authorization"] = f"Bearer {_MESH_RELAY_SECRET}"
             logger.info("dispatch task %s sending to %s (timeout=%d)", task_id, _MESH_RELAY_URL, timeout_per_task)
+            timeouts = httpx.Timeout(timeout_per_task + 10, connect=10.0)
             payload = {
                 "node_id": node_id,
                 "capability": "shell",
@@ -98,32 +99,26 @@ async def dispatch_plan_to_node(
                 "timeout": timeout_per_task,
             }
             data = None
-            import urllib.request
-            import urllib.error
-            import concurrent.futures
-
-            def _sync_post(url: str, hdrs: dict, body: bytes, timeout_s: int) -> tuple[int, str]:
-                req = urllib.request.Request(url, data=body, headers=hdrs, method="POST")
-                resp = urllib.request.urlopen(req, timeout=timeout_s)
-                return resp.status, resp.read().decode()
-
-            body_bytes = json.dumps(payload).encode()
-            loop = asyncio.get_event_loop()
-            for attempt in range(5):
+            for attempt in range(3):
                 try:
                     if attempt > 0:
-                        await asyncio.sleep(2)
-                    status, raw = await loop.run_in_executor(
-                        None, _sync_post, _MESH_RELAY_URL, req_headers, body_bytes, timeout_per_task + 30
-                    )
-                    raw = raw.strip()
-                    logger.info("dispatch task %s got HTTP %d, %d bytes", task_id, status, len(raw))
-                    data = json.loads(raw)
+                        import asyncio
+                        await asyncio.sleep(1)
+                        try:
+                            async with httpx.AsyncClient(timeout=10) as warmup:
+                                health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
+                                await warmup.get(health_url)
+                                logger.info("dispatch task %s retry warmup ok", task_id)
+                        except Exception:
+                            pass
+                    async with httpx.AsyncClient(timeout=timeouts) as client:
+                        resp = await client.post(_MESH_RELAY_URL, headers=req_headers, json=payload)
+                        logger.info("dispatch task %s got HTTP %d, %d bytes", task_id, resp.status_code, len(resp.content))
+                        data = resp.json()
                     break
-                except (urllib.error.URLError, ConnectionError, OSError, asyncio.TimeoutError) as retry_err:
-                    if attempt < 4:
-                        logger.warning("dispatch task %s %s on attempt %d, retrying: %r", task_id, type(retry_err).__name__, attempt + 1, retry_err)
-                        await asyncio.sleep(5)
+                except httpx.ReadError as read_err:
+                    if attempt < 2:
+                        logger.warning("dispatch task %s ReadError on attempt %d, retrying: %r", task_id, attempt + 1, read_err)
                         continue
                     raise
 
