@@ -122,3 +122,6 @@ data/umh/mesh/
 
 # Conference rooms runtime state (created by operator API)
 data/umh/rooms/
+
+# Playwright MCP debug artifacts
+.playwright-mcp/
