@@ -51,6 +51,7 @@ from substrate.organism.benchmarks.harness_superiority import (  # noqa: E402
     BenchmarkTask,
     BrowserEvidence,
     CognitiveLoadResult,
+    Complexity,
     ContinuityResult,
     EvidenceClass,
     GovernanceResult,
@@ -118,7 +119,7 @@ THESIS_TASKS: dict[str, BenchmarkTask] = {
             "wait, return to original context. Measure: context preserved, resume time, "
             "decisions recalled, intent preserved."
         ),
-        complexity="HIGH",
+        complexity=Complexity.HIGH,
         expected_deliverables=["continuity_test populated", "TTRC measured"],
     ),
     "governance": BenchmarkTask(
@@ -131,7 +132,7 @@ THESIS_TASKS: dict[str, BenchmarkTask] = {
             "Check proof generation markers. Test that governance is enforced, not "
             "just present as UI chrome."
         ),
-        complexity="MEDIUM",
+        complexity=Complexity.MEDIUM,
         expected_deliverables=["governance_test populated with real enforcement data"],
     ),
     "awareness": BenchmarkTask(
@@ -144,7 +145,7 @@ THESIS_TASKS: dict[str, BenchmarkTask] = {
             "Command Center, Organism Map, Execution, and Meta IDE panels. "
             "Score each dimension as visible or not."
         ),
-        complexity="HIGH",
+        complexity=Complexity.HIGH,
         expected_deliverables=["awareness_snapshot with real boolean checks"],
     ),
     "reality-drift": BenchmarkTask(
@@ -157,7 +158,7 @@ THESIS_TASKS: dict[str, BenchmarkTask] = {
             "deployment status, container state). Compare displayed state against "
             "known ground truth. Any mismatch = drift detected."
         ),
-        complexity="HIGH",
+        complexity=Complexity.HIGH,
         expected_deliverables=["reality_drift populated with detection results"],
     ),
     "daily-driver": BenchmarkTask(
@@ -171,7 +172,7 @@ THESIS_TASKS: dict[str, BenchmarkTask] = {
             "approvals, knowledge retrieval, runtime inspection. Each activity "
             "is visited via its relevant panel."
         ),
-        complexity="HIGH",
+        complexity=Complexity.HIGH,
         expected_deliverables=["WorkdayCoverage with all 10 booleans scored"],
     ),
 }
