@@ -1054,7 +1054,9 @@ def run_report() -> None:
         show_score()
         return
 
-    if hasattr(c29_report, "generate_report"):
+    if hasattr(c29_report, "main"):
+        c29_report.main()
+    elif hasattr(c29_report, "generate_report"):
         c29_report.generate_report()
     else:
         show_score()
