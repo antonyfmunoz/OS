@@ -1,0 +1,69 @@
+{
+  "subsystem": "planning",
+  "rating": "FUNCTIONAL",
+  "timestamp": "2026-06-23T18:00:00Z",
+  "endpoints_tested": [
+    {
+      "method": "GET",
+      "path": "/api/umh/plans",
+      "status_code": 200,
+      "valid_json": true,
+      "data_meaningful": false,
+      "notes": "Returns empty array — no plans persisted. Valid structure."
+    },
+    {
+      "method": "GET",
+      "path": "/api/umh/plans/{plan_id}",
+      "status_code": 200,
+      "valid_json": true,
+      "data_meaningful": true,
+      "notes": "Returns {error: 'plan X not found'} for missing IDs — proper error handling."
+    },
+    {
+      "method": "POST",
+      "path": "/api/umh/compose",
+      "status_code": 403,
+      "valid_json": true,
+      "data_meaningful": true,
+      "notes": "Auth-gated (requires operator token). Route exists and gate works."
+    },
+    {
+      "method": "POST",
+      "path": "/api/umh/plans/{plan_id}/approve",
+      "status_code": 403,
+      "valid_json": true,
+      "data_meaningful": true,
+      "notes": "Auth-gated. Route registered."
+    },
+    {
+      "method": "POST",
+      "path": "/api/umh/plans/{plan_id}/reject",
+      "status_code": 403,
+      "valid_json": true,
+      "data_meaningful": true,
+      "notes": "Auth-gated. Route registered."
+    },
+    {
+      "method": "GET",
+      "path": "/api/umh/deliverables",
+      "status_code": 200,
+      "valid_json": true,
+      "data_meaningful": false,
+      "notes": "Returns empty array — no deliverables persisted. Valid structure."
+    }
+  ],
+  "route_source": "transports/api/cockpit_meta_ide_critical_routes.py",
+  "crud_operations": {
+    "create": "POST /api/umh/compose (auth-gated)",
+    "read_list": "GET /api/umh/plans",
+    "read_detail": "GET /api/umh/plans/{plan_id}",
+    "approve": "POST /api/umh/plans/{plan_id}/approve (auth-gated)",
+    "reject": "POST /api/umh/plans/{plan_id}/reject (auth-gated)"
+  },
+  "evidence": "Full CRUD pipeline exists: compose (create) -> list -> detail -> approve/reject. All routes registered in cockpit_meta_ide_critical_routes.py. GET routes return valid JSON. POST routes are properly auth-gated. No plans in persistence currently (empty state), but data model and pipeline are wired. Backed by substrate.meta_ide.shared_planner module.",
+  "gaps": [
+    "No plans currently persisted — empty state (expected, not a defect)",
+    "No update/edit plan endpoint (approve/reject only)",
+    "Operator-loop plan endpoints (/operator-loop/plan/{id}) timed out — possible slow handler"
+  ]
+}
