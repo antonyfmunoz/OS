@@ -373,42 +373,42 @@ async def _create_context_with_auth(browser: Any) -> Any:
 async def navigate_to_panel(page: Any, label: str) -> float:
     """Click a LeftRail button by its label text. Returns time taken in seconds."""
     t0 = time.monotonic()
+    route_id = PANEL_MAP.get(label, label)
 
+    # Fast path: use URL hash navigation (cockpit is a SPA with hash routing)
+    try:
+        current = page.url
+        target = f"{COCKPIT_URL}#{route_id}" if "#" not in COCKPIT_URL else f"{COCKPIT_URL.split('#')[0]}#{route_id}"
+        if current.rstrip("/").split("#")[0] == target.split("#")[0]:
+            await page.evaluate(f"window.location.hash = '{route_id}'")
+        else:
+            await page.goto(target, wait_until="domcontentloaded", timeout=TIMEOUT_PAGE_LOAD)
+        await page.wait_for_timeout(500)
+        elapsed = time.monotonic() - t0
+        logger.info("Navigated to '%s' via hash in %.2fs", label, elapsed)
+        return elapsed
+    except Exception:
+        pass
+
+    # Selector path with short timeouts (2s each to avoid 25s cascade)
     selectors = [
+        f"nav button:has(span:text-is('{label}'))",
         f"button:has-text('{label}')",
+        f"[data-panel='{route_id}']",
         f"a:has-text('{label}')",
-        f"[data-panel='{PANEL_MAP.get(label, label)}']",
         f"[role='tab']:has-text('{label}')",
-        f"nav >> text='{label}'",
     ]
 
     clicked = False
     for sel in selectors:
         try:
-            element = await page.wait_for_selector(sel, timeout=TIMEOUT_ELEMENT)
+            element = await page.wait_for_selector(sel, timeout=2000)
             if element:
                 await element.click()
                 clicked = True
                 break
         except Exception:
             continue
-
-    if not clicked:
-        # Fallback: try CommandPalette search (Ctrl+K)
-        try:
-            await page.keyboard.press("Control+k")
-            await page.wait_for_timeout(300)
-            search_input = await page.wait_for_selector(
-                "input[placeholder*='Search'], input[type='search']",
-                timeout=2000,
-            )
-            if search_input:
-                await search_input.fill(label)
-                await page.wait_for_timeout(500)
-                await page.keyboard.press("Enter")
-                clicked = True
-        except Exception:
-            pass
 
     if not clicked:
         logger.warning("Could not navigate to panel '%s'", label)
