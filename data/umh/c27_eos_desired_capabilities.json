@@ -1,0 +1,175 @@
+{
+  "source": "EOS — Product — Master Document v1.0 (Google Drive)",
+  "extracted_at": "2026-06-23T08:45:00Z",
+  "categories": [
+    {
+      "name": "Auth & Workspace",
+      "capabilities": [
+        {"name": "Auth/Sign-in (Clerk)", "description": "User authentication via Clerk with session management"},
+        {"name": "Workspace Creation", "description": "Create or access user workspace"},
+        {"name": "Multi-Company Support", "description": "Create and manage multiple companies from one workspace"}
+      ]
+    },
+    {
+      "name": "Portfolio & Organization",
+      "capabilities": [
+        {"name": "Portfolio Layer", "description": "Multi-venture portfolio management for serial founders"},
+        {"name": "Company Profile", "description": "Company name, type, stage, primary offer, target customer, core goals"},
+        {"name": "Org Chart Engine", "description": "Create departments, roles, responsibilities with visual org chart"},
+        {"name": "Role System", "description": "Role-based dashboards with shared-ownership and operating modes"},
+        {"name": "Immutable vs Configurable Layers", "description": "System-enforced structure vs user-customizable elements"}
+      ]
+    },
+    {
+      "name": "Founder Dashboard",
+      "capabilities": [
+        {"name": "Command Center", "description": "Primary founder dashboard with company summary, metrics, workflows, tasks"},
+        {"name": "AI Recommendations", "description": "Context-aware next-best-action suggestions on dashboard"},
+        {"name": "Key Metrics Display", "description": "Real-time business metrics on founder home"},
+        {"name": "Active Workflows View", "description": "Running workflow status on dashboard"},
+        {"name": "Notes/Context Panel", "description": "Quick notes and context alongside dashboard"}
+      ]
+    },
+    {
+      "name": "Workflow & SOP System",
+      "capabilities": [
+        {"name": "Workflow Creation", "description": "Create multi-step workflows with human and AI steps"},
+        {"name": "Workflow Execution", "description": "Run workflows with status tracking"},
+        {"name": "Workflow Versioning", "description": "Version control for workflows"},
+        {"name": "Approval Gates", "description": "Human approval checkpoints within workflows"},
+        {"name": "Branching Logic", "description": "Conditional branching in workflow steps"},
+        {"name": "Human Intervention Points", "description": "Explicit points where human input is required"},
+        {"name": "AI Task Ownership", "description": "AI agents can own and execute workflow steps"},
+        {"name": "Audit Trails", "description": "Complete execution history for every workflow run"},
+        {"name": "SOP Templates", "description": "Pre-built SOP templates for common business operations"},
+        {"name": "Workflow Optimization Engine", "description": "AI-suggested improvements to existing workflows"}
+      ]
+    },
+    {
+      "name": "Task & Execution",
+      "capabilities": [
+        {"name": "Task Board", "description": "Create, assign, and track tasks with status management"},
+        {"name": "Task-Workflow Linking", "description": "Link tasks to parent workflows"},
+        {"name": "Role Assignment", "description": "Assign tasks to self or organizational roles"},
+        {"name": "Task Status Tracking", "description": "Update and monitor task progress"}
+      ]
+    },
+    {
+      "name": "AI Agent Runtime",
+      "capabilities": [
+        {"name": "Agent Management", "description": "Create, configure, and manage AI agents"},
+        {"name": "Agent Hierarchy", "description": "CEO → Strategy → Planning → Execution agent layers"},
+        {"name": "Agent Chat", "description": "Direct conversation with individual agents"},
+        {"name": "Multi-Agent Collaboration", "description": "Structured agent-to-agent coordination protocols"},
+        {"name": "Agent Actions/Approvals", "description": "Agent-initiated actions requiring human approval"},
+        {"name": "Agent Metrics", "description": "Per-agent performance and quality metrics"},
+        {"name": "Strategy Agents", "description": "CEO, portfolio strategy, business planning agents"},
+        {"name": "Planning Agents", "description": "Departmental, campaign, operations planners"},
+        {"name": "Execution Agents", "description": "Research, content, sales, coding, analysis agents"},
+        {"name": "Human Interruptibility", "description": "Always-available human override on agent actions"}
+      ]
+    },
+    {
+      "name": "AI Copilot",
+      "capabilities": [
+        {"name": "AI Assistant Chat", "description": "General-purpose AI copilot answering business questions"},
+        {"name": "Context Summarization", "description": "AI can summarize workspace context"},
+        {"name": "SOP/Workflow Drafting", "description": "AI drafts SOPs and workflows from instructions"},
+        {"name": "Document/Message Drafting", "description": "AI drafts docs, messages, plans"},
+        {"name": "Next-Best Action Suggestions", "description": "AI suggests optimal next steps"},
+        {"name": "Cross-Session Context", "description": "AI preserves context across sessions"},
+        {"name": "AI Model Selection", "description": "Choose between model providers and tiers"}
+      ]
+    },
+    {
+      "name": "Skill System",
+      "capabilities": [
+        {"name": "Skill Library", "description": "Structured skill definitions with context and instructions"},
+        {"name": "Skill Routing", "description": "Automatic skill selection based on task context"},
+        {"name": "Skill Versioning", "description": "Version control for skills"},
+        {"name": "Trust Scoring", "description": "Quality and reliability scores for skills"},
+        {"name": "Self-Generated Skills", "description": "AI can create new skills from experience"},
+        {"name": "Tutorials", "description": "Educational content and guided learning paths"}
+      ]
+    },
+    {
+      "name": "Memory & Knowledge",
+      "capabilities": [
+        {"name": "Memory System", "description": "Persistent memory across company, workflow, and interaction context"},
+        {"name": "Knowledge Graph", "description": "Entity-relationship knowledge graph for business intelligence"},
+        {"name": "Conversation Thread Model", "description": "Threaded conversation history with context"},
+        {"name": "Synthesis & Context Refresh", "description": "AI synthesizes relevant context for each interaction"},
+        {"name": "Memory Lineage", "description": "Provenance tracking for all stored knowledge"}
+      ]
+    },
+    {
+      "name": "CRM & Contacts",
+      "capabilities": [
+        {"name": "CRM Contacts", "description": "Contact management with profiles and history"},
+        {"name": "CRM Deals", "description": "Deal pipeline with stages and values"},
+        {"name": "CRM Activities", "description": "Activity tracking linked to contacts and deals"},
+        {"name": "Client Pipeline (Automated)", "description": "Automated lead-to-client pipeline with AI assistance"},
+        {"name": "Outreach Automation", "description": "Automated outreach sequences and follow-ups"}
+      ]
+    },
+    {
+      "name": "Documents & Notes",
+      "capabilities": [
+        {"name": "Document Management", "description": "Create, store, and organize documents"},
+        {"name": "SOP Notes", "description": "Operational procedure documentation"},
+        {"name": "Strategy Notes", "description": "Strategic planning documents"}
+      ]
+    },
+    {
+      "name": "Integrations",
+      "capabilities": [
+        {"name": "Integrations Framework", "description": "Extensible integration architecture"},
+        {"name": "Gmail Integration", "description": "Email integration via Google OAuth"},
+        {"name": "Cross-Platform (CreatorOS)", "description": "Integration with CreatorOS for content operations"},
+        {"name": "Cross-Platform (LYFEOS)", "description": "Integration with LYFEOS for personal operations"}
+      ]
+    },
+    {
+      "name": "Analytics & Intelligence",
+      "capabilities": [
+        {"name": "Analytics Dashboard", "description": "Business analytics with key metrics"},
+        {"name": "Role Metrics", "description": "Performance metrics per organizational role"},
+        {"name": "Organization Metrics", "description": "Company-level health metrics"},
+        {"name": "Portfolio Metrics", "description": "Cross-company portfolio analytics"},
+        {"name": "AI System Metrics", "description": "Agent and AI performance tracking"},
+        {"name": "Reality Intelligence Engine", "description": "Reality state tracking and gap detection"},
+        {"name": "Human Intelligence Layer", "description": "User understanding and external person profiles"}
+      ]
+    },
+    {
+      "name": "Governance & Permissions",
+      "capabilities": [
+        {"name": "Permission Model", "description": "Granular permissions for users and agents"},
+        {"name": "Authority Layers", "description": "Hierarchical authority with escalation"},
+        {"name": "Autonomy Levels", "description": "Configurable AI autonomy per context"},
+        {"name": "Approval Gates", "description": "Required approvals for high-risk actions"},
+        {"name": "Decision Logging", "description": "Complete audit trail of all decisions"}
+      ]
+    },
+    {
+      "name": "Business Operations",
+      "capabilities": [
+        {"name": "Venture Management", "description": "Multi-venture tracking and management"},
+        {"name": "Financial Tracking", "description": "Revenue, expenses, runway tracking"},
+        {"name": "Offer Management", "description": "Product/service offer creation and tracking"},
+        {"name": "Notifications", "description": "System-wide notification center"},
+        {"name": "Settings", "description": "User and workspace settings management"},
+        {"name": "Fly Deployment", "description": "Production deployment on Fly.io"}
+      ]
+    },
+    {
+      "name": "UMH Integration",
+      "capabilities": [
+        {"name": "UMH Substrate Connection", "description": "EOS app consumes UMH substrate services"},
+        {"name": "Shared Intelligence Substrate", "description": "Common AI layer across OS Trinity"}
+      ]
+    }
+  ],
+  "total_capabilities": 87,
+  "summary": "EntrepreneurOS is an AI-native business operating system enabling founders to run multiple companies through role-based dashboards, agentic execution, workflow/SOP management, strategic intelligence, memory/knowledge systems, and governance — all coordinated through one interface with human override always available."
+}
