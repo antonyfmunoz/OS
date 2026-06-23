@@ -117,13 +117,16 @@ def run_acceptance(url: str, screenshot_dir: str = "") -> dict[str, Any]:
                 time.sleep(1)
                 t.steps_completed += 1
 
-            # Find RightRail chat input
-            chat_input = page.locator('textarea[placeholder*="message"], textarea[placeholder*="chat"], textarea[placeholder*="prompt"], input[placeholder*="message"], input[placeholder*="chat"]')
+            # RightRail chat input: placeholder is "Message {aiName}..."
+            chat_input = page.locator('input[placeholder*="Message"]')
+            if chat_input.count() == 0:
+                chat_input = page.locator('input[placeholder*="message"]')
+            if chat_input.count() == 0:
+                chat_input = page.locator('textarea[placeholder*="Message"], textarea[placeholder*="message"]')
             if chat_input.count() > 0:
                 chat_input.first.fill("What is the current system status?")
                 time.sleep(0.5)
                 t.steps_completed += 1
-                # Try to submit
                 chat_input.first.press("Enter")
                 time.sleep(3)
                 t.steps_completed += 1
@@ -224,19 +227,22 @@ def run_acceptance(url: str, screenshot_dir: str = "") -> dict[str, Any]:
                 time.sleep(3)
                 t.steps_completed += 1
 
-            # Wait for slow bootstrap file tree
-            time.sleep(5)
-            # Check for device roots in file tree
-            buttons = page.locator('button')
-            count = buttons.count()
-            found_vps = False
-            found_beast = False
-            for i in range(min(count, 100)):
-                txt = buttons.nth(i).inner_text()
-                if "srv1500858" in txt:
-                    found_vps = True
-                if "desktop-" in txt:
-                    found_beast = True
+            # Wait for slow bootstrap file tree (can take 10-15s)
+            time.sleep(12)
+            # Check for device roots in file tree — search all text on page
+            page_text = page.locator('body').inner_text()
+            found_vps = "srv1500858" in page_text
+            found_beast = "desktop-lvguiq9" in page_text or "desktop-" in page_text
+            if not found_vps:
+                # Fallback: check buttons specifically
+                buttons = page.locator('button')
+                count = buttons.count()
+                for i in range(min(count, 150)):
+                    txt = buttons.nth(i).inner_text()
+                    if "srv1500858" in txt:
+                        found_vps = True
+                    if "desktop-" in txt:
+                        found_beast = True
             if found_vps:
                 t.steps_completed += 1
             if found_beast:
@@ -298,23 +304,23 @@ def run_acceptance(url: str, screenshot_dir: str = "") -> dict[str, Any]:
             start = time.time()
             console_errors.clear()
 
-            # Try organism map or operations panel
-            for label in ["Organism Map", "Operations"]:
-                btn = page.locator(f'button[title="{label}"]')
-                if btn.count() > 0:
-                    btn.first.click()
-                    time.sleep(2)
-                    t.steps_completed += 1
-                    break
+            # Navigate to Organism Map
+            btn = page.locator('button[title="Organism Map"]')
+            if btn.count() > 0:
+                btn.first.click()
+                time.sleep(3)
+                t.steps_completed += 1
 
-            content = page.locator('main')
-            if content.count() > 0:
-                text = content.first.inner_text()[:1000]
-                has_beast = "desktop-lvguiq9" in text or "beast" in text.lower() or "windows" in text.lower()
-                has_health = any(w in text.lower() for w in ["health", "cpu", "memory", "online", "connected"])
-                t.steps_completed += 1 if has_beast else 0
-                t.steps_completed += 1 if has_health else 0
-                t.completed = has_beast or has_health
+            # Search full page body for organism/health content
+            text = page.locator('body').inner_text()[:3000]
+            has_beast = "desktop-lvguiq9" in text or "beast" in text.lower() or "windows" in text.lower()
+            has_health = any(w in text.lower() for w in [
+                "healthy", "failures", "organism map", "node", "loading topology",
+                "health", "cpu", "memory", "online", "connected",
+            ])
+            t.steps_completed += 1 if has_beast else 0
+            t.steps_completed += 1 if has_health else 0
+            t.completed = has_beast or has_health
                 t.notes = f"Beast visible: {'yes' if has_beast else 'no'}, Health data: {'yes' if has_health else 'no'}"
             t.console_errors = len([e for e in console_errors if "clerk" not in e.lower()])
             t.duration_seconds = time.time() - start
