@@ -274,6 +274,31 @@ class OperatorContextEngine:
         data = self._get_workspace_snapshot()
         return data if data is not None else []
 
+    def projection_certifications(self) -> dict[str, Any]:
+        """Current projection certification levels."""
+        try:
+            from substrate.organism.projection_certification import (
+                ProjectionCertificationEngine,
+                ProjectionRegistry,
+            )
+            registry = ProjectionRegistry()
+            engine = ProjectionCertificationEngine(registry=registry)
+            engine.certify_all()
+            return engine.summary()
+        except Exception:
+            logger.debug("Failed to get projection certifications", exc_info=True)
+            return {}
+
+    def trust_scores(self) -> dict[str, Any]:
+        """Current trust score summary across all scored work items."""
+        try:
+            from substrate.organism.trust_score import TrustScoreEngine
+            engine = TrustScoreEngine()
+            return engine.summary()
+        except Exception:
+            logger.debug("Failed to get trust scores", exc_info=True)
+            return {}
+
     # ── Provider methods (composition boundary) ──────────────────
 
     def _get_service_health(self) -> dict[str, Any]:

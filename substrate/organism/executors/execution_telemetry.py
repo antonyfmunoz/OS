@@ -66,6 +66,10 @@ class TelemetryEventType(str, Enum):
     APPROVAL_EXPIRED = "approval_expired"
     EXECUTION_PAUSED = "execution_paused"
     EXECUTION_RESUMED = "execution_resumed"
+    # C26B: Deploy Verification
+    DEPLOY_VERIFICATION_STARTED = "deploy_verification_started"
+    DEPLOY_VERIFICATION_PASSED = "deploy_verification_passed"
+    DEPLOY_VERIFICATION_FAILED = "deploy_verification_failed"
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

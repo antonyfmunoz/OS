@@ -405,6 +405,26 @@ class GovernedExecutionSpine:
             )
             logger.warning("verification failed for %s: %s", envelope.envelope_id, exc)
 
+        self._attach_outcome_verification(envelope)
+
+    def _attach_outcome_verification(self, envelope: ActionEnvelope) -> None:
+        """If an OutcomeVerificationEngine produced a result for this envelope,
+        store it in the envelope metadata for downstream consumers."""
+        try:
+            from substrate.organism.outcome_verification import (
+                OutcomeVerificationEngine,
+            )
+            engine = getattr(self, "_outcome_engine", None)
+            if engine is None:
+                return
+            verification = engine.get_verification(envelope.envelope_id)
+            if verification is not None:
+                if not hasattr(envelope, "metadata"):
+                    return
+                envelope.metadata["outcome_verification"] = verification.to_dict()
+        except Exception as exc:
+            logger.debug("outcome verification attach skipped: %s", exc)
+
     def _rollback(self, envelope: ActionEnvelope) -> None:
         if envelope.rollback is None or envelope.rollback.rollback_fn is None:
             return

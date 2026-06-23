@@ -93,4 +93,26 @@ echo ""
 cd "$COCKPIT_DIR"
 
 FLYCTL=$(command -v flyctl 2>/dev/null || echo "/root/.fly/bin/flyctl")
-exec "$FLYCTL" deploy --remote-only "$@"
+"$FLYCTL" deploy --remote-only "$@"
+DEPLOY_EXIT=$?
+
+if [ $DEPLOY_EXIT -ne 0 ]; then
+  echo -e "${RED}=== Deploy failed (exit $DEPLOY_EXIT) ===${NC}"
+  exit $DEPLOY_EXIT
+fi
+
+echo ""
+echo "=== Post-Deploy Verification ==="
+COCKPIT_URL="${COCKPIT_PUBLIC_URL:-https://universalmetaharness.tech}"
+python3 "$REPO_ROOT/scripts/verify_deploy.py" \
+  "umh-cockpit" \
+  "$COCKPIT_URL" \
+  --health-path "/api/health" \
+  --health-timeout 60 || {
+  echo -e "${RED}=== Post-deploy verification FAILED ===${NC}"
+  echo "The deploy succeeded but verification detected issues."
+  echo "Check the output above for details."
+  exit 1
+}
+
+echo -e "${GREEN}=== Deploy + verification complete ===${NC}"

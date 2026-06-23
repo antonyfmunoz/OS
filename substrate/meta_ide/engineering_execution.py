@@ -177,6 +177,7 @@ class EngineeringProofPackage:
     reviewed_by: str = ""
     rejection_reason: str = ""
     browser_verification: dict[str, Any] = field(default_factory=dict)
+    outcome_verification: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
@@ -198,5 +199,6 @@ class EngineeringProofPackage:
             "reviewed_by": self.reviewed_by,
             "rejection_reason": self.rejection_reason,
             "browser_verification": self.browser_verification,
+            "outcome_verification": self.outcome_verification,
             "created_at": self.created_at,
         }

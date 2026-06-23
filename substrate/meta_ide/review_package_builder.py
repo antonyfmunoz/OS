@@ -41,6 +41,7 @@ class ReviewPackageBuilder:
         validation_results = self._collect_validation_results(session)
         risk_summary = self._build_risk_summary(session)
         browser_verification = self._collect_browser_verification(session)
+        outcome_verification = self._collect_outcome_verification(session)
 
         package = EngineeringProofPackage(
             session_id=session.session_id,
@@ -51,6 +52,7 @@ class ReviewPackageBuilder:
             diff_summary=diff_summary,
             trace_ids=list(session.execution_trace_ids),
             browser_verification=browser_verification,
+            outcome_verification=outcome_verification,
         )
 
         recommendation, reasoning = self.compute_recommendation(package, session)
@@ -116,6 +118,22 @@ class ReviewPackageBuilder:
 
         if browser_verification_failed:
             reasoning.insert(0, "NEEDS_REVIEW: browser verification not yet passed")
+            return OperatorRecommendation.NEEDS_REVIEW, reasoning
+
+        ov = package.outcome_verification
+        ov_status = ov.get("status", "")
+        if ov_status == "failed":
+            reasoning.insert(0, "REJECT: outcome verification FAILED")
+            reasoning.append(
+                f"Highest level passed: {ov.get('highest_level_passed', 'none')}"
+            )
+            return OperatorRecommendation.REJECT, reasoning
+        if ov_status == "partial":
+            reasoning.insert(0, "NEEDS_REVIEW: outcome verification only PARTIAL")
+            reasoning.append(
+                f"Confidence: {ov.get('confidence', 0):.0%}, "
+                f"highest level: {ov.get('highest_level_passed', 'none')}"
+            )
             return OperatorRecommendation.NEEDS_REVIEW, reasoning
 
         if not all_validations_pass:
@@ -205,3 +223,12 @@ class ReviewPackageBuilder:
                 )
 
         return risks
+
+    def _collect_outcome_verification(
+        self, session: EngineeringExecutionSession
+    ) -> dict[str, Any]:
+        """Collect outcome verification results from session."""
+        ov = session.task_results.get("__outcome_verification__")
+        if ov is None:
+            return {}
+        return ov

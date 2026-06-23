@@ -275,6 +275,7 @@ class RealityGraph:
         device_registry_path: str | None = None,
         workspace_registry_path: str | None = None,
         project_registry_path: str | None = None,
+        projection_registry_path: str | None = None,
     ) -> "RealityGraph":
         graph = cls()
         now = time.time()
@@ -282,10 +283,12 @@ class RealityGraph:
         device_path = device_registry_path or os.path.join(_ROOT, "infra", "device_registry.json")
         workspace_path = workspace_registry_path or os.path.join(_ROOT, "infra", "workspace_registry.json")
         project_path = project_registry_path or os.path.join(_ROOT, "infra", "project_registry.json")
+        projection_path = projection_registry_path or os.path.join(_ROOT, "data", "umh", "projection_registry.json")
 
         graph._seed_devices(device_path, now)
         graph._seed_workspaces(workspace_path, now)
         graph._seed_projects(project_path, now)
+        graph._seed_projections(projection_path, now)
 
         graph._built_at = now
         return graph
@@ -436,6 +439,50 @@ class RealityGraph:
 
         logger.debug("Seeded %d project entities", count)
         return count
+
+    def _seed_projections(self, path: str, now: float) -> int:
+        count = 0
+        try:
+            with open(path, "r") as f:
+                projections = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as exc:
+            logger.debug("Could not load projection registry %s: %s", path, exc)
+            return 0
+
+        for name, config in projections.items():
+            entity = RealityEntity(
+                entity_id=f"projection-{name}",
+                entity_type=RealityEntityType.PROJECTION,
+                name=name,
+                status=RealityEntityStatus.ACTIVE,
+                properties={
+                    "app_name": config.get("app_name", ""),
+                    "public_url": config.get("public_url", ""),
+                    "health_url": config.get("health_url", "/api/health"),
+                    "certification_level": "UNKNOWN",
+                },
+                source_system="projection_registry",
+                source_id=name,
+                last_observed=now,
+            )
+            if self._add_entity(entity):
+                count += 1
+
+        logger.debug("Seeded %d projection entities", count)
+        return count
+
+    def update_projection_certification(
+        self,
+        projection_name: str,
+        certification_level: str,
+        certification_data: dict,
+    ) -> None:
+        entity_id = f"projection-{projection_name}"
+        entity = self._entities.get(entity_id)
+        if entity is not None:
+            entity.properties["certification_level"] = certification_level
+            entity.properties["certification_data"] = certification_data
+            entity.last_observed = time.time()
 
     # ── Ingest from subsystems ────────────────────────────────────────
 

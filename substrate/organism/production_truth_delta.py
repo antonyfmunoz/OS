@@ -19,7 +19,9 @@ from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import logging
 import time
+from collections import deque
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -310,3 +312,133 @@ class ProductionTruthDelta:
             "status": self.status.value,
             "timestamp": self.timestamp,
         }
+
+
+# ── Reality Correspondence (C26D) ─────────────────────────────────────
+
+
+class CorrespondenceStatus(str, Enum):
+    """Whether system belief matches observed reality."""
+
+    MATCH = "match"
+    PARTIAL = "partial"
+    DIVERGED = "diverged"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class CorrespondenceResult:
+    """Comparison of claimed state vs observed reality for a projection."""
+
+    result_id: str = field(
+        default_factory=lambda: f"cr-{uuid4().hex[:12]}"
+    )
+    projection_name: str = ""
+    claimed_state: str = ""
+    observed_state: str = ""
+    correspondence: CorrespondenceStatus = CorrespondenceStatus.UNKNOWN
+    divergences: list[str] = field(default_factory=list)
+    certification_before: int | None = None
+    certification_after: int | None = None
+    checked_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    @property
+    def is_regression(self) -> bool:
+        if self.certification_before is None or self.certification_after is None:
+            return False
+        return self.certification_after < self.certification_before
+
+    @property
+    def is_critical(self) -> bool:
+        return (
+            self.correspondence == CorrespondenceStatus.DIVERGED
+            or self.is_regression
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "result_id": self.result_id,
+            "projection_name": self.projection_name,
+            "claimed_state": self.claimed_state,
+            "observed_state": self.observed_state,
+            "correspondence": self.correspondence.value,
+            "divergences": self.divergences,
+            "certification_before": self.certification_before,
+            "certification_after": self.certification_after,
+            "is_regression": self.is_regression,
+            "is_critical": self.is_critical,
+            "checked_at": self.checked_at.isoformat(),
+        }
+
+
+class CorrespondenceChecker:
+    """Compares system belief vs live reality for a projection.
+
+    Uses ProjectionCertificationEngine to observe current state,
+    compares against the last known certification level, and produces
+    a CorrespondenceResult.
+    """
+
+    @staticmethod
+    def check(
+        projection_name: str,
+        certification_engine: Any,
+        last_known_level: int | None = None,
+    ) -> CorrespondenceResult:
+        """Run correspondence check for a single projection.
+
+        Args:
+            projection_name: Registry key (e.g. "eos", "lyfeos").
+            certification_engine: ProjectionCertificationEngine instance.
+            last_known_level: Previous certification level (int from CertificationLevel).
+
+        Returns:
+            CorrespondenceResult with comparison data.
+        """
+        result = CorrespondenceResult(
+            projection_name=projection_name,
+            certification_before=last_known_level,
+        )
+
+        try:
+            cert = certification_engine.certify(projection_name)
+        except Exception as exc:
+            logger.warning(
+                "Correspondence check failed for %s: %s",
+                projection_name,
+                exc,
+            )
+            result.correspondence = CorrespondenceStatus.UNKNOWN
+            result.claimed_state = f"L{last_known_level}" if last_known_level is not None else "unknown"
+            result.observed_state = f"error: {exc}"
+            result.divergences.append(f"Certification engine error: {exc}")
+            return result
+
+        level_int = int(cert.current_level)
+        result.certification_after = level_int
+        level_name = getattr(cert.current_level, "name", f"level_{level_int}")
+        result.observed_state = f"L{level_int} ({level_name})"
+        result.claimed_state = (
+            f"L{last_known_level}" if last_known_level is not None else "no prior"
+        )
+
+        if last_known_level is None:
+            result.correspondence = CorrespondenceStatus.MATCH
+        elif cert.current_level == last_known_level:
+            result.correspondence = CorrespondenceStatus.MATCH
+        elif cert.current_level > last_known_level:
+            result.correspondence = CorrespondenceStatus.MATCH
+            result.divergences.append(
+                f"Improved: L{last_known_level} → L{cert.current_level}"
+            )
+        else:
+            result.correspondence = CorrespondenceStatus.DIVERGED
+            result.divergences.append(
+                f"Regression: L{last_known_level} → L{cert.current_level}"
+            )
+            if cert.failure_detail:
+                result.divergences.append(f"Failure: {cert.failure_detail}")
+
+        return result

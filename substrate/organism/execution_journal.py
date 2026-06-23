@@ -45,6 +45,8 @@ class JournalPhase(str, Enum):
     ROLLBACK_FAILED = "rollback_failed"
     RETRY = "retry"
     ADAPTATION_TRIGGERED = "adaptation_triggered"
+    VERIFICATION_COMPLETED = "verification_completed"
+    CORRESPONDENCE_CHECKED = "correspondence_checked"
 
 
 @dataclass(frozen=True)
