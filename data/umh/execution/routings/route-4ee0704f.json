@@ -1,0 +1,110 @@
+{
+  "routing_id": "route-4ee0704f",
+  "domain": "engineering",
+  "domain_label": "UMH / Engineering",
+  "objective": "Missing capability: wake_phrase",
+  "scope": "single",
+  "urgency": "normal",
+  "risk_level": "low",
+  "required_approvals": [
+    "automated_tests"
+  ],
+  "suggested_agents": [
+    "builder",
+    "reviewer",
+    "qa"
+  ],
+  "proof_requirements": [
+    {
+      "proof_type": "tests",
+      "description": "Test suite passes",
+      "required": true
+    },
+    {
+      "proof_type": "diff",
+      "description": "Git diff of changes",
+      "required": true
+    },
+    {
+      "proof_type": "commit",
+      "description": "Commit hash",
+      "required": true
+    },
+    {
+      "proof_type": "import_check",
+      "description": "Import verification",
+      "required": true
+    }
+  ],
+  "work_packets": [
+    {
+      "packet_id": "wp-ea87d4404f3d",
+      "title": "Implementation: Missing capability: wake_phrase",
+      "user_intent": "Missing capability: wake_phrase",
+      "desired_end_state": "Goal 'Ship UMH MVP' requires capability 'wake_phrase' which is not currently active or recently completed.",
+      "domain": "operations",
+      "subdomain": "general",
+      "project": "",
+      "company": "",
+      "product": "",
+      "leverage_score": 0.6,
+      "effectiveness_score": 0.9,
+      "efficiency_score": 0.9,
+      "risk_class": "low",
+      "priority": 50,
+      "urgency": 50,
+      "status": "classified",
+      "status_reason": "",
+      "human_required_actions": [],
+      "approval_gates": [],
+      "delegation_topology_id": "topo-3288522e",
+      "linked_roadmap_phase": "",
+      "blockers": [],
+      "dependencies": [],
+      "parent_packet_id": "",
+      "child_packet_ids": [],
+      "intent_summary": "implementation in operations",
+      "created_at": 1781743030.4513712,
+      "updated_at": 1781743030.451404,
+      "verification_passed": null,
+      "target_projection": "",
+      "assigned_agents": [
+        "builder",
+        "researcher",
+        "reviewer"
+      ],
+      "proof_requirements": [
+        {
+          "proof_type": "tests",
+          "description": "Test suite passes",
+          "required": true
+        },
+        {
+          "proof_type": "diff",
+          "description": "Git diff of changes",
+          "required": true
+        },
+        {
+          "proof_type": "commit",
+          "description": "Commit hash",
+          "required": true
+        },
+        {
+          "proof_type": "import_check",
+          "description": "Import verification",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "suggested_sequence": [
+    "wp-ea87d4404f3d"
+  ],
+  "missing_context": [
+    "Intent is very brief \u2014 consider adding more detail"
+  ],
+  "profile_constraints": {},
+  "background_eligible": true,
+  "next_action": "clarify_intent",
+  "created_at": 1781743030.4512312
+}

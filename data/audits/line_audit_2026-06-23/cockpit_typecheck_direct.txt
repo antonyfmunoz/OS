@@ -1,0 +1,1 @@
+timeout: failed to run command ‘./node_modules/.bin/tsc’: Too many levels of symbolic links
