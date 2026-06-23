@@ -1,0 +1,110 @@
+{
+  "routing_id": "route-621c6723",
+  "domain": "engineering",
+  "domain_label": "UMH / Engineering",
+  "objective": "Unmet: X",
+  "scope": "single",
+  "urgency": "normal",
+  "risk_level": "low",
+  "required_approvals": [
+    "automated_tests"
+  ],
+  "suggested_agents": [
+    "builder",
+    "reviewer",
+    "qa"
+  ],
+  "proof_requirements": [
+    {
+      "proof_type": "tests",
+      "description": "Test suite passes",
+      "required": true
+    },
+    {
+      "proof_type": "diff",
+      "description": "Git diff of changes",
+      "required": true
+    },
+    {
+      "proof_type": "commit",
+      "description": "Commit hash",
+      "required": true
+    },
+    {
+      "proof_type": "import_check",
+      "description": "Import verification",
+      "required": true
+    }
+  ],
+  "work_packets": [
+    {
+      "packet_id": "wp-0ec476e71b0e",
+      "title": "Implementation: Unmet: X",
+      "user_intent": "Unmet: X",
+      "desired_end_state": "Goal 'Test' requires: X. Current: not started. Target: complete.",
+      "domain": "operations",
+      "subdomain": "general",
+      "project": "",
+      "company": "",
+      "product": "",
+      "leverage_score": 0.6,
+      "effectiveness_score": 0.9,
+      "efficiency_score": 0.9,
+      "risk_class": "low",
+      "priority": 50,
+      "urgency": 50,
+      "status": "classified",
+      "status_reason": "",
+      "human_required_actions": [],
+      "approval_gates": [],
+      "delegation_topology_id": "topo-cb5cc4b1",
+      "linked_roadmap_phase": "",
+      "blockers": [],
+      "dependencies": [],
+      "parent_packet_id": "",
+      "child_packet_ids": [],
+      "intent_summary": "implementation in operations",
+      "created_at": 1781743066.613155,
+      "updated_at": 1781743066.613203,
+      "verification_passed": null,
+      "target_projection": "",
+      "assigned_agents": [
+        "builder",
+        "researcher",
+        "reviewer"
+      ],
+      "proof_requirements": [
+        {
+          "proof_type": "tests",
+          "description": "Test suite passes",
+          "required": true
+        },
+        {
+          "proof_type": "diff",
+          "description": "Git diff of changes",
+          "required": true
+        },
+        {
+          "proof_type": "commit",
+          "description": "Commit hash",
+          "required": true
+        },
+        {
+          "proof_type": "import_check",
+          "description": "Import verification",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "suggested_sequence": [
+    "wp-0ec476e71b0e"
+  ],
+  "missing_context": [
+    "Intent is very brief \u2014 consider adding more detail"
+  ],
+  "profile_constraints": {},
+  "background_eligible": true,
+  "next_action": "clarify_intent",
+  "created_at": 1781743066.6129935
+}

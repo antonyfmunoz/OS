@@ -1,0 +1,3 @@
+{"event_id": "evo-4d1f05921296", "capability_id": "cap-1", "event_type": "new_evidence", "before_state": {}, "after_state": {}, "trigger_pattern_id": "", "trigger_outcome_id": "", "timestamp": 1781771043.8861063, "description": "New test evidence"}
+{"event_id": "evo-87c7670a0daf", "capability_id": "cap-1", "event_type": "new_evidence", "before_state": {}, "after_state": {}, "trigger_pattern_id": "", "trigger_outcome_id": "", "timestamp": 1781771200.9288542, "description": "New test evidence"}
+{"event_id": "evo-8720ba17f4eb", "capability_id": "cap-1", "event_type": "new_evidence", "before_state": {}, "after_state": {}, "trigger_pattern_id": "", "trigger_outcome_id": "", "timestamp": 1781771219.7122161, "description": "New test evidence"}

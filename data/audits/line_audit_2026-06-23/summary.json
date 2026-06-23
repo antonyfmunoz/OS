@@ -1,0 +1,58 @@
+{
+  "generated_at": "2026-06-23T07:52:46.568016",
+  "source_roots": [
+    "substrate",
+    "adapters",
+    "transports",
+    "services",
+    "projections",
+    "scripts",
+    "tests",
+    "cockpit/src",
+    "cockpit/tests",
+    "nodes",
+    "umh",
+    "saas/bridge"
+  ],
+  "extensions": [
+    ".js",
+    ".json",
+    ".jsx",
+    ".py",
+    ".sh",
+    ".toml",
+    ".ts",
+    ".tsx",
+    ".yaml",
+    ".yml"
+  ],
+  "file_count": 2114,
+  "line_count": 642682,
+  "line_classes": {
+    "code": 483548,
+    "blank": 99190,
+    "definition": 45093,
+    "comment": 13963,
+    "config": 888
+  },
+  "finding_count": 9262,
+  "finding_counts_by_severity": {
+    "MEDIUM": 7103,
+    "HIGH": 1129,
+    "LOW": 1030
+  },
+  "finding_counts_by_kind": {
+    "bare_pass": 630,
+    "broad_except": 1593,
+    "env_access": 1352,
+    "absolute_opt_os": 1297,
+    "hardcoded_secret_candidate": 1271,
+    "todo_fixme": 32,
+    "long_line": 723,
+    "raw_subprocess": 143,
+    "print_runtime": 2199,
+    "shell_true": 19,
+    "trailing_ws": 1,
+    "eval_exec": 2
+  }
+}
