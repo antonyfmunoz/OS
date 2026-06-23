@@ -1,139 +1,75 @@
 {
-  "report_id": "dr-c27-delta-v2",
-  "label": "C27 Sprint — PRD-Grounded Projection Delta (corrected scope)",
-  "generated_at": "2026-06-23T08:50:00Z",
-  "methodology": "Desired state extracted from Google Drive PRDs (CREATOROS — Product — Master Document v2.90, EOS — Product — Master Document v1.0). Implemented state from GitHub repo audit. Operational state from live HTTP endpoint testing.",
-  "correction_note": "v1 used a 28-capability subset per projection. v2 uses full PRD scope (102 COS, 87 EOS). This exposed the true gap: 22.8% operational vs the inflated 66.7% from v1.",
-  "projections": [
-    {
-      "name": "CreatorOS",
+  "report_id": "dr-c27-sprint-v2",
+  "label": "C27 Projection Delta v2 — PRD Ground Truth",
+  "generated_at": "2026-06-23T09:00:00Z",
+  "methodology": "Desired capabilities extracted from Google Drive PRDs (COS v2.90, EOS Master). Implemented/operational verified via live API probes and GitHub routes.ts audit.",
+  "delta_summary": {
+    "cos": {
       "desired": 102,
       "implemented": 21,
       "operational": 20,
-      "pct_operational": 19.6,
-      "prd_source": "CREATOROS — Product — Master Document v2.90 (Google Drive ID: 1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI)",
-      "categories": {
-        "Content Distribution Hub": {"desired": 12, "implemented": 0, "operational": 0},
-        "In-App Editing Studio": {"desired": 4, "implemented": 0, "operational": 0},
-        "Community Hub": {"desired": 8, "implemented": 1, "operational": 1},
-        "Course Platform": {"desired": 8, "implemented": 0, "operational": 0},
-        "Marketplace": {"desired": 11, "implemented": 1, "operational": 1},
-        "Consumer Feed Experience": {"desired": 7, "implemented": 2, "operational": 2},
-        "Creator Dashboard & Analytics": {"desired": 10, "implemented": 1, "operational": 0},
-        "Commerce & Payments": {"desired": 4, "implemented": 0, "operational": 0},
-        "Identity & Onboarding": {"desired": 4, "implemented": 2, "operational": 2},
-        "UGC Campaigns": {"desired": 5, "implemented": 0, "operational": 0},
-        "Ads Platform": {"desired": 4, "implemented": 0, "operational": 0},
-        "Automation & Email": {"desired": 3, "implemented": 0, "operational": 0},
-        "Search": {"desired": 3, "implemented": 0, "operational": 0},
-        "Moderation & Trust": {"desired": 4, "implemented": 0, "operational": 0},
-        "Direct Messaging": {"desired": 2, "implemented": 2, "operational": 2}
-      },
-      "top_implemented": [
-        "Auth/Onboarding (Clerk)",
-        "User Profiles",
-        "Content Feed (basic)",
-        "Stories",
-        "Comments & Engagement",
-        "Follow System",
-        "Saved Posts",
-        "Tagging",
-        "Marketplace (basic)",
-        "AI Agents/Chat",
-        "Communities",
-        "Direct Messaging",
-        "Notifications",
-        "Documents",
-        "Revenue Dashboard",
-        "CRM/Contacts",
-        "Explore/Discovery",
-        "File Upload",
-        "Content Creation (basic)",
-        "Fly Deployment"
-      ],
-      "biggest_gaps": [
-        "Content Distribution Hub (0/12 — core value prop not built)",
-        "Course Platform (0/8 — key monetization)",
-        "Marketplace (1/11 — basic listing only)",
-        "Creator Analytics (0/10 — no real analytics)",
-        "Commerce & Payments (0/4 — no monetization)"
-      ]
+      "implementation_rate": "20.6%",
+      "operational_rate": "19.6%",
+      "notes": "COS has 21 API endpoints returning 200. 1 non-operational (PostHog key missing). PRD specifies 102 features across 15 categories."
     },
-    {
-      "name": "EntrepreneurOS",
+    "eos": {
       "desired": 87,
       "implemented": 22,
       "operational": 20,
-      "pct_operational": 23.0,
-      "prd_source": "EOS — Product — Master Document v1.0 (Google Drive ID: 1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo)",
-      "categories": {
-        "Auth & Workspace": {"desired": 3, "implemented": 2, "operational": 2},
-        "Portfolio & Organization": {"desired": 5, "implemented": 0, "operational": 0},
-        "Founder Dashboard": {"desired": 5, "implemented": 1, "operational": 1},
-        "Workflow & SOP System": {"desired": 10, "implemented": 0, "operational": 0},
-        "Task & Execution": {"desired": 4, "implemented": 2, "operational": 2},
-        "AI Agent Runtime": {"desired": 10, "implemented": 6, "operational": 6},
-        "AI Copilot": {"desired": 7, "implemented": 3, "operational": 3},
-        "Skill System": {"desired": 6, "implemented": 0, "operational": 0},
-        "Memory & Knowledge": {"desired": 5, "implemented": 0, "operational": 0},
-        "CRM & Contacts": {"desired": 5, "implemented": 3, "operational": 3},
-        "Documents & Notes": {"desired": 3, "implemented": 1, "operational": 1},
-        "Integrations": {"desired": 4, "implemented": 2, "operational": 2},
-        "Analytics & Intelligence": {"desired": 7, "implemented": 1, "operational": 1},
-        "Governance & Permissions": {"desired": 5, "implemented": 0, "operational": 0},
-        "Business Operations": {"desired": 6, "implemented": 2, "operational": 2},
-        "UMH Integration": {"desired": 2, "implemented": 0, "operational": 0}
-      },
-      "top_implemented": [
-        "Auth/Sign-in (Clerk)",
-        "Agent Management",
-        "Agent Chat",
-        "Agent Hierarchy",
-        "Agent Metrics",
-        "Multi-Agent Collaboration",
-        "Agent Actions/Approvals",
-        "AI Assistant Chat",
-        "AI Model Selection",
-        "Task Board",
-        "CRM Contacts",
-        "CRM Deals",
-        "CRM Activities",
-        "Document Management",
-        "Notifications",
-        "Analytics Dashboard",
-        "Gmail Integration",
-        "Integrations Framework",
-        "Settings (partial)",
-        "Fly Deployment"
-      ],
-      "biggest_gaps": [
-        "Workflow & SOP System (0/10 — core value prop not built)",
-        "Portfolio & Organization (0/5 — no multi-venture)",
-        "Skill System (0/6 — no skill library)",
-        "Memory & Knowledge (0/5 — no persistent memory)",
-        "Governance & Permissions (0/5 — no authority model)"
-      ]
+      "implementation_rate": "25.3%",
+      "operational_rate": "23.0%",
+      "notes": "EOS has 22 server routes. 20 return JSON. 2 return SPA HTML. PRD specifies 87 features across 16 categories."
     },
-    {
-      "name": "LyfeOS",
+    "lyfeos": {
       "desired": 4,
       "implemented": 4,
       "operational": 4,
-      "pct_operational": 100.0,
-      "prd_source": "LYFEOS — Product — Master Document [LIVE] (not re-audited — minimal scope tracked)",
-      "note": "LyfeOS PRD defines ~200+ capabilities but only 4 core infra capabilities were tracked in C27 scope. Full LyfeOS audit deferred."
+      "implementation_rate": "100%",
+      "operational_rate": "100%",
+      "notes": "Tracking 4 core capabilities only. L5 certified in C26."
+    },
+    "aggregate": {
+      "desired": 193,
+      "implemented": 47,
+      "operational": 44,
+      "implementation_rate": "24.4%",
+      "operational_rate": "22.8%"
     }
+  },
+  "corrections_from_v1": [
+    "COS desired: 28 -> 102 (PRD extraction from Drive)",
+    "EOS desired: 28 -> 87 (PRD extraction from Drive)",
+    "EOS operational: 16 -> 20 (wrong API paths tested in v0/v1)",
+    "Total desired: 60 -> 193 (3.2x larger scope than initially measured)"
   ],
-  "summary": {
-    "total_desired": 193,
-    "total_implemented": 47,
-    "total_operational": 44,
-    "pct_implemented": 24.4,
-    "pct_operational": 22.8,
-    "previous_report_inflated": true,
-    "v1_reported_pct": 66.7,
-    "v2_corrected_pct": 22.8,
-    "gap_count": 149,
-    "key_insight": "The v1 delta used a 28-capability subset per projection. The actual PRDs define 102 (COS) + 87 (EOS) = 189 capabilities. The true operational rate is 22.8%, not 66.7%. This 3x overcount in v1 is itself a belief-reality divergence that C27 was designed to catch."
+  "top_gaps_by_category": {
+    "cos": [
+      {"category": "Content Distribution Hub", "desired": 12, "built": 0, "gap": 12},
+      {"category": "Marketplace", "desired": 11, "built": 3, "gap": 8},
+      {"category": "Creator Dashboard & Analytics", "desired": 10, "built": 1, "gap": 9},
+      {"category": "Course Platform", "desired": 8, "built": 0, "gap": 8},
+      {"category": "Community Hub", "desired": 8, "built": 2, "gap": 6},
+      {"category": "Consumer Feed Experience", "desired": 7, "built": 2, "gap": 5}
+    ],
+    "eos": [
+      {"category": "Workflow & SOP System", "desired": 10, "built": 0, "gap": 10},
+      {"category": "AI Agent Runtime", "desired": 10, "built": 4, "gap": 6},
+      {"category": "AI Copilot", "desired": 7, "built": 2, "gap": 5},
+      {"category": "Analytics & Intelligence", "desired": 7, "built": 1, "gap": 6},
+      {"category": "Skill System", "desired": 6, "built": 0, "gap": 6},
+      {"category": "Business Operations", "desired": 6, "built": 0, "gap": 6}
+    ]
+  },
+  "sources": {
+    "cos_prd": {
+      "title": "CREATOROS - Product - Master Document v2.90",
+      "drive_id": "1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI",
+      "modified": "2026-06-22T18:31:17.117Z"
+    },
+    "eos_prd": {
+      "title": "EOS - Product - Master Document",
+      "drive_id": "1kKBGCS9kewNMwOBAThXVkd1tYNcgddSUCjkpBjJtLSo",
+      "modified": "2026-06-22T19:05:55.730Z"
+    }
   }
 }
