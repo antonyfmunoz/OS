@@ -125,3 +125,8 @@ data/umh/rooms/
 
 # Playwright MCP debug artifacts
 .playwright-mcp/
+
+# Oversized audit artifacts (>100MB GitHub limit)
+data/audits/2026-06-23_full_filesystem_inventory.json
+data/audits/2026-06-23_full_filesystem_inventory.tsv
+data/audits/line_audit_2026-06-23/
