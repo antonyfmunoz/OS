@@ -323,7 +323,7 @@ export function Shell() {
       </div>
 
       <HudBar />
-      <VoiceCommandBar />
+      {Boolean((window as Record<string, unknown>).cockpit) && <VoiceCommandBar />}
       <CommandPalette />
     </div>
   )
