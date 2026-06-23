@@ -259,7 +259,7 @@ async def login(page: Any) -> bool:
     """Login via Clerk. Returns True on success, False on failure."""
     logger.info("Logging in via Clerk at %s", COCKPIT_URL)
 
-    await page.goto(COCKPIT_URL, wait_until="networkidle", timeout=TIMEOUT_LOGIN)
+    await page.goto(COCKPIT_URL, wait_until="domcontentloaded", timeout=TIMEOUT_LOGIN)
     await page.wait_for_timeout(2000)
 
     # Check if already logged in (LeftRail present)
