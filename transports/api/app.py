@@ -543,6 +543,58 @@ async def violations():
     ]
 
 
+@app.get("/api/projections/certification")
+async def projection_certifications(projection: str | None = None):
+    """Projection certification levels — graduated L0-L5."""
+    try:
+        from substrate.organism.projection_certification import (
+            ProjectionCertificationEngine,
+            ProjectionRegistry,
+        )
+        registry = ProjectionRegistry()
+        engine = ProjectionCertificationEngine(registry=registry)
+
+        if projection:
+            cert = engine.certify(projection)
+            return cert.to_dict()
+
+        results = engine.certify_all()
+        return {
+            "projections": {
+                name: cert.to_dict() for name, cert in results.items()
+            },
+            "summary": engine.summary(),
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Certification check failed: {exc}",
+        )
+
+
+@app.get("/api/trust/scores")
+async def trust_scores(work_id: str | None = None):
+    """Trust score summary — composite weakest-link scoring."""
+    try:
+        from substrate.organism.trust_score import TrustScoreEngine
+        engine = TrustScoreEngine()
+
+        if work_id:
+            score = engine.get_score(work_id)
+            if score is None:
+                raise HTTPException(status_code=404, detail=f"No trust score for {work_id}")
+            return score.to_dict()
+
+        return engine.summary()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Trust score check failed: {exc}",
+        )
+
+
 class WritebackTo(BaseModel):
     """Target for outcome writeback."""
 

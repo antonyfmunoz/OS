@@ -45,13 +45,17 @@ class CanonicalRealityWritePath:
     responsibility) and does NOT do candidate generation or promotion.
     """
 
+    TRUST_PROMOTION_THRESHOLD = 0.5
+
     def __init__(
         self,
         reality_model: Any | None = None,
         event_spine: Any | None = None,
+        trust_engine: Any | None = None,
     ) -> None:
         self._reality_model = reality_model
         self._event_spine = event_spine
+        self._trust_engine = trust_engine
 
     def apply_mutation(self, mutation: RealityMutation) -> RealityMutationReceipt:
         rejection = self._validate(mutation)
@@ -79,6 +83,11 @@ class CanonicalRealityWritePath:
             return self._reject(mutation, f"invalid source_system: {mutation.source_system}")
         if not (0.0 <= mutation.confidence <= 1.0):
             return self._reject(mutation, f"confidence out of range: {mutation.confidence}")
+
+        trust_rejection = self._check_trust_gate(mutation)
+        if trust_rejection:
+            return trust_rejection
+
         return None
 
     def _reject(self, mutation: RealityMutation, reason: str) -> RealityMutationReceipt:
@@ -89,6 +98,28 @@ class CanonicalRealityWritePath:
             accepted=False,
             reason=reason,
         )
+
+    def _check_trust_gate(self, mutation: RealityMutation) -> RealityMutationReceipt | None:
+        """Block low-trust mutations from reaching canonical reality."""
+        if self._trust_engine is None:
+            return None
+        try:
+            work_id = mutation.metadata.get("work_id", "") if mutation.metadata else ""
+            if not work_id:
+                return None
+            score = self._trust_engine.get_score(work_id)
+            if score is None:
+                return None
+            if score.composite_trust < self.TRUST_PROMOTION_THRESHOLD:
+                return self._reject(
+                    mutation,
+                    f"trust gate: composite_trust={score.composite_trust:.2f} "
+                    f"< threshold={self.TRUST_PROMOTION_THRESHOLD} "
+                    f"(level={score.trust_level.value})",
+                )
+        except Exception:
+            logger.debug("trust gate check failed", exc_info=True)
+        return None
 
     def _write_observation(self, mutation: RealityMutation) -> str | None:
         if self._reality_model is None:

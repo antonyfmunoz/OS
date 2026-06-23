@@ -1,0 +1,23 @@
+{
+  "lyfeos": {
+    "app_name": "lyfeos-app",
+    "health_url": "/api/health",
+    "public_url": "https://lyfeos.net",
+    "critical_bundle_values": ["pk_test_YmFsYW5jZWQt"],
+    "l4_workflow": "clerk_login_renders"
+  },
+  "eos": {
+    "app_name": "eos-app",
+    "health_url": "/api/health",
+    "public_url": "https://entrepreneuros.net",
+    "critical_bundle_values": ["pk_test_aGlwLX"],
+    "l4_workflow": "clerk_login_renders"
+  },
+  "cos": {
+    "app_name": "cos-app",
+    "health_url": "/api/health",
+    "public_url": "https://creatoros-app.fly.dev",
+    "critical_bundle_values": ["pk_test_dG9sZXJhbnQt"],
+    "l4_workflow": "clerk_login_renders"
+  }
+}

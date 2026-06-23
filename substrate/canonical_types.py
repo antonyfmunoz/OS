@@ -1200,6 +1200,37 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # C22.6 — Source Truth Runtime
     "LineageNodeType": ["substrate.organism.source_truth_runtime"],
     "LineageTerminalState": ["substrate.organism.source_truth_runtime"],
+    # C26B — Deploy Verification Worker
+    "DeployCheckStatus": ["substrate.organism.deploy_verification_worker"],
+    "DeployCheckResult": ["substrate.organism.deploy_verification_worker"],
+    "DeployVerificationResult": ["substrate.organism.deploy_verification_worker"],
+    # C26A — Outcome Verification Runtime
+    "VerificationLevel": ["substrate.organism.outcome_verification"],
+    "OutcomeVerificationStatus": ["substrate.organism.outcome_verification"],
+    "VerificationMethod": ["substrate.organism.outcome_verification"],
+    "VerificationStepResult": ["substrate.organism.outcome_verification"],
+    "VerificationPlan": ["substrate.organism.outcome_verification"],
+    "OutcomeVerification": ["substrate.organism.outcome_verification"],
+    # C26C — Projection Certification Framework
+    "CertificationLevel": ["substrate.organism.projection_certification"],
+    "LevelCheckResult": ["substrate.organism.projection_certification"],
+    "ProjectionCertification": ["substrate.organism.projection_certification"],
+    "ProjectionConfig": ["substrate.organism.projection_certification"],
+    # C26E — Trust Engine
+    "TrustDimension": ["substrate.organism.trust_score"],
+    "TrustLevel": ["substrate.organism.trust_score"],
+    "DimensionScore": ["substrate.organism.trust_score"],
+    "TrustScore": ["substrate.organism.trust_score"],
+    # C26D — Correspondence Ledger
+    "CorrespondenceStatus": ["substrate.organism.production_truth_delta"],
+    "CorrespondenceResult": ["substrate.organism.production_truth_delta"],
+    "CorrespondenceChecker": ["substrate.organism.production_truth_delta"],
+    "RegressionAlert": ["substrate.organism.correspondence_scheduler"],
+    "CorrespondenceScheduler": ["substrate.organism.correspondence_scheduler"],
+    # C26F — Reality Challenge Benchmark
+    "BenchmarkDomain": ["substrate.organism.benchmarks.reality_correspondence"],
+    "BenchmarkScenario": ["substrate.organism.benchmarks.reality_correspondence"],
+    "BenchmarkResult": ["substrate.organism.benchmarks.reality_correspondence"],
 }
 
 

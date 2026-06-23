@@ -1,0 +1,103 @@
+{
+  "default": [
+    {
+      "level": "artifact_exists",
+      "method": "file_existence",
+      "description": "Verify artifact was created",
+      "required": true,
+      "timeout_seconds": 10.0
+    }
+  ],
+  "deploy": [
+    {
+      "level": "artifact_exists",
+      "method": "file_existence",
+      "description": "Verify deployment artifacts exist (Dockerfile, fly.toml)",
+      "required": true,
+      "timeout_seconds": 10.0
+    },
+    {
+      "level": "build_passes",
+      "method": "deterministic_check",
+      "description": "Verify build completes without errors",
+      "required": true,
+      "timeout_seconds": 120.0
+    },
+    {
+      "level": "deploy_healthy",
+      "method": "http_probe",
+      "description": "Health endpoint returns 200",
+      "required": true,
+      "timeout_seconds": 120.0
+    },
+    {
+      "level": "ui_operational",
+      "method": "bundle_inspection",
+      "description": "JS bundle contains expected baked-in values",
+      "required": true,
+      "timeout_seconds": 30.0
+    },
+    {
+      "level": "workflow_operational",
+      "method": "browser_check",
+      "description": "App renders, no console errors, key UI elements present",
+      "required": true,
+      "timeout_seconds": 60.0
+    }
+  ],
+  "code_change": [
+    {
+      "level": "artifact_exists",
+      "method": "file_existence",
+      "description": "Changed files exist on disk",
+      "required": true,
+      "timeout_seconds": 10.0
+    },
+    {
+      "level": "build_passes",
+      "method": "deterministic_check",
+      "description": "Module compiles (py_compile or tsc)",
+      "required": true,
+      "timeout_seconds": 30.0
+    }
+  ],
+  "infrastructure": [
+    {
+      "level": "artifact_exists",
+      "method": "file_existence",
+      "description": "Config files exist",
+      "required": true,
+      "timeout_seconds": 10.0
+    },
+    {
+      "level": "build_passes",
+      "method": "deterministic_check",
+      "description": "Config parses without errors",
+      "required": true,
+      "timeout_seconds": 15.0
+    },
+    {
+      "level": "deploy_healthy",
+      "method": "process_check",
+      "description": "Service is running and healthy",
+      "required": true,
+      "timeout_seconds": 60.0
+    }
+  ],
+  "test": [
+    {
+      "level": "artifact_exists",
+      "method": "file_existence",
+      "description": "Test file exists",
+      "required": true,
+      "timeout_seconds": 10.0
+    },
+    {
+      "level": "build_passes",
+      "method": "test_execution",
+      "description": "Tests pass",
+      "required": true,
+      "timeout_seconds": 120.0
+    }
+  ]
+}
