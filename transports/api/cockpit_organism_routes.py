@@ -104,6 +104,10 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/operator-acceptance/primary-proof", _operator_acceptance_primary_proof, methods=["GET"])
     r.add_api_route("/organism/operator-acceptance/safety-proof", _operator_acceptance_safety_proof, methods=["GET"])
 
+    # ── Projection health endpoints ─────────────────────────────────────
+    r.add_api_route("/organism/projections", _organism_projections, methods=["GET"])
+    r.add_api_route("/organism/projections/{projection_id}/health", _organism_projection_health, methods=["GET"])
+
     return r
 
 
@@ -607,3 +611,94 @@ async def _operator_acceptance_safety_proof():
         return {"error": "safety proof not found"}
     with open(path) as f:
         return _json.load(f)
+
+
+# ── Projection health handlers ─────────────────────────────────────────────
+
+
+def _load_projection_registry() -> dict[str, Any]:
+    import os
+    path = os.path.join(
+        os.environ.get("UMH_ROOT", "/opt/OS"),
+        "data", "umh", "projection_registry.json",
+    )
+    if not os.path.isfile(path):
+        return {}
+    with open(path) as f:
+        return _json.load(f)
+
+
+async def _check_projection_health(entry: dict[str, Any]) -> dict[str, Any]:
+    """Probe a projection's health endpoint via HTTP."""
+    import aiohttp
+    app_name = entry.get("app_name", "")
+    health_url = entry.get("health_url", "/api/health")
+    base = f"https://{app_name}.fly.dev"
+    url = f"{base}{health_url}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                return {
+                    "url": url,
+                    "status_code": resp.status,
+                    "healthy": resp.status == 200,
+                }
+    except Exception as exc:
+        return {
+            "url": url,
+            "status_code": 0,
+            "healthy": False,
+            "error": str(exc),
+        }
+
+
+async def _organism_projections() -> dict[str, Any]:
+    """List all registered projections with live health status."""
+    registry = _load_projection_registry()
+    if not registry:
+        return {"projections": [], "total": 0, "healthy": 0}
+
+    tasks = {}
+    for pid, entry in registry.items():
+        tasks[pid] = _check_projection_health(entry)
+
+    results = {}
+    for pid, coro in tasks.items():
+        results[pid] = await coro
+
+    projections = []
+    healthy_count = 0
+    for pid, entry in registry.items():
+        health = results.get(pid, {})
+        is_healthy = health.get("healthy", False)
+        if is_healthy:
+            healthy_count += 1
+        projections.append({
+            "id": pid,
+            "app_name": entry.get("app_name", ""),
+            "public_url": entry.get("public_url", ""),
+            "healthy": is_healthy,
+            "health_check": health,
+        })
+
+    return {
+        "projections": projections,
+        "total": len(projections),
+        "healthy": healthy_count,
+    }
+
+
+async def _organism_projection_health(projection_id: str) -> dict[str, Any]:
+    """Detailed health check for a single projection."""
+    registry = _load_projection_registry()
+    entry = registry.get(projection_id)
+    if entry is None:
+        return {"error": f"projection '{projection_id}' not registered"}
+
+    health = await _check_projection_health(entry)
+    return {
+        "id": projection_id,
+        "app_name": entry.get("app_name", ""),
+        "public_url": entry.get("public_url", ""),
+        **health,
+    }

@@ -14,7 +14,7 @@
     "l4_workflow": "clerk_login_renders"
   },
   "cos": {
-    "app_name": "cos-app",
+    "app_name": "creatoros-app",
     "health_url": "/api/health",
     "public_url": "https://creatoros-app.fly.dev",
     "critical_bundle_values": ["pk_test_dG9sZXJhbnQt"],
