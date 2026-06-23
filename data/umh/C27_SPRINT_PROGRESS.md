@@ -15,27 +15,42 @@
 
 ---
 
-## Projection Delta: v0 → v1
+## Projection Delta: v1 (subset) → v2 (PRD-grounded)
 
+### v1 (INFLATED — used 28/projection subset)
 ```
-              Desired   Impl   Oper(v0)   Oper(v1)   Delta
-CreatorOS        28      21      0          20        +20
-EntrepreneurOS   28      22      0          16        +16
-LyfeOS            4       4      4           4         0
-──────────────────────────────────────────────────────────
-TOTAL            60      47      4          40        +36
+              Desired   Impl   Oper(v1)   %Oper
+CreatorOS        28      21      20        71.4%
+EntrepreneurOS   28      22      20        71.4%
+LyfeOS            4       4       4       100.0%
+──────────────────────────────────────────────────
+TOTAL            60      47      44        73.3%
 ```
 
-**Operational rate: 6.7% → 66.7%** (+36 capabilities)
+### v2 (CORRECTED — full PRD scope from Google Drive)
+```
+              Desired   Impl   Oper(v2)   %Oper
+CreatorOS       102      21      20        19.6%
+EntrepreneurOS   87      22      20        23.0%
+LyfeOS            4       4       4       100.0%
+──────────────────────────────────────────────────
+TOTAL           193      47      44        22.8%
+```
 
-### COS: 20/21 Operational
-- Only gap: PostHog Analytics (missing VITE_POSTHOG_KEY at build time)
-- Auth uses pk_test_ (development Clerk instance, not production)
+**Reality correction: 66.7% → 22.8%.** The v1 report used a 28-capability
+subset. The actual PRDs define 102 (COS) + 87 (EOS) = 189 capabilities.
+This 3x overcount is itself a belief-reality divergence C27 caught.
 
-### EOS: 16/22 Operational
-- 16 routes return real JSON data (6 are auth-gated but functional)
-- 6 NOT_OPERATIONAL: AI Assistant Chat, Agent Actions/Approvals, Gmail Integration, Settings, Tutorials, SOP Templates (no server routes — SPA HTML fallback)
-- App title still "AgentOS" not "EntrepreneurOS"
+### COS: 20/102 Desired Operational (19.6%)
+- 21 features implemented out of 102 desired from PRD
+- 20 operational (PostHog Analytics missing VITE_POSTHOG_KEY)
+- Biggest gaps: Content Distribution Hub (0/12), Course Platform (0/8), Marketplace (1/11)
+
+### EOS: 20/87 Desired Operational (23.0%)
+- 22 features implemented out of 87 desired from PRD
+- CORRECTED: AI Assistant Chat, Agent Actions/Approvals, Gmail Integration all OPERATIONAL (wrong paths tested in v1)
+- Only 2 truly not operational: Tutorials, SOP Templates (no server routes)
+- Biggest gaps: Workflow/SOP (0/10), Portfolio/Org (0/5), Skills (0/6), Memory (0/5)
 
 ---
 
@@ -105,10 +120,10 @@ All 7 Meta IDE subsystems now have functional routes (was 4/7 before).
 
 | Gate | Status | Score |
 |------|--------|-------|
-| 1. Surface Completeness | PARTIAL | 5/7 surfaces operational |
-| 2. Production | STRONG | 40/60 (66.7%) operational |
-| 3. Meta IDE | PASSING | 7/7 subsystems functional |
-| 4. Coherence | NOT YET TESTED | Pending coherence attacks |
+| 1. Surface Completeness | PARTIAL | 6/7 surfaces operational (Drive verified) |
+| 2. Production | REALITY CHECK | 44/193 (22.8%) at PRD scope — 20/21 COS impl, 20/22 EOS impl |
+| 3. Meta IDE | PASSING | 5/7 FUNCTIONAL, 2/7 PARTIAL, 0 BROKEN |
+| 4. Coherence | IN PROGRESS | Caught: 3x delta overcount, 4 EOS misclassifications, Fly app name drift |
 
 ---
 
@@ -122,6 +137,8 @@ All 7 Meta IDE subsystems now have functional routes (was 4/7 before).
 | ab8ebbcc | projection delta v1: 4/60 → 40/60 operational |
 | 91873093 | meta IDE audit v1 (4/7 functional, 3/7 broken) |
 | db85f67e | split cockpit_core_routes + meta IDE critical path routes |
+| 95e01e48 | c27.2 sprint: corrected EOS audit, resolved drive gap, meta IDE v2 |
+| b18d35be | c27.2 PRD-grounded delta v2: true scope 193 capabilities, 22.8% operational |
 
 ---
 
