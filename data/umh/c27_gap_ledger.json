@@ -9,10 +9,11 @@
       "description": "Frontend loads (200) but /api/health returns 502. Backend not responding.",
       "task_id": "",
       "projection": "",
-      "evidence": "",
+      "evidence": "os-operator container was frozen/unhealthy. docker restart os-operator fixed it. Tunnel auto-reconnected. /api/umh/health returns 200.",
       "remediation": "Investigate cockpit backend, check Fly logs, redeploy if needed",
       "discovered_at": "2026-06-23T07:25:52.205127+00:00",
-      "resolved": false
+      "resolved": true,
+      "resolved_at": "2026-06-23T07:40:00+00:00"
     },
     {
       "gap_id": "gap-baseline-002",
@@ -23,10 +24,11 @@
       "description": "creatoros-app on Fly is suspended. 0 operational capabilities.",
       "task_id": "",
       "projection": "CreatorOS",
-      "evidence": "",
+      "evidence": "flyctl machine start 286d20be2700e8. Health: 1/1 passing. /api/health returns 200.",
       "remediation": "Unsuspend via flyctl scale, redeploy, run L0-L5 certification",
       "discovered_at": "2026-06-23T07:25:52.205156+00:00",
-      "resolved": false
+      "resolved": true,
+      "resolved_at": "2026-06-23T07:38:00+00:00"
     },
     {
       "gap_id": "gap-baseline-003",
@@ -37,10 +39,11 @@
       "description": "eos-app on Fly is suspended. 0 operational capabilities.",
       "task_id": "",
       "projection": "EntrepreneurOS",
-      "evidence": "",
+      "evidence": "flyctl machine start 178135e2a51458. Health: 1/1 passing. /api/health returns 200.",
       "remediation": "Unsuspend via flyctl scale, redeploy, run L0-L5 certification",
       "discovered_at": "2026-06-23T07:25:52.205161+00:00",
-      "resolved": false
+      "resolved": true,
+      "resolved_at": "2026-06-23T07:38:00+00:00"
     },
     {
       "gap_id": "gap-baseline-004",
@@ -87,10 +90,11 @@
   ],
   "summary": {
     "total": 6,
-    "unresolved": 6,
+    "unresolved": 3,
+    "resolved": 3,
     "by_severity": {
-      "critical": 1,
-      "high": 4,
+      "critical": 0,
+      "high": 2,
       "medium": 1,
       "low": 0
     },
@@ -98,9 +102,9 @@
       "meta_ide": 1,
       "google_drive": 1,
       "stitch": 1,
-      "cockpit": 3
+      "cockpit": 0
     },
     "coherence_gaps": 0
   },
-  "exported_at": "2026-06-23T07:25:52.205222+00:00"
+  "exported_at": "2026-06-23T07:40:00+00:00"
 }
