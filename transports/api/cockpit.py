@@ -195,6 +195,8 @@ ws_router.include_router(cockpit_core_routes.core_ws_router)
 
 _get_organism = cockpit_core_routes.get_organism
 _get_org_id = cockpit_core_routes.get_org_id
+push_chat_message = cockpit_core_routes.push_chat_message
+push_organism_event = cockpit_core_routes.push_organism_event
 
 # ── Phase 6.1→6.2: Spine routes extracted to cockpit_spine_router.py ─────────
 
