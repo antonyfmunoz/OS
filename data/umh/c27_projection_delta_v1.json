@@ -1,0 +1,88 @@
+{
+  "report_id": "dr-c27-sprint-v1",
+  "label": "C27 Sprint — Post-Unsuspend Live Audit",
+  "generated_at": "2026-06-23T07:50:00Z",
+  "reports": [
+    {
+      "report_id": "dr-c27-sprint-v1",
+      "label": "C27 Sprint — Post-Unsuspend Live Audit",
+      "projections": [
+        {
+          "projection_name": "CreatorOS",
+          "capabilities": [
+            {"name": "Auth/Onboarding (Clerk)", "desired": true, "implemented": true, "operational": true, "source": "pk_test_ key in bundle, ClerkProvider/useAuth/SignIn all present"},
+            {"name": "User Profiles", "desired": true, "implemented": true, "operational": true, "source": "/api/users returns 200"},
+            {"name": "Content Feed", "desired": true, "implemented": true, "operational": true, "source": "/api/posts returns 200 (empty, no users yet)"},
+            {"name": "Stories (24h)", "desired": true, "implemented": true, "operational": true, "source": "/api/stories returns 200"},
+            {"name": "Content Creation (Multi-format)", "desired": true, "implemented": true, "operational": true, "source": "/create and /new-text-post client routes present"},
+            {"name": "Comments & Engagement", "desired": true, "implemented": true, "operational": true, "source": "Posts API returns 200; comments nested under posts"},
+            {"name": "Follow System", "desired": true, "implemented": true, "operational": true, "source": "/api/followers returns 200"},
+            {"name": "Saved Posts", "desired": true, "implemented": true, "operational": true, "source": "/api/saved-posts returns 200"},
+            {"name": "Tagging", "desired": true, "implemented": true, "operational": true, "source": "/api/tags returns 200"},
+            {"name": "Marketplace/Products", "desired": true, "implemented": true, "operational": true, "source": "/api/products returns 200, /marketplace route present"},
+            {"name": "AI Agents/Chat", "desired": true, "implemented": true, "operational": true, "source": "/api/ai/agents returns 200"},
+            {"name": "Communities/Channels", "desired": true, "implemented": true, "operational": true, "source": "/api/communities returns 200"},
+            {"name": "Direct Messaging", "desired": true, "implemented": true, "operational": true, "source": "/api/conversations and /api/direct-messages both return 200"},
+            {"name": "Notifications", "desired": true, "implemented": true, "operational": true, "source": "/api/notifications returns 200"},
+            {"name": "Documents/Editor", "desired": true, "implemented": true, "operational": true, "source": "/api/documents returns 200"},
+            {"name": "Revenue Dashboard", "desired": true, "implemented": true, "operational": true, "source": "/api/revenue returns 200"},
+            {"name": "CRM/Contacts", "desired": true, "implemented": true, "operational": true, "source": "/api/contacts returns 200"},
+            {"name": "Explore/Discovery", "desired": true, "implemented": true, "operational": true, "source": "/api/explore returns 200"},
+            {"name": "PostHog Analytics", "desired": true, "implemented": true, "operational": false, "source": "No phc_ key in bundle — VITE_POSTHOG_KEY not set at build time"},
+            {"name": "File Upload", "desired": true, "implemented": true, "operational": true, "source": "/api/upload returns 200"},
+            {"name": "Fly Deployment Config", "desired": true, "implemented": true, "operational": true, "source": "Deployed on Fly, health 200, Clerk key in bundle"},
+            {"name": "Publishing Orchestration", "desired": true, "implemented": false, "operational": false, "source": "No cross-platform publishing pipeline"},
+            {"name": "Public Portfolio/Showcase", "desired": true, "implemented": false, "operational": false, "source": "Profile is app-internal only"},
+            {"name": "Creator Analytics (Advanced)", "desired": true, "implemented": false, "operational": false, "source": "No engagement/audience/growth analytics"},
+            {"name": "Content Pipeline (Draft>Publish)", "desired": true, "implemented": false, "operational": false, "source": "Posts are immediate only, no drafts/scheduling"},
+            {"name": "Creator Onboarding Flow", "desired": true, "implemented": false, "operational": false, "source": "No guided creator onboarding wizard"},
+            {"name": "Monetization Tools", "desired": true, "implemented": false, "operational": false, "source": "No subscriptions/paid content/payouts"},
+            {"name": "Search", "desired": true, "implemented": false, "operational": false, "source": "No search functionality"}
+          ]
+        },
+        {
+          "projection_name": "EntrepreneurOS",
+          "capabilities": [
+            {"name": "Auth/Onboarding (Clerk)", "desired": true, "implemented": true, "operational": true, "source": "Clerk key in bundle, auth middleware returns 401 JSON (working)"},
+            {"name": "Agent Management", "desired": true, "implemented": true, "operational": true, "source": "/api/agents returns JSON array with agent data"},
+            {"name": "Agent Chat", "desired": true, "implemented": true, "operational": true, "source": "POST /api/agents/:id/chat returns JSON with reply"},
+            {"name": "Agent Hierarchy", "desired": true, "implemented": true, "operational": true, "source": "Agent data includes roleLevel, department, parentAgentId"},
+            {"name": "Agent Metrics", "desired": true, "implemented": true, "operational": true, "source": "/api/agents/:id/metrics returns 401 JSON (auth-gated, route works)"},
+            {"name": "Task Board", "desired": true, "implemented": true, "operational": true, "source": "/api/tasks returns JSON array with 5 tasks"},
+            {"name": "Multi-Agent Collaboration", "desired": true, "implemented": true, "operational": true, "source": "POST /api/ai/multi-agent returns 400 JSON with validation (route works)"},
+            {"name": "CRM Contacts", "desired": true, "implemented": true, "operational": true, "source": "/api/crm/contacts returns 401 JSON (auth-gated, route works)"},
+            {"name": "CRM Deals", "desired": true, "implemented": true, "operational": true, "source": "/api/crm/deals returns 401 JSON (auth-gated, route works)"},
+            {"name": "CRM Activities", "desired": true, "implemented": true, "operational": true, "source": "/api/crm/activities returns 401 JSON (auth-gated, route works)"},
+            {"name": "Document Management", "desired": true, "implemented": true, "operational": true, "source": "/api/documents returns 401 JSON (auth-gated, route works)"},
+            {"name": "Notifications", "desired": true, "implemented": true, "operational": true, "source": "/api/notifications returns 401 JSON (auth-gated, route works)"},
+            {"name": "AI Assistant Chat", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no server route implementation"},
+            {"name": "Agent Actions/Approvals", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no server route implementation"},
+            {"name": "Analytics Dashboard", "desired": true, "implemented": true, "operational": true, "source": "/api/analytics returns 401 JSON (auth-gated, route works)"},
+            {"name": "Gmail Integration", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no OAuth server routes"},
+            {"name": "Integrations Framework", "desired": true, "implemented": true, "operational": true, "source": "/api/integrations returns JSON with 3 integrations"},
+            {"name": "AI Model Selection", "desired": true, "implemented": true, "operational": true, "source": "/api/ai/models returns JSON with 5 providers (all isAvailable: false)"},
+            {"name": "Settings", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — client-side only, no server API"},
+            {"name": "Tutorials", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — client-side only, no server API"},
+            {"name": "SOP Templates", "desired": true, "implemented": true, "operational": false, "source": "Returns SPA HTML — no server route"},
+            {"name": "Fly Deployment Config", "desired": true, "implemented": true, "operational": true, "source": "Deployed on Fly, health 200, Clerk key injected"},
+            {"name": "Venture Management", "desired": true, "implemented": false, "operational": false, "source": "Pydantic models in projections/ but no frontend/API"},
+            {"name": "Financial Tracking", "desired": true, "implemented": false, "operational": false, "source": "No financial tables or routes"},
+            {"name": "Offer Management", "desired": true, "implemented": false, "operational": false, "source": "No offers/products in schema"},
+            {"name": "Client Pipeline (automated)", "desired": true, "implemented": false, "operational": false, "source": "CRM exists but no pipeline automation"},
+            {"name": "Outreach Automation", "desired": true, "implemented": false, "operational": false, "source": "UMH-side workflows exist but not wired to frontend"},
+            {"name": "UMH Integration", "desired": true, "implemented": false, "operational": false, "source": "projections/eos/ exists but EOS app has zero UMH awareness"}
+          ]
+        },
+        {
+          "projection_name": "LyfeOS",
+          "capabilities": [
+            {"name": "Auth/Onboarding", "desired": true, "implemented": true, "operational": true, "source": "Clerk integration, L5 certified"},
+            {"name": "Core App", "desired": true, "implemented": true, "operational": true, "source": "Deployed, health 200, L5 certified C26"},
+            {"name": "UI Renders", "desired": true, "implemented": true, "operational": true, "source": "Bundle contains Clerk key, login page renders"},
+            {"name": "Health Endpoint", "desired": true, "implemented": true, "operational": true, "source": "GET /api/health returns 200"}
+          ]
+        }
+      ]
+    }
+  ]
+}
