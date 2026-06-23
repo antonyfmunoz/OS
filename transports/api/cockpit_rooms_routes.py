@@ -38,7 +38,7 @@ rooms_public_router = APIRouter(prefix="/rooms", tags=["rooms-public"])
 def _push_room_event(event_type: str, payload: dict) -> None:
     """Push a room event into the cockpit WS pulse stream."""
     try:
-        from transports.api.cockpit import push_organism_event
+        from transports.api.cockpit_core_routes import push_organism_event
         push_organism_event({"type": "room_event", "event": event_type, **payload})
     except Exception:
         logger.debug("room event broadcast skipped (cockpit not loaded)")
