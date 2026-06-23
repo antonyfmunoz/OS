@@ -1,0 +1,205 @@
+{
+  "source": "CREATOROS — Product — Master Document v2.90 + Full Platform PRD v1.0 (Google Drive ID: 1NIZXMZRFHqC2uMi8AhfL79zwKoew5f6bix9LgirBIfI)",
+  "extracted_at": "2026-06-23T08:35:00Z",
+  "summary": "CreatorOS is the command center for modern creators — post once, publish everywhere, host communities, sell courses, run marketplace. Full vision includes 12 core systems: identity, feed, editing studio, creator profile, communities, marketplace, commerce, UGC campaigns, ads platform, distribution/cross-posting, automation/email, and analytics.",
+  "categories": [
+    {
+      "name": "Content Distribution Hub",
+      "prd_section": "4.1 (v2.90) + System 2 + System 10 (v1.0)",
+      "capabilities": [
+        {"name": "Universal Composer", "description": "Single editor for posts, videos, stories, reels. Adapts format per platform."},
+        {"name": "Multi-Platform Publish", "description": "One-click distribution to Instagram, TikTok, YouTube, X, Facebook, LinkedIn, Pinterest, Threads."},
+        {"name": "Platform Connectors", "description": "OAuth integrations with all major social platforms. Secure token management."},
+        {"name": "Content Calendar", "description": "Visual calendar of all scheduled content. Drag-and-drop rescheduling."},
+        {"name": "Smart Scheduling", "description": "AI-powered optimal posting times per platform."},
+        {"name": "Content Library", "description": "Centralized media storage for images, videos, templates."},
+        {"name": "Cross-Post Analytics", "description": "Unified metrics across all platforms."},
+        {"name": "Stories", "description": "24h ephemeral content (stories row in feed)."},
+        {"name": "Podcast Support", "description": "Native podcast publishing and distribution."},
+        {"name": "Live Streaming", "description": "Go live natively with multistreaming to external platforms."},
+        {"name": "Cross-Posting", "description": "Distribute feed content to connected external platforms."},
+        {"name": "Multistreaming", "description": "Stream live to multiple external platforms simultaneously."}
+      ]
+    },
+    {
+      "name": "In-App Editing Studio",
+      "prd_section": "System 3 (v1.0)",
+      "capabilities": [
+        {"name": "Video Editor", "description": "CapCut/TikTok-like video editing within the app."},
+        {"name": "Photo Editor", "description": "Basic photo editing and filters."},
+        {"name": "Templates", "description": "Pre-built content templates for posts and videos."},
+        {"name": "Drafts", "description": "Save and manage content drafts before publishing."}
+      ]
+    },
+    {
+      "name": "Community Hub",
+      "prd_section": "4.2 (v2.90) + System 5 (v1.0)",
+      "capabilities": [
+        {"name": "Community Spaces", "description": "Branded spaces with customizable channels (text, voice, video). Free and paid tiers."},
+        {"name": "Channels & Categories", "description": "Organize discussions by topic. Announcements, Q&A, general chat, course channels."},
+        {"name": "Roles & Permissions", "description": "Tiered access by membership level. Moderator, VIP, student roles."},
+        {"name": "Live Events", "description": "Host audio rooms, video calls, AMAs within communities."},
+        {"name": "Member Directory", "description": "Searchable member list with profiles, badges, activity stats."},
+        {"name": "Engagement Tools", "description": "Polls, reactions, threaded replies, @mentions, pinned messages."},
+        {"name": "Moderation Suite", "description": "Auto-mod rules, keyword filtering, bans, audit logs."},
+        {"name": "Community Discovery", "description": "Browse and discover communities by topic, niche, creator."}
+      ]
+    },
+    {
+      "name": "Course Platform",
+      "prd_section": "4.3 (v2.90)",
+      "capabilities": [
+        {"name": "Course Builder", "description": "Drag-and-drop curriculum builder with modules, lessons, sections."},
+        {"name": "Video Hosting", "description": "Native video hosting with adaptive streaming."},
+        {"name": "Progress Tracking", "description": "Student progress bars, completion certificates, streaks."},
+        {"name": "Drip Content", "description": "Time-release lessons on schedule."},
+        {"name": "Quizzes & Assignments", "description": "Multiple choice, short answer, file uploads."},
+        {"name": "Discussion Boards", "description": "Per-lesson comment threads for Q&A."},
+        {"name": "Certificates", "description": "Auto-generated completion certificates with custom branding."},
+        {"name": "Cohort Mode", "description": "Live cohort-based courses with start dates and group progression."}
+      ]
+    },
+    {
+      "name": "Marketplace",
+      "prd_section": "4.4 (v2.90) + System 6 (v1.0)",
+      "capabilities": [
+        {"name": "Course Marketplace", "description": "Searchable catalog of all public courses with categories and trending."},
+        {"name": "Community Directory", "description": "Discover free and paid communities."},
+        {"name": "Search & Discovery", "description": "Full-text search, tags, categories, personalized recommendations."},
+        {"name": "Ratings & Reviews", "description": "Student/member reviews with verified purchase badges."},
+        {"name": "Featured Listings", "description": "Curated spotlights and promoted placements."},
+        {"name": "Instant Checkout", "description": "One-click purchase for logged-in users. Saved payment methods."},
+        {"name": "Affiliate Links", "description": "Referral links and commission on marketplace sales."},
+        {"name": "Digital Downloads", "description": "Sell digital files as products."},
+        {"name": "Subscriptions/Memberships", "description": "Recurring payment products."},
+        {"name": "Services", "description": "Book and sell services through marketplace."},
+        {"name": "Events", "description": "Sell event tickets through marketplace."}
+      ]
+    },
+    {
+      "name": "Consumer Feed Experience",
+      "prd_section": "4.5 (v2.90) + System 2 (v1.0)",
+      "capabilities": [
+        {"name": "Unified Feed", "description": "Single chronological/algorithmic feed from followed creators across all platforms."},
+        {"name": "Following List", "description": "Follow creators to see cross-platform content in one place."},
+        {"name": "My Communities", "description": "Quick access to all joined communities with unread indicators."},
+        {"name": "My Courses", "description": "Library of purchased courses with progress indicators."},
+        {"name": "Notifications", "description": "Unified notifications for posts, community, courses, purchases."},
+        {"name": "Bookmarks", "description": "Save posts, courses, communities for later."},
+        {"name": "Feed Filters", "description": "Toggle between All, Posts Only, Communities, Courses."}
+      ]
+    },
+    {
+      "name": "Creator Dashboard & Analytics",
+      "prd_section": "4.6 (v2.90) + System 12 (v1.0)",
+      "capabilities": [
+        {"name": "Overview Dashboard", "description": "At-a-glance metrics: followers, revenue, engagement, growth."},
+        {"name": "Content Analytics", "description": "Per-post performance across all platforms."},
+        {"name": "Community Analytics", "description": "Member growth, active users, popular channels, heatmaps."},
+        {"name": "Course Analytics", "description": "Enrollment, completion rates, drop-off points, progress."},
+        {"name": "Revenue Dashboard", "description": "Earnings breakdown: courses, communities, tips. Payout history."},
+        {"name": "Audience Insights", "description": "Demographics, location, platform breakdown."},
+        {"name": "Funnel Tracking", "description": "Content → community → course purchase attribution."},
+        {"name": "Business Analytics", "description": "Revenue, conversion, LTV, churn for business accounts."},
+        {"name": "Campaign Analytics", "description": "UGC campaign performance tracking."},
+        {"name": "Ads Analytics", "description": "Ad revenue, impressions, CPM/CPC metrics."}
+      ]
+    },
+    {
+      "name": "Commerce & Payments",
+      "prd_section": "System 7 (v1.0)",
+      "capabilities": [
+        {"name": "Stripe Integration", "description": "Subscriptions, one-time payments, payouts via Stripe."},
+        {"name": "Entitlements Engine", "description": "Single gate for access control based on purchases."},
+        {"name": "Creator Payouts", "description": "Automated payout system with configurable schedule."},
+        {"name": "Refunds & Chargebacks", "description": "Refund processing and chargeback management."}
+      ]
+    },
+    {
+      "name": "Identity & Onboarding",
+      "prd_section": "System 1 (v1.0)",
+      "capabilities": [
+        {"name": "Authentication", "description": "Clerk-based auth with social login options."},
+        {"name": "User Onboarding", "description": "Guided onboarding flow for new users."},
+        {"name": "Creator Mode", "description": "Switch to creator mode to access publishing tools."},
+        {"name": "Creator Profile", "description": "Public creator hub page with bio, content, products."}
+      ]
+    },
+    {
+      "name": "UGC Campaigns",
+      "prd_section": "System 8 (v1.0)",
+      "capabilities": [
+        {"name": "UGC Campaign Listings", "description": "Brands list UGC campaigns as a product type."},
+        {"name": "Application Workflow", "description": "Creators apply to campaigns, brands approve/reject."},
+        {"name": "Campaign Dashboard", "description": "Business view of active campaigns, submissions, analytics."},
+        {"name": "UGC Attribution", "description": "Tag and track UGC posts with campaign attribution."},
+        {"name": "UGC Creator Payments", "description": "Pay creators for approved UGC content."}
+      ]
+    },
+    {
+      "name": "Ads Platform",
+      "prd_section": "System 9 (v1.0)",
+      "capabilities": [
+        {"name": "Self-Serve Ad Manager", "description": "YouTube/Meta-like ad creation and management."},
+        {"name": "Ad Inventory", "description": "Feed ads, story ads, marketplace promoted listings."},
+        {"name": "Boosted Posts", "description": "Promote existing content for wider reach."},
+        {"name": "Creator Ad Revenue", "description": "Creators earn from ads shown on their content."}
+      ]
+    },
+    {
+      "name": "Automation & Email",
+      "prd_section": "System 11 (v1.0)",
+      "capabilities": [
+        {"name": "Automation Builder", "description": "Manychat-style visual automation builder for DMs and responses."},
+        {"name": "Email Newsletters", "description": "Create and send email newsletters to subscribers."},
+        {"name": "Email Campaigns", "description": "Drip sequences, broadcast emails, subscriber management."}
+      ]
+    },
+    {
+      "name": "Search",
+      "prd_section": "System 18 (v1.0)",
+      "capabilities": [
+        {"name": "Explore Search", "description": "Search across all content, creators, communities."},
+        {"name": "Marketplace Search", "description": "Search products, courses, services."},
+        {"name": "Community Search", "description": "Search within communities and across community directory."}
+      ]
+    },
+    {
+      "name": "Moderation & Trust",
+      "prd_section": "System 20 (v1.0)",
+      "capabilities": [
+        {"name": "Content Moderation", "description": "Automated and manual content moderation."},
+        {"name": "Marketplace Trust", "description": "Verified sellers, purchase protection."},
+        {"name": "UGC Compliance", "description": "Campaign compliance and content guidelines."},
+        {"name": "Reporting", "description": "User reporting system for content, accounts, products."}
+      ]
+    },
+    {
+      "name": "Direct Messaging",
+      "prd_section": "System 19 (v1.0)",
+      "capabilities": [
+        {"name": "Direct Messages", "description": "1:1 and group messaging between users."},
+        {"name": "Creator DMs", "description": "Fan-to-creator messaging with optional paid access."}
+      ]
+    }
+  ],
+  "total_capabilities": 102,
+  "by_category_count": {
+    "Content Distribution Hub": 12,
+    "In-App Editing Studio": 4,
+    "Community Hub": 8,
+    "Course Platform": 8,
+    "Marketplace": 11,
+    "Consumer Feed Experience": 7,
+    "Creator Dashboard & Analytics": 10,
+    "Commerce & Payments": 4,
+    "Identity & Onboarding": 4,
+    "UGC Campaigns": 5,
+    "Ads Platform": 4,
+    "Automation & Email": 3,
+    "Search": 3,
+    "Moderation & Trust": 4,
+    "Direct Messaging": 2
+  },
+  "notes": "v2.90 defines 42 core features across 6 categories. v1.0 Full Vision expands to 12 formal systems plus infrastructure. This extraction covers all user-facing capabilities. Infrastructure/NFRs (performance, security, scalability) are excluded. Total: 102 desired capabilities across 15 categories."
+}
