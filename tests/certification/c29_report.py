@@ -230,8 +230,7 @@ class C29Report:
             f"{', '.join(self.synthetic_only_failures) if self.synthetic_only_failures else 'None'}",
             f"- Minimum Production Evidence: "
             f"{'MET' if self.minimum_evidence_met else 'NOT_MET'} ({a + b} A+B runs)",
-            f"- Synthetic Cannot Lift: Decisive verdict from A+B only = "
-            f"{self.ab_only_verdict}",
+            f"- Synthetic Cannot Lift: Decisive verdict from A+B only = {self.ab_only_verdict}",
             "",
             "---",
             "",
@@ -253,35 +252,39 @@ class C29Report:
                 f"{delta:+.2f} | {_CHECK if passed else _CROSS} |"
             )
 
-        lines.extend([
-            "",
-            f"UMH Composite: {self.umh_composite:.4f} | "
-            f"Legacy Composite: {self.legacy_composite:.4f}",
-            "",
-            "---",
-            "",
-            "## HTI — Harness Trustworthiness Index",
-            "",
-            f"**Score: {self.hti_score:.2f}/100**",
-            "",
-            "| Component | Weight | Score |",
-            "|-----------|--------|-------|",
-        ])
+        lines.extend(
+            [
+                "",
+                f"UMH Composite: {self.umh_composite:.4f} | "
+                f"Legacy Composite: {self.legacy_composite:.4f}",
+                "",
+                "---",
+                "",
+                "## HTI — Harness Trustworthiness Index",
+                "",
+                f"**Score: {self.hti_score:.2f}/100**",
+                "",
+                "| Component | Weight | Score |",
+                "|-----------|--------|-------|",
+            ]
+        )
 
         for key, weight in HTICalculator.COMPONENT_WEIGHTS.items():
             label = _HTI_LABELS.get(key, key)
             score = self.hti_components.get(key, 0.0)
             lines.append(f"| {label} | {weight * 100:.0f}% | {score:.2f} |")
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## UMH Metrics",
-            "",
-            "| Metric | Value | Target | Confidence | A | B | C | Pass |",
-            "|--------|-------|--------|------------|---|---|---|------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## UMH Metrics",
+                "",
+                "| Metric | Value | Target | Confidence | A | B | C | Pass |",
+                "|--------|-------|--------|------------|---|---|---|------|",
+            ]
+        )
 
         for name, m in self.umh_metrics.items():
             value = m.get("value", 0.0)
@@ -297,15 +300,17 @@ class C29Report:
                 f"{ca} | {cb} | {cc} | {_CHECK if passed else _CROSS} |"
             )
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## Pass Criteria Evaluation",
-            "",
-            "| Criterion | Required | Actual | Pass |",
-            "|-----------|----------|--------|------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## Pass Criteria Evaluation",
+                "",
+                "| Criterion | Required | Actual | Pass |",
+                "|-----------|----------|--------|------|",
+            ]
+        )
 
         passed_count = 0
         for label, crit in self.pass_criteria.items():
@@ -314,23 +319,22 @@ class C29Report:
             passed = crit.get("passed", False)
             if passed:
                 passed_count += 1
-            lines.append(
-                f"| {label} | {required} | {actual} | "
-                f"{_CHECK if passed else _CROSS} |"
-            )
+            lines.append(f"| {label} | {required} | {actual} | {_CHECK if passed else _CROSS} |")
 
-        lines.extend([
-            "",
-            f"**Overall: {'PASS' if self.overall_pass else 'FAIL'}** "
-            f"({passed_count}/{len(self.pass_criteria)} criteria met)",
-            "",
-            "---",
-            "",
-            "## Category Breakdown",
-            "",
-            "| Category | Tasks | UMH Composite | Legacy Composite | Delta |",
-            "|----------|-------|---------------|------------------|-------|",
-        ])
+        lines.extend(
+            [
+                "",
+                f"**Overall: {'PASS' if self.overall_pass else 'FAIL'}** "
+                f"({passed_count}/{len(self.pass_criteria)} criteria met)",
+                "",
+                "---",
+                "",
+                "## Category Breakdown",
+                "",
+                "| Category | Tasks | UMH Composite | Legacy Composite | Delta |",
+                "|----------|-------|---------------|------------------|-------|",
+            ]
+        )
 
         for cat, cb in self.category_breakdown.items():
             lines.append(
@@ -340,13 +344,15 @@ class C29Report:
                 f"{cb.get('delta', 0.0):+.2f} |"
             )
 
-        lines.extend([
-            "",
-            "## Project Breakdown",
-            "",
-            "| Project | Tasks | UMH Composite | Legacy Composite | Delta |",
-            "|---------|-------|---------------|------------------|-------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Project Breakdown",
+                "",
+                "| Project | Tasks | UMH Composite | Legacy Composite | Delta |",
+                "|---------|-------|---------------|------------------|-------|",
+            ]
+        )
 
         for proj, pb in self.project_breakdown.items():
             lines.append(
@@ -356,13 +362,15 @@ class C29Report:
                 f"{pb.get('delta', 0.0):+.2f} |"
             )
 
-        lines.extend([
-            "",
-            "## Workday Coverage",
-            "",
-            "| Activity | Covered |",
-            "|----------|---------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Workday Coverage",
+                "",
+                "| Activity | Covered |",
+                "|----------|---------|",
+            ]
+        )
 
         for key, label in _WORKDAY_ACTIVITIES:
             covered = self.workday_coverage.get(key, False)
@@ -371,24 +379,28 @@ class C29Report:
         covered_n = sum(
             1 for key, _ in _WORKDAY_ACTIVITIES if self.workday_coverage.get(key, False)
         )
-        lines.extend([
-            "",
-            f"Coverage: {covered_n}/{len(_WORKDAY_ACTIVITIES)} "
-            f"({self.coverage_score * 100:.0f}%)",
-            "",
-            "---",
-            "",
-            "## Longitudinal Checkpoints",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                f"Coverage: {covered_n}/{len(_WORKDAY_ACTIVITIES)} "
+                f"({self.coverage_score * 100:.0f}%)",
+                "",
+                "---",
+                "",
+                "## Longitudinal Checkpoints",
+                "",
+            ]
+        )
 
         if self.checkpoints:
-            lines.extend([
-                "| # | Runs | Correct | Total | Track A Recall | Track B Recall | "
-                "Avg Time (s) |",
-                "|---|------|---------|-------|----------------|----------------|"
-                "--------------|",
-            ])
+            lines.extend(
+                [
+                    "| # | Runs | Correct | Total | Track A Recall | Track B Recall | "
+                    "Avg Time (s) |",
+                    "|---|------|---------|-------|----------------|----------------|"
+                    "--------------|",
+                ]
+            )
             for cp in self.checkpoints:
                 lines.append(
                     f"| {cp.get('checkpoint_number', 0)} | "
@@ -402,13 +414,15 @@ class C29Report:
         else:
             lines.append("No longitudinal checkpoints recorded.")
 
-        lines.extend([
-            "",
-            "---",
-            "",
-            "## Gap Ledger for C30",
-            "",
-        ])
+        lines.extend(
+            [
+                "",
+                "---",
+                "",
+                "## Gap Ledger for C30",
+                "",
+            ]
+        )
 
         if self.gap_ledger:
             for gap in self.gap_ledger:
@@ -495,9 +509,7 @@ class ReportGenerator:
         synthetic_only = verdict_engine._validate_no_synthetic_only(metrics)
         ab_count = len(ab_umh)
         minimum_met = ab_count >= _MIN_PRODUCTION_RUNS
-        ab_only_verdict = _verdict_str(
-            verdict_engine._synthetic_cannot_lift(umh, legacy)
-        )
+        ab_only_verdict = _verdict_str(verdict_engine._synthetic_cannot_lift(umh, legacy))
 
         pass_criteria, overall_pass = self._compute_pass_criteria(
             comparative, hti_score, metrics_calc, metrics, verdict
@@ -514,8 +526,15 @@ class ReportGenerator:
         evidence_dist = self.evidence_distribution(all_results)
 
         gap_ledger = self._build_gap_ledger(
-            comparative, metrics, umh_metrics, wc, verdict,
-            synthetic_only, minimum_met, ab_count, litmus_passed,
+            comparative,
+            metrics,
+            umh_metrics,
+            wc,
+            verdict,
+            synthetic_only,
+            minimum_met,
+            ab_count,
+            litmus_passed,
             evidence_dist,
         )
 
@@ -615,9 +634,7 @@ class ReportGenerator:
         for name, (label, required) in metric_labels.items():
             m = metrics[name]
             passed = metrics_calc.metric_passes(name, m.value)
-            value_str, _ = _format_metric_value(
-                name, m.value, UMHMetricCalculator.TARGETS[name]
-            )
+            value_str, _ = _format_metric_value(name, m.value, UMHMetricCalculator.TARGETS[name])
             criteria[label] = {
                 "required": required,
                 "actual": value_str,
@@ -743,9 +760,7 @@ class ReportGenerator:
                     "— thesis dimension not yet won"
                 )
             elif name not in _MUST_EXCEED and umh < legacy:
-                gaps.append(
-                    f"{label}: Legacy ({legacy:.2f}) beats UMH ({umh:.2f})"
-                )
+                gaps.append(f"{label}: Legacy ({legacy:.2f}) beats UMH ({umh:.2f})")
 
         # Failed UMH metric targets.
         for name, m in umh_metrics.items():
@@ -753,9 +768,7 @@ class ReportGenerator:
                 value_str, target_str = _format_metric_value(
                     name, m["value"], UMHMetricCalculator.TARGETS.get(name, 0.0)
                 )
-                gaps.append(
-                    f"Metric {name}: {value_str} misses target {target_str}"
-                )
+                gaps.append(f"Metric {name}: {value_str} misses target {target_str}")
 
         # Low-confidence metrics need more production evidence.
         for name, m in umh_metrics.items():
@@ -768,9 +781,7 @@ class ReportGenerator:
 
         # Synthetic-only auto-fail metrics.
         for name in synthetic_only:
-            gaps.append(
-                f"Metric {name}: zero Class A/B evidence — synthetic-only auto-fail"
-            )
+            gaps.append(f"Metric {name}: zero Class A/B evidence — synthetic-only auto-fail")
 
         # Uncovered workday activities.
         for key, label in _WORKDAY_ACTIVITIES:
@@ -856,18 +867,25 @@ def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="C29 Harness Superiority Report")
-    parser.add_argument(
-        "--json", action="store_true", help="Emit JSON instead of markdown"
-    )
-    parser.add_argument(
-        "--dispatch", action="store_true", help="Dispatch report to Discord"
-    )
+    parser.add_argument("--json", action="store_true", help="Emit JSON instead of markdown")
+    parser.add_argument("--dispatch", action="store_true", help="Dispatch report to Discord")
     args = parser.parse_args()
 
     registry = TaskRegistry()
     store = ResultStore()
     generator = ReportGenerator(registry, store)
-    report = generator.generate()
+
+    # Load WorkdayCoverage from thesis runner output if available
+    wdc_path = store._path.parent / "workday_coverage.json"
+    workday = None
+    if wdc_path.exists():
+        try:
+            wdc_data = json.loads(wdc_path.read_text(encoding="utf-8"))
+            workday = WorkdayCoverage.from_dict(wdc_data)
+        except Exception:
+            pass
+
+    report = generator.generate(workday_coverage=workday)
 
     if args.json:
         print(json.dumps(report.to_dict(), indent=2, default=str))
