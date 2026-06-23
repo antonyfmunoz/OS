@@ -287,12 +287,14 @@ async def login(page: Any) -> bool:
         await email_input.fill(CLERK_EMAIL)
         await page.wait_for_timeout(500)
 
-        # Click continue/submit
-        continue_btn = await page.query_selector(
-            "button[type='submit'], button:has-text('Continue'), button:has-text('Sign in')"
-        )
-        if continue_btn:
-            await continue_btn.click()
+        # Submit email — use visible button if available, else Enter key
+        visible_btn = page.locator(
+            "button[type='submit']:visible, "
+            "button:visible:has-text('Continue'), "
+            "button:visible:has-text('Sign in')"
+        ).first
+        if await visible_btn.count() > 0:
+            await visible_btn.click()
         else:
             await page.keyboard.press("Enter")
 
@@ -308,11 +310,13 @@ async def login(page: Any) -> bool:
             await password_input.fill(password)
             await page.wait_for_timeout(500)
 
-            submit_btn = await page.query_selector(
-                "button[type='submit'], button:has-text('Continue'), button:has-text('Sign in')"
-            )
-            if submit_btn:
-                await submit_btn.click()
+            pw_btn = page.locator(
+                "button[type='submit']:visible, "
+                "button:visible:has-text('Continue'), "
+                "button:visible:has-text('Sign in')"
+            ).first
+            if await pw_btn.count() > 0:
+                await pw_btn.click()
             else:
                 await page.keyboard.press("Enter")
 
