@@ -74,8 +74,8 @@ export const useActionsStore = create<ActionsState>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const url = category
-        ? `/api/umh/actions/catalog?category=${category}`
-        : '/api/umh/actions/catalog'
+        ? `/actions/catalog?category=${category}`
+        : '/actions/catalog'
       const data = await fetchApi(url)
       set({ actions: data.actions ?? [], loading: false })
     } catch (e) {
