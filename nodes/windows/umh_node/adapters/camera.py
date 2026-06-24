@@ -746,11 +746,13 @@ class CameraAdapter:
             return cameras
         try:
             import subprocess
+            from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
             result = subprocess.run(
                 ["powershell", "-NoProfile", "-Command",
                  "Get-CimInstance Win32_PnPEntity | Where-Object { $_.PNPClass -eq 'Camera' } "
                  "| Select-Object Name, DeviceID | ConvertTo-Json -Compress"],
                 capture_output=True, text=True, timeout=5,
+                **no_window_kwargs(),
             )
             if result.returncode == 0 and result.stdout.strip():
                 data = json.loads(result.stdout.strip())

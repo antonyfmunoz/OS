@@ -21,7 +21,7 @@ from websockets.asyncio.server import ServerConnection
 from substrate.execution.executor import WorkPacketExecutor
 from transports.node_mesh.config import MeshConfig
 from transports.node_mesh.metrics_buffer import MetricsBuffer, MetricsSnapshot
-from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
+from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry, Peripheral
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.outcome_socket import OutcomeSocket
 from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
@@ -298,6 +298,8 @@ class NodeMeshServer:
                     await self._handle_heartbeat(node_id, params, msg_id, ws)
                 elif method == "node.capabilities_changed" and node_id:
                     await self._handle_capabilities_changed(node_id, params, ws)
+                elif method == "node.peripherals_changed" and node_id:
+                    await self._handle_peripherals_changed(node_id, params)
                 elif method == "signal.emit" and node_id:
                     await self._handle_signal(node_id, params, msg_id, ws)
                 elif not method and ("result" in msg or "error" in msg):
@@ -426,6 +428,11 @@ class NodeMeshServer:
             for c in params.get("capabilities", [])
         ]
 
+        peripherals = [
+            Peripheral.from_dict(p)
+            for p in params.get("peripherals", [])
+        ]
+
         node = ConnectedNode(
             node_id=node_id,
             hostname=params.get("hostname", "unknown"),
@@ -435,6 +442,7 @@ class NodeMeshServer:
             daemon_version=params.get("daemon_version", "0.0.0"),
             tailscale_ip=params.get("tailscale_ip", ""),
             ws=ws,
+            peripherals=peripherals,
         )
 
         self._registry.add(node)
@@ -462,7 +470,10 @@ class NodeMeshServer:
         )
 
         self._emit_mesh_event("mesh.node_connected", node)
-        logger.info("node connected: %s (%s %s)", node_id, node.os, node.hostname)
+        logger.info(
+            "node connected: %s (%s %s, %d peripherals)",
+            node_id, node.os, node.hostname, len(node.peripherals),
+        )
         return node_id
 
     async def _handle_heartbeat(
@@ -537,6 +548,22 @@ class NodeMeshServer:
         node.capabilities = new_caps
         self._register_integration(node)
         logger.info("node %s capabilities updated: %s", node_id, [c.name for c in new_caps])
+
+    async def _handle_peripherals_changed(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+    ) -> None:
+        node = self._registry.get(node_id)
+        if node is None:
+            return
+        node.peripherals = [
+            Peripheral.from_dict(p)
+            for p in params.get("peripherals", [])
+        ]
+        self._registry._write_snapshot()
+        self._emit_mesh_event("mesh.node_peripherals_changed", node)
+        logger.info("node %s peripherals updated: %d devices", node_id, len(node.peripherals))
 
     async def _handle_signal(
         self,

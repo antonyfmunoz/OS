@@ -167,11 +167,13 @@ def collect_log_layer(page=None) -> dict:
     # Method 2: SSH (if VPS_SSH configured and reachable)
     if VPS_SSH:
         try:
+            _nw = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
             result = subprocess.run(
                 ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
                  "-o", "ServerAliveInterval=5", VPS_SSH,
                  "docker logs os-operator --tail 20 2>&1 | tail -20"],
                 capture_output=True, text=True, timeout=30,
+                **_nw,
             )
             if result.returncode == 0 and result.stdout.strip():
                 lines = result.stdout.strip().splitlines()

@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 def _collect_gpu() -> dict[str, Any] | None:
     """Query NVIDIA GPU via nvidia-smi. Returns None if no GPU or command fails."""
     try:
+        from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
         result = subprocess.run(
             [
                 "nvidia-smi",
@@ -24,6 +25,7 @@ def _collect_gpu() -> dict[str, Any] | None:
             capture_output=True,
             text=True,
             timeout=5,
+            **no_window_kwargs(),
         )
         if result.returncode != 0:
             return None
