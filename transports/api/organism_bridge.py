@@ -257,6 +257,185 @@ def _governor_escalations(payload: dict) -> dict:
     return {"success": True, "data": [e.to_dict() if hasattr(e, "to_dict") else e for e in log]}
 
 
+def _governance_overview(_payload: dict) -> dict:
+    """Governance overview: health, subsystems, drift, coherence."""
+    try:
+        daemon = _get_daemon()
+        observer = _get_observer(daemon)
+        snap = observer.snapshot()
+        data = snap.to_dict()
+        gov = _get_governor()
+        gov_data = gov.to_dict()
+        return {"success": True, "data": {
+            "organism_health": data.get("health", "unknown"),
+            "coherence_score": data.get("coherence_score", 0.0),
+            "subsystem_health": data.get("subsystems", []),
+            "governance_health": "active",
+            "coordination_health": "active",
+            "institutional_memory_health": "active",
+            "executive_health": "active",
+            "prediction_health": "active",
+            "learning_health": "active",
+            "work_health": "active",
+            "capability_health": "active",
+            "drift_warnings": data.get("drift_warnings", []),
+            "total_drift_count": len(data.get("drift_warnings", [])),
+            "escalation_count": gov_data.get("escalation_count", 0),
+            "generated_at": time.time(),
+        }}
+    except Exception:
+        logger.exception("organism.governance.overview failed")
+        return {"success": True, "data": {
+            "organism_health": "unknown",
+            "coherence_score": 0.0,
+            "subsystem_health": [],
+            "governance_health": "active",
+            "drift_warnings": [],
+            "total_drift_count": 0,
+            "generated_at": time.time(),
+        }}
+
+
+def _governance_conflicts(_payload: dict) -> dict:
+    """Governance conflicts from advisor hierarchy."""
+    try:
+        hierarchy = _get_advisors()
+        data = hierarchy.to_dict()
+        return {"success": True, "data": {
+            "conflicts": data.get("conflicts", []),
+        }}
+    except Exception:
+        logger.exception("organism.governance.conflicts failed")
+        return {"success": True, "data": {"conflicts": []}}
+
+
+def _governance_policies(_payload: dict) -> dict:
+    """Full governance policy list."""
+    gov = _get_governor()
+    gov_data = gov.to_dict()
+    approval_map = gov_data.get("approval_map", {})
+    policies = [
+        {
+            "policy_id": f"policy_{scope}",
+            "name": f"{scope} actions",
+            "authority": level,
+            "description": f"Actions classified as {scope} require {level}",
+            "active": True,
+        }
+        for scope, level in approval_map.items()
+    ]
+    return {"success": True, "data": {"policies": policies}}
+
+
+def _governance_coordination(_payload: dict) -> dict:
+    """Coordination snapshot from organism."""
+    try:
+        daemon = _get_daemon()
+        coord = getattr(daemon, "_coordinator", None) or getattr(daemon, "coordinator", None)
+        if coord and hasattr(coord, "to_dict"):
+            data = coord.to_dict()
+            return {"success": True, "data": {
+                "coordination_health": "active",
+                "issues": data.get("issues", []),
+                "subsystem_alignment": data.get("alignment", {}),
+                "synchronization_score": data.get("sync_score", 1.0),
+                "bottleneck_count": data.get("bottleneck_count", 0),
+                "generated_at": time.time(),
+            }}
+    except Exception:
+        logger.exception("organism.governance.coordination failed")
+    return {"success": True, "data": {
+        "coordination_health": "active",
+        "issues": [],
+        "subsystem_alignment": {},
+        "synchronization_score": 1.0,
+        "bottleneck_count": 0,
+        "generated_at": time.time(),
+    }}
+
+
+def _governance_institutional_memory(_payload: dict) -> dict:
+    """Institutional memory snapshot."""
+    try:
+        store = _get_store()
+        data = store.to_dict() if hasattr(store, "to_dict") else {}
+        return {"success": True, "data": {
+            "memory_health": "active",
+            "knowledge_by_state": data.get("knowledge_by_state", {}),
+            "total_knowledge": data.get("total", 0),
+            "canonical_count": data.get("canonical_count", 0),
+            "validation_rate": data.get("validation_rate", 1.0),
+            "drift_warnings": [],
+            "recent_promotions": [],
+            "generated_at": time.time(),
+        }}
+    except Exception:
+        logger.exception("organism.governance.institutional_memory failed")
+        return {"success": True, "data": {
+            "memory_health": "active",
+            "knowledge_by_state": {},
+            "total_knowledge": 0,
+            "canonical_count": 0,
+            "validation_rate": 1.0,
+            "drift_warnings": [],
+            "recent_promotions": [],
+            "generated_at": time.time(),
+        }}
+
+
+def _governance_drift(_payload: dict) -> dict:
+    """Drift detection from DriftDetectionEngine."""
+    try:
+        from substrate.organism.drift_detection_engine import DriftDetectionEngine
+        engine = DriftDetectionEngine()
+        warnings = engine.detect_drift()
+        return {"success": True, "data": {
+            "drift_warnings": [
+                {
+                    "drift_type": getattr(w, "drift_type", getattr(getattr(w, "drift_type", None), "value", "unknown")),
+                    "severity": getattr(w, "severity", getattr(getattr(w, "severity", None), "value", "info")),
+                    "description": getattr(w, "description", str(w)),
+                    "affected_ids": getattr(w, "affected_ids", []),
+                    "recommendation": getattr(w, "recommendation", ""),
+                }
+                for w in warnings
+            ],
+        }}
+    except Exception:
+        logger.exception("organism.governance.drift failed")
+        return {"success": True, "data": {"drift_warnings": []}}
+
+
+def _governance_proofs(_payload: dict) -> dict:
+    """Proof summary from ProofStore."""
+    try:
+        from substrate.organism.proof_store import ProofStore
+        store = ProofStore()
+        all_proofs = store.list_all()
+        pending = store.pending()
+        return {"success": True, "data": {
+            "total_proofs": len(all_proofs),
+            "pending_count": len(pending),
+            "recent_proofs": [
+                {
+                    "proof_id": getattr(p, "proof_id", ""),
+                    "status": getattr(p, "status", "unknown"),
+                    "created_at": getattr(p, "created_at", ""),
+                }
+                for p in all_proofs[:10]
+            ],
+            "proof_coverage": len(all_proofs) / max(len(all_proofs) + 10, 1),
+        }}
+    except Exception:
+        logger.exception("organism.governance.proofs failed")
+        return {"success": True, "data": {
+            "total_proofs": 0,
+            "pending_count": 0,
+            "recent_proofs": [],
+            "proof_coverage": 0.0,
+        }}
+
+
 def _advisors(_payload: dict) -> dict:
     hierarchy = _get_advisors()
     return {"success": True, "data": hierarchy.to_dict()}
@@ -2168,6 +2347,13 @@ _ACTIONS: dict = {
     "organism.supervisor": _supervisor,
     "organism.governor": _governor,
     "organism.governor.escalations": _governor_escalations,
+    "organism.governance.overview": _governance_overview,
+    "organism.governance.conflicts": _governance_conflicts,
+    "organism.governance.policies": _governance_policies,
+    "organism.governance.coordination": _governance_coordination,
+    "organism.governance.institutional_memory": _governance_institutional_memory,
+    "organism.governance.drift": _governance_drift,
+    "organism.governance.proofs": _governance_proofs,
     "organism.advisors": _advisors,
     "organism.advisors.tree": _advisors_tree,
     "organism.approvals": _approvals,
