@@ -35,7 +35,7 @@ def _request(
 ) -> dict[str, Any]:
     """Make an authenticated request to the Tailscale API."""
     tailnet = os.environ.get("TAILSCALE_TAILNET", "-")
-    url = f"{_BASE_URL}/tailnet/{tailnet}{path}" if path.startswith("/") else f"{_BASE_URL}{path}"
+    url = f"{_BASE_URL}/tailnet/{tailnet}{path}" if path.startswith("/") else f"{_BASE_URL}/{path}"
 
     data = json.dumps(body).encode() if body else None
     req = urllib.request.Request(url, data=data, method=method)
@@ -85,9 +85,12 @@ def list_devices() -> list[dict[str, Any]]:
 
 
 def remove_device(device_id: str) -> bool:
-    """Remove a device from the tailnet. Returns True on success."""
+    """Remove a device from the tailnet. Returns True on success.
+
+    Uses the device-level endpoint (not /tailnet/ prefixed).
+    """
     try:
-        _request("DELETE", f"/{device_id}")
+        _request("DELETE", f"device/{device_id}")
         return True
     except RuntimeError:
         return False

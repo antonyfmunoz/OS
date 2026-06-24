@@ -94,7 +94,16 @@ class TailscaleDiscoveryTick:
             tracking_key = dns_name or hostname
             existing = tracked.get(tracking_key, {})
             status = existing.get("status", "")
-            if status in ("pending_approval", "ignored"):
+            if status == "ignored":
+                continue
+            if status == "pending_approval":
+                resolved = self._check_approval_resolved(existing.get("approval_id", ""))
+                if resolved == "rejected":
+                    tracked[tracking_key]["status"] = "ignored"
+                    logger.info("peer %s rejected by operator → ignored", tracking_key)
+                elif resolved == "approved":
+                    tracked[tracking_key]["status"] = "approved"
+                # still pending or unknown → skip
                 continue
             if status == "expired":
                 pass  # re-create approval
@@ -268,6 +277,22 @@ class TailscaleDiscoveryTick:
         except Exception as exc:
             logger.error("failed to create approval for %s: %s", hostname, exc)
             return None
+
+    def _check_approval_resolved(self, approval_id: str) -> str:
+        """Check if an approval intercept has been resolved. Returns status."""
+        if not approval_id:
+            return "unknown"
+        try:
+            from substrate.organism.executors.approval_intercept import (
+                get_approval_intercept_service,
+            )
+            svc = get_approval_intercept_service()
+            intercept = svc.get(approval_id)
+            if intercept is None:
+                return "unknown"
+            return intercept.status
+        except Exception:
+            return "unknown"
 
     def _is_excluded(self, hostname: str, dns_name: str) -> bool:
         for pattern in self._exclude_patterns:
