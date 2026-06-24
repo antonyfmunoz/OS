@@ -47,4 +47,39 @@ router.patch('/', async (c) => {
   return c.json({ ok: true, message: 'Governance updated (requires organism restart for limits)' })
 })
 
+router.get('/overview', async (c) => {
+  const result = await callOrganism('organism.governance.overview')
+  return c.json(result.success ? result.data : { organism_health: 'unknown', drift_warnings: [], total_drift_count: 0 })
+})
+
+router.get('/conflicts', async (c) => {
+  const result = await callOrganism('organism.governance.conflicts')
+  return c.json(result.success ? result.data : { conflicts: [] })
+})
+
+router.get('/policies', async (c) => {
+  const result = await callOrganism('organism.governance.policies')
+  return c.json(result.success ? result.data : { policies: [] })
+})
+
+router.get('/coordination', async (c) => {
+  const result = await callOrganism('organism.governance.coordination')
+  return c.json(result.success ? result.data : { coordination_health: 'unknown', issues: [] })
+})
+
+router.get('/institutional-memory', async (c) => {
+  const result = await callOrganism('organism.governance.institutional_memory')
+  return c.json(result.success ? result.data : { memory_health: 'unknown' })
+})
+
+router.get('/drift', async (c) => {
+  const result = await callOrganism('organism.governance.drift')
+  return c.json(result.success ? result.data : { drift_warnings: [] })
+})
+
+router.get('/proofs', async (c) => {
+  const result = await callOrganism('organism.governance.proofs')
+  return c.json(result.success ? result.data : { total_proofs: 0, proof_coverage: 0 })
+})
+
 export default router
