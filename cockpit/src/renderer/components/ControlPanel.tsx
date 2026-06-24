@@ -5,7 +5,6 @@ import { useApprovalStore } from '../stores/approvalStore'
 import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useCollapseStore } from '../stores/collapseStore'
-import { usePolling } from '../hooks/usePolling'
 import { fetchApi } from '../api/client'
 import { useChatStore } from '../stores/chatStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
@@ -56,9 +55,7 @@ export function ControlPanel() {
     blocked: wsSnap.overnight.blocked_count,
   }
   const approvals = useApprovalStore((s) => s.approvals)
-  const fetchApprovals = useApprovalStore((s) => s.fetchApprovals)
   const unifiedPending = useUnifiedApprovalStore((s) => s.byUrgency)
-  const fetchByUrgency = useUnifiedApprovalStore((s) => s.fetchByUrgency)
   const unifiedApprove = useUnifiedApprovalStore((s) => s.approve)
   const unifiedReject = useUnifiedApprovalStore((s) => s.reject)
   const mode = useCockpitStore((s) => s.mode)
@@ -69,9 +66,6 @@ export function ControlPanel() {
   const storeFetchPlans = useEngineeringStore((s) => s.fetchPlans)
   const engineeringPlans = allPlans.filter((p) => p.status === 'draft' || p.status === 'approved')
 
-  usePolling(fetchApprovals, 5000, true, 500)
-  usePolling(fetchByUrgency, 5000, true, 800)
-  usePolling(storeFetchPlans, 5000, true, 1200)
 
   const approvePlan = useCallback(async (planId: string) => {
     try {

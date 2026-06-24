@@ -19,7 +19,6 @@ export function DashboardPanel() {
   const fetchModels = useSystemStore((s) => s.fetchModels)
   const fetchInfra = useSystemStore((s) => s.fetchInfra)
   const approvals = useApprovalStore((s) => s.approvals)
-  const fetchApprovals = useApprovalStore((s) => s.fetchApprovals)
   const approve = useApprovalStore((s) => s.approve)
   const deny = useApprovalStore((s) => s.deny)
   const setApiStatus = useCockpitStore((s) => s.setApiStatus)
@@ -58,7 +57,7 @@ export function DashboardPanel() {
   }, realtimeStatus === 'connected' ? 15000 : 3000, true, 1500)
 
   usePolling(() => { fetchMeshNodes(); fetchModels(); fetchInfra() }, 10000, true, 2000)
-  usePolling(() => { fetchApprovals(); fetchAll() }, realtimeStatus === 'connected' ? 15000 : 5000, true, 2500)
+  usePolling(fetchAll, realtimeStatus === 'connected' ? 15000 : 5000, true, 2500)
 
   const pendingApprovals = approvals.filter((a) => a.status === 'pending')
   const totalPending = pendingApprovals.length + pending.length
