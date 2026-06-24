@@ -429,6 +429,33 @@ This law exists because device names drifted across 6+ different labels
 ("VPS", "Beast", "Beast PC", "Windows Beast", "Windows", "Server") in the
 cockpit UI during 2026-06-06. The naming protocol makes drift impossible.
 
+## Computer Use Law (NON-NEGOTIABLE)
+UMH computer use operates through real installed applications in interactive
+desktop sessions on capable nodes. Three layers:
+
+1. **Computer use** (system design) — drive real installed applications in
+   interactive sessions on capable nodes. Headless nodes (VPS) are not capable
+   for computer use. This is a system architecture constraint.
+2. **Browser use** (subsystem) — same principle applied to browsers. Real
+   installed browser, interactive session, capable node. Never bundled runtimes
+   (Playwright's Chromium) or headless substitutes for computer use tasks.
+3. **Browser choice** (instance preference) — configured per instance, not
+   hardcoded in substrate. Current instance: Chrome (`channel: "chrome"`).
+
+Rules:
+- All Playwright browser launches for computer use MUST include `channel="chrome"`
+  (or the instance-configured browser) — never bare `chromium.launch()`
+- Computer use runs on capable nodes only (nodes with interactive desktop sessions)
+- VPS is headless — not capable for computer use
+- Headless data fetching (e.g. `headless_fetcher.py`) is NOT computer use —
+  it's data retrieval and may use bundled Chromium
+- Substrate code references capability requirements ("requires interactive session"),
+  not specific browser names
+
+This law exists because bundled Chromium diverges from real-world behavior —
+different rendering, different auth flows, different extensions. UMH is a
+reality-first system; computer use must match how software actually runs.
+
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).
 Git: commit directly to main (solo founder phase).
