@@ -173,6 +173,7 @@ class BrowserAgent:
 
             self._playwright = sync_playwright().start()
             self._browser = self._playwright.chromium.launch(
+                channel="chrome",
                 headless=self._headless,
                 args=["--disable-gpu", "--no-sandbox"],
             )
