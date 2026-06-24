@@ -184,7 +184,7 @@ export function IDEMenuBar() {
           <button
             onClick={() => setOpenMenu(openMenu === menu.label ? null : menu.label)}
             onMouseEnter={() => { if (openMenu) setOpenMenu(menu.label) }}
-            className={`px-2 py-1 text-[11px] rounded transition-colors ${
+            className={`px-2 py-1 text-[9px] rounded transition-colors ${
               openMenu === menu.label
                 ? 'bg-surface-raised text-text-primary'
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised'
@@ -195,7 +195,7 @@ export function IDEMenuBar() {
 
           {openMenu === menu.label && (
             <div
-              className="absolute top-full left-0 mt-0.5 rounded shadow-lg z-50 min-w-[220px] py-1"
+              className="absolute top-full left-0 mt-0.5 rounded shadow-lg z-50 min-w-[180px] py-1"
               style={{
                 background: 'var(--color-surface-raised)',
                 border: '1px solid var(--color-border)',
@@ -214,7 +214,7 @@ export function IDEMenuBar() {
                       }
                     }}
                     disabled={item.disabled}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] transition-colors ${
+                    className={`w-full flex items-center justify-between px-3 py-1 text-[9px] transition-colors ${
                       item.disabled
                         ? 'text-text-tertiary opacity-50 cursor-default'
                         : 'text-text-primary hover:bg-cyan-glow hover:text-cyan'
@@ -222,7 +222,7 @@ export function IDEMenuBar() {
                   >
                     <span>{item.label}</span>
                     {item.shortcut && (
-                      <span className="ml-4 text-[10px] text-text-tertiary font-mono">
+                      <span className="ml-4 text-[8px] text-text-tertiary font-mono">
                         {item.shortcut}
                       </span>
                     )}
