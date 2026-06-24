@@ -1373,7 +1373,7 @@ async def main(argv: list[str] | None = None) -> int:
     workday_coverage: WorkdayCoverage | None = None
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=args.headless)
+        browser = await pw.chromium.launch(channel="chrome", headless=args.headless)
         context = await _create_context_with_auth(browser)
         page = await context.new_page()
 

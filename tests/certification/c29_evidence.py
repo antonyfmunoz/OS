@@ -891,7 +891,7 @@ async def _run_standalone(task_id: str, url: str, headed: bool) -> None:
         sys.exit(1)
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=not headed)
+        browser = await p.chromium.launch(channel="chrome", headless=not headed)
         context = await browser.new_context(
             viewport={"width": 1920, "height": 1080},
         )

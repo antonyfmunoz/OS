@@ -67,7 +67,7 @@ def run_acceptance(url: str, screenshot_dir: str = "") -> dict[str, Any]:
         auth_state = os.path.join(AUTH_STATE_DIR, "chromium_state.json")
         has_auth = os.path.exists(auth_state)
 
-        browser = pw.chromium.launch(headless=False)
+        browser = pw.chromium.launch(channel="chrome", headless=False)
         ctx_opts: dict[str, Any] = {"viewport": {"width": 1920, "height": 1080}}
         if has_auth:
             ctx_opts["storage_state"] = auth_state

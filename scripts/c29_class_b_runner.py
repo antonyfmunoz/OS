@@ -1235,7 +1235,7 @@ async def main(argv: list[str] | None = None) -> int:
         from playwright.async_api import async_playwright
     except ImportError:
         logger.error(
-            "playwright not installed. Run: pip install playwright && playwright install chromium"
+            "playwright not installed. Run: pip install playwright && playwright install"
         )
         return 1
 
@@ -1244,7 +1244,7 @@ async def main(argv: list[str] | None = None) -> int:
     failures = 0
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=args.headless)
+        browser = await pw.chromium.launch(channel="chrome", headless=args.headless)
         context = await _create_context_with_auth(browser)
         page = await context.new_page()
 
