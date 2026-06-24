@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { ChevronDown, ChevronUp, Moon, Sun, Shield, Hammer } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useApprovalStore } from '../stores/approvalStore'
@@ -10,6 +10,7 @@ import { fetchApi } from '../api/client'
 import { useChatStore } from '../stores/chatStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
+import { useEngineeringStore } from '../stores/engineeringStore'
 
 /* ── colour maps ── */
 const CONTINUITY_COLORS: Record<string, string> = {
@@ -43,7 +44,6 @@ const STATUS_DOT: Record<string, string> = {
 export function ControlPanel() {
   const expanded = useCollapseStore((s) => s.isOpen('control-panel'))
   const toggleExpanded = useCollapseStore((s) => s.toggle)
-  const [engineeringPlans, setEngineeringPlans] = useState<any[]>([])
 
   const pulse = useSystemStore((s) => s.pulse)
   const execSummary = useExecutionSummaryStore((s) => s.summary)
@@ -65,49 +65,43 @@ export function ControlPanel() {
   const apiStatus = useCockpitStore((s) => s.apiStatus)
   const wsStatus = useCockpitStore((s) => s.wsStatus)
   const sendMessage = useChatStore((s) => s.sendMessage)
+  const allPlans = useEngineeringStore((s) => s.plans)
+  const storeFetchPlans = useEngineeringStore((s) => s.fetchPlans)
+  const engineeringPlans = allPlans.filter((p) => p.status === 'draft' || p.status === 'approved')
 
   usePolling(fetchApprovals, 5000, true, 500)
   usePolling(fetchByUrgency, 5000, true, 800)
-
-  const fetchEngineeringPlans = useCallback(async () => {
-    try {
-      const data = await fetchApi<{ plans: any[]; count: number }>('/engineering/plans')
-      const draft = (data.plans ?? []).filter((p: any) => p.status === 'draft' || p.status === 'approved')
-      setEngineeringPlans(draft)
-    } catch { /* silent */ }
-  }, [])
-
-  usePolling(fetchEngineeringPlans, 5000, true, 1200)
+  usePolling(storeFetchPlans, 5000, true, 1200)
 
   const approvePlan = useCallback(async (planId: string) => {
     try {
       await fetchApi(`/engineering/plans/${planId}/approve`, { method: 'POST' })
       sendMessage(`Plan ${planId} approved. Dispatching to Beast...`, 'text')
-      fetchEngineeringPlans()
+      storeFetchPlans()
       fetchApi(`/engineering/plans/${planId}/dispatch`, {
         method: 'POST',
         body: JSON.stringify({ node_id: 'windows-desktop' }),
       }).then((res) => {
         const r = res as Record<string, unknown>
         sendMessage(`Dispatch complete: ${r.dispatched || 0}/${r.total_tasks || '?'} tasks executed. Proof: ${r.proof_id || 'pending'}`, 'text')
-        fetchEngineeringPlans()
+        storeFetchPlans()
       }).catch(() => {
         sendMessage('Dispatch to Beast failed. Check mesh connectivity.', 'text')
       })
     } catch {
       sendMessage('Plan approval failed.', 'text')
     }
-  }, [sendMessage, fetchEngineeringPlans])
+  }, [sendMessage, storeFetchPlans])
 
   const rejectPlan = useCallback(async (planId: string) => {
     try {
       await fetchApi(`/engineering/plans/${planId}/reject`, { method: 'POST' })
       sendMessage(`Plan ${planId} rejected.`, 'text')
-      fetchEngineeringPlans()
+      storeFetchPlans()
     } catch {
       sendMessage('Plan rejection failed.', 'text')
     }
-  }, [sendMessage, fetchEngineeringPlans])
+  }, [sendMessage, storeFetchPlans])
 
   const pendingApprovals = approvals.filter((a) => a.status === 'pending')
   const totalPending = pendingApprovals.length + unifiedPending.length + engineeringPlans.length
