@@ -47,7 +47,7 @@ VIEWPORTS = [
         "name": "mobile",
         "width": 390,
         "height": 844,
-        "browser": "webkit",
+        "browser": "chromium",
         "device": "iPhone 14",
     },
 ]
