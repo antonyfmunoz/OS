@@ -46,6 +46,7 @@ class ProfileManager(BrowserAgent):
         self._pw = await async_playwright().start()
         self._context = await self._pw.chromium.launch_persistent_context(
             user_data_dir=str(self._profile_dir),
+            channel='chrome',
             headless=self.headless,
             args=[
                 "--no-sandbox",

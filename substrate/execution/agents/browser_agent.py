@@ -48,6 +48,7 @@ class BrowserAgent:
         from playwright.async_api import async_playwright
         self._pw = await async_playwright().start()
         self._browser = await self._pw.chromium.launch(
+            channel='chrome',
             headless=self.headless,
             args=['--no-sandbox', '--disable-dev-shm-usage'],
         )
