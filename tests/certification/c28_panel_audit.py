@@ -106,7 +106,7 @@ def audit_panels(
         auth_state = _get_auth_state()
         has_auth = os.path.exists(auth_state)
 
-        browser = pw.chromium.launch(headless=False)
+        browser = pw.chromium.launch(channel="chrome", headless=False)
 
         if has_auth:
             context = browser.new_context(
