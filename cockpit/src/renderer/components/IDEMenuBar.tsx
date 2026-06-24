@@ -177,8 +177,7 @@ export function IDEMenuBar() {
   return (
     <div
       ref={barRef}
-      className="flex items-center h-7 shrink-0 border-b border-border px-1 select-none"
-      style={{ background: 'var(--color-surface)' }}
+      className="flex items-center select-none"
     >
       {menus.map((menu) => (
         <div key={menu.label} className="relative">
