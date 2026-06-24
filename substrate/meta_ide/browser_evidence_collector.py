@@ -380,7 +380,7 @@ def collect_log_reconciliation(
         for i, log_req in enumerate(parsed_log_requests):
             if i in matched_log_indices:
                 continue
-            if log_req["path"] == path or path.endswith(log_req["path"]):
+            if log_req["path"] == path:
                 matched_log_indices.add(i)
                 log_status = log_req["status"]
                 cr = {
