@@ -71,13 +71,17 @@ def _load_registry() -> list[dict[str, Any]]:
 
 def _get_tailscale_peers() -> list[dict[str, Any]]:
     """Get all Tailscale peers via CLI."""
-    result = gated_subprocess_run(
-        ["tailscale", "status", "--json"],
-        caller="device_routes.scan",
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    try:
+        result = gated_subprocess_run(
+            ["tailscale", "status", "--json"],
+            caller="device_routes.scan",
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except FileNotFoundError:
+        logger.debug("tailscale CLI not found — scan unavailable in this environment")
+        return []
     if result is None or result.returncode != 0:
         return []
     try:
