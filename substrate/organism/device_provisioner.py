@@ -30,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 _ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
 
+import re
+
+_SAFE_KEY_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
 # ── Diagnosis Types ───────────────────────────────────────────────────
 
 
@@ -249,12 +253,20 @@ def _read_mesh_toml() -> dict[str, Any]:
     try:
         with open(path, "rb") as f:
             return tomllib.load(f)
-    except (FileNotFoundError, Exception):
+    except FileNotFoundError:
+        return {}
+    except tomllib.TOMLDecodeError as exc:
+        logger.error("corrupt mesh TOML at %s: %s", path, exc)
         return {}
 
 
+def _sanitize_toml_str(val: str) -> str:
+    """Escape control characters and backslashes/quotes for TOML basic strings."""
+    return val.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+
+
 def _write_mesh_toml(data: dict[str, Any]) -> None:
-    """Write mesh config TOML atomically."""
+    """Write mesh config TOML atomically. Validates all keys against safe regex."""
     path = os.path.join(_ROOT, "data", "umh", "mesh", "node_mesh_config.toml")
     lines: list[str] = []
 
@@ -262,20 +274,26 @@ def _write_mesh_toml(data: dict[str, Any]) -> None:
     if server:
         lines.append("[server]")
         for k, v in server.items():
+            if not _SAFE_KEY_RE.match(str(k)):
+                raise ValueError(f"Invalid TOML key: {k!r}")
             if isinstance(v, str):
-                lines.append(f'{k} = "{v}"')
-            else:
+                lines.append(f'{k} = "{_sanitize_toml_str(v)}"')
+            elif isinstance(v, (int, float, bool)):
                 lines.append(f"{k} = {v}")
         lines.append("")
 
     nodes = data.get("nodes", {})
     for node_id, node_data in nodes.items():
+        if not _SAFE_KEY_RE.match(str(node_id)):
+            raise ValueError(f"Invalid node_id: {node_id!r}")
         if isinstance(node_data, dict):
             lines.append(f"[nodes.{node_id}]")
             for k, v in node_data.items():
+                if not _SAFE_KEY_RE.match(str(k)):
+                    raise ValueError(f"Invalid TOML key: {k!r}")
                 if isinstance(v, str):
-                    lines.append(f'{k} = "{v}"')
-                else:
+                    lines.append(f'{k} = "{_sanitize_toml_str(v)}"')
+                elif isinstance(v, (int, float, bool)):
                     lines.append(f"{k} = {v}")
             lines.append("")
 
