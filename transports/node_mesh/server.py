@@ -763,6 +763,17 @@ class NodeMeshServer:
 
                 if method == "GET" and path.rstrip("/") == "/health":
                     resp = self._http_health()
+                elif method == "POST" and path.rstrip("/") == "/reload":
+                    peer = writer.get_extra_info("peername")
+                    peer_ip = peer[0] if peer else ""
+                    if peer_ip in ("127.0.0.1", "::1"):
+                        self.reload_config()
+                        resp = {"ok": True, "message": "config reloaded"}
+                    else:
+                        logger.warning(
+                            "mesh relay /reload rejected from %s", peer_ip
+                        )
+                        resp = {"error": "localhost only"}
                 elif method == "POST" and path.rstrip("/") == "/dispatch":
                     import hmac
                     relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
@@ -825,6 +836,16 @@ class NodeMeshServer:
             logger.info("http relay shutting down")
         except Exception as exc:
             logger.error("http relay failed to start: %s", exc, exc_info=True)
+
+    def reload_config(self) -> None:
+        """Reload node_mesh_config.toml without restart. Thread-safe."""
+        from transports.node_mesh.config import load_mesh_config
+        new_config = load_mesh_config()
+        self._config = new_config
+        logger.info(
+            "mesh config reloaded: %d node tokens",
+            len(new_config.node_tokens),
+        )
 
     def _http_health(self) -> dict[str, Any]:
         nodes = self._registry.all_nodes()

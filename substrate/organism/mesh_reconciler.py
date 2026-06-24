@@ -51,6 +51,12 @@ def _detect_relay_host() -> str:
 _DEVICE_REGISTRY_CACHE: list[dict[str, Any]] | None = None
 
 
+def invalidate_cache() -> None:
+    """Reset the device registry cache so next access re-reads from disk."""
+    global _DEVICE_REGISTRY_CACHE
+    _DEVICE_REGISTRY_CACHE = None
+
+
 def _load_device_registry() -> list[dict[str, Any]]:
     global _DEVICE_REGISTRY_CACHE
     if _DEVICE_REGISTRY_CACHE is not None:

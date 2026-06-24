@@ -15,10 +15,13 @@ import json
 import logging
 import os
 import socket
+import weakref
 from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+_INSTANCES: set[weakref.ref] = set()
 
 _ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
 
@@ -75,7 +78,14 @@ class DeviceAwarenessRuntime:
     ) -> None:
         self._graph = reality_graph
         self._devices: dict[str, DeviceRecord] = {}
+        self._registry_path = device_registry_path
         self._load_registry(device_registry_path)
+        _INSTANCES.add(weakref.ref(self, _INSTANCES.discard))
+
+    def reload(self) -> None:
+        """Re-read the device registry from disk. Called by cache invalidation."""
+        self._devices.clear()
+        self._load_registry(self._registry_path)
 
     def _load_registry(self, path: str | None) -> None:
         registry_path = path or os.path.join(_ROOT, "infra", "device_registry.json")

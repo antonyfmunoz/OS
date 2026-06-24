@@ -267,6 +267,9 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
             _repo = os.environ.get("UMH_ROOT", "/opt/OS")
             _registry_path = os.path.join(_repo, "infra", "device_registry.json")
             _mesh_hb_path = os.path.join(_repo, "data", "runtime", "mesh_nodes.json")
+            _mesh_metrics_path = os.path.join(
+                _repo, "data", "umh", "organism", "mesh_metrics.json",
+            )
             _registry: list[dict[str, Any]] = []
             _hb_map: dict[str, dict[str, Any]] = {}
             try:
@@ -274,12 +277,26 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                     _registry = json.load(f)
             except (json.JSONDecodeError, OSError, FileNotFoundError):
                 pass
-            try:
-                with open(_mesh_hb_path) as f:
-                    for _n in json.load(f):
-                        _hb_map[_n.get("id", "")] = _n
-            except (json.JSONDecodeError, OSError, FileNotFoundError):
-                pass
+
+            # Read both heartbeat sources, merge fresher data per node
+            _hb_sources: list[str] = [_mesh_hb_path, _mesh_metrics_path]
+            for _src in _hb_sources:
+                try:
+                    with open(_src) as f:
+                        for _n in json.load(f):
+                            _nid = _n.get("id", _n.get("node_id", ""))
+                            if not _nid:
+                                continue
+                            existing = _hb_map.get(_nid)
+                            if existing is None:
+                                _hb_map[_nid] = _n
+                            else:
+                                new_hb = _n.get("last_heartbeat", "")
+                                old_hb = existing.get("last_heartbeat", "")
+                                if new_hb > old_hb:
+                                    _hb_map[_nid] = _n
+                except (json.JSONDecodeError, OSError, FileNotFoundError):
+                    pass
             _mesh_list = []
             for _dev in _registry:
                 _mid = _dev.get("mesh_node_id", "")
