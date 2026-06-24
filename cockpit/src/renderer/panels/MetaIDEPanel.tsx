@@ -1080,6 +1080,7 @@ export function MetaIDEPanel() {
   const closeFile = useEditorStore((s) => s.closeFile)
   const showPreview = useEditorStore((s) => s.showPreview)
   const togglePreview = useEditorStore((s) => s.togglePreview)
+  const previewExpanded = useMetaIDEStore((s) => s.previewExpanded)
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null)
 
@@ -1201,11 +1202,13 @@ export function MetaIDEPanel() {
         {/* Editor + optional right preview split */}
         {!panelMaximized && (
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            <div className={`${showPreview ? 'w-1/2' : 'flex-1'} flex flex-col overflow-hidden`}>
-              <EditorContent />
-            </div>
+            {!(showPreview && previewExpanded) && (
+              <div className={`${showPreview ? 'w-1/2' : 'flex-1'} flex flex-col overflow-hidden`}>
+                <EditorContent />
+              </div>
+            )}
             {showPreview && (
-              <div className="w-1/2 shrink-0 flex flex-col border-l border-border">
+              <div className={`${previewExpanded ? 'flex-1' : 'w-1/2 shrink-0'} flex flex-col border-l border-border`}>
                 <PreviewSidebar />
               </div>
             )}
