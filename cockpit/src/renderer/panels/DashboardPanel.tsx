@@ -4,6 +4,7 @@ import { useSystemStore } from '../stores/systemStore'
 import { useApprovalStore } from '../stores/approvalStore'
 import { useOrganismStore } from '../stores/organismStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
+import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 import { usePolling } from '../hooks/usePolling'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { ConnectionBanner } from '../components/ConnectionBanner'
@@ -415,20 +416,9 @@ function ResumeWidget() {
 }
 
 function CrossDeviceWorkspaceWidget() {
-  const [nodes, setNodes] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const nodes = useUnifiedWorkstationStore((s) => s.snapshot.nodes ?? [])
 
-  const fetchNodes = useCallback(async () => {
-    try {
-      const data = await fetchApi<any>('/workstation/nodes')
-      if (data.ok) setNodes(data.nodes ?? [])
-    } catch { /* silent */ }
-    setLoading(false)
-  }, [])
-
-  usePolling(fetchNodes, 10000)
-
-  if (loading || nodes.length === 0) return null
+  if (nodes.length === 0) return null
 
   return (
     <section className="wv-card p-3">
