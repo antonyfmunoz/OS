@@ -554,6 +554,15 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "EngineeringProofPackage": ["substrate.meta_ide.engineering_execution"],
     "EngineeringSessionCoordinator": ["substrate.meta_ide.engineering_session_coordinator"],
     "ReviewPackageBuilder": ["substrate.meta_ide.review_package_builder"],
+    # Browser Verification Gate
+    "LogCrossReference": ["substrate.meta_ide.browser_verification_gate"],
+    "LogLayerResult": ["substrate.meta_ide.browser_verification_gate"],
+    "BrowserLayerResult": ["substrate.meta_ide.browser_verification_gate"],
+    "NetworkLayerResult": ["substrate.meta_ide.browser_verification_gate"],
+    "ConsoleLayerResult": ["substrate.meta_ide.browser_verification_gate"],
+    "VerificationPass": ["substrate.meta_ide.browser_verification_gate"],
+    "BrowserVerificationResult": ["substrate.meta_ide.browser_verification_gate"],
+    "BrowserVerificationGate": ["substrate.meta_ide.browser_verification_gate"],
     # Phase 24: Distributed Worker Runtime
     "WorkerStatus": ["substrate.organism.worker_registry"],
     "WorkerInstance": ["substrate.organism.worker_registry"],

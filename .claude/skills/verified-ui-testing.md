@@ -73,6 +73,12 @@ from pass 1. Partial progress does not carry forward.
 
 ## Before starting
 
+0. **Verify you are NOT on the orchestrator node** — if the current
+   node's role is `orchestrator` (check `infra/device_registry.json`)
+   or `DISPLAY` env var is unset, delegate browser work to an executor
+   node via SSH or `browser_evidence_collector.trigger_collection()`.
+   Never run MCP Playwright directly on the orchestrator for
+   verification evidence. See `.claude/rules/browser-verification.md`.
 1. **Deploy the change** to its target environment
    - Docker services: `docker restart <container>`
    - Fly.io apps: deployment script or `flyctl deploy`
@@ -125,30 +131,53 @@ Confirm:
   extensions, favicon 404s)
 - Any NEW error related to the change = fail the pass
 
-### Layer 4: Server Logs (Bash)
+### Layer 4: Server Log Reconciliation (Bash)
 
-Adapt to the backing service:
+Three sub-checks building the full picture. Every browser action must
+have a matching server trace. Every server error must be browser-visible.
+
+**4a. Standalone log scan**:
 ```bash
-# Docker container
-docker logs <container> --tail 50 --since 2m
-
-# Fly.io app
-flyctl logs --app <app> --no-tail | tail -50
-
-# PM2 process
-pm2 logs <name> --lines 50 --nostream
-
-# systemd service
-journalctl -u <service> --since "2 min ago" --no-pager
-
-# Local dev server
-# Check terminal output directly
+docker logs <container> --tail 100 --since 2m
 ```
-Confirm:
-- No unhandled exceptions or tracebacks
-- No auth/permission failures on tested endpoints
-- No connection timeouts or refused connections
-- Clean request/response cycle for the tested feature
+- No unhandled tracebacks
+- No auth/permission failures
+- No connection timeouts
+
+**4b. Network → Log cross-reference** (bidirectional):
+For each API request captured in Layer 2:
+1. Extract endpoint, method, status, timestamp
+2. Search server logs for matching request within ±5s
+3. Compare: network status code == server logged status code
+4. Check for ERROR/WARNING between request start and response
+5. Record: {endpoint, method, network_status, log_status, status_match,
+   log_clean, latency_ms}
+
+**4c. Orphan detection** (logs → network):
+Scan server logs for ERROR/WARNING/Traceback lines that do NOT match
+any browser network request. These are silent failures — the server
+is breaking but the user sees nothing wrong.
+
+**4d. Action → Trace reconciliation**:
+For each browser action taken in Layer 1 (navigate, click, submit):
+1. Identify the expected server-side effect (GET for navigate, POST for submit)
+2. Verify the server processed it (log entry exists)
+3. Verify the server result matches what the browser showed
+
+Reconciliation score = (matched_actions / total_actions).
+Must be ≥ 0.8 to pass. Below that = something is broken between
+browser and server that the individual layers missed.
+
+Pass verdicts:
+- Network 200 + server 200 + clean log = PASS
+- Network 200 + server error = SILENT FAILURE (blocks pass)
+- Server error with no browser request = ORPHAN (blocks pass)
+- Browser shows success + server never logged it = DATA INTEGRITY (blocks pass)
+- Reconciliation < 80% = INCOMPLETE PICTURE (blocks pass)
+
+Use `collect_log_reconciliation()` from `browser_evidence_collector.py`
+for programmatic reconciliation, or perform the checks manually via
+docker logs + grep.
 
 ## After 3 passes — generate proof
 
@@ -208,6 +237,12 @@ rules, SSL termination, CDN caching.
 
 ## Gotchas
 
+- The orchestrator node has no display — Playwright MCP uses bundled
+  headless Chromium there, not a real browser. Evidence from the
+  orchestrator is invalid. Always delegate to an executor node.
+- Node selection is role-based via device_registry.json, not
+  hardcoded device names. Any executor-roled node with a display
+  session is eligible for browser verification.
 - Playwright MCP and Chrome DevTools MCP may run in
   separate browser contexts. Use Playwright for DOM
   state, DevTools for network/console inspection.
@@ -222,6 +257,9 @@ rules, SSL termination, CDN caching.
   client-hydrated DOM. Test both states.
 - Service workers can serve stale content. Hard refresh
   or disable service worker during testing.
+- Log reconciliation catches silent failures that pass
+  individual layers. A 200 response with a server-side
+  traceback is a bug — reconciliation catches it.
 
 ## Integration with Engineering Execution Loop
 
@@ -274,10 +312,20 @@ determines if verification is required based on:
       },
       "log_check": {
         "service_name": "os-operator",
-        "log_lines_checked": 50,
+        "log_lines_checked": 100,
         "tracebacks_found": 0,
         "auth_failures": 0,
         "timeouts": 0,
+        "cross_references": [
+          {"endpoint": "/api/bootstrap", "http_method": "GET",
+           "network_status": 200, "log_entry_found": true,
+           "log_status": 200, "log_clean": true, "status_match": true}
+        ],
+        "unmatched_network_requests": 0,
+        "unmatched_log_errors": 0,
+        "orphan_server_errors": [],
+        "action_traces": [],
+        "reconciliation_score": 1.0,
         "passed": true
       }
     }
