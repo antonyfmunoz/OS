@@ -283,18 +283,30 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
             for _src in _hb_sources:
                 try:
                     with open(_src) as f:
-                        for _n in json.load(f):
-                            _nid = _n.get("id", _n.get("node_id", ""))
-                            if not _nid:
-                                continue
-                            existing = _hb_map.get(_nid)
-                            if existing is None:
+                        _raw = json.load(f)
+                    # mesh_metrics.json is a dict keyed by node_id;
+                    # mesh_nodes.json is a list of dicts with "id" field
+                    if isinstance(_raw, dict):
+                        _items = [
+                            {**v, "id": k} if isinstance(v, dict) else {"id": k}
+                            for k, v in _raw.items()
+                        ]
+                    elif isinstance(_raw, list):
+                        _items = _raw
+                    else:
+                        _items = []
+                    for _n in _items:
+                        _nid = _n.get("id", _n.get("node_id", ""))
+                        if not _nid:
+                            continue
+                        existing = _hb_map.get(_nid)
+                        if existing is None:
+                            _hb_map[_nid] = _n
+                        else:
+                            new_hb = _n.get("last_heartbeat", _n.get("timestamp", ""))
+                            old_hb = existing.get("last_heartbeat", existing.get("timestamp", ""))
+                            if new_hb > old_hb:
                                 _hb_map[_nid] = _n
-                            else:
-                                new_hb = _n.get("last_heartbeat", "")
-                                old_hb = existing.get("last_heartbeat", "")
-                                if new_hb > old_hb:
-                                    _hb_map[_nid] = _n
                 except (json.JSONDecodeError, OSError, FileNotFoundError):
                     pass
             _mesh_list = []

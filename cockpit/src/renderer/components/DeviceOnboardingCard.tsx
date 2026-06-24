@@ -7,7 +7,7 @@ interface DeviceOnboardingCardProps {
 }
 
 const ROLES = ['controller', 'executor', 'orchestrator'] as const
-const DEVICE_TYPES = ['vps', 'pc', 'laptop', 'tablet', 'mobile', 'unknown'] as const
+const DEVICE_TYPES = ['server', 'pc', 'laptop', 'tablet', 'mobile', 'unknown'] as const
 
 const CONFIDENCE_COLOR: Record<string, string> = {
   high: 'text-ok',

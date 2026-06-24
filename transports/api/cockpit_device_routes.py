@@ -213,6 +213,11 @@ async def _devices_remove(request: Request) -> dict[str, Any]:
     if not device_id:
         return {"success": False, "error": "device_id required"}
 
+    # Read mesh_node_id BEFORE deleting from registry
+    registry = _load_registry()
+    target = next((d for d in registry if d.get("id") == device_id), None)
+    mesh_node_id = target.get("mesh_node_id", device_id) if target else device_id
+
     from substrate.organism.device_registry_writer import remove_device
 
     try:
@@ -220,15 +225,11 @@ async def _devices_remove(request: Request) -> dict[str, Any]:
     except ValueError as exc:
         return {"success": False, "error": str(exc)}
 
-    # Also remove mesh token if present
     try:
         from substrate.organism.device_provisioner import (
             remove_mesh_token,
             signal_mesh_reload,
         )
-        registry = _load_registry()
-        target = next((d for d in registry if d.get("id") == device_id), None)
-        mesh_node_id = target.get("mesh_node_id", device_id) if target else device_id
         if remove_mesh_token(mesh_node_id):
             signal_mesh_reload()
     except Exception as exc:

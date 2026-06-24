@@ -270,16 +270,24 @@ def _write_mesh_toml(data: dict[str, Any]) -> None:
     path = os.path.join(_ROOT, "data", "umh", "mesh", "node_mesh_config.toml")
     lines: list[str] = []
 
+    def _toml_val(v: Any) -> str | None:
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, (int, float)):
+            return str(v)
+        if isinstance(v, str):
+            return f'"{_sanitize_toml_str(v)}"'
+        return None
+
     server = data.get("server", {})
     if server:
         lines.append("[server]")
         for k, v in server.items():
             if not _SAFE_KEY_RE.match(str(k)):
                 raise ValueError(f"Invalid TOML key: {k!r}")
-            if isinstance(v, str):
-                lines.append(f'{k} = "{_sanitize_toml_str(v)}"')
-            elif isinstance(v, (int, float, bool)):
-                lines.append(f"{k} = {v}")
+            rendered = _toml_val(v)
+            if rendered is not None:
+                lines.append(f"{k} = {rendered}")
         lines.append("")
 
     nodes = data.get("nodes", {})
@@ -291,10 +299,9 @@ def _write_mesh_toml(data: dict[str, Any]) -> None:
             for k, v in node_data.items():
                 if not _SAFE_KEY_RE.match(str(k)):
                     raise ValueError(f"Invalid TOML key: {k!r}")
-                if isinstance(v, str):
-                    lines.append(f'{k} = "{_sanitize_toml_str(v)}"')
-                elif isinstance(v, (int, float, bool)):
-                    lines.append(f"{k} = {v}")
+                rendered = _toml_val(v)
+                if rendered is not None:
+                    lines.append(f"{k} = {rendered}")
             lines.append("")
 
     content = "\n".join(lines) + "\n"
