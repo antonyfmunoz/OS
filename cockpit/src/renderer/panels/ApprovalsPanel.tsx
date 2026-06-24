@@ -16,7 +16,6 @@ const RISK_BADGE: Record<string, string> = {
 
 export function ApprovalsPanel() {
   const approvals = useApprovalStore((s) => s.approvals)
-  const fetchApprovals = useApprovalStore((s) => s.fetchApprovals)
   const approve = useApprovalStore((s) => s.approve)
   const deny = useApprovalStore((s) => s.deny)
 
@@ -40,7 +39,7 @@ export function ApprovalsPanel() {
 
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
 
-  usePolling(() => { fetchApprovals(); fetchPending(); fetchCompleted(); fetchGateway(); fetchGuard(); fetchGatewayDecisions(); fetchExecutionMode() },
+  usePolling(() => { fetchPending(); fetchCompleted(); fetchGateway(); fetchGuard(); fetchGatewayDecisions(); fetchExecutionMode() },
     realtimeStatus === 'connected' ? 10000 : 3000)
 
   const pending = approvals.filter((a) => a.status === 'pending')
