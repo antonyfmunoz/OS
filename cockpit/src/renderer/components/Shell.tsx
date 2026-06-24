@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { StorePolling } from './StorePolling'
 import { TitleBar } from './TitleBar'
 import { LeftRail } from './LeftRail'
 import { HudBar } from './HudBar'
@@ -305,6 +306,7 @@ export function Shell() {
 
   return (
     <div className="flex flex-col h-screen bg-surface">
+      <StorePolling />
       <TitleBar />
 
       <div className="flex flex-1 overflow-hidden">

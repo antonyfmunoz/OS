@@ -14,6 +14,7 @@ import { getApiKey } from '../api/client'
 import { fetchApi } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
+import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 import { VoiceRouteHud } from './VoiceRouteHud'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
@@ -605,21 +606,14 @@ function ContextSection() {
 }
 
 function ExecutionSection() {
-  const [exec, setExec] = useState<Record<string, unknown> | null>(null)
-  const [approvals, setApprovals] = useState<Record<string, unknown> | null>(null)
+  const s = useExecutionSummaryStore((st) => st.summary)
 
-  usePolling(useCallback(() => {
-    fetchApi('/command-center-mvp/governed-execution').then(setExec).catch(() => {})
-    fetchApi('/unified-approval/pending').then(setApprovals).catch(() => {})
-  }, []), 5000, true, 750)
-
-  const state = (exec?.state as string) || 'idle'
-  const readyCount = (exec?.ready_count as number) || 0
-  const blockedCount = (exec?.blocked_count as number) || 0
-  const pendingApprovals = (exec?.pending_approval_count as number) || 0
-  const topBlockers = (exec?.top_blockers as Array<Record<string, string>>) || []
-  const delegationCoverage = (exec?.delegation_coverage as number) || 0
-  const pendingItems = (approvals?.pending as Array<Record<string, string>>) || []
+  const state = s.state
+  const readyCount = s.ready_count
+  const blockedCount = s.blocked_count
+  const pendingApprovals = s.pending_approval_count
+  const topBlockers = s.top_blockers
+  const delegationCoverage = s.delegation_coverage
 
   const stateColor: Record<string, string> = {
     idle: 'text-text-tertiary', assessing: 'text-cyan', governed: 'text-ok',
@@ -631,6 +625,7 @@ function ExecutionSection() {
       <div className="wv-label mb-2">EXECUTION STATE</div>
       <div className="flex items-center gap-2">
         <span className={clsx('text-[11px] font-mono uppercase', stateColor[state] || 'text-text-tertiary')}>{state}</span>
+        <span className={clsx('text-[9px] font-mono uppercase', s.health === 'optimal' ? 'text-ok' : s.health === 'blocked' ? 'text-danger' : 'text-text-tertiary')}>{s.health}</span>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -647,21 +642,12 @@ function ExecutionSection() {
         <div>
           <div className="wv-label mb-1">BLOCKERS</div>
           {topBlockers.slice(0, 5).map((b, i) => (
-            <div key={i} className="text-[11px] text-danger py-0.5">{b.blocker || b.detail || JSON.stringify(b)}</div>
+            <div key={i} className="text-[11px] text-danger py-0.5">{(b as Record<string, string>).description || JSON.stringify(b)}</div>
           ))}
         </div>
       )}
 
-      {pendingItems.length > 0 && (
-        <div>
-          <div className="wv-label mb-1">AWAITING APPROVAL</div>
-          {pendingItems.slice(0, 5).map((p, i) => (
-            <div key={i} className="text-[11px] text-text-secondary py-0.5">{p.title || p.description || JSON.stringify(p)}</div>
-          ))}
-        </div>
-      )}
-
-      {state === 'idle' && topBlockers.length === 0 && pendingItems.length === 0 && (
+      {state === 'idle' && topBlockers.length === 0 && (
         <p className="text-[11px] text-text-tertiary text-center py-4">No active execution</p>
       )}
     </div>

@@ -8,6 +8,7 @@ import { useCollapseStore } from '../stores/collapseStore'
 import { usePolling } from '../hooks/usePolling'
 import { fetchApi } from '../api/client'
 import { useChatStore } from '../stores/chatStore'
+import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 
 /* ── colour maps ── */
 const CONTINUITY_COLORS: Record<string, string> = {
@@ -49,10 +50,10 @@ export function ControlPanel() {
     pending: number
     blocked: number
   }>({ safe: 0, pending: 0, blocked: 0 })
-  const [summaryData, setSummaryData] = useState<any>(null)
   const [engineeringPlans, setEngineeringPlans] = useState<any[]>([])
 
   const pulse = useSystemStore((s) => s.pulse)
+  const execSummary = useExecutionSummaryStore((s) => s.summary)
   const approvals = useApprovalStore((s) => s.approvals)
   const fetchApprovals = useApprovalStore((s) => s.fetchApprovals)
   const unifiedPending = useUnifiedApprovalStore((s) => s.byUrgency)
@@ -138,10 +139,6 @@ export function ControlPanel() {
       })
     } catch { /* stale is fine */ }
 
-    try {
-      const s = await fetchApi<any>('/command-center/summary')
-      setSummaryData(s)
-    } catch { /* stale is fine */ }
   }, [])
 
   useEffect(() => {
@@ -169,10 +166,9 @@ export function ControlPanel() {
         ? 'bg-yellow-400'
         : 'bg-red-500'
 
-  const executingPackets =
-    summaryData?.what_is_happening?.executing_packets ?? 0
-  const blockedCount = summaryData?.what_is_blocked?.count ?? 0
-  const shouldResume = !!summaryData?.what_should_resume_next
+  const executingPackets = execSummary.what_is_happening.executing_packets
+  const blockedCount = execSummary.what_is_blocked.count
+  const shouldResume = !!execSummary.what_should_resume_next
 
   const isSleeping =
     continuityState === 'NIGHT_SLEEPING' || continuityState === 'EXTENDED_ABSENCE'
