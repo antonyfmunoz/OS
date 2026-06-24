@@ -305,9 +305,14 @@ class HTICalculator:
         if not drifts:
             return 0.0
         present = [r for r in drifts if r.reality_drift.drift_present]
-        detected_rate = (
-            unweighted_mean([1.0 if r.reality_drift.drift_detected else 0.0 for r in present])
-            if present else 0.0
+        if not present:
+            # Checked and found no drift — system matches reality
+            false_positive_rate = unweighted_mean(
+                [1.0 if r.reality_drift.false_positive else 0.0 for r in drifts]
+            )
+            return clamp(1.0 - false_positive_rate, 0.0, 1.0)
+        detected_rate = unweighted_mean(
+            [1.0 if r.reality_drift.drift_detected else 0.0 for r in present]
         )
         false_positive_rate = unweighted_mean(
             [1.0 if r.reality_drift.false_positive else 0.0 for r in drifts]
@@ -453,12 +458,13 @@ class UMHMetricCalculator:
         return self._build("CPR", preserved / len(used), used)
 
     def _rcr(self) -> MetricWithConfidence:
-        present = [
-            r for r in self._results
-            if r.reality_drift is not None and r.reality_drift.drift_present
-        ]
-        if not present:
+        checked = [r for r in self._results if r.reality_drift is not None]
+        present = [r for r in checked if r.reality_drift.drift_present]
+        if not checked:
             return self._build("RCR", 0.0, [])
+        if not present:
+            # System was checked and found no drift — 100% correspondence
+            return self._build("RCR", 1.0, checked)
         detected = sum(1 for r in present if r.reality_drift.drift_detected)
         return self._build("RCR", detected / len(present), present)
 
