@@ -1,8 +1,10 @@
-"""Node mesh configuration loader."""
+"""Node mesh configuration loader and token management."""
 
 from __future__ import annotations
 
+import base64
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -83,3 +85,117 @@ def load_mesh_config(path: Path | None = None) -> MeshConfig:
             )
 
     return config
+
+
+# ── Token Management ──────────────────────────────────────────────────
+
+
+def generate_token() -> str:
+    """Generate a cryptographically random mesh auth token."""
+    return base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode()
+
+
+def _serialize_toml(data: dict[str, Any]) -> str:
+    """Serialize a simple nested dict to TOML string.
+
+    Handles [section] and [section.subsection] patterns. Values are
+    strings (quoted) or numbers (bare).
+    """
+    lines: list[str] = []
+    for section, values in data.items():
+        if not isinstance(values, dict):
+            continue
+        has_nested = any(isinstance(v, dict) for v in values.values())
+        if has_nested:
+            for sub_key, sub_val in values.items():
+                if isinstance(sub_val, dict):
+                    lines.append(f"[{section}.{sub_key}]")
+                    for k, v in sub_val.items():
+                        if isinstance(v, str):
+                            lines.append(f'{k} = "{v}"')
+                        else:
+                            lines.append(f"{k} = {v}")
+                    lines.append("")
+                else:
+                    if not any(l.startswith(f"[{section}]") for l in lines):
+                        lines.insert(0, f"[{section}]")
+                        lines.insert(1, "")
+                    idx = lines.index(f"[{section}]") + 1
+                    if isinstance(sub_val, str):
+                        lines.insert(idx, f'{sub_key} = "{sub_val}"')
+                    else:
+                        lines.insert(idx, f"{sub_key} = {sub_val}")
+        else:
+            lines.append(f"[{section}]")
+            for k, v in values.items():
+                if isinstance(v, str):
+                    lines.append(f'{k} = "{v}"')
+                else:
+                    lines.append(f"{k} = {v}")
+            lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def _read_toml_data(path: Path) -> dict[str, Any]:
+    """Read TOML file into a dict."""
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib  # type: ignore[no-redef]
+
+    if not path.exists():
+        return {}
+    with open(path, "rb") as f:
+        return tomllib.load(f)
+
+
+def add_node_token(
+    config_path: Path | None,
+    node_id: str,
+    display_name: str,
+) -> str:
+    """Add a new node token to the config. Returns the generated token."""
+    path = config_path or DEFAULT_CONFIG_PATH
+    data = _read_toml_data(path)
+
+    token = generate_token()
+
+    if "nodes" not in data:
+        data["nodes"] = {}
+    data["nodes"][node_id] = {
+        "token": token,
+        "display_name": display_name,
+    }
+
+    if "server" not in data:
+        data["server"] = {"port": 8094}
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(_serialize_toml(data))
+    tmp.replace(path)
+
+    logger.info("Added mesh token for node %s", node_id)
+    return token
+
+
+def remove_node_token(
+    config_path: Path | None,
+    node_id: str,
+) -> bool:
+    """Remove a node token from the config. Returns True if removed."""
+    path = config_path or DEFAULT_CONFIG_PATH
+    data = _read_toml_data(path)
+
+    nodes = data.get("nodes", {})
+    if node_id not in nodes:
+        return False
+
+    del nodes[node_id]
+
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(_serialize_toml(data))
+    tmp.replace(path)
+
+    logger.info("Removed mesh token for node %s", node_id)
+    return True

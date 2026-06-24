@@ -1231,6 +1231,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "BenchmarkDomain": ["substrate.organism.benchmarks.reality_correspondence"],
     "BenchmarkScenario": ["substrate.organism.benchmarks.reality_correspondence"],
     "BenchmarkResult": ["substrate.organism.benchmarks.reality_correspondence"],
+    # ── substrate/organism/device_provisioner.py (Device Onboarding) ────
+    "DeviceDiagnosis": ["substrate.organism.device_provisioner"],
+    "ProvisionStep": ["substrate.organism.device_provisioner"],
+    "ProvisionResult": ["substrate.organism.device_provisioner"],
     # ── substrate/organism/self_use/ (C27 Daily Driver Readiness) ──────
     "StreamType": ["substrate.organism.self_use.task_taxonomy"],
     "TaskDomain": ["substrate.organism.self_use.task_taxonomy"],

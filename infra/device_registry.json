@@ -45,5 +45,15 @@
     "display_name": "iphone-15-pro-max (Mobile)",
     "os": "ios",
     "role": "controller"
+  },
+  {
+    "id": "macbook",
+    "tailscale_name": "antonys-macbook-pro",
+    "device_type": "laptop",
+    "display_name": "antonys-macbook-pro (Laptop)",
+    "os": "macos",
+    "role": "controller",
+    "tailscale_ip": "100.116.158.54",
+    "compute": false
   }
 ]

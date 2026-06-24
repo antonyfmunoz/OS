@@ -1474,3 +1474,15 @@ def _mount_production_router() -> None:
 
 
 _mount_production_router()
+
+# ── Device onboarding routes ───────────────────────────────────────────────
+
+
+def _mount_device_router() -> None:
+    from transports.api import cockpit_device_routes
+
+    cockpit_device_routes.configure(_require_operator_role)
+    router.include_router(cockpit_device_routes.device_router)
+
+
+_mount_device_router()
