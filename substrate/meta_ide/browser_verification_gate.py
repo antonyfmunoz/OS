@@ -470,28 +470,29 @@ class BrowserVerificationGate:
 
         return result
 
+    _VALID_COLLECTION_ROLES = frozenset({"executor"})
+
     def validate_collection_source(
         self,
         evidence: dict[str, Any],
     ) -> tuple[bool, str]:
-        """Validate that evidence was collected on an executor node, not orchestrator.
+        """Validate that evidence was collected on an executor-roled node.
 
-        Returns (valid, message). Orchestrator evidence is rejected.
-        Missing metadata emits a warning but passes (backwards compat).
+        Returns (valid, message). Only executor role is accepted.
+        Missing or unknown roles are rejected (fail-closed).
         """
         role = evidence.get("collection_node_role", "")
         node = evidence.get("collection_node", "")
-        if role == "orchestrator":
-            return False, (
-                f"Evidence collected on orchestrator node '{node}' — "
-                "browser verification must run on an executor node"
-            )
         if not role:
-            logger.warning(
+            return False, (
                 "Evidence missing collection_node_role — "
-                "cannot verify source node (pre-enforcement data)"
+                "cannot verify source node. Re-collect with updated collector."
             )
-            return True, "no collection source metadata (backwards compat)"
+        if role not in self._VALID_COLLECTION_ROLES:
+            return False, (
+                f"Evidence collected on '{role}' node '{node}' — "
+                f"only {self._VALID_COLLECTION_ROLES} roles accepted"
+            )
         return True, f"collected on {role} node '{node}'"
 
     def build_evidence_summary(self, result: BrowserVerificationResult) -> dict[str, Any]:
