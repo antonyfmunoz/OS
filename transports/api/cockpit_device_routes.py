@@ -11,11 +11,17 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
 from substrate.execution.cpu_gate import gated_subprocess_run
+
+_SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_VALID_ROLES = {"controller", "executor", "orchestrator"}
+_VALID_DEVICE_TYPES = {"server", "pc", "laptop", "tablet", "mobile", "unknown"}
+_VALID_OS = {"linux", "windows", "macos", "ios", "ipados", "android", "unknown"}
 
 logger = logging.getLogger(__name__)
 
@@ -160,12 +166,36 @@ async def _devices_diagnose(request: Request) -> dict[str, Any]:
     return {"success": True, "diagnosis": diag.to_dict()}
 
 
+def _validate_registry_entry(entry: dict[str, Any]) -> str | None:
+    """Validate registry entry fields. Returns error message or None."""
+    for field in ("id", "tailscale_name", "mesh_node_id"):
+        val = entry.get(field, "")
+        if val and not _SAFE_ID_RE.match(str(val)):
+            return f"Invalid {field}: must be alphanumeric/dash/underscore, 1-64 chars"
+    role = entry.get("role", "controller")
+    if role not in _VALID_ROLES:
+        return f"Invalid role: {role!r} (must be one of {_VALID_ROLES})"
+    device_type = entry.get("device_type", "unknown")
+    if device_type not in _VALID_DEVICE_TYPES:
+        return f"Invalid device_type: {device_type!r}"
+    os_val = entry.get("os", "unknown").lower()
+    if os_val not in _VALID_OS:
+        return f"Invalid os: {os_val!r}"
+    if entry.get("always_online"):
+        return "always_online cannot be set via API"
+    return None
+
+
 async def _devices_register(request: Request) -> dict[str, Any]:
     """POST /devices/register — add to registry + invalidate caches."""
     body = await request.json()
     entry = body.get("entry")
     if not entry or not entry.get("id"):
         return {"success": False, "error": "entry with id required"}
+
+    err = _validate_registry_entry(entry)
+    if err:
+        return {"success": False, "error": err}
 
     from substrate.organism.device_registry_writer import add_device
 
