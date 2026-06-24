@@ -73,6 +73,7 @@ class ApprovalInterceptRequest:
     decided_by: str = ""
     decided_at: float = 0.0
     rejection_reason: str = ""
+    resolution_metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.expires_at == 0.0:
@@ -94,6 +95,7 @@ class ApprovalInterceptRequest:
             "decided_by": self.decided_by,
             "decided_at": self.decided_at,
             "rejection_reason": self.rejection_reason,
+            "resolution_metadata": self.resolution_metadata,
         }
 
     @classmethod
@@ -152,6 +154,7 @@ class ApprovalInterceptStore:
         self,
         approval_id: str,
         decided_by: str = "operator",
+        metadata: dict[str, Any] | None = None,
     ) -> ApprovalInterceptRequest | None:
         """Approve an intercept and unblock the waiting executor."""
         with self._lock:
@@ -168,6 +171,8 @@ class ApprovalInterceptStore:
             intercept.status = ApprovalInterceptStatus.APPROVED.value
             intercept.decided_by = decided_by
             intercept.decided_at = time.time()
+            if metadata:
+                intercept.resolution_metadata = metadata
             self._unblock(approval_id)
             return intercept
 
@@ -405,9 +410,12 @@ class ApprovalInterceptService:
         self,
         approval_id: str,
         operator_id: str = "operator",
+        metadata: dict[str, Any] | None = None,
     ) -> ApprovalInterceptRequest | None:
         """Approve an intercept. Unblocks the waiting executor."""
-        result = self._store.approve(approval_id, decided_by=operator_id)
+        result = self._store.approve(
+            approval_id, decided_by=operator_id, metadata=metadata,
+        )
         if result:
             self._tel(
                 "approval_granted", result,

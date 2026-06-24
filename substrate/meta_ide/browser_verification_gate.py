@@ -36,15 +36,31 @@ def get_pass_count(risk_class: str) -> int:
     """Return required pass count based on risk classification."""
     return RISK_PASS_COUNT.get(risk_class.lower(), DEFAULT_PASS_COUNT)
 
-_UI_FILE_EXTENSIONS = frozenset({
-    ".tsx", ".jsx", ".vue", ".svelte", ".html",
-    ".css", ".scss", ".less",
-})
+
+_UI_FILE_EXTENSIONS = frozenset(
+    {
+        ".tsx",
+        ".jsx",
+        ".vue",
+        ".svelte",
+        ".html",
+        ".css",
+        ".scss",
+        ".less",
+    }
+)
 
 _UI_PATH_PATTERNS = (
-    "components/", "panels/", "pages/", "views/",
-    "renderer/", "frontend/", "client/", "ui/",
-    "src/app/", "src/routes/",
+    "components/",
+    "panels/",
+    "pages/",
+    "views/",
+    "renderer/",
+    "frontend/",
+    "client/",
+    "ui/",
+    "src/app/",
+    "src/routes/",
 )
 
 
@@ -124,8 +140,56 @@ class ConsoleLayerResult:
 
 
 @dataclass
+class LogCrossReference:
+    """Single bidirectional cross-reference between network request and server log."""
+
+    endpoint: str = ""
+    http_method: str = ""
+    network_status: int = 0
+    network_timestamp: float = 0.0
+    log_entry_found: bool = False
+    log_status: int = 0
+    log_clean: bool = False
+    log_errors: list[str] = field(default_factory=list)
+    status_match: bool = False
+    latency_ms: float = 0.0
+    direction: str = "network_to_log"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "endpoint": self.endpoint,
+            "http_method": self.http_method,
+            "network_status": self.network_status,
+            "network_timestamp": self.network_timestamp,
+            "log_entry_found": self.log_entry_found,
+            "log_status": self.log_status,
+            "log_clean": self.log_clean,
+            "log_errors": self.log_errors,
+            "status_match": self.status_match,
+            "latency_ms": self.latency_ms,
+            "direction": self.direction,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> LogCrossReference:
+        return cls(
+            endpoint=data.get("endpoint", ""),
+            http_method=data.get("http_method", ""),
+            network_status=data.get("network_status", 0),
+            network_timestamp=data.get("network_timestamp", 0.0),
+            log_entry_found=data.get("log_entry_found", False),
+            log_status=data.get("log_status", 0),
+            log_clean=data.get("log_clean", False),
+            log_errors=data.get("log_errors", []),
+            status_match=data.get("status_match", False),
+            latency_ms=data.get("latency_ms", 0.0),
+            direction=data.get("direction", "network_to_log"),
+        )
+
+
+@dataclass
 class LogLayerResult:
-    """Evidence from server log inspection."""
+    """Evidence from server log inspection with full reconciliation."""
 
     service_name: str = ""
     log_lines_checked: int = 0
@@ -133,6 +197,12 @@ class LogLayerResult:
     auth_failures: int = 0
     timeouts: int = 0
     passed: bool = False
+    cross_references: list[LogCrossReference] = field(default_factory=list)
+    unmatched_network_requests: int = 0
+    unmatched_log_errors: int = 0
+    orphan_server_errors: list[str] = field(default_factory=list)
+    action_traces: list[dict[str, Any]] = field(default_factory=list)
+    reconciliation_score: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -142,6 +212,12 @@ class LogLayerResult:
             "auth_failures": self.auth_failures,
             "timeouts": self.timeouts,
             "passed": self.passed,
+            "cross_references": [cr.to_dict() for cr in self.cross_references],
+            "unmatched_network_requests": self.unmatched_network_requests,
+            "unmatched_log_errors": self.unmatched_log_errors,
+            "orphan_server_errors": self.orphan_server_errors,
+            "action_traces": self.action_traces,
+            "reconciliation_score": self.reconciliation_score,
         }
 
     @classmethod
@@ -153,6 +229,14 @@ class LogLayerResult:
             auth_failures=data.get("auth_failures", 0),
             timeouts=data.get("timeouts", 0),
             passed=data.get("passed", False),
+            cross_references=[
+                LogCrossReference.from_dict(cr) for cr in data.get("cross_references", [])
+            ],
+            unmatched_network_requests=data.get("unmatched_network_requests", 0),
+            unmatched_log_errors=data.get("unmatched_log_errors", 0),
+            orphan_server_errors=data.get("orphan_server_errors", []),
+            action_traces=data.get("action_traces", []),
+            reconciliation_score=data.get("reconciliation_score", 0.0),
         )
 
 
@@ -169,12 +253,14 @@ class VerificationPass:
 
     @property
     def passed(self) -> bool:
-        return all([
-            self.browser_check.passed,
-            self.network_check.passed,
-            self.console_check.passed,
-            self.log_check.passed,
-        ])
+        return all(
+            [
+                self.browser_check.passed,
+                self.network_check.passed,
+                self.console_check.passed,
+                self.log_check.passed,
+            ]
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -215,7 +301,7 @@ class BrowserVerificationResult:
             return True
         if len(self.passes) < self.required_passes:
             return False
-        last_n = self.passes[-self.required_passes:]
+        last_n = self.passes[-self.required_passes :]
         return all(p.passed for p in last_n)
 
     @property
@@ -245,9 +331,7 @@ class BrowserVerificationResult:
         result = cls(
             required=data.get("required", False),
             requirement_reasons=data.get("requirement_reasons", []),
-            passes=[
-                VerificationPass.from_dict(p) for p in data.get("passes", [])
-            ],
+            passes=[VerificationPass.from_dict(p) for p in data.get("passes", [])],
             verified_at=data.get("verified_at", 0.0),
         )
         result.required_passes = data.get("required_passes", DEFAULT_PASS_COUNT)
@@ -266,12 +350,22 @@ def _recompute_pass_verdicts(vp: VerificationPass) -> None:
     c.passed = c.app_error_count == 0
 
     lg = vp.log_check
-    lg.passed = (
+    base_ok = (
         lg.log_lines_checked > 0
         and lg.tracebacks_found == 0
         and lg.auth_failures == 0
         and lg.timeouts == 0
     )
+    if not lg.cross_references:
+        lg.passed = base_ok
+        return
+    # Full reconciliation: cross-references present
+    xref_ok = all(
+        cr.log_clean and cr.status_match for cr in lg.cross_references if cr.network_status == 200
+    )
+    orphan_ok = lg.unmatched_log_errors == 0 and len(lg.orphan_server_errors) == 0
+    recon_ok = lg.reconciliation_score >= 0.8
+    lg.passed = base_ok and xref_ok and orphan_ok and recon_ok
 
 
 class BrowserVerificationGate:
@@ -375,6 +469,30 @@ class BrowserVerificationGate:
             )
 
         return result
+
+    def validate_collection_source(
+        self,
+        evidence: dict[str, Any],
+    ) -> tuple[bool, str]:
+        """Validate that evidence was collected on an executor node, not orchestrator.
+
+        Returns (valid, message). Orchestrator evidence is rejected.
+        Missing metadata emits a warning but passes (backwards compat).
+        """
+        role = evidence.get("collection_node_role", "")
+        node = evidence.get("collection_node", "")
+        if role == "orchestrator":
+            return False, (
+                f"Evidence collected on orchestrator node '{node}' — "
+                "browser verification must run on an executor node"
+            )
+        if not role:
+            logger.warning(
+                "Evidence missing collection_node_role — "
+                "cannot verify source node (pre-enforcement data)"
+            )
+            return True, "no collection source metadata (backwards compat)"
+        return True, f"collected on {role} node '{node}'"
 
     def build_evidence_summary(self, result: BrowserVerificationResult) -> dict[str, Any]:
         """Build a summary suitable for inclusion in EngineeringProofPackage."""

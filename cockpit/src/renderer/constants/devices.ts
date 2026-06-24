@@ -13,7 +13,7 @@ export interface DeviceInfo {
   tailscaleName: string
   deviceType: string
   displayName: string
-  os: 'linux' | 'windows' | 'ios'
+  os: 'linux' | 'windows' | 'ios' | 'macos'
   nodeParam?: string
 }
 
@@ -46,6 +46,13 @@ export const DEVICES: Record<string, DeviceInfo> = {
     deviceType: 'mobile',
     displayName: 'iphone-15-pro-max (Mobile)',
     os: 'ios',
+  },
+  macbook: {
+    id: 'macbook',
+    tailscaleName: 'antonys-macbook-pro',
+    deviceType: 'laptop',
+    displayName: 'antonys-macbook-pro (Laptop)',
+    os: 'macos',
   },
 } as const
 
