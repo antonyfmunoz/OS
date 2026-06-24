@@ -451,6 +451,12 @@ Rules:
   it's data retrieval and may use bundled Chromium
 - Substrate code references capability requirements ("requires interactive session"),
   not specific browser names
+- All computer use credentials flow through 1Password `op run` / `op inject`
+- Template files (.env.tpl) use `op://` URIs — never raw secrets
+- `op run --env-file=<tpl>` wraps every command that needs credentials on the executor side
+- Substrate enforcement: `validate_credential_source()` in `substrate/execution/credential_gate.py`
+- Pre-commit hook: `scripts/check_credential_injection.py` (Gate 5)
+- See `.claude/rules/credential-injection.md` for full protocol
 
 This law exists because bundled Chromium diverges from real-world behavior —
 different rendering, different auth flows, different extensions. UMH is a

@@ -15,12 +15,12 @@ Phase 23. UMH substrate subsystem. Instance-agnostic.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import time
 from typing import Any
 from uuid import uuid4
-
-import os
 
 from substrate.meta_ide.browser_evidence_collector import (
     collect_log_reconciliation,
@@ -40,6 +40,13 @@ from substrate.meta_ide.engineering_execution import (
 from substrate.meta_ide.engineering_intent import EngineeringPlan, EngineeringTask
 
 logger = logging.getLogger(__name__)
+
+_STATE_DIR = os.path.join(os.environ.get("UMH_ROOT") or "/opt/OS", "data", "runtime")
+_STATE_FILE = os.path.join(_STATE_DIR, "engineering_sessions.json")
+
+MAX_VERIFICATION_RETRIES = 3
+
+_RETRIABLE_CATEGORIES = frozenset({"AUTH_FAILURE", "DOM_TIMEOUT", "COLLECTION_FAILURE"})
 
 
 class EngineeringSessionCoordinator:
@@ -61,6 +68,7 @@ class EngineeringSessionCoordinator:
         self._sessions: dict[str, EngineeringExecutionSession] = {}
         self._plans: dict[str, EngineeringPlan] = {}
         self._proof_packages: dict[str, EngineeringProofPackage] = {}
+        self._load_sessions()
 
     def register_plan(self, plan: EngineeringPlan) -> None:
         """Register a plan so sessions can reference it."""
@@ -86,6 +94,7 @@ class EngineeringSessionCoordinator:
             operator_id=operator_id,
         )
         self._sessions[session.session_id] = session
+        self._persist_session(session)
 
         self._emit_event(
             "session_created",
@@ -170,27 +179,90 @@ class EngineeringSessionCoordinator:
         if session.status == EngineeringExecutionStatus.EXECUTING:
             session.status = EngineeringExecutionStatus.VALIDATING
             session.updated_at = time.time()
+            self._persist_session(session)
 
             validation = self._run_validation(session)
             session.task_results["__validation__"] = validation
 
-            browser_result = self._run_browser_verification(session)
-            session.task_results["__browser_verification__"] = browser_result.to_dict()
+            # State reconciliation loop
+            verification_attempts = session.task_results.get(
+                "__verification_attempts__", 0
+            )
+            browser_result: BrowserVerificationResult | None = None
 
-            if browser_result.required and not browser_result.verified:
+            while verification_attempts < MAX_VERIFICATION_RETRIES:
+                browser_result = self._run_browser_verification(session)
+                session.task_results["__browser_verification__"] = browser_result.to_dict()
+                raw_evidence = session.task_results.get("__raw_evidence__")
+
+                if not browser_result.required or browser_result.verified:
+                    break
+
+                failure_category = self._diagnose_verification_failure(
+                    browser_result, raw_evidence
+                )
+                verification_attempts += 1
+                session.task_results["__verification_attempts__"] = verification_attempts
+                self._persist_session(session)
+
+                self._emit_event(
+                    "verification_retry",
+                    {
+                        "session_id": session_id,
+                        "attempt": verification_attempts,
+                        "failure_category": failure_category,
+                        "consecutive_passing": browser_result.consecutive_passing,
+                    },
+                )
+
+                if (
+                    failure_category in _RETRIABLE_CATEGORIES
+                    and verification_attempts < MAX_VERIFICATION_RETRIES
+                ):
+                    session.task_results.pop("__browser_verification__", None)
+                    session.task_results.pop("__raw_evidence__", None)
+                    logger.info(
+                        "Verification retry %d/%d for %s: %s",
+                        verification_attempts,
+                        MAX_VERIFICATION_RETRIES,
+                        session_id,
+                        failure_category,
+                    )
+                    continue
+                else:
+                    break
+
+            if browser_result is not None and (
+                not browser_result.required or browser_result.verified
+            ):
+                session.status = EngineeringExecutionStatus.AWAITING_REVIEW
+                session.updated_at = time.time()
+                session.completed_at = time.time()
+            else:
                 self._emit_event(
                     "browser_verification_pending",
                     {
                         "session_id": session_id,
-                        "consecutive_passing": browser_result.consecutive_passing,
-                        "required_passes": browser_result.required_passes,
-                        "reasons": browser_result.requirement_reasons,
+                        "failure_category": self._diagnose_verification_failure(
+                            browser_result,
+                            session.task_results.get("__raw_evidence__"),
+                        )
+                        if browser_result
+                        else "NO_RESULT",
+                        "attempts_exhausted": verification_attempts
+                        >= MAX_VERIFICATION_RETRIES,
+                        "consecutive_passing": browser_result.consecutive_passing
+                        if browser_result
+                        else 0,
+                        "required_passes": browser_result.required_passes
+                        if browser_result
+                        else 0,
+                        "reasons": browser_result.requirement_reasons
+                        if browser_result
+                        else [],
                     },
                 )
-            else:
-                session.status = EngineeringExecutionStatus.AWAITING_REVIEW
-                session.updated_at = time.time()
-                session.completed_at = time.time()
+            self._persist_session(session)
 
         self._emit_event(
             "session_completed",
@@ -217,6 +289,7 @@ class EngineeringSessionCoordinator:
             return False
         session.status = EngineeringExecutionStatus.PAUSED
         session.updated_at = time.time()
+        self._persist_session(session)
         self._emit_event("session_paused", {"session_id": session_id})
         return True
 
@@ -231,6 +304,7 @@ class EngineeringSessionCoordinator:
             return False
         session.status = EngineeringExecutionStatus.CANCELLED
         session.updated_at = time.time()
+        self._persist_session(session)
         self._emit_event("session_cancelled", {"session_id": session_id})
         return True
 
@@ -257,6 +331,7 @@ class EngineeringSessionCoordinator:
         if session is not None:
             session.status = EngineeringExecutionStatus.APPROVED
             session.updated_at = time.time()
+            self._persist_session(session)
 
         self._emit_event(
             "review_approved",
@@ -282,6 +357,7 @@ class EngineeringSessionCoordinator:
         if session is not None:
             session.status = EngineeringExecutionStatus.REJECTED
             session.updated_at = time.time()
+            self._persist_session(session)
 
         if session is not None:
             self._cleanup_sandbox_worktree(session)
@@ -425,6 +501,17 @@ class EngineeringSessionCoordinator:
             )
             return None
 
+        # Race guard: don't accept external evidence while internal retry in progress
+        attempts = session.task_results.get("__verification_attempts__", 0)
+        if 0 < attempts < MAX_VERIFICATION_RETRIES:
+            logger.info(
+                "Internal retry in progress for %s (attempt %d/%d) — skipping external submission",
+                session_id,
+                attempts,
+                MAX_VERIFICATION_RETRIES,
+            )
+            return None
+
         result = self._run_browser_verification(session, evidence)
         bv_data = result.to_dict()
         bv_data["submitter_id"] = submitter_id
@@ -434,6 +521,7 @@ class EngineeringSessionCoordinator:
             session.status = EngineeringExecutionStatus.AWAITING_REVIEW
             session.updated_at = time.time()
             session.completed_at = time.time()
+            self._persist_session(session)
             self._emit_event(
                 "browser_verification_passed",
                 {
@@ -443,6 +531,7 @@ class EngineeringSessionCoordinator:
                 },
             )
         else:
+            self._persist_session(session)
             self._emit_event(
                 "browser_verification_incomplete",
                 {
@@ -523,6 +612,7 @@ class EngineeringSessionCoordinator:
             risk_class = self._derive_session_risk(session)
             pass_count = get_pass_count(risk_class)
             evidence = trigger_collection(target_url, pass_count=pass_count)
+            session.task_results["__raw_evidence__"] = evidence
 
             # Auto-reconcile: enrich each pass with 3-way log cross-references
             for p in evidence.get("passes", []):
@@ -551,6 +641,86 @@ class EngineeringSessionCoordinator:
             proof_requirements=proof_requirements,
             risk_class=risk_class,
         )
+
+    def _diagnose_verification_failure(
+        self,
+        browser_result: BrowserVerificationResult | None,
+        raw_evidence: dict[str, Any] | None = None,
+    ) -> str:
+        """Categorize verification failure for retry routing.
+
+        Checks collection-level failure first (empty passes with error),
+        then inspects individual pass layers.
+
+        Field map:
+          - VerificationPass.log_check    -> LogLayerResult (auth_failures, reconciliation_score)
+          - VerificationPass.console_check -> ConsoleLayerResult (app_errors)
+          - VerificationPass.browser_check -> BrowserLayerResult (screenshots, assertions)
+          - VerificationPass.network_check -> NetworkLayerResult (failed_requests)
+        """
+        if raw_evidence and raw_evidence.get("error") and not raw_evidence.get("passes"):
+            return "COLLECTION_FAILURE"
+
+        if browser_result is None:
+            return "UNKNOWN"
+
+        for p in browser_result.passes:
+            if not p.passed:
+                if p.log_check and getattr(p.log_check, "auth_failures", 0) > 0:
+                    return "AUTH_FAILURE"
+                if p.console_check and not p.console_check.passed:
+                    errors = getattr(p.console_check, "app_errors", []) or []
+                    if any("timeout" in str(e).lower() for e in errors):
+                        return "DOM_TIMEOUT"
+                    return "CONSOLE_ERRORS"
+                if p.network_check and not p.network_check.passed:
+                    return "NETWORK_ERROR"
+                if p.browser_check and not p.browser_check.passed:
+                    return "DOM_TIMEOUT"
+                if p.log_check and hasattr(p.log_check, "reconciliation_score"):
+                    if p.log_check.reconciliation_score < 0.8:
+                        return "LOG_RECONCILIATION"
+        return "UNKNOWN"
+
+    def _persist_session(self, session: EngineeringExecutionSession) -> None:
+        """Write session state to disk. Called after every status transition."""
+        try:
+            os.makedirs(_STATE_DIR, exist_ok=True)
+            all_data: dict[str, Any] = {}
+            if os.path.exists(_STATE_FILE):
+                with open(_STATE_FILE, "r") as f:
+                    all_data = json.load(f)
+            all_data[session.session_id] = session.to_dict()
+            with open(_STATE_FILE, "w") as f:
+                json.dump(all_data, f, indent=2, default=str)
+        except Exception as exc:
+            logger.warning("Failed to persist session %s: %s", session.session_id, exc)
+
+    def _load_sessions(self) -> None:
+        """Restore sessions from disk on coordinator startup."""
+        if not os.path.exists(_STATE_FILE):
+            return
+        try:
+            with open(_STATE_FILE, "r") as f:
+                all_data = json.load(f)
+            all_data = self._prune_stale_sessions(all_data)
+            for sid, sdata in all_data.items():
+                if sid not in self._sessions:
+                    session = EngineeringExecutionSession.from_dict(sdata)
+                    self._sessions[sid] = session
+            logger.info("Restored %d sessions from disk", len(all_data))
+        except Exception as exc:
+            logger.warning("Failed to load sessions: %s", exc)
+
+    def _prune_stale_sessions(self, all_data: dict[str, Any]) -> dict[str, Any]:
+        """Remove sessions in terminal state older than 7 days."""
+        terminal = {"approved", "rejected", "cancelled", "failed"}
+        cutoff = time.time() - (7 * 86400)
+        return {
+            sid: sdata
+            for sid, sdata in all_data.items()
+            if sdata.get("status") not in terminal or sdata.get("updated_at", 0) > cutoff
+        }
 
     def _dispatch_task(
         self,

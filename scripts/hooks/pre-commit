@@ -9,6 +9,8 @@
 #   1. Type Coherence — no shadow types (check_type_divergence.py)
 #   2. Instance Context — no hardcoded instance values in substrate (check_instance_leak.py)
 #   3. Projection Boundary — no projection names in substrate (check_projection_leak.py)
+#   4. Dependency Direction — one-way layer imports (check_dependency_direction.py)
+#   5. Credential Injection — no plaintext credential patterns (check_credential_injection.py)
 
 set -euo pipefail
 
@@ -45,6 +47,13 @@ fi
 # Gate 4: Dependency Direction
 if [ -f "$REPO_ROOT/scripts/check_dependency_direction.py" ]; then
     if ! python3 "$REPO_ROOT/scripts/check_dependency_direction.py"; then
+        FAILED=1
+    fi
+fi
+
+# Gate 5: Credential Injection
+if [ -f "$REPO_ROOT/scripts/check_credential_injection.py" ]; then
+    if ! python3 "$REPO_ROOT/scripts/check_credential_injection.py"; then
         FAILED=1
     fi
 fi

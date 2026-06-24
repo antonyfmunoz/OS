@@ -157,6 +157,54 @@ class EngineeringExecutionSession:
             "sandbox_branch": self.sandbox_branch,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> EngineeringExecutionSession:
+        """Restore a session from its serialized dict."""
+        status_raw = data.get("status", "pending")
+        try:
+            status = EngineeringExecutionStatus(status_raw)
+        except ValueError:
+            status = EngineeringExecutionStatus.PENDING
+
+        session = cls(
+            session_id=data.get("session_id", ""),
+            plan_id=data.get("plan_id", ""),
+            status=status,
+            workspace_targets=data.get("workspace_targets", []),
+            operator_id=data.get("operator_id", ""),
+        )
+        session.packet_ids = data.get("packet_ids", [])
+        session.executor_request_ids = data.get("executor_request_ids", [])
+        session.task_results = data.get("task_results", {})
+        session.worker_assignments = data.get("worker_assignments", {})
+        session.created_at = data.get("created_at", 0.0)
+        session.updated_at = data.get("updated_at", 0.0)
+        session.completed_at = data.get("completed_at", 0.0)
+        session.execution_trace_ids = data.get("execution_trace_ids", [])
+        session.errors = data.get("errors", [])
+        session.sandbox_worktree = data.get("sandbox_worktree", "")
+        session.sandbox_branch = data.get("sandbox_branch", "")
+
+        for art_data in data.get("artifacts", []):
+            art_type_raw = art_data.get("artifact_type", "code")
+            try:
+                art_type = EngineeringArtifactType(art_type_raw)
+            except ValueError:
+                art_type = EngineeringArtifactType.CODE
+            art = EngineeringArtifact(
+                artifact_id=art_data.get("artifact_id", ""),
+                session_id=art_data.get("session_id", ""),
+                task_id=art_data.get("task_id", ""),
+                file_path=art_data.get("file_path", ""),
+                artifact_type=art_type,
+                diff_summary=art_data.get("diff_summary", ""),
+                content_hash=art_data.get("content_hash", ""),
+                created_at=art_data.get("created_at", 0.0),
+                metadata=art_data.get("metadata", {}),
+            )
+            session.artifacts.append(art)
+        return session
+
 
 @dataclass
 class EngineeringProofPackage:
