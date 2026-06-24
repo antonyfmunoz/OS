@@ -75,8 +75,11 @@ from pass 1. Partial progress does not carry forward.
 
 0. **Verify you are NOT on the orchestrator node** — if the current
    node's role is `orchestrator` (check `infra/device_registry.json`)
-   or `DISPLAY` env var is unset, delegate browser work to an executor
-   node via SSH or `browser_evidence_collector.trigger_collection()`.
+   or `DISPLAY` env var is unset, use
+   `browser_evidence_collector.trigger_collection()` to dispatch to an
+   executor node via the mesh daemon. The daemon runs in the interactive
+   desktop session (Session 1) — Chrome opens visibly on the monitor.
+   NEVER use raw SSH for GUI automation (Session 0, no display).
 0b. **Verify credential injection** — call `validate_credential_source()`
    from `substrate.execution.credential_gate` before any auth-requiring
    collection. Credentials flow through 1Password `op run --env-file=<tpl>`

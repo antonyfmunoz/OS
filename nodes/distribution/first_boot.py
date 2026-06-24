@@ -39,6 +39,11 @@ class EnvironmentProfile:
     has_gemini_key: bool = False
     has_discord_token: bool = False
     has_telegram_token: bool = False
+    has_audio_input: bool = False
+    has_audio_output: bool = False
+    has_camera: bool = False
+    monitor_count: int = 0
+    peripheral_count: int = 0
     python_version: str = ""
     detected_at: str = ""
 
@@ -91,13 +96,27 @@ def detect_environment() -> EnvironmentProfile:
 
     try:
         import subprocess
+        import sys
+        _nw = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
         result = subprocess.run(
             ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
             capture_output=True, text=True, timeout=5,
+            **_nw,
         )
         profile.has_gpu = result.returncode == 0 and bool(result.stdout.strip())
     except (FileNotFoundError, subprocess.TimeoutExpired):
         profile.has_gpu = False
+
+    try:
+        from nodes.windows.umh_node.peripheral_scanner import scan_all_peripherals
+        peripherals = scan_all_peripherals()
+        profile.peripheral_count = len(peripherals)
+        profile.has_audio_input = any(p["type"] == "audio_input" for p in peripherals)
+        profile.has_audio_output = any(p["type"] == "audio_output" for p in peripherals)
+        profile.has_camera = any(p["type"] == "camera" for p in peripherals)
+        profile.monitor_count = sum(1 for p in peripherals if p["type"] == "monitor")
+    except ImportError:
+        pass
 
     return profile
 

@@ -442,6 +442,19 @@ desktop sessions on capable nodes. Three layers:
 3. **Browser choice** (instance preference) — configured per instance, not
    hardcoded in substrate. Current instance: Chrome (`channel: "chrome"`).
 
+Execution path — mesh daemon dispatch:
+- Computer use on executor nodes routes through the UMH mesh daemon
+  (interactive desktop session), NEVER raw SSH. SSH spawns processes in
+  Session 0 (services session, no display) — Chrome would be invisible.
+- Mesh dispatch: `POST http://localhost:{mesh_port+1}/dispatch` with
+  `{"node_id": "<id>", "capability": "shell", "params": {"command": "...", "timeout": N}}`
+- The daemon's ShellAdapter executes in the user's interactive desktop session
+  (Session 1 on Windows via Task Scheduler ONLOGON). Chrome opens visibly.
+- `trigger_collection()` in `substrate/meta_ide/browser_evidence_collector.py`
+  handles this automatically — mesh primary, SSH fallback with loud warning.
+- All subprocess calls on Windows executor nodes use `CREATE_NO_WINDOW`
+  creationflag to prevent console window flickering during automation.
+
 Rules:
 - All Playwright browser launches for computer use MUST include `channel="chrome"`
   (or the instance-configured browser) — never bare `chromium.launch()`
@@ -461,6 +474,8 @@ Rules:
 This law exists because bundled Chromium diverges from real-world behavior —
 different rendering, different auth flows, different extensions. UMH is a
 reality-first system; computer use must match how software actually runs.
+The mesh daemon requirement exists because SSH runs in Session 0 (no display) —
+a browser verification via SSH produced invisible, non-interactive Chrome.
 
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).
