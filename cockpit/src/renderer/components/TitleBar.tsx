@@ -25,6 +25,7 @@ declare global {
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useWorkspaceContextStore } from '../stores/workspaceContextStore'
 import { ROUTES } from '../types/routes'
+import { IDEMenuBar } from './IDEMenuBar'
 
 function getPanelLabel(panelId: string): string {
   const route = ROUTES.find(r => r.id === panelId)
@@ -49,13 +50,19 @@ export function TitleBar() {
       className="titlebar-drag flex items-center px-3 select-none bg-surface border-b border-border"
       style={{ height: 'var(--spacing-titlebar-height)' }}
     >
-      <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
-        {panelLabel}
-      </span>
-      {contextLine && (
-        <span className="ml-3 font-mono text-[10px] leading-none text-text-tertiary truncate max-w-[400px]">
-          {contextLine}
-        </span>
+      {activePanel === 'editor' ? (
+        <IDEMenuBar />
+      ) : (
+        <>
+          <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
+            {panelLabel}
+          </span>
+          {contextLine && (
+            <span className="ml-3 font-mono text-[10px] leading-none text-text-tertiary truncate max-w-[400px]">
+              {contextLine}
+            </span>
+          )}
+        </>
       )}
 
       <div className="flex-1" />
