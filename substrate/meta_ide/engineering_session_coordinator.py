@@ -23,6 +23,7 @@ from uuid import uuid4
 import os
 
 from substrate.meta_ide.browser_evidence_collector import (
+    collect_log_reconciliation,
     trigger_collection,
 )
 from substrate.meta_ide.browser_verification_gate import (
@@ -477,8 +478,9 @@ class EngineeringSessionCoordinator:
         """Check browser verification requirement and validate evidence.
 
         When verification is required and no evidence is provided,
-        auto-triggers collection on Beast (GPU workstation with display).
-        Browser tests NEVER run headless on VPS.
+        auto-triggers collection on an executor-roled node (with display)
+        and runs 3-way log reconciliation before gate validation.
+        Browser tests NEVER run on the orchestrator (headless).
         """
         artifact_paths = [a.file_path for a in session.artifacts if a.file_path]
 
@@ -511,7 +513,7 @@ class EngineeringSessionCoordinator:
                 "__target_url__", "https://universalmetaharness.tech/"
             )
             logger.info(
-                "Browser verification required — triggering collection on Beast for %s",
+                "Browser verification required — triggering collection on executor for %s",
                 target_url,
             )
             self._emit_event(
@@ -521,6 +523,25 @@ class EngineeringSessionCoordinator:
             risk_class = self._derive_session_risk(session)
             pass_count = get_pass_count(risk_class)
             evidence = trigger_collection(target_url, pass_count=pass_count)
+
+            # Auto-reconcile: enrich each pass with 3-way log cross-references
+            for p in evidence.get("passes", []):
+                net_check = p.get("network_check", {})
+                endpoints = net_check.get("endpoints_checked", [])
+                if not endpoints:
+                    continue
+                recon = collect_log_reconciliation(
+                    network_evidence=endpoints,
+                    service_name=p.get("log_check", {}).get("service_name", "os-operator"),
+                )
+                log_check = p.get("log_check", {})
+                log_check["cross_references"] = recon.get("cross_references", [])
+                log_check["unmatched_network_requests"] = recon.get("unmatched_network_requests", 0)
+                log_check["unmatched_log_errors"] = recon.get("unmatched_log_errors", 0)
+                log_check["orphan_server_errors"] = recon.get("orphan_server_errors", [])
+                log_check["action_traces"] = recon.get("action_traces", [])
+                log_check["reconciliation_score"] = recon.get("reconciliation_score", 0.0)
+                p["log_check"] = log_check
 
         risk_class = self._derive_session_risk(session)
         return self._browser_gate.validate_evidence(
