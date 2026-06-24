@@ -13,6 +13,7 @@ import { fetchApi } from '../api/client'
 import { useBootstrapStore } from '../stores/bootstrapStore'
 import { VPS, BEAST } from '../constants/devices'
 import { LivePreview } from '../components/LivePreview'
+import { IDEMenuBar } from '../components/IDEMenuBar'
 import type { LucideIcon } from 'lucide-react'
 
 const SIDEBAR_ITEMS: Array<{ id: SidebarTab; icon: LucideIcon; label: string }> = [
@@ -1172,6 +1173,9 @@ export function MetaIDEPanel() {
 
       {/* ── Center + Panel ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Menu bar */}
+        <IDEMenuBar />
+
         {/* Editor tab bar — file tabs + preview toggle */}
         {!panelMaximized && (
           <div className="flex items-center h-8 shrink-0 border-b border-border overflow-x-auto">
