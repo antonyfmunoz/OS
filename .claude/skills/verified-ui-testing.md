@@ -77,6 +77,10 @@ from pass 1. Partial progress does not carry forward.
    node's role is `orchestrator` (check `infra/device_registry.json`)
    or `DISPLAY` env var is unset, delegate browser work to an executor
    node via SSH or `browser_evidence_collector.trigger_collection()`.
+0b. **Verify credential injection** — call `validate_credential_source()`
+   from `substrate.execution.credential_gate` before any auth-requiring
+   collection. Credentials flow through 1Password `op run --env-file=<tpl>`
+   on the executor side. See `.claude/rules/credential-injection.md`.
    Never run MCP Playwright directly on the orchestrator for
    verification evidence. See `.claude/rules/browser-verification.md`.
 1. **Deploy the change** to its target environment

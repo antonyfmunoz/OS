@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from substrate.execution.cpu_gate import gated_subprocess_run
+from substrate.execution.credential_gate import validate_credential_source
 from substrate.meta_ide.browser_verification_gate import DEFAULT_PASS_COUNT
 
 logger = logging.getLogger(__name__)
@@ -222,7 +223,7 @@ def trigger_collection(
     if parsed.scheme != "https":
         return {"passes": [], "error": f"Only https URLs allowed, got {parsed.scheme}"}
 
-    cmd = (
+    collector_cmd = (
         f"python {shlex.quote(_COLLECTOR_SCRIPT_PATH)} "
         f"--url {shlex.quote(target_url)} "
         f"--passes {int(pass_count)} "
@@ -237,14 +238,28 @@ def trigger_collection(
             "error": "No executor SSH target (set UMH_EXECUTOR_SSH or register an executor in device_registry.json)",
         }
 
+    cred_gate = validate_credential_source()
+    if cred_gate.injection_ready:
+        executor_tpl = _COLLECTOR_SCRIPT_PATH.replace(
+            "browser_gate_collector.py", ".env.beast.tpl"
+        )
+        remote_cmd = f'op run --env-file="{executor_tpl}" -- {collector_cmd}'
+    else:
+        logger.warning(
+            "Running without credential injection: %s", cred_gate.fallback_reason
+        )
+        remote_cmd = collector_cmd
+
     ssh_args = [
         "ssh",
         "-o",
-        "ConnectTimeout=10",
+        "ConnectTimeout=30",
         "-o",
         "StrictHostKeyChecking=accept-new",
+        "-o",
+        "ServerAliveInterval=15",
         executor_ssh,
-        cmd,
+        remote_cmd,
     ]
 
     logger.info(
