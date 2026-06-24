@@ -119,26 +119,10 @@ def _track_cc_sdk_result(success: bool) -> None:
 
 
 # ─── CPU pressure gate ────────────────────────────────────────────────────────
-
-# load-per-core threshold above which we refuse to spawn new CLI processes
-_CPU_LOAD_CEILING: float = 1.5
-
-
-def _cpu_too_hot() -> bool:
-    """Return True if system CPU load is too high to spawn more CLI processes."""
-    try:
-        load1, _, _ = os.getloadavg()
-        cores = os.cpu_count() or 4
-        load_per_core = load1 / cores
-        if load_per_core > _CPU_LOAD_CEILING:
-            logger.warning(
-                "[cc_sdk] CPU gate: load=%.1f cores=%d (%.1f/core > %.1f) — blocked",
-                load1, cores, load_per_core, _CPU_LOAD_CEILING,
-            )
-            return True
-    except Exception:
-        pass
-    return False
+# Removed: _cpu_too_hot() was redundant with substrate cpu_gate (1.8/core)
+# checked by model_router before cc_sdk is ever called. The cc_sdk gate at
+# 1.5/core was MORE aggressive than the substrate gate and was checked twice
+# (query_cc + query_cc_sync). All CPU gating now handled by the substrate layer.
 
 
 # ─── CLI path resolution ─────────────────────────────────────────────────────
@@ -256,9 +240,6 @@ async def query_cc(
         return None
     if _is_nested_cc_session():
         logger.info("[CC SDK] Nested session detected, skipping")
-        return None
-
-    if _cpu_too_hot():
         return None
 
     # Lower budget for fast tasks
@@ -443,21 +424,6 @@ def query_cc_sync(
     """
     if timeout is None:
         timeout = _resolve_timeout()
-    # CPU gate: refuse to spawn when system is already hot
-    if _cpu_too_hot():
-        _track_cc_sdk_result(False)
-        return None
-
-    # Backpressure: don't spawn subprocesses when system is degraded
-    try:
-        from substrate.state.providers.provider_state import get_system_state
-
-        if not get_system_state().allow_execution():
-            logger.info("[cc_sdk] blocked by backpressure gate")
-            return None
-    except Exception:
-        pass
-
     nested = _is_nested_cc_session()
     logger.warning(
         "[cc_sdk] called with task_type=%s agent_id=%s nested=%s",
