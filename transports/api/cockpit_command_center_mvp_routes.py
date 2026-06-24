@@ -111,6 +111,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     async def governed_execution() -> dict[str, Any]:
         return _get_governed_execution().snapshot().to_dict()
 
+    @r.get("/command-center-mvp/execution-summary", dependencies=auth)
+    async def execution_summary() -> dict[str, Any]:
+        """Unified execution summary — single canonical read for all execution surfaces."""
+        return _get_governed_execution().execution_summary()
+
     @r.get("/command-center-mvp/organism-state", dependencies=auth)
     async def organism_state() -> dict[str, Any]:
         return _get_organism_state().snapshot().to_dict()

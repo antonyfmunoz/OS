@@ -9,6 +9,7 @@ import { ActionRequired, buildActionItems } from '../components/ActionRequired'
 import { fetchApi } from '../api/client'
 import { usePolling } from '../hooks/usePolling'
 import { useBootstrapStore } from '../stores/bootstrapStore'
+import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 
 interface SummaryData {
   ok: boolean
@@ -65,18 +66,17 @@ interface ReturnBrief {
 }
 
 export function CommandCenterPanel() {
-  const defaultSummary: SummaryData = {
-    ok: true,
-    what_is_happening: { continuity_state: '—', active_agents: 0, idle_agents: 0, total_agents: 0, executing_packets: 0 },
-    who_is_working: [],
-    what_is_blocked: { count: 0, items: [] },
-    what_needs_approval: { count: 0, items: [] },
-    what_finished: { recent_completed: 0, latest: '—' },
-    what_failed: { recent_failed: 0, latest: '—' },
-    what_should_resume_next: null,
+  const execSummary = useExecutionSummaryStore((s) => s.summary)
+  const summary: SummaryData = {
+    ok: execSummary.ok,
+    what_is_happening: execSummary.what_is_happening,
+    who_is_working: execSummary.who_is_working,
+    what_is_blocked: execSummary.what_is_blocked,
+    what_needs_approval: execSummary.what_needs_approval as any,
+    what_finished: execSummary.what_finished,
+    what_failed: execSummary.what_failed,
+    what_should_resume_next: execSummary.what_should_resume_next,
   }
-  const [summary, setSummary] = useState<SummaryData>(defaultSummary)
-  const cachedSummary = useBootstrapStore((s) => s.cache.command_center_summary) as SummaryData | undefined
   const [error, setError] = useState('')
 
   const [continuityState, setContinuityState] = useState('ACTIVE')
@@ -96,25 +96,7 @@ export function CommandCenterPanel() {
   const setViewContext = useViewContextStore((s) => s.setContext)
   const setPanel = useCockpitStore((s) => s.setPanel)
 
-  const fetchSummary = useCallback(async () => {
-    try {
-      const data = await fetchApi<SummaryData>('/command-center/summary')
-      setSummary(data)
-      setError('')
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'fetch failed')
-    }
-  }, [])
-
-  useEffect(() => {
-    if (cachedSummary?.ok) setSummary(cachedSummary)
-  }, [cachedSummary])
-
-  useEffect(() => {
-    fetchSummary()
-    const id = setInterval(fetchSummary, 10000)
-    return () => clearInterval(id)
-  }, [fetchSummary])
+  const fetchSummary = useExecutionSummaryStore((s) => s.fetchSummary)
 
   useEffect(() => {
     setViewContext({ active_route: 'commandcenter', visible_context_summary: 'Command Center overview' })

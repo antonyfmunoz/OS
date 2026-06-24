@@ -9,7 +9,9 @@ Execution remains in existing subsystems.
 """
 from __future__ import annotations
 
+import json
 import logging
+import os
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -88,7 +90,7 @@ class GovernedExecutionSnapshot:
     generated_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "state": self.state,
             "health": self.health,
             "assessment": self.assessment,
@@ -99,6 +101,14 @@ class GovernedExecutionSnapshot:
             "approval_summary": self.approval_summary,
             "generated_at": self.generated_at,
         }
+        # Hoist assessment fields to root for flat reads (RightRail, ControlPanel)
+        if self.assessment:
+            for k in ("ready_count", "blocked_count", "pending_approval_count",
+                       "top_blockers", "resource_health", "delegation_coverage",
+                       "active_tradeoffs"):
+                if k not in d:
+                    d[k] = self.assessment.get(k)
+        return d
 
 
 # ── Runtime ─────────────────────────────────────────────────────────
@@ -486,3 +496,170 @@ class GovernedExecutionRuntime:
             "resource_health": assessment.resource_health,
             "blocker_count": len(assessment.top_blockers),
         }
+
+    def execution_summary(self) -> dict[str, Any]:
+        """Unified execution summary — serves ControlPanel, RightRail, CommandCenterPanel.
+
+        Combines GovernedExecutionRuntime state with work packet stats,
+        agent heartbeats, and journal data. Single canonical read path
+        replacing /command-center/summary and /governed-execution.
+        """
+        assessment = self.assessment()
+        health_val = self.health().value
+
+        heartbeats = self._load_workcell_heartbeats()
+        active_agents = [h for h in heartbeats if h.get("status") == "active"]
+        idle_agents = [h for h in heartbeats if h.get("status") == "idle"]
+
+        packets = self._load_work_packets(limit=100)
+        executing = [p for p in packets if p.get("status") in ("executing", "delegated")]
+        blocked_packets = [p for p in packets if p.get("status") == "blocked" or bool(p.get("blockers"))]
+
+        by_status: dict[str, int] = {}
+        for p in packets:
+            s = p.get("status", "unknown")
+            by_status[s] = by_status.get(s, 0) + 1
+
+        ready = [p for p in packets if p.get("status") in ("approved", "ready_for_review", "planned")]
+        ready.sort(key=lambda p: p.get("leverage_score", 0), reverse=True)
+        next_packet = None
+        if ready:
+            next_packet = {
+                "packet_id": ready[0].get("packet_id", ""),
+                "title": ready[0].get("title", ""),
+                "status": ready[0].get("status", ""),
+                "leverage_score": ready[0].get("leverage_score", 0),
+            }
+
+        journal = self._load_journal_recent(50)
+        completed = [j for j in journal if j.get("phase") == "EXECUTION_COMPLETED"]
+        failed = [j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED")]
+
+        checkpoint = self._load_checkpoint()
+        continuity_state = checkpoint.get(
+            "continuity_state",
+            checkpoint.get("new_continuity_state", "active"),
+        )
+
+        return {
+            "ok": True,
+            # Governed execution state (from runtime objects)
+            "state": assessment.state,
+            "health": health_val,
+            "ready_count": assessment.ready_count,
+            "blocked_count": assessment.blocked_count,
+            "pending_approval_count": assessment.pending_approval_count,
+            "top_blockers": assessment.top_blockers,
+            "delegation_coverage": assessment.delegation_coverage,
+            "active_tradeoffs": assessment.active_tradeoffs,
+            "resource_health": assessment.resource_health,
+            # Work packet stats (from JSONL — same data old /summary read)
+            "what_is_happening": {
+                "continuity_state": continuity_state,
+                "active_agents": len(active_agents),
+                "idle_agents": len(idle_agents),
+                "total_agents": len(heartbeats),
+                "executing_packets": len(executing),
+            },
+            "who_is_working": [
+                {"agent_id": h.get("workcell_id", ""), "role": h.get("role", ""), "status": h.get("status", "")}
+                for h in heartbeats
+            ],
+            "what_is_blocked": {
+                "count": len(blocked_packets),
+                "items": [
+                    {"id": b.get("packet_id", ""), "title": b.get("title", ""), "blockers": b.get("blockers", [])}
+                    for b in blocked_packets[:5]
+                ],
+            },
+            "what_needs_approval": {
+                "count": assessment.pending_approval_count,
+            },
+            "what_finished": {
+                "recent_completed": len(completed),
+                "latest": completed[-1].get("details", {}).get("intent", "") if completed else "",
+            },
+            "what_failed": {
+                "recent_failed": len(failed),
+                "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", "")) if failed else "",
+            },
+            "what_should_resume_next": next_packet,
+            "packets_by_status": by_status,
+            "total_packets": len(packets),
+        }
+
+    # ── File loaders for execution_summary ──────────────────────────
+
+    @staticmethod
+    def _load_workcell_heartbeats() -> list[dict[str, Any]]:
+        umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        wc_dir = os.path.join(umh_root, "data", "umh", "organism", "workcells")
+        heartbeats: list[dict[str, Any]] = []
+        if not os.path.isdir(wc_dir):
+            return heartbeats
+        for entry in sorted(os.listdir(wc_dir)):
+            hb_path = os.path.join(wc_dir, entry, "heartbeat.json")
+            if os.path.exists(hb_path):
+                try:
+                    with open(hb_path) as f:
+                        data = json.load(f)
+                    data["workcell_dir"] = entry
+                    heartbeats.append(data)
+                except (json.JSONDecodeError, OSError):
+                    heartbeats.append({"workcell_id": entry, "status": "unavailable"})
+        return heartbeats
+
+    @staticmethod
+    def _load_work_packets(limit: int = 50) -> list[dict[str, Any]]:
+        umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        path = os.path.join(umh_root, "data", "umh", "universal_work", "work_packets.jsonl")
+        packets: list[dict[str, Any]] = []
+        if not os.path.exists(path):
+            return packets
+        try:
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        packets.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+        packets.sort(key=lambda p: p.get("leverage_score", 0), reverse=True)
+        return packets[:limit]
+
+    @staticmethod
+    def _load_journal_recent(limit: int = 20) -> list[dict[str, Any]]:
+        umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        path = os.path.join(umh_root, "data", "umh", "organism", "execution_journal.jsonl")
+        entries: list[dict[str, Any]] = []
+        if not os.path.exists(path):
+            return entries
+        try:
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+        return entries[-limit:]
+
+    @staticmethod
+    def _load_checkpoint() -> dict[str, Any]:
+        umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        path = os.path.join(umh_root, "data", "umh", "workstation_state", "latest_checkpoint.json")
+        if os.path.exists(path):
+            try:
+                with open(path) as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError):
+                pass
+        return {}
