@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { RefreshCw, ExternalLink, Maximize2, Minimize2, ChevronDown } from 'lucide-react'
+import { RefreshCw, ExternalLink, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react'
 import { ViewportSelector, VIEWPORT_PRESETS, type ViewportPreset } from './ViewportSelector'
 import { fetchApi } from '../api/client'
 
@@ -131,6 +131,18 @@ export function LivePreview({
         className="flex items-center gap-2 px-2 py-1.5 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--color-border)' }}
       >
+        {/* Expand/collapse chevron */}
+        {onToggleExpand && (
+          <button
+            onClick={onToggleExpand}
+            className="p-1 rounded hover:opacity-80"
+            style={{ color: 'var(--color-text-tertiary)' }}
+            title={expanded ? 'Collapse preview' : 'Expand preview'}
+          >
+            {expanded ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+        )}
+
         {/* Project selector */}
         {projections.length > 0 && (
           <div className="relative">
@@ -211,16 +223,6 @@ export function LivePreview({
         >
           <ExternalLink size={14} />
         </button>
-        {onToggleExpand && (
-          <button
-            onClick={onToggleExpand}
-            className="p-1 rounded hover:opacity-80"
-            style={{ color: 'var(--color-text-tertiary)' }}
-            title={expanded ? 'Collapse' : 'Expand'}
-          >
-            {expanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-          </button>
-        )}
       </div>
 
       {/* Preview area with viewport framing */}
