@@ -22,6 +22,7 @@ import os
 import re
 import shlex
 import socket
+import subprocess
 import time
 import urllib.parse
 from dataclasses import dataclass, field
@@ -60,6 +61,20 @@ def _resolve_executor_ssh() -> str:
                 return ip
     except (FileNotFoundError, json.JSONDecodeError, KeyError) as exc:
         logger.debug("device registry lookup failed: %s", exc)
+    return ""
+
+
+def _get_executor_os() -> str:
+    """Look up the executor node's OS from device_registry.json."""
+    registry_path = os.path.join(_ROOT, "infra", "device_registry.json")
+    try:
+        with open(registry_path) as f:
+            devices = json.load(f)
+        for dev in devices:
+            if dev.get("role") == "executor":
+                return dev.get("os", "").lower()
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
     return ""
 
 
@@ -223,12 +238,21 @@ def trigger_collection(
     if parsed.scheme != "https":
         return {"passes": [], "error": f"Only https URLs allowed, got {parsed.scheme}"}
 
-    collector_cmd = (
-        f"python {shlex.quote(_COLLECTOR_SCRIPT_PATH)} "
-        f"--url {shlex.quote(target_url)} "
-        f"--passes {int(pass_count)} "
-        f"--output-json"
-    )
+    executor_os = _get_executor_os()
+    if executor_os == "windows":
+        collector_cmd = (
+            f'python "{_COLLECTOR_SCRIPT_PATH}" '
+            f"--url {target_url} "
+            f"--passes {int(pass_count)} "
+            f"--output-json"
+        )
+    else:
+        collector_cmd = (
+            f"python {shlex.quote(_COLLECTOR_SCRIPT_PATH)} "
+            f"--url {shlex.quote(target_url)} "
+            f"--passes {int(pass_count)} "
+            f"--output-json"
+        )
 
     executor_ssh = _resolve_executor_ssh()
     if not executor_ssh:
@@ -269,24 +293,44 @@ def trigger_collection(
         len(VIEWPORTS),
     )
 
-    result = gated_subprocess_run(
-        ssh_args,
-        capture_output=True,
-        text=True,
-        timeout=pass_count * len(VIEWPORTS) * 60,
-        caller="browser_evidence_collector",
-    )
+    try:
+        raw_result = gated_subprocess_run(
+            ssh_args,
+            capture_output=True,
+            text=False,
+            timeout=pass_count * len(VIEWPORTS) * 120 + 60,
+            caller="browser_evidence_collector",
+        )
+    except subprocess.TimeoutExpired as exc:
+        partial_out = exc.stdout.decode("utf-8", errors="replace") if exc.stdout else ""
+        logger.error("Browser collection timed out after %ss", exc.timeout)
+        return {
+            "passes": [],
+            "error": f"Collection timed out after {exc.timeout}s",
+            "stdout": partial_out[-2000:],
+        }
 
-    if result is None:
+    if raw_result is None:
         logger.error("CPU gate blocked browser evidence collection")
         return {"passes": [], "error": "CPU gate blocked collection"}
 
-    if result.returncode != 0:
-        logger.error("Executor collector failed: %s", result.stderr[:500])
+    stdout = raw_result.stdout.decode("utf-8", errors="replace") if raw_result.stdout else ""
+    stderr = raw_result.stderr.decode("utf-8", errors="replace") if raw_result.stderr else ""
+
+    if raw_result.returncode != 0:
+        logger.warning("Executor collector exited %d: %s", raw_result.returncode, stderr[:300])
+        if stdout.strip():
+            try:
+                output = json.loads(stdout)
+                output["collector_stderr"] = stderr[:500]
+                output.update(node_meta)
+                return output
+            except json.JSONDecodeError:
+                pass
         return {
             "passes": [],
-            "error": result.stderr[:500],
-            "stdout": result.stdout[:500],
+            "error": stderr[:500],
+            "stdout": stdout[:500],
         }
 
     node_meta = {
@@ -296,14 +340,14 @@ def trigger_collection(
     }
 
     try:
-        output = json.loads(result.stdout)
+        output = json.loads(stdout)
         output.update(node_meta)
         return output
     except json.JSONDecodeError:
-        json_start = result.stdout.rfind('{"passes"')
+        json_start = stdout.rfind('{"passes"')
         if json_start >= 0:
             try:
-                parsed = json.loads(result.stdout[json_start:])
+                parsed = json.loads(stdout[json_start:])
                 parsed.update(node_meta)
                 return parsed
             except json.JSONDecodeError:
@@ -312,7 +356,7 @@ def trigger_collection(
         return {
             "passes": [],
             "error": "JSON parse failed",
-            "raw_output": result.stdout[-1000:],
+            "raw_output": stdout[-1000:],
             **node_meta,
         }
 

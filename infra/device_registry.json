@@ -19,6 +19,7 @@
     "os": "windows",
     "role": "executor",
     "tailscale_ip": "100.74.199.102",
+    "ssh_user": "antonys beast pc",
     "mesh_node_id": "windows-desktop",
     "compute": true,
     "project_root": "C:\\dev\\dev",
