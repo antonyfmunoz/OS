@@ -69,8 +69,37 @@ def _load_registry() -> list[dict[str, Any]]:
         return []
 
 
-def _get_tailscale_peers() -> list[dict[str, Any]]:
-    """Get all Tailscale peers via CLI."""
+_TAILSCALE_SOCK = "/var/run/tailscale/tailscaled.sock"
+
+
+def _tailscale_local_api() -> dict[str, Any] | None:
+    """Query tailscale status via the local API Unix socket.
+
+    Works inside Docker when the host socket is bind-mounted.
+    Falls back to CLI if socket unavailable.
+    """
+    import http.client
+    import socket as _socket
+
+    if not os.path.exists(_TAILSCALE_SOCK):
+        return None
+    try:
+        conn = http.client.HTTPConnection("local-tailscaled.sock")
+        conn.sock = _socket.socket(_socket.AF_UNIX, _socket.SOCK_STREAM)
+        conn.sock.settimeout(10)
+        conn.sock.connect(_TAILSCALE_SOCK)
+        conn.request("GET", "/localapi/v0/status")
+        resp = conn.getresponse()
+        if resp.status != 200:
+            return None
+        return json.loads(resp.read().decode())
+    except Exception as exc:
+        logger.debug("tailscale local API failed: %s", exc)
+        return None
+
+
+def _tailscale_cli() -> dict[str, Any] | None:
+    """Query tailscale status via CLI. Fallback when socket unavailable."""
     try:
         result = gated_subprocess_run(
             ["tailscale", "status", "--json"],
@@ -81,12 +110,19 @@ def _get_tailscale_peers() -> list[dict[str, Any]]:
         )
     except FileNotFoundError:
         logger.debug("tailscale CLI not found — scan unavailable in this environment")
-        return []
+        return None
     if result is None or result.returncode != 0:
-        return []
+        return None
     try:
-        data = json.loads(result.stdout)
+        return json.loads(result.stdout)
     except json.JSONDecodeError:
+        return None
+
+
+def _get_tailscale_peers() -> list[dict[str, Any]]:
+    """Get all Tailscale peers. Tries local API socket first, CLI fallback."""
+    data = _tailscale_local_api() or _tailscale_cli()
+    if data is None:
         return []
 
     peers: list[dict[str, Any]] = []
