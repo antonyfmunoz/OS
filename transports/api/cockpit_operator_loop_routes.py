@@ -428,6 +428,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
     from transports.api.approval_routes import (
         approvals_pending, approval_detail, approval_approve, approval_reject,
+        approval_deny,
     )
     from transports.api.runtime_state_routes import (
         runtime_state, runtime_snapshot_latest, runtime_executions,
@@ -457,6 +458,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/approvals/{approval_id}", approval_detail, methods=["GET"], dependencies=auth)
     r.add_api_route("/approvals/{approval_id}/approve", approval_approve, methods=["POST"], dependencies=auth)
     r.add_api_route("/approvals/{approval_id}/reject", approval_reject, methods=["POST"], dependencies=auth)
+    r.add_api_route("/approvals/{approval_id}/deny", approval_deny, methods=["POST"], dependencies=auth)
     # Phase 16: Runtime State Registry
     r.add_api_route("/runtime/state", runtime_state, methods=["GET"], dependencies=auth)
     r.add_api_route("/runtime/snapshot", runtime_snapshot_latest, methods=["GET"], dependencies=auth)

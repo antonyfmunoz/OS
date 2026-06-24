@@ -1,14 +1,15 @@
-"""Browser Evidence Collector — runs on Beast to collect verification evidence.
+"""Browser Evidence Collector — runs on executor nodes to collect verification evidence.
 
 Executes Playwright sessions across 3 viewports (desktop, tablet, mobile)
-with real browser engines on Beast's display (Session 1). Collects 4-layer
+with real browser engines on an executor node's display. Collects 4-layer
 evidence per pass and returns structured data for BrowserVerificationGate.
 
 This module is the ONLY place browser evidence is collected. The gate
 validates; this collects. They form a pair.
 
-Evidence collection ALWAYS runs on Beast (GPU workstation with display),
-NEVER headless on VPS. The VPS triggers collection via SSH to Beast.
+Evidence collection ALWAYS runs on executor-roled nodes (with display),
+NEVER on the orchestrator node (headless). The orchestrator triggers
+collection via SSH to an executor discovered from device_registry.json.
 
 UMH substrate subsystem. Instance-agnostic.
 """
@@ -18,8 +19,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shlex
-import subprocess
+import socket
 import time
 import urllib.parse
 from dataclasses import dataclass, field
@@ -30,7 +32,52 @@ from substrate.meta_ide.browser_verification_gate import DEFAULT_PASS_COUNT
 
 logger = logging.getLogger(__name__)
 
-_BEAST_SSH = os.environ.get("UMH_BEAST_SSH", "")
+_ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
+
+
+def _resolve_executor_ssh() -> str:
+    """Resolve SSH target for an executor-roled node.
+
+    Priority: UMH_EXECUTOR_SSH env → UMH_BEAST_SSH fallback → device_registry.json lookup.
+    """
+    target = os.environ.get("UMH_EXECUTOR_SSH", "")
+    if target:
+        return target
+    target = os.environ.get("UMH_BEAST_SSH", "")
+    if target:
+        return target
+    registry_path = os.path.join(_ROOT, "infra", "device_registry.json")
+    try:
+        with open(registry_path) as f:
+            devices = json.load(f)
+        for dev in devices:
+            if dev.get("role") == "executor" and dev.get("tailscale_ip"):
+                ip = dev["tailscale_ip"]
+                user = dev.get("ssh_user", "")
+                if user:
+                    return f"{user}@{ip}"
+                return ip
+    except (FileNotFoundError, json.JSONDecodeError, KeyError) as exc:
+        logger.debug("device registry lookup failed: %s", exc)
+    return ""
+
+
+def _get_local_node_role() -> str:
+    """Look up this node's role from device_registry.json by hostname."""
+    hostname = socket.gethostname().lower()
+    registry_path = os.path.join(_ROOT, "infra", "device_registry.json")
+    try:
+        with open(registry_path) as f:
+            devices = json.load(f)
+        for dev in devices:
+            ts_name = dev.get("tailscale_name", "").lower()
+            dev_id = dev.get("id", "").lower()
+            if ts_name == hostname or dev_id == hostname:
+                return dev.get("role", "unknown")
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    return "unknown"
+
 
 _COLLECTOR_SCRIPT_PATH = "C:\\dev\\dev\\OS\\scripts\\browser_gate_collector.py"
 
@@ -121,8 +168,7 @@ class PassEvidence:
             bl = vp.browser_layer
             all_elements.extend(bl.get("elements_confirmed", []))
             snapshot_parts.append(
-                f"{vp.viewport_name}({vp.width}x{vp.height}): "
-                f"{bl.get('entry_count', 0)} entries"
+                f"{vp.viewport_name}({vp.width}x{vp.height}): {bl.get('entry_count', 0)} entries"
             )
 
             nl = vp.network_layer
@@ -167,7 +213,7 @@ def trigger_collection(
     target_url: str,
     pass_count: int = DEFAULT_PASS_COUNT,
 ) -> dict[str, Any]:
-    """Trigger evidence collection on Beast via SSH.
+    """Trigger evidence collection on an executor node via SSH.
 
     Returns evidence dict with 'passes' key suitable for
     BrowserVerificationGate.validate_evidence().
@@ -177,25 +223,33 @@ def trigger_collection(
         return {"passes": [], "error": f"Only https URLs allowed, got {parsed.scheme}"}
 
     cmd = (
-        f'python {shlex.quote(_COLLECTOR_SCRIPT_PATH)} '
-        f'--url {shlex.quote(target_url)} '
-        f'--passes {int(pass_count)} '
-        f'--output-json'
+        f"python {shlex.quote(_COLLECTOR_SCRIPT_PATH)} "
+        f"--url {shlex.quote(target_url)} "
+        f"--passes {int(pass_count)} "
+        f"--output-json"
     )
 
+    executor_ssh = _resolve_executor_ssh()
+    if not executor_ssh:
+        logger.error("No executor node available for browser collection")
+        return {
+            "passes": [],
+            "error": "No executor SSH target (set UMH_EXECUTOR_SSH or register an executor in device_registry.json)",
+        }
+
     ssh_args = [
-        "ssh", "-o", "ConnectTimeout=10",
-        "-o", "StrictHostKeyChecking=accept-new",
-        _BEAST_SSH,
+        "ssh",
+        "-o",
+        "ConnectTimeout=10",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        executor_ssh,
         cmd,
     ]
 
-    if not _BEAST_SSH:
-        logger.error("UMH_BEAST_SSH not set — cannot trigger browser collection")
-        return {"passes": [], "error": "UMH_BEAST_SSH env var not configured"}
-
     logger.info(
-        "Triggering browser evidence collection on Beast: %d passes × %d viewports",
+        "Triggering browser evidence collection on executor (%s): %d passes × %d viewports",
+        executor_ssh,
         pass_count,
         len(VIEWPORTS),
     )
@@ -213,29 +267,218 @@ def trigger_collection(
         return {"passes": [], "error": "CPU gate blocked collection"}
 
     if result.returncode != 0:
-        logger.error("Beast collector failed: %s", result.stderr[:500])
+        logger.error("Executor collector failed: %s", result.stderr[:500])
         return {
             "passes": [],
             "error": result.stderr[:500],
             "stdout": result.stdout[:500],
         }
 
+    node_meta = {
+        "collection_node": socket.gethostname(),
+        "collection_node_role": _get_local_node_role(),
+        "executor_target": executor_ssh,
+    }
+
     try:
         output = json.loads(result.stdout)
+        output.update(node_meta)
         return output
     except json.JSONDecodeError:
         json_start = result.stdout.rfind('{"passes"')
         if json_start >= 0:
             try:
-                return json.loads(result.stdout[json_start:])
+                parsed = json.loads(result.stdout[json_start:])
+                parsed.update(node_meta)
+                return parsed
             except json.JSONDecodeError:
                 pass
-        logger.error("Failed to parse Beast collector output as JSON")
+        logger.error("Failed to parse executor collector output as JSON")
         return {
             "passes": [],
             "error": "JSON parse failed",
             "raw_output": result.stdout[-1000:],
+            **node_meta,
         }
+
+
+_LOG_REQUEST_RE = re.compile(
+    r'"(?P<method>GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\s+'
+    r'(?P<path>/[^\s"]*)\s+HTTP/[^"]*"\s+(?P<status>\d{3})'
+)
+_LOG_ERROR_RE = re.compile(
+    r"(ERROR|Traceback|CRITICAL|WARNING.*(?:fail|error|except))",
+    re.IGNORECASE,
+)
+
+
+def collect_log_reconciliation(
+    network_evidence: list[dict[str, Any]],
+    browser_actions: list[dict[str, Any]] | None = None,
+    service_name: str = "os-operator",
+    time_window_s: int = 120,
+) -> dict[str, Any]:
+    """Three-way reconciliation: network→logs, logs→network, action→trace.
+
+    Returns a dict matching LogLayerResult fields including cross_references,
+    orphan_server_errors, action_traces, and reconciliation_score.
+    """
+    result = gated_subprocess_run(
+        ["docker", "logs", service_name, "--tail", "200", "--since", f"{time_window_s}s"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        caller="browser_evidence_collector.reconciliation",
+    )
+    if result is None:
+        return {
+            "service_name": service_name,
+            "log_lines_checked": 0,
+            "tracebacks_found": 0,
+            "auth_failures": 0,
+            "timeouts": 0,
+            "cross_references": [],
+            "unmatched_network_requests": 0,
+            "unmatched_log_errors": 0,
+            "orphan_server_errors": [],
+            "action_traces": [],
+            "reconciliation_score": 0.0,
+            "error": "CPU gate blocked",
+        }
+
+    combined = result.stdout + result.stderr
+    lines = combined.strip().splitlines()
+
+    parsed_log_requests: list[dict[str, Any]] = []
+    error_lines: list[str] = []
+    for line in lines:
+        m = _LOG_REQUEST_RE.search(line)
+        if m:
+            parsed_log_requests.append(
+                {
+                    "method": m.group("method"),
+                    "path": m.group("path"),
+                    "status": int(m.group("status")),
+                    "raw": line,
+                }
+            )
+        if _LOG_ERROR_RE.search(line):
+            error_lines.append(line)
+
+    # 1. Network → Log cross-references
+    cross_refs: list[dict[str, Any]] = []
+    matched_log_indices: set[int] = set()
+    unmatched_net = 0
+
+    for net_req in network_evidence:
+        net_url = net_req.get("url", "")
+        net_status = net_req.get("status", 0)
+        net_method = net_req.get("method", "GET")
+        path = urllib.parse.urlparse(net_url).path if net_url else ""
+
+        found = False
+        for i, log_req in enumerate(parsed_log_requests):
+            if i in matched_log_indices:
+                continue
+            if log_req["path"] == path or path.endswith(log_req["path"]):
+                matched_log_indices.add(i)
+                log_status = log_req["status"]
+                cr = {
+                    "endpoint": path,
+                    "http_method": net_method,
+                    "network_status": net_status,
+                    "network_timestamp": net_req.get("timestamp", 0.0),
+                    "log_entry_found": True,
+                    "log_status": log_status,
+                    "log_clean": log_status < 400,
+                    "log_errors": [],
+                    "status_match": net_status == log_status,
+                    "latency_ms": 0.0,
+                    "direction": "network_to_log",
+                }
+                cross_refs.append(cr)
+                found = True
+                break
+        if not found:
+            cross_refs.append(
+                {
+                    "endpoint": path,
+                    "http_method": net_method,
+                    "network_status": net_status,
+                    "network_timestamp": net_req.get("timestamp", 0.0),
+                    "log_entry_found": False,
+                    "log_status": 0,
+                    "log_clean": False,
+                    "log_errors": [],
+                    "status_match": False,
+                    "latency_ms": 0.0,
+                    "direction": "network_to_log",
+                }
+            )
+            unmatched_net += 1
+
+    # 2. Orphan detection: server errors with no matching network request
+    net_paths = {
+        urllib.parse.urlparse(nr.get("url", "")).path for nr in network_evidence if nr.get("url")
+    }
+    orphans: list[str] = []
+    for err_line in error_lines:
+        m = _LOG_REQUEST_RE.search(err_line)
+        if m:
+            err_path = m.group("path")
+            if err_path not in net_paths:
+                orphans.append(err_line[:200])
+        else:
+            orphans.append(err_line[:200])
+
+    # 3. Action → Trace reconciliation
+    actions = browser_actions or []
+    action_traces: list[dict[str, Any]] = []
+    matched_actions = 0
+    for action in actions:
+        action_type = action.get("type", "")
+        expected_method = "GET"
+        if action_type in ("click", "submit", "form_submit"):
+            expected_method = "POST"
+        expected_path = action.get("expected_endpoint", "")
+        trace_found = False
+        if expected_path:
+            for log_req in parsed_log_requests:
+                if log_req["path"] == expected_path and log_req["method"] == expected_method:
+                    trace_found = True
+                    break
+        trace = {
+            "action_type": action_type,
+            "expected_endpoint": expected_path,
+            "expected_method": expected_method,
+            "trace_found": trace_found,
+            "action_description": action.get("description", ""),
+        }
+        action_traces.append(trace)
+        if trace_found:
+            matched_actions += 1
+
+    total_reconcilable = len(network_evidence) + len(actions)
+    total_matched = (len(network_evidence) - unmatched_net) + matched_actions
+    recon_score = total_matched / total_reconcilable if total_reconcilable > 0 else 1.0
+
+    tracebacks = sum(1 for l in lines if "Traceback" in l)
+    auth_fails = sum(1 for l in lines if "401" in l or "403" in l)
+    timeout_count = sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower())
+
+    return {
+        "service_name": service_name,
+        "log_lines_checked": len(lines),
+        "tracebacks_found": tracebacks,
+        "auth_failures": auth_fails,
+        "timeouts": timeout_count,
+        "cross_references": cross_refs,
+        "unmatched_network_requests": unmatched_net,
+        "unmatched_log_errors": len(orphans),
+        "orphan_server_errors": orphans[:20],
+        "action_traces": action_traces,
+        "reconciliation_score": round(recon_score, 3),
+    }
 
 
 def collect_local_logs(service_name: str = "os-operator", tail: int = 50) -> dict[str, Any]:
@@ -265,10 +508,7 @@ def collect_local_logs(service_name: str = "os-operator", tail: int = 50) -> dic
             "log_lines_checked": len(lines),
             "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
             "auth_failures": sum(1 for l in lines if "401" in l or "403" in l),
-            "timeouts": sum(
-                1 for l in lines
-                if "timeout" in l.lower() or "timed out" in l.lower()
-            ),
+            "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
         }
     except Exception as e:
         return {

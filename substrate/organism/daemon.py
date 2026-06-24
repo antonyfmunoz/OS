@@ -35,6 +35,7 @@ from substrate.organism.coordinator import OrganismCoordinator
 from substrate.organism.environment_graph import EnvironmentGraph
 from substrate.organism.environment_reconciler import EnvironmentReconciler
 from substrate.organism.mesh_reconciler import MeshReconciler
+from substrate.organism.tailscale_discovery import TailscaleDiscoveryTick
 from substrate.organism.event_spine import EventDomain, EventSpine
 from substrate.organism.execution_economy import ExecutionEconomy
 from substrate.organism.execution_modes import ExecutionModeManager
@@ -193,6 +194,19 @@ class OrganismDaemon:
             )
         else:
             self._mesh_reconciler = None
+
+        self._tailscale_discovery: TailscaleDiscoveryTick | None = None
+        try:
+            _data_dir = os.path.join(
+                os.environ.get("UMH_ROOT") or "/opt/OS", "data",
+            )
+            self._tailscale_discovery = TailscaleDiscoveryTick(
+                discovered_peers_path=os.path.join(
+                    _data_dir, "runtime", "discovered_peers.json",
+                ),
+            )
+        except Exception as exc:
+            logger.warning("tailscale discovery init failed: %s", exc)
 
         self._environment_graph = EnvironmentGraph()
 
@@ -414,6 +428,11 @@ class OrganismDaemon:
             self._autonomous_tick.register_stage(
                 "mesh_reconcile",
                 self._mesh_reconciler.reconcile_tick,
+            )
+        if self._tailscale_discovery is not None:
+            self._autonomous_tick.register_stage(
+                "tailscale_discovery",
+                self._tailscale_discovery.tick,
             )
         self._autonomous_tick.register_stage(
             "leverage_measurement",

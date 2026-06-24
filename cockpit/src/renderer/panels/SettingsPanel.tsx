@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useDeviceStore } from '../stores/deviceStore'
+import type { TailscalePeer } from '../stores/deviceStore'
 import { usePolling } from '../hooks/usePolling'
 
 const AUTHORITY_COLORS: Record<string, string> = {
@@ -113,6 +116,9 @@ export function SettingsPanel() {
         )}
       </section>
 
+      {/* Device Management */}
+      <DeviceManagementSection />
+
       {/* Notification Settings */}
       <section>
         <h3 className="wv-label mb-3">Notifications</h3>
@@ -133,5 +139,116 @@ export function SettingsPanel() {
         )}
       </section>
     </div>
+  )
+}
+
+const ROLE_BADGE: Record<string, string> = {
+  orchestrator: 'text-cyan',
+  executor: 'text-ok',
+  controller: 'text-text-secondary',
+}
+
+function DeviceManagementSection() {
+  const devices = useDeviceStore((s) => s.devices)
+  const scanResult = useDeviceStore((s) => s.scanResult)
+  const scanning = useDeviceStore((s) => s.scanning)
+  const provisioning = useDeviceStore((s) => s.provisioning)
+  const fetchDevices = useDeviceStore((s) => s.fetchDevices)
+  const scanPeers = useDeviceStore((s) => s.scanPeers)
+  const removeDevice = useDeviceStore((s) => s.removeDevice)
+  const provisionDevice = useDeviceStore((s) => s.provisionDevice)
+  const inviteDevice = useDeviceStore((s) => s.inviteDevice)
+
+  const [inviteKey, setInviteKey] = useState<string | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+
+  usePolling(fetchDevices, 30000)
+
+  const handleInvite = async () => {
+    const key = await inviteDevice({ preauthorized: true, expiry_seconds: 3600 })
+    setInviteKey(key)
+  }
+
+  const handleRemove = async (id: string) => {
+    if (confirmRemove !== id) {
+      setConfirmRemove(id)
+      return
+    }
+    await removeDevice(id)
+    setConfirmRemove(null)
+  }
+
+  return (
+    <section>
+      <div className="flex items-center gap-3 mb-3">
+        <h3 className="wv-label">Device Management</h3>
+        <button onClick={handleInvite} className="px-2 py-1 text-[10px] font-mono rounded bg-cyan-glow text-cyan border border-cyan/20">
+          invite
+        </button>
+        <button onClick={scanPeers} className="px-2 py-1 text-[10px] font-mono rounded bg-surface-overlay text-text-secondary border border-border" disabled={scanning}>
+          {scanning ? 'scanning...' : 'scan'}
+        </button>
+      </div>
+
+      {inviteKey && (
+        <div className="wv-card px-3 py-2 mb-3">
+          <p className="wv-label mb-1">Tailscale Auth Key (1h expiry)</p>
+          <code className="text-xs font-mono text-ok break-all select-all">{inviteKey}</code>
+          <p className="text-[10px] text-text-tertiary mt-1">
+            Run on the new device: <code className="text-cyan">tailscale up --auth-key={inviteKey}</code>
+          </p>
+          <button onClick={() => setInviteKey(null)} className="text-[10px] text-text-tertiary mt-1 underline">dismiss</button>
+        </div>
+      )}
+
+      {/* Registered devices */}
+      <div className="space-y-1.5 mb-4">
+        {devices.map((d) => (
+          <div key={d.id} className="wv-card flex items-center gap-3 px-3 py-2">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${d.always_online ? 'bg-ok' : 'bg-text-tertiary'}`} />
+            <span className="text-sm flex-1">{d.display_name}</span>
+            <span className="font-mono text-[10px] text-text-tertiary">{d.os}</span>
+            <span className={`font-mono text-[10px] ${ROLE_BADGE[d.role] ?? 'text-text-tertiary'}`}>{d.role}</span>
+            {d.compute && <span className="wv-badge wv-badge-ok text-[9px]">compute</span>}
+            {d.role !== 'orchestrator' && !d.always_online && (
+              <>
+                {d.compute && (
+                  <button
+                    onClick={() => provisionDevice(d.id)}
+                    className="text-[10px] text-cyan underline"
+                    disabled={provisioning === d.id}
+                  >
+                    {provisioning === d.id ? 'provisioning...' : 're-provision'}
+                  </button>
+                )}
+                <button
+                  onClick={() => handleRemove(d.id)}
+                  className={`text-[10px] ${confirmRemove === d.id ? 'text-danger font-semibold' : 'text-text-tertiary'} underline`}
+                >
+                  {confirmRemove === d.id ? 'confirm remove?' : 'remove'}
+                </button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Scan results — unregistered peers */}
+      {scanResult && scanResult.unregistered > 0 && (
+        <div>
+          <p className="wv-label mb-2">Unregistered Peers ({scanResult.unregistered})</p>
+          <div className="space-y-1.5">
+            {scanResult.peers.filter((p: TailscalePeer) => !p.registered).map((p: TailscalePeer) => (
+              <div key={p.dns_name || p.hostname} className="wv-card flex items-center gap-3 px-3 py-2">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${p.online ? 'bg-ok' : 'bg-text-tertiary'}`} />
+                <span className="text-sm flex-1">{p.hostname || p.dns_name}</span>
+                <span className="font-mono text-[10px] text-text-tertiary">{p.os}</span>
+                <span className="font-mono text-[10px] text-cyan">{p.tailscale_ips[0] ?? ''}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   )
 }

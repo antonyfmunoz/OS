@@ -5,6 +5,7 @@ import { useRealtimeStore } from '../stores/realtimeStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { usePolling } from '../hooks/usePolling'
 import { ConnectionBanner } from '../components/ConnectionBanner'
+import { DeviceOnboardingCard } from '../components/DeviceOnboardingCard'
 import { relativeTime } from '../lib/time'
 
 const RISK_BADGE: Record<string, string> = {
@@ -132,22 +133,34 @@ export function ApprovalsPanel() {
                         {item.risk_level}
                       </span>
                       <span className="text-xs text-text-tertiary">from {item.agent}</span>
+                      {item.operation && (
+                        <span className="text-[10px] font-mono text-cyan">{item.operation}</span>
+                      )}
                     </div>
                     <p className="text-sm mb-3">{item.description}</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => approve(item.id)}
-                        className="px-3 py-2 text-xs font-mono uppercase rounded bg-ok text-text-inverse"
-                      >
-                        approve
-                      </button>
-                      <button
-                        onClick={() => deny(item.id)}
-                        className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border"
-                      >
-                        deny
-                      </button>
-                    </div>
+
+                    {item.operation === 'device_onboarding' && item.details ? (
+                      <DeviceOnboardingCard
+                        details={item.details}
+                        onApprove={(metadata) => approve(item.id, metadata)}
+                        onReject={() => deny(item.id, 'Ignored by operator')}
+                      />
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => approve(item.id)}
+                          className="px-3 py-2 text-xs font-mono uppercase rounded bg-ok text-text-inverse"
+                        >
+                          approve
+                        </button>
+                        <button
+                          onClick={() => deny(item.id)}
+                          className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border"
+                        >
+                          deny
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
