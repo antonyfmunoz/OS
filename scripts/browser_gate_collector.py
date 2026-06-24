@@ -86,6 +86,8 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
     # Clerk login flow
     email_input = page.locator('input[name="identifier"], input[type="email"]')
     if email_input.count() > 0:
+        if not email or not password:
+            print("  WARNING: Credentials empty — login will fail. Check op run / env vars.", file=sys.stderr)
         email_input.fill(email)
         # Click visible continue/submit (Clerk hides a type=submit button)
         continue_btn = page.locator('button:visible:has-text("Continue")')
@@ -102,8 +104,9 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
                 submit_btn.first.click()
                 time.sleep(3)
 
-    # Wait for cockpit to load (nav should appear)
-    page.wait_for_selector('nav', timeout=15000)
+    # Wait for cockpit to load — resilient selector chain covers loading states
+    _AUTH_SELECTORS = 'nav, .bg-surface, [data-testid="status-dot"], button[title*="IDE"]'
+    page.wait_for_selector(_AUTH_SELECTORS, timeout=30000)
     time.sleep(2)
 
     # Save auth state with restrictive permissions

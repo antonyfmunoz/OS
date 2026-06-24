@@ -25,6 +25,13 @@ var is unset, do not run browser verification locally. Delegate to an executor.
 ONLY for non-verification tasks: quick DOM checks during development, reading
 page structure for planning. Never as verification evidence.
 
+## Credential injection
+
+All browser verification credentials flow through 1Password `op run`.
+See `.claude/rules/credential-injection.md` for the full protocol.
+`trigger_collection()` wraps the remote command with `op run --env-file=<tpl>`
+on the executor side — env vars don't transit SSH.
+
 This law exists because a verification session ran Playwright MCP directly on
 the orchestrator node (headless, bundled Chromium), producing false-positive
 evidence that didn't match real browser behavior. The gate makes this
