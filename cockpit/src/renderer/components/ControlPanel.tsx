@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { ChevronDown, ChevronUp, AlertTriangle, Moon, Sun, Shield, Hammer } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { ChevronDown, ChevronUp, Moon, Sun, Shield, Hammer } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useApprovalStore } from '../stores/approvalStore'
 import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
@@ -9,6 +9,7 @@ import { usePolling } from '../hooks/usePolling'
 import { fetchApi } from '../api/client'
 import { useChatStore } from '../stores/chatStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
+import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 
 /* ── colour maps ── */
 const CONTINUITY_COLORS: Record<string, string> = {
@@ -42,18 +43,18 @@ const STATUS_DOT: Record<string, string> = {
 export function ControlPanel() {
   const expanded = useCollapseStore((s) => s.isOpen('control-panel'))
   const toggleExpanded = useCollapseStore((s) => s.toggle)
-  const [continuityState, setContinuityState] = useState('ACTIVE')
-  const [riskCeiling, setRiskCeiling] = useState('HIGH')
-  const [lifecycleMode, setLifecycleMode] = useState('DAY_CYCLE')
-  const [overnightStatus, setOvernightStatus] = useState<{
-    safe: number
-    pending: number
-    blocked: number
-  }>({ safe: 0, pending: 0, blocked: 0 })
   const [engineeringPlans, setEngineeringPlans] = useState<any[]>([])
 
   const pulse = useSystemStore((s) => s.pulse)
   const execSummary = useExecutionSummaryStore((s) => s.summary)
+  const wsSnap = useUnifiedWorkstationStore((s) => s.snapshot)
+  const continuityState = wsSnap.continuity_state
+  const riskCeiling = wsSnap.risk_ceiling
+  const overnightStatus = {
+    safe: wsSnap.overnight.safe_count,
+    pending: wsSnap.overnight.pending_count,
+    blocked: wsSnap.overnight.blocked_count,
+  }
   const approvals = useApprovalStore((s) => s.approvals)
   const fetchApprovals = useApprovalStore((s) => s.fetchApprovals)
   const unifiedPending = useUnifiedApprovalStore((s) => s.byUrgency)
@@ -111,50 +112,15 @@ export function ControlPanel() {
   const pendingApprovals = approvals.filter((a) => a.status === 'pending')
   const totalPending = pendingApprovals.length + unifiedPending.length + engineeringPlans.length
 
-  /* ── workstation data polling ── */
-  const fetchWorkstationData = useCallback(async () => {
-    try {
-      const c = await fetchApi<{ state: string }>('/workstation/continuity')
-      if (c.state) setContinuityState(c.state)
-    } catch { /* stale is fine */ }
-
-    try {
-      const mc = await fetchApi<{ lifecycle_mode: string; risk_ceiling: string }>(
-        '/workstation/mode-composite',
-      )
-      setRiskCeiling(mc.risk_ceiling)
-      setLifecycleMode(mc.lifecycle_mode)
-    } catch { /* stale is fine */ }
-
-    try {
-      const ov = await fetchApi<{
-        safe_count: number
-        pending_count: number
-        blocked_count: number
-      }>('/workstation/overnight/status')
-      setOvernightStatus({
-        safe: ov.safe_count,
-        pending: ov.pending_count,
-        blocked: ov.blocked_count,
-      })
-    } catch { /* stale is fine */ }
-
-  }, [])
-
-  useEffect(() => {
-    fetchWorkstationData()
-    const id = setInterval(fetchWorkstationData, 10000)
-    return () => clearInterval(id)
-  }, [fetchWorkstationData])
-
   /* ── mode transition ── */
+  const fetchWorkstationSnapshot = useUnifiedWorkstationStore((s) => s.fetchSnapshot)
   const transitionContinuity = async (targetState: string) => {
     try {
       await fetchApi('/workstation/continuity/transition', {
         method: 'POST',
         body: JSON.stringify({ target_state: targetState, reason: 'operator_initiated' }),
       })
-      setContinuityState(targetState)
+      fetchWorkstationSnapshot()
     } catch { /* best-effort */ }
   }
 

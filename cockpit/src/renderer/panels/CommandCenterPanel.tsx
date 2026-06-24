@@ -7,8 +7,6 @@ import { useVisionPopout } from '../components/VisionPopout'
 import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 import { ActionRequired, buildActionItems } from '../components/ActionRequired'
 import { fetchApi } from '../api/client'
-import { usePolling } from '../hooks/usePolling'
-import { useBootstrapStore } from '../stores/bootstrapStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 
 interface SummaryData {
@@ -79,10 +77,15 @@ export function CommandCenterPanel() {
   }
   const [error, setError] = useState('')
 
-  const [continuityState, setContinuityState] = useState('ACTIVE')
-  const [riskCeiling, setRiskCeiling] = useState('HIGH')
-  const [lifecycleMode, setLifecycleMode] = useState('DAY_CYCLE')
-  const [overnightStatus, setOvernightStatus] = useState<{ safe: number; pending: number; blocked: number }>({ safe: 0, pending: 0, blocked: 0 })
+  const wsSnap = useUnifiedWorkstationStore((s) => s.snapshot)
+  const continuityState = wsSnap.continuity_state
+  const riskCeiling = wsSnap.risk_ceiling
+  const lifecycleMode = wsSnap.lifecycle_mode
+  const overnightStatus = {
+    safe: wsSnap.overnight.safe_count,
+    pending: wsSnap.overnight.pending_count,
+    blocked: wsSnap.overnight.blocked_count,
+  }
   const [returnBrief, setReturnBrief] = useState<ReturnBrief | null>(null)
   const [activeBatchCount, setActiveBatchCount] = useState(0)
 
@@ -102,37 +105,8 @@ export function CommandCenterPanel() {
     setViewContext({ active_route: 'commandcenter', visible_context_summary: 'Command Center overview' })
   }, [setViewContext])
 
-  const cachedContinuity = useBootstrapStore((s) => s.cache.continuity) as Record<string, unknown> | undefined
-  const cachedMode = useBootstrapStore((s) => s.cache.mode_composite) as Record<string, unknown> | undefined
-  const cachedOvernight = useBootstrapStore((s) => s.cache.overnight) as Record<string, unknown> | undefined
-
   useEffect(() => {
-    if (cachedContinuity) setContinuityState((cachedContinuity.state as string) || 'ACTIVE')
-    if (cachedMode) {
-      setRiskCeiling((cachedMode.risk_ceiling as string) || 'HIGH')
-      setLifecycleMode((cachedMode.lifecycle_mode as string) || 'DAY_CYCLE')
-    }
-    if (cachedOvernight) {
-      setOvernightStatus({
-        safe: (cachedOvernight.safe_count as number) || 0,
-        pending: (cachedOvernight.pending_count as number) || 0,
-        blocked: (cachedOvernight.blocked_count as number) || 0,
-      })
-    }
-
     const fetchExtras = async () => {
-      try {
-        const d = await fetchApi<{ state?: string }>('/workstation/continuity')
-        setContinuityState(d.state || 'ACTIVE')
-      } catch { /* silent */ }
-      try {
-        const d = await fetchApi<{ risk_ceiling?: string; lifecycle_mode?: string }>('/workstation/mode-composite')
-        setRiskCeiling(d.risk_ceiling || 'HIGH'); setLifecycleMode(d.lifecycle_mode || 'DAY_CYCLE')
-      } catch { /* silent */ }
-      try {
-        const d = await fetchApi<{ safe_count?: number; pending_count?: number; blocked_count?: number }>('/workstation/overnight/status')
-        setOvernightStatus({ safe: d.safe_count || 0, pending: d.pending_count || 0, blocked: d.blocked_count || 0 })
-      } catch { /* silent */ }
       try {
         if (continuityState === 'RETURNING' || continuityState === 'RESUME_BRIEF') {
           const d = await fetchApi<ReturnBrief>('/workstation/return-brief')
@@ -148,7 +122,7 @@ export function CommandCenterPanel() {
     fetchExtras()
     const id = setInterval(fetchExtras, 10000)
     return () => clearInterval(id)
-  }, [continuityState, cachedContinuity, cachedMode, cachedOvernight])
+  }, [continuityState])
 
   const handleApproval = useCallback(async (id: string, decision: 'approved' | 'denied') => {
     try {
@@ -404,16 +378,12 @@ export function CommandCenterPanel() {
 
 function OrganismHealthSection() {
   const snap = useUnifiedWorkstationStore((s) => s.snapshot)
-  const fetchSnapshot = useUnifiedWorkstationStore((s) => s.fetchSnapshot)
-  usePolling(fetchSnapshot, 10000, true, 2000)
 
-  if (!snap) return null
-
-  const state = (snap.workstation_state as string) || 'idle'
-  const orgMode = (snap.organism_mode as string) || 'idle'
-  const execState = (snap.execution_state as string) || 'idle'
-  const health = (snap.organism_health as string) || 'unknown'
-  const coherence = (snap.coherence_score as number) || 0
+  const state = snap.workstation_state || 'idle'
+  const orgMode = snap.organism_mode || 'idle'
+  const execState = snap.execution_state || 'idle'
+  const health = snap.organism_health || 'unknown'
+  const coherence = snap.coherence_score || 0
   const subsystems = (snap.subsystem_health as Array<{ subsystem: string; health: string }>) || []
 
   const stateColors: Record<string, string> = {

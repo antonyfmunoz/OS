@@ -1,7 +1,5 @@
-import { useState, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Radio } from 'lucide-react'
-import { fetchApi } from '../api/client'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -91,48 +89,23 @@ export function HudBar() {
   const lastTranscript = useVoiceStore((s) => s.lastTranscript)
   const cameraStatus = useVisionStore((s) => s.cameraStatus)
   const cameraPreset = useVisionStore((s) => s.activePreset)
-  const attention = useUnifiedWorkstationStore((s) => s.attention)
-  const fetchAttention = useUnifiedWorkstationStore((s) => s.fetchAttention)
+  const wsSnap = useUnifiedWorkstationStore((s) => s.snapshot)
 
-  usePolling(fetchAttention, 10000, true, 2000)
-
-  const [posture, setPosture] = useState<string>('')
-  const [nodeCount, setNodeCount] = useState<number>(0)
-  const [continuityState, setContinuityState] = useState<string>('')
-  const [lifecycleMode, setLifecycleMode] = useState<string>('')
-  const [profileModes, setProfileModes] = useState<string[]>([])
-  const [presenceSource, setPresenceSource] = useState<string>('')
-  const [sttAvailable, setSttAvailable] = useState<boolean>(false)
-  const [ttsAvailable, setTtsAvailable] = useState<boolean>(false)
+  const posture = wsSnap.effective_posture
+  const continuityState = wsSnap.continuity_state?.toLowerCase() ?? ''
+  const lifecycleMode = wsSnap.lifecycle_mode?.toLowerCase() ?? ''
+  const profileModes = wsSnap.active_profile_modes ?? []
+  const nodeCount = wsSnap.node_count
+  const sttAvailable = wsSnap.stt_available
+  const ttsAvailable = wsSnap.tts_available
+  const attentionItems = wsSnap.attention_items ?? []
+  const attentionTotal = attentionItems.length
+  const attentionCritical = attentionItems.filter(
+    (item) => (item as Record<string, unknown>).severity === 'critical',
+  ).length
 
   usePolling(fetchPulse, 5000)
   usePolling(fetchMeshNodes, 15000)
-
-  const fetchWorkstationMode = useCallback(async () => {
-    try {
-      const data = await fetchApi<{ ok?: boolean; mode_composite?: Record<string, unknown> }>('/workstation/mode-composite')
-      if (data.ok) {
-        const mc = data.mode_composite ?? {}
-        setPosture((mc.effective_posture as string) ?? '')
-        setContinuityState((mc.continuity_state as string) ?? '')
-        setLifecycleMode((mc.lifecycle_mode as string) ?? '')
-        setProfileModes((mc.active_profile_modes as string[]) ?? [])
-      }
-    } catch { /* silent */ }
-    try {
-      const data = await fetchApi<{ ok?: boolean; count?: number }>('/workstation/nodes')
-      if (data.ok) setNodeCount(data.count ?? 0)
-    } catch { /* silent */ }
-    try {
-      const data = await fetchApi<{ ok?: boolean; stt_available?: boolean; tts_available?: boolean }>('/presence/capabilities')
-      if (data.ok) {
-        setSttAvailable(data.stt_available ?? false)
-        setTtsAvailable(data.tts_available ?? false)
-      }
-    } catch { /* silent */ }
-  }, [])
-
-  usePolling(fetchWorkstationMode, 15000, true, 1000)
 
   const isOnline = apiStatus === 'connected' || wsStatus === 'connected'
 
@@ -231,13 +204,13 @@ export function HudBar() {
       {micState === 'idle' && <div className="flex-1" />}
 
       {/* Attention badge */}
-      {attention && attention.total > 0 && (
+      {attentionTotal > 0 && (
         <span className={clsx(
           'wv-label px-2 py-0.5 rounded',
-          attention.critical > 0 ? 'bg-danger/10 text-danger' : 'bg-warn/10 text-warn',
+          attentionCritical > 0 ? 'bg-danger/10 text-danger' : 'bg-warn/10 text-warn',
         )}>
-          attn:<span className="font-mono">{attention.total}</span>
-          {attention.critical > 0 && <span className="text-danger ml-1">({attention.critical} crit)</span>}
+          attn:<span className="font-mono">{attentionTotal}</span>
+          {attentionCritical > 0 && <span className="text-danger ml-1">({attentionCritical} crit)</span>}
         </span>
       )}
 
