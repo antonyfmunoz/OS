@@ -76,10 +76,7 @@ def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> 
 
     print(f"  Logging into Clerk via {browser_type}...", file=sys.stderr)
     launcher = getattr(pw, browser_type)
-    launch_kwargs = {"headless": False}
-    if browser_type == "chromium":
-        launch_kwargs["channel"] = "chrome"
-    browser = launcher.launch(**launch_kwargs)
+    browser = launcher.launch(channel="chrome", headless=False)
     context = browser.new_context()
     page = context.new_page()
 
@@ -224,10 +221,7 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
     print(f"    [{vp_name}] Launching {browser_type}...", file=sys.stderr)
 
     launcher = getattr(pw, browser_type)
-    launch_kwargs = {"headless": False}
-    if browser_type == "chromium":
-        launch_kwargs["channel"] = "chrome"
-    browser = launcher.launch(**launch_kwargs)
+    browser = launcher.launch(channel="chrome", headless=False)
 
     auth_path = auth_states.get(browser_type, "")
     ctx_kwargs: dict[str, object] = {}
