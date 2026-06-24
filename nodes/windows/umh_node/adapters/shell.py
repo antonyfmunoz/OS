@@ -35,6 +35,9 @@ class ShellAdapter:
             return {"success": False, "error": "no command or argv provided"}
 
         try:
+            extra = {}
+            if sys.platform == "win32":
+                extra["creationflags"] = subprocess.CREATE_NO_WINDOW
             result = subprocess.run(
                 args,
                 capture_output=True,
@@ -42,6 +45,7 @@ class ShellAdapter:
                 timeout=timeout,
                 cwd=cwd,
                 shell=use_shell,
+                **extra,
             )
             return {
                 "success": result.returncode == 0,

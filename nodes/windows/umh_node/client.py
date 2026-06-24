@@ -36,6 +36,7 @@ from nodes.windows.umh_node.adapters.shell import ShellAdapter
 from nodes.windows.umh_node.config import CapabilityConfig, NodeConfig
 from nodes.windows.umh_node.governance import validate_request
 from nodes.windows.umh_node.metrics import collect_metrics
+from nodes.windows.umh_node.peripheral_scanner import scan_all_peripherals, get_scan_age_s
 from nodes.windows.umh_node.workspace import collect_workstation_state, _state_hash
 
 logger = logging.getLogger(__name__)
@@ -283,6 +284,8 @@ class NodeClient:
 
     async def _send_hello(self) -> None:
         hostname = self._config.hostname or socket.gethostname()
+        loop = asyncio.get_running_loop()
+        peripherals = await loop.run_in_executor(None, scan_all_peripherals, True)
         msg = {
             "jsonrpc": "2.0",
             "method": "node.hello",
@@ -292,6 +295,8 @@ class NodeClient:
                 "os": platform.system().lower(),
                 "os_version": platform.version(),
                 "capabilities": self._build_capabilities(),
+                "peripherals": peripherals,
+                "peripheral_scan_age_s": 0,
                 "daemon_version": "0.2.0",
                 "tailscale_ip": self._get_tailscale_ip(),
             },
@@ -310,6 +315,28 @@ class NodeClient:
         else:
             error = resp.get("error", {}).get("message", "unknown")
             raise ConnectionError(f"node.hello rejected: {error}")
+
+    async def rescan_peripherals(self) -> list[dict[str, Any]]:
+        """Rescan peripherals and notify the server of changes."""
+        loop = asyncio.get_running_loop()
+        peripherals = await loop.run_in_executor(
+            None, scan_all_peripherals, True,
+        )
+        if self._connected and self._ws is not None:
+            try:
+                await self._ws.send(json.dumps({
+                    "jsonrpc": "2.0",
+                    "method": "node.peripherals_changed",
+                    "params": {
+                        "peripherals": peripherals,
+                        "scan_age_s": get_scan_age_s(),
+                    },
+                    "id": self._next_id(),
+                }))
+                logger.info("peripherals_changed sent: %d devices", len(peripherals))
+            except Exception as exc:
+                logger.warning("failed to send peripherals_changed: %s", exc)
+        return peripherals
 
     async def _heartbeat_loop(self) -> None:
         """Control plane heartbeat — runs independently of media plane."""
@@ -508,11 +535,13 @@ class NodeClient:
         try:
             import subprocess
 
+            from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
             result = subprocess.run(
                 ["tailscale", "ip", "-4"],
                 capture_output=True,
                 text=True,
                 timeout=3,
+                **no_window_kwargs(),
             )
             if result.returncode == 0:
                 return result.stdout.strip().split("\n")[0]
