@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from transports.node_mesh.integration.types import ConnectedNode, NodeCapability  # noqa: F401 — re-exported
+from transports.node_mesh.integration.types import ConnectedNode, NodeCapability, Peripheral  # noqa: F401 — re-exported
 
 _SNAPSHOT_PATH = Path("/opt/OS/data/runtime/mesh_nodes.json")
 

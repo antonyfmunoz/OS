@@ -9,7 +9,10 @@ validates; this collects. They form a pair.
 
 Evidence collection ALWAYS runs on executor-roled nodes (with display),
 NEVER on the orchestrator node (headless). The orchestrator triggers
-collection via SSH to an executor discovered from device_registry.json.
+collection via mesh daemon dispatch (HTTP relay on port mesh_port+1).
+The daemon runs in the interactive desktop session (Session 1 on Windows),
+so Chrome opens visibly on the monitor. SSH is a fallback for non-GUI tasks
+only — it creates Session 0 processes with no display.
 
 UMH substrate subsystem. Instance-agnostic.
 """
@@ -25,6 +28,7 @@ import socket
 import subprocess
 import time
 import urllib.parse
+import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,47 +39,79 @@ from substrate.meta_ide.browser_verification_gate import DEFAULT_PASS_COUNT
 logger = logging.getLogger(__name__)
 
 _ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
+_MESH_HTTP_PORT = int(os.environ.get("UMH_MESH_HTTP_PORT", "8095"))
 
 
-def _resolve_executor_ssh() -> str:
-    """Resolve SSH target for an executor-roled node.
+def _resolve_executor_info() -> dict[str, Any]:
+    """Resolve executor node info from device_registry.json.
 
-    Priority: UMH_EXECUTOR_SSH env → UMH_BEAST_SSH fallback → device_registry.json lookup.
+    Returns dict with keys: mesh_node_id, ssh_target, os, project_root.
+    All values may be empty strings if no executor is found.
     """
-    target = os.environ.get("UMH_EXECUTOR_SSH", "")
-    if target:
-        return target
-    target = os.environ.get("UMH_BEAST_SSH", "")
-    if target:
-        return target
-    registry_path = os.path.join(_ROOT, "infra", "device_registry.json")
-    try:
-        with open(registry_path) as f:
-            devices = json.load(f)
-        for dev in devices:
-            if dev.get("role") == "executor" and dev.get("tailscale_ip"):
-                ip = dev["tailscale_ip"]
-                user = dev.get("ssh_user", "")
-                if user:
-                    return f"{user}@{ip}"
-                return ip
-    except (FileNotFoundError, json.JSONDecodeError, KeyError) as exc:
-        logger.debug("device registry lookup failed: %s", exc)
-    return ""
-
-
-def _get_executor_os() -> str:
-    """Look up the executor node's OS from device_registry.json."""
+    info: dict[str, Any] = {
+        "mesh_node_id": "",
+        "ssh_target": "",
+        "os": "",
+        "project_root": "",
+    }
     registry_path = os.path.join(_ROOT, "infra", "device_registry.json")
     try:
         with open(registry_path) as f:
             devices = json.load(f)
         for dev in devices:
             if dev.get("role") == "executor":
-                return dev.get("os", "").lower()
-    except (FileNotFoundError, json.JSONDecodeError):
-        pass
-    return ""
+                info["mesh_node_id"] = dev.get("mesh_node_id", "")
+                info["os"] = dev.get("os", "").lower()
+                info["project_root"] = dev.get("project_root", "")
+                ip = dev.get("tailscale_ip", "")
+                user = dev.get("ssh_user", "")
+                if ip:
+                    info["ssh_target"] = f"{user}@{ip}" if user else ip
+                break
+    except (FileNotFoundError, json.JSONDecodeError, KeyError) as exc:
+        logger.debug("device registry lookup failed: %s", exc)
+    return info
+
+
+def _mesh_health_check() -> bool:
+    """Check if the mesh HTTP relay is reachable."""
+    try:
+        req = urllib.request.Request(
+            f"http://localhost:{_MESH_HTTP_PORT}/health",
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("status") == "healthy"
+    except Exception:
+        return False
+
+
+def _mesh_dispatch(
+    node_id: str,
+    command: str,
+    timeout: int = 300,
+) -> dict[str, Any]:
+    """Dispatch a shell command to a mesh node via the HTTP relay.
+
+    Returns the full dispatch response dict:
+    {"ok": bool, "status": str, "result_data": {"stdout": str, "stderr": str, "exit_code": int}}
+    """
+    payload = json.dumps({
+        "node_id": node_id,
+        "capability": "shell",
+        "params": {"command": command, "timeout": timeout},
+        "timeout": timeout,
+    }).encode()
+
+    req = urllib.request.Request(
+        f"http://localhost:{_MESH_HTTP_PORT}/dispatch",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout + 30) as resp:
+        return json.loads(resp.read().decode())
 
 
 def _get_local_node_role() -> str:
@@ -93,9 +129,6 @@ def _get_local_node_role() -> str:
     except (FileNotFoundError, json.JSONDecodeError):
         pass
     return "unknown"
-
-
-_COLLECTOR_SCRIPT_PATH = "C:\\dev\\dev\\OS\\scripts\\browser_gate_collector.py"
 
 VIEWPORTS: list[dict[str, Any]] = [
     {
@@ -225,11 +258,186 @@ class PassEvidence:
         }
 
 
+def _build_collector_command(
+    executor_info: dict[str, Any],
+    target_url: str,
+    pass_count: int,
+) -> str:
+    """Build the collector command string appropriate for the executor OS."""
+    project_root = executor_info.get("project_root", "")
+    executor_os = executor_info.get("os", "")
+
+    if executor_os == "windows":
+        script = f'{project_root}\\OS\\scripts\\browser_gate_collector.py'
+        collector_cmd = (
+            f'python "{script}" '
+            f"--url {target_url} "
+            f"--passes {int(pass_count)} "
+            f"--output-json"
+        )
+        tpl = f'{project_root}\\OS\\scripts\\.env.beast.tpl'
+    else:
+        script = f"{project_root}/scripts/browser_gate_collector.py"
+        collector_cmd = (
+            f"python {shlex.quote(script)} "
+            f"--url {shlex.quote(target_url)} "
+            f"--passes {int(pass_count)} "
+            f"--output-json"
+        )
+        tpl = f"{project_root}/scripts/.env.beast.tpl"
+
+    cred_gate = validate_credential_source()
+    if cred_gate.injection_ready:
+        if executor_os == "windows":
+            return f'op run --env-file="{tpl}" -- {collector_cmd}'
+        else:
+            return f"op run --env-file={shlex.quote(tpl)} -- {collector_cmd}"
+    else:
+        logger.warning(
+            "Running without credential injection: %s", cred_gate.fallback_reason
+        )
+        return collector_cmd
+
+
+def _parse_collector_output(
+    stdout: str,
+    stderr: str,
+    node_meta: dict[str, str],
+) -> dict[str, Any]:
+    """Parse collector JSON from stdout. Handles partial output and embedded JSON."""
+    if stdout.strip():
+        try:
+            output = json.loads(stdout)
+            if stderr:
+                output["collector_stderr"] = stderr[:500]
+            output.update(node_meta)
+            return output
+        except json.JSONDecodeError:
+            pass
+        json_start = stdout.rfind('{"passes"')
+        if json_start >= 0:
+            try:
+                parsed_data = json.loads(stdout[json_start:])
+                parsed_data.update(node_meta)
+                return parsed_data
+            except json.JSONDecodeError:
+                pass
+    return {
+        "passes": [],
+        "error": stderr[:500] if stderr else "No collector output",
+        "raw_output": stdout[-1000:] if stdout else "",
+        **node_meta,
+    }
+
+
+def _trigger_via_mesh(
+    executor_info: dict[str, Any],
+    target_url: str,
+    pass_count: int,
+    node_meta: dict[str, str],
+) -> dict[str, Any]:
+    """Primary path: dispatch collection through mesh daemon (interactive session)."""
+    node_id = executor_info["mesh_node_id"]
+    command = _build_collector_command(executor_info, target_url, pass_count)
+    timeout = pass_count * len(VIEWPORTS) * 120 + 60
+
+    logger.info(
+        "Triggering browser evidence collection via mesh dispatch (node=%s): "
+        "%d passes × %d viewports",
+        node_id,
+        pass_count,
+        len(VIEWPORTS),
+    )
+
+    try:
+        result = _mesh_dispatch(node_id, command, timeout=timeout)
+    except Exception as exc:
+        logger.error("Mesh dispatch failed: %s", exc)
+        return {"passes": [], "error": f"Mesh dispatch error: {exc}", **node_meta}
+
+    if not result.get("ok"):
+        error = result.get("error", "unknown mesh dispatch error")
+        status = result.get("status", "")
+        logger.error("Mesh dispatch returned not-ok: status=%s error=%s", status, error)
+        rd = result.get("result_data", {})
+        stdout = rd.get("stdout", "")
+        if stdout:
+            return _parse_collector_output(stdout, rd.get("stderr", ""), node_meta)
+        return {"passes": [], "error": error, "dispatch_status": status, **node_meta}
+
+    rd = result.get("result_data", {})
+    stdout = rd.get("stdout", "")
+    stderr = rd.get("stderr", "")
+
+    return _parse_collector_output(stdout, stderr, node_meta)
+
+
+def _trigger_via_ssh(
+    executor_info: dict[str, Any],
+    target_url: str,
+    pass_count: int,
+    node_meta: dict[str, str],
+) -> dict[str, Any]:
+    """Fallback path: dispatch collection via SSH (Session 0 — no display)."""
+    ssh_target = executor_info["ssh_target"]
+    command = _build_collector_command(executor_info, target_url, pass_count)
+    timeout = pass_count * len(VIEWPORTS) * 120 + 60
+
+    logger.warning(
+        "Falling back to SSH dispatch (Session 0, no display) on %s: %d passes × %d viewports",
+        ssh_target,
+        pass_count,
+        len(VIEWPORTS),
+    )
+
+    ssh_args = [
+        "ssh",
+        "-o", "ConnectTimeout=30",
+        "-o", "StrictHostKeyChecking=accept-new",
+        "-o", "ServerAliveInterval=15",
+        ssh_target,
+        command,
+    ]
+
+    try:
+        raw_result = gated_subprocess_run(
+            ssh_args,
+            capture_output=True,
+            text=False,
+            timeout=timeout,
+            caller="browser_evidence_collector",
+        )
+    except subprocess.TimeoutExpired as exc:
+        partial = exc.stdout.decode("utf-8", errors="replace") if exc.stdout else ""
+        logger.error("SSH collection timed out after %ss", exc.timeout)
+        return {
+            "passes": [],
+            "error": f"Collection timed out after {exc.timeout}s",
+            "stdout": partial[-2000:],
+            **node_meta,
+        }
+
+    if raw_result is None:
+        logger.error("CPU gate blocked browser evidence collection")
+        return {"passes": [], "error": "CPU gate blocked collection", **node_meta}
+
+    stdout = raw_result.stdout.decode("utf-8", errors="replace") if raw_result.stdout else ""
+    stderr = raw_result.stderr.decode("utf-8", errors="replace") if raw_result.stderr else ""
+
+    if raw_result.returncode != 0:
+        logger.warning("Executor collector exited %d: %s", raw_result.returncode, stderr[:300])
+
+    return _parse_collector_output(stdout, stderr, node_meta)
+
+
 def trigger_collection(
     target_url: str,
     pass_count: int = DEFAULT_PASS_COUNT,
 ) -> dict[str, Any]:
-    """Trigger evidence collection on an executor node via SSH.
+    """Trigger evidence collection on an executor node.
+
+    Primary path: mesh daemon dispatch (interactive desktop session, Chrome visible).
+    Fallback: SSH dispatch (Session 0, no display — warns loudly).
 
     Returns evidence dict with 'passes' key suitable for
     BrowserVerificationGate.validate_evidence().
@@ -238,127 +446,27 @@ def trigger_collection(
     if parsed.scheme != "https":
         return {"passes": [], "error": f"Only https URLs allowed, got {parsed.scheme}"}
 
-    executor_os = _get_executor_os()
-    if executor_os == "windows":
-        collector_cmd = (
-            f'python "{_COLLECTOR_SCRIPT_PATH}" '
-            f"--url {target_url} "
-            f"--passes {int(pass_count)} "
-            f"--output-json"
-        )
-    else:
-        collector_cmd = (
-            f"python {shlex.quote(_COLLECTOR_SCRIPT_PATH)} "
-            f"--url {shlex.quote(target_url)} "
-            f"--passes {int(pass_count)} "
-            f"--output-json"
-        )
-
-    executor_ssh = _resolve_executor_ssh()
-    if not executor_ssh:
-        logger.error("No executor node available for browser collection")
-        return {
-            "passes": [],
-            "error": "No executor SSH target (set UMH_EXECUTOR_SSH or register an executor in device_registry.json)",
-        }
-
-    cred_gate = validate_credential_source()
-    if cred_gate.injection_ready:
-        executor_tpl = _COLLECTOR_SCRIPT_PATH.replace(
-            "browser_gate_collector.py", ".env.beast.tpl"
-        )
-        remote_cmd = f'op run --env-file="{executor_tpl}" -- {collector_cmd}'
-    else:
-        logger.warning(
-            "Running without credential injection: %s", cred_gate.fallback_reason
-        )
-        remote_cmd = collector_cmd
-
-    ssh_args = [
-        "ssh",
-        "-o",
-        "ConnectTimeout=30",
-        "-o",
-        "StrictHostKeyChecking=accept-new",
-        "-o",
-        "ServerAliveInterval=15",
-        executor_ssh,
-        remote_cmd,
-    ]
-
-    logger.info(
-        "Triggering browser evidence collection on executor (%s): %d passes × %d viewports",
-        executor_ssh,
-        pass_count,
-        len(VIEWPORTS),
-    )
-
-    try:
-        raw_result = gated_subprocess_run(
-            ssh_args,
-            capture_output=True,
-            text=False,
-            timeout=pass_count * len(VIEWPORTS) * 120 + 60,
-            caller="browser_evidence_collector",
-        )
-    except subprocess.TimeoutExpired as exc:
-        partial_out = exc.stdout.decode("utf-8", errors="replace") if exc.stdout else ""
-        logger.error("Browser collection timed out after %ss", exc.timeout)
-        return {
-            "passes": [],
-            "error": f"Collection timed out after {exc.timeout}s",
-            "stdout": partial_out[-2000:],
-        }
-
-    if raw_result is None:
-        logger.error("CPU gate blocked browser evidence collection")
-        return {"passes": [], "error": "CPU gate blocked collection"}
-
-    stdout = raw_result.stdout.decode("utf-8", errors="replace") if raw_result.stdout else ""
-    stderr = raw_result.stderr.decode("utf-8", errors="replace") if raw_result.stderr else ""
-
-    if raw_result.returncode != 0:
-        logger.warning("Executor collector exited %d: %s", raw_result.returncode, stderr[:300])
-        if stdout.strip():
-            try:
-                output = json.loads(stdout)
-                output["collector_stderr"] = stderr[:500]
-                output.update(node_meta)
-                return output
-            except json.JSONDecodeError:
-                pass
-        return {
-            "passes": [],
-            "error": stderr[:500],
-            "stdout": stdout[:500],
-        }
-
+    executor_info = _resolve_executor_info()
     node_meta = {
         "collection_node": socket.gethostname(),
         "collection_node_role": _get_local_node_role(),
-        "executor_target": executor_ssh,
+        "executor_target": executor_info.get("mesh_node_id") or executor_info.get("ssh_target", ""),
     }
 
-    try:
-        output = json.loads(stdout)
-        output.update(node_meta)
-        return output
-    except json.JSONDecodeError:
-        json_start = stdout.rfind('{"passes"')
-        if json_start >= 0:
-            try:
-                parsed = json.loads(stdout[json_start:])
-                parsed.update(node_meta)
-                return parsed
-            except json.JSONDecodeError:
-                pass
-        logger.error("Failed to parse executor collector output as JSON")
-        return {
-            "passes": [],
-            "error": "JSON parse failed",
-            "raw_output": stdout[-1000:],
-            **node_meta,
-        }
+    # Primary: mesh dispatch (interactive session, Chrome visible on monitor)
+    if executor_info.get("mesh_node_id") and _mesh_health_check():
+        return _trigger_via_mesh(executor_info, target_url, pass_count, node_meta)
+
+    # Fallback: SSH (warns — Session 0 has no display)
+    if executor_info.get("ssh_target"):
+        return _trigger_via_ssh(executor_info, target_url, pass_count, node_meta)
+
+    logger.error("No executor node available for browser collection")
+    return {
+        "passes": [],
+        "error": "No executor available (mesh daemon offline, no SSH target)",
+        **node_meta,
+    }
 
 
 _LOG_REQUEST_RE = re.compile(

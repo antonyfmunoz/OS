@@ -26,6 +26,8 @@ import threading
 import time
 from typing import Any
 
+from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
+
 logger = logging.getLogger(__name__)
 
 _ERROR_SIGNATURES = (
@@ -138,6 +140,7 @@ class HermesAdapter:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                **no_window_kwargs(),
             )
             with self._process_lock:
                 self._active_process = proc
@@ -224,6 +227,7 @@ class HermesAdapter:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                **no_window_kwargs(),
             )
             if result.returncode != 0:
                 return {"success": True, "providers": [{"name": "unknown"}]}
@@ -248,6 +252,7 @@ class HermesAdapter:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                **no_window_kwargs(),
             )
             if result.returncode != 0:
                 return {"success": True, "models": ["hermes-default"]}
@@ -272,6 +277,7 @@ class HermesAdapter:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                **no_window_kwargs(),
             )
             provider = result.stdout.strip() if result.returncode == 0 else "unknown"
             provider = _redact_secrets(provider)
@@ -315,6 +321,7 @@ class HermesAdapter:
                 capture_output=True,
                 text=True,
                 timeout=5,
+                **no_window_kwargs(),
             )
             if result.returncode == 0:
                 version = result.stdout.strip()
@@ -328,6 +335,7 @@ class HermesAdapter:
                 capture_output=True,
                 text=True,
                 timeout=5,
+                **no_window_kwargs(),
             )
             config_readable = result.returncode == 0
         except Exception:

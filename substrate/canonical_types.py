@@ -1269,6 +1269,9 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "GateResult": ["substrate.organism.self_use.certification_report"],
     "CertificationReport": ["substrate.organism.self_use.certification_report"],
     "ReportBuilder": ["substrate.organism.self_use.certification_report"],
+    # ── transports/node_mesh/integration/types.py (peripheral inventory) ──
+    "PeripheralType": ["transports.node_mesh.integration.types"],
+    "Peripheral": ["transports.node_mesh.integration.types"],
 }
 
 

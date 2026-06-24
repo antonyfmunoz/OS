@@ -12,6 +12,8 @@ import logging
 import subprocess
 from typing import Any
 
+from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_IMAGE = "umh-computer-use:latest"
@@ -60,6 +62,7 @@ class ContainerAdapter:
             capture_output=True,
             text=True,
             timeout=30,
+            **no_window_kwargs(),
         )
 
         if result.returncode != 0:
@@ -85,6 +88,7 @@ class ContainerAdapter:
             capture_output=True,
             text=True,
             timeout=30,
+            **no_window_kwargs(),
         )
 
         return {
@@ -107,6 +111,7 @@ class ContainerAdapter:
             capture_output=True,
             text=True,
             timeout=10,
+            **no_window_kwargs(),
         )
 
         if result.returncode != 0:
@@ -116,6 +121,7 @@ class ContainerAdapter:
             ["docker", "exec", container, "cat", "/tmp/screenshot.png"],
             capture_output=True,
             timeout=10,
+            **no_window_kwargs(),
         )
 
         if cat_result.returncode != 0:
@@ -138,6 +144,7 @@ class ContainerAdapter:
             capture_output=True,
             text=True,
             timeout=15,
+            **no_window_kwargs(),
         )
 
         return {
@@ -157,6 +164,7 @@ class ContainerAdapter:
             capture_output=True,
             text=True,
             timeout=10,
+            **no_window_kwargs(),
         )
 
         containers = []
