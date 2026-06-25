@@ -56,8 +56,13 @@ def _clerk_login_sync(
     """Synchronous Playwright Clerk login flow."""
     email_input = page.locator('input[name="identifier"], input[type="email"]')
     if email_input.count() == 0:
-        logger.debug("No email input found — may already be authenticated")
-        return True
+        try:
+            page.wait_for_selector(post_login_selector, timeout=5000)
+            logger.debug("No email input + post-login selector present — already authenticated")
+            return True
+        except Exception:
+            logger.warning("No email input and no post-login selector — auth state unknown")
+            return False
 
     if not email or not password:
         logger.warning("Credentials empty — login will fail. Check op run / env vars.")
@@ -78,7 +83,11 @@ def _clerk_login_sync(
             submit_btn.first.click()
             time.sleep(3)
 
-    page.wait_for_selector(post_login_selector, timeout=timeout_ms)
+    try:
+        page.wait_for_selector(post_login_selector, timeout=timeout_ms)
+    except Exception:
+        logger.error("Post-login selector not detected — login may have failed")
+        return False
     time.sleep(2)
     return True
 
@@ -233,8 +242,12 @@ async def ensure_clerk_auth_async(
         logger.error("Clerk login failed")
 
     state_dir = Path(state_path).parent
-    state_dir.mkdir(parents=True, exist_ok=True)
+    state_dir.mkdir(parents=True, mode=0o700, exist_ok=True)
     await context.storage_state(path=state_path)
+    try:
+        os.chmod(state_path, 0o600)
+    except OSError:
+        pass
     logger.info("Auth state saved to %s", state_path)
 
     return state_path, context

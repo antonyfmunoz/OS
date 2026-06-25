@@ -1281,11 +1281,27 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         The message gets wrapped as type='chat_message' and included in
         the next WS pulse cycle. Used by Discord bot and other channels
         to push cross-channel messages to the cockpit in near-real-time.
+
+        If the message has action_required=True, also fires a push notification
+        to reach the operator when the cockpit tab is not active.
         """
         event = {"type": "chat_message", **message}
         _pending_organism_events.append(event)
         if len(_pending_organism_events) > 200:
             _pending_organism_events[:] = _pending_organism_events[-100:]
+
+        if message.get("action_required"):
+            try:
+                from transports.api.cockpit_push_routes import send_push_notification
+
+                send_push_notification(
+                    title="UMH — Action Required",
+                    body=message.get("content", "")[:200],
+                    category="action_required",
+                    url="/",
+                )
+            except Exception:
+                pass
 
     def _extract_ws_subprotocol(ws: WebSocket) -> str | None:
         """Return the bearer subprotocol string if the client sent one, else None."""
