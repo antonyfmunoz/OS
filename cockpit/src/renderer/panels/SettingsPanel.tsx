@@ -3,6 +3,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useDeviceStore } from '../stores/deviceStore'
 import type { TailscalePeer } from '../stores/deviceStore'
 import { usePolling } from '../hooks/usePolling'
+import { DeviceDiagnosisInline } from '../components/DeviceDiagnosisInline'
 
 const AUTHORITY_COLORS: Record<string, string> = {
   AUTONOMOUS: 'text-ok',
@@ -225,18 +226,17 @@ function DeviceManagementSection() {
         ))}
       </div>
 
-      {/* Scan results — unregistered peers (backend filters infrastructure + registered) */}
+      {/* Scan results — unregistered peers with diagnosis + onboarding actions */}
       {scanResult && scanResult.unregistered > 0 && (
         <div>
           <p className="wv-label mb-2">Unregistered Peers ({scanResult.unregistered})</p>
           <div className="space-y-1.5">
             {scanResult.peers.map((p: TailscalePeer) => (
-              <div key={p.dns_name || p.hostname} className="wv-card flex items-center gap-3 px-3 py-2">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${p.online ? 'bg-ok' : 'bg-text-tertiary'}`} />
-                <span className="text-sm flex-1">{p.display_hostname || p.dns_name || p.hostname}</span>
-                <span className="font-mono text-[10px] text-text-tertiary">{p.os}</span>
-                <span className="font-mono text-[10px] text-cyan">{p.tailscale_ips[0] ?? ''}</span>
-              </div>
+              <DeviceDiagnosisInline
+                key={p.dns_name || p.hostname}
+                peer={p}
+                onRegistered={fetchDevices}
+              />
             ))}
           </div>
         </div>
