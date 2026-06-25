@@ -14,5 +14,15 @@ export default defineConfig({
   },
   build: {
     outDir: resolve(__dirname, 'dist-web'),
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'src/renderer/index.html'),
+        sw: resolve(__dirname, 'src/renderer/sw.ts'),
+      },
+      output: {
+        entryFileNames: (chunkInfo) =>
+          chunkInfo.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js',
+      },
+    },
   },
 })

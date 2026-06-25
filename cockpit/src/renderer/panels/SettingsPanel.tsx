@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useDeviceStore } from '../stores/deviceStore'
 import type { TailscalePeer } from '../stores/deviceStore'
 import { usePolling } from '../hooks/usePolling'
 import { DeviceDiagnosisInline } from '../components/DeviceDiagnosisInline'
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed, getPushState } from '../lib/pushNotifications'
+import { fetchApi } from '../api/client'
 
 const AUTHORITY_COLORS: Record<string, string> = {
   AUTONOMOUS: 'text-ok',
@@ -131,6 +133,9 @@ export function SettingsPanel() {
       {/* Device Management */}
       <DeviceManagementSection />
 
+      {/* Push Notifications */}
+      <PushNotificationsSection />
+
     </div>
   )
 }
@@ -241,6 +246,99 @@ function DeviceManagementSection() {
           </div>
         </div>
       )}
+    </section>
+  )
+}
+
+function PushNotificationsSection() {
+  const [subscribed, setSubscribed] = useState(false)
+  const [permState, setPermState] = useState<string>('default')
+  const [loading, setLoading] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
+
+  const refresh = useCallback(async () => {
+    const state = await getPushState()
+    setPermState(state)
+    if (state === 'granted') {
+      setSubscribed(await isSubscribed())
+    }
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
+
+  const handleToggle = async () => {
+    setLoading(true)
+    try {
+      if (subscribed) {
+        await unsubscribeFromPush()
+        setSubscribed(false)
+      } else {
+        const sub = await subscribeToPush()
+        setSubscribed(sub !== null)
+      }
+      await refresh()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTest = async () => {
+    setTestResult(null)
+    try {
+      const res = await fetchApi<{ success: boolean }>('/push/test', { method: 'POST' })
+      setTestResult(res.success ? 'sent' : 'failed')
+    } catch {
+      setTestResult('error')
+    }
+  }
+
+  if (!isPushSupported()) {
+    return (
+      <section>
+        <h3 className="wv-label mb-3">Push Notifications</h3>
+        <p className="text-xs text-text-tertiary">Not supported in this browser.</p>
+      </section>
+    )
+  }
+
+  return (
+    <section>
+      <h3 className="wv-label mb-3">Push Notifications</h3>
+      <div className="wv-card px-3 py-2 space-y-2">
+        <div className="flex items-center gap-3">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${subscribed ? 'bg-ok' : 'bg-text-tertiary'}`} />
+          <span className="text-sm flex-1">
+            {permState === 'denied' ? 'Blocked by browser' : subscribed ? 'Subscribed' : 'Not subscribed'}
+          </span>
+          <button
+            onClick={handleToggle}
+            disabled={loading || permState === 'denied'}
+            className={`px-2 py-1 text-[10px] font-mono rounded border ${
+              subscribed
+                ? 'bg-surface-overlay text-text-secondary border-border'
+                : 'bg-cyan-glow text-cyan border-cyan/20'
+            }`}
+          >
+            {loading ? '...' : subscribed ? 'unsubscribe' : 'subscribe'}
+          </button>
+          {subscribed && (
+            <button
+              onClick={handleTest}
+              className="px-2 py-1 text-[10px] font-mono rounded bg-surface-overlay text-text-secondary border border-border"
+            >
+              test
+            </button>
+          )}
+        </div>
+        {permState === 'denied' && (
+          <p className="text-[10px] text-danger">Permission blocked — reset in browser site settings.</p>
+        )}
+        {testResult && (
+          <p className={`text-[10px] ${testResult === 'sent' ? 'text-ok' : 'text-danger'}`}>
+            Test: {testResult}
+          </p>
+        )}
+      </div>
     </section>
   )
 }

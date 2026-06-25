@@ -1486,3 +1486,16 @@ def _mount_device_router() -> None:
 
 
 _mount_device_router()
+
+
+# ── Push notification routes ──────────────────────────────────────────────
+
+
+def _mount_push_router() -> None:
+    from transports.api import cockpit_push_routes
+
+    cockpit_push_routes.configure(_require_operator_role)
+    router.include_router(cockpit_push_routes.push_router)
+
+
+_mount_push_router()

@@ -8,21 +8,22 @@ operator via the cockpit chat channel.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Callable
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
-_SSO_PATTERNS = {
-    "github": re.compile(r"github\.com/(login|oauth)", re.IGNORECASE),
-    "google": re.compile(r"accounts\.google\.com", re.IGNORECASE),
+_SSO_NETLOCS: dict[str, set[str]] = {
+    "github": {"github.com", "www.github.com"},
+    "google": {"accounts.google.com"},
 }
 
 
 def detect_sso_provider(url: str) -> str | None:
-    """Detect SSO provider from an OAuth redirect URL."""
-    for provider, pattern in _SSO_PATTERNS.items():
-        if pattern.search(url):
+    """Detect SSO provider from an OAuth redirect URL (anchored to netloc)."""
+    netloc = urlparse(url).netloc.lower()
+    for provider, allowed_netlocs in _SSO_NETLOCS.items():
+        if netloc in allowed_netlocs:
             return provider
     return None
 
