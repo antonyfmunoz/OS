@@ -3,8 +3,13 @@ import { fetchApi } from '../api/client'
 
 interface ModelRoute {
   provider: string
+  model_id?: string
   priority: number
+  quality?: number
   enabled: boolean
+  available?: boolean
+  role?: string
+  status?: string
 }
 
 interface GovernancePolicy {
@@ -25,7 +30,6 @@ interface GovernanceData {
 interface SettingsData {
   model_routing: ModelRoute[]
   governance: { auto_approve_low: boolean; critical_block: boolean }
-  notifications: { discord: boolean; file: boolean }
 }
 
 interface SettingsState {

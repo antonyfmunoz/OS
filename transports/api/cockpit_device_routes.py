@@ -38,25 +38,46 @@ def configure(require_operator_dep: Any) -> None:
     auth = [Depends(require_operator_dep)]
 
     device_router.add_api_route(
-        "/devices/list", _devices_list, methods=["GET"], dependencies=auth,
+        "/devices/list",
+        _devices_list,
+        methods=["GET"],
+        dependencies=auth,
     )
     device_router.add_api_route(
-        "/devices/scan", _devices_scan, methods=["GET"], dependencies=auth,
+        "/devices/scan",
+        _devices_scan,
+        methods=["GET"],
+        dependencies=auth,
     )
     device_router.add_api_route(
-        "/devices/diagnose", _devices_diagnose, methods=["POST"], dependencies=auth,
+        "/devices/diagnose",
+        _devices_diagnose,
+        methods=["POST"],
+        dependencies=auth,
     )
     device_router.add_api_route(
-        "/devices/register", _devices_register, methods=["POST"], dependencies=auth,
+        "/devices/register",
+        _devices_register,
+        methods=["POST"],
+        dependencies=auth,
     )
     device_router.add_api_route(
-        "/devices/remove", _devices_remove, methods=["POST"], dependencies=auth,
+        "/devices/remove",
+        _devices_remove,
+        methods=["POST"],
+        dependencies=auth,
     )
     device_router.add_api_route(
-        "/devices/provision", _devices_provision, methods=["POST"], dependencies=auth,
+        "/devices/provision",
+        _devices_provision,
+        methods=["POST"],
+        dependencies=auth,
     )
     device_router.add_api_route(
-        "/devices/invite", _devices_invite, methods=["POST"], dependencies=auth,
+        "/devices/invite",
+        _devices_invite,
+        methods=["POST"],
+        dependencies=auth,
     )
     _configured = True
 
@@ -119,49 +140,60 @@ def _tailscale_cli() -> dict[str, Any] | None:
         return None
 
 
+_INFRA_PREFIXES = ("umh-cockpit",)
+
+
+def _get_tailscale_status() -> dict[str, Any] | None:
+    """Get raw Tailscale status. Shared by scan and list enrichment."""
+    return _tailscale_local_api() or _tailscale_cli()
+
+
+def _is_infrastructure(dns_name: str) -> bool:
+    return any(dns_name.startswith(p) for p in _INFRA_PREFIXES)
+
+
 def _get_tailscale_peers() -> list[dict[str, Any]]:
-    """Get all Tailscale peers. Tries local API socket first, CLI fallback."""
-    data = _tailscale_local_api() or _tailscale_cli()
+    """Get unregistered, non-infrastructure Tailscale peers only."""
+    data = _get_tailscale_status()
     if data is None:
         return []
 
     peers: list[dict[str, Any]] = []
     registry = _load_registry()
-    registered_names = {
-        d.get("tailscale_name", "").lower() for d in registry
-    }
+    registered_names = {d.get("tailscale_name", "").lower() for d in registry}
 
-    peer_map = data.get("Peer", {})
-    for _key, peer in peer_map.items():
+    all_nodes = list(data.get("Peer", {}).values())
+    self_node = data.get("Self")
+    if self_node:
+        self_node["_is_self"] = True
+        all_nodes.append(self_node)
+
+    for peer in all_nodes:
         hostname = peer.get("HostName", "")
         dns_name = peer.get("DNSName", "").split(".")[0]
-        os_name = peer.get("OS", "").lower()
+        os_name = peer.get("OS", "")
+
+        if _is_infrastructure(dns_name):
+            continue
+
+        is_registered = dns_name.lower() in registered_names or hostname.lower() in registered_names
+        if is_registered:
+            continue
+
         ips = peer.get("TailscaleIPs", [])
-        online = peer.get("Online", False)
+        online = True if peer.get("_is_self") else peer.get("Online", False)
+        display_hostname = dns_name if dns_name else hostname
 
-        peers.append({
-            "hostname": hostname,
-            "dns_name": dns_name,
-            "os": os_name,
-            "tailscale_ips": ips,
-            "online": online,
-            "registered": dns_name.lower() in registered_names
-            or hostname.lower() in registered_names,
-        })
-
-    self_node = data.get("Self", {})
-    if self_node:
-        hostname = self_node.get("HostName", "")
-        dns_name = self_node.get("DNSName", "").split(".")[0]
-        peers.append({
-            "hostname": hostname,
-            "dns_name": dns_name,
-            "os": self_node.get("OS", "").lower(),
-            "tailscale_ips": self_node.get("TailscaleIPs", []),
-            "online": True,
-            "registered": dns_name.lower() in registered_names
-            or hostname.lower() in registered_names,
-        })
+        peers.append(
+            {
+                "hostname": hostname,
+                "dns_name": dns_name,
+                "display_hostname": display_hostname,
+                "os": os_name,
+                "tailscale_ips": ips,
+                "online": online,
+            }
+        )
 
     return peers
 
@@ -170,17 +202,46 @@ def _get_tailscale_peers() -> list[dict[str, Any]]:
 
 
 async def _devices_list(request: Request) -> list[dict[str, Any]]:
-    """GET /devices/list — all registered devices."""
-    return _load_registry()
+    """GET /devices/list — registered devices enriched with live Tailscale status."""
+    registry = _load_registry()
+    data = _get_tailscale_status()
+    if not data:
+        for dev in registry:
+            dev.setdefault("online", dev.get("always_online", False))
+        return registry
+
+    ts_by_dns: dict[str, dict[str, Any]] = {}
+    for peer in data.get("Peer", {}).values():
+        dn = peer.get("DNSName", "").split(".")[0].lower()
+        if dn:
+            ts_by_dns[dn] = peer
+    self_node = data.get("Self")
+    if self_node:
+        dn = self_node.get("DNSName", "").split(".")[0].lower()
+        if dn:
+            ts_by_dns[dn] = {**self_node, "_is_self": True}
+
+    for dev in registry:
+        ts_name = dev.get("tailscale_name", "").lower()
+        ts_peer = ts_by_dns.get(ts_name)
+        if ts_peer:
+            dev["online"] = True if ts_peer.get("_is_self") else ts_peer.get("Online", False)
+            live_ips = ts_peer.get("TailscaleIPs", [])
+            if live_ips:
+                dev["tailscale_ips"] = live_ips
+        else:
+            dev["online"] = dev.get("always_online", False)
+
+    return registry
 
 
 async def _devices_scan(request: Request) -> dict[str, Any]:
-    """GET /devices/scan — Tailscale peers with registered flag."""
+    """GET /devices/scan — unregistered, non-infrastructure Tailscale peers."""
     peers = _get_tailscale_peers()
     return {
         "peers": peers,
         "total": len(peers),
-        "unregistered": sum(1 for p in peers if not p["registered"]),
+        "unregistered": len(peers),
     }
 
 
@@ -270,6 +331,7 @@ async def _devices_remove(request: Request) -> dict[str, Any]:
             remove_mesh_token,
             signal_mesh_reload,
         )
+
         if remove_mesh_token(mesh_node_id):
             signal_mesh_reload()
     except Exception as exc:
@@ -296,8 +358,16 @@ async def _devices_provision(request: Request) -> dict[str, Any]:
     effective_role = role or device.get("role", "controller")
 
     if effective_role == "controller":
-        return {"success": True, "result": {"success": True, "device_id": device_id,
-                "role": "controller", "steps": [], "mesh_connected": False}}
+        return {
+            "success": True,
+            "result": {
+                "success": True,
+                "device_id": device_id,
+                "role": "controller",
+                "steps": [],
+                "mesh_connected": False,
+            },
+        }
 
     tailscale_ip = device.get("tailscale_ip", "")
     if not tailscale_ip:
@@ -318,6 +388,7 @@ async def _devices_invite(request: Request) -> dict[str, Any]:
     """POST /devices/invite — generate Tailscale auth key."""
     try:
         from adapters.tailscale.tailscale_api import generate_auth_key
+
         body = await request.json()
         key_data = generate_auth_key(
             reusable=body.get("reusable", False),
