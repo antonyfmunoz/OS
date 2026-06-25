@@ -53,72 +53,22 @@ VIEWPORTS = [
 ]
 
 
-def _get_auth_state_path(browser_type: str) -> str:
-    """Get path for persisted auth state."""
-    os.makedirs(AUTH_STATE_DIR, mode=0o700, exist_ok=True)
-    return os.path.join(AUTH_STATE_DIR, f"{browser_type}_state.json")
-
-
 def _ensure_auth(pw, browser_type: str, url: str, email: str, password: str) -> str:
     """Ensure Clerk auth state exists. Returns path to state file.
 
-    Launches a browser, logs in via Clerk, saves storage state.
-    Reuses existing state if still valid.
+    Delegates to adapters.browser_auth.clerk_auth for the actual login flow.
+    Email/password come from UMH_COCKPIT_EMAIL/UMH_COCKPIT_PASSWORD env vars
+    (injected by op run at dispatch time).
     """
-    state_path = _get_auth_state_path(browser_type)
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from adapters.browser_auth.clerk_auth import ensure_clerk_auth
 
-    if os.path.exists(state_path):
-        age_hours = (time.time() - os.path.getmtime(state_path)) / 3600
-        if age_hours < 12:
-            print(f"  Auth state for {browser_type} is {age_hours:.1f}h old — reusing", file=sys.stderr)
-            return state_path
-        print(f"  Auth state for {browser_type} is {age_hours:.1f}h old — refreshing", file=sys.stderr)
-
-    print(f"  Logging into Clerk via {browser_type}...", file=sys.stderr)
-    launcher = getattr(pw, browser_type)
-    browser = launcher.launch(channel="chrome", headless=False)
-    context = browser.new_context()
-    page = context.new_page()
-
-    page.goto(url, wait_until="load", timeout=30000)
-    time.sleep(3)
-
-    # Clerk login flow
-    email_input = page.locator('input[name="identifier"], input[type="email"]')
-    if email_input.count() > 0:
-        if not email or not password:
-            print("  WARNING: Credentials empty — login will fail. Check op run / env vars.", file=sys.stderr)
-        email_input.fill(email)
-        # Click visible continue/submit (Clerk hides a type=submit button)
-        continue_btn = page.locator('button:visible:has-text("Continue")')
-        if continue_btn.count() > 0:
-            continue_btn.first.click()
-            time.sleep(2)
-
-        # Password step
-        pw_input = page.locator('input[type="password"]')
-        if pw_input.count() > 0:
-            pw_input.fill(password)
-            submit_btn = page.locator('button:visible:has-text("Continue"), button:visible:has-text("Sign in")')
-            if submit_btn.count() > 0:
-                submit_btn.first.click()
-                time.sleep(3)
-
-    # Wait for cockpit to load — resilient selector chain covers loading states
-    _AUTH_SELECTORS = 'nav, .bg-surface, [data-testid="status-dot"], button[title*="IDE"]'
-    page.wait_for_selector(_AUTH_SELECTORS, timeout=30000)
-    time.sleep(2)
-
-    # Save auth state with restrictive permissions
-    context.storage_state(path=state_path)
-    try:
-        os.chmod(state_path, 0o600)
-    except OSError:
-        pass  # Windows doesn't support Unix permissions
-    print(f"  Auth state saved to {state_path}", file=sys.stderr)
-
-    browser.close()
-    return state_path
+    return ensure_clerk_auth(
+        pw,
+        browser_type=browser_type,
+        url=url,
+        channel="chrome",
+    )
 
 
 _log_layer_cache: dict | None = None
@@ -169,10 +119,20 @@ def collect_log_layer(page=None) -> dict:
         try:
             _nw = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
             result = subprocess.run(
-                ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new",
-                 "-o", "ServerAliveInterval=5", VPS_SSH,
-                 "docker logs os-operator --tail 20 2>&1 | tail -20"],
-                capture_output=True, text=True, timeout=30,
+                [
+                    "ssh",
+                    "-o",
+                    "ConnectTimeout=10",
+                    "-o",
+                    "StrictHostKeyChecking=accept-new",
+                    "-o",
+                    "ServerAliveInterval=5",
+                    VPS_SSH,
+                    "docker logs os-operator --tail 20 2>&1 | tail -20",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
                 **_nw,
             )
             if result.returncode == 0 and result.stdout.strip():
@@ -182,8 +142,14 @@ def collect_log_layer(page=None) -> dict:
                     "log_lines_checked": len(lines),
                     "tracebacks_found": sum(1 for l in lines if "Traceback" in l),
                     "auth_failures": 0,
-                    "server_errors": sum(1 for l in lines if '" 500 ' in l or '" 502 ' in l or '" 503 ' in l or '" 504 ' in l),
-                    "timeouts": sum(1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()),
+                    "server_errors": sum(
+                        1
+                        for l in lines
+                        if '" 500 ' in l or '" 502 ' in l or '" 503 ' in l or '" 504 ' in l
+                    ),
+                    "timeouts": sum(
+                        1 for l in lines if "timeout" in l.lower() or "timed out" in l.lower()
+                    ),
                 }
                 return _log_layer_cache
         except Exception:
@@ -191,7 +157,9 @@ def collect_log_layer(page=None) -> dict:
 
     # Method 3: Unauthenticated health check (some endpoints may not require auth)
     try:
-        req = urllib.request.Request("https://universalmetaharness.tech/api/umh/health", method="GET")
+        req = urllib.request.Request(
+            "https://universalmetaharness.tech/api/umh/health", method="GET"
+        )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
             healthy = data.get("status") == "ok" or resp.status == 200
@@ -214,7 +182,9 @@ def collect_log_layer(page=None) -> dict:
         }
 
 
-def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, auth_states: dict) -> dict:
+def collect_viewport_evidence(
+    pw, viewport_cfg: dict, url: str, pass_num: int, auth_states: dict
+) -> dict:
     """Collect all 4 layers for one viewport."""
     vp_name = viewport_cfg["name"]
     browser_type = viewport_cfg["browser"]
@@ -243,9 +213,16 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
     page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
 
     network_log = []
-    page.on("response", lambda resp: network_log.append({
-        "url": resp.url, "status": resp.status, "ok": resp.ok,
-    }))
+    page.on(
+        "response",
+        lambda resp: network_log.append(
+            {
+                "url": resp.url,
+                "status": resp.status,
+                "ok": resp.ok,
+            }
+        ),
+    )
 
     # Navigate
     print(f"    [{vp_name}] Navigating to {url}...", file=sys.stderr)
@@ -266,9 +243,17 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
             "width": viewport_cfg["width"],
             "height": viewport_cfg["height"],
             "browser_engine": browser_type,
-            "browser_layer": {"error": "Meta IDE button not found", "elements_confirmed": [], "entry_count": 0},
+            "browser_layer": {
+                "error": "Meta IDE button not found",
+                "elements_confirmed": [],
+                "entry_count": 0,
+            },
             "network_layer": {"endpoints_checked": [], "error_count": 0},
-            "console_layer": {"app_error_count": 1, "app_errors": ["Meta IDE button not found"], "ignored_errors": 0},
+            "console_layer": {
+                "app_error_count": 1,
+                "app_errors": ["Meta IDE button not found"],
+                "ignored_errors": 0,
+            },
             "log_layer": collect_log_layer(),
         }
 
@@ -293,7 +278,11 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
         }, 1500));
     }""")
 
-    vps_root = any(e for e in tree_data.get("entries", []) if any(d in e for d in ["bin", "boot", "dev", "etc", "home", "lib"]))
+    vps_root = any(
+        e
+        for e in tree_data.get("entries", [])
+        if any(d in e for d in ["bin", "boot", "dev", "etc", "home", "lib"])
+    )
     win_entries = page.evaluate("""() => {
         const buttons = document.querySelectorAll('button');
         const entries = [];
@@ -418,11 +407,17 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
         });
     }""")
 
-    browse_reqs = [r for r in network_log if "/workspace/browse" in r["url"] or "/workspace/remote-browse" in r["url"]]
+    browse_reqs = [
+        r
+        for r in network_log
+        if "/workspace/browse" in r["url"] or "/workspace/remote-browse" in r["url"]
+    ]
     error_reqs = [r for r in browse_reqs if not r["ok"]]
     all_failed = [r for r in network_log if not r["ok"]]
     network_layer = {
-        "endpoints_checked": list({r["url"].split("?")[0].split("/api/umh")[-1] for r in browse_reqs}),
+        "endpoints_checked": list(
+            {r["url"].split("?")[0].split("/api/umh")[-1] for r in browse_reqs}
+        ),
         "total_requests": len(browse_reqs),
         "error_count": len(error_reqs),
         "errors": error_reqs,
@@ -431,11 +426,14 @@ def collect_viewport_evidence(pw, viewport_cfg: dict, url: str, pass_num: int, a
 
     # Layer 3: Console
     print(f"    [{vp_name}] Layer 3 — Console...", file=sys.stderr)
-    app_errors = [e for e in console_errors
-                  if "clerk" not in e.lower()
-                  and "third-party" not in e.lower()
-                  and "favicon" not in e.lower()
-                  and "devtools" not in e.lower()]
+    app_errors = [
+        e
+        for e in console_errors
+        if "clerk" not in e.lower()
+        and "third-party" not in e.lower()
+        and "favicon" not in e.lower()
+        and "devtools" not in e.lower()
+    ]
     console_layer = {
         "app_error_count": len(app_errors),
         "app_errors": app_errors[:5],
@@ -469,7 +467,13 @@ def merge_viewport_evidence(viewports: list[dict], pass_number: int) -> dict:
     all_app_error_msgs = []
     total_ignored = 0
     snapshot_parts = []
-    log_data = {"service_name": "", "log_lines_checked": 0, "tracebacks_found": 0, "auth_failures": 0, "timeouts": 0}
+    log_data = {
+        "service_name": "",
+        "log_lines_checked": 0,
+        "tracebacks_found": 0,
+        "auth_failures": 0,
+        "timeouts": 0,
+    }
 
     all_passed = True
 
@@ -499,7 +503,9 @@ def merge_viewport_evidence(viewports: list[dict], pass_number: int) -> dict:
         ll = vp["log_layer"]
         if ll.get("log_lines_checked", 0) > 0:
             log_data["service_name"] = ll.get("service_name", "")
-            log_data["log_lines_checked"] = max(log_data["log_lines_checked"], ll["log_lines_checked"])
+            log_data["log_lines_checked"] = max(
+                log_data["log_lines_checked"], ll["log_lines_checked"]
+            )
             log_data["tracebacks_found"] += ll.get("tracebacks_found", 0)
             log_data["auth_failures"] += ll.get("auth_failures", 0)
             log_data["timeouts"] += ll.get("timeouts", 0)
@@ -525,8 +531,9 @@ def merge_viewport_evidence(viewports: list[dict], pass_number: int) -> dict:
     }
 
 
-def run_collection(url: str, pass_count: int, output_json: bool = True,
-                   email: str = "", password: str = "") -> dict:
+def run_collection(
+    url: str, pass_count: int, output_json: bool = True, email: str = "", password: str = ""
+) -> dict:
     """Run full evidence collection: pass_count passes × 3 viewports."""
     from playwright.sync_api import sync_playwright
 
@@ -562,16 +569,32 @@ def run_collection(url: str, pass_count: int, output_json: bool = True,
                     viewport_results.append(result)
                 except Exception as e:
                     print(f"    [{vp_cfg['name']}] ERROR: {e}", file=sys.stderr)
-                    viewport_results.append({
-                        "viewport_name": vp_cfg["name"],
-                        "width": vp_cfg["width"],
-                        "height": vp_cfg["height"],
-                        "browser_engine": vp_cfg["browser"],
-                        "browser_layer": {"elements_confirmed": [], "snapshot_summary": f"ERROR: {e}", "entry_count": 0},
-                        "network_layer": {"endpoints_checked": [], "error_count": 1},
-                        "console_layer": {"app_error_count": 1, "app_errors": [str(e)], "ignored_errors": 0},
-                        "log_layer": {"service_name": "", "log_lines_checked": 0, "tracebacks_found": 0, "auth_failures": 0, "timeouts": 0},
-                    })
+                    viewport_results.append(
+                        {
+                            "viewport_name": vp_cfg["name"],
+                            "width": vp_cfg["width"],
+                            "height": vp_cfg["height"],
+                            "browser_engine": vp_cfg["browser"],
+                            "browser_layer": {
+                                "elements_confirmed": [],
+                                "snapshot_summary": f"ERROR: {e}",
+                                "entry_count": 0,
+                            },
+                            "network_layer": {"endpoints_checked": [], "error_count": 1},
+                            "console_layer": {
+                                "app_error_count": 1,
+                                "app_errors": [str(e)],
+                                "ignored_errors": 0,
+                            },
+                            "log_layer": {
+                                "service_name": "",
+                                "log_lines_checked": 0,
+                                "tracebacks_found": 0,
+                                "auth_failures": 0,
+                                "timeouts": 0,
+                            },
+                        }
+                    )
 
             merged = merge_viewport_evidence(viewport_results, pass_num)
             all_passes.append(merged)
@@ -583,13 +606,22 @@ def run_collection(url: str, pass_count: int, output_json: bool = True,
             lc = merged["log_check"]
             dom_ok = len(bc["elements_confirmed"]) > 0
             has_device_roots = any("▾" in e for e in bc["elements_confirmed"])
-            net_ok = nc["error_count"] == 0 and (len(nc["endpoints_checked"]) > 0 or has_device_roots)
+            net_ok = nc["error_count"] == 0 and (
+                len(nc["endpoints_checked"]) > 0 or has_device_roots
+            )
             con_ok = cc["app_error_count"] == 0
-            log_ok = lc["log_lines_checked"] > 0 and lc["tracebacks_found"] == 0 and lc.get("server_errors", 0) == 0
+            log_ok = (
+                lc["log_lines_checked"] > 0
+                and lc["tracebacks_found"] == 0
+                and lc.get("server_errors", 0) == 0
+            )
             all_ok = dom_ok and net_ok and con_ok and log_ok
 
             status = "PASS" if all_ok else "FAIL"
-            print(f"  Pass {pass_num}: {status}  DOM={'OK' if dom_ok else 'FAIL'}  NET={'OK' if net_ok else 'FAIL'}  CON={'OK' if con_ok else 'FAIL'}  LOG={'OK' if log_ok else 'FAIL'}", file=sys.stderr)
+            print(
+                f"  Pass {pass_num}: {status}  DOM={'OK' if dom_ok else 'FAIL'}  NET={'OK' if net_ok else 'FAIL'}  CON={'OK' if con_ok else 'FAIL'}  LOG={'OK' if log_ok else 'FAIL'}",
+                file=sys.stderr,
+            )
 
             if pass_num < pass_count:
                 time.sleep(2)
@@ -607,8 +639,14 @@ def main():
     parser.add_argument("--url", required=True, help="Target URL to test")
     parser.add_argument("--passes", type=int, default=3, help="Number of passes")
     parser.add_argument("--output-json", action="store_true", help="Output JSON to stdout")
-    parser.add_argument("--email", default=os.environ.get("UMH_COCKPIT_EMAIL", ""), help="Clerk login email")
-    parser.add_argument("--password", default=os.environ.get("UMH_COCKPIT_PASSWORD", ""), help="Clerk login password")
+    parser.add_argument(
+        "--email", default=os.environ.get("UMH_COCKPIT_EMAIL", ""), help="Clerk login email"
+    )
+    parser.add_argument(
+        "--password",
+        default=os.environ.get("UMH_COCKPIT_PASSWORD", ""),
+        help="Clerk login password",
+    )
     args = parser.parse_args()
 
     result = run_collection(args.url, args.passes, args.output_json, args.email, args.password)
@@ -633,7 +671,10 @@ def main():
 
     print(f"\n{'=' * 60}", file=sys.stderr)
     all_passed = all(pass_results) and len(pass_results) == args.passes
-    print(f"RESULT: {'VERIFIED' if all_passed else 'FAILED'} ({sum(pass_results)}/{len(pass_results)} passes)", file=sys.stderr)
+    print(
+        f"RESULT: {'VERIFIED' if all_passed else 'FAILED'} ({sum(pass_results)}/{len(pass_results)} passes)",
+        file=sys.stderr,
+    )
     print(f"{'=' * 60}", file=sys.stderr)
 
     sys.exit(0 if all_passed else 1)

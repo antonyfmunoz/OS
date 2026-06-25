@@ -62,7 +62,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 COCKPIT_URL = "https://universalmetaharness.tech"
-CLERK_EMAIL = "antonyfm@theempyreancreative.com"
 AUTH_STATE_FILE = "c29_auth_state.json"
 
 # Timeouts (milliseconds for Playwright)
@@ -198,12 +197,12 @@ def _auth_state_path() -> Path:
 
 
 _SENSITIVE_RE = re.compile(
-    r'(eyJ[A-Za-z0-9_-]{20,}\.)'
-    r'|(Bearer\s+\S+)'
-    r'|(__session=[^\s&;]+)'
-    r'|(sk_live_\S+)'
-    r'|(clerk_\S+)'
-    r'|(token=[^\s&;]+)',
+    r"(eyJ[A-Za-z0-9_-]{20,}\.)"
+    r"|(Bearer\s+\S+)"
+    r"|(__session=[^\s&;]+)"
+    r"|(sk_live_\S+)"
+    r"|(clerk_\S+)"
+    r"|(token=[^\s&;]+)",
     re.IGNORECASE,
 )
 
@@ -257,85 +256,15 @@ class EvidenceCollector:
 
 
 async def login(page: Any) -> bool:
-    """Login via Clerk. Returns True on success, False on failure."""
-    logger.info("Logging in via Clerk at %s", COCKPIT_URL)
+    """Login via Clerk. Delegates to adapters.browser_auth.clerk_auth."""
+    from adapters.browser_auth.clerk_auth import _clerk_login_async, _get_credentials
 
+    logger.info("Logging in via Clerk at %s", COCKPIT_URL)
     await page.goto(COCKPIT_URL, wait_until="domcontentloaded", timeout=TIMEOUT_LOGIN)
     await page.wait_for_timeout(2000)
 
-    # Check if already logged in (LeftRail present)
-    try:
-        await page.wait_for_selector(
-            "[data-testid='left-rail'], nav, .wv-left-rail",
-            timeout=3000,
-        )
-        logger.info("Already authenticated -- LeftRail detected.")
-        return True
-    except Exception:
-        pass
-
-    # Clerk sign-in flow: look for email input
-    try:
-        email_input = await page.wait_for_selector(
-            "input[name='identifier'], input[type='email'], "
-            "input[placeholder*='email'], input[placeholder*='Email']",
-            timeout=TIMEOUT_LOGIN,
-        )
-        if email_input is None:
-            logger.error("Email input not found.")
-            return False
-
-        await email_input.fill(CLERK_EMAIL)
-        await page.wait_for_timeout(500)
-
-        # Submit email — use visible button if available, else Enter key
-        visible_btn = page.locator(
-            "button[type='submit']:visible, "
-            "button:visible:has-text('Continue'), "
-            "button:visible:has-text('Sign in')"
-        ).first
-        if await visible_btn.count() > 0:
-            await visible_btn.click()
-        else:
-            await page.keyboard.press("Enter")
-
-        await page.wait_for_timeout(2000)
-
-        # Handle password if presented
-        password_input = await page.query_selector("input[name='password'], input[type='password']")
-        if password_input:
-            password = os.environ.get("CLERK_PASSWORD", "")
-            if not password:
-                logger.error("Password input found but CLERK_PASSWORD env var not set.")
-                return False
-            await password_input.fill(password)
-            await page.wait_for_timeout(500)
-
-            pw_btn = page.locator(
-                "button[type='submit']:visible, "
-                "button:visible:has-text('Continue'), "
-                "button:visible:has-text('Sign in')"
-            ).first
-            if await pw_btn.count() > 0:
-                await pw_btn.click()
-            else:
-                await page.keyboard.press("Enter")
-
-        # Wait for post-login navigation
-        try:
-            await page.wait_for_selector(
-                "[data-testid='left-rail'], nav, .wv-left-rail",
-                timeout=TIMEOUT_LOGIN,
-            )
-            logger.info("Login successful.")
-            return True
-        except Exception:
-            logger.error("Post-login LeftRail not detected within timeout.")
-            return False
-
-    except Exception as exc:
-        logger.error("Login failed: %s", exc)
-        return False
+    email, password = _get_credentials()
+    return await _clerk_login_async(page, email, password)
 
 
 async def save_auth_state(context: Any) -> None:
@@ -347,9 +276,11 @@ async def save_auth_state(context: Any) -> None:
 
 
 async def _create_context_with_auth(browser: Any) -> Any:
-    """Create browser context, loading saved auth state if available."""
+    """Create browser context via adapter, loading saved auth state if valid."""
+    from adapters.browser_auth.clerk_auth import validate_auth_state
+
     auth_path = _auth_state_path()
-    if auth_path.exists():
+    if validate_auth_state(str(auth_path)):
         try:
             context = await browser.new_context(
                 storage_state=str(auth_path),
@@ -379,7 +310,11 @@ async def navigate_to_panel(page: Any, label: str) -> float:
     # Fast path: use URL hash navigation (cockpit is a SPA with hash routing)
     try:
         current = page.url
-        target = f"{COCKPIT_URL}#{route_id}" if "#" not in COCKPIT_URL else f"{COCKPIT_URL.split('#')[0]}#{route_id}"
+        target = (
+            f"{COCKPIT_URL}#{route_id}"
+            if "#" not in COCKPIT_URL
+            else f"{COCKPIT_URL.split('#')[0]}#{route_id}"
+        )
         if current.rstrip("/").split("#")[0] == target.split("#")[0]:
             await page.evaluate(f"window.location.hash = '{route_id}'")
         else:
@@ -1234,9 +1169,7 @@ async def main(argv: list[str] | None = None) -> int:
     try:
         from playwright.async_api import async_playwright
     except ImportError:
-        logger.error(
-            "playwright not installed. Run: pip install playwright && playwright install"
-        )
+        logger.error("playwright not installed. Run: pip install playwright && playwright install")
         return 1
 
     store = ResultStore()

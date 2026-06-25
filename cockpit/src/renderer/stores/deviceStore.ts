@@ -9,6 +9,8 @@ export interface RegisteredDevice {
   os: string
   role: string
   tailscale_ip?: string
+  tailscale_ips?: string[]
+  online?: boolean
   compute?: boolean
   always_online?: boolean
   mesh_node_id?: string
@@ -20,10 +22,10 @@ export interface RegisteredDevice {
 export interface TailscalePeer {
   hostname: string
   dns_name: string
+  display_hostname: string
   os: string
   tailscale_ips: string[]
   online: boolean
-  registered: boolean
 }
 
 export interface DeviceDiagnosis {
