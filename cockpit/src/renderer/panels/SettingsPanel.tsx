@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useDeviceStore } from '../stores/deviceStore'
 import type { TailscalePeer } from '../stores/deviceStore'
 import { usePolling } from '../hooks/usePolling'
+import { DeviceDiagnosisInline } from '../components/DeviceDiagnosisInline'
+import { isPushSupported, subscribeToPush, unsubscribeFromPush, isSubscribed, getPushState } from '../lib/pushNotifications'
+import { fetchApi } from '../api/client'
 
 const AUTHORITY_COLORS: Record<string, string> = {
   AUTONOMOUS: 'text-ok',
@@ -32,11 +35,22 @@ export function SettingsPanel() {
           <div className="space-y-1.5">
             {settings.model_routing.map((route) => (
               <div key={route.provider} className="wv-card flex items-center gap-3 px-3 py-2">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${route.enabled ? 'bg-ok' : 'bg-text-tertiary'}`} />
-                <span className="text-sm flex-1">{route.provider}</span>
-                <span className="font-mono text-xs text-cyan">P{route.priority}</span>
-                <span className={`font-mono text-xs ${route.enabled ? 'text-ok' : 'text-text-tertiary'}`}>
-                  {route.enabled ? 'ACTIVE' : 'DISABLED'}
+                <span className={`w-2 h-2 rounded-full shrink-0 ${route.available ? 'bg-ok' : 'bg-text-tertiary'}`} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm">{route.provider}</span>
+                  {route.model_id && (
+                    <span className="text-[10px] text-text-tertiary ml-2">{route.model_id}</span>
+                  )}
+                </div>
+                {route.role && (
+                  <span className="font-mono text-[10px] text-warn">{route.role}</span>
+                )}
+                {route.quality != null && route.quality > 0 && (
+                  <span className="font-mono text-[10px] text-text-secondary">Q{route.quality}</span>
+                )}
+                <span className="font-mono text-[10px] text-cyan">P{route.priority}</span>
+                <span className={`font-mono text-[10px] ${route.available ? 'text-ok' : 'text-text-tertiary'}`}>
+                  {route.status || (route.available ? 'healthy' : 'unavailable')}
                 </span>
               </div>
             ))}
@@ -119,25 +133,9 @@ export function SettingsPanel() {
       {/* Device Management */}
       <DeviceManagementSection />
 
-      {/* Notification Settings */}
-      <section>
-        <h3 className="wv-label mb-3">Notifications</h3>
-        {settings ? (
-          <div className="flex gap-4">
-            {Object.entries(settings.notifications).map(([key, enabled]) => (
-              <div key={key} className="wv-card flex items-center gap-2 px-3 py-2">
-                <span className={`w-2 h-2 rounded-full ${enabled ? 'bg-ok' : 'bg-text-tertiary'}`} />
-                <span className="text-sm capitalize">{key}</span>
-                <span className={`font-mono text-xs ${enabled ? 'text-ok' : 'text-text-tertiary'}`}>
-                  {enabled ? 'ON' : 'OFF'}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-text-tertiary">—</p>
-        )}
-      </section>
+      {/* Push Notifications */}
+      <PushNotificationsSection />
+
     </div>
   )
 }
@@ -205,7 +203,7 @@ function DeviceManagementSection() {
       <div className="space-y-1.5 mb-4">
         {devices.map((d) => (
           <div key={d.id} className="wv-card flex items-center gap-3 px-3 py-2">
-            <span className={`w-2 h-2 rounded-full shrink-0 ${d.always_online ? 'bg-ok' : 'bg-text-tertiary'}`} />
+            <span className={`w-2 h-2 rounded-full shrink-0 ${d.online ? 'bg-ok' : 'bg-text-tertiary'}`} />
             <span className="text-sm flex-1">{d.display_name}</span>
             <span className="font-mono text-[10px] text-text-tertiary">{d.os}</span>
             <span className={`font-mono text-[10px] ${ROLE_BADGE[d.role] ?? 'text-text-tertiary'}`}>{d.role}</span>
@@ -233,22 +231,114 @@ function DeviceManagementSection() {
         ))}
       </div>
 
-      {/* Scan results — unregistered peers */}
+      {/* Scan results — unregistered peers with diagnosis + onboarding actions */}
       {scanResult && scanResult.unregistered > 0 && (
         <div>
           <p className="wv-label mb-2">Unregistered Peers ({scanResult.unregistered})</p>
           <div className="space-y-1.5">
-            {scanResult.peers.filter((p: TailscalePeer) => !p.registered).map((p: TailscalePeer) => (
-              <div key={p.dns_name || p.hostname} className="wv-card flex items-center gap-3 px-3 py-2">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${p.online ? 'bg-ok' : 'bg-text-tertiary'}`} />
-                <span className="text-sm flex-1">{p.hostname || p.dns_name}</span>
-                <span className="font-mono text-[10px] text-text-tertiary">{p.os}</span>
-                <span className="font-mono text-[10px] text-cyan">{p.tailscale_ips[0] ?? ''}</span>
-              </div>
+            {scanResult.peers.map((p: TailscalePeer) => (
+              <DeviceDiagnosisInline
+                key={p.dns_name || p.hostname}
+                peer={p}
+                onRegistered={fetchDevices}
+              />
             ))}
           </div>
         </div>
       )}
+    </section>
+  )
+}
+
+function PushNotificationsSection() {
+  const [subscribed, setSubscribed] = useState(false)
+  const [permState, setPermState] = useState<string>('default')
+  const [loading, setLoading] = useState(false)
+  const [testResult, setTestResult] = useState<string | null>(null)
+
+  const refresh = useCallback(async () => {
+    const state = await getPushState()
+    setPermState(state)
+    if (state === 'granted') {
+      setSubscribed(await isSubscribed())
+    }
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
+
+  const handleToggle = async () => {
+    setLoading(true)
+    try {
+      if (subscribed) {
+        await unsubscribeFromPush()
+        setSubscribed(false)
+      } else {
+        const sub = await subscribeToPush()
+        setSubscribed(sub !== null)
+      }
+      await refresh()
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTest = async () => {
+    setTestResult(null)
+    try {
+      const res = await fetchApi<{ success: boolean }>('/push/test', { method: 'POST' })
+      setTestResult(res.success ? 'sent' : 'failed')
+    } catch {
+      setTestResult('error')
+    }
+  }
+
+  if (!isPushSupported()) {
+    return (
+      <section>
+        <h3 className="wv-label mb-3">Push Notifications</h3>
+        <p className="text-xs text-text-tertiary">Not supported in this browser.</p>
+      </section>
+    )
+  }
+
+  return (
+    <section>
+      <h3 className="wv-label mb-3">Push Notifications</h3>
+      <div className="wv-card px-3 py-2 space-y-2">
+        <div className="flex items-center gap-3">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${subscribed ? 'bg-ok' : 'bg-text-tertiary'}`} />
+          <span className="text-sm flex-1">
+            {permState === 'denied' ? 'Blocked by browser' : subscribed ? 'Subscribed' : 'Not subscribed'}
+          </span>
+          <button
+            onClick={handleToggle}
+            disabled={loading || permState === 'denied'}
+            className={`px-2 py-1 text-[10px] font-mono rounded border ${
+              subscribed
+                ? 'bg-surface-overlay text-text-secondary border-border'
+                : 'bg-cyan-glow text-cyan border-cyan/20'
+            }`}
+          >
+            {loading ? '...' : subscribed ? 'unsubscribe' : 'subscribe'}
+          </button>
+          {subscribed && (
+            <button
+              onClick={handleTest}
+              className="px-2 py-1 text-[10px] font-mono rounded bg-surface-overlay text-text-secondary border border-border"
+            >
+              test
+            </button>
+          )}
+        </div>
+        {permState === 'denied' && (
+          <p className="text-[10px] text-danger">Permission blocked — reset in browser site settings.</p>
+        )}
+        {testResult && (
+          <p className={`text-[10px] ${testResult === 'sent' ? 'text-ok' : 'text-danger'}`}>
+            Test: {testResult}
+          </p>
+        )}
+      </div>
     </section>
   )
 }

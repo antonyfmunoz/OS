@@ -756,15 +756,64 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     @router.get("/settings")
     async def settings():
+        from adapters.models.model_router import (
+            MODEL_REGISTRY,
+            PROVIDER_PRIORITY,
+            PROVIDER_QUALITY,
+            ROLE_SLOTS,
+            ModelRouter,
+        )
+        from adapters.models.cc_sdk import query_cc_sync
+
+        ModelRouter()
+
+        role_map: dict[str, str] = {}
+        for role, key in ROLE_SLOTS.items():
+            role_map[key] = role.value
+
+        providers: list[dict[str, Any]] = []
+
+        from substrate.contracts.agent_types import ModelProvider
+
+        cc_available = query_cc_sync is not None
+        providers.append(
+            {
+                "provider": "cc_sdk",
+                "model_id": "claude-opus-4-6",
+                "priority": PROVIDER_PRIORITY.get(ModelProvider.CC_SDK, 3),
+                "quality": PROVIDER_QUALITY.get("cc_sdk", 0),
+                "enabled": cc_available,
+                "available": cc_available,
+                "role": role_map.get("cc_sdk"),
+                "status": "healthy" if cc_available else "not_installed",
+            }
+        )
+
+        for key, config in MODEL_REGISTRY.items():
+            prov_name = (
+                config.provider.value if hasattr(config.provider, "value") else str(config.provider)
+            )
+            priority_val = PROVIDER_PRIORITY.get(config.provider, 99)
+            quality_val = PROVIDER_QUALITY.get(key, PROVIDER_QUALITY.get(prov_name, 0))
+            providers.append(
+                {
+                    "provider": key,
+                    "model_id": config.model_id,
+                    "priority": priority_val,
+                    "quality": quality_val,
+                    "enabled": config.available,
+                    "available": config.available,
+                    "role": role_map.get(key),
+                    "status": config.status_reason
+                    or ("healthy" if config.available else "unavailable"),
+                }
+            )
+
+        providers.sort(key=lambda p: (not p["available"], p["priority"]))
+
         return {
-            "model_routing": [
-                {"provider": "cc_sdk (Opus 4.6)", "priority": 0, "enabled": True},
-                {"provider": "Gemini 2.5 Flash", "priority": 1, "enabled": True},
-                {"provider": "Groq (Llama 3.3 70B)", "priority": 2, "enabled": True},
-                {"provider": "Ollama (Gemma 3 4B)", "priority": 3, "enabled": True},
-            ],
+            "model_routing": providers,
             "governance": {"auto_approve_low": True, "critical_block": True},
-            "notifications": {"discord": True, "file": True},
         }
 
     @router.get("/mesh/nodes")
@@ -1232,11 +1281,27 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         The message gets wrapped as type='chat_message' and included in
         the next WS pulse cycle. Used by Discord bot and other channels
         to push cross-channel messages to the cockpit in near-real-time.
+
+        If the message has action_required=True, also fires a push notification
+        to reach the operator when the cockpit tab is not active.
         """
         event = {"type": "chat_message", **message}
         _pending_organism_events.append(event)
         if len(_pending_organism_events) > 200:
             _pending_organism_events[:] = _pending_organism_events[-100:]
+
+        if message.get("action_required"):
+            try:
+                from transports.api.cockpit_push_routes import send_push_notification
+
+                send_push_notification(
+                    title="UMH — Action Required",
+                    body=message.get("content", "")[:200],
+                    category="action_required",
+                    url="/",
+                )
+            except Exception:
+                pass
 
     def _extract_ws_subprotocol(ws: WebSocket) -> str | None:
         """Return the bearer subprotocol string if the client sent one, else None."""
@@ -1775,7 +1840,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 snap["last_execution_status"] = last.status
                 snap["last_execution_executor"] = last.executor_type
                 snap["last_execution_target"] = last.target_machine
-                elapsed = _time.time() - last.ended_at if last.ended_at else _time.time() - last.created_at
+                elapsed = (
+                    _time.time() - last.ended_at
+                    if last.ended_at
+                    else _time.time() - last.created_at
+                )
                 if elapsed < 60:
                     snap["last_execution_ago"] = f"{int(elapsed)}s ago"
                 elif elapsed < 3600:
@@ -1794,7 +1863,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         _snapshot_path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "runtime", "workstation_snapshot.json",
+            "data",
+            "runtime",
+            "workstation_snapshot.json",
         )
         try:
             os.makedirs(os.path.dirname(_snapshot_path), exist_ok=True)
@@ -1812,7 +1883,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         _snapshot_path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "runtime", "workstation_snapshot.json",
+            "data",
+            "runtime",
+            "workstation_snapshot.json",
         )
         snap: dict = {}
         try:
@@ -1853,7 +1926,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 snap["last_execution_status"] = last.status
                 snap["last_execution_executor"] = last.executor_type
                 snap["last_execution_target"] = last.target_machine
-                elapsed = _time.time() - last.ended_at if last.ended_at else _time.time() - last.created_at
+                elapsed = (
+                    _time.time() - last.ended_at
+                    if last.ended_at
+                    else _time.time() - last.created_at
+                )
                 if elapsed < 60:
                     snap["last_execution_ago"] = f"{int(elapsed)}s ago"
                 elif elapsed < 3600:
@@ -1889,7 +1966,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except Exception:
             pass
         try:
-            from substrate.organism.executor_runtime import load_executor_preference, preferred_executor
+            from substrate.organism.executor_runtime import (
+                load_executor_preference,
+                preferred_executor,
+            )
 
             pref = load_executor_preference()
             result["executor_type"] = pref[0] if pref else "simulation"
@@ -1910,7 +1990,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         from substrate.organism.execution_ledger import get_execution_ledger
 
         ledger = get_execution_ledger()
-        entries = ledger.query(status=status, executor_type=executor_type, limit=limit, offset=offset)
+        entries = ledger.query(
+            status=status, executor_type=executor_type, limit=limit, offset=offset
+        )
         return {
             "entries": [e.to_dict() for e in entries],
             "summary": ledger.summary(),
@@ -1926,7 +2008,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     @router.patch("/execution/preference", dependencies=[Depends(_require_operator_role)])
     async def update_executor_preference(payload: dict):
         """Update executor preference order."""
-        from substrate.organism.executor_runtime import save_executor_preference, load_executor_preference
+        from substrate.organism.executor_runtime import (
+            save_executor_preference,
+            load_executor_preference,
+        )
 
         order = payload.get("order", [])
         if not isinstance(order, list) or not order:

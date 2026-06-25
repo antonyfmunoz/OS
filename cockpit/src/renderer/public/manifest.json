@@ -1,0 +1,9 @@
+{
+  "name": "UMH Cockpit",
+  "short_name": "Cockpit",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07080a",
+  "theme_color": "#07080a",
+  "description": "Universal Meta Harness operator cockpit"
+}

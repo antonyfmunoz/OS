@@ -75,7 +75,6 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 COCKPIT_URL = "https://universalmetaharness.tech"
-CLERK_EMAIL = "antonyfm@theempyreancreative.com"
 AUTH_STATE_FILE = "c29_auth_state.json"
 
 TIMEOUT_PAGE_LOAD = 30_000
@@ -263,83 +262,23 @@ class EvidenceCollector:
 
 
 async def login(page: Any) -> bool:
-    """Login via Clerk. Returns True on success."""
+    """Login via Clerk. Delegates to adapters.browser_auth.clerk_auth."""
+    from adapters.browser_auth.clerk_auth import _clerk_login_async, _get_credentials
+
     logger.info("Logging in via Clerk at %s", COCKPIT_URL)
     await page.goto(COCKPIT_URL, wait_until="domcontentloaded", timeout=TIMEOUT_LOGIN)
     await page.wait_for_timeout(2000)
 
-    try:
-        await page.wait_for_selector(
-            "[data-testid='left-rail'], nav, .wv-left-rail",
-            timeout=3000,
-        )
-        logger.info("Already authenticated.")
-        return True
-    except Exception:
-        pass
-
-    try:
-        email_input = await page.wait_for_selector(
-            "input[name='identifier'], input[type='email'], "
-            "input[placeholder*='email'], input[placeholder*='Email']",
-            timeout=TIMEOUT_LOGIN,
-        )
-        if email_input is None:
-            logger.error("Email input not found.")
-            return False
-
-        await email_input.fill(CLERK_EMAIL)
-        await page.wait_for_timeout(500)
-
-        visible_btn = page.locator(
-            "button[type='submit']:visible, "
-            "button:visible:has-text('Continue'), "
-            "button:visible:has-text('Sign in')"
-        ).first
-        if await visible_btn.count() > 0:
-            await visible_btn.click()
-        else:
-            await page.keyboard.press("Enter")
-
-        await page.wait_for_timeout(2000)
-
-        password_input = await page.query_selector("input[name='password'], input[type='password']")
-        if password_input:
-            password = os.environ.get("CLERK_PASSWORD", "")
-            if not password:
-                logger.error("CLERK_PASSWORD env var not set.")
-                return False
-            await password_input.fill(password)
-            await page.wait_for_timeout(500)
-
-            pw_btn = page.locator(
-                "button[type='submit']:visible, "
-                "button:visible:has-text('Continue'), "
-                "button:visible:has-text('Sign in')"
-            ).first
-            if await pw_btn.count() > 0:
-                await pw_btn.click()
-            else:
-                await page.keyboard.press("Enter")
-
-        try:
-            await page.wait_for_selector(
-                "[data-testid='left-rail'], nav, .wv-left-rail",
-                timeout=TIMEOUT_LOGIN,
-            )
-            logger.info("Login successful.")
-            return True
-        except Exception:
-            logger.error("Post-login LeftRail not detected.")
-            return False
-    except Exception as exc:
-        logger.error("Login failed: %s", exc)
-        return False
+    email, password = _get_credentials()
+    return await _clerk_login_async(page, email, password)
 
 
 async def _create_context_with_auth(browser: Any) -> Any:
+    """Create browser context, loading saved auth state if valid."""
+    from adapters.browser_auth.clerk_auth import validate_auth_state
+
     auth_path = _auth_state_path()
-    if auth_path.exists():
+    if validate_auth_state(str(auth_path)):
         try:
             context = await browser.new_context(
                 storage_state=str(auth_path),
@@ -354,6 +293,7 @@ async def _create_context_with_auth(browser: Any) -> Any:
 
 
 async def save_auth_state(context: Any) -> None:
+    """Save browser context auth state for session reuse."""
     path = _auth_state_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     await context.storage_state(path=str(path))
