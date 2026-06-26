@@ -52,6 +52,8 @@ export interface ScanResult {
 
 interface DeviceState {
   devices: RegisteredDevice[]
+  devicesLoaded: boolean
+  devicesError: boolean
   scanResult: ScanResult | null
   scanning: boolean
   provisioning: string | null
@@ -67,6 +69,8 @@ interface DeviceState {
 
 export const useDeviceStore = create<DeviceState>((set, get) => ({
   devices: [],
+  devicesLoaded: false,
+  devicesError: false,
   scanResult: null,
   scanning: false,
   provisioning: null,
@@ -74,9 +78,9 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
   fetchDevices: async () => {
     try {
       const data = await fetchApi<RegisteredDevice[]>('/devices/list')
-      set({ devices: data })
+      set({ devices: data, devicesLoaded: true, devicesError: false })
     } catch {
-      set({ devices: [] })
+      set({ devices: [], devicesLoaded: true, devicesError: true })
     }
   },
 
