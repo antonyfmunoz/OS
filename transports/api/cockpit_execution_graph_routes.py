@@ -42,7 +42,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/execution-graph/nodes", dependencies=auth)
-    async def list_nodes(
+    def list_nodes(
         node_type: str | None = None,
         intent_id: str | None = None,
         limit: int = 100,
@@ -60,23 +60,23 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"nodes": [n.to_dict() for n in nodes], "count": len(nodes)}
 
     @r.get("/execution-graph/summary", dependencies=auth)
-    async def graph_summary() -> dict[str, Any]:
+    def graph_summary() -> dict[str, Any]:
         return _get_graph().summary()
 
     @r.get("/execution-graph/audit", dependencies=auth)
-    async def audit_completeness(limit: int = 100) -> dict[str, Any]:
+    def audit_completeness(limit: int = 100) -> dict[str, Any]:
         return _get_graph().audit_completeness(limit=limit)
 
     @r.get("/execution-graph/trace/{node_id}", dependencies=auth)
-    async def trace_full(node_id: str) -> dict[str, Any]:
+    def trace_full(node_id: str) -> dict[str, Any]:
         return _get_graph().trace_full(node_id)
 
     @r.get("/execution-graph/trace-intent/{intent_id}", dependencies=auth)
-    async def trace_from_intent(intent_id: str) -> dict[str, Any]:
+    def trace_from_intent(intent_id: str) -> dict[str, Any]:
         return _get_graph().trace_from_intent(intent_id)
 
     @r.get("/execution-graph/replay/{node_id}", dependencies=auth)
-    async def replay(node_id: str) -> dict[str, Any]:
+    def replay(node_id: str) -> dict[str, Any]:
         return _get_graph().replay(node_id)
 
     @r.post("/execution-graph/record", dependencies=auth)

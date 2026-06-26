@@ -126,7 +126,7 @@ def _unavailable(name: str) -> dict[str, Any]:
 
 # ── Route handlers ─────────────────────────────────────────────────────────
 
-async def _snapshot(request: Request) -> dict[str, Any]:
+def _snapshot(request: Request) -> dict[str, Any]:
     rt = _get_ops()
     if rt is None:
         return _unavailable("ProductionOpsRuntime")
@@ -143,7 +143,7 @@ async def _snapshot(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _phase(request: Request) -> dict[str, Any]:
+def _phase(request: Request) -> dict[str, Any]:
     rt = _get_ops()
     if rt is None:
         return _unavailable("ProductionOpsRuntime")
@@ -155,7 +155,7 @@ async def _phase(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _active(request: Request) -> dict[str, Any]:
+def _active(request: Request) -> dict[str, Any]:
     rt = _get_ops()
     if rt is None:
         return _unavailable("ProductionOpsRuntime")
@@ -167,7 +167,7 @@ async def _active(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _workforce_summary(request: Request) -> dict[str, Any]:
+def _workforce_summary(request: Request) -> dict[str, Any]:
     rt = _get_workforce()
     if rt is None:
         return _unavailable("ProductionWorkforceRuntime")
@@ -178,7 +178,7 @@ async def _workforce_summary(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _workforce_chart(request: Request) -> dict[str, Any]:
+def _workforce_chart(request: Request) -> dict[str, Any]:
     rt = _get_workforce()
     if rt is None:
         return _unavailable("ProductionWorkforceRuntime")
@@ -202,7 +202,7 @@ async def _reviews(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _ship_readiness(request: Request) -> dict[str, Any]:
+def _ship_readiness(request: Request) -> dict[str, Any]:
     rt = _get_review()
     if rt is None:
         return _unavailable("ProductionReviewRuntime")
@@ -215,7 +215,7 @@ async def _ship_readiness(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _learning(request: Request) -> dict[str, Any]:
+def _learning(request: Request) -> dict[str, Any]:
     rt = _get_compounding()
     if rt is None:
         return _unavailable("CapabilityCompoundingRuntime")
@@ -232,7 +232,7 @@ async def _learning(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _compounding(request: Request) -> dict[str, Any]:
+def _compounding(request: Request) -> dict[str, Any]:
     rt = _get_compounding()
     if rt is None:
         return _unavailable("CapabilityCompoundingRuntime")
@@ -244,7 +244,7 @@ async def _compounding(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _products(request: Request) -> dict[str, Any]:
+def _products(request: Request) -> dict[str, Any]:
     rt = _get_factory()
     if rt is None:
         return _unavailable("ProductFactoryRuntime")
@@ -256,7 +256,7 @@ async def _products(request: Request) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _lineage(request: Request, node_id: str) -> dict[str, Any]:
+def _lineage(request: Request, node_id: str) -> dict[str, Any]:
     rt = _get_source_truth()
     if rt is None:
         return _unavailable("SourceTruthRuntime")

@@ -46,13 +46,13 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("")
-    async def get_topology() -> dict[str, Any]:
+    def get_topology() -> dict[str, Any]:
         engine = _get_engine()
         graph = engine.topology()
         return graph.to_dict()
 
     @router.get("/{workspace_id}")
-    async def get_workspace(workspace_id: str) -> dict[str, Any]:
+    def get_workspace(workspace_id: str) -> dict[str, Any]:
         engine = _get_engine()
         summary = engine.workspace_summary(workspace_id)
         if not summary:
@@ -60,7 +60,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return summary
 
     @router.get("/{workspace_id}/health")
-    async def get_workspace_health(workspace_id: str) -> dict[str, Any]:
+    def get_workspace_health(workspace_id: str) -> dict[str, Any]:
         engine = _get_engine()
         ws = engine.registry.get(workspace_id)
         if not ws:
@@ -69,7 +69,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"workspace_id": workspace_id, "health": health.value}
 
     @router.get("/{workspace_id}/runtimes")
-    async def get_workspace_runtimes(workspace_id: str) -> dict[str, Any]:
+    def get_workspace_runtimes(workspace_id: str) -> dict[str, Any]:
         engine = _get_engine()
         ws = engine.registry.get(workspace_id)
         if not ws:
@@ -81,7 +81,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/{workspace_id}/repositories")
-    async def get_workspace_repositories(workspace_id: str) -> dict[str, Any]:
+    def get_workspace_repositories(workspace_id: str) -> dict[str, Any]:
         engine = _get_engine()
         ws = engine.registry.get(workspace_id)
         if not ws:
@@ -93,7 +93,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/{workspace_id}/build-targets")
-    async def get_workspace_build_targets(workspace_id: str) -> dict[str, Any]:
+    def get_workspace_build_targets(workspace_id: str) -> dict[str, Any]:
         engine = _get_engine()
         ws = engine.registry.get(workspace_id)
         if not ws:

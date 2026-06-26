@@ -47,22 +47,22 @@ def _validate_projection_name(name: str) -> str | None:
 
 
 @projection_router.get("/", dependencies=_get_dep())
-async def list_projections() -> dict[str, Any]:
+def list_projections() -> dict[str, Any]:
     return {"registrations": [r.to_dict() for r in _port().list_registrations()]}
 
 
 @projection_router.get("/summary", dependencies=_get_dep())
-async def projection_summary() -> dict[str, Any]:
+def projection_summary() -> dict[str, Any]:
     return _port().summary()
 
 
 @projection_router.get("/audit", dependencies=_get_dep())
-async def audit_all_projections() -> dict[str, Any]:
+def audit_all_projections() -> dict[str, Any]:
     return _port().audit_all()
 
 
 @projection_router.get("/audit/{projection_name}", dependencies=_get_dep())
-async def audit_projection(projection_name: str) -> dict[str, Any]:
+def audit_projection(projection_name: str) -> dict[str, Any]:
     err = _validate_projection_name(projection_name)
     if err:
         return {"error": err}
@@ -70,7 +70,7 @@ async def audit_projection(projection_name: str) -> dict[str, Any]:
 
 
 @projection_router.get("/{projection_id}", dependencies=_get_dep())
-async def get_projection(projection_id: str) -> dict[str, Any]:
+def get_projection(projection_id: str) -> dict[str, Any]:
     port = _port()
     reg = port.get(projection_id)
     if reg is None:
@@ -79,7 +79,7 @@ async def get_projection(projection_id: str) -> dict[str, Any]:
 
 
 @projection_router.post("/register", dependencies=_get_dep())
-async def register_projection(body: dict[str, Any]) -> dict[str, Any]:
+def register_projection(body: dict[str, Any]) -> dict[str, Any]:
     from substrate.sockets.projection_port import ProjectionRegistration
 
     reg = ProjectionRegistration(

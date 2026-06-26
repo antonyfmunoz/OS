@@ -44,17 +44,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("/home")
-    async def operator_home() -> dict[str, Any]:
+    def operator_home() -> dict[str, Any]:
         engine = _get_engine()
         return engine.snapshot().to_dict()
 
     @router.get("/health")
-    async def operator_health() -> dict[str, Any]:
+    def operator_health() -> dict[str, Any]:
         engine = _get_engine()
         return engine.health_summary().to_dict()
 
     @router.get("/attention")
-    async def operator_attention() -> dict[str, Any]:
+    def operator_attention() -> dict[str, Any]:
         engine = _get_engine()
         items = engine.attention_items()
         return {
@@ -63,7 +63,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/timeline")
-    async def operator_timeline() -> dict[str, Any]:
+    def operator_timeline() -> dict[str, Any]:
         engine = _get_engine()
         events = engine.timeline()
         return {
@@ -72,12 +72,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/approvals")
-    async def operator_approvals() -> dict[str, Any]:
+    def operator_approvals() -> dict[str, Any]:
         engine = _get_engine()
         return engine.pending_approvals()
 
     @router.get("/services")
-    async def operator_services() -> dict[str, Any]:
+    def operator_services() -> dict[str, Any]:
         engine = _get_engine()
         alerts = engine.service_alerts()
         return {
@@ -86,7 +86,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/nodes")
-    async def operator_nodes() -> dict[str, Any]:
+    def operator_nodes() -> dict[str, Any]:
         engine = _get_engine()
         nodes = engine.node_status()
         return {
@@ -95,7 +95,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/workspaces")
-    async def operator_workspaces() -> dict[str, Any]:
+    def operator_workspaces() -> dict[str, Any]:
         engine = _get_engine()
         workspaces = engine.active_workspaces()
         return {

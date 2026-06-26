@@ -54,12 +54,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("")
-    async def service_graph_topology() -> dict[str, Any]:
+    def service_graph_topology() -> dict[str, Any]:
         reg = _get_registry()
         return reg.topology().to_dict()
 
     @router.get("/services")
-    async def all_services() -> dict[str, Any]:
+    def all_services() -> dict[str, Any]:
         reg = _get_registry()
         services = reg.list_services()
         return {
@@ -68,7 +68,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/dependencies")
-    async def all_dependencies() -> dict[str, Any]:
+    def all_dependencies() -> dict[str, Any]:
         reg = _get_registry()
         topo = reg.topology()
         return {
@@ -77,7 +77,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/impact/{service_role}")
-    async def failure_impact(service_role: str) -> dict[str, Any]:
+    def failure_impact(service_role: str) -> dict[str, Any]:
         reg = _get_registry()
         svc = reg.get_service(service_role)
         if not svc:
@@ -89,19 +89,19 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return impact.to_dict()
 
     @router.get("/critical-path")
-    async def critical_path() -> dict[str, Any]:
+    def critical_path() -> dict[str, Any]:
         engine = _get_engine()
         path = engine.critical_path()
         return {"services": path}
 
     @router.get("/leaf-services")
-    async def leaf_services() -> dict[str, Any]:
+    def leaf_services() -> dict[str, Any]:
         engine = _get_engine()
         leaves = engine.leaf_services()
         return {"leaf_services": leaves, "count": len(leaves)}
 
     @router.get("/health")
-    async def service_health() -> dict[str, Any]:
+    def service_health() -> dict[str, Any]:
         engine = _get_engine()
         return engine.organism_health()
 

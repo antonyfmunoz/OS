@@ -114,21 +114,21 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 # ── Autonomous PR Factory handlers ────────────────────────────────────────────
 
 
-async def _autonomous_pr_factory_status():
+def _autonomous_pr_factory_status():
     manager, factory = _get_pr_factory()
     if factory is None:
         return {"error": "organism not running"}
     return factory.to_dict()
 
 
-async def _autonomous_pr_factory_sandboxes():
+def _autonomous_pr_factory_sandboxes():
     manager, factory = _get_pr_factory()
     if manager is None:
         return {"error": "organism not running"}
     return manager.to_dict()
 
 
-async def _autonomous_pr_factory_sandbox_detail(sandbox_id: str):
+def _autonomous_pr_factory_sandbox_detail(sandbox_id: str):
     manager, factory = _get_pr_factory()
     if manager is None:
         return {"error": "organism not running"}
@@ -138,7 +138,7 @@ async def _autonomous_pr_factory_sandbox_detail(sandbox_id: str):
     return sb.to_dict()
 
 
-async def _autonomous_pr_factory_manifests():
+def _autonomous_pr_factory_manifests():
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
     manifest_dir = os.path.join(_root, "data", "umh", "autonomous_lane", "manifests")
     manifests = []
@@ -151,7 +151,7 @@ async def _autonomous_pr_factory_manifests():
     return {"manifests": manifests, "count": len(manifests)}
 
 
-async def _autonomous_pr_factory_manifest_detail(manifest_id: str):
+def _autonomous_pr_factory_manifest_detail(manifest_id: str):
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
     path = os.path.join(
         _root, "data", "umh", "autonomous_lane", "manifests", f"{manifest_id}.json"
@@ -189,7 +189,7 @@ async def _autonomous_pr_factory_create_pr(payload: dict, request: Request):
     return result.to_dict()
 
 
-async def _autonomous_pr_factory_cleanup(sandbox_id: str):
+def _autonomous_pr_factory_cleanup(sandbox_id: str):
     manager, factory = _get_pr_factory()
     if manager is None:
         return {"error": "organism not running"}
@@ -197,7 +197,7 @@ async def _autonomous_pr_factory_cleanup(sandbox_id: str):
     return {"ok": ok, "sandbox_id": sandbox_id}
 
 
-async def _autonomous_pr_factory_parallel_dry_run():
+def _autonomous_pr_factory_parallel_dry_run():
     manager, factory = _get_pr_factory()
     if factory is None:
         return {"error": "organism not running"}
@@ -217,7 +217,7 @@ async def _autonomous_pr_factory_parallel_dry_run():
     return factory.conflict_detector.parallel_dry_run(candidates)
 
 
-async def _autonomous_pr_factory_production_truth():
+def _autonomous_pr_factory_production_truth():
     manager, factory = _get_pr_factory()
     if manager is None:
         return {"error": "organism not running"}
@@ -251,7 +251,7 @@ async def _autonomous_pr_factory_verify_merge(sandbox_id: str):
     return verification.to_dict()
 
 
-async def _autonomous_pr_factory_production_truth_detail(delta_id: str):
+def _autonomous_pr_factory_production_truth_detail(delta_id: str):
     if not _re.fullmatch(r"ptd-[a-f0-9]{8}", delta_id):
         raise HTTPException(status_code=400, detail="invalid delta_id format")
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
@@ -275,7 +275,7 @@ async def _autonomous_pr_factory_production_truth_detail(delta_id: str):
     return {"error": f"delta {delta_id} not found"}
 
 
-async def _autonomous_pr_factory_merge_verifications():
+def _autonomous_pr_factory_merge_verifications():
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
     mv_dir = os.path.join(_root, "data", "umh", "autonomous_lane", "merge_verifications")
     verifications = []
@@ -289,7 +289,7 @@ async def _autonomous_pr_factory_merge_verifications():
     return {"verifications": verifications, "count": len(verifications)}
 
 
-async def _autonomous_pr_factory_merge_verification_detail(verification_id: str):
+def _autonomous_pr_factory_merge_verification_detail(verification_id: str):
     if not _re.fullmatch(r"pmv-[a-f0-9]{8}", verification_id):
         raise HTTPException(status_code=400, detail="invalid verification_id format")
     _root = os.environ.get("UMH_ROOT", "/opt/OS")
@@ -303,7 +303,7 @@ async def _autonomous_pr_factory_merge_verification_detail(verification_id: str)
         return json.load(f)
 
 
-async def _autonomous_pr_factory_cleanup_eligible():
+def _autonomous_pr_factory_cleanup_eligible():
     manager, factory = _get_pr_factory()
     if manager is None:
         return {"error": "organism not running"}
@@ -323,7 +323,7 @@ async def _autonomous_pr_factory_cleanup_eligible():
 # ── Autonomous Cadence handlers ────────────────────────────────────────────────
 
 
-async def _autonomous_cadence_status():
+def _autonomous_cadence_status():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -333,7 +333,7 @@ async def _autonomous_cadence_status():
     return cadence.to_dict()
 
 
-async def _autonomous_cadence_run_dry_run():
+def _autonomous_cadence_run_dry_run():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -347,7 +347,7 @@ async def _autonomous_cadence_run_dry_run():
 _SAFE_API_MODES = frozenset({"off", "dry_run_only", "production_verify_only"})
 
 
-async def _autonomous_cadence_set_mode(payload: dict):
+def _autonomous_cadence_set_mode(payload: dict):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -371,7 +371,7 @@ async def _autonomous_cadence_set_mode(payload: dict):
 # ── Template Registry handlers ────────────────────────────────────────────────
 
 
-async def _template_registry_summary():
+def _template_registry_summary():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -381,7 +381,7 @@ async def _template_registry_summary():
     return registry.to_safe_dict()
 
 
-async def _template_registry_promoted():
+def _template_registry_promoted():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -406,7 +406,7 @@ async def _template_registry_promoted():
     }
 
 
-async def _template_registry_candidates():
+def _template_registry_candidates():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -431,7 +431,7 @@ async def _template_registry_candidates():
 # ── Candidate Supply handlers ─────────────────────────────────────────────────
 
 
-async def _candidate_supply_scan():
+def _candidate_supply_scan():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -441,7 +441,7 @@ async def _candidate_supply_scan():
     return supply.summary()
 
 
-async def _candidate_supply_run():
+def _candidate_supply_run():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -455,7 +455,7 @@ async def _candidate_supply_run():
 # ── Template Governance handlers ───────────────────────────────────────────────
 
 
-async def _template_governance_evaluate():
+def _template_governance_evaluate():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -481,7 +481,7 @@ async def _template_governance_evaluate():
 # ── PR Factory Preview handler ─────────────────────────────────────────────────
 
 
-async def _pr_factory_preview():
+def _pr_factory_preview():
     """Generate a preview review packet from the top eligible candidate without creating a PR."""
     daemon = _get_organism()
     if daemon is None:
@@ -536,13 +536,13 @@ async def _pr_factory_preview():
 # ── Phase 10.5: Reliability-weighted cadence handlers ────────────────────────
 
 
-async def _reliability_signals():
+def _reliability_signals():
     from substrate.organism.reliability_signals import ReliabilitySignalAggregator
     agg = ReliabilitySignalAggregator()
     return agg.aggregate()
 
 
-async def _cadence_ranked_candidates():
+def _cadence_ranked_candidates():
     daemon = _get_organism()
     supply = getattr(daemon, "_candidate_supply_engine", None) if daemon else None
     if supply is None:
@@ -564,7 +564,7 @@ async def _cadence_ranked_candidates():
     }
 
 
-async def _promotion_thresholds():
+def _promotion_thresholds():
     from substrate.organism.reliability_signals import ReliabilitySignalAggregator
     from substrate.organism.promotion_threshold_policy import PromotionThresholdPolicy
     agg = ReliabilitySignalAggregator()
@@ -573,21 +573,21 @@ async def _promotion_thresholds():
     return policy.to_dict()
 
 
-async def _template_reliability():
+def _template_reliability():
     from substrate.organism.reliability_signals import ReliabilitySignalAggregator
     agg = ReliabilitySignalAggregator()
     agg.aggregate()
     return {"templates": {tid: sig.to_dict() for tid, sig in agg._template_signals.items()}}
 
 
-async def _agent_reliability():
+def _agent_reliability():
     from substrate.organism.reliability_signals import ReliabilitySignalAggregator
     agg = ReliabilitySignalAggregator()
     agg.aggregate()
     return {"agents": {atype: sig.to_dict() for atype, sig in agg._agent_signals.items()}}
 
 
-async def _candidate_source_reliability():
+def _candidate_source_reliability():
     from substrate.organism.reliability_signals import ReliabilitySignalAggregator
     agg = ReliabilitySignalAggregator()
     agg.aggregate()

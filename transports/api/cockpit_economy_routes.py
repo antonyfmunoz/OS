@@ -78,7 +78,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 # ── Economy handlers ───────────────────────────────────────────────────────────
 
 
-async def _organism_economy():
+def _organism_economy():
     """Execution economy metrics — cost, value, leverage per runtime."""
     daemon = _get_organism()
     if daemon is None:
@@ -92,7 +92,7 @@ async def _organism_economy():
         return {"error": str(e)}
 
 
-async def _organism_economy_records(limit: int = 50):
+def _organism_economy_records(limit: int = 50):
     """Recent execution decision records."""
     daemon = _get_organism()
     if daemon is None:
@@ -106,7 +106,7 @@ async def _organism_economy_records(limit: int = 50):
         return {"error": str(e)}
 
 
-async def _organism_task_profile(task_class: str):
+def _organism_task_profile(task_class: str):
     """Runtime rankings for a specific task class."""
     daemon = _get_organism()
     if daemon is None:
@@ -123,7 +123,7 @@ async def _organism_task_profile(task_class: str):
 # ── Recursion handlers ─────────────────────────────────────────────────────────
 
 
-async def _organism_recursion():
+def _organism_recursion():
     """Current recursion governance state and limits."""
     daemon = _get_organism()
     if daemon is None:
@@ -137,7 +137,7 @@ async def _organism_recursion():
         return {"error": str(e)}
 
 
-async def _organism_recursion_escalations(limit: int = 50):
+def _organism_recursion_escalations(limit: int = 50):
     """Recent recursion escalation events."""
     daemon = _get_organism()
     if daemon is None:
@@ -151,7 +151,7 @@ async def _organism_recursion_escalations(limit: int = 50):
         return {"error": str(e)}
 
 
-async def _organism_kill_switch():
+def _organism_kill_switch():
     """Activate the kill switch — halts all autonomous execution."""
     daemon = _get_organism()
     if daemon is None:
@@ -166,7 +166,7 @@ async def _organism_kill_switch():
         return {"error": str(e)}
 
 
-async def _organism_resume_switch():
+def _organism_resume_switch():
     """Deactivate the kill switch — resume autonomous execution."""
     daemon = _get_organism()
     if daemon is None:
@@ -184,7 +184,7 @@ async def _organism_resume_switch():
 # ── Advisor handlers ───────────────────────────────────────────────────────────
 
 
-async def _organism_advisor_hierarchy():
+def _organism_advisor_hierarchy():
     """Full advisor hierarchy tree."""
     daemon = _get_organism()
     if daemon is None:
@@ -198,7 +198,7 @@ async def _organism_advisor_hierarchy():
         return {"error": str(e)}
 
 
-async def _organism_advisor_tree():
+def _organism_advisor_tree():
     """Advisor hierarchy as a nested tree structure."""
     daemon = _get_organism()
     if daemon is None:
@@ -212,7 +212,7 @@ async def _organism_advisor_tree():
         return {"error": str(e)}
 
 
-async def _organism_overdue_advisors():
+def _organism_overdue_advisors():
     """Advisors with overdue reports."""
     daemon = _get_organism()
     if daemon is None:
@@ -229,7 +229,7 @@ async def _organism_overdue_advisors():
 # ── Assimilation handlers ──────────────────────────────────────────────────────
 
 
-async def _organism_assimilation():
+def _organism_assimilation():
     """External leverage assimilation status."""
     daemon = _get_organism()
     if daemon is None:
@@ -245,7 +245,7 @@ async def _organism_assimilation():
         return {"error": str(e)}
 
 
-async def _organism_leverage_artifacts():
+def _organism_leverage_artifacts():
     """List all assimilation artifacts."""
     daemon = _get_organism()
     if daemon is None:
@@ -262,7 +262,7 @@ async def _organism_leverage_artifacts():
 # ── Snapshot + infrastructure handlers ────────────────────────────────────────
 
 
-async def _organism_full_snapshot():
+def _organism_full_snapshot():
     """Full organism snapshot — objectives, runtimes, workcells, bottlenecks."""
     daemon = _get_organism()
     if daemon is None:
@@ -282,7 +282,7 @@ async def _organism_full_snapshot():
         return {"error": str(e)}
 
 
-async def _organism_runtimes():
+def _organism_runtimes():
     daemon = _get_organism()
     if daemon is None:
         return {"runtimes": [], "count": 0}
@@ -298,7 +298,7 @@ async def _organism_runtimes():
     }
 
 
-async def _organism_governor():
+def _organism_governor():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -308,7 +308,7 @@ async def _organism_governor():
     return gov.to_dict()
 
 
-async def _organism_workcells():
+def _organism_workcells():
     daemon = _get_organism()
     if daemon is None:
         return {"workcells": [], "count": 0}
@@ -324,7 +324,7 @@ async def _organism_workcells():
 # ── Topology handlers ──────────────────────────────────────────────────────────
 
 
-async def _organism_topology():
+def _organism_topology():
     """Full operational topology — runtimes, workcells, system metrics."""
     daemon = _get_organism()
     if daemon is None:
@@ -338,7 +338,7 @@ async def _organism_topology():
         return {"error": str(e)}
 
 
-async def _organism_topology_live():
+def _organism_topology_live():
     """Capture a fresh topology snapshot and return it with diff."""
     daemon = _get_organism()
     if daemon is None:
@@ -370,7 +370,7 @@ async def _organism_topology_live():
 # ── Throughput + reconciliation handlers ──────────────────────────────────────
 
 
-async def _organism_throughput():
+def _organism_throughput():
     """Event throughput, tick timing, and pressure metrics."""
     daemon = _get_organism()
     if daemon is None:
@@ -414,7 +414,7 @@ async def _organism_throughput():
         return {"error": str(e)}
 
 
-async def _organism_reconciliation():
+def _organism_reconciliation():
     """Last reconciliation report and history."""
     daemon = _get_organism()
     if daemon is None:

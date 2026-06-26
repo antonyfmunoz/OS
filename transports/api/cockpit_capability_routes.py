@@ -43,7 +43,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/capabilities", dependencies=auth)
-    async def list_capabilities(
+    def list_capabilities(
         maturity: str | None = None,
         tag: str | None = None,
     ) -> dict[str, Any]:
@@ -60,17 +60,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"capabilities": [c.to_dict() for c in caps], "count": len(caps)}
 
     @r.get("/capabilities/summary", dependencies=auth)
-    async def capability_summary() -> dict[str, Any]:
+    def capability_summary() -> dict[str, Any]:
         return _get_runtime().summary()
 
     @r.get("/capabilities/from-intent/{intent_id}", dependencies=auth)
-    async def capabilities_from_intent(intent_id: str) -> dict[str, Any]:
+    def capabilities_from_intent(intent_id: str) -> dict[str, Any]:
         rt = _get_runtime()
         caps = rt.capabilities_from_intent(intent_id)
         return {"capabilities": [c.to_dict() for c in caps], "count": len(caps)}
 
     @r.get("/capabilities/{capability_id}", dependencies=auth)
-    async def get_capability(capability_id: str) -> dict[str, Any]:
+    def get_capability(capability_id: str) -> dict[str, Any]:
         rt = _get_runtime()
         cap = rt.get(capability_id)
         if cap is None:

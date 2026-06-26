@@ -71,7 +71,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     return r
 
 
-async def _overview(request: Request) -> dict[str, Any]:
+def _overview(request: Request) -> dict[str, Any]:
     graph = _get_graph()
     return {
         "status": "operational",
@@ -80,12 +80,12 @@ async def _overview(request: Request) -> dict[str, Any]:
     }
 
 
-async def _summary(request: Request) -> dict[str, Any]:
+def _summary(request: Request) -> dict[str, Any]:
     graph = _get_graph()
     return graph.graph_stats()
 
 
-async def _nodes(request: Request) -> dict[str, Any]:
+def _nodes(request: Request) -> dict[str, Any]:
     graph = _get_graph()
     return {
         "total": len(graph.nodes),
@@ -93,7 +93,7 @@ async def _nodes(request: Request) -> dict[str, Any]:
     }
 
 
-async def _edges(request: Request) -> dict[str, Any]:
+def _edges(request: Request) -> dict[str, Any]:
     graph = _get_graph()
     return {
         "total": len(graph.edges),
@@ -101,7 +101,7 @@ async def _edges(request: Request) -> dict[str, Any]:
     }
 
 
-async def _change_events(request: Request) -> dict[str, Any]:
+def _change_events(request: Request) -> dict[str, Any]:
     from substrate.organism.change_event import load_change_events
     events = load_change_events()
     return {
@@ -110,7 +110,7 @@ async def _change_events(request: Request) -> dict[str, Any]:
     }
 
 
-async def _results(request: Request) -> dict[str, Any]:
+def _results(request: Request) -> dict[str, Any]:
     path = os.path.join(_REPO_ROOT, "data", "umh", "propagation_graph", "propagation_results.jsonl")
     results = []
     if os.path.exists(path):
@@ -126,7 +126,7 @@ async def _results(request: Request) -> dict[str, Any]:
     }
 
 
-async def _correspondence_proof(request: Request) -> dict[str, Any]:
+def _correspondence_proof(request: Request) -> dict[str, Any]:
     proof_path = os.path.join(
         _REPO_ROOT, "data", "umh", "propagation_graph",
         "phase12_0_correspondence_layer_proof.json",

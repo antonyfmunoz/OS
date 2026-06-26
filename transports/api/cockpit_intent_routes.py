@@ -45,7 +45,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     # ── Query routes ─────────────────────────────────────────
 
     @r.get("/intent/active", dependencies=auth)
-    async def intent_active() -> dict[str, Any]:
+    def intent_active() -> dict[str, Any]:
         rt = _get_runtime()
         by_scope = rt.active_by_scope()
         return {
@@ -57,17 +57,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/intent/summary", dependencies=auth)
-    async def intent_summary() -> dict[str, Any]:
+    def intent_summary() -> dict[str, Any]:
         rt = _get_runtime()
         return {"success": True, "summary": rt.summary()}
 
     @r.get("/intent/context", dependencies=auth)
-    async def intent_context() -> dict[str, Any]:
+    def intent_context() -> dict[str, Any]:
         rt = _get_runtime()
         return {"success": True, "context": rt.context_for_session()}
 
     @r.get("/intent/conflicts", dependencies=auth)
-    async def intent_conflicts() -> dict[str, Any]:
+    def intent_conflicts() -> dict[str, Any]:
         rt = _get_runtime()
         conflicts = rt.conflicts(include_resolved=False)
         return {
@@ -76,7 +76,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/intent/{intent_id}", dependencies=auth)
-    async def intent_detail(intent_id: str) -> dict[str, Any]:
+    def intent_detail(intent_id: str) -> dict[str, Any]:
         rt = _get_runtime()
         intent = rt.get(intent_id)
         if intent is None:
@@ -84,7 +84,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"success": True, "intent": intent.to_dict()}
 
     @r.get("/intent/{intent_id}/lineage", dependencies=auth)
-    async def intent_lineage(intent_id: str) -> dict[str, Any]:
+    def intent_lineage(intent_id: str) -> dict[str, Any]:
         rt = _get_runtime()
         chain = rt.lineage(intent_id)
         return {
@@ -93,7 +93,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/intent/{intent_id}/alignment", dependencies=auth)
-    async def intent_alignment(intent_id: str) -> dict[str, Any]:
+    def intent_alignment(intent_id: str) -> dict[str, Any]:
         rt = _get_runtime()
         intent = rt.get(intent_id)
         if intent is None:

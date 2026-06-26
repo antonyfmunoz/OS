@@ -19,14 +19,14 @@ def register_governance_routes(router, _require_operator_role, helpers):
     _get_organism = helpers["_get_organism"]
 
     @router.get("/approvals")
-    async def approvals():
+    def approvals():
         daemon = _get_organism()
         if daemon is None:
             return []
         return daemon.approval_store.list_approvals()
 
     @router.post("/approvals/{approval_id}/approve", dependencies=[Depends(_require_operator_role)])
-    async def approve_item(approval_id: str):
+    def approve_item(approval_id: str):
         daemon = _get_organism()
         if daemon is None:
             return {"ok": False, "error": "organism not running"}
@@ -36,7 +36,7 @@ def register_governance_routes(router, _require_operator_role, helpers):
         return {"ok": True}
 
     @router.post("/approvals/{approval_id}/deny", dependencies=[Depends(_require_operator_role)])
-    async def deny_item(approval_id: str, payload: dict | None = None):
+    def deny_item(approval_id: str, payload: dict | None = None):
         daemon = _get_organism()
         if daemon is None:
             return {"ok": False, "error": "organism not running"}
@@ -62,7 +62,7 @@ def register_governance_routes(router, _require_operator_role, helpers):
             return None
 
     @router.get("/governance")
-    async def governance_policy():
+    def governance_policy():
         """Return current governance policy table — risk class → authority level."""
         from substrate.governance.authority import AuthorityLevel
         from substrate.governance.risk_classes import RiskClass
@@ -94,7 +94,7 @@ def register_governance_routes(router, _require_operator_role, helpers):
         }
 
     @router.patch("/governance", dependencies=[Depends(_require_operator_role)])
-    async def update_governance(payload: dict):
+    def update_governance(payload: dict):
         """Update governance policy — validated, persisted, audited.
 
         Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
@@ -133,7 +133,7 @@ def register_governance_routes(router, _require_operator_role, helpers):
         }
 
     @router.get("/governance/tiers")
-    async def permission_tiers():
+    def permission_tiers():
         """Return the 4-tier permission model with action mappings."""
         from substrate.types import PermissionTier, TIER_ACTION_MAP, _PERMISSION_TIER_RANK
 
@@ -149,7 +149,7 @@ def register_governance_routes(router, _require_operator_role, helpers):
         return {"tiers": tiers}
 
     @router.get("/governance/tier-check")
-    async def tier_check(action: str, tier: str = "execute"):
+    def tier_check(action: str, tier: str = "execute"):
         """Check if a permission tier allows a specific action."""
         from substrate.types import PermissionTier, required_tier_for_action
 

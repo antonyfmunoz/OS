@@ -44,21 +44,21 @@ def get_router():
     router = APIRouter(prefix="/orchestrator-presence", tags=["orchestrator-presence"])
 
     @router.get("/snapshot")
-    async def presence_snapshot() -> dict[str, Any]:
+    def presence_snapshot() -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "orchestrator presence not available"}
         return rt.snapshot().to_dict()
 
     @router.get("/context")
-    async def presence_context() -> dict[str, Any]:
+    def presence_context() -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "orchestrator presence not available"}
         return rt.context()
 
     @router.post("/interpret")
-    async def presence_interpret(body: InterpretRequest) -> dict[str, Any]:
+    def presence_interpret(body: InterpretRequest) -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "orchestrator presence not available"}

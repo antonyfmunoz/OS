@@ -83,7 +83,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/organism-map/topology", dependencies=auth)
-    async def topology() -> dict[str, Any]:
+    def topology() -> dict[str, Any]:
         """Full organism topology — nodes + services + edges for graph rendering."""
         nodes_data: list[dict[str, Any]] = []
         edges: list[dict[str, Any]] = []
@@ -127,7 +127,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/organism-map/health", dependencies=auth)
-    async def health() -> dict[str, Any]:
+    def health() -> dict[str, Any]:
         """Organism health overlay — failures + coherence status."""
         failures: list[dict[str, Any]] = []
         coherence: dict[str, Any] = {}
@@ -161,7 +161,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/organism-map/node/{node_id}", dependencies=auth)
-    async def node_detail(node_id: str) -> dict[str, Any]:
+    def node_detail(node_id: str) -> dict[str, Any]:
         """Click a node -> services, state, blast radius, deps inline."""
         node_data: dict[str, Any] = {}
         services: list[dict[str, Any]] = []
@@ -214,7 +214,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/organism-map/service/{service_role}/blast-radius", dependencies=auth)
-    async def service_blast_radius(service_role: str) -> dict[str, Any]:
+    def service_blast_radius(service_role: str) -> dict[str, Any]:
         """Blast radius for a specific service."""
         sg = _get_service_graph()
         if sg is None:

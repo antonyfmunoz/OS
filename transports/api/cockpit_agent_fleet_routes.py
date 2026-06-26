@@ -60,28 +60,28 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.get("/fleet/status")
-    async def fleet_status() -> dict:
+    def fleet_status() -> dict:
         fleet = _get_fleet()
         if fleet is None:
             return {"error": "agent fleet unavailable"}
         return fleet.fleet_status().to_dict()
 
     @r.get("/fleet/health")
-    async def fleet_health() -> dict:
+    def fleet_health() -> dict:
         fleet = _get_fleet()
         if fleet is None:
             return {"error": "agent fleet unavailable"}
         return fleet.fleet_health().to_dict()
 
     @r.get("/fleet/dispatches")
-    async def fleet_dispatches() -> dict:
+    def fleet_dispatches() -> dict:
         fleet = _get_fleet()
         if fleet is None:
             return {"dispatches": []}
         return {"dispatches": [d.to_dict() for d in fleet.active_dispatches()]}
 
     @r.get("/fleet/dispatches/{dispatch_id}")
-    async def fleet_dispatch_detail(dispatch_id: str) -> dict:
+    def fleet_dispatch_detail(dispatch_id: str) -> dict:
         fleet = _get_fleet()
         if fleet is None:
             raise HTTPException(status_code=503, detail="agent fleet unavailable")
@@ -94,7 +94,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @r.post("/fleet/assign")
-    async def fleet_assign(payload: dict) -> dict:
+    def fleet_assign(payload: dict) -> dict:
         fleet = _get_fleet()
         if fleet is None:
             raise HTTPException(status_code=503, detail="agent fleet unavailable")
@@ -111,7 +111,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return assignment.to_dict()
 
     @r.post("/fleet/dispatch")
-    async def fleet_dispatch(payload: dict) -> dict:
+    def fleet_dispatch(payload: dict) -> dict:
         fleet = _get_fleet()
         if fleet is None:
             raise HTTPException(status_code=503, detail="agent fleet unavailable")
@@ -132,7 +132,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return dispatch.to_dict()
 
     @r.post("/fleet/wave")
-    async def fleet_wave(payload: dict) -> dict:
+    def fleet_wave(payload: dict) -> dict:
         fleet = _get_fleet()
         if fleet is None:
             raise HTTPException(status_code=503, detail="agent fleet unavailable")
@@ -151,7 +151,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @r.get("/fleet/utilization")
-    async def fleet_utilization() -> dict:
+    def fleet_utilization() -> dict:
         fleet = _get_fleet()
         if fleet is None:
             return {"utilization": {}}

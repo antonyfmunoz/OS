@@ -57,12 +57,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("")
-    async def presence_snapshot() -> dict[str, Any]:
+    def presence_snapshot() -> dict[str, Any]:
         engine = _get_engine()
         return engine.snapshot().to_dict()
 
     @router.get("/current")
-    async def presence_current() -> dict[str, Any]:
+    def presence_current() -> dict[str, Any]:
         engine = _get_engine()
         presence = engine.current_presence()
         context = engine.active_context()
@@ -72,7 +72,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/checkpoints")
-    async def presence_checkpoints() -> dict[str, Any]:
+    def presence_checkpoints() -> dict[str, Any]:
         engine = _get_engine()
         checkpoints = engine.continuity_checkpoints()
         return {
@@ -81,7 +81,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/timeline")
-    async def presence_timeline() -> dict[str, Any]:
+    def presence_timeline() -> dict[str, Any]:
         timeline = _get_timeline()
         transitions = timeline.recent()
         return {
@@ -90,12 +90,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/devices")
-    async def presence_devices() -> dict[str, Any]:
+    def presence_devices() -> dict[str, Any]:
         tracker = _get_device_tracker()
         return tracker.to_dict()
 
     @router.get("/resume")
-    async def presence_resume() -> dict[str, Any]:
+    def presence_resume() -> dict[str, Any]:
         engine = _get_engine()
         return engine.resume_suggestion()
 
