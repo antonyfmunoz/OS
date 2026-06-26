@@ -27,7 +27,7 @@ def register_eos_routes(router, _require_operator_role, helpers):
     """Register EOS projection routes onto the given router."""
 
     @router.get("/eos/pipeline")
-    async def eos_pipeline():
+    def eos_pipeline():
         """Pipeline view — CRM data projected into sales stages."""
         try:
             from projections.eos.views.pipeline import PipelineView
@@ -47,7 +47,7 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return {"error": str(e), "stages": []}
 
     @router.get("/eos/kpis")
-    async def eos_kpis():
+    def eos_kpis():
         """KPI dashboard — business metrics as cards."""
         try:
             from projections.eos.views.kpis import KPIView
@@ -72,7 +72,7 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return {"error": str(e), "cards": []}
 
     @router.get("/eos/activity")
-    async def eos_activity(limit: int = 30):
+    def eos_activity(limit: int = 30):
         """Activity feed — recent system events in chronological order."""
         try:
             from projections.eos.views.activity import ActivityView
@@ -96,7 +96,7 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return {"error": str(e), "entries": []}
 
     @router.get("/eos/accountability")
-    async def eos_accountability():
+    def eos_accountability():
         """Accountability stats — commitment tracking, streaks, fulfillment rate."""
         try:
             from substrate.governance.accountability.accountability import AccountabilityEngine
@@ -109,7 +109,7 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return {"error": str(e)}
 
     @router.get("/eos/intelligence")
-    async def eos_intelligence():
+    def eos_intelligence():
         """Intelligence layer health — pattern/decision stats."""
         try:
             from substrate.intelligence.runtime import IntelligenceRuntime

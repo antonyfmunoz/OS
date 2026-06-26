@@ -104,7 +104,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/execution/overview", dependencies=auth)
-    async def execution_overview() -> dict[str, Any]:
+    def execution_overview() -> dict[str, Any]:
         """Unified execution overview — active work, pending approvals, telemetry."""
         active_work: list[dict[str, Any]] = []
         pending_approvals: list[dict[str, Any]] = []
@@ -144,7 +144,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/execution/work", dependencies=auth)
-    async def execution_work(
+    def execution_work(
         status: str = Query("", description="Filter by status"),
     ) -> dict[str, Any]:
         """All work packets with optional status filter."""
@@ -165,7 +165,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": True, "packets": [], "count": 0}
 
     @r.get("/execution/work/{packet_id}", dependencies=auth)
-    async def execution_work_detail(packet_id: str) -> dict[str, Any]:
+    def execution_work_detail(packet_id: str) -> dict[str, Any]:
         """Single work packet detail with telemetry and proof."""
         wr = _get_work_runtime()
         if wr is None:
@@ -191,7 +191,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": True, "packet": {}}
 
     @r.get("/execution/approvals", dependencies=auth)
-    async def execution_approvals() -> dict[str, Any]:
+    def execution_approvals() -> dict[str, Any]:
         """Pending approval intercepts requiring operator decision."""
         ap = _get_approval_service()
         if ap is None:
@@ -205,7 +205,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": True, "approvals": [], "count": 0}
 
     @r.post("/execution/approvals/{approval_id}/approve", dependencies=auth)
-    async def approve_execution(approval_id: str) -> dict[str, Any]:
+    def approve_execution(approval_id: str) -> dict[str, Any]:
         """Approve a pending execution intercept."""
         ap = _get_approval_service()
         if ap is None:
@@ -221,7 +221,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": False, "error": str(e)}
 
     @r.post("/execution/approvals/{approval_id}/reject", dependencies=auth)
-    async def reject_execution(approval_id: str) -> dict[str, Any]:
+    def reject_execution(approval_id: str) -> dict[str, Any]:
         """Reject a pending execution intercept."""
         ap = _get_approval_service()
         if ap is None:
@@ -237,7 +237,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": False, "error": str(e)}
 
     @r.get("/execution/telemetry", dependencies=auth)
-    async def execution_telemetry(
+    def execution_telemetry(
         execution_id: str = Query("", description="Filter by execution ID"),
         limit: int = Query(50, description="Max events"),
     ) -> dict[str, Any]:
@@ -259,7 +259,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": True, "events": [], "count": 0}
 
     @r.get("/execution/spine-events", dependencies=auth)
-    async def execution_spine_events(
+    def execution_spine_events(
         limit: int = Query(30, description="Max events"),
         since: float = Query(0, description="Unix timestamp"),
     ) -> dict[str, Any]:

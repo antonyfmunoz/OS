@@ -47,35 +47,35 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.get("/organism/distributed-runtime")
-    async def overview() -> dict:
+    def overview() -> dict:
         rt = _get_runtime()
         if rt is None:
             return {"error": "distributed runtime unavailable"}
         return rt.overview()
 
     @r.get("/organism/distributed-runtime/devices")
-    async def devices() -> dict:
+    def devices() -> dict:
         rt = _get_runtime()
         if rt is None:
             return {"devices": []}
         return {"devices": rt.device_summary()}
 
     @r.get("/organism/distributed-runtime/workers")
-    async def workers(device_id: str = "") -> dict:
+    def workers(device_id: str = "") -> dict:
         rt = _get_runtime()
         if rt is None:
             return {"workers": []}
         return {"workers": rt.workers(device_id=device_id or None)}
 
     @r.get("/organism/distributed-runtime/capacity")
-    async def capacity() -> dict:
+    def capacity() -> dict:
         rt = _get_runtime()
         if rt is None:
             return {"capacity": []}
         return {"capacity": rt.capacity()}
 
     @r.get("/organism/distributed-runtime/assignments")
-    async def assignments(limit: int = 50) -> dict:
+    def assignments(limit: int = 50) -> dict:
         rt = _get_runtime()
         if rt is None:
             return {"assignments": []}
@@ -83,7 +83,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"assignments": rt.assignments(limit=clamped)}
 
     @r.get("/organism/distributed-runtime/capabilities")
-    async def capabilities() -> dict:
+    def capabilities() -> dict:
         rt = _get_runtime()
         if rt is None:
             return {"capabilities": [], "devices": [], "matrix": {}}
@@ -106,7 +106,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @r.post("/organism/distributed-runtime/workers/register")
-    async def register_worker(
+    def register_worker(
         payload: dict,
         principal: str = Depends(require_operator_dep),
     ) -> dict:
@@ -139,7 +139,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"ok": True, "worker": worker.to_dict()}
 
     @r.post("/organism/distributed-runtime/workers/heartbeat")
-    async def heartbeat(payload: dict) -> dict:
+    def heartbeat(payload: dict) -> dict:
         rt = _get_runtime()
         if rt is None:
             return {"ok": False}
@@ -152,7 +152,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"ok": ok}
 
     @r.delete("/organism/distributed-runtime/workers/{worker_id}")
-    async def unregister_worker(
+    def unregister_worker(
         worker_id: str,
         principal: str = Depends(require_operator_dep),
     ) -> dict:
@@ -172,7 +172,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"ok": ok}
 
     @r.post("/organism/distributed-runtime/route")
-    async def route_packet(
+    def route_packet(
         payload: dict,
         principal: str = Depends(require_operator_dep),
     ) -> dict:

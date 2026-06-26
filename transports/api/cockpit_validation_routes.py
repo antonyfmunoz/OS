@@ -52,7 +52,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     router = APIRouter(tags=["validation"])
 
     @router.get("/validation/runs")
-    async def list_runs(
+    def list_runs(
         benchmark_type: str | None = None,
         track: str | None = None,
         _operator: Any = Depends(require_operator_dep),
@@ -67,7 +67,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"runs": [r.to_dict() for r in runs]}
 
     @router.get("/validation/runs/{run_id}")
-    async def get_run(
+    def get_run(
         run_id: str,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -80,7 +80,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"run": run.to_dict()}
 
     @router.get("/validation/report")
-    async def get_report(
+    def get_report(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         rt = _get_runtime()
@@ -90,7 +90,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"report": report.to_dict()}
 
     @router.get("/validation/compounding-curve")
-    async def get_compounding_curve(
+    def get_compounding_curve(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         rt = _get_runtime()
@@ -100,7 +100,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"curve": curve}
 
     @router.get("/validation/control-comparison")
-    async def get_control_comparison(
+    def get_control_comparison(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         rt = _get_runtime()
@@ -110,7 +110,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"comparison": comparison}
 
     @router.get("/validation/capability-freshness")
-    async def get_freshness(
+    def get_freshness(
         threshold_days: int = 30,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -121,7 +121,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"stale": [s.to_dict() for s in stale]}
 
     @router.get("/validation/projection-readiness")
-    async def get_projection_readiness(
+    def get_projection_readiness(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         try:
@@ -136,7 +136,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"readiness": None, "error": str(e)}
 
     @router.get("/validation/benchmarks/{benchmark_type}/latest")
-    async def get_latest_benchmark(
+    def get_latest_benchmark(
         benchmark_type: str,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -149,7 +149,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"run": run.to_dict()}
 
     @router.get("/validation/summary")
-    async def get_summary(
+    def get_summary(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         rt = _get_runtime()
@@ -162,7 +162,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     # ------------------------------------------------------------------
 
     @router.get("/validation/competitive/matrix")
-    async def get_competitive_matrix(
+    def get_competitive_matrix(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         try:
@@ -178,7 +178,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"matrix": None, "error": str(e)}
 
     @router.get("/validation/competitive/competitors")
-    async def get_competitors(
+    def get_competitors(
         market_category: str | None = None,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -196,7 +196,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"competitors": [], "error": str(e)}
 
     @router.get("/validation/competitive/gap-analysis")
-    async def get_gap_analysis(
+    def get_gap_analysis(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         try:
@@ -217,7 +217,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"gaps": [], "error": str(e)}
 
     @router.get("/validation/competitive/category/{category_id}")
-    async def get_category_detail(
+    def get_category_detail(
         category_id: str,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -244,7 +244,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"category": None, "error": str(e)}
 
     @router.get("/validation/competitive/market/{market_category}")
-    async def get_market_comparison(
+    def get_market_comparison(
         market_category: str,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -263,7 +263,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"market_category": market_category, "error": str(e)}
 
     @router.get("/validation/composite")
-    async def get_composite_scores(
+    def get_composite_scores(
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
         try:
@@ -278,7 +278,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"composite": None, "error": str(e)}
 
     @router.get("/validation/external/{benchmark_name}/latest")
-    async def get_external_benchmark(
+    def get_external_benchmark(
         benchmark_name: str,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -294,7 +294,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"result": None, "error": str(e)}
 
     @router.get("/validation/audits/{audit_name}/latest")
-    async def get_audit_report(
+    def get_audit_report(
         audit_name: str,
         _operator: Any = Depends(require_operator_dep),
     ) -> dict[str, Any]:

@@ -65,7 +65,7 @@ def _build_timeline_entry(
     }
 
 
-async def _timeline(
+def _timeline(
     request: Request,
     limit: int = Query(default=50, ge=1, le=200),
     since: float | None = Query(default=None),
@@ -143,7 +143,7 @@ async def _timeline(
     return {"timeline": entries, "total": len(entries)}
 
 
-async def _receipt_detail(
+def _receipt_detail(
     request: Request,
     receipt_id: str,
 ) -> dict[str, Any]:

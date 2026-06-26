@@ -104,7 +104,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     # ── Advisor / DEX conversation endpoints ─────────────────────────────────
 
     @r.post("/advisor/converse")
-    async def advisor_converse(payload: dict):
+    def advisor_converse(payload: dict):
         """Multi-turn conversational endpoint for the advisor right rail."""
         conv = _get_dex_conversation()
         if conv is None:
@@ -165,7 +165,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return await advisor_converse(payload)
 
     @r.get("/advisor/history")
-    async def advisor_history(limit: int = 50):
+    def advisor_history(limit: int = 50):
         """Recent advisor channel exchanges and system reports for the right-rail chat."""
         daemon = _get_organism_fn()
         if daemon is None:
@@ -258,7 +258,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     # ── Chat endpoints (operator ↔ DEX right-rail conversation) ──────────────
 
     @r.get("/chat/history")
-    async def chat_history():
+    def chat_history():
         """Return chat history for the cockpit right-rail ChatDrawer."""
         try:
             from substrate.organism.store import OrganismStore
@@ -392,7 +392,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"ok": True}
 
     @r.get("/chat/attachment")
-    async def chat_attachment(path: str):
+    def chat_attachment(path: str):
         """Download an attachment file referenced in a chat message."""
         from pathlib import Path as PathLib
 

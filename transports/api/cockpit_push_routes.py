@@ -82,7 +82,7 @@ def _save_subscriptions(subs: list[dict[str, Any]]) -> None:
 # ── Route Handlers ────────────────────────────────────────────────
 
 
-async def _vapid_key(request: Request) -> dict[str, Any]:
+def _vapid_key(request: Request) -> dict[str, Any]:
     """GET /push/vapid-key — return public VAPID key for browser subscription."""
     public_key = os.environ.get("VAPID_PUBLIC_KEY", "")
     return {
@@ -120,7 +120,7 @@ async def _unsubscribe(request: Request) -> dict[str, Any]:
     return {"success": True}
 
 
-async def _test_push(request: Request) -> dict[str, Any]:
+def _test_push(request: Request) -> dict[str, Any]:
     """POST /push/test — send a test notification to all subscriptions."""
     result = send_push_notification(
         title="UMH Test",

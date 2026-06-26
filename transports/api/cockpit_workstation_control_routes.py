@@ -216,7 +216,7 @@ async def _execution_stop(request: Request) -> dict[str, Any]:
     return result
 
 
-async def _execution_status(request: Request) -> dict[str, Any]:
+def _execution_status(request: Request) -> dict[str, Any]:
     session_id = request.query_params.get("session_id", "")
     if not session_id:
         return {"ok": False, "error": "session_id query param is required"}
@@ -268,7 +268,7 @@ def _read_vps_node() -> dict[str, Any]:
     }
 
 
-async def _workstation_nodes(request: Request) -> dict[str, Any]:
+def _workstation_nodes(request: Request) -> dict[str, Any]:
     vps = _read_vps_node()
     mesh_nodes = _read_mesh_snapshot()
 
@@ -285,7 +285,7 @@ async def _workstation_nodes(request: Request) -> dict[str, Any]:
 # ── Cross-device resume ─────────────────────────────────────────────────────
 
 
-async def _workstation_resume(request: Request) -> dict[str, Any]:
+def _workstation_resume(request: Request) -> dict[str, Any]:
     import json
     import os
     resume_path = os.path.join(
@@ -315,7 +315,7 @@ async def _workstation_resume(request: Request) -> dict[str, Any]:
 # ── Mode composite ───────────────────────────────────────────────────────────
 
 
-async def _mode_composite(request: Request) -> dict[str, Any]:
+def _mode_composite(request: Request) -> dict[str, Any]:
     from substrate.workstation.mode_resolver import resolve_composite_mode
     mode = resolve_composite_mode()
     return {
@@ -327,7 +327,7 @@ async def _mode_composite(request: Request) -> dict[str, Any]:
 # ── Tmux visibility ─────────────────────────────────────────────────────────
 
 
-async def _tmux_sessions(request: Request) -> dict[str, Any]:
+def _tmux_sessions(request: Request) -> dict[str, Any]:
     from adapters.tool_adapters.tmux import TmuxAdapter
     adapter = TmuxAdapter()
     result = adapter._execute_impl("list_sessions", {})
@@ -353,7 +353,7 @@ async def _tmux_sessions(request: Request) -> dict[str, Any]:
     return {"ok": True, "sessions": sessions, "count": len(sessions)}
 
 
-async def _tmux_capture(request: Request, session_name: str, pane_id: str) -> dict[str, Any]:
+def _tmux_capture(request: Request, session_name: str, pane_id: str) -> dict[str, Any]:
     from adapters.tool_adapters.tmux import TmuxAdapter
     adapter = TmuxAdapter()
     target = f"{session_name}:{pane_id}"
@@ -413,7 +413,7 @@ def _persist_continuity():
         json.dump(machine.to_dict(), f, indent=2, default=str)
 
 
-async def _continuity_state(request: Request) -> dict[str, Any]:
+def _continuity_state(request: Request) -> dict[str, Any]:
     machine = _get_continuity_machine()
     return {
         "ok": True,
@@ -483,7 +483,7 @@ async def _continuity_transition(request: Request) -> dict[str, Any]:
 # ── Checkpoint ─────────────────────────────────────────────────────────────
 
 
-async def _latest_checkpoint(request: Request) -> dict[str, Any]:
+def _latest_checkpoint(request: Request) -> dict[str, Any]:
     from substrate.workstation.checkpoint import CheckpointManager
     mgr = CheckpointManager()
     cp = mgr.latest()
@@ -495,7 +495,7 @@ async def _latest_checkpoint(request: Request) -> dict[str, Any]:
 # ── Return brief ───────────────────────────────────────────────────────────
 
 
-async def _return_brief(request: Request) -> dict[str, Any]:
+def _return_brief(request: Request) -> dict[str, Any]:
     from substrate.workstation.resume_brief import ReturnBriefGenerator
     gen = ReturnBriefGenerator()
     brief = gen.latest()
@@ -627,7 +627,7 @@ async def _overnight_queue_work(request: Request) -> dict[str, Any]:
     return {"ok": True, "item": item.to_dict()}
 
 
-async def _overnight_status(request: Request) -> dict[str, Any]:
+def _overnight_status(request: Request) -> dict[str, Any]:
     from substrate.workstation.overnight_queue import OvernightQueue
     queue = OvernightQueue()
     return {"ok": True, "summary": queue.morning_summary()}

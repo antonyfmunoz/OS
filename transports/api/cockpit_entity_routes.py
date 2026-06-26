@@ -65,7 +65,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 # ── Entity views (Portfolio / Company / Department / Role) ───────────────────
 
 
-async def _entity_portfolio():
+def _entity_portfolio():
     """Portfolio-level view — all companies, cross-venture summary."""
     org_id = _get_org_id()
     try:
@@ -92,7 +92,7 @@ async def _entity_portfolio():
         return {"error": str(e), "departments": []}
 
 
-async def _entity_departments():
+def _entity_departments():
     """All departments with agents, metrics, workflows."""
     org_id = _get_org_id()
     try:
@@ -129,7 +129,7 @@ async def _entity_departments():
         return {"error": str(e), "departments": []}
 
 
-async def _entity_department_detail(slug: str):
+def _entity_department_detail(slug: str):
     """Single department detail with full agent skills."""
     org_id = _get_org_id()
     try:
@@ -179,7 +179,7 @@ async def _entity_department_detail(slug: str):
         return {"error": str(e)}
 
 
-async def _entity_roles():
+def _entity_roles():
     """All roles across all departments."""
     org_id = _get_org_id()
     try:
@@ -207,7 +207,7 @@ async def _entity_roles():
 # ── Companies CRUD ────────────────────────────────────────────────────────────
 
 
-async def _entity_companies():
+def _entity_companies():
     """List all companies for the current org."""
     org_id = _get_org_id()
     try:
@@ -239,7 +239,7 @@ async def _entity_companies():
         return {"error": str(e), "companies": []}
 
 
-async def _entity_company_detail(company_id: str):
+def _entity_company_detail(company_id: str):
     """Get a single company by ID."""
     org_id = _get_org_id()
     try:
@@ -271,7 +271,7 @@ async def _entity_company_detail(company_id: str):
         return {"error": str(e)}
 
 
-async def _upsert_company(payload: dict):
+def _upsert_company(payload: dict):
     """Create or update a company."""
     org_id = _get_org_id()
     name = payload.get("name", "")
@@ -307,7 +307,7 @@ async def _upsert_company(payload: dict):
 # ── Product connections (EOS / CreatorOS / LYFEOS) ───────────────────────────
 
 
-async def _product_connections():
+def _product_connections():
     """Status of all three SaaS product connections."""
     try:
         from substrate.integrations.product_connections import get_product_manager
@@ -321,7 +321,7 @@ async def _product_connections():
         return {"error": str(e), "connections": []}
 
 
-async def _refresh_product_connections():
+def _refresh_product_connections():
     """Re-check all product connections."""
     try:
         from substrate.integrations.product_connections import get_product_manager

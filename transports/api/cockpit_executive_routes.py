@@ -56,7 +56,7 @@ def get_router():
     router = APIRouter(prefix="/executive", tags=["executive"])
 
     @router.get("/overview")
-    async def executive_overview() -> dict[str, Any]:
+    def executive_overview() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"error": "executive portfolio not available"}
@@ -64,7 +64,7 @@ def get_router():
         return snap.to_dict() if hasattr(snap, "to_dict") else snap
 
     @router.get("/health")
-    async def executive_health() -> dict[str, Any]:
+    def executive_health() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"health": "unknown", "focus_score": 0.0, "overcommitment_index": 0.0}
@@ -76,7 +76,7 @@ def get_router():
         }
 
     @router.get("/allocations")
-    async def executive_allocations() -> dict[str, Any]:
+    def executive_allocations() -> dict[str, Any]:
         rt = _get_resource_allocation()
         if rt is None:
             return {"recommendations": []}
@@ -86,7 +86,7 @@ def get_router():
         }
 
     @router.get("/allocations/{resource_type}")
-    async def executive_allocations_by_type(resource_type: str) -> dict[str, Any]:
+    def executive_allocations_by_type(resource_type: str) -> dict[str, Any]:
         rt = _get_resource_allocation()
         if rt is None:
             return {"recommendations": []}
@@ -97,7 +97,7 @@ def get_router():
         }
 
     @router.get("/budgets")
-    async def executive_budgets() -> dict[str, Any]:
+    def executive_budgets() -> dict[str, Any]:
         rt = _get_resource_allocation()
         if rt is None:
             return {"budgets": []}
@@ -107,7 +107,7 @@ def get_router():
         }
 
     @router.get("/tradeoff/{target_id}")
-    async def executive_tradeoff(target_id: str) -> dict[str, Any]:
+    def executive_tradeoff(target_id: str) -> dict[str, Any]:
         rt = _get_tradeoff()
         if rt is None:
             return {"error": "tradeoff engine not available"}
@@ -115,14 +115,14 @@ def get_router():
         return analysis.to_dict()
 
     @router.get("/contention")
-    async def executive_contention() -> dict[str, Any]:
+    def executive_contention() -> dict[str, Any]:
         rt = _get_tradeoff()
         if rt is None:
             return {"contention": {}}
         return {"contention": rt.contention_map()}
 
     @router.get("/drift")
-    async def executive_drift() -> dict[str, Any]:
+    def executive_drift() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"drift_warnings": []}
@@ -132,7 +132,7 @@ def get_router():
         }
 
     @router.get("/recommendations")
-    async def executive_recommendations() -> dict[str, Any]:
+    def executive_recommendations() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"recommendations": []}

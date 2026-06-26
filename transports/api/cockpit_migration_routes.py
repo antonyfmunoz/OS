@@ -47,7 +47,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.post("/migration/exit")
-    async def record_exit(payload: dict) -> dict:
+    def record_exit(payload: dict) -> dict:
         mig = _get_migration()
         if mig is None:
             raise HTTPException(status_code=503, detail="migration unavailable")
@@ -57,7 +57,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"exit_id": exit_id}
 
     @r.post("/migration/return")
-    async def record_return(payload: dict) -> dict:
+    def record_return(payload: dict) -> dict:
         mig = _get_migration()
         if mig is None:
             raise HTTPException(status_code=503, detail="migration unavailable")
@@ -70,35 +70,35 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"status": "returned", "exit_id": exit_id}
 
     @r.get("/migration/coverage")
-    async def coverage_report() -> dict:
+    def coverage_report() -> dict:
         mig = _get_migration()
         if mig is None:
             return {"coverage_pct": 1.0, "total_exits": 0}
         return mig.coverage_report().to_dict()
 
     @r.get("/migration/priorities")
-    async def migration_priorities() -> dict:
+    def migration_priorities() -> dict:
         mig = _get_migration()
         if mig is None:
             return {"priorities": []}
         return {"priorities": [p.to_dict() for p in mig.migration_priorities()]}
 
     @r.get("/migration/status")
-    async def migration_status() -> dict:
+    def migration_status() -> dict:
         mig = _get_migration()
         if mig is None:
             return {"total_exits": 0, "coverage_pct": 1.0}
         return mig.migration_status().to_dict()
 
     @r.get("/migration/active")
-    async def active_migrations() -> dict:
+    def active_migrations() -> dict:
         mig = _get_migration()
         if mig is None:
             return {"migrations": []}
         return {"migrations": [m.to_dict() for m in mig.active_migrations()]}
 
     @r.post("/migration/propose")
-    async def propose_migration(payload: dict) -> dict:
+    def propose_migration(payload: dict) -> dict:
         mig = _get_migration()
         if mig is None:
             raise HTTPException(status_code=503, detail="migration unavailable")
@@ -110,7 +110,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return m.to_dict()
 
     @r.post("/migration/complete")
-    async def complete_migration(payload: dict) -> dict:
+    def complete_migration(payload: dict) -> dict:
         mig = _get_migration()
         if mig is None:
             raise HTTPException(status_code=503, detail="migration unavailable")
@@ -124,7 +124,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"status": "completed", "migration_id": migration_id}
 
     @r.get("/migration/suggest/{pattern}")
-    async def suggest_operationalization(pattern: str) -> dict:
+    def suggest_operationalization(pattern: str) -> dict:
         mig = _get_migration()
         if mig is None:
             raise HTTPException(status_code=503, detail="migration unavailable")

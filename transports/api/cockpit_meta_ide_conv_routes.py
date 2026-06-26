@@ -65,21 +65,21 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.get("/ide/workspace")
-    async def ide_workspace() -> dict:
+    def ide_workspace() -> dict:
         ide = _get_ide()
         if ide is None:
             return {"error": "meta ide unavailable"}
         return ide.workspace_snapshot().to_dict()
 
     @r.get("/ide/repos/{repo_id}")
-    async def ide_repo_status(repo_id: str) -> dict:
+    def ide_repo_status(repo_id: str) -> dict:
         ide = _get_ide()
         if ide is None:
             return {"error": "meta ide unavailable"}
         return ide.repo_status(repo_id)
 
     @r.post("/ide/plan")
-    async def ide_plan(payload: dict) -> dict:
+    def ide_plan(payload: dict) -> dict:
         ide = _get_ide()
         if ide is None:
             raise HTTPException(status_code=503, detail="meta ide unavailable")
@@ -90,7 +90,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return plan.to_dict()
 
     @r.post("/ide/assign")
-    async def ide_assign(payload: dict) -> dict:
+    def ide_assign(payload: dict) -> dict:
         ide = _get_ide()
         if ide is None:
             raise HTTPException(status_code=503, detail="meta ide unavailable")
@@ -101,7 +101,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"assignments": assignments}
 
     @r.post("/ide/dispatch")
-    async def ide_dispatch(payload: dict) -> dict:
+    def ide_dispatch(payload: dict) -> dict:
         ide = _get_ide()
         if ide is None:
             raise HTTPException(status_code=503, detail="meta ide unavailable")
@@ -112,7 +112,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"dispatches": dispatches}
 
     @r.get("/ide/active")
-    async def ide_active() -> dict:
+    def ide_active() -> dict:
         ide = _get_ide()
         if ide is None:
             return {"streams": []}
@@ -133,7 +133,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"reviews": reviews}
 
     @r.get("/ide/reviews/{review_id}")
-    async def ide_review_detail(review_id: str) -> dict:
+    def ide_review_detail(review_id: str) -> dict:
         ide = _get_ide()
         if ide is not None:
             review = ide.review_detail(review_id)
@@ -146,7 +146,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         raise HTTPException(status_code=404, detail="review not found")
 
     @r.post("/ide/reviews/{review_id}/approve")
-    async def ide_approve(review_id: str) -> dict:
+    def ide_approve(review_id: str) -> dict:
         ide = _get_ide()
         if ide is None:
             raise HTTPException(status_code=503, detail="meta ide unavailable")
@@ -156,7 +156,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @r.post("/ide/reviews/{review_id}/reject")
-    async def ide_reject(review_id: str, payload: dict) -> dict:
+    def ide_reject(review_id: str, payload: dict) -> dict:
         ide = _get_ide()
         if ide is None:
             raise HTTPException(status_code=503, detail="meta ide unavailable")
@@ -167,7 +167,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"status": "rejected", "review_id": review_id}
 
     @r.get("/ide/status")
-    async def ide_status() -> dict:
+    def ide_status() -> dict:
         ide = _get_ide()
         if ide is None:
             return {"error": "meta ide unavailable"}

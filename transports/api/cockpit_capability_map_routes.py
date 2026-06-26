@@ -41,30 +41,30 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/capability-map/snapshot", dependencies=auth)
-    async def snapshot() -> dict[str, Any]:
+    def snapshot() -> dict[str, Any]:
         return _get_map().snapshot().to_dict()
 
     @r.get("/capability-map/surfaces", dependencies=auth)
-    async def list_surfaces(
+    def list_surfaces(
         category: str | None = None,
         mvp_status: str | None = None,
     ) -> list[dict[str, Any]]:
         return [s.to_dict() for s in _get_map().surfaces(category=category, mvp_status=mvp_status)]
 
     @r.get("/capability-map/duplications", dependencies=auth)
-    async def list_duplications() -> list[dict[str, Any]]:
+    def list_duplications() -> list[dict[str, Any]]:
         return [d.to_dict() for d in _get_map().duplications()]
 
     @r.get("/capability-map/mvp-gaps", dependencies=auth)
-    async def list_mvp_gaps() -> list[dict[str, Any]]:
+    def list_mvp_gaps() -> list[dict[str, Any]]:
         return [s.to_dict() for s in _get_map().mvp_gaps()]
 
     @r.get("/capability-map/coverage/{subsystem}", dependencies=auth)
-    async def coverage_for(subsystem: str) -> dict[str, Any]:
+    def coverage_for(subsystem: str) -> dict[str, Any]:
         return _get_map().coverage_for(subsystem)
 
     @r.get("/capability-map/summary", dependencies=auth)
-    async def summary() -> dict[str, Any]:
+    def summary() -> dict[str, Any]:
         return _get_map().summary()
 
     return r

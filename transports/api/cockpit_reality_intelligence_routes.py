@@ -102,7 +102,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/reality-intelligence/query", dependencies=auth)
-    async def _query(
+    def _query(
         q: str = Query("", description="Query text"),
         type: str = Query("why", description="Query type"),
         domain: str = Query("", description="Domain filter"),
@@ -137,7 +137,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _result_to_dict(result)
 
     @r.get("/reality-intelligence/why/{entity}", dependencies=auth)
-    async def _why(
+    def _why(
         entity: str,
         limit: int = Query(20),
         min_confidence: float = Query(0.0),
@@ -147,7 +147,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _result_to_dict(result)
 
     @r.get("/reality-intelligence/what-changed", dependencies=auth)
-    async def _what_changed(
+    def _what_changed(
         since: float = Query(0.0, description="Unix timestamp"),
         limit: int = Query(20),
         min_confidence: float = Query(0.0),
@@ -159,7 +159,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _result_to_dict(result)
 
     @r.get("/reality-intelligence/evidence/{entity}", dependencies=auth)
-    async def _evidence(
+    def _evidence(
         entity: str,
         limit: int = Query(20),
         min_confidence: float = Query(0.0),
@@ -171,7 +171,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _result_to_dict(result)
 
     @r.get("/reality-intelligence/contradictions", dependencies=auth)
-    async def _contradictions(
+    def _contradictions(
         domain: str = Query("", description="Domain filter"),
         limit: int = Query(20),
         min_confidence: float = Query(0.0),
@@ -183,7 +183,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _result_to_dict(result)
 
     @r.get("/reality-intelligence/lineage/{entity}", dependencies=auth)
-    async def _lineage(
+    def _lineage(
         entity: str,
         limit: int = Query(20),
         min_confidence: float = Query(0.0),
@@ -195,7 +195,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _result_to_dict(result)
 
     @r.get("/reality-intelligence/domain/{domain}", dependencies=auth)
-    async def _domain_summary(
+    def _domain_summary(
         domain: str,
         limit: int = Query(20),
         min_confidence: float = Query(0.0),
@@ -207,7 +207,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _result_to_dict(result)
 
     @r.get("/reality-intelligence/priorities", dependencies=auth)
-    async def _priorities(
+    def _priorities(
         limit: int = Query(10),
         min_confidence: float = Query(0.0),
     ) -> dict[str, Any]:

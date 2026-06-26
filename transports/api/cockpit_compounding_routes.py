@@ -44,7 +44,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/compounding/candidates", dependencies=auth)
-    async def list_candidates(
+    def list_candidates(
         promotion_type: str | None = None,
         status: str | None = None,
         limit: int = 100,
@@ -71,19 +71,19 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"candidates": [c.to_dict() for c in candidates], "count": len(candidates)}
 
     @r.get("/compounding/summary", dependencies=auth)
-    async def compounding_summary() -> dict[str, Any]:
+    def compounding_summary() -> dict[str, Any]:
         return _get_engine().summary()
 
     @r.get("/compounding/report", dependencies=auth)
-    async def compounding_report(days: int = 90) -> dict[str, Any]:
+    def compounding_report(days: int = 90) -> dict[str, Any]:
         return _get_engine().compounding_report(days=days)
 
     @r.get("/compounding/improvements", dependencies=auth)
-    async def improvements(n: int = 100) -> dict[str, Any]:
+    def improvements(n: int = 100) -> dict[str, Any]:
         return _get_engine().improvement_from_executions(n=n)
 
     @r.get("/compounding/candidates/{candidate_id}", dependencies=auth)
-    async def get_candidate(candidate_id: str) -> dict[str, Any]:
+    def get_candidate(candidate_id: str) -> dict[str, Any]:
         eng = _get_engine()
         c = eng.get(candidate_id)
         if c is None:
@@ -103,7 +103,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"candidates": [c.to_dict() for c in candidates], "count": len(candidates)}
 
     @r.post("/compounding/candidates/{candidate_id}/approve", dependencies=auth)
-    async def approve_candidate(candidate_id: str) -> dict[str, Any]:
+    def approve_candidate(candidate_id: str) -> dict[str, Any]:
         if _get_engine().approve(candidate_id):
             return {"status": "approved"}
         return {"error": f"cannot approve {candidate_id}"}
@@ -117,7 +117,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"error": f"cannot reject {candidate_id}"}
 
     @r.post("/compounding/candidates/{candidate_id}/promote", dependencies=auth)
-    async def promote_candidate(candidate_id: str) -> dict[str, Any]:
+    def promote_candidate(candidate_id: str) -> dict[str, Any]:
         return _get_engine().promote(candidate_id)
 
     return r

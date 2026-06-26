@@ -55,39 +55,39 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/unified-execution/snapshot", dependencies=auth)
-    async def snapshot() -> dict[str, Any]:
+    def snapshot() -> dict[str, Any]:
         return _get_runtime().snapshot().to_dict()
 
     @r.get("/unified-execution/active", dependencies=auth)
-    async def active_streams() -> list[dict[str, Any]]:
+    def active_streams() -> list[dict[str, Any]]:
         return [s.to_dict() for s in _get_runtime().active_streams()]
 
     @r.get("/unified-execution/queued", dependencies=auth)
-    async def queued_streams() -> list[dict[str, Any]]:
+    def queued_streams() -> list[dict[str, Any]]:
         return [s.to_dict() for s in _get_runtime().queued_streams()]
 
     @r.get("/unified-execution/blocked", dependencies=auth)
-    async def blocked_streams() -> list[dict[str, Any]]:
+    def blocked_streams() -> list[dict[str, Any]]:
         return [s.to_dict() for s in _get_runtime().blocked_streams()]
 
     @r.get("/unified-execution/approvals", dependencies=auth)
-    async def pending_approvals() -> list[dict[str, Any]]:
+    def pending_approvals() -> list[dict[str, Any]]:
         return [a.to_dict() for a in _get_runtime().pending_approvals()]
 
     @r.get("/unified-execution/completions", dependencies=auth)
-    async def recent_completions(limit: int = 20) -> list[dict[str, Any]]:
+    def recent_completions(limit: int = 20) -> list[dict[str, Any]]:
         return [s.to_dict() for s in _get_runtime().recent_completions(limit=limit)]
 
     @r.get("/unified-execution/stream/{stream_id}", dependencies=auth)
-    async def stream_detail(stream_id: str) -> dict[str, Any]:
+    def stream_detail(stream_id: str) -> dict[str, Any]:
         return _get_runtime().stream_detail(stream_id)
 
     @r.post("/unified-execution/approve", dependencies=auth)
-    async def approve(req: ApproveRequest) -> dict[str, Any]:
+    def approve(req: ApproveRequest) -> dict[str, Any]:
         return _get_runtime().approve(req.approval_id, req.source_system)
 
     @r.post("/unified-execution/reject", dependencies=auth)
-    async def reject(req: RejectRequest) -> dict[str, Any]:
+    def reject(req: RejectRequest) -> dict[str, Any]:
         return _get_runtime().reject(req.approval_id, req.source_system, req.reason)
 
     return r

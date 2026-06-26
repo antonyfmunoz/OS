@@ -121,7 +121,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     router = APIRouter()
 
     @router.get("/engineering/sessions", dependencies=[Depends(require_operator_dep)])
-    async def list_sessions() -> dict[str, Any]:
+    def list_sessions() -> dict[str, Any]:
         coordinator = _get_coordinator()
         if coordinator is None:
             return {"sessions": [], "error": "coordinator unavailable"}
@@ -132,7 +132,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/engineering/sessions/{session_id}", dependencies=[Depends(require_operator_dep)])
-    async def get_session(session_id: str) -> dict[str, Any]:
+    def get_session(session_id: str) -> dict[str, Any]:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
@@ -142,7 +142,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return session.to_dict()
 
     @router.post("/engineering/sessions")
-    async def create_session(
+    def create_session(
         body: dict[str, Any],
         principal: str = Depends(require_operator_dep),
     ) -> dict[str, Any]:
@@ -175,7 +175,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     @router.post(
         "/engineering/sessions/{session_id}/execute", dependencies=[Depends(require_operator_dep)]
     )
-    async def execute_session(session_id: str) -> dict[str, Any]:
+    def execute_session(session_id: str) -> dict[str, Any]:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
@@ -196,7 +196,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     @router.post(
         "/engineering/sessions/{session_id}/pause", dependencies=[Depends(require_operator_dep)]
     )
-    async def pause_session(session_id: str) -> dict[str, Any]:
+    def pause_session(session_id: str) -> dict[str, Any]:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
@@ -209,7 +209,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     @router.post(
         "/engineering/sessions/{session_id}/cancel", dependencies=[Depends(require_operator_dep)]
     )
-    async def cancel_session(session_id: str) -> dict[str, Any]:
+    def cancel_session(session_id: str) -> dict[str, Any]:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
@@ -231,7 +231,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/engineering/reviews/{proof_id}", dependencies=[Depends(require_operator_dep)])
-    async def get_review(proof_id: str) -> dict[str, Any]:
+    def get_review(proof_id: str) -> dict[str, Any]:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
@@ -241,7 +241,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return package.to_dict()
 
     @router.post("/engineering/reviews/{proof_id}/approve")
-    async def approve_review(
+    def approve_review(
         proof_id: str,
         principal: str = Depends(require_operator_dep),
         body: dict[str, Any] | None = None,
@@ -259,7 +259,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result
 
     @router.post("/engineering/reviews/{proof_id}/reject")
-    async def reject_review(
+    def reject_review(
         proof_id: str,
         principal: str = Depends(require_operator_dep),
         body: dict[str, Any] | None = None,

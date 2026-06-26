@@ -114,7 +114,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 # ── Handler implementations ────────────────────────────────────────────────
 
 
-async def _organism_status():
+def _organism_status():
     daemon = _get_organism()
     if daemon is None:
         return {
@@ -126,21 +126,21 @@ async def _organism_status():
     return daemon.status()
 
 
-async def _organism_agents():
+def _organism_agents():
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.advisor.list_agents()
 
 
-async def _organism_deliverables(agent_id: str | None = None, limit: int = 50):
+def _organism_deliverables(agent_id: str | None = None, limit: int = 50):
     daemon = _get_organism()
     if daemon is None:
         return []
     return daemon.store.list_deliverables(agent_id=agent_id, limit=limit)
 
 
-async def _organism_events(limit: int = 50, since: float | None = None):
+def _organism_events(limit: int = 50, since: float | None = None):
     daemon = _get_organism()
     if daemon is None:
         return {"events": [], "count": 0, "transport": "polling"}
@@ -156,21 +156,21 @@ async def _organism_events(limit: int = 50, since: float | None = None):
     }
 
 
-async def _organism_tick_status():
+def _organism_tick_status():
     daemon = _get_organism()
     if daemon is None:
         return {"running": False}
     return daemon.autonomous_tick.to_dict()
 
 
-async def _organism_leverage():
+def _organism_leverage():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.leverage_metrics.summary()
 
 
-async def _organism_metrics():
+def _organism_metrics():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -183,14 +183,14 @@ async def _organism_metrics():
     }
 
 
-async def _organism_bottlenecks():
+def _organism_bottlenecks():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.bottleneck_engine.to_dict()
 
 
-async def _organism_intelligence():
+def _organism_intelligence():
     """Unified operational intelligence — bottlenecks, leverage, actions, readiness."""
     daemon = _get_organism()
     if daemon is None:
@@ -203,28 +203,28 @@ async def _organism_intelligence():
     }
 
 
-async def _organism_intelligence_leverage():
+def _organism_intelligence_leverage():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.leverage_engine.to_dict()
 
 
-async def _organism_intelligence_next_actions():
+def _organism_intelligence_next_actions():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.next_action_engine.to_dict()
 
 
-async def _organism_intelligence_readiness():
+def _organism_intelligence_readiness():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.readiness_model.to_dict()
 
 
-async def _organism_physics():
+def _organism_physics():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -238,7 +238,7 @@ async def _organism_physics():
     }
 
 
-async def _organism_compression():
+def _organism_compression():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -250,7 +250,7 @@ async def _organism_compression():
     }
 
 
-async def _organism_workload():
+def _organism_workload():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -260,7 +260,7 @@ async def _organism_workload():
     return daemon.workload_probes.full_probe()
 
 
-async def _organism_execution_mode():
+def _organism_execution_mode():
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -270,7 +270,7 @@ async def _organism_execution_mode():
     }
 
 
-async def _organism_promote_mode(payload: dict, request: Request):
+def _organism_promote_mode(payload: dict, request: Request):
     """Promote execution mode. Rate-limited, operator-auth required."""
     daemon = _get_organism()
     if daemon is None:
@@ -295,7 +295,7 @@ async def _organism_promote_mode(payload: dict, request: Request):
         return {"error": str(e)}
 
 
-async def _organism_workloads():
+def _organism_workloads():
     """Recent workload run outcomes."""
     daemon = _get_organism()
     if daemon is None:
@@ -303,7 +303,7 @@ async def _organism_workloads():
     return daemon.workload_runner.to_dict()
 
 
-async def _organism_workload_outcomes(limit: int = 20):
+def _organism_workload_outcomes(limit: int = 20):
     """Detailed workload outcome history."""
     daemon = _get_organism()
     if daemon is None:
@@ -355,7 +355,7 @@ async def _organism_run_all_workloads():
     return [o.to_dict() for o in outcomes]
 
 
-async def _organism_automation_candidates():
+def _organism_automation_candidates():
     """List all automation candidate proposals."""
     daemon = _get_organism()
     if daemon is None:
@@ -366,7 +366,7 @@ async def _organism_automation_candidates():
     }
 
 
-async def _organism_approve_automation(proposal_id: str, request: Request):
+def _organism_approve_automation(proposal_id: str, request: Request):
     """Approve an automation candidate. Rate-limited, operator-auth required."""
     daemon = _get_organism()
     if daemon is None:
@@ -380,7 +380,7 @@ async def _organism_approve_automation(proposal_id: str, request: Request):
     return {"ok": True, "proposal_id": proposal_id}
 
 
-async def _organism_deny_automation(proposal_id: str, payload: dict | None = None):
+def _organism_deny_automation(proposal_id: str, payload: dict | None = None):
     """Deny an automation candidate."""
     daemon = _get_organism()
     if daemon is None:
@@ -392,7 +392,7 @@ async def _organism_deny_automation(proposal_id: str, payload: dict | None = Non
     return {"ok": True, "proposal_id": proposal_id}
 
 
-async def _organism_maintenance():
+def _organism_maintenance():
     """Maintenance loop status and recommendations."""
     daemon = _get_organism()
     if daemon is None:
@@ -422,7 +422,7 @@ async def _organism_run_maintenance():
     return report
 
 
-async def _organism_assisted():
+def _organism_assisted():
     """Assisted executor status and audit trail."""
     daemon = _get_organism()
     if daemon is None:
@@ -471,7 +471,7 @@ async def _organism_assisted_execute(payload: dict, request: Request):
     return result.to_dict()
 
 
-async def _organism_assisted_audit(limit: int = 50):
+def _organism_assisted_audit(limit: int = 50):
     """Full audit trail of assisted actions."""
     daemon = _get_organism()
     if daemon is None:
@@ -479,7 +479,7 @@ async def _organism_assisted_audit(limit: int = 50):
     return daemon.assisted_executor.audit_trail(limit)
 
 
-async def _organism_signal(payload: dict):
+def _organism_signal(payload: dict):
     daemon = _get_organism()
     if daemon is None:
         return {"error": "organism not running"}
@@ -489,7 +489,7 @@ async def _organism_signal(payload: dict):
     return daemon.advisor.handle_signal(content)
 
 
-async def _organism_loop_status():
+def _organism_loop_status():
     """Return recent organism loop cycle events."""
     daemon = _get_organism()
     if daemon is None:
@@ -541,17 +541,17 @@ async def _organism_loop_execute(payload: dict, request: Request):
 # ── Operator acceptance handlers ──────────────────────────────────────────
 
 
-async def _operator_acceptance_overview():
+def _operator_acceptance_overview():
     from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
     return OperatorLoopCoordinator().get_overview()
 
 
-async def _operator_acceptance_runs():
+def _operator_acceptance_runs():
     from substrate.organism.operator_acceptance import load_runs
     return [r.to_dict() for r in load_runs()]
 
 
-async def _operator_acceptance_run_detail(run_id: str):
+def _operator_acceptance_run_detail(run_id: str):
     from substrate.organism.operator_acceptance import get_run
     run = get_run(run_id)
     if not run:
@@ -559,22 +559,22 @@ async def _operator_acceptance_run_detail(run_id: str):
     return run.to_dict()
 
 
-async def _operator_acceptance_artifacts():
+def _operator_acceptance_artifacts():
     from substrate.organism.operator_acceptance import load_artifacts
     return [a.to_dict() for a in load_artifacts()]
 
 
-async def _operator_acceptance_scenarios():
+def _operator_acceptance_scenarios():
     from substrate.organism.operator_acceptance_scenarios import get_all_scenarios
     return [s.to_dict() for s in get_all_scenarios()]
 
 
-async def _operator_acceptance_readiness():
+def _operator_acceptance_readiness():
     from substrate.organism.operator_readiness_gate import assess_readiness
     return assess_readiness().to_dict()
 
 
-async def _operator_acceptance_start(payload: dict):
+def _operator_acceptance_start(payload: dict):
     input_text = payload.get("input_text", "")
     if not input_text:
         return {"error": "input_text required"}
@@ -587,7 +587,7 @@ async def _operator_acceptance_start(payload: dict):
     )
 
 
-async def _operator_acceptance_primary_proof():
+def _operator_acceptance_primary_proof():
     import json as _json
     import os
     path = os.path.join(
@@ -600,7 +600,7 @@ async def _operator_acceptance_primary_proof():
         return _json.load(f)
 
 
-async def _operator_acceptance_safety_proof():
+def _operator_acceptance_safety_proof():
     import json as _json
     import os
     path = os.path.join(

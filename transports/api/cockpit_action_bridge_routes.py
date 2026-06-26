@@ -62,13 +62,13 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("/catalog")
-    async def list_catalog(category: str | None = None) -> dict[str, Any]:
+    def list_catalog(category: str | None = None) -> dict[str, Any]:
         bridge = _get_bridge()
         actions = bridge.list_available_actions(category=category)
         return {"actions": actions, "count": len(actions)}
 
     @router.get("/catalog/{action_id}")
-    async def get_action(action_id: str) -> dict[str, Any]:
+    def get_action(action_id: str) -> dict[str, Any]:
         bridge = _get_bridge()
         from substrate.organism.action_catalog import ActionCatalog
 
@@ -81,7 +81,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return entry
 
     @router.post("/execute")
-    async def execute_action(body: ExecuteActionBody, request: Request) -> dict[str, Any]:
+    def execute_action(body: ExecuteActionBody, request: Request) -> dict[str, Any]:
         bridge = _get_bridge()
         from substrate.organism.action_bridge import ActionRequest
 
@@ -96,7 +96,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @router.post("/{execution_plan_id}/approve")
-    async def approve_action(execution_plan_id: str, request: Request) -> dict[str, Any]:
+    def approve_action(execution_plan_id: str, request: Request) -> dict[str, Any]:
         bridge = _get_bridge()
         operator_id = _get_operator_id(request)
         result = bridge.approve_and_dispatch(execution_plan_id, operator_id=operator_id)
@@ -108,7 +108,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @router.get("/status/{request_id}")
-    async def action_status(request_id: str, request: Request) -> dict[str, Any]:
+    def action_status(request_id: str, request: Request) -> dict[str, Any]:
         bridge = _get_bridge()
         operator_id = _get_operator_id(request)
         result = bridge.get_action_status(request_id, operator_id=operator_id)
@@ -117,7 +117,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @router.get("/history")
-    async def action_history(request: Request, limit: int = 20) -> dict[str, Any]:
+    def action_history(request: Request, limit: int = 20) -> dict[str, Any]:
         bridge = _get_bridge()
         operator_id = _get_operator_id(request)
         clamped = max(1, min(limit, 100))

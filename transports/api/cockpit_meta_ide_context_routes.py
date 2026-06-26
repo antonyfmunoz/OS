@@ -47,21 +47,21 @@ def get_router():
     router = APIRouter(prefix="/meta-ide-context", tags=["meta-ide-context"])
 
     @router.get("/context")
-    async def meta_ide_context() -> dict[str, Any]:
+    def meta_ide_context() -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "meta ide context not available"}
         return rt.context().to_dict()
 
     @router.get("/active-files")
-    async def meta_ide_active_files() -> dict[str, Any]:
+    def meta_ide_active_files() -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"active_files": []}
         return {"active_files": rt.active_files()}
 
     @router.post("/resolve-intent")
-    async def meta_ide_resolve_intent(body: ResolveIntentRequest) -> dict[str, Any]:
+    def meta_ide_resolve_intent(body: ResolveIntentRequest) -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "meta ide context not available"}
