@@ -34,7 +34,9 @@ interface SettingsData {
 
 interface SettingsState {
   settings: SettingsData | null
+  settingsError: boolean
   governance: GovernanceData | null
+  governanceError: boolean
   fetchSettings: () => Promise<void>
   fetchGovernance: () => Promise<void>
   patchSettings: (patch: Record<string, unknown>) => Promise<void>
@@ -43,22 +45,28 @@ interface SettingsState {
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: null,
+  settingsError: false,
   governance: null,
+  governanceError: false,
 
   fetchSettings: async () => {
     try {
       const data = await fetchApi<SettingsData>('/settings')
-      set({ settings: data })
-    } catch { /* store stays stale */ }
+      set({ settings: data, settingsError: false })
+    } catch {
+      set({ settingsError: true })
+    }
   },
 
   fetchGovernance: async () => {
     try {
       const data = await fetchApi<GovernanceData>('/governance')
       if (data && Array.isArray(data.policies)) {
-        set({ governance: data })
+        set({ governance: data, governanceError: false })
       }
-    } catch { /* store stays stale */ }
+    } catch {
+      set({ governanceError: true })
+    }
   },
 
   patchSettings: async (patch) => {
