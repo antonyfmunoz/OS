@@ -72,7 +72,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     const isConverse = path.includes('/converse')
     const isApproveOrDispatch = path.includes('/approve') || path.includes('/dispatch')
     const timeoutMs = isConverse ? 120_000 : isApproveOrDispatch ? 120_000 : 60_000
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    const timeoutId = setTimeout(() => controller.abort(`${method} ${path} timed out after ${timeoutMs / 1000}s`), timeoutMs)
     let res: Response
     try {
       res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal })
@@ -82,6 +82,10 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
       if (method === 'GET' && attempt < 3 && !isAbort) {
         await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
         return doFetch(attempt + 1)
+      }
+      if (isAbort) {
+        const reason = controller.signal.reason || `${method} ${path} aborted`
+        throw new ApiError(0, reason)
       }
       throw err
     }
