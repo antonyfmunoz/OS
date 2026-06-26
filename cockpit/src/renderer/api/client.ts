@@ -98,7 +98,16 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
       await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
       return doFetch(attempt + 1)
     }
-    if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
+    if (!res.ok) {
+      let detail = res.statusText
+      try {
+        const body = await res.json()
+        if (body?.detail) detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
+        else if (body?.error) detail = typeof body.error === 'string' ? body.error : JSON.stringify(body.error)
+        else if (body?.message) detail = body.message
+      } catch { /* response wasn't JSON — use statusText */ }
+      throw new ApiError(res.status, detail)
+    }
     return res.json() as Promise<T>
   }
 

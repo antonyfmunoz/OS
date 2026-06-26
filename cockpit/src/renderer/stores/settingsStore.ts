@@ -79,7 +79,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const data = await fetchApi<SettingsData>('/settings')
       set({ settings: data, settingsError: null })
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Unknown error'
+      const msg = e instanceof Error ? e.message : String(e)
       set({ settingsError: msg })
     }
   },
@@ -91,7 +91,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         set({ governance: data, governanceError: null })
       }
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Unknown error'
+      const msg = e instanceof Error ? e.message : String(e)
       set({ governanceError: msg })
     }
   },

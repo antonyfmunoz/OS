@@ -99,7 +99,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       const data = await fetchApi<RegisteredDevice[]>('/devices/list')
       set({ devices: data, devicesLoaded: true, devicesError: null })
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Unknown error'
+      const msg = e instanceof Error ? e.message : String(e)
       set({ devices: [], devicesLoaded: true, devicesError: msg })
     }
   },
