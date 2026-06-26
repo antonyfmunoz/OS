@@ -54,8 +54,8 @@
         "auto_start": true
       }
     },
-    "role_status": "needs_review",
-    "role_source": "operator",
+    "role_status": "confirmed",
+    "role_source": "daemon_report",
     "allowed_roles": [
       "controller",
       "executor",
@@ -69,7 +69,7 @@
     "provisioning_mode": "daemon_install",
     "install_capable": true,
     "diagnosis_status": "complete",
-    "last_role_reviewed_at": "2026-06-26T16:26:01.683690+00:00",
+    "last_role_reviewed_at": "2026-06-26T23:30:00.000000+00:00",
     "role_confidence": 1.0
   },
   {
