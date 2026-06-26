@@ -81,6 +81,7 @@ LEGACY_VIOLATIONS: set[str] = {
     "transports/api/cockpit.py",
     "transports/api/cockpit_core_routes.py",
     "transports/api/cockpit_core_eos_routes.py",
+    "transports/api/cockpit_entity_routes.py",
     # EOS analytics route calls organism bridge (should be split into UMH + EOS parts)
     "saas/api/routes/analytics.ts",
 }

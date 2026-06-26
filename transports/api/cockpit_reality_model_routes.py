@@ -88,7 +88,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     return r
 
 
-async def _status():
+def _status():
     canonical = _get_canonical()
     instance = _get_instance()
     return {
@@ -98,7 +98,7 @@ async def _status():
     }
 
 
-async def _canonical_patterns(domain: str | None = None, limit: int = 100):
+def _canonical_patterns(domain: str | None = None, limit: int = 100):
     canonical = _get_canonical()
     if domain:
         patterns = canonical.list_by_domain(domain)
@@ -122,7 +122,7 @@ async def _canonical_patterns(domain: str | None = None, limit: int = 100):
     return result
 
 
-async def _canonical_pattern_detail(name: str):
+def _canonical_pattern_detail(name: str):
     canonical = _get_canonical()
     p = canonical.get_by_name(name)
     if not p:
@@ -147,7 +147,7 @@ async def _canonical_pattern_detail(name: str):
     }
 
 
-async def _canonical_search(q: str = "", limit: int = 10):
+def _canonical_search(q: str = "", limit: int = 10):
     if not q:
         return []
     canonical = _get_canonical()
@@ -164,7 +164,7 @@ async def _canonical_search(q: str = "", limit: int = 10):
     ]
 
 
-async def _canonical_domains():
+def _canonical_domains():
     canonical = _get_canonical()
     patterns = canonical.all()
     domains: dict[str, int] = {}
@@ -173,11 +173,11 @@ async def _canonical_domains():
     return [{"domain": d, "pattern_count": c} for d, c in sorted(domains.items())]
 
 
-async def _canonical_stats():
+def _canonical_stats():
     return _get_canonical().stats()
 
 
-async def _canonical_relationships(name: str):
+def _canonical_relationships(name: str):
     canonical = _get_canonical()
     related = canonical.get_related(name)
     return [
@@ -186,7 +186,7 @@ async def _canonical_relationships(name: str):
     ]
 
 
-async def _instance_observations(domain: str | None = None, limit: int = 50):
+def _instance_observations(domain: str | None = None, limit: int = 50):
     instance = _get_instance()
     if domain:
         obs_list = instance.list_by_domain(domain)
@@ -206,7 +206,7 @@ async def _instance_observations(domain: str | None = None, limit: int = 50):
     ]
 
 
-async def _instance_recent(limit: int = 20):
+def _instance_recent(limit: int = 20):
     instance = _get_instance()
     recent = instance.recent(limit=limit)
     return [
@@ -223,7 +223,7 @@ async def _instance_recent(limit: int = 20):
     ]
 
 
-async def _instance_search(q: str = "", limit: int = 10):
+def _instance_search(q: str = "", limit: int = 10):
     if not q:
         return []
     instance = _get_instance()
@@ -240,7 +240,7 @@ async def _instance_search(q: str = "", limit: int = 10):
     ]
 
 
-async def _instance_domains():
+def _instance_domains():
     instance = _get_instance()
     obs_list = instance.all()
     domains: dict[str, int] = {}
@@ -249,11 +249,11 @@ async def _instance_domains():
     return [{"domain": d, "observation_count": c} for d, c in sorted(domains.items())]
 
 
-async def _instance_stats():
+def _instance_stats():
     return _get_instance().stats()
 
 
-async def _reality_timeline(
+def _reality_timeline(
     domain: str | None = None,
     source: str | None = None,
     limit: int = 50,

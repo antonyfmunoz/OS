@@ -55,7 +55,7 @@ def register_session_routes(router, _require_operator_role, helpers):
             pass
 
     @router.post("/claude-session/send")
-    async def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
+    def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
         """Send a prompt to a Claude Code session via tmux bridge. Governed."""
         from substrate.execution.bridge.claude_session_bridge import (
             ensure_session,
@@ -85,7 +85,7 @@ def register_session_routes(router, _require_operator_role, helpers):
         return {**base, "work_packet_id": work_packet_id, "traced": True}
 
     @router.post("/claude-session/capture")
-    async def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-arg]
+    def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-arg]
         """Capture output from a Claude Code session."""
         from substrate.execution.bridge.claude_session_bridge import capture_output
 
@@ -100,14 +100,14 @@ def register_session_routes(router, _require_operator_role, helpers):
         return {**base, "work_packet_id": work_packet_id}
 
     @router.get("/claude-session/list")
-    async def claude_session_list() -> dict:  # type: ignore[type-arg]
+    def claude_session_list() -> dict:  # type: ignore[type-arg]
         """List active Claude Code sessions."""
         from substrate.execution.bridge.claude_session_bridge import list_sessions
 
         return list_sessions()  # type: ignore[return-value]
 
     @router.post("/tmux/send")
-    async def tmux_send(payload: dict) -> dict:  # type: ignore[type-arg]
+    def tmux_send(payload: dict) -> dict:  # type: ignore[type-arg]
         """Send keys to a tmux session (governed via TmuxOperationalAdapter)."""
         session_name = payload.get("session_name", "")
         text = payload.get("text", "")
@@ -127,7 +127,7 @@ def register_session_routes(router, _require_operator_role, helpers):
             return {"error": str(exc)}
 
     @router.post("/council/review")
-    async def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
+    def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
         """Trigger council review for a decision."""
         from substrate.organism.council import Council
 
@@ -140,7 +140,7 @@ def register_session_routes(router, _require_operator_role, helpers):
         return {"ok": True, "review": review.to_dict()}
 
     @router.post("/device/register")
-    async def device_register(payload: dict) -> dict:
+    def device_register(payload: dict) -> dict:
         """Register a device session with the presence registry."""
         from substrate.workstation.device_presence import DeviceSession, get_registry
 
@@ -165,7 +165,7 @@ def register_session_routes(router, _require_operator_role, helpers):
         return {"ok": True, "session_id": session_id}
 
     @router.post("/device/heartbeat")
-    async def device_heartbeat(payload: dict) -> dict:
+    def device_heartbeat(payload: dict) -> dict:
         """Heartbeat — refresh session last_seen and apply optional field updates."""
         from substrate.workstation.device_presence import get_registry
 
@@ -180,7 +180,7 @@ def register_session_routes(router, _require_operator_role, helpers):
         return {"ok": True}
 
     @router.get("/device/sessions")
-    async def device_sessions() -> dict:
+    def device_sessions() -> dict:
         """List all active device sessions."""
         from substrate.workstation.device_presence import get_registry
 
@@ -188,7 +188,7 @@ def register_session_routes(router, _require_operator_role, helpers):
         return {"sessions": [s.to_dict() for s in sessions]}
 
     @router.post("/device/disconnect")
-    async def device_disconnect(payload: dict) -> dict:
+    def device_disconnect(payload: dict) -> dict:
         """Mark a session as disconnected."""
         from substrate.workstation.device_presence import get_registry
 

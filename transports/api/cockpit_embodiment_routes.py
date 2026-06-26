@@ -47,7 +47,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.post("/embodiment/intent")
-    async def process_intent(payload: dict) -> dict:
+    def process_intent(payload: dict) -> dict:
         emb = _get_embodiment()
         if emb is None:
             raise HTTPException(status_code=503, detail="embodiment unavailable")
@@ -58,7 +58,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return response.to_dict()
 
     @r.post("/embodiment/classify")
-    async def classify_intent(payload: dict) -> dict:
+    def classify_intent(payload: dict) -> dict:
         emb = _get_embodiment()
         if emb is None:
             raise HTTPException(status_code=503, detail="embodiment unavailable")
@@ -69,35 +69,35 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return classification.to_dict()
 
     @r.get("/embodiment/context")
-    async def embodiment_context() -> dict:
+    def embodiment_context() -> dict:
         emb = _get_embodiment()
         if emb is None:
             return {"error": "embodiment unavailable"}
         return emb.current_context().to_dict()
 
     @r.get("/embodiment/persona")
-    async def embodiment_persona() -> dict:
+    def embodiment_persona() -> dict:
         emb = _get_embodiment()
         if emb is None:
             return {"name": "UMH", "style": "tactical"}
         return emb.persona_info()
 
     @r.patch("/embodiment/persona")
-    async def update_persona(payload: dict) -> dict:
+    def update_persona(payload: dict) -> dict:
         emb = _get_embodiment()
         if emb is None:
             raise HTTPException(status_code=503, detail="embodiment unavailable")
         return emb.update_persona(**payload)
 
     @r.get("/embodiment/history")
-    async def intent_history(limit: int = 50) -> dict:
+    def intent_history(limit: int = 50) -> dict:
         emb = _get_embodiment()
         if emb is None:
             return {"history": []}
         return {"history": [h.to_dict() for h in emb.intent_history(limit)]}
 
     @r.get("/embodiment/accuracy")
-    async def routing_accuracy() -> dict:
+    def routing_accuracy() -> dict:
         emb = _get_embodiment()
         if emb is None:
             return {"total_processed": 0}

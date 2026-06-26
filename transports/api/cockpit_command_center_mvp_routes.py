@@ -74,54 +74,53 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/command-center-mvp/snapshot", dependencies=auth)
-    async def snapshot() -> dict[str, Any]:
+    def snapshot() -> dict[str, Any]:
         return _get_runtime().snapshot().to_dict()
 
     @r.get("/command-center-mvp/situation", dependencies=auth)
-    async def situation() -> dict[str, Any]:
+    def situation() -> dict[str, Any]:
         return _get_runtime().situation()
 
     @r.get("/command-center-mvp/attention", dependencies=auth)
-    async def attention(limit: int = 10) -> list[dict[str, Any]]:
+    def attention(limit: int = 10) -> list[dict[str, Any]]:
         return _get_runtime().attention(limit=limit)
 
     @r.get("/command-center-mvp/execution-pulse", dependencies=auth)
-    async def execution_pulse() -> dict[str, Any]:
+    def execution_pulse() -> dict[str, Any]:
         return _get_runtime().execution_pulse().to_dict()
 
     @r.get("/command-center-mvp/capability-pulse", dependencies=auth)
-    async def capability_pulse() -> dict[str, Any]:
+    def capability_pulse() -> dict[str, Any]:
         return _get_runtime().capability_pulse().to_dict()
 
     @r.get("/command-center-mvp/migration-pulse", dependencies=auth)
-    async def migration_pulse() -> dict[str, Any]:
+    def migration_pulse() -> dict[str, Any]:
         return _get_runtime().migration_pulse().to_dict()
 
     @r.get("/command-center-mvp/recommendations", dependencies=auth)
-    async def recommendations(limit: int = 5) -> list[dict[str, Any]]:
+    def recommendations(limit: int = 5) -> list[dict[str, Any]]:
         return [r.to_dict() for r in _get_runtime().recommendations(limit=limit)]
 
     @r.get("/command-center-mvp/section/{section_name}", dependencies=auth)
-    async def section(section_name: str) -> dict[str, Any]:
+    def section(section_name: str) -> dict[str, Any]:
         return _get_runtime().section(section_name)
 
     # ── C16 — Governed Execution Loop endpoints ─────────────────
 
     @r.get("/command-center-mvp/governed-execution", dependencies=auth)
-    async def governed_execution() -> dict[str, Any]:
+    def governed_execution() -> dict[str, Any]:
         return _get_governed_execution().snapshot().to_dict()
 
     @r.get("/command-center-mvp/execution-summary", dependencies=auth)
-    async def execution_summary() -> dict[str, Any]:
-        """Unified execution summary — single canonical read for all execution surfaces."""
+    def execution_summary() -> dict[str, Any]:
         return _get_governed_execution().execution_summary()
 
     @r.get("/command-center-mvp/organism-state", dependencies=auth)
-    async def organism_state() -> dict[str, Any]:
+    def organism_state() -> dict[str, Any]:
         return _get_organism_state().snapshot().to_dict()
 
     @r.get("/command-center-mvp/execution-lifecycle", dependencies=auth)
-    async def execution_lifecycle() -> dict[str, Any]:
+    def execution_lifecycle() -> dict[str, Any]:
         return _get_execution_lifecycle().snapshot().to_dict()
 
     return r

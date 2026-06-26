@@ -73,7 +73,7 @@ def get_router() -> Any:
     )
 
     @router.get("/overview")
-    async def learning_overview() -> dict[str, Any]:
+    def learning_overview() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"error": "unavailable"}
@@ -84,7 +84,7 @@ def get_router() -> Any:
             return {"error": "snapshot failed"}
 
     @router.get("/lessons")
-    async def learning_lessons() -> dict[str, Any]:
+    def learning_lessons() -> dict[str, Any]:
         rt = _get_extraction()
         if rt is None:
             return {"lessons": []}
@@ -96,7 +96,7 @@ def get_router() -> Any:
             return {"lessons": []}
 
     @router.get("/lessons/actionable")
-    async def actionable_lessons() -> dict[str, Any]:
+    def actionable_lessons() -> dict[str, Any]:
         rt = _get_extraction()
         if rt is None:
             return {"lessons": []}
@@ -108,7 +108,7 @@ def get_router() -> Any:
             return {"lessons": []}
 
     @router.get("/patterns")
-    async def learning_patterns() -> dict[str, Any]:
+    def learning_patterns() -> dict[str, Any]:
         rt = _get_patterns()
         if rt is None:
             return {"patterns": []}
@@ -120,7 +120,7 @@ def get_router() -> Any:
             return {"patterns": []}
 
     @router.get("/patterns/{pattern_id}")
-    async def pattern_detail(pattern_id: str) -> dict[str, Any]:
+    def pattern_detail(pattern_id: str) -> dict[str, Any]:
         rt = _get_patterns()
         if rt is None:
             return {"error": "unavailable"}
@@ -135,7 +135,7 @@ def get_router() -> Any:
             return {"error": "query failed"}
 
     @router.get("/evolution")
-    async def capability_evolution() -> dict[str, Any]:
+    def capability_evolution() -> dict[str, Any]:
         rt = _get_evolution()
         if rt is None:
             return {"trajectories": []}
@@ -147,7 +147,7 @@ def get_router() -> Any:
             return {"trajectories": []}
 
     @router.get("/evolution/{capability_id}")
-    async def evolution_detail(capability_id: str) -> dict[str, Any]:
+    def evolution_detail(capability_id: str) -> dict[str, Any]:
         rt = _get_evolution()
         if rt is None:
             return {"error": "unavailable"}
@@ -161,7 +161,7 @@ def get_router() -> Any:
             return {"error": "query failed"}
 
     @router.get("/drift")
-    async def learning_drift() -> dict[str, Any]:
+    def learning_drift() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"warnings": []}
@@ -173,7 +173,7 @@ def get_router() -> Any:
             return {"warnings": []}
 
     @router.get("/health")
-    async def learning_health() -> dict[str, Any]:
+    def learning_health() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"health": "unknown"}
@@ -189,7 +189,7 @@ def get_router() -> Any:
             return {"health": "unknown"}
 
     @router.get("/compounding")
-    async def learning_compounding() -> dict[str, Any]:
+    def learning_compounding() -> dict[str, Any]:
         rt = _get_portfolio()
         if rt is None:
             return {"compounding_score": 0.0}

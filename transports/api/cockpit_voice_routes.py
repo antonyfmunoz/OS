@@ -74,7 +74,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result
 
     @r.get("/voice/domains", dependencies=auth)
-    async def voice_domains() -> dict[str, Any]:
+    def voice_domains() -> dict[str, Any]:
         from substrate.operator.voice_query_engine import QueryDomain
 
         domains = []
@@ -83,7 +83,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"success": True, "domains": domains}
 
     @r.get("/voice/history", dependencies=auth)
-    async def voice_history() -> dict[str, Any]:
+    def voice_history() -> dict[str, Any]:
         return {"success": True, "history": list(_history)}
 
     return r

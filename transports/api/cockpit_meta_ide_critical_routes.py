@@ -107,7 +107,7 @@ def _get_trust_engine() -> Any:
 # ── Planning endpoints ───────────────────────────────────────────────────
 
 
-async def _compose(payload: dict) -> dict[str, Any]:
+def _compose(payload: dict) -> dict[str, Any]:
     """Create an engineering plan from natural language intent."""
     planner = _get_planner()
     if planner is None:
@@ -149,7 +149,7 @@ async def _compose(payload: dict) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _list_plans() -> list[dict[str, Any]]:
+def _list_plans() -> list[dict[str, Any]]:
     """List all in-memory plans."""
     planner = _get_planner()
     if planner is None:
@@ -170,7 +170,7 @@ async def _list_plans() -> list[dict[str, Any]]:
         return [{"error": str(exc)}]
 
 
-async def _get_plan(plan_id: str) -> dict[str, Any]:
+def _get_plan(plan_id: str) -> dict[str, Any]:
     """Get full plan detail."""
     planner = _get_planner()
     if planner is None:
@@ -212,7 +212,7 @@ async def _get_plan(plan_id: str) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _approve_plan(plan_id: str) -> dict[str, Any]:
+def _approve_plan(plan_id: str) -> dict[str, Any]:
     """Approve a plan for execution."""
     planner = _get_planner()
     if planner is None:
@@ -223,7 +223,7 @@ async def _approve_plan(plan_id: str) -> dict[str, Any]:
     return {"plan_id": plan_id, "status": "approved"}
 
 
-async def _reject_plan(plan_id: str) -> dict[str, Any]:
+def _reject_plan(plan_id: str) -> dict[str, Any]:
     """Reject a plan."""
     planner = _get_planner()
     if planner is None:
@@ -237,7 +237,7 @@ async def _reject_plan(plan_id: str) -> dict[str, Any]:
 # ── Work Packet endpoints ────────────────────────────────────────────────
 
 
-async def _execute_plan(payload: dict) -> dict[str, Any]:
+def _execute_plan(payload: dict) -> dict[str, Any]:
     """Generate work packets from an approved plan."""
     plan_id = payload.get("plan_id", "")
     if not plan_id:
@@ -281,7 +281,7 @@ async def _execute_plan(payload: dict) -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _pending_steps(plan_id: str) -> dict[str, Any]:
+def _pending_steps(plan_id: str) -> dict[str, Any]:
     """List pending approval steps for a plan."""
     planner = _get_planner()
     if planner is None:
@@ -300,7 +300,7 @@ async def _pending_steps(plan_id: str) -> dict[str, Any]:
 # ── Proof Package endpoints ──────────────────────────────────────────────
 
 
-async def _list_deliverables() -> list[dict[str, Any]]:
+def _list_deliverables() -> list[dict[str, Any]]:
     """List available proof packages / deliverables."""
     organism = _get_organism()
     if organism is None:
@@ -328,7 +328,7 @@ async def _list_deliverables() -> list[dict[str, Any]]:
 # ── Trust Score endpoints ────────────────────────────────────────────────
 
 
-async def _trust_scores() -> dict[str, Any]:
+def _trust_scores() -> dict[str, Any]:
     """Trust score summary across all tracked work items."""
     engine = _get_trust_engine()
     if engine is None:
@@ -339,7 +339,7 @@ async def _trust_scores() -> dict[str, Any]:
         return {"error": str(exc)}
 
 
-async def _trust_score_detail(work_id: str) -> dict[str, Any]:
+def _trust_score_detail(work_id: str) -> dict[str, Any]:
     """Trust score for a specific work item."""
     engine = _get_trust_engine()
     if engine is None:

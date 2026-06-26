@@ -464,14 +464,14 @@ class CreateArtifactReq(BaseModel):
 # ── Servers ──
 
 @rooms_router.get("/servers")
-async def list_servers(user=Depends(require_clerk_auth)):
+def list_servers(user=Depends(require_clerk_auth)):
     uid = _user_id(user)
     member_server_ids = {m["server_id"] for m in _load("members") if m["user_id"] == uid}
     return [s for s in _load("servers") if s["id"] in member_server_ids or s.get("owner_id") == uid]
 
 
 @rooms_router.post("/servers")
-async def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
+def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
     servers = _load("servers")
     server = {
         "id": _uid(),
@@ -667,7 +667,7 @@ async def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.patch("/servers/{server_id}")
-async def update_server(server_id: str, req: UpdateServerReq, user=Depends(require_clerk_auth)):
+def update_server(server_id: str, req: UpdateServerReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_server")
     servers = _load("servers")
     for s in servers:
@@ -682,7 +682,7 @@ async def update_server(server_id: str, req: UpdateServerReq, user=Depends(requi
 
 
 @rooms_router.delete("/servers/{server_id}")
-async def delete_server(server_id: str, user=Depends(require_clerk_auth)):
+def delete_server(server_id: str, user=Depends(require_clerk_auth)):
     if not _is_server_owner(user, server_id):
         raise HTTPException(403, "Only the server owner can delete a server")
     servers = _load("servers")
@@ -695,13 +695,13 @@ async def delete_server(server_id: str, user=Depends(require_clerk_auth)):
 # ── Categories ──
 
 @rooms_router.get("/servers/{server_id}/categories")
-async def list_categories(server_id: str, user=Depends(require_clerk_auth)):
+def list_categories(server_id: str, user=Depends(require_clerk_auth)):
     _require_server_member(user, server_id)
     return [c for c in _load("categories") if c["server_id"] == server_id]
 
 
 @rooms_router.post("/servers/{server_id}/categories")
-async def create_category(server_id: str, req: CreateCategoryReq, user=Depends(require_clerk_auth)):
+def create_category(server_id: str, req: CreateCategoryReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_channels")
     categories = _load("categories")
     cat = {
@@ -720,7 +720,7 @@ async def create_category(server_id: str, req: CreateCategoryReq, user=Depends(r
 
 
 @rooms_router.patch("/categories/{cat_id}")
-async def update_category(cat_id: str, req: UpdateCategoryReq, user=Depends(require_clerk_auth)):
+def update_category(cat_id: str, req: UpdateCategoryReq, user=Depends(require_clerk_auth)):
     categories = _load("categories")
     cat = next((c for c in categories if c["id"] == cat_id), None)
     if not cat:
@@ -733,7 +733,7 @@ async def update_category(cat_id: str, req: UpdateCategoryReq, user=Depends(requ
 
 
 @rooms_router.delete("/categories/{cat_id}")
-async def delete_category(cat_id: str, user=Depends(require_clerk_auth)):
+def delete_category(cat_id: str, user=Depends(require_clerk_auth)):
     categories = _load("categories")
     cat = next((c for c in categories if c["id"] == cat_id), None)
     if not cat:
@@ -747,7 +747,7 @@ async def delete_category(cat_id: str, user=Depends(require_clerk_auth)):
 # ── Channels ──
 
 @rooms_router.get("/servers/{server_id}/channels")
-async def list_channels(server_id: str, user=Depends(require_clerk_auth)):
+def list_channels(server_id: str, user=Depends(require_clerk_auth)):
     _require_server_member(user, server_id)
     channels = _load("channels")
     user_perms = _effective_permissions(user, server_id)
@@ -764,7 +764,7 @@ async def list_channels(server_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.post("/servers/{server_id}/channels")
-async def create_channel(server_id: str, req: CreateChannelReq, user=Depends(require_clerk_auth)):
+def create_channel(server_id: str, req: CreateChannelReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_channels")
     channels = _load("channels")
     ch = {
@@ -795,7 +795,7 @@ async def create_channel(server_id: str, req: CreateChannelReq, user=Depends(req
 
 
 @rooms_router.patch("/channels/{channel_id}")
-async def update_channel(channel_id: str, req: UpdateChannelReq, user=Depends(require_clerk_auth)):
+def update_channel(channel_id: str, req: UpdateChannelReq, user=Depends(require_clerk_auth)):
     server_id = _require_channel_access(user, channel_id)
     _require_server_perm(user, server_id, "manage_channels")
     channels = _load("channels")
@@ -809,7 +809,7 @@ async def update_channel(channel_id: str, req: UpdateChannelReq, user=Depends(re
 
 
 @rooms_router.delete("/channels/{channel_id}")
-async def delete_channel(channel_id: str, user=Depends(require_clerk_auth)):
+def delete_channel(channel_id: str, user=Depends(require_clerk_auth)):
     channels = _load("channels")
     ch = next((c for c in channels if c["id"] == channel_id), None)
     if not ch:
@@ -826,7 +826,7 @@ async def delete_channel(channel_id: str, user=Depends(require_clerk_auth)):
 # ── Messages ──
 
 @rooms_router.get("/channels/{channel_id}/messages")
-async def list_messages(channel_id: str, limit: int = 50, before: str | None = None, user=Depends(require_clerk_auth)):
+def list_messages(channel_id: str, limit: int = 50, before: str | None = None, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "view_channel")
     messages = _load("messages")
     ch_msgs = [m for m in messages if m["channel_id"] == channel_id and not m.get("deleted")]
@@ -841,7 +841,7 @@ async def list_messages(channel_id: str, limit: int = 50, before: str | None = N
 
 
 @rooms_router.post("/channels/{channel_id}/messages")
-async def send_message(channel_id: str, req: SendMessageReq, user=Depends(require_clerk_auth)):
+def send_message(channel_id: str, req: SendMessageReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
     messages = _load("messages")
 
@@ -885,7 +885,7 @@ async def send_message(channel_id: str, req: SendMessageReq, user=Depends(requir
 
 
 @rooms_router.patch("/messages/{message_id}")
-async def edit_message(message_id: str, req: EditMessageReq, user=Depends(require_clerk_auth)):
+def edit_message(message_id: str, req: EditMessageReq, user=Depends(require_clerk_auth)):
     messages = _load("messages")
     for m in messages:
         if m["id"] == message_id:
@@ -901,7 +901,7 @@ async def edit_message(message_id: str, req: EditMessageReq, user=Depends(requir
 
 
 @rooms_router.delete("/messages/{message_id}")
-async def delete_message(message_id: str, user=Depends(require_clerk_auth)):
+def delete_message(message_id: str, user=Depends(require_clerk_auth)):
     messages = _load("messages")
     for m in messages:
         if m["id"] == message_id:
@@ -922,7 +922,7 @@ async def delete_message(message_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.post("/messages/{message_id}/pin")
-async def pin_message(message_id: str, req: PinMessageReq, user=Depends(require_clerk_auth)):
+def pin_message(message_id: str, req: PinMessageReq, user=Depends(require_clerk_auth)):
     messages = _load("messages")
     for m in messages:
         if m["id"] == message_id:
@@ -936,7 +936,7 @@ async def pin_message(message_id: str, req: PinMessageReq, user=Depends(require_
 
 
 @rooms_router.post("/messages/{message_id}/reactions")
-async def add_reaction(message_id: str, req: ReactionReq, user=Depends(require_clerk_auth)):
+def add_reaction(message_id: str, req: ReactionReq, user=Depends(require_clerk_auth)):
     messages = _load("messages")
     user_id = _user_id(user)
     for m in messages:
@@ -959,7 +959,7 @@ async def add_reaction(message_id: str, req: ReactionReq, user=Depends(require_c
 
 
 @rooms_router.delete("/messages/{message_id}/reactions/{emoji}")
-async def remove_reaction(message_id: str, emoji: str, user=Depends(require_clerk_auth)):
+def remove_reaction(message_id: str, emoji: str, user=Depends(require_clerk_auth)):
     messages = _load("messages")
     user_id = _user_id(user)
     for m in messages:
@@ -979,13 +979,13 @@ async def remove_reaction(message_id: str, emoji: str, user=Depends(require_cler
 # ── Threads ──
 
 @rooms_router.get("/channels/{channel_id}/threads")
-async def list_threads(channel_id: str, user=Depends(require_clerk_auth)):
+def list_threads(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     return [t for t in _load("threads") if t["channel_id"] == channel_id]
 
 
 @rooms_router.post("/channels/{channel_id}/threads")
-async def create_thread(channel_id: str, req: CreateThreadReq, user=Depends(require_clerk_auth)):
+def create_thread(channel_id: str, req: CreateThreadReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
     threads = _load("threads")
     thread = {
@@ -1007,7 +1007,7 @@ async def create_thread(channel_id: str, req: CreateThreadReq, user=Depends(requ
 
 
 @rooms_router.patch("/threads/{thread_id}")
-async def update_thread(thread_id: str, req: UpdateThreadReq, user=Depends(require_clerk_auth)):
+def update_thread(thread_id: str, req: UpdateThreadReq, user=Depends(require_clerk_auth)):
     threads = _load("threads")
     for t in threads:
         if t["id"] == thread_id:
@@ -1021,13 +1021,13 @@ async def update_thread(thread_id: str, req: UpdateThreadReq, user=Depends(requi
 # ── Forum ──
 
 @rooms_router.get("/channels/{channel_id}/forum/posts")
-async def list_forum_posts(channel_id: str, user=Depends(require_clerk_auth)):
+def list_forum_posts(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     return [p for p in _load("forum_posts") if p["channel_id"] == channel_id]
 
 
 @rooms_router.post("/channels/{channel_id}/forum/posts")
-async def create_forum_post(channel_id: str, req: CreateForumPostReq, user=Depends(require_clerk_auth)):
+def create_forum_post(channel_id: str, req: CreateForumPostReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
     posts = _load("forum_posts")
     post = {
@@ -1052,7 +1052,7 @@ async def create_forum_post(channel_id: str, req: CreateForumPostReq, user=Depen
 
 
 @rooms_router.patch("/forum/posts/{post_id}")
-async def update_forum_post(post_id: str, req: UpdateForumPostReq, user=Depends(require_clerk_auth)):
+def update_forum_post(post_id: str, req: UpdateForumPostReq, user=Depends(require_clerk_auth)):
     posts = _load("forum_posts")
     for p in posts:
         if p["id"] == post_id:
@@ -1065,13 +1065,13 @@ async def update_forum_post(post_id: str, req: UpdateForumPostReq, user=Depends(
 
 
 @rooms_router.get("/channels/{channel_id}/forum/tags")
-async def list_forum_tags(channel_id: str, user=Depends(require_clerk_auth)):
+def list_forum_tags(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     return [t for t in _load("forum_tags") if t["channel_id"] == channel_id]
 
 
 @rooms_router.post("/channels/{channel_id}/forum/tags")
-async def create_forum_tag(channel_id: str, req: CreateForumTagReq, user=Depends(require_clerk_auth)):
+def create_forum_tag(channel_id: str, req: CreateForumTagReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "manage_channels")
     tags = _load("forum_tags")
     tag = {
@@ -1088,13 +1088,13 @@ async def create_forum_tag(channel_id: str, req: CreateForumTagReq, user=Depends
 # ── Roles ──
 
 @rooms_router.get("/servers/{server_id}/roles")
-async def list_roles(server_id: str, user=Depends(require_clerk_auth)):
+def list_roles(server_id: str, user=Depends(require_clerk_auth)):
     _require_server_member(user, server_id)
     return [r for r in _load("roles") if r["server_id"] == server_id]
 
 
 @rooms_router.post("/servers/{server_id}/roles")
-async def create_role(server_id: str, req: CreateRoleReq, user=Depends(require_clerk_auth)):
+def create_role(server_id: str, req: CreateRoleReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_roles")
     roles = _load("roles")
     role = {
@@ -1114,7 +1114,7 @@ async def create_role(server_id: str, req: CreateRoleReq, user=Depends(require_c
 
 
 @rooms_router.patch("/roles/{role_id}")
-async def update_role(role_id: str, req: UpdateRoleReq, user=Depends(require_clerk_auth)):
+def update_role(role_id: str, req: UpdateRoleReq, user=Depends(require_clerk_auth)):
     roles = _load("roles")
     role = next((r for r in roles if r["id"] == role_id), None)
     if not role:
@@ -1127,7 +1127,7 @@ async def update_role(role_id: str, req: UpdateRoleReq, user=Depends(require_cle
 
 
 @rooms_router.delete("/roles/{role_id}")
-async def delete_role(role_id: str, user=Depends(require_clerk_auth)):
+def delete_role(role_id: str, user=Depends(require_clerk_auth)):
     roles = _load("roles")
     role = next((r for r in roles if r["id"] == role_id), None)
     if not role:
@@ -1141,13 +1141,13 @@ async def delete_role(role_id: str, user=Depends(require_clerk_auth)):
 # ── Members ──
 
 @rooms_router.get("/servers/{server_id}/members")
-async def list_members(server_id: str, user=Depends(require_clerk_auth)):
+def list_members(server_id: str, user=Depends(require_clerk_auth)):
     _require_server_member(user, server_id)
     return [m for m in _load("members") if m["server_id"] == server_id]
 
 
 @rooms_router.post("/servers/{server_id}/members/{user_id}/roles")
-async def assign_member_role(server_id: str, user_id: str, req: RoleAssignReq, user=Depends(require_clerk_auth)):
+def assign_member_role(server_id: str, user_id: str, req: RoleAssignReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_roles")
     members = _load("members")
     for m in members:
@@ -1161,7 +1161,7 @@ async def assign_member_role(server_id: str, user_id: str, req: RoleAssignReq, u
 
 
 @rooms_router.delete("/servers/{server_id}/members/{user_id}/roles/{role_id}")
-async def remove_member_role(server_id: str, user_id: str, role_id: str, user=Depends(require_clerk_auth)):
+def remove_member_role(server_id: str, user_id: str, role_id: str, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_roles")
     members = _load("members")
     for m in members:
@@ -1173,7 +1173,7 @@ async def remove_member_role(server_id: str, user_id: str, role_id: str, user=De
 
 
 @rooms_router.post("/presence")
-async def update_presence(req: PresenceReq, user=Depends(require_clerk_auth)):
+def update_presence(req: PresenceReq, user=Depends(require_clerk_auth)):
     members = _load("members")
     user_id = _user_id(user)
     for m in members:
@@ -1186,7 +1186,7 @@ async def update_presence(req: PresenceReq, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.post("/typing")
-async def typing_indicator(req: TypingReq, user=Depends(require_clerk_auth)):
+def typing_indicator(req: TypingReq, user=Depends(require_clerk_auth)):
     user_id = _user_id(user)
     event = "typing.started" if req.typing else "typing.stopped"
     _push_room_event(event, {
@@ -1200,13 +1200,13 @@ async def typing_indicator(req: TypingReq, user=Depends(require_clerk_auth)):
 # ── Invites ──
 
 @rooms_router.get("/servers/{server_id}/invites")
-async def list_invites(server_id: str, user=Depends(require_clerk_auth)):
+def list_invites(server_id: str, user=Depends(require_clerk_auth)):
     _require_server_member(user, server_id)
     return [inv for inv in _load("invites") if inv["server_id"] == server_id and not inv.get("revoked")]
 
 
 @rooms_router.post("/servers/{server_id}/invites")
-async def create_invite(server_id: str, req: CreateInviteReq, user=Depends(require_clerk_auth)):
+def create_invite(server_id: str, req: CreateInviteReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "create_invites")
     invites = _load("invites")
     expires_at = None
@@ -1239,7 +1239,7 @@ async def create_invite(server_id: str, req: CreateInviteReq, user=Depends(requi
 
 
 @rooms_router.delete("/invites/{invite_id}")
-async def revoke_invite(invite_id: str, user=Depends(require_clerk_auth)):
+def revoke_invite(invite_id: str, user=Depends(require_clerk_auth)):
     invites = _load("invites")
     for inv in invites:
         if inv["id"] == invite_id:
@@ -1276,7 +1276,7 @@ def _validate_invite(invite: dict) -> str | None:
 
 
 @rooms_public_router.get("/invite/{code}/info")
-async def get_invite_info(code: str):
+def get_invite_info(code: str):
     """Public endpoint — no auth required. Returns invite metadata for guest join page."""
     invite = _find_invite_by_code(code)
     if not invite:
@@ -1317,7 +1317,7 @@ async def get_invite_info(code: str):
 
 
 @rooms_public_router.post("/invite/{code}/join")
-async def guest_join_via_invite(code: str, req: GuestJoinReq):
+def guest_join_via_invite(code: str, req: GuestJoinReq):
     """Public endpoint — no auth required. Validates invite and returns a LiveKit token for the guest."""
     invite = _find_invite_by_code(code)
     if not invite:
@@ -1416,7 +1416,7 @@ class RoomChatReq(BaseModel):
 
 
 @rooms_router.get("/channels/{channel_id}/room-chat")
-async def list_room_chat(channel_id: str, limit: int = 100, user=Depends(require_clerk_auth)):
+def list_room_chat(channel_id: str, limit: int = 100, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "view_channel")
     msgs = _load("room_chat")
     ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
@@ -1425,7 +1425,7 @@ async def list_room_chat(channel_id: str, limit: int = 100, user=Depends(require
 
 
 @rooms_router.post("/channels/{channel_id}/room-chat")
-async def send_room_chat(channel_id: str, req: RoomChatReq, user=Depends(require_clerk_auth)):
+def send_room_chat(channel_id: str, req: RoomChatReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     msg = {
         "id": _uid(),
@@ -1456,7 +1456,7 @@ _GUEST_CHAT_PER_CHANNEL_CAP = 5000
 
 
 @rooms_public_router.get("/invite/{code}/chat")
-async def guest_list_room_chat(
+def guest_list_room_chat(
     code: str,
     limit: int = 100,
     authorization: str | None = Header(None),
@@ -1485,7 +1485,7 @@ async def guest_list_room_chat(
 
 
 @rooms_public_router.post("/invite/{code}/chat")
-async def guest_send_room_chat(
+def guest_send_room_chat(
     code: str,
     req: GuestChatReq,
     authorization: str | None = Header(None),
@@ -1532,7 +1532,7 @@ async def guest_send_room_chat(
 # ── Meeting ──
 
 @rooms_router.get("/channels/{channel_id}/meeting")
-async def get_meeting(channel_id: str, user=Depends(require_clerk_auth)):
+def get_meeting(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     meetings = _load("meetings")
     meeting = next((m for m in meetings if m["channel_id"] == channel_id), None)
@@ -1559,7 +1559,7 @@ async def get_meeting(channel_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.patch("/channels/{channel_id}/meeting")
-async def update_meeting(channel_id: str, req: UpdateMeetingReq, user=Depends(require_clerk_auth)):
+def update_meeting(channel_id: str, req: UpdateMeetingReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     meetings = _load("meetings")
     for m in meetings:
@@ -1572,7 +1572,7 @@ async def update_meeting(channel_id: str, req: UpdateMeetingReq, user=Depends(re
 
 
 @rooms_router.post("/channels/{channel_id}/meeting/actions")
-async def add_meeting_action(channel_id: str, req: AddActionItemReq, user=Depends(require_clerk_auth)):
+def add_meeting_action(channel_id: str, req: AddActionItemReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     meetings = _load("meetings")
     for m in meetings:
@@ -1591,7 +1591,7 @@ async def add_meeting_action(channel_id: str, req: AddActionItemReq, user=Depend
 
 
 @rooms_router.post("/channels/{channel_id}/meeting/actions/{item_id}/toggle")
-async def toggle_meeting_action(channel_id: str, item_id: str, user=Depends(require_clerk_auth)):
+def toggle_meeting_action(channel_id: str, item_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     meetings = _load("meetings")
     for m in meetings:
@@ -1605,7 +1605,7 @@ async def toggle_meeting_action(channel_id: str, item_id: str, user=Depends(requ
 
 
 @rooms_router.post("/channels/{channel_id}/meeting/end")
-async def end_meeting(channel_id: str, user=Depends(require_clerk_auth)):
+def end_meeting(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     meetings = _load("meetings")
     for m in meetings:
@@ -1638,7 +1638,7 @@ def _find_server_for_channel(channel_id: str) -> str:
 # ── Voice ──
 
 @rooms_router.get("/channels/{channel_id}/voice")
-async def get_voice_state(channel_id: str, user=Depends(require_clerk_auth)):
+def get_voice_state(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     voice = _load("voice_states")
     state = next((v for v in voice if v["channel_id"] == channel_id), None)
@@ -1648,7 +1648,7 @@ async def get_voice_state(channel_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.post("/channels/{channel_id}/voice/join")
-async def join_voice(channel_id: str, user=Depends(require_clerk_auth)):
+def join_voice(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "connect")
     voice = _load("voice_states")
     state = next((v for v in voice if v["channel_id"] == channel_id), None)
@@ -1671,7 +1671,7 @@ async def join_voice(channel_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.post("/channels/{channel_id}/voice/leave")
-async def leave_voice(channel_id: str, user=Depends(require_clerk_auth)):
+def leave_voice(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     voice = _load("voice_states")
     user_id = _user_id(user)
@@ -1684,7 +1684,7 @@ async def leave_voice(channel_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.post("/channels/{channel_id}/voice/token")
-async def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
+def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
     """Generate a LiveKit JWT for joining a voice channel."""
     _require_channel_access(user, channel_id, "connect")
 
@@ -1726,7 +1726,7 @@ async def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
 # ── DEX Settings ──
 
 @rooms_router.get("/channels/{channel_id}/dex")
-async def get_dex_settings(channel_id: str, user=Depends(require_clerk_auth)):
+def get_dex_settings(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     dex = _load("dex_settings")
     settings = next((d for d in dex if d["channel_id"] == channel_id), None)
@@ -1749,7 +1749,7 @@ async def get_dex_settings(channel_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.patch("/channels/{channel_id}/dex")
-async def update_dex_settings(channel_id: str, req: UpdateDexReq, user=Depends(require_clerk_auth)):
+def update_dex_settings(channel_id: str, req: UpdateDexReq, user=Depends(require_clerk_auth)):
     server_id = _require_channel_access(user, channel_id)
     _require_server_perm(user, server_id, "manage_channels")
     dex = _load("dex_settings")
@@ -1778,7 +1778,7 @@ async def update_dex_settings(channel_id: str, req: UpdateDexReq, user=Depends(r
 
 
 @rooms_router.post("/channels/{channel_id}/dex/summarize")
-async def dex_summarize(channel_id: str, user=Depends(require_clerk_auth)):
+def dex_summarize(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     messages = _load("messages")
     ch_msgs = [m for m in messages if m["channel_id"] == channel_id and not m.get("deleted")]
@@ -1800,7 +1800,7 @@ async def dex_summarize(channel_id: str, user=Depends(require_clerk_auth)):
 # ── Audit Log ──
 
 @rooms_router.get("/servers/{server_id}/audit-log")
-async def get_audit_log(server_id: str, user=Depends(require_clerk_auth)):
+def get_audit_log(server_id: str, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "view_audit_log")
     events = _load("audit_log")
     server_events = [e for e in events if e["server_id"] == server_id]
@@ -1810,13 +1810,13 @@ async def get_audit_log(server_id: str, user=Depends(require_clerk_auth)):
 # ── Artifacts ──
 
 @rooms_router.get("/channels/{channel_id}/artifacts")
-async def list_artifacts(channel_id: str, user=Depends(require_clerk_auth)):
+def list_artifacts(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     return [a for a in _load("artifacts") if a["channel_id"] == channel_id]
 
 
 @rooms_router.post("/channels/{channel_id}/artifacts")
-async def create_artifact(channel_id: str, req: CreateArtifactReq, user=Depends(require_clerk_auth)):
+def create_artifact(channel_id: str, req: CreateArtifactReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
     artifacts = _load("artifacts")
     artifact = {
@@ -1837,7 +1837,7 @@ async def create_artifact(channel_id: str, req: CreateArtifactReq, user=Depends(
 # ── Search ──
 
 @rooms_router.get("/servers/{server_id}/search")
-async def search_server(server_id: str, q: str = "", user=Depends(require_clerk_auth)):
+def search_server(server_id: str, q: str = "", user=Depends(require_clerk_auth)):
     _require_server_member(user, server_id)
     if not q:
         return []

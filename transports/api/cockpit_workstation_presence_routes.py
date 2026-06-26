@@ -52,14 +52,14 @@ def get_router():
     router = APIRouter(prefix="/workstation-presence", tags=["workstation-presence"])
 
     @router.get("/snapshot")
-    async def workstation_presence_snapshot() -> dict[str, Any]:
+    def workstation_presence_snapshot() -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "workstation presence not available"}
         return rt.snapshot().to_dict()
 
     @router.post("/panel")
-    async def workstation_presence_panel(body: PanelUpdate) -> dict[str, Any]:
+    def workstation_presence_panel(body: PanelUpdate) -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "workstation presence not available"}
@@ -67,7 +67,7 @@ def get_router():
         return {"ok": True, "panel_id": body.panel_id}
 
     @router.post("/device")
-    async def workstation_presence_device(body: DeviceUpdate) -> dict[str, Any]:
+    def workstation_presence_device(body: DeviceUpdate) -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "workstation presence not available"}
@@ -75,7 +75,7 @@ def get_router():
         return {"ok": True, "device_id": body.device_id}
 
     @router.post("/context")
-    async def workstation_presence_context(body: ContextUpdate) -> dict[str, Any]:
+    def workstation_presence_context(body: ContextUpdate) -> dict[str, Any]:
         rt = _get_runtime()
         if rt is None:
             return {"error": "workstation presence not available"}

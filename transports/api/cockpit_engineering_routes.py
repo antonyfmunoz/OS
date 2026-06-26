@@ -72,7 +72,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @router.post("/engineering/plan", dependencies=auth)
-    async def create_plan(body: dict[str, Any]) -> dict[str, Any]:
+    def create_plan(body: dict[str, Any]) -> dict[str, Any]:
         planner = _get_or_create_planner()
         if not planner:
             raise HTTPException(status_code=503, detail="Planner unavailable")
@@ -88,7 +88,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return plan.to_dict()
 
     @router.get("/engineering/plans", dependencies=auth)
-    async def list_plans() -> dict[str, Any]:
+    def list_plans() -> dict[str, Any]:
         planner = _get_or_create_planner()
         if not planner:
             return {"plans": [], "count": 0}
@@ -100,7 +100,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/engineering/plans/{plan_id}", dependencies=auth)
-    async def get_plan(plan_id: str) -> dict[str, Any]:
+    def get_plan(plan_id: str) -> dict[str, Any]:
         planner = _get_or_create_planner()
         if not planner:
             raise HTTPException(status_code=503, detail="Planner unavailable")
@@ -112,7 +112,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return plan.to_dict()
 
     @router.post("/engineering/plans/{plan_id}/approve", dependencies=auth)
-    async def approve_plan(plan_id: str) -> dict[str, Any]:
+    def approve_plan(plan_id: str) -> dict[str, Any]:
         planner = _get_or_create_planner()
         if not planner:
             raise HTTPException(status_code=503, detail="Planner unavailable")
@@ -195,7 +195,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"ok": True, "status": "dispatching", "plan_id": plan_id, "node_id": node_id}
 
     @router.post("/engineering/plans/{plan_id}/reject", dependencies=auth)
-    async def reject_plan(plan_id: str) -> dict[str, Any]:
+    def reject_plan(plan_id: str) -> dict[str, Any]:
         planner = _get_or_create_planner()
         if not planner:
             raise HTTPException(status_code=503, detail="Planner unavailable")
@@ -208,7 +208,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"plan_id": plan_id, "status": "rejected"}
 
     @router.get("/engineering/plans/{plan_id}/packets", dependencies=auth)
-    async def get_plan_packets(plan_id: str) -> dict[str, Any]:
+    def get_plan_packets(plan_id: str) -> dict[str, Any]:
         planner = _get_or_create_planner()
         if not planner:
             raise HTTPException(status_code=503, detail="Planner unavailable")
@@ -235,7 +235,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"plan_id": plan_id, "packets": [], "count": 0}
 
     @router.get("/engineering/queue", dependencies=auth)
-    async def engineering_queue() -> dict[str, Any]:
+    def engineering_queue() -> dict[str, Any]:
         try:
             from substrate.organism.universal_work_queue import UniversalWorkQueue
 
@@ -256,7 +256,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"total_engineering_packets": 0, "by_status": {}, "packets": []}
 
     @router.get("/engineering/gaps", dependencies=auth)
-    async def roadmap_gaps() -> dict[str, Any]:
+    def roadmap_gaps() -> dict[str, Any]:
         gap_engine = _get_gap_engine()
         if not gap_engine:
             return {"analysis": None, "recommendations": []}

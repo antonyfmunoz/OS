@@ -49,17 +49,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     return r
 
 
-async def _overview(request: Request) -> dict[str, Any]:
+def _overview(request: Request) -> dict[str, Any]:
     mgr = _get_manager()
     return mgr.get_overview()
 
 
-async def _sessions(request: Request) -> dict[str, Any]:
+def _sessions(request: Request) -> dict[str, Any]:
     mgr = _get_manager()
     return {"sessions": mgr.list_sessions()}
 
 
-async def _session_detail(request: Request, session_id: str) -> dict[str, Any]:
+def _session_detail(request: Request, session_id: str) -> dict[str, Any]:
     mgr = _get_manager()
     session = mgr.get_session(session_id)
     if not session:
@@ -67,13 +67,13 @@ async def _session_detail(request: Request, session_id: str) -> dict[str, Any]:
     return session
 
 
-async def _session_events(request: Request, session_id: str) -> dict[str, Any]:
+def _session_events(request: Request, session_id: str) -> dict[str, Any]:
     mgr = _get_manager()
     events = mgr.get_events(session_id)
     return {"session_id": session_id, "events": events, "count": len(events)}
 
 
-async def _adapters(request: Request) -> dict[str, Any]:
+def _adapters(request: Request) -> dict[str, Any]:
     mgr = _get_manager()
     return {"adapters": mgr.get_adapters()}
 

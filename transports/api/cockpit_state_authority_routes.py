@@ -54,12 +54,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("")
-    async def state_authority_graph() -> dict[str, Any]:
+    def state_authority_graph() -> dict[str, Any]:
         reg = _get_registry()
         return reg.topology().to_dict()
 
     @router.get("/domains")
-    async def all_domains() -> dict[str, Any]:
+    def all_domains() -> dict[str, Any]:
         reg = _get_registry()
         authorities = reg.all_domains()
         return {
@@ -68,12 +68,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/coherence")
-    async def coherence_report() -> dict[str, Any]:
+    def coherence_report() -> dict[str, Any]:
         engine = _get_coherence()
         return engine.coherence_report()
 
     @router.get("/domain/{domain}")
-    async def domain_detail(domain: str) -> dict[str, Any]:
+    def domain_detail(domain: str) -> dict[str, Any]:
         reg = _get_registry()
         auth = reg.get_domain(domain)
         if not auth:
@@ -87,7 +87,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result
 
     @router.get("/node/{node_id}")
-    async def domains_for_node(node_id: str) -> dict[str, Any]:
+    def domains_for_node(node_id: str) -> dict[str, Any]:
         reg = _get_registry()
         domains = reg.domains_for_node(node_id)
         return {

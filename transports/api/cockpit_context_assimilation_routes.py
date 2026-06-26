@@ -236,7 +236,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 # ── Handler implementations ────────────────────────────────────────────
 
 
-async def _context_assimilation_overview():
+def _context_assimilation_overview():
     try:
         engine = _get_engine()
         diag_store = _get_report_store()
@@ -263,7 +263,7 @@ async def _context_assimilation_overview():
         return {"error": "internal_error"}
 
 
-async def _list_sources():
+def _list_sources():
     try:
         engine = _get_engine()
         sources = engine.list_sources()
@@ -273,7 +273,7 @@ async def _list_sources():
         return {"error": "internal_error"}
 
 
-async def _list_jobs():
+def _list_jobs():
     try:
         engine = _get_engine()
         jobs = engine.job_store.list_jobs()
@@ -283,7 +283,7 @@ async def _list_jobs():
         return {"error": "internal_error"}
 
 
-async def _list_diagnostics():
+def _list_diagnostics():
     try:
         store = _get_report_store()
         reports = store.list_reports()
@@ -293,7 +293,7 @@ async def _list_diagnostics():
         return {"error": "internal_error"}
 
 
-async def _get_diagnostic(report_id: str):
+def _get_diagnostic(report_id: str):
     try:
         store = _get_report_store()
         report = store.get_report(report_id)
@@ -305,7 +305,7 @@ async def _get_diagnostic(report_id: str):
         return {"error": "internal_error"}
 
 
-async def _list_proposals():
+def _list_proposals():
     try:
         store = _get_proposal_store()
         proposals = store.list_proposals()
@@ -315,7 +315,7 @@ async def _list_proposals():
         return {"error": "internal_error"}
 
 
-async def _get_proposal(proposal_id: str):
+def _get_proposal(proposal_id: str):
     try:
         store = _get_proposal_store()
         prop = store.get_proposal(proposal_id)
@@ -327,7 +327,7 @@ async def _get_proposal(proposal_id: str):
         return {"error": "internal_error"}
 
 
-async def _list_sessions():
+def _list_sessions():
     try:
         store = _get_session_store()
         sessions = store.list_sessions()
@@ -337,7 +337,7 @@ async def _list_sessions():
         return {"error": "internal_error"}
 
 
-async def _get_session(session_id: str):
+def _get_session(session_id: str):
     try:
         store = _get_session_store()
         session = store.get_session(session_id)
@@ -349,7 +349,7 @@ async def _get_session(session_id: str):
         return {"error": "internal_error"}
 
 
-async def _list_sync_policies():
+def _list_sync_policies():
     try:
         store = _get_sync_store()
         policies = store.list_policies()
@@ -359,7 +359,7 @@ async def _list_sync_policies():
         return {"error": "internal_error"}
 
 
-async def _list_permissions():
+def _list_permissions():
     try:
         engine = _get_permission_engine()
         requests = engine.list_requests()
@@ -374,7 +374,7 @@ async def _list_permissions():
         return {"error": "internal_error"}
 
 
-async def _environment_overview():
+def _environment_overview():
     try:
         store = _get_env_store()
         return {
@@ -388,7 +388,7 @@ async def _environment_overview():
         return {"error": "internal_error"}
 
 
-async def _list_devices():
+def _list_devices():
     try:
         store = _get_env_store()
         devices = store.list_devices()
@@ -398,7 +398,7 @@ async def _list_devices():
         return {"error": "internal_error"}
 
 
-async def _list_apps():
+def _list_apps():
     try:
         store = _get_env_store()
         apps = store.list_apps()
@@ -408,7 +408,7 @@ async def _list_apps():
         return {"error": "internal_error"}
 
 
-async def _list_cross_source_signals():
+def _list_cross_source_signals():
     try:
         reconciler = _get_cross_source()
         signals = reconciler.list_signals()
@@ -462,7 +462,7 @@ async def _start_reconciliation(request: Request):
         return {"error": "internal_error"}
 
 
-async def _approve_proposal(proposal_id: str):
+def _approve_proposal(proposal_id: str):
     try:
         store = _get_proposal_store()
         if not store.approve(proposal_id):
@@ -473,7 +473,7 @@ async def _approve_proposal(proposal_id: str):
         return {"error": "internal_error"}
 
 
-async def _reject_proposal(proposal_id: str):
+def _reject_proposal(proposal_id: str):
     try:
         store = _get_proposal_store()
         if not store.reject(proposal_id):
@@ -484,7 +484,7 @@ async def _reject_proposal(proposal_id: str):
         return {"error": "internal_error"}
 
 
-async def _run_instantiation_diagnostic():
+def _run_instantiation_diagnostic():
     try:
         engine = _get_engine()
         engine.seed_local_sources()
@@ -518,7 +518,7 @@ async def _decide_permission(request_id: str, request: Request):
         return {"error": "internal_error"}
 
 
-async def _revoke_permission(request_id: str):
+def _revoke_permission(request_id: str):
     try:
         engine = _get_permission_engine()
         if not engine.revoke(request_id):
@@ -529,7 +529,7 @@ async def _revoke_permission(request_id: str):
         return {"error": "internal_error"}
 
 
-async def _confirm_cross_source(signal_id: str):
+def _confirm_cross_source(signal_id: str):
     try:
         reconciler = _get_cross_source()
         if not reconciler.confirm_signal(signal_id):
@@ -540,7 +540,7 @@ async def _confirm_cross_source(signal_id: str):
         return {"error": "internal_error"}
 
 
-async def _reject_cross_source(signal_id: str):
+def _reject_cross_source(signal_id: str):
     try:
         reconciler = _get_cross_source()
         if not reconciler.reject_signal(signal_id):

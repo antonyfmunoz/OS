@@ -43,7 +43,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/infrastructure", dependencies=auth)
-    async def list_infrastructure(
+    def list_infrastructure(
         infra_type: str | None = None,
         health: str | None = None,
         system_only: bool = False,
@@ -76,15 +76,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"infrastructure": [e.to_dict() for e in entities], "count": len(entities)}
 
     @r.get("/infrastructure/summary", dependencies=auth)
-    async def infrastructure_summary() -> dict[str, Any]:
+    def infrastructure_summary() -> dict[str, Any]:
         return _get_runtime().summary()
 
     @r.get("/infrastructure/health", dependencies=auth)
-    async def infrastructure_health() -> dict[str, Any]:
+    def infrastructure_health() -> dict[str, Any]:
         return _get_runtime().health_check()
 
     @r.get("/infrastructure/{infra_id}", dependencies=auth)
-    async def get_infrastructure(infra_id: str) -> dict[str, Any]:
+    def get_infrastructure(infra_id: str) -> dict[str, Any]:
         rt = _get_runtime()
         ent = rt.get(infra_id)
         if ent is None:
@@ -131,12 +131,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"infrastructure": ent.to_dict()}
 
     @r.post("/infrastructure/sync/services", dependencies=auth)
-    async def sync_from_services() -> dict[str, Any]:
+    def sync_from_services() -> dict[str, Any]:
         count = _get_runtime().sync_from_service_graph()
         return {"synced": count}
 
     @r.post("/infrastructure/sync/nodes", dependencies=auth)
-    async def sync_from_nodes() -> dict[str, Any]:
+    def sync_from_nodes() -> dict[str, Any]:
         count = _get_runtime().sync_from_node_registry()
         return {"synced": count}
 
