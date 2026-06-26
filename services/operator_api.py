@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """UMH Operator Workstation API — FastAPI backend for the operator UI."""
 
+import faulthandler
 import os
+import signal
 import sys
+
+faulthandler.enable()
+faulthandler.register(signal.SIGUSR1, all_threads=True)
+
 from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
