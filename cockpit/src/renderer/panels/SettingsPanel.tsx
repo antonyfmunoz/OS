@@ -467,13 +467,13 @@ function DeviceManagementSection() {
                 {d.compute && <span className="wv-badge wv-badge-ok text-[9px]">compute</span>}
                 {d.role !== 'orchestrator' && !d.always_online && (
                   <>
-                    {d.compute && (
+                    {d.compute && d.role_status !== 'confirmed' && (
                       <button
                         onClick={() => provisionDevice(d.id)}
                         className="text-[10px] text-cyan underline"
                         disabled={provisioning === d.id}
                       >
-                        {provisioning === d.id ? 'provisioning...' : 're-provision'}
+                        {provisioning === d.id ? 'provisioning...' : 'provision'}
                       </button>
                     )}
                     <button
