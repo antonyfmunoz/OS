@@ -39,6 +39,8 @@ def _run(cmd: list[str], timeout: int = _PROBE_TIMEOUT) -> str:
             text=True,
             timeout=timeout,
         )
+        if result is None:
+            return ""
         return result.stdout.strip()
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
         logger.debug("probe command failed: %s — %s", cmd, exc)
