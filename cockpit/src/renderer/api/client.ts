@@ -79,7 +79,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     } catch (err) {
       clearTimeout(timeoutId)
       const isAbort = err instanceof DOMException && err.name === 'AbortError'
-      if (attempt < 3 && !isAbort) {
+      if (method === 'GET' && attempt < 3 && !isAbort) {
         await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
         return doFetch(attempt + 1)
       }
@@ -90,7 +90,7 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
       await new Promise(r => setTimeout(r, 1000))
       return doFetch(attempt + 1)
     }
-    if ((res.status === 502 || res.status === 504) && attempt < 3) {
+    if (method === 'GET' && (res.status === 502 || res.status === 504) && attempt < 3) {
       await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
       return doFetch(attempt + 1)
     }
