@@ -465,9 +465,9 @@ class NodeSyncGate:
                 cwd=str(self._local_repo),
                 timeout=30,
             )
-            if pull.returncode == 0:
+            if pull is not None and pull.returncode == 0:
                 actions.append("git_pull_ff_only")
-        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        except (subprocess.TimeoutExpired, OSError):
             actions.append("auto_sync_failed")
 
         return actions

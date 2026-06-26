@@ -392,8 +392,10 @@ SYSTEM You are UMH's proprietary intelligence engine. You process signals, make 
                 text=True,
                 timeout=30,
             )
+            if result is None:
+                return ""
             return result.stdout.strip() if result.returncode == 0 else ""
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except subprocess.TimeoutExpired:
             return ""
 
     def _token_similarity(self, a: str, b: str) -> float:

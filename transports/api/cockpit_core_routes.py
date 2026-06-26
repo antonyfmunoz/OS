@@ -138,11 +138,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     router = APIRouter()
     ws_router = APIRouter()
 
-    @router.get("/health")
-    async def health():
-        """Lightweight health probe — pure async, no thread pool."""
-        return {"status": "ok", "ts": time.time()}
-
     def _load_device_registry() -> list[dict[str, Any]]:
         try:
             with open(_DEVICE_REGISTRY_PATH) as f:
@@ -206,7 +201,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 timeout=5,
                 cwd=str(_ROOT),
             )
-            if sha.returncode == 0:
+            if sha is not None and sha.returncode == 0:
                 info["commit_sha"] = sha.stdout.strip()
         except Exception:
             pass
@@ -218,7 +213,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 timeout=5,
                 cwd=str(_ROOT),
             )
-            if ts.returncode == 0:
+            if ts is not None and ts.returncode == 0:
                 info["commit_time"] = ts.stdout.strip()
         except Exception:
             pass
@@ -243,9 +238,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     @router.get("/pulse")
     async def pulse():
-        node_metrics = _build_node_metrics()
+        loop = asyncio.get_running_loop()
+        node_metrics = await loop.run_in_executor(None, _build_node_metrics)
         vps = node_metrics.get("vps", {})
-        traces = _read_jsonl(TRACE_STORE)
+        traces = await loop.run_in_executor(None, _read_jsonl, TRACE_STORE)
         pending_traces = sum(1 for t in traces[-500:] if t.get("status") == "pending")
         uptime = int(time.time() - psutil.boot_time())
         daemon = _get_organism()
@@ -326,88 +322,92 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     @router.get("/infra")
     async def infra():
-        cpu = psutil.cpu_percent(interval=0.1)
-        mem = psutil.virtual_memory()
-        disk = psutil.disk_usage("/")
+        loop = asyncio.get_running_loop()
 
-        compute_nodes: list[dict] = []
-        network_nodes: list[dict] = []
-        service_nodes: list[dict] = []
+        def _collect_infra() -> list[dict]:
+            cpu = psutil.cpu_percent(interval=0.1)
+            mem = psutil.virtual_memory()
+            disk = psutil.disk_usage("/")
 
-        registry = _load_device_registry()
-        vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
-        vps_display = vps_entry.get("display_name", "srv1500858 (VPS)")
-        compute_nodes.append(
-            {
-                "id": "n-vps",
-                "name": vps_display,
-                "type": "compute",
-                "status": "healthy",
-                "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
-            }
-        )
+            compute_nodes: list[dict] = []
+            network_nodes: list[dict] = []
+            service_nodes: list[dict] = []
 
-        try:
-            out = gated_subprocess_run(
-                ["tailscale", "status", "--json"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if out.returncode == 0:
-                ts_data = json.loads(out.stdout)
-                peers = ts_data.get("Peer", {})
-                online_count = 0
-                for _key, peer in peers.items():
-                    name = _device_name(peer)
-                    os_name = peer.get("OS", "")
-                    online = peer.get("Online", False)
-                    ip_addrs = peer.get("TailscaleIPs", [])
-                    ip = ip_addrs[0] if ip_addrs else ""
-                    if online:
-                        online_count += 1
-
-                    metrics: dict[str, Any] = {}
-                    if online and ip:
-                        lat = _ping_latency(ip)
-                        if lat is not None:
-                            metrics["latency"] = lat
-
-                    compute_nodes.append(
-                        {
-                            "id": f"n-ts-{ip or name}",
-                            "name": name,
-                            "type": "compute",
-                            "status": "healthy" if online else "down",
-                            "metrics": metrics,
-                        }
-                    )
-
-                network_nodes.append(
-                    {
-                        "id": "n-tailscale",
-                        "name": "Tailscale Mesh",
-                        "type": "network",
-                        "status": "healthy",
-                        "metrics": {"latency": 0},
-                    }
-                )
-        except Exception:
-            pass
-
-        for c in _get_docker_containers():
-            is_up = c.get("state") == "running"
-            service_nodes.append(
+            registry = _load_device_registry()
+            vps_entry = next((d for d in registry if d.get("id") == "vps"), {})
+            vps_display = vps_entry.get("display_name", "srv1500858 (VPS)")
+            compute_nodes.append(
                 {
-                    "id": f"n-{c['name']}",
-                    "name": c["name"],
-                    "type": "service",
-                    "status": "healthy" if is_up else "down",
-                    "metrics": {},
+                    "id": "n-vps",
+                    "name": vps_display,
+                    "type": "compute",
+                    "status": "healthy",
+                    "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
                 }
             )
 
-        return compute_nodes + network_nodes + service_nodes
+            try:
+                out = gated_subprocess_run(
+                    ["tailscale", "status", "--json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if out is not None and out.returncode == 0:
+                    ts_data = json.loads(out.stdout)
+                    peers = ts_data.get("Peer", {})
+                    online_count = 0
+                    for _key, peer in peers.items():
+                        name = _device_name(peer)
+                        online = peer.get("Online", False)
+                        ip_addrs = peer.get("TailscaleIPs", [])
+                        ip = ip_addrs[0] if ip_addrs else ""
+                        if online:
+                            online_count += 1
+
+                        metrics: dict[str, Any] = {}
+                        if online and ip:
+                            lat = _ping_latency(ip)
+                            if lat is not None:
+                                metrics["latency"] = lat
+
+                        compute_nodes.append(
+                            {
+                                "id": f"n-ts-{ip or name}",
+                                "name": name,
+                                "type": "compute",
+                                "status": "healthy" if online else "down",
+                                "metrics": metrics,
+                            }
+                        )
+
+                    network_nodes.append(
+                        {
+                            "id": "n-tailscale",
+                            "name": "Tailscale Mesh",
+                            "type": "network",
+                            "status": "healthy",
+                            "metrics": {"latency": 0},
+                        }
+                    )
+            except Exception:
+                pass
+
+            for c in _get_docker_containers():
+                is_up = c.get("state") == "running"
+                service_nodes.append(
+                    {
+                        "id": f"n-{c['name']}",
+                        "name": c["name"],
+                        "type": "service",
+                        "status": "healthy" if is_up else "down",
+                        "metrics": {},
+                    }
+                )
+
+            return compute_nodes + network_nodes + service_nodes
+
+        return await loop.run_in_executor(None, _collect_infra)
 
     @router.get("/agents")
     async def agents():
@@ -819,112 +819,115 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     @router.get("/mesh/nodes")
     async def mesh_nodes():
         """Returns all network devices: Tailscale peers + UMH daemon nodes."""
-        _registry = _load_device_registry()
-        _ROLE_MAP = {
-            dev["tailscale_name"]: dev["role"]
-            for dev in _registry
-            if "tailscale_name" in dev and "role" in dev
-        }
-        _NAME_MAP = {
-            dev["tailscale_name"]: dev["display_name"]
-            for dev in _registry
-            if "tailscale_name" in dev and "display_name" in dev
-        }
+        loop = asyncio.get_running_loop()
 
-        daemon_nodes: dict[str, dict] = {}
-        server = _get_mesh_server()
-        if server is not None:
-            for n in server.node_registry.all_nodes():
-                d = n.to_api_dict()
-                daemon_nodes[d.get("tailscale_ip", "")] = d
-
-        nodes: list[dict] = []
-        seen: set[str] = set()
-
-        def _map_ts_node(n: dict, is_self: bool = False) -> dict | None:
-            hostname = n.get("HostName", "")
-            dns_name = n.get("DNSName", "").split(".")[0]  # e.g. "iphone-15-pro-max"
-            # Use DNSName when HostName is generic (iOS devices report "localhost")
-            display = dns_name if hostname.lower() in ("localhost", "") and dns_name else hostname
-            key = display.lower()
-            if key.startswith("umh-cockpit"):
-                return None
-            if key in seen:
-                return None
-            seen.add(key)
-
-            ips = n.get("TailscaleIPs", [])
-            ip = ips[0] if ips else ""
-            online = n.get("Online", False) or is_self
-            os_name = n.get("OS", "")
-            last_seen = n.get("LastSeen", "")
-            if last_seen == "0001-01-01T00:00:00Z":
-                last_seen = ""
-
-            daemon = daemon_nodes.get(ip, {})
-
-            return {
-                "node_id": key,
-                "hostname": _NAME_MAP.get(key, display),
-                "role": _ROLE_MAP.get(key, "mobile" if os_name == "iOS" else "node"),
-                "status": "online" if online else "offline",
-                "os": os_name,
-                "ip": ip,
-                "last_seen": last_seen if not online else datetime.now(timezone.utc).isoformat(),
-                "daemon_version": daemon.get("daemon_version"),
-                "capabilities": daemon.get("capabilities", []),
+        def _collect_mesh_nodes() -> list[dict]:
+            _registry = _load_device_registry()
+            _ROLE_MAP = {
+                dev["tailscale_name"]: dev["role"]
+                for dev in _registry
+                if "tailscale_name" in dev and "role" in dev
+            }
+            _NAME_MAP = {
+                dev["tailscale_name"]: dev["display_name"]
+                for dev in _registry
+                if "tailscale_name" in dev and "display_name" in dev
             }
 
-        def _parse_ts_data(ts: dict) -> None:
-            self_node = ts.get("Self")
-            if self_node:
-                mapped = _map_ts_node(self_node, is_self=True)
-                if mapped:
-                    nodes.append(mapped)
-            for p in (ts.get("Peer") or {}).values():
-                mapped = _map_ts_node(p)
-                if mapped:
-                    nodes.append(mapped)
+            daemon_nodes: dict[str, dict] = {}
+            server = _get_mesh_server()
+            if server is not None:
+                for n in server.node_registry.all_nodes():
+                    d = n.to_api_dict()
+                    daemon_nodes[d.get("tailscale_ip", "")] = d
 
-        # Try CLI first (works on host), then fall back to snapshot file (works in Docker)
-        try:
-            result = gated_subprocess_run(
-                ["tailscale", "status", "--json"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                _parse_ts_data(json.loads(result.stdout))
-        except Exception:
-            pass
+            nodes: list[dict] = []
+            seen: set[str] = set()
 
-        if not nodes:
-            snapshot = _ROOT / "data" / "runtime" / "tailscale_status.json"
-            if snapshot.exists():
-                try:
-                    _parse_ts_data(json.loads(snapshot.read_text(encoding="utf-8")))
-                except Exception:
-                    pass
+            def _map_ts_node(n: dict, is_self: bool = False) -> dict | None:
+                hostname = n.get("HostName", "")
+                dns_name = n.get("DNSName", "").split(".")[0]
+                display = dns_name if hostname.lower() in ("localhost", "") and dns_name else hostname
+                key = display.lower()
+                if key.startswith("umh-cockpit"):
+                    return None
+                if key in seen:
+                    return None
+                seen.add(key)
 
-        if not nodes:
-            _fb_registry = _load_device_registry()
-            _fb_vps = next((d for d in _fb_registry if d.get("id") == "vps"), {})
-            nodes.append(
-                {
-                    "node_id": "vps-primary",
-                    "hostname": _fb_vps.get("display_name", os.uname().nodename),
-                    "role": _fb_vps.get("role", "orchestrator"),
-                    "status": "online",
-                    "os": "linux",
-                    "ip": _fb_vps.get("tailscale_ip", ""),
-                    "last_seen": datetime.now(timezone.utc).isoformat(),
-                    "daemon_version": None,
-                    "capabilities": [],
+                ips = n.get("TailscaleIPs", [])
+                ip = ips[0] if ips else ""
+                online = n.get("Online", False) or is_self
+                os_name = n.get("OS", "")
+                last_seen = n.get("LastSeen", "")
+                if last_seen == "0001-01-01T00:00:00Z":
+                    last_seen = ""
+
+                daemon = daemon_nodes.get(ip, {})
+
+                return {
+                    "node_id": key,
+                    "hostname": _NAME_MAP.get(key, display),
+                    "role": _ROLE_MAP.get(key, "mobile" if os_name == "iOS" else "node"),
+                    "status": "online" if online else "offline",
+                    "os": os_name,
+                    "ip": ip,
+                    "last_seen": last_seen if not online else datetime.now(timezone.utc).isoformat(),
+                    "daemon_version": daemon.get("daemon_version"),
+                    "capabilities": daemon.get("capabilities", []),
                 }
-            )
 
-        return nodes
+            def _parse_ts_data(ts: dict) -> None:
+                self_node = ts.get("Self")
+                if self_node:
+                    mapped = _map_ts_node(self_node, is_self=True)
+                    if mapped:
+                        nodes.append(mapped)
+                for p in (ts.get("Peer") or {}).values():
+                    mapped = _map_ts_node(p)
+                    if mapped:
+                        nodes.append(mapped)
+
+            try:
+                result = gated_subprocess_run(
+                    ["tailscale", "status", "--json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if result is not None and result.returncode == 0:
+                    _parse_ts_data(json.loads(result.stdout))
+            except Exception:
+                pass
+
+            if not nodes:
+                snapshot = _ROOT / "data" / "runtime" / "tailscale_status.json"
+                if snapshot.exists():
+                    try:
+                        _parse_ts_data(json.loads(snapshot.read_text(encoding="utf-8")))
+                    except Exception:
+                        pass
+
+            if not nodes:
+                _fb_registry = _load_device_registry()
+                _fb_vps = next((d for d in _fb_registry if d.get("id") == "vps"), {})
+                nodes.append(
+                    {
+                        "node_id": "vps-primary",
+                        "hostname": _fb_vps.get("display_name", os.uname().nodename),
+                        "role": _fb_vps.get("role", "orchestrator"),
+                        "status": "online",
+                        "os": "linux",
+                        "ip": _fb_vps.get("tailscale_ip", ""),
+                        "last_seen": datetime.now(timezone.utc).isoformat(),
+                        "daemon_version": None,
+                        "capabilities": [],
+                    }
+                )
+
+            return nodes
+
+        return await loop.run_in_executor(None, _collect_mesh_nodes)
 
     _get_mesh_server = get_mesh_server
 

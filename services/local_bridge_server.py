@@ -76,11 +76,8 @@ def _tmux_send(session_name: str, text: str) -> bool:
             capture_output=True,
             timeout=TMUX_INJECT_TIMEOUT_S,
         )
-        if result.returncode != 0:
-            logger.error(
-                "[Bridge] tmux send-keys text failed: %s",
-                result.stderr.decode(),
-            )
+        if result is None or result.returncode != 0:
+            logger.error("[Bridge] tmux send-keys text failed")
             return False
 
         # Brief pause for CC to register paste, then send Enter
@@ -91,19 +88,14 @@ def _tmux_send(session_name: str, text: str) -> bool:
             capture_output=True,
             timeout=TMUX_INJECT_TIMEOUT_S,
         )
-        if result.returncode != 0:
-            logger.error(
-                "[Bridge] tmux send-keys Enter failed: %s",
-                result.stderr.decode(),
-            )
+        if result is None or result.returncode != 0:
+            logger.error("[Bridge] tmux send-keys Enter failed")
             return False
 
         return True
     except subprocess.TimeoutExpired:
         logger.error("[Bridge] tmux send-keys timed out")
         return False
-    except FileNotFoundError:
-        logger.error("[Bridge] tmux not found — is it installed?")
         return False
 
 

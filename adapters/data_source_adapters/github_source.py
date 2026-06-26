@@ -171,6 +171,8 @@ class GitHubRepoWalker:
                 text=True,
                 timeout=120,
             )
+            if result is None:
+                raise RuntimeError(f"git pull skipped for {self._repo} (CPU gate or binary missing)")
             if result.returncode != 0:
                 logger.error("git pull failed: %s", result.stderr.strip())
                 raise RuntimeError(f"git pull failed for {self._repo}: {result.stderr}")
@@ -189,6 +191,8 @@ class GitHubRepoWalker:
                 text=True,
                 timeout=300,
             )
+            if result is None:
+                raise RuntimeError(f"git clone skipped for {self._repo} (CPU gate or binary missing)")
             if result.returncode != 0:
                 logger.error("git clone failed: %s", result.stderr.strip())
                 raise RuntimeError(f"git clone failed for {self._repo}: {result.stderr}")
@@ -200,7 +204,7 @@ class GitHubRepoWalker:
             text=True,
             timeout=10,
         )
-        if sha_result.returncode != 0:
+        if sha_result is None or sha_result.returncode != 0:
             raise RuntimeError(f"Cannot read HEAD for {self._repo}")
 
         self._commit_sha = sha_result.stdout.strip()

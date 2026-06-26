@@ -241,8 +241,20 @@ async def verify_api_key(request: Request) -> None:
 
 # ─── Health ────────────────────────────────────────────────────────────────────
 @app.get("/health")
-async def health() -> dict[str, str]:
-    """Health check — no auth required."""
+async def health():
+    """Health check — no auth required.
+
+    Tests actual event loop responsiveness by scheduling a short async sleep.
+    If the loop is blocked (threads saturated, sync calls piling up), this
+    will time out and Docker will mark the container unhealthy.
+    """
+    try:
+        await asyncio.wait_for(asyncio.sleep(0), timeout=3.0)
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            {"status": "degraded", "detail": "event loop blocked"},
+            status_code=503,
+        )
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
