@@ -15,7 +15,9 @@ const AUTHORITY_COLORS: Record<string, string> = {
 
 export function SettingsPanel() {
   const settings = useSettingsStore((s) => s.settings)
+  const settingsError = useSettingsStore((s) => s.settingsError)
   const governance = useSettingsStore((s) => s.governance)
+  const governanceError = useSettingsStore((s) => s.governanceError)
   const fetchSettings = useSettingsStore((s) => s.fetchSettings)
   const fetchGovernance = useSettingsStore((s) => s.fetchGovernance)
 
@@ -31,6 +33,9 @@ export function SettingsPanel() {
       {/* Model Routing */}
       <section>
         <h3 className="wv-label mb-3">Model Routing</h3>
+        {settingsError && !settings?.model_routing && (
+          <p className="text-xs text-danger py-2">Failed to load model routing — check auth</p>
+        )}
         {settings?.model_routing ? (
           <div className="space-y-1.5">
             {settings.model_routing.map((route) => (
@@ -55,14 +60,17 @@ export function SettingsPanel() {
               </div>
             ))}
           </div>
-        ) : (
-          <p className="text-xs text-text-tertiary">—</p>
-        )}
+        ) : !settingsError ? (
+          <p className="text-xs text-text-tertiary">Loading...</p>
+        ) : null}
       </section>
 
       {/* Governance Policies */}
       <section>
         <h3 className="wv-label mb-3">Governance Policies</h3>
+        {governanceError && !governance?.policies && (
+          <p className="text-xs text-danger py-2">Failed to load governance — check auth</p>
+        )}
         {governance?.policies ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -104,9 +112,9 @@ export function SettingsPanel() {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : !governanceError ? (
           <p className="text-xs text-text-tertiary">Loading governance data...</p>
-        )}
+        ) : null}
 
         {governance?.safe_roots && governance?.allowed_shell_prefixes && (
           <div className="mt-3 grid grid-cols-2 gap-3">
