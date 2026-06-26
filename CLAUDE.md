@@ -233,31 +233,7 @@ Windows Beast (GPU workhorse — C:\dev\dev\):
 Before storing any large artifact, ask:
 does this node's role require it? If no, don't put it here.
 
-## Key files (post-convergence 2026-05-23, updated 2026-05-28)
-substrate/types.py                    — single Pydantic type system (30+ models)
-substrate/__init__.py                 — Substrate public API (execute, query, register, status)
-substrate/control_plane/runtime/      — gateway.py (Gateway class), substrate_gateway.py (SignalEnvelope API), cognitive_loop.py
-substrate/state/context/context.py    — SubstrateContext (identity), load_context_from_env()
-substrate/execution/spine.py          — 8-stage execution pipeline
-substrate/execution/bridge/           — session management, mode routing, voice sessions
-substrate/sockets/notification.py     — abstract notification port (transports register at boot)
-substrate/sockets/channel_port.py     — abstract channel router port
-substrate/observability/error_recorder.py — centralized error recording (single source of truth)
-substrate/ontology/                   — laws, primitives, relationships
-adapters/models/model_router.py       — intelligence routing (call_with_fallback)
-services/discord_bot.py               — production Discord bot entrypoint
-services/discord_message_handlers.py  — extracted message handler functions
-services/discord_bot_commands.py      — extracted bot command functions
-transports/presence/handlers/substrate_command_handler.py — substrate command dispatch
-transports/presence/handlers/report_handlers.py           — extracted report handlers
-
-## Obsidian Backlinks
-When writing .md files in knowledge/ or vault/:
-- Use `[[wikilinks]]` inline where a reader would want to navigate
-- New wiki pages: check existing pages for bidirectional linking opportunities
-- Summaries: link to promoted wiki pages
-- Don't bolt links onto operational files (dashboards, templates) unless they aid navigation
-- Health check: `python3 scripts/vault_backlink_audit.py`
+## Key files — use `scripts/query_graph.py search <term>` instead of this list
 
 ## UMH conventions
 - AI name from get_ai_name() never hardcoded
@@ -275,207 +251,17 @@ When writing .md files in knowledge/ or vault/:
 - Never create new patterns when UMH has one
 - Never put instance context in platform files
 
-## Type Coherence Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
-UMH has ONE type system. Every Enum, BaseModel, and dataclass that
-defines a reusable domain concept has exactly one canonical location.
-Creating a parallel type that overlaps with an existing one is a defect.
+## Type Coherence Law — enforced by .claude/rules/type-coherence.md
 
-Before defining ANY new class that extends Enum, BaseModel, or uses @dataclass:
-1. Run: `python3 -c "from substrate.canonical_types import lookup; print(lookup('YourTypeName'))"`
-2. If it returns a module path → IMPORT from there. Do not redefine.
-3. If it returns None → define it in the correct canonical module, then
-   register it in `substrate/canonical_types.py`.
-4. If uncertain which module owns the concept → check `substrate/canonical_types.py`
-   for similar names. The registry has ~80 types across 7 canonical files.
+## Instance Context Law — enforced by .claude/rules/instance-context.md
 
-Canonical type locations:
-- General domain types → `substrate/types.py`
-- Task/model routing → `substrate/contracts/agent_types.py`
-- Job capabilities → `substrate/execution/runtime/capability_router.py`
-- Environment types → `substrate/execution/runtime/worker_runtime_contracts.py`
-- Work packet governance → `nodes/environments/work_packet.py`
-- Organism coordination → `substrate/organism/` modules
+## Projection Boundary Law — enforced by .claude/rules/projection-boundary.md
 
-The pre-commit hook (`scripts/check_type_divergence.py`) blocks commits that
-create shadow types. Full codebase scan: `python3 scripts/check_type_divergence.py --all`
+## Architecture Layer Law — enforced by .claude/rules/architecture-layers.md
 
-This law exists because type divergence caused three separate audit-and-reconverge
-cycles (2026-05 convergence sprint, coherence convergence, organism activation).
-Each time, parallel types were created that overlapped with existing ones,
-compounding drift until manual audit caught it. This gate makes divergence
-mechanically impossible.
+## Device Naming Protocol — enforced by .claude/rules/device-naming.md
 
-## Instance Context Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
-UMH is a universal platform. The substrate must work for ANY user, ANY org,
-ANY AI name, ANY company. Instance-specific values in substrate code are defects.
-
-The dual model:
-  - **Canonical** (substrate/) = mechanisms, protocols, engines. Universal.
-  - **Instance** = identity, names, IPs, companies, products. Loaded at runtime.
-
-Instance context categories — NEVER hardcode in substrate/:
-  1. AI persona name (e.g., "DEX") → use `get_ai_name()` from BIS
-  2. Founder/user name (e.g., "Antony") → use BIS founder profile
-  3. Company/venture names (e.g., "Lyfe Institute") → use BIS venture registry
-  4. Product names (e.g., "Initiate Arena") → use BIS product registry
-  5. Infrastructure IPs (e.g., 100.77.233.50) → use env vars
-  6. Account IDs (e.g., GitHub usernames) → use env vars
-  7. Node identifiers (e.g., "antony-workstation") → use BIS node registry
-  8. Session prefixes derived from AI name → derive from `get_ai_name()` at runtime
-
-Before writing ANY string literal in substrate/ code, ask:
-"Would this string be different for a different UMH user?"
-If yes → it MUST come from BIS, env var, or runtime config.
-
-The pre-commit hook (`scripts/check_instance_leak.py`) blocks commits that
-introduce new instance values. Full codebase scan:
-`python3 scripts/check_instance_leak.py --all`
-
-72 legacy files are grandfathered in `LEGACY_INSTANCE_LEAKS` — each is tech
-debt to migrate. New entries require explicit justification.
-
-This law exists because instance context leaked across 70+ substrate files
-during the initial build when canonical and instance were developed together.
-The organism activation sprint (2026-05-27) discovered the pattern and
-installed this gate to make the leak mechanically impossible going forward.
-
-## Projection Boundary Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
-substrate/ is universal UMH infrastructure. No projection name may appear in
-substrate/ code — not in class names, env vars, string literals, comments,
-or docstrings.
-
-Projections are applications built ON UMH: EntrepreneurOS (EOS), CreatorOS,
-LyfeOS, and any future projection. They live in projections/ and register
-with UMH at runtime via ports and registries.
-
-What NEVER appears in substrate/:
-- Class names: `EntrepreneurOSGateway` → `Gateway`
-- Context types: `EntrepreneurOSContext` → `SubstrateContext`
-- Env var prefixes: `EOS_ORG_ID` → `UMH_ORG_ID` (with `EOS_ORG_ID` fallback)
-- Branded strings: `"EntrepreneurOS"` → generic terms or runtime lookup
-- Projection prefixes: `eos-ceo`, `creatoros-admin` → projection-agnostic names
-
-The pre-commit hook (`scripts/check_projection_leak.py`) blocks commits that
-introduce projection names into substrate/. Full codebase scan:
-`python3 scripts/check_projection_leak.py --all`
-
-This law exists because the original build used "EntrepreneurOS" as the system
-name. 289 EOS references leaked across 70+ substrate files, making multi-projection
-work impossible. The substrate identity cleanup (2026-05-28) renamed the three
-core classes (Gateway, SubstrateContext, Orchestrator), migrated env vars to
-UMH_* with EOS_* fallback, and installed this gate.
-
-## Architecture Layer Law (NON-NEGOTIABLE — ENFORCED BY PRE-COMMIT)
-UMH has four code layers with strict one-way dependency direction:
-
-  projections/saas (EOS, CreatorOS)
-      ↓ can import from
-  transports/ (discord, api/http)
-      ↓ can import from
-  adapters/ (models, GWS, browser)
-      ↓ can import from
-  substrate/ (types, control_plane, execution, governance, state, organism)
-
-Dependency direction is downward only. Never upward. Never sideways.
-If substrate needs transport functionality, use an abstract port in
-substrate/sockets/ and register the concrete implementation at startup.
-
-Before creating ANY file, ask:
-"Which architectural layer does this belong to?"
-
-What lives where:
-- `substrate/` — universal platform mechanisms (types, execution, governance)
-- `adapters/` — external system adapters (model routing, calendar, browser)
-- `transports/api/http/` — UMH HTTP API infrastructure (auth, middleware,
-  platform DB schema, substrate route handlers, Python bridge spawner)
-- `transports/api/*.py` — Python bridges (stdin/stdout JSON protocol)
-- `saas/` — EOS projection ONLY (EOS routes, EOS schema, EOS seed data)
-- `projections/` — projection-specific logic and configs
-- `services/` — deployment entrypoints only, no business logic
-
-The pre-commit hook (`scripts/check_dependency_direction.py`) blocks commits
-that violate dependency direction. Full codebase scan:
-`python3 scripts/check_dependency_direction.py --all`
-
-This law exists because UMH infrastructure (auth, middleware, DB client, Python
-bridges, substrate routes) leaked into saas/ (an EOS projection) during the
-initial build when UMH and EOS were conflated. The SaaS layer separation
-(2026-05-28) extracted 15 UMH infrastructure files from saas/ into
-transports/api/http/ and installed this gate.
-
-## Device Naming Protocol (NON-NEGOTIABLE)
-Every device in the UMH organism has exactly one canonical name.
-Format: `tailscale-hostname (device-type)` — e.g. `srv1500858 (VPS)`, `desktop-lvguiq9 (PC)`.
-
-Single source of truth: `infra/device_registry.json`
-
-NEVER hardcode device display names as raw strings. Not "VPS", not "Beast",
-not "Beast PC", not "Windows", not "Server", not "Workstation".
-
-What to use instead:
-- **Frontend (TypeScript)**: import from `cockpit/src/renderer/constants/devices.ts`
-  — `VPS.displayName`, `BEAST.displayName`, `getDeviceDisplayName(id)`
-- **Backend (Python)**: read from `infra/device_registry.json` via the
-  mesh-nodes API or direct JSON load
-- **API responses**: the `/workspace/mesh-nodes` endpoint returns `name`
-  (display_name) from the device registry merged with live heartbeat data
-
-When adding a new device to the organism:
-1. Add entry to `infra/device_registry.json`
-2. Add constant to `cockpit/src/renderer/constants/devices.ts`
-3. Every UI surface picks it up automatically
-
-This law exists because device names drifted across 6+ different labels
-("VPS", "Beast", "Beast PC", "Windows Beast", "Windows", "Server") in the
-cockpit UI during 2026-06-06. The naming protocol makes drift impossible.
-
-## Computer Use Law (NON-NEGOTIABLE)
-UMH computer use operates through real installed applications in interactive
-desktop sessions on capable nodes. Three layers:
-
-1. **Computer use** (system design) — drive real installed applications in
-   interactive sessions on capable nodes. Headless nodes (VPS) are not capable
-   for computer use. This is a system architecture constraint.
-2. **Browser use** (subsystem) — same principle applied to browsers. Real
-   installed browser, interactive session, capable node. Never bundled runtimes
-   (Playwright's Chromium) or headless substitutes for computer use tasks.
-3. **Browser choice** (instance preference) — configured per instance, not
-   hardcoded in substrate. Current instance: Chrome (`channel: "chrome"`).
-
-Execution path — mesh daemon dispatch:
-- Computer use on executor nodes routes through the UMH mesh daemon
-  (interactive desktop session), NEVER raw SSH. SSH spawns processes in
-  Session 0 (services session, no display) — Chrome would be invisible.
-- Mesh dispatch: `POST http://localhost:{mesh_port+1}/dispatch` with
-  `{"node_id": "<id>", "capability": "shell", "params": {"command": "...", "timeout": N}}`
-- The daemon's ShellAdapter executes in the user's interactive desktop session
-  (Session 1 on Windows via Task Scheduler ONLOGON). Chrome opens visibly.
-- `trigger_collection()` in `substrate/meta_ide/browser_evidence_collector.py`
-  handles this automatically — mesh primary, SSH fallback with loud warning.
-- All subprocess calls on Windows executor nodes use `CREATE_NO_WINDOW`
-  creationflag to prevent console window flickering during automation.
-
-Rules:
-- All Playwright browser launches for computer use MUST include `channel="chrome"`
-  (or the instance-configured browser) — never bare `chromium.launch()`
-- Computer use runs on capable nodes only (nodes with interactive desktop sessions)
-- VPS is headless — not capable for computer use
-- Headless data fetching (e.g. `headless_fetcher.py`) is NOT computer use —
-  it's data retrieval and may use bundled Chromium
-- Substrate code references capability requirements ("requires interactive session"),
-  not specific browser names
-- All computer use credentials flow through 1Password `op run` / `op inject`
-- Template files (.env.tpl) use `op://` URIs — never raw secrets
-- `op run --env-file=<tpl>` wraps every command that needs credentials on the executor side
-- Substrate enforcement: `validate_credential_source()` in `substrate/execution/credential_gate.py`
-- Pre-commit hook: `scripts/check_credential_injection.py` (Gate 5)
-- See `.claude/rules/credential-injection.md` for full protocol
-
-This law exists because bundled Chromium diverges from real-world behavior —
-different rendering, different auth flows, different extensions. UMH is a
-reality-first system; computer use must match how software actually runs.
-The mesh daemon requirement exists because SSH runs in Session 0 (no display) —
-a browser verification via SSH produced invisible, non-interactive Chrome.
+## Computer Use Law — enforced by .claude/rules/browser-verification.md + credential-injection.md
 
 ## Protocol layers
 See PROTOCOLS.md for full 4-layer documentation (L0-L3).
@@ -544,50 +330,14 @@ AI is a cognitive enhancement, not a dependency.
   agent_type='ceo' in call_with_fallback()
 - Fast checks: Haiku via TaskType.FAST_RESPONSE
 
-## Current Known Gotchas (2026-05-13)
-- cc_sdk subprocess auth: OAuth token not in os.environ (shell snapshots don't propagate it). `_get_subprocess_env()` reads it from ancestor Claude Code process via /proc. Also blanks ANTHROPIC_API_KEY. Diagnostic: data/audits/2026-05-13_cli_subprocess_auth_diagnostic.md
-- cc_sdk error-leak fixed: auth/quota errors streamed as AssistantMessage text are now caught by `_is_error_leak()` → returns None → router falls through. Signatures in `_ERROR_SIGNATURES` tuple. Proof: proofs/2026-05-12_fix_cc_sdk/
-- Anthropic key invalid (401 auth error) → SDK returns authentication_error not credit error
-- Gemini spending cap exceeded (429) → all Gemini calls fail until cap raised
-- google.generativeai (old SDK) deprecated → always use google.genai (new SDK)
-- gemini-2.0-flash deprecated for new users → use gemini-2.5-flash
-- Codex exec requires stdin pipe and has reconnect issues → not in fallback chain
-- Business stage pre_revenue → economy mode → forces Haiku. Override: pass agent_type='ceo' to call_with_fallback
-- GROQ + PERPLEXITY keys in services/.env — both in fallback chain
-- gemini binary not installed — Gemini via Python SDK only
-- .claude/agents/ subagents require CC auth to run (blocked until Anthropic credits restored)
-- CC_MODEL_MAP exists in model_router.py — used when Anthropic comes back online
-- Ollama gemma3:4b needs ~3.3 GiB RAM — fits within VPS memory
-- NOTION_MORNING_BRIEF_ID points to dead DB → publisher falls back to Documents DB
-- After Ollama model change: `docker restart` services to pick up new code (Python files are bind-mounted)
-- Never hardcode `anthropic.Anthropic()` in services — always use model_router.call_with_fallback
+## Current Known Gotchas
+- cc_sdk subprocess auth: `_get_subprocess_env()` reads OAuth token from ancestor CC process via /proc
+- google.generativeai deprecated → always use google.genai; gemini-2.5-flash not 2.0
+- Business stage pre_revenue → economy mode → forces Haiku. Override: agent_type='ceo'
+- After Ollama model change: `docker restart` services
+- Never hardcode `anthropic.Anthropic()` — always model_router.call_with_fallback
 
-## Ingestion (canonical path)
-CANONICAL — substrate.execution.ingestion is the single ingestion path.
-Legacy orchestrator at runtime.ingestion still exists for compatibility.
-Sources:
-  - LocalFileSource (adapters/data_source_adapters/local_file_source.py)
-  - GWSSource       (adapters/data_source_adapters/gws_source.py)
-
-Pipeline: perceive → interpret → decompose → bridge → map → persist → query_back
-
-UMH operates at the ontology layer (domain-agnostic substrate).
-Domain bridges produce domain-typed projections from ontology
-observations. The substrate works regardless of which domains are
-registered. See: docs/system/domain_bridge_contract_v1.md
-
-Decomposition uses LLM extraction (via model_router) with heuristic
-fallback. Output schema per observation:
-  - primitive_type: PrimitiveType enum (state/change/constraint/resource/
-    signal/action/outcome/feedback/goal/time)
-  - label: semantic name (≤80 chars, no markdown)
-  - description: adds context beyond label (≤300 chars)
-  - evidence: verbatim span from source
-  - relationships: typed edges (RelationshipType enum)
-  See: docs/system/decomposition_extraction_contract_v1.md
-
-Proofs:
-  data/runtime/canonical_memory_store/proofs/
+## Ingestion — canonical path is substrate.execution.ingestion (see .claude/CLAUDE.md)
 
 ## Completion Standards (NON-NEGOTIABLE — ENFORCED)
 These rules exist because every one was violated and caused real failures.
@@ -616,23 +366,7 @@ These are constraints, not aspirations. Every commit must maintain them.
 - Architecture names must be accurate (UMH, not AgentOS or EOS for the system itself)
 - After refactoring: check that tests asserting on source code strings still match
 
-## UMH Architecture Contract (post-convergence 2026-05-23)
-Four canonical packages — all code lives here or imports from here:
-  substrate/    — the UMH brain (control plane, execution, governance, state, understanding)
-  adapters/     — external system adapters (models, calendar, google workspace, browser)
-  transports/   — I/O surfaces (discord, API, presence handlers, node mesh)
-  projections/  — platform-specific views (EOS agents, workflows)
-
-Support directories (not code):
-  services/     — deployment entrypoints (discord_bot.py, APIs)
-  nodes/        — distributed execution (Windows daemon, environments, distribution)
-  scripts/      — operational scripts
-  tests/        — test suite
-
-Dependency direction: projections → transports → adapters → substrate
-  substrate is the innermost layer. It never reaches outward.
-  If substrate needs transport functionality, create an abstract port
-  in substrate/sockets/ and register the concrete implementation at startup.
+## UMH Architecture Contract — see Architecture Layer Law above + .claude/rules/architecture-layers.md
 
 ## Inventory & Audit Verification Protocol (NON-NEGOTIABLE)
 Added 2026-05-27. AFM asked 5 times for a complete audit. Each time

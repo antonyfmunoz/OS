@@ -84,31 +84,6 @@ Single-user validation phase — one org, multiple ventures.
 Org and venture IDs loaded from BIS at runtime.
 Focus: proving the system works before UI layer.
 
-## Project structure (post-convergence)
-/opt/OS/  (repository root)
-  substrate/       — unified type system, public API (types.py, __init__.py)
-  control_plane/   — identity, context, governance, memory, registry, router
-  execution/       — 8-stage pipeline (spine.py), trace, feedback, actuation, voice
-  governance/      — accountability, policies, quality, validation
-  understanding/   — perception, interpretation, domains, ontology, world model, signals
-  composition/     — mastery registries
-  sockets/         — abstract ports (signal, capability, outcome, view)
-  adapters/        — external system adapters (models, GWS, browser, capabilities)
-  transports/      — interface transport layer (discord, API, node mesh)
-  integrations/    — domain-specific integrations (creatoros, lyfeos)
-  services/        — legacy daemons (discord_bot.py, operator_api.py, higgsfield_webhook.py)
-  state/           — persistence layer (business, memory, profiles, session, storage, tenancy)
-  projections/     — application projections (EOS)
-  nodes/           — distributed execution (windows daemon, environments, distribution)
-  scripts/         — operator tooling (cron scripts, verification, graph rebuild)
-  knowledge/       — wiki, memory palace, concept docs
-  data/            — generated data, proofs, audits, graph files
-  docs/            — architecture specs, contracts
-  skills/          — Claude Code tool skills
-  saas/            — SaaS product (TypeScript/React) — EOS application projection
-  runtime/         — legacy runtime (compatibility layer)
-  .claude/         — Claude Code project config (this file)
-
 ## Docker restart: use `docker restart`, not `docker compose restart`
 Use `docker restart [container_name]` for individual container restarts.
 `docker compose restart [service]` uses the service alias from compose.yml
@@ -124,18 +99,4 @@ Both exist — `os-monitor` is the container name. Use `docker restart os-monito
 ## Master Specification
 Read /opt/OS/ARCHITECTURE.md before any significant build decision.
 
-## Ingestion (canonical path)
-CANONICAL — substrate.execution.ingestion is the single ingestion path.
-Legacy orchestrator at runtime.ingestion still exists for compatibility.
-Sources:
-  - LocalFileSource (adapters/data_source_adapters/local_file_source.py)
-  - GWSSource       (adapters/data_source_adapters/gws_source.py)
-
-Pipeline: perceive → interpret → decompose → bridge → map → persist → query_back
-
-cc_sdk (adapters/models/cc_sdk.py) — option 0, CLI via Max subscription:
-  - Timeout: 120s default, env var CC_SDK_TIMEOUT_SECONDS to override.
-  - `_get_subprocess_env()` injects OAuth token from ancestor process.
-  - CLI authenticates via subscription (Opus 4.6, no API cost)
-
-Proofs: data/runtime/canonical_memory_store/proofs/
+## Ingestion + cc_sdk — see CLAUDE.md Intelligence Routing and Ingestion sections
