@@ -144,7 +144,7 @@ def run_scraper(ignore_cache=False):
         [sys.executable, os.path.join(VAULT, "services/apify_scraper.py")],
         cwd=VAULT, capture_output=False, env=env
     )
-    return result.returncode == 0
+    return result is not None and result.returncode == 0
 
 
 def run_scorer():
@@ -152,7 +152,7 @@ def run_scorer():
         [sys.executable, os.path.join(VAULT, "services/icp_scorer.py")],
         cwd=VAULT, capture_output=False
     )
-    return result.returncode == 0
+    return result is not None and result.returncode == 0
 
 
 def main():

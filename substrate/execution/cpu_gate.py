@@ -185,7 +185,12 @@ def gated_subprocess_run(
     kwargs.setdefault("text", True)
     kwargs.setdefault("timeout", timeout)
 
-    return subprocess.run(cmd, **kwargs)
+    try:
+        return subprocess.run(cmd, **kwargs)
+    except FileNotFoundError:
+        cmd_str = cmd if isinstance(cmd, str) else cmd[0]
+        logger.debug("binary not found for gated_subprocess_run: %s (caller=%s)", cmd_str, caller)
+        return None
 
 
 def gated_popen(
@@ -203,4 +208,9 @@ def gated_popen(
     if not gate.allowed:
         return None
 
-    return subprocess.Popen(cmd, **kwargs)
+    try:
+        return subprocess.Popen(cmd, **kwargs)
+    except FileNotFoundError:
+        cmd_str = cmd if isinstance(cmd, str) else cmd[0]
+        logger.debug("binary not found for gated_popen: %s (caller=%s)", cmd_str, caller)
+        return None

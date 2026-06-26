@@ -453,6 +453,8 @@ def _cleanup_branches(repo_root: str, params: dict[str, Any]) -> tuple[str, bool
             capture_output=True, text=True, timeout=10,
         )
         deleted: list[str] = []
+        if merged is None:
+            return "Branch cleanup skipped (git not available)", False
         for branch in merged.stdout.strip().splitlines():
             branch = branch.strip()
             if branch in ("main", current_branch, ""):

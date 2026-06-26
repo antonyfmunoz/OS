@@ -658,7 +658,7 @@ def collect_git_perception() -> list[PerceptionRecord]:
             timeout=5,
             cwd=_ROOT,
         )
-        if result.returncode == 0:
+        if result is not None and result.returncode == 0:
             commit_lines = [
                 ln for ln in result.stdout.strip().splitlines() if ln.strip()
             ]

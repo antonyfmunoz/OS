@@ -117,6 +117,22 @@ class GitAdapter(BaseAdapter):
             timeout=self._timeout,
             cwd=self._repo_path,
         )
+        if result is None:
+            return {
+                "command": " ".join(args),
+                "returncode": -1,
+                "stdout": "",
+                "stderr": "command skipped (binary not found or CPU gate)",
+                "success": False,
+            }
+        if result is None:
+            return {
+                "command": " ".join(args),
+                "returncode": -1,
+                "stdout": "",
+                "stderr": "command skipped (binary not found or CPU gate)",
+                "success": False,
+            }
         return {
             "command": " ".join(args),
             "returncode": result.returncode,

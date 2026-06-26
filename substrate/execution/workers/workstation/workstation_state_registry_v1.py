@@ -189,10 +189,10 @@ class WorkstationStateRegistry:
                 timeout=5,
             )
             return (
-                repo.stdout.strip() if repo.returncode == 0 else "",
-                branch.stdout.strip() if branch.returncode == 0 else "",
+                repo.stdout.strip() if repo is not None and repo.returncode == 0 else "",
+                branch.stdout.strip() if branch is not None and branch.returncode == 0 else "",
             )
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+        except subprocess.TimeoutExpired:
             return "", ""
 
     def _check_connectivity(self) -> ConnectivityStatus:
