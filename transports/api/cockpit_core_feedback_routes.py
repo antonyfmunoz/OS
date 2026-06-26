@@ -18,7 +18,7 @@ def register_feedback_routes(router, _require_operator_role, helpers):
     """Register feedback and notification routes onto the given router."""
 
     @router.get("/notifications")
-    async def notification_history(limit: int = 50):
+    def notification_history(limit: int = 50):
         """Recent notification history."""
         try:
             from substrate.sockets.notification_engine import get_notification_engine
@@ -33,7 +33,7 @@ def register_feedback_routes(router, _require_operator_role, helpers):
             return {"error": str(e), "history": []}
 
     @router.post("/feedback")
-    async def record_feedback(payload: dict):
+    def record_feedback(payload: dict):
         """Record explicit RLHF feedback for an interaction.
 
         Body: {interaction_id, rating, outcome_type, notes?}
@@ -74,7 +74,7 @@ def register_feedback_routes(router, _require_operator_role, helpers):
         return {"ok": success}
 
     @router.get("/feedback/stats")
-    async def feedback_stats(agent: str = ""):
+    def feedback_stats(agent: str = ""):
         """Aggregate RLHF feedback statistics, optionally filtered by agent."""
         from substrate.execution.feedback_loop import get_feedback_loop
 
@@ -82,7 +82,7 @@ def register_feedback_routes(router, _require_operator_role, helpers):
         return loop.get_feedback_stats(agent=agent)
 
     @router.get("/feedback/skills")
-    async def feedback_skill_effectiveness(
+    def feedback_skill_effectiveness(
         agent: str = "",
         skill: str = "",
         window_days: int = 30,
@@ -100,7 +100,7 @@ def register_feedback_routes(router, _require_operator_role, helpers):
         return loop.skill_effectiveness(agent=agent, skill=skill, window_days=window_days)
 
     @router.get("/feedback/recommendations")
-    async def feedback_recommendations():
+    def feedback_recommendations():
         """Routing adjustment recommendations based on RLHF feedback patterns."""
         from substrate.execution.feedback_loop import get_feedback_loop
 
@@ -108,7 +108,7 @@ def register_feedback_routes(router, _require_operator_role, helpers):
         return {"recommendations": loop.recommend_routing_adjustment()}
 
     @router.post("/notifications/send", dependencies=[Depends(_require_operator_role)])
-    async def send_notification(payload: dict):
+    def send_notification(payload: dict):
         """Send a notification through the engine."""
         try:
             from substrate.sockets.notification_engine import (

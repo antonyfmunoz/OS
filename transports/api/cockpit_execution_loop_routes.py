@@ -48,7 +48,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return registry
 
     @r.get("/loops")
-    async def loop_status():
+    def loop_status():
         """Status of all persistent loops."""
         try:
             return _get_loop_registry().status()
@@ -56,7 +56,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"error": str(e)}
 
     @r.get("/loops/stages")
-    async def loop_stages():
+    def loop_stages():
         """List available pipeline stages."""
         try:
             from substrate.execution.loop import STAGE_REGISTRY
@@ -69,7 +69,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"error": str(e)}
 
     @r.post("/loops/{loop_name}/start", dependencies=auth)
-    async def loop_start(loop_name: str):
+    def loop_start(loop_name: str):
         """Start a persistent loop."""
         try:
             ok = _get_loop_registry().start(loop_name)
@@ -78,7 +78,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"error": str(e)}
 
     @r.post("/loops/{loop_name}/stop", dependencies=auth)
-    async def loop_stop(loop_name: str):
+    def loop_stop(loop_name: str):
         """Stop a persistent loop."""
         try:
             ok = _get_loop_registry().stop(loop_name)
@@ -87,7 +87,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"error": str(e)}
 
     @r.post("/loops/{loop_name}/run-once", dependencies=auth)
-    async def loop_run_once(loop_name: str):
+    def loop_run_once(loop_name: str):
         """Run a single cycle of a loop synchronously."""
         try:
             registry = _get_loop_registry()
@@ -100,7 +100,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"error": str(e)}
 
     @r.post("/loops/create", dependencies=auth)
-    async def loop_create(payload: dict):
+    def loop_create(payload: dict):
         """Create a new loop definition at runtime."""
         try:
             from substrate.execution.loop import STAGE_REGISTRY
@@ -130,7 +130,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"error": str(e)}
 
     @r.delete("/loops/{loop_name}", dependencies=auth)
-    async def loop_delete(loop_name: str):
+    def loop_delete(loop_name: str):
         """Remove a loop definition."""
         try:
             registry = _get_loop_registry()
@@ -144,7 +144,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     # ── Execution Substrate endpoints ────────────────────────────────────────
 
     @r.get("/execution/status")
-    async def execution_status():
+    def execution_status():
         """Execution status from live organism spine and work packet engine."""
         try:
             organism = _get_organism_fn()
@@ -198,7 +198,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             }
 
     @r.get("/execution/log")
-    async def execution_log(limit: int = 20):
+    def execution_log(limit: int = 20):
         """Recent execution journal entries from spine."""
         try:
             organism = _get_organism_fn()
@@ -225,7 +225,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"log": [], "count": 0, "error": str(e)}
 
     @r.get("/execution/authority")
-    async def execution_authority(layer: str = "native"):
+    def execution_authority(layer: str = "native"):
         """Authority preview using live governance engine."""
         try:
             from substrate.governance.policy_engine import PolicyEngine

@@ -668,7 +668,7 @@ async def _generate_plan(request: Request):
     }
 
 
-async def _get_plan(plan_id: str):
+def _get_plan(plan_id: str):
     """Retrieve a generated plan."""
     plan_path = _safe_artifact_path("plans", plan_id)
     if not plan_path or not os.path.exists(plan_path):
@@ -996,7 +996,7 @@ async def _complete_packet(request: Request):
 # ── Status & Query ───────────────────────────────────────────
 
 
-async def _loop_status():
+def _loop_status():
     """Current operator loop status."""
     queue = _get_queue()
     summary = queue.compute_queue_summary()
@@ -1014,7 +1014,7 @@ async def _loop_status():
     }
 
 
-async def _packet_detail(packet_id: str):
+def _packet_detail(packet_id: str):
     """Full work packet detail with audit trail and execution records."""
     queue = _get_queue()
     pkt = queue.get_packet(packet_id)
@@ -1050,12 +1050,12 @@ async def _packet_detail(packet_id: str):
     return result
 
 
-async def _pending_approvals():
+def _pending_approvals():
     queue = _get_queue()
     return [p.to_safe_dict() for p in queue.get_packets_requiring_approval()]
 
 
-async def _active_packets():
+def _active_packets():
     queue = _get_queue()
     active = [
         p
@@ -1071,7 +1071,7 @@ async def _active_packets():
     return [p.to_safe_dict() for p in active]
 
 
-async def _audit_trail(packet_id: str | None = None, limit: int = 50):
+def _audit_trail(packet_id: str | None = None, limit: int = 50):
     if packet_id:
         return _get_audit_entries_for_packet(packet_id)
 
@@ -1112,7 +1112,7 @@ async def _record_outcome(request: Request):
     return {"success": False, "error": "recording failed"}
 
 
-async def _loop_health():
+def _loop_health():
     """Health endpoint."""
     queue = _get_queue()
     summary = queue.compute_queue_summary()
@@ -1158,7 +1158,7 @@ async def _loop_health():
 # ── Execution Records ────────────────────────────────────────
 
 
-async def _get_execution_record(record_id: str):
+def _get_execution_record(record_id: str):
     """Retrieve a single execution record."""
     path = _safe_artifact_path("records", record_id)
     if not path or not os.path.exists(path):
@@ -1170,7 +1170,7 @@ async def _get_execution_record(record_id: str):
         return {"error": "Failed to read record"}
 
 
-async def _packet_records(packet_id: str):
+def _packet_records(packet_id: str):
     """All execution records for a packet."""
     records_dir = os.path.join(_REPO_ROOT, "data", "umh", "execution", "records")
     if not os.path.isdir(records_dir):
@@ -1188,7 +1188,7 @@ async def _packet_records(packet_id: str):
     return sorted(records, key=lambda r: r.get("started_at", 0))
 
 
-async def _packet_failure(packet_id: str):
+def _packet_failure(packet_id: str):
     """Get failure report for a packet."""
     fail_dir = os.path.join(_REPO_ROOT, "data", "umh", "execution", "failures")
     if not os.path.isdir(fail_dir):
@@ -1280,7 +1280,7 @@ async def _empire_route(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _empire_domains(request: Request) -> list:
+def _empire_domains(request: Request) -> list:
     """Return all domain definitions."""
     try:
         from substrate.organism.empire_router import EmpireRouter
@@ -1292,7 +1292,7 @@ async def _empire_domains(request: Request) -> list:
         return []
 
 
-async def _empire_agents(request: Request) -> list:
+def _empire_agents(request: Request) -> list:
     """Return all agent type definitions."""
     try:
         from substrate.organism.empire_router import EmpireRouter
@@ -1304,7 +1304,7 @@ async def _empire_agents(request: Request) -> list:
         return []
 
 
-async def _empire_reality(request: Request) -> dict:
+def _empire_reality(request: Request) -> dict:
     """Return current reality model snapshot."""
     try:
         from substrate.organism.empire_router import EmpireRouter
@@ -1317,7 +1317,7 @@ async def _empire_reality(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _empire_packets_by_domain(request: Request) -> dict:
+def _empire_packets_by_domain(request: Request) -> dict:
     """Return work packets grouped by domain."""
     try:
         from substrate.organism.universal_work_queue import UniversalWorkQueue
@@ -1339,7 +1339,7 @@ async def _empire_packets_by_domain(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _empire_next_actions(request: Request) -> dict:
+def _empire_next_actions(request: Request) -> dict:
     """Return computed next best actions."""
     try:
         from substrate.organism.empire_router import EmpireRouter
@@ -1367,7 +1367,7 @@ def _get_gap_engine():
     return StrategicGapEngine()
 
 
-async def _strategy_analyze(request: Request) -> dict:
+def _strategy_analyze(request: Request) -> dict:
     """Run full gap analysis cycle."""
     try:
         engine = _get_gap_engine()
@@ -1385,7 +1385,7 @@ async def _strategy_analyze(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _strategy_goals(request: Request) -> dict:
+def _strategy_goals(request: Request) -> dict:
     """Return all goals."""
     try:
         engine = _get_gap_engine()
@@ -1456,7 +1456,7 @@ async def _strategy_add_goal(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _strategy_goal_detail(request: Request) -> dict:
+def _strategy_goal_detail(request: Request) -> dict:
     """Return a single goal."""
     goal_id = request.path_params.get("goal_id", "")
     try:
@@ -1521,7 +1521,7 @@ async def _strategy_update_goal(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _strategy_delete_goal(request: Request) -> dict:
+def _strategy_delete_goal(request: Request) -> dict:
     """Delete a goal."""
     goal_id = request.path_params.get("goal_id", "")
     try:
@@ -1537,7 +1537,7 @@ async def _strategy_delete_goal(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _strategy_gaps(request: Request) -> dict:
+def _strategy_gaps(request: Request) -> dict:
     """Return detected gaps from last analysis."""
     try:
         engine = _get_gap_engine()
@@ -1552,7 +1552,7 @@ async def _strategy_gaps(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _strategy_recommendations(request: Request) -> dict:
+def _strategy_recommendations(request: Request) -> dict:
     """Return top recommendations."""
     try:
         engine = _get_gap_engine()
@@ -1615,7 +1615,7 @@ async def _strategy_reject_rec(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _strategy_decisions(request: Request) -> dict:
+def _strategy_decisions(request: Request) -> dict:
     """Return decision history (learning loop)."""
     try:
         engine = _get_gap_engine()
@@ -1664,7 +1664,7 @@ def _get_tick_loop():
     return get_tick_loop()
 
 
-async def _tick_status(request: Request) -> dict:
+def _tick_status(request: Request) -> dict:
     """Compact tick loop status."""
     try:
         loop = _get_tick_loop()
@@ -1674,7 +1674,7 @@ async def _tick_status(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_strategic_state(request: Request) -> dict:
+def _tick_strategic_state(request: Request) -> dict:
     """Full strategic state for cockpit command center."""
     try:
         loop = _get_tick_loop()
@@ -1684,7 +1684,7 @@ async def _tick_strategic_state(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_execute(request: Request) -> dict:
+def _tick_execute(request: Request) -> dict:
     """Execute one tick cycle manually."""
     try:
         loop = _get_tick_loop()
@@ -1722,7 +1722,7 @@ async def _tick_start(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_stop(request: Request) -> dict:
+def _tick_stop(request: Request) -> dict:
     """Stop the tick loop."""
     try:
         loop = _get_tick_loop()
@@ -1734,7 +1734,7 @@ async def _tick_stop(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_pause(request: Request) -> dict:
+def _tick_pause(request: Request) -> dict:
     """Pause the tick loop (maintains state)."""
     try:
         loop = _get_tick_loop()
@@ -1746,7 +1746,7 @@ async def _tick_pause(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_resume(request: Request) -> dict:
+def _tick_resume(request: Request) -> dict:
     """Resume the tick loop from paused state."""
     try:
         loop = _get_tick_loop()
@@ -1788,7 +1788,7 @@ async def _tick_set_profiles(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_candidates(request: Request) -> dict:
+def _tick_candidates(request: Request) -> dict:
     """Return candidate work queue."""
     try:
         loop = _get_tick_loop()
@@ -1806,7 +1806,7 @@ async def _tick_candidates(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_accept_candidate(request: Request) -> dict:
+def _tick_accept_candidate(request: Request) -> dict:
     """Accept a candidate → transitions to ACCEPTED lifecycle."""
     candidate_id = request.path_params.get("candidate_id", "")
     try:
@@ -1824,7 +1824,7 @@ async def _tick_accept_candidate(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_reject_candidate(request: Request) -> dict:
+def _tick_reject_candidate(request: Request) -> dict:
     """Reject a candidate → transitions to REJECTED lifecycle."""
     candidate_id = request.path_params.get("candidate_id", "")
     try:
@@ -1842,7 +1842,7 @@ async def _tick_reject_candidate(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_drift_warnings(request: Request) -> dict:
+def _tick_drift_warnings(request: Request) -> dict:
     """Return current drift warnings."""
     try:
         loop = _get_tick_loop()
@@ -1857,7 +1857,7 @@ async def _tick_drift_warnings(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _tick_history(request: Request) -> dict:
+def _tick_history(request: Request) -> dict:
     """Return recent tick history."""
     try:
         loop = _get_tick_loop()
@@ -1881,7 +1881,7 @@ def _get_projection_engine():
     return get_projection_engine()
 
 
-async def _projection_status(request: Request) -> dict:
+def _projection_status(request: Request) -> dict:
     """Compact projection engine status."""
     try:
         engine = _get_projection_engine()
@@ -1891,7 +1891,7 @@ async def _projection_status(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _projection_state(request: Request) -> dict:
+def _projection_state(request: Request) -> dict:
     """Full projection state for cockpit."""
     try:
         engine = _get_projection_engine()
@@ -1942,7 +1942,7 @@ async def _projection_run(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _projection_trends(request: Request) -> dict:
+def _projection_trends(request: Request) -> dict:
     """Return detected trends."""
     try:
         engine = _get_projection_engine()
@@ -1956,7 +1956,7 @@ async def _projection_trends(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _projection_risks(request: Request) -> dict:
+def _projection_risks(request: Request) -> dict:
     """Return strategic risks."""
     try:
         engine = _get_projection_engine()
@@ -1970,7 +1970,7 @@ async def _projection_risks(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _projection_opportunities(request: Request) -> dict:
+def _projection_opportunities(request: Request) -> dict:
     """Return strategic opportunities."""
     try:
         engine = _get_projection_engine()
@@ -1984,7 +1984,7 @@ async def _projection_opportunities(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _projection_accuracy(request: Request) -> dict:
+def _projection_accuracy(request: Request) -> dict:
     """Return projection accuracy metrics."""
     try:
         engine = _get_projection_engine()
@@ -1994,7 +1994,7 @@ async def _projection_accuracy(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _projection_by_domain(request: Request) -> dict:
+def _projection_by_domain(request: Request) -> dict:
     """Return projections for a specific domain."""
     domain = request.path_params.get("domain", "")
     if not domain:
@@ -2013,7 +2013,7 @@ async def _projection_by_domain(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _projection_projected_reality(request: Request) -> dict:
+def _projection_projected_reality(request: Request) -> dict:
     """Return projected reality for gap analysis integration."""
     try:
         from substrate.organism.projection_engine import TimeHorizon
@@ -2073,7 +2073,7 @@ def _get_continuity_runtime():
     return get_continuity_runtime()
 
 
-async def _continuity_status(request: Request) -> dict:
+def _continuity_status(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         return {"success": True, **rt.status()}
@@ -2082,7 +2082,7 @@ async def _continuity_status(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_snapshot(request: Request) -> dict:
+def _continuity_snapshot(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         snap = rt.get_snapshot()
@@ -2092,7 +2092,7 @@ async def _continuity_snapshot(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_capture(request: Request) -> dict:
+def _continuity_capture(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         snap = rt.capture_snapshot()
@@ -2103,7 +2103,7 @@ async def _continuity_capture(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_depart(request: Request) -> dict:
+def _continuity_depart(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         snap = rt.record_departure()
@@ -2114,7 +2114,7 @@ async def _continuity_depart(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_resume(request: Request) -> dict:
+def _continuity_resume(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         report = rt.generate_resume()
@@ -2131,7 +2131,7 @@ async def _continuity_resume(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_brief(request: Request) -> dict:
+def _continuity_brief(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         brief = rt.get_last_brief()
@@ -2141,7 +2141,7 @@ async def _continuity_brief(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_generate_brief(request: Request) -> dict:
+def _continuity_generate_brief(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         brief = rt.generate_brief(include_resume=False)
@@ -2152,7 +2152,7 @@ async def _continuity_generate_brief(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_timeline(request: Request) -> dict:
+def _continuity_timeline(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         since = float(request.query_params.get("since", "0"))
@@ -2165,7 +2165,7 @@ async def _continuity_timeline(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_lineage(request: Request) -> dict:
+def _continuity_lineage(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         lineages = rt.build_lineage()
@@ -2208,7 +2208,7 @@ async def _continuity_handoff(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _continuity_interaction(request: Request) -> dict:
+def _continuity_interaction(request: Request) -> dict:
     try:
         rt = _get_continuity_runtime()
         rt.record_interaction()
@@ -2227,7 +2227,7 @@ def _get_presence_runtime():
     return get_presence_runtime()
 
 
-async def _presence_status(request: Request) -> dict:
+def _presence_status(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         return {"success": True, **rt.get_status()}
@@ -2236,7 +2236,7 @@ async def _presence_status(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_snapshot(request: Request) -> dict:
+def _presence_snapshot(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         snap = rt.get_snapshot()
@@ -2246,7 +2246,7 @@ async def _presence_snapshot(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_capture(request: Request) -> dict:
+def _presence_capture(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         snap = rt.capture_snapshot()
@@ -2257,7 +2257,7 @@ async def _presence_capture(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_devices(request: Request) -> dict:
+def _presence_devices(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         return {"success": True, "devices": rt.get_devices()}
@@ -2266,7 +2266,7 @@ async def _presence_devices(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_sessions(request: Request) -> dict:
+def _presence_sessions(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         return {"success": True, "sessions": rt.get_active_sessions()}
@@ -2387,7 +2387,7 @@ async def _presence_change_profile(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_attention(request: Request) -> dict:
+def _presence_attention(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         return {"success": True, "attention": rt.get_attention_state()}
@@ -2396,7 +2396,7 @@ async def _presence_attention(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_interruption(request: Request) -> dict:
+def _presence_interruption(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         is_critical = request.query_params.get("critical", "false").lower() == "true"
@@ -2411,7 +2411,7 @@ async def _presence_interruption(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_timeline(request: Request) -> dict:
+def _presence_timeline(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         since = float(request.query_params.get("since", "0"))
@@ -2424,7 +2424,7 @@ async def _presence_timeline(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _presence_session_history(request: Request) -> dict:
+def _presence_session_history(request: Request) -> dict:
     try:
         rt = _get_presence_runtime()
         return {"success": True, "history": rt.get_session_history()}
@@ -2442,7 +2442,7 @@ def _get_command_runtime():
     return get_command_runtime()
 
 
-async def _command_status(request: Request) -> dict:
+def _command_status(request: Request) -> dict:
     try:
         rt = _get_command_runtime()
         return {"success": True, **rt.get_status()}
@@ -2495,7 +2495,7 @@ async def _command_classify(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _command_history(request: Request) -> dict:
+def _command_history(request: Request) -> dict:
     try:
         rt = _get_command_runtime()
         limit = int(request.query_params.get("limit", "50"))
@@ -2505,7 +2505,7 @@ async def _command_history(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _command_pending(request: Request) -> dict:
+def _command_pending(request: Request) -> dict:
     try:
         rt = _get_command_runtime()
         return {"success": True, "pending": rt.get_pending()}
@@ -2514,7 +2514,7 @@ async def _command_pending(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _command_timeline(request: Request) -> dict:
+def _command_timeline(request: Request) -> dict:
     try:
         rt = _get_command_runtime()
         since = float(request.query_params.get("since", "0"))
@@ -2533,7 +2533,7 @@ async def _command_timeline(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _command_approve(request: Request) -> dict:
+def _command_approve(request: Request) -> dict:
     try:
         command_id = request.path_params.get("command_id", "")
         if not command_id:
@@ -2605,7 +2605,7 @@ async def _workstation_restore(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _workstation_templates(request: Request) -> dict:
+def _workstation_templates(request: Request) -> dict:
     try:
         rt = _get_workstation_runtime()
         return {"success": True, "templates": rt.get_templates()}
@@ -2614,7 +2614,7 @@ async def _workstation_templates(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _workstation_snapshots(request: Request) -> dict:
+def _workstation_snapshots(request: Request) -> dict:
     try:
         limit = int(request.query_params.get("limit", "20"))
         rt = _get_workstation_runtime()
@@ -2638,7 +2638,7 @@ async def _workstation_take_snapshot(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _workstation_recommendations(request: Request) -> dict:
+def _workstation_recommendations(request: Request) -> dict:
     try:
         rt = _get_workstation_runtime()
         return {"success": True, "recommendations": rt.get_recommendations()}
@@ -2647,7 +2647,7 @@ async def _workstation_recommendations(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _workstation_state(request: Request) -> dict:
+def _workstation_state(request: Request) -> dict:
     try:
         rt = _get_workstation_runtime()
         return {"success": True, "state": rt.get_state()}
@@ -2665,7 +2665,7 @@ def _get_profile_runtime():
     return get_profile_runtime()
 
 
-async def _profile_state(request: Request) -> dict:
+def _profile_state(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         return {"success": True, "state": rt.get_state()}
@@ -2674,7 +2674,7 @@ async def _profile_state(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _profile_profiles(request: Request) -> dict:
+def _profile_profiles(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         return {"success": True, "profiles": rt.get_profiles()}
@@ -2683,7 +2683,7 @@ async def _profile_profiles(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _profile_system_modes(request: Request) -> dict:
+def _profile_system_modes(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         return {"success": True, "system_modes": rt.get_system_modes()}
@@ -2709,7 +2709,7 @@ async def _profile_activate_profile(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _profile_deactivate_profile(request: Request) -> dict:
+def _profile_deactivate_profile(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         result = rt.deactivate_profile()
@@ -2751,7 +2751,7 @@ async def _profile_deactivate_system_mode(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _profile_activation_plan(request: Request) -> dict:
+def _profile_activation_plan(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         plan = rt.get_activation_plan()
@@ -2761,7 +2761,7 @@ async def _profile_activation_plan(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _profile_conflicts(request: Request) -> dict:
+def _profile_conflicts(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         conflicts = rt.detect_conflicts()
@@ -2771,7 +2771,7 @@ async def _profile_conflicts(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _profile_timeline(request: Request) -> dict:
+def _profile_timeline(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         limit = int(request.query_params.get("limit", "50"))
@@ -2782,7 +2782,7 @@ async def _profile_timeline(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _profile_context(request: Request) -> dict:
+def _profile_context(request: Request) -> dict:
     try:
         rt = _get_profile_runtime()
         ctx = rt.get_context()
@@ -2801,7 +2801,7 @@ def _get_session_runtime():
     return get_session_runtime()
 
 
-async def _session_state(request: Request) -> dict:
+def _session_state(request: Request) -> dict:
     try:
         rt = _get_session_runtime()
         return {"success": True, **rt.get_state()}
@@ -2810,7 +2810,7 @@ async def _session_state(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _session_list(request: Request) -> dict:
+def _session_list(request: Request) -> dict:
     try:
         rt = _get_session_runtime()
         sessions = rt.list_sessions()
@@ -2820,7 +2820,7 @@ async def _session_list(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _session_active(request: Request) -> dict:
+def _session_active(request: Request) -> dict:
     try:
         rt = _get_session_runtime()
         active = rt.list_active_sessions()
@@ -2958,7 +2958,7 @@ async def _session_handoff_complete(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _session_history(request: Request) -> dict:
+def _session_history(request: Request) -> dict:
     try:
         rt = _get_session_runtime()
         handoffs = rt.get_recent_handoffs(limit=20)
@@ -2968,7 +2968,7 @@ async def _session_history(request: Request) -> dict:
         return {"success": False, "error": str(exc)}
 
 
-async def _session_timeline(request: Request) -> dict:
+def _session_timeline(request: Request) -> dict:
     try:
         rt = _get_session_runtime()
         limit = int(request.query_params.get("limit", "50"))

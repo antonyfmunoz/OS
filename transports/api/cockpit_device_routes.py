@@ -207,7 +207,7 @@ def _get_tailscale_peers() -> list[dict[str, Any]]:
 # ── Route Handlers ────────────────────────────────────────────────
 
 
-async def _devices_list(request: Request) -> list[dict[str, Any]]:
+def _devices_list(request: Request) -> list[dict[str, Any]]:
     """GET /devices/list — registered devices enriched with live Tailscale status."""
     registry = _load_registry()
     data = _get_tailscale_status()
@@ -241,7 +241,7 @@ async def _devices_list(request: Request) -> list[dict[str, Any]]:
     return registry
 
 
-async def _devices_scan(request: Request) -> dict[str, Any]:
+def _devices_scan(request: Request) -> dict[str, Any]:
     """GET /devices/scan — unregistered, non-infrastructure Tailscale peers."""
     peers = _get_tailscale_peers()
     return {

@@ -104,7 +104,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/activity/feed", dependencies=auth)
-    async def activity_feed(
+    def activity_feed(
         limit: int = Query(50, description="Max events"),
         since: float = Query(0, description="Unix timestamp filter"),
     ) -> dict[str, Any]:
@@ -147,7 +147,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/activity/organism-events", dependencies=auth)
-    async def organism_events(
+    def organism_events(
         limit: int = Query(50, description="Max events"),
         since: float = Query(0, description="Unix timestamp filter"),
     ) -> dict[str, Any]:
@@ -166,7 +166,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": True, "events": [], "count": 0}
 
     @r.get("/activity/receipts", dependencies=auth)
-    async def operator_receipts(
+    def operator_receipts(
         limit: int = Query(50, description="Max receipts"),
     ) -> dict[str, Any]:
         """Operator interaction audit trail from IntentReceiptStore."""
@@ -182,7 +182,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": True, "receipts": [], "count": 0}
 
     @r.get("/activity/continuity", dependencies=auth)
-    async def continuity_timeline(
+    def continuity_timeline(
         limit: int = Query(20, description="Max entries"),
     ) -> dict[str, Any]:
         """Continuity checkpoints — session transitions, state saves."""
@@ -203,7 +203,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": True, "checkpoints": [], "count": 0}
 
     @r.get("/activity/reality-changes", dependencies=auth)
-    async def reality_changes(
+    def reality_changes(
         limit: int = Query(20, description="Max changes"),
         since: float = Query(0, description="Unix timestamp filter"),
     ) -> dict[str, Any]:

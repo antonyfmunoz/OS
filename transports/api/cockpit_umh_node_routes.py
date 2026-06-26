@@ -52,34 +52,34 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("")
-    async def node_topology() -> dict[str, Any]:
+    def node_topology() -> dict[str, Any]:
         reg = _get_registry()
         return reg.topology().to_dict()
 
     @router.get("/version/status")
-    async def version_status() -> dict[str, Any]:
+    def version_status() -> dict[str, Any]:
         engine = _get_coherence()
         return {"status": engine.overall_status().value}
 
     @router.get("/version/drift")
-    async def version_drift() -> dict[str, Any]:
+    def version_drift() -> dict[str, Any]:
         engine = _get_coherence()
         return engine.drift_report()
 
     @router.get("/by-role/{role}")
-    async def nodes_by_role(role: str) -> dict[str, Any]:
+    def nodes_by_role(role: str) -> dict[str, Any]:
         reg = _get_registry()
         nodes = reg.nodes_for_role(role)
         return {"role": role, "nodes": [n.to_dict() for n in nodes]}
 
     @router.get("/by-service/{service_role}")
-    async def nodes_by_service(service_role: str) -> dict[str, Any]:
+    def nodes_by_service(service_role: str) -> dict[str, Any]:
         reg = _get_registry()
         nodes = reg.nodes_for_service(service_role)
         return {"service_role": service_role, "nodes": [n.to_dict() for n in nodes]}
 
     @router.get("/{node_id}")
-    async def node_detail(node_id: str) -> dict[str, Any]:
+    def node_detail(node_id: str) -> dict[str, Any]:
         reg = _get_registry()
         node = reg.get_node(node_id)
         if not node:
@@ -87,7 +87,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return node.to_dict()
 
     @router.get("/{node_id}/services")
-    async def node_services(node_id: str) -> dict[str, Any]:
+    def node_services(node_id: str) -> dict[str, Any]:
         reg = _get_registry()
         node = reg.get_node(node_id)
         if not node:

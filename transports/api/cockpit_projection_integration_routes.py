@@ -43,28 +43,28 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/projections/integration", dependencies=auth)
-    async def list_profiles() -> list[dict[str, Any]]:
+    def list_profiles() -> list[dict[str, Any]]:
         snap = _get_runtime().snapshot()
         return [p.to_dict() for p in snap.projections]
 
     @r.get("/projections/integration/snapshot", dependencies=auth)
-    async def snapshot() -> dict[str, Any]:
+    def snapshot() -> dict[str, Any]:
         return _get_runtime().snapshot().to_dict()
 
     @r.get("/projections/integration/{projection_id}", dependencies=auth)
-    async def projection_profile(projection_id: str) -> dict[str, Any]:
+    def projection_profile(projection_id: str) -> dict[str, Any]:
         return _get_runtime().projection_profile(projection_id).to_dict()
 
     @r.get("/projections/integration/{projection_id}/locations", dependencies=auth)
-    async def code_locations(projection_id: str) -> list[dict[str, Any]]:
+    def code_locations(projection_id: str) -> list[dict[str, Any]]:
         return [loc.to_dict() for loc in _get_runtime().code_locations(projection_id)]
 
     @r.get("/projections/integration/{projection_id}/gaps", dependencies=auth)
-    async def integration_gaps(projection_id: str) -> list[dict[str, Any]]:
+    def integration_gaps(projection_id: str) -> list[dict[str, Any]]:
         return [g.to_dict() for g in _get_runtime().integration_gaps(projection_id)]
 
     @r.get("/projections/integration/{projection_id}/readiness", dependencies=auth)
-    async def build_readiness(projection_id: str) -> dict[str, Any]:
+    def build_readiness(projection_id: str) -> dict[str, Any]:
         return _get_runtime().build_readiness(projection_id).to_dict()
 
     @r.post("/projections/integration/{projection_id}/location", dependencies=auth)
@@ -81,7 +81,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return loc.to_dict()
 
     @r.post("/projections/integration/{projection_id}/audit", dependencies=auth)
-    async def audit_projection(projection_id: str) -> dict[str, Any]:
+    def audit_projection(projection_id: str) -> dict[str, Any]:
         return _get_runtime().audit_projection(projection_id).to_dict()
 
     return r

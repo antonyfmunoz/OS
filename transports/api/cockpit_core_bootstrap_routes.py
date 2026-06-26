@@ -442,7 +442,7 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
         return result
 
     @router.get("/config")
-    async def config_get():
+    def config_get():
         """Get resolved config (ai_name, timezone, theme, etc.)."""
         try:
             from substrate.sockets.config_port import get_all_config

@@ -56,7 +56,7 @@ def get_router():
     router = APIRouter(prefix="/prediction", tags=["prediction"])
 
     @router.get("/overview")
-    async def prediction_overview() -> dict[str, Any]:
+    def prediction_overview() -> dict[str, Any]:
         port = _get_portfolio()
         if port is None:
             return {"error": "Prediction portfolio unavailable"}
@@ -68,7 +68,7 @@ def get_router():
             return {"error": str(exc)}
 
     @router.get("/forecasts")
-    async def prediction_forecasts() -> dict[str, Any]:
+    def prediction_forecasts() -> dict[str, Any]:
         tr = _get_trajectory()
         if tr is None:
             return {"forecasts": []}
@@ -86,7 +86,7 @@ def get_router():
             return {"forecasts": [], "error": str(exc)}
 
     @router.get("/forecast/{entity_id}")
-    async def prediction_forecast_detail(entity_id: str) -> dict[str, Any]:
+    def prediction_forecast_detail(entity_id: str) -> dict[str, Any]:
         tr = _get_trajectory()
         if tr is None:
             return {"error": "Trajectory runtime unavailable"}
@@ -102,7 +102,7 @@ def get_router():
             return {"error": str(exc)}
 
     @router.get("/scenarios")
-    async def prediction_scenarios() -> dict[str, Any]:
+    def prediction_scenarios() -> dict[str, Any]:
         se = _get_scenarios()
         if se is None:
             return {"scenarios": []}
@@ -120,7 +120,7 @@ def get_router():
             return {"scenarios": [], "error": str(exc)}
 
     @router.get("/scenarios/best")
-    async def prediction_scenarios_best() -> dict[str, Any]:
+    def prediction_scenarios_best() -> dict[str, Any]:
         se = _get_scenarios()
         if se is None:
             return {"error": "Scenario engine unavailable"}
@@ -132,7 +132,7 @@ def get_router():
             return {"error": str(exc)}
 
     @router.get("/scenarios/expected")
-    async def prediction_scenarios_expected() -> dict[str, Any]:
+    def prediction_scenarios_expected() -> dict[str, Any]:
         se = _get_scenarios()
         if se is None:
             return {"error": "Scenario engine unavailable"}
@@ -144,7 +144,7 @@ def get_router():
             return {"error": str(exc)}
 
     @router.get("/scenarios/worst")
-    async def prediction_scenarios_worst() -> dict[str, Any]:
+    def prediction_scenarios_worst() -> dict[str, Any]:
         se = _get_scenarios()
         if se is None:
             return {"error": "Scenario engine unavailable"}
@@ -156,7 +156,7 @@ def get_router():
             return {"error": str(exc)}
 
     @router.get("/drift")
-    async def prediction_drift() -> dict[str, Any]:
+    def prediction_drift() -> dict[str, Any]:
         port = _get_portfolio()
         if port is None:
             return {"drift_warnings": []}
@@ -174,7 +174,7 @@ def get_router():
             return {"drift_warnings": [], "error": str(exc)}
 
     @router.get("/health")
-    async def prediction_health() -> dict[str, Any]:
+    def prediction_health() -> dict[str, Any]:
         port = _get_portfolio()
         if port is None:
             return {"health": "unknown"}
@@ -186,7 +186,7 @@ def get_router():
             return {"health": "unknown", "error": str(exc)}
 
     @router.get("/uncertainty")
-    async def prediction_uncertainty() -> dict[str, Any]:
+    def prediction_uncertainty() -> dict[str, Any]:
         port = _get_portfolio()
         if port is None:
             return {"uncertainty_index": 1.0}

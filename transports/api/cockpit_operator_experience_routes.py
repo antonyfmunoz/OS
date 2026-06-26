@@ -50,7 +50,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     return r
 
 
-async def _overview(request: Request) -> dict[str, Any]:
+def _overview(request: Request) -> dict[str, Any]:
     orch = _get_orchestrator()
     sessions = orch.list_sessions(limit=10)
     return {
@@ -61,7 +61,7 @@ async def _overview(request: Request) -> dict[str, Any]:
     }
 
 
-async def _sessions(request: Request) -> dict[str, Any]:
+def _sessions(request: Request) -> dict[str, Any]:
     orch = _get_orchestrator()
     limit = int(request.query_params.get("limit", "20"))
     return {
@@ -69,7 +69,7 @@ async def _sessions(request: Request) -> dict[str, Any]:
     }
 
 
-async def _session_detail(request: Request) -> dict[str, Any]:
+def _session_detail(request: Request) -> dict[str, Any]:
     session_id = request.path_params.get("session_id", "")
     orch = _get_orchestrator()
     session = orch.get_session(session_id)
@@ -78,7 +78,7 @@ async def _session_detail(request: Request) -> dict[str, Any]:
     return session.to_dict()
 
 
-async def _status(request: Request) -> dict[str, Any]:
+def _status(request: Request) -> dict[str, Any]:
     orch = _get_orchestrator()
     roadmap = orch.query_roadmap_status()
     approvals = orch.query_pending_approvals()
@@ -89,7 +89,7 @@ async def _status(request: Request) -> dict[str, Any]:
     }
 
 
-async def _approvals(request: Request) -> dict[str, Any]:
+def _approvals(request: Request) -> dict[str, Any]:
     orch = _get_orchestrator()
     return orch.query_pending_approvals()
 

@@ -49,28 +49,28 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.get("/compute/fabric")
-    async def fabric_nodes() -> dict:
+    def fabric_nodes() -> dict:
         fabric = _get_fabric()
         if fabric is None:
             return {"nodes": [], "error": "compute fabric unavailable"}
         return {"nodes": [n.to_dict() for n in fabric.nodes()]}
 
     @r.get("/compute/health")
-    async def fabric_health() -> dict:
+    def fabric_health() -> dict:
         fabric = _get_fabric()
         if fabric is None:
             return {"fabric_status": "unavailable", "total_nodes": 0}
         return fabric.health()
 
     @r.get("/compute/executions")
-    async def fabric_executions() -> dict:
+    def fabric_executions() -> dict:
         fabric = _get_fabric()
         if fabric is None:
             return {"executions": []}
         return {"executions": fabric.active_executions()}
 
     @r.post("/compute/route")
-    async def fabric_route(payload: dict) -> dict:
+    def fabric_route(payload: dict) -> dict:
         fabric = _get_fabric()
         if fabric is None:
             raise HTTPException(status_code=503, detail="compute fabric unavailable")

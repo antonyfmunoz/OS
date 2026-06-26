@@ -179,7 +179,7 @@ async def _activate(request: Request) -> dict[str, Any]:
 
 
 @presence_router.get("/presence/current")
-async def _current(request: Request) -> dict[str, Any]:
+def _current(request: Request) -> dict[str, Any]:
     from substrate.workstation.activation import get_activation_capabilities
     from substrate.workstation.state import WorkstationProfile
 
@@ -319,7 +319,7 @@ async def _command(request: Request) -> dict[str, Any]:
 
 
 @presence_router.get("/presence/capabilities")
-async def _capabilities(request: Request) -> dict[str, Any]:
+def _capabilities(request: Request) -> dict[str, Any]:
     from substrate.workstation.activation import get_activation_capabilities
 
     caps = get_activation_capabilities()
@@ -346,7 +346,7 @@ async def _capabilities(request: Request) -> dict[str, Any]:
 
 
 @presence_router.get("/voice/health")
-async def _voice_health() -> dict[str, Any]:
+def _voice_health() -> dict[str, Any]:
     """Voice subsystem health — STT/TTS provider status."""
     stt_provider = os.environ.get("UMH_STT_PROVIDER", "browser_native")
     tts_provider = os.environ.get("UMH_TTS_PROVIDER", "kokoro")

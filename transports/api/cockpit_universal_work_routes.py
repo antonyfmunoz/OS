@@ -77,16 +77,16 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     return r
 
 
-async def _overview():
+def _overview():
     queue = _get_queue()
     return queue.compute_queue_summary()
 
 
-async def _summary():
+def _summary():
     return _get_queue().compute_queue_summary()
 
 
-async def _packets(status: str | None = None, domain: str | None = None, limit: int = 50):
+def _packets(status: str | None = None, domain: str | None = None, limit: int = 50):
     queue = _get_queue()
     items = queue.all_packets()
     if status:
@@ -97,33 +97,33 @@ async def _packets(status: str | None = None, domain: str | None = None, limit: 
     return [p.to_safe_dict() for p in items[:limit]]
 
 
-async def _packet_detail(packet_id: str):
+def _packet_detail(packet_id: str):
     pkt = _get_queue().get_packet(packet_id)
     if not pkt:
         return {"error": "Not found", "packet_id": packet_id}
     return pkt.to_dict()
 
 
-async def _next_best():
+def _next_best():
     pkt = _get_queue().get_next_best_packet()
     if not pkt:
         return {"next": None, "reason": "No eligible work packets"}
     return {"next": pkt.to_safe_dict()}
 
 
-async def _by_domain(domain: str):
+def _by_domain(domain: str):
     return [p.to_safe_dict() for p in _get_queue().get_packets_by_domain(domain)]
 
 
-async def _blocked():
+def _blocked():
     return [p.to_safe_dict() for p in _get_queue().get_blocked_packets()]
 
 
-async def _human_required():
+def _human_required():
     return [p.to_safe_dict() for p in _get_queue().get_packets_requiring_human()]
 
 
-async def _approval_required():
+def _approval_required():
     return [p.to_safe_dict() for p in _get_queue().get_packets_requiring_approval()]
 
 
@@ -221,12 +221,12 @@ async def _link_artifact(packet_id: str, request: Request):
     return {"success": ok, "packet_id": packet_id}
 
 
-async def _workcells_list():
+def _workcells_list():
     wcs = _get_workcells()
     return [wc.to_dict() for wc in wcs]
 
 
-async def _workcell_detail(workcell_id: str):
+def _workcell_detail(workcell_id: str):
     wcs = _get_workcells()
     for wc in wcs:
         if wc.workcell_id == workcell_id:
@@ -234,17 +234,17 @@ async def _workcell_detail(workcell_id: str):
     return {"error": "Not found", "workcell_id": workcell_id}
 
 
-async def _role_contracts_list():
+def _role_contracts_list():
     contracts = _get_role_contracts()
     return [rc.to_dict() for rc in contracts]
 
 
-async def _knowledge_models_list():
+def _knowledge_models_list():
     registry = _get_knowledge_registry()
     return registry.summary()
 
 
-async def _packet_outcomes(packet_id: str):
+def _packet_outcomes(packet_id: str):
     """Return outcome observation details for a completed/failed packet."""
     pkt = _get_queue().get_packet(packet_id)
     if not pkt:
@@ -258,7 +258,7 @@ async def _packet_outcomes(packet_id: str):
     }
 
 
-async def _packet_verification(packet_id: str):
+def _packet_verification(packet_id: str):
     """Return verification results for a packet."""
     pkt = _get_queue().get_packet(packet_id)
     if not pkt:

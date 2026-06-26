@@ -65,7 +65,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     return r
 
 
-async def _self_build_overview():
+def _self_build_overview():
     queue = _get_queue()
     roadmap = _get_roadmap()
     return {
@@ -74,11 +74,11 @@ async def _self_build_overview():
     }
 
 
-async def _self_build_summary():
+def _self_build_summary():
     return _get_queue().compute_queue_summary()
 
 
-async def _self_build_items(status: str | None = None, limit: int = 50):
+def _self_build_items(status: str | None = None, limit: int = 50):
     queue = _get_queue()
     items = queue.all_items()
     if status:
@@ -87,33 +87,33 @@ async def _self_build_items(status: str | None = None, limit: int = 50):
     return [i.to_safe_dict() for i in items[:limit]]
 
 
-async def _self_build_next():
+def _self_build_next():
     item = _get_queue().get_next_best_work()
     if not item:
         return {"next": None, "reason": "No eligible work items"}
     return {"next": item.to_dict()}
 
 
-async def _self_build_blocked():
+def _self_build_blocked():
     return [i.to_safe_dict() for i in _get_queue().get_blocked_work()]
 
 
-async def _self_build_ready():
+def _self_build_ready():
     return [i.to_safe_dict() for i in _get_queue().get_ready_for_approval()]
 
 
-async def _self_build_item_detail(item_id: str):
+def _self_build_item_detail(item_id: str):
     item = _get_queue().get_item(item_id)
     if not item:
         return {"error": "Not found", "item_id": item_id}
     return item.to_dict()
 
 
-async def _roadmap_overview():
+def _roadmap_overview():
     return _get_roadmap().summary()
 
 
-async def _roadmap_phase_detail(phase_id: str):
+def _roadmap_phase_detail(phase_id: str):
     phase = _get_roadmap().get_phase(phase_id)
     if not phase:
         return {"error": "Not found", "phase_id": phase_id}

@@ -45,7 +45,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/operationalizations", dependencies=auth)
-    async def list_operationalizations(
+    def list_operationalizations(
         capability_id: str | None = None,
         form: str | None = None,
         status: str | None = None,
@@ -72,17 +72,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"operationalizations": [o.to_dict() for o in ops], "count": len(ops)}
 
     @r.get("/operationalizations/summary", dependencies=auth)
-    async def operationalization_summary() -> dict[str, Any]:
+    def operationalization_summary() -> dict[str, Any]:
         return _get_runtime().summary()
 
     @r.get("/operationalizations/most-reused", dependencies=auth)
-    async def most_reused(n: int = 10) -> dict[str, Any]:
+    def most_reused(n: int = 10) -> dict[str, Any]:
         rt = _get_runtime()
         ops = rt.most_reused(n=n)
         return {"operationalizations": [o.to_dict() for o in ops], "count": len(ops)}
 
     @r.get("/operationalizations/{op_id}", dependencies=auth)
-    async def get_operationalization(op_id: str) -> dict[str, Any]:
+    def get_operationalization(op_id: str) -> dict[str, Any]:
         rt = _get_runtime()
         op = rt.get(op_id)
         if op is None:

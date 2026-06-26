@@ -52,12 +52,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     )
 
     @router.get("")
-    async def screen_snapshot() -> dict[str, Any]:
+    def screen_snapshot() -> dict[str, Any]:
         engine = _get_engine()
         return engine.current_snapshot().to_dict()
 
     @router.get("/current")
-    async def screen_current() -> dict[str, Any]:
+    def screen_current() -> dict[str, Any]:
         engine = _get_engine()
         snap = engine.current_snapshot()
         result: dict[str, Any] = {
@@ -73,25 +73,25 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result
 
     @router.get("/application")
-    async def screen_application() -> dict[str, Any]:
+    def screen_application() -> dict[str, Any]:
         engine = _get_engine()
         app = engine.active_application()
         return app.to_dict() if app else {}
 
     @router.get("/file")
-    async def screen_file() -> dict[str, Any]:
+    def screen_file() -> dict[str, Any]:
         engine = _get_engine()
         fc = engine.active_file()
         return fc.to_dict() if fc else {}
 
     @router.get("/repository")
-    async def screen_repository() -> dict[str, Any]:
+    def screen_repository() -> dict[str, Any]:
         engine = _get_engine()
         repo = engine.active_repository()
         return repo.to_dict() if repo else {}
 
     @router.get("/repositories")
-    async def screen_repositories() -> dict[str, Any]:
+    def screen_repositories() -> dict[str, Any]:
         resolver = _get_resolver()
         repos = resolver.active_repositories()
         return {
@@ -100,12 +100,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/providers")
-    async def screen_providers() -> dict[str, Any]:
+    def screen_providers() -> dict[str, Any]:
         engine = _get_engine()
         return engine.provider_status()
 
     @router.get("/workstation")
-    async def screen_workstation() -> dict[str, Any]:
+    def screen_workstation() -> dict[str, Any]:
         engine = _get_engine()
         snap = engine.current_snapshot()
         if snap.source_type.value != "observed":
@@ -131,7 +131,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @router.get("/monitors")
-    async def screen_monitors() -> dict[str, Any]:
+    def screen_monitors() -> dict[str, Any]:
         engine = _get_engine()
         snap = engine.current_snapshot()
         detail = snap.workstation_detail

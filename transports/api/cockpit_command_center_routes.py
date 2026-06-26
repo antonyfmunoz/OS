@@ -213,7 +213,7 @@ def _get_snapshot_runtime() -> Any:
 
 
 @command_center_router.get("/situation")
-async def _situation(request: Request) -> dict[str, Any]:
+def _situation(request: Request) -> dict[str, Any]:
     """Answers: 'Where am I? What's the context?'"""
     rt = _get_snapshot_runtime()
     if rt is None:
@@ -222,7 +222,7 @@ async def _situation(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/attention")
-async def _attention(request: Request) -> dict[str, Any]:
+def _attention(request: Request) -> dict[str, Any]:
     """Answers: 'What needs me right now?'"""
     rt = _get_snapshot_runtime()
     if rt is None:
@@ -232,7 +232,7 @@ async def _attention(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/changes")
-async def _changes(request: Request) -> dict[str, Any]:
+def _changes(request: Request) -> dict[str, Any]:
     """Answers: 'What changed since I last looked?'"""
     since = float(request.query_params.get("since", "0"))
     limit = min(int(request.query_params.get("limit", "50")), 200)
@@ -243,7 +243,7 @@ async def _changes(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/decisions")
-async def _decisions(request: Request) -> dict[str, Any]:
+def _decisions(request: Request) -> dict[str, Any]:
     """Answers: 'What's waiting for my decision?'"""
     rt = _get_snapshot_runtime()
     if rt is None:
@@ -252,7 +252,7 @@ async def _decisions(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/next-actions")
-async def _next_actions(request: Request) -> dict[str, Any]:
+def _next_actions(request: Request) -> dict[str, Any]:
     """Answers: 'What should I do next?'"""
     rt = _get_snapshot_runtime()
     if rt is None:
@@ -261,7 +261,7 @@ async def _next_actions(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/snapshot")
-async def _full_snapshot(request: Request) -> dict[str, Any]:
+def _full_snapshot(request: Request) -> dict[str, Any]:
     """Full operator question snapshot — all 5 questions in one request."""
     rt = _get_snapshot_runtime()
     if rt is None:
@@ -273,7 +273,7 @@ async def _full_snapshot(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/agents")
-async def _agents(request: Request) -> dict[str, Any]:
+def _agents(request: Request) -> dict[str, Any]:
     """Agent registry — unified view of workcell heartbeats + organism agents."""
     heartbeats = _load_workcell_heartbeats()
     journal = _load_journal_recent(50)
@@ -329,7 +329,7 @@ async def _agents(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/work-packets")
-async def _work_packets(request: Request) -> dict[str, Any]:
+def _work_packets(request: Request) -> dict[str, Any]:
     """Work packet board — all packets with lifecycle status and environment."""
     status_filter = request.query_params.get("status", "")
     limit = min(int(request.query_params.get("limit", "50")), 100)
@@ -389,7 +389,7 @@ async def _work_packets(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/blocked")
-async def _blocked(request: Request) -> dict[str, Any]:
+def _blocked(request: Request) -> dict[str, Any]:
     """Blocked work — packets and tasks that are stuck."""
     blocked_packets = _load_blocked_packets()
     journal = _load_journal_recent(50)
@@ -435,7 +435,7 @@ async def _blocked(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/approvals")
-async def _approvals_view(request: Request) -> dict[str, Any]:
+def _approvals_view(request: Request) -> dict[str, Any]:
     """Approval/blocked-work integration — pending approvals with context."""
     pending = _load_approvals(status_filter="pending")
     journal = _load_journal_recent(50)
@@ -491,7 +491,7 @@ async def _approvals_view(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/traces")
-async def _traces_view(request: Request) -> dict[str, Any]:
+def _traces_view(request: Request) -> dict[str, Any]:
     """Trace/proof linkage — recent execution traces with proof artifacts."""
     limit = min(int(request.query_params.get("limit", "20")), 50)
     traces = _load_traces_recent(limit)
@@ -531,7 +531,7 @@ async def _traces_view(request: Request) -> dict[str, Any]:
 
 
 @command_center_router.get("/summary")
-async def _summary(request: Request) -> dict[str, Any]:
+def _summary(request: Request) -> dict[str, Any]:
     """Command center summary — answers all operational questions at once."""
     heartbeats = _load_workcell_heartbeats()
     packets = _load_work_packets(limit=100)

@@ -72,14 +72,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter(dependencies=[Depends(require_operator_dep)])
 
     @r.get("/meta-ide/workspace-observation")
-    async def workspace_observation() -> dict[str, Any]:
+    def workspace_observation() -> dict[str, Any]:
         engine = _get_engine()
         if engine is None:
             return {"error": "workspace observation unavailable"}
         return _run_observation(engine)
 
     @r.get("/meta-ide/workspace-observation/terminals")
-    async def terminals() -> dict[str, Any]:
+    def terminals() -> dict[str, Any]:
         engine = _get_engine()
         if engine is None:
             return {"terminals": []}
@@ -87,7 +87,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"terminals": snap_data.get("terminals", [])}
 
     @r.get("/meta-ide/workspace-observation/containers")
-    async def containers() -> dict[str, Any]:
+    def containers() -> dict[str, Any]:
         engine = _get_engine()
         if engine is None:
             return {"containers": []}
@@ -103,7 +103,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"previews": snap_data.get("previews", [])}
 
     @r.get("/meta-ide/workspace-observation/engineering-sessions")
-    async def engineering_sessions() -> dict[str, Any]:
+    def engineering_sessions() -> dict[str, Any]:
         engine = _get_engine()
         if engine is None:
             return {"engineering_sessions": []}
@@ -111,7 +111,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"engineering_sessions": snap_data.get("engineering_sessions", [])}
 
     @r.get("/meta-ide/workspace-observation/history")
-    async def observation_history(limit: int = 20) -> dict[str, Any]:
+    def observation_history(limit: int = 20) -> dict[str, Any]:
         engine = _get_engine()
         if engine is None:
             return {"history": []}

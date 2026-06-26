@@ -102,7 +102,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     auth = [Depends(require_operator_dep)]
 
     @r.get("/meta-ide/repositories", dependencies=auth)
-    async def _repositories() -> dict[str, Any]:
+    def _repositories() -> dict[str, Any]:
         engine = _get_engine()
         summary = engine.workspace_summary()
         return {
@@ -111,12 +111,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/meta-ide/workspace", dependencies=auth)
-    async def _workspace() -> dict[str, Any]:
+    def _workspace() -> dict[str, Any]:
         engine = _get_engine()
         return engine.engineering_summary()
 
     @r.get("/meta-ide/roadmap", dependencies=auth)
-    async def _roadmap() -> dict[str, Any]:
+    def _roadmap() -> dict[str, Any]:
         ri = _get_roadmap()
         status = ri.status()
         return {
@@ -143,7 +143,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return target
 
     @r.get("/meta-ide/worktrees", dependencies=auth)
-    async def _worktrees(
+    def _worktrees(
         repo_path: str = Query("", description="Repository path"),
     ) -> dict[str, Any]:
         engine = _get_engine()
@@ -152,7 +152,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"worktrees": wts}
 
     @r.get("/meta-ide/branches", dependencies=auth)
-    async def _branches(
+    def _branches(
         repo_path: str = Query("", description="Repository path"),
     ) -> dict[str, Any]:
         engine = _get_engine()
@@ -161,7 +161,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return {"branches": branches}
 
     @r.get("/meta-ide/risks", dependencies=auth)
-    async def _risks() -> dict[str, Any]:
+    def _risks() -> dict[str, Any]:
         engine = _get_engine()
         summary = engine.workspace_summary()
         return {
@@ -179,7 +179,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         }
 
     @r.get("/meta-ide/context", dependencies=auth)
-    async def _context() -> dict[str, Any]:
+    def _context() -> dict[str, Any]:
         """Engineering context — current screen, active repo, focus state."""
         try:
             from substrate.operator.screen_observation_engine import ScreenObservationEngine
@@ -209,7 +209,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             }
 
     @r.get("/meta-ide/engineering-state", dependencies=auth)
-    async def _engineering_state() -> dict[str, Any]:
+    def _engineering_state() -> dict[str, Any]:
         """Engineering state — workspace topology, build targets, health."""
         try:
             from substrate.meta_ide.workspace_topology_engine import WorkspaceTopologyEngine
@@ -226,7 +226,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"topology": {}, "registry": {}}
 
     @r.get("/meta-ide/screen-history", dependencies=auth)
-    async def _screen_history(
+    def _screen_history(
         limit: int = Query(20, description="Max snapshots"),
     ) -> dict[str, Any]:
         """Screen observation history."""

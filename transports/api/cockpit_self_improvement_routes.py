@@ -105,7 +105,7 @@ def _log_improvement_event(event_type: str, data: dict[str, Any]) -> None:
         logger.debug("self-improvement log write failed: %s", e)
 
 
-async def _improvement_status():
+def _improvement_status():
     """Unified self-improvement loop status."""
     cadence = _get_cadence()
     sbq = _get_self_build_queue()
@@ -130,13 +130,13 @@ async def _improvement_status():
     }
 
 
-async def _cadence_status():
+def _cadence_status():
     """Current cadence engine status with run history."""
     cadence = _get_cadence()
     return cadence.status()
 
 
-async def _recent_outcomes(limit: int = 20):
+def _recent_outcomes(limit: int = 20):
     """Recent execution outcomes recorded in the instance reality model."""
     instance = _get_instance_model()
     recent = instance.recent(limit=limit * 2)
@@ -148,7 +148,7 @@ async def _recent_outcomes(limit: int = 20):
     return {"outcomes": outcomes[:limit], "total": len(outcomes)}
 
 
-async def _verification_log(limit: int = 50):
+def _verification_log(limit: int = 50):
     """Read the self-improvement verification log."""
     path = _improvement_log_path()
     if not os.path.exists(path):
@@ -173,7 +173,7 @@ async def _verification_log(limit: int = 50):
     return {"entries": entries[:limit], "total": len(entries)}
 
 
-async def _feedback_loop_status():
+def _feedback_loop_status():
     """Status of the outcome → next-work-packet feedback loop."""
     queue = _get_queue()
     summary = queue.compute_queue_summary()

@@ -51,15 +51,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return result.to_dict()
 
     @r.post("/build-loop/advance/{request_id}", dependencies=auth)
-    async def advance(request_id: str) -> dict[str, Any]:
+    def advance(request_id: str) -> dict[str, Any]:
         return _get_runtime().advance(request_id).to_dict()
 
     @r.post("/build-loop/review/{request_id}", dependencies=auth)
-    async def review(request_id: str) -> dict[str, Any]:
+    def review(request_id: str) -> dict[str, Any]:
         return _get_runtime().review(request_id).to_dict()
 
     @r.post("/build-loop/merge/{request_id}", dependencies=auth)
-    async def merge(request_id: str) -> dict[str, Any]:
+    def merge(request_id: str) -> dict[str, Any]:
         return _get_runtime().merge(request_id).to_dict()
 
     @r.post("/build-loop/reject/{request_id}", dependencies=auth)
@@ -69,22 +69,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         return _get_runtime().reject(request_id, reason).to_dict()
 
     @r.get("/build-loop/status", dependencies=auth)
-    async def status() -> dict[str, Any]:
+    def status() -> dict[str, Any]:
         return _get_runtime().status().to_dict()
 
     @r.get("/build-loop/request/{request_id}", dependencies=auth)
-    async def request_detail(request_id: str) -> dict[str, Any]:
+    def request_detail(request_id: str) -> dict[str, Any]:
         req = _get_runtime().request_detail(request_id)
         if req is None:
             return {"error": "not_found", "request_id": request_id}
         return req.to_dict()
 
     @r.get("/build-loop/active", dependencies=auth)
-    async def active() -> list[dict[str, Any]]:
+    def active() -> list[dict[str, Any]]:
         return [r.to_dict() for r in _get_runtime().active_requests()]
 
     @r.get("/build-loop/history", dependencies=auth)
-    async def history(limit: int = 50) -> list[dict[str, Any]]:
+    def history(limit: int = 50) -> list[dict[str, Any]]:
         return [r.to_dict() for r in _get_runtime().history(limit=limit)]
 
     return r

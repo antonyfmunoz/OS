@@ -78,7 +78,7 @@ def get_router():
     router = APIRouter(prefix="/governance", tags=["governance"])
 
     @router.get("/overview")
-    async def governance_overview() -> dict[str, Any]:
+    def governance_overview() -> dict[str, Any]:
         rt = _get_organism_portfolio()
         if rt is None:
             return {"error": "organism portfolio not available"}
@@ -86,7 +86,7 @@ def get_router():
         return snap.to_dict() if hasattr(snap, "to_dict") else snap
 
     @router.get("/health")
-    async def governance_health() -> dict[str, Any]:
+    def governance_health() -> dict[str, Any]:
         rt = _get_organism_portfolio()
         if rt is None:
             return {"health": "unknown", "coherence_score": 0.0}
@@ -97,7 +97,7 @@ def get_router():
         }
 
     @router.get("/conflicts")
-    async def governance_conflicts() -> dict[str, Any]:
+    def governance_conflicts() -> dict[str, Any]:
         rt = _get_governance()
         if rt is None:
             return {"conflicts": []}
@@ -107,7 +107,7 @@ def get_router():
         }
 
     @router.get("/policies")
-    async def governance_policies() -> dict[str, Any]:
+    def governance_policies() -> dict[str, Any]:
         rt = _get_governance()
         if rt is None:
             return {"policies": []}
@@ -117,7 +117,7 @@ def get_router():
         }
 
     @router.get("/coordination")
-    async def governance_coordination() -> dict[str, Any]:
+    def governance_coordination() -> dict[str, Any]:
         rt = _get_coordination()
         if rt is None:
             return {"error": "coordination engine not available"}
@@ -125,7 +125,7 @@ def get_router():
         return snap.to_dict() if hasattr(snap, "to_dict") else snap
 
     @router.get("/institutional-memory")
-    async def governance_institutional_memory() -> dict[str, Any]:
+    def governance_institutional_memory() -> dict[str, Any]:
         rt = _get_institutional_memory()
         if rt is None:
             return {"error": "institutional memory not available"}
@@ -133,7 +133,7 @@ def get_router():
         return snap.to_dict() if hasattr(snap, "to_dict") else snap
 
     @router.get("/drift")
-    async def governance_drift() -> dict[str, Any]:
+    def governance_drift() -> dict[str, Any]:
         rt = _get_organism_portfolio()
         if rt is None:
             return {"drift_warnings": []}

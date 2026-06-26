@@ -233,7 +233,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     _BUILD_INFO = _compute_build_info()
 
     @router.get("/build")
-    async def build_info():
+    def build_info():
         return _BUILD_INFO
 
     @router.get("/pulse")
@@ -265,16 +265,16 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         }
 
     @router.get("/auth-check", dependencies=[Depends(_require_operator_role)])
-    async def auth_check():
+    def auth_check():
         return {"ok": True}
 
     @router.get("/mesh/metrics")
-    async def mesh_metrics():
+    def mesh_metrics():
         """Per-node metrics — reads from mesh server snapshot (single source of truth)."""
         return _build_node_metrics()
 
     @router.get("/models")
-    async def models():
+    def models():
         try:
             from adapters.models.routing.config import load_routing_config
 
@@ -415,7 +415,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return await loop.run_in_executor(None, _collect_infra)
 
     @router.get("/agents")
-    async def agents():
+    def agents():
         result = []
         if AGENTS_DIR.exists():
             for f in sorted(AGENTS_DIR.glob("*.md")):
@@ -459,7 +459,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return result
 
     @router.get("/memory")
-    async def memory(source: str = "all", limit: int = 50):
+    def memory(source: str = "all", limit: int = 50):
         """Memory entries from typed ConversationMemory and AgentMemory classes,
         with JSONL fallback for legacy ontology data."""
         result = []
@@ -543,7 +543,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return result
 
     @router.get("/skills")
-    async def skills():
+    def skills():
         result = []
         if SKILLS_DIR.exists():
             for f in sorted(SKILLS_DIR.rglob("SKILL.md")):
@@ -579,7 +579,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return result
 
     @router.get("/observations")
-    async def observations():
+    def observations():
         entries = _read_jsonl(MEMORY_STORE)
         result = []
         for e in entries:
@@ -647,7 +647,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return result
 
     @router.get("/tasks")
-    async def tasks():
+    def tasks():
         traces = _read_jsonl(TRACE_STORE)
         recent = traces[-100:]
         result = []
@@ -675,7 +675,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return result
 
     @router.get("/comms")
-    async def comms(limit: int = 100):
+    def comms(limit: int = 100):
         daemon = _get_organism()
         if daemon is None:
             return []
@@ -714,7 +714,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return f"[{intent}] {str(payload)[:250]}" if intent else str(payload)[:300]
 
     @router.get("/tracking")
-    async def tracking():
+    def tracking():
         entries = _read_jsonl(MEMORY_STORE)
         docs: dict[str, dict] = {}
         for e in entries:
@@ -735,7 +735,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return list(docs.values())
 
     @router.get("/analytics")
-    async def analytics():
+    def analytics():
         traces = _read_jsonl(TRACE_STORE)
         total = len(traces)
         failed = sum(1 for t in traces if t.get("status") == "failed")
@@ -760,7 +760,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         }
 
     @router.get("/settings")
-    async def settings():
+    def settings():
         from adapters.models.model_router import (
             MODEL_REGISTRY,
             PROVIDER_PRIORITY,
@@ -1062,7 +1062,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         }
 
     @router.post("/comms/send", dependencies=[Depends(_require_operator_role)])
-    async def comms_send(payload: dict):
+    def comms_send(payload: dict):
         """Send a message to an organism agent."""
         daemon = _get_organism()
         if daemon is None:
@@ -1153,7 +1153,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         }
 
     @router.post("/organism/control", dependencies=[Depends(_require_operator_role)])
-    async def organism_control(payload: dict):
+    def organism_control(payload: dict):
         """Control organism lifecycle — start/stop."""
         daemon = _get_organism()
         action = payload.get("action", "")
@@ -1174,7 +1174,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"error": f"unknown action: {action}"}
 
     @router.post("/agents/{agent_id}/signal")
-    async def agent_signal(agent_id: str, payload: dict):
+    def agent_signal(agent_id: str, payload: dict):
         """Send a signal to a specific organism agent."""
         daemon = _get_organism()
         if daemon is None:
@@ -1185,7 +1185,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return daemon.advisor.handle_signal(content)
 
     @router.get("/profile")
-    async def profile():
+    def profile():
         return {
             "identity_id": "umh-identity-001",
             "name": "Antony F. Munoz",
@@ -1198,7 +1198,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Unified Activity Stream ─────────────────────────────────────────
 
     @router.get("/activity/stream")
-    async def activity_stream(limit: int = 200, source: str | None = None):
+    def activity_stream(limit: int = 200, source: str | None = None):
         """Unified chronological feed merging traces, comms, approvals, deliverables.
 
         Each event has: id, timestamp, source (trace|comms|approval|organism), kind,
@@ -1288,7 +1288,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return events[:limit]
 
     @router.post("/organism/handoff", dependencies=[Depends(_require_operator_role)])
-    async def organism_handoff(payload: dict):
+    def organism_handoff(payload: dict):
         """Submit a task handoff between agents."""
         daemon = _get_organism()
         if daemon is None:
@@ -1301,7 +1301,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         )
 
     @router.post("/organism/parallel", dependencies=[Depends(_require_operator_role)])
-    async def organism_parallel(payload: dict):
+    def organism_parallel(payload: dict):
         """Execute multiple agent tasks in parallel."""
         daemon = _get_organism()
         if daemon is None:
@@ -1309,7 +1309,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return daemon.execute_parallel(payload.get("tasks", []))
 
     @router.get("/organism/delegations")
-    async def organism_delegations():
+    def organism_delegations():
         """Check for overdue delegations and follow-ups."""
         daemon = _get_organism()
         if daemon is None:
@@ -1669,7 +1669,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Provider Health ────────────────────────────────────────────────────────────
 
     @router.get("/providers/health")
-    async def providers_health():
+    def providers_health():
         """Return the runtime portfolio — roles, slots, provider status, and purpose routing."""
         from adapters.models.model_router import (
             MODEL_REGISTRY,
@@ -1794,7 +1794,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Projection preview routes (Phase 2.1) ──────────────────────────────────
 
     @router.get("/projections")
-    async def list_projections_api():
+    def list_projections_api():
         """List all registered projections with preview URLs."""
         from substrate.sockets.projection_port import ProjectionPort
 
@@ -1803,7 +1803,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return {"projections": [r.to_dict() for r in port.list_registrations()]}
 
     @router.get("/projections/{projection_id}/preview")
-    async def projection_preview(projection_id: str):
+    def projection_preview(projection_id: str):
         """Get preview metadata for a specific projection."""
         from substrate.sockets.projection_port import ProjectionPort
 
@@ -1817,7 +1817,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Proof packages (Phase 4.5) ─────────────────────────────────────────────
 
     @router.get("/proofs")
-    async def list_proofs(status: str = "", limit: int = 50, offset: int = 0):
+    def list_proofs(status: str = "", limit: int = 50, offset: int = 0):
         from substrate.organism.proof_store import get_proof_store
 
         store = get_proof_store()
@@ -1828,7 +1828,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         }
 
     @router.get("/proofs/{proof_id}")
-    async def get_proof(proof_id: str):
+    def get_proof(proof_id: str):
         from substrate.organism.proof_store import get_proof_store
 
         pkg = get_proof_store().get(proof_id)
@@ -1837,7 +1837,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return pkg.to_dict()
 
     @router.post("/proofs/{proof_id}/approve", dependencies=[Depends(_require_operator_role)])
-    async def approve_proof(proof_id: str, payload: dict | None = None):
+    def approve_proof(proof_id: str, payload: dict | None = None):
         from substrate.organism.proof_store import get_proof_store
 
         notes = (payload or {}).get("notes", "")
@@ -1847,7 +1847,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return {"ok": True, "proof_id": proof_id, "status": pkg.status}
 
     @router.post("/proofs/{proof_id}/reject", dependencies=[Depends(_require_operator_role)])
-    async def reject_proof(proof_id: str, payload: dict | None = None):
+    def reject_proof(proof_id: str, payload: dict | None = None):
         from substrate.organism.proof_store import get_proof_store
 
         notes = (payload or {}).get("notes", "")
@@ -1859,7 +1859,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Workstation snapshot & resume (Phase 5) ────────────────────────────────
 
     @router.get("/workstation/snapshot")
-    async def workstation_snapshot():
+    def workstation_snapshot():
         """Full workstation state snapshot for continuity."""
         import time as _time
 
@@ -1929,7 +1929,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         return snap
 
     @router.get("/workstation/resume")
-    async def workstation_resume():
+    def workstation_resume():
         """Resume brief — what the operator was doing and what happened since."""
         import time as _time
 
@@ -2004,7 +2004,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Workspace context (Phase 3.5) ──────────────────────────────────────────
 
     @router.get("/workspace/context")
-    async def workspace_context_api():
+    def workspace_context_api():
         """Current workspace context — active project, repo, branch, file."""
         result: dict[str, str] = {}
         try:
@@ -2032,7 +2032,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     # ── Execution ledger & executor preference (Phase 3) ──────────────────────
 
     @router.get("/execution/ledger")
-    async def execution_ledger_api(
+    def execution_ledger_api(
         status: str = "",
         executor_type: str = "",
         limit: int = 50,
@@ -2051,14 +2051,14 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         }
 
     @router.get("/execution/preference")
-    async def executor_preference_api():
+    def executor_preference_api():
         """Current executor preference order."""
         from substrate.organism.executor_runtime import load_executor_preference
 
         return {"order": load_executor_preference()}
 
     @router.patch("/execution/preference", dependencies=[Depends(_require_operator_role)])
-    async def update_executor_preference(payload: dict):
+    def update_executor_preference(payload: dict):
         """Update executor preference order."""
         from substrate.organism.executor_runtime import (
             save_executor_preference,

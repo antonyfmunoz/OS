@@ -76,7 +76,7 @@ async def _browse_dir(request: Request) -> dict[str, Any]:
     return result.to_dict()
 
 
-async def _read_file(request: Request) -> dict[str, Any]:
+def _read_file(request: Request) -> dict[str, Any]:
     from substrate.workstation.file_browser import read_file
     path = request.query_params.get("path", "")
     if not path:
@@ -120,7 +120,7 @@ def _run_git(args: list[str], cwd: str | None = None) -> tuple[bool, str]:
         return False, str(e)
 
 
-async def _git_status(request: Request) -> dict[str, Any]:
+def _git_status(request: Request) -> dict[str, Any]:
     ok, output = _run_git(["status", "--porcelain"])
     if not ok:
         return {"ok": False, "error": output, "source_env": _detect_env()}
@@ -145,7 +145,7 @@ async def _git_status(request: Request) -> dict[str, Any]:
     }
 
 
-async def _git_diff(request: Request) -> dict[str, Any]:
+def _git_diff(request: Request) -> dict[str, Any]:
     staged = request.query_params.get("staged", "false") == "true"
     args = ["diff", "--stat"]
     if staged:
@@ -167,7 +167,7 @@ async def _git_diff(request: Request) -> dict[str, Any]:
     }
 
 
-async def _git_diff_file(request: Request) -> dict[str, Any]:
+def _git_diff_file(request: Request) -> dict[str, Any]:
     filepath = request.query_params.get("path", "")
     if not filepath:
         return {"ok": False, "error": "path parameter required"}
@@ -193,7 +193,7 @@ async def _git_diff_file(request: Request) -> dict[str, Any]:
 _TEST_RESULTS_PATH = os.path.join(_UMH_DATA, "workspace", "last_test_result.json")
 
 
-async def _test_results(request: Request) -> dict[str, Any]:
+def _test_results(request: Request) -> dict[str, Any]:
     if os.path.exists(_TEST_RESULTS_PATH):
         try:
             with open(_TEST_RESULTS_PATH) as f:
@@ -215,7 +215,7 @@ async def _test_results(request: Request) -> dict[str, Any]:
 # Execution logs
 # ---------------------------------------------------------------------------
 
-async def _execution_logs(request: Request) -> dict[str, Any]:
+def _execution_logs(request: Request) -> dict[str, Any]:
     limit = int(request.query_params.get("limit", "50"))
     limit = min(limit, 200)
 
@@ -270,7 +270,7 @@ async def _execution_logs(request: Request) -> dict[str, Any]:
 _PROOF_DIR = os.path.join(_UMH_DATA, "workspace", "proof")
 
 
-async def _proof_artifacts(request: Request) -> dict[str, Any]:
+def _proof_artifacts(request: Request) -> dict[str, Any]:
     artifacts: list[dict[str, Any]] = []
 
     if os.path.isdir(_PROOF_DIR):
@@ -320,7 +320,7 @@ def _classify_proof(name: str) -> str:
 # Health check
 # ---------------------------------------------------------------------------
 
-async def _health_check(request: Request) -> dict[str, Any]:
+def _health_check(request: Request) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
 
     ok_api, _ = _run_git(["rev-parse", "HEAD"])
@@ -417,7 +417,7 @@ async def _health_check(request: Request) -> dict[str, Any]:
 # Trace linkage
 # ---------------------------------------------------------------------------
 
-async def _trace_linkage(request: Request) -> dict[str, Any]:
+def _trace_linkage(request: Request) -> dict[str, Any]:
     trace_id = request.query_params.get("trace_id", "")
     work_packet_id = request.query_params.get("work_packet_id", "")
 
@@ -547,7 +547,7 @@ async def _remote_browse(request: Request) -> dict[str, Any]:
     return {"ok": True, "path": path, "source_env": "windows", "entries": entries, "error": ""}
 
 
-async def _remote_read_file(request: Request) -> dict[str, Any]:
+def _remote_read_file(request: Request) -> dict[str, Any]:
     node = request.query_params.get("node", "windows")
     path = request.query_params.get("path", "")
     if not path:
@@ -588,7 +588,7 @@ async def _remote_write_file(request: Request) -> dict[str, Any]:
     return {"ok": True, "path": path, "source_env": "windows"}
 
 
-async def _mesh_nodes_status(request: Request) -> dict[str, Any]:
+def _mesh_nodes_status(request: Request) -> dict[str, Any]:
     registry_path = os.path.join(_REPO_ROOT, "infra", "device_registry.json")
     mesh_path = os.path.join(_DATA_ROOT, "runtime", "mesh_nodes.json")
     registry: list[dict[str, Any]] = []
