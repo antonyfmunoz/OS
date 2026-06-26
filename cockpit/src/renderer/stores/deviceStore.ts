@@ -17,6 +17,14 @@ export interface RegisteredDevice {
   gpu?: string
   vram_mb?: number
   ram_mb?: number
+  role_status?: 'provisional' | 'confirmed' | 'rejected' | 'needs_review'
+  role_source?: 'heuristic' | 'operator' | 'diagnosis' | 'daemon_report'
+  allowed_roles?: string[]
+  candidate_roles?: string[]
+  provisioning_mode?: string
+  install_capable?: boolean
+  diagnosis_status?: 'pending' | 'partial' | 'complete' | 'failed'
+  role_confidence?: number
 }
 
 export interface TailscalePeer {
@@ -50,10 +58,20 @@ export interface ScanResult {
   unregistered: number
 }
 
+interface DeviceUpdateResponse {
+  success: boolean
+  warnings?: string[]
+  audit?: Record<string, unknown>
+  applied_state?: Record<string, unknown>
+  requires_approval?: boolean
+  approval_reason?: string
+  error?: string
+}
+
 interface DeviceState {
   devices: RegisteredDevice[]
   devicesLoaded: boolean
-  devicesError: boolean
+  devicesError: string | null
   scanResult: ScanResult | null
   scanning: boolean
   provisioning: string | null
@@ -65,12 +83,13 @@ interface DeviceState {
   removeDevice: (deviceId: string) => Promise<boolean>
   provisionDevice: (deviceId: string, role?: string) => Promise<boolean>
   inviteDevice: (opts?: { reusable?: boolean; ephemeral?: boolean; preauthorized?: boolean; expiry_seconds?: number }) => Promise<string | null>
+  updateDevice: (deviceId: string, fields: Record<string, unknown>) => Promise<DeviceUpdateResponse>
 }
 
 export const useDeviceStore = create<DeviceState>((set, get) => ({
   devices: [],
   devicesLoaded: false,
-  devicesError: false,
+  devicesError: null,
   scanResult: null,
   scanning: false,
   provisioning: null,
@@ -78,9 +97,10 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
   fetchDevices: async () => {
     try {
       const data = await fetchApi<RegisteredDevice[]>('/devices/list')
-      set({ devices: data, devicesLoaded: true, devicesError: false })
-    } catch {
-      set({ devices: [], devicesLoaded: true, devicesError: true })
+      set({ devices: data, devicesLoaded: true, devicesError: null })
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error'
+      set({ devices: [], devicesLoaded: true, devicesError: msg })
     }
   },
 
@@ -156,6 +176,19 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
       return resp.success ? (resp.auth_key?.key ?? null) : null
     } catch {
       return null
+    }
+  },
+
+  updateDevice: async (deviceId, fields) => {
+    try {
+      const resp = await fetchApi<DeviceUpdateResponse>('/devices/update', {
+        method: 'POST',
+        body: JSON.stringify({ device_id: deviceId, fields }),
+      })
+      if (resp.success) get().fetchDevices()
+      return resp
+    } catch {
+      return { success: false, error: 'Network error' }
     }
   },
 }))

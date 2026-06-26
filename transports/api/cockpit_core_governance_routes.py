@@ -3,6 +3,7 @@
 Covers: /governance, /governance/tiers, /governance/tier-check, /approvals.
 Phase 0.3 route split. UMH transport layer.
 """
+
 from __future__ import annotations
 
 import logging
@@ -94,28 +95,42 @@ def register_governance_routes(router, _require_operator_role, helpers):
 
     @router.patch("/governance", dependencies=[Depends(_require_operator_role)])
     async def update_governance(payload: dict):
-        """Update governance policy at runtime.
+        """Update governance policy — validated, persisted, audited.
 
         Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
         Example: {"policies": {"SAFE_WRITE": "AUTONOMOUS", "REVERSIBLE_WRITE": "APPROVE"}}
         """
-        from substrate.governance.authority import AuthorityLevel
-        from substrate.governance.policy_engine import _DEFAULT_POLICY
-        from substrate.governance.risk_classes import RiskClass
+        from transports.api.cockpit_settings_mutations import update_governance_policy
 
         policies = payload.get("policies", {})
         applied = []
+        all_warnings: list[str] = []
+        all_errors: list[str] = []
+        audits = []
 
         for rc_name, auth_name in policies.items():
-            try:
-                rc = RiskClass[rc_name]
-                auth = AuthorityLevel[auth_name]
-                _DEFAULT_POLICY[rc] = auth
-                applied.append({"risk_class": rc_name, "authority": auth_name})
-            except KeyError:
-                continue
+            result = update_governance_policy(rc_name, auth_name)
+            if result.ok:
+                applied.append(
+                    {
+                        "risk_class": rc_name,
+                        "authority": auth_name,
+                        "applied_state": result.applied_state,
+                    }
+                )
+                if result.audit_event:
+                    audits.append(result.audit_event)
+                all_warnings.extend(result.warnings)
+            else:
+                all_errors.extend(result.errors)
 
-        return {"ok": True, "applied": applied}
+        return {
+            "ok": len(applied) > 0,
+            "applied": applied,
+            "warnings": all_warnings,
+            "errors": all_errors,
+            "audits": audits,
+        }
 
     @router.get("/governance/tiers")
     async def permission_tiers():
