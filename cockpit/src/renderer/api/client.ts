@@ -76,11 +76,22 @@ export async function fetchApi<T>(path: string, options?: RequestInit): Promise<
     let res: Response
     try {
       res = await fetch(`${API_BASE}${path}`, { ...options, headers, signal: controller.signal })
-    } finally {
+    } catch (err) {
       clearTimeout(timeoutId)
+      const isAbort = err instanceof DOMException && err.name === 'AbortError'
+      if (attempt < 3 && !isAbort) {
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
+        return doFetch(attempt + 1)
+      }
+      throw err
     }
+    clearTimeout(timeoutId)
     if (res.status === 401 && attempt < 3) {
       await new Promise(r => setTimeout(r, 1000))
+      return doFetch(attempt + 1)
+    }
+    if ((res.status === 502 || res.status === 504) && attempt < 3) {
+      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)))
       return doFetch(attempt + 1)
     }
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${res.statusText}`)
