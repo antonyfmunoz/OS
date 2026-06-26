@@ -93,11 +93,11 @@ async def lifespan(application):
         thread_name_prefix="tick",
     )
     _api_executor = concurrent.futures.ThreadPoolExecutor(
-        max_workers=4,
+        max_workers=16,
         thread_name_prefix="api",
     )
     asyncio.get_running_loop().set_default_executor(_api_executor)
-    logger.info("thread pools: tick=1 (dedicated), api=4 (default)")
+    logger.info("thread pools: tick=1 (dedicated), api=16 (default)")
 
     # ── Register config store ─────────────────────────────────────────────
     try:
