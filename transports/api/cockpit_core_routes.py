@@ -342,7 +342,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "name": vps_display,
                     "type": "compute",
                     "status": "healthy",
-                    "metrics": {"cpu": cpu, "memory": mem.percent, "disk": disk.percent, "cost": 24},
+                    "metrics": {
+                        "cpu": cpu,
+                        "memory": mem.percent,
+                        "disk": disk.percent,
+                        "cost": 24,
+                    },
                 }
             )
 
@@ -760,10 +765,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             MODEL_REGISTRY,
             PROVIDER_PRIORITY,
             PROVIDER_QUALITY,
+            PURPOSE_ROUTING,
+            ROLE_FAILOVER,
             ROLE_SLOTS,
             ModelRouter,
         )
         from adapters.models.cc_sdk import query_cc_sync
+        from substrate.contracts.agent_types import ModelProvider, ProviderRole
 
         ModelRouter()
 
@@ -772,8 +780,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             role_map[key] = role.value
 
         providers: list[dict[str, Any]] = []
-
-        from substrate.contracts.agent_types import ModelProvider
 
         cc_available = query_cc_sync is not None
         providers.append(
@@ -811,9 +817,20 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         providers.sort(key=lambda p: (not p["available"], p["priority"]))
 
+        purpose_routing = {
+            purpose: [r.value for r in roles] for purpose, roles in PURPOSE_ROUTING.items()
+        }
+        role_slots = {role.value: key for role, key in ROLE_SLOTS.items()}
+        role_failover = {role.value: key for role, key in ROLE_FAILOVER.items() if key}
+
         return {
             "model_routing": providers,
+            "purpose_routing": purpose_routing,
+            "role_slots": role_slots,
+            "role_failover": role_failover,
+            "provider_keys": ["cc_sdk"] + list(MODEL_REGISTRY.keys()),
             "governance": {"auto_approve_low": True, "critical_block": True},
+            "persistence_status": "active",
         }
 
     @router.get("/mesh/nodes")
@@ -847,7 +864,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             def _map_ts_node(n: dict, is_self: bool = False) -> dict | None:
                 hostname = n.get("HostName", "")
                 dns_name = n.get("DNSName", "").split(".")[0]
-                display = dns_name if hostname.lower() in ("localhost", "") and dns_name else hostname
+                display = (
+                    dns_name if hostname.lower() in ("localhost", "") and dns_name else hostname
+                )
                 key = display.lower()
                 if key.startswith("umh-cockpit"):
                     return None
@@ -872,7 +891,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                     "status": "online" if online else "offline",
                     "os": os_name,
                     "ip": ip,
-                    "last_seen": last_seen if not online else datetime.now(timezone.utc).isoformat(),
+                    "last_seen": last_seen
+                    if not online
+                    else datetime.now(timezone.utc).isoformat(),
                     "daemon_version": daemon.get("daemon_version"),
                     "capabilities": daemon.get("capabilities", []),
                 }
@@ -1099,9 +1120,37 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             return {"ok": False, "error": str(exc)}
 
     @router.patch("/settings", dependencies=[Depends(_require_operator_role)])
-    async def update_settings(patch: dict):
-        """Update cockpit settings (runtime-only, not persisted across restarts)."""
-        return {"ok": True, "applied": list(patch.keys())}
+    async def update_settings(request: Request):
+        """Update cockpit settings via mutation runtime — persisted + audited."""
+        from transports.api.cockpit_settings_mutations import (
+            toggle_provider,
+            set_purpose_chain,
+            set_role_slot,
+        )
+
+        payload = await request.json()
+        action = payload.get("action", "")
+
+        if action == "toggle_provider":
+            result = toggle_provider(payload.get("provider_key", ""), payload.get("enabled", False))
+        elif action == "set_purpose_chain":
+            result = set_purpose_chain(payload.get("purpose", ""), payload.get("roles", []))
+        elif action == "set_role_slot":
+            result = set_role_slot(payload.get("role", ""), payload.get("provider_key", ""))
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+
+        if not result.ok:
+            raise HTTPException(status_code=400, detail=result.errors)
+
+        return {
+            "ok": True,
+            "warnings": result.warnings,
+            "audit": result.audit_event,
+            "applied_state": result.applied_state,
+            "requires_approval": result.requires_approval,
+            "approval_reason": result.approval_reason,
+        }
 
     @router.post("/organism/control", dependencies=[Depends(_require_operator_role)])
     async def organism_control(payload: dict):

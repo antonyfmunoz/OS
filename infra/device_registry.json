@@ -9,7 +9,24 @@
     "tailscale_ip": "100.77.233.50",
     "always_online": true,
     "compute": true,
-    "project_root": "/opt/OS"
+    "project_root": "/opt/OS",
+    "role_status": "confirmed",
+    "role_source": "operator",
+    "allowed_roles": [
+      "orchestrator",
+      "executor",
+      "controller"
+    ],
+    "candidate_roles": [
+      "orchestrator",
+      "executor",
+      "controller"
+    ],
+    "provisioning_mode": "manual",
+    "install_capable": true,
+    "diagnosis_status": "complete",
+    "last_role_reviewed_at": "2026-06-26T16:25:13.441115+00:00",
+    "role_confidence": 1.0
   },
   {
     "id": "beast",
@@ -27,9 +44,33 @@
     "vram_mb": 11264,
     "ram_mb": 16235,
     "services": {
-      "ollama": {"port": 11434, "model": "qwen2.5-coder:14b", "auto_start": true},
-      "kokoro_tts": {"port": 8880, "auto_start": true}
-    }
+      "ollama": {
+        "port": 11434,
+        "model": "qwen2.5-coder:14b",
+        "auto_start": true
+      },
+      "kokoro_tts": {
+        "port": 8880,
+        "auto_start": true
+      }
+    },
+    "role_status": "needs_review",
+    "role_source": "operator",
+    "allowed_roles": [
+      "controller",
+      "executor",
+      "orchestrator"
+    ],
+    "candidate_roles": [
+      "controller",
+      "executor",
+      "orchestrator"
+    ],
+    "provisioning_mode": "daemon_install",
+    "install_capable": true,
+    "diagnosis_status": "complete",
+    "last_role_reviewed_at": "2026-06-26T16:26:01.683690+00:00",
+    "role_confidence": 1.0
   },
   {
     "id": "ipad",
@@ -37,7 +78,20 @@
     "device_type": "tablet",
     "display_name": "ipad-pro-12-9-gen-5 (Tablet)",
     "os": "ios",
-    "role": "controller"
+    "role": "controller",
+    "role_status": "confirmed",
+    "role_source": "operator",
+    "allowed_roles": [
+      "controller"
+    ],
+    "candidate_roles": [
+      "controller"
+    ],
+    "provisioning_mode": "none",
+    "install_capable": false,
+    "diagnosis_status": "complete",
+    "last_role_reviewed_at": "2026-06-26T16:25:13.441115+00:00",
+    "role_confidence": 1.0
   },
   {
     "id": "iphone",
@@ -45,7 +99,20 @@
     "device_type": "mobile",
     "display_name": "iphone-15-pro-max (Mobile)",
     "os": "ios",
-    "role": "controller"
+    "role": "controller",
+    "role_status": "confirmed",
+    "role_source": "operator",
+    "allowed_roles": [
+      "controller"
+    ],
+    "candidate_roles": [
+      "controller"
+    ],
+    "provisioning_mode": "none",
+    "install_capable": false,
+    "diagnosis_status": "complete",
+    "last_role_reviewed_at": "2026-06-26T16:25:13.441115+00:00",
+    "role_confidence": 1.0
   },
   {
     "id": "macbook",
@@ -55,6 +122,21 @@
     "os": "macos",
     "role": "controller",
     "tailscale_ip": "100.116.158.54",
-    "compute": false
+    "compute": false,
+    "role_status": "confirmed",
+    "role_source": "operator",
+    "allowed_roles": [
+      "controller",
+      "executor"
+    ],
+    "candidate_roles": [
+      "controller",
+      "executor"
+    ],
+    "provisioning_mode": "ssh",
+    "install_capable": true,
+    "diagnosis_status": "complete",
+    "last_role_reviewed_at": "2026-06-26T16:25:13.441115+00:00",
+    "role_confidence": 1.0
   }
 ]

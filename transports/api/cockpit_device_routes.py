@@ -79,6 +79,12 @@ def configure(require_operator_dep: Any) -> None:
         methods=["POST"],
         dependencies=auth,
     )
+    device_router.add_api_route(
+        "/devices/update",
+        _devices_update,
+        methods=["POST"],
+        dependencies=auth,
+    )
     _configured = True
 
 
@@ -400,3 +406,31 @@ async def _devices_invite(request: Request) -> dict[str, Any]:
     except Exception as exc:
         logger.error("Device invite failed: %s", exc)
         return {"success": False, "error": str(exc)}
+
+
+async def _devices_update(request: Request) -> dict[str, Any]:
+    """POST /devices/update — update device fields via mutation runtime."""
+    body = await request.json()
+    device_id = body.get("device_id", "")
+    fields = body.get("fields", {})
+
+    if not device_id:
+        return {"success": False, "error": "device_id required"}
+    if not fields:
+        return {"success": False, "error": "fields required"}
+
+    from transports.api.cockpit_settings_mutations import update_device_fields
+
+    result = update_device_fields(device_id, fields)
+
+    if not result.ok:
+        return {"success": False, "error": result.errors[0] if result.errors else "Unknown error"}
+
+    return {
+        "success": True,
+        "warnings": result.warnings,
+        "audit": result.audit_event,
+        "applied_state": result.applied_state,
+        "requires_approval": result.requires_approval,
+        "approval_reason": result.approval_reason,
+    }

@@ -89,10 +89,12 @@ async def lifespan(application):
 
     # ── Thread pool isolation: tick gets its own thread, API gets 4 ───────
     _tick_executor = concurrent.futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix="tick",
+        max_workers=1,
+        thread_name_prefix="tick",
     )
     _api_executor = concurrent.futures.ThreadPoolExecutor(
-        max_workers=4, thread_name_prefix="api",
+        max_workers=4,
+        thread_name_prefix="api",
     )
     asyncio.get_running_loop().set_default_executor(_api_executor)
     logger.info("thread pools: tick=1 (dedicated), api=4 (default)")
@@ -107,6 +109,23 @@ async def lifespan(application):
         logger.info("config store registered: ai_name=%s", _cfg.get("ai_name"))
     except Exception as exc:
         logger.warning("config store not registered: %s", exc)
+
+    # ── Apply persisted settings overrides + backfill device fields ──────
+    try:
+        from transports.api.cockpit_settings_mutations import apply_persisted_overrides
+
+        apply_persisted_overrides()
+        logger.info("persisted settings overrides applied")
+    except Exception as exc:
+        logger.warning("persisted settings overrides not applied: %s", exc)
+
+    try:
+        from substrate.state.config.settings_persistence import backfill_device_role_fields
+
+        if backfill_device_role_fields():
+            logger.info("device role pipeline fields backfilled")
+    except Exception as exc:
+        logger.warning("device role backfill failed: %s", exc)
 
     try:
         from substrate.execution.loop.persistent_loop import get_registry
@@ -193,7 +212,9 @@ class _RequestTimeoutMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.url.path.endswith("/health") or request.url.path.endswith("/ws"):
             return await call_next(request)
-        timeout = 60.0 if any(request.url.path.endswith(p) for p in self._LONG_TIMEOUT_PATHS) else 25.0
+        timeout = (
+            60.0 if any(request.url.path.endswith(p) for p in self._LONG_TIMEOUT_PATHS) else 25.0
+        )
         try:
             return await asyncio.wait_for(call_next(request), timeout=timeout)
         except asyncio.TimeoutError:
