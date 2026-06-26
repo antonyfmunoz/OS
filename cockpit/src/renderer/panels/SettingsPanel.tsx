@@ -148,6 +148,8 @@ const ROLE_BADGE: Record<string, string> = {
 
 function DeviceManagementSection() {
   const devices = useDeviceStore((s) => s.devices)
+  const devicesLoaded = useDeviceStore((s) => s.devicesLoaded)
+  const devicesError = useDeviceStore((s) => s.devicesError)
   const scanResult = useDeviceStore((s) => s.scanResult)
   const scanning = useDeviceStore((s) => s.scanning)
   const provisioning = useDeviceStore((s) => s.provisioning)
@@ -200,6 +202,12 @@ function DeviceManagementSection() {
       )}
 
       {/* Registered devices */}
+      {!devicesLoaded && devices.length === 0 && (
+        <p className="text-xs text-text-tertiary py-2">Loading devices...</p>
+      )}
+      {devicesError && devices.length === 0 && (
+        <p className="text-xs text-danger py-2">Failed to load devices — check auth</p>
+      )}
       <div className="space-y-1.5 mb-4">
         {devices.map((d) => (
           <div key={d.id} className="wv-card flex items-center gap-3 px-3 py-2">
@@ -250,6 +258,16 @@ function DeviceManagementSection() {
   )
 }
 
+function isIOSSafari(): boolean {
+  const ua = navigator.userAgent
+  return /iPad|iPhone|iPod/.test(ua) && !('standalone' in navigator && (navigator as any).standalone)
+}
+
+function isInstalledPWA(): boolean {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || ('standalone' in navigator && (navigator as any).standalone === true)
+}
+
 function PushNotificationsSection() {
   const [subscribed, setSubscribed] = useState(false)
   const [permState, setPermState] = useState<string>('default')
@@ -292,34 +310,34 @@ function PushNotificationsSection() {
     }
   }
 
-  if (!isPushSupported()) {
-    return (
-      <section>
-        <h3 className="wv-label mb-3">Push Notifications</h3>
-        <p className="text-xs text-text-tertiary">Not supported in this browser.</p>
-      </section>
-    )
-  }
+  const iosNeedsInstall = isIOSSafari() && !isInstalledPWA()
+  const supported = isPushSupported()
 
   return (
     <section>
       <h3 className="wv-label mb-3">Push Notifications</h3>
       <div className="wv-card px-3 py-2 space-y-2">
         <div className="flex items-center gap-3">
-          <span className={`w-2 h-2 rounded-full shrink-0 ${subscribed ? 'bg-ok' : 'bg-text-tertiary'}`} />
           <span className="text-sm flex-1">
-            {permState === 'denied' ? 'Blocked by browser' : subscribed ? 'Subscribed' : 'Not subscribed'}
+            {permState === 'denied'
+              ? 'Blocked by browser'
+              : !supported
+                ? 'Not available'
+                : subscribed
+                  ? 'Enabled'
+                  : 'Disabled'}
           </span>
           <button
             onClick={handleToggle}
-            disabled={loading || permState === 'denied'}
-            className={`px-2 py-1 text-[10px] font-mono rounded border ${
-              subscribed
-                ? 'bg-surface-overlay text-text-secondary border-border'
-                : 'bg-cyan-glow text-cyan border-cyan/20'
-            }`}
+            disabled={loading || permState === 'denied' || !supported || iosNeedsInstall}
+            className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+            style={{ backgroundColor: subscribed ? '#00E5FF' : '#333' }}
+            aria-label={subscribed ? 'Disable push notifications' : 'Enable push notifications'}
           >
-            {loading ? '...' : subscribed ? 'unsubscribe' : 'subscribe'}
+            <span
+              className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+              style={{ left: subscribed ? '22px' : '2px' }}
+            />
           </button>
           {subscribed && (
             <button
@@ -330,6 +348,15 @@ function PushNotificationsSection() {
             </button>
           )}
         </div>
+        {iosNeedsInstall && (
+          <p className="text-[10px] text-warn">
+            Add to Home Screen to enable push notifications on iOS.
+            Tap the share icon, then &quot;Add to Home Screen&quot;.
+          </p>
+        )}
+        {!supported && !iosNeedsInstall && (
+          <p className="text-[10px] text-text-tertiary">Not supported in this browser.</p>
+        )}
         {permState === 'denied' && (
           <p className="text-[10px] text-danger">Permission blocked — reset in browser site settings.</p>
         )}
