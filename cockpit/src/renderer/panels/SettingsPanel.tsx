@@ -450,6 +450,7 @@ function DeviceManagementSection() {
                 <span className={`w-2 h-2 rounded-full shrink-0 ${d.online ? 'bg-ok' : 'bg-text-tertiary'}`} />
                 <span className="text-sm flex-1">{d.display_name}</span>
                 <span className="font-mono text-[10px] text-text-tertiary">{d.os}</span>
+                {d.compute && <span className="wv-badge wv-badge-ok text-[9px]">compute</span>}
                 <select
                   value={d.role}
                   onChange={(e) => handleRoleChange(d.id, e.target.value)}
@@ -464,7 +465,6 @@ function DeviceManagementSection() {
                     )
                   })}
                 </select>
-                {d.compute && <span className="wv-badge wv-badge-ok text-[9px]">compute</span>}
                 {d.role !== 'orchestrator' && !d.always_online && (
                   <>
                     {d.compute && d.role_status !== 'confirmed' && (
