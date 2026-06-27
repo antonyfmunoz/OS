@@ -53,9 +53,11 @@ const RESIZE_EDGES: { edge: Edge; style: React.CSSProperties }[] = [
 interface CanvasWindowProps {
   windowId: string
   zoom: number
+  selected?: boolean
+  onSelect?: (windowId: string) => void
 }
 
-export function CanvasWindow({ windowId, zoom }: CanvasWindowProps) {
+export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindowProps) {
   const w = useCanvasStore((s) => s.windows.find((win) => win.id === windowId))
   const bringToFront = useCanvasStore((s) => s.bringToFront)
   const updateWindow = useCanvasStore((s) => s.updateWindow)
@@ -99,6 +101,7 @@ export function CanvasWindow({ windowId, zoom }: CanvasWindowProps) {
 
   const TypeIcon = TYPE_ICONS[w.type]
   const clusterBorder = w.clusterId ? '3px solid var(--color-cyan)' : undefined
+  const selectionOutline = selected ? '2px solid var(--color-cyan)' : undefined
 
   if (w.maximized) {
     return (
@@ -176,8 +179,17 @@ export function CanvasWindow({ windowId, zoom }: CanvasWindowProps) {
         display: 'flex',
         flexDirection: 'column',
         borderLeft: clusterBorder,
+        outline: selectionOutline,
+        outlineOffset: -2,
       }}
-      onPointerDown={() => bringToFront(windowId)}
+      onPointerDown={(e) => {
+        if (e.shiftKey && onSelect) {
+          e.stopPropagation()
+          onSelect(windowId)
+          return
+        }
+        bringToFront(windowId)
+      }}
     >
       {/* Resize handles */}
       {!w.collapsed &&
@@ -349,22 +361,14 @@ function WindowHeader({
         </span>
       )}
 
-      {/* Action buttons */}
+      {/* Action buttons — order: Close, Pause, Maximize, PopOut, Collapse */}
       <button
-        onClick={(e) => { e.stopPropagation(); popOut() }}
+        onClick={(e) => { e.stopPropagation(); removeWindow() }}
         className="p-0.5 rounded hover:opacity-80"
-        style={btnStyle}
-        title="Pop out"
+        style={{ color: 'var(--color-danger)' }}
+        title="Close"
       >
-        <ExternalLink size={11} />
-      </button>
-      <button
-        onClick={(e) => { e.stopPropagation(); toggleCollapse() }}
-        className="p-0.5 rounded hover:opacity-80"
-        style={btnStyle}
-        title={w.collapsed ? 'Expand' : 'Collapse'}
-      >
-        {w.collapsed ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
+        <X size={11} />
       </button>
       <button
         onClick={(e) => { e.stopPropagation(); togglePause() }}
@@ -383,12 +387,20 @@ function WindowHeader({
         {w.maximized ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
       </button>
       <button
-        onClick={(e) => { e.stopPropagation(); removeWindow() }}
+        onClick={(e) => { e.stopPropagation(); popOut() }}
         className="p-0.5 rounded hover:opacity-80"
-        style={{ color: 'var(--color-danger)' }}
-        title="Close"
+        style={btnStyle}
+        title="Pop out"
       >
-        <X size={11} />
+        <ExternalLink size={11} />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); toggleCollapse() }}
+        className="p-0.5 rounded hover:opacity-80"
+        style={btnStyle}
+        title={w.collapsed ? 'Expand' : 'Collapse'}
+      >
+        {w.collapsed ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
       </button>
     </div>
   )

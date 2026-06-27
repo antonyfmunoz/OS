@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import {
   Minus,
   Plus,
@@ -5,7 +6,18 @@ import {
   Maximize2,
   LayoutDashboard,
   PanelLeft,
+  ChevronDown,
+  Layers,
+  Bot,
+  Workflow,
 } from 'lucide-react'
+import type { CanvasMode } from '../../stores/unifiedCanvasStore'
+
+const MODE_META: Record<CanvasMode, { label: string; icon: typeof Layers }> = {
+  general: { label: 'General', icon: Layers },
+  agents: { label: 'Agents', icon: Bot },
+  workflows: { label: 'Workflows', icon: Workflow },
+}
 
 interface CanvasToolbarProps {
   zoom: number
@@ -16,6 +28,9 @@ interface CanvasToolbarProps {
   onTile: () => void
   onTogglePalette: () => void
   paletteOpen: boolean
+  mode?: CanvasMode
+  onSetMode?: (mode: CanvasMode) => void
+  extraButtons?: React.ReactNode
 }
 
 function ToolbarButton({
@@ -63,6 +78,70 @@ function Separator() {
   )
 }
 
+function ModeDropdown({ mode, onSetMode }: { mode: CanvasMode; onSetMode: (m: CanvasMode) => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const meta = MODE_META[mode]
+  const Icon = meta.icon
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 px-2 py-1 rounded"
+        style={{ color: 'var(--color-text-primary)', fontSize: 11 }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+      >
+        <Icon size={12} />
+        <span>{meta.label}</span>
+        <ChevronDown size={10} />
+      </button>
+      {open && (
+        <div
+          className="absolute bottom-full left-0 mb-1 py-1 rounded-lg"
+          style={{
+            background: 'var(--color-surface-raised)',
+            border: '1px solid var(--color-border)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            minWidth: 140,
+          }}
+        >
+          {(Object.keys(MODE_META) as CanvasMode[]).map((m) => {
+            const mi = MODE_META[m]
+            const MIcon = mi.icon
+            return (
+              <button
+                key={m}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-left"
+                style={{
+                  color: m === mode ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                  background: m === mode ? 'var(--color-surface-overlay)' : 'transparent',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-overlay)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = m === mode ? 'var(--color-surface-overlay)' : 'transparent' }}
+                onClick={() => { onSetMode(m); setOpen(false) }}
+              >
+                <MIcon size={12} />
+                <span>{mi.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function CanvasToolbar({
   zoom,
   onZoomIn,
@@ -72,6 +151,9 @@ export function CanvasToolbar({
   onTile,
   onTogglePalette,
   paletteOpen,
+  mode,
+  onSetMode,
+  extraButtons,
 }: CanvasToolbarProps) {
   return (
     <div
@@ -84,6 +166,13 @@ export function CanvasToolbar({
         borderRadius: 9999,
       }}
     >
+      {mode && onSetMode && (
+        <>
+          <ModeDropdown mode={mode} onSetMode={onSetMode} />
+          <Separator />
+        </>
+      )}
+
       <ToolbarButton
         onClick={onTogglePalette}
         title={paletteOpen ? 'Hide palette' : 'Show palette'}
@@ -122,6 +211,13 @@ export function CanvasToolbar({
       <ToolbarButton onClick={onTile} title="Tile windows">
         <LayoutDashboard size={14} />
       </ToolbarButton>
+
+      {extraButtons && (
+        <>
+          <Separator />
+          {extraButtons}
+        </>
+      )}
     </div>
   )
 }
