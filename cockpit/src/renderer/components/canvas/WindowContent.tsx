@@ -1,0 +1,84 @@
+import { lazy, Suspense } from 'react'
+
+const BrowserWindowContent = lazy(() =>
+  import('./windows/BrowserWindowContent').then((m) => ({ default: m.BrowserWindowContent })),
+)
+const DesktopWindowContent = lazy(() =>
+  import('./windows/DesktopWindowContent').then((m) => ({ default: m.DesktopWindowContent })),
+)
+const VisionWindowContent = lazy(() =>
+  import('./windows/VisionWindowContent').then((m) => ({ default: m.VisionWindowContent })),
+)
+const TerminalWindowContent = lazy(() =>
+  import('./windows/TerminalWindowContent').then((m) => ({ default: m.TerminalWindowContent })),
+)
+const PreviewWindowContent = lazy(() =>
+  import('./windows/PreviewWindowContent').then((m) => ({ default: m.PreviewWindowContent })),
+)
+const AgentWindowContent = lazy(() =>
+  import('./windows/AgentWindowContent').then((m) => ({ default: m.AgentWindowContent })),
+)
+const PanelWindowContent = lazy(() =>
+  import('./windows/PanelWindowContent').then((m) => ({ default: m.PanelWindowContent })),
+)
+
+interface WindowContentProps {
+  type: string
+  config: Record<string, string | undefined>
+  paused: boolean
+}
+
+function LoadingFallback() {
+  return (
+    <div
+      className="flex items-center justify-center h-full"
+      style={{ color: 'var(--color-text-tertiary)' }}
+    >
+      <span className="text-[12px]">Loading...</span>
+    </div>
+  )
+}
+
+export function WindowContent({ type, config, paused }: WindowContentProps) {
+  let content: React.ReactNode
+
+  switch (type) {
+    case 'browser':
+      content = <BrowserWindowContent paneId={config.paneId ?? '0'} paused={paused} />
+      break
+    case 'desktop':
+      content = <DesktopWindowContent monitorId={config.monitorId ?? 'M0'} paused={paused} />
+      break
+    case 'vision':
+      content = <VisionWindowContent paused={paused} />
+      break
+    case 'terminal':
+      content = (
+        <TerminalWindowContent
+          session={config.session ?? 'dex_main'}
+          pane={config.pane ?? '0'}
+        />
+      )
+      break
+    case 'preview':
+      content = <PreviewWindowContent url={config.url ?? ''} />
+      break
+    case 'agent':
+      content = <AgentWindowContent agentId={config.agentId ?? ''} />
+      break
+    case 'panel':
+      content = <PanelWindowContent panelId={config.panelId ?? 'dashboard'} />
+      break
+    default:
+      return (
+        <div
+          className="flex items-center justify-center h-full"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        >
+          <span className="text-[12px]">Unknown window type: {type}</span>
+        </div>
+      )
+  }
+
+  return <Suspense fallback={<LoadingFallback />}>{content}</Suspense>
+}

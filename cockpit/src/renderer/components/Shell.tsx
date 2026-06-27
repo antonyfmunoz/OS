@@ -93,6 +93,9 @@ import ServiceGraphPanel from '../panels/ServiceGraphPanel'
 import StateAuthorityPanel from '../panels/StateAuthorityPanel'
 import UMHNodePanel from '../panels/UMHNodePanel'
 import WorkspaceTopologyPanel from '../panels/WorkspaceTopologyPanel'
+import { CanvasWorkspace } from './canvas/CanvasWorkspace'
+import { AgentCanvasWorkspace } from './canvas/AgentCanvasWorkspace'
+import { WorkflowCanvasWorkspace } from './canvas/WorkflowCanvasWorkspace'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 import { ResumeCard } from './ResumeCard'
@@ -105,7 +108,7 @@ function ActivePanel() {
     case 'dashboard':
       return <DashboardPanel />
     case 'agents':
-      return <AgentsPanel />
+      return <AgentCanvasWorkspace />
     case 'tasks':
       return <TasksPanel />
     case 'approvals':
@@ -129,7 +132,7 @@ function ActivePanel() {
     case 'comms':
       return <CommsPanel />
     case 'workflows':
-      return <WorkflowsPanel />
+      return <WorkflowCanvasWorkspace />
     case 'tracking':
       return <TrackingPanel />
     case 'skills':
@@ -264,6 +267,8 @@ function ActivePanel() {
       return <UMHNodePanel />
     case 'workspacetopology':
       return <WorkspaceTopologyPanel />
+    case 'canvas':
+      return <CanvasWorkspace />
 
     default:
       return <DashboardPanel />

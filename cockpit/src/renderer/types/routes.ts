@@ -49,6 +49,7 @@ import {
   GitBranch,
   Shield,
   MonitorDot,
+  LayoutPanelTop,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -63,6 +64,7 @@ export interface RouteEntry {
 
 export const ROUTES: RouteEntry[] = [
   // ── 13 Canonical Capabilities ────────────────────────────────────
+  { id: 'canvas', label: 'Canvas', icon: LayoutPanelTop, group: 'primary', visibility: 'primary', key: '`' },
   { id: 'commandcenter', label: 'Command Center', icon: Target, group: 'primary', visibility: 'primary', key: 'q' },
   { id: 'work', label: 'Work', icon: ListChecks, group: 'primary', visibility: 'primary', key: '3' },
   { id: 'agents', label: 'Agents', icon: Bot, group: 'primary', visibility: 'primary', key: '2' },
