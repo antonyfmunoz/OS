@@ -3,6 +3,9 @@
 # Copy nginx template — no secrets to inject (Clerk JWT auth handled by backend).
 cp /etc/nginx/conf.d/default.conf.template /etc/nginx/conf.d/default.conf
 
+# Start browse proxy for in-app browser (before nginx so it's ready for requests)
+node /app/browse-proxy.mjs &
+
 # Start nginx first so Fly health checks pass immediately.
 # API proxy returns 502 until the SSH tunnel is up.
 nginx -g 'daemon on;'

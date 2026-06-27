@@ -37,6 +37,11 @@ export function LivePreview({
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
+  function toLoadUrl(url: string): string {
+    if (!browserMode || !url) return url
+    return `/browse/${url}`
+  }
+
   useEffect(() => {
     if (browserMode) return
     fetchApi<{ projections: any[] }>('/projections')
@@ -107,7 +112,8 @@ export function LivePreview({
     if (normalized && !normalized.startsWith('http')) {
       normalized = `https://${normalized}`
     }
-    setCurrentUrl(normalized)
+    setInputUrl(normalized)
+    setCurrentUrl(toLoadUrl(normalized))
     setLoading(true)
   }
 
@@ -119,8 +125,8 @@ export function LivePreview({
   }
 
   function handleOpenExternal() {
-    if (currentUrl) {
-      window.open(currentUrl, '_blank')
+    if (inputUrl) {
+      window.open(inputUrl, '_blank')
     }
   }
 
