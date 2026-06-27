@@ -13,9 +13,11 @@ interface AgentCanvasWorkspaceProps {
   palette?: ReactNode
   mode?: CanvasMode
   onSetMode?: (mode: CanvasMode) => void
+  paletteOpen?: boolean
+  onTogglePalette?: () => void
 }
 
-export function AgentCanvasWorkspace({ palette, mode, onSetMode }: AgentCanvasWorkspaceProps) {
+export function AgentCanvasWorkspace({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: AgentCanvasWorkspaceProps) {
   const nodes = useAgentCanvasStore((s) => s.nodes)
   const panX = useAgentCanvasStore((s) => s.panX)
   const panY = useAgentCanvasStore((s) => s.panY)
@@ -89,8 +91,8 @@ export function AgentCanvasWorkspace({ palette, mode, onSetMode }: AgentCanvasWo
             onZoomReset={handleZoomReset}
             onFitAll={fitAll}
             onTile={tileNodes}
-            onTogglePalette={() => {}}
-            paletteOpen={false}
+            onTogglePalette={onTogglePalette ?? (() => {})}
+            paletteOpen={paletteOpen}
             mode={mode}
             onSetMode={onSetMode}
             extraButtons={

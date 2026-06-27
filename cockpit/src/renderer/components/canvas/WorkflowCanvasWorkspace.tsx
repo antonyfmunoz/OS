@@ -12,6 +12,8 @@ interface WorkflowCanvasWorkspaceProps {
   palette?: ReactNode
   mode?: CanvasMode
   onSetMode?: (mode: CanvasMode) => void
+  paletteOpen?: boolean
+  onTogglePalette?: () => void
 }
 
 function WorkflowListOverlay() {
@@ -100,7 +102,7 @@ function WorkflowListOverlay() {
   )
 }
 
-function WorkflowList({ palette, mode, onSetMode }: WorkflowCanvasWorkspaceProps) {
+function WorkflowList({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: WorkflowCanvasWorkspaceProps) {
   const panX = useWorkflowCanvasStore((s) => s.panX)
   const panY = useWorkflowCanvasStore((s) => s.panY)
   const zoom = useWorkflowCanvasStore((s) => s.zoom)
@@ -131,8 +133,8 @@ function WorkflowList({ palette, mode, onSetMode }: WorkflowCanvasWorkspaceProps
             onZoomReset={handleZoomReset}
             onFitAll={() => {}}
             onTile={() => {}}
-            onTogglePalette={() => {}}
-            paletteOpen={false}
+            onTogglePalette={onTogglePalette ?? (() => {})}
+            paletteOpen={paletteOpen}
             mode={mode}
             onSetMode={onSetMode}
           />
@@ -146,7 +148,7 @@ function WorkflowList({ palette, mode, onSetMode }: WorkflowCanvasWorkspaceProps
   )
 }
 
-function WorkflowEditor({ palette, mode, onSetMode }: WorkflowCanvasWorkspaceProps) {
+function WorkflowEditor({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: WorkflowCanvasWorkspaceProps) {
   const nodes = useWorkflowCanvasStore((s) => s.nodes)
   const connections = useWorkflowCanvasStore((s) => s.connections)
   const selectedNodeId = useWorkflowCanvasStore((s) => s.selectedNodeId)
@@ -203,8 +205,8 @@ function WorkflowEditor({ palette, mode, onSetMode }: WorkflowCanvasWorkspacePro
               onZoomReset={handleZoomReset}
               onFitAll={() => {}}
               onTile={() => {}}
-              onTogglePalette={() => {}}
-              paletteOpen={false}
+              onTogglePalette={onTogglePalette ?? (() => {})}
+              paletteOpen={paletteOpen}
               mode={mode}
               onSetMode={onSetMode}
             />
@@ -246,11 +248,11 @@ function WorkflowEditor({ palette, mode, onSetMode }: WorkflowCanvasWorkspacePro
   )
 }
 
-export function WorkflowCanvasWorkspace({ palette, mode, onSetMode }: WorkflowCanvasWorkspaceProps) {
+export function WorkflowCanvasWorkspace(props: WorkflowCanvasWorkspaceProps) {
   const activeWorkflowId = useWorkflowCanvasStore((s) => s.activeWorkflowId)
 
   if (activeWorkflowId) {
-    return <WorkflowEditor palette={palette} mode={mode} onSetMode={onSetMode} />
+    return <WorkflowEditor {...props} />
   }
-  return <WorkflowList palette={palette} mode={mode} onSetMode={onSetMode} />
+  return <WorkflowList {...props} />
 }

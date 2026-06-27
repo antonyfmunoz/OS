@@ -148,6 +148,8 @@ export function UnifiedCanvasWorkspace() {
     palette,
     mode: activeMode,
     onSetMode: handleSetMode,
+    paletteOpen,
+    onTogglePalette: () => setPaletteOpen((v) => !v),
   }
 
   return (

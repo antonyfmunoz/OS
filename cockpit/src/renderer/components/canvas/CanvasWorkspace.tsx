@@ -12,9 +12,11 @@ interface CanvasWorkspaceProps {
   palette?: ReactNode
   mode?: CanvasMode
   onSetMode?: (mode: CanvasMode) => void
+  paletteOpen?: boolean
+  onTogglePalette?: () => void
 }
 
-export function CanvasWorkspace({ palette, mode, onSetMode }: CanvasWorkspaceProps) {
+export function CanvasWorkspace({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: CanvasWorkspaceProps) {
   const windows = useCanvasStore((s) => s.windows)
   const panX = useCanvasStore((s) => s.panX)
   const panY = useCanvasStore((s) => s.panY)
@@ -113,8 +115,8 @@ export function CanvasWorkspace({ palette, mode, onSetMode }: CanvasWorkspacePro
             onZoomReset={handleZoomReset}
             onFitAll={fitAll}
             onTile={tileWindows}
-            onTogglePalette={() => {}}
-            paletteOpen={false}
+            onTogglePalette={onTogglePalette ?? (() => {})}
+            paletteOpen={paletteOpen}
             mode={mode}
             onSetMode={onSetMode}
           />
