@@ -88,6 +88,18 @@ server {
         proxy_read_timeout 86400s;
     }
 
+    location /browse/ {
+        auth_request /preview/auth;
+
+        proxy_pass http://127.0.0.1:8098;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Target-URL $request_uri;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
     location /api/ {
         proxy_pass http://api_backend;
         proxy_http_version 1.1;
