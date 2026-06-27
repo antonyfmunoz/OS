@@ -41,7 +41,7 @@ function mouseButton(e: React.MouseEvent): string {
 
 // ── Single browser pane ─────────────────────────────────────
 
-function BrowserPane({ paneId }: { paneId: string }) {
+export function BrowserPane({ paneId }: { paneId: string }) {
   const {
     connected,
     currentUrl,

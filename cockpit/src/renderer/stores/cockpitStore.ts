@@ -83,6 +83,7 @@ export type Panel =
   | 'stateauthority'
   | 'umhnode'
   | 'workspacetopology'
+  | 'canvas'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
@@ -138,7 +139,6 @@ export const useCockpitStore = create<CockpitState>()(
         const redirects: Partial<Record<Panel, Panel>> = {
           dashboard: 'commandcenter',
           tasks: 'work',
-          workflows: 'work',
           universalwork: 'work',
           runtime: 'execution',
           skills: 'knowledge',
