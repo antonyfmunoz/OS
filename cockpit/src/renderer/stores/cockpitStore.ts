@@ -144,6 +144,17 @@ export const useCockpitStore = create<CockpitState>()(
           skills: 'knowledge',
           workspace: 'editor',
           infrastructure: 'organismmap',
+          agents: 'canvas',
+          workflows: 'canvas',
+        }
+        const modeMap: Partial<Record<Panel, string>> = {
+          agents: 'agents',
+          workflows: 'workflows',
+        }
+        if (modeMap[panel]) {
+          import('./unifiedCanvasStore').then(({ useUnifiedCanvasStore }) => {
+            useUnifiedCanvasStore.getState().setMode(modeMap[panel] as 'agents' | 'workflows')
+          })
         }
         set({ activePanel: redirects[panel] ?? panel })
       },
