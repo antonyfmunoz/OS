@@ -143,6 +143,34 @@ services:
           cpus: "0.35"
           memory: 256M
 
+  os-neko:
+    image: ghcr.io/m1k1o/neko/chromium:latest
+    container_name: os-neko
+    restart: unless-stopped
+    shm_size: "2g"
+    cap_add:
+      - SYS_ADMIN
+    networks:
+      - eos_network
+    ports:
+      - "127.0.0.1:8085:8080"
+      - "52000-52100:52000-52100/udp"
+    environment:
+      - NEKO_DESKTOP_SCREEN=1920x1080@30
+      - NEKO_MEMBER_MULTIUSER_USER_PASSWORD=${NEKO_USER_PASSWORD:-neko}
+      - NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD=${NEKO_ADMIN_PASSWORD:-admin}
+      - NEKO_WEBRTC_ICELITE=true
+      - NEKO_WEBRTC_NAT1TO1=157.173.212.126
+      - NEKO_WEBRTC_EPHEMERAL_MIN=52000
+      - NEKO_WEBRTC_EPHEMERAL_MAX=52100
+      - NEKO_SERVER_CORS=https://universalmetaharness.tech,https://umh-cockpit.fly.dev
+      - NEKO_SERVER_PROXY=true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 1G
+
   os-operator:
     build: .
     container_name: os-operator
