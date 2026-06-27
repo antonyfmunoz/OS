@@ -14,6 +14,7 @@ interface LivePreviewProps {
   url?: string
   defaultUrl?: string
   defaultProjection?: string
+  browserMode?: boolean
   expanded?: boolean
   onToggleExpand?: () => void
 }
@@ -22,6 +23,7 @@ export function LivePreview({
   url: propUrl,
   defaultUrl = '',
   defaultProjection,
+  browserMode = false,
   expanded = false,
   onToggleExpand,
 }: LivePreviewProps) {
@@ -36,6 +38,7 @@ export function LivePreview({
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
+    if (browserMode) return
     fetchApi<{ projections: any[] }>('/projections')
       .then((data) => {
         const projs: ProjectionInfo[] = (data.projections || [])
@@ -67,6 +70,7 @@ export function LivePreview({
   }, [propUrl])
 
   const checkHealth = useCallback(async () => {
+    if (browserMode) return
     const proj = projections.find((p) => p.projection_id === selectedProjection)
     if (!proj?.health_url) {
       setHealthStatus('unknown')
@@ -78,7 +82,7 @@ export function LivePreview({
     } catch {
       setHealthStatus('unhealthy')
     }
-  }, [projections, selectedProjection])
+  }, [projections, selectedProjection, browserMode])
 
   useEffect(() => {
     checkHealth()
@@ -148,8 +152,8 @@ export function LivePreview({
           </button>
         )}
 
-        {/* Project selector */}
-        {projections.length > 0 && (
+        {/* Project selector (hidden in browser mode) */}
+        {!browserMode && projections.length > 0 && (
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -245,7 +249,7 @@ export function LivePreview({
         {!currentUrl ? (
           <div className="flex items-center justify-center h-full w-full">
             <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
-              Select a projection or enter a URL
+              {browserMode ? 'Enter a URL to browse' : 'Select a projection or enter a URL'}
             </span>
           </div>
         ) : (
