@@ -14,10 +14,11 @@ ENV VITE_AI_NAME=$VITE_AI_NAME
 RUN npx vite build --config vite.web.config.ts
 
 FROM nginx:alpine
-RUN apk add --no-cache tailscale openssh-client
+RUN apk add --no-cache tailscale openssh-client nodejs
 
 COPY --from=build /app/dist-web /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
+COPY browse-proxy.mjs /app/browse-proxy.mjs
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
