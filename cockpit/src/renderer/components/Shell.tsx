@@ -13,7 +13,6 @@ import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceDetection } from '../hooks/useVoiceDetection'
 import { useDeviceSessionStore } from '../stores/deviceSessionStore'
 import { DashboardPanel } from '../panels/DashboardPanel'
-import { AgentsPanel } from '../panels/AgentsPanel'
 import { TasksPanel } from '../panels/TasksPanel'
 import { ApprovalsPanel } from '../panels/ApprovalsPanel'
 import { ActivityPanel } from '../panels/ActivityPanel'
@@ -24,7 +23,6 @@ import { ExecutionPanel } from '../panels/ExecutionPanel'
 import { PortfolioPanel } from '../panels/PortfolioPanel'
 import { CompanyPanel } from '../panels/CompanyPanel'
 import { CommsPanel } from '../panels/CommsPanel'
-import { WorkflowsPanel } from '../panels/WorkflowsPanel'
 import { TrackingPanel } from '../panels/TrackingPanel'
 import { SkillsPanel } from '../panels/SkillsPanel'
 import { ExperimentsPanel } from '../panels/ExperimentsPanel'
@@ -93,9 +91,7 @@ import ServiceGraphPanel from '../panels/ServiceGraphPanel'
 import StateAuthorityPanel from '../panels/StateAuthorityPanel'
 import UMHNodePanel from '../panels/UMHNodePanel'
 import WorkspaceTopologyPanel from '../panels/WorkspaceTopologyPanel'
-import { CanvasWorkspace } from './canvas/CanvasWorkspace'
-import { AgentCanvasWorkspace } from './canvas/AgentCanvasWorkspace'
-import { WorkflowCanvasWorkspace } from './canvas/WorkflowCanvasWorkspace'
+import { UnifiedCanvasWorkspace } from './canvas/UnifiedCanvasWorkspace'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
 import { ResumeCard } from './ResumeCard'
@@ -108,7 +104,7 @@ function ActivePanel() {
     case 'dashboard':
       return <DashboardPanel />
     case 'agents':
-      return <AgentCanvasWorkspace />
+      return <UnifiedCanvasWorkspace />
     case 'tasks':
       return <TasksPanel />
     case 'approvals':
@@ -132,7 +128,7 @@ function ActivePanel() {
     case 'comms':
       return <CommsPanel />
     case 'workflows':
-      return <WorkflowCanvasWorkspace />
+      return <UnifiedCanvasWorkspace />
     case 'tracking':
       return <TrackingPanel />
     case 'skills':
@@ -268,7 +264,7 @@ function ActivePanel() {
     case 'workspacetopology':
       return <WorkspaceTopologyPanel />
     case 'canvas':
-      return <CanvasWorkspace />
+      return <UnifiedCanvasWorkspace />
 
     default:
       return <DashboardPanel />

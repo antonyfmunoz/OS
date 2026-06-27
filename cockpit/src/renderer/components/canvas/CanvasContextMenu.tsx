@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import {
   Globe,
   Monitor,
@@ -9,6 +9,8 @@ import {
   Pause,
   Play,
   Trash2,
+  Group,
+  Ungroup,
 } from 'lucide-react'
 
 interface MenuItem {
@@ -45,6 +47,8 @@ interface CanvasContextMenuProps {
   onClose: () => void
   onAddWindow: (type: string, config?: Record<string, string>) => void
   onAction: (action: string) => void
+  selectedCount?: number
+  targetClusterId?: string | null
 }
 
 export function CanvasContextMenu({
@@ -54,6 +58,8 @@ export function CanvasContextMenu({
   onClose,
   onAddWindow,
   onAction,
+  selectedCount = 0,
+  targetClusterId,
 }: CanvasContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -73,6 +79,26 @@ export function CanvasContextMenu({
     }
   }, [visible, onClose])
 
+  const dynamicItems = useMemo(() => {
+    const items = [...ITEMS]
+    const clusterItems: MenuItem[] = []
+
+    if (selectedCount >= 2) {
+      clusterItems.push({ label: 'Group into Cluster', icon: <Group size={12} />, action: 'createCluster' })
+    }
+    if (targetClusterId) {
+      clusterItems.push({ label: 'Remove from Cluster', icon: <Ungroup size={12} />, action: 'removeFromCluster' })
+      clusterItems.push({ label: 'Dissolve Cluster', icon: <Ungroup size={12} />, action: 'dissolveCluster' })
+    }
+
+    if (clusterItems.length > 0) {
+      const lastDividerIdx = items.findLastIndex((i) => i.divider)
+      items.splice(lastDividerIdx, 0, { divider: true, label: '' }, ...clusterItems)
+    }
+
+    return items
+  }, [selectedCount, targetClusterId])
+
   if (!visible) return null
 
   return (
@@ -91,7 +117,7 @@ export function CanvasContextMenu({
         boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
       }}
     >
-      {ITEMS.map((item, i) => {
+      {dynamicItems.map((item, i) => {
         if (item.divider) {
           return (
             <div

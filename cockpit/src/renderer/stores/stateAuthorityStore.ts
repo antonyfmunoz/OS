@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchApi } from '../api/client';
 
 interface StateAuthority {
   domain: string;
@@ -41,9 +42,7 @@ export const useStateAuthorityStore = create<StateAuthorityState>((set) => ({
   fetchDomains: async () => {
     set({ loading: true, error: null });
     try {
-      const resp = await fetch('/api/umh/state-authority/domains');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchApi<{ domains?: StateAuthority[] }>('/state-authority/domains');
       set({ domains: data.domains || [], loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });
@@ -53,9 +52,7 @@ export const useStateAuthorityStore = create<StateAuthorityState>((set) => ({
   fetchCoherence: async () => {
     set({ loading: true, error: null });
     try {
-      const resp = await fetch('/api/umh/state-authority/coherence');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchApi<CoherenceReport>('/state-authority/coherence');
       set({ coherence: data, loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });

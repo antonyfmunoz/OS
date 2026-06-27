@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -20,9 +22,19 @@ class ApprovalStore:
         self._dir.mkdir(parents=True, exist_ok=True)
         self._approvals = self._dir / "approvals.jsonl"
 
+    @property
+    def _lock_path(self) -> Path:
+        return self._approvals.with_suffix(".lock")
+
     def _append(self, record: dict[str, Any]) -> None:
-        with open(self._approvals, "a") as f:
-            f.write(json.dumps(record, default=str, separators=(",", ":")) + "\n")
+        lock_path = str(self._lock_path)
+        with open(lock_path, "w") as lock_fd:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            try:
+                with open(self._approvals, "a") as f:
+                    f.write(json.dumps(record, default=str, separators=(",", ":")) + "\n")
+            finally:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
 
     def _read_all(self) -> list[dict[str, Any]]:
         if not self._approvals.exists():
@@ -36,9 +48,17 @@ class ApprovalStore:
         return entries
 
     def _rewrite_all(self, entries: list[dict[str, Any]]) -> None:
-        with open(self._approvals, "w") as f:
-            for e in entries:
-                f.write(json.dumps(e, default=str, separators=(",", ":")) + "\n")
+        lock_path = str(self._lock_path)
+        tmp_path = str(self._approvals) + ".tmp"
+        with open(lock_path, "w") as lock_fd:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            try:
+                with open(tmp_path, "w") as f:
+                    for e in entries:
+                        f.write(json.dumps(e, default=str, separators=(",", ":")) + "\n")
+                os.replace(tmp_path, str(self._approvals))
+            finally:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
 
     def create_approval(
         self,

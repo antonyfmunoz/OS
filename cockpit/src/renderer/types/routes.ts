@@ -67,7 +67,6 @@ export const ROUTES: RouteEntry[] = [
   { id: 'canvas', label: 'Canvas', icon: LayoutPanelTop, group: 'primary', visibility: 'primary', key: '`' },
   { id: 'commandcenter', label: 'Command Center', icon: Target, group: 'primary', visibility: 'primary', key: 'q' },
   { id: 'work', label: 'Work', icon: ListChecks, group: 'primary', visibility: 'primary', key: '3' },
-  { id: 'agents', label: 'Agents', icon: Bot, group: 'primary', visibility: 'primary', key: '2' },
   { id: 'approvals', label: 'Approvals', icon: ShieldCheck, group: 'primary', visibility: 'primary', key: '4' },
   { id: 'activity', label: 'Activity', icon: Activity, group: 'primary', visibility: 'primary', key: '9' },
   { id: 'editor', label: 'Meta IDE', icon: Code2, group: 'primary', visibility: 'primary', key: '7' },
@@ -122,6 +121,9 @@ export const ROUTES: RouteEntry[] = [
   // Absorbed into Meta IDE
   { id: 'realityintelligence', label: 'Reality Intelligence', icon: Brain, group: 'primary', visibility: 'dev', key: 'I' },
   { id: 'engineering', label: 'Engineering', icon: Wrench, group: 'primary', visibility: 'dev', key: 'E' },
+  // Redirected to Canvas modes (searchable in CommandPalette)
+  { id: 'agents', label: 'Agents', icon: Bot, group: 'primary', visibility: 'dev', key: '2' },
+  { id: 'workflows', label: 'Workflows', icon: Workflow, group: 'primary', visibility: 'dev', key: 'W' },
   // Standalone dev panels
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'primary', visibility: 'dev', key: '1' },
   { id: 'organism', label: 'Organism', icon: Brain, group: 'primary', visibility: 'dev', key: 'o' },
@@ -163,7 +165,7 @@ export const ROUTES: RouteEntry[] = [
   // Stub (NOT searchable)
   { id: 'tracking', label: 'Tracking', icon: Target, group: 'primary', visibility: 'stub', key: 'A' },
   { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'X' },
-  { id: 'workspace', label: 'Workspace', icon: Monitor, group: 'primary', visibility: 'stub', key: 'W' },
+  { id: 'workspace', label: 'Workspace', icon: Monitor, group: 'primary', visibility: 'stub', key: '+' },
 ]
 
 export const ROUTE_GROUPS = [

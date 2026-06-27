@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { fetchApi } from '../api/client'
 
 interface AllocationRecommendation {
   recommendation_id: string
@@ -79,8 +80,6 @@ interface ExecutiveStore {
   fetchAll: () => Promise<void>
 }
 
-const API_BASE = '/api'
-
 export const useExecutiveStore = create<ExecutiveStore>((set) => ({
   overview: null,
   allocations: [],
@@ -93,8 +92,7 @@ export const useExecutiveStore = create<ExecutiveStore>((set) => ({
   fetchOverview: async () => {
     try {
       set({ loading: true, error: null })
-      const res = await fetch(`${API_BASE}/executive/overview`)
-      const data = await res.json()
+      const data = await fetchApi<ExecutiveOverview>('/executive/overview')
       set({ overview: data, loading: false })
     } catch (e) {
       set({ error: String(e), loading: false })
@@ -103,8 +101,7 @@ export const useExecutiveStore = create<ExecutiveStore>((set) => ({
 
   fetchAllocations: async () => {
     try {
-      const res = await fetch(`${API_BASE}/executive/allocations`)
-      const data = await res.json()
+      const data = await fetchApi<{ recommendations?: AllocationRecommendation[] }>('/executive/allocations')
       set({ allocations: data.recommendations || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -113,8 +110,7 @@ export const useExecutiveStore = create<ExecutiveStore>((set) => ({
 
   fetchBudgets: async () => {
     try {
-      const res = await fetch(`${API_BASE}/executive/budgets`)
-      const data = await res.json()
+      const data = await fetchApi<{ budgets?: ResourceBudget[] }>('/executive/budgets')
       set({ budgets: data.budgets || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -123,8 +119,7 @@ export const useExecutiveStore = create<ExecutiveStore>((set) => ({
 
   fetchDrift: async () => {
     try {
-      const res = await fetch(`${API_BASE}/executive/drift`)
-      const data = await res.json()
+      const data = await fetchApi<{ drift_warnings?: DriftWarning[] }>('/executive/drift')
       set({ drift: data.drift_warnings || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -133,8 +128,7 @@ export const useExecutiveStore = create<ExecutiveStore>((set) => ({
 
   fetchContention: async () => {
     try {
-      const res = await fetch(`${API_BASE}/executive/contention`)
-      const data = await res.json()
+      const data = await fetchApi<{ contention?: Record<string, string[]> }>('/executive/contention')
       set({ contention: data.contention || {} })
     } catch (e) {
       set({ error: String(e) })
@@ -144,19 +138,12 @@ export const useExecutiveStore = create<ExecutiveStore>((set) => ({
   fetchAll: async () => {
     set({ loading: true, error: null })
     try {
-      const [overviewRes, allocRes, budgetRes, driftRes, contentionRes] = await Promise.all([
-        fetch(`${API_BASE}/executive/overview`),
-        fetch(`${API_BASE}/executive/allocations`),
-        fetch(`${API_BASE}/executive/budgets`),
-        fetch(`${API_BASE}/executive/drift`),
-        fetch(`${API_BASE}/executive/contention`),
-      ])
       const [overview, alloc, budget, drift, contention] = await Promise.all([
-        overviewRes.json(),
-        allocRes.json(),
-        budgetRes.json(),
-        driftRes.json(),
-        contentionRes.json(),
+        fetchApi<ExecutiveOverview>('/executive/overview'),
+        fetchApi<{ recommendations?: AllocationRecommendation[] }>('/executive/allocations'),
+        fetchApi<{ budgets?: ResourceBudget[] }>('/executive/budgets'),
+        fetchApi<{ drift_warnings?: DriftWarning[] }>('/executive/drift'),
+        fetchApi<{ contention?: Record<string, string[]> }>('/executive/contention'),
       ])
       set({
         overview,

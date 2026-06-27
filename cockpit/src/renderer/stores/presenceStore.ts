@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { fetchApi } from "../api/client";
 
 interface PresenceState {
   operator_state: string;
@@ -74,8 +75,6 @@ interface PresenceStoreState {
   fetchResume: () => Promise<void>;
 }
 
-const API_BASE = "/api/umh/presence";
-
 export const usePresenceStore = create<PresenceStoreState>((set) => ({
   snapshot: null,
   timeline: [],
@@ -86,9 +85,7 @@ export const usePresenceStore = create<PresenceStoreState>((set) => ({
   fetchPresence: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch(API_BASE);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const data = await res.json();
+      const data = await fetchApi<PresenceSnapshot>("/presence");
       set({ snapshot: data, loading: false });
     } catch (e) {
       set({ error: String(e), loading: false });
@@ -97,9 +94,7 @@ export const usePresenceStore = create<PresenceStoreState>((set) => ({
 
   fetchTimeline: async () => {
     try {
-      const res = await fetch(`${API_BASE}/timeline`);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const data = await res.json();
+      const data = await fetchApi<{ transitions?: PresenceTransition[] }>("/presence/timeline");
       set({ timeline: data.transitions || [] });
     } catch (e) {
       set({ error: String(e) });
@@ -108,9 +103,7 @@ export const usePresenceStore = create<PresenceStoreState>((set) => ({
 
   fetchResume: async () => {
     try {
-      const res = await fetch(`${API_BASE}/resume`);
-      if (!res.ok) throw new Error(`${res.status}`);
-      const data = await res.json();
+      const data = await fetchApi<ResumeSuggestion>("/presence/resume");
       set({ resume: data });
     } catch (e) {
       set({ error: String(e) });
