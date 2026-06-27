@@ -83,6 +83,8 @@ _viewport_height: int = DEFAULT_HEIGHT
 _frame_count: int = 0
 _last_frame_at: float = 0.0
 _screencast_active: bool = False
+_heartbeat_task: Any = None
+HEARTBEAT_INTERVAL = 1.0
 
 
 # ── Auth ──────────────────────────────────────────────────────
@@ -196,6 +198,29 @@ async def _stop_screencast() -> None:
         log.info("screencast stopped")
     except Exception:
         _screencast_active = False
+
+
+async def _heartbeat_loop() -> None:
+    """Periodic screenshot fallback for static pages where screencast sends no frames."""
+    while True:
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
+        if not _clients or not _cdp:
+            continue
+        elapsed = time.time() - _last_frame_at
+        if elapsed < HEARTBEAT_INTERVAL:
+            continue
+        log.debug("heartbeat: capturing screenshot (%.1fs since last frame, %d clients)", elapsed, len(_clients))
+        try:
+            result = await _cdp.send("Page.captureScreenshot", {
+                "format": "jpeg",
+                "quality": JPEG_QUALITY,
+            })
+            data = result.get("data", "")
+            if data:
+                jpeg_bytes = base64.b64decode(data)
+                await broadcast_frame(jpeg_bytes)
+        except Exception as exc:
+            log.debug("heartbeat screenshot error: %s", exc)
 
 
 async def _on_screencast_frame(params: dict[str, Any]) -> None:
@@ -349,8 +374,8 @@ async def handle_client(ws: Any) -> None:
     client_count = len(_clients)
     log.info("viewer connected (%d total)", client_count)
 
-    if not _screencast_active:
-        await _start_screencast()
+    await _stop_screencast()
+    await _start_screencast()
 
     try:
         await send_json(ws, {"type": "url_changed", "url": _current_url})
@@ -448,6 +473,9 @@ async def _launch_browser() -> None:
 
     await _page.goto("about:blank")
     log.info("Chromium ready (%dx%d)", _viewport_width, _viewport_height)
+
+    global _heartbeat_task
+    _heartbeat_task = asyncio.create_task(_heartbeat_loop())
 
 
 async def _on_popup(popup: Any) -> None:
