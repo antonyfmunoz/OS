@@ -14,6 +14,8 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from transports.api.cockpit_audit import emit_mutation_audit
+
 logger = logging.getLogger(__name__)
 
 unified_execution_router: APIRouter = APIRouter()
@@ -84,10 +86,40 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     @r.post("/unified-execution/approve", dependencies=auth)
     def approve(req: ApproveRequest) -> dict[str, Any]:
-        return _get_runtime().approve(req.approval_id, req.source_system)
+        result = _get_runtime().approve(req.approval_id, req.source_system)
+        emit_mutation_audit(
+            "approvals",
+            "approve",
+            req.approval_id,
+            new_value={"source_system": req.source_system},
+            surface="unified_execution",
+        )
+        try:
+            from transports.api.cockpit_core_routes import push_mutation_event
+
+            if push_mutation_event is not None:
+                push_mutation_event("execution", "approved", {"id": req.approval_id})
+        except Exception:
+            pass
+        return result
 
     @r.post("/unified-execution/reject", dependencies=auth)
     def reject(req: RejectRequest) -> dict[str, Any]:
-        return _get_runtime().reject(req.approval_id, req.source_system, req.reason)
+        result = _get_runtime().reject(req.approval_id, req.source_system, req.reason)
+        emit_mutation_audit(
+            "approvals",
+            "reject",
+            req.approval_id,
+            new_value={"source_system": req.source_system, "reason": req.reason},
+            surface="unified_execution",
+        )
+        try:
+            from transports.api.cockpit_core_routes import push_mutation_event
+
+            if push_mutation_event is not None:
+                push_mutation_event("execution", "rejected", {"id": req.approval_id})
+        except Exception:
+            pass
+        return result
 
     return r

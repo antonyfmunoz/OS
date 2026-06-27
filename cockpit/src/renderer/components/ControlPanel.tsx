@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import { ChevronDown, ChevronUp, Moon, Sun, Shield, Hammer } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
-import { useApprovalStore } from '../stores/approvalStore'
 import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useCollapseStore } from '../stores/collapseStore'
@@ -54,7 +53,7 @@ export function ControlPanel() {
     pending: wsSnap.overnight.pending_count,
     blocked: wsSnap.overnight.blocked_count,
   }
-  const approvals = useApprovalStore((s) => s.approvals)
+  const legacyPending = useUnifiedApprovalStore((s) => s.pending)
   const unifiedPending = useUnifiedApprovalStore((s) => s.byUrgency)
   const unifiedApprove = useUnifiedApprovalStore((s) => s.approve)
   const unifiedReject = useUnifiedApprovalStore((s) => s.reject)
@@ -97,7 +96,7 @@ export function ControlPanel() {
     }
   }, [sendMessage, storeFetchPlans])
 
-  const pendingApprovals = approvals.filter((a) => a.status === 'pending')
+  const pendingApprovals = legacyPending.filter((a) => a.status === 'pending')
   const totalPending = pendingApprovals.length + unifiedPending.length + engineeringPlans.length
 
   /* ── mode transition ── */
@@ -226,9 +225,9 @@ export function ControlPanel() {
             <div>
               <div className="wv-label mb-1">APPROVALS</div>
               {unifiedPending.length > 0 && unifiedPending.slice(0, 3).map((ua, i) => {
-                const id = (ua as Record<string, unknown>).approval_id as string ?? (ua as Record<string, unknown>).id as string ?? `ua-${i}`
-                const desc = (ua as Record<string, unknown>).description as string ?? (ua as Record<string, unknown>).title as string ?? 'Pending approval'
-                const source = (ua as Record<string, unknown>).source_type as string ?? ''
+                const id = ua.approval_id ?? ua.id ?? `ua-${i}`
+                const desc = ua.description ?? ua.title ?? 'Pending approval'
+                const source = ua.source_type ?? ''
                 return (
                   <div key={id} className="mb-2">
                     <div className="flex items-center gap-1">
@@ -259,13 +258,13 @@ export function ControlPanel() {
                   </p>
                   <div className="flex gap-1 mt-1">
                     <button
-                      onClick={() => useApprovalStore.getState().approve(a.id)}
+                      onClick={() => unifiedApprove(a.id, a.source_type ?? 'governance', 'operator')}
                       className="text-[10px] px-2 py-1 rounded bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors"
                     >
                       Approve
                     </button>
                     <button
-                      onClick={() => useApprovalStore.getState().deny(a.id)}
+                      onClick={() => unifiedReject(a.id, a.source_type ?? 'governance', '', 'operator')}
                       className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors"
                     >
                       Deny

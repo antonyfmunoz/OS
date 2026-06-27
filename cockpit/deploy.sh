@@ -93,7 +93,29 @@ echo ""
 cd "$COCKPIT_DIR"
 
 FLYCTL=$(command -v flyctl 2>/dev/null || echo "/root/.fly/bin/flyctl")
-"$FLYCTL" deploy --remote-only "$@"
+
+# ── Auto-refresh Fly.io deploy token from 1Password ──
+# The fly-agent caches stale tokens and causes auth failures.
+# Kill it and create a fresh deploy token every deploy.
+if command -v op >/dev/null 2>&1; then
+  pkill -9 -f "flyctl agent" 2>/dev/null || true
+  rm -f "$HOME/.fly/fly-agent.sock" 2>/dev/null || true
+
+  ORG_TOKEN=$(op read "op://UMH-Production/Fly.io Org Token/credential" 2>/dev/null || true)
+  if [ -n "$ORG_TOKEN" ]; then
+    DEPLOY_TOKEN=$(FLY_API_TOKEN="$ORG_TOKEN" FLY_NO_UPDATE_CHECK=1 "$FLYCTL" tokens create deploy -a umh-cockpit 2>/dev/null || true)
+    if [ -n "$DEPLOY_TOKEN" ]; then
+      export FLY_API_TOKEN="$DEPLOY_TOKEN"
+      echo -e "${GREEN}OK: Deploy token refreshed from 1Password${NC}"
+    else
+      echo -e "${RED}WARN: Could not create deploy token — using existing auth${NC}"
+    fi
+  else
+    echo -e "${RED}WARN: 1Password unavailable — using existing auth${NC}"
+  fi
+fi
+
+FLY_NO_UPDATE_CHECK=1 "$FLYCTL" deploy --remote-only "$@"
 DEPLOY_EXIT=$?
 
 if [ $DEPLOY_EXIT -ne 0 ]; then

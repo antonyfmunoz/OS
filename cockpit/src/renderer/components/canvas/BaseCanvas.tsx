@@ -1,5 +1,5 @@
-import { useRef, useCallback, type ReactNode } from 'react'
-import { screenToCanvas, zoomAtPoint } from '../../utils/canvasCoords'
+import { useRef, useCallback, useEffect, type ReactNode } from 'react'
+import { screenToCanvas, zoomAtPoint, clampZoom } from '../../utils/canvasCoords'
 
 interface BaseCanvasProps {
   panX: number
@@ -31,22 +31,6 @@ export function BaseCanvas({
   const panning = useRef(false)
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const spaceHeld = useRef(false)
-
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return
-      e.preventDefault()
-      const rect = containerRef.current?.getBoundingClientRect()
-      if (!rect) return
-      const pointX = e.clientX - rect.left
-      const pointY = e.clientY - rect.top
-      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
-      const result = zoomAtPoint(zoom, zoom + delta, pointX, pointY, panX, panY)
-      setPan(result.panX, result.panY)
-      setZoom(result.zoom)
-    },
-    [zoom, panX, panY, setPan, setZoom],
-  )
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -89,6 +73,113 @@ export function BaseCanvas({
     }
   }, [])
 
+  // ── Multi-touch: two-finger pan + pinch-to-zoom ──
+  const touchState = useRef<{
+    startTouches: { x: number; y: number }[]
+    startPanX: number
+    startPanY: number
+    startZoom: number
+    startDist: number
+  } | null>(null)
+
+  const stateRef = useRef({ panX, panY, zoom })
+  stateRef.current = { panX, panY, zoom }
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    function onWheel(e: WheelEvent) {
+      e.preventDefault()
+      const rect = el!.getBoundingClientRect()
+      const s = stateRef.current
+
+      if (e.ctrlKey || e.metaKey) {
+        const pointX = e.clientX - rect.left
+        const pointY = e.clientY - rect.top
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
+        const result = zoomAtPoint(s.zoom, s.zoom + delta, pointX, pointY, s.panX, s.panY)
+        setPan(result.panX, result.panY)
+        setZoom(result.zoom)
+      } else {
+        setPan(s.panX - e.deltaX, s.panY - e.deltaY)
+      }
+    }
+
+    function getTouchCenter(t1: Touch, t2: Touch) {
+      return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 }
+    }
+    function getTouchDist(t1: Touch, t2: Touch) {
+      const dx = t1.clientX - t2.clientX
+      const dy = t1.clientY - t2.clientY
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length === 2) {
+        e.preventDefault()
+        const t1 = e.touches[0], t2 = e.touches[1]
+        const s = stateRef.current
+        touchState.current = {
+          startTouches: [
+            { x: t1.clientX, y: t1.clientY },
+            { x: t2.clientX, y: t2.clientY },
+          ],
+          startPanX: s.panX,
+          startPanY: s.panY,
+          startZoom: s.zoom,
+          startDist: getTouchDist(t1, t2),
+        }
+      }
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length === 2 && touchState.current) {
+        e.preventDefault()
+        const ts = touchState.current
+        const t1 = e.touches[0], t2 = e.touches[1]
+        const rect = el!.getBoundingClientRect()
+
+        const startCenter = {
+          x: (ts.startTouches[0].x + ts.startTouches[1].x) / 2,
+          y: (ts.startTouches[0].y + ts.startTouches[1].y) / 2,
+        }
+        const curCenter = getTouchCenter(t1, t2)
+        const curDist = getTouchDist(t1, t2)
+
+        const scale = curDist / ts.startDist
+        const newZoom = clampZoom(ts.startZoom * scale)
+
+        const pointX = startCenter.x - rect.left
+        const pointY = startCenter.y - rect.top
+        const result = zoomAtPoint(ts.startZoom, newZoom, pointX, pointY, ts.startPanX, ts.startPanY)
+
+        const panDx = curCenter.x - startCenter.x
+        const panDy = curCenter.y - startCenter.y
+
+        setPan(result.panX + panDx, result.panY + panDy)
+        setZoom(result.zoom)
+      }
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      if (e.touches.length < 2) {
+        touchState.current = null
+      }
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('touchstart', onTouchStart, { passive: false })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd)
+    return () => {
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [setPan, setZoom])
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault()
@@ -116,7 +207,6 @@ export function BaseCanvas({
         touchAction: 'none',
       }}
       tabIndex={0}
-      onWheel={handleWheel}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

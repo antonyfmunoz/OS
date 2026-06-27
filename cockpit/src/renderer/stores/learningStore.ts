@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { fetchApi } from '../api/client'
 
 interface LessonData {
   id: string
@@ -85,8 +86,6 @@ interface LearningState {
   fetchAll: () => Promise<void>
 }
 
-const API_BASE = '/api'
-
 export const useLearningStore = create<LearningState>((set) => ({
   overview: null,
   lessons: [],
@@ -102,9 +101,7 @@ export const useLearningStore = create<LearningState>((set) => ({
 
   fetchOverview: async () => {
     try {
-      const res = await fetch(`${API_BASE}/learning/overview`)
-      if (!res.ok) throw new Error(`${res.status}`)
-      const data = await res.json()
+      const data = await fetchApi<PortfolioOverview>('/learning/overview')
       set({ overview: data })
     } catch (e) {
       set({ error: `Overview fetch failed: ${e}` })
@@ -113,12 +110,10 @@ export const useLearningStore = create<LearningState>((set) => ({
 
   fetchLessons: async () => {
     try {
-      const [allRes, actionableRes] = await Promise.all([
-        fetch(`${API_BASE}/learning/lessons`),
-        fetch(`${API_BASE}/learning/lessons/actionable`),
+      const [all, actionable] = await Promise.all([
+        fetchApi<{ lessons: LessonData[] }>('/learning/lessons'),
+        fetchApi<{ lessons: LessonData[] }>('/learning/lessons/actionable'),
       ])
-      const all = allRes.ok ? await allRes.json() : { lessons: [] }
-      const actionable = actionableRes.ok ? await actionableRes.json() : { lessons: [] }
       set({ lessons: all.lessons, actionableLessons: actionable.lessons })
     } catch (e) {
       set({ error: `Lessons fetch failed: ${e}` })
@@ -127,9 +122,7 @@ export const useLearningStore = create<LearningState>((set) => ({
 
   fetchPatterns: async () => {
     try {
-      const res = await fetch(`${API_BASE}/learning/patterns`)
-      if (!res.ok) throw new Error(`${res.status}`)
-      const data = await res.json()
+      const data = await fetchApi<{ patterns: PatternData[] }>('/learning/patterns')
       set({ patterns: data.patterns })
     } catch (e) {
       set({ error: `Patterns fetch failed: ${e}` })
@@ -138,9 +131,7 @@ export const useLearningStore = create<LearningState>((set) => ({
 
   fetchEvolution: async () => {
     try {
-      const res = await fetch(`${API_BASE}/learning/evolution`)
-      if (!res.ok) throw new Error(`${res.status}`)
-      const data = await res.json()
+      const data = await fetchApi<{ trajectories: TrajectoryData[] }>('/learning/evolution')
       set({ trajectories: data.trajectories })
     } catch (e) {
       set({ error: `Evolution fetch failed: ${e}` })
@@ -149,9 +140,7 @@ export const useLearningStore = create<LearningState>((set) => ({
 
   fetchDrift: async () => {
     try {
-      const res = await fetch(`${API_BASE}/learning/drift`)
-      if (!res.ok) throw new Error(`${res.status}`)
-      const data = await res.json()
+      const data = await fetchApi<{ warnings: DriftWarning[] }>('/learning/drift')
       set({ driftWarnings: data.warnings })
     } catch (e) {
       set({ error: `Drift fetch failed: ${e}` })
@@ -161,19 +150,13 @@ export const useLearningStore = create<LearningState>((set) => ({
   fetchAll: async () => {
     set({ loading: true, error: null })
     try {
-      const [overviewRes, lessonsRes, patternsRes, evoRes, driftRes] = await Promise.all([
-        fetch(`${API_BASE}/learning/overview`),
-        fetch(`${API_BASE}/learning/lessons`),
-        fetch(`${API_BASE}/learning/patterns`),
-        fetch(`${API_BASE}/learning/evolution`),
-        fetch(`${API_BASE}/learning/drift`),
+      const [overview, lessons, patterns, evo, drift] = await Promise.all([
+        fetchApi<PortfolioOverview>('/learning/overview'),
+        fetchApi<{ lessons: LessonData[] }>('/learning/lessons'),
+        fetchApi<{ patterns: PatternData[] }>('/learning/patterns'),
+        fetchApi<{ trajectories: TrajectoryData[] }>('/learning/evolution'),
+        fetchApi<{ warnings: DriftWarning[] }>('/learning/drift'),
       ])
-
-      const overview = overviewRes.ok ? await overviewRes.json() : null
-      const lessons = lessonsRes.ok ? await lessonsRes.json() : { lessons: [] }
-      const patterns = patternsRes.ok ? await patternsRes.json() : { patterns: [] }
-      const evo = evoRes.ok ? await evoRes.json() : { trajectories: [] }
-      const drift = driftRes.ok ? await driftRes.json() : { warnings: [] }
 
       set({
         overview,

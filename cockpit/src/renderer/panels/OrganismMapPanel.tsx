@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
-import { useOrganismMapStore } from '../stores/organismMapStore'
+import { useOrganismCanvasStore } from '../stores/organismCanvasStore'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { usePolling } from '../hooks/usePolling'
 
 export function OrganismMapPanel() {
-  const topology = useOrganismMapStore((s) => s.topology)
-  const health = useOrganismMapStore((s) => s.health)
-  const selectedNode = useOrganismMapStore((s) => s.selectedNode)
-  const loading = useOrganismMapStore((s) => s.loading)
-  const fetchTopology = useOrganismMapStore((s) => s.fetchTopology)
-  const fetchHealth = useOrganismMapStore((s) => s.fetchHealth)
-  const fetchNodeDetail = useOrganismMapStore((s) => s.fetchNodeDetail)
-  const clearSelection = useOrganismMapStore((s) => s.clearSelection)
+  const topology = useOrganismCanvasStore((s) => s.topology)
+  const health = useOrganismCanvasStore((s) => s.health)
+  const selectedNode = useOrganismCanvasStore((s) => s.nodeDetail)
+  const activeNodeId = useOrganismCanvasStore((s) => s.activeNodeId)
+  const loading = useOrganismCanvasStore((s) => s.loading)
+  const fetchTopology = useOrganismCanvasStore((s) => s.fetchTopology)
+  const fetchHealth = useOrganismCanvasStore((s) => s.fetchHealth)
+  const fetchNodeDetail = useOrganismCanvasStore((s) => s.fetchNodeDetail)
+  const openNode = useOrganismCanvasStore((s) => s.openNode)
+  const clearSelection = useOrganismCanvasStore((s) => s.closeNode)
   const [filter, setFilter] = useState<'all' | 'node' | 'service'>('all')
 
   useEffect(() => {
@@ -59,11 +61,11 @@ export function OrganismMapPanel() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filteredNodes.map((node, i) => {
               const id = (node.id ?? node.node_id ?? node.role ?? `node-${i}`) as string
-              const isSelected = (selectedNode as Record<string, unknown>)?.node && ((selectedNode as Record<string, Record<string, unknown>>)?.node?.node_id === id || (selectedNode as Record<string, Record<string, unknown>>)?.node?.role === id)
+              const isSelected = activeNodeId === id
               return (
                 <button
                   key={id}
-                  onClick={() => fetchNodeDetail(id)}
+                  onClick={() => { openNode(id); fetchNodeDetail(id) }}
                   className={`text-left p-3 rounded-lg border transition-colors ${isSelected ? 'border-accent bg-accent/10' : 'border-border hover:border-accent/50 bg-surface-raised'}`}
                 >
                   <div className="flex items-center gap-2 mb-1">

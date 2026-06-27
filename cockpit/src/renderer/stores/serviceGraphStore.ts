@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchApi } from '../api/client';
 
 interface ServiceNode {
   service_role: string;
@@ -46,9 +47,7 @@ export const useServiceGraphStore = create<ServiceGraphState>((set) => ({
   fetchServices: async () => {
     set({ loading: true, error: null });
     try {
-      const resp = await fetch('/api/umh/service-graph/services');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchApi<{ services?: ServiceNode[] }>('/service-graph/services');
       set({ services: data.services || [], loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });
@@ -58,9 +57,7 @@ export const useServiceGraphStore = create<ServiceGraphState>((set) => ({
   fetchImpact: async (serviceRole: string) => {
     set({ loading: true, error: null });
     try {
-      const resp = await fetch(`/api/umh/service-graph/impact/${serviceRole}`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchApi<FailureImpact>(`/service-graph/impact/${serviceRole}`);
       set({ impact: data, loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });
@@ -70,9 +67,7 @@ export const useServiceGraphStore = create<ServiceGraphState>((set) => ({
   fetchCriticalPath: async () => {
     set({ loading: true, error: null });
     try {
-      const resp = await fetch('/api/umh/service-graph/critical-path');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchApi<{ services?: CriticalPathEntry[] }>('/service-graph/critical-path');
       set({ criticalPath: data.services || [], loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });

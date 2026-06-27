@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { fetchApi } from '../api/client'
 
 interface RealityEntity {
   entity_id: string
@@ -116,8 +117,6 @@ interface RealityGraphState {
   fetchKnowledgeSnapshot: () => Promise<void>
 }
 
-const API = '/api/umh'
-
 export const useRealityGraphStore = create<RealityGraphState>((set) => ({
   summary: null,
   entities: [],
@@ -134,109 +133,118 @@ export const useRealityGraphStore = create<RealityGraphState>((set) => ({
   fetchSummary: async () => {
     set({ loading: true })
     try {
-      const res = await fetch(`${API}/reality-graph/summary`)
-      if (res.ok) set({ summary: await res.json() })
-    } catch { /* ignore */ }
+      const data = await fetchApi<GraphSummary>('/reality-graph/summary')
+      set({ summary: data })
+    } catch (e) {
+      console.debug('fetchSummary failed:', e)
+    }
     set({ loading: false })
   },
 
   fetchEntities: async (entityType?: string) => {
     set({ loading: true })
     try {
-      const url = entityType
-        ? `${API}/reality-graph/entities?entity_type=${entityType}`
-        : `${API}/reality-graph/entities`
-      const res = await fetch(url)
-      if (res.ok) {
-        const data = await res.json()
-        set({ entities: data.entities || [] })
-      }
-    } catch { /* ignore */ }
+      const path = entityType
+        ? `/reality-graph/entities?entity_type=${entityType}`
+        : '/reality-graph/entities'
+      const data = await fetchApi<{ entities: RealityEntity[] }>(path)
+      set({ entities: data.entities || [] })
+    } catch (e) {
+      console.debug('fetchEntities failed:', e)
+    }
     set({ loading: false })
   },
 
   fetchEntity: async (entityId: string) => {
     set({ loading: true })
     try {
-      const res = await fetch(`${API}/reality-graph/entity/${entityId}`)
-      if (res.ok) set({ selectedEntity: await res.json() })
-    } catch { /* ignore */ }
+      const data = await fetchApi<RealityEntity>(`/reality-graph/entity/${entityId}`)
+      set({ selectedEntity: data })
+    } catch (e) {
+      console.debug('fetchEntity failed:', e)
+    }
     set({ loading: false })
   },
 
   fetchNeighbors: async (entityId: string) => {
     try {
-      const res = await fetch(`${API}/reality-graph/neighbors/${entityId}`)
-      if (res.ok) {
-        const data = await res.json()
-        set({ neighbors: data.neighbors || [] })
-      }
-    } catch { /* ignore */ }
+      const data = await fetchApi<{ neighbors: RealityEntity[] }>(`/reality-graph/neighbors/${entityId}`)
+      set({ neighbors: data.neighbors || [] })
+    } catch (e) {
+      console.debug('fetchNeighbors failed:', e)
+    }
   },
 
   resolveContext: async (text: string) => {
     set({ loading: true })
     try {
-      const res = await fetch(`${API}/context-resolution/resolve`, {
+      const data = await fetchApi<ResolvedContext>('/context-resolution/resolve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       })
-      if (res.ok) set({ resolvedContext: await res.json() })
-    } catch { /* ignore */ }
+      set({ resolvedContext: data })
+    } catch (e) {
+      console.debug('resolveContext failed:', e)
+    }
     set({ loading: false })
   },
 
   searchEntities: async (q: string) => {
     set({ loading: true })
     try {
-      const res = await fetch(`${API}/reality-graph/search?q=${encodeURIComponent(q)}`)
-      if (res.ok) {
-        const data = await res.json()
-        set({ entities: data.results || [] })
-      }
-    } catch { /* ignore */ }
+      const data = await fetchApi<{ results: RealityEntity[] }>(`/reality-graph/search?q=${encodeURIComponent(q)}`)
+      set({ entities: data.results || [] })
+    } catch (e) {
+      console.debug('searchEntities failed:', e)
+    }
     set({ loading: false })
   },
 
   fetchArtifacts: async (type?: string) => {
     try {
-      const url = type
-        ? `${API}/artifact-registry/artifacts?artifact_type=${type}`
-        : `${API}/artifact-registry/artifacts`
-      const res = await fetch(url)
-      if (res.ok) {
-        const data = await res.json()
-        set({ artifacts: data.artifacts || [] })
-      }
-    } catch { /* ignore */ }
+      const path = type
+        ? `/artifact-registry/artifacts?artifact_type=${type}`
+        : '/artifact-registry/artifacts'
+      const data = await fetchApi<{ artifacts: ArtifactEntry[] }>(path)
+      set({ artifacts: data.artifacts || [] })
+    } catch (e) {
+      console.debug('fetchArtifacts failed:', e)
+    }
   },
 
   fetchRepoSnapshot: async () => {
     try {
-      const res = await fetch(`${API}/repository-awareness/snapshot`)
-      if (res.ok) set({ repoSnapshot: await res.json() })
-    } catch { /* ignore */ }
+      const data = await fetchApi<RepositorySnapshot>('/repository-awareness/snapshot')
+      set({ repoSnapshot: data })
+    } catch (e) {
+      console.debug('fetchRepoSnapshot failed:', e)
+    }
   },
 
   fetchDocsSnapshot: async () => {
     try {
-      const res = await fetch(`${API}/documentation-awareness/snapshot`)
-      if (res.ok) set({ docsSnapshot: await res.json() })
-    } catch { /* ignore */ }
+      const data = await fetchApi<DocumentationSnapshot>('/documentation-awareness/snapshot')
+      set({ docsSnapshot: data })
+    } catch (e) {
+      console.debug('fetchDocsSnapshot failed:', e)
+    }
   },
 
   fetchRuntimeSnapshot: async () => {
     try {
-      const res = await fetch(`${API}/runtime-awareness/snapshot`)
-      if (res.ok) set({ runtimeSnapshot: await res.json() })
-    } catch { /* ignore */ }
+      const data = await fetchApi<RuntimeAwarenessSnapshot>('/runtime-awareness/snapshot')
+      set({ runtimeSnapshot: data })
+    } catch (e) {
+      console.debug('fetchRuntimeSnapshot failed:', e)
+    }
   },
 
   fetchKnowledgeSnapshot: async () => {
     try {
-      const res = await fetch(`${API}/knowledge-awareness/snapshot`)
-      if (res.ok) set({ knowledgeSnapshot: await res.json() })
-    } catch { /* ignore */ }
+      const data = await fetchApi<KnowledgeSnapshot>('/knowledge-awareness/snapshot')
+      set({ knowledgeSnapshot: data })
+    } catch (e) {
+      console.debug('fetchKnowledgeSnapshot failed:', e)
+    }
   },
 }))

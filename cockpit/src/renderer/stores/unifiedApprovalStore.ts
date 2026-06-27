@@ -1,11 +1,42 @@
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
 
+export interface UnifiedApproval {
+  id: string
+  approval_id?: string
+  description: string
+  title?: string
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  agent: string
+  source_type: string
+  created_at: string
+  status: 'pending' | 'approved' | 'denied' | 'rejected'
+  operation?: string
+  details?: Record<string, unknown>
+  urgency?: number
+}
+
+export interface ApprovalSnapshot {
+  total_pending: number
+  total_approved: number
+  total_denied: number
+  by_source: Record<string, number>
+}
+
+export interface ApprovalDecision {
+  approval_id: string
+  decision: 'approved' | 'rejected'
+  decided_by: string
+  decided_at: string
+  source_type: string
+  reason?: string
+}
+
 interface UnifiedApprovalState {
-  pending: Record<string, unknown>[]
-  byUrgency: Record<string, unknown>[]
-  snapshot: Record<string, unknown> | null
-  decisions: Record<string, unknown>[]
+  pending: UnifiedApproval[]
+  byUrgency: UnifiedApproval[]
+  snapshot: ApprovalSnapshot | null
+  decisions: ApprovalDecision[]
   loading: boolean
 
   fetchPending: (sourceType?: string) => Promise<void>
@@ -27,7 +58,7 @@ export const useUnifiedApprovalStore = create<UnifiedApprovalState>((set, get) =
     set({ loading: true })
     try {
       const q = sourceType ? `?source_type=${sourceType}` : ''
-      const data = await fetchApi<Record<string, unknown>[]>(`/unified-approval/pending${q}`)
+      const data = await fetchApi<UnifiedApproval[]>(`/unified-approval/pending${q}`)
       set({ pending: data, loading: false })
     } catch {
       set({ loading: false })
@@ -36,7 +67,7 @@ export const useUnifiedApprovalStore = create<UnifiedApprovalState>((set, get) =
 
   fetchByUrgency: async (limit = 10) => {
     try {
-      const data = await fetchApi<Record<string, unknown>[]>(`/unified-approval/by-urgency?limit=${limit}`)
+      const data = await fetchApi<UnifiedApproval[]>(`/unified-approval/by-urgency?limit=${limit}`)
       set({ byUrgency: data })
     } catch {
       set({ byUrgency: [] })
@@ -45,7 +76,7 @@ export const useUnifiedApprovalStore = create<UnifiedApprovalState>((set, get) =
 
   fetchSnapshot: async () => {
     try {
-      const data = await fetchApi<Record<string, unknown>>('/unified-approval/snapshot')
+      const data = await fetchApi<ApprovalSnapshot>('/unified-approval/snapshot')
       set({ snapshot: data })
     } catch {
       set({ snapshot: null })
@@ -54,7 +85,7 @@ export const useUnifiedApprovalStore = create<UnifiedApprovalState>((set, get) =
 
   fetchDecisions: async (limit = 20) => {
     try {
-      const data = await fetchApi<Record<string, unknown>[]>(`/unified-approval/decisions?limit=${limit}`)
+      const data = await fetchApi<ApprovalDecision[]>(`/unified-approval/decisions?limit=${limit}`)
       set({ decisions: data })
     } catch {
       set({ decisions: [] })

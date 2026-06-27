@@ -1,14 +1,20 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type ReactNode } from 'react'
 import { BaseCanvas } from './BaseCanvas'
 import { CanvasWindow } from './CanvasWindow'
 import { CanvasToolbar } from './CanvasToolbar'
-import { CanvasPalette } from './CanvasPalette'
 import { CanvasContextMenu } from './CanvasContextMenu'
 import { useCanvasStore } from '../../stores/canvasStore'
-import { zoomAtPoint, clampZoom } from '../../utils/canvasCoords'
+import { clampZoom } from '../../utils/canvasCoords'
 import type { CanvasWindow as CanvasWindowType } from '../../stores/canvasStore'
+import type { CanvasMode } from '../../stores/unifiedCanvasStore'
 
-export function CanvasWorkspace() {
+interface CanvasWorkspaceProps {
+  palette?: ReactNode
+  mode?: CanvasMode
+  onSetMode?: (mode: CanvasMode) => void
+}
+
+export function CanvasWorkspace({ palette, mode, onSetMode }: CanvasWorkspaceProps) {
   const windows = useCanvasStore((s) => s.windows)
   const panX = useCanvasStore((s) => s.panX)
   const panY = useCanvasStore((s) => s.panY)
@@ -21,8 +27,11 @@ export function CanvasWorkspace() {
   const clearAll = useCanvasStore((s) => s.clearAll)
   const pauseAll = useCanvasStore((s) => s.pauseAll)
   const resumeAll = useCanvasStore((s) => s.resumeAll)
+  const createCluster = useCanvasStore((s) => s.createCluster)
+  const dissolveCluster = useCanvasStore((s) => s.dissolveCluster)
+  const removeFromCluster = useCanvasStore((s) => s.removeFromCluster)
 
-  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; canvasX: number; canvasY: number } | null>(null)
 
   const handleContextMenu = useCallback(
@@ -40,6 +49,15 @@ export function CanvasWorkspace() {
     [addWindow],
   )
 
+  const handleSelectWindow = useCallback((windowId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(windowId)) next.delete(windowId)
+      else next.add(windowId)
+      return next
+    })
+  }, [])
+
   const handleAction = useCallback(
     (action: string) => {
       switch (action) {
@@ -48,10 +66,27 @@ export function CanvasWorkspace() {
         case 'pauseAll': pauseAll(); break
         case 'resumeAll': resumeAll(); break
         case 'clearAll': clearAll(); break
+        case 'createCluster':
+          if (selectedIds.size >= 2) {
+            createCluster('Cluster', Array.from(selectedIds))
+            setSelectedIds(new Set())
+          }
+          break
+        case 'removeFromCluster': {
+          selectedIds.forEach((id) => removeFromCluster(id))
+          setSelectedIds(new Set())
+          break
+        }
+        case 'dissolveCluster': {
+          const win = windows.find((w) => selectedIds.has(w.id) && w.clusterId)
+          if (win?.clusterId) dissolveCluster(win.clusterId)
+          setSelectedIds(new Set())
+          break
+        }
       }
       setCtxMenu(null)
     },
-    [tileWindows, fitAll, pauseAll, resumeAll, clearAll],
+    [tileWindows, fitAll, pauseAll, resumeAll, clearAll, createCluster, dissolveCluster, removeFromCluster, selectedIds, windows],
   )
 
   const handleZoomIn = useCallback(() => setZoom(clampZoom(zoom + 0.1)), [zoom, setZoom])
@@ -78,20 +113,16 @@ export function CanvasWorkspace() {
             onZoomReset={handleZoomReset}
             onFitAll={fitAll}
             onTile={tileWindows}
-            onTogglePalette={() => setPaletteOpen((o) => !o)}
-            paletteOpen={paletteOpen}
+            onTogglePalette={() => {}}
+            paletteOpen={false}
+            mode={mode}
+            onSetMode={onSetMode}
           />
         }
-        palette={
-          <CanvasPalette
-            open={paletteOpen}
-            onToggle={() => setPaletteOpen((o) => !o)}
-            onAddWindow={handleAddWindow}
-          />
-        }
+        palette={palette}
       >
         {windows.map((w) => (
-          <CanvasWindow key={w.id} windowId={w.id} zoom={zoom} />
+          <CanvasWindow key={w.id} windowId={w.id} zoom={zoom} selected={selectedIds.has(w.id)} onSelect={handleSelectWindow} />
         ))}
       </BaseCanvas>
 
@@ -102,6 +133,12 @@ export function CanvasWorkspace() {
         onClose={() => setCtxMenu(null)}
         onAddWindow={handleAddWindow}
         onAction={handleAction}
+        selectedCount={selectedIds.size}
+        targetClusterId={(() => {
+          const sel = Array.from(selectedIds)
+          const win = windows.find((w) => sel.includes(w.id) && w.clusterId)
+          return win?.clusterId ?? null
+        })()}
       />
     </>
   )

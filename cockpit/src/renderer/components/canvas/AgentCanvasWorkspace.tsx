@@ -1,13 +1,21 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, type ReactNode } from 'react'
+import { Bot, Eye } from 'lucide-react'
 import { BaseCanvas } from './BaseCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { CanvasContextMenu } from './CanvasContextMenu'
 import { useAgentCanvasStore } from '../../stores/agentCanvasStore'
 import { useAgentStore } from '../../stores/agentStore'
-import { zoomAtPoint, clampZoom } from '../../utils/canvasCoords'
+import { clampZoom } from '../../utils/canvasCoords'
 import { AgentCanvasNode } from './AgentCanvasNode'
+import type { CanvasMode } from '../../stores/unifiedCanvasStore'
 
-export function AgentCanvasWorkspace() {
+interface AgentCanvasWorkspaceProps {
+  palette?: ReactNode
+  mode?: CanvasMode
+  onSetMode?: (mode: CanvasMode) => void
+}
+
+export function AgentCanvasWorkspace({ palette, mode, onSetMode }: AgentCanvasWorkspaceProps) {
   const nodes = useAgentCanvasStore((s) => s.nodes)
   const panX = useAgentCanvasStore((s) => s.panX)
   const panY = useAgentCanvasStore((s) => s.panY)
@@ -61,6 +69,8 @@ export function AgentCanvasWorkspace() {
     setPan(0, 0)
   }, [setZoom, setPan])
 
+  const hasDismissed = useAgentCanvasStore((s) => s.dismissedAgentIds.length > 0)
+
   return (
     <>
       <BaseCanvas
@@ -70,6 +80,7 @@ export function AgentCanvasWorkspace() {
         setPan={setPan}
         setZoom={setZoom}
         onContextMenu={handleContextMenu}
+        palette={palette}
         toolbar={
           <CanvasToolbar
             zoom={zoom}
@@ -80,6 +91,29 @@ export function AgentCanvasWorkspace() {
             onTile={tileNodes}
             onTogglePalette={() => {}}
             paletteOpen={false}
+            mode={mode}
+            onSetMode={onSetMode}
+            extraButtons={
+              hasDismissed ? (
+                <button
+                  onClick={showAll}
+                  title="Show all dismissed agents"
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px]"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = 'var(--color-text-primary)'
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = 'var(--color-text-secondary)'
+                    e.currentTarget.style.background = 'transparent'
+                  }}
+                >
+                  <Eye size={12} />
+                  Show All
+                </button>
+              ) : undefined
+            }
           />
         }
       >
@@ -92,6 +126,41 @@ export function AgentCanvasWorkspace() {
           />
         ))}
       </BaseCanvas>
+
+      {nodes.length === 0 && (
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        >
+          <Bot size={32} />
+          <span className="text-[13px]">
+            {agents.length === 0 ? 'No agents registered' : 'All agents hidden'}
+          </span>
+          {agents.length === 0 && (
+            <span className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+              Agents appear automatically when registered via the API
+            </span>
+          )}
+          {hasDismissed && (
+            <button
+              onClick={showAll}
+              className="pointer-events-auto text-[12px] px-3 py-1.5 rounded"
+              style={{
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-surface-overlay)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              Show All Agents
+            </button>
+          )}
+        </div>
+      )}
 
       {ctxMenu && (
         <CanvasContextMenu
