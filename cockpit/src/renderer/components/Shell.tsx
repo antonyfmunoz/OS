@@ -39,6 +39,7 @@ import PropagationGraphPanel from '../panels/PropagationGraphPanel'
 import { OperatorPanel } from '../panels/OperatorPanel'
 import { RuntimePanel } from '../panels/RuntimePanel'
 import { TmuxPanel } from '../panels/TmuxPanel'
+import { BrowserPanel } from '../panels/BrowserPanel'
 import { WorkspacePanel } from '../panels/WorkspacePanel'
 import { WorkPanel } from '../panels/WorkPanel'
 import { CommandCenterPanel } from '../panels/CommandCenterPanel'
@@ -157,6 +158,8 @@ function ActivePanel() {
       return <RuntimePanel />
     case 'tmux':
       return <TmuxPanel />
+    case 'browser':
+      return <BrowserPanel />
     case 'work':
       return <WorkPanel />
     case 'workspace':

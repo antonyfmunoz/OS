@@ -12,6 +12,7 @@ const PANEL_KEYS: Record<string, Panel> = {
   '8': 'settings',
   '9': 'activity',
   '0': 'execution',
+  '6': 'browser',
 }
 
 export function useKeyboard(): void {
