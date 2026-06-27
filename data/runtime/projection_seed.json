@@ -3,7 +3,7 @@
     "projection_id": "umh",
     "name": "UMH Platform",
     "preview_url": "https://universalmetaharness.tech",
-    "health_url": "https://universalmetaharness.tech/api/umh/health"
+    "health_url": "https://universalmetaharness.tech/api/umh/pulse"
   },
   {
     "projection_id": "creatoros",
