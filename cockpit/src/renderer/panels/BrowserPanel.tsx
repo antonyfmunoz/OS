@@ -8,6 +8,11 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { useBrowserStream } from '../hooks/useBrowserStream'
+import {
+  ViewportSelector,
+  VIEWPORT_PRESETS,
+  type ViewportPreset,
+} from '../components/ViewportSelector'
 
 function getModifiers(e: React.KeyboardEvent | React.MouseEvent): number {
   let m = 0
@@ -53,7 +58,12 @@ export function BrowserPanel() {
   const [urlInput, setUrlInput] = useState('')
   const [urlFocused, setUrlFocused] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
+  const [deviceMode, setDeviceMode] = useState<ViewportPreset>('responsive')
   const viewportRef = useRef<HTMLDivElement>(null)
+  const interactRef = useRef<HTMLDivElement>(null)
+
+  const isFixedDevice = deviceMode !== 'responsive'
+  const deviceConfig = VIEWPORT_PRESETS[deviceMode]
 
   useEffect(() => {
     if (!urlFocused) {
@@ -63,6 +73,7 @@ export function BrowserPanel() {
 
   useEffect(() => {
     if (!viewportRef.current) return
+    if (isFixedDevice) return
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect
@@ -73,11 +84,27 @@ export function BrowserPanel() {
     })
     observer.observe(viewportRef.current)
     return () => observer.disconnect()
-  }, [resize])
+  }, [resize, isFixedDevice])
+
+  const handleDeviceChange = useCallback(
+    (preset: ViewportPreset) => {
+      setDeviceMode(preset)
+      const cfg = VIEWPORT_PRESETS[preset]
+      if (preset !== 'responsive' && cfg.width > 0 && cfg.height > 0) {
+        resize(cfg.width, cfg.height)
+      } else if (preset === 'responsive' && viewportRef.current) {
+        const rect = viewportRef.current.getBoundingClientRect()
+        if (rect.width > 0 && rect.height > 0) {
+          resize(Math.round(rect.width), Math.round(rect.height))
+        }
+      }
+    },
+    [resize]
+  )
 
   const scaleCoords = useCallback(
     (e: React.MouseEvent): { x: number; y: number } => {
-      const rect = viewportRef.current?.getBoundingClientRect()
+      const rect = interactRef.current?.getBoundingClientRect()
       if (!rect) return { x: 0, y: 0 }
       return {
         x: Math.round(((e.clientX - rect.left) / rect.width) * viewportWidth),
@@ -92,7 +119,7 @@ export function BrowserPanel() {
       e.preventDefault()
       if (urlInput.trim()) {
         navigate(urlInput.trim())
-        viewportRef.current?.focus()
+        interactRef.current?.focus()
       }
     },
     [urlInput, navigate]
@@ -108,6 +135,7 @@ export function BrowserPanel() {
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
+      interactRef.current?.focus()
       const { x, y } = scaleCoords(e)
       sendMouse('mousePressed', x, y, {
         button: mouseButton(e),
@@ -162,7 +190,7 @@ export function BrowserPanel() {
   }, [])
 
   const handleViewportClick = useCallback(() => {
-    viewportRef.current?.focus()
+    interactRef.current?.focus()
   }, [])
 
   const btnStyle = {
@@ -235,6 +263,9 @@ export function BrowserPanel() {
           />
         </form>
 
+        {/* Device viewport selector */}
+        <ViewportSelector value={deviceMode} onChange={handleDeviceChange} />
+
         {/* Reconnect + Fullscreen */}
         <button
           onClick={reconnect}
@@ -267,34 +298,61 @@ export function BrowserPanel() {
       {/* Viewport */}
       <div
         ref={viewportRef}
-        tabIndex={0}
-        className="flex-1 relative outline-none overflow-hidden"
+        className="flex-1 relative outline-none overflow-hidden flex items-center justify-center"
         style={{ cursor: connected ? 'default' : 'not-allowed' }}
-        onClick={handleViewportClick}
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onWheel={handleWheel}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onContextMenu={handleContextMenu}
       >
-        {frameUrl ? (
-          <img
-            src={frameUrl}
-            alt=""
-            className="absolute inset-0 w-full h-full"
-            style={{ objectFit: 'contain', pointerEvents: 'none' }}
-            draggable={false}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <span
-              className="text-[13px]"
-              style={{ color: 'var(--color-text-tertiary)' }}
-            >
-              {connected ? 'Waiting for frames...' : 'Connecting...'}
-            </span>
+        <div
+          ref={interactRef}
+          tabIndex={0}
+          className="relative focus:ring-1 focus:ring-blue-500/50 outline-none"
+          style={
+            isFixedDevice
+              ? {
+                  width: deviceConfig.width,
+                  height: deviceConfig.height,
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: deviceMode === 'mobile' ? 16 : deviceMode === 'tablet' ? 8 : 0,
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+                }
+              : { width: '100%', height: '100%' }
+          }
+          onClick={handleViewportClick}
+          onMouseMove={handleMouseMove}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onWheel={handleWheel}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onContextMenu={handleContextMenu}
+        >
+          {frameUrl ? (
+            <img
+              src={frameUrl}
+              alt=""
+              className="absolute inset-0 w-full h-full"
+              style={{ objectFit: isFixedDevice ? 'fill' : 'contain', pointerEvents: 'none' }}
+              draggable={false}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <span
+                className="text-[13px]"
+                style={{ color: 'var(--color-text-tertiary)' }}
+              >
+                {connected ? 'Waiting for frames...' : 'Connecting...'}
+              </span>
+            </div>
+          )}
+        </div>
+        {isFixedDevice && (
+          <div
+            className="absolute bottom-2 text-[10px]"
+            style={{ color: 'var(--color-text-tertiary)' }}
+          >
+            {deviceConfig.width}×{deviceConfig.height}
           </div>
         )}
       </div>
