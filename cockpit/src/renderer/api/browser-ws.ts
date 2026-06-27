@@ -1,7 +1,10 @@
 import { WsClient } from './websocket'
 
-function getBrowserUrl(): string {
-  if (import.meta.env.VITE_BROWSER_URL) return import.meta.env.VITE_BROWSER_URL as string
+function getBrowserUrl(paneId: string): string {
+  if (import.meta.env.VITE_BROWSER_URL) {
+    const base = import.meta.env.VITE_BROWSER_URL as string
+    return `${base}${base.includes('?') ? '&' : '?'}pane=${paneId}`
+  }
 
   const isLocalhost =
     window.location.hostname === 'localhost' ||
@@ -9,11 +12,11 @@ function getBrowserUrl(): string {
   const isElectron = Boolean((window as Record<string, unknown>).cockpit)
 
   if (isElectron || isLocalhost) {
-    return 'ws://localhost:8086/browser'
+    return `ws://localhost:8086/browser?pane=${paneId}`
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/api/umh/browser/ws`
+  return `${protocol}//${window.location.host}/api/umh/browser/ws?pane=${paneId}`
 }
 
 function getBrowserProtocols(): string[] {
@@ -32,6 +35,7 @@ export type BrowserEventHandler = (data: Record<string, unknown>) => void
 
 export class BrowserWsClient {
   private ws: WsClient
+  private _paneId: string
   private _prevBlobUrl: string | null = null
   private _latestFrameUrl: string | null = null
   private _frameCount = 0
@@ -40,8 +44,9 @@ export class BrowserWsClient {
   private _rafId: number | null = null
   private _frameHandlers: ((event: BrowserFrameEvent) => void)[] = []
 
-  constructor() {
-    const url = getBrowserUrl()
+  constructor(paneId: string) {
+    this._paneId = paneId
+    const url = getBrowserUrl(paneId)
     this.ws = new WsClient(url, getBrowserProtocols())
     this.ws.onBinary((buf) => this._enqueueFrame(buf))
   }
@@ -58,7 +63,7 @@ export class BrowserWsClient {
   reconnect(): void {
     this.ws.disconnect()
     setTimeout(() => {
-      const url = getBrowserUrl()
+      const url = getBrowserUrl(this._paneId)
       this.ws = new WsClient(url, getBrowserProtocols())
       this.ws.onBinary((buf) => this._enqueueFrame(buf))
       this.ws.connect()

@@ -166,8 +166,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.40"
-          memory: 768M
+          cpus: "0.50"
+          memory: 1280M
 
   os-operator:
     build: .
