@@ -11,6 +11,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.cockpit_audit import emit_mutation_audit
+
 logger = logging.getLogger(__name__)
 
 execution_loop_router: APIRouter = APIRouter()
@@ -73,6 +75,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         """Start a persistent loop."""
         try:
             ok = _get_loop_registry().start(loop_name)
+            if ok:
+                emit_mutation_audit("loops", "start", loop_name)
+                from transports.api.cockpit_core_routes import push_mutation_event
+
+                if push_mutation_event is not None:
+                    push_mutation_event("loops", "started", {"name": loop_name})
             return {"started": ok, "loop": loop_name}
         except Exception as e:
             return {"error": str(e)}
@@ -82,6 +90,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         """Stop a persistent loop."""
         try:
             ok = _get_loop_registry().stop(loop_name)
+            if ok:
+                emit_mutation_audit("loops", "stop", loop_name)
+                from transports.api.cockpit_core_routes import push_mutation_event
+
+                if push_mutation_event is not None:
+                    push_mutation_event("loops", "stopped", {"name": loop_name})
             return {"stopped": ok, "loop": loop_name}
         except Exception as e:
             return {"error": str(e)}
@@ -125,6 +139,16 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             )
             registry.register_definition(defn)
             registry.save_definitions()
+            emit_mutation_audit(
+                "loops",
+                "create",
+                defn.name,
+                new_value=defn.to_dict(),
+            )
+            from transports.api.cockpit_core_routes import push_mutation_event
+
+            if push_mutation_event is not None:
+                push_mutation_event("loops", "created", {"name": defn.name})
             return {"created": defn.name, "definition": defn.to_dict()}
         except Exception as e:
             return {"error": str(e)}
@@ -137,6 +161,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             ok = registry.remove(loop_name)
             if ok:
                 registry.save_definitions()
+                emit_mutation_audit("loops", "delete", loop_name)
+                from transports.api.cockpit_core_routes import push_mutation_event
+
+                if push_mutation_event is not None:
+                    push_mutation_event("loops", "deleted", {"name": loop_name})
             return {"removed": ok, "loop": loop_name}
         except Exception as e:
             return {"error": str(e)}
@@ -325,6 +354,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             logger.debug("execution routing failed: %s", exc)
             routing_result["error"] = f"UNAVAILABLE: {exc}"
 
+        if ok:
+            emit_mutation_audit(
+                "execution",
+                "start",
+                packet_id,
+                new_value=routing_result,
+            )
+
         return {
             "ok": ok,
             "packet_id": packet_id,
@@ -346,6 +383,8 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         ok = wpe.update_packet_status(
             packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator"
         )
+        if ok:
+            emit_mutation_audit("execution", "stop", packet_id)
         return {
             "ok": ok,
             "packet_id": packet_id,

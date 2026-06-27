@@ -5,6 +5,7 @@
  */
 
 import { create } from 'zustand';
+import { fetchApi } from '../api/client';
 
 interface WorkspaceTopology {
   graph_id: string;
@@ -57,8 +58,6 @@ interface WorkspaceTopologyState {
   fetchWorkspace: (id: string) => Promise<WorkspaceEntry | null>;
 }
 
-const API_BASE = '/api/umh/workspace-topology';
-
 export const useWorkspaceTopologyStore = create<WorkspaceTopologyState>((set) => ({
   topology: null,
   loading: false,
@@ -67,9 +66,7 @@ export const useWorkspaceTopologyStore = create<WorkspaceTopologyState>((set) =>
   fetchTopology: async () => {
     set({ loading: true, error: null });
     try {
-      const res = await fetch(API_BASE);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await fetchApi<WorkspaceTopology>('/workspace-topology');
       set({ topology: data, loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });
@@ -78,9 +75,7 @@ export const useWorkspaceTopologyStore = create<WorkspaceTopologyState>((set) =>
 
   fetchWorkspace: async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/${id}`);
-      if (!res.ok) return null;
-      return await res.json();
+      return await fetchApi<WorkspaceEntry>(`/workspace-topology/${id}`);
     } catch {
       return null;
     }

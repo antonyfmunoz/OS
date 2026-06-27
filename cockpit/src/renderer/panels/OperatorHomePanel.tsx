@@ -130,7 +130,8 @@ const SectionHeader: React.FC<{ title: string; count?: number }> = ({ title, cou
 );
 
 export const OperatorHomePanel: React.FC = () => {
-  const { snapshot, attention, timeline, loading, error, fetchHome } = useOperatorHomeStore();
+  const { snapshot, attention, loading, error, fetchHome } = useOperatorHomeStore();
+  const timeline = snapshot?.timeline ?? [];
 
   useEffect(() => {
     fetchHome();

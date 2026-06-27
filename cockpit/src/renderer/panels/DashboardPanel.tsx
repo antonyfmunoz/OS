@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { fetchApi } from '../api/client'
 import { useSystemStore } from '../stores/systemStore'
-import { useApprovalStore } from '../stores/approvalStore'
+import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
 import { useOrganismStore } from '../stores/organismStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
@@ -19,9 +19,9 @@ export function DashboardPanel() {
   const fetchMeshNodes = useSystemStore((s) => s.fetchMeshNodes)
   const fetchModels = useSystemStore((s) => s.fetchModels)
   const fetchInfra = useSystemStore((s) => s.fetchInfra)
-  const approvals = useApprovalStore((s) => s.approvals)
-  const approve = useApprovalStore((s) => s.approve)
-  const deny = useApprovalStore((s) => s.deny)
+  const approvals = useUnifiedApprovalStore((s) => s.pending)
+  const unifiedApprove = useUnifiedApprovalStore((s) => s.approve)
+  const unifiedReject = useUnifiedApprovalStore((s) => s.reject)
   const setApiStatus = useCockpitStore((s) => s.setApiStatus)
 
   const spine = useOrganismStore((s) => s.spine)
@@ -246,10 +246,10 @@ export function DashboardPanel() {
                     </div>
                     <div className="flex items-center mt-2 gap-2">
                       <span className="text-[10px] text-text-tertiary flex-1">{a.agent} · {relativeTime(a.created_at)}</span>
-                      <button onClick={() => approve(a.id)} className="px-2 py-1 text-[10px] font-mono rounded bg-ok/10 text-ok border border-ok/30">
+                      <button onClick={() => unifiedApprove(a.id, a.source_type ?? 'governance', 'operator')} className="px-2 py-1 text-[10px] font-mono rounded bg-ok/10 text-ok border border-ok/30">
                         approve
                       </button>
-                      <button onClick={() => deny(a.id)} className="px-2 py-1 text-[10px] font-mono rounded bg-danger/10 text-danger border border-danger/30">
+                      <button onClick={() => unifiedReject(a.id, a.source_type ?? 'governance', '', 'operator')} className="px-2 py-1 text-[10px] font-mono rounded bg-danger/10 text-danger border border-danger/30">
                         deny
                       </button>
                     </div>

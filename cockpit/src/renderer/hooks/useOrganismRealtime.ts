@@ -7,6 +7,10 @@ import { useActivityStore } from '../stores/activityStore'
 import { useConfigStore } from '../stores/configStore'
 import { useChatStore } from '../stores/chatStore'
 import { useRoomsStore } from '../stores/roomsStore'
+import { useSettingsStore } from '../stores/settingsStore'
+import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
+import { useUnifiedExecutionStore } from '../stores/unifiedExecutionStore'
+import { useBuildLoopStore } from '../stores/buildLoopStore'
 import { useBootstrapStore } from '../stores/bootstrapStore'
 import { getWsToken, getClerkToken } from '../api/client'
 
@@ -175,7 +179,26 @@ export function useOrganismRealtime(): void {
           })
         }
 
-        const nonRoom = organismEvents.filter((e) => e.type !== 'room_event')
+        const mutationEvents = organismEvents.filter((e) => e.type === 'mutation_event')
+        for (const me of mutationEvents) {
+          const domain = me.domain as string
+          switch (domain) {
+            case 'settings':
+              useSettingsStore.getState().fetchSettings()
+              break
+            case 'loops':
+              useBuildLoopStore.getState().fetchStatus()
+              break
+            case 'approvals':
+              useUnifiedApprovalStore.getState().fetchPending()
+              break
+            case 'execution':
+              useUnifiedExecutionStore.getState().fetchSnapshot()
+              break
+          }
+        }
+
+        const nonRoom = organismEvents.filter((e) => e.type !== 'room_event' && e.type !== 'mutation_event')
         const parsed: OrganismEvent[] = nonRoom.map((e) => ({
           event_id: (e.event_id as string) ?? '',
           domain: (e.domain as string) ?? 'unknown',

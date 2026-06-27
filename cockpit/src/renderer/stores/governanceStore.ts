@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import { fetchApi } from '../api/client'
 
-/* ── Interfaces ─────────────────────────────────────────────────── */
+/* -- Interfaces --------------------------------------------------------- */
 
 interface SubsystemConflict {
   conflict_id: string
@@ -78,7 +79,7 @@ interface InstitutionalMemorySnapshot {
   generated_at: number
 }
 
-/* ── Store ───────────────────────────────────────────────────────── */
+/* -- Store -------------------------------------------------------------- */
 
 interface GovernanceStore {
   overview: OrganismOverview | null
@@ -98,8 +99,6 @@ interface GovernanceStore {
   fetchAll: () => Promise<void>
 }
 
-const API_BASE = '/api'
-
 export const useGovernanceStore = create<GovernanceStore>((set) => ({
   overview: null,
   conflicts: [],
@@ -113,8 +112,7 @@ export const useGovernanceStore = create<GovernanceStore>((set) => ({
   fetchOverview: async () => {
     try {
       set({ loading: true, error: null })
-      const res = await fetch(`${API_BASE}/governance/overview`)
-      const data = await res.json()
+      const data = await fetchApi<OrganismOverview>('/governance/overview')
       set({ overview: data, loading: false })
     } catch (e) {
       set({ error: String(e), loading: false })
@@ -123,8 +121,7 @@ export const useGovernanceStore = create<GovernanceStore>((set) => ({
 
   fetchConflicts: async () => {
     try {
-      const res = await fetch(`${API_BASE}/governance/conflicts`)
-      const data = await res.json()
+      const data = await fetchApi<{ conflicts: SubsystemConflict[] }>('/governance/conflicts')
       set({ conflicts: data.conflicts || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -133,8 +130,7 @@ export const useGovernanceStore = create<GovernanceStore>((set) => ({
 
   fetchPolicies: async () => {
     try {
-      const res = await fetch(`${API_BASE}/governance/policies`)
-      const data = await res.json()
+      const data = await fetchApi<{ policies: GovernancePolicy[] }>('/governance/policies')
       set({ policies: data.policies || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -143,8 +139,7 @@ export const useGovernanceStore = create<GovernanceStore>((set) => ({
 
   fetchCoordination: async () => {
     try {
-      const res = await fetch(`${API_BASE}/governance/coordination`)
-      const data = await res.json()
+      const data = await fetchApi<CoordinationSnapshot>('/governance/coordination')
       set({ coordination: data })
     } catch (e) {
       set({ error: String(e) })
@@ -153,8 +148,7 @@ export const useGovernanceStore = create<GovernanceStore>((set) => ({
 
   fetchInstitutionalMemory: async () => {
     try {
-      const res = await fetch(`${API_BASE}/governance/institutional-memory`)
-      const data = await res.json()
+      const data = await fetchApi<InstitutionalMemorySnapshot>('/governance/institutional-memory')
       set({ institutionalMemory: data })
     } catch (e) {
       set({ error: String(e) })
@@ -163,8 +157,7 @@ export const useGovernanceStore = create<GovernanceStore>((set) => ({
 
   fetchDrift: async () => {
     try {
-      const res = await fetch(`${API_BASE}/governance/drift`)
-      const data = await res.json()
+      const data = await fetchApi<{ drift_warnings: OrganismDriftWarning[] }>('/governance/drift')
       set({ drift: data.drift_warnings || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -174,24 +167,21 @@ export const useGovernanceStore = create<GovernanceStore>((set) => ({
   fetchAll: async () => {
     set({ loading: true, error: null })
     try {
-      const [r1, r2, r3, r4, r5, r6] = await Promise.all([
-        fetch(`${API_BASE}/governance/overview`),
-        fetch(`${API_BASE}/governance/conflicts`),
-        fetch(`${API_BASE}/governance/policies`),
-        fetch(`${API_BASE}/governance/coordination`),
-        fetch(`${API_BASE}/governance/institutional-memory`),
-        fetch(`${API_BASE}/governance/drift`),
-      ])
-      const [d1, d2, d3, d4, d5, d6] = await Promise.all([
-        r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(),
+      const [overview, conflicts, policies, coordination, memory, drift] = await Promise.all([
+        fetchApi<OrganismOverview>('/governance/overview'),
+        fetchApi<{ conflicts: SubsystemConflict[] }>('/governance/conflicts'),
+        fetchApi<{ policies: GovernancePolicy[] }>('/governance/policies'),
+        fetchApi<CoordinationSnapshot>('/governance/coordination'),
+        fetchApi<InstitutionalMemorySnapshot>('/governance/institutional-memory'),
+        fetchApi<{ drift_warnings: OrganismDriftWarning[] }>('/governance/drift'),
       ])
       set({
-        overview: d1,
-        conflicts: d2.conflicts || [],
-        policies: d3.policies || [],
-        coordination: d4,
-        institutionalMemory: d5,
-        drift: d6.drift_warnings || [],
+        overview,
+        conflicts: conflicts.conflicts || [],
+        policies: policies.policies || [],
+        coordination,
+        institutionalMemory: memory,
+        drift: drift.drift_warnings || [],
         loading: false,
       })
     } catch (e) {
