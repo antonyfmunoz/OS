@@ -30,6 +30,7 @@ export type Panel =
   | 'operator'
   | 'runtime'
   | 'tmux'
+  | 'browser'
   | 'workspace'
   | 'commandcenter'
   | 'work'
