@@ -288,6 +288,18 @@ async def _handle_key(msg: dict[str, Any]) -> None:
         log.debug("key dispatch error: %s", exc)
 
 
+async def _handle_insert_text(msg: dict[str, Any]) -> None:
+    if not _cdp:
+        return
+    text = msg.get("text", "")
+    if not text:
+        return
+    try:
+        await _cdp.send("Input.insertText", {"text": text})
+    except Exception as exc:
+        log.debug("insertText error: %s", exc)
+
+
 async def _handle_navigate(msg: dict[str, Any]) -> None:
     global _loading
     if not _cdp:
@@ -361,6 +373,8 @@ async def handle_client(ws: Any) -> None:
                 await _handle_mouse(msg)
             elif msg_type == "key":
                 await _handle_key(msg)
+            elif msg_type == "insertText":
+                await _handle_insert_text(msg)
             elif msg_type == "back":
                 if _page:
                     try:
