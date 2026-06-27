@@ -105,6 +105,10 @@ export class BrowserWsClient {
     this.ws.send('key', { action, key, code, ...opts })
   }
 
+  insertText(text: string): void {
+    this.ws.send('insertText', { text })
+  }
+
   navigate(url: string): void {
     this.ws.send('navigate', { url })
   }

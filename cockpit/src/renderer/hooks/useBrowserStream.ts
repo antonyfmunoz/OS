@@ -133,6 +133,8 @@ export function useBrowserStream() {
     []
   )
 
+  const insertText = useCallback((text: string) => clientRef.current?.insertText(text), [])
+
   return {
     ...state,
     navigate,
@@ -143,5 +145,6 @@ export function useBrowserStream() {
     resize,
     sendMouse,
     sendKey,
+    insertText,
   }
 }

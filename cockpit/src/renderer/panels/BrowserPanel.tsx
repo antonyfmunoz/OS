@@ -52,6 +52,7 @@ export function BrowserPanel() {
     reconnect,
     sendMouse,
     sendKey,
+    insertText,
     resize,
   } = useBrowserStream()
 
@@ -167,6 +168,8 @@ export function BrowserPanel() {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       e.stopPropagation()
+      // Let paste (Ctrl/Cmd+V) through to onPaste handler
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') return
       e.preventDefault()
       sendKey('keyDown', e.key, e.code, {
         text: e.key.length === 1 ? e.key : '',
@@ -179,10 +182,21 @@ export function BrowserPanel() {
   const handleKeyUp = useCallback(
     (e: React.KeyboardEvent) => {
       e.stopPropagation()
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') return
       e.preventDefault()
       sendKey('keyUp', e.key, e.code, { modifiers: getModifiers(e) })
     },
     [sendKey]
+  )
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const text = e.clipboardData.getData('text/plain')
+      if (text) insertText(text)
+    },
+    [insertText]
   )
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -326,6 +340,7 @@ export function BrowserPanel() {
           onWheel={handleWheel}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
+          onPaste={handlePaste}
           onContextMenu={handleContextMenu}
         >
           {frameUrl ? (
