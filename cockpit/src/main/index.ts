@@ -7,6 +7,7 @@ import { spawn, ChildProcess } from 'child_process'
 let mainWindow: BrowserWindow | null = null
 let voiceServer: ChildProcess | null = null
 let visionRelay: ChildProcess | null = null
+let browserRelay: ChildProcess | null = null
 let tray: Tray | null = null
 let currentWindowMode = 'maximized'
 
@@ -118,6 +119,35 @@ ipcMain.handle('vision:start', () => {
 ipcMain.handle('vision:stop', () => {
   visionRelay?.kill()
   visionRelay = null
+})
+
+function spawnBrowserRelay(): void {
+  const browserPath = join(process.env['UMH_ROOT'] || '/opt/OS', 'services', 'browser_relay.py')
+  browserRelay = spawn('python3', [browserPath], {
+    env: { ...process.env, PYTHONUNBUFFERED: '1' },
+    stdio: ['ignore', 'pipe', 'pipe']
+  })
+
+  browserRelay.stdout?.on('data', (data: Buffer) => {
+    mainWindow?.webContents.send('browser-relay-log', data.toString())
+  })
+
+  browserRelay.stderr?.on('data', (data: Buffer) => {
+    mainWindow?.webContents.send('browser-relay-error', data.toString())
+  })
+
+  browserRelay.on('exit', (code) => {
+    mainWindow?.webContents.send('browser-relay-exit', code)
+    browserRelay = null
+  })
+}
+
+ipcMain.handle('browser:start', () => {
+  if (!browserRelay) spawnBrowserRelay()
+})
+ipcMain.handle('browser:stop', () => {
+  browserRelay?.kill()
+  browserRelay = null
 })
 
 ipcMain.handle('fs:readDir', async (_e, dirPath: string) => {
@@ -255,6 +285,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   voiceServer?.kill()
   visionRelay?.kill()
+  browserRelay?.kill()
   tray?.destroy()
   app.quit()
 })
@@ -263,5 +294,6 @@ app.on('before-quit', () => {
   globalShortcut.unregisterAll()
   voiceServer?.kill()
   visionRelay?.kill()
+  browserRelay?.kill()
   tray?.destroy()
 })
