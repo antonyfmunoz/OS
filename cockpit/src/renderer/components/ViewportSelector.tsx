@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Monitor, Tablet, Smartphone, ChevronDown } from 'lucide-react'
 
-export type ViewportPreset = 'desktop' | 'tablet' | 'mobile'
+export type ViewportPreset = 'responsive' | 'desktop' | 'tablet' | 'mobile'
 
 interface ViewportConfig {
   label: string
@@ -11,6 +11,7 @@ interface ViewportConfig {
 }
 
 export const VIEWPORT_PRESETS: Record<ViewportPreset, ViewportConfig> = {
+  responsive: { label: 'Responsive', width: 0, height: 0, icon: Monitor },
   desktop: { label: 'Desktop', width: 1440, height: 900, icon: Monitor },
   tablet: { label: 'Tablet', width: 768, height: 1024, icon: Tablet },
   mobile: { label: 'Mobile', width: 375, height: 812, icon: Smartphone },
