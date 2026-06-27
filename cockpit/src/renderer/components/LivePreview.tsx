@@ -13,6 +13,7 @@ interface ProjectionInfo {
 interface LivePreviewProps {
   url?: string
   defaultUrl?: string
+  defaultProjection?: string
   expanded?: boolean
   onToggleExpand?: () => void
 }
@@ -20,6 +21,7 @@ interface LivePreviewProps {
 export function LivePreview({
   url: propUrl,
   defaultUrl = '',
+  defaultProjection,
   expanded = false,
   onToggleExpand,
 }: LivePreviewProps) {
@@ -46,9 +48,12 @@ export function LivePreview({
           }))
         setProjections(projs)
         if (projs.length > 0 && !propUrl && !defaultUrl) {
-          setSelectedProjection(projs[0].projection_id)
-          setCurrentUrl(projs[0].preview_url)
-          setInputUrl(projs[0].preview_url)
+          const target = defaultProjection
+            ? projs.find((p) => p.projection_id === defaultProjection) || projs[0]
+            : projs[0]
+          setSelectedProjection(target.projection_id)
+          setCurrentUrl(target.preview_url)
+          setInputUrl(target.preview_url)
         }
       })
       .catch(() => {})
