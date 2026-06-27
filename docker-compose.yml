@@ -143,33 +143,31 @@ services:
           cpus: "0.35"
           memory: 256M
 
-  os-neko:
-    image: ghcr.io/m1k1o/neko/chromium:latest
-    container_name: os-neko
+  os-browser:
+    build: .
+    container_name: os-browser
     restart: unless-stopped
-    shm_size: "2g"
-    cap_add:
-      - SYS_ADMIN
+    working_dir: /app
+    command: python3 services/browser_relay.py
+    shm_size: "512m"
     networks:
       - eos_network
-    ports:
-      - "127.0.0.1:8085:8080"
-      - "52000-52100:52000-52100/udp"
+    volumes:
+      - ${UMH_ROOT:-/opt/OS}:/app
+    env_file:
+      - services/.env
     environment:
-      - NEKO_DESKTOP_SCREEN=1920x1080@30
-      - NEKO_MEMBER_MULTIUSER_USER_PASSWORD=${NEKO_USER_PASSWORD:-neko}
-      - NEKO_MEMBER_MULTIUSER_ADMIN_PASSWORD=${NEKO_ADMIN_PASSWORD:-admin}
-      - NEKO_WEBRTC_ICELITE=true
-      - NEKO_WEBRTC_NAT1TO1=157.173.212.126
-      - NEKO_WEBRTC_EPHEMERAL_MIN=52000
-      - NEKO_WEBRTC_EPHEMERAL_MAX=52100
-      - NEKO_SERVER_CORS=https://universalmetaharness.tech,https://umh-cockpit.fly.dev
-      - NEKO_SERVER_PROXY=true
+      - PYTHONPATH=/app
+      - UMH_ROOT=/app
+      - PYTHONUNBUFFERED=1
+      - PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
+    ports:
+      - "127.0.0.1:8086:8086"
     deploy:
       resources:
         limits:
-          cpus: "0.50"
-          memory: 1G
+          cpus: "0.40"
+          memory: 768M
 
   os-operator:
     build: .
