@@ -10,19 +10,21 @@ function nextProjection(current: string[]): string {
 }
 
 interface SplitPreviewProps {
+  browserMode?: boolean
   expanded?: boolean
   onToggleExpand?: () => void
 }
 
-export function SplitPreview({ expanded, onToggleExpand }: SplitPreviewProps) {
-  const [panes, setPanes] = useState<string[]>(['umh'])
+export function SplitPreview({ browserMode = false, expanded, onToggleExpand }: SplitPreviewProps) {
+  const [panes, setPanes] = useState<string[]>(browserMode ? ['browser-0'] : ['umh'])
 
   const addPane = useCallback(() => {
     setPanes((prev) => {
       if (prev.length >= 4) return prev
+      if (browserMode) return [...prev, `browser-${prev.length}`]
       return [...prev, nextProjection(prev)]
     })
-  }, [])
+  }, [browserMode])
 
   const removePane = useCallback((index: number) => {
     setPanes((prev) => {
@@ -67,7 +69,7 @@ export function SplitPreview({ expanded, onToggleExpand }: SplitPreviewProps) {
           </button>
         )}
         <span className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
-          Preview
+          {browserMode ? 'Browser' : 'Preview'}
         </span>
         {count > 1 && (
           <span
@@ -87,14 +89,16 @@ export function SplitPreview({ expanded, onToggleExpand }: SplitPreviewProps) {
         >
           <Plus size={14} />
         </button>
-        <button
-          onClick={handlePopOutAll}
-          className="p-1 rounded hover:opacity-80"
-          style={{ color: 'var(--color-text-tertiary)' }}
-          title="Open all in browser"
-        >
-          <ExternalLink size={14} />
-        </button>
+        {!browserMode && (
+          <button
+            onClick={handlePopOutAll}
+            className="p-1 rounded hover:opacity-80"
+            style={{ color: 'var(--color-text-tertiary)' }}
+            title="Open all in browser"
+          >
+            <ExternalLink size={14} />
+          </button>
+        )}
       </div>
       <div className={`flex-1 grid ${gridClass} min-h-0`}>
         {panes.map((projId, i) => (
@@ -117,7 +121,7 @@ export function SplitPreview({ expanded, onToggleExpand }: SplitPreviewProps) {
                 <X size={10} />
               </button>
             )}
-            <LivePreview defaultProjection={projId} />
+            <LivePreview defaultProjection={browserMode ? undefined : projId} browserMode={browserMode} />
           </div>
         ))}
       </div>
