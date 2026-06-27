@@ -54,6 +54,7 @@ _dex_conversation: Any = None
 # Exposed after configure() — closure functions hoisted to module level
 push_chat_message: Any = None
 push_organism_event: Any = None
+push_mutation_event: Any = None
 
 
 def configure(
@@ -68,7 +69,7 @@ def configure(
     global core_router, core_ws_router, _configured
     global _is_private_ip_fn, _validate_ws_clerk_token_fn
     global _ws_token, _dev_bypass, _trusted_proxies
-    global push_chat_message, push_organism_event
+    global push_chat_message, push_organism_event, push_mutation_event
 
     _is_private_ip_fn = is_private_ip_fn
     _validate_ws_clerk_token_fn = validate_ws_clerk_token_fn
@@ -82,6 +83,19 @@ def configure(
     push_chat_message = _push_chat
     push_organism_event = _push_event
     _configured = True
+
+    def _push_mutation(domain: str, action: str, payload: dict | None = None) -> None:
+        """Push a mutation event for a specific domain/action to WS clients."""
+        _push_event(
+            {
+                "type": "mutation_event",
+                "domain": domain,
+                "action": action,
+                **(payload or {}),
+            }
+        )
+
+    push_mutation_event = _push_mutation
 
 
 # ── Helper functions used by both routes and mount functions ──────────────────
@@ -1142,6 +1156,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         if not result.ok:
             raise HTTPException(status_code=400, detail=result.errors)
+
+        if push_mutation_event is not None:
+            push_mutation_event("settings", "updated", {"action": action})
 
         return {
             "ok": True,

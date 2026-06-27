@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { useApprovalStore } from '../stores/approvalStore'
+import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
 import { useOrganismStore } from '../stores/organismStore'
 import { useRealtimeStore } from '../stores/realtimeStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { usePolling } from '../hooks/usePolling'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { DeviceOnboardingCard } from '../components/DeviceOnboardingCard'
-import { relativeTime } from '../lib/time'
 
 const RISK_BADGE: Record<string, string> = {
   low: 'wv-badge-ok',
@@ -16,9 +15,9 @@ const RISK_BADGE: Record<string, string> = {
 }
 
 export function ApprovalsPanel() {
-  const approvals = useApprovalStore((s) => s.approvals)
-  const approve = useApprovalStore((s) => s.approve)
-  const deny = useApprovalStore((s) => s.deny)
+  const legacyPending = useUnifiedApprovalStore((s) => s.pending)
+  const unifiedApprove = useUnifiedApprovalStore((s) => s.approve)
+  const unifiedReject = useUnifiedApprovalStore((s) => s.reject)
 
   const spineEnvelopes = useOrganismStore((s) => s.pendingEnvelopes)
   const completedEnvelopes = useOrganismStore((s) => s.completedEnvelopes)
@@ -43,8 +42,8 @@ export function ApprovalsPanel() {
   usePolling(() => { fetchPending(); fetchCompleted(); fetchGateway(); fetchGuard(); fetchGatewayDecisions(); fetchExecutionMode() },
     realtimeStatus === 'connected' ? 10000 : 3000)
 
-  const pending = approvals.filter((a) => a.status === 'pending')
-  const history = approvals.filter((a) => a.status !== 'pending')
+  const pending = legacyPending.filter((a) => a.status === 'pending')
+  const history = legacyPending.filter((a) => a.status !== 'pending')
   const totalPending = pending.length + spineEnvelopes.length
 
   return (
@@ -142,19 +141,19 @@ export function ApprovalsPanel() {
                     {item.operation === 'device_onboarding' && item.details ? (
                       <DeviceOnboardingCard
                         details={item.details}
-                        onApprove={(metadata) => approve(item.id, metadata)}
-                        onReject={() => deny(item.id, 'Ignored by operator')}
+                        onApprove={(_metadata) => unifiedApprove(item.id, 'governance', 'operator')}
+                        onReject={() => unifiedReject(item.id, 'governance', 'Ignored by operator', 'operator')}
                       />
                     ) : (
                       <div className="flex gap-2">
                         <button
-                          onClick={() => approve(item.id)}
+                          onClick={() => unifiedApprove(item.id, 'governance', 'operator')}
                           className="px-3 py-2 text-xs font-mono uppercase rounded bg-ok text-text-inverse"
                         >
                           approve
                         </button>
                         <button
-                          onClick={() => deny(item.id)}
+                          onClick={() => unifiedReject(item.id, 'governance', '', 'operator')}
                           className="px-3 py-2 text-xs font-mono uppercase rounded bg-surface-overlay text-danger border border-border"
                         >
                           deny

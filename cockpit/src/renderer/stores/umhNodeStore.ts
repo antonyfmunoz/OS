@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchApi } from '../api/client';
 
 interface UMHNodeService {
   service_id: string;
@@ -62,9 +63,7 @@ export const useUMHNodeStore = create<UMHNodeState>((set) => ({
   fetchTopology: async () => {
     set({ loading: true, error: null });
     try {
-      const resp = await fetch('/api/umh/umh-nodes');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchApi<UMHNodeTopology>('/umh-nodes');
       set({ topology: data, loading: false });
     } catch (err) {
       set({ error: String(err), loading: false });
@@ -73,9 +72,7 @@ export const useUMHNodeStore = create<UMHNodeState>((set) => ({
 
   fetchVersionStatus: async () => {
     try {
-      const resp = await fetch('/api/umh/umh-nodes/version/status');
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const data = await resp.json();
+      const data = await fetchApi<{ status: string }>('/umh-nodes/version/status');
       set({ versionStatus: data.status });
     } catch (err) {
       set({ error: String(err) });

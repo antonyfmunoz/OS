@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { fetchApi } from "../api/client";
 
 interface FocusedApplication {
   app_name: string;
@@ -115,9 +116,6 @@ interface ScreenAwarenessStoreState {
   fetchProviders: () => Promise<void>;
 }
 
-const API_BASE = "/api/umh/screen";
-const VISUAL_API = "/api/umh/visual/operations";
-
 export const useScreenAwarenessStore = create<ScreenAwarenessStoreState>(
   (set) => ({
     snapshot: null,
@@ -130,9 +128,7 @@ export const useScreenAwarenessStore = create<ScreenAwarenessStoreState>(
     fetchSnapshot: async () => {
       set({ loading: true, error: null });
       try {
-        const res = await fetch(API_BASE);
-        if (!res.ok) throw new Error(`${res.status}`);
-        const data = await res.json();
+        const data = await fetchApi<ScreenSnapshot>("/screen");
         set({ snapshot: data, loading: false });
       } catch (e) {
         set({ error: String(e), loading: false });
@@ -141,9 +137,7 @@ export const useScreenAwarenessStore = create<ScreenAwarenessStoreState>(
 
     fetchVisualOps: async () => {
       try {
-        const res = await fetch(`${VISUAL_API}/snapshot`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchApi<VisualOperationsSnapshot>("/visual/operations/snapshot");
         set({ visualOps: data });
       } catch {
         /* silent — visual ops may not be available yet */
@@ -152,9 +146,7 @@ export const useScreenAwarenessStore = create<ScreenAwarenessStoreState>(
 
     fetchRepositories: async () => {
       try {
-        const res = await fetch(`${API_BASE}/repositories`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchApi<{ repositories?: RepositoryContext[] }>("/screen/repositories");
         set({ repositories: data.repositories || [] });
       } catch {
         /* silent */
@@ -163,9 +155,7 @@ export const useScreenAwarenessStore = create<ScreenAwarenessStoreState>(
 
     fetchProviders: async () => {
       try {
-        const res = await fetch(`${API_BASE}/providers`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await fetchApi<Record<string, ProviderStatus>>("/screen/providers");
         set({ providers: data });
       } catch {
         /* silent */

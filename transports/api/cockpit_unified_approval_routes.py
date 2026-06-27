@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from transports.api.cockpit_audit import emit_mutation_audit
+
 logger = logging.getLogger(__name__)
 
 _approval_runtime: Any = None
@@ -17,6 +19,7 @@ def _get_approval_runtime() -> Any:
     global _approval_runtime
     if _approval_runtime is None:
         from substrate.workstation.unified_approval_runtime import UnifiedApprovalRuntime
+
         _approval_runtime = UnifiedApprovalRuntime()
     return _approval_runtime
 
@@ -61,6 +64,20 @@ def _build_router() -> Any:
             source_type=req.source_type,
             decided_by=req.decided_by,
         )
+        emit_mutation_audit(
+            "approvals",
+            "approve",
+            req.approval_id,
+            actor=req.decided_by,
+            new_value={"source_type": req.source_type},
+        )
+        try:
+            from transports.api.cockpit_core_routes import push_mutation_event
+
+            if push_mutation_event is not None:
+                push_mutation_event("approvals", "approved", {"id": req.approval_id})
+        except Exception:
+            pass
         return action.to_dict()
 
     @router.post("/reject")
@@ -72,6 +89,20 @@ def _build_router() -> Any:
             reason=req.reason,
             decided_by=req.decided_by,
         )
+        emit_mutation_audit(
+            "approvals",
+            "reject",
+            req.approval_id,
+            actor=req.decided_by,
+            new_value={"source_type": req.source_type, "reason": req.reason},
+        )
+        try:
+            from transports.api.cockpit_core_routes import push_mutation_event
+
+            if push_mutation_event is not None:
+                push_mutation_event("approvals", "rejected", {"id": req.approval_id})
+        except Exception:
+            pass
         return action.to_dict()
 
     @router.get("/snapshot")

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { fetchApi } from '../api/client'
 
 interface ForecastData {
   entity_id: string
@@ -65,8 +66,6 @@ interface PredictionState {
   fetchAll: () => Promise<void>
 }
 
-const API_BASE = '/api'
-
 export const usePredictionStore = create<PredictionState>((set) => ({
   overview: null,
   forecasts: [],
@@ -79,8 +78,7 @@ export const usePredictionStore = create<PredictionState>((set) => ({
 
   fetchOverview: async () => {
     try {
-      const res = await fetch(`${API_BASE}/prediction/overview`)
-      const data = await res.json()
+      const data = await fetchApi<PredictionOverview>('/prediction/overview')
       set({
         overview: data,
         health: data.prediction_health || 'unknown',
@@ -93,8 +91,7 @@ export const usePredictionStore = create<PredictionState>((set) => ({
 
   fetchForecasts: async () => {
     try {
-      const res = await fetch(`${API_BASE}/prediction/forecasts`)
-      const data = await res.json()
+      const data = await fetchApi<{ forecasts?: ForecastData[] }>('/prediction/forecasts')
       set({ forecasts: data.forecasts || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -103,8 +100,7 @@ export const usePredictionStore = create<PredictionState>((set) => ({
 
   fetchScenarios: async () => {
     try {
-      const res = await fetch(`${API_BASE}/prediction/scenarios`)
-      const data = await res.json()
+      const data = await fetchApi<{ scenarios?: ScenarioData[] }>('/prediction/scenarios')
       set({ scenarios: data.scenarios || [] })
     } catch (e) {
       set({ error: String(e) })
@@ -113,8 +109,7 @@ export const usePredictionStore = create<PredictionState>((set) => ({
 
   fetchDrift: async () => {
     try {
-      const res = await fetch(`${API_BASE}/prediction/drift`)
-      const data = await res.json()
+      const data = await fetchApi<{ drift_warnings?: DriftWarning[] }>('/prediction/drift')
       set({ drift: data.drift_warnings || [] })
     } catch (e) {
       set({ error: String(e) })
