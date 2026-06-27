@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { BrowserWsClient } from '../api/browser-ws'
 
 interface BrowserStreamState {
@@ -11,104 +11,64 @@ interface BrowserStreamState {
   viewportHeight: number
 }
 
-const _state: BrowserStreamState = {
-  connected: false,
-  currentUrl: 'about:blank',
-  pageTitle: '',
-  loading: false,
-  frameUrl: null,
-  viewportWidth: 1280,
-  viewportHeight: 720,
-}
-
-let _listeners: (() => void)[] = []
-let _snapshot = { ..._state }
-
-function _notify(): void {
-  _snapshot = { ..._state }
-  for (const l of _listeners) l()
-}
-
-function subscribe(listener: () => void): () => void {
-  _listeners.push(listener)
-  return () => {
-    _listeners = _listeners.filter((l2) => l2 !== listener)
-  }
-}
-
-function getSnapshot(): BrowserStreamState {
-  return _snapshot
-}
-
-let _client: BrowserWsClient | null = null
-let _refCount = 0
-
-function _getOrCreateClient(): BrowserWsClient {
-  if (!_client) {
-    _client = new BrowserWsClient()
-
-    _client.on('connected', () => {
-      _state.connected = true
-      _notify()
-    })
-
-    _client.on('disconnected', () => {
-      _state.connected = false
-      _notify()
-    })
-
-    _client.on('url_changed', (data) => {
-      _state.currentUrl = (data.url as string) || ''
-      _notify()
-    })
-
-    _client.on('title_changed', (data) => {
-      _state.pageTitle = (data.title as string) || ''
-      _notify()
-    })
-
-    _client.on('loading', (data) => {
-      _state.loading = Boolean(data.loading)
-      _notify()
-    })
-
-    _client.on('viewport', (data) => {
-      _state.viewportWidth = (data.width as number) || 1280
-      _state.viewportHeight = (data.height as number) || 720
-      _notify()
-    })
-
-    _client.onFrame((event) => {
-      _state.frameUrl = event.url
-      _notify()
-    })
-  }
-  return _client
-}
-
-export function useBrowserStream() {
+export function useBrowserStream(paneId: string) {
+  const [state, setState] = useState<BrowserStreamState>({
+    connected: false,
+    currentUrl: 'about:blank',
+    pageTitle: '',
+    loading: false,
+    frameUrl: null,
+    viewportWidth: 1280,
+    viewportHeight: 720,
+  })
   const clientRef = useRef<BrowserWsClient | null>(null)
-  const state = useSyncExternalStore(subscribe, getSnapshot)
 
   useEffect(() => {
-    const client = _getOrCreateClient()
+    const client = new BrowserWsClient(paneId)
     clientRef.current = client
-    _refCount++
-    if (_refCount === 1) {
-      client.connect()
-    }
+
+    const unsubs: (() => void)[] = []
+
+    unsubs.push(client.on('connected', () => {
+      setState((s) => ({ ...s, connected: true }))
+    }))
+
+    unsubs.push(client.on('disconnected', () => {
+      setState((s) => ({ ...s, connected: false }))
+    }))
+
+    unsubs.push(client.on('url_changed', (data) => {
+      setState((s) => ({ ...s, currentUrl: (data.url as string) || '' }))
+    }))
+
+    unsubs.push(client.on('title_changed', (data) => {
+      setState((s) => ({ ...s, pageTitle: (data.title as string) || '' }))
+    }))
+
+    unsubs.push(client.on('loading', (data) => {
+      setState((s) => ({ ...s, loading: Boolean(data.loading) }))
+    }))
+
+    unsubs.push(client.on('viewport', (data) => {
+      setState((s) => ({
+        ...s,
+        viewportWidth: (data.width as number) || 1280,
+        viewportHeight: (data.height as number) || 720,
+      }))
+    }))
+
+    unsubs.push(client.onFrame((event) => {
+      setState((s) => ({ ...s, frameUrl: event.url }))
+    }))
+
+    client.connect()
+
     return () => {
-      _refCount--
-      if (_refCount <= 0) {
-        _refCount = 0
-        client.disconnect()
-        _client = null
-        _state.connected = false
-        _state.frameUrl = null
-        _notify()
-      }
+      for (const u of unsubs) u()
+      client.disconnect()
+      clientRef.current = null
     }
-  }, [])
+  }, [paneId])
 
   const navigate = useCallback((url: string) => clientRef.current?.navigate(url), [])
   const goBack = useCallback(() => clientRef.current?.goBack(), [])

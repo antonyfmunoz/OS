@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Browser relay — streams a headless Chromium viewport to cockpit viewers.
+"""Browser relay — streams headless Chromium viewports to cockpit viewers.
 
 Listens on ws://0.0.0.0:8086/browser.
+
+Supports up to 4 independent panes. Each pane is a separate Chromium tab
+with its own CDP session, viewport, and client set. Pane ID is passed via
+query parameter: ws://.../browser?pane=0
 
 Uses Playwright to launch headless Chromium and CDP (Chrome DevTools Protocol)
 to capture frames via Page.startScreencast and replay input via Input.dispatch*.
@@ -37,6 +41,7 @@ import os
 import sys
 import time
 from typing import Any
+from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent.parent))
 
@@ -66,28 +71,39 @@ _ALLOWED_ORIGINS = {
 DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 720
 JPEG_QUALITY = 80
+MAX_PANES = 4
+HEARTBEAT_INTERVAL = 1.0
+DEFAULT_HOME_URL = "https://www.google.com"
 
-# ── Global state ──────────────────────────────────────────────
 
-_clients: set[Any] = set()
-_page: Any = None
-_cdp: Any = None
+# ── Pane state ───────────────────────────────────────────────
+
+class PaneState:
+    def __init__(self, pane_id: str) -> None:
+        self.pane_id: str = pane_id
+        self.page: Any = None
+        self.cdp: Any = None
+        self.clients: set[Any] = set()
+        self.current_url: str = DEFAULT_HOME_URL
+        self.current_title: str = ""
+        self.loading: bool = False
+        self.viewport_width: int = DEFAULT_WIDTH
+        self.viewport_height: int = DEFAULT_HEIGHT
+        self.frame_count: int = 0
+        self.last_frame_at: float = 0.0
+        self.screencast_active: bool = False
+        self.heartbeat_task: Any = None
+
+
+# ── Global state ─────────────────────────────────────────────
+
+_panes: dict[str, PaneState] = {}
 _browser: Any = None
 _context: Any = None
 _pw: Any = None
-_current_url: str = "about:blank"
-_current_title: str = ""
-_loading: bool = False
-_viewport_width: int = DEFAULT_WIDTH
-_viewport_height: int = DEFAULT_HEIGHT
-_frame_count: int = 0
-_last_frame_at: float = 0.0
-_screencast_active: bool = False
-_heartbeat_task: Any = None
-HEARTBEAT_INTERVAL = 1.0
 
 
-# ── Auth ──────────────────────────────────────────────────────
+# ── Auth ─────────────────────────────────────────────────────
 
 def _check_auth(ws: Any) -> bool:
     if not _AUTH_TOKEN:
@@ -107,8 +123,6 @@ def _check_auth(ws: Any) -> bool:
 
 
 def _check_origin(connection: Any, request: Any) -> None:
-    from http import HTTPStatus
-
     origin = None
     try:
         origin = request.headers.get("Origin")
@@ -122,7 +136,7 @@ def _check_origin(connection: Any, request: Any) -> None:
     raise websockets.exceptions.InvalidOrigin(origin)
 
 
-# ── Broadcast ─────────────────────────────────────────────────
+# ── Per-pane broadcast ───────────────────────────────────────
 
 async def send_json(ws: Any, data: dict[str, Any]) -> None:
     try:
@@ -131,152 +145,213 @@ async def send_json(ws: Any, data: dict[str, Any]) -> None:
         log.debug("send_json failed (%s): %s", data.get("type", "?"), exc)
 
 
-async def broadcast_json(data: dict[str, Any]) -> None:
-    if not _clients:
+async def send_pane_json(pane: PaneState, data: dict[str, Any]) -> None:
+    if not pane.clients:
         return
     msg = json.dumps(data)
-    clients = list(_clients)
+    clients = list(pane.clients)
     results = await asyncio.gather(
         *(ws.send(msg) for ws in clients),
         return_exceptions=True,
     )
     dead = {clients[i] for i, r in enumerate(results) if isinstance(r, Exception)}
     if dead:
-        _clients.difference_update(dead)
+        pane.clients.difference_update(dead)
 
 
-async def broadcast_frame(jpeg_bytes: bytes) -> None:
-    global _frame_count, _last_frame_at
-
+async def send_pane_frame(pane: PaneState, jpeg_bytes: bytes) -> None:
     if len(jpeg_bytes) > MAX_FRAME_BYTES:
-        log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
+        log.warning("pane %s: frame too large: %d bytes, dropping", pane.pane_id, len(jpeg_bytes))
         return
 
-    _frame_count += 1
-    _last_frame_at = time.time()
+    pane.frame_count += 1
+    pane.last_frame_at = time.time()
 
-    if not _clients:
+    if not pane.clients:
         return
 
-    clients = list(_clients)
+    clients = list(pane.clients)
     results = await asyncio.gather(
         *(ws.send(jpeg_bytes) for ws in clients),
         return_exceptions=True,
     )
     dead = {clients[i] for i, r in enumerate(results) if isinstance(r, Exception)}
     if dead:
-        log.debug("cleaned %d stale viewer(s)", len(dead))
-        _clients.difference_update(dead)
+        log.debug("pane %s: cleaned %d stale viewer(s)", pane.pane_id, len(dead))
+        pane.clients.difference_update(dead)
 
 
-# ── CDP screencast ────────────────────────────────────────────
+# ── CDP screencast (per-pane) ────────────────────────────────
 
-async def _start_screencast() -> None:
-    global _screencast_active
-    if _screencast_active or not _cdp:
+async def _start_screencast(pane: PaneState) -> None:
+    if pane.screencast_active or not pane.cdp:
         return
     try:
-        await _cdp.send("Page.startScreencast", {
+        await pane.cdp.send("Page.startScreencast", {
             "format": "jpeg",
             "quality": JPEG_QUALITY,
-            "maxWidth": _viewport_width,
-            "maxHeight": _viewport_height,
+            "maxWidth": pane.viewport_width,
+            "maxHeight": pane.viewport_height,
         })
-        _screencast_active = True
-        log.info("screencast started (%dx%d q%d)", _viewport_width, _viewport_height, JPEG_QUALITY)
+        pane.screencast_active = True
+        log.info("pane %s: screencast started (%dx%d q%d)",
+                 pane.pane_id, pane.viewport_width, pane.viewport_height, JPEG_QUALITY)
     except Exception as exc:
-        log.error("failed to start screencast: %s", exc)
+        log.error("pane %s: failed to start screencast: %s", pane.pane_id, exc)
 
 
-async def _stop_screencast() -> None:
-    global _screencast_active
-    if not _screencast_active or not _cdp:
+async def _stop_screencast(pane: PaneState) -> None:
+    if not pane.screencast_active or not pane.cdp:
         return
     try:
-        await _cdp.send("Page.stopScreencast")
-        _screencast_active = False
-        log.info("screencast stopped")
+        await pane.cdp.send("Page.stopScreencast")
+        pane.screencast_active = False
+        log.info("pane %s: screencast stopped", pane.pane_id)
     except Exception:
-        _screencast_active = False
+        pane.screencast_active = False
 
 
-async def _heartbeat_loop() -> None:
-    """Periodic screenshot fallback for static pages where screencast sends no frames."""
+async def _heartbeat_loop(pane: PaneState) -> None:
     while True:
         await asyncio.sleep(HEARTBEAT_INTERVAL)
-        if not _clients or not _cdp:
+        if not pane.clients or not pane.cdp:
             continue
-        elapsed = time.time() - _last_frame_at
+        elapsed = time.time() - pane.last_frame_at
         if elapsed < HEARTBEAT_INTERVAL:
             continue
-        log.debug("heartbeat: capturing screenshot (%.1fs since last frame, %d clients)", elapsed, len(_clients))
         try:
-            result = await _cdp.send("Page.captureScreenshot", {
+            result = await pane.cdp.send("Page.captureScreenshot", {
                 "format": "jpeg",
                 "quality": JPEG_QUALITY,
             })
             data = result.get("data", "")
             if data:
                 jpeg_bytes = base64.b64decode(data)
-                await broadcast_frame(jpeg_bytes)
+                await send_pane_frame(pane, jpeg_bytes)
         except Exception as exc:
-            log.debug("heartbeat screenshot error: %s", exc)
+            log.debug("pane %s: heartbeat screenshot error: %s", pane.pane_id, exc)
 
 
-async def _on_screencast_frame(params: dict[str, Any]) -> None:
-    session_id = params.get("sessionId", 0)
-    data = params.get("data", "")
-    if not data:
+# ── Pane lifecycle ───────────────────────────────────────────
+
+async def _create_pane(pane_id: str) -> PaneState:
+    global _context
+    pane = PaneState(pane_id)
+
+    pane.page = await _context.new_page()
+
+    def _make_popup_handler(p: PaneState):
+        async def _on_popup(popup: Any) -> None:
+            try:
+                url = popup.url
+                if url and p.page:
+                    p.loading = True
+                    await send_pane_json(p, {"type": "loading", "loading": True})
+                    await p.cdp.send("Page.navigate", {"url": url})
+                await popup.close()
+            except Exception as exc:
+                log.debug("pane %s: popup handling error: %s", p.pane_id, exc)
+        return _on_popup
+
+    pane.page.on("popup", _make_popup_handler(pane))
+
+    pane.cdp = await _context.new_cdp_session(pane.page)
+
+    def _make_frame_handler(p: PaneState):
+        async def _on_frame(params: dict[str, Any]) -> None:
+            session_id = params.get("sessionId", 0)
+            data = params.get("data", "")
+            if not data:
+                return
+            jpeg_bytes = base64.b64decode(data)
+            try:
+                await p.cdp.send("Page.screencastFrameAck", {"sessionId": session_id})
+            except Exception:
+                pass
+            await send_pane_frame(p, jpeg_bytes)
+        return _on_frame
+
+    def _make_nav_handler(p: PaneState):
+        async def _on_nav(params: dict[str, Any]) -> None:
+            frame = params.get("frame", {})
+            if frame.get("parentId"):
+                return
+            url = frame.get("url", "")
+            if url and url != p.current_url:
+                p.current_url = url
+                await send_pane_json(p, {"type": "url_changed", "url": p.current_url})
+        return _on_nav
+
+    def _make_load_handler(p: PaneState):
+        async def _on_load(_params: Any) -> None:
+            p.loading = False
+            await send_pane_json(p, {"type": "loading", "loading": False})
+            try:
+                result = await p.cdp.send("Runtime.evaluate", {"expression": "document.title"})
+                title = result.get("result", {}).get("value", "")
+                if title != p.current_title:
+                    p.current_title = title
+                    await send_pane_json(p, {"type": "title_changed", "title": p.current_title})
+            except Exception:
+                pass
+        return _on_load
+
+    def _make_dialog_handler(p: PaneState):
+        async def _on_dialog(params: dict[str, Any]) -> None:
+            try:
+                await p.cdp.send("Page.handleJavaScriptDialog", {"accept": True})
+            except Exception:
+                pass
+        return _on_dialog
+
+    pane.cdp.on("Page.screencastFrame", _make_frame_handler(pane))
+    pane.cdp.on("Page.frameNavigated", _make_nav_handler(pane))
+    pane.cdp.on("Page.loadEventFired", _make_load_handler(pane))
+    pane.cdp.on("Page.javascriptDialogOpening", _make_dialog_handler(pane))
+
+    await pane.cdp.send("Page.enable")
+    await pane.page.goto(DEFAULT_HOME_URL)
+
+    pane.heartbeat_task = asyncio.create_task(_heartbeat_loop(pane))
+
+    _panes[pane_id] = pane
+    log.info("pane %s: created (%d total)", pane_id, len(_panes))
+    return pane
+
+
+async def _destroy_pane(pane_id: str) -> None:
+    pane = _panes.pop(pane_id, None)
+    if not pane:
         return
 
-    jpeg_bytes = base64.b64decode(data)
+    if pane.heartbeat_task:
+        pane.heartbeat_task.cancel()
+        try:
+            await pane.heartbeat_task
+        except asyncio.CancelledError:
+            pass
+
+    await _stop_screencast(pane)
 
     try:
-        await _cdp.send("Page.screencastFrameAck", {"sessionId": session_id})
+        if pane.cdp:
+            await pane.cdp.detach()
     except Exception:
         pass
 
-    await broadcast_frame(jpeg_bytes)
-
-
-# ── Page event handlers ──────────────────────────────────────
-
-async def _on_frame_navigated(params: dict[str, Any]) -> None:
-    global _current_url
-    frame = params.get("frame", {})
-    if frame.get("parentId"):
-        return
-    url = frame.get("url", "")
-    if url and url != _current_url:
-        _current_url = url
-        await broadcast_json({"type": "url_changed", "url": _current_url})
-
-
-async def _on_load_event() -> None:
-    global _loading, _current_title
-    _loading = False
-    await broadcast_json({"type": "loading", "loading": False})
     try:
-        result = await _cdp.send("Runtime.evaluate", {"expression": "document.title"})
-        title = result.get("result", {}).get("value", "")
-        if title != _current_title:
-            _current_title = title
-            await broadcast_json({"type": "title_changed", "title": _current_title})
+        if pane.page:
+            await pane.page.close()
     except Exception:
         pass
 
-
-async def _on_dialog(params: dict[str, Any]) -> None:
-    try:
-        await _cdp.send("Page.handleJavaScriptDialog", {"accept": True})
-    except Exception:
-        pass
+    log.info("pane %s: destroyed (%d remaining)", pane_id, len(_panes))
 
 
-# ── Input dispatch ────────────────────────────────────────────
+# ── Input dispatch (per-pane) ────────────────────────────────
 
-async def _handle_mouse(msg: dict[str, Any]) -> None:
-    if not _cdp:
+async def _handle_mouse(pane: PaneState, msg: dict[str, Any]) -> None:
+    if not pane.cdp:
         return
     params: dict[str, Any] = {
         "type": msg["action"],
@@ -291,13 +366,13 @@ async def _handle_mouse(msg: dict[str, Any]) -> None:
         params["deltaX"] = msg.get("deltaX", 0)
         params["deltaY"] = msg.get("deltaY", 0)
     try:
-        await _cdp.send("Input.dispatchMouseEvent", params)
+        await pane.cdp.send("Input.dispatchMouseEvent", params)
     except Exception as exc:
-        log.debug("mouse dispatch error: %s", exc)
+        log.debug("pane %s: mouse dispatch error: %s", pane.pane_id, exc)
 
 
-async def _handle_key(msg: dict[str, Any]) -> None:
-    if not _cdp:
+async def _handle_key(pane: PaneState, msg: dict[str, Any]) -> None:
+    if not pane.cdp:
         return
     params: dict[str, Any] = {
         "type": msg["action"],
@@ -308,61 +383,59 @@ async def _handle_key(msg: dict[str, Any]) -> None:
     if msg["action"] == "keyDown" and msg.get("text"):
         params["text"] = msg["text"]
     try:
-        await _cdp.send("Input.dispatchKeyEvent", params)
+        await pane.cdp.send("Input.dispatchKeyEvent", params)
     except Exception as exc:
-        log.debug("key dispatch error: %s", exc)
+        log.debug("pane %s: key dispatch error: %s", pane.pane_id, exc)
 
 
-async def _handle_insert_text(msg: dict[str, Any]) -> None:
-    if not _cdp:
+async def _handle_insert_text(pane: PaneState, msg: dict[str, Any]) -> None:
+    if not pane.cdp:
         return
     text = msg.get("text", "")
     if not text:
         return
     try:
-        await _cdp.send("Input.insertText", {"text": text})
+        await pane.cdp.send("Input.insertText", {"text": text})
     except Exception as exc:
-        log.debug("insertText error: %s", exc)
+        log.debug("pane %s: insertText error: %s", pane.pane_id, exc)
 
 
-async def _handle_navigate(msg: dict[str, Any]) -> None:
-    global _loading
-    if not _cdp:
+async def _handle_navigate(pane: PaneState, msg: dict[str, Any]) -> None:
+    if not pane.cdp:
         return
     url = msg.get("url", "").strip()
     if not url:
         return
     if not url.startswith("http://") and not url.startswith("https://"):
         url = "https://" + url
-    _loading = True
-    await broadcast_json({"type": "loading", "loading": True})
+    pane.loading = True
+    await send_pane_json(pane, {"type": "loading", "loading": True})
     try:
-        await _cdp.send("Page.navigate", {"url": url})
+        await pane.cdp.send("Page.navigate", {"url": url})
     except Exception as exc:
-        log.error("navigate error: %s", exc)
-        _loading = False
-        await broadcast_json({"type": "loading", "loading": False})
+        log.error("pane %s: navigate error: %s", pane.pane_id, exc)
+        pane.loading = False
+        await send_pane_json(pane, {"type": "loading", "loading": False})
 
 
-async def _handle_resize(msg: dict[str, Any]) -> None:
-    global _viewport_width, _viewport_height
+async def _handle_resize(pane: PaneState, msg: dict[str, Any]) -> None:
     w = max(320, min(msg.get("width", DEFAULT_WIDTH), 3840))
     h = max(240, min(msg.get("height", DEFAULT_HEIGHT), 2160))
-    if w == _viewport_width and h == _viewport_height:
+    if w == pane.viewport_width and h == pane.viewport_height:
         return
-    _viewport_width = w
-    _viewport_height = h
-    if _page:
+    pane.viewport_width = w
+    pane.viewport_height = h
+    if pane.page:
         try:
-            await _page.set_viewport_size({"width": w, "height": h})
+            await pane.page.set_viewport_size({"width": w, "height": h})
         except Exception:
             pass
-    await _stop_screencast()
-    await _start_screencast()
-    await broadcast_json({"type": "viewport", "width": w, "height": h})
+    await _stop_screencast(pane)
+    await _start_screencast(pane)
+    await send_pane_json(pane, {"type": "viewport", "width": w, "height": h})
 
 
-# ── Client handler ────────────────────────────────────────────
+# ── Client handler ───────────────────────────────────────────
 
 async def handle_client(ws: Any) -> None:
     if not _check_auth(ws):
@@ -370,18 +443,35 @@ async def handle_client(ws: Any) -> None:
         await ws.close(4001, "unauthorized")
         return
 
-    _clients.add(ws)
-    client_count = len(_clients)
-    log.info("viewer connected (%d total)", client_count)
+    parsed = urlparse(ws.request.path)
+    qs = parse_qs(parsed.query)
+    pane_id = qs.get("pane", ["0"])[0]
 
-    await _stop_screencast()
-    await _start_screencast()
+    if pane_id not in _panes:
+        if len(_panes) >= MAX_PANES:
+            log.warning("max panes reached (%d), rejecting pane %s", MAX_PANES, pane_id)
+            await ws.close(4002, "max panes reached")
+            return
+        try:
+            await _create_pane(pane_id)
+        except Exception as exc:
+            log.error("failed to create pane %s: %s", pane_id, exc)
+            await send_json(ws, {"type": "error", "error": str(exc)})
+            await ws.close(4003, "pane creation failed")
+            return
+
+    pane = _panes[pane_id]
+    pane.clients.add(ws)
+    log.info("pane %s: viewer connected (%d clients)", pane_id, len(pane.clients))
+
+    await _stop_screencast(pane)
+    await _start_screencast(pane)
 
     try:
-        await send_json(ws, {"type": "url_changed", "url": _current_url})
-        await send_json(ws, {"type": "title_changed", "title": _current_title})
-        await send_json(ws, {"type": "loading", "loading": _loading})
-        await send_json(ws, {"type": "viewport", "width": _viewport_width, "height": _viewport_height})
+        await send_json(ws, {"type": "url_changed", "url": pane.current_url})
+        await send_json(ws, {"type": "title_changed", "title": pane.current_title})
+        await send_json(ws, {"type": "loading", "loading": pane.loading})
+        await send_json(ws, {"type": "viewport", "width": pane.viewport_width, "height": pane.viewport_height})
 
         async for raw in ws:
             if isinstance(raw, bytes):
@@ -393,50 +483,52 @@ async def handle_client(ws: Any) -> None:
 
             msg_type = msg.get("type", "")
             if msg_type == "navigate":
-                await _handle_navigate(msg)
+                await _handle_navigate(pane, msg)
             elif msg_type == "mouse":
-                await _handle_mouse(msg)
+                await _handle_mouse(pane, msg)
             elif msg_type == "key":
-                await _handle_key(msg)
+                await _handle_key(pane, msg)
             elif msg_type == "insertText":
-                await _handle_insert_text(msg)
+                await _handle_insert_text(pane, msg)
             elif msg_type == "back":
-                if _page:
+                if pane.page:
                     try:
-                        await _page.go_back()
+                        await pane.page.go_back()
                     except Exception:
                         pass
             elif msg_type == "forward":
-                if _page:
+                if pane.page:
                     try:
-                        await _page.go_forward()
+                        await pane.page.go_forward()
                     except Exception:
                         pass
             elif msg_type == "reload":
-                if _page:
+                if pane.page:
                     try:
-                        await _page.reload()
+                        await pane.page.reload()
                     except Exception:
                         pass
             elif msg_type == "resize":
-                await _handle_resize(msg)
+                await _handle_resize(pane, msg)
             elif msg_type == "ping":
                 await send_json(ws, {"type": "pong"})
 
     except websockets.exceptions.ConnectionClosed:
         pass
     except Exception as exc:
-        log.error("client handler error: %s", exc)
+        log.error("pane %s: client handler error: %s", pane_id, exc)
     finally:
-        _clients.discard(ws)
-        remaining = len(_clients)
-        log.info("viewer disconnected (%d remaining)", remaining)
+        pane.clients.discard(ws)
+        remaining = len(pane.clients)
+        log.info("pane %s: viewer disconnected (%d remaining)", pane_id, remaining)
+        if remaining == 0:
+            await _destroy_pane(pane_id)
 
 
-# ── Browser lifecycle ─────────────────────────────────────────
+# ── Browser lifecycle ────────────────────────────────────────
 
 async def _launch_browser() -> None:
-    global _pw, _browser, _context, _page, _cdp
+    global _pw, _browser, _context
 
     log.info("launching headless Chromium via Playwright...")
     _pw = await async_playwright().start()
@@ -452,46 +544,16 @@ async def _launch_browser() -> None:
         ],
     )
     _context = await _browser.new_context(
-        viewport={"width": _viewport_width, "height": _viewport_height},
+        viewport={"width": DEFAULT_WIDTH, "height": DEFAULT_HEIGHT},
         user_agent=(
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         ),
     )
-    _page = await _context.new_page()
-
-    _page.on("popup", _on_popup)
-
-    _cdp = await _context.new_cdp_session(_page)
-
-    _cdp.on("Page.screencastFrame", _on_screencast_frame)
-    _cdp.on("Page.frameNavigated", _on_frame_navigated)
-    _cdp.on("Page.loadEventFired", lambda _: asyncio.ensure_future(_on_load_event()))
-    _cdp.on("Page.javascriptDialogOpening", _on_dialog)
-
-    await _cdp.send("Page.enable")
-
-    await _page.goto("about:blank")
-    log.info("Chromium ready (%dx%d)", _viewport_width, _viewport_height)
-
-    global _heartbeat_task
-    _heartbeat_task = asyncio.create_task(_heartbeat_loop())
+    log.info("Chromium ready — awaiting pane connections")
 
 
-async def _on_popup(popup: Any) -> None:
-    global _loading
-    try:
-        url = popup.url
-        if url and _page:
-            _loading = True
-            await broadcast_json({"type": "loading", "loading": True})
-            await _cdp.send("Page.navigate", {"url": url})
-        await popup.close()
-    except Exception as exc:
-        log.debug("popup handling error: %s", exc)
-
-
-# ── Main ──────────────────────────────────────────────────────
+# ── Main ─────────────────────────────────────────────────────
 
 async def main() -> None:
     if not _AUTH_TOKEN:

@@ -6,6 +6,9 @@ import {
   Maximize2,
   Minimize2,
   RefreshCw,
+  ExternalLink,
+  Plus,
+  X,
 } from 'lucide-react'
 import { useBrowserStream } from '../hooks/useBrowserStream'
 import {
@@ -36,7 +39,9 @@ function mouseButton(e: React.MouseEvent): string {
   }
 }
 
-export function BrowserPanel() {
+// ── Single browser pane ─────────────────────────────────────
+
+function BrowserPane({ paneId }: { paneId: string }) {
   const {
     connected,
     currentUrl,
@@ -54,11 +59,10 @@ export function BrowserPanel() {
     sendKey,
     insertText,
     resize,
-  } = useBrowserStream()
+  } = useBrowserStream(paneId)
 
   const [urlInput, setUrlInput] = useState('')
   const [urlFocused, setUrlFocused] = useState(false)
-  const [fullscreen, setFullscreen] = useState(false)
   const [deviceMode, setDeviceMode] = useState<ViewportPreset>('responsive')
   const viewportRef = useRef<HTMLDivElement>(null)
   const interactRef = useRef<HTMLDivElement>(null)
@@ -168,7 +172,6 @@ export function BrowserPanel() {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       e.stopPropagation()
-      // Let paste (Ctrl/Cmd+V) through to onPaste handler
       if ((e.ctrlKey || e.metaKey) && e.key === 'v') return
       e.preventDefault()
       sendKey('keyDown', e.key, e.code, {
@@ -207,12 +210,18 @@ export function BrowserPanel() {
     interactRef.current?.focus()
   }, [])
 
+  const handlePopOut = useCallback(() => {
+    if (currentUrl && currentUrl !== 'about:blank') {
+      window.open(currentUrl, '_blank')
+    }
+  }, [currentUrl])
+
   const btnStyle = {
     color: 'var(--color-text-tertiary)',
   }
 
   return (
-    <div className={`flex flex-col h-full ${fullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
+    <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div
         className="flex items-center gap-1 px-2 py-1 shrink-0"
@@ -224,12 +233,6 @@ export function BrowserPanel() {
           style={{ backgroundColor: connected ? '#22c55e' : '#ef4444' }}
           title={connected ? 'Connected' : 'Disconnected'}
         />
-        <span
-          className="text-[11px] mr-1"
-          style={{ color: 'var(--color-text-tertiary)' }}
-        >
-          Browser
-        </span>
 
         {/* Navigation buttons */}
         <button
@@ -280,7 +283,17 @@ export function BrowserPanel() {
         {/* Device viewport selector */}
         <ViewportSelector value={deviceMode} onChange={handleDeviceChange} />
 
-        {/* Reconnect + Fullscreen */}
+        {/* Pop out */}
+        <button
+          onClick={handlePopOut}
+          className="p-1 rounded hover:opacity-80"
+          style={btnStyle}
+          title="Open in browser"
+        >
+          <ExternalLink size={14} />
+        </button>
+
+        {/* Reconnect */}
         <button
           onClick={reconnect}
           className="p-1 rounded hover:opacity-80"
@@ -288,14 +301,6 @@ export function BrowserPanel() {
           title="Reconnect"
         >
           <RefreshCw size={14} />
-        </button>
-        <button
-          onClick={() => setFullscreen((f) => !f)}
-          className="p-1 rounded hover:opacity-80"
-          style={btnStyle}
-          title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-        >
-          {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
         </button>
       </div>
 
@@ -370,6 +375,103 @@ export function BrowserPanel() {
             {deviceConfig.width}×{deviceConfig.height}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Pane manager (outer) ────────────────────────────────────
+
+export function BrowserPanel() {
+  const [panes, setPanes] = useState<string[]>(['0'])
+  const nextPaneId = useRef(1)
+  const [fullscreen, setFullscreen] = useState(false)
+
+  const addPane = useCallback(() => {
+    setPanes((prev) => {
+      if (prev.length >= 4) return prev
+      return [...prev, String(nextPaneId.current++)]
+    })
+  }, [])
+
+  const removePane = useCallback((index: number) => {
+    setPanes((prev) => {
+      if (prev.length <= 1) return prev
+      return prev.filter((_, i) => i !== index)
+    })
+  }, [])
+
+  const count = panes.length
+  const gridClass =
+    count === 1
+      ? 'grid-cols-1'
+      : count === 2
+        ? 'grid-cols-2'
+        : 'grid-cols-2 grid-rows-2'
+
+  return (
+    <div className={`flex flex-col h-full ${fullscreen ? 'fixed inset-0 z-50 bg-black' : ''}`}>
+      {/* Panel header */}
+      <div
+        className="flex items-center gap-2 px-2 py-1 shrink-0"
+        style={{ borderBottom: '1px solid var(--color-border)' }}
+      >
+        <span className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+          Browser
+        </span>
+        {count > 1 && (
+          <span
+            className="text-[10px] px-1 rounded"
+            style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
+          >
+            {count}
+          </span>
+        )}
+        <div className="flex-1" />
+        <button
+          onClick={addPane}
+          disabled={count >= 4}
+          className="p-1 rounded hover:opacity-80 disabled:opacity-30"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          title="Add browser pane"
+        >
+          <Plus size={14} />
+        </button>
+        <button
+          onClick={() => setFullscreen((f) => !f)}
+          className="p-1 rounded hover:opacity-80"
+          style={{ color: 'var(--color-text-tertiary)' }}
+          title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+        >
+          {fullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+        </button>
+      </div>
+
+      {/* Pane grid */}
+      <div className={`flex-1 grid ${gridClass} min-h-0`}>
+        {panes.map((paneId, i) => (
+          <div
+            key={paneId}
+            className="overflow-hidden relative"
+            style={{
+              borderRight: count > 1 && i % 2 === 0 ? '1px solid var(--color-border)' : undefined,
+              borderBottom: count > 2 && i < 2 ? '1px solid var(--color-border)' : undefined,
+              gridColumn: count === 3 && i === 2 ? '1 / -1' : undefined,
+            }}
+          >
+            {count > 1 && (
+              <button
+                onClick={() => removePane(i)}
+                className="absolute top-1.5 right-1.5 z-20 p-0.5 rounded hover:opacity-80"
+                style={{ color: 'var(--color-text-tertiary)', background: 'var(--color-surface-raised)' }}
+                title="Close pane"
+              >
+                <X size={10} />
+              </button>
+            )}
+            <BrowserPane paneId={paneId} />
+          </div>
+        ))}
       </div>
     </div>
   )
