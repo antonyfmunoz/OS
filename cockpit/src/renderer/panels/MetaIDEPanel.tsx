@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   FolderTree, MonitorPlay, GitBranch, Database, Map, Shield,
   Terminal as TerminalIcon, Box, Cpu, X, PanelBottomOpen,
-  Maximize2, Minimize2, ExternalLink, ChevronLeft, ChevronRight,
+  Maximize2, Minimize2,
 } from 'lucide-react'
 import { useMetaIDEStore, type SidebarTab, type PanelTab } from '../stores/metaIDEStore'
 import { useCollapseStore } from '../stores/collapseStore'
@@ -12,7 +12,7 @@ import { useViewContextStore } from '../stores/viewContextStore'
 import { fetchApi } from '../api/client'
 import { useBootstrapStore } from '../stores/bootstrapStore'
 import { VPS, BEAST } from '../constants/devices'
-import { LivePreview } from '../components/LivePreview'
+import { SplitPreview } from '../components/SplitPreview'
 import type { LucideIcon } from 'lucide-react'
 
 const SIDEBAR_ITEMS: Array<{ id: SidebarTab; icon: LucideIcon; label: string }> = [
@@ -1019,57 +1019,12 @@ function PhaseRow({ phase }: { phase: { phase_number: string; phase_name: string
 function PreviewSidebar() {
   const { previewExpanded, togglePreviewExpanded } = useMetaIDEStore()
 
-  function handlePopOutAll() {
-    fetchApi<{ projections: any[] }>('/projections')
-      .then((data) => {
-        (data.projections || [])
-          .filter((p: any) => p.preview_url)
-          .forEach((p: any) => window.open(p.preview_url, '_blank'))
-      })
-      .catch(() => {})
-  }
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div
-        className="flex items-center gap-2 px-2 py-1 shrink-0"
-        style={{ borderBottom: '1px solid var(--color-border)' }}
-      >
-        <button
-          onClick={togglePreviewExpanded}
-          className="p-1 rounded hover:opacity-80"
-          style={{ color: 'var(--color-text-tertiary)' }}
-          title={previewExpanded ? 'Collapse preview' : 'Expand preview'}
-        >
-          {previewExpanded ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-        <span className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
-          Preview Grid
-        </span>
-        <div className="flex-1" />
-        <button
-          onClick={handlePopOutAll}
-          className="p-1 rounded hover:opacity-80"
-          style={{ color: 'var(--color-text-tertiary)' }}
-          title="Open all in browser"
-        >
-          <ExternalLink size={14} />
-        </button>
-      </div>
-      <div className="flex-1 grid grid-cols-2 grid-rows-2 min-h-0">
-        <div className="overflow-hidden" style={{ borderRight: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)' }}>
-          <LivePreview defaultProjection="umh" />
-        </div>
-        <div className="overflow-hidden" style={{ borderBottom: '1px solid var(--color-border)' }}>
-          <LivePreview defaultProjection="creatoros" />
-        </div>
-        <div className="overflow-hidden" style={{ borderRight: '1px solid var(--color-border)' }}>
-          <LivePreview defaultProjection="eos" />
-        </div>
-        <div className="overflow-hidden">
-          <LivePreview defaultProjection="lyfeos" />
-        </div>
-      </div>
+      <SplitPreview
+        expanded={previewExpanded}
+        onToggleExpand={togglePreviewExpanded}
+      />
     </div>
   )
 }
