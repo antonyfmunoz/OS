@@ -502,6 +502,16 @@ export const useCanvasStore = create<CanvasState>()(
     }),
     {
       name: 'cockpit:canvas',
+      version: 2,
+      migrate: () => ({
+        windows: [],
+        clusters: [],
+        presets: [],
+        panX: 0,
+        panY: 0,
+        zoom: 1,
+        nextZIndex: 1,
+      }),
       partialize: (state) => ({
         windows: state.windows.map(({ connectionStatus, badgeCount, poppedOut, ...rest }) => rest),
         clusters: state.clusters,

@@ -75,6 +75,12 @@ export const useUnifiedCanvasStore = create<UnifiedCanvasState>()(
     }),
     {
       name: 'cockpit:unified-canvas',
+      version: 2,
+      migrate: () => ({
+        activeMode: 'general' as const,
+        savedCanvases: [],
+        activeCanvasId: { general: null, agents: null, workflows: null },
+      }),
       partialize: (s) => ({
         activeMode: s.activeMode,
         savedCanvases: s.savedCanvases,
