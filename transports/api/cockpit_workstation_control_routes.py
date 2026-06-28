@@ -46,6 +46,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/workstation/resume", _workstation_resume, methods=["GET"])
     r.add_api_route("/workstation/mode-composite", _mode_composite, methods=["GET"])
     r.add_api_route("/tmux/sessions", _tmux_sessions, methods=["GET"])
+    r.add_api_route("/tmux/create", _tmux_create, methods=["POST"], dependencies=auth)
     r.add_api_route("/tmux/capture/{session_name}/{pane_id}", _tmux_capture, methods=["GET"])
     r.add_api_route("/terminal/remote/create", _remote_terminal_create, methods=["POST"], dependencies=auth)
     r.add_api_route("/terminal/remote/sessions", _remote_terminal_sessions, methods=["GET"], dependencies=auth)
@@ -451,6 +452,19 @@ def _tmux_sessions(request: Request) -> dict[str, Any]:
             })
 
     return {"ok": True, "sessions": sessions, "count": len(sessions)}
+
+
+async def _tmux_create(request: Request) -> dict[str, Any]:
+    from adapters.tool_adapters.tmux import TmuxAdapter
+    body = await request.json()
+    name = body.get("name", "")
+    if not name:
+        return {"ok": False, "error": "name required"}
+    adapter = TmuxAdapter()
+    result = adapter._execute_impl("new_session", {"name": name})
+    if not result.get("success"):
+        return {"ok": False, "error": result.get("stderr", "failed to create session")}
+    return {"ok": True, "session_name": name}
 
 
 def _tmux_capture(request: Request, session_name: str, pane_id: str) -> dict[str, Any]:

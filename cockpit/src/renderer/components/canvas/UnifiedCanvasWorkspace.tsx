@@ -78,6 +78,7 @@ export function UnifiedCanvasWorkspace() {
   const fetchAgents = useAgentStore((s) => s.fetchAgents)
   const [paletteOpen, setPaletteOpen] = useState(true)
   const [tmuxSessions, setTmuxSessions] = useState<Array<{ name: string; windows: number }>>([])
+  const [beastSessions, setBeastSessions] = useState<Array<{ name: string; shell?: string; shell_type?: string }>>([])
   const prevMode = useRef(activeMode)
 
   const KNOWN_AGENTS = [
@@ -116,6 +117,12 @@ export function UnifiedCanvasWorkspace() {
   useEffect(() => {
     fetchApi<{ sessions?: Array<{ name: string; windows: number }> }>('/tmux/sessions')
       .then((data) => { if (data?.sessions) setTmuxSessions(data.sessions) })
+      .catch(() => {})
+    fetchApi<{ ok?: boolean; result_data?: { ok?: boolean; sessions?: Array<{ name: string; shell_type?: string }> }; sessions?: Array<{ name: string; shell_type?: string }> }>('/terminal/remote/sessions?node_id=windows-desktop')
+      .then((data) => {
+        const sessions = data?.result_data?.sessions ?? data?.sessions
+        if (sessions) setBeastSessions(sessions)
+      })
       .catch(() => {})
   }, [])
 
@@ -248,6 +255,7 @@ export function UnifiedCanvasWorkspace() {
       onToggle={() => setPaletteOpen((v) => !v)}
       agents={agents.map((a) => ({ id: a.id, name: a.name }))}
       tmuxSessions={tmuxSessions}
+      beastSessions={beastSessions}
     />
   )
 
