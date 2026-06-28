@@ -172,13 +172,6 @@ export function CanvasToolbar({
         borderRadius: 9999,
       }}
     >
-      {mode && onSetMode && (
-        <>
-          <ModeDropdown mode={mode} onSetMode={onSetMode} />
-          <Separator />
-        </>
-      )}
-
       <ToolbarButton
         onClick={onTogglePalette}
         title={paletteOpen ? 'Hide palette' : 'Show palette'}
@@ -188,6 +181,13 @@ export function CanvasToolbar({
       </ToolbarButton>
 
       <Separator />
+
+      {mode && onSetMode && (
+        <>
+          <ModeDropdown mode={mode} onSetMode={onSetMode} />
+          <Separator />
+        </>
+      )}
 
       <ToolbarButton onClick={onZoomOut} title="Zoom out">
         <Minus size={14} />
