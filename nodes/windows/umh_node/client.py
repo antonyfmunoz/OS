@@ -30,6 +30,7 @@ from nodes.windows.umh_node.adapters.broadcast import BroadcastAdapter
 from nodes.windows.umh_node.adapters.camera import CameraAdapter
 from nodes.windows.umh_node.adapters.clipboard import ClipboardAdapter
 from nodes.windows.umh_node.adapters.desktop import DesktopAdapter
+from nodes.windows.umh_node.adapters.desktop_stream import DesktopStreamAdapter
 from nodes.windows.umh_node.adapters.filesystem import FilesystemAdapter
 from nodes.windows.umh_node.adapters.hermes import HermesAdapter
 from nodes.windows.umh_node.adapters.shell import ShellAdapter
@@ -92,6 +93,13 @@ class NodeClient:
             cam = CameraAdapter()
             cam.set_frame_callback(self._on_camera_frame)
             self._adapters["camera"] = cam
+        try:
+            ds = DesktopStreamAdapter()
+            ds.set_frame_callback(self._on_camera_frame)
+            self._adapters["desktop_stream"] = ds
+            ds.start()
+        except Exception as exc:
+            logger.debug("desktop stream adapter unavailable: %s", exc)
         # Hermes: always register if binary exists, no config gate needed
         hermes = HermesAdapter()
         if hermes._available:
