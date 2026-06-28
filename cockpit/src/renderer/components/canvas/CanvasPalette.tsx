@@ -34,13 +34,21 @@ interface PaletteItem {
 
 const GENERAL_ITEMS: PaletteItem[] = [
   { type: 'browser', label: 'Browser Pane', icon: <Globe size={14} /> },
-  { type: 'desktop', label: 'Desktop M0', icon: <Monitor size={14} />, config: { monitorId: 'M0' } },
-  { type: 'desktop', label: 'Desktop M1', icon: <Monitor size={14} />, config: { monitorId: 'M1' } },
-  { type: 'vision', label: 'Vision Camera', icon: <Camera size={14} /> },
+  { label: 'Desktop', icon: <Monitor size={14} />, submenu: true },
+  { label: 'Vision', icon: <Camera size={14} />, submenu: true },
   { label: 'Terminal', icon: <Terminal size={14} />, submenu: true },
   { type: 'preview', label: 'Live Preview', icon: <Eye size={14} /> },
   { label: 'Agent', icon: <Bot size={14} />, submenu: true },
   { label: 'Panel', icon: <LayoutGrid size={14} />, submenu: true },
+]
+
+const DESKTOP_MONITORS = [
+  { id: 'M0', label: 'BenQ XL2720Z' },
+  { id: 'M1', label: 'DELL AW2518HF' },
+]
+
+const VISION_CAMERAS = [
+  { id: 'default', label: 'Insta360 Link 2' },
 ]
 
 const AGENT_ITEMS: PaletteItem[] = [
@@ -127,6 +135,8 @@ export function CanvasPalette({
   const [agentSubmenuOpen, setAgentSubmenuOpen] = useState(false)
   const [terminalSubmenuOpen, setTerminalSubmenuOpen] = useState(false)
   const [generalAgentSubmenuOpen, setGeneralAgentSubmenuOpen] = useState(false)
+  const [desktopSubmenuOpen, setDesktopSubmenuOpen] = useState(false)
+  const [visionSubmenuOpen, setVisionSubmenuOpen] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [creatingCanvas, setCreatingCanvas] = useState(false)
@@ -195,99 +205,146 @@ export function CanvasPalette({
         </div>
         <div className="flex flex-col gap-0.5 px-1">
           {items.map((item, i) => (
-            <PaletteButton
-              key={`${item.label}-${i}`}
-              label={item.label}
-              icon={item.icon}
-              suffix={item.submenu ? <ChevronRight size={10} style={{ color: 'var(--color-text-tertiary)' }} /> : undefined}
-              onClick={() => {
-                if (item.submenu && item.label === 'Panel') {
-                  setPanelSubmenuOpen((v) => !v)
-                } else if (item.submenu && item.label === 'Agents') {
-                  setAgentSubmenuOpen((v) => !v)
-                } else if (item.submenu && item.label === 'Terminal') {
-                  setTerminalSubmenuOpen((v) => !v)
-                } else if (item.submenu && item.label === 'Agent') {
-                  setGeneralAgentSubmenuOpen((v) => !v)
-                } else if (item.type) {
-                  onAddWindow(item.type, item.config)
-                } else if (item.action) {
-                  onAction(item.action)
-                }
-              }}
-            />
+            <div key={`${item.label}-${i}`}>
+              <PaletteButton
+                label={item.label}
+                icon={item.icon}
+                suffix={item.submenu ? <ChevronRight size={10} style={{ color: 'var(--color-text-tertiary)' }} /> : undefined}
+                onClick={() => {
+                  if (item.submenu && item.label === 'Panel') {
+                    setPanelSubmenuOpen((v) => !v)
+                  } else if (item.submenu && item.label === 'Agents') {
+                    setAgentSubmenuOpen((v) => !v)
+                  } else if (item.submenu && item.label === 'Terminal') {
+                    setTerminalSubmenuOpen((v) => !v)
+                  } else if (item.submenu && item.label === 'Agent') {
+                    setGeneralAgentSubmenuOpen((v) => !v)
+                  } else if (item.submenu && item.label === 'Desktop') {
+                    setDesktopSubmenuOpen((v) => !v)
+                  } else if (item.submenu && item.label === 'Vision') {
+                    setVisionSubmenuOpen((v) => !v)
+                  } else if (item.type) {
+                    onAddWindow(item.type, item.config)
+                  } else if (item.action) {
+                    onAction(item.action)
+                  }
+                }}
+              />
+
+              {/* Desktop submenu — inline after Desktop button */}
+              {item.label === 'Desktop' && item.submenu && desktopSubmenuOpen && mode === 'general' && (
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)' }}>
+                  {DESKTOP_MONITORS.map((m) => (
+                    <PaletteButton
+                      key={m.id}
+                      label={m.label}
+                      icon={<Monitor size={12} />}
+                      onClick={() => {
+                        onAddWindow('desktop', { monitorId: m.id })
+                        setDesktopSubmenuOpen(false)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Vision submenu — inline after Vision button */}
+              {item.label === 'Vision' && item.submenu && visionSubmenuOpen && mode === 'general' && (
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)' }}>
+                  {VISION_CAMERAS.map((c) => (
+                    <PaletteButton
+                      key={c.id}
+                      label={c.label}
+                      icon={<Camera size={12} />}
+                      onClick={() => {
+                        onAddWindow('vision', { cameraId: c.id })
+                        setVisionSubmenuOpen(false)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Terminal submenu — inline after Terminal button */}
+              {item.label === 'Terminal' && item.submenu && terminalSubmenuOpen && mode === 'general' && (
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
+                  {(tmuxSessions && tmuxSessions.length > 0 ? tmuxSessions : [{ name: 'dex_main', windows: 1 }, { name: 'ai_main', windows: 1 }]).map((s) => (
+                    <PaletteButton
+                      key={s.name}
+                      label={s.name}
+                      icon={<Terminal size={12} />}
+                      onClick={() => {
+                        onAddWindow('terminal', { session: s.name, pane: '0' })
+                        setTerminalSubmenuOpen(false)
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Agent submenu — inline after Agent button (general mode) */}
+              {item.label === 'Agent' && item.submenu && generalAgentSubmenuOpen && mode === 'general' && (
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
+                  {agents && agents.length > 0 ? agents.map((a) => (
+                    <PaletteButton
+                      key={a.id}
+                      label={a.name}
+                      icon={<Bot size={12} />}
+                      onClick={() => {
+                        onAddWindow('agent', { agentId: a.id, agentName: a.name })
+                        setGeneralAgentSubmenuOpen(false)
+                      }}
+                    />
+                  )) : (
+                    <div className="px-2 py-1.5 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                      No agents registered
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Panel submenu — inline after Panel button */}
+              {item.label === 'Panel' && item.submenu && panelSubmenuOpen && mode === 'general' && (
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)' }}>
+                  {PANEL_ROUTES.map((route) => {
+                    const Icon = route.icon
+                    return (
+                      <PaletteButton
+                        key={route.id}
+                        label={route.label}
+                        icon={<Icon size={12} />}
+                        onClick={() => {
+                          onAddWindow('panel', { panelId: route.id })
+                          setPanelSubmenuOpen(false)
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Agents submenu — inline after Agents button (agents mode) */}
+              {item.label === 'Agents' && item.submenu && agentSubmenuOpen && mode === 'agents' && (
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
+                  {agents && agents.length > 0 ? agents.map((a) => (
+                    <PaletteButton
+                      key={a.id}
+                      label={a.name}
+                      icon={<Bot size={12} />}
+                      onClick={() => {
+                        onAddWindow('agent', { agentId: a.id, agentName: a.name })
+                      }}
+                    />
+                  )) : (
+                    <div className="px-2 py-1.5 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                      No agents registered
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
         </div>
-
-        {/* Terminal submenu (general mode) */}
-        {terminalSubmenuOpen && mode === 'general' && (
-          <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
-            {(tmuxSessions && tmuxSessions.length > 0 ? tmuxSessions : [{ name: 'dex_main', windows: 1 }, { name: 'ai_main', windows: 1 }]).map((s) => (
-              <PaletteButton
-                key={s.name}
-                label={s.name}
-                icon={<Terminal size={12} />}
-                onClick={() => {
-                  onAddWindow('terminal', { session: s.name, pane: '0' })
-                  setTerminalSubmenuOpen(false)
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Agent submenu (general mode) */}
-        {generalAgentSubmenuOpen && mode === 'general' && agents && agents.length > 0 && (
-          <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
-            {agents.map((a) => (
-              <PaletteButton
-                key={a.id}
-                label={a.name}
-                icon={<Bot size={12} />}
-                onClick={() => {
-                  onAddWindow('agent', { agentId: a.id, agentName: a.name })
-                  setGeneralAgentSubmenuOpen(false)
-                }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Panel submenu (general mode only) */}
-        {panelSubmenuOpen && mode === 'general' && (
-          <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)' }}>
-            {PANEL_ROUTES.map((route) => {
-              const Icon = route.icon
-              return (
-                <PaletteButton
-                  key={route.id}
-                  label={route.label}
-                  icon={<Icon size={12} />}
-                  onClick={() => {
-                    onAddWindow('panel', { panelId: route.id })
-                    setPanelSubmenuOpen(false)
-                  }}
-                />
-              )
-            })}
-          </div>
-        )}
-
-        {/* Agent submenu (agents mode only) */}
-        {agentSubmenuOpen && mode === 'agents' && agents && agents.length > 0 && (
-          <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
-            {agents.map((a) => (
-              <PaletteButton
-                key={a.id}
-                label={a.name}
-                icon={<Bot size={12} />}
-                onClick={() => {
-                  onAddWindow('agent', { agentId: a.id, agentName: a.name })
-                }}
-              />
-            ))}
-          </div>
-        )}
 
         {/* Divider */}
         <div className="mx-2 my-2" style={{ borderTop: '1px solid var(--color-border)' }} />
