@@ -74,11 +74,28 @@ export function UnifiedCanvasWorkspace() {
   const savedCanvases = useUnifiedCanvasStore((s) => s.savedCanvases)
   const activeCanvasId = useUnifiedCanvasStore((s) => s.activeCanvasId)
 
-  const agents = useAgentStore((s) => s.agents)
+  const storeAgents = useAgentStore((s) => s.agents)
   const fetchAgents = useAgentStore((s) => s.fetchAgents)
   const [paletteOpen, setPaletteOpen] = useState(true)
   const [tmuxSessions, setTmuxSessions] = useState<Array<{ name: string; windows: number }>>([])
   const prevMode = useRef(activeMode)
+
+  const KNOWN_AGENTS = [
+    { id: 'agent-ceo', name: 'CEO' },
+    { id: 'agent-computer_use', name: 'Computer Use' },
+    { id: 'agent-customer_success', name: 'Customer Success' },
+    { id: 'agent-engineering', name: 'Engineering' },
+    { id: 'agent-finance', name: 'Finance' },
+    { id: 'agent-hr', name: 'HR' },
+    { id: 'agent-legal', name: 'Legal' },
+    { id: 'agent-marketing', name: 'Marketing' },
+    { id: 'agent-operations', name: 'Operations' },
+    { id: 'agent-product', name: 'Product' },
+    { id: 'agent-sales', name: 'Sales' },
+  ]
+  const agents = storeAgents.length > 0
+    ? storeAgents
+    : KNOWN_AGENTS.map((a) => ({ ...a, status: 'idle', skills: [] as string[], role: 'agent', last_action: '', last_active: '' }))
 
   useEffect(() => { fetchAgents() }, [fetchAgents])
 
