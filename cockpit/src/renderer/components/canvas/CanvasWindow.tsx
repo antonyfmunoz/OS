@@ -299,6 +299,16 @@ function WindowHeader({
       onPointerMove={dragHandlers?.onPointerMove}
       onPointerUp={dragHandlers?.onPointerUp}
     >
+      {/* Close — far left */}
+      <button
+        onClick={(e) => { e.stopPropagation(); removeWindow() }}
+        className="p-0.5 rounded hover:opacity-80"
+        style={{ color: 'var(--color-danger)' }}
+        title="Close"
+      >
+        <X size={11} />
+      </button>
+
       {/* Connection dot */}
       <div
         className="w-2 h-2 rounded-full shrink-0"
@@ -361,15 +371,7 @@ function WindowHeader({
         </span>
       )}
 
-      {/* Action buttons — order: Close, Pause, Maximize, PopOut, Collapse */}
-      <button
-        onClick={(e) => { e.stopPropagation(); removeWindow() }}
-        className="p-0.5 rounded hover:opacity-80"
-        style={{ color: 'var(--color-danger)' }}
-        title="Close"
-      >
-        <X size={11} />
-      </button>
+      {/* Action buttons */}
       <button
         onClick={(e) => { e.stopPropagation(); togglePause() }}
         className="p-0.5 rounded hover:opacity-80"

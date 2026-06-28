@@ -86,6 +86,9 @@ export function AgentCanvasNode({ node, zoom, onDismiss }: Props) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
       >
+        <button onClick={(e) => { e.stopPropagation(); onDismiss(node.agentId) }} className="p-0.5 rounded hover:opacity-80" style={{ color: 'var(--color-danger)' }}>
+          <X size={12} />
+        </button>
         <Bot size={12} style={{ color: 'var(--color-text-tertiary)' }} />
         <span className="text-[11px] font-medium truncate flex-1" style={{ color: 'var(--color-text-primary)' }}>
           {node.label}
@@ -96,9 +99,6 @@ export function AgentCanvasNode({ node, zoom, onDismiss }: Props) {
         </button>
         <button onClick={(e) => { e.stopPropagation(); toggleMaximize(node.agentId) }} className="p-0.5 rounded hover:opacity-80" style={{ color: 'var(--color-text-tertiary)' }} title="Open config view">
           <Maximize2 size={12} />
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onDismiss(node.agentId) }} className="p-0.5 rounded hover:opacity-80" style={{ color: 'var(--color-text-tertiary)' }}>
-          <X size={12} />
         </button>
       </div>
 
