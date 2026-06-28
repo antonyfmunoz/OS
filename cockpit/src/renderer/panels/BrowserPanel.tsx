@@ -381,6 +381,11 @@ export function BrowserPane({ paneId }: { paneId: string }) {
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
           onContextMenu={handleContextMenu}
+          onTouchStart={() => {
+            if (isTouchDevice && mobileInputRef.current) {
+              mobileInputRef.current.focus()
+            }
+          }}
         >
           {isTouchDevice && (
             <input
@@ -397,11 +402,10 @@ export function BrowserPane({ paneId }: { paneId: string }) {
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                width: 1,
-                height: 1,
+                width: 16,
+                height: 16,
                 opacity: 0,
                 zIndex: 10,
-                pointerEvents: 'none',
               }}
             />
           )}
