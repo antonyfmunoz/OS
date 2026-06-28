@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useUnifiedCanvasStore } from '../../stores/unifiedCanvasStore'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { useAgentCanvasStore } from '../../stores/agentCanvasStore'
@@ -74,6 +74,12 @@ export function UnifiedCanvasWorkspace() {
 
   const [paletteOpen, setPaletteOpen] = useState(true)
   const prevMode = useRef(activeMode)
+
+  useEffect(() => {
+    const handler = () => setPaletteOpen(v => !v)
+    document.addEventListener('canvas:toggle-palette', handler)
+    return () => document.removeEventListener('canvas:toggle-palette', handler)
+  }, [])
 
   const handleSetMode = useCallback((newMode: CanvasMode) => {
     const currentMode = useUnifiedCanvasStore.getState().activeMode
