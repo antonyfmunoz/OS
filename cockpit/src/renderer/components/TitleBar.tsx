@@ -24,41 +24,12 @@ declare global {
 
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useWorkspaceContextStore } from '../stores/workspaceContextStore'
-import { useUnifiedCanvasStore } from '../stores/unifiedCanvasStore'
 import { ROUTES } from '../types/routes'
 import { IDEMenuBar } from './IDEMenuBar'
 
 function getPanelLabel(panelId: string): string {
   const route = ROUTES.find(r => r.id === panelId)
   return route?.label ?? panelId
-}
-
-const MODE_LABELS: Record<string, string> = {
-  general: 'General',
-  agents: 'Agents',
-  workflows: 'Workflows',
-  loops: 'Loops',
-  harnesses: 'Harnesses',
-  organism: 'Organism',
-}
-
-function CanvasTitleBar() {
-  const activeMode = useUnifiedCanvasStore((s) => s.activeMode)
-  const modeLabel = MODE_LABELS[activeMode] ?? activeMode
-
-  return (
-    <div className="titlebar-no-drag flex items-center gap-2">
-      <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
-        Canvas
-      </span>
-      <span className="font-mono text-[10px] leading-none text-text-tertiary">
-        /
-      </span>
-      <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-primary">
-        {modeLabel}
-      </span>
-    </div>
-  )
 }
 
 export function TitleBar() {
@@ -81,8 +52,6 @@ export function TitleBar() {
     >
       {activePanel === 'editor' ? (
         <IDEMenuBar />
-      ) : (activePanel === 'canvas' || activePanel === 'agents' || activePanel === 'workflows') ? (
-        <CanvasTitleBar />
       ) : (
         <>
           <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
