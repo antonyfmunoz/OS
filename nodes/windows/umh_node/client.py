@@ -93,6 +93,14 @@ class NodeClient:
             cam = CameraAdapter()
             cam.set_frame_callback(self._on_camera_frame)
             self._adapters["camera"] = cam
+            try:
+                result = cam.execute("camera.stream_start", {"fps": 2, "quality": 70, "resolution": [1280, 720]})
+                if result.get("success"):
+                    logger.info("camera stream auto-started (2fps, 1280x720, q70)")
+                else:
+                    logger.debug("camera auto-start returned: %s", result.get("error"))
+            except Exception as exc:
+                logger.debug("camera auto-start failed: %s", exc)
         try:
             ds = DesktopStreamAdapter()
             ds.set_frame_callback(self._on_camera_frame)
