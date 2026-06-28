@@ -59,9 +59,9 @@ _ALLOWED_ORIGINS = {
 
 _JPEG_SOI = b'\xff\xd8'
 
-_clients: set[Any] = set()
-_latest_frame: bytes | None = None
-_latest_meta: dict[str, Any] = {}
+_clients: dict[Any, str | None] = {}  # ws -> subscribed monitor (None = all)
+_latest_frames: dict[str, bytes] = {}  # monitor -> latest JPEG
+_latest_metas: dict[str, dict[str, Any]] = {}  # monitor -> latest meta (width/height/etc)
 _last_frame_at: float = 0.0
 _frame_count: int = 0
 _event_loop: asyncio.AbstractEventLoop | None = None
@@ -112,19 +112,24 @@ async def send_json(ws: Any, data: dict[str, Any]) -> None:
 
 
 async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
-    """Fan out JPEG frame to all connected viewers."""
-    global _latest_frame, _latest_meta, _last_frame_at, _frame_count
+    """Fan out JPEG frame to viewers subscribed to the matching monitor."""
+    global _last_frame_at, _frame_count
 
     if len(jpeg_bytes) > MAX_FRAME_BYTES:
         log.warning("frame too large: %d bytes, dropping", len(jpeg_bytes))
         return
 
-    _latest_frame = jpeg_bytes
-    _latest_meta = meta
+    frame_monitor = meta.get("monitor", "M0")
+    _latest_frames[frame_monitor] = jpeg_bytes
+    _latest_metas[frame_monitor] = meta
     _last_frame_at = time.time()
     _frame_count += 1
 
     if not _clients:
+        return
+
+    targets = [ws for ws, mon in _clients.items() if mon is None or mon == frame_monitor]
+    if not targets:
         return
 
     async def _send_to(ws: Any) -> bool:
@@ -134,13 +139,13 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
         except Exception:
             return False
 
-    clients = list(_clients)
-    results = await asyncio.gather(*(_send_to(ws) for ws in clients), return_exceptions=True)
+    results = await asyncio.gather(*(_send_to(ws) for ws in targets), return_exceptions=True)
 
-    dead = {clients[i] for i, ok in enumerate(results) if ok is not True}
+    dead = {targets[i] for i, ok in enumerate(results) if ok is not True}
     if dead:
         log.debug("cleaned %d stale viewer(s)", len(dead))
-        _clients.difference_update(dead)
+        for ws in dead:
+            _clients.pop(ws, None)
 
 
 def receive_binary_frame(jpeg_bytes: bytes, meta_json: str = "") -> None:
@@ -168,13 +173,13 @@ async def handle_desktop(ws: Any) -> None:
         return
 
     log.info("desktop viewer connected: %s", ws.remote_address)
-    _clients.add(ws)
+    _clients[ws] = None
     try:
         await send_json(ws, {"type": "connected"})
         await send_json(ws, {
             "type": "desktop_status",
             "streaming": _last_frame_at > 0 and (time.time() - _last_frame_at) < 10,
-            "monitor": _latest_meta.get("monitor", "M0"),
+            "monitors": list(_latest_metas.keys()),
             "viewers": len(_clients),
         })
 
@@ -191,13 +196,28 @@ async def handle_desktop(ws: Any) -> None:
             if msg_type == "ping":
                 await send_json(ws, {"type": "pong"})
             elif msg_type == "desktop_subscribe":
-                log.info("viewer subscribed: monitor=%s", msg.get("monitor", "M0"))
-                await send_json(ws, {
+                monitor = msg.get("monitor", "M0")
+                _clients[ws] = monitor
+                log.info("viewer subscribed: monitor=%s", monitor)
+                mon_meta = _latest_metas.get(monitor, {})
+                status: dict[str, Any] = {
                     "type": "desktop_status",
                     "streaming": _last_frame_at > 0 and (time.time() - _last_frame_at) < 10,
-                    "monitor": msg.get("monitor", "M0"),
-                })
+                    "monitor": monitor,
+                }
+                if mon_meta.get("width"):
+                    status["width"] = mon_meta["width"]
+                if mon_meta.get("height"):
+                    status["height"] = mon_meta["height"]
+                await send_json(ws, status)
+                cached = _latest_frames.get(monitor)
+                if cached:
+                    try:
+                        await ws.send(cached)
+                    except Exception:
+                        pass
             elif msg_type == "desktop_unsubscribe":
+                _clients[ws] = None
                 log.info("viewer unsubscribed")
 
     except websockets.exceptions.ConnectionClosed:
@@ -205,7 +225,7 @@ async def handle_desktop(ws: Any) -> None:
     except Exception as e:
         log.error("desktop viewer error: %s", e)
     finally:
-        _clients.discard(ws)
+        _clients.pop(ws, None)
 
 
 async def _frame_ingest_ws_handler(ws: Any) -> None:
