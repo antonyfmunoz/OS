@@ -74,8 +74,11 @@ export function UnifiedCanvasWorkspace() {
   const activeCanvasId = useUnifiedCanvasStore((s) => s.activeCanvasId)
 
   const agents = useAgentStore((s) => s.agents)
+  const fetchAgents = useAgentStore((s) => s.fetchAgents)
   const [paletteOpen, setPaletteOpen] = useState(true)
   const prevMode = useRef(activeMode)
+
+  useEffect(() => { fetchAgents() }, [fetchAgents])
 
   useEffect(() => {
     const handler = () => setPaletteOpen(v => !v)

@@ -8,17 +8,26 @@ interface Props {
 export function VisionWindowContent({ paused }: Props) {
   const [connected, setConnected] = useState(false)
   const [frameUrl, setFrameUrl] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
   const wsRef = useRef<WebSocket | null>(null)
   const prevUrlRef = useRef<string | null>(null)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const connect = useCallback(() => {
     if (paused || wsRef.current?.readyState === WebSocket.OPEN) return
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const ws = new WebSocket(`${protocol}//${window.location.host}/api/umh/vision/ws`)
     ws.binaryType = 'blob'
     wsRef.current = ws
 
-    ws.onopen = () => setConnected(true)
+    ws.onopen = () => {
+      setConnected(true)
+      setRetryCount(0)
+    }
 
     ws.onmessage = (ev) => {
       if (ev.data instanceof Blob) {
@@ -33,14 +42,22 @@ export function VisionWindowContent({ paused }: Props) {
       setConnected(false)
       setFrameUrl(null)
       wsRef.current = null
+      if (!paused) {
+        const delay = Math.min(3000, 1000 * Math.pow(1.5, retryCount))
+        retryTimerRef.current = setTimeout(() => {
+          setRetryCount((c) => c + 1)
+          connect()
+        }, delay)
+      }
     }
 
     ws.onerror = () => ws.close()
-  }, [paused])
+  }, [paused, retryCount])
 
   useEffect(() => {
     connect()
     return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
       wsRef.current?.close()
       wsRef.current = null
       if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current)
@@ -62,15 +79,16 @@ export function VisionWindowContent({ paused }: Props) {
         style={{ color: 'var(--color-text-tertiary)' }}>
         <Camera size={24} />
         <span className="text-[12px]">
-          {connected ? 'Waiting for frames...' : 'Connecting to vision relay...'}
+          {connected ? 'Waiting for frames...' : retryCount > 2 ? 'Reconnecting to vision relay...' : 'Connecting to vision relay...'}
         </span>
-        {!connected && (
-          <button className="text-[11px] px-2 py-1 rounded"
-            style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
-            onClick={connect}>
-            Retry
-          </button>
+        {retryCount > 0 && (
+          <span className="text-[10px]">Attempt {retryCount + 1}</span>
         )}
+        <button className="text-[11px] px-2 py-1 rounded"
+          style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+          onClick={() => { setRetryCount(0); connect() }}>
+          Retry
+        </button>
       </div>
     )
   }

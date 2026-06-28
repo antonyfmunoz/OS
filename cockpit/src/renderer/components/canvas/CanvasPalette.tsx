@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import {
   Globe,
   Monitor,
@@ -47,6 +47,7 @@ const AGENT_ITEMS: PaletteItem[] = [
   { label: 'Show All Agents', icon: <Users size={14} />, action: 'showAll' },
   { label: 'Tile All', icon: <LayoutDashboard size={14} />, action: 'tile' },
   { label: 'Fit All', icon: <Maximize2 size={14} />, action: 'fitAll' },
+  { label: 'Agents', icon: <Bot size={14} />, submenu: true },
 ]
 
 const WORKFLOW_ITEMS: PaletteItem[] = [
@@ -121,6 +122,7 @@ export function CanvasPalette({
   const toggle = onToggle ?? (() => setInternalExpanded((v) => !v))
 
   const [panelSubmenuOpen, setPanelSubmenuOpen] = useState(false)
+  const [agentSubmenuOpen, setAgentSubmenuOpen] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [creatingCanvas, setCreatingCanvas] = useState(false)
@@ -128,19 +130,7 @@ export function CanvasPalette({
   const renameRef = useRef<HTMLInputElement>(null)
   const createRef = useRef<HTMLInputElement>(null)
 
-  const items = useMemo(() => {
-    const base = MODE_ITEMS[mode]
-    if (mode === 'agents' && agents && agents.length > 0) {
-      const agentItems: PaletteItem[] = agents.map((a) => ({
-        type: 'agent',
-        label: a.name,
-        icon: <Bot size={14} />,
-        config: { agentId: a.id, agentName: a.name },
-      }))
-      return [...base, ...agentItems]
-    }
-    return base
-  }, [mode, agents])
+  const items = MODE_ITEMS[mode]
 
   const commitRename = useCallback(() => {
     if (renamingId && renameValue.trim()) {
@@ -207,8 +197,10 @@ export function CanvasPalette({
               icon={item.icon}
               suffix={item.submenu ? <ChevronRight size={10} style={{ color: 'var(--color-text-tertiary)' }} /> : undefined}
               onClick={() => {
-                if (item.submenu) {
+                if (item.submenu && item.label === 'Panel') {
                   setPanelSubmenuOpen((v) => !v)
+                } else if (item.submenu && item.label === 'Agents') {
+                  setAgentSubmenuOpen((v) => !v)
                 } else if (item.type) {
                   onAddWindow(item.type, item.config)
                 } else if (item.action) {
@@ -236,6 +228,22 @@ export function CanvasPalette({
                 />
               )
             })}
+          </div>
+        )}
+
+        {/* Agent submenu (agents mode only) */}
+        {agentSubmenuOpen && mode === 'agents' && agents && agents.length > 0 && (
+          <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
+            {agents.map((a) => (
+              <PaletteButton
+                key={a.id}
+                label={a.name}
+                icon={<Bot size={12} />}
+                onClick={() => {
+                  onAddWindow('agent', { agentId: a.id, agentName: a.name })
+                }}
+              />
+            ))}
           </div>
         )}
 
