@@ -67,6 +67,9 @@ class NodeMeshServer:
         self._frame_queue: asyncio.Queue[tuple[str, dict[str, Any]]] | None = None
         self._frame_relay_url: str | None = None
         self._frame_relay_token: str = ""
+        self._desktop_frame_queue: asyncio.Queue[tuple[str, dict[str, Any]]] | None = None
+        self._desktop_relay_url: str | None = None
+        self._desktop_relay_token: str = ""
         self._server: Any = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
@@ -95,6 +98,11 @@ class NodeMeshServer:
         """Enable persistent WS frame relay (replaces per-frame HTTP POST)."""
         self._frame_relay_url = ws_url
         self._frame_relay_token = token
+
+    def register_desktop_relay(self, ws_url: str, token: str = "") -> None:
+        """Enable persistent WS relay for desktop frames (separate from vision)."""
+        self._desktop_relay_url = ws_url
+        self._desktop_relay_token = token
 
     def start(self) -> threading.Thread:
         """Start the mesh server in a background thread."""
@@ -219,6 +227,68 @@ class NodeMeshServer:
                 await asyncio.sleep(backoff)
                 backoff = min(backoff * 2, 30)
 
+    async def _desktop_relay_ws_loop(self) -> None:
+        """Persistent WS connection to desktop relay for frame push.
+
+        Same protocol as _frame_relay_ws_loop but drains _desktop_frame_queue.
+        """
+        import struct as _struct
+
+        assert self._desktop_frame_queue is not None
+        assert self._desktop_relay_url is not None
+
+        backoff = 1.0
+        while not self._shutdown_event.is_set():
+            try:
+                async with websockets.connect(
+                    self._desktop_relay_url,
+                    max_size=4 * 1024 * 1024,
+                    ping_interval=10,
+                    ping_timeout=20,
+                    close_timeout=2,
+                ) as ws:
+                    if self._desktop_relay_token:
+                        await ws.send(self._desktop_relay_token)
+                    ack = await asyncio.wait_for(ws.recv(), timeout=5)
+                    if ack != "ok":
+                        logger.warning("desktop relay WS auth rejected: %s", ack)
+                        await asyncio.sleep(backoff)
+                        backoff = min(backoff * 2, 30)
+                        continue
+
+                    logger.info("desktop relay WS connected to %s", self._desktop_relay_url)
+                    backoff = 1.0
+                    frames_sent = 0
+
+                    while not self._shutdown_event.is_set():
+                        try:
+                            node_id, payload = await asyncio.wait_for(
+                                self._desktop_frame_queue.get(),
+                                timeout=5.0,
+                            )
+                        except asyncio.TimeoutError:
+                            continue
+
+                        raw_msg = payload.get("__raw__")
+                        if raw_msg is not None:
+                            await ws.send(raw_msg)
+                        else:
+                            continue
+
+                        frames_sent += 1
+                        if frames_sent <= 3 or frames_sent % 500 == 0:
+                            logger.info("desktop relay WS: %d frames sent", frames_sent)
+
+            except websockets.ConnectionClosed as exc:
+                logger.warning("desktop relay WS closed: %s", exc)
+            except Exception as exc:
+                logger.warning("desktop relay WS error: %s", exc)
+
+            if not self._shutdown_event.is_set():
+                logger.info("desktop relay WS reconnecting in %.0fs...", backoff)
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 30)
+
     async def _serve(self) -> None:
         assert self._loop is not None
         self._health_task = self._loop.create_task(self._health_check_loop())
@@ -231,6 +301,14 @@ class NodeMeshServer:
             self._frame_relay_task = self._loop.create_task(self._frame_relay_ws_loop())
             self._frame_relay_task.add_done_callback(self._task_done_cb)
             logger.info("frame relay WS push enabled → %s", self._frame_relay_url)
+
+        if self._desktop_relay_url:
+            self._desktop_frame_queue = asyncio.Queue(maxsize=8)
+            self._desktop_relay_task = self._loop.create_task(
+                self._desktop_relay_ws_loop()
+            )
+            self._desktop_relay_task.add_done_callback(self._task_done_cb)
+            logger.info("desktop relay WS push enabled → %s", self._desktop_relay_url)
 
         async with websockets.serve(
             self._handle_connection,
@@ -344,9 +422,16 @@ class NodeMeshServer:
             meta = {}
         meta["node_id"] = node_id
 
-        if self._frame_queue is not None:
-            meta_bytes = json.dumps(meta).encode()
-            fwd = _struct.pack(">I", len(meta_bytes)) + meta_bytes + raw[4 + meta_len :]
+        source = meta.get("source", "camera")
+        meta_bytes = json.dumps(meta).encode()
+        fwd = _struct.pack(">I", len(meta_bytes)) + meta_bytes + raw[4 + meta_len :]
+
+        if source == "desktop" and self._desktop_frame_queue is not None:
+            try:
+                self._desktop_frame_queue.put_nowait(("__binary__", {"__raw__": fwd}))
+            except asyncio.QueueFull:
+                pass
+        elif self._frame_queue is not None:
             try:
                 self._frame_queue.put_nowait(("__binary__", {"__raw__": fwd}))
             except asyncio.QueueFull:

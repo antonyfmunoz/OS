@@ -139,6 +139,11 @@ def main() -> None:
     server.register_frame_relay(vision_relay_ws_url, vision_frame_token)
     logger.info("vision relay frame relay registered → %s (persistent WS)", vision_relay_ws_url)
 
+    desktop_relay_ws_url = os.getenv("DESKTOP_RELAY_WS_URL", "ws://127.0.0.1:8102")
+    desktop_frame_token = os.getenv("DESKTOP_FRAME_TOKEN", "")
+    server.register_desktop_relay(desktop_relay_ws_url, desktop_frame_token)
+    logger.info("desktop relay frame relay registered → %s (persistent WS)", desktop_relay_ws_url)
+
     thread = server.start()
     logger.info("node mesh server running on port %d — waiting for connections", config.port)
 
