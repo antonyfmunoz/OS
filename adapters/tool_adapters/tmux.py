@@ -86,7 +86,12 @@ class TmuxAdapter(BaseAdapter):
                 raise ValueError("new_session requires a name")
             if not re.match(r"^[a-zA-Z0-9_-]+$", name):
                 raise ValueError(f"invalid session name: {name}")
-            return self._run_tmux(["tmux", "new-session", "-d", "-s", name])
+            import shutil
+            shell = params.get("shell", "bash")
+            shell_bin = shutil.which(shell) or shutil.which("bash")
+            if not shell_bin:
+                raise ValueError(f"shell '{shell}' not found on this node")
+            return self._run_tmux(["tmux", "new-session", "-d", "-s", name, shell_bin])
         raise ValueError(f"unknown tmux operation: {operation}")
 
     def _inspect_session(self, session: str) -> dict[str, Any]:

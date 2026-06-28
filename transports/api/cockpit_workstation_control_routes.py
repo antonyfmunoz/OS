@@ -47,9 +47,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/workstation/mode-composite", _mode_composite, methods=["GET"])
     r.add_api_route("/tmux/sessions", _tmux_sessions, methods=["GET"])
     r.add_api_route("/tmux/create", _tmux_create, methods=["POST"], dependencies=auth)
+    r.add_api_route("/tmux/shells", _tmux_shells, methods=["GET"])
     r.add_api_route("/tmux/capture/{session_name}/{pane_id}", _tmux_capture, methods=["GET"])
     r.add_api_route("/terminal/remote/create", _remote_terminal_create, methods=["POST"], dependencies=auth)
     r.add_api_route("/terminal/remote/sessions", _remote_terminal_sessions, methods=["GET"], dependencies=auth)
+    r.add_api_route("/terminal/remote/shells", _remote_terminal_shells, methods=["GET"], dependencies=auth)
     r.add_api_route("/terminal/remote/capture/{session_name}", _remote_terminal_capture, methods=["GET"], dependencies=auth)
     r.add_api_route("/terminal/remote/send", _remote_terminal_send, methods=["POST"], dependencies=auth)
     r.add_api_route("/terminal/remote/send-key", _remote_terminal_send_key, methods=["POST"], dependencies=auth)
@@ -292,6 +294,11 @@ async def _remote_terminal_sessions(request: Request) -> dict[str, Any]:
     return await _remote_terminal_dispatch(node_id, "list", {})
 
 
+async def _remote_terminal_shells(request: Request) -> dict[str, Any]:
+    node_id = request.query_params.get("node_id", "windows-desktop")
+    return await _remote_terminal_dispatch(node_id, "shells", {})
+
+
 async def _remote_terminal_capture(request: Request, session_name: str) -> dict[str, Any]:
     node_id = request.query_params.get("node_id", "windows-desktop")
     lines = int(request.query_params.get("lines", "100"))
@@ -458,13 +465,31 @@ async def _tmux_create(request: Request) -> dict[str, Any]:
     from adapters.tool_adapters.tmux import TmuxAdapter
     body = await request.json()
     name = body.get("name", "")
+    shell = body.get("shell", "bash")
     if not name:
         return {"ok": False, "error": "name required"}
     adapter = TmuxAdapter()
-    result = adapter._execute_impl("new_session", {"name": name})
+    result = adapter._execute_impl("new_session", {"name": name, "shell": shell})
     if not result.get("success"):
         return {"ok": False, "error": result.get("stderr", "failed to create session")}
-    return {"ok": True, "session_name": name}
+    return {"ok": True, "session_name": name, "shell": shell}
+
+
+def _tmux_shells(request: Request) -> dict[str, Any]:
+    import shutil
+    shells = []
+    for shell_id, label, check in [
+        ("bash", "Bash", lambda: shutil.which("bash") is not None),
+        ("zsh", "Zsh", lambda: shutil.which("zsh") is not None),
+        ("sh", "sh", lambda: shutil.which("sh") is not None),
+        ("python", "Python REPL", lambda: shutil.which("python3") is not None),
+    ]:
+        try:
+            if check():
+                shells.append({"id": shell_id, "label": label, "os": "linux"})
+        except Exception:
+            pass
+    return {"ok": True, "shells": shells}
 
 
 def _tmux_capture(request: Request, session_name: str, pane_id: str) -> dict[str, Any]:

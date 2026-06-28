@@ -112,6 +112,8 @@ interface CanvasPaletteProps {
   agents?: Array<{ id: string; name: string }>
   tmuxSessions?: Array<{ name: string; windows: number }>
   beastSessions?: Array<{ name: string; shell?: string; shell_type?: string }>
+  vpsShells?: Array<{ id: string; label: string }>
+  beastShells?: Array<{ id: string; label: string }>
 }
 
 export function CanvasPalette({
@@ -129,6 +131,8 @@ export function CanvasPalette({
   agents,
   tmuxSessions,
   beastSessions,
+  vpsShells,
+  beastShells,
 }: CanvasPaletteProps) {
   const [internalExpanded, setInternalExpanded] = useState(false)
   const expanded = open ?? internalExpanded
@@ -144,7 +148,7 @@ export function CanvasPalette({
   const [renameValue, setRenameValue] = useState('')
   const [creatingCanvas, setCreatingCanvas] = useState(false)
   const [newCanvasName, setNewCanvasName] = useState('')
-  const [creatingVpsTmux, setCreatingVpsTmux] = useState(false)
+  const [creatingVpsTmux, setCreatingVpsTmux] = useState<string | false>(false)
   const [newVpsTmuxName, setNewVpsTmuxName] = useState('')
   const renameRef = useRef<HTMLInputElement>(null)
   const createRef = useRef<HTMLInputElement>(null)
@@ -272,9 +276,9 @@ export function CanvasPalette({
 
               {/* Terminal submenu — inline after Terminal button */}
               {item.label === 'Terminals' && item.submenu && terminalSubmenuOpen && mode === 'general' && (
-                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 300, overflowY: 'auto' }}>
-                  {/* VPS — Ubuntu / bash */}
-                  <div className="px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>VPS · Ubuntu · Bash</div>
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 400, overflowY: 'auto' }}>
+                  {/* VPS — Ubuntu */}
+                  <div className="px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>VPS · Ubuntu</div>
                   {(tmuxSessions && tmuxSessions.length > 0 ? tmuxSessions : []).map((s) => (
                     <PaletteButton
                       key={`vps-${s.name}`}
@@ -296,12 +300,13 @@ export function CanvasPalette({
                         e.stopPropagation()
                         if (e.key === 'Enter' && newVpsTmuxName.trim()) {
                           const name = newVpsTmuxName.trim()
+                          const shell = typeof creatingVpsTmux === 'string' ? creatingVpsTmux : 'bash'
                           fetchApi('/tmux/create', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ name }),
+                            body: JSON.stringify({ name, shell }),
                           }).then(() => {
-                            onAddWindow('terminal', { session: name, pane: '0', node: 'local' })
+                            onAddWindow('terminal', { session: name, pane: '0', node: 'local', shell })
                             setTerminalSubmenuOpen(false)
                           }).catch(() => {})
                           setCreatingVpsTmux(false)
@@ -320,49 +325,48 @@ export function CanvasPalette({
                       autoFocus
                     />
                   ) : (
-                    <PaletteButton
-                      label="New Session"
-                      icon={<Plus size={12} />}
-                      onClick={() => {
-                        setCreatingVpsTmux(true)
-                        setNewVpsTmuxName('')
-                        setTimeout(() => vpsTmuxRef.current?.focus(), 0)
-                      }}
-                    />
+                    (vpsShells && vpsShells.length > 0 ? vpsShells : [{ id: 'bash', label: 'Bash' }]).map((sh) => (
+                      <PaletteButton
+                        key={`vps-new-${sh.id}`}
+                        label={`New ${sh.label}`}
+                        icon={<Plus size={12} />}
+                        onClick={() => {
+                          setCreatingVpsTmux(sh.id)
+                          setNewVpsTmuxName('')
+                          setTimeout(() => vpsTmuxRef.current?.focus(), 0)
+                        }}
+                      />
+                    ))
                   )}
 
                   {/* Beast — Windows */}
-                  <div className="px-2 py-0.5 mt-1 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Beast · Windows</div>
+                  <div className="px-2 py-0.5 mt-2 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Beast · Windows</div>
                   {(beastSessions && beastSessions.length > 0) && beastSessions.map((s) => {
-                    const shellLabel = (s.shell || s.shell_type) === 'cmd' ? 'cmd' : 'PowerShell'
+                    const st = s.shell_type || s.shell || 'powershell'
+                    const shellLabel = (beastShells ?? []).find((sh) => sh.id === st)?.label ?? st
                     return (
                       <PaletteButton
                         key={`beast-${s.name}`}
                         label={`${s.name} · ${shellLabel}`}
                         icon={<Terminal size={12} />}
                         onClick={() => {
-                          onAddWindow('terminal', { session: s.name, node: 'windows-desktop', shell: s.shell || s.shell_type || 'powershell' })
+                          onAddWindow('terminal', { session: s.name, node: 'windows-desktop', shell: st })
                           setTerminalSubmenuOpen(false)
                         }}
                       />
                     )
                   })}
-                  <PaletteButton
-                    label="New PowerShell"
-                    icon={<Plus size={12} />}
-                    onClick={() => {
-                      onAddWindow('terminal', { session: '__create__', node: 'windows-desktop', shell: 'powershell' })
-                      setTerminalSubmenuOpen(false)
-                    }}
-                  />
-                  <PaletteButton
-                    label="New cmd"
-                    icon={<Plus size={12} />}
-                    onClick={() => {
-                      onAddWindow('terminal', { session: '__create__', node: 'windows-desktop', shell: 'cmd' })
-                      setTerminalSubmenuOpen(false)
-                    }}
-                  />
+                  {(beastShells && beastShells.length > 0 ? beastShells : [{ id: 'powershell', label: 'PowerShell' }, { id: 'cmd', label: 'cmd' }]).map((sh) => (
+                    <PaletteButton
+                      key={`beast-new-${sh.id}`}
+                      label={`New ${sh.label}`}
+                      icon={<Plus size={12} />}
+                      onClick={() => {
+                        onAddWindow('terminal', { session: '__create__', node: 'windows-desktop', shell: sh.id })
+                        setTerminalSubmenuOpen(false)
+                      }}
+                    />
+                  ))}
                 </div>
               )}
 

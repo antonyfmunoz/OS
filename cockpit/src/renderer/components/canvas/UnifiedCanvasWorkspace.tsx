@@ -79,6 +79,8 @@ export function UnifiedCanvasWorkspace() {
   const [paletteOpen, setPaletteOpen] = useState(true)
   const [tmuxSessions, setTmuxSessions] = useState<Array<{ name: string; windows: number }>>([])
   const [beastSessions, setBeastSessions] = useState<Array<{ name: string; shell?: string; shell_type?: string }>>([])
+  const [vpsShells, setVpsShells] = useState<Array<{ id: string; label: string }>>([])
+  const [beastShells, setBeastShells] = useState<Array<{ id: string; label: string }>>([])
   const prevMode = useRef(activeMode)
 
   const KNOWN_AGENTS = [
@@ -122,6 +124,15 @@ export function UnifiedCanvasWorkspace() {
       .then((data) => {
         const sessions = data?.result_data?.sessions ?? data?.sessions
         if (sessions) setBeastSessions(sessions)
+      })
+      .catch(() => {})
+    fetchApi<{ ok?: boolean; shells?: Array<{ id: string; label: string }> }>('/tmux/shells')
+      .then((data) => { if (data?.shells) setVpsShells(data.shells) })
+      .catch(() => {})
+    fetchApi<{ ok?: boolean; result_data?: { ok?: boolean; shells?: Array<{ id: string; label: string }> }; shells?: Array<{ id: string; label: string }> }>('/terminal/remote/shells?node_id=windows-desktop')
+      .then((data) => {
+        const shells = data?.result_data?.shells ?? data?.shells
+        if (shells) setBeastShells(shells)
       })
       .catch(() => {})
   }, [])
@@ -256,6 +267,8 @@ export function UnifiedCanvasWorkspace() {
       agents={agents.map((a) => ({ id: a.id, name: a.name }))}
       tmuxSessions={tmuxSessions}
       beastSessions={beastSessions}
+      vpsShells={vpsShells}
+      beastShells={beastShells}
     />
   )
 
