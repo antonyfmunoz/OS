@@ -26,6 +26,7 @@ interface WindowContentProps {
   type: string
   config: Record<string, string | undefined>
   paused: boolean
+  onResizeHint?: (width: number, height: number) => void
 }
 
 function LoadingFallback() {
@@ -68,7 +69,7 @@ class WindowErrorBoundary extends Component<{ type: string; children: ReactNode 
   }
 }
 
-export function WindowContent({ type, config, paused }: WindowContentProps) {
+export function WindowContent({ type, config, paused, onResizeHint }: WindowContentProps) {
   let content: React.ReactNode
 
   switch (type) {
@@ -76,7 +77,7 @@ export function WindowContent({ type, config, paused }: WindowContentProps) {
       content = <BrowserWindowContent paneId={config.paneId ?? '0'} paused={paused} />
       break
     case 'desktop':
-      content = <DesktopWindowContent monitorId={config.monitorId ?? 'M0'} paused={paused} />
+      content = <DesktopWindowContent monitorId={config.monitorId ?? 'M0'} paused={paused} onResizeHint={onResizeHint} />
       break
     case 'vision':
       content = <VisionWindowContent paused={paused} />

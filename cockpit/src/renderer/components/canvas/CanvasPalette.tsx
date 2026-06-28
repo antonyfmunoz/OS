@@ -43,8 +43,8 @@ const GENERAL_ITEMS: PaletteItem[] = [
 ]
 
 const DESKTOP_MONITORS = [
-  { id: 'M0', label: 'BenQ XL2720Z' },
-  { id: 'M1', label: 'DELL AW2518HF' },
+  { id: 'M0', label: 'BenQ XL2720Z', orientation: 'landscape' as const },
+  { id: 'M1', label: 'DELL AW2518HF', orientation: 'portrait' as const },
 ]
 
 const VISION_CAMERAS = [
@@ -236,8 +236,8 @@ export function CanvasPalette({
                   {DESKTOP_MONITORS.map((m) => (
                     <PaletteButton
                       key={m.id}
-                      label={m.label}
-                      icon={<Monitor size={12} />}
+                      label={`${m.label} (${m.orientation === 'portrait' ? '↕' : '↔'})`}
+                      icon={<Monitor size={12} style={m.orientation === 'portrait' ? { transform: 'rotate(90deg)' } : undefined} />}
                       onClick={() => {
                         onAddWindow('desktop', { monitorId: m.id })
                         setDesktopSubmenuOpen(false)

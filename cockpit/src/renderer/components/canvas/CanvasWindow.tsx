@@ -72,6 +72,18 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
   const [renameValue, setRenameValue] = useState('')
   const renameRef = useRef<HTMLInputElement>(null)
 
+  const handleResizeHint = useCallback(
+    (nativeW: number, nativeH: number) => {
+      if (!w) return
+      const aspect = nativeW / nativeH
+      const TARGET_HEIGHT = 540
+      if (nativeH > nativeW) {
+        updateWindow(windowId, { width: Math.round(TARGET_HEIGHT * aspect), height: TARGET_HEIGHT })
+      }
+    },
+    [w, windowId, updateWindow],
+  )
+
   const drag = useCanvasDrag({
     onDragStart: () => bringToFront(windowId),
     onDrag: (x, y) => updateWindow(windowId, { x, y }),
@@ -136,7 +148,7 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
           onKeyDown={(e) => e.stopPropagation()}
           onKeyUp={(e) => e.stopPropagation()}
         >
-          <WindowContent type={w.type} config={w.config} paused={w.paused} />
+          <WindowContent type={w.type} config={w.config} paused={w.paused} onResizeHint={handleResizeHint} />
         </div>
       </div>
     )
@@ -245,7 +257,7 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
           onKeyDown={(e) => e.stopPropagation()}
           onKeyUp={(e) => e.stopPropagation()}
         >
-          <WindowContent type={w.type} config={w.config} paused={w.paused} />
+          <WindowContent type={w.type} config={w.config} paused={w.paused} onResizeHint={handleResizeHint} />
         </div>
       )}
     </div>
