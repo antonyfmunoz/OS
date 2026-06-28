@@ -47,6 +47,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/workstation/mode-composite", _mode_composite, methods=["GET"])
     r.add_api_route("/tmux/sessions", _tmux_sessions, methods=["GET"])
     r.add_api_route("/tmux/capture/{session_name}/{pane_id}", _tmux_capture, methods=["GET"])
+    r.add_api_route("/terminal/remote/create", _remote_terminal_create, methods=["POST"], dependencies=auth)
+    r.add_api_route("/terminal/remote/sessions", _remote_terminal_sessions, methods=["GET"], dependencies=auth)
+    r.add_api_route("/terminal/remote/capture/{session_name}", _remote_terminal_capture, methods=["GET"], dependencies=auth)
+    r.add_api_route("/terminal/remote/send", _remote_terminal_send, methods=["POST"], dependencies=auth)
+    r.add_api_route("/terminal/remote/send-key", _remote_terminal_send_key, methods=["POST"], dependencies=auth)
+    r.add_api_route("/terminal/remote/destroy", _remote_terminal_destroy, methods=["POST"], dependencies=auth)
     r.add_api_route("/workstation/continuity", _continuity_state, methods=["GET"])
     r.add_api_route("/workstation/continuity/transition", _continuity_transition, methods=["POST"], dependencies=auth)
     r.add_api_route("/workstation/checkpoint", _latest_checkpoint, methods=["GET"])
@@ -232,6 +238,100 @@ def _execution_status(request: Request) -> dict[str, Any]:
         "environment": platform.system().lower(),
         "status": status_result,
     }
+
+
+# ── Remote terminal dispatch (mesh relay) ──────────────────────────────────
+
+
+async def _remote_terminal_dispatch(
+    node_id: str, operation: str, params: dict[str, Any], timeout: int = 15
+) -> dict[str, Any]:
+    """Dispatch a terminal operation to a remote mesh node."""
+    import aiohttp
+
+    relay_host = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
+    relay_url = f"http://{relay_host}:8095/dispatch"
+    payload = {
+        "node_id": node_id,
+        "capability": f"terminal.{operation}",
+        "params": params,
+        "timeout": timeout,
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                relay_url,
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=timeout + 5),
+            ) as resp:
+                result = await resp.json()
+    except Exception as exc:
+        logger.error("remote terminal dispatch failed: %s", exc)
+        return {"ok": False, "error": f"Node unreachable: {exc}"}
+
+    if not result.get("ok"):
+        return {"ok": False, "error": result.get("error", "dispatch failed")}
+    result_data = result.get("result_data", {})
+    return {"ok": True, **result_data}
+
+
+async def _remote_terminal_create(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    node_id = body.get("node_id", "windows-desktop")
+    name = body.get("name")
+    shell = body.get("shell", "powershell")
+    params: dict[str, Any] = {"shell": shell}
+    if name:
+        params["name"] = name
+    return await _remote_terminal_dispatch(node_id, "create", params)
+
+
+async def _remote_terminal_sessions(request: Request) -> dict[str, Any]:
+    node_id = request.query_params.get("node_id", "windows-desktop")
+    return await _remote_terminal_dispatch(node_id, "list", {})
+
+
+async def _remote_terminal_capture(request: Request, session_name: str) -> dict[str, Any]:
+    node_id = request.query_params.get("node_id", "windows-desktop")
+    lines = int(request.query_params.get("lines", "100"))
+    return await _remote_terminal_dispatch(
+        node_id, "capture", {"name": session_name, "lines": lines}
+    )
+
+
+async def _remote_terminal_send(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    node_id = body.get("node_id", "windows-desktop")
+    session_name = body.get("session_name", "")
+    text = body.get("text", "")
+    if not session_name or not text:
+        return {"ok": False, "error": "session_name and text required"}
+    return await _remote_terminal_dispatch(
+        node_id, "send", {"name": session_name, "text": text}
+    )
+
+
+async def _remote_terminal_send_key(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    node_id = body.get("node_id", "windows-desktop")
+    session_name = body.get("session_name", "")
+    key = body.get("key", "")
+    if not session_name or not key:
+        return {"ok": False, "error": "session_name and key required"}
+    return await _remote_terminal_dispatch(
+        node_id, "send_key", {"name": session_name, "key": key}
+    )
+
+
+async def _remote_terminal_destroy(request: Request) -> dict[str, Any]:
+    body = await request.json()
+    node_id = body.get("node_id", "windows-desktop")
+    session_name = body.get("session_name", "")
+    if not session_name:
+        return {"ok": False, "error": "session_name required"}
+    return await _remote_terminal_dispatch(
+        node_id, "destroy", {"name": session_name}
+    )
 
 
 # ── Cross-device node awareness ─────────────────────────────────────────────

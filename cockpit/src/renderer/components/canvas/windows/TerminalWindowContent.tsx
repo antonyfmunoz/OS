@@ -6,6 +6,8 @@ interface Props {
   session?: string
   pane?: string
   paused: boolean
+  node?: string   // undefined | "local" = VPS tmux, anything else = remote terminal
+  shell?: string  // "powershell" | "cmd" (for creating new Beast sessions)
 }
 
 const TMUX_KEY_MAP: Record<string, string> = {
@@ -32,26 +34,99 @@ function sendSpecialKey(sessionName: string, key: string) {
   }).catch(() => {})
 }
 
-export function TerminalWindowContent({ session, pane, paused }: Props) {
+function isRemote(node: string | undefined): boolean {
+  return !!node && node !== 'local'
+}
+
+function getCapturePath(node: string | undefined, session: string, pane: string): string {
+  if (!isRemote(node)) return `/tmux/capture/${session}/${pane}`
+  return `/terminal/remote/capture/${session}?node_id=${node}`
+}
+
+function doSendInput(node: string | undefined, session: string, text: string) {
+  if (!isRemote(node)) {
+    sendKeys(session, text + '\n')
+  } else {
+    fetchApi('/terminal/remote/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ node_id: node, session_name: session, text }),
+    }).catch(() => {})
+  }
+}
+
+function doSendKey(node: string | undefined, session: string, key: string) {
+  if (!isRemote(node)) {
+    sendSpecialKey(session, key)
+  } else {
+    fetchApi('/terminal/remote/send-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ node_id: node, session_name: session, key }),
+    }).catch(() => {})
+  }
+}
+
+export function TerminalWindowContent({ session, pane, paused, node, shell }: Props) {
   const [output, setOutput] = useState('')
   const [input, setInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [failCount, setFailCount] = useState(0)
+  const [alive, setAlive] = useState(true)
+  const [sessionName, setSessionName] = useState(session === '__create__' ? '' : (session ?? 'dex_main'))
+  const [creating, setCreating] = useState(session === '__create__')
+  const [restartKey, setRestartKey] = useState(0)
   const preRef = useRef<HTMLPreElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const sessionName = session ?? 'dex_main'
   const paneId = pane ?? '0'
 
+  // Auto-create session on remote nodes
   useEffect(() => {
-    if (paused) return
+    if (session !== '__create__' || !node || !creating) return
+    let active = true
+    const create = async () => {
+      try {
+        const res = await fetchApi<{ ok?: boolean; session_name?: string; error?: string }>('/terminal/remote/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ node_id: node, shell: shell ?? 'powershell' }),
+        })
+        if (!active) return
+        if (res.ok && res.session_name) {
+          setSessionName(res.session_name)
+          setCreating(false)
+          setAlive(true)
+        } else {
+          setError(res.error ?? 'Failed to create session')
+          setCreating(false)
+        }
+      } catch {
+        if (active) {
+          setError('Failed to reach node')
+          setCreating(false)
+        }
+      }
+    }
+    create()
+    return () => { active = false }
+  }, [session, node, shell, creating, restartKey])
+
+  // Poll for output
+  useEffect(() => {
+    if (paused || creating || !sessionName) return
     let active = true
     const poll = async () => {
       try {
-        const res = await fetchApi<{ output?: string; error?: string; ok?: boolean }>(`/tmux/capture/${sessionName}/${paneId}`)
+        const res = await fetchApi<{ output?: string; error?: string; ok?: boolean; alive?: boolean }>(getCapturePath(node, sessionName, paneId))
         if (!active) return
+        if (res.alive === false) {
+          setAlive(false)
+          if (res.output) setOutput(res.output)
+          return
+        }
         if (res.error || res.ok === false) {
           setFailCount((c) => c + 1)
-          setError(res.error ?? 'tmux capture failed')
+          setError(res.error ?? 'capture failed')
         } else {
           setOutput(res.output ?? '')
           setError(null)
@@ -67,7 +142,7 @@ export function TerminalWindowContent({ session, pane, paused }: Props) {
     poll()
     const id = setInterval(poll, 3000)
     return () => { active = false; clearInterval(id) }
-  }, [sessionName, paneId, paused])
+  }, [sessionName, paneId, paused, creating, node])
 
   useEffect(() => {
     if (preRef.current) preRef.current.scrollTop = preRef.current.scrollHeight
@@ -75,9 +150,9 @@ export function TerminalWindowContent({ session, pane, paused }: Props) {
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return
-    sendKeys(sessionName, input + '\n')
+    doSendInput(node, sessionName, input)
     setInput('')
-  }, [input, sessionName])
+  }, [input, sessionName, node])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     e.stopPropagation()
@@ -90,34 +165,68 @@ export function TerminalWindowContent({ session, pane, paused }: Props) {
 
     if (e.ctrlKey && e.key === 'c') {
       e.preventDefault()
-      sendSpecialKey(sessionName, 'C-c')
+      doSendKey(node, sessionName, 'C-c')
       return
     }
 
     if (e.ctrlKey && e.key === 'd') {
       e.preventDefault()
-      sendSpecialKey(sessionName, 'C-d')
+      doSendKey(node, sessionName, 'C-d')
       return
     }
 
     if (e.ctrlKey && e.key === 'z') {
       e.preventDefault()
-      sendSpecialKey(sessionName, 'C-z')
+      doSendKey(node, sessionName, 'C-z')
       return
     }
 
     if (e.ctrlKey && e.key === 'l') {
       e.preventDefault()
-      sendSpecialKey(sessionName, 'C-l')
+      doSendKey(node, sessionName, 'C-l')
       return
     }
 
     const tmuxKey = TMUX_KEY_MAP[e.key]
     if (tmuxKey) {
       e.preventDefault()
-      sendSpecialKey(sessionName, tmuxKey)
+      doSendKey(node, sessionName, tmuxKey)
     }
-  }, [handleSend, sessionName])
+  }, [handleSend, sessionName, node])
+
+  if (creating) {
+    return (
+      <div className="flex items-center justify-center h-full"
+        style={{ color: 'var(--color-text-tertiary)' }}>
+        <span className="text-[12px]">Creating session...</span>
+      </div>
+    )
+  }
+
+  if (!alive && !creating) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3"
+        style={{ color: 'var(--color-text-tertiary)' }}>
+        <Terminal size={24} />
+        <span className="text-[12px]">Session ended</span>
+        {isRemote(node) && (
+          <button
+            className="px-3 py-1 text-[11px] rounded"
+            style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+            onClick={() => {
+              setRestartKey((k) => k + 1)
+              setCreating(true)
+              setAlive(true)
+              setOutput('')
+              setError(null)
+            }}
+          >
+            Restart
+          </button>
+        )}
+      </div>
+    )
+  }
 
   if (paused) {
     return (

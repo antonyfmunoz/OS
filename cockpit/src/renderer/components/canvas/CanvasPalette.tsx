@@ -267,17 +267,37 @@ export function CanvasPalette({
               {/* Terminal submenu — inline after Terminal button */}
               {item.label === 'Terminals' && item.submenu && terminalSubmenuOpen && mode === 'general' && (
                 <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
+                  {/* VPS section */}
+                  <div className="px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>VPS</div>
                   {(tmuxSessions && tmuxSessions.length > 0 ? tmuxSessions : [{ name: 'dex_main', windows: 1 }, { name: 'ai_main', windows: 1 }]).map((s) => (
                     <PaletteButton
-                      key={s.name}
+                      key={`vps-${s.name}`}
                       label={s.name}
                       icon={<Terminal size={12} />}
                       onClick={() => {
-                        onAddWindow('terminal', { session: s.name, pane: '0' })
+                        onAddWindow('terminal', { session: s.name, pane: '0', node: 'local' })
                         setTerminalSubmenuOpen(false)
                       }}
                     />
                   ))}
+                  {/* Beast section */}
+                  <div className="px-2 py-0.5 mt-1 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Beast</div>
+                  <PaletteButton
+                    label="New PowerShell"
+                    icon={<Terminal size={12} />}
+                    onClick={() => {
+                      onAddWindow('terminal', { session: '__create__', node: 'windows-desktop', shell: 'powershell' })
+                      setTerminalSubmenuOpen(false)
+                    }}
+                  />
+                  <PaletteButton
+                    label="New cmd"
+                    icon={<Terminal size={12} />}
+                    onClick={() => {
+                      onAddWindow('terminal', { session: '__create__', node: 'windows-desktop', shell: 'cmd' })
+                      setTerminalSubmenuOpen(false)
+                    }}
+                  />
                 </div>
               )}
 

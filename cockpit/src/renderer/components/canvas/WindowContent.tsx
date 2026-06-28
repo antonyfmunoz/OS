@@ -87,6 +87,8 @@ export function WindowContent({ type, config, paused }: WindowContentProps) {
           session={config.session ?? 'dex_main'}
           pane={config.pane ?? '0'}
           paused={paused}
+          node={config.node}
+          shell={config.shell}
         />
       )
       break

@@ -18,6 +18,8 @@ export interface CanvasWindowConfig {
   agentName?: string
   panelId?: string
   cameraId?: string
+  node?: string    // "local" (VPS/tmux) or "windows-desktop" (Beast)
+  shell?: string   // "powershell" | "cmd" (Beast only)
 }
 
 export interface CanvasWindow {
@@ -87,7 +89,13 @@ const ROUTE_LABELS: Record<string, string> = Object.fromEntries(
 function configLabel(type: CanvasWindowType, config: CanvasWindowConfig): string {
   switch (type) {
     case 'panel': return config.panelId ? (ROUTE_LABELS[config.panelId] ?? config.panelId) : ''
-    case 'terminal': return config.session ?? ''
+    case 'terminal': {
+      const prefix = config.node && config.node !== 'local' ? 'Beast' : 'VPS'
+      const name = config.session === '__create__'
+        ? (config.shell === 'cmd' ? 'cmd' : 'PowerShell')
+        : (config.session ?? '')
+      return `${prefix}: ${name}`
+    }
     case 'desktop': return config.monitorId ?? ''
     case 'agent': return config.agentName ?? config.agentId ?? ''
     case 'vision': return config.cameraId ?? ''
