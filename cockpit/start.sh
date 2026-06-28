@@ -67,6 +67,7 @@ tunnel_loop() {
         -L 7880:127.0.0.1:7880 \
         -L 5173:127.0.0.1:5173 \
         -L 8086:127.0.0.1:8086 \
+        -L 8100:127.0.0.1:8100 \
         "root@${VPS_IP}"
     echo "[tunnel] SSH exited ($?), reconnecting in ${delay}s..."
     sleep "$delay"
