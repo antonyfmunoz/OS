@@ -83,6 +83,8 @@ class NodeClient:
 
         if cap_cfg.get("shell") is None or cap_cfg.get("shell").enabled:
             self._adapters["shell"] = ShellAdapter()
+        from nodes.windows.umh_node.adapters.terminal import TerminalAdapter
+        self._adapters["terminal"] = TerminalAdapter()
         if cap_cfg.get("filesystem") is None or cap_cfg.get("filesystem").enabled:
             self._adapters["filesystem"] = FilesystemAdapter()
         if cap_cfg.get("desktop") and cap_cfg["desktop"].enabled:
@@ -242,6 +244,14 @@ class NodeClient:
                     "max_risk_class": "external_communication",
                 }
             )
+
+        if "terminal" in self._adapters:
+            caps.append({
+                "name": "terminal",
+                "category": "compute",
+                "risk_class": "reversible_write",
+                "max_risk_class": "irreversible_write",
+            })
 
         return caps
 
