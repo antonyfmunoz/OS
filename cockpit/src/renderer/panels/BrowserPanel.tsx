@@ -66,6 +66,8 @@ export function BrowserPane({ paneId }: { paneId: string }) {
   const [deviceMode, setDeviceMode] = useState<ViewportPreset>('responsive')
   const viewportRef = useRef<HTMLDivElement>(null)
   const interactRef = useRef<HTMLDivElement>(null)
+  const mobileInputRef = useRef<HTMLInputElement>(null)
+  const isTouchDevice = 'ontouchstart' in window
 
   const isFixedDevice = deviceMode !== 'responsive'
   const deviceConfig = VIEWPORT_PRESETS[deviceMode]
@@ -140,14 +142,18 @@ export function BrowserPane({ paneId }: { paneId: string }) {
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      interactRef.current?.focus()
+      if (isTouchDevice) {
+        mobileInputRef.current?.focus()
+      } else {
+        interactRef.current?.focus()
+      }
       const { x, y } = scaleCoords(e)
       sendMouse('mousePressed', x, y, {
         button: mouseButton(e),
         clickCount: e.detail || 1,
       })
     },
-    [scaleCoords, sendMouse]
+    [scaleCoords, sendMouse, isTouchDevice]
   )
 
   const handleMouseUp = useCallback(
@@ -206,9 +212,37 @@ export function BrowserPane({ paneId }: { paneId: string }) {
     e.preventDefault()
   }, [])
 
+  const SPECIAL_KEYS = new Set(['Enter', 'Backspace', 'Tab', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Delete'])
+
+  const handleMobileInput = useCallback(
+    (e: React.FormEvent<HTMLInputElement>) => {
+      const value = e.currentTarget.value
+      if (value) {
+        insertText(value)
+        e.currentTarget.value = ''
+      }
+    },
+    [insertText]
+  )
+
+  const handleMobileKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (SPECIAL_KEYS.has(e.key)) {
+        e.preventDefault()
+        sendKey('keyDown', e.key, e.code, { modifiers: getModifiers(e) })
+        sendKey('keyUp', e.key, e.code, { modifiers: getModifiers(e) })
+      }
+    },
+    [sendKey]
+  )
+
   const handleViewportClick = useCallback(() => {
-    interactRef.current?.focus()
-  }, [])
+    if (isTouchDevice) {
+      mobileInputRef.current?.focus()
+    } else {
+      interactRef.current?.focus()
+    }
+  }, [isTouchDevice])
 
   const handlePopOut = useCallback(() => {
     if (currentUrl && currentUrl !== 'about:blank') {
@@ -348,6 +382,29 @@ export function BrowserPane({ paneId }: { paneId: string }) {
           onPaste={handlePaste}
           onContextMenu={handleContextMenu}
         >
+          {isTouchDevice && (
+            <input
+              ref={mobileInputRef}
+              inputMode="text"
+              enterKeyHint="send"
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
+              onInput={handleMobileInput}
+              onKeyDown={handleMobileKeyDown}
+              onPaste={handlePaste}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: 1,
+                height: 1,
+                opacity: 0,
+                zIndex: 10,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
           {frameUrl ? (
             <img
               src={frameUrl}
