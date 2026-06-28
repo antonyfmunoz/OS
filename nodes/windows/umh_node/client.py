@@ -102,10 +102,16 @@ class NodeClient:
             except Exception as exc:
                 logger.debug("camera auto-start failed: %s", exc)
         try:
-            ds = DesktopStreamAdapter()
-            ds.set_frame_callback(self._on_camera_frame)
-            self._adapters["desktop_stream"] = ds
-            ds.start()
+            import mss
+            with mss.mss() as sct:
+                monitor_count = len(sct.monitors) - 1  # index 0 is virtual combined
+            for idx in range(1, monitor_count + 1):
+                key = f"desktop_stream_{idx - 1}"
+                ds = DesktopStreamAdapter(monitor_index=idx)
+                ds.set_frame_callback(self._on_camera_frame)
+                self._adapters[key] = ds
+                ds.start()
+            logger.info("desktop stream: %d monitor(s) active", monitor_count)
         except Exception as exc:
             logger.debug("desktop stream adapter unavailable: %s", exc)
         # Hermes: always register if binary exists, no config gate needed
