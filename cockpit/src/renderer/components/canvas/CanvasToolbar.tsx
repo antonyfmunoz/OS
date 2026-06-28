@@ -16,13 +16,15 @@ import {
 } from 'lucide-react'
 import type { CanvasMode } from '../../stores/unifiedCanvasStore'
 
+const MODE_ORDER: CanvasMode[] = ['general', 'organism', 'agents', 'harnesses', 'loops', 'workflows']
+
 const MODE_META: Record<CanvasMode, { label: string; icon: typeof Layers }> = {
   general: { label: 'General', icon: Layers },
-  agents: { label: 'Agents', icon: Bot },
-  workflows: { label: 'Workflows', icon: Workflow },
-  loops: { label: 'Loops', icon: RefreshCcw },
-  harnesses: { label: 'Harnesses', icon: Cpu },
   organism: { label: 'Organism', icon: Brain },
+  agents: { label: 'Agents', icon: Bot },
+  harnesses: { label: 'Harnesses', icon: Cpu },
+  loops: { label: 'Loops', icon: RefreshCcw },
+  workflows: { label: 'Workflows', icon: Workflow },
 }
 
 interface CanvasToolbarProps {
@@ -122,7 +124,7 @@ function ModeDropdown({ mode, onSetMode }: { mode: CanvasMode; onSetMode: (m: Ca
             minWidth: 140,
           }}
         >
-          {(Object.keys(MODE_META) as CanvasMode[]).map((m) => {
+          {MODE_ORDER.map((m) => {
             const mi = MODE_META[m]
             const MIcon = mi.icon
             return (
