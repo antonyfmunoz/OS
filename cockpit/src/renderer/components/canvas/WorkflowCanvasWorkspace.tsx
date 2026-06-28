@@ -1,4 +1,4 @@
-import { useState, useCallback, type ReactNode } from 'react'
+import { useState, useCallback, useEffect, type ReactNode } from 'react'
 import { Plus, ArrowLeft, Workflow } from 'lucide-react'
 import { BaseCanvas } from './BaseCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
@@ -18,9 +18,13 @@ interface WorkflowCanvasWorkspaceProps {
 
 function WorkflowListOverlay() {
   const workflows = useWorkflowCanvasStore((s) => s.workflows)
+  const loading = useWorkflowCanvasStore((s) => s.loading)
   const openWorkflow = useWorkflowCanvasStore((s) => s.openWorkflow)
   const createWorkflow = useWorkflowCanvasStore((s) => s.createWorkflow)
   const deleteWorkflow = useWorkflowCanvasStore((s) => s.deleteWorkflow)
+  const fetchWorkflows = useWorkflowCanvasStore((s) => s.fetchWorkflows)
+
+  useEffect(() => { fetchWorkflows() }, [fetchWorkflows])
 
   const [newName, setNewName] = useState('')
 
@@ -57,7 +61,12 @@ function WorkflowListOverlay() {
           </div>
         </div>
 
-        {workflows.length === 0 ? (
+        {loading && workflows.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 mt-16" style={{ color: 'var(--color-text-tertiary)' }}>
+            <Workflow size={32} />
+            <span className="text-[13px]">Loading workflows...</span>
+          </div>
+        ) : workflows.length === 0 ? (
           <div className="flex flex-col items-center gap-3 mt-16" style={{ color: 'var(--color-text-tertiary)' }}>
             <Workflow size={32} />
             <span className="text-[13px]">No workflows yet</span>
@@ -85,7 +94,7 @@ function WorkflowListOverlay() {
                     {wf.triggerType}
                   </span>
                   <span className="text-[10px]" style={{ color: 'var(--color-text-tertiary)' }}>
-                    {wf.stepCount} steps
+                    {wf.stepCount} runs
                   </span>
                 </div>
                 {wf.lastRun && (

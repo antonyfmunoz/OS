@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, Component, type ReactNode, type ErrorInfo } from 'react'
 
 const BrowserWindowContent = lazy(() =>
   import('./windows/BrowserWindowContent').then((m) => ({ default: m.BrowserWindowContent })),
@@ -37,6 +37,35 @@ function LoadingFallback() {
       <span className="text-[12px]">Loading...</span>
     </div>
   )
+}
+
+interface EBState { hasError: boolean; error: Error | null }
+
+class WindowErrorBoundary extends Component<{ type: string; children: ReactNode }, EBState> {
+  state: EBState = { hasError: false, error: null }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error } }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error(`[WindowContent:${this.props.type}]`, error, info.componentStack)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full gap-2"
+          style={{ color: 'var(--color-text-tertiary)' }}>
+          <span className="text-[12px]">Window crashed</span>
+          <span className="text-[10px]" style={{ color: 'var(--color-warn)' }}>
+            {this.state.error?.message ?? 'Unknown error'}
+          </span>
+          <button className="text-[11px] px-2 py-1 rounded mt-1"
+            style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+            onClick={() => this.setState({ hasError: false, error: null })}>
+            Retry
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
 }
 
 export function WindowContent({ type, config, paused }: WindowContentProps) {
@@ -80,5 +109,9 @@ export function WindowContent({ type, config, paused }: WindowContentProps) {
       )
   }
 
-  return <Suspense fallback={<LoadingFallback />}>{content}</Suspense>
+  return (
+    <WindowErrorBoundary type={type}>
+      <Suspense fallback={<LoadingFallback />}>{content}</Suspense>
+    </WindowErrorBoundary>
+  )
 }

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { clampZoom } from '../utils/canvasCoords'
+import { fetchApi } from '../api/client'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -68,6 +69,8 @@ export interface WorkflowCanvasState {
   zoom: number
   isDirty: boolean
 
+  loading: boolean
+  fetchWorkflows: () => Promise<void>
   setWorkflows: (workflows: WorkflowSummary[]) => void
   openWorkflow: (id: string) => void
   closeWorkflow: () => void
@@ -121,6 +124,7 @@ export const useWorkflowCanvasStore = create<WorkflowCanvasState>()(
     (set, get) => ({
       workflows: [],
       activeWorkflowId: null,
+      loading: false,
 
       nodes: [],
       connections: [],
@@ -129,6 +133,29 @@ export const useWorkflowCanvasStore = create<WorkflowCanvasState>()(
       panY: 0,
       zoom: 1,
       isDirty: false,
+
+      fetchWorkflows: async () => {
+        set({ loading: true })
+        try {
+          const data = await fetchApi<Array<{
+            id: string; name: string; schedule: string
+            last_run: string | null; last_status: string
+            run_count: number; avg_duration_ms: number
+          }>>('/workflows')
+          const workflows: WorkflowSummary[] = (data ?? []).map((w) => ({
+            id: w.id,
+            name: w.name,
+            triggerType: w.schedule || 'manual',
+            stepCount: w.run_count,
+            active: w.last_status === 'running',
+            lastRun: w.last_run ?? undefined,
+            lastStatus: w.last_status,
+          }))
+          set({ workflows, loading: false })
+        } catch {
+          set({ loading: false })
+        }
+      },
 
       setWorkflows: (workflows) => set({ workflows }),
 

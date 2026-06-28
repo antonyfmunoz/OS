@@ -94,11 +94,16 @@ function ModeDropdown({ mode, onSetMode }: { mode: CanvasMode; onSetMode: (m: Ca
 
   useEffect(() => {
     if (!open) return
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    const close = (e: Event) => {
+      const target = e.target as Node
+      if (ref.current && !ref.current.contains(target)) setOpen(false)
     }
     document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    document.addEventListener('touchstart', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      document.removeEventListener('touchstart', close)
+    }
   }, [open])
 
   return (

@@ -6,6 +6,7 @@ import { useWorkflowCanvasStore } from '../../stores/workflowCanvasStore'
 import { useLoopCanvasStore } from '../../stores/loopCanvasStore'
 import { useHarnessCanvasStore } from '../../stores/harnessCanvasStore'
 import { useOrganismCanvasStore } from '../../stores/organismCanvasStore'
+import { useAgentStore } from '../../stores/agentStore'
 import { CanvasPalette } from './CanvasPalette'
 import { CanvasWorkspace } from './CanvasWorkspace'
 import { AgentCanvasWorkspace } from './AgentCanvasWorkspace'
@@ -72,6 +73,7 @@ export function UnifiedCanvasWorkspace() {
   const savedCanvases = useUnifiedCanvasStore((s) => s.savedCanvases)
   const activeCanvasId = useUnifiedCanvasStore((s) => s.activeCanvasId)
 
+  const agents = useAgentStore((s) => s.agents)
   const [paletteOpen, setPaletteOpen] = useState(true)
   const prevMode = useRef(activeMode)
 
@@ -106,6 +108,8 @@ export function UnifiedCanvasWorkspace() {
     const mode = useUnifiedCanvasStore.getState().activeMode
     if (mode === 'general') {
       useCanvasStore.getState().addWindow(type as never, config)
+    } else if (mode === 'agents' && type === 'agent' && config?.agentId) {
+      useAgentCanvasStore.getState().addNode(config.agentId, config.agentName ?? config.agentId)
     }
   }, [])
 
@@ -124,6 +128,32 @@ export function UnifiedCanvasWorkspace() {
         case 'addAction': store.addNode('action', 200, 200); break
         case 'addCondition': store.addNode('decision', 200, 200); break
         case 'addTrigger': store.addNode('trigger', 200, 200); break
+      }
+    } else if (mode === 'loops') {
+      const store = useLoopCanvasStore.getState()
+      switch (action) {
+        case 'refreshLoops': store.fetchLoops(); store.fetchStages(); break
+        case 'startAll':
+          Object.entries(store.persistentLoops).forEach(([name, loop]) => {
+            if (loop.state === 'stopped') store.startLoop(name)
+          })
+          break
+        case 'stopAll':
+          Object.entries(store.persistentLoops).forEach(([name, loop]) => {
+            if (loop.state === 'running') store.stopLoop(name)
+          })
+          break
+      }
+    } else if (mode === 'harnesses') {
+      const store = useHarnessCanvasStore.getState()
+      switch (action) {
+        case 'refreshRuntimes': store.fetchRuntimes(); break
+      }
+    } else if (mode === 'organism') {
+      const store = useOrganismCanvasStore.getState()
+      switch (action) {
+        case 'refreshTopology': store.fetchTopology(); store.fetchHealth(); break
+        case 'fitView': store.setPan(0, 0); store.setZoom(1); break
       }
     }
   }, [])
@@ -174,6 +204,7 @@ export function UnifiedCanvasWorkspace() {
       onDeleteCanvas={handleDeleteCanvas}
       open={paletteOpen}
       onToggle={() => setPaletteOpen((v) => !v)}
+      agents={agents.map((a) => ({ id: a.id, name: a.name }))}
     />
   )
 
