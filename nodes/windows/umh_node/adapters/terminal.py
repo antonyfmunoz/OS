@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import collections
 import logging
+import os
+import shutil
 import subprocess
+import sys
 import threading
 import time
 from typing import Any, Optional
 
-from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
+if sys.platform == "win32":
+    from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +24,98 @@ _KEY_MAP: dict[str, bytes] = {
     "C-z": b"\x1a",
     "C-l": b"\x0c",
 }
+
+# Shell registry: id → (display label, command builder, auto-detect function)
+_SHELL_DEFS: dict[str, dict[str, Any]] = {
+    "powershell": {
+        "label": "PowerShell",
+        "cmd": ["powershell", "-NoLogo", "-NoProfile"],
+        "detect": lambda: shutil.which("powershell") is not None,
+        "os": "windows",
+        "prefix": "ps",
+    },
+    "pwsh": {
+        "label": "PowerShell Core",
+        "cmd": ["pwsh", "-NoLogo", "-NoProfile"],
+        "detect": lambda: shutil.which("pwsh") is not None,
+        "os": "windows",
+        "prefix": "pwsh",
+    },
+    "cmd": {
+        "label": "cmd",
+        "cmd": ["cmd", "/Q"],
+        "detect": lambda: sys.platform == "win32",
+        "os": "windows",
+        "prefix": "cmd",
+    },
+    "git-bash": {
+        "label": "Git Bash",
+        "cmd": lambda: [_find_git_bash(), "--login", "-i"] if _find_git_bash() else None,
+        "detect": lambda: _find_git_bash() is not None,
+        "os": "windows",
+        "prefix": "gb",
+    },
+    "wsl": {
+        "label": "WSL (Ubuntu)",
+        "cmd": ["wsl", "--exec", "bash", "--login"],
+        "detect": lambda: shutil.which("wsl") is not None,
+        "os": "windows",
+        "prefix": "wsl",
+    },
+    "bash": {
+        "label": "Bash",
+        "cmd": ["bash", "--login"],
+        "detect": lambda: shutil.which("bash") is not None and sys.platform != "win32",
+        "os": "linux",
+        "prefix": "bash",
+    },
+    "zsh": {
+        "label": "Zsh",
+        "cmd": ["zsh", "--login"],
+        "detect": lambda: shutil.which("zsh") is not None and sys.platform != "win32",
+        "os": "linux",
+        "prefix": "zsh",
+    },
+    "sh": {
+        "label": "sh",
+        "cmd": ["sh"],
+        "detect": lambda: shutil.which("sh") is not None and sys.platform != "win32",
+        "os": "posix",
+        "prefix": "sh",
+    },
+    "python": {
+        "label": "Python REPL",
+        "cmd": ["python3", "-u"] if sys.platform != "win32" else ["python", "-u"],
+        "detect": lambda: shutil.which("python3" if sys.platform != "win32" else "python") is not None,
+        "os": "any",
+        "prefix": "py",
+    },
+}
+
+
+def _find_git_bash() -> Optional[str]:
+    """Locate git-bash.exe on Windows."""
+    candidates = [
+        os.path.join(os.environ.get("PROGRAMFILES", "C:\\Program Files"), "Git", "bin", "bash.exe"),
+        os.path.join(os.environ.get("PROGRAMFILES(X86)", "C:\\Program Files (x86)"), "Git", "bin", "bash.exe"),
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "Git", "bin", "bash.exe"),
+    ]
+    for c in candidates:
+        if os.path.isfile(c):
+            return c
+    return shutil.which("bash")
+
+
+def discover_available_shells() -> list[dict[str, str]]:
+    """Return list of shells available on this node."""
+    available = []
+    for shell_id, defn in _SHELL_DEFS.items():
+        try:
+            if defn["detect"]():
+                available.append({"id": shell_id, "label": defn["label"], "os": defn["os"]})
+        except Exception:
+            pass
+    return available
 
 
 class TerminalSession:
@@ -56,7 +152,7 @@ class TerminalSession:
 
 
 class TerminalAdapter:
-    """Manages persistent shell sessions (PowerShell / cmd) via subprocess pipes."""
+    """Manages persistent shell sessions across all available shell types."""
 
     def __init__(self) -> None:
         self._sessions: dict[str, TerminalSession] = {}
@@ -74,6 +170,7 @@ class TerminalAdapter:
         handler = {
             "create": self._op_create,
             "list": self._op_list,
+            "shells": self._op_shells,
             "capture": self._op_capture,
             "send": self._op_send,
             "send_key": self._op_send_key,
@@ -101,35 +198,39 @@ class TerminalAdapter:
 
     def _op_create(self, params: dict[str, Any]) -> dict[str, Any]:
         shell_type = params.get("shell", "powershell")
-        if shell_type not in ("cmd", "powershell"):
-            return {"success": False, "error": f"unsupported shell type: {shell_type}"}
+        defn = _SHELL_DEFS.get(shell_type)
+        if defn is None:
+            return {"success": False, "error": f"unknown shell type: {shell_type}. available: {list(_SHELL_DEFS.keys())}"}
+        if not defn["detect"]():
+            return {"success": False, "error": f"shell '{shell_type}' not available on this node"}
 
         with self._lock:
             if len(self._sessions) >= self._max_sessions:
                 return {"success": False, "error": f"session limit reached ({self._max_sessions})"}
-            prefix = "ps" if shell_type == "powershell" else "cmd"
+            prefix = defn["prefix"]
             name = params.get("name") or f"{prefix}_{self._counter}"
             self._counter += 1
             if name in self._sessions:
                 return {"success": False, "error": f"session '{name}' already exists"}
 
-        if shell_type == "powershell":
-            cmd = ["powershell", "-NoLogo", "-NoProfile"]
-        else:
-            cmd = ["cmd", "/Q"]
+        cmd_spec = defn["cmd"]
+        cmd = cmd_spec() if callable(cmd_spec) else list(cmd_spec)
+        if cmd is None:
+            return {"success": False, "error": f"shell '{shell_type}' command not found"}
+
+        popen_kwargs: dict[str, Any] = {
+            "stdin": subprocess.PIPE,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.STDOUT,
+        }
+        if sys.platform == "win32":
+            popen_kwargs.update(no_window_kwargs())
 
         try:
-            proc = subprocess.Popen(
-                cmd,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                **no_window_kwargs(),
-            )
+            proc = subprocess.Popen(cmd, **popen_kwargs)
         except Exception as exc:
             return {"success": False, "error": f"failed to spawn {shell_type}: {exc}"}
 
-        # Build session — reader thread starts after construction
         session = TerminalSession(
             name=name,
             process=proc,
@@ -150,6 +251,9 @@ class TerminalAdapter:
 
         logger.info("terminal session created: %s (%s)", name, shell_type)
         return {"success": True, "session_name": name, "shell_type": shell_type}
+
+    def _op_shells(self, params: dict[str, Any]) -> dict[str, Any]:
+        return {"success": True, "shells": discover_available_shells()}
 
     def _op_list(self, params: dict[str, Any]) -> dict[str, Any]:
         self._cleanup_idle()
