@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useMemo } from 'react'
 import {
   Globe,
   Monitor,
@@ -16,6 +16,9 @@ import {
   Maximize2,
   LayoutDashboard,
   Zap,
+  RefreshCw,
+  Play,
+  Square,
 } from 'lucide-react'
 import type { CanvasMode, SavedCanvas } from '../../stores/unifiedCanvasStore'
 import { ROUTES } from '../../types/routes'
@@ -52,9 +55,24 @@ const WORKFLOW_ITEMS: PaletteItem[] = [
   { label: 'Add Trigger Node', icon: <Workflow size={14} />, action: 'addTrigger' },
 ]
 
-const LOOP_ITEMS: PaletteItem[] = []
-const HARNESS_ITEMS: PaletteItem[] = []
-const ORGANISM_ITEMS: PaletteItem[] = []
+const LOOP_ITEMS: PaletteItem[] = [
+  { label: 'Refresh Loops', icon: <RefreshCw size={14} />, action: 'refreshLoops' },
+  { label: 'Create Loop', icon: <Plus size={14} />, action: 'createLoop' },
+  { label: 'Start All', icon: <Play size={14} />, action: 'startAll' },
+  { label: 'Stop All', icon: <Square size={14} />, action: 'stopAll' },
+]
+
+const HARNESS_ITEMS: PaletteItem[] = [
+  { label: 'Refresh Runtimes', icon: <RefreshCw size={14} />, action: 'refreshRuntimes' },
+  { label: 'Show Available', icon: <Zap size={14} />, action: 'showAvailable' },
+  { label: 'Show All', icon: <Layers size={14} />, action: 'showAll' },
+]
+
+const ORGANISM_ITEMS: PaletteItem[] = [
+  { label: 'Refresh Topology', icon: <RefreshCw size={14} />, action: 'refreshTopology' },
+  { label: 'Show All Nodes', icon: <Users size={14} />, action: 'showAllNodes' },
+  { label: 'Fit View', icon: <Maximize2 size={14} />, action: 'fitView' },
+]
 
 const MODE_ITEMS: Record<CanvasMode, PaletteItem[]> = {
   general: GENERAL_ITEMS,
@@ -81,6 +99,7 @@ interface CanvasPaletteProps {
   onDeleteCanvas: (id: string) => void
   open?: boolean
   onToggle?: () => void
+  agents?: Array<{ id: string; name: string }>
 }
 
 export function CanvasPalette({
@@ -95,6 +114,7 @@ export function CanvasPalette({
   onDeleteCanvas,
   open,
   onToggle,
+  agents,
 }: CanvasPaletteProps) {
   const [internalExpanded, setInternalExpanded] = useState(false)
   const expanded = open ?? internalExpanded
@@ -108,7 +128,19 @@ export function CanvasPalette({
   const renameRef = useRef<HTMLInputElement>(null)
   const createRef = useRef<HTMLInputElement>(null)
 
-  const items = MODE_ITEMS[mode]
+  const items = useMemo(() => {
+    const base = MODE_ITEMS[mode]
+    if (mode === 'agents' && agents && agents.length > 0) {
+      const agentItems: PaletteItem[] = agents.map((a) => ({
+        type: 'agent',
+        label: a.name,
+        icon: <Bot size={14} />,
+        config: { agentId: a.id, agentName: a.name },
+      }))
+      return [...base, ...agentItems]
+    }
+    return base
+  }, [mode, agents])
 
   const commitRename = useCallback(() => {
     if (renamingId && renameValue.trim()) {
