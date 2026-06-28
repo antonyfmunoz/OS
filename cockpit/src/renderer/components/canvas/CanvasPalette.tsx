@@ -93,7 +93,7 @@ const MODE_ITEMS: Record<CanvasMode, PaletteItem[]> = {
 }
 
 const PANEL_ROUTES = ROUTES.filter(
-  (r) => r.visibility === 'primary' && r.id !== 'canvas' && r.id !== 'agents' && r.id !== 'workflows',
+  (r) => (r.visibility === 'primary' || r.visibility === 'dev') && !['canvas', 'agents', 'workflows', 'settings'].includes(r.id),
 )
 
 interface CanvasPaletteProps {

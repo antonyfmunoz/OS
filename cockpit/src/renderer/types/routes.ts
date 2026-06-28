@@ -63,20 +63,22 @@ export interface RouteEntry {
 }
 
 export const ROUTES: RouteEntry[] = [
-  // ── 13 Canonical Capabilities ────────────────────────────────────
-  { id: 'canvas', label: 'Canvas', icon: LayoutPanelTop, group: 'primary', visibility: 'primary', key: '`' },
+  // ── 6 Primary Nav Items (in display order) ──────────────────────
   { id: 'commandcenter', label: 'Command Center', icon: Target, group: 'primary', visibility: 'primary', key: 'q' },
+  { id: 'canvas', label: 'Canvas', icon: LayoutPanelTop, group: 'primary', visibility: 'primary', key: '`' },
   { id: 'work', label: 'Work', icon: ListChecks, group: 'primary', visibility: 'primary', key: '3' },
-  { id: 'approvals', label: 'Approvals', icon: ShieldCheck, group: 'primary', visibility: 'primary', key: '4' },
-  { id: 'activity', label: 'Activity', icon: Activity, group: 'primary', visibility: 'primary', key: '9' },
   { id: 'editor', label: 'Meta IDE', icon: Code2, group: 'primary', visibility: 'primary', key: '7' },
-  { id: 'execution', label: 'Execution', icon: Layers, group: 'primary', visibility: 'primary', key: '0' },
-  { id: 'organismmap', label: 'Organism Map', icon: Brain, group: 'primary', visibility: 'primary', key: 'i' },
   { id: 'rooms', label: 'Conference Rooms', icon: Radio, group: 'primary', visibility: 'primary', key: 'j' },
   { id: 'vision', label: 'Vision', icon: Camera, group: 'primary', visibility: 'primary', key: 'v' },
-  { id: 'broadcast', label: 'Broadcast', icon: Cast, group: 'primary', visibility: 'primary', key: 'b' },
-  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'primary', key: '5' },
-  { id: 'browser', label: 'Browser', icon: Globe, group: 'primary', visibility: 'primary', key: '6' },
+
+  // ── Demoted from nav → accessible via CommandPalette + Canvas Instruments ──
+  { id: 'approvals', label: 'Approvals', icon: ShieldCheck, group: 'primary', visibility: 'dev', key: '4' },
+  { id: 'activity', label: 'Activity', icon: Activity, group: 'primary', visibility: 'dev', key: '9' },
+  { id: 'execution', label: 'Execution', icon: Layers, group: 'primary', visibility: 'dev', key: '0' },
+  { id: 'organismmap', label: 'Organism Map', icon: Brain, group: 'primary', visibility: 'dev', key: 'i' },
+  { id: 'broadcast', label: 'Broadcast', icon: Cast, group: 'primary', visibility: 'dev', key: 'b' },
+  { id: 'knowledge', label: 'Knowledge', icon: BookOpen, group: 'primary', visibility: 'dev', key: '5' },
+  { id: 'browser', label: 'Browser', icon: Globe, group: 'primary', visibility: 'dev', key: '6' },
 
   // System (1)
   { id: 'settings', label: 'Settings', icon: Settings, group: 'system', visibility: 'system', key: '8' },
@@ -84,18 +86,18 @@ export const ROUTES: RouteEntry[] = [
   // ── Dev (searchable with [DEV] badge) ────────────────────────────
   // Campaign 3 — Cockpit Convergence & Projection Integration
   { id: 'capabilitymap', label: 'Capability Map', icon: Map, group: 'primary', visibility: 'dev', key: 'C' },
-  { id: 'unifiedexecution', label: 'Unified Execution', icon: Merge, group: 'primary', visibility: 'primary', key: 'U' },
-  { id: 'buildloop', label: 'Build Loop', icon: Hammer, group: 'primary', visibility: 'primary', key: 'L' },
-  { id: 'projectionintegration', label: 'Projection Integration', icon: Puzzle, group: 'primary', visibility: 'primary', key: 'P' },
+  { id: 'unifiedexecution', label: 'Unified Execution', icon: Merge, group: 'primary', visibility: 'dev', key: 'U' },
+  { id: 'buildloop', label: 'Build Loop', icon: Hammer, group: 'primary', visibility: 'dev', key: 'L' },
+  { id: 'projectionintegration', label: 'Projection Integration', icon: Puzzle, group: 'primary', visibility: 'dev', key: 'P' },
   // Campaign 4 — Operator-Orchestrator Convergence
-  { id: 'orchestratorawareness', label: 'Orchestrator', icon: Brain, group: 'primary', visibility: 'primary', key: 'a' },
-  { id: 'operatingloopview', label: 'Operating Loop', icon: RotateCcw, group: 'primary', visibility: 'primary', key: 'D' },
-  { id: 'sessionresume', label: 'Session Resume', icon: MonitorSmartphone, group: 'primary', visibility: 'primary', key: 'S' },
+  { id: 'orchestratorawareness', label: 'Orchestrator', icon: Brain, group: 'primary', visibility: 'dev', key: 'a' },
+  { id: 'operatingloopview', label: 'Operating Loop', icon: RotateCcw, group: 'primary', visibility: 'dev', key: 'D' },
+  { id: 'sessionresume', label: 'Session Resume', icon: MonitorSmartphone, group: 'primary', visibility: 'dev', key: 'S' },
   { id: 'mvpreadiness', label: 'MVP Readiness', icon: CheckCircle2, group: 'primary', visibility: 'dev', key: 'V' },
   // Campaign 4.7 — Cockpit Delegation
-  { id: 'delegation', label: 'Delegation', icon: Workflow, group: 'primary', visibility: 'primary', key: 'Y' },
+  { id: 'delegation', label: 'Delegation', icon: Workflow, group: 'primary', visibility: 'dev', key: 'Y' },
   // Campaign 19 — Execution Fabric & Agent Operations
-  { id: 'operations', label: 'Operations', icon: Monitor, group: 'primary', visibility: 'primary', key: 'Z' },
+  { id: 'operations', label: 'Operations', icon: Monitor, group: 'primary', visibility: 'dev', key: 'Z' },
   // Gate 4: Intent Runtime (access via Command Center, dev-visible for direct debugging)
   { id: 'intent', label: 'Intent', icon: FileText, group: 'primary', visibility: 'dev', key: 'F' },
   // Absorbed into Command Center
@@ -139,7 +141,7 @@ export const ROUTES: RouteEntry[] = [
   // Campaign 7 — Strategic Context & Executive Reasoning
   { id: 'strategic', label: 'Strategic', icon: Compass, group: 'primary', visibility: 'dev', key: '/' },
   // Campaign 8 — Goal Systems & Strategic Planning
-  { id: 'goals', label: 'Goals', icon: Target, group: 'primary', visibility: 'primary', key: 'J' },
+  { id: 'goals', label: 'Goals', icon: Target, group: 'primary', visibility: 'dev', key: 'J' },
   // Campaign 9 — Decision Intelligence & Strategic Memory
   { id: 'memory', label: 'Memory', icon: Brain, group: 'primary', visibility: 'dev', key: 'K' },
   // Campaign 10 — Capability Intelligence
