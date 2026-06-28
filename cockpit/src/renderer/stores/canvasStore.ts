@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { clampZoom } from '../utils/canvasCoords'
+import { ROUTES } from '../types/routes'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -14,7 +15,9 @@ export interface CanvasWindowConfig {
   pane?: string
   url?: string
   agentId?: string
+  agentName?: string
   panelId?: string
+  cameraId?: string
 }
 
 export interface CanvasWindow {
@@ -75,6 +78,22 @@ const DEFAULT_LABELS: Record<CanvasWindowType, string> = {
   preview: 'Preview',
   agent: 'Agent',
   panel: 'Panel',
+}
+
+const ROUTE_LABELS: Record<string, string> = Object.fromEntries(
+  ROUTES.map((r) => [r.id, r.label]),
+)
+
+function configLabel(type: CanvasWindowType, config: CanvasWindowConfig): string {
+  switch (type) {
+    case 'panel': return config.panelId ? (ROUTE_LABELS[config.panelId] ?? config.panelId) : ''
+    case 'terminal': return config.session ?? ''
+    case 'desktop': return config.monitorId ?? ''
+    case 'agent': return config.agentName ?? config.agentId ?? ''
+    case 'vision': return config.cameraId ?? ''
+    case 'browser': return config.url ?? ''
+    default: return ''
+  }
 }
 
 const CLUSTER_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316', '#22c55e', '#06b6d4']
@@ -157,8 +176,13 @@ export const useCanvasStore = create<CanvasState>()(
         const last = state.windows[state.windows.length - 1]
         const x = last ? last.x + 30 : 100
         const y = last ? last.y + 30 : 100
-        const label = DEFAULT_LABELS[type]
         const zIndex = state.nextZIndex
+
+        let label = DEFAULT_LABELS[type]
+        if (config) {
+          const suffix = configLabel(type, config)
+          if (suffix) label = `${label} — ${suffix}`
+        }
 
         const win: CanvasWindow = {
           id,
