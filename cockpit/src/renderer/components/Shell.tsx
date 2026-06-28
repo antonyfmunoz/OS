@@ -264,7 +264,7 @@ function ActivePanel() {
     case 'workspacetopology':
       return <WorkspaceTopologyPanel />
     case 'canvas':
-      return <UnifiedCanvasWorkspace />
+      return <ErrorBoundary><UnifiedCanvasWorkspace /></ErrorBoundary>
 
     default:
       return <DashboardPanel />
