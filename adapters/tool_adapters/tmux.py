@@ -80,6 +80,13 @@ class TmuxAdapter(BaseAdapter):
             if not target:
                 raise ValueError("capture_pane requires a target (session:window.pane)")
             return self._run_tmux(["tmux", "capture-pane", "-t", target, "-p"])
+        if operation == "new_session":
+            name = params.get("name", "")
+            if not name:
+                raise ValueError("new_session requires a name")
+            if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+                raise ValueError(f"invalid session name: {name}")
+            return self._run_tmux(["tmux", "new-session", "-d", "-s", name])
         raise ValueError(f"unknown tmux operation: {operation}")
 
     def _inspect_session(self, session: str) -> dict[str, Any]:

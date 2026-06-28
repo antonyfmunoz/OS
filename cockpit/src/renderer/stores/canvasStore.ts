@@ -90,11 +90,13 @@ function configLabel(type: CanvasWindowType, config: CanvasWindowConfig): string
   switch (type) {
     case 'panel': return config.panelId ? (ROUTE_LABELS[config.panelId] ?? config.panelId) : ''
     case 'terminal': {
-      const prefix = config.node && config.node !== 'local' ? 'Beast' : 'VPS'
-      const name = config.session === '__create__'
+      const isRemote = config.node && config.node !== 'local'
+      const device = isRemote ? 'Beast' : 'VPS'
+      const shellType = isRemote
         ? (config.shell === 'cmd' ? 'cmd' : 'PowerShell')
-        : (config.session ?? '')
-      return `${prefix}: ${name}`
+        : 'bash'
+      const sessionName = config.session === '__create__' ? 'new' : (config.session ?? '')
+      return `${device} ${shellType}: ${sessionName}`
     }
     case 'desktop': return config.monitorId ?? ''
     case 'agent': return config.agentName ?? config.agentId ?? ''
