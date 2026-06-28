@@ -126,6 +126,34 @@ def register_session_routes(router, _require_operator_role, helpers):
         except Exception as exc:
             return {"error": str(exc)}
 
+    @router.post("/tmux/send-key")
+    def tmux_send_key(payload: dict) -> dict:  # type: ignore[type-arg]
+        """Send a special key (Ctrl+C, arrows, etc.) to a tmux session without Enter."""
+        session_name = payload.get("session_name", "")
+        key = payload.get("key", "")
+        if not session_name or not key:
+            return {"error": "session_name and key required"}
+        allowed_keys = {
+            "Up", "Down", "Left", "Right", "BSpace", "DC", "Escape", "Tab",
+            "Home", "End", "PPage", "NPage", "Enter",
+            "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+            "C-c", "C-d", "C-z", "C-l", "C-a", "C-e", "C-k", "C-u", "C-w", "C-r",
+        }
+        if key not in allowed_keys:
+            return {"error": f"key '{key}' not in allowed set"}
+        try:
+            from substrate.execution.cpu_gate import gated_subprocess_run
+            result = gated_subprocess_run(
+                ["tmux", "send-keys", "-t", session_name, key],
+                capture_output=True, text=True, timeout=5,
+                caller="cockpit.tmux_send_key",
+            )
+            if result is None:
+                return {"error": "CPU gate blocked — system under load"}
+            return {"ok": result.returncode == 0, "error": result.stderr if result.returncode != 0 else None}
+        except Exception as exc:
+            return {"error": str(exc)}
+
     @router.post("/council/review")
     def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
         """Trigger council review for a decision."""
