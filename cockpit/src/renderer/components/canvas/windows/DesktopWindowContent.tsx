@@ -5,6 +5,7 @@ import { fetchApi } from '../../../api/client'
 interface Props {
   monitorId?: string
   paused: boolean
+  onResizeHint?: (width: number, height: number) => void
 }
 
 const SPECIAL_KEYS = new Set([
@@ -33,7 +34,7 @@ function dispatch(capability: string, params: Record<string, unknown>) {
   }).catch(() => {})
 }
 
-export function DesktopWindowContent({ monitorId, paused }: Props) {
+export function DesktopWindowContent({ monitorId, paused, onResizeHint }: Props) {
   const id = monitorId ?? 'M0'
   const [connected, setConnected] = useState(false)
   const [frameUrl, setFrameUrl] = useState<string | null>(null)
@@ -47,6 +48,7 @@ export function DesktopWindowContent({ monitorId, paused }: Props) {
   const interactRef = useRef<HTMLDivElement>(null)
   const mobileInputRef = useRef<HTMLInputElement>(null)
   const isTouchDevice = 'ontouchstart' in window
+  const resizeHintFired = useRef(false)
 
   const connect = useCallback(() => {
     if (paused || wsRef.current?.readyState === WebSocket.OPEN) return
@@ -76,6 +78,10 @@ export function DesktopWindowContent({ monitorId, paused }: Props) {
           const msg = JSON.parse(ev.data)
           if (msg.width) setFrameWidth(msg.width)
           if (msg.height) setFrameHeight(msg.height)
+          if (msg.width && msg.height && onResizeHint && !resizeHintFired.current) {
+            resizeHintFired.current = true
+            onResizeHint(msg.width, msg.height)
+          }
         } catch { /* ignore non-JSON */ }
       }
     }
