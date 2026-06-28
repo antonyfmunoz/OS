@@ -20,7 +20,9 @@ import {
   Eye,
   Bot,
   LayoutGrid,
+  RotateCw,
 } from 'lucide-react'
+import { fetchApi } from '../../api/client'
 
 const STATUS_COLORS: Record<CanvasWindowType['connectionStatus'], string> = {
   connected: '#22c55e',
@@ -84,6 +86,32 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
     [w, windowId, updateWindow],
   )
 
+  const handleRotateMonitor = useCallback(() => {
+    if (!w || w.type !== 'desktop') return
+    const monitorId = w.config.monitorId ?? 'M0'
+    const monitorIndex = parseInt(monitorId.replace('M', ''), 10)
+    fetchApi('/mesh/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        node_id: 'windows-desktop',
+        capability: 'desktop.rotate_monitor',
+        params: { monitor_index: monitorIndex, orientation: 'toggle' },
+        timeout: 10,
+      }),
+    }).then(async (res) => {
+      const data = await res.json()
+      if (data?.result?.success && data.result.width && data.result.height) {
+        const aspect = data.result.width / data.result.height
+        const TARGET_H = 540
+        updateWindow(windowId, {
+          width: Math.round(TARGET_H * aspect),
+          height: TARGET_H,
+        })
+      }
+    }).catch(() => {})
+  }, [w, windowId, updateWindow])
+
   const drag = useCanvasDrag({
     onDragStart: () => bringToFront(windowId),
     onDrag: (x, y) => updateWindow(windowId, { x, y }),
@@ -141,6 +169,7 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
           togglePause={() => togglePause(windowId)}
           removeWindow={() => removeWindow(windowId)}
           popOut={() => popOut(windowId)}
+          onRotate={w.type === 'desktop' ? handleRotateMonitor : undefined}
           clusterBorder={clusterBorder}
         />
         <div
@@ -241,6 +270,7 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
         togglePause={() => togglePause(windowId)}
         removeWindow={() => removeWindow(windowId)}
         popOut={() => popOut(windowId)}
+        onRotate={w.type === 'desktop' ? handleRotateMonitor : undefined}
         clusterBorder={clusterBorder}
         dragHandlers={{
           onPointerDown: (e: React.PointerEvent) => drag.onPointerDown(e, w.x, w.y),
@@ -280,6 +310,7 @@ interface WindowHeaderProps {
   togglePause: () => void
   removeWindow: () => void
   popOut: () => void
+  onRotate?: () => void
   clusterBorder?: string
   dragHandlers?: {
     onPointerDown: (e: React.PointerEvent) => void
@@ -302,6 +333,7 @@ function WindowHeader({
   togglePause,
   removeWindow,
   popOut,
+  onRotate,
   dragHandlers,
 }: WindowHeaderProps) {
   const btnStyle = { color: 'var(--color-text-tertiary)' }
@@ -393,6 +425,16 @@ function WindowHeader({
       )}
 
       {/* Action buttons */}
+      {w.type === 'desktop' && onRotate && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRotate() }}
+          className="p-0.5 rounded hover:opacity-80"
+          style={btnStyle}
+          title="Rotate monitor"
+        >
+          <RotateCw size={11} />
+        </button>
+      )}
       <button
         onClick={(e) => { e.stopPropagation(); togglePause() }}
         className="p-0.5 rounded hover:opacity-80"
