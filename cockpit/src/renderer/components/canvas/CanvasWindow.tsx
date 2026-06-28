@@ -131,7 +131,11 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
           popOut={() => popOut(windowId)}
           clusterBorder={clusterBorder}
         />
-        <div className="flex-1 overflow-hidden">
+        <div
+          className="flex-1 overflow-hidden"
+          onKeyDown={(e) => e.stopPropagation()}
+          onKeyUp={(e) => e.stopPropagation()}
+        >
           <WindowContent type={w.type} config={w.config} paused={w.paused} />
         </div>
       </div>
@@ -235,7 +239,12 @@ export function CanvasWindow({ windowId, zoom, selected, onSelect }: CanvasWindo
 
       {/* Body */}
       {!w.collapsed && (
-        <div className="flex-1 overflow-hidden" style={{ borderRadius: '0 0 5px 5px' }}>
+        <div
+          className="flex-1 overflow-hidden"
+          style={{ borderRadius: '0 0 5px 5px' }}
+          onKeyDown={(e) => e.stopPropagation()}
+          onKeyUp={(e) => e.stopPropagation()}
+        >
           <WindowContent type={w.type} config={w.config} paused={w.paused} />
         </div>
       )}
