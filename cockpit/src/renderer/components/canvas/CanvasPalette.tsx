@@ -114,6 +114,8 @@ interface CanvasPaletteProps {
   beastSessions?: Array<{ name: string; shell?: string; shell_type?: string }>
   vpsShells?: Array<{ id: string; label: string }>
   beastShells?: Array<{ id: string; label: string }>
+  vpsMultiplexers?: Array<{ id: string; label: string; via: string }>
+  beastMultiplexers?: Array<{ id: string; label: string; via: string }>
 }
 
 export function CanvasPalette({
@@ -133,6 +135,8 @@ export function CanvasPalette({
   beastSessions,
   vpsShells,
   beastShells,
+  vpsMultiplexers,
+  beastMultiplexers,
 }: CanvasPaletteProps) {
   const [internalExpanded, setInternalExpanded] = useState(false)
   const expanded = open ?? internalExpanded
@@ -274,74 +278,118 @@ export function CanvasPalette({
                 </div>
               )}
 
-              {/* Terminal submenu — inline after Terminal button */}
+              {/* Terminal submenu — full capability tree per device */}
               {item.label === 'Terminals' && item.submenu && terminalSubmenuOpen && mode === 'general' && (
-                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 400, overflowY: 'auto' }}>
-                  {/* VPS — Ubuntu */}
-                  <div className="px-2 py-0.5 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>VPS · Ubuntu</div>
-                  {(tmuxSessions && tmuxSessions.length > 0 ? tmuxSessions : []).map((s) => (
-                    <PaletteButton
-                      key={`vps-${s.name}`}
-                      label={s.name}
-                      icon={<Terminal size={12} />}
-                      onClick={() => {
-                        onAddWindow('terminal', { session: s.name, pane: '0', node: 'local' })
-                        setTerminalSubmenuOpen(false)
-                      }}
-                    />
-                  ))}
-                  {creatingVpsTmux ? (
-                    <input
-                      ref={vpsTmuxRef}
-                      value={newVpsTmuxName}
-                      onChange={(e) => setNewVpsTmuxName(e.target.value)}
-                      onBlur={() => { setCreatingVpsTmux(false); setNewVpsTmuxName('') }}
-                      onKeyDown={(e) => {
-                        e.stopPropagation()
-                        if (e.key === 'Enter' && newVpsTmuxName.trim()) {
-                          const name = newVpsTmuxName.trim()
-                          const shell = typeof creatingVpsTmux === 'string' ? creatingVpsTmux : 'bash'
-                          fetchApi('/tmux/create', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ name, shell }),
-                          }).then(() => {
-                            onAddWindow('terminal', { session: name, pane: '0', node: 'local', shell })
+                <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 500, overflowY: 'auto' }}>
+
+                  {/* ── VPS · Linux ── */}
+                  <div className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>VPS · Linux</div>
+
+                  {/* VPS multiplexers */}
+                  {(vpsMultiplexers ?? []).map((mux) => (
+                    <div key={`vps-mux-${mux.id}`}>
+                      <div className="px-2 py-0.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--color-cyan, #22d3ee)' }}>
+                        {mux.label}{mux.via !== 'native' ? ` (${mux.via})` : ''}
+                      </div>
+                      {/* Active sessions under this mux (VPS tmux sessions) */}
+                      {mux.id === 'tmux' && (tmuxSessions ?? []).map((s) => (
+                        <PaletteButton
+                          key={`vps-tmux-${s.name}`}
+                          label={s.name}
+                          icon={<Terminal size={12} />}
+                          onClick={() => {
+                            onAddWindow('terminal', { session: s.name, pane: '0', node: 'local', mux: 'tmux' })
                             setTerminalSubmenuOpen(false)
-                          }).catch(() => {})
-                          setCreatingVpsTmux(false)
-                          setNewVpsTmuxName('')
-                        }
-                        if (e.key === 'Escape') { setCreatingVpsTmux(false); setNewVpsTmuxName('') }
-                      }}
-                      placeholder="Session name..."
-                      className="text-[11px] px-2 py-1 rounded outline-none"
-                      style={{
-                        background: 'var(--color-bg-secondary, #0A0A0A)',
-                        color: 'var(--color-text-primary)',
-                        border: '1px solid var(--color-border-active)',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                      autoFocus
-                    />
-                  ) : (
-                    (vpsShells && vpsShells.length > 0 ? vpsShells : [{ id: 'bash', label: 'Bash' }]).map((sh) => (
-                      <PaletteButton
-                        key={`vps-new-${sh.id}`}
-                        label={`New ${sh.label}`}
-                        icon={<Plus size={12} />}
-                        onClick={() => {
-                          setCreatingVpsTmux(sh.id)
-                          setNewVpsTmuxName('')
-                          setTimeout(() => vpsTmuxRef.current?.focus(), 0)
-                        }}
-                      />
-                    ))
+                          }}
+                        />
+                      ))}
+                      {/* New session under this mux — per available shell */}
+                      {mux.id === 'tmux' && (
+                        creatingVpsTmux ? (
+                          <input
+                            ref={vpsTmuxRef}
+                            value={newVpsTmuxName}
+                            onChange={(e) => setNewVpsTmuxName(e.target.value)}
+                            onBlur={() => { setCreatingVpsTmux(false); setNewVpsTmuxName('') }}
+                            onKeyDown={(e) => {
+                              e.stopPropagation()
+                              if (e.key === 'Enter' && newVpsTmuxName.trim()) {
+                                const name = newVpsTmuxName.trim()
+                                const shell = typeof creatingVpsTmux === 'string' ? creatingVpsTmux : 'bash'
+                                fetchApi('/tmux/create', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ name, shell }),
+                                }).then(() => {
+                                  onAddWindow('terminal', { session: name, pane: '0', node: 'local', shell, mux: 'tmux' })
+                                  setTerminalSubmenuOpen(false)
+                                }).catch(() => {})
+                                setCreatingVpsTmux(false)
+                                setNewVpsTmuxName('')
+                              }
+                              if (e.key === 'Escape') { setCreatingVpsTmux(false); setNewVpsTmuxName('') }
+                            }}
+                            placeholder="Session name..."
+                            className="text-[11px] px-2 py-1 rounded outline-none"
+                            style={{
+                              background: 'var(--color-bg-secondary, #0A0A0A)',
+                              color: 'var(--color-text-primary)',
+                              border: '1px solid var(--color-border-active)',
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          (vpsShells ?? [{ id: 'bash', label: 'Bash' }]).map((sh) => (
+                            <PaletteButton
+                              key={`vps-tmux-new-${sh.id}`}
+                              label={`New ${sh.label}`}
+                              icon={<Plus size={12} />}
+                              onClick={() => {
+                                setCreatingVpsTmux(sh.id)
+                                setNewVpsTmuxName('')
+                                setTimeout(() => vpsTmuxRef.current?.focus(), 0)
+                              }}
+                            />
+                          ))
+                        )
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Fallback if no multiplexers detected on VPS — show tmux sessions directly */}
+                  {(vpsMultiplexers ?? []).length === 0 && (tmuxSessions ?? []).length > 0 && (
+                    <>
+                      {tmuxSessions!.map((s) => (
+                        <PaletteButton
+                          key={`vps-${s.name}`}
+                          label={s.name}
+                          icon={<Terminal size={12} />}
+                          onClick={() => {
+                            onAddWindow('terminal', { session: s.name, pane: '0', node: 'local' })
+                            setTerminalSubmenuOpen(false)
+                          }}
+                        />
+                      ))}
+                    </>
                   )}
 
-                  {/* Beast — Windows */}
-                  <div className="px-2 py-0.5 mt-2 text-[9px] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Beast · Windows</div>
-                  {(beastSessions && beastSessions.length > 0) && beastSessions.map((s) => {
+                  {/* ── Beast · Windows ── */}
+                  <div className="px-2 py-0.5 mt-2 text-[9px] font-bold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Beast · Windows</div>
+
+                  {/* Beast multiplexers (e.g. tmux via WSL) */}
+                  {(beastMultiplexers ?? []).map((mux) => (
+                    <div key={`beast-mux-${mux.id}`}>
+                      <div className="px-2 py-0.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--color-cyan, #22d3ee)' }}>
+                        {mux.label}{mux.via !== 'native' ? ` (${mux.via})` : ''}
+                      </div>
+                      {/* TODO: Beast mux sessions listing when backend supports it */}
+                    </div>
+                  ))}
+
+                  {/* Beast shell sessions (pipe-backed) */}
+                  <div className="px-2 py-0.5 text-[9px] uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>Shells</div>
+                  {(beastSessions ?? []).map((s) => {
                     const st = s.shell_type || s.shell || 'powershell'
                     const shellLabel = (beastShells ?? []).find((sh) => sh.id === st)?.label ?? st
                     return (
@@ -356,7 +404,7 @@ export function CanvasPalette({
                       />
                     )
                   })}
-                  {(beastShells && beastShells.length > 0 ? beastShells : [{ id: 'powershell', label: 'PowerShell' }, { id: 'cmd', label: 'cmd' }]).map((sh) => (
+                  {(beastShells ?? [{ id: 'powershell', label: 'PowerShell' }, { id: 'cmd', label: 'cmd' }]).map((sh) => (
                     <PaletteButton
                       key={`beast-new-${sh.id}`}
                       label={`New ${sh.label}`}

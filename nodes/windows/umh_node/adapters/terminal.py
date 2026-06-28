@@ -118,6 +118,55 @@ def discover_available_shells() -> list[dict[str, str]]:
     return available
 
 
+_MUX_DEFS: dict[str, dict[str, Any]] = {
+    "tmux": {
+        "label": "tmux",
+        "detect_native": lambda: shutil.which("tmux") is not None,
+        "detect_wsl": lambda: sys.platform == "win32" and shutil.which("wsl") is not None and _wsl_has("tmux"),
+    },
+    "screen": {
+        "label": "GNU Screen",
+        "detect_native": lambda: shutil.which("screen") is not None,
+        "detect_wsl": lambda: sys.platform == "win32" and shutil.which("wsl") is not None and _wsl_has("screen"),
+    },
+}
+
+
+def _wsl_has(binary: str) -> bool:
+    """Check if a binary exists inside the default WSL distro."""
+    try:
+        r = subprocess.run(
+            ["wsl", "--exec", "which", binary],
+            capture_output=True, text=True, timeout=5,
+        )
+        return r.returncode == 0 and r.stdout.strip() != ""
+    except Exception:
+        return False
+
+
+def discover_available_multiplexers() -> list[dict[str, str]]:
+    """Return list of terminal multiplexers available on this node."""
+    available = []
+    for mux_id, defn in _MUX_DEFS.items():
+        try:
+            if defn["detect_native"]():
+                available.append({"id": mux_id, "label": defn["label"], "via": "native"})
+            elif defn["detect_wsl"]():
+                available.append({"id": mux_id, "label": defn["label"], "via": "wsl"})
+        except Exception:
+            pass
+    return available
+
+
+def discover_capabilities() -> dict[str, Any]:
+    """Full terminal capability report for this node."""
+    return {
+        "platform": sys.platform,
+        "shells": discover_available_shells(),
+        "multiplexers": discover_available_multiplexers(),
+    }
+
+
 class TerminalSession:
     """A single persistent shell process with threaded output capture."""
 
@@ -253,7 +302,8 @@ class TerminalAdapter:
         return {"success": True, "session_name": name, "shell_type": shell_type}
 
     def _op_shells(self, params: dict[str, Any]) -> dict[str, Any]:
-        return {"success": True, "shells": discover_available_shells()}
+        caps = discover_capabilities()
+        return {"success": True, "shells": caps["shells"], "multiplexers": caps["multiplexers"], "platform": caps["platform"]}
 
     def _op_list(self, params: dict[str, Any]) -> dict[str, Any]:
         self._cleanup_idle()
