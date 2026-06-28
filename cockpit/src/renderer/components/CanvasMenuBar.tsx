@@ -247,11 +247,6 @@ export function CanvasMenuBar() {
         </div>
       ))}
 
-      <div className="ml-3 flex items-center gap-2">
-        <span className="text-[9px] font-mono tracking-widest uppercase text-text-primary">
-          {MODE_LABELS[activeMode]}
-        </span>
-      </div>
     </div>
   )
 }
