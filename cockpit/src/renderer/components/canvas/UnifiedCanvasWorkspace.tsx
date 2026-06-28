@@ -7,6 +7,7 @@ import { useLoopCanvasStore } from '../../stores/loopCanvasStore'
 import { useHarnessCanvasStore } from '../../stores/harnessCanvasStore'
 import { useOrganismCanvasStore } from '../../stores/organismCanvasStore'
 import { useAgentStore } from '../../stores/agentStore'
+import { fetchApi } from '../../api/client'
 import { CanvasPalette } from './CanvasPalette'
 import { CanvasWorkspace } from './CanvasWorkspace'
 import { AgentCanvasWorkspace } from './AgentCanvasWorkspace'
@@ -76,9 +77,16 @@ export function UnifiedCanvasWorkspace() {
   const agents = useAgentStore((s) => s.agents)
   const fetchAgents = useAgentStore((s) => s.fetchAgents)
   const [paletteOpen, setPaletteOpen] = useState(true)
+  const [tmuxSessions, setTmuxSessions] = useState<Array<{ name: string; windows: number }>>([])
   const prevMode = useRef(activeMode)
 
   useEffect(() => { fetchAgents() }, [fetchAgents])
+
+  useEffect(() => {
+    fetchApi<{ sessions?: Array<{ name: string; windows: number }> }>('/tmux/sessions')
+      .then((data) => { if (data?.sessions) setTmuxSessions(data.sessions) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const handler = () => setPaletteOpen(v => !v)
@@ -208,6 +216,7 @@ export function UnifiedCanvasWorkspace() {
       open={paletteOpen}
       onToggle={() => setPaletteOpen((v) => !v)}
       agents={agents.map((a) => ({ id: a.id, name: a.name }))}
+      tmuxSessions={tmuxSessions}
     />
   )
 

@@ -37,9 +37,9 @@ const GENERAL_ITEMS: PaletteItem[] = [
   { type: 'desktop', label: 'Desktop M0', icon: <Monitor size={14} />, config: { monitorId: 'M0' } },
   { type: 'desktop', label: 'Desktop M1', icon: <Monitor size={14} />, config: { monitorId: 'M1' } },
   { type: 'vision', label: 'Vision Camera', icon: <Camera size={14} /> },
-  { type: 'terminal', label: 'Terminal', icon: <Terminal size={14} /> },
+  { label: 'Terminal', icon: <Terminal size={14} />, submenu: true },
   { type: 'preview', label: 'Live Preview', icon: <Eye size={14} /> },
-  { type: 'agent', label: 'Agent', icon: <Bot size={14} /> },
+  { label: 'Agent', icon: <Bot size={14} />, submenu: true },
   { label: 'Panel', icon: <LayoutGrid size={14} />, submenu: true },
 ]
 
@@ -101,6 +101,7 @@ interface CanvasPaletteProps {
   open?: boolean
   onToggle?: () => void
   agents?: Array<{ id: string; name: string }>
+  tmuxSessions?: Array<{ name: string; windows: number }>
 }
 
 export function CanvasPalette({
@@ -116,6 +117,7 @@ export function CanvasPalette({
   open,
   onToggle,
   agents,
+  tmuxSessions,
 }: CanvasPaletteProps) {
   const [internalExpanded, setInternalExpanded] = useState(false)
   const expanded = open ?? internalExpanded
@@ -123,6 +125,8 @@ export function CanvasPalette({
 
   const [panelSubmenuOpen, setPanelSubmenuOpen] = useState(false)
   const [agentSubmenuOpen, setAgentSubmenuOpen] = useState(false)
+  const [terminalSubmenuOpen, setTerminalSubmenuOpen] = useState(false)
+  const [generalAgentSubmenuOpen, setGeneralAgentSubmenuOpen] = useState(false)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [creatingCanvas, setCreatingCanvas] = useState(false)
@@ -201,6 +205,10 @@ export function CanvasPalette({
                   setPanelSubmenuOpen((v) => !v)
                 } else if (item.submenu && item.label === 'Agents') {
                   setAgentSubmenuOpen((v) => !v)
+                } else if (item.submenu && item.label === 'Terminal') {
+                  setTerminalSubmenuOpen((v) => !v)
+                } else if (item.submenu && item.label === 'Agent') {
+                  setGeneralAgentSubmenuOpen((v) => !v)
                 } else if (item.type) {
                   onAddWindow(item.type, item.config)
                 } else if (item.action) {
@@ -210,6 +218,40 @@ export function CanvasPalette({
             />
           ))}
         </div>
+
+        {/* Terminal submenu (general mode) */}
+        {terminalSubmenuOpen && mode === 'general' && (
+          <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
+            {(tmuxSessions && tmuxSessions.length > 0 ? tmuxSessions : [{ name: 'dex_main', windows: 1 }, { name: 'ai_main', windows: 1 }]).map((s) => (
+              <PaletteButton
+                key={s.name}
+                label={s.name}
+                icon={<Terminal size={12} />}
+                onClick={() => {
+                  onAddWindow('terminal', { session: s.name, pane: '0' })
+                  setTerminalSubmenuOpen(false)
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Agent submenu (general mode) */}
+        {generalAgentSubmenuOpen && mode === 'general' && agents && agents.length > 0 && (
+          <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
+            {agents.map((a) => (
+              <PaletteButton
+                key={a.id}
+                label={a.name}
+                icon={<Bot size={12} />}
+                onClick={() => {
+                  onAddWindow('agent', { agentId: a.id, agentName: a.name })
+                  setGeneralAgentSubmenuOpen(false)
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Panel submenu (general mode only) */}
         {panelSubmenuOpen && mode === 'general' && (
