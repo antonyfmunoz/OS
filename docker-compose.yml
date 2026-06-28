@@ -186,6 +186,7 @@ services:
       - /root/.ssh/known_hosts:/root/.ssh/known_hosts:ro
       - /var/lib/umh/rooms:/var/lib/umh/rooms
       - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
+      - /tmp/tmux-0:/tmp/tmux-0
     env_file:
       - services/.env
       - infra/docker/umh.env
