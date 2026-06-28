@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-export type CanvasMode = 'general' | 'agents' | 'workflows'
+export type CanvasMode = 'general' | 'agents' | 'workflows' | 'loops' | 'harnesses' | 'organism'
 
 export interface SavedCanvas {
   id: string
@@ -14,7 +14,7 @@ export interface SavedCanvas {
 interface UnifiedCanvasState {
   activeMode: CanvasMode
   savedCanvases: SavedCanvas[]
-  activeCanvasId: { general: string | null; agents: string | null; workflows: string | null }
+  activeCanvasId: { general: string | null; agents: string | null; workflows: string | null; loops: string | null; harnesses: string | null; organism: string | null }
 
   setMode: (mode: CanvasMode) => void
   createCanvas: (name: string) => string
@@ -29,7 +29,7 @@ export const useUnifiedCanvasStore = create<UnifiedCanvasState>()(
     (set, get) => ({
       activeMode: 'general',
       savedCanvases: [],
-      activeCanvasId: { general: null, agents: null, workflows: null },
+      activeCanvasId: { general: null, agents: null, workflows: null, loops: null, harnesses: null, organism: null },
 
       setMode: (mode) => set({ activeMode: mode }),
 
@@ -75,11 +75,11 @@ export const useUnifiedCanvasStore = create<UnifiedCanvasState>()(
     }),
     {
       name: 'cockpit:unified-canvas',
-      version: 2,
+      version: 3,
       migrate: () => ({
         activeMode: 'general' as const,
         savedCanvases: [],
-        activeCanvasId: { general: null, agents: null, workflows: null },
+        activeCanvasId: { general: null, agents: null, workflows: null, loops: null, harnesses: null, organism: null },
       }),
       partialize: (s) => ({
         activeMode: s.activeMode,

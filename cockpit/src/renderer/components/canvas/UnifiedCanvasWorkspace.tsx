@@ -3,10 +3,16 @@ import { useUnifiedCanvasStore } from '../../stores/unifiedCanvasStore'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { useAgentCanvasStore } from '../../stores/agentCanvasStore'
 import { useWorkflowCanvasStore } from '../../stores/workflowCanvasStore'
+import { useLoopCanvasStore } from '../../stores/loopCanvasStore'
+import { useHarnessCanvasStore } from '../../stores/harnessCanvasStore'
+import { useOrganismCanvasStore } from '../../stores/organismCanvasStore'
 import { CanvasPalette } from './CanvasPalette'
 import { CanvasWorkspace } from './CanvasWorkspace'
 import { AgentCanvasWorkspace } from './AgentCanvasWorkspace'
 import { WorkflowCanvasWorkspace } from './WorkflowCanvasWorkspace'
+import { LoopCanvasWorkspace } from './LoopCanvasWorkspace'
+import { HarnessCanvasWorkspace } from './HarnessCanvasWorkspace'
+import { OrganismCanvasWorkspace } from './OrganismCanvasWorkspace'
 import type { CanvasMode } from '../../stores/unifiedCanvasStore'
 
 function snapshotModeState(mode: CanvasMode): Record<string, unknown> {
@@ -23,6 +29,18 @@ function snapshotModeState(mode: CanvasMode): Record<string, unknown> {
       const s = useWorkflowCanvasStore.getState()
       return { workflows: s.workflows, panX: s.panX, panY: s.panY, zoom: s.zoom, activeWorkflowId: s.activeWorkflowId, nodes: s.nodes, connections: s.connections }
     }
+    case 'loops': {
+      const s = useLoopCanvasStore.getState()
+      return { panX: s.panX, panY: s.panY, zoom: s.zoom, activeLoopId: s.activeLoopId, activeLoopType: s.activeLoopType }
+    }
+    case 'harnesses': {
+      const s = useHarnessCanvasStore.getState()
+      return { panX: s.panX, panY: s.panY, zoom: s.zoom, activeHarnessId: s.activeHarnessId }
+    }
+    case 'organism': {
+      const s = useOrganismCanvasStore.getState()
+      return { panX: s.panX, panY: s.panY, zoom: s.zoom, activeNodeId: s.activeNodeId }
+    }
   }
 }
 
@@ -36,6 +54,15 @@ function restoreModeState(mode: CanvasMode, state: Record<string, unknown>) {
       break
     case 'workflows':
       useWorkflowCanvasStore.setState(state)
+      break
+    case 'loops':
+      useLoopCanvasStore.setState(state)
+      break
+    case 'harnesses':
+      useHarnessCanvasStore.setState(state)
+      break
+    case 'organism':
+      useOrganismCanvasStore.setState(state)
       break
   }
 }
@@ -157,6 +184,9 @@ export function UnifiedCanvasWorkspace() {
       {activeMode === 'general' && <CanvasWorkspace {...modeProps} />}
       {activeMode === 'agents' && <AgentCanvasWorkspace {...modeProps} />}
       {activeMode === 'workflows' && <WorkflowCanvasWorkspace {...modeProps} />}
+      {activeMode === 'loops' && <LoopCanvasWorkspace {...modeProps} />}
+      {activeMode === 'harnesses' && <HarnessCanvasWorkspace {...modeProps} />}
+      {activeMode === 'organism' && <OrganismCanvasWorkspace {...modeProps} />}
     </div>
   )
 }
