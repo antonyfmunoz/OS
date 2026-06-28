@@ -8,7 +8,6 @@ import {
   Bot,
   LayoutGrid,
   ChevronRight,
-  ChevronLeft,
   Plus,
   Layers,
   Workflow,
@@ -309,26 +308,6 @@ export function CanvasPalette({
           )}
         </div>
       </div>
-
-      {/* Toggle tab */}
-      <button
-        className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center rounded-r"
-        style={{
-          left: expanded ? 200 : 0,
-          width: 16,
-          height: 48,
-          background: 'var(--color-surface-raised)',
-          border: '1px solid var(--color-border)',
-          borderLeft: 'none',
-          color: 'var(--color-text-tertiary)',
-          transition: 'left 200ms ease',
-          zIndex: 11,
-        }}
-        onClick={toggle}
-        title={expanded ? 'Collapse palette' : 'Expand palette'}
-      >
-        {expanded ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
-      </button>
     </div>
   )
 }
