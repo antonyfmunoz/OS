@@ -24,8 +24,20 @@ declare global {
 
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useWorkspaceContextStore } from '../stores/workspaceContextStore'
+import { useUnifiedCanvasStore } from '../stores/unifiedCanvasStore'
 import { ROUTES } from '../types/routes'
 import { IDEMenuBar } from './IDEMenuBar'
+
+const CANVAS_PANELS = new Set(['canvas', 'agents', 'workflows'])
+
+const MODE_LABELS: Record<string, string> = {
+  general: 'General',
+  agents: 'Agents',
+  workflows: 'Workflows',
+  loops: 'Loops',
+  harnesses: 'Harnesses',
+  organism: 'Organism',
+}
 
 function getPanelLabel(panelId: string): string {
   const route = ROUTES.find(r => r.id === panelId)
@@ -35,6 +47,7 @@ function getPanelLabel(panelId: string): string {
 export function TitleBar() {
   const activePanel = useCockpitStore(s => s.activePanel)
   const panelLabel = getPanelLabel(activePanel)
+  const activeMode = useUnifiedCanvasStore(s => s.activeMode)
   const contextLine = useWorkspaceContextStore(s => s.contextLine())
 
   const toggleFullscreen = () => {
@@ -52,6 +65,16 @@ export function TitleBar() {
     >
       {activePanel === 'editor' ? (
         <IDEMenuBar />
+      ) : CANVAS_PANELS.has(activePanel) ? (
+        <>
+          <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
+            Canvas
+          </span>
+          <span className="ml-2 font-mono text-[10px] leading-none text-text-tertiary">/</span>
+          <span className="ml-2 font-mono text-[10px] tracking-widest uppercase leading-none text-text-primary">
+            {MODE_LABELS[activeMode] ?? activeMode}
+          </span>
+        </>
       ) : (
         <>
           <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
