@@ -25,7 +25,7 @@ export function canvasToScreen(
 }
 
 export function clampZoom(zoom: number): number {
-  return Math.min(2.0, Math.max(0.25, zoom))
+  return Math.min(5.0, Math.max(0.05, zoom))
 }
 
 export function zoomAtPoint(

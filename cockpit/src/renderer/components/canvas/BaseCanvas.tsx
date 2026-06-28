@@ -13,7 +13,7 @@ interface BaseCanvasProps {
   children: ReactNode
 }
 
-const ZOOM_STEP = 0.1
+const ZOOM_FACTOR = 0.08
 const DOT_SIZE = 20
 
 export function BaseCanvas({
@@ -97,8 +97,8 @@ export function BaseCanvas({
       if (e.ctrlKey || e.metaKey) {
         const pointX = e.clientX - rect.left
         const pointY = e.clientY - rect.top
-        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
-        const result = zoomAtPoint(s.zoom, s.zoom + delta, pointX, pointY, s.panX, s.panY)
+        const factor = e.deltaY > 0 ? 1 - ZOOM_FACTOR : 1 + ZOOM_FACTOR
+        const result = zoomAtPoint(s.zoom, s.zoom * factor, pointX, pointY, s.panX, s.panY)
         setPan(result.panX, result.panY)
         setZoom(result.zoom)
       } else {
