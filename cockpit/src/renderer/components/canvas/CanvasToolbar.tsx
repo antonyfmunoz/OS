@@ -10,6 +10,9 @@ import {
   Layers,
   Bot,
   Workflow,
+  RefreshCcw,
+  Cpu,
+  Brain,
 } from 'lucide-react'
 import type { CanvasMode } from '../../stores/unifiedCanvasStore'
 
@@ -17,6 +20,9 @@ const MODE_META: Record<CanvasMode, { label: string; icon: typeof Layers }> = {
   general: { label: 'General', icon: Layers },
   agents: { label: 'Agents', icon: Bot },
   workflows: { label: 'Workflows', icon: Workflow },
+  loops: { label: 'Loops', icon: RefreshCcw },
+  harnesses: { label: 'Harnesses', icon: Cpu },
+  organism: { label: 'Organism', icon: Brain },
 }
 
 interface CanvasToolbarProps {

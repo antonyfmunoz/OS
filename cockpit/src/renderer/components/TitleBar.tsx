@@ -37,6 +37,9 @@ const MODE_LABELS: Record<string, string> = {
   general: 'General',
   agents: 'Agents',
   workflows: 'Workflows',
+  loops: 'Loops',
+  harnesses: 'Harnesses',
+  organism: 'Organism',
 }
 
 function CanvasTitleBar() {

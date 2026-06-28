@@ -52,10 +52,17 @@ const WORKFLOW_ITEMS: PaletteItem[] = [
   { label: 'Add Trigger Node', icon: <Workflow size={14} />, action: 'addTrigger' },
 ]
 
+const LOOP_ITEMS: PaletteItem[] = []
+const HARNESS_ITEMS: PaletteItem[] = []
+const ORGANISM_ITEMS: PaletteItem[] = []
+
 const MODE_ITEMS: Record<CanvasMode, PaletteItem[]> = {
   general: GENERAL_ITEMS,
   agents: AGENT_ITEMS,
   workflows: WORKFLOW_ITEMS,
+  loops: LOOP_ITEMS,
+  harnesses: HARNESS_ITEMS,
+  organism: ORGANISM_ITEMS,
 }
 
 const PANEL_ROUTES = ROUTES.filter(
