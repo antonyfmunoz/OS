@@ -444,6 +444,13 @@ Use these entry points:
 - `/gsd:execute-phase` for planned phase work
 
 Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
+
+## Plan File Immutability (NON-NEGOTIABLE)
+Plan files in `~/.claude/plans/` are IMMUTABLE once written.
+- Every new plan gets its own file — never reuse or overwrite an existing plan filename
+- If re-entering plan mode in a session that already produced a plan file, FIRST archive the existing plan: `cp {file} {file%.md}-archived-$(date +%Y-%m-%d).md`
+- Only allowed modification to existing plans: marking sections as COMPLETED
+- Never use Write/Edit to rewrite plan content — designs lost to overwrites are irrecoverable
 <!-- GSD:workflow-end -->
 
 <!-- GSD:profile-start -->
