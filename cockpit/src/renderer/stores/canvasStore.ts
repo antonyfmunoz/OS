@@ -19,7 +19,8 @@ export interface CanvasWindowConfig {
   panelId?: string
   cameraId?: string
   node?: string    // "local" (VPS/tmux) or "windows-desktop" (Beast)
-  shell?: string   // "powershell" | "cmd" (Beast only)
+  shell?: string   // shell id: "powershell" | "cmd" | "bash" | "zsh" etc.
+  mux?: string     // multiplexer: "tmux" | "screen" | undefined (raw pipe)
 }
 
 export interface CanvasWindow {
@@ -92,11 +93,10 @@ function configLabel(type: CanvasWindowType, config: CanvasWindowConfig): string
     case 'terminal': {
       const isRemote = config.node && config.node !== 'local'
       const device = isRemote ? 'Beast' : 'VPS'
-      const shellType = isRemote
-        ? (config.shell === 'cmd' ? 'cmd' : 'PowerShell')
-        : 'bash'
+      const shell = config.shell ?? (isRemote ? 'powershell' : 'bash')
+      const mux = config.mux ? `${config.mux} ` : ''
       const sessionName = config.session === '__create__' ? 'new' : (config.session ?? '')
-      return `${device} ${shellType}: ${sessionName}`
+      return `${device} ${mux}${shell}: ${sessionName}`
     }
     case 'desktop': return config.monitorId ?? ''
     case 'agent': return config.agentName ?? config.agentId ?? ''

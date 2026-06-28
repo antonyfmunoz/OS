@@ -81,6 +81,8 @@ export function UnifiedCanvasWorkspace() {
   const [beastSessions, setBeastSessions] = useState<Array<{ name: string; shell?: string; shell_type?: string }>>([])
   const [vpsShells, setVpsShells] = useState<Array<{ id: string; label: string }>>([])
   const [beastShells, setBeastShells] = useState<Array<{ id: string; label: string }>>([])
+  const [vpsMultiplexers, setVpsMultiplexers] = useState<Array<{ id: string; label: string; via: string }>>([])
+  const [beastMultiplexers, setBeastMultiplexers] = useState<Array<{ id: string; label: string; via: string }>>([])
   const prevMode = useRef(activeMode)
 
   const KNOWN_AGENTS = [
@@ -126,13 +128,18 @@ export function UnifiedCanvasWorkspace() {
         if (sessions) setBeastSessions(sessions)
       })
       .catch(() => {})
-    fetchApi<{ ok?: boolean; shells?: Array<{ id: string; label: string }> }>('/tmux/shells')
-      .then((data) => { if (data?.shells) setVpsShells(data.shells) })
+    fetchApi<{ ok?: boolean; shells?: Array<{ id: string; label: string }>; multiplexers?: Array<{ id: string; label: string; via: string }> }>('/tmux/shells')
+      .then((data) => {
+        if (data?.shells) setVpsShells(data.shells)
+        if (data?.multiplexers) setVpsMultiplexers(data.multiplexers)
+      })
       .catch(() => {})
-    fetchApi<{ ok?: boolean; result_data?: { ok?: boolean; shells?: Array<{ id: string; label: string }> }; shells?: Array<{ id: string; label: string }> }>('/terminal/remote/shells?node_id=windows-desktop')
+    fetchApi<{ ok?: boolean; result_data?: { ok?: boolean; shells?: Array<{ id: string; label: string }>; multiplexers?: Array<{ id: string; label: string; via: string }> }; shells?: Array<{ id: string; label: string }>; multiplexers?: Array<{ id: string; label: string; via: string }> }>('/terminal/remote/shells?node_id=windows-desktop')
       .then((data) => {
         const shells = data?.result_data?.shells ?? data?.shells
+        const muxes = data?.result_data?.multiplexers ?? data?.multiplexers
         if (shells) setBeastShells(shells)
+        if (muxes) setBeastMultiplexers(muxes)
       })
       .catch(() => {})
   }, [])
@@ -269,6 +276,8 @@ export function UnifiedCanvasWorkspace() {
       beastSessions={beastSessions}
       vpsShells={vpsShells}
       beastShells={beastShells}
+      vpsMultiplexers={vpsMultiplexers}
+      beastMultiplexers={beastMultiplexers}
     />
   )
 

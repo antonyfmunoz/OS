@@ -476,7 +476,9 @@ async def _tmux_create(request: Request) -> dict[str, Any]:
 
 
 def _tmux_shells(request: Request) -> dict[str, Any]:
+    """Full terminal capability report for the VPS node."""
     import shutil
+
     shells = []
     for shell_id, label, check in [
         ("bash", "Bash", lambda: shutil.which("bash") is not None),
@@ -489,7 +491,24 @@ def _tmux_shells(request: Request) -> dict[str, Any]:
                 shells.append({"id": shell_id, "label": label, "os": "linux"})
         except Exception:
             pass
-    return {"ok": True, "shells": shells}
+
+    multiplexers = []
+    for mux_id, label, check in [
+        ("tmux", "tmux", lambda: shutil.which("tmux") is not None),
+        ("screen", "GNU Screen", lambda: shutil.which("screen") is not None),
+    ]:
+        try:
+            if check():
+                multiplexers.append({"id": mux_id, "label": label, "via": "native"})
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "shells": shells,
+        "multiplexers": multiplexers,
+        "platform": "linux",
+    }
 
 
 def _tmux_capture(request: Request, session_name: str, pane_id: str) -> dict[str, Any]:
