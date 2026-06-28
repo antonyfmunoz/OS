@@ -92,6 +92,20 @@ export function UnifiedCanvasWorkspace() {
     { id: 'agent-operations', name: 'Operations' },
     { id: 'agent-product', name: 'Product' },
     { id: 'agent-sales', name: 'Sales' },
+    { id: 'organism-builder', name: 'Builder' },
+    { id: 'organism-researcher', name: 'Researcher' },
+    { id: 'organism-reviewer', name: 'Reviewer' },
+    { id: 'organism-strategist', name: 'Strategist' },
+    { id: 'organism-operator', name: 'Operator' },
+    { id: 'organism-qa', name: 'QA' },
+    { id: 'organism-finance_analyst', name: 'Finance Analyst' },
+    { id: 'organism-content_producer', name: 'Content Producer' },
+    { id: 'organism-sales_assistant', name: 'Sales Assistant' },
+    { id: 'organism-infrastructure', name: 'Infrastructure' },
+    { id: 'cc-code-reviewer', name: 'Code Reviewer' },
+    { id: 'cc-researcher', name: 'EOS Researcher' },
+    { id: 'cc-simplifier', name: 'Simplifier' },
+    { id: 'cc-verifier', name: 'Verifier' },
   ]
   const agents = storeAgents.length > 0
     ? storeAgents

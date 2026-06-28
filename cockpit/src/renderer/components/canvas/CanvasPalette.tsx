@@ -33,13 +33,13 @@ interface PaletteItem {
 }
 
 const GENERAL_ITEMS: PaletteItem[] = [
-  { type: 'browser', label: 'Browser Pane', icon: <Globe size={14} /> },
-  { label: 'Desktop', icon: <Monitor size={14} />, submenu: true },
-  { label: 'Vision', icon: <Camera size={14} />, submenu: true },
-  { label: 'Terminal', icon: <Terminal size={14} />, submenu: true },
-  { type: 'preview', label: 'Live Preview', icon: <Eye size={14} /> },
-  { label: 'Agent', icon: <Bot size={14} />, submenu: true },
-  { label: 'Panel', icon: <LayoutGrid size={14} />, submenu: true },
+  { type: 'browser', label: 'Browser', icon: <Globe size={14} /> },
+  { label: 'Monitors', icon: <Monitor size={14} />, submenu: true },
+  { label: 'Cameras', icon: <Camera size={14} />, submenu: true },
+  { label: 'Terminals', icon: <Terminal size={14} />, submenu: true },
+  { type: 'preview', label: 'Preview', icon: <Eye size={14} /> },
+  { label: 'Agents', icon: <Bot size={14} />, submenu: true },
+  { label: 'Instruments', icon: <LayoutGrid size={14} />, submenu: true },
 ]
 
 const DESKTOP_MONITORS = [
@@ -211,17 +211,16 @@ export function CanvasPalette({
                 icon={item.icon}
                 suffix={item.submenu ? <ChevronRight size={10} style={{ color: 'var(--color-text-tertiary)' }} /> : undefined}
                 onClick={() => {
-                  if (item.submenu && item.label === 'Panel') {
+                  if (item.submenu && item.label === 'Instruments') {
                     setPanelSubmenuOpen((v) => !v)
                   } else if (item.submenu && item.label === 'Agents') {
                     setAgentSubmenuOpen((v) => !v)
-                  } else if (item.submenu && item.label === 'Terminal') {
-                    setTerminalSubmenuOpen((v) => !v)
-                  } else if (item.submenu && item.label === 'Agent') {
                     setGeneralAgentSubmenuOpen((v) => !v)
-                  } else if (item.submenu && item.label === 'Desktop') {
+                  } else if (item.submenu && item.label === 'Terminals') {
+                    setTerminalSubmenuOpen((v) => !v)
+                  } else if (item.submenu && item.label === 'Monitors') {
                     setDesktopSubmenuOpen((v) => !v)
-                  } else if (item.submenu && item.label === 'Vision') {
+                  } else if (item.submenu && item.label === 'Cameras') {
                     setVisionSubmenuOpen((v) => !v)
                   } else if (item.type) {
                     onAddWindow(item.type, item.config)
@@ -232,7 +231,7 @@ export function CanvasPalette({
               />
 
               {/* Desktop submenu — inline after Desktop button */}
-              {item.label === 'Desktop' && item.submenu && desktopSubmenuOpen && mode === 'general' && (
+              {item.label === 'Monitors' && item.submenu && desktopSubmenuOpen && mode === 'general' && (
                 <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)' }}>
                   {DESKTOP_MONITORS.map((m) => (
                     <PaletteButton
@@ -249,7 +248,7 @@ export function CanvasPalette({
               )}
 
               {/* Vision submenu — inline after Vision button */}
-              {item.label === 'Vision' && item.submenu && visionSubmenuOpen && mode === 'general' && (
+              {item.label === 'Cameras' && item.submenu && visionSubmenuOpen && mode === 'general' && (
                 <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)' }}>
                   {VISION_CAMERAS.map((c) => (
                     <PaletteButton
@@ -266,7 +265,7 @@ export function CanvasPalette({
               )}
 
               {/* Terminal submenu — inline after Terminal button */}
-              {item.label === 'Terminal' && item.submenu && terminalSubmenuOpen && mode === 'general' && (
+              {item.label === 'Terminals' && item.submenu && terminalSubmenuOpen && mode === 'general' && (
                 <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
                   {(tmuxSessions && tmuxSessions.length > 0 ? tmuxSessions : [{ name: 'dex_main', windows: 1 }, { name: 'ai_main', windows: 1 }]).map((s) => (
                     <PaletteButton
@@ -283,7 +282,7 @@ export function CanvasPalette({
               )}
 
               {/* Agent submenu — inline after Agent button (general mode) */}
-              {item.label === 'Agent' && item.submenu && generalAgentSubmenuOpen && mode === 'general' && (
+              {item.label === 'Agents' && item.submenu && generalAgentSubmenuOpen && mode === 'general' && (
                 <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)', maxHeight: 200, overflowY: 'auto' }}>
                   {agents && agents.length > 0 ? agents.map((a) => (
                     <PaletteButton
@@ -304,7 +303,7 @@ export function CanvasPalette({
               )}
 
               {/* Panel submenu — inline after Panel button */}
-              {item.label === 'Panel' && item.submenu && panelSubmenuOpen && mode === 'general' && (
+              {item.label === 'Instruments' && item.submenu && panelSubmenuOpen && mode === 'general' && (
                 <div className="flex flex-col gap-0.5 px-1 ml-3 mt-0.5" style={{ borderLeft: '2px solid var(--color-border)' }}>
                   {PANEL_ROUTES.map((route) => {
                     const Icon = route.icon
