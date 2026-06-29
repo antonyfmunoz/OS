@@ -11,6 +11,8 @@ from typing import Any
 
 from fastapi import Depends
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,23 +29,41 @@ def register_governance_routes(router, _require_operator_role, helpers):
 
     @router.post("/approvals/{approval_id}/approve", dependencies=[Depends(_require_operator_role)])
     def approve_item(approval_id: str):
-        daemon = _get_organism()
-        if daemon is None:
-            return {"ok": False, "error": "organism not running"}
-        result = daemon.approval_store.decide(approval_id, "approved")
-        if result is None:
-            return {"ok": False, "error": "approval not found"}
-        return {"ok": True}
+        def _do_approve():
+            daemon = _get_organism()
+            if daemon is None:
+                return "organism not running", False
+            result = daemon.approval_store.decide(approval_id, "approved")
+            if result is None:
+                return "approval not found", False
+            return "approved", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve item {approval_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.post("/approvals/{approval_id}/deny", dependencies=[Depends(_require_operator_role)])
     def deny_item(approval_id: str, payload: dict | None = None):
-        daemon = _get_organism()
-        if daemon is None:
-            return {"ok": False, "error": "organism not running"}
-        result = daemon.approval_store.decide(approval_id, "denied")
-        if result is None:
-            return {"ok": False, "error": "approval not found"}
-        return {"ok": True}
+        def _do_deny():
+            daemon = _get_organism()
+            if daemon is None:
+                return "organism not running", False
+            result = daemon.approval_store.decide(approval_id, "denied")
+            if result is None:
+                return "approval not found", False
+            return "denied", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"deny item {approval_id}",
+            execute_fn=_do_deny,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     def _get_policy_engine():
         """Access the PolicyEngine — try pipeline first, direct instantiation as fallback."""
@@ -95,42 +115,46 @@ def register_governance_routes(router, _require_operator_role, helpers):
 
     @router.patch("/governance", dependencies=[Depends(_require_operator_role)])
     def update_governance(payload: dict):
-        """Update governance policy — validated, persisted, audited.
-
-        Accepts: {"policies": {"risk_class_name": "AUTHORITY_LEVEL", ...}}
-        Example: {"policies": {"SAFE_WRITE": "AUTONOMOUS", "REVERSIBLE_WRITE": "APPROVE"}}
-        """
+        """Update governance policy — validated, persisted, audited."""
         from transports.api.cockpit_settings_mutations import update_governance_policy
 
         policies = payload.get("policies", {})
-        applied = []
-        all_warnings: list[str] = []
-        all_errors: list[str] = []
-        audits = []
 
-        for rc_name, auth_name in policies.items():
-            result = update_governance_policy(rc_name, auth_name)
-            if result.ok:
-                applied.append(
-                    {
+        def _do_update():
+            applied = []
+            all_warnings: list[str] = []
+            all_errors: list[str] = []
+            audits = []
+
+            for rc_name, auth_name in policies.items():
+                result = update_governance_policy(rc_name, auth_name)
+                if result.ok:
+                    applied.append({
                         "risk_class": rc_name,
                         "authority": auth_name,
                         "applied_state": result.applied_state,
-                    }
-                )
-                if result.audit_event:
-                    audits.append(result.audit_event)
-                all_warnings.extend(result.warnings)
-            else:
-                all_errors.extend(result.errors)
+                    })
+                    if result.audit_event:
+                        audits.append(result.audit_event)
+                    all_warnings.extend(result.warnings)
+                else:
+                    all_errors.extend(result.errors)
 
-        return {
-            "ok": len(applied) > 0,
-            "applied": applied,
-            "warnings": all_warnings,
-            "errors": all_errors,
-            "audits": audits,
-        }
+            success = len(applied) > 0
+            output = f"{len(applied)} policies applied"
+            if all_errors:
+                output += f", {len(all_errors)} errors"
+            return output, success
+
+        policy_names = list(policies.keys())
+        resp = governed_mutation(
+            mutation_name="governance_update",
+            intent=f"update governance policies: {', '.join(policy_names[:5])}",
+            execute_fn=_do_update,
+            source="cockpit",
+            metadata={"policies": policies},
+        )
+        return resp.to_http_dict()
 
     @router.get("/governance/tiers")
     def permission_tiers():

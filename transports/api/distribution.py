@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from transports.api.governed import governed_mutation
 from nodes.distribution.distributor import DistributionLayer
 from nodes.distribution.first_boot import check_first_boot, mark_first_boot_complete
 
@@ -48,20 +49,39 @@ async def channel_ingest(req: ChannelIngestRequest):
     except KeyError:
         risk = RiskClass.READ_ONLY
 
-    return _distributor.ingest(
-        content=req.content,
-        source_channel=req.source_channel,
-        risk_class=risk,
-        adapter_name=req.adapter_name,
-        pre_approved=req.pre_approved,
+    def _do_ingest():
+        result = _distributor.ingest(
+            content=req.content,
+            source_channel=req.source_channel,
+            risk_class=risk,
+            adapter_name=req.adapter_name,
+            pre_approved=req.pre_approved,
+        )
+        return f"ingested from {req.source_channel}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"ingest signal from {req.source_channel}",
+        execute_fn=_do_ingest,
+        source="cockpit",
     )
+    return resp.to_http_dict()
 
 
 @router.post("/approve")
 async def receive_approval(req: ApprovalResponse):
     """Receive an approval/denial for a pending request."""
-    found = _distributor.receive_approval(req.approval_id, req.approved)
-    return {"processed": found, "approval_id": req.approval_id}
+    def _do_approve():
+        found = _distributor.receive_approval(req.approval_id, req.approved)
+        return f"processed approval {req.approval_id}: {found}", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"{'approve' if req.approved else 'deny'} {req.approval_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @router.get("/channels")
@@ -91,5 +111,14 @@ async def first_boot_status():
 @router.post("/first-boot/complete")
 async def complete_first_boot():
     """Mark first boot as complete."""
-    mark_first_boot_complete()
-    return {"status": "complete"}
+    def _do_complete():
+        mark_first_boot_complete()
+        return "first boot completed", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="mark first boot as complete",
+        execute_fn=_do_complete,
+        source="cockpit",
+    )
+    return resp.to_http_dict()

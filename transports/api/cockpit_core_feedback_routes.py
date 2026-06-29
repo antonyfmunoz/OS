@@ -11,6 +11,8 @@ from typing import Any
 
 from fastapi import Depends
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,12 +36,7 @@ def register_feedback_routes(router, _require_operator_role, helpers):
 
     @router.post("/feedback")
     def record_feedback(payload: dict):
-        """Record explicit RLHF feedback for an interaction.
-
-        Body: {interaction_id, rating, outcome_type, notes?}
-        rating: thumbs_up | thumbs_down | 1-5
-        outcome_type: helpful | unhelpful | incorrect | harmful
-        """
+        """Record explicit RLHF feedback for an interaction."""
         from substrate.execution.feedback_loop import (
             FeedbackEntry,
             OutcomeCategory,
@@ -63,15 +60,24 @@ def register_feedback_routes(router, _require_operator_role, helpers):
             valid = [o.value for o in OutcomeCategory]
             return {"ok": False, "error": f"invalid outcome_type, must be one of: {valid}"}
 
-        loop = get_feedback_loop()
-        entry = FeedbackEntry(
-            interaction_id=interaction_id,
-            rating=rating,
-            outcome_type=outcome_type,
-            notes=payload.get("notes", ""),
+        def _do_record():
+            loop = get_feedback_loop()
+            entry = FeedbackEntry(
+                interaction_id=interaction_id,
+                rating=rating,
+                outcome_type=outcome_type,
+                notes=payload.get("notes", ""),
+            )
+            success = loop.record_feedback(entry)
+            return f"feedback recorded for {interaction_id}", success
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"record feedback for interaction {interaction_id}",
+            execute_fn=_do_record,
+            source="cockpit",
         )
-        success = loop.record_feedback(entry)
-        return {"ok": success}
+        return resp.to_http_dict()
 
     @router.get("/feedback/stats")
     def feedback_stats(agent: str = ""):
@@ -110,36 +116,40 @@ def register_feedback_routes(router, _require_operator_role, helpers):
     @router.post("/notifications/send", dependencies=[Depends(_require_operator_role)])
     def send_notification(payload: dict):
         """Send a notification through the engine."""
-        try:
-            from substrate.sockets.notification_engine import (
-                get_notification_engine,
-                Notification,
-                NotificationPriority,
-                NotificationChannel,
-            )
+        def _do_send():
+            try:
+                from substrate.sockets.notification_engine import (
+                    get_notification_engine,
+                    Notification,
+                    NotificationPriority,
+                    NotificationChannel,
+                )
 
-            engine = get_notification_engine()
-            channels = []
-            for ch in payload.get("channels", []):
-                try:
-                    channels.append(NotificationChannel(ch))
-                except ValueError:
-                    pass
+                engine = get_notification_engine()
+                channels = []
+                for ch in payload.get("channels", []):
+                    try:
+                        channels.append(NotificationChannel(ch))
+                    except ValueError:
+                        pass
 
-            notification = Notification(
-                title=payload.get("title", ""),
-                body=payload.get("body", ""),
-                priority=NotificationPriority(payload.get("priority", "normal")),
-                channel_preference=channels,
-                source=payload.get("source", "cockpit"),
-                target_user=payload.get("target_user", ""),
-            )
-            result = engine.send(notification)
-            return {
-                "sent": result.sent,
-                "channel": result.channel.value if result.channel else None,
-                "error": result.error,
-                "attempts": result.attempts,
-            }
-        except Exception as e:
-            return {"error": str(e), "sent": False}
+                notification = Notification(
+                    title=payload.get("title", ""),
+                    body=payload.get("body", ""),
+                    priority=NotificationPriority(payload.get("priority", "normal")),
+                    channel_preference=channels,
+                    source=payload.get("source", "cockpit"),
+                    target_user=payload.get("target_user", ""),
+                )
+                result = engine.send(notification)
+                return f"notification sent: {result.sent}", result.sent
+            except Exception as e:
+                return str(e), False
+
+        resp = governed_mutation(
+            mutation_name="channel_message_send",
+            intent=f"send notification: {payload.get('title', '')[:50]}",
+            execute_fn=_do_send,
+            source="cockpit",
+        )
+        return resp.to_http_dict()

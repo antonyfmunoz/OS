@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _session_runtime: Any = None
@@ -33,28 +35,73 @@ def _build_router() -> Any:
 
     @router.post("/start")
     def start_session() -> dict[str, Any]:
-        rt = _get_session_runtime()
-        return rt.start_session().to_dict()
+        captured: dict = {}
+
+        def _do():
+            rt = _get_session_runtime()
+            captured.update(rt.start_session().to_dict())
+            return "session started", True
+
+        resp = governed_mutation(mutation_name="state_mutate", intent="start workstation session", execute_fn=_do, source="cockpit")
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/{session_id}/checkpoint")
     def create_checkpoint(session_id: str) -> dict[str, Any]:
-        rt = _get_session_runtime()
-        return rt.checkpoint(session_id).to_dict()
+        captured: dict = {}
+
+        def _do():
+            rt = _get_session_runtime()
+            captured.update(rt.checkpoint(session_id).to_dict())
+            return f"checkpoint created for {session_id}", True
+
+        resp = governed_mutation(mutation_name="state_mutate", intent=f"checkpoint session {session_id}", execute_fn=_do, source="cockpit")
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/{session_id}/pause")
     def pause_session(session_id: str) -> dict[str, Any]:
-        rt = _get_session_runtime()
-        return rt.pause(session_id).to_dict()
+        captured: dict = {}
+
+        def _do():
+            rt = _get_session_runtime()
+            captured.update(rt.pause(session_id).to_dict())
+            return f"session {session_id} paused", True
+
+        resp = governed_mutation(mutation_name="state_mutate", intent=f"pause session {session_id}", execute_fn=_do, source="cockpit")
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/{session_id}/resume")
     def resume_session(session_id: str) -> dict[str, Any]:
-        rt = _get_session_runtime()
-        return rt.resume(session_id).to_dict()
+        captured: dict = {}
+
+        def _do():
+            rt = _get_session_runtime()
+            captured.update(rt.resume(session_id).to_dict())
+            return f"session {session_id} resumed", True
+
+        resp = governed_mutation(mutation_name="state_mutate", intent=f"resume session {session_id}", execute_fn=_do, source="cockpit")
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/{session_id}/close")
     def close_session(session_id: str) -> dict[str, Any]:
-        rt = _get_session_runtime()
-        return rt.close(session_id).to_dict()
+        captured: dict = {}
+
+        def _do():
+            rt = _get_session_runtime()
+            captured.update(rt.close(session_id).to_dict())
+            return f"session {session_id} closed", True
+
+        resp = governed_mutation(mutation_name="state_mutate", intent=f"close session {session_id}", execute_fn=_do, source="cockpit")
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.get("/active")
     def get_active_session() -> dict[str, Any]:

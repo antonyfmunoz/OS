@@ -545,6 +545,128 @@ STATE_MUTATE = MutationSpec(
     description="Generic state mutation for low-risk cockpit operations",
 )
 
+WORK_PACKET_EXECUTE = MutationSpec(
+    name="work_packet_execute",
+    action_type=ActionType.PROCESS,
+    risk_level="high",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=600.0,
+    require_approval=True,
+    description="Execute a work packet through the agent execution pipeline",
+)
+
+STRATEGY_MUTATE = MutationSpec(
+    name="strategy_mutate",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    description="Create, update, or delete a strategy goal or recommendation",
+)
+
+OPERATOR_LOOP_CONTROL = MutationSpec(
+    name="operator_loop_control",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    description="Start, stop, pause, or resume the operator tick loop",
+)
+
+SESSION_MUTATE = MutationSpec(
+    name="session_mutate",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Start, suspend, resume, or manage an operator session",
+)
+
+PRESENCE_UPDATE = MutationSpec(
+    name="presence_update",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Update operator presence or session state",
+)
+
+COMMAND_SUBMIT = MutationSpec(
+    name="command_submit",
+    action_type=ActionType.PROCESS,
+    risk_level="medium",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=30.0,
+    description="Submit, classify, approve, or reject an operator command",
+)
+
+WORKSTATION_MUTATE = MutationSpec(
+    name="workstation_mutate",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    description="Prepare, restore, or snapshot a workstation",
+)
+
+PROFILE_MUTATE = MutationSpec(
+    name="profile_mutate",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Activate or deactivate a profile or system mode",
+)
+
+CONTINUITY_MUTATE = MutationSpec(
+    name="continuity_mutate",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    description="Capture, depart, resume, handoff, or generate continuity brief",
+)
+
+TICK_CANDIDATE_DECIDE = MutationSpec(
+    name="tick_candidate_decide",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Accept or reject a tick-loop candidate",
+)
+
+OUTCOME_RECORD = MutationSpec(
+    name="outcome_record",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Record an outcome or execution result",
+)
+
 
 class MutationRegistry:
     """Registry of all executable mutation types.
@@ -594,6 +716,17 @@ class MutationRegistry:
             ADAPTER_UPDATE,
             SANDBOX_CREATE,
             STATE_MUTATE,
+            WORK_PACKET_EXECUTE,
+            STRATEGY_MUTATE,
+            OPERATOR_LOOP_CONTROL,
+            SESSION_MUTATE,
+            PRESENCE_UPDATE,
+            COMMAND_SUBMIT,
+            WORKSTATION_MUTATE,
+            PROFILE_MUTATE,
+            CONTINUITY_MUTATE,
+            TICK_CANDIDATE_DECIDE,
+            OUTCOME_RECORD,
         ):
             self.register(spec)
 

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types.js'
 import { callOrganism } from '../lib/python_bridge.js'
+import { governedMutation } from '../lib/governed_bridge.js'
 import { operatorGuard } from '../middleware/operator.js'
 
 const router = new Hono<Env>()
@@ -27,9 +28,12 @@ router.patch('/', operatorGuard, async (c) => {
   if (!key) return c.json({ error: 'key is required' }, 400)
   if (value === undefined) return c.json({ error: 'value is required' }, 400)
 
-  const result = await callOrganism('config.set', { key, value, layer })
-  if (!result.success) return c.json({ error: result.error }, 500)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'config_set',
+    intent: `set config ${key} = ${JSON.stringify(value).slice(0, 50)}`,
+    payload: { key, value, layer },
+  })
+  return c.json(result)
 })
 
 router.get('/layers/all', operatorGuard, async (c) => {

@@ -14,6 +14,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 propagation_graph_router: APIRouter = APIRouter()
@@ -155,10 +157,19 @@ async def _impact(request: Request) -> dict[str, Any]:
         risk_class=body.get("risk_class", "low"),
     )
 
-    graph = _get_graph()
-    analyzer = _get_analyzer(graph)
-    analysis = analyzer.analyze(event)
-    return analysis.to_dict()
+    def _do_impact():
+        graph = _get_graph()
+        analyzer = _get_analyzer(graph)
+        analysis = analyzer.analyze(event)
+        return f"impact analysis for {source_node_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"impact analysis on node {source_node_id}",
+        execute_fn=_do_impact,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _plan(request: Request) -> dict[str, Any]:
@@ -179,12 +190,21 @@ async def _plan(request: Request) -> dict[str, Any]:
         risk_class=body.get("risk_class", "low"),
     )
 
-    graph = _get_graph()
-    analyzer = _get_analyzer(graph)
-    analysis = analyzer.analyze(event)
-    planner = _get_planner(graph)
-    plan = planner.plan(event, analysis)
-    return plan.to_dict()
+    def _do_plan():
+        graph = _get_graph()
+        analyzer = _get_analyzer(graph)
+        analysis = analyzer.analyze(event)
+        planner = _get_planner(graph)
+        plan = planner.plan(event, analysis)
+        return f"plan created for {source_node_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create propagation plan for node {source_node_id}",
+        execute_fn=_do_plan,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _execute_dry_run(request: Request) -> dict[str, Any]:
@@ -205,12 +225,21 @@ async def _execute_dry_run(request: Request) -> dict[str, Any]:
         risk_class=body.get("risk_class", "low"),
     )
 
-    graph = _get_graph()
-    analyzer = _get_analyzer(graph)
-    analysis = analyzer.analyze(event)
-    planner = _get_planner(graph)
-    plan = planner.plan(event, analysis)
-    executor = _get_executor(graph, mode="dry_run")
-    result = executor.execute(plan)
-    executor.persist_result(result)
-    return result.to_dict()
+    def _do_dry_run():
+        graph = _get_graph()
+        analyzer = _get_analyzer(graph)
+        analysis = analyzer.analyze(event)
+        planner = _get_planner(graph)
+        plan = planner.plan(event, analysis)
+        executor = _get_executor(graph, mode="dry_run")
+        result = executor.execute(plan)
+        executor.persist_result(result)
+        return f"dry-run executed for {source_node_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"dry-run propagation execution for node {source_node_id}",
+        execute_fn=_do_dry_run,
+        source="cockpit",
+    )
+    return resp.to_http_dict()

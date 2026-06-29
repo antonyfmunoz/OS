@@ -17,6 +17,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 
 from substrate.execution.cpu_gate import gated_subprocess_run
+from transports.api.governed import governed_mutation
 
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _VALID_ROLES = {"controller", "executor", "orchestrator"}
@@ -262,15 +263,25 @@ async def _devices_diagnose(request: Request) -> dict[str, Any]:
     if not tailscale_ip:
         return {"success": False, "error": "tailscale_ip required"}
 
-    from substrate.organism.device_provisioner import diagnose_device
+    def _do_diagnose():
+        from substrate.organism.device_provisioner import diagnose_device
 
-    diag = diagnose_device(
-        hostname=hostname,
-        tailscale_ip=tailscale_ip,
-        os_hint=os_hint,
-        dns_name=dns_name,
+        diag = diagnose_device(
+            hostname=hostname,
+            tailscale_ip=tailscale_ip,
+            os_hint=os_hint,
+            dns_name=dns_name,
+        )
+        return f"diagnosed {hostname or tailscale_ip}", True
+
+    resp = governed_mutation(
+        mutation_name="adapter_update",
+        intent=f"diagnose device {hostname or tailscale_ip}",
+        execute_fn=_do_diagnose,
+        source="cockpit",
+        metadata={"hostname": hostname, "tailscale_ip": tailscale_ip},
     )
-    return {"success": True, "diagnosis": diag.to_dict()}
+    return resp.to_http_dict()
 
 
 def _validate_registry_entry(entry: dict[str, Any]) -> str | None:
@@ -304,13 +315,23 @@ async def _devices_register(request: Request) -> dict[str, Any]:
     if err:
         return {"success": False, "error": err}
 
-    from substrate.organism.device_registry_writer import add_device
+    def _do_register():
+        from substrate.organism.device_registry_writer import add_device
 
-    try:
-        add_device(entry)
-        return {"success": True, "device_id": entry["id"]}
-    except ValueError as exc:
-        return {"success": False, "error": str(exc)}
+        try:
+            add_device(entry)
+            return f"registered device {entry['id']}", True
+        except ValueError as exc:
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="adapter_update",
+        intent=f"register device {entry['id']}",
+        execute_fn=_do_register,
+        source="cockpit",
+        metadata={"device_id": entry["id"]},
+    )
+    return resp.to_http_dict()
 
 
 async def _devices_remove(request: Request) -> dict[str, Any]:
@@ -320,30 +341,39 @@ async def _devices_remove(request: Request) -> dict[str, Any]:
     if not device_id:
         return {"success": False, "error": "device_id required"}
 
-    # Read mesh_node_id BEFORE deleting from registry
     registry = _load_registry()
     target = next((d for d in registry if d.get("id") == device_id), None)
     mesh_node_id = target.get("mesh_node_id", device_id) if target else device_id
 
-    from substrate.organism.device_registry_writer import remove_device
+    def _do_remove():
+        from substrate.organism.device_registry_writer import remove_device
 
-    try:
-        remove_device(device_id)
-    except ValueError as exc:
-        return {"success": False, "error": str(exc)}
+        try:
+            remove_device(device_id)
+        except ValueError as exc:
+            return str(exc), False
 
-    try:
-        from substrate.organism.device_provisioner import (
-            remove_mesh_token,
-            signal_mesh_reload,
-        )
+        try:
+            from substrate.organism.device_provisioner import (
+                remove_mesh_token,
+                signal_mesh_reload,
+            )
 
-        if remove_mesh_token(mesh_node_id):
-            signal_mesh_reload()
-    except Exception as exc:
-        logger.debug("Mesh token cleanup failed for %s: %s", device_id, exc)
+            if remove_mesh_token(mesh_node_id):
+                signal_mesh_reload()
+        except Exception as exc:
+            logger.debug("Mesh token cleanup failed for %s: %s", device_id, exc)
 
-    return {"success": True, "device_id": device_id}
+        return f"removed device {device_id}", True
+
+    resp = governed_mutation(
+        mutation_name="adapter_update",
+        intent=f"remove device {device_id}",
+        execute_fn=_do_remove,
+        source="cockpit",
+        metadata={"device_id": device_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _devices_provision(request: Request) -> dict[str, Any]:
@@ -379,33 +409,53 @@ async def _devices_provision(request: Request) -> dict[str, Any]:
     if not tailscale_ip:
         return {"success": False, "error": "No tailscale_ip for device"}
 
-    from substrate.organism.device_provisioner import provision_compute_node
+    def _do_provision():
+        from substrate.organism.device_provisioner import provision_compute_node
 
-    result = provision_compute_node(
-        device_id=device_id,
-        entry=device,
-        tailscale_ip=tailscale_ip,
-        os_name=device.get("os", ""),
+        result = provision_compute_node(
+            device_id=device_id,
+            entry=device,
+            tailscale_ip=tailscale_ip,
+            os_name=device.get("os", ""),
+        )
+        return f"provisioned {device_id}: {'success' if result.success else 'failed'}", result.success
+
+    resp = governed_mutation(
+        mutation_name="adapter_update",
+        intent=f"provision device {device_id} as {effective_role}",
+        execute_fn=_do_provision,
+        source="cockpit",
+        metadata={"device_id": device_id, "role": effective_role},
     )
-    return {"success": result.success, "result": result.to_dict()}
+    return resp.to_http_dict()
 
 
 async def _devices_invite(request: Request) -> dict[str, Any]:
     """POST /devices/invite — generate Tailscale auth key."""
-    try:
-        from adapters.tailscale.tailscale_api import generate_auth_key
+    body = await request.json()
 
-        body = await request.json()
-        key_data = generate_auth_key(
-            reusable=body.get("reusable", False),
-            ephemeral=body.get("ephemeral", False),
-            preauthorized=body.get("preauthorized", True),
-            expiry_seconds=body.get("expiry_seconds", 3600),
-        )
-        return {"success": True, "auth_key": key_data}
-    except Exception as exc:
-        logger.error("Device invite failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+    def _do_invite():
+        try:
+            from adapters.tailscale.tailscale_api import generate_auth_key
+
+            generate_auth_key(
+                reusable=body.get("reusable", False),
+                ephemeral=body.get("ephemeral", False),
+                preauthorized=body.get("preauthorized", True),
+                expiry_seconds=body.get("expiry_seconds", 3600),
+            )
+            return "auth key generated", True
+        except Exception as exc:
+            logger.error("Device invite failed: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="adapter_update",
+        intent="generate Tailscale auth key for device invite",
+        execute_fn=_do_invite,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _devices_update(request: Request) -> dict[str, Any]:
@@ -419,18 +469,19 @@ async def _devices_update(request: Request) -> dict[str, Any]:
     if not fields:
         return {"success": False, "error": "fields required"}
 
-    from transports.api.cockpit_settings_mutations import update_device_fields
+    def _do_update():
+        from transports.api.cockpit_settings_mutations import update_device_fields
 
-    result = update_device_fields(device_id, fields)
+        result = update_device_fields(device_id, fields)
+        if not result.ok:
+            return result.errors[0] if result.errors else "Unknown error", False
+        return f"updated device {device_id}: {list(fields.keys())}", True
 
-    if not result.ok:
-        return {"success": False, "error": result.errors[0] if result.errors else "Unknown error"}
-
-    return {
-        "success": True,
-        "warnings": result.warnings,
-        "audit": result.audit_event,
-        "applied_state": result.applied_state,
-        "requires_approval": result.requires_approval,
-        "approval_reason": result.approval_reason,
-    }
+    resp = governed_mutation(
+        mutation_name="adapter_update",
+        intent=f"update device {device_id} fields: {list(fields.keys())[:5]}",
+        execute_fn=_do_update,
+        source="cockpit",
+        metadata={"device_id": device_id, "fields": list(fields.keys())},
+    )
+    return resp.to_http_dict()

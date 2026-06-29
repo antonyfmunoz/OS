@@ -21,6 +21,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 autonomous_router: APIRouter = APIRouter()
@@ -190,11 +192,23 @@ async def _autonomous_pr_factory_create_pr(payload: dict, request: Request):
 
 
 def _autonomous_pr_factory_cleanup(sandbox_id: str):
-    manager, factory = _get_pr_factory()
-    if manager is None:
-        return {"error": "organism not running"}
-    ok = manager.cleanup_sandbox(sandbox_id)
-    return {"ok": ok, "sandbox_id": sandbox_id}
+    def _do_cleanup():
+        manager, factory = _get_pr_factory()
+        if manager is None:
+            return "organism not running", False
+        ok = manager.cleanup_sandbox(sandbox_id)
+        if not ok:
+            return f"sandbox {sandbox_id} cleanup failed", False
+        return f"sandbox {sandbox_id} cleaned up", True
+
+    resp = governed_mutation(
+        mutation_name="sandbox_create",
+        intent=f"cleanup sandbox {sandbox_id}",
+        execute_fn=_do_cleanup,
+        source="cockpit",
+        metadata={"sandbox_id": sandbox_id},
+    )
+    return resp.to_http_dict()
 
 
 def _autonomous_pr_factory_parallel_dry_run():
@@ -227,28 +241,36 @@ def _autonomous_pr_factory_production_truth():
 async def _autonomous_pr_factory_verify_merge(sandbox_id: str):
     if not _re.fullmatch(r"sb-[a-f0-9]{8}", sandbox_id):
         raise HTTPException(status_code=400, detail="invalid sandbox_id format")
-    manager, factory = _get_pr_factory()
-    if factory is None:
-        return {"error": "organism not running"}
-    from substrate.organism.production_merge_verifier import ProductionMergeVerifier
-    verifier = ProductionMergeVerifier(sandbox_manager=manager)
-    sb = manager.get_sandbox(sandbox_id)
-    pr_number = sb.pr_number if sb else 0
-    expected_files: list = []
-    manifest_id = ""
-    if factory:
-        for rp in factory.review_packets:
-            if rp.sandbox_id == sandbox_id:
-                manifest_id = rp.manifest_id
-                if rp.manifest:
-                    expected_files = [cf.path for cf in rp.manifest.changed_files]
-                break
-    import asyncio
-    loop = asyncio.get_running_loop()
-    verification = await loop.run_in_executor(
-        None, verifier.verify_merge, sandbox_id, pr_number, manifest_id, expected_files
+
+    def _do_verify():
+        manager, factory = _get_pr_factory()
+        if factory is None:
+            return "organism not running", False
+        from substrate.organism.production_merge_verifier import ProductionMergeVerifier
+        verifier = ProductionMergeVerifier(sandbox_manager=manager)
+        sb = manager.get_sandbox(sandbox_id)
+        pr_number = sb.pr_number if sb else 0
+        expected_files: list = []
+        manifest_id = ""
+        if factory:
+            for rp in factory.review_packets:
+                if rp.sandbox_id == sandbox_id:
+                    manifest_id = rp.manifest_id
+                    if rp.manifest:
+                        expected_files = [cf.path for cf in rp.manifest.changed_files]
+                    break
+        verification = verifier.verify_merge(sandbox_id, pr_number, manifest_id, expected_files)
+        passed = verification.passed if hasattr(verification, "passed") else True
+        return f"merge verification for {sandbox_id}: {'passed' if passed else 'failed'}", passed
+
+    resp = governed_mutation(
+        mutation_name="sandbox_create",
+        intent=f"verify merge for sandbox {sandbox_id}",
+        execute_fn=_do_verify,
+        source="cockpit",
+        metadata={"sandbox_id": sandbox_id},
     )
-    return verification.to_dict()
+    return resp.to_http_dict()
 
 
 def _autonomous_pr_factory_production_truth_detail(delta_id: str):

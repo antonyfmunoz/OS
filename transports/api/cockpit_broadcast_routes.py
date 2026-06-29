@@ -34,6 +34,8 @@ from adapters.broadcast.scene_model import (
     SourceLayout,
 )
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 broadcast_router = APIRouter(prefix="/broadcast", tags=["broadcast"])
@@ -167,6 +169,16 @@ async def start_broadcast(
 ):
     global _active_node
 
+    gov_resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"start broadcast on {target_node}",
+        execute_fn=lambda: ("governance check passed", True),
+        source="cockpit",
+        metadata={"target_node": target_node, "source_type": req.source_type.value},
+    )
+    if not gov_resp.success:
+        return gov_resp.to_http_dict()
+
     if _is_remote(target_node):
         params = req.model_dump()
         params["source_type"] = req.source_type.value
@@ -200,6 +212,16 @@ async def stop_broadcast(
     global _active_node
 
     node = target_node or _active_node
+    gov_resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"stop broadcast on {node}",
+        execute_fn=lambda: ("governance check passed", True),
+        source="cockpit",
+        metadata={"target_node": node},
+    )
+    if not gov_resp.success:
+        return gov_resp.to_http_dict()
+
     if _is_remote(node):
         result = await _dispatch_remote(node, "stop", {})
         async with _active_node_lock:
@@ -295,6 +317,16 @@ async def start_composite_broadcast(
 ):
     global _active_node
 
+    gov_resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"start composite broadcast on {target_node}",
+        execute_fn=lambda: ("governance check passed", True),
+        source="cockpit",
+        metadata={"target_node": target_node, "source_count": len(req.sources)},
+    )
+    if not gov_resp.success:
+        return gov_resp.to_http_dict()
+
     if _is_remote(target_node):
         params = req.model_dump()
         result = await _dispatch_remote(target_node, "start_composite", params, timeout=30)
@@ -361,6 +393,16 @@ async def switch_scene(
     target_node: str = Query(default="", description="Node; empty = active node"),
 ):
     node = target_node or _active_node
+
+    gov_resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"switch broadcast scene to {req.scene_id}",
+        execute_fn=lambda: ("governance check passed", True),
+        source="cockpit",
+    )
+    if not gov_resp.success:
+        return gov_resp.to_http_dict()
+
     if _is_remote(node):
         result = await _dispatch_remote(node, "switch_scene", {"scene_id": req.scene_id})
         return result

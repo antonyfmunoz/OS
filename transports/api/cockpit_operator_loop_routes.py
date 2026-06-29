@@ -41,6 +41,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 operator_loop_router: APIRouter = APIRouter()
@@ -576,62 +578,62 @@ async def _submit_intent(request: Request):
     if execution_mode not in _VALID_MODES:
         execution_mode = "validate_only"
 
-    queue = _get_queue()
-    packet = queue.ingest_user_intent(
-        user_intent=user_intent,
-        desired_end_state=desired_end_state,
-        constraints=constraints,
-    )
-
-    if non_goals:
-        packet.failure_criteria = non_goals if isinstance(non_goals, list) else [non_goals]
-    if acceptance_criteria:
-        packet.success_criteria = (
-            acceptance_criteria if isinstance(acceptance_criteria, list) else [acceptance_criteria]
+    def _do_submit():
+        queue = _get_queue()
+        packet = queue.ingest_user_intent(
+            user_intent=user_intent,
+            desired_end_state=desired_end_state,
+            constraints=constraints,
         )
-    if quality_bar:
-        packet.validation_plan = f"Quality bar: {quality_bar}. {packet.validation_plan or ''}"
-    if approval_policy == "auto":
-        packet.approval_gates = []
-    elif approval_policy == "always":
-        packet.approval_gates = ["operator_approval_required"]
-    if risk_tolerance and risk_tolerance in ("low", "medium", "high", "critical"):
-        packet.risk_class = risk_tolerance
-        if risk_tolerance in ("high", "critical"):
-            packet.approval_gates = list(
-                set(packet.approval_gates + ["operator_approval_required"])
+
+        if non_goals:
+            packet.failure_criteria = non_goals if isinstance(non_goals, list) else [non_goals]
+        if acceptance_criteria:
+            packet.success_criteria = (
+                acceptance_criteria if isinstance(acceptance_criteria, list) else [acceptance_criteria]
             )
-    if proof_required:
-        proofs = proof_required if isinstance(proof_required, list) else [proof_required]
-        existing = packet.validation_plan or ""
-        packet.validation_plan = existing + " Proof required: " + ", ".join(proofs)
+        if quality_bar:
+            packet.validation_plan = f"Quality bar: {quality_bar}. {packet.validation_plan or ''}"
+        if approval_policy == "auto":
+            packet.approval_gates = []
+        elif approval_policy == "always":
+            packet.approval_gates = ["operator_approval_required"]
+        if risk_tolerance and risk_tolerance in ("low", "medium", "high", "critical"):
+            packet.risk_class = risk_tolerance
+            if risk_tolerance in ("high", "critical"):
+                packet.approval_gates = list(
+                    set(packet.approval_gates + ["operator_approval_required"])
+                )
+        if proof_required:
+            proofs = proof_required if isinstance(proof_required, list) else [proof_required]
+            existing = packet.validation_plan or ""
+            packet.validation_plan = existing + " Proof required: " + ", ".join(proofs)
 
-    if not hasattr(packet, "execution_mode"):
-        packet.constraints = list(set(packet.constraints + [f"mode:{execution_mode}"]))
+        if not hasattr(packet, "execution_mode"):
+            packet.constraints = list(set(packet.constraints + [f"mode:{execution_mode}"]))
 
-    queue._save()
+        queue._save()
 
-    needs_approval = bool(packet.approval_gates)
+        _audit_log(
+            "intent_submitted",
+            {
+                "packet_id": packet.packet_id,
+                "user_intent": user_intent[:500],
+                "risk_class": packet.risk_class,
+                "needs_approval": bool(packet.approval_gates),
+                "execution_mode": execution_mode,
+            },
+        )
+        return f"packet {packet.packet_id} created", True
 
-    _audit_log(
-        "intent_submitted",
-        {
-            "packet_id": packet.packet_id,
-            "user_intent": user_intent[:500],
-            "risk_class": packet.risk_class,
-            "needs_approval": needs_approval,
-            "execution_mode": execution_mode,
-        },
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"submit intent: {user_intent[:100]}",
+        execute_fn=_do_submit,
+        source="cockpit",
+        metadata={"execution_mode": execution_mode},
     )
-
-    return {
-        "success": True,
-        "packet": packet.to_safe_dict(),
-        "needs_approval": needs_approval,
-        "risk_class": packet.risk_class,
-        "execution_mode": execution_mode,
-        "next_action": "approve" if needs_approval else "generate-plan",
-    }
+    return resp.to_http_dict()
 
 
 # ── Plan Generation ──────────────────────────────────────────
@@ -644,28 +646,39 @@ async def _generate_plan(request: Request):
     if not packet_id:
         return {"success": False, "error": "packet_id is required"}
 
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"success": False, "error": f"Packet {packet_id} not found"}
+    plan_result = {}
 
-    runner = _get_runner()
-    plan = runner.generate_plan(pkt)
+    def _do_generate():
+        queue = _get_queue()
+        pkt = queue.get_packet(packet_id)
+        if not pkt:
+            return f"Packet {packet_id} not found", False
 
-    _audit_log(
-        "plan_generated",
-        {
-            "packet_id": packet_id,
-            "plan_id": plan.plan_id,
-            "objectives": plan.objectives[:5],
-        },
+        runner = _get_runner()
+        plan = runner.generate_plan(pkt)
+        plan_result["plan"] = plan.to_dict()
+        plan_result["next_action"] = "approve-plan"
+
+        _audit_log(
+            "plan_generated",
+            {
+                "packet_id": packet_id,
+                "plan_id": plan.plan_id,
+                "objectives": plan.objectives[:5],
+            },
+        )
+        return f"plan {plan.plan_id} generated", True
+
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"generate plan for packet {packet_id}",
+        execute_fn=_do_generate,
+        source="cockpit",
+        metadata={"packet_id": packet_id},
     )
-
-    return {
-        "success": True,
-        "plan": plan.to_dict(),
-        "next_action": "approve-plan",
-    }
+    result = resp.to_http_dict()
+    result.update(plan_result)
+    return result
 
 
 def _get_plan(plan_id: str):
@@ -691,22 +704,31 @@ async def _approve_plan(request: Request):
     if not plan_path or not os.path.exists(plan_path):
         return {"success": False, "error": "Plan not found"}
 
-    try:
-        with open(plan_path) as f:
-            plan_data = json.load(f)
-        plan_data["approved"] = True
-        with open(plan_path, "w") as f:
-            json.dump(plan_data, f, indent=2, default=str)
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    def _do_approve():
+        try:
+            with open(plan_path) as f:
+                plan_data = json.load(f)
+            plan_data["approved"] = True
+            with open(plan_path, "w") as f:
+                json.dump(plan_data, f, indent=2, default=str)
+        except Exception as e:
+            return str(e), False
 
-    _audit_log("plan_approved", {"plan_id": plan_id, "packet_id": plan_data.get("packet_id", "")})
+        _audit_log("plan_approved", {"plan_id": plan_id, "packet_id": plan_data.get("packet_id", "")})
+        return f"plan {plan_id} approved", True
 
-    return {
-        "success": True,
-        "plan_id": plan_id,
-        "next_action": "execute",
-    }
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve plan {plan_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+        metadata={"plan_id": plan_id},
+    )
+    result = resp.to_http_dict()
+    if resp.success:
+        result["plan_id"] = plan_id
+        result["next_action"] = "execute"
+    return result
 
 
 # ── Approval ─────────────────────────────────────────────────
@@ -719,50 +741,60 @@ async def _approve_packet(request: Request):
     if not packet_id:
         return {"success": False, "error": "packet_id is required"}
 
-    from substrate.organism.work_packet import PacketLifecycleStatus
+    def _do_approve():
+        from substrate.organism.work_packet import PacketLifecycleStatus
 
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"success": False, "error": f"Packet {packet_id} not found"}
+        queue = _get_queue()
+        pkt = queue.get_packet(packet_id)
+        if not pkt:
+            return f"Packet {packet_id} not found", False
 
-    current = pkt.status
-    transitions_needed = []
+        current = pkt.status
+        if current == PacketLifecycleStatus.APPROVED:
+            return "already approved", True
 
-    if current == PacketLifecycleStatus.CLASSIFIED:
-        transitions_needed = [
-            PacketLifecycleStatus.PLANNED,
-            PacketLifecycleStatus.READY_FOR_REVIEW,
-            PacketLifecycleStatus.APPROVAL_PENDING,
-            PacketLifecycleStatus.APPROVED,
-        ]
-    elif current == PacketLifecycleStatus.PLANNED:
-        transitions_needed = [
-            PacketLifecycleStatus.READY_FOR_REVIEW,
-            PacketLifecycleStatus.APPROVAL_PENDING,
-            PacketLifecycleStatus.APPROVED,
-        ]
-    elif current == PacketLifecycleStatus.READY_FOR_REVIEW:
-        transitions_needed = [
-            PacketLifecycleStatus.APPROVAL_PENDING,
-            PacketLifecycleStatus.APPROVED,
-        ]
-    elif current == PacketLifecycleStatus.APPROVAL_PENDING:
-        transitions_needed = [PacketLifecycleStatus.APPROVED]
-    elif current == PacketLifecycleStatus.APPROVED:
-        return {"success": True, "packet_id": packet_id, "status": "already_approved"}
-    else:
-        return {"success": False, "error": f"Cannot approve from status '{current.value}'"}
+        transitions_needed = []
+        if current == PacketLifecycleStatus.CLASSIFIED:
+            transitions_needed = [
+                PacketLifecycleStatus.PLANNED,
+                PacketLifecycleStatus.READY_FOR_REVIEW,
+                PacketLifecycleStatus.APPROVAL_PENDING,
+                PacketLifecycleStatus.APPROVED,
+            ]
+        elif current == PacketLifecycleStatus.PLANNED:
+            transitions_needed = [
+                PacketLifecycleStatus.READY_FOR_REVIEW,
+                PacketLifecycleStatus.APPROVAL_PENDING,
+                PacketLifecycleStatus.APPROVED,
+            ]
+        elif current == PacketLifecycleStatus.READY_FOR_REVIEW:
+            transitions_needed = [
+                PacketLifecycleStatus.APPROVAL_PENDING,
+                PacketLifecycleStatus.APPROVED,
+            ]
+        elif current == PacketLifecycleStatus.APPROVAL_PENDING:
+            transitions_needed = [PacketLifecycleStatus.APPROVED]
+        else:
+            return f"Cannot approve from status '{current.value}'", False
 
-    for next_status in transitions_needed:
-        ok = queue.update_packet_status(
-            packet_id, next_status, f"operator approved → {next_status.value}"
-        )
-        if not ok:
-            return {"success": False, "error": f"Transition to {next_status.value} failed"}
+        for next_status in transitions_needed:
+            ok = queue.update_packet_status(
+                packet_id, next_status, f"operator approved → {next_status.value}"
+            )
+            if not ok:
+                return f"Transition to {next_status.value} failed", False
 
-    _audit_log("packet_approved", {"packet_id": packet_id})
-    return {"success": True, "packet_id": packet_id, "status": "approved", "next_action": "execute"}
+        _audit_log("packet_approved", {"packet_id": packet_id})
+        return f"packet {packet_id} approved", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve work packet {packet_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+        metadata={"packet_id": packet_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _reject_packet(request: Request):
@@ -773,20 +805,30 @@ async def _reject_packet(request: Request):
     if not packet_id:
         return {"success": False, "error": "packet_id is required"}
 
-    from substrate.organism.work_packet import PacketLifecycleStatus
+    def _do_reject():
+        from substrate.organism.work_packet import PacketLifecycleStatus
 
-    queue = _get_queue()
-    pkt = queue.get_packet(packet_id)
-    if not pkt:
-        return {"success": False, "error": f"Packet {packet_id} not found"}
+        queue = _get_queue()
+        pkt = queue.get_packet(packet_id)
+        if not pkt:
+            return f"Packet {packet_id} not found", False
 
-    if pkt.status == PacketLifecycleStatus.APPROVAL_PENDING:
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.REJECTED, reason)
-    else:
-        ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
+        if pkt.status == PacketLifecycleStatus.APPROVAL_PENDING:
+            ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.REJECTED, reason)
+        else:
+            ok = queue.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
 
-    _audit_log("packet_rejected", {"packet_id": packet_id, "reason": reason})
-    return {"success": ok, "packet_id": packet_id, "status": "rejected"}
+        _audit_log("packet_rejected", {"packet_id": packet_id, "reason": reason})
+        return f"packet {packet_id} rejected: {reason[:100]}", ok
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"reject work packet {packet_id}: {reason[:100]}",
+        execute_fn=_do_reject,
+        source="cockpit",
+        metadata={"packet_id": packet_id, "reason": reason},
+    )
+    return resp.to_http_dict()
 
 
 # ── Execution ────────────────────────────────────────────────
@@ -818,43 +860,10 @@ async def _execute_packet(request: Request):
             "status": pkt.status.value,
         }
 
-    if pkt.status == PacketLifecycleStatus.APPROVED:
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "delegated")
-    elif pkt.status == PacketLifecycleStatus.CLASSIFIED and not pkt.approval_gates:
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.PLANNED, "auto-planned")
-        queue.update_packet_status(
-            packet_id, PacketLifecycleStatus.READY_FOR_REVIEW, "auto-reviewed"
-        )
-        queue.update_packet_status(
-            packet_id, PacketLifecycleStatus.APPROVAL_PENDING, "auto-pending"
-        )
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVED, "auto-approved")
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "auto-delegated")
-    elif pkt.status == PacketLifecycleStatus.DELEGATED:
-        pass
-    else:
-        return {"success": False, "error": f"Cannot execute from status '{pkt.status.value}'"}
-
-    queue.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, "execution started")
-
-    _audit_log(
-        "packet_executing",
-        {
-            "packet_id": packet_id,
-            "mode": mode,
-            "risk_class": pkt.risk_class,
-        },
-    )
-
-    runner = _get_runner()
-    pkt = queue.get_packet(packet_id)
-
     plan = None
     if plan_id:
         plan_data = await _get_plan(plan_id)
-        if not isinstance(plan_data, dict) or "error" in plan_data:
-            pass
-        else:
+        if isinstance(plan_data, dict) and "error" not in plan_data:
             from substrate.organism.agent_execution_runner import AgentExecutionPlan
 
             plan = AgentExecutionPlan(
@@ -864,86 +873,125 @@ async def _execute_packet(request: Request):
                     if k in AgentExecutionPlan.__dataclass_fields__
                 }
             )
-    elif mode in ("implement", "implement_and_validate"):
-        plan = runner.generate_plan(pkt)
+
+    exec_result = {}
+
+    def _do_execute():
+        nonlocal plan
+        if pkt.status == PacketLifecycleStatus.APPROVED:
+            queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "delegated")
+        elif pkt.status == PacketLifecycleStatus.CLASSIFIED and not pkt.approval_gates:
+            queue.update_packet_status(packet_id, PacketLifecycleStatus.PLANNED, "auto-planned")
+            queue.update_packet_status(
+                packet_id, PacketLifecycleStatus.READY_FOR_REVIEW, "auto-reviewed"
+            )
+            queue.update_packet_status(
+                packet_id, PacketLifecycleStatus.APPROVAL_PENDING, "auto-pending"
+            )
+            queue.update_packet_status(packet_id, PacketLifecycleStatus.APPROVED, "auto-approved")
+            queue.update_packet_status(packet_id, PacketLifecycleStatus.DELEGATED, "auto-delegated")
+        elif pkt.status != PacketLifecycleStatus.DELEGATED:
+            return f"Cannot execute from status '{pkt.status.value}'", False
+
+        queue.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, "execution started")
+
         _audit_log(
-            "plan_auto_generated",
+            "packet_executing",
+            {"packet_id": packet_id, "mode": mode, "risk_class": pkt.risk_class},
+        )
+
+        runner = _get_runner()
+        current_pkt = queue.get_packet(packet_id)
+
+        if plan is None and mode in ("implement", "implement_and_validate"):
+            plan = runner.generate_plan(current_pkt)
+            _audit_log(
+                "plan_auto_generated",
+                {"packet_id": packet_id, "plan_id": plan.plan_id},
+            )
+
+        record = runner.execute(current_pkt, mode=mode, plan=plan)
+
+        current_pkt = queue.get_packet(packet_id)
+        current_pkt.verification_results = record.validation_results
+        current_pkt.verification_passed = record.all_validations_passed
+        current_pkt.linked_sandbox_id = record.sandbox_id
+        queue._save()
+
+        if record.sandbox_id:
+            queue.link_execution_artifacts(packet_id, {"sandbox_id": record.sandbox_id})
+
+        if record.success:
+            queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "validated")
+        else:
+            queue.update_packet_status(
+                packet_id, PacketLifecycleStatus.FAILED, record.error or "execution failed"
+            )
+
+        _record_outcome_internal(
+            packet_id=packet_id,
+            outcome_text=(
+                f"Execution {mode}: {'passed' if record.success else 'failed'}. "
+                f"Files: {len(record.files_changed)}. "
+                f"Commits: {len(record.commits)}. "
+                f"Duration: {record.duration_seconds}s."
+            ),
+            domain=current_pkt.domain or "execution",
+            confidence=0.9 if record.success else 0.5,
+        )
+
+        _audit_log(
+            "execution_complete",
             {
                 "packet_id": packet_id,
-                "plan_id": plan.plan_id,
+                "record_id": record.record_id,
+                "mode": mode,
+                "success": record.success,
+                "files_changed": record.files_changed[:20],
+                "duration_seconds": record.duration_seconds,
             },
         )
 
-    record = runner.execute(pkt, mode=mode, plan=plan)
-
-    pkt = queue.get_packet(packet_id)
-    pkt.verification_results = record.validation_results
-    pkt.verification_passed = record.all_validations_passed
-    pkt.linked_sandbox_id = record.sandbox_id
-    queue._save()
-
-    if record.sandbox_id:
-        queue.link_execution_artifacts(packet_id, {"sandbox_id": record.sandbox_id})
-
-    if record.success:
-        queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "validated")
-    else:
-        queue.update_packet_status(
-            packet_id, PacketLifecycleStatus.FAILED, record.error or "execution failed"
-        )
-
-    _record_outcome_internal(
-        packet_id=packet_id,
-        outcome_text=(
-            f"Execution {mode}: {'passed' if record.success else 'failed'}. "
-            f"Files: {len(record.files_changed)}. "
-            f"Commits: {len(record.commits)}. "
-            f"Duration: {record.duration_seconds}s."
-        ),
-        domain=pkt.domain or "execution",
-        confidence=0.9 if record.success else 0.5,
-    )
-
-    _audit_log(
-        "execution_complete",
-        {
+        exec_result.update({
             "packet_id": packet_id,
             "record_id": record.record_id,
+            "sandbox_id": record.sandbox_id,
             "mode": mode,
-            "success": record.success,
-            "files_changed": record.files_changed[:20],
+            "execution_success": record.success,
+            "files_changed": record.files_changed,
+            "diff_summary": record.diff_summary,
+            "commits": record.commits,
+            "validation_results": record.validation_results,
+            "all_passed": record.all_validations_passed,
+            "agent_output": record.agent_output[:3000] if record.agent_output else "",
             "duration_seconds": record.duration_seconds,
-        },
-    )
+            "error": record.error,
+            "plan": plan.to_dict() if plan else None,
+            "failure_report": runner.get_failure(packet_id).to_dict()
+            if runner.get_failure(packet_id)
+            else None,
+            "needs_review": current_pkt.risk_class in ("high", "critical") and record.success,
+            "next_action": (
+                "review"
+                if current_pkt.risk_class in ("high", "critical") and record.success
+                else "complete"
+                if record.success
+                else "retry_or_escalate"
+            ),
+        })
 
-    return {
-        "success": True,
-        "packet_id": packet_id,
-        "record_id": record.record_id,
-        "sandbox_id": record.sandbox_id,
-        "mode": mode,
-        "execution_success": record.success,
-        "files_changed": record.files_changed,
-        "diff_summary": record.diff_summary,
-        "commits": record.commits,
-        "validation_results": record.validation_results,
-        "all_passed": record.all_validations_passed,
-        "agent_output": record.agent_output[:3000] if record.agent_output else "",
-        "duration_seconds": record.duration_seconds,
-        "error": record.error,
-        "plan": plan.to_dict() if plan else None,
-        "failure_report": runner.get_failure(packet_id).to_dict()
-        if runner.get_failure(packet_id)
-        else None,
-        "needs_review": pkt.risk_class in ("high", "critical") and record.success,
-        "next_action": (
-            "review"
-            if pkt.risk_class in ("high", "critical") and record.success
-            else "complete"
-            if record.success
-            else "retry_or_escalate"
-        ),
-    }
+        return f"execution {mode}: {'passed' if record.success else 'failed'}", record.success
+
+    resp = governed_mutation(
+        mutation_name="work_packet_execute",
+        intent=f"execute packet {packet_id} mode={mode}",
+        execute_fn=_do_execute,
+        source="cockpit",
+        metadata={"packet_id": packet_id, "mode": mode},
+    )
+    result = resp.to_http_dict()
+    result.update(exec_result)
+    return result
 
 
 # ── Completion ───────────────────────────────────────────────
@@ -965,32 +1013,45 @@ async def _complete_packet(request: Request):
     if not pkt:
         return {"success": False, "error": f"Packet {packet_id} not found"}
 
-    if success:
-        if pkt.status != PacketLifecycleStatus.VALIDATING:
-            queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "pre-complete")
-        ok = queue.update_packet_status(
-            packet_id, PacketLifecycleStatus.COMPLETED, outcome or "completed"
+    def _do_complete():
+        if success:
+            if pkt.status != PacketLifecycleStatus.VALIDATING:
+                queue.update_packet_status(packet_id, PacketLifecycleStatus.VALIDATING, "pre-complete")
+            queue.update_packet_status(
+                packet_id, PacketLifecycleStatus.COMPLETED, outcome or "completed"
+            )
+        else:
+            queue.update_packet_status(
+                packet_id, PacketLifecycleStatus.FAILED, outcome or "failed"
+            )
+
+        updated = queue.get_packet(packet_id)
+        updated.outcome_summary = outcome[:500] if outcome else ""
+        queue._save()
+
+        _record_outcome_internal(
+            packet_id=packet_id,
+            outcome_text=f"Packet {'completed' if success else 'failed'}: {outcome[:300]}",
+            domain=updated.domain or "execution",
+            confidence=0.85 if success else 0.5,
         )
-    else:
-        ok = queue.update_packet_status(
-            packet_id, PacketLifecycleStatus.FAILED, outcome or "failed"
+
+        _audit_log(
+            "packet_completed", {"packet_id": packet_id, "success": success, "outcome": outcome[:500]}
         )
+        return f"packet {packet_id} {'completed' if success else 'failed'}", True
 
-    pkt = queue.get_packet(packet_id)
-    pkt.outcome_summary = outcome[:500] if outcome else ""
-    queue._save()
-
-    _record_outcome_internal(
-        packet_id=packet_id,
-        outcome_text=f"Packet {'completed' if success else 'failed'}: {outcome[:300]}",
-        domain=pkt.domain or "execution",
-        confidence=0.85 if success else 0.5,
+    resp = governed_mutation(
+        mutation_name="work_packet_update",
+        intent=f"complete packet {packet_id}",
+        execute_fn=_do_complete,
+        source="cockpit",
+        metadata={"packet_id": packet_id, "success": success},
     )
-
-    _audit_log(
-        "packet_completed", {"packet_id": packet_id, "success": success, "outcome": outcome[:500]}
-    )
-    return {"success": ok, "packet_id": packet_id, "status": "completed" if success else "failed"}
+    result = resp.to_http_dict()
+    result["packet_id"] = packet_id
+    result["status"] = "completed" if success else "failed"
+    return result
 
 
 # ── Status & Query ───────────────────────────────────────────
@@ -1247,7 +1308,9 @@ async def _empire_route(request: Request) -> dict:
     session_mode = body.get("session_mode", "")
     operator_available = body.get("operator_available", True)
 
-    try:
+    routing_result = {}
+
+    def _do_route():
         from substrate.organism.empire_router import EmpireRouter
 
         router = EmpireRouter()
@@ -1271,13 +1334,19 @@ async def _empire_route(request: Request) -> dict:
             },
         )
 
-        return {
-            "success": True,
-            "routing": result.to_dict(),
-        }
-    except Exception as exc:
-        logger.error("empire route failed: %s", exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+        routing_result["routing"] = result.to_dict()
+        return f"routed to {result.domain}, {len(result.work_packets)} packets", True
+
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"empire route: {intent[:100]}",
+        execute_fn=_do_route,
+        source="cockpit",
+        metadata={"intent": intent[:200]},
+    )
+    result = resp.to_http_dict()
+    result.update(routing_result)
+    return result
 
 
 def _empire_domains(request: Request) -> list:
@@ -1402,8 +1471,10 @@ def _strategy_goals(request: Request) -> dict:
 
 async def _strategy_add_goal(request: Request) -> dict:
     """Add a new goal."""
-    try:
-        body = await request.json()
+    body = await request.json()
+    goal_data = {}
+
+    def _do_add():
         from substrate.organism.strategic_gap_engine import (
             Goal,
             GoalType,
@@ -1443,17 +1514,22 @@ async def _strategy_add_goal(request: Request) -> dict:
 
         _audit_log(
             "strategy_goal_added",
-            {
-                "goal_id": goal.goal_id,
-                "title": goal.title,
-                "domain": goal.domain,
-            },
+            {"goal_id": goal.goal_id, "title": goal.title, "domain": goal.domain},
         )
 
-        return {"success": True, "goal": goal.to_dict()}
-    except Exception as exc:
-        logger.error("strategy add goal failed: %s", exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+        goal_data["goal"] = goal.to_dict()
+        return f"goal {goal.goal_id} added", True
+
+    resp = governed_mutation(
+        mutation_name="strategy_mutate",
+        intent=f"add goal: {body.get('title', '')[:80]}",
+        execute_fn=_do_add,
+        source="cockpit",
+        metadata={"title": body.get("title", "")},
+    )
+    result = resp.to_http_dict()
+    result.update(goal_data)
+    return result
 
 
 def _strategy_goal_detail(request: Request) -> dict:
@@ -1473,13 +1549,16 @@ def _strategy_goal_detail(request: Request) -> dict:
 async def _strategy_update_goal(request: Request) -> dict:
     """Update a goal."""
     goal_id = request.path_params.get("goal_id", "")
-    try:
-        body = await request.json()
-        engine = _get_gap_engine()
-        goal = engine.goal_registry.get(goal_id)
-        if not goal:
-            return {"success": False, "error": f"goal {goal_id} not found"}
+    body = await request.json()
 
+    engine = _get_gap_engine()
+    goal = engine.goal_registry.get(goal_id)
+    if not goal:
+        return {"success": False, "error": f"goal {goal_id} not found"}
+
+    goal_data = {}
+
+    def _do_update():
         from substrate.organism.strategic_gap_engine import GoalStatus, GoalType, SuccessCriterion
 
         if "title" in body:
@@ -1509,32 +1588,47 @@ async def _strategy_update_goal(request: Request) -> dict:
 
         _audit_log(
             "strategy_goal_updated",
-            {
-                "goal_id": goal.goal_id,
-                "title": goal.title,
-            },
+            {"goal_id": goal.goal_id, "title": goal.title},
         )
 
-        return {"success": True, "goal": goal.to_dict()}
-    except Exception as exc:
-        logger.error("strategy update goal failed: %s", exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+        goal_data["goal"] = goal.to_dict()
+        return f"goal {goal_id} updated", True
+
+    resp = governed_mutation(
+        mutation_name="strategy_mutate",
+        intent=f"update goal {goal_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+        metadata={"goal_id": goal_id},
+    )
+    result = resp.to_http_dict()
+    result.update(goal_data)
+    return result
 
 
 def _strategy_delete_goal(request: Request) -> dict:
     """Delete a goal."""
     goal_id = request.path_params.get("goal_id", "")
-    try:
+
+    def _do_delete():
         engine = _get_gap_engine()
         removed = engine.goal_registry.remove(goal_id)
         if not removed:
-            return {"success": False, "error": f"goal {goal_id} not found"}
+            return f"goal {goal_id} not found", False
 
         _audit_log("strategy_goal_deleted", {"goal_id": goal_id})
-        return {"success": True, "goal_id": goal_id}
-    except Exception as exc:
-        logger.error("strategy delete goal failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"goal {goal_id} deleted", True
+
+    resp = governed_mutation(
+        mutation_name="strategy_mutate",
+        intent=f"delete goal {goal_id}",
+        execute_fn=_do_delete,
+        source="cockpit",
+        metadata={"goal_id": goal_id},
+    )
+    result = resp.to_http_dict()
+    result["goal_id"] = goal_id
+    return result
 
 
 def _strategy_gaps(request: Request) -> dict:
@@ -1570,49 +1664,65 @@ def _strategy_recommendations(request: Request) -> dict:
 async def _strategy_approve_rec(request: Request) -> dict:
     """Approve a recommendation → generates governed WorkPacket."""
     rec_id = request.path_params.get("rec_id", "")
-    try:
-        body = await request.json()
-        reason = body.get("reason", "")
-        engine = _get_gap_engine()
-        result = engine.approve_recommendation(rec_id, reason)
+    body = await request.json()
+    reason = body.get("reason", "")
+    rec_result = {}
 
-        if result.get("success"):
+    def _do_approve():
+        engine = _get_gap_engine()
+        r = engine.approve_recommendation(rec_id, reason)
+        rec_result.update(r)
+
+        if r.get("success"):
             _audit_log(
                 "strategy_rec_approved",
-                {
-                    "recommendation_id": rec_id,
-                    "packet_id": result.get("packet_id", ""),
-                },
+                {"recommendation_id": rec_id, "packet_id": r.get("packet_id", "")},
             )
 
-        return result
-    except Exception as exc:
-        logger.error("strategy approve rec failed: %s", exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+        return f"recommendation {rec_id} approved", r.get("success", False)
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve recommendation {rec_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+        metadata={"rec_id": rec_id},
+    )
+    result = resp.to_http_dict()
+    result.update(rec_result)
+    return result
 
 
 async def _strategy_reject_rec(request: Request) -> dict:
     """Reject a recommendation with reason (feeds learning loop)."""
     rec_id = request.path_params.get("rec_id", "")
-    try:
-        body = await request.json()
-        reason = body.get("reason", "")
-        engine = _get_gap_engine()
-        result = engine.reject_recommendation(rec_id, reason)
+    body = await request.json()
+    reason = body.get("reason", "")
+    rec_result = {}
 
-        if result.get("success"):
+    def _do_reject():
+        engine = _get_gap_engine()
+        r = engine.reject_recommendation(rec_id, reason)
+        rec_result.update(r)
+
+        if r.get("success"):
             _audit_log(
                 "strategy_rec_rejected",
-                {
-                    "recommendation_id": rec_id,
-                    "reason": reason[:200],
-                },
+                {"recommendation_id": rec_id, "reason": reason[:200]},
             )
 
-        return result
-    except Exception as exc:
-        logger.error("strategy reject rec failed: %s", exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+        return f"recommendation {rec_id} rejected", r.get("success", False)
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"reject recommendation {rec_id}",
+        execute_fn=_do_reject,
+        source="cockpit",
+        metadata={"rec_id": rec_id, "reason": reason[:200]},
+    )
+    result = resp.to_http_dict()
+    result.update(rec_result)
+    return result
 
 
 def _strategy_decisions(request: Request) -> dict:
@@ -1633,26 +1743,34 @@ def _strategy_decisions(request: Request) -> dict:
 async def _strategy_record_outcome(request: Request) -> dict:
     """Record whether a decision was effective (learning loop)."""
     decision_id = request.path_params.get("decision_id", "")
-    try:
-        body = await request.json()
-        was_effective = body.get("was_effective", False)
-        summary = body.get("summary", "")
-        engine = _get_gap_engine()
-        result = engine.record_outcome(decision_id, was_effective, summary)
+    body = await request.json()
+    was_effective = body.get("was_effective", False)
+    summary = body.get("summary", "")
+    outcome_result = {}
 
-        if result.get("success"):
+    def _do_record():
+        engine = _get_gap_engine()
+        r = engine.record_outcome(decision_id, was_effective, summary)
+        outcome_result.update(r)
+
+        if r.get("success"):
             _audit_log(
                 "strategy_outcome_recorded",
-                {
-                    "decision_id": decision_id,
-                    "was_effective": was_effective,
-                },
+                {"decision_id": decision_id, "was_effective": was_effective},
             )
 
-        return result
-    except Exception as exc:
-        logger.error("strategy record outcome failed: %s", exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+        return f"outcome for {decision_id} recorded", r.get("success", False)
+
+    resp = governed_mutation(
+        mutation_name="outcome_record",
+        intent=f"record outcome for decision {decision_id}",
+        execute_fn=_do_record,
+        source="cockpit",
+        metadata={"decision_id": decision_id},
+    )
+    result = resp.to_http_dict()
+    result.update(outcome_result)
+    return result
 
 
 # ── Phase 5: Strategic Tick Loop helpers & handlers ────────────────
@@ -1686,7 +1804,9 @@ def _tick_strategic_state(request: Request) -> dict:
 
 def _tick_execute(request: Request) -> dict:
     """Execute one tick cycle manually."""
-    try:
+    tick_data = {}
+
+    def _do_execute():
         loop = _get_tick_loop()
         record = loop.execute_tick()
         _audit_log(
@@ -1698,94 +1818,163 @@ def _tick_execute(request: Request) -> dict:
                 "gaps_found": record.gaps_found,
             },
         )
-        return {"success": True, "tick": record.to_dict()}
-    except Exception as exc:
-        logger.error("tick execute failed: %s", exc, exc_info=True)
-        return {"success": False, "error": str(exc)}
+        tick_data["tick"] = record.to_dict()
+        return f"tick {record.tick_id} executed", True
+
+    resp = governed_mutation(
+        mutation_name="operator_loop_control",
+        intent="execute tick cycle",
+        execute_fn=_do_execute,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(tick_data)
+    return result
 
 
 async def _tick_start(request: Request) -> dict:
     """Start the tick loop."""
-    try:
-        body = await request.json()
-        freq = body.get("frequency", "")
+    body = await request.json()
+    freq = body.get("frequency", "")
+    tick_status = {}
+
+    def _do_start():
         loop = _get_tick_loop()
         if freq:
             from substrate.organism.strategic_tick_loop import TickFrequency
-
             loop.frequency = TickFrequency(freq)
         loop.start()
         _audit_log("tick_started", {"frequency": loop.frequency.value})
-        return {"success": True, "status": loop.status()}
-    except Exception as exc:
-        logger.error("tick start failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        tick_status["status"] = loop.status()
+        return "tick loop started", True
+
+    resp = governed_mutation(
+        mutation_name="operator_loop_control",
+        intent="start tick loop",
+        execute_fn=_do_start,
+        source="cockpit",
+        metadata={"frequency": freq} if freq else {},
+    )
+    result = resp.to_http_dict()
+    result.update(tick_status)
+    return result
 
 
 def _tick_stop(request: Request) -> dict:
     """Stop the tick loop."""
-    try:
+    tick_status = {}
+
+    def _do_stop():
         loop = _get_tick_loop()
         loop.stop()
         _audit_log("tick_stopped", {"cycle_count": loop.cycle_count})
-        return {"success": True, "status": loop.status()}
-    except Exception as exc:
-        logger.error("tick stop failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        tick_status["status"] = loop.status()
+        return "tick loop stopped", True
+
+    resp = governed_mutation(
+        mutation_name="operator_loop_control",
+        intent="stop tick loop",
+        execute_fn=_do_stop,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(tick_status)
+    return result
 
 
 def _tick_pause(request: Request) -> dict:
     """Pause the tick loop (maintains state)."""
-    try:
+    tick_status = {}
+
+    def _do_pause():
         loop = _get_tick_loop()
         loop.pause()
         _audit_log("tick_paused", {"cycle_count": loop.cycle_count})
-        return {"success": True, "status": loop.status()}
-    except Exception as exc:
-        logger.error("tick pause failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        tick_status["status"] = loop.status()
+        return "tick loop paused", True
+
+    resp = governed_mutation(
+        mutation_name="operator_loop_control",
+        intent="pause tick loop",
+        execute_fn=_do_pause,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(tick_status)
+    return result
 
 
 def _tick_resume(request: Request) -> dict:
     """Resume the tick loop from paused state."""
-    try:
+    tick_status = {}
+
+    def _do_resume():
         loop = _get_tick_loop()
         loop.resume()
         _audit_log("tick_resumed", {"cycle_count": loop.cycle_count})
-        return {"success": True, "status": loop.status()}
-    except Exception as exc:
-        logger.error("tick resume failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        tick_status["status"] = loop.status()
+        return "tick loop resumed", True
+
+    resp = governed_mutation(
+        mutation_name="operator_loop_control",
+        intent="resume tick loop",
+        execute_fn=_do_resume,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(tick_status)
+    return result
 
 
 async def _tick_set_frequency(request: Request) -> dict:
     """Set tick frequency."""
-    try:
-        body = await request.json()
-        freq = body.get("frequency", "1m")
-        from substrate.organism.strategic_tick_loop import TickFrequency
+    body = await request.json()
+    freq = body.get("frequency", "1m")
+    tick_status = {}
 
+    def _do_set_freq():
+        from substrate.organism.strategic_tick_loop import TickFrequency
         loop = _get_tick_loop()
         loop.frequency = TickFrequency(freq)
         _audit_log("tick_frequency_changed", {"frequency": freq})
-        return {"success": True, "frequency": freq, "status": loop.status()}
-    except Exception as exc:
-        logger.error("tick set frequency failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        tick_status["frequency"] = freq
+        tick_status["status"] = loop.status()
+        return f"tick frequency set to {freq}", True
+
+    resp = governed_mutation(
+        mutation_name="operator_loop_control",
+        intent=f"set tick frequency to {freq}",
+        execute_fn=_do_set_freq,
+        source="cockpit",
+        metadata={"frequency": freq},
+    )
+    result = resp.to_http_dict()
+    result.update(tick_status)
+    return result
 
 
 async def _tick_set_profiles(request: Request) -> dict:
     """Set active profile modes for prioritization."""
-    try:
-        body = await request.json()
-        profiles = body.get("profiles", [])
+    body = await request.json()
+    profiles = body.get("profiles", [])
+
+    def _do_set_profiles():
         loop = _get_tick_loop()
         loop.set_active_profiles(profiles)
         _audit_log("tick_profiles_set", {"profiles": profiles})
-        return {"success": True, "profiles": profiles}
-    except Exception as exc:
-        logger.error("tick set profiles failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"profiles set: {profiles}", True
+
+    resp = governed_mutation(
+        mutation_name="profile_mutate",
+        intent=f"set tick profiles: {profiles}",
+        execute_fn=_do_set_profiles,
+        source="cockpit",
+        metadata={"profiles": profiles},
+    )
+    result = resp.to_http_dict()
+    if resp.success:
+        result["profiles"] = profiles
+    return result
 
 
 def _tick_candidates(request: Request) -> dict:
@@ -1809,37 +1998,49 @@ def _tick_candidates(request: Request) -> dict:
 def _tick_accept_candidate(request: Request) -> dict:
     """Accept a candidate → transitions to ACCEPTED lifecycle."""
     candidate_id = request.path_params.get("candidate_id", "")
-    try:
-        from substrate.organism.strategic_tick_loop import RecommendationLifecycle
 
+    def _do_accept():
+        from substrate.organism.strategic_tick_loop import RecommendationLifecycle
         loop = _get_tick_loop()
-        success = loop.candidate_queue.update_lifecycle(
+        ok = loop.candidate_queue.update_lifecycle(
             candidate_id, RecommendationLifecycle.ACCEPTED
         )
-        if success:
+        if ok:
             _audit_log("tick_candidate_accepted", {"candidate_id": candidate_id})
-        return {"success": success}
-    except Exception as exc:
-        logger.error("tick accept candidate failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"candidate {candidate_id} accepted", ok
+
+    resp = governed_mutation(
+        mutation_name="tick_candidate_decide",
+        intent=f"accept candidate {candidate_id}",
+        execute_fn=_do_accept,
+        source="cockpit",
+        metadata={"candidate_id": candidate_id},
+    )
+    return resp.to_http_dict()
 
 
 def _tick_reject_candidate(request: Request) -> dict:
     """Reject a candidate → transitions to REJECTED lifecycle."""
     candidate_id = request.path_params.get("candidate_id", "")
-    try:
-        from substrate.organism.strategic_tick_loop import RecommendationLifecycle
 
+    def _do_reject():
+        from substrate.organism.strategic_tick_loop import RecommendationLifecycle
         loop = _get_tick_loop()
-        success = loop.candidate_queue.update_lifecycle(
+        ok = loop.candidate_queue.update_lifecycle(
             candidate_id, RecommendationLifecycle.REJECTED
         )
-        if success:
+        if ok:
             _audit_log("tick_candidate_rejected", {"candidate_id": candidate_id})
-        return {"success": success}
-    except Exception as exc:
-        logger.error("tick reject candidate failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"candidate {candidate_id} rejected", ok
+
+    resp = governed_mutation(
+        mutation_name="tick_candidate_decide",
+        intent=f"reject candidate {candidate_id}",
+        execute_fn=_do_reject,
+        source="cockpit",
+        metadata={"candidate_id": candidate_id},
+    )
+    return resp.to_http_dict()
 
 
 def _tick_drift_warnings(request: Request) -> dict:
@@ -1924,22 +2125,32 @@ async def _projection_run(request: Request) -> dict:
         except (ValueError, KeyError):
             pass
 
-    try:
+    proj_result = {}
+
+    def _do_run():
         engine = _get_projection_engine()
-        result = engine.run_projections(horizons=horizons, domains=domains)
+        r = engine.run_projections(horizons=horizons, domains=domains)
         _audit_log(
             "projection_run",
             {
-                "run_number": result.get("run_number"),
-                "projection_count": result.get("projection_count"),
-                "risk_count": result.get("risk_count"),
-                "opportunity_count": result.get("opportunity_count"),
+                "run_number": r.get("run_number"),
+                "projection_count": r.get("projection_count"),
+                "risk_count": r.get("risk_count"),
+                "opportunity_count": r.get("opportunity_count"),
             },
         )
-        return {"success": True, **result}
-    except Exception as exc:
-        logger.error("projection run failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        proj_result.update(r)
+        return f"projection run {r.get('run_number', '?')} complete", True
+
+    resp = governed_mutation(
+        mutation_name="projection_event",
+        intent="run projection cycle",
+        execute_fn=_do_run,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(proj_result)
+    return result
 
 
 def _projection_trends(request: Request) -> dict:
@@ -2047,21 +2258,29 @@ async def _projection_record_outcome(request: Request) -> dict:
     if not projection_id:
         return {"success": False, "error": "projection_id required"}
 
-    try:
+    outcome_data = {}
+
+    def _do_record():
         engine = _get_projection_engine()
-        result = engine.record_outcome(projection_id, actual_state, was_accurate, accuracy_score)
-        if result.get("success"):
+        r = engine.record_outcome(projection_id, actual_state, was_accurate, accuracy_score)
+        outcome_data.update(r)
+        if r.get("success"):
             _audit_log(
                 "projection_outcome_recorded",
-                {
-                    "projection_id": projection_id,
-                    "was_accurate": was_accurate,
-                },
+                {"projection_id": projection_id, "was_accurate": was_accurate},
             )
-        return result
-    except Exception as exc:
-        logger.error("projection record outcome failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"projection outcome for {projection_id} recorded", r.get("success", False)
+
+    resp = governed_mutation(
+        mutation_name="outcome_record",
+        intent=f"record projection outcome for {projection_id}",
+        execute_fn=_do_record,
+        source="cockpit",
+        metadata={"projection_id": projection_id},
+    )
+    result = resp.to_http_dict()
+    result.update(outcome_data)
+    return result
 
 
 # ── Phase 7: Continuity Runtime helpers & handlers ─────────────────────
@@ -2093,42 +2312,69 @@ def _continuity_snapshot(request: Request) -> dict:
 
 
 def _continuity_capture(request: Request) -> dict:
-    try:
+    snap_data = {}
+
+    def _do_capture():
         rt = _get_continuity_runtime()
         snap = rt.capture_snapshot()
         _audit_log("continuity_snapshot_captured", {"snapshot_id": snap.snapshot_id})
-        return {"success": True, "snapshot": snap.to_dict()}
-    except Exception as exc:
-        logger.error("continuity capture failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        snap_data["snapshot"] = snap.to_dict()
+        return f"snapshot {snap.snapshot_id} captured", True
+
+    resp = governed_mutation(
+        mutation_name="continuity_mutate",
+        intent="capture continuity snapshot",
+        execute_fn=_do_capture,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(snap_data)
+    return result
 
 
 def _continuity_depart(request: Request) -> dict:
-    try:
+    snap_data = {}
+
+    def _do_depart():
         rt = _get_continuity_runtime()
         snap = rt.record_departure()
         _audit_log("continuity_departure_recorded", {"snapshot_id": snap.snapshot_id})
-        return {"success": True, "snapshot": snap.to_dict()}
-    except Exception as exc:
-        logger.error("continuity depart failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        snap_data["snapshot"] = snap.to_dict()
+        return f"departure recorded {snap.snapshot_id}", True
+
+    resp = governed_mutation(
+        mutation_name="continuity_mutate",
+        intent="record departure",
+        execute_fn=_do_depart,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(snap_data)
+    return result
 
 
 def _continuity_resume(request: Request) -> dict:
-    try:
+    resume_data = {}
+
+    def _do_resume():
         rt = _get_continuity_runtime()
         report = rt.generate_resume()
         _audit_log(
             "continuity_resume_generated",
-            {
-                "total_changes": report.total_changes,
-                "absence_seconds": report.absence_duration_seconds,
-            },
+            {"total_changes": report.total_changes, "absence_seconds": report.absence_duration_seconds},
         )
-        return {"success": True, "report": report.to_dict()}
-    except Exception as exc:
-        logger.error("continuity resume failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        resume_data["report"] = report.to_dict()
+        return "resume generated", True
+
+    resp = governed_mutation(
+        mutation_name="continuity_mutate",
+        intent="generate resume report",
+        execute_fn=_do_resume,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(resume_data)
+    return result
 
 
 def _continuity_brief(request: Request) -> dict:
@@ -2142,14 +2388,24 @@ def _continuity_brief(request: Request) -> dict:
 
 
 def _continuity_generate_brief(request: Request) -> dict:
-    try:
+    brief_data = {}
+
+    def _do_brief():
         rt = _get_continuity_runtime()
         brief = rt.generate_brief(include_resume=False)
         _audit_log("continuity_brief_generated", {"brief_id": brief.brief_id})
-        return {"success": True, "brief": brief.to_dict()}
-    except Exception as exc:
-        logger.error("continuity generate brief failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        brief_data["brief"] = brief.to_dict()
+        return f"brief {brief.brief_id} generated", True
+
+    resp = governed_mutation(
+        mutation_name="continuity_mutate",
+        intent="generate continuity brief",
+        execute_fn=_do_brief,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(brief_data)
+    return result
 
 
 def _continuity_timeline(request: Request) -> dict:
@@ -2186,36 +2442,46 @@ async def _continuity_handoff(request: Request) -> dict:
     if not from_session or not to_session:
         return {"success": False, "error": "from_session_id and to_session_id required"}
 
-    try:
+    handoff_data = {}
+
+    def _do_handoff():
         rt = _get_continuity_runtime()
         handoff = rt.record_session_handoff(
-            from_session,
-            to_session,
-            body.get("from_profile", ""),
-            body.get("to_profile", ""),
+            from_session, to_session,
+            body.get("from_profile", ""), body.get("to_profile", ""),
         )
         _audit_log(
             "continuity_handoff",
-            {
-                "from": from_session,
-                "to": to_session,
-                "handoff_id": handoff.handoff_id,
-            },
+            {"from": from_session, "to": to_session, "handoff_id": handoff.handoff_id},
         )
-        return {"success": True, "handoff": handoff.to_dict()}
-    except Exception as exc:
-        logger.error("continuity handoff failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        handoff_data["handoff"] = handoff.to_dict()
+        return f"handoff {handoff.handoff_id} recorded", True
+
+    resp = governed_mutation(
+        mutation_name="continuity_mutate",
+        intent=f"handoff from {from_session} to {to_session}",
+        execute_fn=_do_handoff,
+        source="cockpit",
+        metadata={"from": from_session, "to": to_session},
+    )
+    result = resp.to_http_dict()
+    result.update(handoff_data)
+    return result
 
 
 def _continuity_interaction(request: Request) -> dict:
-    try:
+    def _do_interact():
         rt = _get_continuity_runtime()
         rt.record_interaction()
-        return {"success": True, "attention": rt.attention.to_dict()}
-    except Exception as exc:
-        logger.error("continuity interaction failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return "interaction recorded", True
+
+    resp = governed_mutation(
+        mutation_name="continuity_mutate",
+        intent="record continuity interaction",
+        execute_fn=_do_interact,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Phase 8: Presence Runtime handlers ────────────────────────────────
@@ -2247,14 +2513,24 @@ def _presence_snapshot(request: Request) -> dict:
 
 
 def _presence_capture(request: Request) -> dict:
-    try:
+    snap_data = {}
+
+    def _do_capture():
         rt = _get_presence_runtime()
         snap = rt.capture_snapshot()
         _audit_log("presence_snapshot_captured", {"snapshot_id": snap.snapshot_id})
-        return {"success": True, "snapshot": snap.to_dict()}
-    except Exception as exc:
-        logger.error("presence capture failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        snap_data["snapshot"] = snap.to_dict()
+        return f"presence snapshot {snap.snapshot_id}", True
+
+    resp = governed_mutation(
+        mutation_name="presence_update",
+        intent="capture presence snapshot",
+        execute_fn=_do_capture,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(snap_data)
+    return result
 
 
 def _presence_devices(request: Request) -> dict:
@@ -2285,28 +2561,30 @@ async def _presence_register_session(request: Request) -> dict:
     if not session_id:
         return {"success": False, "error": "session_id required"}
 
-    try:
+    session_data = {}
+
+    def _do_register():
         rt = _get_presence_runtime()
         session = rt.register_session(
-            session_id=session_id,
-            host=body.get("host", ""),
-            device_id=body.get("device_id", ""),
-            profile_mode=body.get("profile_mode", ""),
-            client_type=body.get("client_type", ""),
-            control_surface=body.get("control_surface", ""),
+            session_id=session_id, host=body.get("host", ""),
+            device_id=body.get("device_id", ""), profile_mode=body.get("profile_mode", ""),
+            client_type=body.get("client_type", ""), control_surface=body.get("control_surface", ""),
             interaction_surface=body.get("interaction_surface", "none"),
         )
-        _audit_log(
-            "presence_session_registered",
-            {
-                "session_id": session_id,
-                "device_id": body.get("device_id", ""),
-            },
-        )
-        return {"success": True, "session": session.to_dict()}
-    except Exception as exc:
-        logger.error("presence register session failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        _audit_log("presence_session_registered", {"session_id": session_id, "device_id": body.get("device_id", "")})
+        session_data["session"] = session.to_dict()
+        return f"session {session_id} registered", True
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"register presence session {session_id}",
+        execute_fn=_do_register,
+        source="cockpit",
+        metadata={"session_id": session_id},
+    )
+    result = resp.to_http_dict()
+    result.update(session_data)
+    return result
 
 
 async def _presence_end_session(request: Request) -> dict:
@@ -2319,17 +2597,25 @@ async def _presence_end_session(request: Request) -> dict:
     if not session_id:
         return {"success": False, "error": "session_id required"}
 
-    try:
+    session_data = {}
+
+    def _do_end():
         rt = _get_presence_runtime()
         session = rt.end_session(session_id)
         _audit_log("presence_session_ended", {"session_id": session_id})
-        return {
-            "success": True,
-            "session": session.to_dict() if session else None,
-        }
-    except Exception as exc:
-        logger.error("presence end session failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        session_data["session"] = session.to_dict() if session else None
+        return f"session {session_id} ended", True
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"end presence session {session_id}",
+        execute_fn=_do_end,
+        source="cockpit",
+        metadata={"session_id": session_id},
+    )
+    result = resp.to_http_dict()
+    result.update(session_data)
+    return result
 
 
 async def _presence_heartbeat(request: Request) -> dict:
@@ -2342,14 +2628,20 @@ async def _presence_heartbeat(request: Request) -> dict:
     if not session_id:
         return {"success": False, "error": "session_id required"}
 
-    try:
+    def _do_heartbeat():
         rt = _get_presence_runtime()
-        updates = body.get("updates")
-        ok = rt.heartbeat(session_id, updates)
-        return {"success": True, "found": ok}
-    except Exception as exc:
-        logger.error("presence heartbeat failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        ok = rt.heartbeat(session_id, body.get("updates"))
+        return f"heartbeat {session_id}", ok
+
+    resp = governed_mutation(
+        mutation_name="presence_update",
+        intent=f"heartbeat session {session_id}",
+        execute_fn=_do_heartbeat,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result["found"] = resp.success
+    return result
 
 
 async def _presence_interaction(request: Request) -> dict:
@@ -2358,13 +2650,23 @@ async def _presence_interaction(request: Request) -> dict:
     except Exception:
         body = {}
 
-    try:
+    interaction_data = {}
+
+    def _do_interact():
         rt = _get_presence_runtime()
-        result = rt.record_interaction(body.get("profile_mode", ""))
-        return {"success": True, "attention": result}
-    except Exception as exc:
-        logger.error("presence interaction failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        r = rt.record_interaction(body.get("profile_mode", ""))
+        interaction_data["attention"] = r
+        return "interaction recorded", True
+
+    resp = governed_mutation(
+        mutation_name="presence_update",
+        intent="record presence interaction",
+        execute_fn=_do_interact,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(interaction_data)
+    return result
 
 
 async def _presence_change_profile(request: Request) -> dict:
@@ -2377,14 +2679,25 @@ async def _presence_change_profile(request: Request) -> dict:
     if not profile:
         return {"success": False, "error": "profile_mode required"}
 
-    try:
+    profile_data = {}
+
+    def _do_change():
         rt = _get_presence_runtime()
-        result = rt.change_profile(profile)
+        r = rt.change_profile(profile)
         _audit_log("presence_profile_changed", {"profile_mode": profile})
-        return {"success": True, **result}
-    except Exception as exc:
-        logger.error("presence change profile failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        profile_data.update(r)
+        return f"profile changed to {profile}", True
+
+    resp = governed_mutation(
+        mutation_name="profile_mutate",
+        intent=f"change presence profile to {profile}",
+        execute_fn=_do_change,
+        source="cockpit",
+        metadata={"profile_mode": profile},
+    )
+    result = resp.to_http_dict()
+    result.update(profile_data)
+    return result
 
 
 def _presence_attention(request: Request) -> dict:
@@ -2452,25 +2765,33 @@ def _command_status(request: Request) -> dict:
 
 
 async def _command_submit(request: Request) -> dict:
-    try:
-        body = await request.json()
-        raw_input = body.get("raw_input", body.get("command", ""))
-        if not raw_input:
-            return {"success": False, "error": "raw_input required"}
+    body = await request.json()
+    raw_input = body.get("raw_input", body.get("command", ""))
+    if not raw_input:
+        return {"success": False, "error": "raw_input required"}
 
+    cmd_data = {}
+
+    def _do_submit():
         rt = _get_command_runtime()
         cmd = rt.submit(
-            raw_input=raw_input,
-            source=body.get("source", "cockpit"),
-            operator_id=body.get("operator_id", ""),
-            session_id=body.get("session_id", ""),
+            raw_input=raw_input, source=body.get("source", "cockpit"),
+            operator_id=body.get("operator_id", ""), session_id=body.get("session_id", ""),
             profile_mode=body.get("profile_mode", ""),
         )
         _audit_log("command_submit", {"command_id": cmd.command_id, "action": cmd.action_type})
-        return {"success": True, "command": cmd.to_dict()}
-    except Exception as exc:
-        logger.error("command submit failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        cmd_data["command"] = cmd.to_dict()
+        return f"command {cmd.command_id} submitted", True
+
+    resp = governed_mutation(
+        mutation_name="command_submit",
+        intent=f"submit command: {raw_input[:80]}",
+        execute_fn=_do_submit,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(cmd_data)
+    return result
 
 
 async def _command_classify(request: Request) -> dict:
@@ -2534,33 +2855,56 @@ def _command_timeline(request: Request) -> dict:
 
 
 def _command_approve(request: Request) -> dict:
-    try:
-        command_id = request.path_params.get("command_id", "")
-        if not command_id:
-            return {"success": False, "error": "command_id required"}
+    command_id = request.path_params.get("command_id", "")
+    if not command_id:
+        return {"success": False, "error": "command_id required"}
+
+    approve_data = {}
+
+    def _do_approve():
         rt = _get_command_runtime()
-        result = rt.approve_command(command_id)
+        r = rt.approve_command(command_id)
         _audit_log("command_approve", {"command_id": command_id})
-        return {"success": True, **result}
-    except Exception as exc:
-        logger.error("command approve failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        approve_data.update(r)
+        return f"command {command_id} approved", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve command {command_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+        metadata={"command_id": command_id},
+    )
+    result = resp.to_http_dict()
+    result.update(approve_data)
+    return result
 
 
 async def _command_reject(request: Request) -> dict:
-    try:
-        command_id = request.path_params.get("command_id", "")
-        if not command_id:
-            return {"success": False, "error": "command_id required"}
-        body = await request.json()
-        reason = body.get("reason", "")
+    command_id = request.path_params.get("command_id", "")
+    if not command_id:
+        return {"success": False, "error": "command_id required"}
+    body = await request.json()
+    reason = body.get("reason", "")
+    reject_data = {}
+
+    def _do_reject():
         rt = _get_command_runtime()
-        result = rt.reject_command(command_id, reason=reason)
+        r = rt.reject_command(command_id, reason=reason)
         _audit_log("command_reject", {"command_id": command_id, "reason": reason})
-        return {"success": True, **result}
-    except Exception as exc:
-        logger.error("command reject failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        reject_data.update(r)
+        return f"command {command_id} rejected", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"reject command {command_id}",
+        execute_fn=_do_reject,
+        source="cockpit",
+        metadata={"command_id": command_id},
+    )
+    result = resp.to_http_dict()
+    result.update(reject_data)
+    return result
 
 
 # ── Phase 10: Workstation Runtime handlers ────────────────────────────────
@@ -2573,36 +2917,56 @@ def _get_workstation_runtime():
 
 
 async def _workstation_prepare(request: Request) -> dict:
-    try:
-        body = await request.json()
-        intent = body.get("intent", "")
-        if not intent:
-            return {"success": False, "error": "intent required"}
+    body = await request.json()
+    intent = body.get("intent", "")
+    if not intent:
+        return {"success": False, "error": "intent required"}
+
+    plan_data = {}
+
+    def _do_prepare():
         rt = _get_workstation_runtime()
         plan = rt.prepare_workspace(
-            intent=intent,
-            profile_mode=body.get("profile_mode", ""),
-            session_id=body.get("session_id", ""),
-            operator_id=body.get("operator_id", ""),
+            intent=intent, profile_mode=body.get("profile_mode", ""),
+            session_id=body.get("session_id", ""), operator_id=body.get("operator_id", ""),
         )
         _audit_log("workstation_prepare", {"intent": intent, "mode": plan.mode})
-        return {"success": True, "plan": plan.to_dict()}
-    except Exception as exc:
-        logger.error("workstation prepare failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        plan_data["plan"] = plan.to_dict()
+        return f"workspace prepared: {plan.mode}", True
+
+    resp = governed_mutation(
+        mutation_name="workstation_mutate",
+        intent=f"prepare workspace: {intent[:80]}",
+        execute_fn=_do_prepare,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(plan_data)
+    return result
 
 
 async def _workstation_restore(request: Request) -> dict:
-    try:
-        body = await request.json()
-        snapshot_id = body.get("snapshot_id", "")
+    body = await request.json()
+    snapshot_id = body.get("snapshot_id", "")
+    plan_data = {}
+
+    def _do_restore():
         rt = _get_workstation_runtime()
         plan = rt.restore_workspace(snapshot_id=snapshot_id)
         _audit_log("workstation_restore", {"snapshot_id": snapshot_id})
-        return {"success": True, "plan": plan.to_dict()}
-    except Exception as exc:
-        logger.error("workstation restore failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        plan_data["plan"] = plan.to_dict()
+        return f"workspace restored from {snapshot_id}", True
+
+    resp = governed_mutation(
+        mutation_name="workstation_mutate",
+        intent=f"restore workspace from {snapshot_id}",
+        execute_fn=_do_restore,
+        source="cockpit",
+        metadata={"snapshot_id": snapshot_id},
+    )
+    result = resp.to_http_dict()
+    result.update(plan_data)
+    return result
 
 
 def _workstation_templates(request: Request) -> dict:
@@ -2625,17 +2989,27 @@ def _workstation_snapshots(request: Request) -> dict:
 
 
 async def _workstation_take_snapshot(request: Request) -> dict:
-    try:
-        body = await request.json()
-        trigger = body.get("trigger", "manual")
-        notes = body.get("operator_notes", "")
+    body = await request.json()
+    trigger = body.get("trigger", "manual")
+    notes = body.get("operator_notes", "")
+    snap_data = {}
+
+    def _do_snapshot():
         rt = _get_workstation_runtime()
         snap = rt.take_snapshot(trigger=trigger, operator_notes=notes)
         _audit_log("workstation_snapshot", {"snapshot_id": snap.snapshot_id})
-        return {"success": True, "snapshot": snap.to_dict()}
-    except Exception as exc:
-        logger.error("workstation take snapshot failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        snap_data["snapshot"] = snap.to_dict()
+        return f"snapshot {snap.snapshot_id} taken", True
+
+    resp = governed_mutation(
+        mutation_name="workstation_mutate",
+        intent="take workstation snapshot",
+        execute_fn=_do_snapshot,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(snap_data)
+    return result
 
 
 def _workstation_recommendations(request: Request) -> dict:

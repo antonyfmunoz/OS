@@ -12,6 +12,7 @@ from typing import Any, Callable
 from fastapi import APIRouter, Depends, Request
 
 from transports.api.cockpit_audit import emit_mutation_audit
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -73,102 +74,142 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     @r.post("/loops/{loop_name}/start", dependencies=auth)
     def loop_start(loop_name: str):
         """Start a persistent loop."""
-        try:
-            ok = _get_loop_registry().start(loop_name)
-            if ok:
-                emit_mutation_audit("loops", "start", loop_name)
-                from transports.api.cockpit_core_routes import push_mutation_event
+        def _do_start():
+            try:
+                ok = _get_loop_registry().start(loop_name)
+                if ok:
+                    emit_mutation_audit("loops", "start", loop_name)
+                    from transports.api.cockpit_core_routes import push_mutation_event
+                    if push_mutation_event is not None:
+                        push_mutation_event("loops", "started", {"name": loop_name})
+                return f"loop {loop_name} started={ok}", ok
+            except Exception as e:
+                return str(e), False
 
-                if push_mutation_event is not None:
-                    push_mutation_event("loops", "started", {"name": loop_name})
-            return {"started": ok, "loop": loop_name}
-        except Exception as e:
-            return {"error": str(e)}
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"start loop {loop_name}",
+            execute_fn=_do_start,
+            source="cockpit",
+            metadata={"loop_name": loop_name},
+        )
+        return resp.to_http_dict()
 
     @r.post("/loops/{loop_name}/stop", dependencies=auth)
     def loop_stop(loop_name: str):
         """Stop a persistent loop."""
-        try:
-            ok = _get_loop_registry().stop(loop_name)
-            if ok:
-                emit_mutation_audit("loops", "stop", loop_name)
-                from transports.api.cockpit_core_routes import push_mutation_event
+        def _do_stop():
+            try:
+                ok = _get_loop_registry().stop(loop_name)
+                if ok:
+                    emit_mutation_audit("loops", "stop", loop_name)
+                    from transports.api.cockpit_core_routes import push_mutation_event
+                    if push_mutation_event is not None:
+                        push_mutation_event("loops", "stopped", {"name": loop_name})
+                return f"loop {loop_name} stopped={ok}", ok
+            except Exception as e:
+                return str(e), False
 
-                if push_mutation_event is not None:
-                    push_mutation_event("loops", "stopped", {"name": loop_name})
-            return {"stopped": ok, "loop": loop_name}
-        except Exception as e:
-            return {"error": str(e)}
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"stop loop {loop_name}",
+            execute_fn=_do_stop,
+            source="cockpit",
+            metadata={"loop_name": loop_name},
+        )
+        return resp.to_http_dict()
 
     @r.post("/loops/{loop_name}/run-once", dependencies=auth)
     def loop_run_once(loop_name: str):
         """Run a single cycle of a loop synchronously."""
-        try:
-            registry = _get_loop_registry()
-            loop = registry.get(loop_name)
-            if not loop:
-                return {"error": f"unknown loop: {loop_name}"}
-            report = loop.run_once()
-            return report.to_dict()
-        except Exception as e:
-            return {"error": str(e)}
+        def _do_run_once():
+            try:
+                registry = _get_loop_registry()
+                loop = registry.get(loop_name)
+                if not loop:
+                    return f"unknown loop: {loop_name}", False
+                loop.run_once()
+                return f"loop {loop_name} ran one cycle", True
+            except Exception as e:
+                return str(e), False
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"run loop {loop_name} once",
+            execute_fn=_do_run_once,
+            source="cockpit",
+            metadata={"loop_name": loop_name},
+        )
+        return resp.to_http_dict()
 
     @r.post("/loops/create", dependencies=auth)
     def loop_create(payload: dict):
         """Create a new loop definition at runtime."""
-        try:
-            from substrate.execution.loop import STAGE_REGISTRY
-            from substrate.execution.loop.persistent_loop import LoopDefinition
+        from substrate.execution.loop import STAGE_REGISTRY
 
-            registry = _get_loop_registry()
+        stages = payload.get("stages", [])
+        unknown = [s for s in stages if s not in STAGE_REGISTRY]
+        if unknown:
+            return {
+                "error": f"unknown stages: {unknown}",
+                "available": sorted(STAGE_REGISTRY.keys()),
+            }
 
-            stages = payload.get("stages", [])
-            unknown = [s for s in stages if s not in STAGE_REGISTRY]
-            if unknown:
-                return {
-                    "error": f"unknown stages: {unknown}",
-                    "available": sorted(STAGE_REGISTRY.keys()),
-                }
+        def _do_create():
+            try:
+                from substrate.execution.loop.persistent_loop import LoopDefinition
+                registry = _get_loop_registry()
+                defn = LoopDefinition(
+                    name=payload["name"],
+                    domain=payload.get("domain", "general"),
+                    interval_seconds=payload.get("interval_seconds", 300),
+                    stages=stages,
+                    description=payload.get("description", ""),
+                )
+                registry.register_definition(defn)
+                registry.save_definitions()
+                emit_mutation_audit("loops", "create", defn.name, new_value=defn.to_dict())
+                from transports.api.cockpit_core_routes import push_mutation_event
+                if push_mutation_event is not None:
+                    push_mutation_event("loops", "created", {"name": defn.name})
+                return f"loop {defn.name} created", True
+            except Exception as e:
+                return str(e), False
 
-            defn = LoopDefinition(
-                name=payload["name"],
-                domain=payload.get("domain", "general"),
-                interval_seconds=payload.get("interval_seconds", 300),
-                stages=stages,
-                description=payload.get("description", ""),
-            )
-            registry.register_definition(defn)
-            registry.save_definitions()
-            emit_mutation_audit(
-                "loops",
-                "create",
-                defn.name,
-                new_value=defn.to_dict(),
-            )
-            from transports.api.cockpit_core_routes import push_mutation_event
-
-            if push_mutation_event is not None:
-                push_mutation_event("loops", "created", {"name": defn.name})
-            return {"created": defn.name, "definition": defn.to_dict()}
-        except Exception as e:
-            return {"error": str(e)}
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"create loop {payload.get('name', '')}",
+            execute_fn=_do_create,
+            source="cockpit",
+            metadata={"loop_name": payload.get("name", "")},
+        )
+        return resp.to_http_dict()
 
     @r.delete("/loops/{loop_name}", dependencies=auth)
     def loop_delete(loop_name: str):
         """Remove a loop definition."""
-        try:
-            registry = _get_loop_registry()
-            ok = registry.remove(loop_name)
-            if ok:
-                registry.save_definitions()
-                emit_mutation_audit("loops", "delete", loop_name)
-                from transports.api.cockpit_core_routes import push_mutation_event
+        def _do_delete():
+            try:
+                registry = _get_loop_registry()
+                ok = registry.remove(loop_name)
+                if ok:
+                    registry.save_definitions()
+                    emit_mutation_audit("loops", "delete", loop_name)
+                    from transports.api.cockpit_core_routes import push_mutation_event
+                    if push_mutation_event is not None:
+                        push_mutation_event("loops", "deleted", {"name": loop_name})
+                return f"loop {loop_name} removed={ok}", ok
+            except Exception as e:
+                return str(e), False
 
-                if push_mutation_event is not None:
-                    push_mutation_event("loops", "deleted", {"name": loop_name})
-            return {"removed": ok, "loop": loop_name}
-        except Exception as e:
-            return {"error": str(e)}
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"delete loop {loop_name}",
+            execute_fn=_do_delete,
+            source="cockpit",
+            metadata={"loop_name": loop_name},
+        )
+        return resp.to_http_dict()
 
     # ── Execution Substrate endpoints ────────────────────────────────────────
 
@@ -302,72 +343,72 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 "approval_gates": pkt.approval_gates,
             }
 
-        if pkt.status == PacketLifecycleStatus.APPROVED:
-            ok = wpe.update_packet_status(
-                packet_id, PacketLifecycleStatus.DELEGATED, "delegated for execution"
-            )
-            if ok:
-                ok = wpe.update_packet_status(
-                    packet_id, PacketLifecycleStatus.EXECUTING, "execution started"
-                )
-        elif pkt.status == PacketLifecycleStatus.DELEGATED:
-            ok = wpe.update_packet_status(
-                packet_id, PacketLifecycleStatus.EXECUTING, "execution started"
-            )
-        else:
+        if pkt.status not in (PacketLifecycleStatus.APPROVED, PacketLifecycleStatus.DELEGATED):
             return {
                 "ok": False,
                 "error": f"Cannot start execution from status '{pkt.status.value}'",
                 "valid_start_statuses": ["approved", "delegated"],
             }
 
-        from substrate.execution.runtime.capability_router import (
-            detect_capability,
-            route_capability,
-        )
-
-        cap = detect_capability(pkt.user_intent or pkt.title)
-        routing_result: dict[str, Any] = {
-            "capability": cap.value,
-            "routed": False,
-            "provider": None,
-            "error": None,
-        }
-        try:
-            result = route_capability(pkt.user_intent or pkt.title)
-            if result is not None:
-                routing_result["routed"] = True
-                routing_result["provider"] = result.provider_id
-            else:
-                from adapters.models.model_router import call_with_fallback
-
-                llm_result = call_with_fallback(
-                    prompt=pkt.user_intent or pkt.title,
-                    system="Execute this work packet concisely.",
-                    task_type="command",
+        def _do_start():
+            nonlocal pkt
+            if pkt.status == PacketLifecycleStatus.APPROVED:
+                ok = wpe.update_packet_status(
+                    packet_id, PacketLifecycleStatus.DELEGATED, "delegated for execution"
                 )
-                routing_result["routed"] = bool(llm_result)
-                routing_result["provider"] = "llm_fallback" if llm_result else None
-                if not llm_result:
-                    routing_result["error"] = "UNAVAILABLE"
-        except Exception as exc:
-            logger.debug("execution routing failed: %s", exc)
-            routing_result["error"] = f"UNAVAILABLE: {exc}"
+                if ok:
+                    ok = wpe.update_packet_status(
+                        packet_id, PacketLifecycleStatus.EXECUTING, "execution started"
+                    )
+            else:
+                ok = wpe.update_packet_status(
+                    packet_id, PacketLifecycleStatus.EXECUTING, "execution started"
+                )
 
-        if ok:
-            emit_mutation_audit(
-                "execution",
-                "start",
-                packet_id,
-                new_value=routing_result,
+            from substrate.execution.runtime.capability_router import (
+                detect_capability,
+                route_capability,
             )
 
-        return {
-            "ok": ok,
-            "packet_id": packet_id,
-            "status": "executing",
-            "routing": routing_result,
-        }
+            cap = detect_capability(pkt.user_intent or pkt.title)
+            routing_result: dict[str, Any] = {
+                "capability": cap.value,
+                "routed": False,
+                "provider": None,
+                "error": None,
+            }
+            try:
+                result = route_capability(pkt.user_intent or pkt.title)
+                if result is not None:
+                    routing_result["routed"] = True
+                    routing_result["provider"] = result.provider_id
+                else:
+                    from adapters.models.model_router import call_with_fallback
+                    llm_result = call_with_fallback(
+                        prompt=pkt.user_intent or pkt.title,
+                        system="Execute this work packet concisely.",
+                        task_type="command",
+                    )
+                    routing_result["routed"] = bool(llm_result)
+                    routing_result["provider"] = "llm_fallback" if llm_result else None
+                    if not llm_result:
+                        routing_result["error"] = "UNAVAILABLE"
+            except Exception as exc:
+                logger.debug("execution routing failed: %s", exc)
+                routing_result["error"] = f"UNAVAILABLE: {exc}"
+
+            if ok:
+                emit_mutation_audit("execution", "start", packet_id, new_value=routing_result)
+            return f"execution started for {packet_id}", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"start execution of packet {packet_id}",
+            execute_fn=_do_start,
+            source="cockpit",
+            metadata={"packet_id": packet_id},
+        )
+        return resp.to_http_dict()
 
     @r.post("/execution/stop", dependencies=auth, deprecated=True)
     async def execution_stop(request: Request):
@@ -376,20 +417,26 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         packet_id = body.get("packet_id", "")
         if not packet_id:
             return {"ok": False, "error": "packet_id is required"}
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        from substrate.organism.work_packet import PacketLifecycleStatus
 
-        wpe = WorkPacketEngine()
-        ok = wpe.update_packet_status(
-            packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator"
+        def _do_stop():
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            from substrate.organism.work_packet import PacketLifecycleStatus
+            wpe = WorkPacketEngine()
+            ok = wpe.update_packet_status(
+                packet_id, PacketLifecycleStatus.BLOCKED, "stopped by operator"
+            )
+            if ok:
+                emit_mutation_audit("execution", "stop", packet_id)
+            return f"execution stopped for {packet_id}", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"stop execution of packet {packet_id}",
+            execute_fn=_do_stop,
+            source="cockpit",
+            metadata={"packet_id": packet_id},
         )
-        if ok:
-            emit_mutation_audit("execution", "stop", packet_id)
-        return {
-            "ok": ok,
-            "packet_id": packet_id,
-            "deprecated": "use POST /workstation/execution/stop",
-        }
+        return resp.to_http_dict()
 
     @r.post("/execution/pause", dependencies=auth, deprecated=True)
     async def execution_pause(request: Request):
@@ -398,18 +445,24 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         packet_id = body.get("packet_id", "")
         if not packet_id:
             return {"ok": False, "error": "packet_id is required"}
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        from substrate.organism.work_packet import PacketLifecycleStatus
 
-        wpe = WorkPacketEngine()
-        ok = wpe.update_packet_status(
-            packet_id, PacketLifecycleStatus.BLOCKED, "paused by operator"
+        def _do_pause():
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            from substrate.organism.work_packet import PacketLifecycleStatus
+            wpe = WorkPacketEngine()
+            ok = wpe.update_packet_status(
+                packet_id, PacketLifecycleStatus.BLOCKED, "paused by operator"
+            )
+            return f"execution paused for {packet_id}", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"pause execution of packet {packet_id}",
+            execute_fn=_do_pause,
+            source="cockpit",
+            metadata={"packet_id": packet_id},
         )
-        return {
-            "ok": ok,
-            "packet_id": packet_id,
-            "deprecated": "use POST /workstation/execution/pause",
-        }
+        return resp.to_http_dict()
 
     @r.post("/execution/complete", dependencies=auth)
     async def execution_complete(request: Request):
@@ -428,41 +481,43 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if not pkt:
             return {"ok": False, "error": f"Work packet {packet_id} not found"}
 
-        if pkt.status == PacketLifecycleStatus.EXECUTING:
-            ok = wpe.update_packet_status(
-                packet_id, PacketLifecycleStatus.VALIDATING, "validating before completion"
-            )
-            if ok:
-                verification = wpe.run_verification(packet_id)
-                pkt = wpe.get_packet(packet_id)
-                if pkt and pkt.verification_passed is False:
-                    wpe.update_packet_status(
-                        packet_id, PacketLifecycleStatus.FAILED, "verification failed"
-                    )
-                    return {
-                        "ok": False,
-                        "packet_id": packet_id,
-                        "status": "failed",
-                        "reason": "verification failed",
-                        "verification": verification,
-                    }
-                ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.COMPLETED, reason)
-        elif pkt.status == PacketLifecycleStatus.VALIDATING:
-            ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.COMPLETED, reason)
-        else:
+        if pkt.status not in (PacketLifecycleStatus.EXECUTING, PacketLifecycleStatus.VALIDATING):
             return {
                 "ok": False,
                 "error": f"Cannot complete from status '{pkt.status.value}'",
                 "valid_statuses": ["executing", "validating"],
             }
 
-        return {
-            "ok": ok,
-            "packet_id": packet_id,
-            "status": "completed",
-            "outcome_observation_id": pkt.outcome_observation_id if pkt else "",
-            "verification_passed": pkt.verification_passed if pkt else None,
-        }
+        def _do_complete():
+            if pkt.status == PacketLifecycleStatus.EXECUTING:
+                ok = wpe.update_packet_status(
+                    packet_id, PacketLifecycleStatus.VALIDATING, "validating before completion"
+                )
+                if ok:
+                    wpe.run_verification(packet_id)
+                    refreshed = wpe.get_packet(packet_id)
+                    if refreshed and refreshed.verification_passed is False:
+                        wpe.update_packet_status(
+                            packet_id, PacketLifecycleStatus.FAILED, "verification failed"
+                        )
+                        return "verification failed", False
+                    ok = wpe.update_packet_status(
+                        packet_id, PacketLifecycleStatus.COMPLETED, reason
+                    )
+            else:
+                ok = wpe.update_packet_status(
+                    packet_id, PacketLifecycleStatus.COMPLETED, reason
+                )
+            return f"packet {packet_id} completed", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"complete execution of packet {packet_id}",
+            execute_fn=_do_complete,
+            source="cockpit",
+            metadata={"packet_id": packet_id},
+        )
+        return resp.to_http_dict()
 
     @r.post("/execution/fail", dependencies=auth)
     async def execution_fail(request: Request):
@@ -492,13 +547,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 "valid_statuses": ["executing", "validating", "delegated"],
             }
 
-        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, reason)
-        return {
-            "ok": ok,
-            "packet_id": packet_id,
-            "status": "failed",
-            "outcome_observation_id": pkt.outcome_observation_id if pkt else "",
-        }
+        def _do_fail():
+            ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.FAILED, reason)
+            return f"packet {packet_id} marked failed", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"fail execution of packet {packet_id}: {reason[:80]}",
+            execute_fn=_do_fail,
+            source="cockpit",
+            metadata={"packet_id": packet_id, "reason": reason},
+        )
+        return resp.to_http_dict()
 
     @r.post("/execution/resume", dependencies=auth, deprecated=True)
     async def execution_resume(request: Request):
@@ -507,17 +567,23 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         packet_id = body.get("packet_id", "")
         if not packet_id:
             return {"ok": False, "error": "packet_id is required"}
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        from substrate.organism.work_packet import PacketLifecycleStatus
 
-        wpe = WorkPacketEngine()
-        ok = wpe.update_packet_status(
-            packet_id, PacketLifecycleStatus.CLASSIFIED, "resumed by operator"
+        def _do_resume():
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            from substrate.organism.work_packet import PacketLifecycleStatus
+            wpe = WorkPacketEngine()
+            ok = wpe.update_packet_status(
+                packet_id, PacketLifecycleStatus.CLASSIFIED, "resumed by operator"
+            )
+            return f"execution resumed for {packet_id}", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"resume execution of packet {packet_id}",
+            execute_fn=_do_resume,
+            source="cockpit",
+            metadata={"packet_id": packet_id},
         )
-        return {
-            "ok": ok,
-            "packet_id": packet_id,
-            "deprecated": "use POST /workstation/execution/resume",
-        }
+        return resp.to_http_dict()
 
     return r

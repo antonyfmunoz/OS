@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 
@@ -60,26 +62,53 @@ def get_router():
 
     @router.post("/panel")
     def workstation_presence_panel(body: PanelUpdate) -> dict[str, Any]:
-        rt = _get_runtime()
-        if rt is None:
-            return {"error": "workstation presence not available"}
-        rt.update_panel(body.panel_id)
-        return {"ok": True, "panel_id": body.panel_id}
+        def _do():
+            rt = _get_runtime()
+            if rt is None:
+                return "workstation presence not available", False
+            rt.update_panel(body.panel_id)
+            return f"panel updated to {body.panel_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"update workstation panel to {body.panel_id}",
+            execute_fn=_do,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.post("/device")
     def workstation_presence_device(body: DeviceUpdate) -> dict[str, Any]:
-        rt = _get_runtime()
-        if rt is None:
-            return {"error": "workstation presence not available"}
-        rt.update_device(body.device_id)
-        return {"ok": True, "device_id": body.device_id}
+        def _do():
+            rt = _get_runtime()
+            if rt is None:
+                return "workstation presence not available", False
+            rt.update_device(body.device_id)
+            return f"device updated to {body.device_id}", True
+
+        resp = governed_mutation(
+            mutation_name="adapter_update",
+            intent=f"update workstation device to {body.device_id}",
+            execute_fn=_do,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.post("/context")
     def workstation_presence_context(body: ContextUpdate) -> dict[str, Any]:
-        rt = _get_runtime()
-        if rt is None:
-            return {"error": "workstation presence not available"}
-        rt.update_context(body.ctx)
-        return {"ok": True}
+        def _do():
+            rt = _get_runtime()
+            if rt is None:
+                return "workstation presence not available", False
+            rt.update_context(body.ctx)
+            return "context updated", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent="update workstation context",
+            execute_fn=_do,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     return router

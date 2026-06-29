@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types.js'
 import { callOrganism } from '../lib/python_bridge.js'
+import { governedMutation } from '../lib/governed_bridge.js'
 import { operatorGuard } from '../middleware/operator.js'
 
 const router = new Hono<Env>()
@@ -159,9 +160,12 @@ router.get('/learning-loop', operatorGuard, async (c) => {
 
 router.post('/outcome', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
-  const result = await callOrganism('organism.outcome_capture', body as Record<string, unknown>)
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'capture outcome',
+    payload: body as Record<string, unknown>,
+  })
+  return c.json(result)
 })
 
 router.get('/memory-promotion', operatorGuard, async (c) => {
@@ -171,34 +175,48 @@ router.get('/memory-promotion', operatorGuard, async (c) => {
 })
 
 router.post('/memory-promotion/:id/approve', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.memory_promotion.approve', { id: c.req.param('id') })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'memory_promote',
+    intent: `approve memory promotion ${id}`,
+    payload: { id },
+  })
+  return c.json(result)
 })
 
 router.post('/memory-promotion/:id/reject', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const reason = (body as Record<string, unknown>).reason as string
-  const result = await callOrganism('organism.memory_promotion.reject', { id: c.req.param('id'), reason })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'memory_promote',
+    intent: `reject memory promotion ${id}`,
+    payload: { id, reason },
+  })
+  return c.json(result)
 })
 
 router.post('/compose', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const intent = (body as Record<string, unknown>).intent as string
-  const result = await callOrganism('organism.compose', { intent })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: `compose: ${intent}`,
+    payload: { intent },
+  })
+  return c.json(result)
 })
 
 // ── Phase 9.1: Plan Execution Adapter ────────────────────────
 router.post('/execute-plan', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const intent = (body as Record<string, unknown>).intent as string
-  const result = await callOrganism('organism.execute_plan', { intent })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'work_packet_create',
+    intent: `execute plan: ${intent}`,
+    payload: { intent },
+  })
+  return c.json(result)
 })
 
 router.get('/execution-graph', operatorGuard, async (c) => {
@@ -216,12 +234,14 @@ router.get('/execution-graph/:id', operatorGuard, async (c) => {
 })
 
 router.post('/execute-plan/:planId/approve/:stepId', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.execute_plan.approve_step', {
-    plan_id: c.req.param('planId'),
-    step_id: c.req.param('stepId'),
+  const planId = c.req.param('planId')
+  const stepId = c.req.param('stepId')
+  const result = await governedMutation({
+    mutation_name: 'approval_decide',
+    intent: `approve plan step ${planId}/${stepId}`,
+    payload: { plan_id: planId, step_id: stepId },
   })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  return c.json(result)
 })
 
 router.get('/execute-plan/:planId/pending', operatorGuard, async (c) => {
@@ -259,17 +279,25 @@ router.get('/template-candidates', operatorGuard, async (c) => {
 })
 
 router.post('/template-candidates/:id/approve', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.template_candidates.approve', { id: c.req.param('id') })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'approval_decide',
+    intent: `approve template candidate ${id}`,
+    payload: { id },
+  })
+  return c.json(result)
 })
 
 router.post('/template-candidates/:id/reject', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const reason = (body as Record<string, unknown>).reason as string
-  const result = await callOrganism('organism.template_candidates.reject', { id: c.req.param('id'), reason })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'approval_decide',
+    intent: `reject template candidate ${id}`,
+    payload: { id, reason },
+  })
+  return c.json(result)
 })
 
 router.get('/agent-capabilities', operatorGuard, async (c) => {
@@ -318,9 +346,12 @@ router.get('/spine-propagation-status', operatorGuard, async (c) => {
 // ── Report Dispatcher ────────────────────────────────────────
 router.post('/dispatch-report', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
-  const result = await callOrganism('organism.dispatch_report', body as Record<string, unknown>)
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'channel_message_send',
+    intent: 'dispatch report',
+    payload: body as Record<string, unknown>,
+  })
+  return c.json(result)
 })
 
 router.get('/reports', operatorGuard, async (c) => {
@@ -339,45 +370,55 @@ router.get('/chat-history', operatorGuard, async (c) => {
 
 // ── Governed mutations (operator-only) ─────────────────────────
 router.post('/approve/:id', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.approve', {
-    approval_id: c.req.param('id'),
-    decided_by: 'cockpit',
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'approval_decide',
+    intent: `approve ${id}`,
+    payload: { approval_id: id, decided_by: 'cockpit' },
   })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  return c.json(result)
 })
 
 router.post('/deny/:id', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.deny', {
-    approval_id: c.req.param('id'),
-    decided_by: 'cockpit',
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'approval_decide',
+    intent: `deny ${id}`,
+    payload: { approval_id: id, decided_by: 'cockpit' },
   })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  return c.json(result)
 })
 
 router.post('/kill', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.kill')
-  if (!result.success) return c.json({ error: result.error }, 500)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'activate recursion kill switch',
+  })
+  return c.json(result)
 })
 
 router.post('/resume', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.resume')
-  if (!result.success) return c.json({ error: result.error }, 500)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'deactivate recursion kill switch',
+  })
+  return c.json(result)
 })
 
 router.post('/governor/reset', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.governor.reset')
-  if (!result.success) return c.json({ error: result.error }, 500)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'governance_update',
+    intent: 'reset governor counters',
+  })
+  return c.json(result)
 })
 
 router.post('/refresh', async (c) => {
-  const result = await callOrganism('organism.refresh')
-  if (!result.success) return c.json({ error: result.error }, 502)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'refresh runtime availability',
+  })
+  return c.json(result)
 })
 
 router.get('/delegations', async (c) => {
@@ -389,17 +430,28 @@ router.get('/delegations', async (c) => {
 router.post('/control', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const action = (body as Record<string, unknown>).action as string
-  if (action === 'kill') return c.json((await callOrganism('organism.kill')).data)
-  if (action === 'resume') return c.json((await callOrganism('organism.resume')).data)
-  return c.json({ ok: true, action })
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: `organism control: ${action}`,
+    payload: { action },
+  })
+  return c.json(result)
 })
 
 router.post('/handoff', async (c) => {
-  return c.json({ ok: true, handoff: 'queued' })
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'queue handoff',
+  })
+  return c.json(result)
 })
 
 router.post('/parallel', async (c) => {
-  return c.json({ ok: true, results: [] })
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'parallel execution request',
+  })
+  return c.json(result)
 })
 
 // ── Phase 10.2: Cadence, Sandbox, Approval, PR Factory ──────
@@ -440,20 +492,25 @@ router.get('/approval-packets/:id', operatorGuard, async (c) => {
 })
 
 router.post('/approval-packets/:id/approve', operatorGuard, async (c) => {
-  const result = await callOrganism('organism.approval_packet.approve', { packet_id: c.req.param('id') })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'approval_decide',
+    intent: `approve approval packet ${id}`,
+    payload: { packet_id: id },
+  })
+  return c.json(result)
 })
 
 router.post('/approval-packets/:id/reject', operatorGuard, async (c) => {
   const body = await c.req.json().catch(() => ({}))
   const reason = (body as Record<string, unknown>).reason as string
-  const result = await callOrganism('organism.approval_packet.reject', {
-    packet_id: c.req.param('id'),
-    reason,
+  const id = c.req.param('id')
+  const result = await governedMutation({
+    mutation_name: 'approval_decide',
+    intent: `reject approval packet ${id}`,
+    payload: { packet_id: id, reason },
   })
-  if (!result.success) return c.json({ error: result.error }, 400)
-  return c.json(result.data)
+  return c.json(result)
 })
 
 router.get('/pr-factory', operatorGuard, async (c) => {
@@ -503,30 +560,42 @@ router.get('/operator-experience/approvals', operatorGuard, async (c) => {
 
 router.post('/operator-experience/send', operatorGuard, async (c) => {
   const body = await c.req.json()
-  const result = await callOrganism('organism.operator_experience.send', body)
-  if (!result.success) return c.json({ error: result.error }, 502)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'conversation_send',
+    intent: 'send operator experience message',
+    payload: body as Record<string, unknown>,
+  })
+  return c.json(result)
 })
 
 router.post('/operator-experience/packet-preview', operatorGuard, async (c) => {
   const body = await c.req.json()
-  const result = await callOrganism('organism.operator_experience.packet_preview', body)
-  if (!result.success) return c.json({ error: result.error }, 502)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'generate packet preview',
+    payload: body as Record<string, unknown>,
+  })
+  return c.json(result)
 })
 
 router.post('/operator-experience/propagation-preview', operatorGuard, async (c) => {
   const body = await c.req.json()
-  const result = await callOrganism('organism.operator_experience.propagation_preview', body)
-  if (!result.success) return c.json({ error: result.error }, 502)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'generate propagation preview',
+    payload: body as Record<string, unknown>,
+  })
+  return c.json(result)
 })
 
 router.post('/operator-experience/topology-preview', operatorGuard, async (c) => {
   const body = await c.req.json()
-  const result = await callOrganism('organism.operator_experience.topology_preview', body)
-  if (!result.success) return c.json({ error: result.error }, 502)
-  return c.json(result.data)
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'generate topology preview',
+    payload: body as Record<string, unknown>,
+  })
+  return c.json(result)
 })
 
 // ── Operational Truth ────────────────────────────────────

@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 reality_model_router: APIRouter = APIRouter()
@@ -329,19 +331,29 @@ async def _canonical_store(request: Request):
             "error": "Canonical patterns require governance_approved=true",
         }
 
-    from substrate.reality_model.canonical import CanonicalPattern
-    canonical = _get_canonical()
-    pattern = CanonicalPattern(
-        name=name,
-        domain=domain,
-        description=description,
-        evidence_count=body.get("evidence_count", 1),
-        confidence=body.get("confidence", 0.5),
-        tags=body.get("tags", []),
-        metadata=body.get("metadata", {}),
+    def _do_store():
+        from substrate.reality_model.canonical import CanonicalPattern
+        canonical = _get_canonical()
+        pattern = CanonicalPattern(
+            name=name,
+            domain=domain,
+            description=description,
+            evidence_count=body.get("evidence_count", 1),
+            confidence=body.get("confidence", 0.5),
+            tags=body.get("tags", []),
+            metadata=body.get("metadata", {}),
+        )
+        pattern_id = canonical.store(pattern)
+        return f"stored pattern {name} ({pattern_id})", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"store canonical pattern: {name}",
+        execute_fn=_do_store,
+        source="cockpit",
+        metadata={"name": name, "domain": domain},
     )
-    pattern_id = canonical.store(pattern)
-    return {"success": True, "pattern_id": str(pattern_id), "name": name}
+    return resp.to_http_dict()
 
 
 async def _instance_record(request: Request):
@@ -350,17 +362,29 @@ async def _instance_record(request: Request):
     if not content:
         return {"success": False, "error": "content is required"}
 
-    from substrate.reality_model.instance import InstanceObservation
-    instance = _get_instance()
-    obs = InstanceObservation(
-        content=content[:2000],
-        domain=body.get("domain", "general"),
-        confidence=body.get("confidence", 0.5),
-        tags=body.get("tags", []),
-        metadata=body.get("metadata", {}),
+    obs_domain = body.get("domain", "general")
+
+    def _do_record():
+        from substrate.reality_model.instance import InstanceObservation
+        instance = _get_instance()
+        obs = InstanceObservation(
+            content=content[:2000],
+            domain=obs_domain,
+            confidence=body.get("confidence", 0.5),
+            tags=body.get("tags", []),
+            metadata=body.get("metadata", {}),
+        )
+        obs_id = instance.record(obs)
+        return f"recorded observation {obs_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"record instance observation ({obs_domain})",
+        execute_fn=_do_record,
+        source="cockpit",
+        metadata={"domain": obs_domain},
     )
-    obs_id = instance.record(obs)
-    return {"success": True, "observation_id": str(obs_id)}
+    return resp.to_http_dict()
 
 
 async def _simulate(request: Request):
@@ -370,6 +394,17 @@ async def _simulate(request: Request):
         return {"success": False, "error": "hypothesis is required"}
 
     actions = body.get("actions")
-    simulation = _get_simulation()
-    result = simulation.simulate(hypothesis=hypothesis, actions=actions)
-    return {"success": True, "result": result.to_dict()}
+
+    def _do_simulate():
+        simulation = _get_simulation()
+        result = simulation.simulate(hypothesis=hypothesis, actions=actions)
+        return f"simulation complete: {hypothesis[:80]}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"simulate: {hypothesis[:100]}",
+        execute_fn=_do_simulate,
+        source="cockpit",
+        metadata={"hypothesis": hypothesis},
+    )
+    return resp.to_http_dict()

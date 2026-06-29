@@ -19,6 +19,8 @@ import psutil
 from fastapi import Depends, Request
 from fastapi.responses import JSONResponse
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
@@ -463,14 +465,23 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
             return JSONResponse({"error": "key is required"}, status_code=400)
         if value is None:
             return JSONResponse({"error": "value is required"}, status_code=400)
-        try:
-            from substrate.state.config.config_store import VALID_KEYS
-            from substrate.sockets.config_port import set_config, get_config
 
-            if key not in VALID_KEYS:
-                return JSONResponse({"error": f"invalid config key: {key}"}, status_code=400)
-            set_config(key, value, layer=layer)
-            return {"ok": True, "key": key, "value": get_config(key), "layer": layer}
-        except Exception as e:
-            logger.error("config_patch failed: %s", e)
-            return JSONResponse({"error": str(e)}, status_code=500)
+        from substrate.state.config.config_store import VALID_KEYS
+        if key not in VALID_KEYS:
+            return JSONResponse({"error": f"invalid config key: {key}"}, status_code=400)
+
+        def _do_config_patch():
+            try:
+                from substrate.sockets.config_port import set_config, get_config
+                set_config(key, value, layer=layer)
+                return f"config {key} updated", True
+            except Exception as e:
+                return str(e), False
+
+        resp = governed_mutation(
+            mutation_name="config_update",
+            intent=f"update config: {key}",
+            execute_fn=_do_config_patch,
+            source="cockpit",
+        )
+        return resp.to_http_dict()

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types.js'
 import { callOrganism } from '../lib/python_bridge.js'
+import { governedMutation } from '../lib/governed_bridge.js'
 
 const router = new Hono<Env>()
 
@@ -103,23 +104,35 @@ router.get('/authority', async (c) => {
 })
 
 router.post('/start', async (c) => {
-  const result = await callOrganism('organism.resume')
-  return c.json(result.success ? result.data : { ok: false, error: result.error })
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'start execution (resume)',
+  })
+  return c.json(result)
 })
 
 router.post('/stop', async (c) => {
-  const result = await callOrganism('organism.kill')
-  return c.json(result.success ? result.data : { ok: false, error: result.error })
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'stop execution (kill)',
+  })
+  return c.json(result)
 })
 
 router.post('/pause', async (c) => {
-  const result = await callOrganism('organism.kill')
-  return c.json(result.success ? result.data : { ok: false, error: result.error })
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'pause execution (kill)',
+  })
+  return c.json(result)
 })
 
 router.post('/resume', async (c) => {
-  const result = await callOrganism('organism.resume')
-  return c.json(result.success ? result.data : { ok: false, error: result.error })
+  const result = await governedMutation({
+    mutation_name: 'state_mutate',
+    intent: 'resume execution',
+  })
+  return c.json(result)
 })
 
 export default router

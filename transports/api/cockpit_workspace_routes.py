@@ -19,6 +19,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 workspace_router: APIRouter = APIRouter()
@@ -94,12 +96,22 @@ async def _write_file(request: Request) -> dict[str, Any]:
     from substrate.workstation.file_browser import _is_path_allowed
     if not _is_path_allowed(path):
         return {"ok": False, "error": "path not in allowlist"}
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(content)
-        return {"ok": True, "path": path}
-    except OSError as e:
-        return {"ok": False, "error": str(e), "path": path}
+
+    def _do_write():
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return f"file written: {path}", True
+        except OSError as e:
+            return str(e), False
+
+    resp = governed_mutation(
+        mutation_name="filesystem_write",
+        intent=f"write file: {path}",
+        execute_fn=_do_write,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ---------------------------------------------------------------------------
@@ -576,16 +588,26 @@ async def _remote_write_file(request: Request) -> dict[str, Any]:
     err = _validate_windows_path(path)
     if err:
         return {"ok": False, "error": err, "path": path}
-    import base64
-    encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
-    safe_path = path.replace("'", "''")
-    ok, output = _ssh_cmd(
-        f"powershell -Command \"[System.IO.File]::WriteAllBytes("
-        f"'{safe_path}', [Convert]::FromBase64String('{encoded}'))\""
+
+    def _do_remote_write():
+        import base64
+        encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
+        safe_path = path.replace("'", "''")
+        ok, output = _ssh_cmd(
+            f"powershell -Command \"[System.IO.File]::WriteAllBytes("
+            f"'{safe_path}', [Convert]::FromBase64String('{encoded}'))\""
+        )
+        if not ok:
+            return output[:500], False
+        return f"remote file written: {path}", True
+
+    resp = governed_mutation(
+        mutation_name="filesystem_write",
+        intent=f"write remote file: {node}:{path}",
+        execute_fn=_do_remote_write,
+        source="cockpit",
     )
-    if not ok:
-        return {"ok": False, "error": output[:500], "path": path}
-    return {"ok": True, "path": path, "source_env": "windows"}
+    return resp.to_http_dict()
 
 
 def _mesh_nodes_status(request: Request) -> dict[str, Any]:

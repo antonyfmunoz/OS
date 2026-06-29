@@ -15,6 +15,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 economy_router: APIRouter = APIRouter()
@@ -153,32 +155,44 @@ def _organism_recursion_escalations(limit: int = 50):
 
 def _organism_kill_switch():
     """Activate the kill switch — halts all autonomous execution."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    try:
+    def _do_kill():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
         governor = getattr(daemon, "_recursion_governor", None)
         if governor is None:
-            return {"error": "recursion governor not available"}
+            return "recursion governor not available", False
         governor.kill()
-        return {"ok": True, "killed": True}
-    except Exception as e:
-        return {"error": str(e)}
+        return "kill switch activated", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="activate organism kill switch — halt all autonomous execution",
+        execute_fn=_do_kill,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _organism_resume_switch():
     """Deactivate the kill switch — resume autonomous execution."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    try:
+    def _do_resume():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
         governor = getattr(daemon, "_recursion_governor", None)
         if governor is None:
-            return {"error": "recursion governor not available"}
+            return "recursion governor not available", False
         governor.resume()
-        return {"ok": True, "killed": False}
-    except Exception as e:
-        return {"error": str(e)}
+        return "kill switch deactivated — autonomous execution resumed", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="deactivate organism kill switch — resume autonomous execution",
+        execute_fn=_do_resume,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Advisor handlers ───────────────────────────────────────────────────────────
@@ -432,16 +446,20 @@ async def _organism_reconcile_now():
     """Force an immediate reconciliation cycle."""
     import asyncio
 
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-    try:
+    def _do_reconcile():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
         reconciler = getattr(daemon, "_reconciler", None)
         if reconciler is None:
-            return {"error": "reconciler not available"}
+            return "reconciler not available", False
+        reconciler.reconcile()
+        return "reconciliation completed", True
 
-        loop = asyncio.get_running_loop()
-        report = await loop.run_in_executor(None, reconciler.reconcile)
-        return report.to_dict()
-    except Exception as e:
-        return {"error": str(e)}
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="force immediate reconciliation cycle",
+        execute_fn=_do_reconcile,
+        source="cockpit",
+    )
+    return resp.to_http_dict()

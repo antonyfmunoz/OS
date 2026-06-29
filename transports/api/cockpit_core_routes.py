@@ -24,6 +24,7 @@ import psutil
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from substrate.execution.cpu_gate import gated_subprocess_run
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -1032,8 +1033,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     @router.post("/pipeline/submit", dependencies=[Depends(_require_operator_role)])
     async def pipeline_submit(payload: dict):
         """Submit a command through the full execution pipeline from cockpit."""
-        import asyncio
-
         content = payload.get("content", "")
         if not content:
             return {"error": "content required"}
@@ -1052,86 +1051,89 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         except (ImportError, KeyError):
             return {"error": f"invalid risk_class: {risk_class}"}
 
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: _pipeline.submit_signal(
+        def _do_submit():
+            result = _pipeline.submit_signal(
                 content,
                 risk_class=risk,
                 adapter_name=adapter,
                 operation=operation,
                 params=params,
                 pre_approved=pre_approved,
-            ),
-        )
+            )
+            return f"pipeline submitted: trace={result.trace_id}", result.success
 
-        return {
-            "trace_id": str(result.trace_id),
-            "signal_id": str(result.signal_id),
-            "governance_approved": result.governance_approved,
-            "governance_rationale": result.governance_rationale,
-            "executed": result.executed,
-            "success": result.success,
-            "outcome_type": result.outcome_type,
-        }
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"pipeline submit: {content[:100]}",
+            execute_fn=_do_submit,
+            source="cockpit",
+            metadata={"adapter": adapter, "risk_class": risk_class},
+        )
+        return resp.to_http_dict()
 
     @router.post("/comms/send", dependencies=[Depends(_require_operator_role)])
     def comms_send(payload: dict):
         """Send a message to an organism agent."""
-        daemon = _get_organism()
-        if daemon is None:
-            return {"error": "organism not running"}
-
         recipient = payload.get("recipient", "")
         content = payload.get("content", "")
         if not recipient or not content:
             return {"error": "recipient and content required"}
 
-        from substrate.organism.protocols import AgentMessage
+        def _do_send():
+            daemon = _get_organism()
+            if daemon is None:
+                return "organism not running", False
+            from substrate.organism.protocols import AgentMessage
+            msg = AgentMessage(
+                sender="operator",
+                recipient=recipient,
+                intent=payload.get("intent", "operator_message"),
+                payload={"content": content, "source": "cockpit"},
+            )
+            daemon.store.save_message(msg)
+            return f"message sent to {recipient}: {msg.id}", True
 
-        msg = AgentMessage(
-            sender="operator",
-            recipient=recipient,
-            intent=payload.get("intent", "operator_message"),
-            payload={"content": content, "source": "cockpit"},
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"send message to {recipient}",
+            execute_fn=_do_send,
+            source="cockpit",
+            metadata={"recipient": recipient},
         )
-        daemon.store.save_message(msg)
-        return {"ok": True, "message_id": str(msg.id)}
+        return resp.to_http_dict()
 
     @router.post("/workflows/{workflow_id}/trigger", dependencies=[Depends(_require_operator_role)])
-    async def workflow_trigger(workflow_id: str, payload: dict | None = None):
+    def workflow_trigger(workflow_id: str, payload: dict | None = None):
         """Trigger a workflow run through the pipeline."""
-        import asyncio
-
         adapter = workflow_id.replace("wf-", "")
         content = f"Triggered {adapter} workflow from cockpit"
         if payload and payload.get("params"):
             content = payload["params"].get("command", content)
 
-        try:
-            from transports.api.app import _pipeline
-            from substrate.governance.risk_classes import RiskClass
+        def _do_trigger():
+            try:
+                from transports.api.app import _pipeline
+                from substrate.governance.risk_classes import RiskClass
 
-            loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: _pipeline.submit_signal(
+                result = _pipeline.submit_signal(
                     content,
                     risk_class=RiskClass.READ_ONLY,
                     adapter_name=adapter if adapter != "system" else "shell",
                     operation=payload.get("operation", "query") if payload else "query",
                     params=payload.get("params", {}) if payload else {},
-                ),
-            )
+                )
+                return f"workflow {adapter} triggered: trace={result.trace_id}", result.success
+            except Exception as exc:
+                return str(exc), False
 
-            return {
-                "ok": True,
-                "trace_id": str(result.trace_id),
-                "success": result.success,
-                "governance_approved": result.governance_approved,
-            }
-        except Exception as exc:
-            return {"ok": False, "error": str(exc)}
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"trigger workflow {adapter}",
+            execute_fn=_do_trigger,
+            source="cockpit",
+            metadata={"workflow_id": workflow_id},
+        )
+        return resp.to_http_dict()
 
     @router.patch("/settings", dependencies=[Depends(_require_operator_role)])
     async def update_settings(request: Request):
@@ -1145,61 +1147,89 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         payload = await request.json()
         action = payload.get("action", "")
 
-        if action == "toggle_provider":
-            result = toggle_provider(payload.get("provider_key", ""), payload.get("enabled", False))
-        elif action == "set_purpose_chain":
-            result = set_purpose_chain(payload.get("purpose", ""), payload.get("roles", []))
-        elif action == "set_role_slot":
-            result = set_role_slot(payload.get("role", ""), payload.get("provider_key", ""))
-        else:
+        if action not in ("toggle_provider", "set_purpose_chain", "set_role_slot"):
             raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
 
-        if not result.ok:
-            raise HTTPException(status_code=400, detail=result.errors)
+        def _do_settings():
+            if action == "toggle_provider":
+                result = toggle_provider(payload.get("provider_key", ""), payload.get("enabled", False))
+            elif action == "set_purpose_chain":
+                result = set_purpose_chain(payload.get("purpose", ""), payload.get("roles", []))
+            else:
+                result = set_role_slot(payload.get("role", ""), payload.get("provider_key", ""))
 
-        if push_mutation_event is not None:
-            push_mutation_event("settings", "updated", {"action": action})
+            if not result.ok:
+                return f"settings update failed: {result.errors}", False
 
-        return {
-            "ok": True,
-            "warnings": result.warnings,
-            "audit": result.audit_event,
-            "applied_state": result.applied_state,
-            "requires_approval": result.requires_approval,
-            "approval_reason": result.approval_reason,
-        }
+            if push_mutation_event is not None:
+                push_mutation_event("settings", "updated", {"action": action})
+
+            return f"settings {action} applied", True
+
+        resp = governed_mutation(
+            mutation_name="settings_update",
+            intent=f"update settings: {action}",
+            execute_fn=_do_settings,
+            source="cockpit",
+            metadata={"action": action},
+        )
+        return resp.to_http_dict()
 
     @router.post("/organism/control", dependencies=[Depends(_require_operator_role)])
     def organism_control(payload: dict):
         """Control organism lifecycle — start/stop."""
-        daemon = _get_organism()
         action = payload.get("action", "")
 
         if action == "status":
+            daemon = _get_organism()
             if daemon is None:
                 return {"running": False}
             return {"running": daemon.is_running}
-        elif action == "stop":
-            if daemon is not None:
-                daemon.stop()
-            return {"ok": True, "running": False}
-        elif action == "start":
-            if daemon is not None:
-                daemon.start()
-            return {"ok": True, "running": daemon.is_running if daemon else False}
+        elif action in ("start", "stop"):
+            def _do_control():
+                daemon = _get_organism()
+                if action == "stop":
+                    if daemon is not None:
+                        daemon.stop()
+                    return "organism stopped", True
+                else:
+                    if daemon is not None:
+                        daemon.start()
+                    return f"organism started (running={daemon.is_running if daemon else False})", True
+
+            resp = governed_mutation(
+                mutation_name="state_mutate",
+                intent=f"organism {action}",
+                execute_fn=_do_control,
+                source="cockpit",
+                metadata={"action": action},
+            )
+            return resp.to_http_dict()
         else:
             return {"error": f"unknown action: {action}"}
 
     @router.post("/agents/{agent_id}/signal")
     def agent_signal(agent_id: str, payload: dict):
         """Send a signal to a specific organism agent."""
-        daemon = _get_organism()
-        if daemon is None:
-            return {"error": "organism not running"}
         content = payload.get("content", "")
         if not content:
             return {"error": "content required"}
-        return daemon.advisor.handle_signal(content)
+
+        def _do_signal():
+            daemon = _get_organism()
+            if daemon is None:
+                return "organism not running", False
+            daemon.advisor.handle_signal(content)
+            return f"signal sent to {agent_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"send signal to agent {agent_id}",
+            execute_fn=_do_signal,
+            source="cockpit",
+            metadata={"agent_id": agent_id},
+        )
+        return resp.to_http_dict()
 
     @router.get("/profile")
     def profile():
@@ -1307,23 +1337,50 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     @router.post("/organism/handoff", dependencies=[Depends(_require_operator_role)])
     def organism_handoff(payload: dict):
         """Submit a task handoff between agents."""
-        daemon = _get_organism()
-        if daemon is None:
-            return {"error": "organism not running"}
-        return daemon.handoff(
-            source_agent=payload.get("source_agent", ""),
-            target_agent=payload.get("target_agent", ""),
-            task=payload.get("task", ""),
-            context=payload.get("context", ""),
+        source = payload.get("source_agent", "")
+        target = payload.get("target_agent", "")
+
+        def _do_handoff():
+            daemon = _get_organism()
+            if daemon is None:
+                return "organism not running", False
+            daemon.handoff(
+                source_agent=source,
+                target_agent=target,
+                task=payload.get("task", ""),
+                context=payload.get("context", ""),
+            )
+            return f"handoff {source} -> {target}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"handoff from {source} to {target}",
+            execute_fn=_do_handoff,
+            source="cockpit",
+            metadata={"source_agent": source, "target_agent": target},
         )
+        return resp.to_http_dict()
 
     @router.post("/organism/parallel", dependencies=[Depends(_require_operator_role)])
     def organism_parallel(payload: dict):
         """Execute multiple agent tasks in parallel."""
-        daemon = _get_organism()
-        if daemon is None:
-            return {"error": "organism not running"}
-        return daemon.execute_parallel(payload.get("tasks", []))
+        tasks = payload.get("tasks", [])
+
+        def _do_parallel():
+            daemon = _get_organism()
+            if daemon is None:
+                return "organism not running", False
+            daemon.execute_parallel(tasks)
+            return f"parallel execution of {len(tasks)} tasks", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"parallel execute {len(tasks)} agent tasks",
+            execute_fn=_do_parallel,
+            source="cockpit",
+            metadata={"task_count": len(tasks)},
+        )
+        return resp.to_http_dict()
 
     @router.get("/organism/delegations")
     def organism_delegations():
@@ -1784,29 +1841,30 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 intent = matched_intent
                 break
 
-        event_id = ""
-        try:
-            from substrate.state.memory.memory import ConversationMemory
+        def _do_classify():
+            event_id = ""
+            try:
+                from substrate.state.memory.memory import ConversationMemory
+                mem = ConversationMemory()
+                org_id = os.environ.get("UMH_ORG_ID") or os.environ.get("EOS_ORG_ID", "")
+                if org_id:
+                    event_id = mem.log_event(
+                        org_id=org_id,
+                        event_type="intent_classified",
+                        payload={"text": text[:500], "intent": intent},
+                        handled_by="cockpit_intent_classify",
+                    )
+            except Exception as exc:
+                logger.debug("intent_classify persistence failed: %s", exc)
+            return f"classified as {intent} (persisted={bool(event_id)})", True
 
-            mem = ConversationMemory()
-            org_id = os.environ.get("UMH_ORG_ID") or os.environ.get("EOS_ORG_ID", "")
-            if org_id:
-                event_id = mem.log_event(
-                    org_id=org_id,
-                    event_type="intent_classified",
-                    payload={"text": text[:500], "intent": intent},
-                    handled_by="cockpit_intent_classify",
-                )
-        except Exception as exc:
-            logger.debug("intent_classify persistence failed: %s", exc)
-
-        return {
-            "ok": True,
-            "intent": intent,
-            "confidence": "deterministic",
-            "persisted": bool(event_id),
-            "event_id": event_id,
-        }
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"classify intent: {text[:80]}",
+            execute_fn=_do_classify,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     # ── Projection preview routes (Phase 2.1) ──────────────────────────────────
 
@@ -1855,23 +1913,43 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     @router.post("/proofs/{proof_id}/approve", dependencies=[Depends(_require_operator_role)])
     def approve_proof(proof_id: str, payload: dict | None = None):
-        from substrate.organism.proof_store import get_proof_store
-
         notes = (payload or {}).get("notes", "")
-        pkg = get_proof_store().approve(proof_id, notes=notes)
-        if pkg is None:
-            return {"error": f"proof '{proof_id}' not found"}
-        return {"ok": True, "proof_id": proof_id, "status": pkg.status}
+
+        def _do_approve():
+            from substrate.organism.proof_store import get_proof_store
+            pkg = get_proof_store().approve(proof_id, notes=notes)
+            if pkg is None:
+                return f"proof '{proof_id}' not found", False
+            return f"proof {proof_id} approved", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve proof {proof_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+            metadata={"proof_id": proof_id},
+        )
+        return resp.to_http_dict()
 
     @router.post("/proofs/{proof_id}/reject", dependencies=[Depends(_require_operator_role)])
     def reject_proof(proof_id: str, payload: dict | None = None):
-        from substrate.organism.proof_store import get_proof_store
-
         notes = (payload or {}).get("notes", "")
-        pkg = get_proof_store().reject(proof_id, notes=notes)
-        if pkg is None:
-            return {"error": f"proof '{proof_id}' not found"}
-        return {"ok": True, "proof_id": proof_id, "status": pkg.status}
+
+        def _do_reject():
+            from substrate.organism.proof_store import get_proof_store
+            pkg = get_proof_store().reject(proof_id, notes=notes)
+            if pkg is None:
+                return f"proof '{proof_id}' not found", False
+            return f"proof {proof_id} rejected", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"reject proof {proof_id}",
+            execute_fn=_do_reject,
+            source="cockpit",
+            metadata={"proof_id": proof_id},
+        )
+        return resp.to_http_dict()
 
     # ── Workstation snapshot & resume (Phase 5) ────────────────────────────────
 
@@ -2077,16 +2155,26 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     @router.patch("/execution/preference", dependencies=[Depends(_require_operator_role)])
     def update_executor_preference(payload: dict):
         """Update executor preference order."""
-        from substrate.organism.executor_runtime import (
-            save_executor_preference,
-            load_executor_preference,
-        )
-
         order = payload.get("order", [])
         if not isinstance(order, list) or not order:
             return {"error": "order must be a non-empty list of executor types"}
-        save_executor_preference(order)
-        return {"ok": True, "order": load_executor_preference()}
+
+        def _do_update():
+            from substrate.organism.executor_runtime import (
+                save_executor_preference,
+                load_executor_preference,
+            )
+            save_executor_preference(order)
+            return f"executor preference set to {load_executor_preference()}", True
+
+        resp = governed_mutation(
+            mutation_name="settings_update",
+            intent=f"update executor preference: {order}",
+            execute_fn=_do_update,
+            source="cockpit",
+            metadata={"order": order},
+        )
+        return resp.to_http_dict()
 
     # ── Bootstrap, config, session, feedback, governance, EOS routes ──────────
     # Delegated to split files (see end of function)

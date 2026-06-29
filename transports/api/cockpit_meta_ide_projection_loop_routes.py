@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 build_loop_router: APIRouter = APIRouter()
@@ -47,26 +49,100 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         body = await request.json()
         text = body.get("text", "")
         projection_target = body.get("projection_target", "")
-        result = _get_runtime().submit(text, projection_target=projection_target)
-        return result.to_dict()
+        captured: dict = {}
+
+        def _do_submit():
+            result = _get_runtime().submit(text, projection_target=projection_target)
+            captured.update(result.to_dict())
+            return f"build loop submitted: {text[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"build loop submit: {text[:80]}",
+            execute_fn=_do_submit,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/build-loop/advance/{request_id}", dependencies=auth)
     def advance(request_id: str) -> dict[str, Any]:
-        return _get_runtime().advance(request_id).to_dict()
+        captured: dict = {}
+
+        def _do_advance():
+            result = _get_runtime().advance(request_id)
+            captured.update(result.to_dict())
+            return f"advanced {request_id}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"build loop advance {request_id}",
+            execute_fn=_do_advance,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/build-loop/review/{request_id}", dependencies=auth)
     def review(request_id: str) -> dict[str, Any]:
-        return _get_runtime().review(request_id).to_dict()
+        captured: dict = {}
+
+        def _do_review():
+            result = _get_runtime().review(request_id)
+            captured.update(result.to_dict())
+            return f"review started for {request_id}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"build loop review {request_id}",
+            execute_fn=_do_review,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/build-loop/merge/{request_id}", dependencies=auth)
     def merge(request_id: str) -> dict[str, Any]:
-        return _get_runtime().merge(request_id).to_dict()
+        captured: dict = {}
+
+        def _do_merge():
+            result = _get_runtime().merge(request_id)
+            captured.update(result.to_dict())
+            return f"merged {request_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"build loop merge {request_id}",
+            execute_fn=_do_merge,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/build-loop/reject/{request_id}", dependencies=auth)
     async def reject(request_id: str, request: Request) -> dict[str, Any]:
         body = await request.json()
         reason = body.get("reason", "")
-        return _get_runtime().reject(request_id, reason).to_dict()
+        captured: dict = {}
+
+        def _do_reject():
+            result = _get_runtime().reject(request_id, reason)
+            captured.update(result.to_dict())
+            return f"rejected {request_id}: {reason[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"build loop reject {request_id}: {reason[:80]}",
+            execute_fn=_do_reject,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.get("/build-loop/status", dependencies=auth)
     def status() -> dict[str, Any]:

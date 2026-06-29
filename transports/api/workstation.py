@@ -22,6 +22,7 @@ from substrate.workstation.state import (
     WorkstationSessionState,
     WorkstationStateManager,
 )
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -58,34 +59,27 @@ async def workstation_execute(req: WorkstationExecRequest):
         risk_level="high",
     )
 
-    ws_request = WorkstationExecutionRequest(
-        command=req.command,
-        adapter_type=req.adapter_type,
-        target_session=req.target_session or "",
-        operational_mode=_orchestrator._mode,
-        correlation_id=req.correlation_id or "",
+    def _do_execute():
+        ws_request = WorkstationExecutionRequest(
+            command=req.command,
+            adapter_type=req.adapter_type,
+            target_session=req.target_session or "",
+            operational_mode=_orchestrator._mode,
+            correlation_id=req.correlation_id or "",
+        )
+        result = _orchestrator.execute(ws_request)
+        _session.record_activity(result.request_id, f"workstation_{result.outcome.value}")
+        if not result.succeeded:
+            _session.record_error()
+        return f"command executed: {req.command[:50]}", result.succeeded
+
+    resp = governed_mutation(
+        mutation_name="workstation_execute",
+        intent=f"execute workstation command: {req.command[:80]}",
+        execute_fn=_do_execute,
+        source="cockpit",
     )
-
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(None, _orchestrator.execute, ws_request)
-
-    _session.record_activity(result.request_id, f"workstation_{result.outcome.value}")
-    if not result.succeeded:
-        _session.record_error()
-
-    return {
-        "request_id": result.request_id,
-        "command": result.command,
-        "outcome": result.outcome.value,
-        "succeeded": result.succeeded,
-        "adapter_used": result.adapter_used,
-        "stdout": result.stdout,
-        "stderr": result.stderr,
-        "exit_code": result.exit_code,
-        "duration_ms": result.duration_ms,
-        "governance_verdict": result.governance_verdict,
-        "error_message": result.error_message,
-    }
+    return resp.to_http_dict()
 
 
 @router.get("/mode")
@@ -106,8 +100,17 @@ async def set_mode(req: WorkstationModeRequest):
         valid = [m.value for m in OperationalMode]
         raise HTTPException(status_code=400, detail=f"Invalid mode. Valid: {valid}")
 
-    _orchestrator.set_mode(mode)
-    return {"mode": mode.value, "message": f"Mode changed to {mode.value}"}
+    def _do_set_mode():
+        _orchestrator.set_mode(mode)
+        return f"mode changed to {mode.value}", True
+
+    resp = governed_mutation(
+        mutation_name="config_update",
+        intent=f"change workstation mode to {mode.value}",
+        execute_fn=_do_set_mode,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @router.get("/state")

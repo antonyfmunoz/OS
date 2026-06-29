@@ -14,6 +14,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 action_bridge_router: APIRouter = APIRouter()
@@ -82,30 +84,47 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     @router.post("/execute")
     def execute_action(body: ExecuteActionBody, request: Request) -> dict[str, Any]:
-        bridge = _get_bridge()
-        from substrate.organism.action_bridge import ActionRequest
-
         operator_id = _get_operator_id(request)
-        action_request = ActionRequest(
-            action_id=body.action_id,
-            parameters=body.parameters,
-            source=body.source,
-            requested_by=operator_id,
+
+        def _do_execute():
+            bridge = _get_bridge()
+            from substrate.organism.action_bridge import ActionRequest
+
+            action_request = ActionRequest(
+                action_id=body.action_id,
+                parameters=body.parameters,
+                source=body.source,
+                requested_by=operator_id,
+            )
+            result = bridge.execute_action(action_request)
+            return f"action {body.action_id} executed", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"execute action {body.action_id}",
+            execute_fn=_do_execute,
+            source="cockpit",
         )
-        result = bridge.execute_action(action_request)
-        return result.to_dict()
+        return resp.to_http_dict()
 
     @router.post("/{execution_plan_id}/approve")
     def approve_action(execution_plan_id: str, request: Request) -> dict[str, Any]:
-        bridge = _get_bridge()
         operator_id = _get_operator_id(request)
-        result = bridge.approve_and_dispatch(execution_plan_id, operator_id=operator_id)
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No pending action for plan: {execution_plan_id}",
-            )
-        return result.to_dict()
+
+        def _do_approve():
+            bridge = _get_bridge()
+            result = bridge.approve_and_dispatch(execution_plan_id, operator_id=operator_id)
+            if not result:
+                return f"no pending action for plan: {execution_plan_id}", False
+            return f"action approved: {execution_plan_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve action plan {execution_plan_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.get("/status/{request_id}")
     def action_status(request_id: str, request: Request) -> dict[str, Any]:

@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _engine: Any = None
@@ -47,8 +49,18 @@ def _build_router() -> Any:
     @router.post("/resolve")
     def resolve_context(req: ResolveRequest) -> dict[str, Any]:
         eng = _get_engine()
-        resolved = eng.resolve(req.text)
-        return resolved.to_dict()
+
+        def _do_resolve():
+            eng.resolve(req.text)
+            return f"context resolved: {req.text[:50]}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"resolve context: {req.text[:50]}",
+            execute_fn=_do_resolve,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.get("/entity-reference")
     def resolve_entity_reference(q: str) -> dict[str, Any]:

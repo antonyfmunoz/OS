@@ -14,6 +14,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 operator_experience_router: APIRouter = APIRouter()
@@ -100,9 +102,23 @@ async def _send(request: Request) -> dict[str, Any]:
     session_id = body.get("session_id")
     if not user_input:
         return {"error": "input_required"}
-    orch = _get_orchestrator()
-    response = orch.receive_operator_input(user_input, session_id=session_id)
-    return response.to_dict()
+    captured: dict = {}
+
+    def _do_send():
+        orch = _get_orchestrator()
+        response = orch.receive_operator_input(user_input, session_id=session_id)
+        captured.update(response.to_dict())
+        return f"operator send: {user_input[:80]}", True
+
+    resp = governed_mutation(
+        mutation_name="conversation_send",
+        intent=f"operator send: {user_input[:80]}",
+        execute_fn=_do_send,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
+    return captured
 
 
 async def _packet_preview(request: Request) -> dict[str, Any]:
@@ -110,9 +126,23 @@ async def _packet_preview(request: Request) -> dict[str, Any]:
     user_input = body.get("input", "")
     if not user_input:
         return {"error": "input_required"}
-    orch = _get_orchestrator()
-    response = orch.receive_operator_input(user_input)
-    return response.to_dict()
+    captured: dict = {}
+
+    def _do_preview():
+        orch = _get_orchestrator()
+        response = orch.receive_operator_input(user_input)
+        captured.update(response.to_dict())
+        return f"packet preview: {user_input[:80]}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"packet preview: {user_input[:80]}",
+        execute_fn=_do_preview,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
+    return captured
 
 
 async def _propagation_preview(request: Request) -> dict[str, Any]:
@@ -121,10 +151,24 @@ async def _propagation_preview(request: Request) -> dict[str, Any]:
     source_node_id = body.get("source_node_id", "")
     if not description:
         return {"error": "description_required"}
-    orch = _get_orchestrator()
-    try:
+    captured: dict = {}
+
+    def _do_propagation():
+        orch = _get_orchestrator()
         preview = orch.preview_propagation_impact(description, source_node_id)
-        return preview
+        captured.update(preview)
+        return f"propagation preview: {description[:80]}", True
+
+    try:
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"propagation preview: {description[:80]}",
+            execute_fn=_do_propagation,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
     except Exception as e:
         logger.warning("propagation preview failed: %s", e)
         return {"error": str(e)}

@@ -15,6 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 distributed_runtime_router: APIRouter = APIRouter()
@@ -129,14 +131,28 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             )
         meta = payload.get("metadata", {})
         meta["registered_by"] = principal
-        worker = rt.register_worker(
-            worker_id=worker_id,
-            device_id=device_id,
-            runtime_id=runtime_id,
-            capabilities=caps,
-            metadata=meta,
+        captured: dict = {}
+
+        def _do_register():
+            worker = rt.register_worker(
+                worker_id=worker_id,
+                device_id=device_id,
+                runtime_id=runtime_id,
+                capabilities=caps,
+                metadata=meta,
+            )
+            captured.update({"ok": True, "worker": worker.to_dict()})
+            return f"registered worker {worker_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"register worker {worker_id} on device {device_id}",
+            execute_fn=_do_register,
+            source="cockpit",
         )
-        return {"ok": True, "worker": worker.to_dict()}
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/organism/distributed-runtime/workers/heartbeat")
     def heartbeat(payload: dict) -> dict:
@@ -148,8 +164,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             raise HTTPException(status_code=400, detail="worker_id required")
         if not _SAFE_ID_PATTERN.match(worker_id):
             raise HTTPException(status_code=400, detail="invalid worker_id format")
-        ok = rt.worker_heartbeat(worker_id)
-        return {"ok": ok}
+
+        def _do_heartbeat():
+            ok = rt.worker_heartbeat(worker_id)
+            return f"heartbeat {worker_id}", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"worker heartbeat {worker_id}",
+            execute_fn=_do_heartbeat,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @r.delete("/organism/distributed-runtime/workers/{worker_id}")
     def unregister_worker(
@@ -168,8 +194,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 raise HTTPException(
                     status_code=403, detail="not authorized to unregister this worker"
                 )
-        ok = rt.unregister_worker(worker_id)
-        return {"ok": ok}
+
+        def _do_unregister():
+            ok = rt.unregister_worker(worker_id)
+            return f"unregistered {worker_id}", ok
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"unregister worker {worker_id}",
+            execute_fn=_do_unregister,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @r.post("/organism/distributed-runtime/route")
     def route_packet(
@@ -195,7 +231,21 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             target_repo=str(payload.get("target_repo", "")),
             action_type=str(payload.get("action_type", "")),
         )
-        placement = rt.route_packet(pkt)
-        return {"placement": placement.to_dict()}
+        captured: dict = {}
+
+        def _do_route():
+            placement = rt.route_packet(pkt)
+            captured["placement"] = placement.to_dict()
+            return f"routed packet {pkt.packet_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"route work packet {pkt.packet_id}",
+            execute_fn=_do_route,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     return r

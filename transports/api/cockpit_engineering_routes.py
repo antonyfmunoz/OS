@@ -14,6 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 engineering_router: APIRouter = APIRouter()
@@ -83,9 +85,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
         desired_end_state = body.get("desired_end_state", "")
         constraints = body.get("constraints", [])
+        captured: dict = {}
 
-        plan = planner.create_plan(intent, desired_end_state, constraints)
-        return plan.to_dict()
+        def _do_plan():
+            plan = planner.create_plan(intent, desired_end_state, constraints)
+            captured.update(plan.to_dict())
+            return f"engineering plan created: {intent[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"create engineering plan: {intent[:80]}",
+            execute_fn=_do_plan,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.get("/engineering/plans", dependencies=auth)
     def list_plans() -> dict[str, Any]:
@@ -131,8 +146,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if not generator:
             raise HTTPException(status_code=503, detail="Generator unavailable")
 
-        receipt = generator.generate_packets(plan)
-        return receipt.to_dict()
+        captured: dict = {}
+
+        def _do_approve():
+            receipt = generator.generate_packets(plan)
+            captured.update(receipt.to_dict())
+            return f"approved plan {plan_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve engineering plan {plan_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/engineering/plans/{plan_id}/dispatch", dependencies=auth)
     async def dispatch_plan(plan_id: str, body: dict[str, Any] = {}) -> dict[str, Any]:
@@ -180,6 +209,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
 
+        gov_resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"dispatch plan {plan_id} to node {node_id}",
+            execute_fn=lambda: ("governance check passed", True),
+            source="cockpit",
+        )
+        if not gov_resp.success:
+            return gov_resp.to_http_dict()
+
         _active_dispatches[plan_id] = True
 
         async def _run_dispatch() -> None:
@@ -204,7 +242,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if not plan:
             raise HTTPException(status_code=404, detail=f"Plan {plan_id} not found")
 
-        planner.update_plan_status(plan_id, "rejected")
+        def _do_reject():
+            planner.update_plan_status(plan_id, "rejected")
+            return f"rejected plan {plan_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"reject engineering plan {plan_id}",
+            execute_fn=_do_reject,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
         return {"plan_id": plan_id, "status": "rejected"}
 
     @router.get("/engineering/plans/{plan_id}/packets", dependencies=auth)

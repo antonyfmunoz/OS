@@ -12,6 +12,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 universal_work_router: APIRouter = APIRouter()
@@ -135,22 +137,26 @@ async def _create_packet(request: Request):
     desired_end_state = body.get("desired_end_state", "")
     constraints = body.get("constraints", [])
 
-    queue = _get_queue()
-    packet = queue.ingest_user_intent(
-        user_intent=user_intent,
-        desired_end_state=desired_end_state,
-        constraints=constraints,
+    def _do_create():
+        queue = _get_queue()
+        packet = queue.ingest_user_intent(
+            user_intent=user_intent,
+            desired_end_state=desired_end_state,
+            constraints=constraints,
+        )
+        return f"packet created: {packet.packet_id}", True
+
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"create work packet: {user_intent[:100]}",
+        execute_fn=_do_create,
+        source="cockpit",
     )
-    return {"success": True, "packet": packet.to_safe_dict()}
+    return resp.to_http_dict()
 
 
 async def _generate_from_intent(request: Request):
-    """Generate a work packet from operator intent with capability detection.
-
-    Differs from _create_packet by also detecting the required capability
-    and returning it alongside the packet — the frontend uses this to show
-    routing intent before execution.
-    """
+    """Generate a work packet from operator intent with capability detection."""
     body = await request.json()
     user_intent = body.get("user_intent", "")
     if not user_intent:
@@ -158,21 +164,24 @@ async def _generate_from_intent(request: Request):
     desired_end_state = body.get("desired_end_state", "")
     constraints = body.get("constraints", [])
 
-    queue = _get_queue()
-    packet = queue.ingest_user_intent(
-        user_intent=user_intent,
-        desired_end_state=desired_end_state,
-        constraints=constraints,
+    def _do_generate():
+        queue = _get_queue()
+        packet = queue.ingest_user_intent(
+            user_intent=user_intent,
+            desired_end_state=desired_end_state,
+            constraints=constraints,
+        )
+        from substrate.execution.runtime.capability_router import detect_capability
+        capability = detect_capability(user_intent)
+        return f"packet {packet.packet_id} with capability {capability.value}", True
+
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"generate work packet from intent: {user_intent[:100]}",
+        execute_fn=_do_generate,
+        source="cockpit",
     )
-
-    from substrate.execution.runtime.capability_router import detect_capability
-    capability = detect_capability(user_intent)
-
-    return {
-        "success": True,
-        "packet": packet.to_safe_dict(),
-        "detected_capability": capability.value,
-    }
+    return resp.to_http_dict()
 
 
 async def _update_status(packet_id: str, request: Request):
@@ -186,9 +195,18 @@ async def _update_status(packet_id: str, request: Request):
     except ValueError:
         return {"success": False, "error": f"Invalid status: {new_status_str}"}
 
-    queue = _get_queue()
-    ok = queue.update_packet_status(packet_id, new_status, reason)
-    return {"success": ok, "packet_id": packet_id, "new_status": new_status_str}
+    def _do_update():
+        queue = _get_queue()
+        ok = queue.update_packet_status(packet_id, new_status, reason)
+        return f"status updated to {new_status_str}", ok
+
+    resp = governed_mutation(
+        mutation_name="work_packet_update",
+        intent=f"update packet {packet_id} status to {new_status_str}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 _MAX_ARTIFACT_ID_LEN = 256
@@ -216,9 +234,18 @@ async def _link_artifact(packet_id: str, request: Request):
     if not artifacts:
         return {"success": False, "error": "No valid artifacts provided"}
 
-    queue = _get_queue()
-    ok = queue.link_execution_artifacts(packet_id, artifacts)
-    return {"success": ok, "packet_id": packet_id}
+    def _do_link():
+        queue = _get_queue()
+        ok = queue.link_execution_artifacts(packet_id, artifacts)
+        return f"linked {len(artifacts)} artifacts to {packet_id}", ok
+
+    resp = governed_mutation(
+        mutation_name="work_packet_update",
+        intent=f"link artifacts to packet {packet_id}",
+        execute_fn=_do_link,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _workcells_list():

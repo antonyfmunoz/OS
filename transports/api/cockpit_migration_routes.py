@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 migration_router: APIRouter = APIRouter()
@@ -48,26 +50,48 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     @r.post("/migration/exit")
     def record_exit(payload: dict) -> dict:
-        mig = _get_migration()
-        if mig is None:
-            raise HTTPException(status_code=503, detail="migration unavailable")
         description = str(payload.get("description", ""))
         external_tool = str(payload.get("external_tool", ""))
-        exit_id = mig.record_exit(description=description, external_tool=external_tool)
-        return {"exit_id": exit_id}
+
+        def _do_exit():
+            mig = _get_migration()
+            if mig is None:
+                return "migration unavailable", False
+            exit_id = mig.record_exit(description=description, external_tool=external_tool)
+            return f"exit recorded: {exit_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"record operator exit: {description[:100]}",
+            execute_fn=_do_exit,
+            source="cockpit",
+            metadata={"external_tool": external_tool},
+        )
+        return resp.to_http_dict()
 
     @r.post("/migration/return")
     def record_return(payload: dict) -> dict:
-        mig = _get_migration()
-        if mig is None:
-            raise HTTPException(status_code=503, detail="migration unavailable")
         exit_id = str(payload.get("exit_id", ""))
         if not exit_id:
             raise HTTPException(status_code=400, detail="exit_id required")
-        ok = mig.record_return(exit_id)
-        if not ok:
-            raise HTTPException(status_code=404, detail="exit not found")
-        return {"status": "returned", "exit_id": exit_id}
+
+        def _do_return():
+            mig = _get_migration()
+            if mig is None:
+                return "migration unavailable", False
+            ok = mig.record_return(exit_id)
+            if not ok:
+                return "exit not found", False
+            return f"returned: {exit_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"record operator return for exit {exit_id}",
+            execute_fn=_do_return,
+            source="cockpit",
+            metadata={"exit_id": exit_id},
+        )
+        return resp.to_http_dict()
 
     @r.get("/migration/coverage")
     def coverage_report() -> dict:
@@ -99,29 +123,51 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     @r.post("/migration/propose")
     def propose_migration(payload: dict) -> dict:
-        mig = _get_migration()
-        if mig is None:
-            raise HTTPException(status_code=503, detail="migration unavailable")
         pattern = str(payload.get("exit_pattern", ""))
         tool = str(payload.get("external_tool", ""))
         if not pattern:
             raise HTTPException(status_code=400, detail="exit_pattern required")
-        m = mig.propose_migration(exit_pattern=pattern, external_tool=tool)
-        return m.to_dict()
+
+        def _do_propose():
+            mig = _get_migration()
+            if mig is None:
+                return "migration unavailable", False
+            m = mig.propose_migration(exit_pattern=pattern, external_tool=tool)
+            return f"migration proposed: {m.migration_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"propose migration for pattern: {pattern[:100]}",
+            execute_fn=_do_propose,
+            source="cockpit",
+            metadata={"exit_pattern": pattern, "external_tool": tool},
+        )
+        return resp.to_http_dict()
 
     @r.post("/migration/complete")
     def complete_migration(payload: dict) -> dict:
-        mig = _get_migration()
-        if mig is None:
-            raise HTTPException(status_code=503, detail="migration unavailable")
         migration_id = str(payload.get("migration_id", ""))
         success = bool(payload.get("success", True))
         if not migration_id:
             raise HTTPException(status_code=400, detail="migration_id required")
-        ok = mig.complete_migration(migration_id, success=success)
-        if not ok:
-            raise HTTPException(status_code=404, detail="migration not found")
-        return {"status": "completed", "migration_id": migration_id}
+
+        def _do_complete():
+            mig = _get_migration()
+            if mig is None:
+                return "migration unavailable", False
+            ok = mig.complete_migration(migration_id, success=success)
+            if not ok:
+                return "migration not found", False
+            return f"migration completed: {migration_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"complete migration {migration_id} (success={success})",
+            execute_fn=_do_complete,
+            source="cockpit",
+            metadata={"migration_id": migration_id, "success": success},
+        )
+        return resp.to_http_dict()
 
     @r.get("/migration/suggest/{pattern}")
     def suggest_operationalization(pattern: str) -> dict:

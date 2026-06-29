@@ -16,6 +16,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 self_build_router: APIRouter = APIRouter()
@@ -131,9 +133,18 @@ async def _self_build_update_status(item_id: str, request: Request):
     except ValueError:
         return {"success": False, "error": f"Invalid status: {new_status_str}"}
 
-    queue = _get_queue()
-    ok = queue.update_status(item_id, new_status, reason)
-    return {"success": ok, "item_id": item_id, "new_status": new_status_str}
+    def _do_update():
+        queue = _get_queue()
+        ok = queue.update_status(item_id, new_status, reason)
+        return f"self-build item {item_id} status → {new_status_str}", ok
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"update self-build status: {item_id} → {new_status_str}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 _MAX_ARTIFACT_ID_LEN = 256
@@ -158,34 +169,49 @@ def _validate_artifact_id(value: str, label: str) -> str | None:
 async def _self_build_link_artifact(item_id: str, request: Request):
     body = await request.json()
     artifact_type = body.get("type", "")
-    queue = _get_queue()
 
     if artifact_type == "approval_packet":
         packet_id = body.get("packet_id", "")
         err = _validate_artifact_id(packet_id, "packet_id")
         if err:
             return {"success": False, "error": err}
-        ok = queue.link_approval_packet(item_id, packet_id)
     elif artifact_type == "sandbox":
         sandbox_id = body.get("sandbox_id", "")
         branch_name = body.get("branch_name", "")
         err = _validate_artifact_id(sandbox_id, "sandbox_id") or _validate_artifact_id(branch_name, "branch_name")
         if err:
             return {"success": False, "error": err}
-        ok = queue.link_sandbox(item_id, sandbox_id, branch_name)
     elif artifact_type == "pr":
         pr_url = body.get("pr_url", "")
         err = _validate_pr_url(pr_url)
         if err:
             return {"success": False, "error": err}
-        ok = queue.link_pr(item_id, pr_url)
     elif artifact_type == "production_truth":
         delta_id = body.get("delta_id", "")
         err = _validate_artifact_id(delta_id, "delta_id")
         if err:
             return {"success": False, "error": err}
-        ok = queue.link_production_truth(item_id, delta_id)
     else:
         return {"success": False, "error": f"Unknown artifact type: {artifact_type}"}
 
-    return {"success": ok, "item_id": item_id, "artifact_type": artifact_type}
+    def _do_link():
+        queue = _get_queue()
+        if artifact_type == "approval_packet":
+            ok = queue.link_approval_packet(item_id, body.get("packet_id", ""))
+        elif artifact_type == "sandbox":
+            ok = queue.link_sandbox(item_id, body.get("sandbox_id", ""), body.get("branch_name", ""))
+        elif artifact_type == "pr":
+            ok = queue.link_pr(item_id, body.get("pr_url", ""))
+        elif artifact_type == "production_truth":
+            ok = queue.link_production_truth(item_id, body.get("delta_id", ""))
+        else:
+            ok = False
+        return f"artifact {artifact_type} linked to {item_id}", ok
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"link {artifact_type} artifact to self-build item {item_id}",
+        execute_fn=_do_link,
+        source="cockpit",
+    )
+    return resp.to_http_dict()

@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 meta_ide_conv_router: APIRouter = APIRouter()
@@ -86,8 +88,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         intent = str(payload.get("intent_text", ""))
         if not intent:
             raise HTTPException(status_code=400, detail="intent_text required")
-        plan = ide.plan_from_intent(intent)
-        return plan.to_dict()
+        captured: dict = {}
+
+        def _do_plan():
+            plan = ide.plan_from_intent(intent)
+            captured.update(plan.to_dict())
+            return f"plan created: {intent[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"ide plan: {intent[:80]}",
+            execute_fn=_do_plan,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/ide/assign")
     def ide_assign(payload: dict) -> dict:
@@ -97,8 +113,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         plan_id = str(payload.get("plan_id", ""))
         if not plan_id:
             raise HTTPException(status_code=400, detail="plan_id required")
-        assignments = ide.assign_plan(plan_id)
-        return {"assignments": assignments}
+
+        def _do_assign():
+            assignments = ide.assign_plan(plan_id)
+            return f"assigned {len(assignments)} tasks", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"ide assign plan {plan_id}",
+            execute_fn=_do_assign,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @r.post("/ide/dispatch")
     def ide_dispatch(payload: dict) -> dict:
@@ -108,8 +134,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         plan_id = str(payload.get("plan_id", ""))
         if not plan_id:
             raise HTTPException(status_code=400, detail="plan_id required")
-        dispatches = ide.dispatch_plan(plan_id)
-        return {"dispatches": dispatches}
+
+        def _do_dispatch():
+            dispatches = ide.dispatch_plan(plan_id)
+            return f"dispatched {len(dispatches)} items", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"ide dispatch plan {plan_id}",
+            execute_fn=_do_dispatch,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @r.get("/ide/active")
     def ide_active() -> dict:
@@ -150,10 +186,24 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         ide = _get_ide()
         if ide is None:
             raise HTTPException(status_code=503, detail="meta ide unavailable")
-        result = ide.approve_and_merge(review_id)
-        if result.error:
-            raise HTTPException(status_code=400, detail=result.error)
-        return result.to_dict()
+        captured: dict = {}
+
+        def _do_approve():
+            result = ide.approve_and_merge(review_id)
+            if result.error:
+                return f"approve failed: {result.error}", False
+            captured.update(result.to_dict())
+            return f"review {review_id} approved and merged", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve ide review {review_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/ide/reviews/{review_id}/reject")
     def ide_reject(review_id: str, payload: dict) -> dict:
@@ -161,9 +211,21 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if ide is None:
             raise HTTPException(status_code=503, detail="meta ide unavailable")
         reason = str(payload.get("reason", ""))
-        ok = ide.reject_review(review_id, reason)
-        if not ok:
-            raise HTTPException(status_code=404, detail="review not found")
+
+        def _do_reject():
+            ok = ide.reject_review(review_id, reason)
+            if not ok:
+                return "review not found", False
+            return f"review {review_id} rejected", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"reject ide review {review_id}: {reason[:80]}",
+            execute_fn=_do_reject,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
         return {"status": "rejected", "review_id": review_id}
 
     @r.get("/ide/status")
