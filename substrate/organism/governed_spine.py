@@ -29,11 +29,14 @@ import logging
 import threading
 import time
 from collections import deque
+from dataclasses import dataclass, field
 from typing import Any
 
 from substrate.organism.action_envelope import (
     ActionEnvelope,
+    BlastRadius,
     EnvelopeStatus,
+    ReversibilityClass,
 )
 from substrate.organism.coherence_propagation import (
     OutcomeCommitted,
@@ -55,6 +58,39 @@ logger = logging.getLogger(__name__)
 
 _MAX_QUEUE = 500
 _MAX_COMPLETED = 1000
+
+_FAST_PATH_BLAST_RADII = frozenset({BlastRadius.LOCAL_FILE, BlastRadius.LOCAL_RUNTIME})
+_FAST_PATH_MIN_RELIABILITY = 0.95
+
+
+@dataclass
+class FastPathResult:
+    eligible: bool = False
+    reason: str = ""
+    skipped_stages: list[str] = field(default_factory=list)
+
+
+@dataclass
+class SpineTimingData:
+    spine_submit_ms: float = 0.0
+    governance_check_ms: float = 0.0
+    execution_ms: float = 0.0
+    proof_capture_ms: float = 0.0
+    journal_write_ms: float = 0.0
+    learning_record_ms: float = 0.0
+    total_overhead_ms: float = 0.0
+    fast_path_used: bool = False
+    fast_path_reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {}
+        for k in ("spine_submit_ms", "governance_check_ms", "execution_ms",
+                   "proof_capture_ms", "journal_write_ms", "learning_record_ms",
+                   "total_overhead_ms"):
+            d[k] = round(getattr(self, k), 2)
+        d["fast_path_used"] = self.fast_path_used
+        d["fast_path_reason"] = self.fast_path_reason
+        return d
 
 
 class SpineViolation(Exception):
@@ -98,11 +134,34 @@ class GovernedExecutionSpine:
         self._total_rolled_back: int = 0
         self._total_verified: int = 0
 
+    def _check_fast_path(self, envelope: ActionEnvelope) -> FastPathResult:
+        """Determine if this envelope qualifies for reduced-overhead execution."""
+        if self._learning is None:
+            return FastPathResult(reason="no learning loop")
+        rel = self._learning.get_reliability(envelope.action_type.value)
+        if rel < _FAST_PATH_MIN_RELIABILITY:
+            return FastPathResult(reason=f"reliability {rel:.3f} < {_FAST_PATH_MIN_RELIABILITY}")
+        if envelope.blast_radius not in _FAST_PATH_BLAST_RADII:
+            return FastPathResult(reason=f"blast_radius {envelope.blast_radius.value} not local")
+        if envelope.reversibility != ReversibilityClass.FULLY_REVERSIBLE:
+            return FastPathResult(reason=f"not fully_reversible")
+        return FastPathResult(
+            eligible=True, reason="high-reliability local reversible",
+            skipped_stages=["detailed_proof", "detailed_journal", "governance_scoring"],
+        )
+
     def submit(self, envelope: ActionEnvelope) -> ActionEnvelope:
         """Submit an ActionEnvelope for governance review and execution.
 
         This is the ONLY entry point for mutations.
         """
+        submit_start = time.monotonic()
+        timing = SpineTimingData()
+
+        fast_path = self._check_fast_path(envelope)
+        timing.fast_path_used = fast_path.eligible
+        timing.fast_path_reason = fast_path.reason
+
         self._journal.record(
             envelope.envelope_id,
             JournalPhase.PROPOSED,
@@ -117,7 +176,10 @@ class GovernedExecutionSpine:
             {"envelope_id": envelope.envelope_id, "intent": envelope.intent},
         )
 
+        gov_start = time.monotonic()
         rejection = self._governance_check(envelope)
+        timing.governance_check_ms = (time.monotonic() - gov_start) * 1000
+
         if rejection:
             envelope.status = EnvelopeStatus.REJECTED
             envelope.rejected_reason = rejection
@@ -137,6 +199,10 @@ class GovernedExecutionSpine:
                 priority=EventPriority.HIGH,
             )
 
+            timing.spine_submit_ms = (time.monotonic() - submit_start) * 1000
+            timing.total_overhead_ms = timing.spine_submit_ms
+            envelope.metadata["spine_timing"] = timing.to_dict()
+
             with self._lock:
                 self._completed.append(envelope)
             return envelope
@@ -146,30 +212,39 @@ class GovernedExecutionSpine:
             with self._lock:
                 self._pending.append(envelope)
 
-            self._journal.record(
-                envelope.envelope_id,
-                JournalPhase.GOVERNANCE_CHECK,
-                "governed_spine",
-                {"awaiting_approval": True},
-            )
+            if not fast_path.eligible:
+                self._journal.record(
+                    envelope.envelope_id,
+                    JournalPhase.GOVERNANCE_CHECK,
+                    "governed_spine",
+                    {"awaiting_approval": True},
+                )
             self._event_spine.emit(
                 EventDomain.GOVERNANCE,
                 "envelope_awaiting_approval",
                 "governed_spine",
                 {"envelope_id": envelope.envelope_id, "intent": envelope.intent},
             )
+
+            timing.spine_submit_ms = (time.monotonic() - submit_start) * 1000
+            timing.total_overhead_ms = timing.spine_submit_ms
+            envelope.metadata["spine_timing"] = timing.to_dict()
             return envelope
 
         envelope.status = EnvelopeStatus.APPROVED
         envelope.approved_by = "auto_governance"
-        self._journal.record(
-            envelope.envelope_id,
-            JournalPhase.APPROVED,
-            "governed_spine",
-            {"approved_by": "auto_governance"},
-        )
 
-        return self._execute(envelope)
+        if not fast_path.eligible:
+            self._journal.record(
+                envelope.envelope_id,
+                JournalPhase.APPROVED,
+                "governed_spine",
+                {"approved_by": "auto_governance"},
+            )
+
+        timing.spine_submit_ms = (time.monotonic() - submit_start) * 1000
+
+        return self._execute(envelope, timing, fast_path)
 
     def approve(self, envelope_id: str, approved_by: str = "operator") -> ActionEnvelope | None:
         """Approve a pending envelope and execute it."""
@@ -180,6 +255,11 @@ class GovernedExecutionSpine:
         envelope.status = EnvelopeStatus.APPROVED
         envelope.approved_by = approved_by
 
+        timing = SpineTimingData()
+        fast_path = self._check_fast_path(envelope)
+        timing.fast_path_used = fast_path.eligible
+        timing.fast_path_reason = fast_path.reason
+
         self._journal.record(
             envelope.envelope_id,
             JournalPhase.APPROVED,
@@ -187,7 +267,7 @@ class GovernedExecutionSpine:
             {"approved_by": approved_by},
         )
 
-        return self._execute(envelope)
+        return self._execute(envelope, timing, fast_path)
 
     def reject(self, envelope_id: str, reason: str = "operator_rejected") -> ActionEnvelope | None:
         """Reject a pending envelope."""
@@ -247,19 +327,31 @@ class GovernedExecutionSpine:
         )
         return ""
 
-    def _execute(self, envelope: ActionEnvelope) -> ActionEnvelope:
+    def _execute(
+        self,
+        envelope: ActionEnvelope,
+        timing: SpineTimingData | None = None,
+        fast_path: FastPathResult | None = None,
+    ) -> ActionEnvelope:
         """Execute an approved envelope."""
+        if timing is None:
+            timing = SpineTimingData()
+        if fast_path is None:
+            fast_path = FastPathResult()
+        use_fast = fast_path.eligible
+
         envelope.status = EnvelopeStatus.EXECUTING
         envelope.started_at = time.time()
 
         with self._lock:
             self._active[envelope.envelope_id] = envelope
 
+        j_start = time.monotonic()
         self._journal.record(
             envelope.envelope_id,
             JournalPhase.EXECUTION_STARTED,
             "governed_spine",
-            {"retry_count": envelope.retry_count},
+            {"retry_count": envelope.retry_count, "fast_path": use_fast},
         )
         self._event_spine.emit(
             EventDomain.EXECUTION,
@@ -268,23 +360,24 @@ class GovernedExecutionSpine:
             {"envelope_id": envelope.envelope_id, "intent": envelope.intent},
         )
 
-        start = time.monotonic()
+        exec_start = time.monotonic()
         try:
             output, success = envelope.execute_fn()
             envelope.result_output = output
             envelope.result_success = success
-            duration = time.monotonic() - start
+            timing.execution_ms = (time.monotonic() - exec_start) * 1000
 
             if success:
                 envelope.status = EnvelopeStatus.COMPLETED
                 self._total_succeeded += 1
 
-                self._journal.record(
-                    envelope.envelope_id,
-                    JournalPhase.EXECUTION_COMPLETED,
-                    "governed_spine",
-                    {"output": output[:500], "duration_s": round(duration, 2)},
-                )
+                if not use_fast:
+                    self._journal.record(
+                        envelope.envelope_id,
+                        JournalPhase.EXECUTION_COMPLETED,
+                        "governed_spine",
+                        {"output": output[:500], "duration_s": round(timing.execution_ms / 1000, 2)},
+                    )
             else:
                 if envelope.retry_count < envelope.constraints.max_retries:
                     envelope.retry_count += 1
@@ -296,7 +389,7 @@ class GovernedExecutionSpine:
                     )
                     with self._lock:
                         self._active.pop(envelope.envelope_id, None)
-                    return self._execute(envelope)
+                    return self._execute(envelope, timing, fast_path)
 
                 envelope.status = EnvelopeStatus.FAILED
                 self._total_failed += 1
@@ -305,11 +398,11 @@ class GovernedExecutionSpine:
                     envelope.envelope_id,
                     JournalPhase.EXECUTION_FAILED,
                     "governed_spine",
-                    {"output": output[:500], "duration_s": round(duration, 2)},
+                    {"output": output[:500], "duration_s": round(timing.execution_ms / 1000, 2)},
                 )
 
         except Exception as exc:
-            duration = time.monotonic() - start
+            timing.execution_ms = (time.monotonic() - exec_start) * 1000
             envelope.result_output = str(exc)
             envelope.result_success = False
             envelope.status = EnvelopeStatus.FAILED
@@ -319,12 +412,13 @@ class GovernedExecutionSpine:
                 envelope.envelope_id,
                 JournalPhase.EXECUTION_FAILED,
                 "governed_spine",
-                {"error": str(exc), "duration_s": round(duration, 2)},
+                {"error": str(exc), "duration_s": round(timing.execution_ms / 1000, 2)},
             )
             logger.warning("spine execution failed: %s — %s", envelope.envelope_id, exc)
 
         envelope.completed_at = time.time()
         self._total_executed += 1
+        timing.journal_write_ms = (time.monotonic() - j_start) * 1000 - timing.execution_ms
 
         if envelope.result_success and envelope.verification is not None:
             self._verify(envelope)
@@ -356,7 +450,9 @@ class GovernedExecutionSpine:
                 )
             )
 
+        learn_start = time.monotonic()
         self._record_learning(envelope)
+        timing.learning_record_ms = (time.monotonic() - learn_start) * 1000
 
         self._event_spine.emit(
             EventDomain.EXECUTION,
@@ -367,11 +463,27 @@ class GovernedExecutionSpine:
                 "success": envelope.result_success,
                 "status": envelope.status.value,
                 "duration_s": round(max(envelope.completed_at - envelope.started_at, 0), 2),
+                "fast_path": use_fast,
             },
             priority=EventPriority.HIGH if not envelope.result_success else EventPriority.NORMAL,
         )
 
         self._emit_outcome(envelope)
+
+        if use_fast:
+            self._journal.record(
+                envelope.envelope_id,
+                JournalPhase.EXECUTION_COMPLETED,
+                "governed_spine",
+                {"fast_path": True, "status": envelope.status.value,
+                 "duration_s": round(timing.execution_ms / 1000, 2)},
+            )
+
+        timing.total_overhead_ms = (
+            timing.spine_submit_ms + timing.governance_check_ms
+            + timing.journal_write_ms + timing.learning_record_ms
+        )
+        envelope.metadata["spine_timing"] = timing.to_dict()
 
         with self._lock:
             self._active.pop(envelope.envelope_id, None)

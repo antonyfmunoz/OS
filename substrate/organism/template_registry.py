@@ -11,6 +11,7 @@ UMH substrate subsystem. Instance-agnostic.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -659,4 +660,277 @@ class TemplateRegistry:
             "candidates": candidates,
             "promoted": promoted,
             "pending_approvals": len(self.pending_approvals()),
+        }
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Task-shape template extraction (C33 D4 fix)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+_FILE_CATEGORY_RULES: list[tuple[str, str]] = [
+    ("tests/", "test"),
+    ("test_", "test"),
+    ("transports/api/", "route"),
+    ("routes/", "route"),
+    ("adapters/", "adapter"),
+    ("substrate/organism/", "substrate"),
+    ("substrate/execution/", "execution"),
+    ("transports/", "transport"),
+    ("cockpit/", "cockpit"),
+    ("migrations/", "migration"),
+    ("scripts/", "script"),
+    ("data/", "data"),
+    (".json", "config"),
+    (".yaml", "config"),
+    (".yml", "config"),
+    (".toml", "config"),
+    (".md", "docs"),
+]
+
+
+@dataclass
+class TaskShapeTemplate:
+    """Reusable structural pattern extracted from completed governed cycles."""
+
+    template_id: str = field(default_factory=lambda: f"tshape-{uuid4().hex[:8]}")
+    task_shape: str = ""
+    file_patterns: list[str] = field(default_factory=list)
+    function_signatures: list[str] = field(default_factory=list)
+    test_patterns: list[str] = field(default_factory=list)
+    structural_hash: str = ""
+    times_extracted: int = 0
+    times_matched: int = 0
+    success_rate: float = 1.0
+    source_cycles: list[str] = field(default_factory=list)
+    created_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "template_id": self.template_id,
+            "task_shape": self.task_shape,
+            "file_patterns": self.file_patterns,
+            "function_signatures": self.function_signatures,
+            "test_patterns": self.test_patterns,
+            "structural_hash": self.structural_hash,
+            "times_extracted": self.times_extracted,
+            "times_matched": self.times_matched,
+            "success_rate": self.success_rate,
+            "source_cycles": self.source_cycles,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> TaskShapeTemplate:
+        fields = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
+        return cls(**fields)
+
+
+class TemplateExtractor:
+    """Extracts reusable task-shape templates from completed governed cycles."""
+
+    def __init__(self, store_path: str = "") -> None:
+        self._store_path = store_path or os.path.join(
+            _REPO_ROOT, "data", "umh", "compounding", "templates.jsonl"
+        )
+        self._templates: dict[str, TaskShapeTemplate] = {}
+        self._load()
+
+    def _load(self) -> None:
+        if not os.path.isfile(self._store_path):
+            return
+        try:
+            with open(self._store_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        tpl = TaskShapeTemplate.from_dict(data)
+                        self._templates[tpl.template_id] = tpl
+                    except (json.JSONDecodeError, TypeError) as exc:
+                        logger.debug("Skip malformed template line: %s", exc)
+        except OSError as exc:
+            logger.debug("Cannot read %s: %s", self._store_path, exc)
+
+    def _persist(self, template: TaskShapeTemplate) -> None:
+        os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
+        with open(self._store_path, "a") as f:
+            f.write(json.dumps(template.to_dict(), default=str) + "\n")
+
+    def _rewrite(self) -> None:
+        os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
+        with open(self._store_path, "w") as f:
+            for tpl in self._templates.values():
+                f.write(json.dumps(tpl.to_dict(), default=str) + "\n")
+
+    @staticmethod
+    def _categorize_files(files: list[str]) -> list[str]:
+        categories: list[str] = []
+        for fp in files:
+            fp_lower = fp.lower().replace("\\", "/")
+            matched = False
+            for pattern, cat in _FILE_CATEGORY_RULES:
+                if pattern in fp_lower:
+                    categories.append(cat)
+                    matched = True
+                    break
+            if not matched:
+                if fp_lower.endswith(".py"):
+                    categories.append("python")
+                elif fp_lower.endswith((".ts", ".tsx")):
+                    categories.append("typescript")
+                else:
+                    categories.append("other")
+        return sorted(categories)
+
+    @staticmethod
+    def _compute_structural_hash(categories: list[str]) -> str:
+        canonical = "|".join(sorted(set(categories)))
+        return hashlib.md5(canonical.encode()).hexdigest()[:12]
+
+    @staticmethod
+    def _similarity(a: list[str], b: list[str]) -> float:
+        set_a = set(a)
+        set_b = set(b)
+        if not set_a and not set_b:
+            return 1.0
+        union = set_a | set_b
+        if not union:
+            return 0.0
+        return len(set_a & set_b) / len(union)
+
+    @staticmethod
+    def _infer_task_shape(files: list[str], description: str) -> str:
+        desc = description.lower()
+        has_route = any("route" in f.lower() or "transports/api" in f.lower() for f in files)
+        has_test = any("test" in f.lower() for f in files)
+        has_adapter = any("adapter" in f.lower() for f in files)
+        has_migration = any("migration" in f.lower() for f in files)
+
+        if has_migration or "migration" in desc or "schema" in desc:
+            return "schema_change"
+        if has_adapter or "adapter" in desc:
+            return "adapter_integration"
+        if has_route and has_test:
+            return "endpoint_addition"
+        if "fix" in desc or "bug" in desc or "repair" in desc:
+            return "bug_fix"
+        if "refactor" in desc or "rename" in desc or "move" in desc:
+            return "refactor"
+        if has_route:
+            return "endpoint_addition"
+        return "general"
+
+    def extract_from_cycle(
+        self,
+        cycle_id: str,
+        files_changed: list[str],
+        task_description: str,
+    ) -> TaskShapeTemplate | None:
+        if not files_changed:
+            return None
+
+        categories = self._categorize_files(files_changed)
+        struct_hash = self._compute_structural_hash(categories)
+
+        for tpl in self._templates.values():
+            if tpl.structural_hash == struct_hash:
+                tpl.times_matched += 1
+                if cycle_id not in tpl.source_cycles:
+                    tpl.source_cycles.append(cycle_id)
+                self._rewrite()
+                logger.info(
+                    "Cycle %s matched existing template %s (hash=%s, matched=%d)",
+                    cycle_id, tpl.template_id, struct_hash, tpl.times_matched,
+                )
+                return tpl
+
+        best_match: TaskShapeTemplate | None = None
+        best_sim = 0.0
+        for tpl in self._templates.values():
+            existing_cats = self._categorize_files(tpl.file_patterns)
+            sim = self._similarity(categories, existing_cats)
+            if sim > best_sim:
+                best_sim = sim
+                best_match = tpl
+
+        if best_match and best_sim >= 0.7:
+            best_match.times_matched += 1
+            if cycle_id not in best_match.source_cycles:
+                best_match.source_cycles.append(cycle_id)
+            self._rewrite()
+            logger.info(
+                "Cycle %s similar to template %s (sim=%.2f, matched=%d)",
+                cycle_id, best_match.template_id, best_sim, best_match.times_matched,
+            )
+            return best_match
+
+        task_shape = self._infer_task_shape(files_changed, task_description)
+        test_patterns = [f for f in files_changed if "test" in f.lower()]
+        new_tpl = TaskShapeTemplate(
+            task_shape=task_shape,
+            file_patterns=files_changed,
+            test_patterns=test_patterns,
+            structural_hash=struct_hash,
+            times_extracted=1,
+            source_cycles=[cycle_id],
+        )
+        self._templates[new_tpl.template_id] = new_tpl
+        self._persist(new_tpl)
+        logger.info(
+            "Extracted new template %s from cycle %s (shape=%s, hash=%s)",
+            new_tpl.template_id, cycle_id, task_shape, struct_hash,
+        )
+        return new_tpl
+
+    def match_template(
+        self,
+        files_changed: list[str],
+        task_description: str = "",
+    ) -> TaskShapeTemplate | None:
+        if not files_changed:
+            return None
+
+        categories = self._categorize_files(files_changed)
+        struct_hash = self._compute_structural_hash(categories)
+
+        for tpl in self._templates.values():
+            if tpl.structural_hash == struct_hash:
+                return tpl
+
+        best_match: TaskShapeTemplate | None = None
+        best_sim = 0.0
+        for tpl in self._templates.values():
+            existing_cats = self._categorize_files(tpl.file_patterns)
+            sim = self._similarity(categories, existing_cats)
+            if sim > best_sim:
+                best_sim = sim
+                best_match = tpl
+
+        if best_match and best_sim >= 0.7:
+            return best_match
+        return None
+
+    def list_templates(self, limit: int = 50) -> list[TaskShapeTemplate]:
+        templates = sorted(
+            self._templates.values(),
+            key=lambda t: t.times_matched,
+            reverse=True,
+        )
+        return templates[:limit]
+
+    def get_template(self, template_id: str) -> TaskShapeTemplate | None:
+        return self._templates.get(template_id)
+
+    def summary(self) -> dict[str, Any]:
+        by_shape: dict[str, int] = {}
+        total_matched = 0
+        for tpl in self._templates.values():
+            by_shape[tpl.task_shape] = by_shape.get(tpl.task_shape, 0) + 1
+            total_matched += tpl.times_matched
+        return {
+            "total_templates": len(self._templates),
+            "by_shape": by_shape,
+            "total_matches": total_matched,
         }
