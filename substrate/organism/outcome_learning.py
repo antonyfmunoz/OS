@@ -279,6 +279,40 @@ class OutcomeLearningLoop:
     def get_reliability(self, action_type: str) -> float:
         return self._reliability.get(action_type, 0.5)
 
+    def reliability_history(self) -> dict[str, Any]:
+        """Per-action-type reliability timeline from recorded outcomes.
+
+        Returns a dict keyed by action_type, each containing:
+          - current: current reliability score
+          - sample_size: total outcomes for this type
+          - timeline: list of {timestamp, status, cumulative_reliability}
+        """
+        history: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        running_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+
+        for outcome in self._outcomes:
+            at = outcome.action_type
+            running_counts[at][outcome.status.value] += 1
+            total = sum(running_counts[at].values())
+            successes = running_counts[at].get("success", 0) + running_counts[at].get("partial", 0)
+            cumulative = successes / total if total > 0 else 0.5
+
+            history[at].append({
+                "timestamp": outcome.recorded_at,
+                "status": outcome.status.value,
+                "cumulative_reliability": round(cumulative, 4),
+            })
+
+        result: dict[str, Any] = {}
+        for at, timeline in history.items():
+            result[at] = {
+                "current": round(self._reliability.get(at, 0.5), 4),
+                "sample_size": sum(self._outcome_counts[at].values()),
+                "timeline": timeline,
+            }
+
+        return result
+
     def get_adjustments(self) -> list[RecommendationAdjustment]:
         """Recommend adjustments based on observed reliability."""
         adjustments = []
