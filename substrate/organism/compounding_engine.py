@@ -62,6 +62,36 @@ class PromotionStatus(str, Enum):
 
 
 @dataclass
+class CapabilityTemplate:
+    template_id: str = field(default_factory=lambda: f"cap-{uuid4().hex[:8]}")
+    task_shape: str = ""
+    file_patterns: list[str] = field(default_factory=list)
+    code_skeleton: str = ""
+    test_skeleton: str = ""
+    times_extracted: int = 0
+    times_reused: int = 0
+    success_rate: float = 0.0
+    created_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "template_id": self.template_id,
+            "task_shape": self.task_shape,
+            "file_patterns": self.file_patterns,
+            "code_skeleton": self.code_skeleton,
+            "test_skeleton": self.test_skeleton,
+            "times_extracted": self.times_extracted,
+            "times_reused": self.times_reused,
+            "success_rate": self.success_rate,
+            "created_at": self.created_at,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> CapabilityTemplate:
+        return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
+
+
+@dataclass
 class PromotionCandidate:
     candidate_id: str = field(default_factory=lambda: f"promo-{uuid4().hex[:8]}")
     promotion_type: PromotionType = PromotionType.OUTCOME_TO_INSIGHT
@@ -104,7 +134,7 @@ def score_outcome_to_insight(
     action_type: str,
     success_rate: float,
     occurrence_count: int,
-    min_occurrences: int = 3,
+    min_occurrences: int = 2,
     min_success_rate: float = 0.6,
 ) -> float:
     """Score whether an outcome pattern is ready to become an insight."""
@@ -162,6 +192,32 @@ def score_operationalization_to_infrastructure(
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Task shape detection
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TASK_SHAPE_PATTERNS: dict[str, list[str]] = {
+    "endpoint_addition": ["route", "handler", "test", "endpoint"],
+    "schema_change": ["migration", "model", "schema", "validation"],
+    "adapter_integration": ["adapter", "config", "connect", "integration"],
+    "bug_fix": ["fix", "patch", "repair", "regression"],
+    "refactor": ["refactor", "rename", "extract", "simplify"],
+}
+
+
+def detect_task_shape(description: str) -> str:
+    """Match a task description to a known task shape deterministically."""
+    lower = description.lower()
+    best_shape = "unknown"
+    best_score = 0
+    for shape, keywords in TASK_SHAPE_PATTERNS.items():
+        hits = sum(1 for kw in keywords if kw in lower)
+        if hits > best_score:
+            best_score = hits
+            best_shape = shape
+    return best_shape if best_score > 0 else "unknown"
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Runtime
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -206,12 +262,83 @@ class CompoundingEngine:
             for c in self._candidates.values():
                 f.write(json.dumps(c.to_dict(), default=str) + "\n")
 
+    # ── Capability persistence ────────────────────────────────────
+
+    def _persist_capability(self, template: CapabilityTemplate) -> None:
+        cap_path = os.path.join(_ENGINE_DIR, "capabilities.jsonl")
+        os.makedirs(os.path.dirname(cap_path), exist_ok=True)
+        with open(cap_path, "a") as f:
+            f.write(json.dumps(template.to_dict(), default=str) + "\n")
+
+    def _load_capabilities(self) -> list[CapabilityTemplate]:
+        cap_path = os.path.join(_ENGINE_DIR, "capabilities.jsonl")
+        templates: list[CapabilityTemplate] = []
+        if not os.path.isfile(cap_path):
+            return templates
+        try:
+            with open(cap_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        templates.append(CapabilityTemplate.from_dict(json.loads(line)))
+                    except (json.JSONDecodeError, TypeError) as exc:
+                        logger.debug("Skip malformed capability line: %s", exc)
+        except OSError as exc:
+            logger.debug("Cannot read capabilities: %s", exc)
+        return templates
+
+    # ── Post-cycle scan ───────────────────────────────────────────
+
+    def scan_after_cycle(
+        self,
+        outcomes: list[dict[str, Any]],
+        capabilities_data: list[dict[str, Any]] | None = None,
+        operationalizations: list[dict[str, Any]] | None = None,
+    ) -> list[PromotionCandidate]:
+        """Run all detection methods after a governed cycle completes.
+
+        Returns all newly found promotion candidates.
+        """
+        all_new: list[PromotionCandidate] = []
+
+        new_insights = self.detect_outcome_to_insight(outcomes)
+        all_new.extend(new_insights)
+
+        if capabilities_data:
+            all_new.extend(self.detect_insight_to_capability(capabilities_data))
+            all_new.extend(self.detect_capability_to_operationalization(capabilities_data))
+
+        if operationalizations:
+            all_new.extend(self.detect_operationalization_to_infrastructure(operationalizations))
+
+        for candidate in new_insights:
+            shape = detect_task_shape(candidate.source_description)
+            if shape != "unknown":
+                tpl = CapabilityTemplate(
+                    task_shape=shape,
+                    file_patterns=[],
+                    times_extracted=1,
+                    success_rate=candidate.confidence,
+                )
+                self._persist_capability(tpl)
+                logger.info(
+                    "Extracted capability template %s (shape=%s) from %s",
+                    tpl.template_id, shape, candidate.candidate_id,
+                )
+
+        if all_new:
+            logger.info("scan_after_cycle: %d new promotion candidates", len(all_new))
+
+        return all_new
+
     # ── Detection ──────────────────────────────────────────────────
 
     def detect_outcome_to_insight(
         self,
         outcomes: list[dict[str, Any]],
-        min_occurrences: int = 3,
+        min_occurrences: int = 2,
         min_success_rate: float = 0.6,
     ) -> list[PromotionCandidate]:
         """Detect outcome patterns that should become insights."""

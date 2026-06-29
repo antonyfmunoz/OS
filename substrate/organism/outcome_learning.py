@@ -45,6 +45,10 @@ class SignalType(str, Enum):
     PROMOTION_SIGNAL = "promotion_signal"
     DEMOTION_SIGNAL = "demotion_signal"
     WORLD_MODEL_UPDATE = "world_model_update"
+    CONSISTENCY_SIGNAL = "consistency_signal"
+    EFFICIENCY_SIGNAL = "efficiency_signal"
+    QUALITY_SIGNAL = "quality_signal"
+    DIVERSITY_SIGNAL = "diversity_signal"
 
 
 @dataclass
@@ -150,6 +154,30 @@ class ReliabilityUpdate:
         }
 
 
+@dataclass
+class LearningSignalFeed:
+    """Aggregated signal feed for governance decisions."""
+
+    action_type: str = ""
+    active_signals: list[LearningSignal] = field(default_factory=list)
+    auto_approve_candidate: bool = False
+    flag_for_optimization: bool = False
+    block_auto_approval: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "action_type": self.action_type,
+            "active_signals": [s.to_dict() for s in self.active_signals],
+            "auto_approve_candidate": self.auto_approve_candidate,
+            "flag_for_optimization": self.flag_for_optimization,
+            "block_auto_approval": self.block_auto_approval,
+        }
+
+
+_SIGNAL_FEED_DIR = os.path.join(_REPO_ROOT, "data", "umh", "learning")
+_SIGNAL_FEED_PATH = os.path.join(_SIGNAL_FEED_DIR, "signal_feed.jsonl")
+
+
 class OutcomeLearningLoop:
     """Tracks execution outcomes and derives learning signals."""
 
@@ -161,6 +189,7 @@ class OutcomeLearningLoop:
         self._signals: list[LearningSignal] = []
         self._reliability: dict[str, float] = defaultdict(lambda: 0.5)
         self._outcome_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        self._seen_action_types: set[str] = set()
         self._load()
 
     def _load(self) -> None:
@@ -184,6 +213,7 @@ class OutcomeLearningLoop:
                         rec = OutcomeRecord(**fields)
                         self._outcomes.append(rec)
                         self._outcome_counts[rec.action_type][rec.status.value] += 1
+                        self._seen_action_types.add(rec.action_type)
                     elif data.get("record_type") == "signal":
                         sig_fields = {k: v for k, v in data.items() if k != "record_type"}
                         if "signal_type" in sig_fields and isinstance(sig_fields["signal_type"], str):
@@ -227,6 +257,10 @@ class OutcomeLearningLoop:
 
         self._update_reliability(outcome.action_type, success)
         self._check_repeated_failures(outcome.action_type)
+        self._check_consistency(outcome.action_type)
+        self._check_efficiency(outcome.action_type, outcome.duration_seconds)
+        self._check_quality(outcome.action_type)
+        self._check_diversity(outcome.action_type)
 
         return eval_result
 
@@ -275,6 +309,150 @@ class OutcomeLearningLoop:
             sig_data = signal.to_dict()
             sig_data["record_type"] = "signal"
             self._persist_record(sig_data)
+
+    def _check_consistency(self, action_type: str) -> None:
+        """Emit signal when last N outcomes of same type all share the same status."""
+        recent = [o for o in self._outcomes if o.action_type == action_type][-5:]
+        if len(recent) < 5:
+            return
+        statuses = {o.status for o in recent}
+        if len(statuses) == 1:
+            self._emit_signal(
+                SignalType.CONSISTENCY_SIGNAL,
+                action_type,
+                f"Last 5 outcomes all {recent[0].status.value}",
+                old_value=0.0,
+                new_value=5.0,
+                evidence=f"IDs: {[o.id for o in recent]}",
+            )
+
+    def _check_efficiency(self, action_type: str, duration: float) -> None:
+        """Emit signal when execution duration is trending down (or up)."""
+        recent = [o for o in self._outcomes if o.action_type == action_type and o.duration_seconds > 0]
+        if len(recent) < 6:
+            return
+        prev_avg = sum(o.duration_seconds for o in recent[-6:-3]) / 3
+        curr_avg = sum(o.duration_seconds for o in recent[-3:]) / 3
+        if prev_avg == 0:
+            return
+        delta_pct = (curr_avg - prev_avg) / prev_avg
+        if abs(delta_pct) < 0.05:
+            return
+        improving = delta_pct < 0
+        self._emit_signal(
+            SignalType.EFFICIENCY_SIGNAL,
+            action_type,
+            f"Duration {'improved' if improving else 'degraded'} by {abs(delta_pct):.0%} ({prev_avg:.1f}s → {curr_avg:.1f}s)",
+            old_value=prev_avg,
+            new_value=curr_avg,
+            evidence=f"{'faster' if improving else 'slower'} trend over last 6 outcomes",
+        )
+
+    def _check_quality(self, action_type: str) -> None:
+        """Emit signal when quality score is trending up or down."""
+        recent = [o for o in self._outcomes if o.action_type == action_type]
+        if len(recent) < 6:
+            return
+        prev_q = [
+            1.0 if o.status == OutcomeStatus.SUCCESS else (0.6 if o.status == OutcomeStatus.PARTIAL else 0.0)
+            for o in recent[-6:-3]
+        ]
+        curr_q = [
+            1.0 if o.status == OutcomeStatus.SUCCESS else (0.6 if o.status == OutcomeStatus.PARTIAL else 0.0)
+            for o in recent[-3:]
+        ]
+        prev_avg = sum(prev_q) / 3
+        curr_avg = sum(curr_q) / 3
+        delta = curr_avg - prev_avg
+        if abs(delta) < 0.1:
+            return
+        self._emit_signal(
+            SignalType.QUALITY_SIGNAL,
+            action_type,
+            f"Quality {'improving' if delta > 0 else 'degrading'}: {prev_avg:.2f} → {curr_avg:.2f}",
+            old_value=prev_avg,
+            new_value=curr_avg,
+            evidence=f"trend over last 6 outcomes",
+        )
+
+    def _check_diversity(self, action_type: str) -> None:
+        """Emit signal when a new action type is seen for the first time."""
+        if action_type in self._seen_action_types:
+            return
+        self._seen_action_types.add(action_type)
+        self._emit_signal(
+            SignalType.DIVERSITY_SIGNAL,
+            action_type,
+            f"New action type discovered: {action_type}",
+            old_value=float(len(self._seen_action_types) - 1),
+            new_value=float(len(self._seen_action_types)),
+            evidence=f"Total action types now: {len(self._seen_action_types)}",
+        )
+
+    def _emit_signal(
+        self,
+        signal_type: SignalType,
+        action_type: str,
+        description: str,
+        old_value: float,
+        new_value: float,
+        evidence: str,
+    ) -> None:
+        signal = LearningSignal(
+            signal_type=signal_type,
+            action_type=action_type,
+            description=description,
+            old_value=old_value,
+            new_value=new_value,
+            evidence=evidence,
+        )
+        self._signals.append(signal)
+        sig_data = signal.to_dict()
+        sig_data["record_type"] = "signal"
+        self._persist_record(sig_data)
+
+    def get_active_signals(
+        self, action_type: str | None = None, min_confidence: float = 0.5
+    ) -> list[LearningSignal]:
+        """Return recent signals, optionally filtered by action type."""
+        cutoff = time.time() - 86400  # last 24 hours
+        result = [s for s in self._signals if s.generated_at >= cutoff]
+        if action_type is not None:
+            result = [s for s in result if s.action_type == action_type]
+        return result
+
+    def get_signal_feed(self, action_type: str) -> LearningSignalFeed:
+        """Aggregate signals into a governance decision feed."""
+        active = self.get_active_signals(action_type)
+        reliability = self._reliability.get(action_type, 0.5)
+
+        has_consistency = any(s.signal_type == SignalType.CONSISTENCY_SIGNAL for s in active)
+        has_efficiency_degradation = any(
+            s.signal_type == SignalType.EFFICIENCY_SIGNAL and s.new_value > s.old_value
+            for s in active
+        )
+        has_quality_degradation = any(
+            s.signal_type == SignalType.QUALITY_SIGNAL and s.new_value < s.old_value
+            for s in active
+        )
+
+        feed = LearningSignalFeed(
+            action_type=action_type,
+            active_signals=active,
+            auto_approve_candidate=has_consistency and reliability > 0.95,
+            flag_for_optimization=has_efficiency_degradation,
+            block_auto_approval=has_quality_degradation,
+        )
+
+        self._persist_signal_feed(feed)
+        return feed
+
+    def _persist_signal_feed(self, feed: LearningSignalFeed) -> None:
+        os.makedirs(_SIGNAL_FEED_DIR, exist_ok=True)
+        with open(_SIGNAL_FEED_PATH, "a") as f:
+            data = feed.to_dict()
+            data["persisted_at"] = time.time()
+            f.write(json.dumps(data, default=str) + "\n")
 
     def get_reliability(self, action_type: str) -> float:
         return self._reliability.get(action_type, 0.5)
