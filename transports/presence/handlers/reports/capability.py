@@ -15,13 +15,13 @@ from ._common import (
 
 
 async def _handle_capability_report(message: Any, spine: Any) -> None:
-    from substrate.execution.workers.workstation.recursive_capability_planning_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
         persist_capability_proof,
         SUBSTRATE_CAPABILITIES,
         BOTTLENECK_CATEGORIES,
     )
-    from substrate.execution.workers.workstation.adapter_autogeneration_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
