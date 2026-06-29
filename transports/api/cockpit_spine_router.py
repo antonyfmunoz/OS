@@ -127,6 +127,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         "/organism/execute-plan/{plan_id}/pending", _execute_plan_pending, methods=["GET"]
     )
 
+    # ── Projection registry endpoints ────────────────────────────────────
+
+    r.add_api_route("/organism/projections", _projections_list, methods=["GET"])
+    r.add_api_route("/organism/projections/drift", _projection_drift, methods=["GET"])
+    r.add_api_route("/organism/projections/{projection_id}", _projection_detail, methods=["GET"])
+
+    # ── Dev session + daily driver endpoints ─────────────────────────────
+
+    r.add_api_route("/organism/dev-sessions", _dev_sessions, methods=["GET"])
+    r.add_api_route("/organism/dev-sessions/active", _dev_sessions_active, methods=["GET"])
+    r.add_api_route("/organism/daily-driver", _daily_driver_summary, methods=["GET"])
+
     return r
 
 
@@ -578,3 +590,70 @@ async def _execute_plan_pending(plan_id: str):
 
     pending = adapter.check_pending_approvals(plan)
     return [s.to_dict() for s in pending]
+
+
+# ── Projection registry handlers ────────────────────────────────────────────
+
+
+async def _projections_list():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.substrate_projection_port.summary()
+
+
+async def _projection_detail(projection_id: str):
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    reg = daemon.substrate_projection_port.get(projection_id)
+    if reg is None:
+        return {"error": f"projection '{projection_id}' not found"}
+    return reg.to_dict()
+
+
+async def _projection_drift():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.substrate_projection_port.audit_all()
+
+
+# ── Dev session + daily driver handlers ──────────────────────────────────────
+
+
+async def _dev_sessions():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.dev_session_tracker.to_dict()
+
+
+async def _dev_sessions_active():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return [s.to_dict() for s in daemon.dev_session_tracker.active_sessions()]
+
+
+async def _daily_driver_summary():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    spine_stats = daemon.governed_spine.to_dict()
+    learning = daemon.outcome_learning.summary()
+    cap = daemon.capability_compounding.snapshot().to_dict()
+    projections = daemon.substrate_projection_port.summary()
+    dev = daemon.dev_session_tracker.summary()
+    return {
+        "spine": {
+            "total_executed": spine_stats.get("total_executed", 0),
+            "success_rate": spine_stats.get("success_rate", 0),
+            "pending_count": spine_stats.get("pending_count", 0),
+        },
+        "learning": learning,
+        "capability_compounding": cap,
+        "projections": projections,
+        "dev_sessions": dev,
+        "learning_loop_connected": spine_stats.get("learning_loop_connected", False),
+    }
