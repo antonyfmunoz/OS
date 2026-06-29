@@ -12,7 +12,9 @@ Gate 3 — Governed Work Runtime. UMH substrate subsystem. Instance-agnostic.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -103,15 +105,23 @@ class ProofRuntime:
       2. [execution happens]
       3. capture_after(work_id, snapshot_id, action, outcome) — builds ProofPackage
       4. package_for(work_id) — retrieve proof for a given work item
+
+    Persistence: JSONL file at data/umh/organism/proof_packages.jsonl.
     """
 
     _MAX_HISTORY = 200
 
-    def __init__(self) -> None:
+    def __init__(self, store_path: str | None = None) -> None:
         self._pending: dict[str, _PendingSnapshot] = {}
         self._packages: dict[str, ProofPackage] = {}
         self._history: deque[str] = deque(maxlen=self._MAX_HISTORY)
         self._by_work_id: dict[str, str] = {}
+
+        _root = os.environ.get("UMH_ROOT", "/opt/OS")
+        self._store_path = store_path or os.path.join(
+            _root, "data", "umh", "organism", "proof_packages.jsonl"
+        )
+        self._load_from_disk()
 
     def capture_before(self, work_id: str, state: dict[str, Any] | None = None) -> str:
         """Capture before-state snapshot. Returns snapshot_id."""
@@ -166,6 +176,7 @@ class ProofRuntime:
         self._packages[package.proof_id] = package
         self._by_work_id[work_id] = package.proof_id
         self._history.append(package.proof_id)
+        self._persist_package(package)
 
         return package
 
@@ -193,6 +204,7 @@ class ProofRuntime:
         self._packages[package.proof_id] = package
         self._by_work_id[work_id] = package.proof_id
         self._history.append(package.proof_id)
+        self._persist_package(package)
         return package
 
     def package_for(self, work_id: str) -> ProofPackage | None:
@@ -216,6 +228,50 @@ class ProofRuntime:
 
     def all_proofs(self) -> list[ProofPackage]:
         return list(self._packages.values())
+
+    # ── Persistence ────────────────────────────────────────────
+
+    def _load_from_disk(self) -> None:
+        if not os.path.exists(self._store_path):
+            return
+        try:
+            with open(self._store_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        d = json.loads(line)
+                        pkg = ProofPackage(
+                            proof_id=d.get("proof_id", ""),
+                            work_id=d.get("work_id", ""),
+                            before_state=d.get("before_state", {}),
+                            action=d.get("action", {}),
+                            after_state=d.get("after_state", {}),
+                            evidence=[
+                                ProofEvidence(**e) for e in d.get("evidence", [])
+                            ],
+                            timestamp=d.get("timestamp", 0.0),
+                            operator=d.get("operator", "operator"),
+                            governance_proofs=d.get("governance_proofs", []),
+                            execution_duration_ms=d.get("execution_duration_ms", 0.0),
+                            outcome=d.get("outcome", ""),
+                        )
+                        self._packages[pkg.proof_id] = pkg
+                        self._by_work_id[pkg.work_id] = pkg.proof_id
+                        self._history.append(pkg.proof_id)
+                    except (json.JSONDecodeError, TypeError, KeyError) as exc:
+                        logger.debug("skip malformed proof line: %s", exc)
+        except OSError as exc:
+            logger.debug("cannot read proof packages: %s", exc)
+
+    def _persist_package(self, package: ProofPackage) -> None:
+        os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
+        try:
+            with open(self._store_path, "a") as f:
+                f.write(json.dumps(package.to_dict(), default=str) + "\n")
+        except OSError as exc:
+            logger.debug("cannot persist proof package: %s", exc)
 
     # ── Internal helpers ─────────────────────────────────────────
 
