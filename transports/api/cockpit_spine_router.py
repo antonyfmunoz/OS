@@ -60,7 +60,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/spine/lifecycle/{envelope_id}", _spine_lifecycle, methods=["GET"])
     r.add_api_route("/organism/journal", _journal_status, methods=["GET"])
     r.add_api_route("/organism/journal/recent", _journal_recent, methods=["GET"])
-    r.add_api_route("/organism/journal/lifecycle/{envelope_id}", _journal_lifecycle, methods=["GET"])
+    r.add_api_route(
+        "/organism/journal/lifecycle/{envelope_id}", _journal_lifecycle, methods=["GET"]
+    )
     r.add_api_route("/organism/journal/statistics", _journal_statistics, methods=["GET"])
     r.add_api_route("/organism/mutations", _mutation_registry, methods=["GET"])
     r.add_api_route("/organism/mutations/{mutation_name}", _mutation_detail, methods=["GET"])
@@ -68,30 +70,62 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/spine-guard/blocked", _spine_guard_blocked, methods=["GET"])
     r.add_api_route("/organism/execution-doctrine", _execution_doctrine, methods=["GET"])
     r.add_api_route("/organism/reliability", _reliability_metrics, methods=["GET"])
+    r.add_api_route("/organism/capability-compounding", _capability_compounding, methods=["GET"])
 
     # ── Privileged endpoints (operator auth required) ──────────────────────
 
-    r.add_api_route("/organism/spine/approve/{envelope_id}", _spine_approve, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/spine/reject/{envelope_id}", _spine_reject, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/spine/retry/{envelope_id}", _spine_retry, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/spine-guard/mode", _spine_guard_set_mode, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/autonomous-gateway/policy", _autonomous_gateway_set_policy, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/autonomous-gateway/threshold", _autonomous_gateway_set_threshold, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/organism/spine/approve/{envelope_id}", _spine_approve, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/organism/spine/reject/{envelope_id}", _spine_reject, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/organism/spine/retry/{envelope_id}", _spine_retry, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/organism/spine-guard/mode", _spine_guard_set_mode, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/organism/autonomous-gateway/policy",
+        _autonomous_gateway_set_policy,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/autonomous-gateway/threshold",
+        _autonomous_gateway_set_threshold,
+        methods=["POST"],
+        dependencies=auth,
+    )
 
     # ── Autonomous gateway read-only endpoints ────────────────────────────
 
     r.add_api_route("/organism/autonomous-gateway", _autonomous_gateway_status, methods=["GET"])
-    r.add_api_route("/organism/autonomous-gateway/decisions", _autonomous_gateway_decisions, methods=["GET"])
-    r.add_api_route("/organism/autonomous-gateway/blocked", _autonomous_gateway_blocked, methods=["GET"])
-    r.add_api_route("/organism/autonomous-gateway/pending", _autonomous_gateway_pending, methods=["GET"])
+    r.add_api_route(
+        "/organism/autonomous-gateway/decisions", _autonomous_gateway_decisions, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/autonomous-gateway/blocked", _autonomous_gateway_blocked, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/autonomous-gateway/pending", _autonomous_gateway_pending, methods=["GET"]
+    )
 
     # ── Plan execution adapter endpoints ─────────────────────────────────
 
     r.add_api_route("/organism/execution-graph", _execution_graph_status, methods=["GET"])
     r.add_api_route("/organism/execution-graph/{plan_id}", _execution_graph_detail, methods=["GET"])
     r.add_api_route("/organism/execute-plan", _execute_plan, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/execute-plan/{plan_id}/approve/{step_id}", _execute_plan_approve_step, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/execute-plan/{plan_id}/pending", _execute_plan_pending, methods=["GET"])
+    r.add_api_route(
+        "/organism/execute-plan/{plan_id}/approve/{step_id}",
+        _execute_plan_approve_step,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/execute-plan/{plan_id}/pending", _execute_plan_pending, methods=["GET"]
+    )
 
     return r
 
@@ -184,10 +218,16 @@ async def _spine_retry(envelope_id: str, request: Request):
         return {"error": f"envelope {envelope_id} not found in completed queue"}
 
     if target.get("status") not in ("failed", "verification_failed", "rolled_back"):
-        return {"error": f"envelope {envelope_id} status is {target.get('status')} — only failed envelopes can be retried"}
+        return {
+            "error": f"envelope {envelope_id} status is {target.get('status')} — only failed envelopes can be retried"
+        }
 
     logger.info("Spine envelope retry requested: %s by %s", envelope_id, client_id)
-    return {"acknowledged": True, "envelope_id": envelope_id, "note": "re-submit a new envelope for this action"}
+    return {
+        "acknowledged": True,
+        "envelope_id": envelope_id,
+        "note": "re-submit a new envelope for this action",
+    }
 
 
 # ── Execution Journal handlers ─────────────────────────────────────────────────
@@ -284,7 +324,9 @@ async def _spine_guard_set_mode(payload: dict, request: Request):
     daemon.spine_guard.set_mode(new_mode)
     logger.info(
         "SpineGuard mode changed via cockpit: %s → %s by %s",
-        old_mode.value, new_mode.value, client_id,
+        old_mode.value,
+        new_mode.value,
+        client_id,
     )
     return {
         "old_mode": old_mode.value,
@@ -324,6 +366,7 @@ async def _reliability_metrics():
 
     spine_stats = daemon.governed_spine.to_dict()
     journal_stats = daemon.execution_journal.statistics()
+    learning_stats = daemon.outcome_learning.summary()
 
     return {
         "total_executed": spine_stats["total_executed"],
@@ -339,9 +382,18 @@ async def _reliability_metrics():
         "rollback_rate": round(
             spine_stats["total_rolled_back"] / max(spine_stats["total_failed"], 1), 4
         ),
+        "learning_loop_connected": spine_stats.get("learning_loop_connected", False),
+        "learning": learning_stats,
         "journal": journal_stats,
         "spine_guard": daemon.spine_guard.to_dict(),
     }
+
+
+async def _capability_compounding():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.capability_compounding.snapshot().to_dict()
 
 
 # ── Autonomous Action Gateway handlers ───────────────────────────────────────
@@ -398,7 +450,9 @@ async def _autonomous_gateway_set_policy(payload: dict, request: Request):
     daemon.autonomous_gateway.set_policy(new_policy)
     logger.info(
         "Autonomous gateway policy changed via cockpit: %s → %s by %s",
-        old_policy.value, new_policy.value, client_id,
+        old_policy.value,
+        new_policy.value,
+        client_id,
     )
     return {
         "old_policy": old_policy.value,
@@ -425,7 +479,9 @@ async def _autonomous_gateway_set_threshold(payload: dict, request: Request):
 
     daemon.autonomous_gateway.set_reliability_threshold(threshold)
     logger.info(
-        "Autonomous gateway threshold set to %.2f by %s", threshold, client_id,
+        "Autonomous gateway threshold set to %.2f by %s",
+        threshold,
+        client_id,
     )
     return {
         "threshold": threshold,
@@ -475,7 +531,10 @@ async def _execute_plan(payload: dict, request: Request):
 
     logger.info(
         "Plan executed via cockpit: %s → %s (%d steps) by %s",
-        result.id, result.status.value, len(result.steps), client_id,
+        result.id,
+        result.status.value,
+        len(result.steps),
+        client_id,
     )
     return result.to_dict()
 
@@ -499,7 +558,10 @@ async def _execute_plan_approve_step(plan_id: str, step_id: str, request: Reques
 
     logger.info(
         "Plan step approved: %s/%s by %s → %s",
-        plan_id, step_id, client_id, step.status.value,
+        plan_id,
+        step_id,
+        client_id,
+        step.status.value,
     )
     return step.to_dict()
 
