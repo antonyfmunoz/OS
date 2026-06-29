@@ -14,9 +14,8 @@ from transports.api.cockpit_auth import require_clerk_auth
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/umh/adapters",
+    prefix="/adapters",
     tags=["adapters"],
-    dependencies=[Depends(require_clerk_auth)],
 )
 
 _registry = None
