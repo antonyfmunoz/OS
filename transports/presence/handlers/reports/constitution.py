@@ -15,7 +15,7 @@ from ._common import (
 
 
 async def _handle_constitution_report(message: Any, spine: Any) -> None:
-    from substrate.execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
+    from substrate.execution.workers.workstation._dormant.constitutional_substrate_governance_layer_v1 import (
         CONSTITUTIONAL_MATURITY_LEVELS,
         CONSTITUTIONAL_HARD_CEILINGS,
         CONSTITUTIONAL_SAFETY_INVARIANTS,
@@ -26,19 +26,19 @@ async def _handle_constitution_report(message: Any, spine: Any) -> None:
         build_full_constitutional_proof,
         persist_constitutional_proof,
     )
-    from substrate.execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from substrate.execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from substrate.execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from substrate.execution.workers.workstation.recursive_capability_planning_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from substrate.execution.workers.workstation.adapter_autogeneration_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
