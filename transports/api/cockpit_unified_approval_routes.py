@@ -39,11 +39,24 @@ def _build_router() -> Any:
         approval_id: str
         source_type: str
         decided_by: str = "operator"
+        surface: str = "cockpit"
 
     class RejectRequest(BaseModel):
         approval_id: str
         source_type: str
         reason: str = ""
+        decided_by: str = "operator"
+        surface: str = "cockpit"
+
+    class ClaimRequest(BaseModel):
+        approval_id: str
+        surface: str = "cockpit"
+
+    class ResolveRequest(BaseModel):
+        approval_id: str
+        decision: str
+        surface: str = "cockpit"
+        input_text: str = ""
         decided_by: str = "operator"
 
     @router.get("/pending")
@@ -114,5 +127,66 @@ def _build_router() -> Any:
     def get_decisions(limit: int = 20) -> list[dict[str, Any]]:
         rt = _get_approval_runtime()
         return [d.to_dict() for d in rt.recent_decisions(limit=limit)]
+
+    @router.post("/claim")
+    def claim_approval(req: ClaimRequest) -> dict[str, Any]:
+        """Atomically claim a pending approval from a surface (CAS)."""
+        try:
+            from substrate.organism.approval_gate import OperatorApprovalGate
+
+            gate = OperatorApprovalGate()
+            ok = gate.claim_approval(req.approval_id, req.surface)
+            return {"claimed": ok, "approval_id": req.approval_id, "surface": req.surface}
+        except Exception as exc:
+            logger.debug("claim_approval failed: %s", exc)
+            return {"claimed": False, "error": str(exc)}
+
+    @router.post("/resolve")
+    def resolve_approval(req: ResolveRequest) -> dict[str, Any]:
+        """Resolve a claimed approval (approve/reject/provide_input)."""
+        try:
+            from substrate.organism.approval_gate import OperatorApprovalGate
+
+            gate = OperatorApprovalGate()
+            ok = gate.resolve_approval(
+                packet_id=req.approval_id,
+                decision=req.decision,
+                surface=req.surface,
+                input_text=req.input_text,
+                decided_by=req.decided_by,
+            )
+            emit_mutation_audit(
+                "approvals",
+                req.decision,
+                req.approval_id,
+                actor=req.decided_by,
+                new_value={"surface": req.surface, "input": req.input_text[:200]},
+            )
+            try:
+                from transports.api.cockpit_core_routes import push_mutation_event
+
+                if push_mutation_event is not None:
+                    push_mutation_event("approvals", req.decision, {
+                        "id": req.approval_id,
+                        "surface": req.surface,
+                    })
+            except Exception:
+                pass
+            return {"resolved": ok, "approval_id": req.approval_id, "decision": req.decision}
+        except Exception as exc:
+            logger.debug("resolve_approval failed: %s", exc)
+            return {"resolved": False, "error": str(exc)}
+
+    @router.get("/status/{approval_id}")
+    def approval_status(approval_id: str) -> dict[str, Any]:
+        """Poll current approval state from any surface."""
+        try:
+            from substrate.organism.approval_gate import OperatorApprovalGate
+
+            gate = OperatorApprovalGate()
+            return gate.get_approval_status(approval_id)
+        except Exception as exc:
+            logger.debug("approval_status failed: %s", exc)
+            return {"found": False, "error": str(exc)}
 
     return router

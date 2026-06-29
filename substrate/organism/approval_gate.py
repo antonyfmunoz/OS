@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -61,6 +62,10 @@ class ApprovalPacket:
     rejection_reason: str = ""
     created_at: float = field(default_factory=time.time)
     expires_at: float = 0.0
+    claimed_by_surface: str = ""
+    resolved_by_surface: str = ""
+    operator_input: str = ""
+    broadcast_surfaces: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -90,6 +95,10 @@ class ApprovalPacket:
             "rejection_reason": self.rejection_reason,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
+            "claimed_by_surface": self.claimed_by_surface,
+            "resolved_by_surface": self.resolved_by_surface,
+            "operator_input": self.operator_input,
+            "broadcast_surfaces": self.broadcast_surfaces,
         }
 
 
@@ -101,6 +110,7 @@ class OperatorApprovalGate:
         self._packets_path = os.path.join(self._store_dir, "approval_packets.jsonl")
         self._ttl_seconds = ttl_seconds
         self._packets: dict[str, ApprovalPacket] = {}
+        self._lock = threading.Lock()
         self._load()
 
     def _load(self) -> None:
@@ -256,6 +266,98 @@ class OperatorApprovalGate:
         for packet in self._packets.values():
             if packet.status == ApprovalStatus.PENDING and self._is_expired(packet):
                 packet.status = ApprovalStatus.EXPIRED
+
+    # ── Multi-surface atomic approval protocol ──────────────────
+
+    def claim_approval(self, packet_id: str, surface: str) -> bool:
+        """Atomically claim a pending approval from a surface.
+
+        Uses compare-and-swap: only succeeds if packet is PENDING and
+        unclaimed. All surfaces race; first valid claim wins.
+        """
+        with self._lock:
+            packet = self._packets.get(packet_id)
+            if packet is None:
+                return False
+            if packet.status != ApprovalStatus.PENDING:
+                return False
+            if self._is_expired(packet):
+                packet.status = ApprovalStatus.EXPIRED
+                return False
+            if packet.claimed_by_surface:
+                return False
+            packet.claimed_by_surface = surface
+            logger.info("Approval %s claimed by surface: %s", packet_id, surface)
+            return True
+
+    def resolve_approval(
+        self,
+        packet_id: str,
+        decision: str,
+        surface: str,
+        input_text: str = "",
+        decided_by: str = "operator",
+    ) -> bool:
+        """Resolve an approval after claiming it.
+
+        Args:
+            decision: "approve", "reject", or "provide_input"
+            surface: which surface is resolving
+            input_text: operator-provided text (for provide_input or rejection reason)
+            decided_by: identity of the decider
+        """
+        with self._lock:
+            packet = self._packets.get(packet_id)
+            if packet is None:
+                return False
+            if packet.status not in (ApprovalStatus.PENDING,):
+                return False
+            if packet.claimed_by_surface and packet.claimed_by_surface != surface:
+                return False
+
+            if decision == "approve":
+                packet.status = ApprovalStatus.APPROVED
+            elif decision == "reject":
+                packet.status = ApprovalStatus.REJECTED
+                packet.rejection_reason = input_text
+            elif decision == "provide_input":
+                packet.operator_input = input_text
+            else:
+                logger.debug("Unknown decision type: %s", decision)
+                return False
+
+            packet.decided_by = decided_by
+            packet.decided_at = time.time()
+            packet.resolved_by_surface = surface
+            if not packet.claimed_by_surface:
+                packet.claimed_by_surface = surface
+            self._persist(packet)
+            logger.info(
+                "Approval %s resolved: %s by %s via %s",
+                packet_id, decision, decided_by, surface,
+            )
+            return True
+
+    def get_approval_status(self, packet_id: str) -> dict[str, Any]:
+        """Return current approval state for any surface to poll."""
+        packet = self._packets.get(packet_id)
+        if packet is None:
+            return {"found": False}
+        return {
+            "found": True,
+            "packet_id": packet_id,
+            "status": packet.status.value,
+            "claimed_by_surface": packet.claimed_by_surface,
+            "resolved_by_surface": packet.resolved_by_surface,
+            "decided_by": packet.decided_by,
+            "decided_at": packet.decided_at,
+            "decision": (
+                "approve" if packet.status == ApprovalStatus.APPROVED
+                else "reject" if packet.status == ApprovalStatus.REJECTED
+                else "pending"
+            ),
+            "operator_input": packet.operator_input,
+        }
 
     def summary(self) -> dict[str, Any]:
         self._expire_stale()
