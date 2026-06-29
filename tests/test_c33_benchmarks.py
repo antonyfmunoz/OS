@@ -483,3 +483,69 @@ def test_1h_data_loss_penalty():
         )
         score = scorer.score_switch(event)
         assert score < 0.3
+
+
+# ── 2H: Mutation Equivalence ────────────────────────────────
+
+
+def test_2h_score_pair_full_match():
+    from substrate.organism.benchmarks.mutation_equivalence import (
+        MutationEquivalenceScorer,
+        MutationPair,
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        path = os.path.join(td, "pairs.jsonl")
+        scorer = MutationEquivalenceScorer(store_path=path)
+
+        pair = MutationPair(
+            mutation_type="create_work_packet",
+            human_surface="cockpit",
+            agent_surface="spine",
+            envelope_shape_match=True,
+            governance_match=True,
+            approval_match=True,
+            journal_match=True,
+            proof_match=True,
+            state_match=True,
+            realtime_event_match=True,
+            rollback_match=True,
+        )
+        score = scorer.record_pair(pair)
+        assert score.score == 1.0
+        assert score.checks_passed == 8
+        assert not score.spine_bypass
+
+
+def test_2h_spine_bypass_detected():
+    from substrate.organism.benchmarks.mutation_equivalence import (
+        MutationEquivalenceScorer,
+        MutationPair,
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        path = os.path.join(td, "pairs.jsonl")
+        scorer = MutationEquivalenceScorer(store_path=path)
+
+        pair = MutationPair(
+            mutation_type="approve_action",
+            human_bypassed_spine=True,
+            envelope_shape_match=True,
+            governance_match=False,
+        )
+        score = scorer.record_pair(pair)
+        assert score.spine_bypass is True
+        assert score.score < 1.0
+
+
+def test_2h_structural_audit_keys():
+    from substrate.organism.benchmarks.mutation_equivalence import MutationEquivalenceScorer
+
+    scorer = MutationEquivalenceScorer()
+    audit = scorer.structural_audit()
+    assert "total_route_files" in audit
+    assert "mutation_route_files" in audit
+    assert "spine_connected" in audit
+    assert "potential_bypasses" in audit
+    assert "bypasses" in audit
+    assert isinstance(audit["bypasses"], list)
