@@ -24,7 +24,7 @@ from adapters.adapter_engine.participant import ParticipantType
 
 
 @dataclass
-class CapabilityDescriptor:
+class AdapterCapability:
     """A single action capability offered by an adapter."""
 
     capability_id: str
@@ -44,7 +44,7 @@ class AdapterDescriptor:
     environment_type: str
     authority_domain: AuthorityDomain
     message_bus: MessageBusType
-    capabilities: list[CapabilityDescriptor] = field(default_factory=list)
+    capabilities: list[AdapterCapability] = field(default_factory=list)
     modalities: list[ModalityType] | None = None
     participant_type: ParticipantType | None = None
     version: str = "v1"
@@ -53,7 +53,7 @@ class AdapterDescriptor:
     def supports(self, action_type: str) -> bool:
         return any(c.action_type == action_type for c in self.capabilities)
 
-    def get_capability(self, action_type: str) -> CapabilityDescriptor | None:
+    def get_capability(self, action_type: str) -> AdapterCapability | None:
         for c in self.capabilities:
             if c.action_type == action_type:
                 return c
@@ -124,7 +124,7 @@ class AdapterRegistry:
             caps = []
             for cdata in adata.get("capabilities", []):
                 caps.append(
-                    CapabilityDescriptor(
+                    AdapterCapability(
                         capability_id=cdata["capability_id"],
                         action_type=cdata["action_type"],
                         requires_gui=cdata.get("requires_gui", False),

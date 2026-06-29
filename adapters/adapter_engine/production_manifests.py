@@ -9,7 +9,7 @@ from adapters.adapter_engine.adapter_manifest import AdapterManifest, AdapterMat
 from adapters.adapter_engine.adapter_registry_contracts import (
     AdapterDescriptor,
     AdapterRegistry,
-    CapabilityDescriptor,
+    AdapterCapability,
 )
 from adapters.adapter_engine.modality import ModalityType
 from adapters.adapter_engine.participant import ParticipantType
@@ -24,12 +24,12 @@ MODEL_ROUTER_MANIFEST = AdapterManifest(
     modalities=[ModalityType.API],
     participant_type=ParticipantType.EXTERNAL,
     capabilities=[
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="model_router:call_with_fallback",
             action_type="ai_inference",
             required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
         ),
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="model_router:call_heavy",
             action_type="ai_heavy_inference",
             required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
@@ -46,7 +46,7 @@ CC_SDK_MANIFEST = AdapterManifest(
     modalities=[ModalityType.API],
     participant_type=ParticipantType.EXTERNAL,
     capabilities=[
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="cc_sdk:query",
             action_type="claude_code_query",
             requires_local_shell=True,
@@ -64,17 +64,17 @@ GOOGLE_WORKSPACE_MANIFEST = AdapterManifest(
     modalities=[ModalityType.API],
     participant_type=ParticipantType.EXTERNAL,
     capabilities=[
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="gws:gmail_read",
             action_type="email_read",
             required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
         ),
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="gws:gmail_send",
             action_type="email_send",
             required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
         ),
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="gws:drive_scan",
             action_type="drive_scan",
             required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
@@ -91,12 +91,12 @@ CALENDAR_MANIFEST = AdapterManifest(
     modalities=[ModalityType.API],
     participant_type=ParticipantType.EXTERNAL,
     capabilities=[
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="calendar:list_events",
             action_type="calendar_read",
             required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
         ),
-        CapabilityDescriptor(
+        AdapterCapability(
             capability_id="calendar:create_event",
             action_type="calendar_write",
             required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,

@@ -5,7 +5,7 @@ from adapters.adapter_engine.adapter_maturity import MaturityEvidence, compute_a
 from adapters.adapter_engine.adapter_registry_contracts import (
     AdapterDescriptor,
     AdapterRegistry,
-    CapabilityDescriptor,
+    AdapterCapability,
 )
 from adapters.adapter_engine.modality import ModalityType
 from adapters.adapter_engine.participant import ParticipantType
@@ -20,7 +20,7 @@ __all__ = [
     "AdapterMaturityLevel",
     "AdapterRegistry",
     "ALL_PRODUCTION_MANIFESTS",
-    "CapabilityDescriptor",
+    "AdapterCapability",
     "MaturityEvidence",
     "ModalityType",
     "ParticipantType",

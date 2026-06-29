@@ -17,7 +17,7 @@ from substrate.execution.runtime.worker_runtime_contracts import (
 
 
 @dataclass
-class CapabilityDescriptor:
+class AdapterCapability:
     """A single action capability offered by an adapter."""
 
     capability_id: str
@@ -37,7 +37,7 @@ class AdapterDescriptor:
     environment_type: str
     authority_domain: AuthorityDomain
     message_bus: MessageBusType
-    capabilities: list[CapabilityDescriptor] = field(default_factory=list)
+    capabilities: list[AdapterCapability] = field(default_factory=list)
     modalities: list[Any] | None = None
     participant_type: Any | None = None
     version: str = "v1"
