@@ -286,7 +286,7 @@ class Substrate:
                             rq_result.get("query_id", "")
                         )
                 except Exception:
-                    pass
+                    logger.debug("reality query failed during OBSERVATION route", exc_info=True)
                 receipt.final_status = ReceiptStatus.COMPLETED.value
 
             elif classification.route_type == RouteType.APPROVAL:
@@ -313,7 +313,7 @@ class Substrate:
                 correlation_id=receipt.intent_id,
             )
         except Exception:
-            pass
+            logger.debug("EventSpine emit failed for intent_routed", exc_info=True)
 
         return receipt
 
@@ -385,18 +385,18 @@ class Substrate:
         try:
             instance_model = InstanceRealityModel(user_id=user_id, org_id=org_id)
         except Exception:
-            pass
+            logger.debug("InstanceRealityModel init failed", exc_info=True)
         try:
             canonical_model = CanonicalRealityModel()
         except Exception:
-            pass
+            logger.debug("CanonicalRealityModel init failed", exc_info=True)
         try:
             from substrate.state.memory.contracts.canonical_memory_store_v1 import (
                 CanonicalMemoryStore,
             )
             memory_store = CanonicalMemoryStore()
         except Exception:
-            pass
+            logger.debug("CanonicalMemoryStore init failed", exc_info=True)
         try:
             from substrate.organism.event_spine import EventSpine as ES
 
@@ -404,7 +404,7 @@ class Substrate:
             es.recover()
             event_spine = es
         except Exception:
-            pass
+            logger.debug("EventSpine init/recover failed", exc_info=True)
 
         return RealityIntelligenceEngine(
             instance_model=instance_model,

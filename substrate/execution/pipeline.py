@@ -10,6 +10,7 @@ and returns a typed PipelineResult with all generated artifact IDs.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Callable
 from uuid import UUID, uuid4
@@ -54,6 +55,8 @@ from substrate.workstation.state import (
     WorkstationSessionState,
     WorkstationStateManager,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineResult(BaseModel):
@@ -134,7 +137,7 @@ class ExecutionPipeline:
             try:
                 listener(event_type, data)
             except Exception:
-                pass
+                logger.debug("pipeline event listener failed for %s", event_type, exc_info=True)
 
     def submit_signal(
         self,
@@ -422,7 +425,7 @@ class ExecutionPipeline:
                     domain=classification.detail or "general",
                 )
             except Exception:
-                pass
+                logger.debug("outcome recording failed", exc_info=True)
 
             # --- 8. JSONL Trace Store (observability projection) ---
             obs_trace = self._trace_store.create_trace(
@@ -476,7 +479,7 @@ class ExecutionPipeline:
                                 )
                                 self._emit("memory_reconciliation", recon)
                             except Exception:
-                                pass
+                                logger.debug("memory reconciliation failed", exc_info=True)
 
             # --- 11. Reality Model update (step 27) ---
             self._understanding.record_outcome(
@@ -528,7 +531,7 @@ class ExecutionPipeline:
             completeness_score = comp_result.score
             self._emit("completeness", comp_result.to_dict())
         except Exception:
-            pass
+            logger.debug("completeness evaluation failed", exc_info=True)
 
         # --- Finalize protocol trace ---
         trace.success = success

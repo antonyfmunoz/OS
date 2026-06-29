@@ -115,7 +115,7 @@ def _track_cc_sdk_result(success: bool) -> None:
         else:
             state.record_provider_failure("cc_sdk")
     except Exception:
-        pass
+        logger.debug("provider state tracking failed for cc_sdk", exc_info=True)
 
 
 # ─── CPU pressure gate ────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ def _cpu_too_hot() -> bool:
             )
             return True
     except Exception:
-        pass
+        logger.debug("CPU load check failed", exc_info=True)
     return False
 
 
@@ -405,9 +405,9 @@ def _kill_orphaned_claude_procs(before_pids: set[int]) -> None:
                     os.kill(pid, signal.SIGKILL)
                     logger.warning("[cc_sdk] killed orphaned claude process %d", pid)
                 except OSError:
-                    pass
+                    logger.debug("failed to kill orphaned pid %d", pid, exc_info=True)
     except Exception:
-        pass
+        logger.debug("orphan cleanup failed", exc_info=True)
 
 
 def _get_claude_pids() -> set[int]:
@@ -422,7 +422,7 @@ def _get_claude_pids() -> set[int]:
         if result.returncode == 0:
             return {int(p) for p in result.stdout.strip().split("\n") if p.strip()}
     except Exception:
-        pass
+        logger.debug("pgrep for claude pids failed", exc_info=True)
     return set()
 
 
@@ -456,7 +456,7 @@ def query_cc_sync(
             logger.info("[cc_sdk] blocked by backpressure gate")
             return None
     except Exception:
-        pass
+        logger.debug("backpressure gate check failed", exc_info=True)
 
     nested = _is_nested_cc_session()
     logger.warning(

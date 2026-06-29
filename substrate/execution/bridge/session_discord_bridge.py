@@ -15,6 +15,7 @@ Design invariants:
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import re
 import sys
@@ -27,6 +28,8 @@ _REPO_ROOT = os.path.dirname(
 )
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
+
+logger = logging.getLogger(__name__)
 
 import discord
 
@@ -83,7 +86,7 @@ class PlanApprovalView(discord.ui.View):
                         view=self,
                     )
             except Exception:
-                pass
+                logger.debug("approval view timeout cleanup failed", exc_info=True)
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green, emoji="✅")
     async def approve(
@@ -158,7 +161,7 @@ class PermissionView(discord.ui.View):
                         view=self,
                     )
             except Exception:
-                pass
+                logger.debug("question view timeout cleanup failed", exc_info=True)
 
     @discord.ui.button(label="Allow", style=discord.ButtonStyle.green, emoji="✅")
     async def allow(
@@ -249,7 +252,7 @@ class QuestionOptionView(discord.ui.View):
                         view=self,
                     )
             except Exception:
-                pass
+                logger.debug("option view timeout cleanup failed", exc_info=True)
 
 
 def _extract_options(text: str) -> list[tuple[str, str]]:
@@ -319,12 +322,12 @@ def _resolve_channel_id(session_name: str) -> int | None:
         try:
             return int(_BUILDER_CHANNEL_ID)
         except ValueError:
-            pass
+            logger.debug("invalid BUILDER_CHANNEL_ID: %s", _BUILDER_CHANNEL_ID)
     if session_name == _PRODUCT_SESSION and _PRODUCT_CHANNEL_ID:
         try:
             return int(_PRODUCT_CHANNEL_ID)
         except ValueError:
-            pass
+            logger.debug("invalid PRODUCT_CHANNEL_ID: %s", _PRODUCT_CHANNEL_ID)
     return None
 
 
