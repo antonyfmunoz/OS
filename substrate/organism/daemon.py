@@ -67,6 +67,7 @@ from substrate.organism.propagation_wiring import build_propagation_engine
 from substrate.organism.template_registry import TemplateRegistry
 from substrate.organism.spine_guard import GuardMode, SpineGuard
 from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
+from substrate.organism.capability_compounding_runtime import CapabilityCompoundingRuntime
 from substrate.organism.autonomous_cadence import AutonomousCadence, CadencePolicy
 from substrate.organism.candidate_supply_engine import CandidateSupplyEngine
 from substrate.organism.leverage_engine import LeverageEngine
@@ -198,11 +199,14 @@ class OrganismDaemon:
         self._tailscale_discovery: TailscaleDiscoveryTick | None = None
         try:
             _data_dir = os.path.join(
-                os.environ.get("UMH_ROOT") or "/opt/OS", "data",
+                os.environ.get("UMH_ROOT") or "/opt/OS",
+                "data",
             )
             self._tailscale_discovery = TailscaleDiscoveryTick(
                 discovered_peers_path=os.path.join(
-                    _data_dir, "runtime", "discovered_peers.json",
+                    _data_dir,
+                    "runtime",
+                    "discovered_peers.json",
                 ),
             )
         except Exception as exc:
@@ -286,6 +290,8 @@ class OrganismDaemon:
             store_dir=str(self._state_dir / "propagation"),
         )
 
+        self._capability_compounding = CapabilityCompoundingRuntime()
+
         self._governed_spine = GovernedExecutionSpine(
             event_spine=self._event_spine,
             execution_mode=self._execution_mode_manager,
@@ -293,6 +299,7 @@ class OrganismDaemon:
             journal=self._execution_journal,
             leverage_metrics=self._leverage_metrics,
             propagation_engine=self._propagation_engine,
+            learning_loop=self._outcome_learning,
         )
         self._spine_guard = SpineGuard(
             mode=GuardMode.BLOCK_HIGH_RISK,
@@ -482,11 +489,13 @@ class OrganismDaemon:
         runtime_stats: list[dict[str, Any]] = []
         if self._graph is not None:
             for node in self._graph.all_nodes():
-                runtime_stats.append({
-                    "runtime_id": node.runtime_id,
-                    "avg_latency_ms": node.reliability.avg_latency_ms,
-                    "idle_cycles": 0,
-                })
+                runtime_stats.append(
+                    {
+                        "runtime_id": node.runtime_id,
+                        "avg_latency_ms": node.reliability.avg_latency_ms,
+                        "idle_cycles": 0,
+                    }
+                )
 
         tick_metrics = self._autonomous_tick.metrics
         pending_approvals = self._approval_store.pending_count()
@@ -516,10 +525,7 @@ class OrganismDaemon:
         leverage_summary = self._leverage_metrics.summary()
 
         completed = self._governed_spine.completed_envelopes(limit=50)
-        failed_envelopes = [
-            e for e in completed
-            if not e.get("result_success", True)
-        ][:10]
+        failed_envelopes = [e for e in completed if not e.get("result_success", True)][:10]
 
         opportunities = self._leverage_engine.compute(
             bottlenecks=bottleneck_data,
@@ -559,7 +565,9 @@ class OrganismDaemon:
             },
             operator_state={
                 "pending_approvals": pending_approvals,
-                "intervention_rate": self._leverage_metrics.bottleneck_inputs().get("intervention_rate", 0),
+                "intervention_rate": self._leverage_metrics.bottleneck_inputs().get(
+                    "intervention_rate", 0
+                ),
                 "operator_compression": self._operator_compression.to_dict(),
             },
             memory_state={
@@ -569,9 +577,19 @@ class OrganismDaemon:
                 "journal_entries": journal_dict.get("total_entries", 0),
             },
             composition_state={
-                "runtimes_available": len([n for n in (self._graph.all_nodes() if self._graph else []) if n.status.value == "available"]),
+                "runtimes_available": len(
+                    [
+                        n
+                        for n in (self._graph.all_nodes() if self._graph else [])
+                        if n.status.value == "available"
+                    ]
+                ),
                 "runtimes_total": len(self._graph.all_nodes()) if self._graph else 0,
-                "agents_registered": len([f for f in self._store._agents_dir.iterdir() if f.suffix == ".json"]) if self._store._agents_dir.exists() else 0,
+                "agents_registered": len(
+                    [f for f in self._store._agents_dir.iterdir() if f.suffix == ".json"]
+                )
+                if self._store._agents_dir.exists()
+                else 0,
                 "event_spine_active": True,
                 "tick_running": self._started,
                 "connected_subsystems": 10,
@@ -786,6 +804,10 @@ class OrganismDaemon:
         return self._agent_capability_model
 
     @property
+    def capability_compounding(self) -> CapabilityCompoundingRuntime:
+        return self._capability_compounding
+
+    @property
     def propagation_engine(self):
         return self._propagation_engine
 
@@ -873,6 +895,7 @@ class OrganismDaemon:
         """Record a periodic heartbeat to the execution journal."""
         try:
             from substrate.organism.execution_journal import JournalPhase
+
             self._execution_journal.record(
                 envelope_id=f"tick-heartbeat-{self._tick_count}",
                 phase=JournalPhase.EXECUTION_COMPLETED,
@@ -952,6 +975,7 @@ class OrganismDaemon:
             "plan_execution_adapter": self._plan_execution_adapter.to_dict(),
             "autonomous_cadence": self._autonomous_cadence.to_dict(),
             "outcome_learning": self._outcome_learning.to_dict(),
+            "capability_compounding": self._capability_compounding.snapshot().to_dict(),
             "template_registry": self._template_registry.summary(),
             "memory_pipeline": self._memory_pipeline.summary(),
             "agent_capability_model": self._agent_capability_model.summary(),
@@ -965,11 +989,13 @@ class OrganismDaemon:
             "last_dry_run_at": self._autonomous_cadence._last_run_at,
             "last_candidate_count": (
                 self._autonomous_cadence._run_history[-1].candidates_found
-                if self._autonomous_cadence._run_history else 0
+                if self._autonomous_cadence._run_history
+                else 0
             ),
             "last_recommendation_count": (
                 len(self._autonomous_cadence._run_history[-1].recommendations)
-                if self._autonomous_cadence._run_history else 0
+                if self._autonomous_cadence._run_history
+                else 0
             ),
             "active_sandbox_count": self._get_active_sandbox_count(),
             "active_pr_count": self._get_active_pr_count(),
@@ -989,29 +1015,28 @@ class OrganismDaemon:
     def _get_active_sandbox_count(self) -> int:
         try:
             from substrate.organism.worktree_sandbox import SandboxStatus
+
             manager = self._autonomous_gateway._sandbox_manager
-            return sum(
-                1 for sb in manager.all_sandboxes
-                if sb.status == SandboxStatus.ACTIVE
-            )
+            return sum(1 for sb in manager.all_sandboxes if sb.status == SandboxStatus.ACTIVE)
         except (AttributeError, ImportError):
             return 0
 
     def _get_active_pr_count(self) -> int:
         try:
             from substrate.organism.worktree_sandbox import SandboxStatus
+
             manager = self._autonomous_gateway._sandbox_manager
-            return sum(
-                1 for sb in manager.all_sandboxes
-                if sb.status == SandboxStatus.PR_CREATED
-            )
+            return sum(1 for sb in manager.all_sandboxes if sb.status == SandboxStatus.PR_CREATED)
         except (AttributeError, ImportError):
             return 0
 
     def _get_pending_verification_count(self) -> int:
         try:
             import glob as _glob
-            mv_dir = os.path.join(self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications")
+
+            mv_dir = os.path.join(
+                self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications"
+            )
             if not os.path.isdir(mv_dir):
                 return 0
             return len(_glob.glob(os.path.join(mv_dir, "pmv-*.json")))
@@ -1021,7 +1046,10 @@ class OrganismDaemon:
     def _get_last_delta_id(self) -> str:
         try:
             import glob as _glob
-            mv_dir = os.path.join(self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications")
+
+            mv_dir = os.path.join(
+                self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications"
+            )
             if not os.path.isdir(mv_dir):
                 return ""
             ptd_files = sorted(_glob.glob(os.path.join(mv_dir, "ptd-*.json")))
@@ -1034,7 +1062,10 @@ class OrganismDaemon:
     def _get_last_production_outcome_at(self) -> float:
         try:
             import glob as _glob
-            mv_dir = os.path.join(self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications")
+
+            mv_dir = os.path.join(
+                self._repo_root, "data", "umh", "autonomous_lane", "merge_verifications"
+            )
             if not os.path.isdir(mv_dir):
                 return 0.0
             poc_files = sorted(_glob.glob(os.path.join(mv_dir, "pmv-*.json")))
