@@ -45,6 +45,11 @@ from substrate.organism.execution_journal import ExecutionJournal, JournalPhase
 from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
 from substrate.organism.leverage_metrics import LeverageMetrics, TaskRecord
 from substrate.organism.mutation_registry import MutationRegistry
+from substrate.organism.outcome_learning import (
+    OutcomeLearningLoop,
+    OutcomeRecord,
+    OutcomeStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +75,7 @@ class GovernedExecutionSpine:
         journal: ExecutionJournal,
         leverage_metrics: LeverageMetrics | None = None,
         propagation_engine: ParallelPropagationEngine | None = None,
+        learning_loop: OutcomeLearningLoop | None = None,
     ) -> None:
         self._event_spine = event_spine
         self._mode = execution_mode
@@ -77,6 +83,7 @@ class GovernedExecutionSpine:
         self._journal = journal
         self._leverage = leverage_metrics
         self._propagation = propagation_engine
+        self._learning = learning_loop
         self._lock = threading.Lock()
 
         self._pending: deque[ActionEnvelope] = deque(maxlen=_MAX_QUEUE)
@@ -336,16 +343,20 @@ class GovernedExecutionSpine:
         )
 
         if self._leverage is not None:
-            self._leverage.record_task(TaskRecord(
-                task_id=envelope.envelope_id,
-                started_at=envelope.started_at,
-                completed_at=envelope.completed_at,
-                autonomous=(envelope.approved_by == "auto_governance"),
-                required_approval=envelope.constraints.require_approval,
-                success=envelope.result_success,
-                estimated_manual_seconds=envelope.estimated_manual_seconds,
-                actual_seconds=max(envelope.completed_at - envelope.started_at, 0.01),
-            ))
+            self._leverage.record_task(
+                TaskRecord(
+                    task_id=envelope.envelope_id,
+                    started_at=envelope.started_at,
+                    completed_at=envelope.completed_at,
+                    autonomous=(envelope.approved_by == "auto_governance"),
+                    required_approval=envelope.constraints.require_approval,
+                    success=envelope.result_success,
+                    estimated_manual_seconds=envelope.estimated_manual_seconds,
+                    actual_seconds=max(envelope.completed_at - envelope.started_at, 0.01),
+                )
+            )
+
+        self._record_learning(envelope)
 
         self._event_spine.emit(
             EventDomain.EXECUTION,
@@ -414,6 +425,7 @@ class GovernedExecutionSpine:
             from substrate.organism.outcome_verification import (
                 OutcomeVerificationEngine,
             )
+
             engine = getattr(self, "_outcome_engine", None)
             if engine is None:
                 return
@@ -508,7 +520,8 @@ class GovernedExecutionSpine:
                 except Exception as exc:
                     logger.warning(
                         "Propagation failed for %s (non-fatal): %s",
-                        envelope.envelope_id, exc,
+                        envelope.envelope_id,
+                        exc,
                     )
 
         elif envelope.status in (
@@ -550,8 +563,35 @@ class GovernedExecutionSpine:
                 except Exception as exc:
                     logger.warning(
                         "Failure recording failed for %s: %s",
-                        envelope.envelope_id, exc,
+                        envelope.envelope_id,
+                        exc,
                     )
+
+    def _record_learning(self, envelope: ActionEnvelope) -> None:
+        """Record the execution outcome in the learning loop.
+
+        Direct path — does not depend on propagation engine being wired.
+        """
+        if self._learning is None:
+            return
+        try:
+            duration = max(envelope.completed_at - envelope.started_at, 0)
+            status = OutcomeStatus.SUCCESS if envelope.result_success else OutcomeStatus.FAILURE
+            if envelope.result_success and envelope.status == EnvelopeStatus.VERIFICATION_FAILED:
+                status = OutcomeStatus.PARTIAL
+
+            record = OutcomeRecord(
+                action_type=envelope.action_type.value,
+                description=envelope.intent[:200],
+                status=status,
+                expected_result="success",
+                actual_result=envelope.result_output[:200],
+                duration_seconds=duration,
+                error="" if envelope.result_success else envelope.result_output[:200],
+            )
+            self._learning.record_outcome(record)
+        except Exception as exc:
+            logger.debug("learning loop record failed (non-fatal): %s", exc)
 
     def _pop_pending(self, envelope_id: str) -> ActionEnvelope | None:
         with self._lock:
@@ -594,6 +634,8 @@ class GovernedExecutionSpine:
         total = self._total_succeeded + self._total_failed
         success_rate = round(self._total_succeeded / max(total, 1), 4)
 
+        learning_summary = self._learning.summary() if self._learning is not None else None
+
         return {
             "total_executed": self._total_executed,
             "total_succeeded": self._total_succeeded,
@@ -608,4 +650,6 @@ class GovernedExecutionSpine:
             "current_mode": self._mode.current_mode.value,
             "registered_mutations": len(self._registry.all_specs()),
             "spine_native_propagation": self._propagation is not None,
+            "learning_loop_connected": self._learning is not None,
+            "learning_summary": learning_summary,
         }
