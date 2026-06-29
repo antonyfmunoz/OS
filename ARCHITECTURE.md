@@ -7,8 +7,10 @@
 
 ## Philosophy
 
-See PHILOSOPHY.md — the single source
-of truth. Everything derives from it.
+See EPISTEMOLOGY.md — the organism's theory
+of knowledge, capability, and execution.
+See PHILOSOPHY.md — EntrepreneurOS projection
+values. Everything derives from these.
 
 ---
 
