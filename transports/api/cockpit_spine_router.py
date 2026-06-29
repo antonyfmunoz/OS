@@ -70,6 +70,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/spine-guard/blocked", _spine_guard_blocked, methods=["GET"])
     r.add_api_route("/organism/execution-doctrine", _execution_doctrine, methods=["GET"])
     r.add_api_route("/organism/reliability", _reliability_metrics, methods=["GET"])
+    r.add_api_route("/organism/reliability-history", _reliability_history, methods=["GET"])
     r.add_api_route("/organism/capability-compounding", _capability_compounding, methods=["GET"])
 
     # ── Privileged endpoints (operator auth required) ──────────────────────
@@ -399,6 +400,13 @@ async def _reliability_metrics():
         "journal": journal_stats,
         "spine_guard": daemon.spine_guard.to_dict(),
     }
+
+
+async def _reliability_history():
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+    return daemon.outcome_learning.reliability_history()
 
 
 async def _capability_compounding():
