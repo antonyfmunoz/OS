@@ -162,6 +162,27 @@ class DevSessionTracker:
         logger.info("dev session completed: %s — %s", s.session_id, outcome[:80])
         return envelope
 
+    def submit_to_spine(
+        self,
+        session_id: str,
+        outcome: str,
+        spine: Any,
+    ) -> tuple[ActionEnvelope | None, Any]:
+        """Complete a session and submit its envelope to the governed spine.
+
+        Returns (envelope, spine_result). If session is invalid or spine
+        submission fails, returns (None, None).
+        """
+        envelope = self.complete_session(session_id, outcome)
+        if envelope is None:
+            return None, None
+        try:
+            result = spine.submit(envelope)
+            return envelope, result
+        except Exception as exc:
+            logger.debug("spine submission failed for %s: %s", session_id, exc)
+            return envelope, None
+
     def abandon_session(self, session_id: str) -> bool:
         s = self._sessions.get(session_id)
         if s is None or s.status != SessionStatus.ACTIVE:
