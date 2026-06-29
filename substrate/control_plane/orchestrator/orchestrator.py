@@ -12,6 +12,7 @@ Cron (6am daily):
 """
 
 import json
+import logging
 import os
 import sys
 import datetime
@@ -24,6 +25,8 @@ _REPO_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or "/opt/OS
 
 load_dotenv(os.path.join(_REPO_ROOT, "runtime", ".env"))
 load_dotenv(os.path.join(_REPO_ROOT, "services", ".env"))
+
+logger = logging.getLogger(__name__)
 
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -233,7 +236,7 @@ class CEOAgent:
                     }
                 )
             except Exception:
-                pass
+                logger.debug("venture KPI fetch failed for %s", vid, exc_info=True)
 
         # Pending tasks count
         pending_tasks = 0
@@ -245,7 +248,7 @@ class CEOAgent:
                 )
                 pending_tasks = cur.fetchone()["cnt"] or 0
         except Exception:
-            pass
+            logger.debug("pending tasks query failed", exc_info=True)
 
         # Pending approvals count
         pending_approvals = 0
@@ -258,7 +261,7 @@ class CEOAgent:
                 )
                 pending_approvals = cur.fetchone()["cnt"] or 0
         except Exception:
-            pass
+            logger.debug("pending approvals query failed", exc_info=True)
 
         # Last 7 days interactions count
         cutoff = (
@@ -274,7 +277,7 @@ class CEOAgent:
                 )
                 interactions_7d = cur.fetchone()["cnt"] or 0
         except Exception:
-            pass
+            logger.debug("interactions_7d query failed", exc_info=True)
 
         # Skill performance — reply rate
         reply_rate = None
@@ -293,7 +296,7 @@ class CEOAgent:
                 if row and row["total"] and row["total"] > 0:
                     reply_rate = round(row["replies"] / row["total"] * 100, 1)
         except Exception:
-            pass
+            logger.debug("reply rate query failed", exc_info=True)
 
         return {
             "ventures": ventures,
@@ -520,7 +523,7 @@ def run_full_morning_cycle(ctx: SubstrateContext, return_content: bool = False):
             try:
                 patterns.extend(kg.find_patterns(vid))
             except Exception:
-                pass
+                logger.debug("knowledge graph pattern search failed for %s", vid, exc_info=True)
         print(f"[Orchestrator] Patterns detected: {len(patterns)}")
     except Exception as e:
         print(f"[Orchestrator] Knowledge graph error: {e}")
@@ -1087,7 +1090,7 @@ async def generate_morning_brief(ctx: SubstrateContext) -> str:
         if reality:
             reality_section = f"\n📡 **Reality Signals**\n{str(reality)[:300]}"
     except Exception:
-        pass
+        logger.debug("reality context fetch failed", exc_info=True)
 
     # Build data-first brief
     # Try Daily Sync first — 7-section briefing format
@@ -1341,7 +1344,7 @@ class Orchestrator:
                     _lines.append(f"- {_p.pattern_type}: {_p.description[:120]}")
                 pattern_context = "\n" + "\n".join(_lines) + "\n\n"
         except Exception:
-            pass
+            logger.debug("behavioral pattern analysis failed", exc_info=True)
 
         prompt = (
             "You are the strategic intelligence layer for a founder-operator "
@@ -1844,7 +1847,7 @@ def start_ambient_refresh_loop(ctx: SubstrateContext) -> None:
                     continue
                 _sys.budget.record_cycle()
             except Exception:
-                pass
+                logger.debug("system state budget cycle failed", exc_info=True)
 
             try:
                 refresh_ambient_state(ctx)
