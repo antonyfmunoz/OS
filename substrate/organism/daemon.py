@@ -73,6 +73,11 @@ from substrate.organism.candidate_supply_engine import CandidateSupplyEngine
 from substrate.organism.leverage_engine import LeverageEngine
 from substrate.organism.next_action_engine import NextActionEngine
 from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
+from substrate.sockets.projection_port import (
+    ProjectionPort,
+    ProjectionRegistration,
+)
+from substrate.organism.dev_session_tracker import DevSessionTracker
 from substrate.organism.readiness_model import ReadinessModel
 from substrate.organism.worker_cell import WorkerCell
 from substrate.execution.pipeline import ExecutionPipeline
@@ -351,6 +356,13 @@ class OrganismDaemon:
         )
         self._register_tick_stages()
 
+        self._substrate_projection_port = ProjectionPort()
+        self._register_umh_projection()
+
+        self._dev_session_tracker = DevSessionTracker(
+            store_dir=str(self._state_dir),
+        )
+
         self._view_socket = view_socket
         self._started = False
         self._tick_count = 0
@@ -396,6 +408,38 @@ class OrganismDaemon:
             "canonical workcells created: %d",
             len(self._workcell_daemon._workcells),
         )
+
+    def _register_umh_projection(self) -> None:
+        """Register UMH itself + known projections into the substrate projection port."""
+        self._substrate_projection_port.register(
+            ProjectionRegistration(
+                projection_id="umh",
+                name="Universal Meta Harness",
+                capabilities_consumed=["governance", "execution", "learning", "observation"],
+                routes_mounted=["/api/umh/"],
+                health_url="/api/health",
+            )
+        )
+
+        registry_path = os.path.join(self._repo_root, "data", "umh", "projection_registry.json")
+        if os.path.exists(registry_path):
+            try:
+                with open(registry_path, "r") as f:
+                    entries = json.load(f)
+                for proj_id, cfg in entries.items():
+                    self._substrate_projection_port.register(
+                        ProjectionRegistration(
+                            projection_id=proj_id,
+                            name=cfg.get("app_name", proj_id),
+                            capabilities_consumed=[],
+                            routes_mounted=[],
+                            health_url=cfg.get("health_url", ""),
+                            preview_url=cfg.get("public_url", ""),
+                        )
+                    )
+                logger.info("registered %d projections from registry", len(entries))
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.debug("failed to load projection registry: %s", exc)
 
     def _register_tick_stages(self) -> None:
         """Register all subsystems as autonomous tick stages."""
@@ -811,6 +855,14 @@ class OrganismDaemon:
     def propagation_engine(self):
         return self._propagation_engine
 
+    @property
+    def substrate_projection_port(self) -> ProjectionPort:
+        return self._substrate_projection_port
+
+    @property
+    def dev_session_tracker(self) -> DevSessionTracker:
+        return self._dev_session_tracker
+
     def start(self) -> None:
         self._started = True
 
@@ -997,6 +1049,7 @@ class OrganismDaemon:
                 if self._autonomous_cadence._run_history
                 else 0
             ),
+            "dev_sessions": self._dev_session_tracker.to_dict(),
             "active_sandbox_count": self._get_active_sandbox_count(),
             "active_pr_count": self._get_active_pr_count(),
             "pending_merge_verification_count": self._get_pending_verification_count(),

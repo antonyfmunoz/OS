@@ -372,6 +372,34 @@ SSH_MANIFEST = AdapterManifest(
     notes=["SSH/SCP utilities with CPU gate compliance"],
 )
 
+GITHUB_OPERATIONS_MANIFEST = AdapterManifest(
+    adapter_id="github_operations",
+    adapter_type="github",
+    modalities=[ModalityType.API],
+    participant_type=ParticipantType.EXTERNAL,
+    capabilities=[
+        AdapterCapability(
+            capability_id="github:create_pr",
+            action_type="github_pr_create",
+            required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
+        ),
+        AdapterCapability(
+            capability_id="github:merge_pr",
+            action_type="github_pr_merge",
+            required_authority=AuthorityDomain.REMOTE_ORCHESTRATION,
+        ),
+        AdapterCapability(
+            capability_id="github:create_branch",
+            action_type="github_branch_create",
+            requires_local_shell=True,
+            required_authority=AuthorityDomain.LOCAL_SHELL,
+        ),
+    ],
+    maturity=AdapterMaturityLevel.L2_CAPABILITIES_KNOWN,
+    version="v1",
+    notes=["GitHub CLI wrapper for governed PR and branch operations"],
+)
+
 ALL_PRODUCTION_MANIFESTS: list[AdapterManifest] = [
     MODEL_ROUTER_MANIFEST,
     CC_SDK_MANIFEST,
@@ -388,6 +416,7 @@ ALL_PRODUCTION_MANIFESTS: list[AdapterManifest] = [
     SCRAPLING_MANIFEST,
     TAILSCALE_MANIFEST,
     SSH_MANIFEST,
+    GITHUB_OPERATIONS_MANIFEST,
 ]
 
 
