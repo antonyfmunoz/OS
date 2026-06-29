@@ -63,27 +63,36 @@ class GovernanceApprovalView(discord.ui.View):
         if self.responded:
             await interaction.response.send_message("Already responded.", ephemeral=True)
             return
-        self.responded = True
         decided_by = str(interaction.user)
         try:
-            from substrate.organism.approval_store import ApprovalStore
+            from substrate.organism.approval_gate import OperatorApprovalGate
 
-            store = ApprovalStore()
-            result = store.decide(self.approval_id, "approved", decided_by=decided_by)
-            if result:
+            gate = OperatorApprovalGate()
+            claimed = gate.claim_approval(self.approval_id, "discord")
+            if not claimed:
                 await interaction.response.edit_message(
-                    content=f"✅ **Approved** by {decided_by}\n`{self.approval_id}`",
+                    content=f"Already claimed by another surface.\n`{self.approval_id}`",
+                    view=None,
+                )
+                return
+            self.responded = True
+            ok = gate.resolve_approval(
+                self.approval_id, "approve", "discord", decided_by=decided_by,
+            )
+            if ok:
+                await interaction.response.edit_message(
+                    content=f"**Approved** by {decided_by}\n`{self.approval_id}`",
                     view=None,
                 )
             else:
                 await interaction.response.edit_message(
-                    content=f"❌ Approval `{self.approval_id}` not found.",
+                    content=f"Approval `{self.approval_id}` could not be resolved.",
                     view=None,
                 )
         except Exception as exc:
             logger.error("approval button callback failed: %s", exc)
             await interaction.response.edit_message(
-                content=f"❌ Error processing approval: {exc}",
+                content=f"Error processing approval: {exc}",
                 view=None,
             )
 
@@ -94,27 +103,36 @@ class GovernanceApprovalView(discord.ui.View):
         if self.responded:
             await interaction.response.send_message("Already responded.", ephemeral=True)
             return
-        self.responded = True
         decided_by = str(interaction.user)
         try:
-            from substrate.organism.approval_store import ApprovalStore
+            from substrate.organism.approval_gate import OperatorApprovalGate
 
-            store = ApprovalStore()
-            result = store.decide(self.approval_id, "denied", decided_by=decided_by)
-            if result:
+            gate = OperatorApprovalGate()
+            claimed = gate.claim_approval(self.approval_id, "discord")
+            if not claimed:
                 await interaction.response.edit_message(
-                    content=f"❌ **Denied** by {decided_by}\n`{self.approval_id}`",
+                    content=f"Already claimed by another surface.\n`{self.approval_id}`",
+                    view=None,
+                )
+                return
+            self.responded = True
+            ok = gate.resolve_approval(
+                self.approval_id, "reject", "discord", decided_by=decided_by,
+            )
+            if ok:
+                await interaction.response.edit_message(
+                    content=f"**Denied** by {decided_by}\n`{self.approval_id}`",
                     view=None,
                 )
             else:
                 await interaction.response.edit_message(
-                    content=f"❌ Approval `{self.approval_id}` not found.",
+                    content=f"Approval `{self.approval_id}` could not be resolved.",
                     view=None,
                 )
         except Exception as exc:
             logger.error("denial button callback failed: %s", exc)
             await interaction.response.edit_message(
-                content=f"❌ Error processing denial: {exc}",
+                content=f"Error processing denial: {exc}",
                 view=None,
             )
 

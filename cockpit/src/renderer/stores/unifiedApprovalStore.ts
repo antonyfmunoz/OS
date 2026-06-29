@@ -32,6 +32,16 @@ export interface ApprovalDecision {
   reason?: string
 }
 
+interface ClaimResult {
+  claimed: boolean
+  error?: string
+}
+
+interface ResolveResult {
+  resolved: boolean
+  error?: string
+}
+
 interface UnifiedApprovalState {
   pending: UnifiedApproval[]
   byUrgency: UnifiedApproval[]
@@ -45,6 +55,8 @@ interface UnifiedApprovalState {
   fetchDecisions: (limit?: number) => Promise<void>
   approve: (approvalId: string, sourceType: string, decidedBy?: string) => Promise<void>
   reject: (approvalId: string, sourceType: string, reason?: string, decidedBy?: string) => Promise<void>
+  claimAndResolve: (approvalId: string, decision: string, inputText?: string, decidedBy?: string) => Promise<ResolveResult>
+  pollStatus: (approvalId: string) => Promise<Record<string, unknown> | null>
 }
 
 export const useUnifiedApprovalStore = create<UnifiedApprovalState>((set, get) => ({
@@ -108,5 +120,39 @@ export const useUnifiedApprovalStore = create<UnifiedApprovalState>((set, get) =
     }).catch(() => {})
     get().fetchPending()
     get().fetchByUrgency()
+  },
+
+  claimAndResolve: async (approvalId: string, decision: string, inputText = '', decidedBy = 'operator') => {
+    const claimRes = await fetchApi<ClaimResult>('/unified-approval/claim', {
+      method: 'POST',
+      body: JSON.stringify({ approval_id: approvalId, surface: 'cockpit' }),
+    }).catch(() => ({ claimed: false, error: 'network' } as ClaimResult))
+
+    if (!claimRes.claimed) {
+      return { resolved: false, error: claimRes.error || 'claim_failed' }
+    }
+
+    const resolveRes = await fetchApi<ResolveResult>('/unified-approval/resolve', {
+      method: 'POST',
+      body: JSON.stringify({
+        approval_id: approvalId,
+        decision,
+        surface: 'cockpit',
+        input_text: inputText,
+        decided_by: decidedBy,
+      }),
+    }).catch(() => ({ resolved: false, error: 'network' } as ResolveResult))
+
+    get().fetchPending()
+    get().fetchByUrgency()
+    return resolveRes
+  },
+
+  pollStatus: async (approvalId: string) => {
+    try {
+      return await fetchApi<Record<string, unknown>>(`/unified-approval/status/${approvalId}`)
+    } catch {
+      return null
+    }
   },
 }))

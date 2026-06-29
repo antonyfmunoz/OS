@@ -887,3 +887,255 @@ class ResultStore:
         for r in self._read():
             dist[r.evidence_class.value] += 1
         return dist
+
+
+# ---------------------------------------------------------------------------
+# C33 — Execution Harness Registry & Route Recommendations
+# ---------------------------------------------------------------------------
+
+
+class ExecutionHarness(str, Enum):
+    """Known execution harnesses UMH can orchestrate or compare against."""
+    CLAUDE_CODE = "claude_code"
+    CODEX_CLI = "codex_cli"
+    CURSOR = "cursor"
+    GEMINI_CLI = "gemini_cli"
+    OPENHANDS = "openhands"
+    DEVIN = "devin"
+    AMP = "amp"
+    WINDSURF = "windsurf"
+    PLAYWRIGHT = "playwright"
+    COMPUTER_USE = "computer_use"
+    UMH_NATIVE = "umh_native"
+
+
+class ComparisonDimension(str, Enum):
+    """Dimensions for comparing harnesses — C33 extends beyond speed/quality."""
+    SPEED = "speed"
+    QUALITY = "quality"
+    GOVERNANCE = "governance"
+    COMPOUNDING = "compounding"
+    OPERATOR_EXPERIENCE = "operator_experience"
+    ORCHESTRATION = "orchestration"
+    COST = "cost"
+    CONTEXT_RETENTION = "context_retention"
+    RECOVERABILITY = "recoverability"
+    RELIABILITY = "reliability"
+
+
+class UMHRole(str, Enum):
+    """How UMH relates to the execution for a given task type."""
+    SKIP_GOVERNANCE = "skip_governance"
+    GOVERN_VERIFY = "govern_verify"
+    FULL_APPROVAL = "full_approval"
+    NATIVE = "native"
+    ORCHESTRATE_VERIFY = "orchestrate_verify"
+
+
+@dataclass
+class RouteRecommendation:
+    """Deterministic recommendation for which harness to use for a task type."""
+    task_type: str
+    recommended_harness: str
+    umh_role: str
+    confidence: float
+    reasoning: str
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RouteRecommendation":
+        return cls(
+            task_type=data["task_type"],
+            recommended_harness=data["recommended_harness"],
+            umh_role=data["umh_role"],
+            confidence=float(data["confidence"]),
+            reasoning=data["reasoning"],
+        )
+
+
+@dataclass
+class HarnessProfile:
+    """Capability profile for a known execution harness."""
+    harness: ExecutionHarness
+    strengths: list[ComparisonDimension] = field(default_factory=list)
+    weaknesses: list[ComparisonDimension] = field(default_factory=list)
+    supports_governance: bool = False
+    supports_compounding: bool = False
+    supports_orchestration: bool = False
+    cost_tier: str = "medium"
+
+    def to_dict(self) -> dict:
+        return {
+            "harness": self.harness.value,
+            "strengths": [s.value for s in self.strengths],
+            "weaknesses": [w.value for w in self.weaknesses],
+            "supports_governance": self.supports_governance,
+            "supports_compounding": self.supports_compounding,
+            "supports_orchestration": self.supports_orchestration,
+            "cost_tier": self.cost_tier,
+        }
+
+
+HARNESS_PROFILES: dict[str, HarnessProfile] = {
+    ExecutionHarness.CLAUDE_CODE.value: HarnessProfile(
+        harness=ExecutionHarness.CLAUDE_CODE,
+        strengths=[ComparisonDimension.SPEED, ComparisonDimension.QUALITY, ComparisonDimension.CONTEXT_RETENTION],
+        weaknesses=[ComparisonDimension.GOVERNANCE, ComparisonDimension.COMPOUNDING],
+        cost_tier="high",
+    ),
+    ExecutionHarness.CODEX_CLI.value: HarnessProfile(
+        harness=ExecutionHarness.CODEX_CLI,
+        strengths=[ComparisonDimension.SPEED],
+        weaknesses=[ComparisonDimension.GOVERNANCE, ComparisonDimension.COMPOUNDING, ComparisonDimension.ORCHESTRATION],
+        cost_tier="high",
+    ),
+    ExecutionHarness.CURSOR.value: HarnessProfile(
+        harness=ExecutionHarness.CURSOR,
+        strengths=[ComparisonDimension.OPERATOR_EXPERIENCE, ComparisonDimension.SPEED],
+        weaknesses=[ComparisonDimension.GOVERNANCE, ComparisonDimension.COMPOUNDING, ComparisonDimension.ORCHESTRATION],
+        cost_tier="medium",
+    ),
+    ExecutionHarness.GEMINI_CLI.value: HarnessProfile(
+        harness=ExecutionHarness.GEMINI_CLI,
+        strengths=[ComparisonDimension.SPEED, ComparisonDimension.COST],
+        weaknesses=[ComparisonDimension.GOVERNANCE, ComparisonDimension.COMPOUNDING],
+        cost_tier="low",
+    ),
+    ExecutionHarness.OPENHANDS.value: HarnessProfile(
+        harness=ExecutionHarness.OPENHANDS,
+        strengths=[ComparisonDimension.ORCHESTRATION],
+        weaknesses=[ComparisonDimension.GOVERNANCE, ComparisonDimension.RELIABILITY],
+        cost_tier="medium",
+    ),
+    ExecutionHarness.DEVIN.value: HarnessProfile(
+        harness=ExecutionHarness.DEVIN,
+        strengths=[ComparisonDimension.ORCHESTRATION, ComparisonDimension.CONTEXT_RETENTION],
+        weaknesses=[ComparisonDimension.COST, ComparisonDimension.GOVERNANCE],
+        cost_tier="high",
+    ),
+    ExecutionHarness.AMP.value: HarnessProfile(
+        harness=ExecutionHarness.AMP,
+        strengths=[ComparisonDimension.SPEED, ComparisonDimension.OPERATOR_EXPERIENCE],
+        weaknesses=[ComparisonDimension.GOVERNANCE, ComparisonDimension.COMPOUNDING],
+        cost_tier="medium",
+    ),
+    ExecutionHarness.WINDSURF.value: HarnessProfile(
+        harness=ExecutionHarness.WINDSURF,
+        strengths=[ComparisonDimension.OPERATOR_EXPERIENCE],
+        weaknesses=[ComparisonDimension.GOVERNANCE, ComparisonDimension.COMPOUNDING, ComparisonDimension.ORCHESTRATION],
+        cost_tier="medium",
+    ),
+    ExecutionHarness.PLAYWRIGHT.value: HarnessProfile(
+        harness=ExecutionHarness.PLAYWRIGHT,
+        strengths=[ComparisonDimension.RELIABILITY, ComparisonDimension.RECOVERABILITY],
+        weaknesses=[ComparisonDimension.OPERATOR_EXPERIENCE],
+        supports_orchestration=True,
+        cost_tier="low",
+    ),
+    ExecutionHarness.UMH_NATIVE.value: HarnessProfile(
+        harness=ExecutionHarness.UMH_NATIVE,
+        strengths=[ComparisonDimension.GOVERNANCE, ComparisonDimension.COMPOUNDING, ComparisonDimension.ORCHESTRATION],
+        weaknesses=[ComparisonDimension.SPEED],
+        supports_governance=True,
+        supports_compounding=True,
+        supports_orchestration=True,
+        cost_tier="high",
+    ),
+}
+
+
+_ROUTE_TABLE: dict[str, RouteRecommendation] = {
+    "simple_code": RouteRecommendation(
+        task_type="simple_code",
+        recommended_harness=ExecutionHarness.CLAUDE_CODE.value,
+        umh_role=UMHRole.SKIP_GOVERNANCE.value,
+        confidence=0.95,
+        reasoning="Low-risk, reversible code change — governance overhead not justified",
+    ),
+    "complex_code": RouteRecommendation(
+        task_type="complex_code",
+        recommended_harness=ExecutionHarness.CLAUDE_CODE.value,
+        umh_role=UMHRole.GOVERN_VERIFY.value,
+        confidence=0.90,
+        reasoning="Multi-file change with risk — govern execution, verify outcome",
+    ),
+    "schema_migration": RouteRecommendation(
+        task_type="schema_migration",
+        recommended_harness=ExecutionHarness.CLAUDE_CODE.value,
+        umh_role=UMHRole.FULL_APPROVAL.value,
+        confidence=0.95,
+        reasoning="Irreversible database change — full approval gate required",
+    ),
+    "business_op": RouteRecommendation(
+        task_type="business_op",
+        recommended_harness=ExecutionHarness.UMH_NATIVE.value,
+        umh_role=UMHRole.NATIVE.value,
+        confidence=0.90,
+        reasoning="External-facing operation — UMH governs end-to-end with proof",
+    ),
+    "browser_verify": RouteRecommendation(
+        task_type="browser_verify",
+        recommended_harness=ExecutionHarness.PLAYWRIGHT.value,
+        umh_role=UMHRole.ORCHESTRATE_VERIFY.value,
+        confidence=0.85,
+        reasoning="Visual verification — Playwright for browser, UMH for proof capture",
+    ),
+    "refactor": RouteRecommendation(
+        task_type="refactor",
+        recommended_harness=ExecutionHarness.CLAUDE_CODE.value,
+        umh_role=UMHRole.GOVERN_VERIFY.value,
+        confidence=0.85,
+        reasoning="Multi-file structural change — govern for consistency, verify tests",
+    ),
+    "adapter_integration": RouteRecommendation(
+        task_type="adapter_integration",
+        recommended_harness=ExecutionHarness.CLAUDE_CODE.value,
+        umh_role=UMHRole.GOVERN_VERIFY.value,
+        confidence=0.85,
+        reasoning="New adapter wiring — govern for architecture compliance, verify integration",
+    ),
+    "bug_fix": RouteRecommendation(
+        task_type="bug_fix",
+        recommended_harness=ExecutionHarness.CLAUDE_CODE.value,
+        umh_role=UMHRole.GOVERN_VERIFY.value,
+        confidence=0.85,
+        reasoning="Bug fix — govern for regression check, verify fix holds",
+    ),
+}
+
+
+def recommend_harness(
+    task_type: str, complexity: str = "medium"
+) -> RouteRecommendation:
+    """Return a deterministic route recommendation for a task type.
+
+    Falls back to governed Claude Code for unknown task types.
+    Complexity adjusts UMH role: high complexity upgrades to full approval.
+    """
+    rec = _ROUTE_TABLE.get(task_type)
+    if rec is None:
+        rec = RouteRecommendation(
+            task_type=task_type,
+            recommended_harness=ExecutionHarness.CLAUDE_CODE.value,
+            umh_role=UMHRole.GOVERN_VERIFY.value,
+            confidence=0.5,
+            reasoning=f"Unknown task type '{task_type}' — default to governed CC",
+        )
+
+    if complexity == "high" and rec.umh_role == UMHRole.SKIP_GOVERNANCE.value:
+        return RouteRecommendation(
+            task_type=rec.task_type,
+            recommended_harness=rec.recommended_harness,
+            umh_role=UMHRole.GOVERN_VERIFY.value,
+            confidence=rec.confidence * 0.9,
+            reasoning=rec.reasoning + " (upgraded: high complexity)",
+        )
+
+    return rec
+
+
+def get_route_table() -> list[RouteRecommendation]:
+    """Return the full route recommendation table."""
+    return list(_ROUTE_TABLE.values())
