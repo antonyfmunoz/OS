@@ -20,7 +20,7 @@ from adapters.adapter_engine.adapter_manifest import (
     AdapterManifest,
     AdapterMaturityLevel,
 )
-from adapters.adapter_engine.adapter_registry_contracts import CapabilityDescriptor
+from adapters.adapter_engine.adapter_registry_contracts import AdapterCapability
 from adapters.adapter_engine.capability_catalog import (
     CapabilityCatalog,
     CatalogEntry,

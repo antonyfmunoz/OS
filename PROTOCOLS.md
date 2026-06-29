@@ -76,7 +76,7 @@ All instance values loaded from database.
 
 ## Layer 2 — OS Module Protocols
 
-**Files:** `substrate/state/registries/os_registry.py` (registry), `substrate/state/permissions/os_trinity.py` (cross-OS intelligence)
+**Files:** `substrate/state/permissions/os_trinity.py` (cross-OS intelligence)
 **Scope:** Users subscribed to that OS
 **Owner:** Each OS module
 **Injected:** After Layer 1 step 1h, before Layer 3 (via TrinityEngine)
@@ -251,6 +251,32 @@ what they mean — because it knows their businesses, their patterns,
 and their goals. The harness disappears into the substrate.
 
 ---
+
+---
+
+## Substrate Protocol Contracts
+
+All 23 Protocol classes are consolidated into 7 canonical contract files
+in `substrate/contracts/`. Import from these for type annotations:
+
+| Contract File | Protocols |
+|---------------|-----------|
+| `governance_protocol.py` | GovernanceEngine |
+| `execution_protocol.py` | ExecutionSpine, TraceRecorder, FeedbackCapture |
+| `control_plane_protocol.py` | IdentityResolver, ContextAssembler, MemorySystem, ComponentRegistry, SignalRouter, Notifier |
+| `integration_protocol.py` | SignalEmitter, CapabilityHandler, OutcomeReceiver, ViewSubscriber |
+| `infrastructure_protocol.py` | SubstrateStorage, AdapterProtocol, ProjectionPortProtocol |
+| `understanding_protocol.py` | DomainBridge, Source |
+| `organism_protocol.py` | RuntimeAdapter, AgentStatus, LearningSignal, etc. |
+
+Plus existing contract files:
+
+| Contract File | Types |
+|---------------|-------|
+| `adapter_contracts.py` | AdapterCapability, AdapterDescriptor, AdapterRegistry |
+| `agent_runtime_contracts.py` | AgentRuntimeProtocol |
+| `agent_types.py` | TaskType, ModelProvider, RoutingResult |
+| `routing_contracts.py` | CapabilityClass, PrivacyLevel, CapabilityEntry |
 
 *This document is the single source of truth for the UMH protocol architecture.
 Read before building. Update when the architecture changes.*
