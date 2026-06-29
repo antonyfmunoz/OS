@@ -6,6 +6,8 @@ and execution. Apply them always.
 
 ### Tool Mastery Engine (formerly Best Practices Principle)
 TME is a UMH substrate subsystem, not application-specific.
+TME decomposes mastery into primitives and capability templates
+per EPISTEMOLOGY.md — it is not a tutorial database.
 When utilizing any external tool in any way:
 Check /opt/OS/skills/tools/{toolname}/ →
   Exists + current → load and apply creator-level expertise.

@@ -2,6 +2,10 @@
 PHILOSOPHY.md
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+> See EPISTEMOLOGY.md for the organism's theory
+> of knowledge and capability. This document
+> covers EntrepreneurOS projection values.
+
 # EntrepreneurOS
 ## The Operating System That Makes Business Plug and Play
 
