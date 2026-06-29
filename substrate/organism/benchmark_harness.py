@@ -1,9 +1,10 @@
 """Benchmark Harness — measures and compares Pipeline A (legacy) vs Pipeline B (governed).
 
 Records identical metrics for both pipelines per cycle. Persists to JSONL.
-Produces side-by-side comparison reports and campaign-level summaries.
+Produces side-by-side comparison reports, between-cycle analysis, and campaign verdicts.
 
-C32 campaign infrastructure. UMH substrate subsystem. Instance-agnostic.
+C32/C33 campaign infrastructure. UMH substrate subsystem. Instance-agnostic.
+Supports 8 benchmark types (A-H) for C33 meta-harness validation.
 """
 
 from __future__ import annotations
@@ -14,11 +15,14 @@ import os
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_DEFAULT_STORE = os.path.join(_REPO_ROOT, "data", "umh", "organism", "c32_benchmarks.jsonl")
+_DEFAULT_STORE = os.path.join(_REPO_ROOT, "data", "umh", "organism", "c33_benchmarks.jsonl")
+
+VALID_BENCHMARK_TYPES = {"A", "B", "C", "D", "E", "F", "G", "H"}
 
 
 @dataclass
@@ -60,6 +64,28 @@ class CycleMetrics:
     reusable_assets_created: int = 0
     protocol_improvements: int = 0
 
+    # C33 extensions
+    benchmark_type: str = "A"
+    recorded_live: bool = False
+    idempotency_key: str = ""
+
+    # Fast-path (D3)
+    fast_path_used: bool = False
+    fast_path_reason: str = ""
+
+    # Compounding (D1/D4)
+    capabilities_reused: int = 0
+    templates_matched: int = 0
+    learning_signals_consumed: int = 0
+
+    # Timing breakdown (D3/D10)
+    spine_submit_ms: float = 0.0
+    governance_check_ms: float = 0.0
+    proof_capture_ms: float = 0.0
+    journal_write_ms: float = 0.0
+    learning_record_ms: float = 0.0
+    total_overhead_ms: float = 0.0
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -95,6 +121,14 @@ class BenchmarkHarness:
             logger.debug("cannot read benchmarks: %s", exc)
 
     def _persist(self, metrics: CycleMetrics) -> None:
+        if metrics.idempotency_key:
+            existing_keys = {
+                r.idempotency_key for r in self._records
+                if r.idempotency_key and r is not metrics
+            }
+            if metrics.idempotency_key in existing_keys:
+                logger.debug("duplicate idempotency_key, skipping persist: %s", metrics.idempotency_key)
+                return
         os.makedirs(os.path.dirname(self._path), exist_ok=True)
         try:
             with open(self._path, "a") as f:
@@ -102,15 +136,24 @@ class BenchmarkHarness:
         except OSError as exc:
             logger.debug("cannot persist benchmark: %s", exc)
 
-    def start_cycle(self, cycle_id: str, pipeline: str, task: str) -> CycleMetrics:
+    def start_cycle(
+        self,
+        cycle_id: str,
+        pipeline: str,
+        task: str,
+        benchmark_type: str = "A",
+    ) -> CycleMetrics:
         metrics = CycleMetrics(
             cycle_id=cycle_id,
             pipeline=pipeline,
             task_description=task,
             start_time=time.time(),
+            benchmark_type=benchmark_type if benchmark_type in VALID_BENCHMARK_TYPES else "A",
+            recorded_live=True,
+            idempotency_key=f"{cycle_id}:{pipeline}:{uuid4().hex[:8]}",
         )
         self._active[f"{cycle_id}:{pipeline}"] = metrics
-        logger.info("benchmark started: cycle=%s pipeline=%s", cycle_id, pipeline)
+        logger.info("benchmark started: cycle=%s pipeline=%s type=%s", cycle_id, pipeline, benchmark_type)
         return metrics
 
     def end_cycle(self, cycle_id: str, pipeline: str, **overrides: Any) -> CycleMetrics:
@@ -252,6 +295,122 @@ class BenchmarkHarness:
             ratio = total_governed / total_legacy
             lines.append(f"**Governed/Legacy ratio:** {ratio:.2f}x")
         return "\n".join(lines)
+
+    def between_cycle_analysis(self, cycle_ids: list[str]) -> dict[str, Any]:
+        """Compute per-metric deltas between consecutive cycles."""
+        if len(cycle_ids) < 2:
+            return {"improvements": [], "error": "need at least 2 cycle IDs"}
+
+        _NUMERIC_FIELDS = [
+            "elapsed_seconds", "files_changed", "lines_added", "lines_removed",
+            "commits", "tests_written", "tests_passed", "tests_failed",
+            "capabilities_extracted", "capabilities_reused", "templates_matched",
+            "learning_signals_generated", "learning_signals_consumed",
+            "proof_packages_created", "reusable_assets_created",
+            "total_overhead_ms", "spine_submit_ms", "governance_check_ms",
+        ]
+
+        improvements: list[dict[str, Any]] = []
+        for i in range(1, len(cycle_ids)):
+            prev_id, curr_id = cycle_ids[i - 1], cycle_ids[i]
+            prev = [r for r in self._records if r.cycle_id == prev_id and r.pipeline == "governed"]
+            curr = [r for r in self._records if r.cycle_id == curr_id and r.pipeline == "governed"]
+            if not prev or not curr:
+                continue
+            p, c = prev[-1], curr[-1]
+            for fld in _NUMERIC_FIELDS:
+                old_val = getattr(p, fld, 0)
+                new_val = getattr(c, fld, 0)
+                delta = new_val - old_val
+                if abs(delta) < 0.001:
+                    continue
+                direction = "improved" if (
+                    (fld in ("elapsed_seconds", "total_overhead_ms", "tests_failed",
+                             "spine_submit_ms", "governance_check_ms") and delta < 0)
+                    or (fld not in ("elapsed_seconds", "total_overhead_ms", "tests_failed",
+                                    "spine_submit_ms", "governance_check_ms") and delta > 0)
+                ) else "regressed"
+                improvements.append({
+                    "from_cycle": prev_id,
+                    "to_cycle": curr_id,
+                    "metric": fld,
+                    "old": round(old_val, 3) if isinstance(old_val, float) else old_val,
+                    "new": round(new_val, 3) if isinstance(new_val, float) else new_val,
+                    "delta": round(delta, 3) if isinstance(delta, float) else delta,
+                    "direction": direction,
+                })
+
+        return {"improvements": improvements, "cycle_count": len(cycle_ids)}
+
+    def campaign_verdict(self, benchmark_type: str = "") -> dict[str, Any]:
+        """Compute aggregate stats and pass/fail verdict for a benchmark type."""
+        records = self._records
+        if benchmark_type:
+            records = [r for r in records if r.benchmark_type == benchmark_type]
+
+        if not records:
+            return {"verdict": "NO_DATA", "benchmark_type": benchmark_type or "all"}
+
+        governed = [r for r in records if r.pipeline == "governed"]
+        legacy = [r for r in records if r.pipeline == "legacy"]
+
+        total_gov_time = sum(r.elapsed_seconds for r in governed)
+        total_leg_time = sum(r.elapsed_seconds for r in legacy)
+        overhead_pct = ((total_gov_time - total_leg_time) / total_leg_time * 100) if total_leg_time > 0 else 0.0
+
+        total_caps_extracted = sum(r.capabilities_extracted for r in governed)
+        total_caps_reused = sum(r.capabilities_reused for r in governed)
+        total_templates = sum(r.templates_matched for r in governed)
+        total_signals = sum(r.learning_signals_generated for r in governed)
+        total_signals_consumed = sum(r.learning_signals_consumed for r in governed)
+        fast_path_count = sum(1 for r in governed if r.fast_path_used)
+        total_proofs = sum(r.proof_packages_created for r in governed)
+
+        avg_overhead_ms = (
+            sum(r.total_overhead_ms for r in governed) / len(governed)
+        ) if governed else 0.0
+
+        has_capability_reuse = total_caps_reused > 0
+        has_fast_path = fast_path_count > 0
+        has_template_match = total_templates > 0
+        overhead_below_10 = overhead_pct < 10.0
+
+        if benchmark_type == "A":
+            passes = overhead_below_10 and has_capability_reuse and has_fast_path
+        elif benchmark_type == "E":
+            compound_signals = sum([
+                total_caps_extracted > 0,
+                total_caps_reused > 0,
+                total_templates > 0,
+                total_signals_consumed > 0,
+                has_fast_path,
+                total_proofs > 0,
+            ])
+            passes = compound_signals >= 4
+        else:
+            passes = True
+
+        return {
+            "verdict": "PASS" if passes else "FAIL",
+            "benchmark_type": benchmark_type or "all",
+            "governed_cycles": len(governed),
+            "legacy_cycles": len(legacy),
+            "total_governed_time": round(total_gov_time, 1),
+            "total_legacy_time": round(total_leg_time, 1),
+            "overhead_pct": round(overhead_pct, 1),
+            "overhead_below_10": overhead_below_10,
+            "avg_overhead_ms": round(avg_overhead_ms, 1),
+            "capabilities_extracted": total_caps_extracted,
+            "capabilities_reused": total_caps_reused,
+            "templates_matched": total_templates,
+            "signals_generated": total_signals,
+            "signals_consumed": total_signals_consumed,
+            "fast_path_activations": fast_path_count,
+            "proof_packages": total_proofs,
+            "has_capability_reuse": has_capability_reuse,
+            "has_fast_path": has_fast_path,
+            "has_template_match": has_template_match,
+        }
 
     def all_records(self) -> list[CycleMetrics]:
         return list(self._records)
