@@ -1,0 +1,106 @@
+{
+  "campaign": "C33",
+  "title": "Meta-Harness Validation Campaign",
+  "date": "2026-06-29",
+  "verdict": "FAIL",
+  "verdict_reason": "Both defining benchmarks (E + H) failed",
+  "benchmarks": {
+    "A": {
+      "name": "Development Throughput",
+      "verdict": "PARTIAL",
+      "details": "Infrastructure ready. Feedback loop not wired. scan_after_cycle/get_signal_feed/match_template have 0 runtime call sites.",
+      "components_ready": 5,
+      "components_total": 8,
+      "blocking_gaps": ["scan_after_cycle not called", "get_signal_feed not consumed", "match_template not in spine flow"]
+    },
+    "B": {
+      "name": "Operator Experience",
+      "verdict": "NOT_EXECUTED",
+      "details": "Requires AFM full-day participation. Infrastructure ready.",
+      "infrastructure_ready": true
+    },
+    "C": {
+      "name": "Orchestration Quality",
+      "verdict": "PARTIAL",
+      "details": "Scorer works (6 dimensions). Not auto-fed from runtime.",
+      "scorer_functional": true,
+      "dimensions": 6,
+      "auto_fed": false
+    },
+    "D": {
+      "name": "Governance Quality",
+      "verdict": "PARTIAL",
+      "details": "Scorer works (5 dimensions). Approval gate deeply wired (6+ modules). Scorer not auto-fed.",
+      "scorer_functional": true,
+      "dimensions": 5,
+      "auto_fed": false,
+      "approval_gate_wired": true,
+      "approval_gate_surfaces": 6
+    },
+    "E": {
+      "name": "Compound Intelligence",
+      "verdict": "FAIL",
+      "defining_benchmark": true,
+      "signals_present": 1,
+      "signals_partial": 4,
+      "signals_absent": 1,
+      "signals_required": 4,
+      "end_to_end_chain": false,
+      "signals": {
+        "learning_to_capability": "PARTIAL",
+        "capability_to_template": "PARTIAL",
+        "template_to_reuse": "PARTIAL",
+        "signal_to_decision": "PARTIAL",
+        "decision_to_speed": "PRESENT",
+        "speed_to_automation": "ABSENT"
+      }
+    },
+    "F": {
+      "name": "Company Operations",
+      "verdict": "PARTIAL",
+      "details": "Scorer works. No data pipeline. Projection boundary compliant.",
+      "scorer_functional": true,
+      "auto_fed": false
+    },
+    "G": {
+      "name": "Surface Switching Cost",
+      "verdict": "NOT_EXECUTED",
+      "details": "Requires AFM participation during Benchmark B.",
+      "infrastructure_ready": true
+    },
+    "H": {
+      "name": "Mutation Equivalence",
+      "verdict": "FAIL",
+      "defining_benchmark": true,
+      "total_route_files": 71,
+      "total_mutation_endpoints": 380,
+      "spine_connected_files": 1,
+      "spine_connected_endpoints": 8,
+      "bypass_files": 70,
+      "bypass_endpoints": 372,
+      "bypass_rate_pct": 97.9,
+      "core_mutations_connected": 0,
+      "core_mutations_partial": 1,
+      "core_mutations_bypass": 9,
+      "core_mutations_total": 10
+    }
+  },
+  "tests": {
+    "phase0": 15,
+    "phase1": 28,
+    "total": 43,
+    "all_pass": true
+  },
+  "c32_comparison": {
+    "D1_capability_extraction": {"c32": "FAIL", "c33": "PARTIAL"},
+    "D2_learning_signals": {"c32": "FAIL", "c33": "PARTIAL"},
+    "D3_governance_overhead": {"c32": "FAIL", "c33": "PRESENT"},
+    "D4_reusable_assets": {"c32": "FAIL", "c33": "PARTIAL"}
+  },
+  "c34_backlog": {
+    "P0": "Spine wiring — 70 route files, 372 mutation endpoints",
+    "P1": "Compounding pipeline — 5 wiring tasks",
+    "P2": "Scorer auto-feed — 3 event listeners",
+    "P3": "Operator experience day — Benchmarks B + G"
+  }
+}
