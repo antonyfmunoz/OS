@@ -1,4 +1,11 @@
 {
+  "umh": {
+    "app_name": "umh-substrate",
+    "health_url": "/api/health",
+    "public_url": "https://universalmetaharness.tech",
+    "critical_bundle_values": [],
+    "l4_workflow": "organism_daemon_healthy"
+  },
   "lyfeos": {
     "app_name": "lyfeos-app",
     "health_url": "/api/health",
