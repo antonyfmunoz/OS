@@ -23,7 +23,7 @@ from enum import Enum
 from typing import Any
 
 from adapters.adapter_engine.adapter_manifest import AdapterManifest
-from adapters.adapter_engine.adapter_registry_contracts import CapabilityDescriptor
+from adapters.adapter_engine.adapter_registry_contracts import AdapterCapability
 from adapters.adapter_engine.modality import ModalityType
 from adapters.adapter_engine.participant import ParticipantType
 
@@ -178,7 +178,7 @@ class GoogleDriveAdapterV1:
         modalities=[ModalityType.API],
         participant_type=ParticipantType.EXTERNAL,
         capabilities=[
-            CapabilityDescriptor(
+            AdapterCapability(
                 capability_id="google-drive-safe-open",
                 action_type="GOOGLE_DRIVE_SAFE_OPEN",
             ),
