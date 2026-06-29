@@ -16,6 +16,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 meta_ide_critical_router: APIRouter = APIRouter()
@@ -117,13 +119,15 @@ def _compose(payload: dict) -> dict[str, Any]:
     if not raw_input:
         return {"error": "input required"}
 
-    try:
+    captured: dict = {}
+
+    def _do_compose():
         plan = planner.create_plan(
             raw_input=raw_input,
             desired_end_state=payload.get("desired_end_state", ""),
             constraints=payload.get("constraints"),
         )
-        return {
+        captured.update({
             "plan_id": plan.plan_id,
             "status": plan.status,
             "intent": {
@@ -143,7 +147,19 @@ def _compose(payload: dict) -> dict[str, Any]:
                 for t in plan.tasks
             ],
             "estimated_risk": plan.estimated_total_risk,
-        }
+        })
+        return f"composed plan: {raw_input[:80]}", True
+
+    try:
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"compose engineering plan: {raw_input[:80]}",
+            execute_fn=_do_compose,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
     except Exception as exc:
         logger.exception("compose failed: %s", exc)
         return {"error": str(exc)}
@@ -217,9 +233,21 @@ def _approve_plan(plan_id: str) -> dict[str, Any]:
     planner = _get_planner()
     if planner is None:
         return {"error": "planner not available"}
-    ok = planner.update_plan_status(plan_id, "approved")
-    if not ok:
-        return {"error": f"plan {plan_id} not found"}
+
+    def _do_approve():
+        ok = planner.update_plan_status(plan_id, "approved")
+        if not ok:
+            return f"plan {plan_id} not found", False
+        return f"approved plan {plan_id}", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve meta-ide plan {plan_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
     return {"plan_id": plan_id, "status": "approved"}
 
 
@@ -228,9 +256,21 @@ def _reject_plan(plan_id: str) -> dict[str, Any]:
     planner = _get_planner()
     if planner is None:
         return {"error": "planner not available"}
-    ok = planner.update_plan_status(plan_id, "rejected")
-    if not ok:
-        return {"error": f"plan {plan_id} not found"}
+
+    def _do_reject():
+        ok = planner.update_plan_status(plan_id, "rejected")
+        if not ok:
+            return f"plan {plan_id} not found", False
+        return f"rejected plan {plan_id}", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"reject meta-ide plan {plan_id}",
+        execute_fn=_do_reject,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
     return {"plan_id": plan_id, "status": "rejected"}
 
 
@@ -254,7 +294,9 @@ def _execute_plan(payload: dict) -> dict[str, Any]:
     if plan.status != "approved":
         return {"error": f"plan must be approved first (current: {plan.status})"}
 
-    try:
+    captured: dict = {}
+
+    def _do_execute():
         from substrate.meta_ide.engineering_work_generator import (
             EngineeringWorkGenerator,
         )
@@ -262,7 +304,7 @@ def _execute_plan(payload: dict) -> dict[str, Any]:
         generator = EngineeringWorkGenerator()
         receipt = generator.generate_packets(plan)
         planner.update_plan_status(plan_id, "executing")
-        return {
+        captured.update({
             "plan_id": plan_id,
             "receipt_id": receipt.receipt_id,
             "packets_generated": len(receipt.packets),
@@ -275,7 +317,19 @@ def _execute_plan(payload: dict) -> dict[str, Any]:
                 }
                 for p in receipt.packets
             ],
-        }
+        })
+        return f"executed plan {plan_id}", True
+
+    try:
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"execute meta-ide plan {plan_id}",
+            execute_fn=_do_execute,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
     except Exception as exc:
         logger.exception("execute-plan failed: %s", exc)
         return {"error": str(exc)}

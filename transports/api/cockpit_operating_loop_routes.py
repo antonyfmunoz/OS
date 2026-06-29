@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _loop_runtime: Any = None
@@ -43,9 +45,18 @@ def _build_router() -> Any:
 
     @router.post("/track")
     def track_loop(req: TrackRequest) -> dict[str, Any]:
-        rt = _get_loop_runtime()
-        loop = rt.track(req.intent_text, intent_id=req.intent_id)
-        return loop.to_dict()
+        def _do_track():
+            rt = _get_loop_runtime()
+            loop = rt.track(req.intent_text, intent_id=req.intent_id)
+            return f"loop tracked: {loop.loop_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"track operating loop: {req.intent_text[:80]}",
+            execute_fn=_do_track,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.post("/{loop_id}/transition")
     def record_transition(loop_id: str, req: TransitionRequest) -> dict[str, Any]:
@@ -54,9 +65,19 @@ def _build_router() -> Any:
             stage = OperatingLoopStage(req.to_stage)
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid stage: {req.to_stage}")
-        rt = _get_loop_runtime()
-        loop = rt.record_transition(loop_id, stage, req.subsystem, req.metadata)
-        return loop.to_dict()
+
+        def _do_transition():
+            rt = _get_loop_runtime()
+            loop = rt.record_transition(loop_id, stage, req.subsystem, req.metadata)
+            return f"transition to {req.to_stage}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"transition loop {loop_id} to {req.to_stage}",
+            execute_fn=_do_transition,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.get("/active")
     def get_active() -> list[dict[str, Any]]:

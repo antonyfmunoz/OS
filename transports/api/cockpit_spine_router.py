@@ -18,6 +18,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 spine_router: APIRouter = APIRouter()
@@ -185,65 +187,85 @@ async def _spine_lifecycle(envelope_id: str):
 
 
 async def _spine_approve(envelope_id: str, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("approve", client_id)
 
-    envelope = daemon.governed_spine.approve(envelope_id, approved_by=client_id)
-    if envelope is None:
-        return {"error": f"envelope {envelope_id} not found in pending queue"}
-    logger.info("Spine envelope approved: %s by %s", envelope_id, client_id)
-    return envelope.to_dict()
+    def _do_approve():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        envelope = daemon.governed_spine.approve(envelope_id, approved_by=client_id)
+        if envelope is None:
+            return f"envelope {envelope_id} not found in pending queue", False
+        return f"approved {envelope_id}", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve spine envelope {envelope_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+        metadata={"envelope_id": envelope_id, "operator": client_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _spine_reject(envelope_id: str, payload: dict, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("approve", client_id)
 
     reason = str(payload.get("reason", "operator_rejected"))[:500]
-    envelope = daemon.governed_spine.reject(envelope_id, reason=reason)
-    if envelope is None:
-        return {"error": f"envelope {envelope_id} not found in pending queue"}
-    logger.info("Spine envelope rejected: %s by %s — %s", envelope_id, client_id, reason)
-    return envelope.to_dict()
+
+    def _do_reject():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        envelope = daemon.governed_spine.reject(envelope_id, reason=reason)
+        if envelope is None:
+            return f"envelope {envelope_id} not found in pending queue", False
+        return f"rejected {envelope_id}: {reason}", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"reject spine envelope {envelope_id}: {reason[:100]}",
+        execute_fn=_do_reject,
+        source="cockpit",
+        metadata={"envelope_id": envelope_id, "reason": reason, "operator": client_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _spine_retry(envelope_id: str, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("execute", client_id)
 
-    completed = daemon.governed_spine.completed_envelopes(500)
-    target = None
-    for env_dict in completed:
-        if env_dict.get("envelope_id") == envelope_id:
-            target = env_dict
-            break
+    def _do_retry():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
 
-    if target is None:
-        return {"error": f"envelope {envelope_id} not found in completed queue"}
+        completed = daemon.governed_spine.completed_envelopes(500)
+        target = None
+        for env_dict in completed:
+            if env_dict.get("envelope_id") == envelope_id:
+                target = env_dict
+                break
 
-    if target.get("status") not in ("failed", "verification_failed", "rolled_back"):
-        return {
-            "error": f"envelope {envelope_id} status is {target.get('status')} — only failed envelopes can be retried"
-        }
+        if target is None:
+            return f"envelope {envelope_id} not found in completed queue", False
 
-    logger.info("Spine envelope retry requested: %s by %s", envelope_id, client_id)
-    return {
-        "acknowledged": True,
-        "envelope_id": envelope_id,
-        "note": "re-submit a new envelope for this action",
-    }
+        if target.get("status") not in ("failed", "verification_failed", "rolled_back"):
+            return f"envelope {envelope_id} status is {target.get('status')} — only failed envelopes can be retried", False
+
+        return f"retry acknowledged for {envelope_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"retry spine envelope {envelope_id}",
+        execute_fn=_do_retry,
+        source="cockpit",
+        metadata={"envelope_id": envelope_id, "operator": client_id},
+    )
+    return resp.to_http_dict()
 
 
 # ── Execution Journal handlers ─────────────────────────────────────────────────
@@ -318,10 +340,6 @@ async def _spine_guard_blocked(limit: int = 20):
 
 
 async def _spine_guard_set_mode(payload: dict, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("execute", client_id)
 
@@ -336,19 +354,23 @@ async def _spine_guard_set_mode(payload: dict, request: Request):
         }
 
     new_mode = valid_modes[mode_str]
-    old_mode = daemon.spine_guard.mode
-    daemon.spine_guard.set_mode(new_mode)
-    logger.info(
-        "SpineGuard mode changed via cockpit: %s → %s by %s",
-        old_mode.value,
-        new_mode.value,
-        client_id,
+
+    def _do_set_mode():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        old_mode = daemon.spine_guard.mode
+        daemon.spine_guard.set_mode(new_mode)
+        return f"mode changed: {old_mode.value} → {new_mode.value}", True
+
+    resp = governed_mutation(
+        mutation_name="governance_update",
+        intent=f"set spine guard mode to {mode_str}",
+        execute_fn=_do_set_mode,
+        source="cockpit",
+        metadata={"mode": mode_str, "operator": client_id},
     )
-    return {
-        "old_mode": old_mode.value,
-        "new_mode": new_mode.value,
-        "changed_by": client_id,
-    }
+    return resp.to_http_dict()
 
 
 # ── Unified views ──────────────────────────────────────────────────────────────
@@ -568,10 +590,6 @@ async def _autonomous_gateway_pending():
 
 
 async def _autonomous_gateway_set_policy(payload: dict, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("execute", client_id)
 
@@ -586,26 +604,26 @@ async def _autonomous_gateway_set_policy(payload: dict, request: Request):
         }
 
     new_policy = valid[policy_str]
-    old_policy = daemon.autonomous_gateway.policy
-    daemon.autonomous_gateway.set_policy(new_policy)
-    logger.info(
-        "Autonomous gateway policy changed via cockpit: %s → %s by %s",
-        old_policy.value,
-        new_policy.value,
-        client_id,
+
+    def _do_set_policy():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        old_policy = daemon.autonomous_gateway.policy
+        daemon.autonomous_gateway.set_policy(new_policy)
+        return f"policy changed: {old_policy.value} → {new_policy.value}", True
+
+    resp = governed_mutation(
+        mutation_name="governance_update",
+        intent=f"set autonomous gateway policy to {policy_str}",
+        execute_fn=_do_set_policy,
+        source="cockpit",
+        metadata={"policy": policy_str, "operator": client_id},
     )
-    return {
-        "old_policy": old_policy.value,
-        "new_policy": new_policy.value,
-        "changed_by": client_id,
-    }
+    return resp.to_http_dict()
 
 
 async def _autonomous_gateway_set_threshold(payload: dict, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("execute", client_id)
 
@@ -617,16 +635,21 @@ async def _autonomous_gateway_set_threshold(payload: dict, request: Request):
     if not (0.0 <= threshold <= 1.0):
         return {"error": "threshold must be between 0.0 and 1.0"}
 
-    daemon.autonomous_gateway.set_reliability_threshold(threshold)
-    logger.info(
-        "Autonomous gateway threshold set to %.2f by %s",
-        threshold,
-        client_id,
+    def _do_set_threshold():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        daemon.autonomous_gateway.set_reliability_threshold(threshold)
+        return f"threshold set to {threshold:.2f}", True
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"set autonomous gateway reliability threshold to {threshold:.2f}",
+        execute_fn=_do_set_threshold,
+        source="cockpit",
+        metadata={"threshold": threshold, "operator": client_id},
     )
-    return {
-        "threshold": threshold,
-        "changed_by": client_id,
-    }
+    return resp.to_http_dict()
 
 
 # ── Plan Execution Adapter handlers ──────────────────────────────────────────
@@ -650,10 +673,6 @@ async def _execution_graph_detail(plan_id: str):
 
 
 async def _execute_plan(payload: dict, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("execute", client_id)
 
@@ -661,49 +680,54 @@ async def _execute_plan(payload: dict, request: Request):
     if not intent:
         return {"error": "intent is required"}
 
-    from substrate.organism.composition_engine import compose_plan
+    def _do_execute_plan():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
 
-    composition_plan = compose_plan(intent)
-    adapter = daemon.plan_execution_adapter
+        from substrate.organism.composition_engine import compose_plan
 
-    executable = adapter.convert_plan(composition_plan)
-    result = adapter.execute_plan(executable)
+        composition_plan = compose_plan(intent)
+        adapter = daemon.plan_execution_adapter
+        executable = adapter.convert_plan(composition_plan)
+        result = adapter.execute_plan(executable)
+        return f"plan {result.id}: {result.status.value} ({len(result.steps)} steps)", True
 
-    logger.info(
-        "Plan executed via cockpit: %s → %s (%d steps) by %s",
-        result.id,
-        result.status.value,
-        len(result.steps),
-        client_id,
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"execute plan: {intent[:100]}",
+        execute_fn=_do_execute_plan,
+        source="cockpit",
+        metadata={"intent": intent, "operator": client_id},
     )
-    return result.to_dict()
+    return resp.to_http_dict()
 
 
 async def _execute_plan_approve_step(plan_id: str, step_id: str, request: Request):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("approve", client_id)
 
-    adapter = daemon.plan_execution_adapter
-    plan = adapter.get_execution_graph(plan_id)
-    if plan is None:
-        return {"error": f"execution graph {plan_id} not found"}
+    def _do_approve_step():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        adapter = daemon.plan_execution_adapter
+        plan = adapter.get_execution_graph(plan_id)
+        if plan is None:
+            return f"execution graph {plan_id} not found", False
+        step = adapter.approve_step(plan, step_id, approved_by=client_id)
+        if step is None:
+            return f"step {step_id} not found or not awaiting approval", False
+        return f"step {step_id} approved → {step.status.value}", True
 
-    step = adapter.approve_step(plan, step_id, approved_by=client_id)
-    if step is None:
-        return {"error": f"step {step_id} not found or not awaiting approval"}
-
-    logger.info(
-        "Plan step approved: %s/%s by %s → %s",
-        plan_id,
-        step_id,
-        client_id,
-        step.status.value,
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve plan step {plan_id}/{step_id}",
+        execute_fn=_do_approve_step,
+        source="cockpit",
+        metadata={"plan_id": plan_id, "step_id": step_id, "operator": client_id},
     )
-    return step.to_dict()
+    return resp.to_http_dict()
 
 
 async def _execute_plan_pending(plan_id: str):

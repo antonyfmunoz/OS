@@ -7,6 +7,8 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from transports.api.governed import governed_mutation
+
 
 class WakeRequest(BaseModel):
     device_id: str = "local"
@@ -44,10 +46,20 @@ def get_router() -> APIRouter:
         rt = _get_runtime()
         if rt is None:
             return {"error": "AmbientWakeRuntime unavailable"}
-        rt.activate()
-        transition = rt.on_wake_detected(
-            device_id=body.device_id, phrase=body.phrase,
+
+        def _do_wake():
+            rt.activate()
+            rt.on_wake_detected(
+                device_id=body.device_id, phrase=body.phrase,
+            )
+            return f"ambient wake triggered: {body.device_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"ambient wake: device={body.device_id}",
+            execute_fn=_do_wake,
+            source="cockpit",
         )
-        return transition.to_dict()
+        return resp.to_http_dict()
 
     return router

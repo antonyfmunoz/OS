@@ -18,6 +18,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 entity_router: APIRouter = APIRouter()
@@ -277,31 +279,41 @@ def _upsert_company(payload: dict):
     name = payload.get("name", "")
     if not name:
         return {"error": "name required"}
-    try:
-        from substrate.state.stores.entity_store import EntityStore
 
-        store = EntityStore(org_id)
-        company_id = payload.get("id", "")
-        if not company_id:
-            from uuid import uuid4
+    def _do_upsert():
+        try:
+            from substrate.state.stores.entity_store import EntityStore
 
-            company_id = f"company-{uuid4().hex[:12]}"
+            store = EntityStore(org_id)
+            company_id = payload.get("id", "")
+            if not company_id:
+                from uuid import uuid4
 
-        store.save_company(
-            company_id,
-            name,
-            org_id=org_id,
-            venture_id=payload.get("venture_id", ""),
-            portfolio_id=payload.get("portfolio_id", ""),
-            stage=payload.get("stage", 1),
-            stage_name=payload.get("stage_name", "validation"),
-            departments=payload.get("departments", []),
-            north_star=payload.get("north_star", ""),
-            metadata=payload.get("metadata", {}),
-        )
-        return {"ok": True, "company_id": company_id}
-    except Exception as e:
-        return {"error": str(e)}
+                company_id = f"company-{uuid4().hex[:12]}"
+
+            store.save_company(
+                company_id,
+                name,
+                org_id=org_id,
+                venture_id=payload.get("venture_id", ""),
+                portfolio_id=payload.get("portfolio_id", ""),
+                stage=payload.get("stage", 1),
+                stage_name=payload.get("stage_name", "validation"),
+                departments=payload.get("departments", []),
+                north_star=payload.get("north_star", ""),
+                metadata=payload.get("metadata", {}),
+            )
+            return f"company {company_id} saved", True
+        except Exception as e:
+            return str(e), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"upsert company: {name}",
+        execute_fn=_do_upsert,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Product connections (EOS / CreatorOS / LYFEOS) ───────────────────────────
@@ -323,11 +335,20 @@ def _product_connections():
 
 def _refresh_product_connections():
     """Re-check all product connections."""
-    try:
-        from substrate.integrations.product_connections import get_product_manager
+    def _do_refresh():
+        try:
+            from substrate.integrations.product_connections import get_product_manager
 
-        mgr = get_product_manager()
-        mgr.refresh()
-        return {"refreshed": True, "connections": mgr.all_connections()}
-    except Exception as e:
-        return {"error": str(e)}
+            mgr = get_product_manager()
+            mgr.refresh()
+            return "product connections refreshed", True
+        except Exception as e:
+            return str(e), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="refresh product connections",
+        execute_fn=_do_refresh,
+        source="cockpit",
+    )
+    return resp.to_http_dict()

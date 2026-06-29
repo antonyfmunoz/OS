@@ -17,6 +17,8 @@ from typing import Any, Callable
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 chat_router: APIRouter = APIRouter()
@@ -117,47 +119,60 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         source = payload.get("source", "text")
         routing = payload.get("routing")
         voice_turn_id = payload.get("voice_turn_id", "")
+        captured: dict = {}
 
-        response = conv.converse(
-            content=content,
-            conversation_id=payload.get("conversation_id", ""),
-            view_context=payload.get("view_context"),
-            source=source,
-            routing=routing,
-            voice_turn_id=voice_turn_id,
-        )
-
-        try:
-            from substrate.organism.store import OrganismStore
-
-            store = OrganismStore()
-            store.save_conversation_turn(
+        def _do_converse():
+            response = conv.converse(
                 content=content,
-                response=response.text,
-                origin_channel="cockpit",
-                responder="dex",
+                conversation_id=payload.get("conversation_id", ""),
+                view_context=payload.get("view_context"),
+                source=source,
+                routing=routing,
+                voice_turn_id=voice_turn_id,
             )
-        except Exception as exc:
-            logger.debug("Failed to persist conversation to OrganismStore: %s", exc)
 
-        if source != "discord" and response.text:
-            _mirror_to_discord_founders_office(response.text)
+            try:
+                from substrate.organism.store import OrganismStore
 
-        result: dict = {
-            "message_id": f"advisor-{response.timestamp}",
-            "text": response.text,
-            "response": response.text,
-            "conversation_id": response.conversation_id,
-            "intent": response.intent,
-            "suggested_actions": response.suggested_actions,
-            "metadata": response.metadata,
-            "timestamp": response.timestamp,
-        }
-        if response.spoken_text:
-            result["spoken_text"] = response.spoken_text
-        if response.routing:
-            result["routing"] = response.routing
-        return result
+                store = OrganismStore()
+                store.save_conversation_turn(
+                    content=content,
+                    response=response.text,
+                    origin_channel="cockpit",
+                    responder="dex",
+                )
+            except Exception as exc:
+                logger.debug("Failed to persist conversation to OrganismStore: %s", exc)
+
+            if source != "discord" and response.text:
+                _mirror_to_discord_founders_office(response.text)
+
+            result: dict = {
+                "message_id": f"advisor-{response.timestamp}",
+                "text": response.text,
+                "response": response.text,
+                "conversation_id": response.conversation_id,
+                "intent": response.intent,
+                "suggested_actions": response.suggested_actions,
+                "metadata": response.metadata,
+                "timestamp": response.timestamp,
+            }
+            if response.spoken_text:
+                result["spoken_text"] = response.spoken_text
+            if response.routing:
+                result["routing"] = response.routing
+            captured.update(result)
+            return response.text[:200] or "conversed", True
+
+        resp = governed_mutation(
+            mutation_name="conversation_send",
+            intent=f"advisor converse: {content[:80]}",
+            execute_fn=_do_converse,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/dex/converse")
     async def dex_converse_compat(payload: dict):
@@ -333,7 +348,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         content = (body.get("content") or "").strip()
         if not content:
             return JSONResponse({"error": "content is required"}, status_code=400)
-        try:
+        captured: dict = {}
+
+        def _do_converse():
             from substrate.organism.store import OrganismStore
 
             store = OrganismStore()
@@ -342,18 +359,26 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 response="Acknowledged. Processing via organism.",
                 origin_channel="cockpit",
             )
-            return {
+            captured.update({
                 "message_id": str(inbound.id),
                 "response": outbound.payload.get("content", "Acknowledged."),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-        except Exception as e:
-            logger.error("chat_converse failed: %s", e)
+            })
+            return "conversation saved", True
+
+        resp = governed_mutation(
+            mutation_name="conversation_send",
+            intent=f"chat converse: {content[:80]}",
+            execute_fn=_do_converse,
+            source="cockpit",
+        )
+        if not resp.success:
             return {
                 "message_id": f"dex-{int(time.time() * 1000)}",
                 "response": "Internal error — check server logs.",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
+        return captured
 
     @r.post("/chat/send", dependencies=auth)
     async def chat_send(request: Request):
@@ -362,7 +387,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         content = (body.get("content") or "").strip()
         if not content:
             return JSONResponse({"error": "content is required"}, status_code=400)
-        try:
+        captured: dict = {}
+
+        def _do_send():
             from substrate.organism.store import OrganismStore
 
             store = OrganismStore()
@@ -379,17 +406,35 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
-            return {"success": True, "message_id": str(inbound.id)}
-        except Exception as e:
-            logger.error("chat_send failed: %s", e)
+            captured.update({"success": True, "message_id": str(inbound.id)})
+            return "message sent", True
+
+        resp = governed_mutation(
+            mutation_name="conversation_send",
+            intent=f"chat send: {content[:80]}",
+            execute_fn=_do_send,
+            source="cockpit",
+        )
+        if not resp.success:
             return JSONResponse({"error": "internal error"}, status_code=500)
+        return captured
 
     @r.post("/chat/push")
     async def chat_push(request: Request):
         """Push a chat message to connected cockpit WS clients."""
         body = await request.json()
-        _push_chat_message_fn(body)
-        return {"ok": True}
+
+        def _do_push():
+            _push_chat_message_fn(body)
+            return "message pushed", True
+
+        resp = governed_mutation(
+            mutation_name="channel_message_send",
+            intent="push chat message to WS clients",
+            execute_fn=_do_push,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @r.get("/chat/attachment")
     def chat_attachment(path: str):

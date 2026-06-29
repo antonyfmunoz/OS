@@ -2330,6 +2330,39 @@ def _projection_reconciliation_readiness(payload: dict) -> dict:
         return {"success": False, "error": "internal_error"}
 
 
+# ── Governed mutation bridge (C34) ─────────────────────────
+
+
+def _governed_execute(payload: dict) -> dict:
+    """Execute a mutation through the GovernedExecutionSpine via MutationRouter."""
+    try:
+        from transports.api.governed import governed_mutation
+
+        mutation_name = payload.get("mutation_name")
+        intent = payload.get("intent", "")
+        source = payload.get("source", "cockpit")
+        metadata = payload.get("metadata", {})
+        mutation_payload = payload.get("mutation_payload", {})
+
+        if not mutation_name:
+            return {"success": False, "error": "mutation_name is required"}
+
+        def _execute_fn():
+            return json.dumps(mutation_payload), True
+
+        resp = governed_mutation(
+            mutation_name=mutation_name,
+            intent=intent,
+            execute_fn=_execute_fn,
+            source=source,
+            metadata=metadata,
+        )
+        return {"success": resp.success, "data": resp.to_http_dict()}
+    except Exception as e:
+        logger.exception("organism.governed_execute failed")
+        return {"success": False, "error": str(e)}
+
+
 # ── Action router ──────────────────────────────────────────
 
 _ACTIONS: dict = {
@@ -2469,6 +2502,7 @@ _ACTIONS: dict = {
     "config.get": _config_get,
     "config.set": _config_set,
     "config.layers": _config_layers,
+    "organism.governed_execute": _governed_execute,
 }
 
 

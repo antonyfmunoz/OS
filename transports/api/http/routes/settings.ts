@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Env } from '../types.js'
 import { callOrganism } from '../lib/python_bridge.js'
+import { governedMutation } from '../lib/governed_bridge.js'
 
 const router = new Hono<Env>()
 
@@ -46,7 +47,13 @@ router.get('/', async (c) => {
 })
 
 router.patch('/', async (c) => {
-  return c.json({ ok: true, message: 'Settings patched (governance changes require organism restart)' })
+  const body = await c.req.json().catch(() => ({})) as Record<string, unknown>
+  const result = await governedMutation({
+    mutation_name: 'settings_update',
+    intent: 'update settings',
+    payload: body,
+  })
+  return c.json(result)
 })
 
 export default router

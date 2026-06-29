@@ -7,6 +7,8 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from transports.api.governed import governed_mutation
+
 
 class SessionStartRequest(BaseModel):
     source_type: str = "right_rail"
@@ -46,7 +48,8 @@ def get_router() -> APIRouter:
         mgr = _get_manager()
         if mgr is None:
             return {"error": "VoiceSessionManager unavailable"}
-        try:
+
+        def _do_start():
             from substrate.workstation.voice_ingress_runtime import (
                 VoiceIngressEvent,
             )
@@ -56,17 +59,33 @@ def get_router() -> APIRouter:
                 speaker_id=body.speaker_id,
                 activation_mode=body.activation_mode,
             )
-            session = mgr.start_session(event)
-            return session.to_dict()
-        except Exception as exc:
-            return {"error": str(exc)}
+            mgr.start_session(event)
+            return "voice session started", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"start voice session: {body.source_type}",
+            execute_fn=_do_start,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     @router.post("/{session_id}/end")
     def voice_session_end(session_id: str) -> dict[str, Any]:
         mgr = _get_manager()
         if mgr is None:
             return {"error": "VoiceSessionManager unavailable"}
-        success = mgr.end_session(session_id)
-        return {"ended": success, "session_id": session_id}
+
+        def _do_end():
+            success = mgr.end_session(session_id)
+            return f"voice session {session_id} ended", success
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"end voice session {session_id}",
+            execute_fn=_do_end,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     return router

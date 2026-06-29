@@ -22,6 +22,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 organism_router: APIRouter = APIRouter()
@@ -272,27 +274,37 @@ def _organism_execution_mode():
 
 def _organism_promote_mode(payload: dict, request: Request):
     """Promote execution mode. Rate-limited, operator-auth required."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("promote", client_id)
 
     target = payload.get("target_mode", "")
     justification = str(payload.get("justification", "operator promotion"))[:500]
-    try:
-        from substrate.organism.execution_modes import ExecutionMode, TransitionReason
-        mode = ExecutionMode(target)
-        ok = daemon.execution_mode_manager.promote(
-            mode,
-            reason=TransitionReason.OPERATOR_PROMOTION,
-            justification=justification,
-        )
-        logger.info("Execution mode promotion: %s → %s by %s", target, ok, client_id)
-        return {"ok": ok, "current_mode": daemon.execution_mode_manager.current_mode.value}
-    except (ValueError, KeyError) as e:
-        return {"error": str(e)}
+
+    def _do_promote():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        try:
+            from substrate.organism.execution_modes import ExecutionMode, TransitionReason
+            mode = ExecutionMode(target)
+            ok = daemon.execution_mode_manager.promote(
+                mode,
+                reason=TransitionReason.OPERATOR_PROMOTION,
+                justification=justification,
+            )
+            logger.info("Execution mode promotion: %s → %s by %s", target, ok, client_id)
+            return f"mode promoted to {target}", ok
+        except (ValueError, KeyError) as e:
+            return str(e), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"promote execution mode to {target}",
+        execute_fn=_do_promote,
+        source="cockpit",
+        metadata={"target_mode": target},
+    )
+    return resp.to_http_dict()
 
 
 def _organism_workloads():
@@ -311,14 +323,8 @@ def _organism_workload_outcomes(limit: int = 20):
     return daemon.workload_runner.recent_outcomes(limit)
 
 
-async def _organism_run_workload(payload: dict):
+def _organism_run_workload(payload: dict):
     """Manually trigger a specific workload."""
-    import asyncio
-
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     workload_type = payload.get("workload_type", "")
     force = payload.get("force", False)
 
@@ -331,28 +337,39 @@ async def _organism_run_workload(payload: dict):
             "available": [t.value for t in __import__("substrate.organism.workload_runner", fromlist=["WorkloadType"]).WorkloadType],
         }
 
-    loop = asyncio.get_running_loop()
-    outcome = await loop.run_in_executor(
-        None,
-        lambda: daemon.workload_runner.run_workload(wt, force=force),
+    def _do_run():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        daemon.workload_runner.run_workload(wt, force=force)
+        return f"workload {workload_type} executed", True
+
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"run workload {workload_type}",
+        execute_fn=_do_run,
+        source="cockpit",
+        metadata={"workload_type": workload_type, "force": force},
     )
-    return outcome.to_dict()
+    return resp.to_http_dict()
 
 
-async def _organism_run_all_workloads():
+def _organism_run_all_workloads():
     """Run all OBSERVE-safe workloads."""
-    import asyncio
+    def _do_run_all():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        outcomes = daemon.workload_runner.run_all_observe()
+        return f"ran {len(outcomes)} observe workloads", True
 
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
-    loop = asyncio.get_running_loop()
-    outcomes = await loop.run_in_executor(
-        None,
-        daemon.workload_runner.run_all_observe,
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent="run all OBSERVE-safe workloads",
+        execute_fn=_do_run_all,
+        source="cockpit",
     )
-    return [o.to_dict() for o in outcomes]
+    return resp.to_http_dict()
 
 
 def _organism_automation_candidates():
@@ -368,28 +385,50 @@ def _organism_automation_candidates():
 
 def _organism_approve_automation(proposal_id: str, request: Request):
     """Approve an automation candidate. Rate-limited, operator-auth required."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("approve", client_id)
-    logger.info("Automation approval: %s by %s", proposal_id, client_id)
-    ok = daemon.automation_pipeline.approve(proposal_id)
-    if not ok:
-        return {"ok": False, "error": "proposal not found or not in proposed state"}
-    return {"ok": True, "proposal_id": proposal_id}
+
+    def _do_approve():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        logger.info("Automation approval: %s by %s", proposal_id, client_id)
+        ok = daemon.automation_pipeline.approve(proposal_id)
+        if not ok:
+            return "proposal not found or not in proposed state", False
+        return f"automation {proposal_id} approved", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve automation candidate {proposal_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+        metadata={"proposal_id": proposal_id},
+    )
+    return resp.to_http_dict()
 
 
 def _organism_deny_automation(proposal_id: str, payload: dict | None = None):
     """Deny an automation candidate."""
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
     reason = (payload or {}).get("reason", "")
-    ok = daemon.automation_pipeline.deny(proposal_id, reason=reason)
-    if not ok:
-        return {"ok": False, "error": "proposal not found or not in proposed state"}
-    return {"ok": True, "proposal_id": proposal_id}
+
+    def _do_deny():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        ok = daemon.automation_pipeline.deny(proposal_id, reason=reason)
+        if not ok:
+            return "proposal not found or not in proposed state", False
+        return f"automation {proposal_id} denied", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"deny automation candidate {proposal_id}",
+        execute_fn=_do_deny,
+        source="cockpit",
+        metadata={"proposal_id": proposal_id},
+    )
+    return resp.to_http_dict()
 
 
 def _organism_maintenance():
@@ -406,20 +445,22 @@ def _organism_maintenance():
     }
 
 
-async def _organism_run_maintenance():
+def _organism_run_maintenance():
     """Trigger a manual maintenance cycle."""
-    import asyncio
+    def _do_maintenance():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        daemon.maintenance_loop.maintenance_tick()
+        return "maintenance cycle completed", True
 
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
-    loop = asyncio.get_running_loop()
-    report = await loop.run_in_executor(
-        None,
-        daemon.maintenance_loop.maintenance_tick,
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="run maintenance cycle",
+        execute_fn=_do_maintenance,
+        source="cockpit",
     )
-    return report
+    return resp.to_http_dict()
 
 
 def _organism_assisted():
@@ -430,14 +471,8 @@ def _organism_assisted():
     return daemon.assisted_executor.to_dict()
 
 
-async def _organism_assisted_execute(payload: dict, request: Request):
+def _organism_assisted_execute(payload: dict, request: Request):
     """Execute an approved maintenance action. Rate-limited, operator-auth required."""
-    import asyncio
-
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
-
     client_id = request.client.host if request.client else "unknown"
     _check_rate_limit("execute", client_id)
 
@@ -455,20 +490,29 @@ async def _organism_assisted_execute(payload: dict, request: Request):
         }
 
     action_id = f"assisted-{category}-{int(time.time())}"
-    logger.info("Assisted execution requested: %s by %s", category, client_id)
 
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None,
-        lambda: daemon.assisted_executor.execute_action(
+    def _do_execute():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        logger.info("Assisted execution requested: %s by %s", category, client_id)
+        daemon.assisted_executor.execute_action(
             action_id=action_id,
             category=cat,
             description=description or f"Assisted: {category}",
             approved_by=f"operator:{client_id}",
             params=params,
-        ),
+        )
+        return f"assisted action {action_id} executed", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"assisted execute: {category}",
+        execute_fn=_do_execute,
+        source="cockpit",
+        metadata={"category": category, "action_id": action_id},
     )
-    return result.to_dict()
+    return resp.to_http_dict()
 
 
 def _organism_assisted_audit(limit: int = 50):
@@ -480,13 +524,24 @@ def _organism_assisted_audit(limit: int = 50):
 
 
 def _organism_signal(payload: dict):
-    daemon = _get_organism()
-    if daemon is None:
-        return {"error": "organism not running"}
     content = payload.get("content", "")
     if not content:
         return {"error": "content required"}
-    return daemon.advisor.handle_signal(content)
+
+    def _do_signal():
+        daemon = _get_organism()
+        if daemon is None:
+            return "organism not running", False
+        daemon.advisor.handle_signal(content)
+        return f"signal handled: {content[:80]}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"organism signal: {content[:80]}",
+        execute_fn=_do_signal,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _organism_loop_status():
@@ -578,13 +633,24 @@ def _operator_acceptance_start(payload: dict):
     input_text = payload.get("input_text", "")
     if not input_text:
         return {"error": "input_text required"}
-    from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
-    coord = OperatorLoopCoordinator()
-    return coord.run_scenario_e2e(
-        input_text,
-        payload.get("input_mode", "text"),
-        skip_runtime=payload.get("skip_runtime", False),
+
+    def _do_start():
+        from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
+        coord = OperatorLoopCoordinator()
+        coord.run_scenario_e2e(
+            input_text,
+            payload.get("input_mode", "text"),
+            skip_runtime=payload.get("skip_runtime", False),
+        )
+        return f"acceptance scenario started: {input_text[:80]}", True
+
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"start operator acceptance: {input_text[:80]}",
+        execute_fn=_do_start,
+        source="cockpit",
     )
+    return resp.to_http_dict()
 
 
 def _operator_acceptance_primary_proof():

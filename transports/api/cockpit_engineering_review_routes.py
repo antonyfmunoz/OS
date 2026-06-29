@@ -14,6 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 engineering_review_router: APIRouter = APIRouter()
@@ -162,15 +164,25 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             if plan_id in plans:
                 coordinator.register_plan(plans[plan_id])
 
-        try:
-            session = coordinator.create_session(
-                plan_id=plan_id,
-                workspace_targets=workspace_targets,
-                operator_id=principal,
-            )
-            return session.to_dict()
-        except ValueError as exc:
-            raise HTTPException(400, str(exc))
+        def _do_create():
+            try:
+                session = coordinator.create_session(
+                    plan_id=plan_id,
+                    workspace_targets=workspace_targets,
+                    operator_id=principal,
+                )
+                return f"session created: {session.session_id}", True
+            except ValueError as exc:
+                return str(exc), False
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"create engineering session for plan {plan_id}",
+            execute_fn=_do_create,
+            source="cockpit",
+            metadata={"plan_id": plan_id, "workspace_targets": workspace_targets},
+        )
+        return resp.to_http_dict()
 
     @router.post(
         "/engineering/sessions/{session_id}/execute", dependencies=[Depends(require_operator_dep)]
@@ -179,19 +191,26 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
-        try:
-            session = coordinator.execute_session(session_id)
-            builder = _get_builder()
-            if builder is not None:
-                package = builder.build_package(session)
-                coordinator.store_proof_package(package)
-                return {
-                    "session": session.to_dict(),
-                    "proof_package": package.to_dict(),
-                }
-            return {"session": session.to_dict()}
-        except ValueError as exc:
-            raise HTTPException(400, str(exc))
+
+        def _do_execute():
+            try:
+                session = coordinator.execute_session(session_id)
+                builder = _get_builder()
+                if builder is not None:
+                    package = builder.build_package(session)
+                    coordinator.store_proof_package(package)
+                return f"session {session_id} executed", True
+            except ValueError as exc:
+                return str(exc), False
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"execute engineering session {session_id}",
+            execute_fn=_do_execute,
+            source="cockpit",
+            metadata={"session_id": session_id},
+        )
+        return resp.to_http_dict()
 
     @router.post(
         "/engineering/sessions/{session_id}/pause", dependencies=[Depends(require_operator_dep)]
@@ -200,11 +219,21 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
-        ok = coordinator.pause_session(session_id)
-        if not ok:
-            raise HTTPException(400, "cannot pause session")
-        session = coordinator.get_session(session_id)
-        return session.to_dict() if session else {"status": "paused"}
+
+        def _do_pause():
+            ok = coordinator.pause_session(session_id)
+            if not ok:
+                return "cannot pause session", False
+            return f"session {session_id} paused", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"pause engineering session {session_id}",
+            execute_fn=_do_pause,
+            source="cockpit",
+            metadata={"session_id": session_id},
+        )
+        return resp.to_http_dict()
 
     @router.post(
         "/engineering/sessions/{session_id}/cancel", dependencies=[Depends(require_operator_dep)]
@@ -213,11 +242,21 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
-        ok = coordinator.cancel_session(session_id)
-        if not ok:
-            raise HTTPException(400, "cannot cancel session")
-        session = coordinator.get_session(session_id)
-        return session.to_dict() if session else {"status": "cancelled"}
+
+        def _do_cancel():
+            ok = coordinator.cancel_session(session_id)
+            if not ok:
+                return "cannot cancel session", False
+            return f"session {session_id} cancelled", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"cancel engineering session {session_id}",
+            execute_fn=_do_cancel,
+            source="cockpit",
+            metadata={"session_id": session_id},
+        )
+        return resp.to_http_dict()
 
     @router.get("/engineering/reviews", dependencies=[Depends(require_operator_dep)])
     async def list_reviews() -> dict[str, Any]:
@@ -249,14 +288,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         coordinator = _get_coordinator()
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
-        package = coordinator.approve_review(proof_id, reviewed_by=principal)
-        if package is None:
-            raise HTTPException(404, f"review {proof_id} not found")
 
-        integration = coordinator.integrate_session(package.session_id)
-        result = package.to_dict()
-        result["integration"] = integration
-        return result
+        def _do_approve():
+            package = coordinator.approve_review(proof_id, reviewed_by=principal)
+            if package is None:
+                return f"review {proof_id} not found", False
+            coordinator.integrate_session(package.session_id)
+            return f"review {proof_id} approved", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve engineering review {proof_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+            metadata={"proof_id": proof_id, "reviewed_by": principal},
+        )
+        return resp.to_http_dict()
 
     @router.post("/engineering/reviews/{proof_id}/reject")
     def reject_review(
@@ -268,9 +315,20 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if coordinator is None:
             raise HTTPException(503, "coordinator unavailable")
         reason = (body or {}).get("reason", "")
-        package = coordinator.reject_review(proof_id, reason=reason, reviewed_by=principal)
-        if package is None:
-            raise HTTPException(404, f"review {proof_id} not found")
-        return package.to_dict()
+
+        def _do_reject():
+            package = coordinator.reject_review(proof_id, reason=reason, reviewed_by=principal)
+            if package is None:
+                return f"review {proof_id} not found", False
+            return f"review {proof_id} rejected: {reason[:100]}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"reject engineering review {proof_id}",
+            execute_fn=_do_reject,
+            source="cockpit",
+            metadata={"proof_id": proof_id, "reason": reason},
+        )
+        return resp.to_http_dict()
 
     return router

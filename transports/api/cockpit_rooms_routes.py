@@ -26,6 +26,7 @@ import jwt as pyjwt
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from transports.api.cockpit_auth import require_clerk_auth
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -472,224 +473,254 @@ def list_servers(user=Depends(require_clerk_auth)):
 
 @rooms_router.post("/servers")
 def create_server(req: CreateServerReq, user=Depends(require_clerk_auth)):
-    servers = _load("servers")
-    server = {
-        "id": _uid(),
-        "name": req.name,
-        "description": req.description,
-        "icon_emoji": "",
-        "owner_id": _user_id(user),
-        "privacy": req.privacy,
-        "template": req.template,
-        "created_at": _now(),
-        "updated_at": _now(),
-        "archived": False,
-        "sort_order": len(servers),
-        "pinned": False,
-    }
-    servers.append(server)
-    _save("servers", servers)
+    uid = _user_id(user)
+    dname = _display_name(user)
 
-    # Apply template
-    if req.template and req.template in TEMPLATES:
-        tpl = TEMPLATES[req.template]
-        cat_map: dict[str, str] = {}
-        categories = _load("categories")
-        channels = _load("channels")
-        roles = _load("roles")
+    def _do_create():
+        servers = _load("servers")
+        server = {
+            "id": _uid(),
+            "name": req.name,
+            "description": req.description,
+            "icon_emoji": "",
+            "owner_id": uid,
+            "privacy": req.privacy,
+            "template": req.template,
+            "created_at": _now(),
+            "updated_at": _now(),
+            "archived": False,
+            "sort_order": len(servers),
+            "pinned": False,
+        }
+        servers.append(server)
+        _save("servers", servers)
 
-        for i, cat_name in enumerate(tpl.get("categories", [])):
-            cat = {
-                "id": _uid(),
-                "server_id": server["id"],
-                "name": cat_name,
-                "sort_order": i,
-                "collapsed": False,
-                "muted": False,
-                "permission_synced": True,
-            }
-            categories.append(cat)
-            cat_map[cat_name] = cat["id"]
+        if req.template and req.template in TEMPLATES:
+            tpl = TEMPLATES[req.template]
+            cat_map: dict[str, str] = {}
+            categories = _load("categories")
+            channels = _load("channels")
+            roles = _load("roles")
 
-        _save("categories", categories)
-
-        for cat_name, ch_list in tpl.get("channels", {}).items():
-            cat_id = cat_map.get(cat_name)
-            for j, (ch_name, ch_type) in enumerate(ch_list):
-                ch = {
+            for i, cat_name in enumerate(tpl.get("categories", [])):
+                cat = {
                     "id": _uid(),
                     "server_id": server["id"],
-                    "category_id": cat_id,
-                    "name": ch_name,
-                    "topic": "",
-                    "type": ch_type,
-                    "sort_order": j,
-                    "private": False,
-                    "locked": False,
-                    "slowmode_seconds": 0,
-                    "archived": False,
-                    "unread_count": 0,
-                    "mention_count": 0,
+                    "name": cat_name,
+                    "sort_order": i,
+                    "collapsed": False,
                     "muted": False,
-                    "last_message_at": None,
-                    "dex_mode": "founder_operator",
-                    "dex_enabled": True,
-                    "memory_scope": "room",
+                    "permission_synced": True,
                 }
-                channels.append(ch)
+                categories.append(cat)
+                cat_map[cat_name] = cat["id"]
 
-        _save("channels", channels)
+            _save("categories", categories)
 
-        for role_def in tpl.get("roles", []):
-            role = {
-                "id": _uid(),
-                "server_id": server["id"],
-                "name": role_def["name"],
-                "color": role_def.get("color", "#888888"),
-                "icon_emoji": "",
-                "sort_order": len(roles),
-                "permissions": role_def.get("permissions", []),
-                "is_default": False,
-            }
-            roles.append(role)
+            for cat_name, ch_list in tpl.get("channels", {}).items():
+                cat_id = cat_map.get(cat_name)
+                for j, (ch_name, ch_type) in enumerate(ch_list):
+                    ch = {
+                        "id": _uid(),
+                        "server_id": server["id"],
+                        "category_id": cat_id,
+                        "name": ch_name,
+                        "topic": "",
+                        "type": ch_type,
+                        "sort_order": j,
+                        "private": False,
+                        "locked": False,
+                        "slowmode_seconds": 0,
+                        "archived": False,
+                        "unread_count": 0,
+                        "mention_count": 0,
+                        "muted": False,
+                        "last_message_at": None,
+                        "dex_mode": "founder_operator",
+                        "dex_enabled": True,
+                        "memory_scope": "room",
+                    }
+                    channels.append(ch)
 
-        # Always add default roles
-        for default_role in [
-            {"name": "Owner", "color": "#FF3D3D", "permissions": [
-                "view_server", "manage_server", "manage_roles", "manage_channels",
-                "manage_permissions", "create_invites", "view_channel", "send_messages",
-                "manage_messages", "create_threads", "manage_threads", "attach_files",
-                "add_reactions", "mention_everyone", "join_voice", "speak",
-                "mute_members", "deafen_members", "move_members", "share_screen",
-                "start_video", "record_meeting", "view_transcripts", "manage_room_memory",
-                "manage_dex_mode", "create_work_packets", "approve_room_actions", "invite_guests",
-            ]},
-            {"name": "Admin", "color": "#FFB800", "permissions": [
-                "view_server", "manage_channels", "create_invites", "view_channel",
-                "send_messages", "manage_messages", "create_threads", "manage_threads",
-                "attach_files", "add_reactions", "mention_everyone", "join_voice",
-                "speak", "mute_members", "share_screen", "start_video",
-                "view_transcripts", "manage_dex_mode", "invite_guests",
-            ]},
-            {"name": "Member", "color": "#888888", "permissions": [
-                "view_server", "view_channel", "send_messages", "create_threads",
-                "attach_files", "add_reactions", "join_voice", "speak",
-                "share_screen", "start_video",
-            ], "is_default": True},
-            {"name": "Guest", "color": "#555555", "permissions": [
-                "view_channel", "send_messages", "add_reactions",
-            ]},
-        ]:
-            role = {
-                "id": _uid(),
-                "server_id": server["id"],
-                "name": default_role["name"],
-                "color": default_role["color"],
-                "icon_emoji": "",
-                "sort_order": len(roles),
-                "permissions": default_role["permissions"],
-                "is_default": default_role.get("is_default", False),
-            }
-            roles.append(role)
+            _save("channels", channels)
 
-        _save("roles", roles)
+            for role_def in tpl.get("roles", []):
+                role = {
+                    "id": _uid(),
+                    "server_id": server["id"],
+                    "name": role_def["name"],
+                    "color": role_def.get("color", "#888888"),
+                    "icon_emoji": "",
+                    "sort_order": len(roles),
+                    "permissions": role_def.get("permissions", []),
+                    "is_default": False,
+                }
+                roles.append(role)
 
-    # Ensure default roles exist even without a template
-    if not req.template or req.template not in TEMPLATES:
-        roles = _load("roles")
-        for default_role in [
-            {"name": "Owner", "color": "#FF3D3D", "permissions": [
-                "view_server", "manage_server", "manage_roles", "manage_channels",
-                "manage_permissions", "create_invites", "view_channel", "send_messages",
-                "manage_messages", "create_threads", "manage_threads", "attach_files",
-                "add_reactions", "mention_everyone", "join_voice", "speak",
-                "mute_members", "deafen_members", "move_members", "share_screen",
-                "start_video", "record_meeting", "view_transcripts", "manage_room_memory",
-                "manage_dex_mode", "create_work_packets", "approve_room_actions", "invite_guests",
-            ]},
-            {"name": "Admin", "color": "#FFB800", "permissions": [
-                "view_server", "manage_channels", "create_invites", "view_channel",
-                "send_messages", "manage_messages", "create_threads", "manage_threads",
-                "attach_files", "add_reactions", "mention_everyone", "join_voice",
-                "speak", "mute_members", "share_screen", "start_video",
-                "view_transcripts", "manage_dex_mode", "invite_guests",
-            ]},
-            {"name": "Member", "color": "#888888", "permissions": [
-                "view_server", "view_channel", "send_messages", "create_threads",
-                "attach_files", "add_reactions", "join_voice", "speak",
-                "share_screen", "start_video",
-            ], "is_default": True},
-            {"name": "Guest", "color": "#555555", "permissions": [
-                "view_channel", "send_messages", "add_reactions",
-            ]},
-        ]:
-            role = {
-                "id": _uid(),
-                "server_id": server["id"],
-                "name": default_role["name"],
-                "color": default_role["color"],
-                "icon_emoji": "",
-                "sort_order": len(roles),
-                "permissions": default_role["permissions"],
-                "is_default": default_role.get("is_default", False),
-            }
-            roles.append(role)
-        _save("roles", roles)
+            for default_role in [
+                {"name": "Owner", "color": "#FF3D3D", "permissions": [
+                    "view_server", "manage_server", "manage_roles", "manage_channels",
+                    "manage_permissions", "create_invites", "view_channel", "send_messages",
+                    "manage_messages", "create_threads", "manage_threads", "attach_files",
+                    "add_reactions", "mention_everyone", "join_voice", "speak",
+                    "mute_members", "deafen_members", "move_members", "share_screen",
+                    "start_video", "record_meeting", "view_transcripts", "manage_room_memory",
+                    "manage_dex_mode", "create_work_packets", "approve_room_actions", "invite_guests",
+                ]},
+                {"name": "Admin", "color": "#FFB800", "permissions": [
+                    "view_server", "manage_channels", "create_invites", "view_channel",
+                    "send_messages", "manage_messages", "create_threads", "manage_threads",
+                    "attach_files", "add_reactions", "mention_everyone", "join_voice",
+                    "speak", "mute_members", "share_screen", "start_video",
+                    "view_transcripts", "manage_dex_mode", "invite_guests",
+                ]},
+                {"name": "Member", "color": "#888888", "permissions": [
+                    "view_server", "view_channel", "send_messages", "create_threads",
+                    "attach_files", "add_reactions", "join_voice", "speak",
+                    "share_screen", "start_video",
+                ], "is_default": True},
+                {"name": "Guest", "color": "#555555", "permissions": [
+                    "view_channel", "send_messages", "add_reactions",
+                ]},
+            ]:
+                role = {
+                    "id": _uid(),
+                    "server_id": server["id"],
+                    "name": default_role["name"],
+                    "color": default_role["color"],
+                    "icon_emoji": "",
+                    "sort_order": len(roles),
+                    "permissions": default_role["permissions"],
+                    "is_default": default_role.get("is_default", False),
+                }
+                roles.append(role)
 
-    # Find the Owner role ID for the creator's member record
-    owner_role_id = None
-    for r in _load("roles"):
-        if r["server_id"] == server["id"] and r["name"] == "Owner":
-            owner_role_id = r["id"]
-            break
+            _save("roles", roles)
 
-    # Auto-add creator as member with Owner role
-    members = _load("members")
-    members.append({
-        "id": _uid(),
-        "server_id": server["id"],
-        "user_id": _user_id(user),
-        "display_name": _display_name(user),
-        "roles": [owner_role_id] if owner_role_id else [],
-        "joined_at": _now(),
-        "presence": "online",
-        "current_channel_id": None,
-        "last_active_at": _now(),
-        "is_typing": False,
-        "is_speaking": False,
-        "is_muted": False,
-        "is_deafened": False,
-    })
-    _save("members", members)
+        if not req.template or req.template not in TEMPLATES:
+            roles = _load("roles")
+            for default_role in [
+                {"name": "Owner", "color": "#FF3D3D", "permissions": [
+                    "view_server", "manage_server", "manage_roles", "manage_channels",
+                    "manage_permissions", "create_invites", "view_channel", "send_messages",
+                    "manage_messages", "create_threads", "manage_threads", "attach_files",
+                    "add_reactions", "mention_everyone", "join_voice", "speak",
+                    "mute_members", "deafen_members", "move_members", "share_screen",
+                    "start_video", "record_meeting", "view_transcripts", "manage_room_memory",
+                    "manage_dex_mode", "create_work_packets", "approve_room_actions", "invite_guests",
+                ]},
+                {"name": "Admin", "color": "#FFB800", "permissions": [
+                    "view_server", "manage_channels", "create_invites", "view_channel",
+                    "send_messages", "manage_messages", "create_threads", "manage_threads",
+                    "attach_files", "add_reactions", "mention_everyone", "join_voice",
+                    "speak", "mute_members", "share_screen", "start_video",
+                    "view_transcripts", "manage_dex_mode", "invite_guests",
+                ]},
+                {"name": "Member", "color": "#888888", "permissions": [
+                    "view_server", "view_channel", "send_messages", "create_threads",
+                    "attach_files", "add_reactions", "join_voice", "speak",
+                    "share_screen", "start_video",
+                ], "is_default": True},
+                {"name": "Guest", "color": "#555555", "permissions": [
+                    "view_channel", "send_messages", "add_reactions",
+                ]},
+            ]:
+                role = {
+                    "id": _uid(),
+                    "server_id": server["id"],
+                    "name": default_role["name"],
+                    "color": default_role["color"],
+                    "icon_emoji": "",
+                    "sort_order": len(roles),
+                    "permissions": default_role["permissions"],
+                    "is_default": default_role.get("is_default", False),
+                }
+                roles.append(role)
+            _save("roles", roles)
 
-    _audit(server["id"], None, "server_created", _user_id(user), {"name": req.name})
-    return server
+        owner_role_id = None
+        for r in _load("roles"):
+            if r["server_id"] == server["id"] and r["name"] == "Owner":
+                owner_role_id = r["id"]
+                break
+
+        members = _load("members")
+        members.append({
+            "id": _uid(),
+            "server_id": server["id"],
+            "user_id": uid,
+            "display_name": dname,
+            "roles": [owner_role_id] if owner_role_id else [],
+            "joined_at": _now(),
+            "presence": "online",
+            "current_channel_id": None,
+            "last_active_at": _now(),
+            "is_typing": False,
+            "is_speaking": False,
+            "is_muted": False,
+            "is_deafened": False,
+        })
+        _save("members", members)
+
+        _audit(server["id"], None, "server_created", uid, {"name": req.name})
+        return f"created server {req.name}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create server {req.name}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.patch("/servers/{server_id}")
 def update_server(server_id: str, req: UpdateServerReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_server")
-    servers = _load("servers")
-    for s in servers:
-        if s["id"] == server_id:
-            for k, v in req.model_dump(exclude_none=True).items():
-                s[k] = v
-            s["updated_at"] = _now()
-            _save("servers", servers)
-            _audit(server_id, None, "server_updated", _user_id(user), req.model_dump(exclude_none=True))
-            return s
-    raise HTTPException(404, "Server not found")
+    updates = req.model_dump(exclude_none=True)
+    uid = _user_id(user)
+
+    def _do_update():
+        servers = _load("servers")
+        for s in servers:
+            if s["id"] == server_id:
+                for k, v in updates.items():
+                    s[k] = v
+                s["updated_at"] = _now()
+                _save("servers", servers)
+                _audit(server_id, None, "server_updated", uid, updates)
+                return f"updated server {server_id}", True
+        return "server not found", False
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update server {server_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/servers/{server_id}")
 def delete_server(server_id: str, user=Depends(require_clerk_auth)):
     if not _is_server_owner(user, server_id):
         raise HTTPException(403, "Only the server owner can delete a server")
-    servers = _load("servers")
-    servers = [s for s in servers if s["id"] != server_id]
-    _save("servers", servers)
-    _audit(server_id, None, "server_deleted", _user_id(user), {})
-    return {"ok": True}
+    uid = _user_id(user)
+
+    def _do_delete():
+        servers = _load("servers")
+        servers = [s for s in servers if s["id"] != server_id]
+        _save("servers", servers)
+        _audit(server_id, None, "server_deleted", uid, {})
+        return f"deleted server {server_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"delete server {server_id}",
+        execute_fn=_do_delete,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Categories ──
@@ -703,20 +734,31 @@ def list_categories(server_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/servers/{server_id}/categories")
 def create_category(server_id: str, req: CreateCategoryReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_channels")
-    categories = _load("categories")
-    cat = {
-        "id": _uid(),
-        "server_id": server_id,
-        "name": req.name,
-        "sort_order": len([c for c in categories if c["server_id"] == server_id]),
-        "collapsed": False,
-        "muted": False,
-        "permission_synced": True,
-    }
-    categories.append(cat)
-    _save("categories", categories)
-    _audit(server_id, None, "category_created", _user_id(user), {"name": req.name})
-    return cat
+    uid = _user_id(user)
+
+    def _do_create():
+        categories = _load("categories")
+        cat = {
+            "id": _uid(),
+            "server_id": server_id,
+            "name": req.name,
+            "sort_order": len([c for c in categories if c["server_id"] == server_id]),
+            "collapsed": False,
+            "muted": False,
+            "permission_synced": True,
+        }
+        categories.append(cat)
+        _save("categories", categories)
+        _audit(server_id, None, "category_created", uid, {"name": req.name})
+        return f"created category {req.name}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create category {req.name} in server {server_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.patch("/categories/{cat_id}")
@@ -726,10 +768,25 @@ def update_category(cat_id: str, req: UpdateCategoryReq, user=Depends(require_cl
     if not cat:
         raise HTTPException(404, "Category not found")
     _require_server_perm(user, cat["server_id"], "manage_channels")
-    for k, v in req.model_dump(exclude_none=True).items():
-        cat[k] = v
-    _save("categories", categories)
-    return cat
+    updates = req.model_dump(exclude_none=True)
+
+    def _do_update():
+        cats = _load("categories")
+        for c in cats:
+            if c["id"] == cat_id:
+                for k, v in updates.items():
+                    c[k] = v
+                _save("categories", cats)
+                return f"updated category {cat_id}", True
+        return "category not found", False
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update category {cat_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/categories/{cat_id}")
@@ -739,9 +796,20 @@ def delete_category(cat_id: str, user=Depends(require_clerk_auth)):
     if not cat:
         raise HTTPException(404, "Category not found")
     _require_server_perm(user, cat["server_id"], "manage_channels")
-    categories = [c for c in categories if c["id"] != cat_id]
-    _save("categories", categories)
-    return {"ok": True}
+
+    def _do_delete():
+        cats = _load("categories")
+        cats = [c for c in cats if c["id"] != cat_id]
+        _save("categories", cats)
+        return f"deleted category {cat_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"delete category {cat_id}",
+        execute_fn=_do_delete,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Channels ──
@@ -766,46 +834,68 @@ def list_channels(server_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/servers/{server_id}/channels")
 def create_channel(server_id: str, req: CreateChannelReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_channels")
-    channels = _load("channels")
-    ch = {
-        "id": _uid(),
-        "server_id": server_id,
-        "category_id": req.category_id,
-        "name": req.name,
-        "topic": "",
-        "type": req.type,
-        "sort_order": len([c for c in channels if c["server_id"] == server_id]),
-        "private": False,
-        "locked": False,
-        "slowmode_seconds": 0,
-        "archived": False,
-        "unread_count": 0,
-        "mention_count": 0,
-        "muted": False,
-        "last_message_at": None,
-        "dex_mode": "founder_operator",
-        "dex_enabled": True,
-        "memory_scope": "room",
-    }
-    channels.append(ch)
-    _save("channels", channels)
-    _audit(server_id, ch["id"], "channel_created", _user_id(user), {"name": req.name, "type": req.type})
-    _push_room_event("channel.created", {"server_id": server_id, "channel": ch})
-    return ch
+    uid = _user_id(user)
+
+    def _do_create():
+        channels = _load("channels")
+        ch = {
+            "id": _uid(),
+            "server_id": server_id,
+            "category_id": req.category_id,
+            "name": req.name,
+            "topic": "",
+            "type": req.type,
+            "sort_order": len([c for c in channels if c["server_id"] == server_id]),
+            "private": False,
+            "locked": False,
+            "slowmode_seconds": 0,
+            "archived": False,
+            "unread_count": 0,
+            "mention_count": 0,
+            "muted": False,
+            "last_message_at": None,
+            "dex_mode": "founder_operator",
+            "dex_enabled": True,
+            "memory_scope": "room",
+        }
+        channels.append(ch)
+        _save("channels", channels)
+        _audit(server_id, ch["id"], "channel_created", uid, {"name": req.name, "type": req.type})
+        _push_room_event("channel.created", {"server_id": server_id, "channel": ch})
+        return f"created channel {req.name}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create channel {req.name} in server {server_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.patch("/channels/{channel_id}")
 def update_channel(channel_id: str, req: UpdateChannelReq, user=Depends(require_clerk_auth)):
     server_id = _require_channel_access(user, channel_id)
     _require_server_perm(user, server_id, "manage_channels")
-    channels = _load("channels")
-    for c in channels:
-        if c["id"] == channel_id:
-            for k, v in req.model_dump(exclude_none=True).items():
-                c[k] = v
-            _save("channels", channels)
-            return c
-    raise HTTPException(404, "Channel not found")
+    updates = req.model_dump(exclude_none=True)
+
+    def _do_update():
+        channels = _load("channels")
+        for c in channels:
+            if c["id"] == channel_id:
+                for k, v in updates.items():
+                    c[k] = v
+                _save("channels", channels)
+                return f"updated channel {channel_id}", True
+        return "channel not found", False
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update channel {channel_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/channels/{channel_id}")
@@ -815,12 +905,25 @@ def delete_channel(channel_id: str, user=Depends(require_clerk_auth)):
     if not ch:
         raise HTTPException(404, "Channel not found")
     _require_server_perm(user, ch["server_id"], "manage_channels")
-    _audit(ch["server_id"], channel_id, "channel_deleted", _user_id(user), {"name": ch["name"]})
-    channels = [c for c in channels if c["id"] != channel_id]
-    _save("channels", channels)
-    if ch:
-        _push_room_event("channel.deleted", {"server_id": ch["server_id"], "channel_id": channel_id})
-    return {"ok": True}
+    uid = _user_id(user)
+    ch_server = ch["server_id"]
+    ch_name = ch["name"]
+
+    def _do_delete():
+        chans = _load("channels")
+        _audit(ch_server, channel_id, "channel_deleted", uid, {"name": ch_name})
+        chans = [c for c in chans if c["id"] != channel_id]
+        _save("channels", chans)
+        _push_room_event("channel.deleted", {"server_id": ch_server, "channel_id": channel_id})
+        return f"deleted channel {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"delete channel {channel_id}",
+        execute_fn=_do_delete,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Messages ──
@@ -843,137 +946,209 @@ def list_messages(channel_id: str, limit: int = 50, before: str | None = None, u
 @rooms_router.post("/channels/{channel_id}/messages")
 def send_message(channel_id: str, req: SendMessageReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
-    messages = _load("messages")
+    uid = _user_id(user)
+    dname = _display_name(user)
 
-    reply_preview = None
-    if req.reply_to_id:
-        parent = next((m for m in messages if m["id"] == req.reply_to_id), None)
-        if parent:
-            reply_preview = parent["content"][:80]
+    def _do_send():
+        messages = _load("messages")
+        reply_preview = None
+        if req.reply_to_id:
+            parent = next((m for m in messages if m["id"] == req.reply_to_id), None)
+            if parent:
+                reply_preview = parent["content"][:80]
 
-    msg = {
-        "id": _uid(),
-        "channel_id": channel_id,
-        "author_id": _user_id(user),
-        "author_name": _display_name(user),
-        "content": req.content,
-        "created_at": _now(),
-        "updated_at": None,
-        "edited": False,
-        "pinned": False,
-        "reply_to_id": req.reply_to_id,
-        "reply_preview": reply_preview,
-        "thread_id": None,
-        "attachments": [],
-        "reactions": [],
-        "mentions": [],
-        "deleted": False,
-    }
-    messages.append(msg)
-    _save("messages", messages)
+        msg = {
+            "id": _uid(),
+            "channel_id": channel_id,
+            "author_id": uid,
+            "author_name": dname,
+            "content": req.content,
+            "created_at": _now(),
+            "updated_at": None,
+            "edited": False,
+            "pinned": False,
+            "reply_to_id": req.reply_to_id,
+            "reply_preview": reply_preview,
+            "thread_id": None,
+            "attachments": [],
+            "reactions": [],
+            "mentions": [],
+            "deleted": False,
+        }
+        messages.append(msg)
+        _save("messages", messages)
 
-    # Update channel last_message_at
-    channels = _load("channels")
-    for c in channels:
-        if c["id"] == channel_id:
-            c["last_message_at"] = msg["created_at"]
-            break
-    _save("channels", channels)
+        channels = _load("channels")
+        for c in channels:
+            if c["id"] == channel_id:
+                c["last_message_at"] = msg["created_at"]
+                break
+        _save("channels", channels)
 
-    _push_room_event("message.created", {"channel_id": channel_id, "message": msg})
-    return msg
+        _push_room_event("message.created", {"channel_id": channel_id, "message": msg})
+        return f"sent message to {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="conversation_send",
+        intent=f"send message to channel {channel_id}",
+        execute_fn=_do_send,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.patch("/messages/{message_id}")
 def edit_message(message_id: str, req: EditMessageReq, user=Depends(require_clerk_auth)):
     messages = _load("messages")
-    for m in messages:
-        if m["id"] == message_id:
-            if m["author_id"] != _user_id(user):
-                raise HTTPException(403, "Can only edit own messages")
-            m["content"] = req.content
-            m["edited"] = True
-            m["updated_at"] = _now()
-            _save("messages", messages)
-            _push_room_event("message.updated", {"channel_id": m["channel_id"], "message": m})
-            return m
-    raise HTTPException(404, "Message not found")
+    target = next((m for m in messages if m["id"] == message_id), None)
+    if not target:
+        raise HTTPException(404, "Message not found")
+    if target["author_id"] != _user_id(user):
+        raise HTTPException(403, "Can only edit own messages")
+
+    def _do_edit():
+        msgs = _load("messages")
+        for m in msgs:
+            if m["id"] == message_id:
+                m["content"] = req.content
+                m["edited"] = True
+                m["updated_at"] = _now()
+                _save("messages", msgs)
+                _push_room_event("message.updated", {"channel_id": m["channel_id"], "message": m})
+                return f"edited message {message_id}", True
+        return "message not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"edit message {message_id}",
+        execute_fn=_do_edit,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/messages/{message_id}")
 def delete_message(message_id: str, user=Depends(require_clerk_auth)):
     messages = _load("messages")
-    for m in messages:
-        if m["id"] == message_id:
-            ch_id = m["channel_id"]
-            server_id = _channel_server_id(ch_id)
-            uid = _user_id(user)
-            if m["author_id"] != uid:
-                if server_id:
-                    perms = _effective_permissions(user, server_id)
-                    if "manage_messages" not in perms and "administrator" not in perms and not _is_server_owner(user, server_id):
-                        raise HTTPException(403, "Can only delete own messages or with manage_messages permission")
-            m["deleted"] = True
-            m["content"] = ""
-            _save("messages", messages)
-            _push_room_event("message.deleted", {"channel_id": ch_id, "message_id": message_id})
-            return {"ok": True}
-    raise HTTPException(404, "Message not found")
+    target = next((m for m in messages if m["id"] == message_id), None)
+    if not target:
+        raise HTTPException(404, "Message not found")
+    ch_id = target["channel_id"]
+    server_id = _channel_server_id(ch_id)
+    uid = _user_id(user)
+    if target["author_id"] != uid:
+        if server_id:
+            perms = _effective_permissions(user, server_id)
+            if "manage_messages" not in perms and "administrator" not in perms and not _is_server_owner(user, server_id):
+                raise HTTPException(403, "Can only delete own messages or with manage_messages permission")
+
+    def _do_delete():
+        msgs = _load("messages")
+        for m in msgs:
+            if m["id"] == message_id:
+                m["deleted"] = True
+                m["content"] = ""
+                _save("messages", msgs)
+                _push_room_event("message.deleted", {"channel_id": ch_id, "message_id": message_id})
+                return f"deleted message {message_id}", True
+        return "message not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"delete message {message_id}",
+        execute_fn=_do_delete,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/messages/{message_id}/pin")
 def pin_message(message_id: str, req: PinMessageReq, user=Depends(require_clerk_auth)):
     messages = _load("messages")
-    for m in messages:
-        if m["id"] == message_id:
-            server_id = _channel_server_id(m["channel_id"])
-            if server_id:
-                _require_server_perm(user, server_id, "manage_messages")
-            m["pinned"] = req.pinned
-            _save("messages", messages)
-            return {"ok": True}
-    raise HTTPException(404, "Message not found")
+    target = next((m for m in messages if m["id"] == message_id), None)
+    if not target:
+        raise HTTPException(404, "Message not found")
+    server_id = _channel_server_id(target["channel_id"])
+    if server_id:
+        _require_server_perm(user, server_id, "manage_messages")
+
+    def _do_pin():
+        msgs = _load("messages")
+        for m in msgs:
+            if m["id"] == message_id:
+                m["pinned"] = req.pinned
+                _save("messages", msgs)
+                return f"{'pinned' if req.pinned else 'unpinned'} message {message_id}", True
+        return "message not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"{'pin' if req.pinned else 'unpin'} message {message_id}",
+        execute_fn=_do_pin,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/messages/{message_id}/reactions")
 def add_reaction(message_id: str, req: ReactionReq, user=Depends(require_clerk_auth)):
-    messages = _load("messages")
     user_id = _user_id(user)
-    for m in messages:
-        if m["id"] == message_id:
-            existing = next((r for r in m.get("reactions", []) if r["emoji"] == req.emoji), None)
-            if existing:
-                if user_id not in existing.get("users", []):
-                    existing["count"] = existing.get("count", 0) + 1
-                    existing.setdefault("users", []).append(user_id)
-            else:
-                m.setdefault("reactions", []).append({
-                    "emoji": req.emoji,
-                    "count": 1,
-                    "users": [user_id],
-                    "me": True,
-                })
-            _save("messages", messages)
-            return {"ok": True}
-    raise HTTPException(404, "Message not found")
+
+    def _do_react():
+        messages = _load("messages")
+        for m in messages:
+            if m["id"] == message_id:
+                existing = next((r for r in m.get("reactions", []) if r["emoji"] == req.emoji), None)
+                if existing:
+                    if user_id not in existing.get("users", []):
+                        existing["count"] = existing.get("count", 0) + 1
+                        existing.setdefault("users", []).append(user_id)
+                else:
+                    m.setdefault("reactions", []).append({
+                        "emoji": req.emoji,
+                        "count": 1,
+                        "users": [user_id],
+                        "me": True,
+                    })
+                _save("messages", messages)
+                return f"reacted {req.emoji} to {message_id}", True
+        return "message not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"add reaction {req.emoji} to message {message_id}",
+        execute_fn=_do_react,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/messages/{message_id}/reactions/{emoji}")
 def remove_reaction(message_id: str, emoji: str, user=Depends(require_clerk_auth)):
-    messages = _load("messages")
     user_id = _user_id(user)
-    for m in messages:
-        if m["id"] == message_id:
-            for r in m.get("reactions", []):
-                if r["emoji"] == emoji and user_id in r.get("users", []):
-                    r["users"].remove(user_id)
-                    r["count"] = max(0, r.get("count", 1) - 1)
-                    if r["count"] <= 0:
-                        m["reactions"] = [rx for rx in m["reactions"] if rx["emoji"] != emoji]
-                    break
-            _save("messages", messages)
-            return {"ok": True}
-    raise HTTPException(404, "Message not found")
+
+    def _do_unreact():
+        messages = _load("messages")
+        for m in messages:
+            if m["id"] == message_id:
+                for r in m.get("reactions", []):
+                    if r["emoji"] == emoji and user_id in r.get("users", []):
+                        r["users"].remove(user_id)
+                        r["count"] = max(0, r.get("count", 1) - 1)
+                        if r["count"] <= 0:
+                            m["reactions"] = [rx for rx in m["reactions"] if rx["emoji"] != emoji]
+                        break
+                _save("messages", messages)
+                return f"removed reaction {emoji} from {message_id}", True
+        return "message not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"remove reaction {emoji} from message {message_id}",
+        execute_fn=_do_unreact,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Threads ──
@@ -987,35 +1162,57 @@ def list_threads(channel_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/channels/{channel_id}/threads")
 def create_thread(channel_id: str, req: CreateThreadReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
-    threads = _load("threads")
-    thread = {
-        "id": _uid(),
-        "channel_id": channel_id,
-        "name": req.name,
-        "created_by": _user_id(user),
-        "created_at": _now(),
-        "message_count": 0,
-        "last_message_at": None,
-        "archived": False,
-        "locked": False,
-        "private": False,
-        "parent_message_id": req.parent_message_id,
-    }
-    threads.append(thread)
-    _save("threads", threads)
-    return thread
+    uid = _user_id(user)
+
+    def _do_create():
+        threads = _load("threads")
+        thread = {
+            "id": _uid(),
+            "channel_id": channel_id,
+            "name": req.name,
+            "created_by": uid,
+            "created_at": _now(),
+            "message_count": 0,
+            "last_message_at": None,
+            "archived": False,
+            "locked": False,
+            "private": False,
+            "parent_message_id": req.parent_message_id,
+        }
+        threads.append(thread)
+        _save("threads", threads)
+        return f"created thread {req.name}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create thread {req.name} in channel {channel_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.patch("/threads/{thread_id}")
 def update_thread(thread_id: str, req: UpdateThreadReq, user=Depends(require_clerk_auth)):
-    threads = _load("threads")
-    for t in threads:
-        if t["id"] == thread_id:
-            for k, v in req.model_dump(exclude_none=True).items():
-                t[k] = v
-            _save("threads", threads)
-            return t
-    raise HTTPException(404, "Thread not found")
+    updates = req.model_dump(exclude_none=True)
+
+    def _do_update():
+        threads = _load("threads")
+        for t in threads:
+            if t["id"] == thread_id:
+                for k, v in updates.items():
+                    t[k] = v
+                _save("threads", threads)
+                return f"updated thread {thread_id}", True
+        return "thread not found", False
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update thread {thread_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Forum ──
@@ -1029,39 +1226,62 @@ def list_forum_posts(channel_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/channels/{channel_id}/forum/posts")
 def create_forum_post(channel_id: str, req: CreateForumPostReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
-    posts = _load("forum_posts")
-    post = {
-        "id": _uid(),
-        "channel_id": channel_id,
-        "title": req.title,
-        "body": req.body,
-        "author_id": _user_id(user),
-        "author_name": _display_name(user),
-        "tags": req.tags,
-        "created_at": _now(),
-        "updated_at": None,
-        "pinned": False,
-        "locked": False,
-        "closed": False,
-        "reply_count": 0,
-        "last_reply_at": None,
-    }
-    posts.append(post)
-    _save("forum_posts", posts)
-    return post
+    uid = _user_id(user)
+    dname = _display_name(user)
+
+    def _do_create():
+        posts = _load("forum_posts")
+        post = {
+            "id": _uid(),
+            "channel_id": channel_id,
+            "title": req.title,
+            "body": req.body,
+            "author_id": uid,
+            "author_name": dname,
+            "tags": req.tags,
+            "created_at": _now(),
+            "updated_at": None,
+            "pinned": False,
+            "locked": False,
+            "closed": False,
+            "reply_count": 0,
+            "last_reply_at": None,
+        }
+        posts.append(post)
+        _save("forum_posts", posts)
+        return f"created forum post {req.title}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create forum post {req.title} in channel {channel_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.patch("/forum/posts/{post_id}")
 def update_forum_post(post_id: str, req: UpdateForumPostReq, user=Depends(require_clerk_auth)):
-    posts = _load("forum_posts")
-    for p in posts:
-        if p["id"] == post_id:
-            for k, v in req.model_dump(exclude_none=True).items():
-                p[k] = v
-            p["updated_at"] = _now()
-            _save("forum_posts", posts)
-            return p
-    raise HTTPException(404, "Forum post not found")
+    updates = req.model_dump(exclude_none=True)
+
+    def _do_update():
+        posts = _load("forum_posts")
+        for p in posts:
+            if p["id"] == post_id:
+                for k, v in updates.items():
+                    p[k] = v
+                p["updated_at"] = _now()
+                _save("forum_posts", posts)
+                return f"updated forum post {post_id}", True
+        return "forum post not found", False
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update forum post {post_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.get("/channels/{channel_id}/forum/tags")
@@ -1073,16 +1293,26 @@ def list_forum_tags(channel_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/channels/{channel_id}/forum/tags")
 def create_forum_tag(channel_id: str, req: CreateForumTagReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "manage_channels")
-    tags = _load("forum_tags")
-    tag = {
-        "id": _uid(),
-        "channel_id": channel_id,
-        "name": req.name,
-        "color": req.color,
-    }
-    tags.append(tag)
-    _save("forum_tags", tags)
-    return tag
+
+    def _do_create():
+        tags = _load("forum_tags")
+        tag = {
+            "id": _uid(),
+            "channel_id": channel_id,
+            "name": req.name,
+            "color": req.color,
+        }
+        tags.append(tag)
+        _save("forum_tags", tags)
+        return f"created forum tag {req.name}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create forum tag {req.name} in channel {channel_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Roles ──
@@ -1096,21 +1326,32 @@ def list_roles(server_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/servers/{server_id}/roles")
 def create_role(server_id: str, req: CreateRoleReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_roles")
-    roles = _load("roles")
-    role = {
-        "id": _uid(),
-        "server_id": server_id,
-        "name": req.name,
-        "color": req.color,
-        "icon_emoji": "",
-        "sort_order": len([r for r in roles if r["server_id"] == server_id]),
-        "permissions": req.permissions,
-        "is_default": False,
-    }
-    roles.append(role)
-    _save("roles", roles)
-    _audit(server_id, None, "role_created", _user_id(user), {"name": req.name})
-    return role
+    uid = _user_id(user)
+
+    def _do_create():
+        roles = _load("roles")
+        role = {
+            "id": _uid(),
+            "server_id": server_id,
+            "name": req.name,
+            "color": req.color,
+            "icon_emoji": "",
+            "sort_order": len([r for r in roles if r["server_id"] == server_id]),
+            "permissions": req.permissions,
+            "is_default": False,
+        }
+        roles.append(role)
+        _save("roles", roles)
+        _audit(server_id, None, "role_created", uid, {"name": req.name})
+        return f"created role {req.name}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create role {req.name} in server {server_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.patch("/roles/{role_id}")
@@ -1120,10 +1361,25 @@ def update_role(role_id: str, req: UpdateRoleReq, user=Depends(require_clerk_aut
     if not role:
         raise HTTPException(404, "Role not found")
     _require_server_perm(user, role["server_id"], "manage_roles")
-    for k, v in req.model_dump(exclude_none=True).items():
-        role[k] = v
-    _save("roles", roles)
-    return role
+    updates = req.model_dump(exclude_none=True)
+
+    def _do_update():
+        rs = _load("roles")
+        for r in rs:
+            if r["id"] == role_id:
+                for k, v in updates.items():
+                    r[k] = v
+                _save("roles", rs)
+                return f"updated role {role_id}", True
+        return "role not found", False
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update role {role_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/roles/{role_id}")
@@ -1133,9 +1389,20 @@ def delete_role(role_id: str, user=Depends(require_clerk_auth)):
     if not role:
         raise HTTPException(404, "Role not found")
     _require_server_perm(user, role["server_id"], "manage_roles")
-    roles = [r for r in roles if r["id"] != role_id]
-    _save("roles", roles)
-    return {"ok": True}
+
+    def _do_delete():
+        rs = _load("roles")
+        rs = [r for r in rs if r["id"] != role_id]
+        _save("roles", rs)
+        return f"deleted role {role_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"delete role {role_id}",
+        execute_fn=_do_delete,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Members ──
@@ -1149,52 +1416,94 @@ def list_members(server_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/servers/{server_id}/members/{user_id}/roles")
 def assign_member_role(server_id: str, user_id: str, req: RoleAssignReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_roles")
-    members = _load("members")
-    for m in members:
-        if m["server_id"] == server_id and m["user_id"] == user_id:
-            if req.role_id not in m.get("roles", []):
-                m.setdefault("roles", []).append(req.role_id)
-                _save("members", members)
-                _audit(server_id, None, "role_assigned", _user_id(user), {"user_id": user_id, "role_id": req.role_id})
-            return m
-    raise HTTPException(404, "Member not found")
+    caller = _user_id(user)
+
+    def _do_assign():
+        members = _load("members")
+        for m in members:
+            if m["server_id"] == server_id and m["user_id"] == user_id:
+                if req.role_id not in m.get("roles", []):
+                    m.setdefault("roles", []).append(req.role_id)
+                    _save("members", members)
+                    _audit(server_id, None, "role_assigned", caller, {"user_id": user_id, "role_id": req.role_id})
+                return f"assigned role {req.role_id} to {user_id}", True
+        return "member not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"assign role {req.role_id} to member {user_id} in server {server_id}",
+        execute_fn=_do_assign,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/servers/{server_id}/members/{user_id}/roles/{role_id}")
 def remove_member_role(server_id: str, user_id: str, role_id: str, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "manage_roles")
-    members = _load("members")
-    for m in members:
-        if m["server_id"] == server_id and m["user_id"] == user_id:
-            m["roles"] = [r for r in m.get("roles", []) if r != role_id]
-            _save("members", members)
-            return m
-    raise HTTPException(404, "Member not found")
+
+    def _do_remove():
+        members = _load("members")
+        for m in members:
+            if m["server_id"] == server_id and m["user_id"] == user_id:
+                m["roles"] = [r for r in m.get("roles", []) if r != role_id]
+                _save("members", members)
+                return f"removed role {role_id} from {user_id}", True
+        return "member not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"remove role {role_id} from member {user_id} in server {server_id}",
+        execute_fn=_do_remove,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/presence")
 def update_presence(req: PresenceReq, user=Depends(require_clerk_auth)):
-    members = _load("members")
-    user_id = _user_id(user)
-    for m in members:
-        if m["user_id"] == user_id:
-            m["presence"] = req.status
-            m["last_active_at"] = _now()
-    _save("members", members)
-    _push_room_event("presence.updated", {"user_id": user_id, "status": req.status})
-    return {"ok": True}
+    uid = _user_id(user)
+
+    def _do_presence():
+        members = _load("members")
+        for m in members:
+            if m["user_id"] == uid:
+                m["presence"] = req.status
+                m["last_active_at"] = _now()
+        _save("members", members)
+        _push_room_event("presence.updated", {"user_id": uid, "status": req.status})
+        return f"presence set to {req.status}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"update presence to {req.status}",
+        execute_fn=_do_presence,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/typing")
 def typing_indicator(req: TypingReq, user=Depends(require_clerk_auth)):
-    user_id = _user_id(user)
-    event = "typing.started" if req.typing else "typing.stopped"
-    _push_room_event(event, {
-        "channel_id": req.channel_id,
-        "user_id": user_id,
-        "user_name": _display_name(user),
-    })
-    return {"ok": True}
+    uid = _user_id(user)
+    display = _display_name(user)
+
+    def _do_typing():
+        event = "typing.started" if req.typing else "typing.stopped"
+        _push_room_event(event, {
+            "channel_id": req.channel_id,
+            "user_id": uid,
+            "user_name": display,
+        })
+        return f"typing {'started' if req.typing else 'stopped'}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"typing indicator in channel {req.channel_id}",
+        execute_fn=_do_typing,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Invites ──
@@ -1208,46 +1517,71 @@ def list_invites(server_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/servers/{server_id}/invites")
 def create_invite(server_id: str, req: CreateInviteReq, user=Depends(require_clerk_auth)):
     _require_server_perm(user, server_id, "create_invites")
-    invites = _load("invites")
-    expires_at = None
-    if req.expires_hours:
-        expires_at = (datetime.now(timezone.utc) + timedelta(hours=req.expires_hours)).isoformat()
+    caller = _user_id(user)
 
-    invite = {
-        "id": _uid(),
-        "server_id": server_id,
-        "channel_id": req.channel_id,
-        "room_type": req.room_type,
-        "created_by": _user_id(user),
-        "code": secrets.token_urlsafe(16),
-        "label": req.label,
-        "max_uses": req.max_uses,
-        "uses": 0,
-        "expires_at": expires_at,
-        "allowed_email_domains": req.allowed_email_domains,
-        "allowed_emails": req.allowed_emails,
-        "guest_role": "temporary_guest",
-        "permissions": req.permissions.model_dump(),
-        "role_on_join": req.role_on_join,
-        "created_at": _now(),
-        "revoked": False,
-    }
-    invites.append(invite)
-    _save("invites", invites)
-    _audit(server_id, None, "invite_created", _user_id(user), {"code": invite["code"]})
-    return invite
+    def _do_create():
+        invites = _load("invites")
+        expires_at = None
+        if req.expires_hours:
+            expires_at = (datetime.now(timezone.utc) + timedelta(hours=req.expires_hours)).isoformat()
+
+        invite = {
+            "id": _uid(),
+            "server_id": server_id,
+            "channel_id": req.channel_id,
+            "room_type": req.room_type,
+            "created_by": caller,
+            "code": secrets.token_urlsafe(16),
+            "label": req.label,
+            "max_uses": req.max_uses,
+            "uses": 0,
+            "expires_at": expires_at,
+            "allowed_email_domains": req.allowed_email_domains,
+            "allowed_emails": req.allowed_emails,
+            "guest_role": "temporary_guest",
+            "permissions": req.permissions.model_dump(),
+            "role_on_join": req.role_on_join,
+            "created_at": _now(),
+            "revoked": False,
+        }
+        invites.append(invite)
+        _save("invites", invites)
+        _audit(server_id, None, "invite_created", caller, {"code": invite["code"]})
+        return f"created invite for server {server_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create invite for server {server_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.delete("/invites/{invite_id}")
 def revoke_invite(invite_id: str, user=Depends(require_clerk_auth)):
     invites = _load("invites")
-    for inv in invites:
-        if inv["id"] == invite_id:
-            _require_server_perm(user, inv["server_id"], "manage_server")
-            inv["revoked"] = True
-            _save("invites", invites)
-            return {"ok": True}
-    raise HTTPException(404, "Invite not found")
+    inv_match = next((inv for inv in invites if inv["id"] == invite_id), None)
+    if not inv_match:
+        raise HTTPException(404, "Invite not found")
+    _require_server_perm(user, inv_match["server_id"], "manage_server")
+
+    def _do_revoke():
+        inv_list = _load("invites")
+        for inv in inv_list:
+            if inv["id"] == invite_id:
+                inv["revoked"] = True
+                _save("invites", inv_list)
+                return f"revoked invite {invite_id}", True
+        return "invite not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"revoke invite {invite_id}",
+        execute_fn=_do_revoke,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _find_invite_by_code(code: str) -> dict | None:
@@ -1338,73 +1672,85 @@ def guest_join_via_invite(code: str, req: GuestJoinReq):
     if (invite.get("allowed_emails") or invite.get("allowed_email_domains")) and not req.guest_email:
         raise HTTPException(400, "Email required for this invite")
 
-    # Increment use count
-    invites = _load("invites")
-    for inv in invites:
-        if inv["id"] == invite["id"]:
-            inv["uses"] = inv.get("uses", 0) + 1
-            break
-    _save("invites", invites)
-
     channel_id = invite.get("channel_id")
     if not channel_id:
         raise HTTPException(400, "Invite has no channel")
 
-    room_name = f"room-{channel_id}"
-    guest_identity = f"temporary_guest:{invite['id']}:{secrets.token_urlsafe(8)}"
+    invite_id = invite["id"]
+    server_id = invite.get("server_id", "")
+    result_holder: dict = {}
 
-    api_key = os.environ.get("LIVEKIT_API_KEY", "")
-    api_secret = os.environ.get("LIVEKIT_API_SECRET", "")
-    livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
-    cockpit_domain = os.environ.get("COCKPIT_DOMAIN", "")
-    if cockpit_domain:
-        livekit_ws = f"wss://{cockpit_domain}/livekit/"
+    def _do_join():
+        invites = _load("invites")
+        for inv in invites:
+            if inv["id"] == invite_id:
+                inv["uses"] = inv.get("uses", 0) + 1
+                break
+        _save("invites", invites)
 
-    permissions_data = invite.get("permissions", {})
-    publish_sources: list[str] = []
-    if permissions_data.get("can_speak", False):
-        publish_sources.append("microphone")
-    if permissions_data.get("can_video", False):
-        publish_sources.append("camera")
-    if permissions_data.get("can_screen_share", False):
-        publish_sources.extend(["screen_share", "screen_share_audio"])
+        room_name = f"room-{channel_id}"
+        guest_identity = f"temporary_guest:{invite_id}:{secrets.token_urlsafe(8)}"
 
-    if api_key and api_secret:
-        now = datetime.now(timezone.utc)
-        claims = {
-            "iss": api_key,
-            "sub": guest_identity,
-            "name": req.guest_name,
-            "nbf": int(now.timestamp()),
-            "exp": int((now + timedelta(hours=2)).timestamp()),
-            "jti": uuid.uuid4().hex,
-            "video": {
-                "roomJoin": True,
-                "room": room_name,
-                "canPublish": len(publish_sources) > 0,
-                "canPublishSources": publish_sources,
-                "canSubscribe": True,
-                "canPublishData": permissions_data.get("can_chat", True),
-            },
-        }
-        jwt_token = pyjwt.encode(claims, api_secret, algorithm="HS256")
-    else:
-        jwt_token = f"guest-token-{guest_identity}"
+        api_key = os.environ.get("LIVEKIT_API_KEY", "")
+        api_secret = os.environ.get("LIVEKIT_API_SECRET", "")
+        livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
+        cockpit_domain = os.environ.get("COCKPIT_DOMAIN", "")
+        if cockpit_domain:
+            livekit_ws = f"wss://{cockpit_domain}/livekit/"
 
-    _audit(
-        invite.get("server_id", ""),
-        channel_id,
-        "guest_joined",
-        guest_identity,
-        {"invite_id": invite["id"], "guest_name": req.guest_name, "guest_email": req.guest_email},
+        permissions_data = invite.get("permissions", {})
+        publish_sources: list[str] = []
+        if permissions_data.get("can_speak", False):
+            publish_sources.append("microphone")
+        if permissions_data.get("can_video", False):
+            publish_sources.append("camera")
+        if permissions_data.get("can_screen_share", False):
+            publish_sources.extend(["screen_share", "screen_share_audio"])
+
+        if api_key and api_secret:
+            now = datetime.now(timezone.utc)
+            claims = {
+                "iss": api_key,
+                "sub": guest_identity,
+                "name": req.guest_name,
+                "nbf": int(now.timestamp()),
+                "exp": int((now + timedelta(hours=2)).timestamp()),
+                "jti": uuid.uuid4().hex,
+                "video": {
+                    "roomJoin": True,
+                    "room": room_name,
+                    "canPublish": len(publish_sources) > 0,
+                    "canPublishSources": publish_sources,
+                    "canSubscribe": True,
+                    "canPublishData": permissions_data.get("can_chat", True),
+                },
+            }
+            jwt_token = pyjwt.encode(claims, api_secret, algorithm="HS256")
+        else:
+            jwt_token = f"guest-token-{guest_identity}"
+
+        _audit(
+            server_id,
+            channel_id,
+            "guest_joined",
+            guest_identity,
+            {"invite_id": invite_id, "guest_name": req.guest_name, "guest_email": req.guest_email},
+        )
+        result_holder["token"] = jwt_token
+        result_holder["url"] = livekit_ws
+        result_holder["room"] = room_name
+        result_holder["identity"] = guest_identity
+        return f"guest {req.guest_name} joined via invite {invite_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"guest join via invite {code}",
+        execute_fn=_do_join,
+        source="cockpit",
     )
-
-    return {
-        "token": jwt_token,
-        "url": livekit_ws,
-        "room": room_name,
-        "identity": guest_identity,
-    }
+    if resp.success and result_holder:
+        return result_holder
+    return resp.to_http_dict()
 
 
 # ── Room Chat (persistent, survives reconnect/refresh) ──
@@ -1427,24 +1773,36 @@ def list_room_chat(channel_id: str, limit: int = 100, user=Depends(require_clerk
 @rooms_router.post("/channels/{channel_id}/room-chat")
 def send_room_chat(channel_id: str, req: RoomChatReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
-    msg = {
-        "id": _uid(),
-        "channel_id": channel_id,
-        "sender_identity": _user_id(user),
-        "sender_display_name": _display_name(user),
-        "sender_type": "owner",
-        "body": req.content,
-        "created_at": _now(),
-    }
-    msgs = _load("room_chat")
-    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
-    if len(ch_msgs) >= _GUEST_CHAT_PER_CHANNEL_CAP:
-        keep_ids = {m["id"] for m in ch_msgs[-(_GUEST_CHAT_PER_CHANNEL_CAP - 1):]}
-        msgs = [m for m in msgs if m["channel_id"] != channel_id or m["id"] in keep_ids]
-    msgs.append(msg)
-    _save("room_chat", msgs)
-    _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
-    return msg
+    uid = _user_id(user)
+    display = _display_name(user)
+
+    def _do_send():
+        msg = {
+            "id": _uid(),
+            "channel_id": channel_id,
+            "sender_identity": uid,
+            "sender_display_name": display,
+            "sender_type": "owner",
+            "body": req.content,
+            "created_at": _now(),
+        }
+        msgs = _load("room_chat")
+        ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+        if len(ch_msgs) >= _GUEST_CHAT_PER_CHANNEL_CAP:
+            keep_ids = {m["id"] for m in ch_msgs[-(_GUEST_CHAT_PER_CHANNEL_CAP - 1):]}
+            msgs = [m for m in msgs if m["channel_id"] != channel_id or m["id"] in keep_ids]
+        msgs.append(msg)
+        _save("room_chat", msgs)
+        _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
+        return f"sent room chat in {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="conversation_send",
+        intent=f"send room chat in channel {channel_id}",
+        execute_fn=_do_send,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 class GuestChatReq(BaseModel):
@@ -1508,25 +1866,36 @@ def guest_send_room_chat(
         raise HTTPException(403, "Token does not match this room")
     guest_identity = claims["sub"]
     guest_name = claims.get("name", "Guest")
-    msg = {
-        "id": _uid(),
-        "channel_id": channel_id,
-        "sender_identity": guest_identity,
-        "sender_display_name": guest_name,
-        "sender_type": "guest",
-        "body": req.content,
-        "created_at": _now(),
-        "invite_id": invite["id"],
-    }
-    msgs = _load("room_chat")
-    ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
-    if len(ch_msgs) >= _GUEST_CHAT_PER_CHANNEL_CAP:
-        keep_ids = {m["id"] for m in ch_msgs[-(_GUEST_CHAT_PER_CHANNEL_CAP - 1):]}
-        msgs = [m for m in msgs if m["channel_id"] != channel_id or m["id"] in keep_ids]
-    msgs.append(msg)
-    _save("room_chat", msgs)
-    _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
-    return msg
+    invite_id = invite["id"]
+
+    def _do_guest_chat():
+        msg = {
+            "id": _uid(),
+            "channel_id": channel_id,
+            "sender_identity": guest_identity,
+            "sender_display_name": guest_name,
+            "sender_type": "guest",
+            "body": req.content,
+            "created_at": _now(),
+            "invite_id": invite_id,
+        }
+        msgs = _load("room_chat")
+        ch_msgs = [m for m in msgs if m["channel_id"] == channel_id]
+        if len(ch_msgs) >= _GUEST_CHAT_PER_CHANNEL_CAP:
+            keep_ids = {m["id"] for m in ch_msgs[-(_GUEST_CHAT_PER_CHANNEL_CAP - 1):]}
+            msgs = [m for m in msgs if m["channel_id"] != channel_id or m["id"] in keep_ids]
+        msgs.append(msg)
+        _save("room_chat", msgs)
+        _push_room_event("room_chat.message", {"channel_id": channel_id, "message": msg})
+        return f"guest chat sent in {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="conversation_send",
+        intent=f"guest send room chat in channel {channel_id}",
+        execute_fn=_do_guest_chat,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Meeting ──
@@ -1561,72 +1930,113 @@ def get_meeting(channel_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.patch("/channels/{channel_id}/meeting")
 def update_meeting(channel_id: str, req: UpdateMeetingReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
-    meetings = _load("meetings")
-    for m in meetings:
-        if m["channel_id"] == channel_id:
-            for k, v in req.model_dump(exclude_none=True).items():
-                m[k] = v
-            _save("meetings", meetings)
-            return m
-    raise HTTPException(404, "Meeting not found")
+    updates = req.model_dump(exclude_none=True)
+
+    def _do_update():
+        meetings = _load("meetings")
+        for m in meetings:
+            if m["channel_id"] == channel_id:
+                for k, v in updates.items():
+                    m[k] = v
+                _save("meetings", meetings)
+                return f"updated meeting in {channel_id}", True
+        return "meeting not found", False
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update meeting in channel {channel_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/channels/{channel_id}/meeting/actions")
 def add_meeting_action(channel_id: str, req: AddActionItemReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
-    meetings = _load("meetings")
-    for m in meetings:
-        if m["channel_id"] == channel_id:
-            item = {
-                "id": _uid(),
-                "text": req.text,
-                "assignee": req.assignee,
-                "due_date": req.due_date,
-                "completed": req.completed,
-            }
-            m.setdefault("action_items", []).append(item)
-            _save("meetings", meetings)
-            return m
-    raise HTTPException(404, "Meeting not found")
+
+    def _do_add():
+        meetings = _load("meetings")
+        for m in meetings:
+            if m["channel_id"] == channel_id:
+                item = {
+                    "id": _uid(),
+                    "text": req.text,
+                    "assignee": req.assignee,
+                    "due_date": req.due_date,
+                    "completed": req.completed,
+                }
+                m.setdefault("action_items", []).append(item)
+                _save("meetings", meetings)
+                return f"added action item to meeting in {channel_id}", True
+        return "meeting not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"add action item to meeting in channel {channel_id}",
+        execute_fn=_do_add,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/channels/{channel_id}/meeting/actions/{item_id}/toggle")
 def toggle_meeting_action(channel_id: str, item_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
-    meetings = _load("meetings")
-    for m in meetings:
-        if m["channel_id"] == channel_id:
-            for item in m.get("action_items", []):
-                if item["id"] == item_id:
-                    item["completed"] = not item.get("completed", False)
-                    _save("meetings", meetings)
-                    return m
-    raise HTTPException(404, "Action item not found")
+
+    def _do_toggle():
+        meetings = _load("meetings")
+        for m in meetings:
+            if m["channel_id"] == channel_id:
+                for item in m.get("action_items", []):
+                    if item["id"] == item_id:
+                        item["completed"] = not item.get("completed", False)
+                        _save("meetings", meetings)
+                        return f"toggled action item {item_id}", True
+        return "action item not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"toggle meeting action item {item_id} in channel {channel_id}",
+        execute_fn=_do_toggle,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/channels/{channel_id}/meeting/end")
 def end_meeting(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
-    meetings = _load("meetings")
-    for m in meetings:
-        if m["channel_id"] == channel_id:
-            m["ended_at"] = _now()
-            _save("meetings", meetings)
-            # Revoke all active invites for this channel
-            invites = _load("invites")
-            for inv in invites:
-                if inv.get("channel_id") == channel_id and not inv.get("revoked"):
-                    inv["revoked"] = True
-            _save("invites", invites)
-            _audit(
-                _find_server_for_channel(channel_id),
-                channel_id,
-                "meeting_ended",
-                _user_id(user),
-                {},
-            )
-            return m
-    raise HTTPException(404, "No meeting found for this channel")
+    uid = _user_id(user)
+
+    def _do_end():
+        meetings = _load("meetings")
+        for m in meetings:
+            if m["channel_id"] == channel_id:
+                m["ended_at"] = _now()
+                _save("meetings", meetings)
+                invites = _load("invites")
+                for inv in invites:
+                    if inv.get("channel_id") == channel_id and not inv.get("revoked"):
+                        inv["revoked"] = True
+                _save("invites", invites)
+                _audit(
+                    _find_server_for_channel(channel_id),
+                    channel_id,
+                    "meeting_ended",
+                    uid,
+                    {},
+                )
+                return f"ended meeting in {channel_id}", True
+        return "meeting not found", False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"end meeting in channel {channel_id}",
+        execute_fn=_do_end,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _find_server_for_channel(channel_id: str) -> str:
@@ -1650,37 +2060,58 @@ def get_voice_state(channel_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/channels/{channel_id}/voice/join")
 def join_voice(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "connect")
-    voice = _load("voice_states")
-    state = next((v for v in voice if v["channel_id"] == channel_id), None)
-    if not state:
-        state = {"channel_id": channel_id, "participants": [], "topic": "", "capacity": 25, "locked": False}
-        voice.append(state)
+    uid = _user_id(user)
+    display = _display_name(user)
 
-    user_id = _user_id(user)
-    if not any(p["user_id"] == user_id for p in state["participants"]):
-        state["participants"].append({
-            "user_id": user_id,
-            "display_name": _display_name(user),
-            "is_speaking": False,
-            "is_muted": False,
-            "is_deafened": False,
-            "joined_at": _now(),
-        })
-    _save("voice_states", voice)
-    return state
+    def _do_join():
+        voice = _load("voice_states")
+        state = next((v for v in voice if v["channel_id"] == channel_id), None)
+        if not state:
+            state = {"channel_id": channel_id, "participants": [], "topic": "", "capacity": 25, "locked": False}
+            voice.append(state)
+
+        if not any(p["user_id"] == uid for p in state["participants"]):
+            state["participants"].append({
+                "user_id": uid,
+                "display_name": display,
+                "is_speaking": False,
+                "is_muted": False,
+                "is_deafened": False,
+                "joined_at": _now(),
+            })
+        _save("voice_states", voice)
+        return f"joined voice in {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"join voice channel {channel_id}",
+        execute_fn=_do_join,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/channels/{channel_id}/voice/leave")
 def leave_voice(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
-    voice = _load("voice_states")
-    user_id = _user_id(user)
-    for v in voice:
-        if v["channel_id"] == channel_id:
-            v["participants"] = [p for p in v["participants"] if p["user_id"] != user_id]
-            _save("voice_states", voice)
-            return {"ok": True}
-    return {"ok": True}
+    uid = _user_id(user)
+
+    def _do_leave():
+        voice = _load("voice_states")
+        for v in voice:
+            if v["channel_id"] == channel_id:
+                v["participants"] = [p for p in v["participants"] if p["user_id"] != uid]
+                _save("voice_states", voice)
+                return f"left voice in {channel_id}", True
+        return f"left voice in {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"leave voice channel {channel_id}",
+        execute_fn=_do_leave,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/channels/{channel_id}/voice/token")
@@ -1693,34 +2124,48 @@ def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
     if not api_key or not api_secret:
         raise HTTPException(503, "Voice infrastructure not configured")
 
-    user_id = _user_id(user)
+    uid = _user_id(user)
     display = _display_name(user)
-    room_name = f"room-{channel_id}"
+    result_holder: dict = {}
 
-    now = datetime.now(timezone.utc)
-    claims = {
-        "iss": api_key,
-        "sub": user_id,
-        "name": display,
-        "nbf": int(now.timestamp()),
-        "exp": int((now + timedelta(hours=6)).timestamp()),
-        "jti": uuid.uuid4().hex,
-        "video": {
-            "roomJoin": True,
-            "room": room_name,
-            "canPublish": True,
-            "canSubscribe": True,
-            "canPublishData": True,
-            "canPublishSources": ["camera", "microphone", "screen_share", "screen_share_audio"],
-        },
-    }
-    token = pyjwt.encode(claims, api_secret, algorithm="HS256")
+    def _do_token():
+        room_name = f"room-{channel_id}"
+        now = datetime.now(timezone.utc)
+        claims = {
+            "iss": api_key,
+            "sub": uid,
+            "name": display,
+            "nbf": int(now.timestamp()),
+            "exp": int((now + timedelta(hours=6)).timestamp()),
+            "jti": uuid.uuid4().hex,
+            "video": {
+                "roomJoin": True,
+                "room": room_name,
+                "canPublish": True,
+                "canSubscribe": True,
+                "canPublishData": True,
+                "canPublishSources": ["camera", "microphone", "screen_share", "screen_share_audio"],
+            },
+        }
+        token = pyjwt.encode(claims, api_secret, algorithm="HS256")
+        livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
+        cockpit_domain = os.environ.get("COCKPIT_DOMAIN", "")
+        if cockpit_domain:
+            livekit_ws = f"wss://{cockpit_domain}/livekit/"
+        result_holder["token"] = token
+        result_holder["url"] = livekit_ws
+        result_holder["room"] = room_name
+        return f"generated voice token for {channel_id}", True
 
-    livekit_ws = os.environ.get("LIVEKIT_WS_URL", "")
-    cockpit_domain = os.environ.get("COCKPIT_DOMAIN", "")
-    if cockpit_domain:
-        livekit_ws = f"wss://{cockpit_domain}/livekit/"
-    return {"token": token, "url": livekit_ws, "room": room_name}
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"generate voice token for channel {channel_id}",
+        execute_fn=_do_token,
+        source="cockpit",
+    )
+    if resp.success and result_holder:
+        return result_holder
+    return resp.to_http_dict()
 
 
 # ── DEX Settings ──
@@ -1752,49 +2197,68 @@ def get_dex_settings(channel_id: str, user=Depends(require_clerk_auth)):
 def update_dex_settings(channel_id: str, req: UpdateDexReq, user=Depends(require_clerk_auth)):
     server_id = _require_channel_access(user, channel_id)
     _require_server_perm(user, server_id, "manage_channels")
-    dex = _load("dex_settings")
-    settings = next((d for d in dex if d["channel_id"] == channel_id), None)
-    if not settings:
-        settings = {
-            "channel_id": channel_id,
-            "enabled": True,
-            "mode": "founder_operator",
-            "memory_scope": "room",
-            "allowed_actions": [],
-            "autonomy_level": "suggest",
-            "meeting_listener": False,
-            "transcript_enabled": False,
-            "recording_enabled": False,
-            "action_creation": False,
-            "approval_required": True,
-            "summarization": True,
-        }
-        dex.append(settings)
+    updates = req.model_dump(exclude_none=True)
 
-    for k, v in req.model_dump(exclude_none=True).items():
-        settings[k] = v
-    _save("dex_settings", dex)
-    return settings
+    def _do_update():
+        dex = _load("dex_settings")
+        settings = next((d for d in dex if d["channel_id"] == channel_id), None)
+        if not settings:
+            settings = {
+                "channel_id": channel_id,
+                "enabled": True,
+                "mode": "founder_operator",
+                "memory_scope": "room",
+                "allowed_actions": [],
+                "autonomy_level": "suggest",
+                "meeting_listener": False,
+                "transcript_enabled": False,
+                "recording_enabled": False,
+                "action_creation": False,
+                "approval_required": True,
+                "summarization": True,
+            }
+            dex.append(settings)
+
+        for k, v in updates.items():
+            settings[k] = v
+        _save("dex_settings", dex)
+        return f"updated dex settings for {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"update dex settings for channel {channel_id}",
+        execute_fn=_do_update,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @rooms_router.post("/channels/{channel_id}/dex/summarize")
 def dex_summarize(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
-    messages = _load("messages")
-    ch_msgs = [m for m in messages if m["channel_id"] == channel_id and not m.get("deleted")]
-    ch_msgs.sort(key=lambda m: m["created_at"])
-    recent = ch_msgs[-20:]
 
-    if not recent:
-        return {"summary": "No messages in this channel yet."}
+    def _do_summarize():
+        messages = _load("messages")
+        ch_msgs = [m for m in messages if m["channel_id"] == channel_id and not m.get("deleted")]
+        ch_msgs.sort(key=lambda m: m["created_at"])
+        recent = ch_msgs[-20:]
 
-    text_lines = [f"{m['author_name']}: {m['content']}" for m in recent]
-    summary = f"Room summary ({len(recent)} recent messages):\n"
-    summary += f"Participants: {', '.join(set(m['author_name'] for m in recent))}\n"
-    summary += f"Period: {recent[0]['created_at'][:10]} to {recent[-1]['created_at'][:10]}\n"
-    summary += f"Latest topic: {recent[-1]['content'][:100]}"
+        if not recent:
+            return "No messages in this channel yet.", True
 
-    return {"summary": summary}
+        summary = f"Room summary ({len(recent)} recent messages):\n"
+        summary += f"Participants: {', '.join(set(m['author_name'] for m in recent))}\n"
+        summary += f"Period: {recent[0]['created_at'][:10]} to {recent[-1]['created_at'][:10]}\n"
+        summary += f"Latest topic: {recent[-1]['content'][:100]}"
+        return summary, True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"dex summarize channel {channel_id}",
+        execute_fn=_do_summarize,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Audit Log ──
@@ -1818,20 +2282,31 @@ def list_artifacts(channel_id: str, user=Depends(require_clerk_auth)):
 @rooms_router.post("/channels/{channel_id}/artifacts")
 def create_artifact(channel_id: str, req: CreateArtifactReq, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id, "send_messages")
-    artifacts = _load("artifacts")
-    artifact = {
-        "id": _uid(),
-        "channel_id": channel_id,
-        "name": req.name,
-        "type": req.type,
-        "owner_id": _user_id(user),
-        "pinned": False,
-        "created_at": _now(),
-        "metadata": req.metadata,
-    }
-    artifacts.append(artifact)
-    _save("artifacts", artifacts)
-    return artifact
+    uid = _user_id(user)
+
+    def _do_create():
+        artifacts = _load("artifacts")
+        artifact = {
+            "id": _uid(),
+            "channel_id": channel_id,
+            "name": req.name,
+            "type": req.type,
+            "owner_id": uid,
+            "pinned": False,
+            "created_at": _now(),
+            "metadata": req.metadata,
+        }
+        artifacts.append(artifact)
+        _save("artifacts", artifacts)
+        return f"created artifact {req.name} in {channel_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create artifact {req.name} in channel {channel_id}",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Search ──

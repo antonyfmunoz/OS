@@ -15,6 +15,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from transports.api.governed import governed_mutation
 from substrate.execution.voice.session import VoiceSession
 
 logger = logging.getLogger(__name__)
@@ -47,14 +48,23 @@ async def start_session(req: StartRequest):
     if _session is not None and _session.state.status.value != "idle":
         raise HTTPException(status_code=409, detail="Session already active")
 
-    _session = VoiceSession(
-        session_id=req.session_id,
-        pipeline_submit_fn=_pipeline_submit_fn,
-        max_exchanges=req.max_exchanges,
+    def _do_start():
+        global _session
+        _session = VoiceSession(
+            session_id=req.session_id,
+            pipeline_submit_fn=_pipeline_submit_fn,
+            max_exchanges=req.max_exchanges,
+        )
+        _session.start()
+        return f"voice session started: {_session.state.session_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="start voice session",
+        execute_fn=_do_start,
+        source="cockpit",
     )
-    _session.start()
-    logger.info("Voice session started via API: %s", _session.state.session_id)
-    return {"session_id": _session.state.session_id, "status": "listening"}
+    return resp.to_http_dict()
 
 
 @router.post("/session/stop")
@@ -63,9 +73,17 @@ async def stop_session():
     if _session is None:
         raise HTTPException(status_code=404, detail="No active session")
 
-    _session.stop()
-    exchange_count = _session.state.exchange_count
-    return {"status": "stopped", "exchange_count": exchange_count}
+    def _do_stop():
+        _session.stop()
+        return f"voice session stopped, {_session.state.exchange_count} exchanges", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="stop voice session",
+        execute_fn=_do_stop,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @router.post("/process")
@@ -74,14 +92,17 @@ async def process_text(req: ProcessRequest):
     if _session is None or _session.state.status.value == "idle":
         raise HTTPException(status_code=400, detail="No active session — call /session/start first")
 
-    exchange = _session.process_text(req.text)
-    return {
-        "utterance": exchange.utterance,
-        "classification": exchange.classification,
-        "responded": exchange.responded,
-        "response_text": exchange.response_text,
-        "duration_ms": round(exchange.duration_ms, 1),
-    }
+    def _do_process():
+        exchange = _session.process_text(req.text)
+        return f"processed: {exchange.classification}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"process voice text: {req.text[:50]}",
+        execute_fn=_do_process,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 @router.get("/session/status")

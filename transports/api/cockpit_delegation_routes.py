@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _runtime: Any = None
@@ -84,42 +86,111 @@ def _build_router() -> Any:
         clarified = body.get("clarified_intent", "")
         if not intent:
             raise HTTPException(status_code=400, detail="intent is required")
+        captured: dict = {}
 
-        rt = _get_runtime()
-        from substrate.organism.delegation_runtime import classify_intent
-        intent_type = classify_intent(intent)
-        understanding = rt.explain_understanding(intent, intent_type)
-        proposal = rt.propose_delegation(intent, clarified, understanding)
-        return {"understanding": understanding, "proposal": proposal.to_dict()}
+        def _do_propose():
+            rt = _get_runtime()
+            from substrate.organism.delegation_runtime import classify_intent
+            intent_type = classify_intent(intent)
+            understanding = rt.explain_understanding(intent, intent_type)
+            proposal = rt.propose_delegation(intent, clarified, understanding)
+            captured.update({"understanding": understanding, "proposal": proposal.to_dict()})
+            return f"proposal created: {intent[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"delegation propose: {intent[:80]}",
+            execute_fn=_do_propose,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/proposals/{proposal_id}/approve")
     def approve_proposal(proposal_id: str) -> dict[str, Any]:
-        result = _get_runtime().approve_proposal(proposal_id)
-        if result is None:
-            raise HTTPException(status_code=404, detail="Proposal not found or not pending")
-        return result.to_dict()
+        captured: dict = {}
+
+        def _do_approve():
+            result = _get_runtime().approve_proposal(proposal_id)
+            if result is None:
+                return "proposal not found or not pending", False
+            captured.update(result.to_dict())
+            return f"proposal {proposal_id} approved", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve delegation proposal {proposal_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/proposals/{proposal_id}/reject")
     async def reject_proposal(proposal_id: str, request: Request) -> dict[str, Any]:
         body = await request.json()
         reason = body.get("reason", "")
-        result = _get_runtime().reject_proposal(proposal_id, reason)
-        if result is None:
-            raise HTTPException(status_code=404, detail="Proposal not found or not pending")
-        return result.to_dict()
+        captured: dict = {}
+
+        def _do_reject():
+            result = _get_runtime().reject_proposal(proposal_id, reason)
+            if result is None:
+                return "proposal not found or not pending", False
+            captured.update(result.to_dict())
+            return f"proposal {proposal_id} rejected", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"reject delegation proposal {proposal_id}: {reason[:80]}",
+            execute_fn=_do_reject,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/missions/{mission_id}/approve-wp")
     def approve_work_packet(mission_id: str) -> dict[str, Any]:
-        result = _get_runtime().approve_work_packet(mission_id)
-        if result is None:
-            raise HTTPException(status_code=404, detail="Mission not found or WP not drafted")
-        return result
+        captured: dict = {}
+
+        def _do_approve_wp():
+            result = _get_runtime().approve_work_packet(mission_id)
+            if result is None:
+                return "mission not found or WP not drafted", False
+            captured.update(result)
+            return f"work packet for mission {mission_id} approved", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve work packet for mission {mission_id}",
+            execute_fn=_do_approve_wp,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/missions/{mission_id}/cancel")
     def cancel_mission(mission_id: str) -> dict[str, Any]:
-        result = _get_runtime().cancel_mission(mission_id)
-        if result is None:
-            raise HTTPException(status_code=404, detail="Mission not found or cannot cancel")
-        return result.to_dict()
+        captured: dict = {}
+
+        def _do_cancel():
+            result = _get_runtime().cancel_mission(mission_id)
+            if result is None:
+                return "mission not found or cannot cancel", False
+            captured.update(result.to_dict())
+            return f"mission {mission_id} cancelled", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"cancel delegation mission {mission_id}",
+            execute_fn=_do_cancel,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     return router

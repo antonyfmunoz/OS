@@ -16,6 +16,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 workstation_control_router: APIRouter = APIRouter()
@@ -97,44 +99,53 @@ async def _execution_pause(request: Request) -> dict[str, Any]:
     if not packet_id and not session_id:
         return {"ok": False, "error": "packet_id or session_id is required"}
 
-    result: dict[str, Any] = {
-        "ok": False,
-        "packet_id": packet_id,
-        "session_id": session_id,
-        "environment": platform.system().lower(),
-    }
+    def _do_pause():
+        result: dict[str, Any] = {
+            "ok": False,
+            "packet_id": packet_id,
+            "session_id": session_id,
+            "environment": platform.system().lower(),
+        }
 
-    if session_id:
-        _, adapter, err = _resolve_adapter(session_id)
-        if err:
-            result.update(err)
-            return result
+        if session_id:
+            _, adapter, err = _resolve_adapter(session_id)
+            if err:
+                result.update(err)
+                return str(result), False
 
-        pause_result = adapter.pause(session_id, reason=reason)
-        result["runtime_pause"] = pause_result
-        result["ok"] = pause_result.get("paused", False)
-        result["supported"] = pause_result.get("supported", False)
-    else:
-        result["supported"] = False
-        result["runtime_pause"] = {"paused": False, "reason": "no session_id — packet-only pause"}
-
-    if packet_id:
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        from substrate.organism.work_packet import PacketLifecycleStatus
-        wpe = WorkPacketEngine()
-        pkt = wpe.get_packet(packet_id)
-        if pkt and pkt.status == PacketLifecycleStatus.EXECUTING:
-            ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.PAUSED, reason)
-            result["packet_status_updated"] = ok
-            result["ok"] = result.get("ok", False) or ok
-        elif pkt:
-            result["packet_status_updated"] = False
-            result["packet_status_reason"] = f"cannot pause from status '{pkt.status.value}'"
+            pause_result = adapter.pause(session_id, reason=reason)
+            result["runtime_pause"] = pause_result
+            result["ok"] = pause_result.get("paused", False)
+            result["supported"] = pause_result.get("supported", False)
         else:
-            result["packet_status_updated"] = False
-            result["packet_status_reason"] = f"packet {packet_id} not found"
+            result["supported"] = False
+            result["runtime_pause"] = {"paused": False, "reason": "no session_id — packet-only pause"}
 
-    return result
+        if packet_id:
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            from substrate.organism.work_packet import PacketLifecycleStatus
+            wpe = WorkPacketEngine()
+            pkt = wpe.get_packet(packet_id)
+            if pkt and pkt.status == PacketLifecycleStatus.EXECUTING:
+                ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.PAUSED, reason)
+                result["packet_status_updated"] = ok
+                result["ok"] = result.get("ok", False) or ok
+            elif pkt:
+                result["packet_status_updated"] = False
+                result["packet_status_reason"] = f"cannot pause from status '{pkt.status.value}'"
+            else:
+                result["packet_status_updated"] = False
+                result["packet_status_reason"] = f"packet {packet_id} not found"
+
+        return "paused", result.get("ok", False)
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"pause execution: packet={packet_id} session={session_id}",
+        execute_fn=_do_pause,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _execution_resume(request: Request) -> dict[str, Any]:
@@ -146,44 +157,53 @@ async def _execution_resume(request: Request) -> dict[str, Any]:
     if not packet_id and not session_id:
         return {"ok": False, "error": "packet_id or session_id is required"}
 
-    result: dict[str, Any] = {
-        "ok": False,
-        "packet_id": packet_id,
-        "session_id": session_id,
-        "environment": platform.system().lower(),
-    }
+    def _do_resume():
+        result: dict[str, Any] = {
+            "ok": False,
+            "packet_id": packet_id,
+            "session_id": session_id,
+            "environment": platform.system().lower(),
+        }
 
-    if session_id:
-        _, adapter, err = _resolve_adapter(session_id)
-        if err:
-            result.update(err)
-            return result
+        if session_id:
+            _, adapter, err = _resolve_adapter(session_id)
+            if err:
+                result.update(err)
+                return str(result), False
 
-        resume_result = adapter.resume(session_id, reason=reason)
-        result["runtime_resume"] = resume_result
-        result["ok"] = resume_result.get("resumed", False)
-        result["supported"] = resume_result.get("supported", False)
-    else:
-        result["supported"] = False
-        result["runtime_resume"] = {"resumed": False, "reason": "no session_id — packet-only resume"}
-
-    if packet_id:
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        from substrate.organism.work_packet import PacketLifecycleStatus
-        wpe = WorkPacketEngine()
-        pkt = wpe.get_packet(packet_id)
-        if pkt and pkt.status == PacketLifecycleStatus.PAUSED:
-            ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, reason)
-            result["packet_status_updated"] = ok
-            result["ok"] = result.get("ok", False) or ok
-        elif pkt:
-            result["packet_status_updated"] = False
-            result["packet_status_reason"] = f"cannot resume from status '{pkt.status.value}'"
+            resume_result = adapter.resume(session_id, reason=reason)
+            result["runtime_resume"] = resume_result
+            result["ok"] = resume_result.get("resumed", False)
+            result["supported"] = resume_result.get("supported", False)
         else:
-            result["packet_status_updated"] = False
-            result["packet_status_reason"] = f"packet {packet_id} not found"
+            result["supported"] = False
+            result["runtime_resume"] = {"resumed": False, "reason": "no session_id — packet-only resume"}
 
-    return result
+        if packet_id:
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            from substrate.organism.work_packet import PacketLifecycleStatus
+            wpe = WorkPacketEngine()
+            pkt = wpe.get_packet(packet_id)
+            if pkt and pkt.status == PacketLifecycleStatus.PAUSED:
+                ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.EXECUTING, reason)
+                result["packet_status_updated"] = ok
+                result["ok"] = result.get("ok", False) or ok
+            elif pkt:
+                result["packet_status_updated"] = False
+                result["packet_status_reason"] = f"cannot resume from status '{pkt.status.value}'"
+            else:
+                result["packet_status_updated"] = False
+                result["packet_status_reason"] = f"packet {packet_id} not found"
+
+        return "resumed", result.get("ok", False)
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"resume execution: packet={packet_id} session={session_id}",
+        execute_fn=_do_resume,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _execution_stop(request: Request) -> dict[str, Any]:
@@ -195,34 +215,43 @@ async def _execution_stop(request: Request) -> dict[str, Any]:
     if not packet_id and not session_id:
         return {"ok": False, "error": "packet_id or session_id is required"}
 
-    result: dict[str, Any] = {
-        "ok": False,
-        "packet_id": packet_id,
-        "session_id": session_id,
-        "environment": platform.system().lower(),
-    }
+    def _do_stop():
+        result: dict[str, Any] = {
+            "ok": False,
+            "packet_id": packet_id,
+            "session_id": session_id,
+            "environment": platform.system().lower(),
+        }
 
-    if session_id:
-        _, adapter, err = _resolve_adapter(session_id)
-        if err:
-            result.update(err)
-            return result
+        if session_id:
+            _, adapter, err = _resolve_adapter(session_id)
+            if err:
+                result.update(err)
+                return str(result), False
 
-        stop_result = adapter.stop(session_id, reason=reason)
-        result["runtime_stop"] = stop_result
-        result["ok"] = stop_result.get("stopped", False)
-    else:
-        result["runtime_stop"] = {"stopped": False, "reason": "no session_id — packet-only stop"}
+            stop_result = adapter.stop(session_id, reason=reason)
+            result["runtime_stop"] = stop_result
+            result["ok"] = stop_result.get("stopped", False)
+        else:
+            result["runtime_stop"] = {"stopped": False, "reason": "no session_id — packet-only stop"}
 
-    if packet_id:
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        from substrate.organism.work_packet import PacketLifecycleStatus
-        wpe = WorkPacketEngine()
-        ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
-        result["packet_status_updated"] = ok
-        result["ok"] = result.get("ok", False) or ok
+        if packet_id:
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            from substrate.organism.work_packet import PacketLifecycleStatus
+            wpe = WorkPacketEngine()
+            ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
+            result["packet_status_updated"] = ok
+            result["ok"] = result.get("ok", False) or ok
 
-    return result
+        return "stopped", result.get("ok", False)
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"stop execution: packet={packet_id} session={session_id}",
+        execute_fn=_do_stop,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _execution_status(request: Request) -> dict[str, Any]:
@@ -462,17 +491,27 @@ def _tmux_sessions(request: Request) -> dict[str, Any]:
 
 
 async def _tmux_create(request: Request) -> dict[str, Any]:
-    from adapters.tool_adapters.tmux import TmuxAdapter
     body = await request.json()
     name = body.get("name", "")
     shell = body.get("shell", "bash")
     if not name:
         return {"ok": False, "error": "name required"}
-    adapter = TmuxAdapter()
-    result = adapter._execute_impl("new_session", {"name": name, "shell": shell})
-    if not result.get("success"):
-        return {"ok": False, "error": result.get("stderr", "failed to create session")}
-    return {"ok": True, "session_name": name, "shell": shell}
+
+    def _do_create():
+        from adapters.tool_adapters.tmux import TmuxAdapter
+        adapter = TmuxAdapter()
+        result = adapter._execute_impl("new_session", {"name": name, "shell": shell})
+        if not result.get("success"):
+            return result.get("stderr", "failed to create session"), False
+        return f"created tmux session {name}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"create tmux session: {name} (shell={shell})",
+        execute_fn=_do_create,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _tmux_shells(request: Request) -> dict[str, Any]:
@@ -602,40 +641,43 @@ async def _continuity_transition(request: Request) -> dict[str, Any]:
             "valid_transitions": [s.value for s in machine.valid_transitions()],
         }
 
-    prev = machine.current_state.value
-    record = machine.transition(
-        target,
-        reason=reason,
-        active_node=body.get("active_node", platform.node()),
-        active_environment=body.get("active_environment", platform.system().lower()),
-        active_work_packet_id=body.get("active_work_packet_id", ""),
-        active_session_id=body.get("active_session_id", ""),
-        pending_approvals_count=body.get("pending_approvals_count", 0),
-        safe_work_constraints=body.get("safe_work_constraints", {}),
-    )
-    _persist_continuity()
+    def _do_transition():
+        prev = machine.current_state.value
+        machine.transition(
+            target,
+            reason=reason,
+            active_node=body.get("active_node", platform.node()),
+            active_environment=body.get("active_environment", platform.system().lower()),
+            active_work_packet_id=body.get("active_work_packet_id", ""),
+            active_session_id=body.get("active_session_id", ""),
+            pending_approvals_count=body.get("pending_approvals_count", 0),
+            safe_work_constraints=body.get("safe_work_constraints", {}),
+        )
+        _persist_continuity()
 
-    from substrate.workstation.checkpoint import CheckpointManager
-    from substrate.workstation.mode_resolver import resolve_composite_mode
-    mode = resolve_composite_mode(continuity_state=target_str)
-    mgr = CheckpointManager()
-    checkpoint = mgr.create_checkpoint(
-        previous_state=prev,
-        new_state=target_str,
-        lifecycle_mode=mode.get("lifecycle_mode", ""),
-        active_profile_modes=mode.get("active_profile_modes", []),
-        risk_ceiling=mode.get("risk_ceiling", ""),
-        active_node=body.get("active_node", platform.node()),
-        active_environment=body.get("active_environment", platform.system().lower()),
-        transition_reason=reason,
-    )
+        from substrate.workstation.checkpoint import CheckpointManager
+        from substrate.workstation.mode_resolver import resolve_composite_mode
+        mode = resolve_composite_mode(continuity_state=target_str)
+        mgr = CheckpointManager()
+        mgr.create_checkpoint(
+            previous_state=prev,
+            new_state=target_str,
+            lifecycle_mode=mode.get("lifecycle_mode", ""),
+            active_profile_modes=mode.get("active_profile_modes", []),
+            risk_ceiling=mode.get("risk_ceiling", ""),
+            active_node=body.get("active_node", platform.node()),
+            active_environment=body.get("active_environment", platform.system().lower()),
+            transition_reason=reason,
+        )
+        return f"transitioned {prev} → {target_str}", True
 
-    return {
-        "ok": True,
-        "transition": record.to_dict(),
-        "checkpoint_id": checkpoint.checkpoint_id,
-        "new_state": machine.current_state.value,
-    }
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"continuity transition to {target_str}: {reason[:100]}",
+        execute_fn=_do_transition,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Checkpoint ─────────────────────────────────────────────────────────────
@@ -664,20 +706,30 @@ def _return_brief(request: Request) -> dict[str, Any]:
 
 async def _generate_return_brief(request: Request) -> dict[str, Any]:
     body = await request.json()
-    from substrate.workstation.resume_brief import ReturnBriefGenerator
-    from substrate.workstation.mode_resolver import resolve_composite_mode
 
-    mode = resolve_composite_mode()
-    gen = ReturnBriefGenerator()
-    brief = gen.generate(
-        departure_state=body.get("departure_state", ""),
-        current_state=body.get("current_state", mode.get("continuity_state", "active")),
-        lifecycle_mode=mode.get("lifecycle_mode", "day_cycle"),
-        active_profile_modes=mode.get("active_profile_modes", ["developer"]),
-        active_node=body.get("active_node", platform.node()),
-        active_environment=platform.system().lower(),
+    def _do_generate():
+        from substrate.workstation.resume_brief import ReturnBriefGenerator
+        from substrate.workstation.mode_resolver import resolve_composite_mode
+
+        mode = resolve_composite_mode()
+        gen = ReturnBriefGenerator()
+        gen.generate(
+            departure_state=body.get("departure_state", ""),
+            current_state=body.get("current_state", mode.get("continuity_state", "active")),
+            lifecycle_mode=mode.get("lifecycle_mode", "day_cycle"),
+            active_profile_modes=mode.get("active_profile_modes", ["developer"]),
+            active_node=body.get("active_node", platform.node()),
+            active_environment=platform.system().lower(),
+        )
+        return "return brief generated", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="generate return brief",
+        execute_fn=_do_generate,
+        source="cockpit",
     )
-    return {"ok": True, "brief": brief.to_dict()}
+    return resp.to_http_dict()
 
 
 # ── Mode switching ─────────────────────────────────────────────────────────
@@ -699,50 +751,43 @@ async def _mode_switch(request: Request) -> dict[str, Any]:
             "raw_input": text,
         }
 
-    if result.command_type == "continuity":
-        from substrate.workstation.continuity import ContinuityState
-        try:
-            target = ContinuityState(result.target_value)
-        except ValueError:
-            return {"ok": False, "error": f"Invalid continuity state: {result.target_value}"}
+    def _do_mode_switch():
+        if result.command_type == "continuity":
+            from substrate.workstation.continuity import ContinuityState
+            try:
+                target = ContinuityState(result.target_value)
+            except ValueError:
+                return f"Invalid continuity state: {result.target_value}", False
 
-        machine = _get_continuity_machine()
-        if not machine.can_transition(target):
-            return {
-                "ok": False,
-                "error": f"Cannot transition to {result.target_value} from {machine.current_state.value}",
-                "valid_transitions": [s.value for s in machine.valid_transitions()],
-            }
+            machine = _get_continuity_machine()
+            if not machine.can_transition(target):
+                return f"Cannot transition to {result.target_value} from {machine.current_state.value}", False
 
-        prev = machine.current_state.value
-        machine.transition(target, reason=f"mode command: {text}")
-        _persist_continuity()
+            prev = machine.current_state.value
+            machine.transition(target, reason=f"mode command: {text}")
+            _persist_continuity()
 
-        from substrate.workstation.checkpoint import CheckpointManager
-        from substrate.workstation.mode_resolver import resolve_composite_mode
-        mode = resolve_composite_mode(continuity_state=result.target_value)
-        mgr = CheckpointManager()
-        mgr.create_checkpoint(
-            previous_state=prev,
-            new_state=result.target_value,
-            lifecycle_mode=mode.get("lifecycle_mode", ""),
-            transition_reason=f"mode command: {text}",
-        )
+            from substrate.workstation.checkpoint import CheckpointManager
+            from substrate.workstation.mode_resolver import resolve_composite_mode
+            mode = resolve_composite_mode(continuity_state=result.target_value)
+            mgr = CheckpointManager()
+            mgr.create_checkpoint(
+                previous_state=prev,
+                new_state=result.target_value,
+                lifecycle_mode=mode.get("lifecycle_mode", ""),
+                transition_reason=f"mode command: {text}",
+            )
+            return f"mode switch: {prev} → {result.target_value}", True
 
-        return {
-            "ok": True,
-            "command_type": "continuity",
-            "target_value": result.target_value,
-            "previous_state": prev,
-            "new_state": machine.current_state.value,
-        }
+        return f"mode command applied: {result.command_type}={result.target_value}", True
 
-    return {
-        "ok": True,
-        "command_type": result.command_type,
-        "target_value": result.target_value,
-        "applied": True,
-    }
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"mode switch: {text[:100]}",
+        execute_fn=_do_mode_switch,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _set_profile_modes(request: Request) -> dict[str, Any]:
@@ -757,16 +802,24 @@ async def _set_profile_modes(request: Request) -> dict[str, Any]:
     if invalid:
         return {"ok": False, "error": f"Invalid profile modes: {invalid}", "valid": sorted(valid_values)}
 
-    import json as _json
-    path = os.path.join(
-        os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "workstation_state", "profile_modes.json",
-    )
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        _json.dump({"active_modes": modes, "updated_at": datetime.now(timezone.utc).isoformat()}, f, indent=2)
+    def _do_set_modes():
+        import json as _json
+        path = os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data", "umh", "workstation_state", "profile_modes.json",
+        )
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            _json.dump({"active_modes": modes, "updated_at": datetime.now(timezone.utc).isoformat()}, f, indent=2)
+        return f"profile modes set: {modes}", True
 
-    return {"ok": True, "active_modes": modes}
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent=f"set profile modes: {modes}",
+        execute_fn=_do_set_modes,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 # ── Overnight queue ────────────────────────────────────────────────────────
@@ -774,15 +827,25 @@ async def _set_profile_modes(request: Request) -> dict[str, Any]:
 
 async def _overnight_queue_work(request: Request) -> dict[str, Any]:
     body = await request.json()
-    from substrate.workstation.overnight_queue import OvernightQueue
-    queue = OvernightQueue()
-    item = queue.queue_work(
-        work_packet_id=body.get("work_packet_id", ""),
-        title=body.get("title", ""),
-        risk_level=body.get("risk_level", "LOW"),
-        reason=body.get("reason", ""),
+
+    def _do_queue():
+        from substrate.workstation.overnight_queue import OvernightQueue
+        queue = OvernightQueue()
+        queue.queue_work(
+            work_packet_id=body.get("work_packet_id", ""),
+            title=body.get("title", ""),
+            risk_level=body.get("risk_level", "LOW"),
+            reason=body.get("reason", ""),
+        )
+        return f"queued overnight work: {body.get('title', '')}", True
+
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"queue overnight work: {body.get('title', '')[:100]}",
+        execute_fn=_do_queue,
+        source="cockpit",
     )
-    return {"ok": True, "item": item.to_dict()}
+    return resp.to_http_dict()
 
 
 def _overnight_status(request: Request) -> dict[str, Any]:
@@ -797,9 +860,18 @@ async def _overnight_approve(request: Request) -> dict[str, Any]:
     if not item_id:
         return {"ok": False, "error": "No item_id provided"}
 
-    from substrate.workstation.overnight_queue import OvernightQueue
-    queue = OvernightQueue()
-    item = queue.approve(item_id)
-    if not item:
-        return {"ok": False, "error": f"Item {item_id} not found"}
-    return {"ok": True, "item": item.to_dict()}
+    def _do_approve():
+        from substrate.workstation.overnight_queue import OvernightQueue
+        queue = OvernightQueue()
+        item = queue.approve(item_id)
+        if not item:
+            return f"Item {item_id} not found", False
+        return f"approved overnight item {item_id}", True
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve overnight work item {item_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+    )
+    return resp.to_http_dict()

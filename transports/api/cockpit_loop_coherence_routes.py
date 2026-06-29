@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _coherence_runtime: Any = None
@@ -73,6 +75,17 @@ def _build_router() -> Any:
             loop = get_fn(loop_id)
         if loop is None:
             raise HTTPException(status_code=404, detail="Loop not found")
-        return rt.validate_loop(loop).to_dict()
+
+        def _do_validate():
+            rt.validate_loop(loop)
+            return f"loop {loop_id} validated", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"validate loop coherence: {loop_id}",
+            execute_fn=_do_validate,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     return router

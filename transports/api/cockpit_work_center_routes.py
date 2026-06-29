@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 work_center_router: APIRouter = APIRouter()
@@ -114,49 +116,122 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             return {"success": False, "error": f"invalid target_executor: {target_executor}"}
         description = body.get("description", "")
 
-        rt = _get_runtime()
-        submission = rt.submit_work(
-            intent=intent,
-            target_executor=target_executor,
-            description=description,
+        def _do_submit():
+            rt = _get_runtime()
+            submission = rt.submit_work(
+                intent=intent,
+                target_executor=target_executor,
+                description=description,
+            )
+            if submission.error:
+                return str(submission.error), False
+            return f"work submitted: {submission.work_id}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"submit work: {intent[:80]}",
+            execute_fn=_do_submit,
+            source="cockpit",
+            metadata={"target_executor": target_executor},
         )
-        return {"success": not submission.error, "submission": submission.to_dict()}
+        return resp.to_http_dict()
 
     @r.post("/work/approve/{work_id}", dependencies=auth)
     async def work_approve(work_id: str, request: Request) -> dict[str, Any]:
         body = await request.json()
         decided_by = body.get("decided_by", "operator")
-        rt = _get_runtime()
-        decision = rt.approve_work(work_id, decided_by=decided_by)
-        return {"success": decision.get("status") != "error", "decision": decision}
+
+        def _do_approve():
+            rt = _get_runtime()
+            decision = rt.approve_work(work_id, decided_by=decided_by)
+            if decision.get("status") == "error":
+                return decision.get("error", "approval failed"), False
+            return f"work {work_id} approved", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve work {work_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+            metadata={"work_id": work_id, "decided_by": decided_by},
+        )
+        return resp.to_http_dict()
 
     @r.post("/work/reject/{work_id}", dependencies=auth)
     async def work_reject(work_id: str, request: Request) -> dict[str, Any]:
         body = await request.json()
         reason = body.get("reason", "")
         decided_by = body.get("decided_by", "operator")
-        rt = _get_runtime()
-        decision = rt.reject_work(work_id, reason=reason, decided_by=decided_by)
-        return {"success": decision.get("status") != "error", "decision": decision}
+
+        def _do_reject():
+            rt = _get_runtime()
+            decision = rt.reject_work(work_id, reason=reason, decided_by=decided_by)
+            if decision.get("status") == "error":
+                return decision.get("error", "rejection failed"), False
+            return f"work {work_id} rejected: {reason[:100]}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"reject work {work_id}",
+            execute_fn=_do_reject,
+            source="cockpit",
+            metadata={"work_id": work_id, "reason": reason},
+        )
+        return resp.to_http_dict()
 
     @r.post("/work/execute/{work_id}", dependencies=auth)
     def work_execute(work_id: str) -> dict[str, Any]:
-        rt = _get_runtime()
-        receipt = rt.execute_work(work_id)
-        return {"success": not receipt.error, "receipt": receipt.to_dict()}
+        def _do_execute():
+            rt = _get_runtime()
+            receipt = rt.execute_work(work_id)
+            if receipt.error:
+                return str(receipt.error), False
+            return f"work {work_id} executed", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"execute work {work_id}",
+            execute_fn=_do_execute,
+            source="cockpit",
+            metadata={"work_id": work_id},
+        )
+        return resp.to_http_dict()
 
     @r.post("/work/cancel/{work_id}", dependencies=auth)
     async def work_cancel(work_id: str, request: Request) -> dict[str, Any]:
         body = await request.json()
         reason = body.get("reason", "")
-        rt = _get_runtime()
-        cancelled = rt.cancel_work(work_id, reason=reason)
-        return {"success": cancelled}
+
+        def _do_cancel():
+            rt = _get_runtime()
+            cancelled = rt.cancel_work(work_id, reason=reason)
+            return f"work {work_id} {'cancelled' if cancelled else 'cancel failed'}", cancelled
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"cancel work {work_id}",
+            execute_fn=_do_cancel,
+            source="cockpit",
+            metadata={"work_id": work_id, "reason": reason},
+        )
+        return resp.to_http_dict()
 
     @r.post("/work/retry/{work_id}", dependencies=auth)
     def work_retry(work_id: str) -> dict[str, Any]:
-        rt = _get_runtime()
-        submission = rt.retry_work(work_id)
-        return {"success": not submission.error, "submission": submission.to_dict()}
+        def _do_retry():
+            rt = _get_runtime()
+            submission = rt.retry_work(work_id)
+            if submission.error:
+                return str(submission.error), False
+            return f"work {work_id} retried", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_update",
+            intent=f"retry work {work_id}",
+            execute_fn=_do_retry,
+            source="cockpit",
+            metadata={"work_id": work_id},
+        )
+        return resp.to_http_dict()
 
     return r

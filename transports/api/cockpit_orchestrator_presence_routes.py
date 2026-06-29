@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,6 +64,17 @@ def get_router():
         rt = _get_runtime()
         if rt is None:
             return {"error": "orchestrator presence not available"}
-        return rt.interpret(body.text)
+
+        def _do_interpret():
+            rt.interpret(body.text)
+            return f"presence interpreted: {body.text[:50]}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"interpret orchestrator presence: {body.text[:50]}",
+            execute_fn=_do_interpret,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     return router

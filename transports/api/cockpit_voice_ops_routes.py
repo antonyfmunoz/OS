@@ -7,6 +7,8 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from transports.api.governed import governed_mutation
+
 
 class ProcessRequest(BaseModel):
     text: str = ""
@@ -52,7 +54,18 @@ def get_router() -> APIRouter:
         rt = _get_runtime()
         if rt is None:
             return {"error": "VoiceOperationsRuntime unavailable"}
-        source_event = {"text": body.text, "source_type": body.source_type, "device_id": body.device_id}
-        return rt.process_utterance(source_event, body.text)
+
+        def _do_process():
+            source_event = {"text": body.text, "source_type": body.source_type, "device_id": body.device_id}
+            rt.process_utterance(source_event, body.text)
+            return f"voice utterance processed: {body.text[:50]}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"process voice utterance: {body.text[:50]}",
+            execute_fn=_do_process,
+            source="cockpit",
+        )
+        return resp.to_http_dict()
 
     return router
