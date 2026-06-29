@@ -391,6 +391,161 @@ CREDENTIAL_WRITE = MutationSpec(
 )
 
 
+# ── API-layer mutation specs (C34) ────────────────────────────────────────────
+# Operator-initiated mutations work in any execution mode.
+_ALL_MODES = (
+    ExecutionMode.OBSERVE,
+    ExecutionMode.RECOMMEND,
+    ExecutionMode.ASSISTED,
+    ExecutionMode.AUTONOMOUS,
+)
+
+SETTINGS_UPDATE = MutationSpec(
+    name="settings_update",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Update a system or user setting",
+)
+
+CONFIG_SET = MutationSpec(
+    name="config_set",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Set a configuration value",
+)
+
+APPROVAL_DECIDE = MutationSpec(
+    name="approval_decide",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Approve or reject a pending action",
+)
+
+GOVERNANCE_UPDATE = MutationSpec(
+    name="governance_update",
+    action_type=ActionType.STATE,
+    risk_level="high",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    require_approval=True,
+    description="Update governance policy or execution mode",
+)
+
+CHANNEL_MESSAGE_SEND = MutationSpec(
+    name="channel_message_send",
+    action_type=ActionType.NETWORK,
+    risk_level="low",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.EXTERNAL,
+    timeout_seconds=15.0,
+    description="Send a message to an external channel",
+)
+
+CONVERSATION_SEND = MutationSpec(
+    name="conversation_send",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    description="Send or record an internal conversation message",
+)
+
+MEMORY_PROMOTE = MutationSpec(
+    name="memory_promote",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    description="Promote a memory entry to a higher tier",
+)
+
+WORK_PACKET_CREATE = MutationSpec(
+    name="work_packet_create",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=15.0,
+    description="Create a new work packet",
+)
+
+WORK_PACKET_UPDATE = MutationSpec(
+    name="work_packet_update",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Update an existing work packet",
+)
+
+PROJECTION_EVENT = MutationSpec(
+    name="projection_event",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Register a projection-level event",
+)
+
+ADAPTER_UPDATE = MutationSpec(
+    name="adapter_update",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=15.0,
+    description="Update an adapter status or configuration",
+)
+
+SANDBOX_CREATE = MutationSpec(
+    name="sandbox_create",
+    action_type=ActionType.PROCESS,
+    risk_level="high",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=120.0,
+    require_approval=True,
+    description="Create or launch a sandboxed execution environment",
+)
+
+STATE_MUTATE = MutationSpec(
+    name="state_mutate",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=10.0,
+    description="Generic state mutation for low-risk cockpit operations",
+)
+
+
 class MutationRegistry:
     """Registry of all executable mutation types.
 
@@ -426,6 +581,19 @@ class MutationRegistry:
             SESSION_LAUNCH,
             DEPLOYMENT,
             CREDENTIAL_WRITE,
+            SETTINGS_UPDATE,
+            CONFIG_SET,
+            APPROVAL_DECIDE,
+            GOVERNANCE_UPDATE,
+            CHANNEL_MESSAGE_SEND,
+            CONVERSATION_SEND,
+            MEMORY_PROMOTE,
+            WORK_PACKET_CREATE,
+            WORK_PACKET_UPDATE,
+            PROJECTION_EVENT,
+            ADAPTER_UPDATE,
+            SANDBOX_CREATE,
+            STATE_MUTATE,
         ):
             self.register(spec)
 
