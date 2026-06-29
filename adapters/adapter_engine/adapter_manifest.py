@@ -15,7 +15,7 @@ from enum import IntEnum
 
 from adapters.adapter_engine.modality import ModalityType
 from adapters.adapter_engine.participant import ParticipantType
-from adapters.adapter_engine.adapter_registry_contracts import CapabilityDescriptor
+from adapters.adapter_engine.adapter_registry_contracts import AdapterCapability
 
 
 class AdapterMaturityLevel(IntEnum):
@@ -49,7 +49,7 @@ class AdapterManifest:
     adapter_type: str
     modalities: list[ModalityType]
     participant_type: ParticipantType
-    capabilities: list[CapabilityDescriptor] = field(default_factory=list)
+    capabilities: list[AdapterCapability] = field(default_factory=list)
     maturity: AdapterMaturityLevel = AdapterMaturityLevel.L0_REGISTERED
     version: str = "v1"
     vendor_docs_url: str | None = None
@@ -58,7 +58,7 @@ class AdapterManifest:
     def supports(self, action_type: str) -> bool:
         return any(c.action_type == action_type for c in self.capabilities)
 
-    def get_capability(self, action_type: str) -> CapabilityDescriptor | None:
+    def get_capability(self, action_type: str) -> AdapterCapability | None:
         for c in self.capabilities:
             if c.action_type == action_type:
                 return c

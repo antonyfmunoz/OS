@@ -1,1 +1,1 @@
-"""Foundation — substrate laws, identity, perspective, primitives, epistemology."""
+"""Foundation — substrate laws, identity, perspective."""
