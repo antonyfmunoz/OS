@@ -1500,3 +1500,18 @@ def _mount_push_router() -> None:
 
 
 _mount_push_router()
+
+
+# ── C31: Adapter status routes ─────────────────────────────────────────────
+
+
+def _mount_adapter_status_router() -> None:
+    try:
+        from transports.api import cockpit_adapter_status_routes
+
+        router.include_router(cockpit_adapter_status_routes.router)
+    except Exception:
+        logger.debug("adapter status router not available", exc_info=True)
+
+
+_mount_adapter_status_router()
