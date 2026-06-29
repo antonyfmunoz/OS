@@ -112,6 +112,8 @@ class GovernedExecutionSpine:
         leverage_metrics: LeverageMetrics | None = None,
         propagation_engine: ParallelPropagationEngine | None = None,
         learning_loop: OutcomeLearningLoop | None = None,
+        compounding_engine: Any | None = None,
+        template_extractor: Any | None = None,
     ) -> None:
         self._event_spine = event_spine
         self._mode = execution_mode
@@ -120,6 +122,8 @@ class GovernedExecutionSpine:
         self._leverage = leverage_metrics
         self._propagation = propagation_engine
         self._learning = learning_loop
+        self._compounding = compounding_engine
+        self._template_extractor = template_extractor
         self._lock = threading.Lock()
 
         self._pending: deque[ActionEnvelope] = deque(maxlen=_MAX_QUEUE)
@@ -135,20 +139,37 @@ class GovernedExecutionSpine:
         self._total_verified: int = 0
 
     def _check_fast_path(self, envelope: ActionEnvelope) -> FastPathResult:
-        """Determine if this envelope qualifies for reduced-overhead execution."""
+        """Determine if this envelope qualifies for reduced-overhead execution.
+
+        Uses learning signal feed when available to inform governance
+        decisions — auto_approve_candidate from signal feed reinforces
+        fast-path eligibility, block_auto_approval prevents it.
+        """
         if self._learning is None:
             return FastPathResult(reason="no learning loop")
-        rel = self._learning.get_reliability(envelope.action_type.value)
+
+        action_type = envelope.action_type.value
+        rel = self._learning.get_reliability(action_type)
+
+        signal_feed = self._learning.get_signal_feed(action_type)
+        if signal_feed.block_auto_approval:
+            return FastPathResult(reason="signal_feed blocked auto-approval")
+
         if rel < _FAST_PATH_MIN_RELIABILITY:
             return FastPathResult(reason=f"reliability {rel:.3f} < {_FAST_PATH_MIN_RELIABILITY}")
         if envelope.blast_radius not in _FAST_PATH_BLAST_RADII:
             return FastPathResult(reason=f"blast_radius {envelope.blast_radius.value} not local")
         if envelope.reversibility != ReversibilityClass.FULLY_REVERSIBLE:
             return FastPathResult(reason=f"not fully_reversible")
-        return FastPathResult(
-            eligible=True, reason="high-reliability local reversible",
-            skipped_stages=["detailed_proof", "detailed_journal", "governance_scoring"],
-        )
+
+        skipped = ["detailed_proof", "detailed_journal", "governance_scoring"]
+        reason = "high-reliability local reversible"
+        if signal_feed.auto_approve_candidate:
+            skipped.append("manual_approval_check")
+            reason = "high-reliability + signal_feed auto_approve"
+            envelope.metadata["signal_feed_auto_approve"] = True
+
+        return FastPathResult(eligible=True, reason=reason, skipped_stages=skipped)
 
     def submit(self, envelope: ActionEnvelope) -> ActionEnvelope:
         """Submit an ActionEnvelope for governance review and execution.
@@ -206,6 +227,8 @@ class GovernedExecutionSpine:
             with self._lock:
                 self._completed.append(envelope)
             return envelope
+
+        self._pre_execution_template_match(envelope)
 
         if envelope.constraints.require_approval:
             envelope.status = EnvelopeStatus.PROPOSED
@@ -454,6 +477,8 @@ class GovernedExecutionSpine:
         self._record_learning(envelope)
         timing.learning_record_ms = (time.monotonic() - learn_start) * 1000
 
+        self._post_execution_compounding(envelope)
+
         self._event_spine.emit(
             EventDomain.EXECUTION,
             "envelope_completed",
@@ -678,6 +703,78 @@ class GovernedExecutionSpine:
                         envelope.envelope_id,
                         exc,
                     )
+
+    def _pre_execution_template_match(self, envelope: ActionEnvelope) -> None:
+        """Check if a template matches this envelope's intent before execution."""
+        if self._template_extractor is None:
+            return
+        try:
+            files_hint = envelope.metadata.get("files_changed", [])
+            matched = self._template_extractor.match_template(
+                files_changed=files_hint,
+                task_description=envelope.intent,
+            )
+            if matched is not None:
+                envelope.metadata["matched_template"] = {
+                    "template_id": matched.template_id,
+                    "task_shape": matched.task_shape,
+                    "times_matched": matched.times_matched,
+                }
+                logger.info(
+                    "Template %s matched for envelope %s (shape=%s)",
+                    matched.template_id, envelope.envelope_id, matched.task_shape,
+                )
+        except Exception as exc:
+            logger.debug("template match failed (non-fatal): %s", exc)
+
+    def _post_execution_compounding(self, envelope: ActionEnvelope) -> None:
+        """Run compounding pipeline after successful execution.
+
+        Wires three dormant systems:
+        1. CompoundingEngine.scan_after_cycle — detects promotion candidates
+        2. TemplateExtractor.extract_from_cycle — builds/matches templates
+        3. Signal feed already consumed in _check_fast_path
+        """
+        if not envelope.result_success:
+            return
+
+        if self._compounding is not None:
+            try:
+                outcome_data = {
+                    "envelope_id": envelope.envelope_id,
+                    "action_type": envelope.action_type.value,
+                    "intent": envelope.intent[:200],
+                    "success": envelope.result_success,
+                    "output": envelope.result_output[:200],
+                    "duration_s": max(envelope.completed_at - envelope.started_at, 0),
+                }
+                candidates = self._compounding.scan_after_cycle(
+                    outcomes=[outcome_data],
+                )
+                if candidates:
+                    envelope.metadata["compounding_candidates"] = len(candidates)
+                    logger.info(
+                        "Compounding found %d candidates for envelope %s",
+                        len(candidates), envelope.envelope_id,
+                    )
+            except Exception as exc:
+                logger.debug("compounding scan failed (non-fatal): %s", exc)
+
+        if self._template_extractor is not None:
+            try:
+                files_changed = envelope.metadata.get("files_changed", [])
+                extracted = self._template_extractor.extract_from_cycle(
+                    cycle_id=envelope.envelope_id,
+                    files_changed=files_changed,
+                    task_description=envelope.intent,
+                )
+                if extracted is not None:
+                    envelope.metadata["extracted_template"] = {
+                        "template_id": extracted.template_id,
+                        "task_shape": extracted.task_shape,
+                    }
+            except Exception as exc:
+                logger.debug("template extraction failed (non-fatal): %s", exc)
 
     def _record_learning(self, envelope: ActionEnvelope) -> None:
         """Record the execution outcome in the learning loop.

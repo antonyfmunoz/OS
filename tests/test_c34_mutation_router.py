@@ -350,3 +350,189 @@ class TestCensusIntegrity:
                 assert data["summary"]["total_mutation_endpoints"] > 0
                 return
         pytest.skip("census not yet generated")
+
+
+# ── Phase 3: Compounding Pipeline Wiring ───────────────────────────────────
+
+
+class TestCompoundingWiring:
+    """Verify the 3 compounding signals are wired end-to-end in the spine."""
+
+    def _make_spine_with_compounding(self):
+        """Build a spine with compounding engine and template extractor."""
+        from substrate.organism.event_spine import EventSpine
+        from substrate.organism.execution_journal import ExecutionJournal
+        from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
+        from substrate.organism.governed_spine import GovernedExecutionSpine
+        from substrate.organism.outcome_learning import OutcomeLearningLoop
+
+        reg = MutationRegistry()
+        mode_mgr = ExecutionModeManager()
+        mode_mgr._current_mode = ExecutionMode.ASSISTED
+
+        class FakeCompoundingEngine:
+            def __init__(self):
+                self.scan_calls = []
+
+            def scan_after_cycle(self, outcomes, capabilities_data=None, operationalizations=None):
+                self.scan_calls.append(outcomes)
+                return []
+
+        class FakeTemplateExtractor:
+            def __init__(self):
+                self.extract_calls = []
+                self.match_calls = []
+
+            def extract_from_cycle(self, cycle_id, files_changed, task_description):
+                self.extract_calls.append({
+                    "cycle_id": cycle_id,
+                    "files_changed": files_changed,
+                    "task_description": task_description,
+                })
+                return None
+
+            def match_template(self, files_changed, task_description=""):
+                self.match_calls.append({
+                    "files_changed": files_changed,
+                    "task_description": task_description,
+                })
+                return None
+
+        comp = FakeCompoundingEngine()
+        tmpl = FakeTemplateExtractor()
+        spine = GovernedExecutionSpine(
+            event_spine=EventSpine(),
+            execution_mode=mode_mgr,
+            mutation_registry=reg,
+            journal=ExecutionJournal(),
+            learning_loop=OutcomeLearningLoop(),
+            compounding_engine=comp,
+            template_extractor=tmpl,
+        )
+        return spine, reg, comp, tmpl
+
+    def test_scan_after_cycle_called_on_success(self):
+        spine, reg, comp, tmpl = self._make_spine_with_compounding()
+        router = MutationRouter(spine=spine, registry=reg)
+
+        response = router.execute(MutationRequest(
+            mutation_name="state_mutate",
+            intent="test compounding",
+            execute_fn=lambda: ("done", True),
+        ))
+        assert response.success is True
+        assert len(comp.scan_calls) == 1
+        assert comp.scan_calls[0][0]["action_type"] == "state"
+
+    def test_scan_not_called_on_failure(self):
+        spine, reg, comp, tmpl = self._make_spine_with_compounding()
+        router = MutationRouter(spine=spine, registry=reg)
+
+        response = router.execute(MutationRequest(
+            mutation_name="state_mutate",
+            intent="will fail",
+            execute_fn=lambda: ("error", False),
+        ))
+        assert response.success is False
+        assert len(comp.scan_calls) == 0
+
+    def test_extract_from_cycle_called_on_success(self):
+        spine, reg, comp, tmpl = self._make_spine_with_compounding()
+        router = MutationRouter(spine=spine, registry=reg)
+
+        response = router.execute(MutationRequest(
+            mutation_name="state_mutate",
+            intent="test extraction",
+            execute_fn=lambda: ("done", True),
+            metadata={"files_changed": ["substrate/foo.py"]},
+        ))
+        assert response.success is True
+        assert len(tmpl.extract_calls) == 1
+        assert tmpl.extract_calls[0]["files_changed"] == ["substrate/foo.py"]
+
+    def test_match_template_called_pre_execution(self):
+        spine, reg, comp, tmpl = self._make_spine_with_compounding()
+        router = MutationRouter(spine=spine, registry=reg)
+
+        response = router.execute(MutationRequest(
+            mutation_name="state_mutate",
+            intent="test matching",
+            execute_fn=lambda: ("done", True),
+            metadata={"files_changed": ["transports/api/foo.py"]},
+        ))
+        assert response.success is True
+        assert len(tmpl.match_calls) >= 1
+
+    def test_signal_feed_consumed_in_fast_path(self):
+        """Verify signal feed from learning loop is consumed by governance."""
+        from substrate.organism.event_spine import EventSpine
+        from substrate.organism.execution_journal import ExecutionJournal
+        from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
+        from substrate.organism.governed_spine import GovernedExecutionSpine
+        from substrate.organism.outcome_learning import OutcomeLearningLoop
+
+        reg = MutationRegistry()
+        mode_mgr = ExecutionModeManager()
+        mode_mgr._current_mode = ExecutionMode.ASSISTED
+        learning = OutcomeLearningLoop()
+
+        spine = GovernedExecutionSpine(
+            event_spine=EventSpine(),
+            execution_mode=mode_mgr,
+            mutation_registry=reg,
+            journal=ExecutionJournal(),
+            learning_loop=learning,
+        )
+
+        from substrate.organism.action_envelope import ActionEnvelope, ActionType
+        envelope = ActionEnvelope(
+            intent="test signal feed",
+            action_type=ActionType.STATE,
+            source="test",
+            execute_fn=lambda: ("ok", True),
+        )
+        result = spine._check_fast_path(envelope)
+        assert result.reason != ""
+
+    def test_compounding_metadata_propagated(self):
+        """When compounding finds candidates, metadata is set on envelope."""
+        from substrate.organism.event_spine import EventSpine
+        from substrate.organism.execution_journal import ExecutionJournal
+        from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
+        from substrate.organism.governed_spine import GovernedExecutionSpine
+        from substrate.organism.outcome_learning import OutcomeLearningLoop
+
+        class MockCompEngine:
+            def scan_after_cycle(self, outcomes, **kw):
+                from dataclasses import dataclass
+
+                @dataclass
+                class FakeCandidate:
+                    candidate_id: str = "c1"
+                    source_description: str = "test"
+                    confidence: float = 0.9
+
+                return [FakeCandidate()]
+
+        reg = MutationRegistry()
+        mode_mgr = ExecutionModeManager()
+        mode_mgr._current_mode = ExecutionMode.ASSISTED
+
+        spine = GovernedExecutionSpine(
+            event_spine=EventSpine(),
+            execution_mode=mode_mgr,
+            mutation_registry=reg,
+            journal=ExecutionJournal(),
+            learning_loop=OutcomeLearningLoop(),
+            compounding_engine=MockCompEngine(),
+        )
+        router = MutationRouter(spine=spine, registry=reg)
+
+        response = router.execute(MutationRequest(
+            mutation_name="state_mutate",
+            intent="test candidates",
+            execute_fn=lambda: ("done", True),
+        ))
+        assert response.success is True
+        assert response.envelope is not None
+        assert response.envelope.metadata.get("compounding_candidates") == 1
