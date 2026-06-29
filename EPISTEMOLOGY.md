@@ -5,11 +5,28 @@ EPISTEMOLOGY.md
 # Universal Meta Harness
 ## The Organism's Theory of Knowledge, Capability, and Execution
 
+UMH is a governed capability-compounding substrate
+that turns intent into verified, reusable,
+high-leverage capability by internalizing reality's
+best patterns, orchestrating tools and intelligence
+through standardized protocols, and continuously
+improving its approximation of reality through
+execution.
+
+The shortest version:
+
+*Infrastructure for turning intent into governed,
+reusable, compounding capability.*
+
+UMH is not software, an app, an agent, a cockpit,
+a workstation, a dashboard, a model wrapper,
+a workflow tool, or a prompt library. Those are
+expressions, surfaces, or implementation layers.
+UMH is the substrate underneath them.
+
 This document governs how UMH learns, what it
 considers true, how it reasons, and how
 understanding becomes governed execution.
-
-It sits above everything else:
 
 ```
 EPISTEMOLOGY.md  — the organism's philosophy
@@ -18,9 +35,6 @@ PHILOSOPHY.md    — projection-applicable values
   ↓ governs
 ARCHITECTURE.md  — implementation specification
 ```
-
-Every build decision, every template, every agent,
-every execution traces back to this document.
 
 ---
 
@@ -93,6 +107,111 @@ converge upon.
 
 ---
 
+### What UMH Really Does
+
+UMH performs six universal functions:
+
+**1. Preserve intent**
+The user says something imperfectly. UMH infers:
+what they actually want, why it matters,
+what outcome would satisfy the intent,
+what context is missing, what constraints apply,
+what capability is being requested.
+Raw user language is signal, not the full truth.
+
+**2. Approximate reality**
+UMH builds and updates an internal approximation:
+user state, project state, system state,
+business state, tool state, device state,
+environment state, memory, constraints,
+resources, risks, capabilities.
+UMH does not need to model reality perfectly.
+Humans do not either. It models reality
+sufficiently to act.
+
+**3. Extract mastery from reality**
+UMH finds excellence that already exists —
+best operators, best tools, best systems,
+best companies, best research, best frameworks,
+best workflows, best patterns, best templates,
+best failure-avoidance practices. Then it
+applies first principles: what is the underlying
+mechanism? What is invariant? What is variable?
+What is context-specific? What works across
+domains? What fails? What is the highest-leverage
+form?
+
+**4. Operationalize into templates**
+A template is not a document. It is a
+parameterized capability structure:
+invariants + variables + constraints +
+execution logic + verification criteria.
+The user instantiates it with context.
+
+**5. Execute under governance**
+UMH is not reckless autonomy. It acts under
+governance: what can happen automatically?
+What requires notification? What requires
+approval? What must escalate? What must be
+denied? What requires proof? What requires
+rollback?
+
+**6. Verify, learn, and compound**
+Every action produces: trace, proof, outcome,
+lesson, template update, memory update,
+capability improvement. The goal is not merely
+to complete the task. The goal is to complete it
+in a way that makes future tasks easier, safer,
+faster, and more powerful.
+
+---
+
+### What UMH Replaces
+
+UMH replaces the user as the manual convergence
+layer.
+
+Current fragmented reality:
+User remembers context. User decides what matters.
+User searches. User prompts AI. User manages tools.
+User verifies output. User updates docs.
+User reconciles systems. User learns the lesson.
+User creates the next plan.
+
+UMH target reality:
+UMH preserves context. UMH interprets intent.
+UMH selects capability templates.
+UMH instantiates with user context.
+UMH routes to proper adapters/harnesses/tools.
+UMH governs execution.
+UMH verifies reality.
+UMH updates memory/templates/state.
+UMH compounds capability.
+
+Living in UMH means you stop being the glue.
+
+---
+
+### Why This Is Not Omniscience
+
+UMH cannot know everything.
+UMH cannot guarantee truth.
+UMH cannot eliminate uncertainty.
+
+But it can enforce a superior operating method:
+
+Search broadly. Prefer excellent sources.
+Decompose deeply. Separate invariant from variable.
+Verify against reality. Store uncertainty.
+Update with evidence. Operationalize only what
+passes standards.
+
+The goal is not infallibility.
+The goal is disciplined reality approximation
+under governance.
+
+---
+
 # Part II — Epistemology
 ## How the Organism Acquires Justified Understanding
 
@@ -154,18 +273,12 @@ Reality contains many sources:
 - Ecosystems
 
 All of these are observations.
-
 This prevents the system from becoming
-overly anthropocentric. Human excellence is
-signal. Reality is the domain.
+overly anthropocentric.
 
 ---
 
 ### The Knowledge Hierarchy
-
-UMH structures knowledge in layers.
-Higher layers govern lower layers.
-Lower layers are derived from higher layers.
 
 ```
 Reality
@@ -226,7 +339,29 @@ That invariant appears in:
 - UMH execution loops
 
 Different domains. Same primitive.
-That is the level UMH learns at.
+
+---
+
+### Reality Mimicry, Corrected
+
+UMH approximates reality by internalizing
+the highest-quality human and systemic
+approximations of reality, decomposing them
+into primitives and invariants, then
+operationalizing only the highest-leverage
+validated structures.
+
+The sequence:
+Find excellence → steal the structure →
+decompose to first principles →
+identify invariants and variables →
+convert into templates →
+instantiate with context →
+execute → verify against reality → improve.
+
+UMH copies structure, not surface.
+It steals the invariant, then adapts
+the variables.
 
 ---
 
@@ -249,9 +384,6 @@ UMH asks:
 - Can multiple independent domains be explained
   by the same primitive?
 
-This is the difference between copying
-and understanding.
-
 Copying produces brittle reproduction.
 Understanding produces adaptive mastery.
 
@@ -268,12 +400,33 @@ When new evidence contradicts an invariant,
 the invariant updates — not the evidence.
 
 When a primitive fails in a new domain,
-that failure is signal:
-either the primitive was not truly fundamental,
-or the domain has a constraint that reveals
-a deeper primitive underneath.
+that failure is signal: either the primitive
+was not truly fundamental, or the domain
+has a constraint that reveals a deeper
+primitive underneath.
 
 Both outcomes improve the system.
+
+---
+
+### The Montessori Principle
+
+A normal AI interaction:
+prompt → answer → forget.
+
+UMH operates as a designed environment
+for capability formation:
+intent → context → standards → principles →
+tools → feedback → mastery models →
+execution → proof → compounding.
+
+The model may be the same base intelligence.
+The environment changes the output.
+
+UMH is the environment that forces intelligence
+to operate through first principles, reality
+correspondence, mastery, governance,
+maximum leverage, and compounding.
 
 ---
 
@@ -295,8 +448,6 @@ than a file.
 Template = f(invariants, parameters, context) → specific solution
 ```
 
-Definition:
-
 *A template is an operationalized mapping
 between invariants and variables that becomes
 executable only when instantiated with context.*
@@ -308,16 +459,19 @@ executable only when instantiated with context.*
 Every template contains five components:
 
 ```
-Invariants        what cannot change
+Invariants           what cannot change
 ↓
-Parameters        what may change (degrees of freedom)
+Parameters           what may change (degrees of freedom)
 ↓
-Constraints       what is allowed
+Constraints          what is allowed
 ↓
-Objective         what success means
+Objective            what success means
 ↓
-Execution Graph   how it runs
+Execution Graph      how it runs
 ```
+
+Plus verification criteria: how success
+is proven.
 
 ---
 
@@ -364,6 +518,33 @@ Refine Template
 
 ---
 
+### Template Examples
+
+```
+Offer Template
+  invariants: audience, problem, promise,
+              mechanism, proof, risk reversal
+  variables:  niche, price, delivery,
+              channel, urgency
+
+Deployment Template
+  invariants: build, config, deploy,
+              health check, verification, rollback
+  variables:  app, host, env vars,
+              domain, framework
+
+Learning Template
+  invariants: objective, baseline, skill units,
+              feedback loop, proof
+  variables:  learner, subject, schedule,
+              tools, constraints
+```
+
+First principles become useful not as
+philosophy but as executable templates.
+
+---
+
 ### What Users Actually Do
 
 The user does not ask UMH to execute
@@ -394,8 +575,7 @@ Learn
 A prompt is context. It fills in variables.
 
 - "Write me an email" = instantiate the
-  communication capability template with
-  my context.
+  communication capability template.
 - "Build software" = instantiate the software
   engineering template.
 - "Deploy infrastructure" = instantiate the
@@ -407,12 +587,6 @@ The user never interacts directly with first
 principles or primitives. They interact with
 instantiated capabilities.
 
-UMH's job is to decompose reality until it
-discovers the invariant structure, encode that
-structure into reusable templates, and then
-instantiate those templates against the user's
-current reality under governance.
-
 ---
 
 ### The Unified Capability Stack
@@ -423,8 +597,6 @@ same underlying concept at different scales:
 *A capability is an operationalized template
 derived from reality.*
 
-The hierarchy:
-
 **Primitives** describe reality.
 
 **Templates** encode reusable capability.
@@ -434,15 +606,13 @@ A skill transforms capability.
 
 ```
 Writing Skill
-↓
-Invariant: Good writing communicates intent.
-↓
-Parameters: Audience, Purpose, Tone, Medium
-↓
-Template
-↓
-Skill
+  invariant: good writing communicates intent
+  parameters: audience, purpose, tone, medium
 ```
+
+A skill contains: primitives, patterns,
+constraints, tools, quality standards,
+common failure modes, verification criteria.
 
 **Workflows** compose skills.
 A workflow is multiple instantiated templates
@@ -452,32 +622,44 @@ connected together.
 Research → Planning → Writing → Review → Publish
 ```
 
-Each step is a template. Together they become
-a workflow.
-
 Workflow = composed template graph.
 
-**Loops** add feedback and recurrence to workflows.
+**Loops** add feedback and recurrence
+to workflows.
 
 ```
 Observe → Decide → Execute → Measure → Learn → Observe
 ```
 
 Loop = workflow + feedback + recurrence.
+Loops are how capability compounds.
+A one-time workflow produces an output.
+A loop improves the system.
 
-**Adapters** connect capabilities to external systems.
-The adapter internalizes mastery.
-The tool performs actions.
+**Tools** execute actions. They do not
+understand why. Hammer. Docker. Git.
+Browser. Figma. Tools are not inherently
+useful. They become useful when leveraged
+by intent, context, skill, workflow, loop,
+adapter, and governance.
 
-**Harnesses** are a specialized class of adapter
-that encapsulate and govern external intelligence
-systems (Claude Code, Codex, Gemini CLI, etc.).
+**Adapters** internalize external systems
+into the organism. The adapter protocol
+contains the operational model: what it is,
+what it can do, what state it has, how it is
+used, what constraints apply, what maturity
+level it has, how it verifies success, how it
+participates in UMH.
 
+**Harness Adapters** are adapters for external
+intelligence/execution environments: Claude Code,
+Codex, Gemini CLI, Hermes, OpenCode. They are
+harnesses because they are already tool-using,
+model-wrapping, execution environments.
 Harness = intelligence adapter + capability.
 
-**Agents** select, compose, and execute capabilities
-in pursuit of objectives.
-
+**Agents** select, compose, and execute
+capabilities in pursuit of objectives.
 Agent = capability orchestrator.
 
 **The Organism** coordinates all agents and
@@ -509,13 +691,97 @@ Loops
 ↓
 Capabilities
 ↓
-Agents
+Adapters / Harnesses / Tools
 ↓
-Organism
+Execution
+↓
+Verification
+↓
+Learning
+↓
+Compounding
 ```
 
 Nothing is disconnected.
 Everything emerges from the layer above it.
+
+---
+
+### Adapter Maturity
+
+An adapter is not mature because it can connect.
+Connection is the lowest level.
+
+Adapter maturity means: how completely has UMH
+internalized this external system as an organ?
+
+A mature adapter knows the thing like a creator
+or elite operator would know it.
+
+```
+L0  Unknown         system exists but is not modeled
+L1  Connected       can authenticate and call
+L2  Observable      can inspect state, health, limits, outputs
+L3  Operable        can execute basic operations reliably
+L4  Governed        operations are policy-aware and auditable
+L5  Verified        can prove outcomes and check state correspondence
+L6  Internalized    understands capability surface, constraints,
+                    failure modes, best practices, expert workflows
+L7  Expert          uses the system like an advanced practitioner
+L8  Mastery         uses the system like a top-tier operator would
+L9  Compositional   composes capability with other organs across domains
+L10 Evolutionary    extends or improves capability beyond original usage
+```
+
+---
+
+### Tool Mastery Engine
+
+TME is not "learn Docker."
+
+TME internalizes the capability structure
+that expert operators have already discovered.
+
+```
+Observe excellence
+→ extract mechanisms
+→ decompose into primitives
+→ identify invariants / variables
+→ generate templates
+→ verify outcomes
+→ update skill / workflow / adapter maturity
+```
+
+TME applies to tools, but also to:
+strategy, business, copywriting,
+software engineering, education, music,
+design, medicine, operations, leadership,
+finance, training, negotiation.
+
+TME is one expression of the mastery layer.
+
+UMH's standard is not "use the tool."
+
+UMH's standard is:
+
+*Use the tool the way a master would,
+inside a governed system,
+toward a high-leverage outcome,
+with proof and compounding.*
+
+The mastery ladder:
+
+```
+L0  Connection       can interact with the tool
+L1  Operation        can perform basic operations
+L2  Competence       can handle common scenarios
+L3  Mastery          can handle edge cases
+L4  Internalization  understands the invariants
+L5  Composition      can combine with other capabilities
+L6  Evolution        can improve the template itself
+```
+
+Evolution is last. Not first.
 
 ---
 
@@ -532,53 +798,6 @@ Capability is stored as templates.
 
 ---
 
-### Tool Mastery Engine
-
-TME is not "learn Docker."
-
-TME internalizes the capability structure
-that expert operators have already discovered.
-
-```
-Reality
-↓
-World-class operators
-↓
-Extract invariants
-↓
-Extract parameters
-↓
-Build template
-↓
-Capability
-↓
-Adapter
-↓
-Execution
-```
-
-The mastery ladder:
-
-```
-Connection           (can interact with the tool)
-↓
-Operation            (can perform basic operations)
-↓
-Competence           (can handle common scenarios)
-↓
-Mastery              (can handle edge cases)
-↓
-Internalization      (understands the invariants)
-↓
-Composition          (can combine with other capabilities)
-↓
-Evolution            (can improve the template itself)
-```
-
-Evolution is last. Not first.
-
----
-
 ### Mastery Defined
 
 Mastery is not memorization.
@@ -588,6 +807,67 @@ into primitives, recognize invariants across
 domains, compose those invariants into new
 capability, and repeatedly produce excellent
 outcomes under governance.
+
+---
+
+### The Canonical Spine
+
+UMH must have one canonical spine. Not many
+loops, scattered agents, random scripts,
+or UI calling tools directly.
+
+```
+Signal
+→ Intake
+→ Perception
+→ Interpretation
+→ Decomposition
+→ Ontology / primitive mapping
+→ Reality model retrieval
+→ Capability / template selection
+→ Adapter matching
+→ Planning
+→ Governance decision
+→ Work packet creation
+→ Execution
+→ Result collection
+→ Proof validation
+→ State correspondence
+→ Trace persistence
+→ Outcome evaluation
+→ Learning proposal
+→ Memory / world model / template update
+→ Compounding
+```
+
+If the UI mutates one way, Claude Code mutates
+another way, settings mutate another way,
+and devices mutate another way — UMH is not
+one organism. It is a bundle of tools.
+
+UMH becomes real when every surface enters
+the same spine.
+
+---
+
+### The Deeper Truth
+
+UMH is not trying to make AI omniscient.
+
+UMH is trying to force every intelligence,
+tool, workflow, adapter, template, skill, loop,
+and execution path to operate under a
+universal standard:
+
+Reality-grounded.
+First-principles.
+Mastery-oriented.
+Governed.
+Verified.
+High-leverage.
+Compoundable.
+
+That is the real product.
 
 ---
 
@@ -617,6 +897,54 @@ The parameters do.
 The context does.
 
 The organism does not.
+
+---
+
+### "Universal" Means
+
+Universal does not mean "does everything
+perfectly."
+
+Universal means the same operating principles
+apply across domains: software, business,
+health, education, design, media, operations,
+finance, devices, AI systems, tools,
+organizations, personal development,
+physical-world systems.
+
+Because UMH is not built around surface
+categories. It is built around primitives:
+intent, state, constraint, resource,
+capability, action, feedback, proof,
+learning, template, loop.
+
+### "Meta" Means
+
+Meta means UMH operates above individual
+tools, models, agents, workflows, and
+applications. It does not merely use them.
+It governs how they are selected, constrained,
+orchestrated, verified, and learned from.
+
+### "Harness" Means
+
+Harness means to connect power to purpose
+under control. A harness does not replace
+the horse, engine, model, tool, or human.
+It channels capability.
+
+---
+
+### The One-Sentence Final Form
+
+UMH is a universal meta-harness that
+internalizes the highest-quality patterns
+of reality into governed, reusable,
+context-instantiable capability templates,
+then uses AI, tools, adapters, workflows,
+loops, and verification to execute those
+capabilities at a standard of mastery
+and compound them over time.
 
 ---
 
