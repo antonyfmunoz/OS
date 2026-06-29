@@ -15,7 +15,7 @@ from ._common import (
 
 
 async def _handle_telos_report(message: Any, spine: Any) -> None:
-    from substrate.execution.workers.workstation.constitutional_telos_alignment_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.constitutional_telos_alignment_engine_v1 import (
         TELOS_MATURITY_LEVELS,
         TELOS_PRIMITIVES,
         MISSION_CONTINUITY_DIMENSIONS,
@@ -28,37 +28,37 @@ async def _handle_telos_report(message: Any, spine: Any) -> None:
         build_full_telos_proof,
         persist_telos_proof,
     )
-    from substrate.execution.workers.workstation.constitutional_identity_continuity_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.constitutional_identity_continuity_engine_v1 import (
         build_full_identity_proof,
     )
-    from substrate.execution.workers.workstation.constitutional_epistemic_intelligence_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.constitutional_epistemic_intelligence_engine_v1 import (
         build_full_epistemic_proof,
     )
-    from substrate.execution.workers.workstation.constitutional_strategic_intelligence_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.constitutional_strategic_intelligence_engine_v1 import (
         build_full_strategy_proof,
     )
-    from substrate.execution.workers.workstation.constitutional_resource_economics_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.constitutional_resource_economics_engine_v1 import (
         build_full_economics_proof,
     )
-    from substrate.execution.workers.workstation.distributed_constitutional_substrate_federation_v1 import (
+    from substrate.execution.workers.workstation._dormant.distributed_constitutional_substrate_federation_v1 import (
         build_full_federation_proof,
     )
-    from substrate.execution.workers.workstation.constitutional_substrate_governance_layer_v1 import (
+    from substrate.execution.workers.workstation._dormant.constitutional_substrate_governance_layer_v1 import (
         build_full_constitutional_proof,
     )
-    from substrate.execution.workers.workstation.adaptive_governance_intelligence_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.adaptive_governance_intelligence_engine_v1 import (
         build_full_governance_intelligence_proof,
     )
-    from substrate.execution.workers.workstation.governed_recursive_orchestration_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.governed_recursive_orchestration_engine_v1 import (
         build_full_orchestration_proof,
     )
-    from substrate.execution.workers.workstation.persistent_substrate_continuity_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.persistent_substrate_continuity_engine_v1 import (
         build_full_continuity_proof,
     )
-    from substrate.execution.workers.workstation.recursive_capability_planning_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.recursive_capability_planning_engine_v1 import (
         build_full_capability_proof,
     )
-    from substrate.execution.workers.workstation.adapter_autogeneration_engine_v1 import (
+    from substrate.execution.workers.workstation._dormant.adapter_autogeneration_engine_v1 import (
         AdapterAutogenProof,
         AdapterAutogenEvidence,
     )
