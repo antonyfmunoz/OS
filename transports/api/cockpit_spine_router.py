@@ -72,6 +72,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/reliability", _reliability_metrics, methods=["GET"])
     r.add_api_route("/organism/reliability-history", _reliability_history, methods=["GET"])
     r.add_api_route("/organism/capability-compounding", _capability_compounding, methods=["GET"])
+    r.add_api_route("/organism/adapter-health", _adapter_health, methods=["GET"])
+    r.add_api_route("/organism/spine-analytics", _spine_analytics, methods=["GET"])
+    r.add_api_route("/organism/projection-health", _projection_health, methods=["GET"])
 
     # ── Privileged endpoints (operator auth required) ──────────────────────
 
@@ -414,6 +417,123 @@ async def _capability_compounding():
     if daemon is None:
         return {"error": "organism not running"}
     return daemon.capability_compounding.snapshot().to_dict()
+
+
+async def _adapter_health():
+    """Cycle 2: Adapter health dashboard — maturity + capabilities across all adapters."""
+    try:
+        from adapters.adapter_engine.production_manifests import ALL_PRODUCTION_MANIFESTS
+    except ImportError:
+        return {"error": "production_manifests not available"}
+
+    adapters = []
+    for m in ALL_PRODUCTION_MANIFESTS:
+        adapters.append({
+            "adapter_id": m.adapter_id,
+            "adapter_type": m.adapter_type,
+            "maturity": m.maturity.value if hasattr(m.maturity, "value") else str(m.maturity),
+            "capabilities": [
+                {"id": c.capability_id, "action_type": c.action_type}
+                for c in (m.capabilities or [])
+            ],
+            "capability_count": len(m.capabilities or []),
+            "version": m.version,
+        })
+
+    maturity_counts: dict[str, int] = {}
+    for a in adapters:
+        mat = a["maturity"]
+        maturity_counts[mat] = maturity_counts.get(mat, 0) + 1
+
+    return {
+        "total_adapters": len(adapters),
+        "total_capabilities": sum(a["capability_count"] for a in adapters),
+        "maturity_distribution": maturity_counts,
+        "adapters": adapters,
+    }
+
+
+async def _spine_analytics():
+    """Cycle 3: Spine execution analytics — success rate, duration, action types."""
+    daemon = _get_organism()
+    if daemon is None:
+        return {"error": "organism not running"}
+
+    journal = daemon.execution_journal
+    entries = journal.recent(limit=1000)
+    if not entries:
+        return {"total_executions": 0, "analytics": {}}
+
+    completed = [e for e in entries if e.phase.value == "execution_completed"]
+    failed = [e for e in entries if e.phase.value == "execution_failed"]
+    total = len(completed) + len(failed)
+    success_rate = len(completed) / total if total > 0 else 0.0
+
+    source_counts: dict[str, int] = {}
+    durations: list[float] = []
+    for e in entries:
+        source_counts[e.source] = source_counts.get(e.source, 0) + 1
+        elapsed = e.details.get("elapsed_ms") or e.details.get("duration_s")
+        if elapsed is not None:
+            durations.append(float(elapsed))
+
+    avg_duration = sum(durations) / len(durations) if durations else 0.0
+
+    action_types: dict[str, int] = {}
+    for e in entries:
+        at = e.details.get("type") or e.details.get("action_type") or "unknown"
+        action_types[at] = action_types.get(at, 0) + 1
+
+    return {
+        "total_executions": total,
+        "success_rate": round(success_rate, 4),
+        "completed": len(completed),
+        "failed": len(failed),
+        "avg_duration_ms": round(avg_duration, 2),
+        "source_distribution": source_counts,
+        "action_type_distribution": action_types,
+        "total_journal_entries": len(entries),
+    }
+
+
+async def _projection_health():
+    """Cycle 4: Projection health — drift status + adapter coverage for all projections."""
+    import json as _json
+    import os as _os
+
+    repo_root = _os.environ.get("UMH_ROOT", "/opt/OS")
+    registry_path = _os.path.join(repo_root, "data", "umh", "projection_registry.json")
+
+    try:
+        with open(registry_path) as f:
+            registry = _json.load(f)
+    except (OSError, _json.JSONDecodeError):
+        return {"error": "projection registry unavailable"}
+
+    try:
+        from adapters.adapter_engine.production_manifests import ALL_PRODUCTION_MANIFESTS
+        adapter_ids = {m.adapter_id for m in ALL_PRODUCTION_MANIFESTS}
+        total_adapters = len(adapter_ids)
+    except ImportError:
+        adapter_ids = set()
+        total_adapters = 0
+
+    projections = []
+    for pid, pdata in registry.items():
+        projections.append({
+            "projection_id": pid,
+            "app_name": pdata.get("app_name", ""),
+            "health_url": pdata.get("health_url", ""),
+            "public_url": pdata.get("public_url", ""),
+            "has_l4_workflow": bool(pdata.get("l4_workflow")),
+            "adapter_coverage": total_adapters,
+        })
+
+    return {
+        "total_projections": len(projections),
+        "total_adapters_available": total_adapters,
+        "projections": projections,
+    }
 
 
 # ── Autonomous Action Gateway handlers ───────────────────────────────────────
