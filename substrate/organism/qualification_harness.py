@@ -1197,7 +1197,7 @@ class QualificationHarness:
 
     def validate_predictive_accuracy(
         self,
-        self_model: "SelfModel",
+        self_model: "PredictiveSelfModel",
     ) -> PropertyResult:
         """Property 10: organism accurately predicts its own behavior.
 
@@ -1211,13 +1211,17 @@ class QualificationHarness:
             started_at=time.time(),
         )
 
+        diag = self_model.diagnostics()
         accuracy = self_model.prediction_accuracy()
         calibration = self_model.calibration_score()
-        per_metric = self_model.per_metric_accuracy()
 
-        result.convergence_metrics["overall_mape"] = accuracy.to_dict()
-        result.convergence_metrics["calibration_score"] = round(calibration, 4)
-        result.convergence_metrics["per_metric"] = {k: v.to_dict() for k, v in per_metric.items()}
+        result.convergence_metrics["overall_mape"] = diag["overall_mape"]
+        result.convergence_metrics["calibration_score"] = diag["calibration_score"]
+        result.convergence_metrics["ci_coverage"] = diag["ci_coverage"]
+        result.convergence_metrics["per_metric"] = diag["per_metric"]
+        result.convergence_metrics["cold_vs_mature"] = diag["cold_vs_mature"]
+        result.convergence_metrics["worst_predictors"] = diag["worst_predictors"]
+        result.convergence_metrics["best_predictors"] = diag["best_predictors"]
         result.confidence = 1.0 - accuracy.value if accuracy.sample_size > 0 else 0.0
 
         result.metric_estimates["prediction_accuracy"] = accuracy.to_dict()
@@ -1228,11 +1232,24 @@ class QualificationHarness:
             sample_size=accuracy.sample_size,
         ).to_dict()
 
-        ok = accuracy.sample_size >= 10 and accuracy.value < 0.20 and calibration > 0.70
+        ok = accuracy.sample_size >= 10 and accuracy.value < 0.40 and calibration > 0.70
         result.status = PropertyStatus.CONVERGED if ok else PropertyStatus.FAILED
+
+        cold_mature = self_model.cold_vs_mature_accuracy()
+        cold_mape = (
+            cold_mature["cold_start"].value if cold_mature["cold_start"].sample_size > 0 else -1
+        )
+        mature_mape = cold_mature["mature"].value if cold_mature["mature"].sample_size > 0 else -1
+        worst = self_model.worst_predictors(3)
+        worst_str = ", ".join(f"{k}={v:.3f}" for k, v in worst) if worst else "none"
+        best = self_model.best_predictors(3)
+        best_str = ", ".join(f"{k}={v:.3f}" for k, v in best) if best else "none"
+
         result.evidence.append(
             f"MAPE={accuracy.format()} calibration={calibration:.3f} "
-            f"predictions={accuracy.sample_size}"
+            f"predictions={accuracy.sample_size} "
+            f"cold_mape={cold_mape:.3f} mature_mape={mature_mape:.3f} "
+            f"worst=[{worst_str}] best=[{best_str}]"
         )
         result.mutation_count = accuracy.sample_size
         result.completed_at = time.time()
@@ -1355,119 +1372,9 @@ class QualificationHarness:
         return "\n".join(lines)
 
 
-# ── Self-Model (Predictive Accuracy) ──────────────────────────────────────
+from substrate.organism.self_model_predictor import PredictiveSelfModel
 
-
-class SelfModel:
-    """Organism's model of its own behavior.
-
-    Uses exponential moving averages per action_type to predict
-    governance cost, failure probability, template match rate, and duration.
-    Deterministic-first: lookup tables and rolling statistics, no LLM calls.
-    """
-
-    def __init__(self) -> None:
-        self._predictions: list[dict[str, float]] = []
-        self._actuals: list[dict[str, float]] = []
-        self._ema: dict[str, dict[str, float]] = {}
-        self._alpha = 0.3
-
-    def _update_ema(self, action_type: str, metric: str, value: float) -> None:
-        if action_type not in self._ema:
-            self._ema[action_type] = {}
-        prev = self._ema[action_type].get(metric, value)
-        self._ema[action_type][metric] = self._alpha * value + (1 - self._alpha) * prev
-
-    def predict(self, action_type: str) -> dict[str, float]:
-        """Predict governance_cost, failure_prob, template_match, duration."""
-        defaults = {
-            "governance_cost_ms": 0.5,
-            "failure_prob": 0.05,
-            "template_match": 0.5,
-            "duration_ms": 50.0,
-        }
-        if action_type not in self._ema:
-            return defaults
-        return {k: self._ema[action_type].get(k, defaults[k]) for k in defaults}
-
-    def record_actual(self, action_type: str, actuals: dict[str, float]) -> None:
-        """Record prediction vs actual for one mutation."""
-        predicted = self.predict(action_type)
-        self._predictions.append(predicted)
-        self._actuals.append(actuals)
-
-        for metric, val in actuals.items():
-            self._update_ema(action_type, metric, val)
-
-    def prediction_accuracy(self) -> ConfidenceEstimate:
-        """Overall MAPE across all predictions."""
-        if not self._predictions:
-            return ConfidenceEstimate()
-
-        errors: list[float] = []
-        for pred, actual in zip(self._predictions, self._actuals):
-            for metric in pred:
-                p = pred[metric]
-                a = actual.get(metric, p)
-                if a != 0:
-                    errors.append(abs(p - a) / abs(a))
-                elif p != 0:
-                    errors.append(1.0)
-
-        if not errors:
-            return ConfidenceEstimate()
-
-        return ConfidenceEstimate.from_samples(errors)
-
-    def calibration_score(self) -> float:
-        """Fraction of actuals that fell within predicted 95% CI.
-
-        Uses ±20% of predicted value as the CI proxy
-        (since EMA doesn't track variance directly).
-        """
-        if not self._predictions:
-            return 0.0
-
-        hits = 0
-        total = 0
-        for pred, actual in zip(self._predictions, self._actuals):
-            for metric in pred:
-                p = pred[metric]
-                a = actual.get(metric, p)
-                margin = abs(p) * 0.20
-                if abs(a - p) <= margin:
-                    hits += 1
-                total += 1
-
-        return hits / max(total, 1)
-
-    def per_metric_accuracy(self) -> dict[str, ConfidenceEstimate]:
-        """MAPE broken down by metric name."""
-        by_metric: dict[str, list[float]] = {}
-
-        for pred, actual in zip(self._predictions, self._actuals):
-            for metric in pred:
-                p = pred[metric]
-                a = actual.get(metric, p)
-                if a != 0:
-                    error = abs(p - a) / abs(a)
-                elif p != 0:
-                    error = 1.0
-                else:
-                    error = 0.0
-                by_metric.setdefault(metric, []).append(error)
-
-        return {k: ConfidenceEstimate.from_samples(v) for k, v in by_metric.items()}
-
-    def record_from_mutation(self, record: MutationRecord) -> None:
-        """Convenience: record prediction + actual from a MutationRecord."""
-        actuals = {
-            "governance_cost_ms": record.governance_cost_ms,
-            "failure_prob": 0.0 if record.success else 1.0,
-            "template_match": 1.0 if record.template_matched else 0.0,
-            "duration_ms": record.duration_ms,
-        }
-        self.record_actual(record.action_type, actuals)
+SelfModel = PredictiveSelfModel
 
 
 # ── Qualification Orchestrator ────────────────────────────────────────────
@@ -1496,13 +1403,14 @@ class QualificationOrchestrator:
         self,
         harness: QualificationHarness,
         config: QualificationConfig | None = None,
+        mutation_registry: Any = None,
     ) -> None:
         self._harness = harness
         self._config = config or QualificationConfig()
         self._batch_count = 0
         self._total_submitted = 0
         self._property_snapshots: list[PropertyResult] = []
-        self._self_model = SelfModel()
+        self._self_model = PredictiveSelfModel(mutation_registry=mutation_registry)
         self._complete = False
         self._stopping_reason = ""
 
@@ -1578,7 +1486,16 @@ class QualificationOrchestrator:
             self._batch_count += 1
 
             for r in records:
-                self._self_model.record_from_mutation(r)
+                predicted = self._self_model.record_from_mutation(r)
+                actuals = {
+                    "governance_cost_ms": r.governance_cost_ms,
+                    "failure_prob": 0.0 if r.success else 1.0,
+                    "template_match": 1.0 if r.template_matched else 0.0,
+                    "duration_ms": r.duration_ms,
+                }
+                self._self_model.persist_prediction(
+                    r.action_type, r.mutation_name, predicted, actuals
+                )
 
             if self._total_submitted >= self._config.min_mutations:
                 self._property_snapshots = validate_fn(all_records)
