@@ -30,7 +30,7 @@ class ShellAdapter:
                 timeout = min(timeout, 10)
             else:
                 args = self._build_args(command)
-            use_shell = (sys.platform != "win32") and not isinstance(args, list)
+            use_shell = not isinstance(args, list)
         else:
             return {"success": False, "error": "no command or argv provided"}
 
@@ -59,6 +59,4 @@ class ShellAdapter:
             return {"success": False, "error": f"{type(exc).__name__}: {exc}"}
 
     def _build_args(self, command: str) -> list[str] | str:
-        if sys.platform == "win32":
-            return ["cmd", "/c", command]
         return command
