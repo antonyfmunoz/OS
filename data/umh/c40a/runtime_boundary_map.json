@@ -1,0 +1,729 @@
+{
+  "audit_timestamp": "2026-06-30T18:03:01.496137+00:00",
+  "hops": [
+    {
+      "hop_id": "bec_to_relay",
+      "source": "substrate/meta_ide/browser_evidence_collector.py:100",
+      "destination": "transports/node_mesh/server.py:973",
+      "transport": "HTTP POST localhost:8095/dispatch",
+      "payload_in_keys": [
+        "node_id",
+        "capability",
+        "params",
+        "timeout"
+      ],
+      "payload_out_keys": [
+        "node_id",
+        "capability",
+        "params",
+        "timeout"
+      ],
+      "latency_ms": 0.0,
+      "status": "documented",
+      "error": null,
+      "notes": "json.dumps() \u2192 urllib POST. Params: {command, timeout}"
+    },
+    {
+      "hop_id": "relay_extract",
+      "source": "transports/node_mesh/server.py:979",
+      "destination": "transports/node_mesh/server.py:1000",
+      "transport": "in-process",
+      "payload_in_keys": [
+        "node_id",
+        "capability",
+        "params",
+        "timeout"
+      ],
+      "payload_out_keys": [
+        "jsonrpc",
+        "method",
+        "params.request_id",
+        "params.capability_name",
+        "params.params",
+        "params.timeout_seconds"
+      ],
+      "latency_ms": 0.0,
+      "status": "documented",
+      "error": null,
+      "notes": "body.get('params', {}) extracts inner params dict. Wraps in JSON-RPC."
+    },
+    {
+      "hop_id": "relay_to_beast_ws",
+      "source": "transports/node_mesh/server.py:1012",
+      "destination": "nodes/windows/umh_node/client.py:423",
+      "transport": "WebSocket (json.dumps \u2192 ws.send)",
+      "payload_in_keys": [
+        "jsonrpc",
+        "method",
+        "params",
+        "id"
+      ],
+      "payload_out_keys": [
+        "method",
+        "params.capability_name",
+        "params.params"
+      ],
+      "latency_ms": 0.0,
+      "status": "documented",
+      "error": null,
+      "notes": "JSON-RPC over WS. Client routes on method='capability.execute'."
+    },
+    {
+      "hop_id": "beast_client_extract",
+      "source": "nodes/windows/umh_node/client.py:454-457",
+      "destination": "nodes/windows/umh_node/adapters/shell.py:16",
+      "transport": "in-process function call",
+      "payload_in_keys": [
+        "params.capability_name",
+        "params.params"
+      ],
+      "payload_out_keys": [
+        "operation(=cap_name)",
+        "params(=cap_params)"
+      ],
+      "latency_ms": 0.0,
+      "status": "documented",
+      "error": null,
+      "notes": "cap_params = params.get('params', {}). adapter.execute(cap_name, cap_params)"
+    },
+    {
+      "hop_id": "beast_response",
+      "source": "nodes/windows/umh_node/client.py:525-538",
+      "destination": "transports/node_mesh/server.py:448-459",
+      "transport": "WebSocket JSON-RPC response",
+      "payload_in_keys": [
+        "success",
+        "stdout",
+        "stderr",
+        "exit_code"
+      ],
+      "payload_out_keys": [
+        "jsonrpc",
+        "result.success",
+        "result.result_data",
+        "result.latency_ms"
+      ],
+      "latency_ms": 0.0,
+      "status": "documented",
+      "error": null,
+      "notes": "Adapter result wrapped in JSON-RPC response. Relay resolves pending future."
+    }
+  ],
+  "surfaces": [
+    {
+      "surface_id": "cockpit",
+      "entry_point": "transports/api/cockpit_*.py",
+      "auth": "Clerk JWT",
+      "organism_access": "HTTP API \u2192 governed_mutation() \u2192 MutationRouter \u2192 spine",
+      "governed": "FULLY_GOVERNED",
+      "push_mechanism": "WebSocket pulse every ~2s"
+    },
+    {
+      "surface_id": "cli",
+      "entry_point": "scripts/organism_mutation_cli.py",
+      "auth": "local process",
+      "organism_access": "direct governed_mutation() \u2192 MutationRouter \u2192 spine",
+      "governed": "FULLY_GOVERNED",
+      "push_mechanism": "stdout (no push)"
+    },
+    {
+      "surface_id": "discord",
+      "entry_point": "services/discord_bot.py",
+      "auth": "Discord bot token",
+      "organism_access": "signal_factory \u2192 gateway (conversational) | API \u2192 governed_mutation() (approvals)",
+      "governed": "PARTIAL \u2014 approvals governed, conversational bypasses",
+      "push_mechanism": "Discord messages"
+    },
+    {
+      "surface_id": "voice",
+      "entry_point": "umh/voice_server.py",
+      "auth": "WebSocket session",
+      "organism_access": "I/O bridge \u2192 browser \u2192 cockpit routes \u2192 governed_mutation()",
+      "governed": "FULLY_GOVERNED (lifecycle routes)",
+      "push_mechanism": "WebSocket STT/TTS"
+    },
+    {
+      "surface_id": "browser_evidence",
+      "entry_point": "substrate/meta_ide/browser_evidence_collector.py",
+      "auth": "mesh relay (no auth on localhost)",
+      "organism_access": "mesh dispatch \u2192 Beast \u2192 Chrome \u2192 evidence (read-only verification)",
+      "governed": "N/A \u2014 verification, not mutation",
+      "push_mechanism": "none (request/response)"
+    },
+    {
+      "surface_id": "mesh_dispatch",
+      "entry_point": "transports/api/_mesh_dispatch.py",
+      "auth": "mesh relay (iptables scoped)",
+      "organism_access": "HTTP relay \u2192 WS \u2192 Beast ShellAdapter",
+      "governed": "N/A \u2014 execution dispatch, not organism mutation",
+      "push_mechanism": "none (request/response)"
+    },
+    {
+      "surface_id": "event_spine",
+      "entry_point": "substrate/organism/event_spine.py",
+      "auth": "in-process",
+      "organism_access": "direct pub/sub (18 domains)",
+      "governed": "N/A \u2014 event broadcast, not mutation",
+      "push_mechanism": "subscriber callbacks"
+    }
+  ],
+  "mesh_health": {
+    "status": "healthy",
+    "data": {
+      "status": "healthy",
+      "connected_nodes": 1,
+      "node_ids": [
+        "windows-desktop"
+      ]
+    },
+    "latency_ms": 42.5
+  },
+  "beast_status": {
+    "status": "ok",
+    "nodes": [
+      {
+        "id": "windows-desktop",
+        "name": "DESKTOP-LVGUIQ9",
+        "os": "windows",
+        "os_version": "10.0.19045",
+        "status": "connected",
+        "capabilities": [
+          "shell",
+          "filesystem",
+          "desktop",
+          "clipboard",
+          "camera",
+          "broadcast",
+          "terminal"
+        ],
+        "peripherals": [
+          {
+            "peripheral_id": "monitor_0",
+            "type": "monitor",
+            "name": "\\\\.\\DISPLAY1",
+            "manufacturer": "",
+            "model": "",
+            "device_id": "\\\\.\\DISPLAY1",
+            "active": true,
+            "is_default": true,
+            "health": "ok",
+            "properties": {
+              "width": 1920,
+              "height": 1080,
+              "x": 0,
+              "y": 0,
+              "is_primary": true
+            }
+          },
+          {
+            "peripheral_id": "monitor_1",
+            "type": "monitor",
+            "name": "\\\\.\\DISPLAY2",
+            "manufacturer": "",
+            "model": "",
+            "device_id": "\\\\.\\DISPLAY2",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "width": 1080,
+              "height": 1920,
+              "x": 1920,
+              "y": -634,
+              "is_primary": false
+            }
+          },
+          {
+            "peripheral_id": "audio_out_0",
+            "type": "audio_output",
+            "name": "Realtek High Definition Audio",
+            "manufacturer": "Realtek",
+            "model": "",
+            "device_id": "HDAUDIO\\FUNC_01&VEN_10EC&DEV_0887&SUBSYS_1458A182&REV_1003\\4&42F4E46&0&0201",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "status": "OK",
+              "status_info": 3
+            }
+          },
+          {
+            "peripheral_id": "audio_out_1",
+            "type": "audio_output",
+            "name": "Focusrite USB Audio",
+            "manufacturer": "Focusrite Audio Engineering, Ltd.",
+            "model": "",
+            "device_id": "FOCUSRITEUSB\\AUDIO&ADAPTER\\1&2C3F869&0&",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "status": "OK",
+              "status_info": 3
+            }
+          },
+          {
+            "peripheral_id": "audio_out_2",
+            "type": "audio_output",
+            "name": "NVIDIA High Definition Audio",
+            "manufacturer": "NVIDIA",
+            "model": "",
+            "device_id": "HDAUDIO\\FUNC_01&VEN_10DE&DEV_0082&SUBSYS_38426593&REV_1001\\5&2C9206E3&0&0001",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "status": "OK",
+              "status_info": 3
+            }
+          },
+          {
+            "peripheral_id": "audio_out_3",
+            "type": "audio_output",
+            "name": "USB Audio Device",
+            "manufacturer": "(Generic USB Audio)",
+            "model": "",
+            "device_id": "USB\\VID_2E1A&PID_4C04&MI_02\\6&82E1A27&0&0002",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "status": "OK",
+              "status_info": 3
+            }
+          },
+          {
+            "peripheral_id": "audio_out_4",
+            "type": "audio_output",
+            "name": "NVIDIA Virtual Audio Device (Wave Extensible) (WDM)",
+            "manufacturer": "NVIDIA",
+            "model": "",
+            "device_id": "ROOT\\UNNAMED_DEVICE\\0000",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "status": "OK",
+              "status_info": 3
+            }
+          },
+          {
+            "peripheral_id": "audio_out_5",
+            "type": "audio_output",
+            "name": "Intel(R) Display Audio",
+            "manufacturer": "Intel(R) Corporation",
+            "model": "",
+            "device_id": "HDAUDIO\\FUNC_01&VEN_8086&DEV_2807&SUBSYS_80860101&REV_1000\\4&1793E418&0&0001",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "status": "OK",
+              "status_info": 3
+            }
+          },
+          {
+            "peripheral_id": "camera_0",
+            "type": "camera",
+            "name": "Insta360 Link 2",
+            "manufacturer": "Microsoft",
+            "model": "",
+            "device_id": "USB\\VID_2E1A&PID_4C04&MI_00\\6&82E1A27&0&0000",
+            "active": true,
+            "is_default": true,
+            "health": "ok",
+            "properties": {
+              "physical_id": "USB\\VID_2E1A&PID_4C04&MI_00\\6&82E1A27&0&0000"
+            }
+          },
+          {
+            "peripheral_id": "input_keyboard_0",
+            "type": "input_device",
+            "name": "Enhanced (101- or 102-key)",
+            "manufacturer": "",
+            "model": "HID Keyboard Device",
+            "device_id": "HID\\VID_046D&PID_C547&MI_01&COL01\\7&27710DE8&0&0000",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "device_class": "keyboard",
+              "connection": "usb"
+            }
+          },
+          {
+            "peripheral_id": "input_keyboard_1",
+            "type": "input_device",
+            "name": "Enhanced (101- or 102-key)",
+            "manufacturer": "",
+            "model": "HID Keyboard Device",
+            "device_id": "HID\\VID_3434&PID_0283&MI_02&COL03\\7&29D8CF62&0&0002",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "device_class": "keyboard",
+              "connection": "usb"
+            }
+          },
+          {
+            "peripheral_id": "input_keyboard_2",
+            "type": "input_device",
+            "name": "Enhanced (101- or 102-key)",
+            "manufacturer": "",
+            "model": "USB Input Device",
+            "device_id": "USB\\VID_3434&PID_0283&MI_00\\6&1CF23991&0&0000",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "device_class": "keyboard",
+              "connection": "usb"
+            }
+          },
+          {
+            "peripheral_id": "input_mouse_0",
+            "type": "input_device",
+            "name": "USB Input Device",
+            "manufacturer": "(Standard system devices)",
+            "model": "USB Input Device",
+            "device_id": "USB\\VID_046D&PID_C547&MI_00\\6&26E1542F&0&0000",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "device_class": "mouse",
+              "connection": "usb"
+            }
+          },
+          {
+            "peripheral_id": "storage_0",
+            "type": "storage",
+            "name": "250 SSD Games",
+            "manufacturer": "",
+            "model": "",
+            "device_id": "B:",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "drive_letter": "B:",
+              "total_gb": 232.9,
+              "free_gb": 170.0,
+              "fs_type": "NTFS",
+              "drive_type": "ssd"
+            }
+          },
+          {
+            "peripheral_id": "storage_1",
+            "type": "storage",
+            "name": "250 SSD",
+            "manufacturer": "",
+            "model": "",
+            "device_id": "C:",
+            "active": true,
+            "is_default": true,
+            "health": "ok",
+            "properties": {
+              "drive_letter": "C:",
+              "total_gb": 231.8,
+              "free_gb": 21.8,
+              "fs_type": "NTFS",
+              "drive_type": "ssd"
+            }
+          },
+          {
+            "peripheral_id": "storage_2",
+            "type": "storage",
+            "name": "EX SSD 1T",
+            "manufacturer": "",
+            "model": "",
+            "device_id": "E:",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "drive_letter": "E:",
+              "total_gb": 931.5,
+              "free_gb": 277.0,
+              "fs_type": "exFAT",
+              "drive_type": "ssd"
+            }
+          },
+          {
+            "peripheral_id": "net_0",
+            "type": "network",
+            "name": "Qualcomm Atheros AR938x Wireless Network Adapter",
+            "manufacturer": "Qualcomm Atheros Communications Inc.",
+            "model": "",
+            "device_id": "2",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "mac": "EC:08:6B:70:67:21",
+              "speed_mbps": 450,
+              "connection_type": "wifi",
+              "connection_id": "Wi-Fi"
+            }
+          },
+          {
+            "peripheral_id": "net_1",
+            "type": "network",
+            "name": "Tailscale Tunnel",
+            "manufacturer": "WireGuard LLC",
+            "model": "",
+            "device_id": "5",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "mac": null,
+              "speed_mbps": 100000,
+              "connection_type": "tailscale",
+              "connection_id": "Tailscale"
+            }
+          },
+          {
+            "peripheral_id": "display_adapter_0",
+            "type": "display_adapter",
+            "name": "Intel(R) HD Graphics 4600",
+            "manufacturer": "",
+            "model": "Intel(R) HD Graphics Family",
+            "device_id": "VideoController1",
+            "active": true,
+            "is_default": true,
+            "health": "ok",
+            "properties": {
+              "gpu_name": "Intel(R) HD Graphics 4600",
+              "vram_mb": 1024,
+              "driver_version": "20.19.15.5171"
+            }
+          },
+          {
+            "peripheral_id": "display_adapter_1",
+            "type": "display_adapter",
+            "name": "NVIDIA GeForce GTX 1080 Ti",
+            "manufacturer": "",
+            "model": "NVIDIA GeForce GTX 1080 Ti",
+            "device_id": "VideoController2",
+            "active": true,
+            "is_default": false,
+            "health": "ok",
+            "properties": {
+              "gpu_name": "NVIDIA GeForce GTX 1080 Ti",
+              "vram_mb": 4095,
+              "driver_version": "32.0.15.8157"
+            }
+          }
+        ],
+        "metrics": {
+          "cpu": 20.4,
+          "memory": 43.8,
+          "disk": 90.5,
+          "network_io": {
+            "bytes_sent": 189435440397,
+            "bytes_recv": 4138228881
+          },
+          "gpu": {
+            "utilization": 0.0,
+            "memory_used_mb": 982.0,
+            "memory_total_mb": 11264.0,
+            "memory_percent": 8.7,
+            "temperature": 56.0,
+            "name": "NVIDIA GeForce GTX 1080 Ti"
+          }
+        },
+        "last_heartbeat": "2026-06-30T18:03:01.789193+00:00",
+        "tailscale_ip": "100.74.199.102",
+        "connected_at": "2026-06-28T22:19:35.201897+00:00",
+        "daemon_version": "0.2.0"
+      }
+    ],
+    "count": 1
+  },
+  "serialization_tests": [
+    {
+      "label": "bec_command_path",
+      "steps": [
+        {
+          "step": "http_encode_decode",
+          "params_keys": [
+            "command",
+            "timeout"
+          ],
+          "match": true
+        },
+        {
+          "step": "relay_extract_params",
+          "params_keys": [
+            "command",
+            "timeout"
+          ],
+          "capability": "shell"
+        },
+        {
+          "step": "relay_jsonrpc_wrap",
+          "outer_params_keys": [
+            "request_id",
+            "capability_name",
+            "params",
+            "timeout_seconds"
+          ],
+          "inner_params_keys": [
+            "command",
+            "timeout"
+          ]
+        },
+        {
+          "step": "client_extract_cap_params",
+          "cap_name": "shell",
+          "cap_params_keys": [
+            "command",
+            "timeout"
+          ]
+        },
+        {
+          "step": "adapter_check",
+          "has_argv": false,
+          "has_command": true,
+          "would_succeed": true
+        }
+      ],
+      "final_status": "pass"
+    },
+    {
+      "label": "md_argv_path",
+      "steps": [
+        {
+          "step": "http_encode_decode",
+          "params_keys": [
+            "argv",
+            "cwd"
+          ],
+          "match": true
+        },
+        {
+          "step": "relay_extract_params",
+          "params_keys": [
+            "argv",
+            "cwd"
+          ],
+          "capability": "shell"
+        },
+        {
+          "step": "relay_jsonrpc_wrap",
+          "outer_params_keys": [
+            "request_id",
+            "capability_name",
+            "params",
+            "timeout_seconds"
+          ],
+          "inner_params_keys": [
+            "argv",
+            "cwd"
+          ]
+        },
+        {
+          "step": "client_extract_cap_params",
+          "cap_name": "shell",
+          "cap_params_keys": [
+            "argv",
+            "cwd"
+          ]
+        },
+        {
+          "step": "adapter_check",
+          "has_argv": true,
+          "has_command": false,
+          "would_succeed": true
+        }
+      ],
+      "final_status": "pass"
+    }
+  ],
+  "known_issues": [
+    {
+      "id": "governance_capability_name",
+      "test_result": {
+        "status": "tested",
+        "shell_allowed": true,
+        "shell_execute_allowed": true,
+        "shell_restricted_allowed": true,
+        "shell_execute_restricted_allowed": true,
+        "governance_bypass_confirmed": false,
+        "notes": "No bypass detected (allowed_commands may be empty)"
+      }
+    },
+    {
+      "id": "runtime_adapter_capability_name",
+      "test_result": {
+        "status": "tested",
+        "sends_shell_execute": false,
+        "sends_shell": true,
+        "notes": "MeshNodeRuntimeAdapter sends 'shell' \u2014 correct"
+      }
+    }
+  ],
+  "live_dispatch_results": [
+    {
+      "path": "command",
+      "command": "echo c40a_audit_command_path",
+      "latency_ms": 126.0,
+      "response": {
+        "ok": true,
+        "status": "executed",
+        "result_data": {
+          "success": true,
+          "stdout": "c40a_audit_command_path\n",
+          "stderr": "",
+          "exit_code": 0
+        },
+        "error": null,
+        "latency_ms": 39.3
+      },
+      "success": true,
+      "error": null
+    },
+    {
+      "path": "argv",
+      "argv": [
+        "echo",
+        "c40a_audit_argv_path"
+      ],
+      "latency_ms": 99.8,
+      "response": {
+        "ok": false,
+        "status": "failed",
+        "result_data": {
+          "success": false,
+          "error": "FileNotFoundError: [WinError 2] The system cannot find the file specified"
+        },
+        "error": null,
+        "latency_ms": 5.3
+      },
+      "success": false,
+      "error": null
+    },
+    {
+      "path": "complex_command",
+      "command": "python3 -c \"import json; print(json.dumps({'status': 'alive', 'source': 'c40a_audit'}))\"",
+      "latency_ms": 670.1,
+      "response": {
+        "ok": false,
+        "status": "failed",
+        "result_data": {
+          "success": false,
+          "stdout": "",
+          "stderr": "  File \"<string>\", line 1\n    \"import\n    ^\nSyntaxError: unterminated string literal (detected at line 1)\n",
+          "exit_code": 1
+        },
+        "error": null,
+        "latency_ms": 585.6
+      },
+      "success": false,
+      "error": null
+    }
+  ]
+}

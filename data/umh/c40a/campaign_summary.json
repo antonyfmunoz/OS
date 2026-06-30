@@ -1,0 +1,24 @@
+{
+  "total_mutations": 550,
+  "browser_verified": 0,
+  "phases_completed": 7,
+  "elapsed_s": 190.9,
+  "verdicts": {
+    "organism": {
+      "status": "PASS",
+      "evidence": "qualification_recheck"
+    },
+    "runtime": {
+      "status": "PASS",
+      "evidence": "phases_1_2_6"
+    },
+    "projection": {
+      "status": "PASS",
+      "evidence": "phase_4_results"
+    },
+    "operator": {
+      "status": "UNTESTED",
+      "evidence": ""
+    }
+  }
+}
