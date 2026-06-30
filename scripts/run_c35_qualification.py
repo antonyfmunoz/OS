@@ -94,10 +94,12 @@ def _bootstrap_organism() -> dict[str, Any]:
 
 def _make_execute_fn(spec_name: str, fail: bool = False):
     """Create an execute_fn for a given spec."""
+
     def execute_fn() -> tuple[str, bool]:
         if fail:
             return (f"C35 injected failure for {spec_name}", False)
         return (f"C35 qualification mutation: {spec_name}", True)
+
     return execute_fn
 
 
@@ -132,7 +134,9 @@ def _submit_mutation(
 
     envelope = ActionEnvelope(
         intent=f"C35 qualification: {spec_name}",
-        action_type=spec.action_type if isinstance(spec.action_type, ActionType) else ActionType.OPERATE,
+        action_type=spec.action_type
+        if isinstance(spec.action_type, ActionType)
+        else ActionType.OPERATE,
         source=source,
         execute_fn=_make_execute_fn(spec_name, fail=fail),
         risk_level=spec.risk_level,
@@ -151,8 +155,10 @@ def _submit_mutation(
     post_journal = journal.entries_for(result_envelope.envelope_id)
     post_events = event_spine.recent(limit=50)
     relevant_events = [
-        e for e in post_events
-        if hasattr(e, "data") and isinstance(e.data, dict)
+        e
+        for e in post_events
+        if hasattr(e, "data")
+        and isinstance(e.data, dict)
         and e.data.get("envelope_id") == result_envelope.envelope_id
     ]
 
@@ -167,7 +173,9 @@ def _submit_mutation(
     record = MutationRecord(
         mutation_id=result_envelope.envelope_id,
         mutation_name=spec_name,
-        action_type=spec.action_type.value if hasattr(spec.action_type, "value") else str(spec.action_type),
+        action_type=spec.action_type.value
+        if hasattr(spec.action_type, "value")
+        else str(spec.action_type),
         source=source,
         success=result_envelope.result_success,
         duration_ms=elapsed_ms,
@@ -198,6 +206,7 @@ def _submit_batch(
 
     records = []
     import random
+
     for i in range(count):
         spec = specs[i % len(specs)]
         fail = random.random() < fail_rate
@@ -219,7 +228,7 @@ def run_property_1(org: dict, harness: QualificationHarness, mutation_count: int
 
     registry = org["registry"]
     specs = registry.all_specs()
-    target_specs = specs[:min(mutation_count, len(specs))]
+    target_specs = specs[: min(mutation_count, len(specs))]
 
     result = harness.validate_mutation_integrity(
         spine=org["spine"],
@@ -246,14 +255,17 @@ def run_property_2(org: dict, harness: QualificationHarness, mutation_count: int
     operations = []
     for i in range(min(mutation_count, len(specs))):
         spec = specs[i]
-        operations.append({
-            "mutation_name": spec.name,
-            "intent": f"C35 coverage test: {spec.name}",
-            "execute_fn": _make_execute_fn(spec.name),
-        })
+        operations.append(
+            {
+                "mutation_name": spec.name,
+                "intent": f"C35 coverage test: {spec.name}",
+                "execute_fn": _make_execute_fn(spec.name),
+            }
+        )
 
     def governed_fn(**kwargs):
         from transports.api.governed import MutationResponse
+
         spec_name = kwargs.get("mutation_name", "unknown")
         execute_fn = kwargs.get("execute_fn", lambda: ("ok", True))
 
@@ -265,7 +277,9 @@ def run_property_2(org: dict, harness: QualificationHarness, mutation_count: int
 
         envelope = ActionEnvelope(
             intent=kwargs.get("intent", f"coverage: {spec_name}"),
-            action_type=spec.action_type if isinstance(spec.action_type, ActionType) else ActionType.OPERATE,
+            action_type=spec.action_type
+            if isinstance(spec.action_type, ActionType)
+            else ActionType.OPERATE,
             source=kwargs.get("source", "c35_qualification"),
             execute_fn=execute_fn,
             risk_level=spec.risk_level,
@@ -303,7 +317,8 @@ def run_property_3(org: dict, harness: QualificationHarness) -> PropertyResult:
         recent = event_spine.recent(limit=500)
         if recent:
             return any(
-                hasattr(e, "data") and isinstance(e.data, dict)
+                hasattr(e, "data")
+                and isinstance(e.data, dict)
                 and e.data.get("envelope_id") == envelope_id
                 for e in recent
             )
@@ -392,20 +407,24 @@ def run_property_6(org: dict, harness: QualificationHarness) -> PropertyResult:
             elapsed = (time.monotonic() - start) * 1000
 
             with errors_lock:
-                concurrent_results.append({
-                    "conflict": False,
-                    "cancellation_attempted": False,
-                    "contention_ms": elapsed,
-                    "success": record.success,
-                    "mutation_id": record.mutation_id,
-                })
+                concurrent_results.append(
+                    {
+                        "conflict": False,
+                        "cancellation_attempted": False,
+                        "contention_ms": elapsed,
+                        "success": record.success,
+                        "mutation_id": record.mutation_id,
+                    }
+                )
         except Exception as exc:
             with errors_lock:
-                concurrent_results.append({
-                    "conflict": True,
-                    "contention_ms": 0,
-                    "error": str(exc),
-                })
+                concurrent_results.append(
+                    {
+                        "conflict": True,
+                        "contention_ms": 0,
+                        "error": str(exc),
+                    }
+                )
 
     specs = org["registry"].all_specs()
     threads = []
@@ -436,13 +455,15 @@ def run_property_7(org: dict, harness: QualificationHarness) -> PropertyResult:
         correct_model = True
         visible = True
 
-        routing_decisions.append({
-            "mutation_name": spec.name,
-            "correct_harness": correct_harness,
-            "correct_model": correct_model,
-            "visible": visible,
-            "fallback_attempted": False,
-        })
+        routing_decisions.append(
+            {
+                "mutation_name": spec.name,
+                "correct_harness": correct_harness,
+                "correct_model": correct_model,
+                "visible": visible,
+                "fallback_attempted": False,
+            }
+        )
 
     result = harness.validate_meta_orchestration(routing_decisions)
     logger.info("  Property 7: %s — %s", result.status.value, result.evidence)
@@ -457,9 +478,15 @@ def run_property_8(org: dict, harness: QualificationHarness) -> PropertyResult:
     specs = org["registry"].all_specs()
 
     failure_types = [
-        "model_failure", "timeout", "rejection_cascade",
-        "invalid_spec", "execution_error", "double_rate",
-        "backlog_stress", "event_spike", "corrupt_template",
+        "model_failure",
+        "timeout",
+        "rejection_cascade",
+        "invalid_spec",
+        "execution_error",
+        "double_rate",
+        "backlog_stress",
+        "event_spike",
+        "corrupt_template",
     ]
 
     for i, failure_type in enumerate(failure_types):
@@ -473,14 +500,18 @@ def run_property_8(org: dict, harness: QualificationHarness) -> PropertyResult:
         fail_records = []
         for j in range(3):
             record = _submit_mutation(
-                org, spec.name, harness,
+                org,
+                spec.name,
+                harness,
                 source=f"c35_failure_{failure_type}",
                 fail=True,
             )
             fail_records.append(record)
 
         recovery_record = _submit_mutation(
-            org, spec.name, harness,
+            org,
+            spec.name,
+            harness,
             source=f"c35_recovery_{failure_type}",
             fail=False,
         )
@@ -492,20 +523,22 @@ def run_property_8(org: dict, harness: QualificationHarness) -> PropertyResult:
 
         all_events = org["event_spine"].recent(limit=50)
         learning_signals = [
-            e for e in all_events
-            if hasattr(e, "data") and isinstance(e.data, dict)
-            and "learning" in e.event_type
+            e
+            for e in all_events
+            if hasattr(e, "data") and isinstance(e.data, dict) and "learning" in e.event_type
         ]
 
-        injection_results.append({
-            "failure_type": failure_type,
-            "recovered": recovery_record.success,
-            "recovery_time_s": recovery_time,
-            "state_preserved": state_preserved,
-            "learning_signal_produced": len(learning_signals) > 0 or len(fail_records) > 0,
-            "stress_duration_s": recovery_time,
-            "time_outside_band_s": recovery_time * 0.1,
-        })
+        injection_results.append(
+            {
+                "failure_type": failure_type,
+                "recovered": recovery_record.success,
+                "recovery_time_s": recovery_time,
+                "state_preserved": state_preserved,
+                "learning_signal_produced": len(learning_signals) > 0 or len(fail_records) > 0,
+                "stress_duration_s": recovery_time,
+                "time_outside_band_s": recovery_time * 0.1,
+            }
+        )
 
     baseline_bands = {}
     result = harness.validate_recovery_homeostasis(injection_results, baseline_bands)
@@ -514,8 +547,8 @@ def run_property_8(org: dict, harness: QualificationHarness) -> PropertyResult:
 
 
 def run_property_9(org: dict, harness: QualificationHarness) -> PropertyResult:
-    """Property 9: Self-Maintenance — degradation detection + work packet."""
-    logger.info("Property 9: Self-Maintenance — degradation → work packet chain")
+    """Property 9: Self-Regulation — degradation detection + work packet."""
+    logger.info("Property 9: Self-Regulation — degradation → work packet chain")
 
     learning = org["learning"]
     degradation_events = []
@@ -525,7 +558,7 @@ def run_property_9(org: dict, harness: QualificationHarness) -> PropertyResult:
     if test_spec is None:
         return PropertyResult(
             property_id=9,
-            property_name="Self-Maintenance",
+            property_name="Self-Regulation",
             status=PropertyStatus.FAILED,
             failures=["No specs to test"],
         )
@@ -547,7 +580,9 @@ def run_property_9(org: dict, harness: QualificationHarness) -> PropertyResult:
 
     for cycle in range(5):
         spec = specs[cycle % len(specs)]
-        action_type = spec.action_type.value if hasattr(spec.action_type, "value") else str(spec.action_type)
+        action_type = (
+            spec.action_type.value if hasattr(spec.action_type, "value") else str(spec.action_type)
+        )
 
         for _ in range(4):
             _submit_mutation(org, spec.name, harness, source="c35_degradation", fail=True)
@@ -559,16 +594,18 @@ def run_property_9(org: dict, harness: QualificationHarness) -> PropertyResult:
             with callback_lock:
                 fired_keys = list(degradation_callback_fired.keys())
 
-        degradation_events.append({
-            "action_type": action_type,
-            "degradation_detected": fired or has_callback,
-            "work_packet_created": fired,
-            "proposal_latency_s": 0.5 if fired else 30.0,
-            "repair_succeeded": fired,
-            "reliability_recovered": fired,
-        })
+        degradation_events.append(
+            {
+                "action_type": action_type,
+                "degradation_detected": fired or has_callback,
+                "work_packet_created": fired,
+                "proposal_latency_s": 0.5 if fired else 30.0,
+                "repair_succeeded": fired,
+                "reliability_recovered": fired,
+            }
+        )
 
-    result = harness.validate_self_maintenance(degradation_events)
+    result = harness.validate_self_regulation(degradation_events)
     logger.info("  Property 9: %s — %s", result.status.value, result.evidence)
     return result
 
@@ -664,7 +701,8 @@ def run_full_qualification(mutation_count: int = 100, single_property: int | Non
 
     report_path = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "audits",
+        "data",
+        "audits",
         f"2026-06-29_c35_qualification_results.md",
     )
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
@@ -677,9 +715,11 @@ def run_full_qualification(mutation_count: int = 100, single_property: int | Non
     logger.info("=" * 70)
     logger.info("C35 QUALIFICATION COMPLETE")
     logger.info("  ORL: %d", report.orl_achieved)
-    logger.info("  Properties: %d/%d converged",
-                sum(1 for p in properties if p.status == PropertyStatus.CONVERGED),
-                len(properties))
+    logger.info(
+        "  Properties: %d/%d converged",
+        sum(1 for p in properties if p.status == PropertyStatus.CONVERGED),
+        len(properties),
+    )
     logger.info("  Total mutations: %d", report.total_mutations)
     logger.info("  Duration: %.1fs", elapsed)
     logger.info("=" * 70)
@@ -687,10 +727,13 @@ def run_full_qualification(mutation_count: int = 100, single_property: int | Non
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="C35 Qualification Runner")
-    parser.add_argument("--mutations", type=int, default=100,
-                        help="Number of mutations in initial batch (default: 100)")
-    parser.add_argument("--property", type=int, default=None,
-                        help="Run a single property (1-9)")
+    parser.add_argument(
+        "--mutations",
+        type=int,
+        default=100,
+        help="Number of mutations in initial batch (default: 100)",
+    )
+    parser.add_argument("--property", type=int, default=None, help="Run a single property (1-9)")
     args = parser.parse_args()
 
     run_full_qualification(

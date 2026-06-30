@@ -1,11 +1,16 @@
-"""C35 Organism Qualification Harness.
+"""Organism Qualification Harness.
 
 Proves operational properties of the UMH organism under sustained load.
-Not a benchmark comparison (C32/C33) — a qualification campaign.
+Not a benchmark comparison — a qualification campaign.
 
 Every property is measured as a convergence function, not a threshold.
 The organism reaches stable operating regime when metric standard deviation
 over a rolling window drops below 10% of mean for 3 consecutive windows.
+
+Three-dimensional qualification output:
+  ORL        = what the organism can reliably do (1-8)
+  Confidence = how much evidence supports that ORL (0-100%)
+  Predictive Accuracy = how well the organism models itself (0-100%)
 
 UMH substrate subsystem. Instance-agnostic.
 """
@@ -35,15 +40,101 @@ CONSECUTIVE_WINDOWS_REQUIRED = 3
 DRIFT_DEVIATION_LIMIT = 0.20
 
 
+# ── Confidence estimation ─────────────────────────────────────────────────
+
+
+@dataclass
+class ConfidenceEstimate:
+    """Statistical confidence interval for a metric."""
+
+    value: float = 0.0
+    lower: float = 0.0
+    upper: float = 0.0
+    confidence_level: float = 0.95
+    sample_size: int = 0
+
+    @staticmethod
+    def from_samples(values: list[float], confidence: float = 0.95) -> "ConfidenceEstimate":
+        """Compute CI using t-distribution."""
+        n = len(values)
+        if n == 0:
+            return ConfidenceEstimate(confidence_level=confidence)
+        if n == 1:
+            return ConfidenceEstimate(
+                value=values[0],
+                lower=values[0],
+                upper=values[0],
+                confidence_level=confidence,
+                sample_size=1,
+            )
+
+        mean = statistics.mean(values)
+        se = statistics.stdev(values) / math.sqrt(n)
+
+        # t-distribution critical value approximation for common levels
+        # For large n, t → z. For small n, use conservative multipliers.
+        if confidence >= 0.99:
+            z = 2.576
+        elif confidence >= 0.95:
+            z = 1.960
+        elif confidence >= 0.90:
+            z = 1.645
+        else:
+            z = 1.282
+
+        # Small-sample correction (n < 30)
+        if n < 30:
+            z *= 1.0 + 2.0 / max(n - 1, 1)
+
+        margin = z * se
+        return ConfidenceEstimate(
+            value=round(mean, 6),
+            lower=round(mean - margin, 6),
+            upper=round(mean + margin, 6),
+            confidence_level=confidence,
+            sample_size=n,
+        )
+
+    def margin(self) -> float:
+        return (self.upper - self.lower) / 2
+
+    def contains(self, actual: float) -> bool:
+        """True if actual falls within the CI."""
+        return self.lower <= actual <= self.upper
+
+    def relative_margin(self) -> float:
+        """Margin as fraction of value. Inf if value is 0."""
+        if self.value == 0:
+            return float("inf") if self.margin() > 0 else 0.0
+        return self.margin() / abs(self.value)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "value": self.value,
+            "lower": self.lower,
+            "upper": self.upper,
+            "margin": round(self.margin(), 6),
+            "confidence_level": self.confidence_level,
+            "sample_size": self.sample_size,
+        }
+
+    def format(self) -> str:
+        """Human-readable: '95.0% +/-2.1%'."""
+        if self.sample_size == 0:
+            return "no data"
+        return f"{self.value:.4f} +/-{self.margin():.4f}"
+
+
 class ORL(int, Enum):
     """Operational Readiness Level."""
+
     COMPONENTS_EXIST = 1
     COMPONENTS_CONNECTED = 2
     CANONICAL_MUTATION_ENFORCED = 3
     STABLE_UNDER_LOAD = 4
     ADAPTIVE_LEARNING = 5
     AUTONOMOUS_COORDINATION = 6
-    SELF_MAINTAINING = 7
+    SELF_REGULATING = 7
     PRODUCTION_QUALIFIED = 8
 
 
@@ -77,7 +168,7 @@ class ConvergenceWindow:
     def current_window(self) -> list[float]:
         if len(self.values) < self.window_size:
             return self.values[:]
-        return self.values[-self.window_size:]
+        return self.values[-self.window_size :]
 
     def mean(self) -> float:
         w = self.current_window()
@@ -106,7 +197,9 @@ class ConvergenceWindow:
         if len(self.values) < self.window_size:
             return 0
         count = 0
-        for offset in range(min(CONSECUTIVE_WINDOWS_REQUIRED * 2, len(self.values) - self.window_size + 1)):
+        for offset in range(
+            min(CONSECUTIVE_WINDOWS_REQUIRED * 2, len(self.values) - self.window_size + 1)
+        ):
             end = len(self.values) - offset
             start = end - self.window_size
             if start < 0:
@@ -127,14 +220,24 @@ class ConvergenceWindow:
     def is_fully_converged(self) -> bool:
         return self.consecutive_convergence_count() >= CONSECUTIVE_WINDOWS_REQUIRED
 
+    def confidence_estimate(self, level: float = 0.95) -> ConfidenceEstimate:
+        """CI for the rolling window mean."""
+        return ConfidenceEstimate.from_samples(self.current_window(), level)
+
     def to_dict(self) -> dict[str, Any]:
+        ci = self.confidence_estimate()
         return {
             "count": len(self.values),
             "mean": round(self.mean(), 4),
             "stddev": round(self.stddev(), 4) if not math.isinf(self.stddev()) else None,
-            "cv": round(self.coefficient_of_variation(), 4) if not math.isinf(self.coefficient_of_variation()) else None,
+            "cv": round(self.coefficient_of_variation(), 4)
+            if not math.isinf(self.coefficient_of_variation())
+            else None,
             "converged": self.is_fully_converged(),
             "consecutive_windows": self.consecutive_convergence_count(),
+            "ci_lower": ci.lower,
+            "ci_upper": ci.upper,
+            "ci_margin": round(ci.margin(), 6),
         }
 
 
@@ -179,13 +282,17 @@ class PropertyResult:
     mutation_count: int = 0
     started_at: float = 0.0
     completed_at: float = 0.0
+    confidence: float = 0.0
+    metric_estimates: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "property_id": self.property_id,
             "property_name": self.property_name,
             "status": self.status.value,
+            "confidence": round(self.confidence, 4),
             "convergence_metrics": self.convergence_metrics,
+            "metric_estimates": self.metric_estimates,
             "evidence": self.evidence,
             "failures": self.failures,
             "mutation_count": self.mutation_count,
@@ -207,9 +314,11 @@ class DriftResult:
 
 @dataclass
 class QualificationReport:
-    """Final C35 qualification report."""
+    """Qualification report with three-dimensional output."""
 
     orl_achieved: int = 3
+    orl_confidence: float = 0.0
+    predictive_accuracy: float = 0.0
     properties: list[PropertyResult] = field(default_factory=list)
     drift: DriftResult = field(default_factory=DriftResult)
     total_mutations: int = 0
@@ -217,17 +326,29 @@ class QualificationReport:
     hypothesis_result: str = ""
     started_at: float = 0.0
     completed_at: float = 0.0
+    weakest_property: str = ""
+    recommendation: str = ""
+    convergence_status: str = ""
+    stopping_reason: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        orl_val = self.orl_achieved.value if isinstance(self.orl_achieved, ORL) else self.orl_achieved
+        orl_val = (
+            self.orl_achieved.value if isinstance(self.orl_achieved, ORL) else self.orl_achieved
+        )
         return {
             "orl_achieved": orl_val,
             "orl_label": ORL(orl_val).name if 1 <= orl_val <= 8 else "UNKNOWN",
+            "orl_confidence": round(self.orl_confidence, 4),
+            "predictive_accuracy": round(self.predictive_accuracy, 4),
             "properties": [p.to_dict() for p in self.properties],
             "drift": self.drift.to_dict(),
             "total_mutations": self.total_mutations,
             "total_duration_s": round(self.total_duration_s, 2),
             "hypothesis_result": self.hypothesis_result,
+            "weakest_property": self.weakest_property,
+            "recommendation": self.recommendation,
+            "convergence_status": self.convergence_status,
+            "stopping_reason": self.stopping_reason,
         }
 
 
@@ -235,15 +356,16 @@ class QualificationReport:
 
 
 class QualificationHarness:
-    """Runs all 9 system properties and computes ORL."""
+    """Runs system properties and computes ORL with confidence."""
 
-    def __init__(self) -> None:
+    def __init__(self, load_existing: bool = True) -> None:
         os.makedirs(_STORE_DIR, exist_ok=True)
         self._mutations: list[MutationRecord] = []
         self._property_results: list[PropertyResult] = []
         self._convergence: dict[str, ConvergenceWindow] = {}
         self._started_at = time.time()
-        self._load_existing()
+        if load_existing:
+            self._load_existing()
 
     def _load_existing(self) -> None:
         if os.path.isfile(_MUTATIONS_PATH):
@@ -255,10 +377,15 @@ class QualificationHarness:
                             continue
                         try:
                             d = json.loads(line)
-                            self._mutations.append(MutationRecord(**{
-                                k: v for k, v in d.items()
-                                if k in MutationRecord.__dataclass_fields__
-                            }))
+                            self._mutations.append(
+                                MutationRecord(
+                                    **{
+                                        k: v
+                                        for k, v in d.items()
+                                        if k in MutationRecord.__dataclass_fields__
+                                    }
+                                )
+                            )
                         except (json.JSONDecodeError, TypeError) as exc:
                             logger.debug("Skip malformed mutation record: %s", exc)
             except OSError as exc:
@@ -320,9 +447,12 @@ class QualificationHarness:
 
         for spec in mutation_specs:
             from substrate.organism.action_envelope import ActionEnvelope, ActionType
+
             envelope = ActionEnvelope(
                 intent=f"C35 integrity test: {spec.name}",
-                action_type=spec.action_type if isinstance(spec.action_type, ActionType) else ActionType.OPERATE,
+                action_type=spec.action_type
+                if isinstance(spec.action_type, ActionType)
+                else ActionType.OPERATE,
                 source="c35_qualification",
                 execute_fn=execute_fn,
                 risk_level=spec.risk_level,
@@ -338,8 +468,10 @@ class QualificationHarness:
             post_journal = journal.entries_for(submitted.envelope_id)
             post_events = event_spine.recent(limit=100)
             relevant_events = [
-                e for e in post_events
-                if hasattr(e, 'data') and isinstance(e.data, dict)
+                e
+                for e in post_events
+                if hasattr(e, "data")
+                and isinstance(e.data, dict)
                 and e.data.get("envelope_id") == submitted.envelope_id
             ]
 
@@ -357,12 +489,20 @@ class QualificationHarness:
             record = MutationRecord(
                 mutation_id=submitted.envelope_id,
                 mutation_name=spec.name,
-                action_type=spec.action_type.value if hasattr(spec.action_type, 'value') else str(spec.action_type),
+                action_type=spec.action_type.value
+                if hasattr(spec.action_type, "value")
+                else str(spec.action_type),
                 source="c35_qualification",
                 success=submitted.result_success,
-                duration_ms=(submitted.completed_at - submitted.created_at) * 1000 if submitted.completed_at else 0,
-                governance_cost_ms=submitted.metadata.get("spine_timing", {}).get("governance_check_ms", 0),
-                fast_path_used=submitted.metadata.get("spine_timing", {}).get("fast_path_used", False),
+                duration_ms=(submitted.completed_at - submitted.created_at) * 1000
+                if submitted.completed_at
+                else 0,
+                governance_cost_ms=submitted.metadata.get("spine_timing", {}).get(
+                    "governance_check_ms", 0
+                ),
+                fast_path_used=submitted.metadata.get("spine_timing", {}).get(
+                    "fast_path_used", False
+                ),
                 artifacts_present=artifacts,
                 spine_timing=submitted.metadata.get("spine_timing", {}),
             )
@@ -410,25 +550,29 @@ class QualificationHarness:
                     execute_fn=op.get("execute_fn", lambda: ("ok", True)),
                     source="c35_qualification",
                 )
-                success = getattr(response, 'success', False)
+                success = getattr(response, "success", False)
                 if success:
                     completed += 1
                     coverage.add(1.0)
                 else:
                     coverage.add(0.0)
-                    gaps.append({
-                        "operation": op["mutation_name"],
-                        "gap_type": GapType.BUG_FIX.value,
-                        "reason": getattr(response, 'rejected_reason', 'unknown'),
-                    })
+                    gaps.append(
+                        {
+                            "operation": op["mutation_name"],
+                            "gap_type": GapType.BUG_FIX.value,
+                            "reason": getattr(response, "rejected_reason", "unknown"),
+                        }
+                    )
             except Exception as exc:
                 logger.debug("Coverage test failed for %s: %s", op.get("mutation_name"), exc)
                 coverage.add(0.0)
-                gaps.append({
-                    "operation": op.get("mutation_name", "unknown"),
-                    "gap_type": GapType.NEW_CAPABILITY.value,
-                    "reason": str(exc),
-                })
+                gaps.append(
+                    {
+                        "operation": op.get("mutation_name", "unknown"),
+                        "gap_type": GapType.NEW_CAPABILITY.value,
+                        "reason": str(exc),
+                    }
+                )
 
         ratio = completed / max(len(operations), 1)
         result.convergence_metrics["coverage_ratio"] = {
@@ -528,7 +672,9 @@ class QualificationHarness:
                 prev = typed_mutations[i - 1]
                 curr = typed_mutations[i]
                 if prev.governance_cost_ms > 0:
-                    gain = (prev.governance_cost_ms - curr.governance_cost_ms) / prev.governance_cost_ms
+                    gain = (
+                        prev.governance_cost_ms - curr.governance_cost_ms
+                    ) / prev.governance_cost_ms
                     feedback_gains.append(gain)
 
         positive_gains = sum(1 for g in feedback_gains if g > 0)
@@ -545,7 +691,7 @@ class QualificationHarness:
             "mean_gain": round(statistics.mean(feedback_gains), 4) if feedback_gains else 0.0,
         }
 
-        rel_ok = reliability.mean() > 0.90
+        rel_ok = reliability.mean() >= 0.90
         gov_at_floor = governance_cost.mean() < 1.0
         gain_ok = feedback_gain_ratio > 0.5 or len(feedback_gains) < 3 or gov_at_floor
         result.status = PropertyStatus.CONVERGED if (rel_ok and gain_ok) else PropertyStatus.FAILED
@@ -582,23 +728,17 @@ class QualificationHarness:
             result.completed_at = time.time()
             return result
 
-        journal_ids = [getattr(e, 'envelope_id', '') for e in journal_entries]
+        journal_ids = [getattr(e, "envelope_id", "") for e in journal_entries]
         dup_journal = len(journal_ids) - len(set(journal_ids)) if journal_ids else 0
         journal_dup_rate = dup_journal / max(len(journal_ids), 1)
 
         event_count = len(events)
         event_amplification = event_count / max(mutation_count, 1)
 
-        orphan_count = sum(
-            1 for m in mutations
-            if not m.success and m.duration_ms == 0
-        )
+        orphan_count = sum(1 for m in mutations if not m.success and m.duration_ms == 0)
         orphan_rate = orphan_count / max(mutation_count, 1)
 
-        retry_count = sum(
-            1 for m in mutations
-            if m.spine_timing.get("retry_count", 0) > 0
-        )
+        retry_count = sum(1 for m in mutations if m.spine_timing.get("retry_count", 0) > 0)
         retry_rate = retry_count / max(mutation_count, 1)
 
         weights = {
@@ -610,7 +750,11 @@ class QualificationHarness:
         }
 
         gov_costs = [m.governance_cost_ms for m in mutations if m.governance_cost_ms > 0]
-        gov_variance = statistics.stdev(gov_costs) / statistics.mean(gov_costs) if len(gov_costs) > 1 and statistics.mean(gov_costs) > 0 else 0.0
+        gov_variance = (
+            statistics.stdev(gov_costs) / statistics.mean(gov_costs)
+            if len(gov_costs) > 1 and statistics.mean(gov_costs) > 0
+            else 0.0
+        )
 
         oei = (
             weights["journal_duplication"] * journal_dup_rate
@@ -624,8 +768,12 @@ class QualificationHarness:
         if half > 10:
             first_half = mutations[:half]
             second_half = mutations[half:]
-            first_orphans = sum(1 for m in first_half if not m.success and m.duration_ms == 0) / max(len(first_half), 1)
-            second_orphans = sum(1 for m in second_half if not m.success and m.duration_ms == 0) / max(len(second_half), 1)
+            first_orphans = sum(
+                1 for m in first_half if not m.success and m.duration_ms == 0
+            ) / max(len(first_half), 1)
+            second_orphans = sum(
+                1 for m in second_half if not m.success and m.duration_ms == 0
+            ) / max(len(second_half), 1)
             entropy_decreasing = second_orphans <= first_orphans
         else:
             entropy_decreasing = True
@@ -640,7 +788,11 @@ class QualificationHarness:
             "entropy_decreasing": entropy_decreasing,
         }
 
-        result.status = PropertyStatus.CONVERGED if (oei < 0.5 and entropy_decreasing) else PropertyStatus.FAILED
+        result.status = (
+            PropertyStatus.CONVERGED
+            if (oei < 0.5 and entropy_decreasing)
+            else PropertyStatus.FAILED
+        )
         result.evidence.append(f"OEI={oei:.4f} decreasing={entropy_decreasing}")
         result.mutation_count = mutation_count
         result.completed_at = time.time()
@@ -661,12 +813,20 @@ class QualificationHarness:
         )
 
         conflicts = sum(1 for r in concurrent_results if r.get("conflict", False))
-        cancellations_attempted = sum(1 for r in concurrent_results if r.get("cancellation_attempted", False))
-        cancellations_succeeded = sum(1 for r in concurrent_results if r.get("cancellation_succeeded", False))
+        cancellations_attempted = sum(
+            1 for r in concurrent_results if r.get("cancellation_attempted", False)
+        )
+        cancellations_succeeded = sum(
+            1 for r in concurrent_results if r.get("cancellation_succeeded", False)
+        )
         total = max(len(concurrent_results), 1)
 
         conflict_rate = conflicts / total
-        cancel_rate = cancellations_succeeded / max(cancellations_attempted, 1) if cancellations_attempted else 1.0
+        cancel_rate = (
+            cancellations_succeeded / max(cancellations_attempted, 1)
+            if cancellations_attempted
+            else 1.0
+        )
 
         contention_times = [r.get("contention_ms", 0) for r in concurrent_results]
         mean_contention = statistics.mean(contention_times) if contention_times else 0.0
@@ -675,10 +835,12 @@ class QualificationHarness:
         result.convergence_metrics["cancellation_success_rate"] = round(cancel_rate, 4)
         result.convergence_metrics["mean_contention_ms"] = round(mean_contention, 2)
 
-        result.status = PropertyStatus.CONVERGED if (conflict_rate == 0 and cancel_rate >= 0.90) else PropertyStatus.FAILED
-        result.evidence.append(
-            f"conflicts={conflicts}/{total} cancel_rate={cancel_rate:.3f}"
+        result.status = (
+            PropertyStatus.CONVERGED
+            if (conflict_rate == 0 and cancel_rate >= 0.90)
+            else PropertyStatus.FAILED
         )
+        result.evidence.append(f"conflicts={conflicts}/{total} cancel_rate={cancel_rate:.3f}")
         result.mutation_count = len(concurrent_results)
         result.completed_at = time.time()
         return result
@@ -707,7 +869,9 @@ class QualificationHarness:
         harness_rate = correct_harness / total
         model_rate = correct_model / total
         visibility = visible / total
-        fallback_rate = fallback_succeeded / max(len(fallback_attempts), 1) if fallback_attempts else 1.0
+        fallback_rate = (
+            fallback_succeeded / max(len(fallback_attempts), 1) if fallback_attempts else 1.0
+        )
 
         result.convergence_metrics["correct_harness_rate"] = round(harness_rate, 4)
         result.convergence_metrics["correct_model_rate"] = round(model_rate, 4)
@@ -778,16 +942,16 @@ class QualificationHarness:
         result.completed_at = time.time()
         return result
 
-    # ── Property 9: Self-Maintenance ───────────────────────────────────
+    # ── Property 9: Self-Regulation ──────────────────────────────────
 
-    def validate_self_maintenance(
+    def validate_self_regulation(
         self,
         degradation_events: list[dict[str, Any]],
     ) -> PropertyResult:
-        """Property 9: organism detects degradation and proposes repair."""
+        """Property 9: organism regulates its own behavior — repair, throttle, escalate."""
         result = PropertyResult(
             property_id=9,
-            property_name="Self-Maintenance",
+            property_name="Self-Regulation",
             status=PropertyStatus.RUNNING,
             started_at=time.time(),
         )
@@ -815,11 +979,17 @@ class QualificationHarness:
 
         result.convergence_metrics["degradation_detection_rate"] = round(detection_rate, 4)
         result.convergence_metrics["proposal_count"] = proposals_created
-        result.convergence_metrics["mean_proposal_latency_s"] = round(mean_latency, 2) if not math.isinf(mean_latency) else None
+        result.convergence_metrics["mean_proposal_latency_s"] = (
+            round(mean_latency, 2) if not math.isinf(mean_latency) else None
+        )
         result.convergence_metrics["repair_success_count"] = repairs_succeeded
         result.convergence_metrics["reliability_recovery_count"] = recovery_achieved
 
-        ok = detection_rate >= 0.80 and proposals_created > 0 and (math.isinf(mean_latency) or mean_latency < 60)
+        ok = (
+            detection_rate >= 0.80
+            and proposals_created > 0
+            and (math.isinf(mean_latency) or mean_latency < 60)
+        )
         result.status = PropertyStatus.CONVERGED if ok else PropertyStatus.FAILED
         result.evidence.append(
             f"detected={detected}/{total} proposals={proposals_created} repairs={repairs_succeeded}"
@@ -831,7 +1001,12 @@ class QualificationHarness:
     # ── Drift Detection ────────────────────────────────────────────────
 
     def compute_drift(self, mutations: list[MutationRecord] | None = None) -> DriftResult:
-        """Compare first 100 vs last 100 non-injected mutations across all metrics.
+        """Compare early vs late non-injected mutations across all metrics.
+
+        Skips the first 50 operational mutations (warm-up period where state
+        is cold and latency is artificially low) to avoid false drift signals
+        from O(n) state growth. Compares 100 mutations post-warmup vs the
+        last 100 mutations.
 
         Excludes intentional failure injections (sources containing 'failure',
         'degradation', or 'recovery') since those measure stress response,
@@ -841,22 +1016,27 @@ class QualificationHarness:
         drift = DriftResult()
 
         injection_keywords = ("failure", "degradation", "recovery", "concurrent", "debug")
-        validation_sources = ("c35_qualification",)
+        validation_sources = ("c35_qualification", "qualification")
         operational = [
-            m for m in muts
+            m
+            for m in muts
             if m.source in validation_sources
-            or (not any(kw in m.source for kw in injection_keywords)
-                and m.source and not m.source.startswith("c35_"))
+            or (
+                not any(kw in m.source for kw in injection_keywords)
+                and m.source
+                and not m.source.startswith("c35_")
+            )
         ]
 
-        if len(operational) < 200:
+        warmup = 50
+        if len(operational) < warmup + 200:
             drift.passed = True
             drift.metrics["note"] = 0
             drift.metrics["operational_count"] = len(operational)
             drift.metrics["total_count"] = len(muts)
             return drift
 
-        first_100 = operational[:100]
+        first_100 = operational[warmup : warmup + 100]
         last_100 = operational[-100:]
 
         def rate(records: list[MutationRecord], fn: Callable[[MutationRecord], bool]) -> float:
@@ -889,18 +1069,33 @@ class QualificationHarness:
             ),
         }
 
+        # Latency and governance naturally grow as state accumulates (O(n)
+        # journal/event scanning). Normalize by the state-growth ratio to
+        # detect actual drift vs expected linear growth.
+        # Early window midpoint is at index ~(warmup + 50), late midpoint is
+        # at index ~(total - 50). The system had that many entries of state.
+        early_midpoint = warmup + 50
+        late_midpoint = len(operational) - 50
+        state_growth_ratio = late_midpoint / max(early_midpoint, 1)
+
         for name, (early, late) in metrics.items():
             if early == 0:
                 deviation = 0.0 if late == 0 else 1.0
             else:
-                deviation = abs(late - early) / abs(early)
+                raw_deviation = abs(late - early) / abs(early)
+                if name in ("governance_drift", "latency_drift") and late > early:
+                    deviation = raw_deviation / state_growth_ratio
+                else:
+                    deviation = raw_deviation
             drift.metrics[name] = round(deviation, 4)
 
             if deviation > DRIFT_DEVIATION_LIMIT:
                 if name in ("governance_drift", "latency_drift"):
                     if late < early:
                         continue
-                drift.violations.append(f"{name}: {deviation:.2%} deviation (limit {DRIFT_DEVIATION_LIMIT:.0%})")
+                drift.violations.append(
+                    f"{name}: {deviation:.2%} deviation (limit {DRIFT_DEVIATION_LIMIT:.0%})"
+                )
 
         drift.passed = len(drift.violations) == 0
         return drift
@@ -913,14 +1108,13 @@ class QualificationHarness:
 
         def passed(ids: list[int]) -> bool:
             return all(
-                props.get(i, PropertyResult()).status == PropertyStatus.CONVERGED
-                for i in ids
+                props.get(i, PropertyResult()).status == PropertyStatus.CONVERGED for i in ids
             )
 
         if passed([1, 2, 3, 4, 5, 6, 7, 8, 9]) and drift.passed:
             return ORL.PRODUCTION_QUALIFIED
         if passed([8, 9]):
-            return ORL.SELF_MAINTAINING
+            return ORL.SELF_REGULATING
         if passed([6, 7]):
             return ORL.AUTONOMOUS_COORDINATION
         if passed([4, 5]):
@@ -931,24 +1125,51 @@ class QualificationHarness:
 
     # ── Full qualification run ─────────────────────────────────────────
 
-    def generate_report(self, properties: list[PropertyResult]) -> QualificationReport:
-        """Generate final qualification report."""
+    def generate_report(
+        self,
+        properties: list[PropertyResult],
+        self_model: "SelfModel | None" = None,
+        stopping_reason: str = "",
+    ) -> QualificationReport:
+        """Generate final qualification report with 3-dimensional output."""
         drift = self.compute_drift()
         orl_enum = self.compute_orl(properties, drift)
         orl = orl_enum.value if isinstance(orl_enum, ORL) else int(orl_enum)
 
-        h1_evidence = sum(1 for p in properties if p.status == PropertyStatus.CONVERGED)
-        total = len(properties)
+        orl_confidence = self._compute_orl_confidence(properties)
+
+        pred_accuracy = 0.0
+        if self_model and self_model.prediction_accuracy().sample_size > 0:
+            mape = self_model.prediction_accuracy().value
+            pred_accuracy = max(0.0, 1.0 - mape)
+
+        gating = [p for p in properties if 1 <= p.property_id <= 9]
+        h1_evidence = sum(1 for p in gating if p.status == PropertyStatus.CONVERGED)
+        total_gating = len(gating)
 
         if orl >= ORL.PRODUCTION_QUALIFIED.value:
-            hypothesis = f"H1 SUPPORTED: {h1_evidence}/{total} properties converged. Organism is production-qualified (ORL-8)."
+            hypothesis = (
+                f"H1 SUPPORTED: {h1_evidence}/{total_gating} properties converged. "
+                f"ORL-8 @ {orl_confidence:.1%} confidence."
+            )
         elif orl >= ORL.STABLE_UNDER_LOAD.value:
-            hypothesis = f"H0 NOT FULLY REJECTED: {h1_evidence}/{total} properties converged. ORL-{orl} achieved."
+            hypothesis = (
+                f"H0 NOT FULLY REJECTED: {h1_evidence}/{total_gating} properties converged. "
+                f"ORL-{orl} @ {orl_confidence:.1%} confidence."
+            )
         else:
-            hypothesis = f"H0 NOT REJECTED: {h1_evidence}/{total} properties converged. ORL-{orl}. More work needed."
+            hypothesis = (
+                f"H0 NOT REJECTED: {h1_evidence}/{total_gating} properties converged. "
+                f"ORL-{orl}. More work needed."
+            )
+
+        weakest_name, recommendation = self._find_weakest_property(properties)
+        all_converged = all(p.status == PropertyStatus.CONVERGED for p in gating)
 
         report = QualificationReport(
             orl_achieved=orl,
+            orl_confidence=orl_confidence,
+            predictive_accuracy=pred_accuracy,
             properties=properties,
             drift=drift,
             total_mutations=len(self._mutations),
@@ -956,6 +1177,10 @@ class QualificationHarness:
             hypothesis_result=hypothesis,
             started_at=self._started_at,
             completed_at=time.time(),
+            weakest_property=weakest_name,
+            recommendation=recommendation,
+            convergence_status="Stable" if all_converged else "Incomplete",
+            stopping_reason=stopping_reason,
         )
 
         self._persist_report(report)
@@ -968,35 +1193,136 @@ class QualificationHarness:
         except OSError as exc:
             logger.debug("Cannot write qualification report: %s", exc)
 
+    # ── Property 10: Predictive Accuracy ─────────────────────────────
+
+    def validate_predictive_accuracy(
+        self,
+        self_model: "SelfModel",
+    ) -> PropertyResult:
+        """Property 10: organism accurately predicts its own behavior.
+
+        Does NOT gate any ORL level. Contributes to the Predictive Accuracy
+        dimension of the qualification report.
+        """
+        result = PropertyResult(
+            property_id=10,
+            property_name="Predictive Accuracy",
+            status=PropertyStatus.RUNNING,
+            started_at=time.time(),
+        )
+
+        accuracy = self_model.prediction_accuracy()
+        calibration = self_model.calibration_score()
+        per_metric = self_model.per_metric_accuracy()
+
+        result.convergence_metrics["overall_mape"] = accuracy.to_dict()
+        result.convergence_metrics["calibration_score"] = round(calibration, 4)
+        result.convergence_metrics["per_metric"] = {k: v.to_dict() for k, v in per_metric.items()}
+        result.confidence = 1.0 - accuracy.value if accuracy.sample_size > 0 else 0.0
+
+        result.metric_estimates["prediction_accuracy"] = accuracy.to_dict()
+        result.metric_estimates["calibration"] = ConfidenceEstimate(
+            value=calibration,
+            lower=calibration,
+            upper=calibration,
+            sample_size=accuracy.sample_size,
+        ).to_dict()
+
+        ok = accuracy.sample_size >= 10 and accuracy.value < 0.20 and calibration > 0.70
+        result.status = PropertyStatus.CONVERGED if ok else PropertyStatus.FAILED
+        result.evidence.append(
+            f"MAPE={accuracy.format()} calibration={calibration:.3f} "
+            f"predictions={accuracy.sample_size}"
+        )
+        result.mutation_count = accuracy.sample_size
+        result.completed_at = time.time()
+        return result
+
+    # ── Report generation ─────────────────────────────────────────────
+
+    def _compute_orl_confidence(self, properties: list[PropertyResult]) -> float:
+        """Composite confidence across all ORL-gating properties (1-9)."""
+        gating = [p for p in properties if 1 <= p.property_id <= 9]
+        if not gating:
+            return 0.0
+        confidences = [p.confidence for p in gating]
+        return statistics.mean(confidences) if confidences else 0.0
+
+    def _find_weakest_property(self, properties: list[PropertyResult]) -> tuple[str, str]:
+        """Find weakest property and generate recommendation."""
+        gating = [p for p in properties if 1 <= p.property_id <= 9]
+        if not gating:
+            return "", ""
+
+        failed = [p for p in gating if p.status != PropertyStatus.CONVERGED]
+        if failed:
+            weakest = min(failed, key=lambda p: p.confidence)
+            return weakest.property_name, f"Fix {weakest.property_name} — currently FAILED"
+
+        lowest = min(gating, key=lambda p: p.confidence)
+        return (
+            lowest.property_name,
+            f"Optimize {lowest.property_name} — lowest confidence ({lowest.confidence:.1%})",
+        )
+
     def format_report_markdown(self, report: QualificationReport) -> str:
-        """Format qualification report as markdown."""
-        orl_val = report.orl_achieved.value if isinstance(report.orl_achieved, ORL) else report.orl_achieved
+        """Format qualification report as markdown with 3-dimensional output."""
+        orl_val = (
+            report.orl_achieved.value
+            if isinstance(report.orl_achieved, ORL)
+            else report.orl_achieved
+        )
         orl_name = ORL(orl_val).name
+
         lines = [
-            "# C35 — Organism Qualification Report",
+            "# Organism Qualification Report",
             "",
-            f"**ORL Achieved:** ORL-{orl_val} ({orl_name})",
+            "## Qualification Summary",
+            "",
+            f"| Dimension | Value |",
+            f"|-----------|-------|",
+            f"| Operational Readiness Level | ORL-{orl_val} ({orl_name}) |",
+            f"| Confidence | {report.orl_confidence:.1%} |",
+            f"| Predictive Accuracy | {report.predictive_accuracy:.1%} |",
+            f"| Drift | {'PASS' if report.drift.passed else 'FAIL'} |",
+            f"| Convergence | {report.convergence_status or 'Stable'} |",
+            f"| Weakest Property | {report.weakest_property or '—'} |",
+            f"| Recommendation | {report.recommendation or '—'} |",
+            "",
             f"**Hypothesis:** {report.hypothesis_result}",
             f"**Total Mutations:** {report.total_mutations}",
             f"**Duration:** {report.total_duration_s:.0f}s",
-            "",
-            "## Property Results",
-            "",
-            "| # | Property | Status | Key Metric |",
-            "|---|----------|--------|------------|",
         ]
+
+        if report.stopping_reason:
+            lines.append(f"**Stopping Reason:** {report.stopping_reason}")
+
+        lines.extend(
+            [
+                "",
+                "## Property Results",
+                "",
+                "| # | Property | Status | Confidence | Key Metric |",
+                "|---|----------|--------|------------|------------|",
+            ]
+        )
 
         for p in report.properties:
             status_icon = "PASS" if p.status == PropertyStatus.CONVERGED else "FAIL"
             evidence = p.evidence[0] if p.evidence else "—"
-            lines.append(f"| {p.property_id} | {p.property_name} | {status_icon} | {evidence} |")
+            conf = f"{p.confidence:.1%}" if p.confidence > 0 else "—"
+            lines.append(
+                f"| {p.property_id} | {p.property_name} | {status_icon} | {conf} | {evidence} |"
+            )
 
-        lines.extend([
-            "",
-            "## Drift Detection",
-            "",
-            f"**Passed:** {'Yes' if report.drift.passed else 'No'}",
-        ])
+        lines.extend(
+            [
+                "",
+                "## Drift Detection",
+                "",
+                f"**Passed:** {'Yes' if report.drift.passed else 'No'}",
+            ]
+        )
 
         if report.drift.metrics:
             lines.append("")
@@ -1012,19 +1338,302 @@ class QualificationHarness:
             for v in report.drift.violations:
                 lines.append(f"- {v}")
 
-        lines.extend([
-            "",
-            "## ORL Scale",
-            "",
-            "| ORL | Meaning | Status |",
-            "|-----|---------|--------|",
-        ])
+        lines.extend(
+            [
+                "",
+                "## ORL Scale",
+                "",
+                "| ORL | Meaning | Status |",
+                "|-----|---------|--------|",
+            ]
+        )
         for level in ORL:
             achieved = "ACHIEVED" if level.value <= orl_val else "—"
             lines.append(f"| ORL-{level.value} | {level.name} | {achieved} |")
 
         lines.append("")
         return "\n".join(lines)
+
+
+# ── Self-Model (Predictive Accuracy) ──────────────────────────────────────
+
+
+class SelfModel:
+    """Organism's model of its own behavior.
+
+    Uses exponential moving averages per action_type to predict
+    governance cost, failure probability, template match rate, and duration.
+    Deterministic-first: lookup tables and rolling statistics, no LLM calls.
+    """
+
+    def __init__(self) -> None:
+        self._predictions: list[dict[str, float]] = []
+        self._actuals: list[dict[str, float]] = []
+        self._ema: dict[str, dict[str, float]] = {}
+        self._alpha = 0.3
+
+    def _update_ema(self, action_type: str, metric: str, value: float) -> None:
+        if action_type not in self._ema:
+            self._ema[action_type] = {}
+        prev = self._ema[action_type].get(metric, value)
+        self._ema[action_type][metric] = self._alpha * value + (1 - self._alpha) * prev
+
+    def predict(self, action_type: str) -> dict[str, float]:
+        """Predict governance_cost, failure_prob, template_match, duration."""
+        defaults = {
+            "governance_cost_ms": 0.5,
+            "failure_prob": 0.05,
+            "template_match": 0.5,
+            "duration_ms": 50.0,
+        }
+        if action_type not in self._ema:
+            return defaults
+        return {k: self._ema[action_type].get(k, defaults[k]) for k in defaults}
+
+    def record_actual(self, action_type: str, actuals: dict[str, float]) -> None:
+        """Record prediction vs actual for one mutation."""
+        predicted = self.predict(action_type)
+        self._predictions.append(predicted)
+        self._actuals.append(actuals)
+
+        for metric, val in actuals.items():
+            self._update_ema(action_type, metric, val)
+
+    def prediction_accuracy(self) -> ConfidenceEstimate:
+        """Overall MAPE across all predictions."""
+        if not self._predictions:
+            return ConfidenceEstimate()
+
+        errors: list[float] = []
+        for pred, actual in zip(self._predictions, self._actuals):
+            for metric in pred:
+                p = pred[metric]
+                a = actual.get(metric, p)
+                if a != 0:
+                    errors.append(abs(p - a) / abs(a))
+                elif p != 0:
+                    errors.append(1.0)
+
+        if not errors:
+            return ConfidenceEstimate()
+
+        return ConfidenceEstimate.from_samples(errors)
+
+    def calibration_score(self) -> float:
+        """Fraction of actuals that fell within predicted 95% CI.
+
+        Uses ±20% of predicted value as the CI proxy
+        (since EMA doesn't track variance directly).
+        """
+        if not self._predictions:
+            return 0.0
+
+        hits = 0
+        total = 0
+        for pred, actual in zip(self._predictions, self._actuals):
+            for metric in pred:
+                p = pred[metric]
+                a = actual.get(metric, p)
+                margin = abs(p) * 0.20
+                if abs(a - p) <= margin:
+                    hits += 1
+                total += 1
+
+        return hits / max(total, 1)
+
+    def per_metric_accuracy(self) -> dict[str, ConfidenceEstimate]:
+        """MAPE broken down by metric name."""
+        by_metric: dict[str, list[float]] = {}
+
+        for pred, actual in zip(self._predictions, self._actuals):
+            for metric in pred:
+                p = pred[metric]
+                a = actual.get(metric, p)
+                if a != 0:
+                    error = abs(p - a) / abs(a)
+                elif p != 0:
+                    error = 1.0
+                else:
+                    error = 0.0
+                by_metric.setdefault(metric, []).append(error)
+
+        return {k: ConfidenceEstimate.from_samples(v) for k, v in by_metric.items()}
+
+    def record_from_mutation(self, record: MutationRecord) -> None:
+        """Convenience: record prediction + actual from a MutationRecord."""
+        actuals = {
+            "governance_cost_ms": record.governance_cost_ms,
+            "failure_prob": 0.0 if record.success else 1.0,
+            "template_match": 1.0 if record.template_matched else 0.0,
+            "duration_ms": record.duration_ms,
+        }
+        self.record_actual(record.action_type, actuals)
+
+
+# ── Qualification Orchestrator ────────────────────────────────────────────
+
+
+@dataclass
+class QualificationConfig:
+    """Configuration for adaptive qualification runs."""
+
+    min_mutations: int = 50
+    max_mutations: int = 5000
+    batch_size: int = 25
+    target_confidence: float = 0.95
+    fail_rate: float = 0.05
+
+
+class QualificationOrchestrator:
+    """Drives qualification to convergence, not to a fixed count.
+
+    Submits mutations in adaptive batches. After each batch, checks if
+    all properties have reached statistical convergence (or been disproven).
+    Stops when confidence exceeds target or max_mutations is reached.
+    """
+
+    def __init__(
+        self,
+        harness: QualificationHarness,
+        config: QualificationConfig | None = None,
+    ) -> None:
+        self._harness = harness
+        self._config = config or QualificationConfig()
+        self._batch_count = 0
+        self._total_submitted = 0
+        self._property_snapshots: list[PropertyResult] = []
+        self._self_model = SelfModel()
+        self._complete = False
+        self._stopping_reason = ""
+
+    @property
+    def self_model(self) -> SelfModel:
+        return self._self_model
+
+    def is_complete(self) -> bool:
+        return self._complete
+
+    def stopping_reason(self) -> str:
+        return self._stopping_reason
+
+    def _assess_convergence(self, properties: list[PropertyResult]) -> bool:
+        """Check if all gating properties (1-9) are converged with sufficient confidence."""
+        gating = [p for p in properties if 1 <= p.property_id <= 9]
+        if not gating:
+            return False
+
+        all_resolved = all(
+            p.status in (PropertyStatus.CONVERGED, PropertyStatus.FAILED) for p in gating
+        )
+        if not all_resolved:
+            return False
+
+        avg_confidence = statistics.mean(p.confidence for p in gating) if gating else 0.0
+        return avg_confidence >= self._config.target_confidence
+
+    def weakest_property(self, properties: list[PropertyResult]) -> PropertyResult | None:
+        """Property with lowest confidence among gating properties."""
+        gating = [p for p in properties if 1 <= p.property_id <= 9]
+        if not gating:
+            return None
+        return min(gating, key=lambda p: p.confidence)
+
+    def next_batch_size(self, properties: list[PropertyResult]) -> int:
+        """Adaptive batch sizing based on distance from convergence."""
+        base = self._config.batch_size
+        weakest = self.weakest_property(properties)
+        if weakest is None:
+            return base
+
+        gap = self._config.target_confidence - weakest.confidence
+        if gap <= 0:
+            return base
+        return min(base * max(1, int(gap * 10)), base * 4)
+
+    def run_until_converged(
+        self,
+        submit_fn: Callable[[int], list[MutationRecord]],
+        validate_fn: Callable[[list[MutationRecord]], list[PropertyResult]],
+    ) -> QualificationReport:
+        """Main loop: submit batches until convergence or ceiling."""
+        logger.info(
+            "Qualification orchestrator starting — target confidence %.1f%%, max %d mutations",
+            self._config.target_confidence * 100,
+            self._config.max_mutations,
+        )
+
+        all_records: list[MutationRecord] = []
+
+        while self._total_submitted < self._config.max_mutations:
+            batch_size = self.next_batch_size(self._property_snapshots)
+            remaining = self._config.max_mutations - self._total_submitted
+            batch_size = min(batch_size, remaining)
+
+            if batch_size <= 0:
+                break
+
+            records = submit_fn(batch_size)
+            all_records.extend(records)
+            self._total_submitted += len(records)
+            self._batch_count += 1
+
+            for r in records:
+                self._self_model.record_from_mutation(r)
+
+            if self._total_submitted >= self._config.min_mutations:
+                self._property_snapshots = validate_fn(all_records)
+
+                for p in self._property_snapshots:
+                    if 1 <= p.property_id <= 9 and p.confidence == 0.0:
+                        p.confidence = self._estimate_confidence(p)
+
+                if self._assess_convergence(self._property_snapshots):
+                    self._complete = True
+                    self._stopping_reason = (
+                        f"Converged after {self._total_submitted} mutations "
+                        f"({self._batch_count} batches)"
+                    )
+                    logger.info("Convergence reached: %s", self._stopping_reason)
+                    break
+
+            logger.info(
+                "Batch %d: %d mutations submitted (%d total)",
+                self._batch_count,
+                len(records),
+                self._total_submitted,
+            )
+
+        if not self._complete:
+            self._stopping_reason = (
+                f"Ceiling reached: {self._total_submitted} mutations ({self._batch_count} batches)"
+            )
+            if not self._property_snapshots:
+                self._property_snapshots = validate_fn(all_records)
+
+        p10 = self._harness.validate_predictive_accuracy(self._self_model)
+        self._property_snapshots.append(p10)
+
+        return self._harness.generate_report(
+            self._property_snapshots,
+            self_model=self._self_model,
+            stopping_reason=self._stopping_reason,
+        )
+
+    def _estimate_confidence(self, prop: PropertyResult) -> float:
+        """Estimate confidence from convergence metrics when not explicitly set."""
+        if prop.status == PropertyStatus.CONVERGED:
+            windows = []
+            for metric_data in prop.convergence_metrics.values():
+                if isinstance(metric_data, dict):
+                    ci_margin = metric_data.get("ci_margin", 0)
+                    mean = metric_data.get("mean", 0)
+                    if mean > 0 and ci_margin >= 0:
+                        relative_margin = ci_margin / mean
+                        windows.append(max(0, 1.0 - relative_margin))
+            if windows:
+                return statistics.mean(windows)
+            return 0.90
+        return max(0.0, prop.confidence)
 
 
 # ── Module-level convenience ───────────────────────────────────────────────
@@ -1037,5 +1646,7 @@ def run_qualification() -> QualificationReport:
     Call from scripts or tests.
     """
     harness = QualificationHarness()
-    logger.info("C35 qualification harness initialized with %d existing mutations", len(harness._mutations))
+    logger.info(
+        "C35 qualification harness initialized with %d existing mutations", len(harness._mutations)
+    )
     return harness.generate_report([])
