@@ -1,7 +1,7 @@
 ---
 type: palace-index
-generated: 2026-05-31T17:57:43.309820+00:00
-source_graph_generated: 2026-05-31T17:51:10.306072+00:00
+generated: 2026-06-29T04:25:06.371653+00:00
+source_graph_generated: 2026-06-29T04:24:46.365810+00:00
 graph_stale: False
 ---
 
@@ -14,9 +14,9 @@ Use this BEFORE scanning the file tree — it tells you where to stand.
 **Loci promoted:** 30  
 **Rooms:** 7  
 **Wings:** 4  
-**Source graph generated:** 2026-05-31T17:51:10.306072+00:00  
-**Graph age:** 0.11 h  
-**Palace generated:** 2026-05-31T17:57:43.309863+00:00
+**Source graph generated:** 2026-06-29T04:24:46.365810+00:00  
+**Graph age:** 0.01 h  
+**Palace generated:** 2026-06-29T04:25:06.371681+00:00
 
 ## Usage
 

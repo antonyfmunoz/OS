@@ -2,7 +2,7 @@
 type: palace-room
 room_id: intelligence_core
 wing: runtime
-generated: 2026-05-31
+generated: 2026-06-29
 ---
 
 # Room — Intelligence Core

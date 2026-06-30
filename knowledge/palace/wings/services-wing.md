@@ -1,7 +1,7 @@
 ---
 type: palace-wing
 wing: services
-generated: 2026-05-31
+generated: 2026-06-29
 ---
 
 # Wing — services
