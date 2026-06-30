@@ -225,7 +225,7 @@ def _check_browser_prerequisite(ctx: CampaignContext) -> BrowserPrerequisite:
     # 2. Session 1 interactive — probe desktop adapter
     try:
         result = ctx.mesh_dispatch("echo c40b_session_probe", timeout=10)
-        r = result.get("result", result)
+        r = result.get("result_data", result)
         prereq.session_interactive = r.get("success", False)
         if not prereq.session_interactive:
             prereq.errors.append(
@@ -244,7 +244,7 @@ def _check_browser_prerequisite(ctx: CampaignContext) -> BrowserPrerequisite:
              "--headless=new", "--dump-dom", "about:blank", "--timeout=5000"],
             timeout=15,
         )
-        r = result.get("result", result)
+        r = result.get("result_data", result)
         prereq.chrome_launches = r.get("success", False) or "exit_code" in str(r)
         ctx.slo.chrome_starts += 1
         if prereq.chrome_launches:
@@ -257,11 +257,12 @@ def _check_browser_prerequisite(ctx: CampaignContext) -> BrowserPrerequisite:
 
     # 4. Playwright imports
     try:
-        result = ctx.mesh_dispatch(
-            'python -c "from playwright.sync_api import sync_playwright; print(\'playwright_ok\')"',
+        result = ctx.mesh_dispatch_argv(
+            ["python", "-c",
+             "from playwright.sync_api import sync_playwright; print('playwright_ok')"],
             timeout=15,
         )
-        r = result.get("result", result)
+        r = result.get("result_data", result)
         stdout = r.get("stdout", "")
         prereq.playwright_imports = "playwright_ok" in stdout
         ctx.slo.playwright_checks += 1
@@ -275,12 +276,13 @@ def _check_browser_prerequisite(ctx: CampaignContext) -> BrowserPrerequisite:
 
     # 5. Screenshot capture
     try:
-        result = ctx.mesh_dispatch(
-            'python -c "import pyautogui; img=pyautogui.screenshot(); '
-            "img.save('c40b_prereq_screenshot.png'); print('screenshot_ok')\"",
+        result = ctx.mesh_dispatch_argv(
+            ["python", "-c",
+             "import pyautogui; img=pyautogui.screenshot(); "
+             "img.save('c40b_prereq_screenshot.png'); print('screenshot_ok')"],
             timeout=15,
         )
-        r = result.get("result", result)
+        r = result.get("result_data", result)
         prereq.screenshot_works = "screenshot_ok" in r.get("stdout", "")
         if not prereq.screenshot_works:
             prereq.errors.append("Screenshot failed: %s" % r.get("stderr", "")[:200])
@@ -289,19 +291,19 @@ def _check_browser_prerequisite(ctx: CampaignContext) -> BrowserPrerequisite:
 
     # 6. DOM extraction
     try:
-        result = ctx.mesh_dispatch(
-            'python -c "'
-            "from playwright.sync_api import sync_playwright; "
-            "p=sync_playwright().start(); "
-            "b=p.chromium.launch(headless=True); "
-            "page=b.new_page(); "
-            "page.goto('about:blank'); "
-            "print(page.content()[:50]); "
-            "b.close(); p.stop(); "
-            "print('dom_ok')\"",
+        result = ctx.mesh_dispatch_argv(
+            ["python", "-c",
+             "from playwright.sync_api import sync_playwright; "
+             "p=sync_playwright().start(); "
+             "b=p.chromium.launch(headless=True); "
+             "page=b.new_page(); "
+             "page.goto('about:blank'); "
+             "print(page.content()[:50]); "
+             "b.close(); p.stop(); "
+             "print('dom_ok')"],
             timeout=20,
         )
-        r = result.get("result", result)
+        r = result.get("result_data", result)
         prereq.dom_extraction_works = "dom_ok" in r.get("stdout", "")
         if not prereq.dom_extraction_works:
             prereq.errors.append("DOM extraction failed: %s" % r.get("stderr", "")[:200])
@@ -366,7 +368,7 @@ def run_phase1(ctx: CampaignContext) -> PhaseResult:
                 t1 = time.monotonic()
                 result = ctx.mesh_dispatch(cmd, timeout=15)
                 latency = round((time.monotonic() - t1) * 1000, 1)
-                r = result.get("result", result)
+                r = result.get("result_data", result)
                 live_results.append({
                     "test": label,
                     "command": cmd,

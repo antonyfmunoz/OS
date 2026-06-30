@@ -354,12 +354,12 @@ class CampaignContext:
                 result = json.loads(resp.read().decode())
             latency = round((time.time() - t0) * 1000, 1)
             self.slo.latencies_ms.append(latency)
-            if result.get("success") or result.get("result", {}).get("success"):
+            if result.get("ok") or result.get("result_data", {}).get("success"):
                 self.slo.dispatch_successes += 1
             return result
         except Exception as exc:
             logger.error("mesh dispatch failed: %s", exc)
-            return {"success": False, "error": str(exc)}
+            return {"ok": False, "error": str(exc)}
 
     def mesh_dispatch_argv(self, argv: list, timeout: int = 30) -> dict:
         self.slo.dispatch_attempts += 1
@@ -381,12 +381,12 @@ class CampaignContext:
                 result = json.loads(resp.read().decode())
             latency = round((time.time() - t0) * 1000, 1)
             self.slo.latencies_ms.append(latency)
-            if result.get("success") or result.get("result", {}).get("success"):
+            if result.get("ok") or result.get("result_data", {}).get("success"):
                 self.slo.dispatch_successes += 1
             return result
         except Exception as exc:
             logger.error("mesh dispatch argv failed: %s", exc)
-            return {"success": False, "error": str(exc)}
+            return {"ok": False, "error": str(exc)}
 
     def beast_available(self) -> bool:
         self.slo.mesh_attempts += 1
