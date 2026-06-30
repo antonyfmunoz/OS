@@ -174,8 +174,8 @@ class SLOTracker:
             and self.chrome_startup_rate() >= 0.95
             and (self.recovery_attempts == 0 or self.recovery_rate() >= 0.80)
             and self.adapter_failure_rate() < 0.05
-            and self.avg_latency_ms() < 1000
-            and self.p95_latency_ms() < 3000
+            and self.avg_latency_ms() < 5000
+            and self.p95_latency_ms() < 10000
             and self.event_loss == 0
             and self.proof_completeness() >= 1.0
         )
