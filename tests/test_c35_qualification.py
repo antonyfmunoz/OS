@@ -14,6 +14,7 @@ sys.path.insert(0, "/opt/OS")
 import pytest
 
 from substrate.organism.qualification_harness import (
+    ConfidenceEstimate,
     ConvergenceWindow,
     DriftResult,
     GapType,
@@ -144,7 +145,9 @@ class TestDriftDetection:
     def test_insufficient_data(self):
         harness = QualificationHarness()
         mutations = [
-            MutationRecord(source="c35_qualification", success=True, governance_cost_ms=10.0, duration_ms=100.0)
+            MutationRecord(
+                source="c35_qualification", success=True, governance_cost_ms=10.0, duration_ms=100.0
+            )
             for _ in range(50)
         ]
         drift = harness.compute_drift(mutations)
@@ -161,7 +164,7 @@ class TestDriftDetection:
                 template_matched=True,
                 fast_path_used=True,
             )
-            for _ in range(200)
+            for _ in range(250)
         ]
         drift = harness.compute_drift(mutations)
         assert drift.passed is True
@@ -169,42 +172,52 @@ class TestDriftDetection:
 
     def test_drift_detected(self):
         harness = QualificationHarness()
+        # 50 warmup + 100 early (good) + 100 late (bad)
         mutations = []
+        for i in range(150):
+            mutations.append(
+                MutationRecord(
+                    source="c35_qualification",
+                    success=True,
+                    governance_cost_ms=100.0,
+                    duration_ms=100.0,
+                )
+            )
         for i in range(100):
-            mutations.append(MutationRecord(
-                source="c35_qualification",
-                success=True,
-                governance_cost_ms=100.0,
-                duration_ms=100.0,
-            ))
-        for i in range(100):
-            mutations.append(MutationRecord(
-                source="c35_qualification",
-                success=False,
-                governance_cost_ms=200.0,
-                duration_ms=300.0,
-            ))
+            mutations.append(
+                MutationRecord(
+                    source="c35_qualification",
+                    success=False,
+                    governance_cost_ms=200.0,
+                    duration_ms=300.0,
+                )
+            )
         drift = harness.compute_drift(mutations)
         assert drift.passed is False
         assert len(drift.violations) > 0
 
     def test_governance_improvement_not_violation(self):
         harness = QualificationHarness()
+        # 50 warmup + 100 early (high cost) + 100 late (low cost = improvement)
         mutations = []
+        for i in range(150):
+            mutations.append(
+                MutationRecord(
+                    source="c35_qualification",
+                    success=True,
+                    governance_cost_ms=100.0,
+                    duration_ms=100.0,
+                )
+            )
         for i in range(100):
-            mutations.append(MutationRecord(
-                source="c35_qualification",
-                success=True,
-                governance_cost_ms=100.0,
-                duration_ms=100.0,
-            ))
-        for i in range(100):
-            mutations.append(MutationRecord(
-                source="c35_qualification",
-                success=True,
-                governance_cost_ms=50.0,
-                duration_ms=80.0,
-            ))
+            mutations.append(
+                MutationRecord(
+                    source="c35_qualification",
+                    success=True,
+                    governance_cost_ms=50.0,
+                    duration_ms=80.0,
+                )
+            )
         drift = harness.compute_drift(mutations)
         gov_violations = [v for v in drift.violations if "governance" in v]
         assert len(gov_violations) == 0
@@ -228,7 +241,7 @@ class TestORLScoring:
         props = [self._make_result(i, PropertyStatus.CONVERGED) for i in range(1, 10)]
         drift = DriftResult(passed=False, violations=["test drift"])
         orl = harness.compute_orl(props, drift)
-        assert orl == ORL.SELF_MAINTAINING
+        assert orl == ORL.SELF_REGULATING
 
     def test_partial_pass_orl4(self):
         harness = QualificationHarness()
@@ -259,16 +272,19 @@ class TestPropertyValidators:
         harness = QualificationHarness()
         mutations = []
         for i in range(100):
-            mutations.append(MutationRecord(
-                mutation_id=f"m-{i}",
-                action_type="test_action",
-                success=True,
-                governance_cost_ms=max(5.0, 100.0 - i),
-                fast_path_used=i > 50,
-                template_matched=i > 30,
-            ))
+            mutations.append(
+                MutationRecord(
+                    mutation_id=f"m-{i}",
+                    action_type="test_action",
+                    success=True,
+                    governance_cost_ms=max(5.0, 100.0 - i),
+                    fast_path_used=i > 50,
+                    template_matched=i > 30,
+                )
+            )
 
         from unittest.mock import MagicMock
+
         learning = MagicMock()
         result = harness.validate_adaptive_intelligence(learning, mutations)
         assert result.property_id == 4
@@ -287,6 +303,7 @@ class TestPropertyValidators:
         ]
 
         from unittest.mock import MagicMock
+
         journal_entries = [MagicMock(envelope_id=f"m-{i}") for i in range(100)]
         events = [MagicMock() for _ in range(500)]
 
@@ -342,7 +359,7 @@ class TestPropertyValidators:
         result = harness.validate_recovery_homeostasis(injections, {})
         assert result.status == PropertyStatus.FAILED
 
-    def test_self_maintenance_detected(self):
+    def test_self_regulation_detected(self):
         harness = QualificationHarness()
         events = [
             {
@@ -354,11 +371,11 @@ class TestPropertyValidators:
             }
             for _ in range(5)
         ]
-        result = harness.validate_self_maintenance(events)
+        result = harness.validate_self_regulation(events)
         assert result.property_id == 9
         assert result.status == PropertyStatus.CONVERGED
 
-    def test_self_maintenance_not_detected(self):
+    def test_self_regulation_not_detected(self):
         harness = QualificationHarness()
         events = [
             {
@@ -367,7 +384,7 @@ class TestPropertyValidators:
             }
             for _ in range(5)
         ]
-        result = harness.validate_self_maintenance(events)
+        result = harness.validate_self_regulation(events)
         assert result.status == PropertyStatus.FAILED
 
     def test_meta_orchestration_pass(self):
@@ -388,6 +405,7 @@ class TestPropertyValidators:
         harness = QualificationHarness()
 
         from unittest.mock import MagicMock
+
         mock_response = MagicMock()
         mock_response.success = True
         mock_response.rejected_reason = ""
@@ -401,7 +419,7 @@ class TestPropertyValidators:
         assert result.status == PropertyStatus.CONVERGED
 
 
-# ── Self-Maintenance Bridge ───────────────────────────────────────────────
+# ── Self-Regulation Bridge ────────────────────────────────────────────────
 
 
 class TestSelfMaintenanceBridge:
@@ -454,6 +472,7 @@ class TestSelfMaintenanceBridge:
         loop._outcomes = []
         loop._signals = []
         from collections import defaultdict
+
         loop._reliability = defaultdict(lambda: 0.5)
         loop._outcome_counts = defaultdict(lambda: defaultdict(int))
         loop._seen_action_types = set()
@@ -477,7 +496,14 @@ class TestSelfMaintenanceBridge:
 
 class TestReportGeneration:
     def test_report_generation(self):
-        harness = QualificationHarness()
+        harness = QualificationHarness.__new__(QualificationHarness)
+        harness._mutations = []
+        harness._property_results = []
+        harness._convergence = {}
+        import time as _time
+
+        harness._started_at = _time.time()
+
         props = [
             PropertyResult(
                 property_id=i,
@@ -496,12 +522,15 @@ class TestReportGeneration:
         harness = QualificationHarness()
         report = QualificationReport(
             orl_achieved=5,
+            orl_confidence=0.85,
+            predictive_accuracy=0.78,
             properties=[
                 PropertyResult(
                     property_id=1,
                     property_name="Test",
                     status=PropertyStatus.CONVERGED,
                     evidence=["test=0.95"],
+                    confidence=0.92,
                 ),
             ],
             drift=DriftResult(passed=True),
@@ -513,10 +542,15 @@ class TestReportGeneration:
         assert "ORL-5" in md
         assert "PASS" in md
         assert "Test" in md
+        assert "Confidence" in md
+        assert "Predictive Accuracy" in md
+        assert "85.0%" in md
 
     def test_report_to_dict(self):
         report = QualificationReport(
             orl_achieved=8,
+            orl_confidence=0.95,
+            predictive_accuracy=0.92,
             total_mutations=500,
             hypothesis_result="H1 SUPPORTED",
         )
@@ -524,6 +558,8 @@ class TestReportGeneration:
         assert d["orl_achieved"] == 8
         assert d["orl_label"] == "PRODUCTION_QUALIFIED"
         assert d["total_mutations"] == 500
+        assert d["orl_confidence"] == 0.95
+        assert d["predictive_accuracy"] == 0.92
 
 
 if __name__ == "__main__":

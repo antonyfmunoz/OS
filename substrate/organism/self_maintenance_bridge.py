@@ -1,6 +1,7 @@
-"""Self-Maintenance Bridge — wires degradation detection to work packet creation.
+"""Self-Regulation Bridge — wires degradation detection to work packet creation.
 
-When OutcomeLearningLoop detects reliability degradation (repeated failures
+Part of the Self-Regulation property (P9). Handles the repair pathway:
+when OutcomeLearningLoop detects reliability degradation (repeated failures
 + reliability below threshold), this bridge auto-creates a work packet via
 WorkPacketEngine with source_type="self_maintenance".
 
@@ -38,7 +39,9 @@ def create_degradation_callback(
         evidence = [
             {
                 "signal_id": s.id,
-                "signal_type": s.signal_type.value if hasattr(s.signal_type, 'value') else str(s.signal_type),
+                "signal_type": s.signal_type.value
+                if hasattr(s.signal_type, "value")
+                else str(s.signal_type),
                 "description": s.description,
                 "evidence": s.evidence,
                 "generated_at": s.generated_at,
@@ -66,12 +69,14 @@ def create_degradation_callback(
             )
             logger.info(
                 "Self-maintenance work packet created: %s for action_type=%s (reliability=%.2f)",
-                packet.packet_id if hasattr(packet, 'packet_id') else 'unknown',
+                packet.packet_id if hasattr(packet, "packet_id") else "unknown",
                 action_type,
                 reliability,
             )
         except Exception as exc:
-            logger.debug("Failed to create self-maintenance work packet for %s: %s", action_type, exc)
+            logger.debug(
+                "Failed to create self-maintenance work packet for %s: %s", action_type, exc
+            )
 
     return _on_degradation
 
