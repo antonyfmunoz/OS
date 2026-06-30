@@ -22,7 +22,7 @@ import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -190,6 +190,9 @@ class OutcomeLearningLoop:
         self._reliability: dict[str, float] = defaultdict(lambda: 0.5)
         self._outcome_counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         self._seen_action_types: set[str] = set()
+        self._degradation_callback: Callable[[str, float, list[LearningSignal]], None] | None = None
+        self._degradation_threshold: float = 0.7
+        self._degradation_fired: set[str] = set()
         self._load()
 
     def _load(self) -> None:
@@ -292,6 +295,19 @@ class OutcomeLearningLoop:
             "value": new,
         })
 
+    def register_degradation_callback(
+        self,
+        callback: Callable[[str, float, list[LearningSignal]], None],
+        threshold: float = 0.7,
+    ) -> None:
+        """Register callback for reliability degradation (self-maintenance).
+
+        Called when reliability drops below threshold after repeated failures.
+        Args: action_type, current_reliability, recent_failure_signals.
+        """
+        self._degradation_callback = callback
+        self._degradation_threshold = threshold
+
     def _check_repeated_failures(self, action_type: str) -> None:
         recent = [o for o in self._outcomes[-20:] if o.action_type == action_type]
         recent_failures = [o for o in recent if o.status == OutcomeStatus.FAILURE]
@@ -309,6 +325,23 @@ class OutcomeLearningLoop:
             sig_data = signal.to_dict()
             sig_data["record_type"] = "signal"
             self._persist_record(sig_data)
+
+            reliability = self._reliability.get(action_type, 0.5)
+            if (
+                reliability < self._degradation_threshold
+                and action_type not in self._degradation_fired
+                and self._degradation_callback is not None
+            ):
+                self._degradation_fired.add(action_type)
+                failure_signals = [
+                    s for s in self._signals[-20:]
+                    if s.signal_type == SignalType.REPEATED_FAILURE
+                    and s.action_type == action_type
+                ]
+                try:
+                    self._degradation_callback(action_type, reliability, failure_signals)
+                except Exception as exc:
+                    logger.debug("Degradation callback failed for %s: %s", action_type, exc)
 
     def _check_consistency(self, action_type: str) -> None:
         """Emit signal when last N outcomes of same type all share the same status."""
