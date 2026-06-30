@@ -121,8 +121,9 @@ def _execute_browser_scenario(
     ctx.slo.chrome_starts += 1
     try:
         result = ctx.mesh_dispatch(cmd, timeout=30)
-        success = result.get("success") or result.get("result", {}).get("success", False)
-        stdout = result.get("result", {}).get("stdout", result.get("stdout", ""))
+        rd = result.get("result_data", {}) or {}
+        success = result.get("ok") or rd.get("success", False)
+        stdout = rd.get("stdout", result.get("stdout", ""))
 
         if success:
             ctx.slo.chrome_successes += 1
@@ -134,7 +135,7 @@ def _execute_browser_scenario(
             }
         else:
             ctx.slo.adapter_failures += 1
-            trace["error"] = result.get("error", result.get("result", {}).get("error", "unknown"))
+            trace["error"] = result.get("error") or rd.get("error", "unknown")
     except Exception as exc:
         ctx.slo.adapter_failures += 1
         trace["error"] = "%s: %s" % (type(exc).__name__, exc)
