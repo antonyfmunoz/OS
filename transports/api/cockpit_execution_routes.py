@@ -20,6 +20,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 execution_router: APIRouter = APIRouter()
@@ -210,15 +212,24 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         ap = _get_approval_service()
         if ap is None:
             return {"success": False, "error": "Approval service unavailable"}
-        try:
+
+        def _do_approve() -> tuple[str, bool]:
             if hasattr(ap, "approve"):
                 ap.approve(approval_id)
             elif hasattr(ap, "resolve"):
                 ap.resolve(approval_id, approved=True)
-            return {"success": True, "approval_id": approval_id, "action": "approved"}
-        except Exception as e:
-            logger.debug("Approval approve failed: %s", e)
-            return {"success": False, "error": str(e)}
+            return f"approved execution: {approval_id}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_execute",
+            intent=f"approve execution intercept: {approval_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+            metadata={"approval_id": approval_id, "action": "approve"},
+        )
+        if not resp.success:
+            return {"success": False, "error": resp.output}
+        return {"success": True, "approval_id": approval_id, "action": "approved"}
 
     @r.post("/execution/approvals/{approval_id}/reject", dependencies=auth)
     def reject_execution(approval_id: str) -> dict[str, Any]:
@@ -226,15 +237,24 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         ap = _get_approval_service()
         if ap is None:
             return {"success": False, "error": "Approval service unavailable"}
-        try:
+
+        def _do_reject() -> tuple[str, bool]:
             if hasattr(ap, "reject"):
                 ap.reject(approval_id)
             elif hasattr(ap, "resolve"):
                 ap.resolve(approval_id, approved=False)
-            return {"success": True, "approval_id": approval_id, "action": "rejected"}
-        except Exception as e:
-            logger.debug("Approval reject failed: %s", e)
-            return {"success": False, "error": str(e)}
+            return f"rejected execution: {approval_id}", True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_execute",
+            intent=f"reject execution intercept: {approval_id}",
+            execute_fn=_do_reject,
+            source="cockpit",
+            metadata={"approval_id": approval_id, "action": "reject"},
+        )
+        if not resp.success:
+            return {"success": False, "error": resp.output}
+        return {"success": True, "approval_id": approval_id, "action": "rejected"}
 
     @r.get("/execution/telemetry", dependencies=auth)
     def execution_telemetry(

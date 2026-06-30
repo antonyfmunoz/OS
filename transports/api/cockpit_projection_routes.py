@@ -11,6 +11,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends
 
+from transports.api.governed import governed_mutation
+
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 projection_router = APIRouter(prefix="/projections", tags=["projections"])
@@ -82,11 +84,23 @@ def get_projection(projection_id: str) -> dict[str, Any]:
 def register_projection(body: dict[str, Any]) -> dict[str, Any]:
     from substrate.sockets.projection_port import ProjectionRegistration
 
-    reg = ProjectionRegistration(
-        name=body.get("name", ""),
-        capabilities_consumed=body.get("capabilities_consumed", []),
-        routes_mounted=body.get("routes_mounted", []),
-        substrate_imports=body.get("substrate_imports", []),
+    name = body.get("name", "")
+
+    def _do_register():
+        reg = ProjectionRegistration(
+            name=name,
+            capabilities_consumed=body.get("capabilities_consumed", []),
+            routes_mounted=body.get("routes_mounted", []),
+            substrate_imports=body.get("substrate_imports", []),
+        )
+        _port().register(reg)
+        return f"registered projection {reg.projection_id}", True
+
+    resp = governed_mutation(
+        mutation_name="projection_event",
+        intent=f"register projection: {name}",
+        execute_fn=_do_register,
+        source="cockpit",
+        metadata={"projection_name": name},
     )
-    _port().register(reg)
-    return {"registered": True, "projection_id": reg.projection_id}
+    return resp.to_http_dict()

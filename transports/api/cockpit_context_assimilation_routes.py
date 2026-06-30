@@ -19,6 +19,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 context_assimilation_router: APIRouter = APIRouter()
@@ -423,129 +425,217 @@ def _list_cross_source_signals():
 
 
 async def _trigger_ingestion(request: Request):
-    try:
-        body = await request.json()
-        source_id = body.get("source_id", "")
-        job_type = body.get("job_type", "scan")
-        engine = _get_engine()
-        if not source_id:
-            seeds = engine.seed_local_sources()
-            return {"action": "seeded", "sources": [s.to_dict() for s in seeds]}
-        if job_type == "audit":
-            job = engine.run_local_audit_ingestion(source_id)
-        elif job_type == "artifact":
-            job = engine.run_local_artifact_ingestion(source_id)
-        else:
-            job = engine.run_metadata_scan(source_id)
-        if not job:
-            return {"error": "ingestion_failed"}
-        return {"job": job.to_dict()}
-    except Exception as exc:
-        logger.error("Trigger ingestion error: %s", exc)
-        return {"error": "internal_error"}
+    body = await request.json()
+    source_id = body.get("source_id", "")
+    job_type = body.get("job_type", "scan")
+
+    def _do_ingest():
+        try:
+            engine = _get_engine()
+            if not source_id:
+                engine.seed_local_sources()
+                return "sources seeded", True
+            if job_type == "audit":
+                job = engine.run_local_audit_ingestion(source_id)
+            elif job_type == "artifact":
+                job = engine.run_local_artifact_ingestion(source_id)
+            else:
+                job = engine.run_metadata_scan(source_id)
+            if not job:
+                return "ingestion failed", False
+            return f"ingestion job started for {source_id}", True
+        except Exception as exc:
+            logger.error("Trigger ingestion error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"trigger ingestion: {source_id or 'seed'}",
+        execute_fn=_do_ingest,
+        source="cockpit",
+        metadata={"source_id": source_id, "job_type": job_type},
+    )
+    return resp.to_http_dict()
 
 
 async def _start_reconciliation(request: Request):
-    try:
-        body = await request.json()
-        topic = body.get("topic", "")
-        scope = body.get("scope", "full")
-        mode = body.get("mode", "exploration")
-        if not topic:
-            return {"error": "topic_required"}
-        engine = _get_reconciliation_engine()
-        session = engine.start_session(topic=topic, scope=scope, mode=mode)
-        engine.attach_sources(session.session_id)
-        return {"session": session.to_dict()}
-    except Exception as exc:
-        logger.error("Start reconciliation error: %s", exc)
-        return {"error": "internal_error"}
+    body = await request.json()
+    topic = body.get("topic", "")
+    scope = body.get("scope", "full")
+    mode = body.get("mode", "exploration")
+    if not topic:
+        return {"error": "topic_required"}
+
+    def _do_reconcile():
+        try:
+            engine = _get_reconciliation_engine()
+            session = engine.start_session(topic=topic, scope=scope, mode=mode)
+            engine.attach_sources(session.session_id)
+            return f"reconciliation started: {session.session_id}", True
+        except Exception as exc:
+            logger.error("Start reconciliation error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"start reconciliation: {topic}",
+        execute_fn=_do_reconcile,
+        source="cockpit",
+        metadata={"topic": topic, "scope": scope},
+    )
+    return resp.to_http_dict()
 
 
 def _approve_proposal(proposal_id: str):
-    try:
-        store = _get_proposal_store()
-        if not store.approve(proposal_id):
-            return {"error": "not_found"}
-        return {"status": "approved", "proposal_id": proposal_id}
-    except Exception as exc:
-        logger.error("Approve proposal error: %s", exc)
-        return {"error": "internal_error"}
+    def _do_approve():
+        try:
+            store = _get_proposal_store()
+            if not store.approve(proposal_id):
+                return "not found", False
+            return f"proposal {proposal_id} approved", True
+        except Exception as exc:
+            logger.error("Approve proposal error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"approve proposal {proposal_id}",
+        execute_fn=_do_approve,
+        source="cockpit",
+        metadata={"proposal_id": proposal_id},
+    )
+    return resp.to_http_dict()
 
 
 def _reject_proposal(proposal_id: str):
-    try:
-        store = _get_proposal_store()
-        if not store.reject(proposal_id):
-            return {"error": "not_found"}
-        return {"status": "rejected", "proposal_id": proposal_id}
-    except Exception as exc:
-        logger.error("Reject proposal error: %s", exc)
-        return {"error": "internal_error"}
+    def _do_reject():
+        try:
+            store = _get_proposal_store()
+            if not store.reject(proposal_id):
+                return "not found", False
+            return f"proposal {proposal_id} rejected", True
+        except Exception as exc:
+            logger.error("Reject proposal error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"reject proposal {proposal_id}",
+        execute_fn=_do_reject,
+        source="cockpit",
+        metadata={"proposal_id": proposal_id},
+    )
+    return resp.to_http_dict()
 
 
 def _run_instantiation_diagnostic():
-    try:
-        engine = _get_engine()
-        engine.seed_local_sources()
-        sources = engine.list_sources()
-        for src in sources:
-            if not engine.prevent_duplicate_ingestion(src.source_id):
-                engine.run_local_audit_ingestion(src.source_id)
-        diag = _get_diagnostic_engine()
-        report = diag.build_diagnostic_report(scope="instantiation")
-        return {
-            "report": report.to_dict(),
-            "sources_analyzed": len(sources),
-            "external_writes_disabled": True,
-        }
-    except Exception as exc:
-        logger.error("Instantiation diagnostic error: %s", exc)
-        return {"error": "internal_error"}
+    def _do_diagnostic():
+        try:
+            engine = _get_engine()
+            engine.seed_local_sources()
+            sources = engine.list_sources()
+            for src in sources:
+                if not engine.prevent_duplicate_ingestion(src.source_id):
+                    engine.run_local_audit_ingestion(src.source_id)
+            diag = _get_diagnostic_engine()
+            diag.build_diagnostic_report(scope="instantiation")
+            return f"diagnostic completed, {len(sources)} sources analyzed", True
+        except Exception as exc:
+            logger.error("Instantiation diagnostic error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="run instantiation diagnostic",
+        execute_fn=_do_diagnostic,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _decide_permission(request_id: str, request: Request):
-    try:
-        body = await request.json()
-        choice = body.get("choice", "")
-        remember = body.get("remember", False)
-        engine = _get_permission_engine()
-        if not engine.decide(request_id, choice, remember=remember):
-            return {"error": "invalid_request_or_choice"}
-        return {"status": "decided", "request_id": request_id, "choice": choice}
-    except Exception as exc:
-        logger.error("Decide permission error: %s", exc)
-        return {"error": "internal_error"}
+    body = await request.json()
+    choice = body.get("choice", "")
+    remember = body.get("remember", False)
+
+    def _do_decide():
+        try:
+            engine = _get_permission_engine()
+            if not engine.decide(request_id, choice, remember=remember):
+                return "invalid request or choice", False
+            return f"permission {request_id} decided: {choice}", True
+        except Exception as exc:
+            logger.error("Decide permission error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"decide permission {request_id}: {choice}",
+        execute_fn=_do_decide,
+        source="cockpit",
+        metadata={"request_id": request_id, "choice": choice},
+    )
+    return resp.to_http_dict()
 
 
 def _revoke_permission(request_id: str):
-    try:
-        engine = _get_permission_engine()
-        if not engine.revoke(request_id):
-            return {"error": "not_found"}
-        return {"status": "revoked", "request_id": request_id}
-    except Exception as exc:
-        logger.error("Revoke permission error: %s", exc)
-        return {"error": "internal_error"}
+    def _do_revoke():
+        try:
+            engine = _get_permission_engine()
+            if not engine.revoke(request_id):
+                return "not found", False
+            return f"permission {request_id} revoked", True
+        except Exception as exc:
+            logger.error("Revoke permission error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"revoke permission {request_id}",
+        execute_fn=_do_revoke,
+        source="cockpit",
+        metadata={"request_id": request_id},
+    )
+    return resp.to_http_dict()
 
 
 def _confirm_cross_source(signal_id: str):
-    try:
-        reconciler = _get_cross_source()
-        if not reconciler.confirm_signal(signal_id):
-            return {"error": "not_found_or_permission_denied"}
-        return {"status": "confirmed", "signal_id": signal_id}
-    except Exception as exc:
-        logger.error("Confirm cross-source error: %s", exc)
-        return {"error": "internal_error"}
+    def _do_confirm():
+        try:
+            reconciler = _get_cross_source()
+            if not reconciler.confirm_signal(signal_id):
+                return "not found or permission denied", False
+            return f"cross-source signal {signal_id} confirmed", True
+        except Exception as exc:
+            logger.error("Confirm cross-source error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"confirm cross-source signal {signal_id}",
+        execute_fn=_do_confirm,
+        source="cockpit",
+        metadata={"signal_id": signal_id},
+    )
+    return resp.to_http_dict()
 
 
 def _reject_cross_source(signal_id: str):
-    try:
-        reconciler = _get_cross_source()
-        if not reconciler.reject_signal(signal_id):
-            return {"error": "not_found"}
-        return {"status": "rejected", "signal_id": signal_id}
-    except Exception as exc:
-        logger.error("Reject cross-source error: %s", exc)
-        return {"error": "internal_error"}
+    def _do_reject():
+        try:
+            reconciler = _get_cross_source()
+            if not reconciler.reject_signal(signal_id):
+                return "not found", False
+            return f"cross-source signal {signal_id} rejected", True
+        except Exception as exc:
+            logger.error("Reject cross-source error: %s", exc)
+            return str(exc), False
+
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"reject cross-source signal {signal_id}",
+        execute_fn=_do_reject,
+        source="cockpit",
+        metadata={"signal_id": signal_id},
+    )
+    return resp.to_http_dict()

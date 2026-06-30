@@ -15,6 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 infrastructure_router: APIRouter = APIRouter()
@@ -118,26 +120,63 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         except ValueError:
             h = InfrastructureHealth.UNKNOWN
         rt = _get_runtime()
-        ent = rt.register(
-            name=name,
-            infra_type=it,
-            description=body.get("description", ""),
-            origin_capability_ids=body.get("origin_capability_ids"),
-            operationalization_ids=body.get("operationalization_ids"),
-            health=h,
-            dependencies=body.get("dependencies"),
-            evidence=body.get("evidence"),
+        result: dict[str, Any] = {}
+
+        def _do_register() -> tuple[str, bool]:
+            ent = rt.register(
+                name=name,
+                infra_type=it,
+                description=body.get("description", ""),
+                origin_capability_ids=body.get("origin_capability_ids"),
+                operationalization_ids=body.get("operationalization_ids"),
+                health=h,
+                dependencies=body.get("dependencies"),
+                evidence=body.get("evidence"),
+            )
+            result["infrastructure"] = ent.to_dict()
+            return ent.infrastructure_id, True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"Register infrastructure entity: {name}",
+            execute_fn=_do_register,
+            source="cockpit",
+            metadata={"name": name, "infra_type": it_str},
         )
-        return {"infrastructure": ent.to_dict()}
+        return {**resp.to_http_dict(), **result}
 
     @r.post("/infrastructure/sync/services", dependencies=auth)
     def sync_from_services() -> dict[str, Any]:
-        count = _get_runtime().sync_from_service_graph()
-        return {"synced": count}
+        result: dict[str, Any] = {}
+
+        def _do_sync() -> tuple[str, bool]:
+            count = _get_runtime().sync_from_service_graph()
+            result["synced"] = count
+            return f"synced {count} from service graph", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent="Sync infrastructure from service graph",
+            execute_fn=_do_sync,
+            source="cockpit",
+        )
+        return {**resp.to_http_dict(), **result}
 
     @r.post("/infrastructure/sync/nodes", dependencies=auth)
     def sync_from_nodes() -> dict[str, Any]:
-        count = _get_runtime().sync_from_node_registry()
-        return {"synced": count}
+        result: dict[str, Any] = {}
+
+        def _do_sync() -> tuple[str, bool]:
+            count = _get_runtime().sync_from_node_registry()
+            result["synced"] = count
+            return f"synced {count} from node registry", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent="Sync infrastructure from node registry",
+            execute_fn=_do_sync,
+            source="cockpit",
+        )
+        return {**resp.to_http_dict(), **result}
 
     return r

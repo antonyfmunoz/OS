@@ -9,6 +9,7 @@ import logging
 from typing import Any
 
 from transports.api.cockpit_audit import emit_mutation_audit
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -71,52 +72,80 @@ def _build_router() -> Any:
 
     @router.post("/approve")
     def approve_item(req: ApproveRequest) -> dict[str, Any]:
-        rt = _get_approval_runtime()
-        action = rt.approve(
-            approval_id=req.approval_id,
-            source_type=req.source_type,
-            decided_by=req.decided_by,
-        )
-        emit_mutation_audit(
-            "approvals",
-            "approve",
-            req.approval_id,
-            actor=req.decided_by,
-            new_value={"source_type": req.source_type},
-        )
-        try:
-            from transports.api.cockpit_core_routes import push_mutation_event
+        captured: dict = {}
 
-            if push_mutation_event is not None:
-                push_mutation_event("approvals", "approved", {"id": req.approval_id})
-        except Exception:
-            pass
-        return action.to_dict()
+        def _do_approve():
+            rt = _get_approval_runtime()
+            action = rt.approve(
+                approval_id=req.approval_id,
+                source_type=req.source_type,
+                decided_by=req.decided_by,
+            )
+            emit_mutation_audit(
+                "approvals",
+                "approve",
+                req.approval_id,
+                actor=req.decided_by,
+                new_value={"source_type": req.source_type},
+            )
+            try:
+                from transports.api.cockpit_core_routes import push_mutation_event
+
+                if push_mutation_event is not None:
+                    push_mutation_event("approvals", "approved", {"id": req.approval_id})
+            except Exception:
+                pass
+            captured.update(action.to_dict())
+            return f"approved {req.approval_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"unified approve {req.approval_id}",
+            execute_fn=_do_approve,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.post("/reject")
     def reject_item(req: RejectRequest) -> dict[str, Any]:
-        rt = _get_approval_runtime()
-        action = rt.reject(
-            approval_id=req.approval_id,
-            source_type=req.source_type,
-            reason=req.reason,
-            decided_by=req.decided_by,
-        )
-        emit_mutation_audit(
-            "approvals",
-            "reject",
-            req.approval_id,
-            actor=req.decided_by,
-            new_value={"source_type": req.source_type, "reason": req.reason},
-        )
-        try:
-            from transports.api.cockpit_core_routes import push_mutation_event
+        captured: dict = {}
 
-            if push_mutation_event is not None:
-                push_mutation_event("approvals", "rejected", {"id": req.approval_id})
-        except Exception:
-            pass
-        return action.to_dict()
+        def _do_reject():
+            rt = _get_approval_runtime()
+            action = rt.reject(
+                approval_id=req.approval_id,
+                source_type=req.source_type,
+                reason=req.reason,
+                decided_by=req.decided_by,
+            )
+            emit_mutation_audit(
+                "approvals",
+                "reject",
+                req.approval_id,
+                actor=req.decided_by,
+                new_value={"source_type": req.source_type, "reason": req.reason},
+            )
+            try:
+                from transports.api.cockpit_core_routes import push_mutation_event
+
+                if push_mutation_event is not None:
+                    push_mutation_event("approvals", "rejected", {"id": req.approval_id})
+            except Exception:
+                pass
+            captured.update(action.to_dict())
+            return f"rejected {req.approval_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"unified reject {req.approval_id}: {req.reason[:80]}",
+            execute_fn=_do_reject,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @router.get("/snapshot")
     def get_snapshot() -> dict[str, Any]:
@@ -131,12 +160,23 @@ def _build_router() -> Any:
     @router.post("/claim")
     def claim_approval(req: ClaimRequest) -> dict[str, Any]:
         """Atomically claim a pending approval from a surface (CAS)."""
-        try:
+        def _do_claim():
             from substrate.organism.approval_gate import OperatorApprovalGate
 
             gate = OperatorApprovalGate()
             ok = gate.claim_approval(req.approval_id, req.surface)
-            return {"claimed": ok, "approval_id": req.approval_id, "surface": req.surface}
+            return f"claimed {req.approval_id}", ok
+
+        try:
+            resp = governed_mutation(
+                mutation_name="state_mutate",
+                intent=f"claim approval {req.approval_id} from {req.surface}",
+                execute_fn=_do_claim,
+                source="cockpit",
+            )
+            if not resp.success:
+                return resp.to_http_dict()
+            return {"claimed": True, "approval_id": req.approval_id, "surface": req.surface}
         except Exception as exc:
             logger.debug("claim_approval failed: %s", exc)
             return {"claimed": False, "error": str(exc)}
@@ -144,7 +184,7 @@ def _build_router() -> Any:
     @router.post("/resolve")
     def resolve_approval(req: ResolveRequest) -> dict[str, Any]:
         """Resolve a claimed approval (approve/reject/provide_input)."""
-        try:
+        def _do_resolve():
             from substrate.organism.approval_gate import OperatorApprovalGate
 
             gate = OperatorApprovalGate()
@@ -172,7 +212,18 @@ def _build_router() -> Any:
                     })
             except Exception:
                 pass
-            return {"resolved": ok, "approval_id": req.approval_id, "decision": req.decision}
+            return f"resolved {req.approval_id}: {req.decision}", ok
+
+        try:
+            resp = governed_mutation(
+                mutation_name="approval_decide",
+                intent=f"resolve approval {req.approval_id}: {req.decision}",
+                execute_fn=_do_resolve,
+                source="cockpit",
+            )
+            if not resp.success:
+                return resp.to_http_dict()
+            return {"resolved": True, "approval_id": req.approval_id, "decision": req.decision}
         except Exception as exc:
             logger.debug("resolve_approval failed: %s", exc)
             return {"resolved": False, "error": str(exc)}

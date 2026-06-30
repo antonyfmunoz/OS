@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _RISKY_KEYWORDS = [
@@ -57,11 +59,6 @@ def register_session_routes(router, _require_operator_role, helpers):
     @router.post("/claude-session/send")
     def claude_session_send(payload: dict) -> dict:  # type: ignore[type-arg]
         """Send a prompt to a Claude Code session via tmux bridge. Governed."""
-        from substrate.execution.bridge.claude_session_bridge import (
-            ensure_session,
-            send_message,
-        )
-
         session_name = payload.get("session_name", "")
         text = payload.get("text", "")
         target = payload.get("target", "local")
@@ -76,28 +73,51 @@ def register_session_routes(router, _require_operator_role, helpers):
                 "reason": "Prompt contains risky keywords.",
                 "blocked_keywords": blocked,
             }
-        ensure_result = ensure_session(target, session_name)
-        if not ensure_result.get("ok"):
-            return {"error": "session not available: %s" % ensure_result.get("reason", "unknown")}
-        send_result = send_message(target, session_name, text)
-        _log_cc_trace(session_name, text, work_packet_id, "send")
-        base: dict = send_result if isinstance(send_result, dict) else {"ok": True}  # type: ignore[assignment]
-        return {**base, "work_packet_id": work_packet_id, "traced": True}
+
+        def _do_send():
+            from substrate.execution.bridge.claude_session_bridge import (
+                ensure_session,
+                send_message,
+            )
+            ensure_result = ensure_session(target, session_name)
+            if not ensure_result.get("ok"):
+                return "session not available: %s" % ensure_result.get("reason", "unknown"), False
+            send_message(target, session_name, text)
+            _log_cc_trace(session_name, text, work_packet_id, "send")
+            return f"sent to {session_name}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"claude session send to {session_name}",
+            execute_fn=_do_send,
+            source="cockpit",
+            metadata={"session_name": session_name, "target": target},
+        )
+        return resp.to_http_dict()
 
     @router.post("/claude-session/capture")
     def claude_session_capture(payload: dict) -> dict:  # type: ignore[type-arg]
         """Capture output from a Claude Code session."""
-        from substrate.execution.bridge.claude_session_bridge import capture_output
-
         session_name = payload.get("session_name", "")
         target = payload.get("target", "local")
         work_packet_id = payload.get("work_packet_id", "")
         if not session_name:
             return {"error": "session_name required"}
-        result = capture_output(target, session_name)
-        _log_cc_trace(session_name, "", work_packet_id, "capture")
-        base: dict = result if isinstance(result, dict) else {"output": str(result)}  # type: ignore[assignment]
-        return {**base, "work_packet_id": work_packet_id}
+
+        def _do_capture():
+            from substrate.execution.bridge.claude_session_bridge import capture_output
+            capture_output(target, session_name)
+            _log_cc_trace(session_name, "", work_packet_id, "capture")
+            return f"captured from {session_name}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"claude session capture from {session_name}",
+            execute_fn=_do_capture,
+            source="cockpit",
+            metadata={"session_name": session_name, "target": target},
+        )
+        return resp.to_http_dict()
 
     @router.get("/claude-session/list")
     def claude_session_list() -> dict:  # type: ignore[type-arg]
@@ -113,18 +133,26 @@ def register_session_routes(router, _require_operator_role, helpers):
         text = payload.get("text", "")
         if not session_name or not text:
             return {"error": "session_name and text required"}
-        try:
-            from substrate.execution.workers.workstation.tmux_operational_adapter_v1 import (
-                TmuxOperationalAdapter,
-            )
 
-            adapter = TmuxOperationalAdapter()
-            result = adapter.send_approved_command(session_name, text)
-            if hasattr(result, "to_dict"):
-                return result.to_dict()  # type: ignore[union-attr]
-            return result if isinstance(result, dict) else {"ok": True}
-        except Exception as exc:
-            return {"error": str(exc)}
+        def _do_tmux_send():
+            try:
+                from substrate.execution.workers.workstation.tmux_operational_adapter_v1 import (
+                    TmuxOperationalAdapter,
+                )
+                adapter = TmuxOperationalAdapter()
+                adapter.send_approved_command(session_name, text)
+                return f"tmux send to {session_name}", True
+            except Exception as exc:
+                return str(exc), False
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"tmux send to {session_name}",
+            execute_fn=_do_tmux_send,
+            source="cockpit",
+            metadata={"session_name": session_name},
+        )
+        return resp.to_http_dict()
 
     @router.post("/tmux/send-key")
     def tmux_send_key(payload: dict) -> dict:  # type: ignore[type-arg]
@@ -141,71 +169,108 @@ def register_session_routes(router, _require_operator_role, helpers):
         }
         if key not in allowed_keys:
             return {"error": f"key '{key}' not in allowed set"}
-        try:
-            from substrate.execution.cpu_gate import gated_subprocess_run
-            result = gated_subprocess_run(
-                ["tmux", "send-keys", "-t", session_name, key],
-                capture_output=True, text=True, timeout=5,
-                caller="cockpit.tmux_send_key",
-            )
-            if result is None:
-                return {"error": "CPU gate blocked — system under load"}
-            return {"ok": result.returncode == 0, "error": result.stderr if result.returncode != 0 else None}
-        except Exception as exc:
-            return {"error": str(exc)}
+
+        def _do_send_key():
+            try:
+                from substrate.execution.cpu_gate import gated_subprocess_run
+                result = gated_subprocess_run(
+                    ["tmux", "send-keys", "-t", session_name, key],
+                    capture_output=True, text=True, timeout=5,
+                    caller="cockpit.tmux_send_key",
+                )
+                if result is None:
+                    return "CPU gate blocked", False
+                return f"key {key} sent to {session_name}", result.returncode == 0
+            except Exception as exc:
+                return str(exc), False
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"tmux send-key {key} to {session_name}",
+            execute_fn=_do_send_key,
+            source="cockpit",
+            metadata={"session_name": session_name, "key": key},
+        )
+        return resp.to_http_dict()
 
     @router.post("/council/review")
     def council_review(payload: dict) -> dict:  # type: ignore[type-arg]
         """Trigger council review for a decision."""
-        from substrate.organism.council import Council
+        def _do_review():
+            from substrate.organism.council import Council
+            council = Council()
+            council.review(
+                decision_context=payload.get("context", ""),
+                proposed_plan=payload.get("plan", ""),
+                artifacts=payload.get("artifacts"),
+            )
+            return "council review completed", True
 
-        council = Council()
-        review = council.review(
-            decision_context=payload.get("context", ""),
-            proposed_plan=payload.get("plan", ""),
-            artifacts=payload.get("artifacts"),
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent="council review",
+            execute_fn=_do_review,
+            source="cockpit",
         )
-        return {"ok": True, "review": review.to_dict()}
+        return resp.to_http_dict()
 
     @router.post("/device/register")
     def device_register(payload: dict) -> dict:
         """Register a device session with the presence registry."""
-        from substrate.workstation.device_presence import DeviceSession, get_registry
-
         session_id = payload.get("session_id", "")
         device_id = payload.get("device_id", "")
         if not session_id or not device_id:
             raise HTTPException(status_code=400, detail="session_id and device_id required")
 
-        session = DeviceSession(
-            device_id=device_id,
-            session_id=session_id,
-            operator_id=payload.get("operator_id", "default"),
-            client_type=payload.get("client_type", "desktop_browser"),
-            device_label=payload.get("device_label", ""),
-            control_surface=payload.get("control_surface", "fly_cockpit"),
-            current_panel=payload.get("current_panel", ""),
-            can_capture_audio=bool(payload.get("can_capture_audio", True)),
-            can_play_audio=bool(payload.get("can_play_audio", True)),
-            reachable_nodes=payload.get("reachable_nodes", ["cockpit", "vps"]),
+        def _do_register():
+            from substrate.workstation.device_presence import DeviceSession, get_registry
+            session = DeviceSession(
+                device_id=device_id,
+                session_id=session_id,
+                operator_id=payload.get("operator_id", "default"),
+                client_type=payload.get("client_type", "desktop_browser"),
+                device_label=payload.get("device_label", ""),
+                control_surface=payload.get("control_surface", "fly_cockpit"),
+                current_panel=payload.get("current_panel", ""),
+                can_capture_audio=bool(payload.get("can_capture_audio", True)),
+                can_play_audio=bool(payload.get("can_play_audio", True)),
+                reachable_nodes=payload.get("reachable_nodes", ["cockpit", "vps"]),
+            )
+            get_registry().register_session(session)
+            return f"device {device_id} registered: {session_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"register device {device_id}",
+            execute_fn=_do_register,
+            source="cockpit",
+            metadata={"device_id": device_id, "session_id": session_id},
         )
-        get_registry().register_session(session)
-        return {"ok": True, "session_id": session_id}
+        return resp.to_http_dict()
 
     @router.post("/device/heartbeat")
     def device_heartbeat(payload: dict) -> dict:
         """Heartbeat — refresh session last_seen and apply optional field updates."""
-        from substrate.workstation.device_presence import get_registry
-
         session_id = payload.get("session_id", "")
         if not session_id:
             raise HTTPException(status_code=400, detail="session_id required")
 
-        updates = {k: v for k, v in payload.items() if k != "session_id"}
-        found = get_registry().heartbeat(session_id, updates=updates or None)
-        if not found:
-            return {"ok": False, "reason": "session not found"}
-        return {"ok": True}
+        def _do_heartbeat():
+            from substrate.workstation.device_presence import get_registry
+            updates = {k: v for k, v in payload.items() if k != "session_id"}
+            found = get_registry().heartbeat(session_id, updates=updates or None)
+            if not found:
+                return "session not found", False
+            return f"heartbeat for {session_id}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"device heartbeat {session_id}",
+            execute_fn=_do_heartbeat,
+            source="cockpit",
+            metadata={"session_id": session_id},
+        )
+        return resp.to_http_dict()
 
     @router.get("/device/sessions")
     def device_sessions() -> dict:
@@ -218,11 +283,20 @@ def register_session_routes(router, _require_operator_role, helpers):
     @router.post("/device/disconnect")
     def device_disconnect(payload: dict) -> dict:
         """Mark a session as disconnected."""
-        from substrate.workstation.device_presence import get_registry
-
         session_id = payload.get("session_id", "")
         if not session_id:
             raise HTTPException(status_code=400, detail="session_id required")
 
-        get_registry().mark_disconnected(session_id)
-        return {"ok": True}
+        def _do_disconnect():
+            from substrate.workstation.device_presence import get_registry
+            get_registry().mark_disconnected(session_id)
+            return f"session {session_id} disconnected", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"disconnect device session {session_id}",
+            execute_fn=_do_disconnect,
+            source="cockpit",
+            metadata={"session_id": session_id},
+        )
+        return resp.to_http_dict()

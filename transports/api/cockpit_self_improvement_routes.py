@@ -24,6 +24,8 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 self_improvement_router: APIRouter = APIRouter()
@@ -194,12 +196,7 @@ def _feedback_loop_status():
 
 
 async def _assimilate_outcome(request: Request):
-    """Record an execution outcome into both reality model and self-build queue.
-
-    This is the primary WP-3.1 endpoint: outcomes from completed work packets
-    flow into the instance reality model AND optionally into the self-build
-    queue as improvement candidates.
-    """
+    """Record an execution outcome into both reality model and self-build queue."""
     body = await request.json()
     packet_id = body.get("packet_id", "")
     outcome_text = body.get("outcome", "")
@@ -210,53 +207,62 @@ async def _assimilate_outcome(request: Request):
     if not outcome_text:
         return {"success": False, "error": "outcome is required"}
 
-    result: dict[str, Any] = {"packet_id": packet_id}
+    captured: dict = {}
 
-    try:
-        from substrate.reality_model.instance import InstanceRealityModel, InstanceObservation
-        instance = _get_instance_model()
-        obs = InstanceObservation(
-            content=outcome_text[:2000],
-            domain=domain,
-            confidence=confidence,
-            tags=["execution_outcome", "self_improvement"],
-            metadata={"packet_id": packet_id} if packet_id else {},
-        )
-        obs_id = instance.record(obs)
-        result["observation_id"] = str(obs_id)
-        result["reality_model_updated"] = True
-    except Exception as e:
-        logger.debug("assimilate outcome reality model failed: %s", e)
-        result["reality_model_updated"] = False
-        result["reality_model_error"] = str(e)
+    def _do_assimilate():
+        result: dict[str, Any] = {"packet_id": packet_id}
 
-    if create_follow_up and packet_id:
         try:
-            sbq = _get_self_build_queue()
-            item = sbq.create_work_item(
-                title=f"Follow-up from {packet_id}: {outcome_text[:80]}",
-                description=outcome_text[:500],
-                source_type="cadence_candidate",
-                source_id=packet_id,
-                risk_class="low",
+            from substrate.reality_model.instance import InstanceRealityModel, InstanceObservation
+            instance = _get_instance_model()
+            obs = InstanceObservation(
+                content=outcome_text[:2000],
+                domain=domain,
+                confidence=confidence,
+                tags=["execution_outcome", "self_improvement"],
+                metadata={"packet_id": packet_id} if packet_id else {},
             )
-            result["follow_up_work_item_id"] = item.work_item_id
+            obs_id = instance.record(obs)
+            result["observation_id"] = str(obs_id)
+            result["reality_model_updated"] = True
         except Exception as e:
-            logger.debug("assimilate outcome follow-up failed: %s", e)
-            result["follow_up_error"] = str(e)
+            logger.debug("assimilate outcome reality model failed: %s", e)
+            result["reality_model_updated"] = False
+            result["reality_model_error"] = str(e)
 
-    _log_improvement_event("outcome_assimilated", result)
+        if create_follow_up and packet_id:
+            try:
+                sbq = _get_self_build_queue()
+                item = sbq.create_work_item(
+                    title=f"Follow-up from {packet_id}: {outcome_text[:80]}",
+                    description=outcome_text[:500],
+                    source_type="cadence_candidate",
+                    source_id=packet_id,
+                    risk_class="low",
+                )
+                result["follow_up_work_item_id"] = item.work_item_id
+            except Exception as e:
+                logger.debug("assimilate outcome follow-up failed: %s", e)
+                result["follow_up_error"] = str(e)
 
-    result["success"] = True
-    return result
+        _log_improvement_event("outcome_assimilated", result)
+        result["success"] = True
+        captured.update(result)
+        return f"assimilated outcome for {packet_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"assimilate execution outcome for {packet_id}",
+        execute_fn=_do_assimilate,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
+    return captured
 
 
 async def _verify_outcome(request: Request):
-    """Verify an execution outcome against the reality model.
-
-    WP-3.3: deterministic verification pipeline. Checks whether the
-    claimed outcome is consistent with known reality model state.
-    """
+    """Verify an execution outcome against the reality model."""
     body = await request.json()
     packet_id = body.get("packet_id", "")
     claimed_outcome = body.get("claimed_outcome", "")
@@ -265,100 +271,109 @@ async def _verify_outcome(request: Request):
     if not claimed_outcome:
         return {"success": False, "error": "claimed_outcome is required"}
 
-    verification: dict[str, Any] = {
-        "packet_id": packet_id,
-        "claimed_outcome": claimed_outcome[:500],
-        "checks": [],
-        "verified": True,
-    }
+    captured: dict = {}
 
-    try:
-        canonical = _get_canonical_model()
-        related = canonical.search(domain or "execution")
-        if related:
-            verification["checks"].append({
-                "check": "canonical_consistency",
-                "status": "pass",
-                "detail": f"Found {len(related)} related canonical patterns",
-            })
-        else:
-            verification["checks"].append({
-                "check": "canonical_consistency",
-                "status": "info",
-                "detail": "No related canonical patterns found (new domain)",
-            })
-    except Exception as e:
-        verification["checks"].append({
-            "check": "canonical_consistency",
-            "status": "skip",
-            "detail": str(e),
-        })
+    def _do_verify():
+        verification: dict[str, Any] = {
+            "packet_id": packet_id,
+            "claimed_outcome": claimed_outcome[:500],
+            "checks": [],
+            "verified": True,
+        }
 
-    try:
-        instance = _get_instance_model()
-        recent = instance.recent(limit=20)
-        contradictions = []
-        for obs in recent:
-            obs_content = obs.content if hasattr(obs, "content") else obs.get("content", "")
-            obs_domain = obs.domain if hasattr(obs, "domain") else obs.get("domain", "")
-            if obs_domain == domain and "failed" in obs_content.lower() and "success" in claimed_outcome.lower():
-                contradictions.append(obs_content[:100])
-
-        if contradictions:
-            verification["checks"].append({
-                "check": "contradiction_scan",
-                "status": "warning",
-                "detail": f"Potential contradictions with {len(contradictions)} recent observations",
-                "contradictions": contradictions[:3],
-            })
-            verification["verified"] = False
-        else:
-            verification["checks"].append({
-                "check": "contradiction_scan",
-                "status": "pass",
-                "detail": "No contradictions with recent observations",
-            })
-    except Exception as e:
-        verification["checks"].append({
-            "check": "contradiction_scan",
-            "status": "skip",
-            "detail": str(e),
-        })
-
-    if packet_id:
         try:
-            queue = _get_queue()
-            pkt = queue.get_packet(packet_id)
-            if pkt:
+            canonical = _get_canonical_model()
+            related = canonical.search(domain or "execution")
+            if related:
                 verification["checks"].append({
-                    "check": "packet_status",
-                    "status": "pass" if pkt.status.value in ("executing", "completed", "validating") else "warning",
-                    "detail": f"Packet status: {pkt.status.value}",
+                    "check": "canonical_consistency",
+                    "status": "pass",
+                    "detail": f"Found {len(related)} related canonical patterns",
                 })
             else:
                 verification["checks"].append({
-                    "check": "packet_status",
-                    "status": "warning",
-                    "detail": "Packet not found in queue",
+                    "check": "canonical_consistency",
+                    "status": "info",
+                    "detail": "No related canonical patterns found (new domain)",
                 })
         except Exception as e:
             verification["checks"].append({
-                "check": "packet_status",
+                "check": "canonical_consistency",
                 "status": "skip",
                 "detail": str(e),
             })
 
-    _log_improvement_event("verification_result", verification)
+        try:
+            instance = _get_instance_model()
+            recent = instance.recent(limit=20)
+            contradictions = []
+            for obs in recent:
+                obs_content = obs.content if hasattr(obs, "content") else obs.get("content", "")
+                obs_domain = obs.domain if hasattr(obs, "domain") else obs.get("domain", "")
+                if obs_domain == domain and "failed" in obs_content.lower() and "success" in claimed_outcome.lower():
+                    contradictions.append(obs_content[:100])
 
-    return {"success": True, "verification": verification}
+            if contradictions:
+                verification["checks"].append({
+                    "check": "contradiction_scan",
+                    "status": "warning",
+                    "detail": f"Potential contradictions with {len(contradictions)} recent observations",
+                    "contradictions": contradictions[:3],
+                })
+                verification["verified"] = False
+            else:
+                verification["checks"].append({
+                    "check": "contradiction_scan",
+                    "status": "pass",
+                    "detail": "No contradictions with recent observations",
+                })
+        except Exception as e:
+            verification["checks"].append({
+                "check": "contradiction_scan",
+                "status": "skip",
+                "detail": str(e),
+            })
+
+        if packet_id:
+            try:
+                queue = _get_queue()
+                pkt = queue.get_packet(packet_id)
+                if pkt:
+                    verification["checks"].append({
+                        "check": "packet_status",
+                        "status": "pass" if pkt.status.value in ("executing", "completed", "validating") else "warning",
+                        "detail": f"Packet status: {pkt.status.value}",
+                    })
+                else:
+                    verification["checks"].append({
+                        "check": "packet_status",
+                        "status": "warning",
+                        "detail": "Packet not found in queue",
+                    })
+            except Exception as e:
+                verification["checks"].append({
+                    "check": "packet_status",
+                    "status": "skip",
+                    "detail": str(e),
+                })
+
+        _log_improvement_event("verification_result", verification)
+        captured.update({"success": True, "verification": verification})
+        return f"verified outcome for {packet_id}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"verify execution outcome for {packet_id}",
+        execute_fn=_do_verify,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
+    return captured
 
 
 async def _generate_follow_up(request: Request):
-    """Generate a follow-up work packet from a completed outcome.
-
-    WP-3.4: the projection build loop. A completed outcome can
-    generate new work — this is how UMH compounds improvement.
-    """
+    """Generate a follow-up work packet from a completed outcome."""
     body = await request.json()
     packet_id = body.get("packet_id", "")
     outcome = body.get("outcome", "")
@@ -368,8 +383,9 @@ async def _generate_follow_up(request: Request):
         return {"success": False, "error": "outcome or suggested_intent is required"}
 
     intent_text = suggested_intent or f"Follow-up improvement from outcome: {outcome[:200]}"
+    captured: dict = {}
 
-    try:
+    def _do_follow_up():
         queue = _get_queue()
         packet = queue.ingest_user_intent(
             user_intent=intent_text,
@@ -383,67 +399,88 @@ async def _generate_follow_up(request: Request):
             "intent": intent_text[:300],
         })
 
-        return {
+        captured.update({
             "success": True,
             "new_packet": packet.to_safe_dict(),
             "source_packet_id": packet_id,
             "needs_approval": bool(packet.approval_gates),
-        }
+        })
+        return f"generated follow-up from {packet_id}", True
+
+    try:
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"generate follow-up work packet from {packet_id}",
+            execute_fn=_do_follow_up,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
     except Exception as e:
         logger.debug("generate follow-up failed: %s", e)
         return {"success": False, "error": str(e)}
 
 
 async def _feed_cadence(request: Request):
-    """Feed execution outcomes as candidates to the autonomous cadence.
-
-    WP-3.2: connects operator loop outcomes to the cadence candidate
-    supply so the autonomous improvement discovery has real data.
-    """
+    """Feed execution outcomes as candidates to the autonomous cadence."""
     body = await request.json()
     outcomes = body.get("outcomes", [])
 
     if not outcomes:
         return {"success": False, "error": "outcomes list is required"}
 
-    candidates = []
-    for o in outcomes[:10]:
-        candidates.append({
-            "candidate_id": str(uuid4()),
-            "description": o.get("outcome", o.get("description", ""))[:500],
-            "risk_class": o.get("risk_class", "low"),
-            "source_packet_id": o.get("packet_id", ""),
-            "domain": o.get("domain", "execution"),
-            "template_id": None,
-            "agent_reliability": 0,
-            "validation_method": "operator_verification",
-            "non_mutating": True,
+    captured: dict = {}
+
+    def _do_feed():
+        candidates = []
+        for o in outcomes[:10]:
+            candidates.append({
+                "candidate_id": str(uuid4()),
+                "description": o.get("outcome", o.get("description", ""))[:500],
+                "risk_class": o.get("risk_class", "low"),
+                "source_packet_id": o.get("packet_id", ""),
+                "domain": o.get("domain", "execution"),
+                "template_id": None,
+                "agent_reliability": 0,
+                "validation_method": "operator_verification",
+                "non_mutating": True,
+            })
+
+        created = []
+        try:
+            sbq = _get_self_build_queue()
+            for c in candidates:
+                item = sbq.create_work_item(
+                    title=f"Cadence candidate: {c['description'][:60]}",
+                    description=c["description"],
+                    source_type="cadence_candidate",
+                    source_id=c.get("source_packet_id", ""),
+                    risk_class=c["risk_class"],
+                )
+                created.append(item.work_item_id)
+        except Exception as e:
+            logger.debug("feed cadence to self-build queue failed: %s", e)
+
+        _log_improvement_event("cadence_fed", {
+            "candidates_submitted": len(candidates),
+            "work_items_created": len(created),
         })
 
-    try:
-        sbq = _get_self_build_queue()
-        created = []
-        for c in candidates:
-            item = sbq.create_work_item(
-                title=f"Cadence candidate: {c['description'][:60]}",
-                description=c["description"],
-                source_type="cadence_candidate",
-                source_id=c.get("source_packet_id", ""),
-                risk_class=c["risk_class"],
-            )
-            created.append(item.work_item_id)
-    except Exception as e:
-        logger.debug("feed cadence to self-build queue failed: %s", e)
-        created = []
+        captured.update({
+            "success": True,
+            "candidates_submitted": len(candidates),
+            "work_items_created": len(created),
+            "work_item_ids": created,
+        })
+        return f"fed {len(candidates)} candidates to cadence", True
 
-    _log_improvement_event("cadence_fed", {
-        "candidates_submitted": len(candidates),
-        "work_items_created": len(created),
-    })
-
-    return {
-        "success": True,
-        "candidates_submitted": len(candidates),
-        "work_items_created": len(created),
-        "work_item_ids": created,
-    }
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"feed {len(outcomes)} outcomes to cadence",
+        execute_fn=_do_feed,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
+    return captured

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from transports.api.cockpit_audit import emit_mutation_audit
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -86,40 +87,60 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     @r.post("/unified-execution/approve", dependencies=auth)
     def approve(req: ApproveRequest) -> dict[str, Any]:
-        result = _get_runtime().approve(req.approval_id, req.source_system)
-        emit_mutation_audit(
-            "approvals",
-            "approve",
-            req.approval_id,
-            new_value={"source_system": req.source_system},
-            surface="unified_execution",
-        )
-        try:
-            from transports.api.cockpit_core_routes import push_mutation_event
+        def _do():
+            result = _get_runtime().approve(req.approval_id, req.source_system)
+            emit_mutation_audit(
+                "approvals",
+                "approve",
+                req.approval_id,
+                new_value={"source_system": req.source_system},
+                surface="unified_execution",
+            )
+            try:
+                from transports.api.cockpit_core_routes import push_mutation_event
 
-            if push_mutation_event is not None:
-                push_mutation_event("execution", "approved", {"id": req.approval_id})
-        except Exception:
-            pass
-        return result
+                if push_mutation_event is not None:
+                    push_mutation_event("execution", "approved", {"id": req.approval_id})
+            except Exception:
+                pass
+            return f"approved {req.approval_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"approve execution {req.approval_id}",
+            execute_fn=_do,
+            source="cockpit",
+            metadata={"approval_id": req.approval_id, "source_system": req.source_system},
+        )
+        return resp.to_http_dict()
 
     @r.post("/unified-execution/reject", dependencies=auth)
     def reject(req: RejectRequest) -> dict[str, Any]:
-        result = _get_runtime().reject(req.approval_id, req.source_system, req.reason)
-        emit_mutation_audit(
-            "approvals",
-            "reject",
-            req.approval_id,
-            new_value={"source_system": req.source_system, "reason": req.reason},
-            surface="unified_execution",
-        )
-        try:
-            from transports.api.cockpit_core_routes import push_mutation_event
+        def _do():
+            result = _get_runtime().reject(req.approval_id, req.source_system, req.reason)
+            emit_mutation_audit(
+                "approvals",
+                "reject",
+                req.approval_id,
+                new_value={"source_system": req.source_system, "reason": req.reason},
+                surface="unified_execution",
+            )
+            try:
+                from transports.api.cockpit_core_routes import push_mutation_event
 
-            if push_mutation_event is not None:
-                push_mutation_event("execution", "rejected", {"id": req.approval_id})
-        except Exception:
-            pass
-        return result
+                if push_mutation_event is not None:
+                    push_mutation_event("execution", "rejected", {"id": req.approval_id})
+            except Exception:
+                pass
+            return f"rejected {req.approval_id}", True
+
+        resp = governed_mutation(
+            mutation_name="approval_decide",
+            intent=f"reject execution {req.approval_id}: {req.reason}",
+            execute_fn=_do,
+            source="cockpit",
+            metadata={"approval_id": req.approval_id, "source_system": req.source_system, "reason": req.reason},
+        )
+        return resp.to_http_dict()
 
     return r

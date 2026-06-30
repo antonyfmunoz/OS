@@ -14,6 +14,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 execution_graph_router: APIRouter = APIRouter()
@@ -92,26 +94,55 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             nt = ExecutionNodeType(nt_str)
         except ValueError:
             return {"error": f"invalid node_type: {nt_str}"}
-        node = _get_graph().record(
-            action=action,
-            node_type=nt,
-            intent_id=body.get("intent_id", ""),
-            decision_id=body.get("decision_id", ""),
-            work_packet_id=body.get("work_packet_id", ""),
-            execution_id=body.get("execution_id", ""),
-            proof_id=body.get("proof_id", ""),
-            outcome_id=body.get("outcome_id", ""),
-            parent_node_id=body.get("parent_node_id", ""),
-            metadata=body.get("metadata"),
+
+        result: dict[str, Any] = {}
+
+        def _do_record() -> tuple[str, bool]:
+            node = _get_graph().record(
+                action=action,
+                node_type=nt,
+                intent_id=body.get("intent_id", ""),
+                decision_id=body.get("decision_id", ""),
+                work_packet_id=body.get("work_packet_id", ""),
+                execution_id=body.get("execution_id", ""),
+                proof_id=body.get("proof_id", ""),
+                outcome_id=body.get("outcome_id", ""),
+                parent_node_id=body.get("parent_node_id", ""),
+                metadata=body.get("metadata"),
+            )
+            result["node"] = node.to_dict()
+            return node.node_id, True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"Record execution graph node: {action}",
+            execute_fn=_do_record,
+            source="cockpit",
+            metadata={"node_type": nt_str, "intent_id": body.get("intent_id", "")},
         )
-        return {"node": node.to_dict()}
+        return {**resp.to_http_dict(), **result}
 
     @r.post("/execution-graph/from-receipt", dependencies=auth)
     async def record_from_receipt(request: Request) -> dict[str, Any]:
         body = await request.json()
-        node = _get_graph().record_from_receipt(body)
-        if node is None:
-            return {"error": "receipt must have intent_id"}
-        return {"node": node.to_dict()}
+        result: dict[str, Any] = {}
+
+        def _do_record_receipt() -> tuple[str, bool]:
+            node = _get_graph().record_from_receipt(body)
+            if node is None:
+                return "receipt must have intent_id", False
+            result["node"] = node.to_dict()
+            return node.node_id, True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent="Record execution graph node from receipt",
+            execute_fn=_do_record_receipt,
+            source="cockpit",
+            metadata={"intent_id": body.get("intent_id", "")},
+        )
+        if not resp.success and "node" not in result:
+            return {"error": resp.output}
+        return {**resp.to_http_dict(), **result}
 
     return r

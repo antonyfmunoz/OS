@@ -17,6 +17,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 voice_router: APIRouter = APIRouter()
@@ -54,24 +56,38 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if not text:
             return {"success": False, "error": "text is required"}
 
-        engine = _get_engine()
-        resolution = engine.resolve(text)
-        result = {
-            "success": True,
-            "classification": {
-                "route_type": resolution.route_type,
-                "route_confidence": resolution.route_confidence,
-            },
-            "resolution": resolution.to_dict(),
-        }
-        _history.appendleft({
-            "text": text,
-            "domain": resolution.domain,
-            "answer_text": resolution.answer_text,
-            "confidence": resolution.confidence,
-            "resolved_at": resolution.resolved_at,
-        })
-        return result
+        captured: dict[str, Any] = {}
+
+        def _do_query():
+            engine = _get_engine()
+            resolution = engine.resolve(text)
+            captured["result"] = {
+                "success": True,
+                "classification": {
+                    "route_type": resolution.route_type,
+                    "route_confidence": resolution.route_confidence,
+                },
+                "resolution": resolution.to_dict(),
+            }
+            _history.appendleft({
+                "text": text,
+                "domain": resolution.domain,
+                "answer_text": resolution.answer_text,
+                "confidence": resolution.confidence,
+                "resolved_at": resolution.resolved_at,
+            })
+            return f"voice query: {text[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="command_submit",
+            intent=f"voice query: {text[:80]}",
+            execute_fn=_do_query,
+            source="cockpit",
+            metadata={"text": text[:200]},
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured.get("result", resp.to_http_dict())
 
     @r.get("/voice/domains", dependencies=auth)
     def voice_domains() -> dict[str, Any]:

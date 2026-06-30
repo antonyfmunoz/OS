@@ -41,6 +41,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
 
+from transports.api.governed import governed_mutation
+
 load_dotenv("/opt/OS/services/.env")
 load_dotenv("/opt/OS/.env", override=False)
 
@@ -420,29 +422,29 @@ async def chat(request: Request) -> dict[str, Any]:
             "duration_ms": 0,
         }
 
-    start = time.time()
-    try:
-        uc = _ctx_builder.build(_ctx, message, "operator_ui_session")
-        response = await asyncio.to_thread(
-            _spine.run,
-            message=message,
-            unified_context=uc,
-            agent_type="executive_assistant",
-            session_id="operator_ui_session",
-            channel_id="operator_ui",
-            org_id=str(_ctx.org_id),
-            user_id=str(_ctx.user_id),
-        )
-        duration_ms = int((time.time() - start) * 1000)
-        return {
-            "text": response,
-            "model_used": "spine",
-            "duration_ms": duration_ms,
-            "context_tokens": uc.estimated_tokens,
-        }
-    except Exception as e:
-        logger.error(f"ExecutionSpine error: {e}")
-        return {"text": f"Error: {e}", "model_used": "none", "duration_ms": 0}
+    def _do_chat():
+        try:
+            uc = _ctx_builder.build(_ctx, message, "operator_ui_session")
+            _spine.run(
+                message=message,
+                unified_context=uc,
+                agent_type="executive_assistant",
+                session_id="operator_ui_session",
+                channel_id="operator_ui",
+                org_id=str(_ctx.org_id),
+                user_id=str(_ctx.user_id),
+            )
+            return f"chat processed: {message[:50]}", True
+        except Exception as e:
+            return str(e), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"operator chat: {message[:80]}",
+        execute_fn=_do_chat,
+        source="operator",
+    )
+    return resp.to_http_dict()
 
 
 # ─── Ingest trigger ───────────────────────────────────────────────────────────
@@ -455,16 +457,22 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
     if not source:
         raise HTTPException(status_code=400, detail="source field required")
 
-    # Attempt to trigger ingestion via the orchestrator
-    try:
-        from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
+    def _do_ingest():
+        try:
+            from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
+            orchestrator = GenericIngestionOrchestrator()
+            orchestrator.ingest(source=source, path=path)
+            return f"ingestion triggered: {source}", True
+        except Exception as e:
+            return str(e), False
 
-        orchestrator = GenericIngestionOrchestrator()
-        result = await asyncio.to_thread(orchestrator.ingest, source=source, path=path)
-        return {"triggered": True, "result": str(result)}
-    except Exception as e:
-        logger.warning(f"Ingestion trigger failed: {e}")
-        return {"triggered": False, "error": str(e)}
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"trigger ingestion: {source}",
+        execute_fn=_do_ingest,
+        source="operator",
+    )
+    return resp.to_http_dict()
 
 
 # ─── Voice-first helpers ──────────────────────────────────────────────────────
@@ -537,19 +545,21 @@ async def voice_tts(request: Request) -> Any:
     if not text:
         raise HTTPException(status_code=400, detail="text field required")
 
-    from substrate.execution.bridge.voice_first import prepare_voice_response
+    def _do_tts():
+        from substrate.execution.bridge.voice_first import prepare_voice_response
+        cleaned = prepare_voice_response(text)
+        path = _generate_tts(cleaned)
+        if not path:
+            return "TTS generation failed", False
+        return f"tts generated: {path}", True
 
-    cleaned = prepare_voice_response(text)
-    path = await asyncio.to_thread(_generate_tts, cleaned)
-    if not path:
-        raise HTTPException(status_code=500, detail="TTS generation failed")
-
-    return FileResponse(
-        path,
-        media_type="audio/wav",
-        filename="response.wav",
-        background=None,
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"generate TTS: {text[:50]}",
+        execute_fn=_do_tts,
+        source="operator",
     )
+    return resp.to_http_dict()
 
 
 # ─── Vision helpers ──────────────────────────────────────────────────────────
@@ -605,7 +615,30 @@ async def vision_analyze(request: Request) -> dict[str, Any]:
     if not image_b64:
         raise HTTPException(status_code=400, detail="image field required (base64)")
 
-    return await _vision_analyze(image_b64, prompt, mime_type)
+    def _do_vision():
+        import base64
+        image_bytes = base64.b64decode(image_b64)
+        if len(image_bytes) > _MAX_VISION_FRAME_BYTES:
+            return "Image too large (max 2 MB)", False
+        vision_prompt = prompt or "Describe what you see in this image concisely."
+        try:
+            from adapters.models.model_router import call_with_fallback
+            call_with_fallback(
+                prompt=vision_prompt,
+                task_type="multimodal",
+                images=[(image_bytes, mime_type)],
+            )
+            return "vision analysis complete", True
+        except Exception as e:
+            return str(e), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"analyze vision: {prompt[:50] if prompt else 'default'}",
+        execute_fn=_do_vision,
+        source="operator",
+    )
+    return resp.to_http_dict()
 
 
 # ─── WebSocket ─────────────────────────────────────────────────────────────────

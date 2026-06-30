@@ -12,6 +12,8 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/umh/execution")
@@ -63,17 +65,27 @@ async def start_execution(req: StartRequest) -> dict[str, Any]:
     if req.slot in _active_slots:
         return {"success": False, "error": f"slot {req.slot} already active"}
 
-    _active_slots[req.slot] = {
-        "layer": req.layer,
-        "task": req.task,
-        "status": "running",
-        "step_count": 0,
-        "authority_class": authority["authority_class"],
-        "risk_class": authority["risk_class"],
-        "approval_status": authority["approval_requirement"],
-        "action_log": [],
-    }
+    def _do_start():
+        _active_slots[req.slot] = {
+            "layer": req.layer,
+            "task": req.task,
+            "status": "running",
+            "step_count": 0,
+            "authority_class": authority["authority_class"],
+            "risk_class": authority["risk_class"],
+            "approval_status": authority["approval_requirement"],
+            "action_log": [],
+        }
+        return f"started execution slot {req.slot} on {req.layer}", True
 
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"start execution slot {req.slot} on layer {req.layer}",
+        execute_fn=_do_start,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
     return {
         "success": True,
         "slot": req.slot,
@@ -87,12 +99,22 @@ async def stop_execution(req: SlotRequest) -> dict[str, Any]:
     if req.slot not in _active_slots:
         return {"success": False, "error": f"slot {req.slot} not active"}
 
-    _active_slots[req.slot]["status"] = "stopped"
-    task = _slot_tasks.pop(req.slot, None)
-    if task and not task.done():
-        task.cancel()
-    del _active_slots[req.slot]
+    def _do_stop():
+        _active_slots[req.slot]["status"] = "stopped"
+        task = _slot_tasks.pop(req.slot, None)
+        if task and not task.done():
+            task.cancel()
+        del _active_slots[req.slot]
+        return f"stopped execution slot {req.slot}", True
 
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"stop execution slot {req.slot}",
+        execute_fn=_do_stop,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
     return {"success": True, "slot": req.slot}
 
 
@@ -101,7 +123,18 @@ async def pause_execution(req: SlotRequest) -> dict[str, Any]:
     if req.slot not in _active_slots:
         return {"success": False, "error": f"slot {req.slot} not active"}
 
-    _active_slots[req.slot]["status"] = "paused"
+    def _do_pause():
+        _active_slots[req.slot]["status"] = "paused"
+        return f"paused execution slot {req.slot}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"pause execution slot {req.slot}",
+        execute_fn=_do_pause,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
     return {"success": True, "slot": req.slot}
 
 
@@ -110,7 +143,18 @@ async def resume_execution(req: SlotRequest) -> dict[str, Any]:
     if req.slot not in _active_slots:
         return {"success": False, "error": f"slot {req.slot} not active"}
 
-    _active_slots[req.slot]["status"] = "running"
+    def _do_resume():
+        _active_slots[req.slot]["status"] = "running"
+        return f"resumed execution slot {req.slot}", True
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"resume execution slot {req.slot}",
+        execute_fn=_do_resume,
+        source="cockpit",
+    )
+    if not resp.success:
+        return resp.to_http_dict()
     return {"success": True, "slot": req.slot}
 
 
@@ -153,25 +197,55 @@ async def start_container(
     slot: int = 0,
     mem_limit: str = "2g",
 ) -> dict[str, Any]:
-    try:
+    captured: dict = {}
+
+    def _do_start_container():
         from nodes.windows.umh_node.adapters.container import ContainerAdapter
 
         adapter = ContainerAdapter()
-        return adapter.handle(
+        result = adapter.handle(
             "container.spawn",
             {"image": image, "slot": slot, "mem_limit": mem_limit},
         )
+        captured.update(result)
+        return f"started container {image} slot {slot}", True
+
+    try:
+        resp = governed_mutation(
+            mutation_name="sandbox_create",
+            intent=f"start container {image} slot {slot}",
+            execute_fn=_do_start_container,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 
 
 @router.post("/container/stop")
 async def stop_container(container_name: str = "") -> dict[str, Any]:
-    try:
+    captured: dict = {}
+
+    def _do_stop_container():
         from nodes.windows.umh_node.adapters.container import ContainerAdapter
 
         adapter = ContainerAdapter()
-        return adapter.handle("container.stop", {"container_name": container_name})
+        result = adapter.handle("container.stop", {"container_name": container_name})
+        captured.update(result)
+        return f"stopped container {container_name}", True
+
+    try:
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"stop container {container_name}",
+            execute_fn=_do_stop_container,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
     except Exception as exc:
         return {"success": False, "error": str(exc)}
 

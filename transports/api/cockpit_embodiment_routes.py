@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 embodiment_router: APIRouter = APIRouter()
@@ -54,8 +56,23 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         text = str(payload.get("text", ""))
         if not text:
             raise HTTPException(status_code=400, detail="text required")
-        response = emb.process_intent(text, context=payload.get("context"))
-        return response.to_dict()
+        captured: dict = {}
+
+        def _do_intent():
+            response = emb.process_intent(text, context=payload.get("context"))
+            captured.update(response.to_dict())
+            return f"embodiment intent: {text[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"embodiment intent: {text[:80]}",
+            execute_fn=_do_intent,
+            source="cockpit",
+            metadata={"text": text[:200]},
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/embodiment/classify")
     def classify_intent(payload: dict) -> dict:
@@ -65,8 +82,23 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         text = str(payload.get("text", ""))
         if not text:
             raise HTTPException(status_code=400, detail="text required")
-        classification = emb.classify_intent(text)
-        return classification.to_dict()
+        captured: dict = {}
+
+        def _do_classify():
+            classification = emb.classify_intent(text)
+            captured.update(classification.to_dict())
+            return f"embodiment classify: {text[:80]}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"embodiment classify: {text[:80]}",
+            execute_fn=_do_classify,
+            source="cockpit",
+            metadata={"text": text[:200]},
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.get("/embodiment/context")
     def embodiment_context() -> dict:
@@ -87,7 +119,23 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         emb = _get_embodiment()
         if emb is None:
             raise HTTPException(status_code=503, detail="embodiment unavailable")
-        return emb.update_persona(**payload)
+        captured: dict = {}
+
+        def _do_update():
+            result = emb.update_persona(**payload)
+            captured.update(result)
+            return "updated embodiment persona", True
+
+        resp = governed_mutation(
+            mutation_name="settings_update",
+            intent="update embodiment persona",
+            execute_fn=_do_update,
+            source="cockpit",
+            metadata=payload,
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.get("/embodiment/history")
     def intent_history(limit: int = 50) -> dict:
