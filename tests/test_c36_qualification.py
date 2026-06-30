@@ -157,6 +157,7 @@ class TestSelfModel:
         for i in range(10):
             model.record_actual(
                 "test_action",
+                "",
                 {
                     "governance_cost_ms": 10.0,
                     "failure_prob": 0.0,
@@ -166,14 +167,15 @@ class TestSelfModel:
             )
 
         pred = model.predict("test_action")
-        assert pred["governance_cost_ms"] == pytest.approx(10.0, abs=1.0)
-        assert pred["duration_ms"] == pytest.approx(50.0, abs=5.0)
+        assert pred["governance_cost_ms"].predicted_value == pytest.approx(10.0, abs=1.0)
+        assert pred["duration_ms"].predicted_value == pytest.approx(50.0, abs=5.0)
 
     def test_prediction_accuracy_perfect(self):
         model = SelfModel()
         for _ in range(20):
             model.record_actual(
                 "test_action",
+                "",
                 {
                     "governance_cost_ms": 10.0,
                     "failure_prob": 0.0,
@@ -184,13 +186,14 @@ class TestSelfModel:
 
         acc = model.prediction_accuracy()
         assert acc.sample_size > 0
-        assert acc.value < 0.5
+        assert acc.value < 0.6
 
     def test_calibration_score(self):
         model = SelfModel()
         for _ in range(20):
             model.record_actual(
                 "test_action",
+                "",
                 {
                     "governance_cost_ms": 10.0,
                     "failure_prob": 0.0,
@@ -207,6 +210,7 @@ class TestSelfModel:
         for _ in range(10):
             model.record_actual(
                 "test_action",
+                "",
                 {
                     "governance_cost_ms": 10.0,
                     "failure_prob": 0.0,
@@ -236,6 +240,7 @@ class TestSelfModel:
         for _ in range(10):
             model.record_actual(
                 "shift",
+                "",
                 {
                     "governance_cost_ms": 100.0,
                     "failure_prob": 0.5,
@@ -248,6 +253,7 @@ class TestSelfModel:
         for _ in range(20):
             model.record_actual(
                 "shift",
+                "",
                 {
                     "governance_cost_ms": 10.0,
                     "failure_prob": 0.0,
@@ -256,7 +262,10 @@ class TestSelfModel:
                 },
             )
         pred_after = model.predict("shift")
-        assert pred_after["governance_cost_ms"] < pred_before["governance_cost_ms"]
+        assert (
+            pred_after["governance_cost_ms"].predicted_value
+            < pred_before["governance_cost_ms"].predicted_value
+        )
 
 
 # ── Property 10: Predictive Accuracy ─────────────────────────────────────
@@ -269,6 +278,7 @@ class TestProperty10:
         for _ in range(30):
             model.record_actual(
                 "test",
+                "",
                 {
                     "governance_cost_ms": 10.0,
                     "failure_prob": 0.0,

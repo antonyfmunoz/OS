@@ -603,8 +603,8 @@ def main() -> None:
     parser.add_argument(
         "--min",
         type=int,
-        default=50,
-        help="Minimum mutations before checking convergence (default: 50)",
+        default=150,
+        help="Minimum mutations before checking convergence (default: 150)",
     )
     parser.add_argument("--batch", type=int, default=25, help="Base batch size (default: 25)")
     parser.add_argument(
@@ -631,7 +631,7 @@ def main() -> None:
         batch_size=args.batch,
         target_confidence=args.confidence,
     )
-    orchestrator = QualificationOrchestrator(harness, config)
+    orchestrator = QualificationOrchestrator(harness, config, mutation_registry=org["registry"])
 
     def submit_fn(batch_size):
         return _submit_batch(org, harness, batch_size, source="qualification")
