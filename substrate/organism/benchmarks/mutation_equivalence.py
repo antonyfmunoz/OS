@@ -284,6 +284,7 @@ class MutationEquivalenceScorer:
                 "governed_spine", "GovernedExecutionSpine",
                 "approval_gate", "governed_execution",
                 "spine_router", "organism_bridge",
+                "governed_mutation",
             ))
             has_envelope = "ActionEnvelope" in content or "action_envelope" in content
             has_post_put = bool(re.search(r'@router\.(post|put|delete|patch)', content, re.IGNORECASE))

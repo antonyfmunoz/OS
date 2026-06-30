@@ -28,7 +28,7 @@ from substrate.sockets.outcome_socket import OutcomeSocket
 from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
 from substrate.sockets.signal_socket import SignalSocket
 from substrate.sockets.view.broadcaster import ViewFrameBroadcaster, make_pipeline_listener
-from substrate.sockets.view.websocket import broadcast_frame, ws_endpoint
+from substrate.sockets.view.websocket import broadcast_frame, manager, ws_endpoint
 from substrate.sockets.view_socket import ViewSocket
 from substrate.execution.executor import build_default_executor
 from adapters.notion.integration.correlation import CorrelationMap, WritebackTarget
@@ -383,6 +383,23 @@ async def lifespan(app: FastAPI):
     _memory_watcher = start_memory_watcher()
     logger.info("memory watcher started with %d watches", len(_memory_watcher.watches))
 
+    # Wire EventSpine → WebSocket for live mutation lifecycle events
+    if _organism is not None:
+        _es = _organism.event_spine
+
+        def _event_spine_to_ws(event: Any) -> None:
+            try:
+                msg = {
+                    "type": "organism_event",
+                    "data": event.to_dict(),
+                }
+                asyncio.run_coroutine_threadsafe(manager.broadcast(msg), loop)
+            except Exception:
+                pass
+
+        _es.subscribe("cockpit_ws_bridge", _event_spine_to_ws)
+        logger.info("event spine → websocket bridge active")
+
     # Register cockpit WebSocket as a notification channel
     from substrate.sockets.notification_engine import (
         get_notification_engine,
@@ -413,6 +430,7 @@ async def lifespan(app: FastAPI):
         logger.info("memory watcher stopped")
 
     if _organism is not None:
+        _organism.event_spine.unsubscribe("cockpit_ws_bridge")
         _organism.stop()
         logger.info("organism daemon stopped")
 

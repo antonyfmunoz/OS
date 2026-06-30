@@ -536,3 +536,102 @@ class TestCompoundingWiring:
         assert response.success is True
         assert response.envelope is not None
         assert response.envelope.metadata.get("compounding_candidates") == 1
+
+
+# ── Phase 7: Validation — Mutation Equivalence ─────────────────────────────
+
+
+class TestMutationEquivalenceValidation:
+    """Verify C34 achieved 0% spine bypass rate and structural coverage."""
+
+    def test_enforcement_gate_clean(self):
+        """The enforcement hook reports 0 violations across all route files."""
+        import subprocess
+
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = subprocess.run(
+            [sys.executable, "scripts/check_ungoverned_mutations.py", "--all"],
+            capture_output=True,
+            text=True,
+            cwd=repo,
+        )
+        assert result.returncode == 0, f"Gate failed: {result.stdout}"
+        assert "clean" in result.stdout.lower()
+
+    def test_structural_audit_zero_bypasses(self):
+        """Benchmark H structural audit shows 0 spine bypasses."""
+        import subprocess
+
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = subprocess.run(
+            [
+                sys.executable, "-c",
+                "import os, sys, json; "
+                f"os.environ['UMH_ROOT'] = '{repo}'; "
+                "sys.path.insert(0, os.environ['UMH_ROOT']); "
+                "from substrate.organism.benchmarks.mutation_equivalence import MutationEquivalenceScorer; "
+                "s = MutationEquivalenceScorer(store_path='/nonexistent/path.jsonl'); "
+                "a = s.structural_audit(); "
+                "print(json.dumps(a))",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=repo,
+        )
+        assert result.returncode == 0, result.stderr
+        audit = json.loads(result.stdout.strip())
+        assert audit["potential_bypasses"] == 0, (
+            f"Expected 0 bypasses, got {audit['potential_bypasses']}: "
+            f"{audit.get('bypasses', [])}"
+        )
+
+    def test_all_mutation_files_spine_connected(self):
+        """Every mutation route file has a spine/governed import."""
+        import subprocess
+
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = subprocess.run(
+            [
+                sys.executable, "-c",
+                "import os, sys, json; "
+                f"os.environ['UMH_ROOT'] = '{repo}'; "
+                "sys.path.insert(0, os.environ['UMH_ROOT']); "
+                "from substrate.organism.benchmarks.mutation_equivalence import MutationEquivalenceScorer; "
+                "s = MutationEquivalenceScorer(store_path='/nonexistent/path.jsonl'); "
+                "a = s.structural_audit(); "
+                "print(json.dumps(a))",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=repo,
+        )
+        assert result.returncode == 0, result.stderr
+        audit = json.loads(result.stdout.strip())
+        assert audit["mutation_route_files"] > 0
+        assert audit["spine_connected"] == audit["mutation_route_files"], (
+            f"{audit['spine_connected']}/{audit['mutation_route_files']} "
+            f"mutation files connected to spine"
+        )
+
+    def test_governed_mutation_import_coverage(self):
+        """At least 70 Python route files have governed_mutation import."""
+        import subprocess
+
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = subprocess.run(
+            ["grep", "-rl", "governed_mutation", "transports/api/", "--include=*.py"],
+            capture_output=True,
+            text=True,
+            cwd=repo,
+        )
+        files = [f for f in result.stdout.strip().split("\n") if f]
+        assert len(files) >= 70, f"Expected >= 70, got {len(files)}"
+
+    def test_event_spine_websocket_bridge_wired(self):
+        """Phase 6: app.py subscribes EventSpine to WebSocket broadcast."""
+        repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        app_path = os.path.join(repo, "transports", "api", "app.py")
+        with open(app_path) as f:
+            content = f.read()
+        assert "cockpit_ws_bridge" in content
+        assert "event_spine_to_ws" in content or "_event_spine_to_ws" in content
