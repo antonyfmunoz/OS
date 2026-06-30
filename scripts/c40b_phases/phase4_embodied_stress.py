@@ -87,7 +87,7 @@ def _run_cross_surface_equivalence(ctx: CampaignContext, count: int) -> dict:
     matches = 0
     mismatches = 0
 
-    specs = list(ctx.registry.all_specs().values()) if hasattr(ctx.registry, "all_specs") else []
+    specs = ctx.registry.all_specs() if hasattr(ctx.registry, "all_specs") else []
     spec_names = [s.name for s in specs[:10]] if specs else [
         "organism.tune_weights", "organism.adjust_confidence",
     ]

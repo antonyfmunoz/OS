@@ -158,7 +158,7 @@ def _execute_mutation_scenario(
         "error": None,
     }
 
-    specs = list(ctx.registry.all_specs().values()) if hasattr(ctx.registry, "all_specs") else []
+    specs = ctx.registry.all_specs() if hasattr(ctx.registry, "all_specs") else []
     if not specs:
         spec_names = ["organism.tune_weights", "organism.adjust_confidence",
                        "organism.update_learning_rate"]
