@@ -16,6 +16,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
@@ -98,13 +100,21 @@ async def _subscribe(request: Request) -> dict[str, Any]:
     if not subscription or not subscription.get("endpoint"):
         return {"success": False, "error": "subscription with endpoint required"}
 
-    subs = _load_subscriptions()
-    existing_endpoints = {s.get("endpoint") for s in subs}
-    if subscription.get("endpoint") not in existing_endpoints:
-        subs.append(subscription)
-        _save_subscriptions(subs)
+    def _do_subscribe():
+        subs = _load_subscriptions()
+        existing_endpoints = {s.get("endpoint") for s in subs}
+        if subscription.get("endpoint") not in existing_endpoints:
+            subs.append(subscription)
+            _save_subscriptions(subs)
+        return f"subscribed push endpoint", True
 
-    return {"success": True, "total_subscriptions": len(subs)}
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent="subscribe push notification endpoint",
+        execute_fn=_do_subscribe,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 async def _unsubscribe(request: Request) -> dict[str, Any]:
@@ -114,20 +124,39 @@ async def _unsubscribe(request: Request) -> dict[str, Any]:
     if not endpoint:
         return {"success": False, "error": "endpoint required"}
 
-    subs = _load_subscriptions()
-    subs = [s for s in subs if s.get("endpoint") != endpoint]
-    _save_subscriptions(subs)
-    return {"success": True}
+    def _do_unsubscribe():
+        subs = _load_subscriptions()
+        subs = [s for s in subs if s.get("endpoint") != endpoint]
+        _save_subscriptions(subs)
+        return "unsubscribed push endpoint", True
+
+    resp = governed_mutation(
+        mutation_name="settings_update",
+        intent="unsubscribe push notification endpoint",
+        execute_fn=_do_unsubscribe,
+        source="cockpit",
+    )
+    return resp.to_http_dict()
 
 
 def _test_push(request: Request) -> dict[str, Any]:
     """POST /push/test — send a test notification to all subscriptions."""
-    result = send_push_notification(
-        title="UMH Test",
-        body="Push notifications are working.",
-        category="info",
+
+    def _do_test():
+        result = send_push_notification(
+            title="UMH Test",
+            body="Push notifications are working.",
+            category="info",
+        )
+        return f"test push sent: {result}", result
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent="send test push notification",
+        execute_fn=_do_test,
+        source="cockpit",
     )
-    return {"success": result, "available": _PYWEBPUSH_AVAILABLE}
+    return resp.to_http_dict()
 
 
 # ── Public API ────────────────────────────────────────────────────

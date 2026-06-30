@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 agent_fleet_router: APIRouter = APIRouter()
@@ -105,10 +107,23 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             )
         risk = str(payload.get("risk_class", "low"))
         domain = str(payload.get("domain", ""))
-        assignment = fleet.assign(
-            capabilities_required=caps, risk_class=risk, domain=domain,
+
+        def _do_assign():
+            assignment = fleet.assign(
+                capabilities_required=caps, risk_class=risk, domain=domain,
+            )
+            return assignment.to_dict(), True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"assign agent for {caps} risk={risk}",
+            execute_fn=_do_assign,
+            source="cockpit",
+            metadata={"capabilities": caps, "risk_class": risk, "domain": domain},
         )
-        return assignment.to_dict()
+        if not resp.success:
+            raise HTTPException(status_code=422, detail=resp.to_http_dict())
+        return resp.to_http_dict()
 
     @r.post("/fleet/dispatch")
     def fleet_dispatch(payload: dict) -> dict:
@@ -123,13 +138,26 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         risk = str(payload.get("risk_class", "low"))
         domain = str(payload.get("domain", ""))
         description = str(payload.get("description", ""))
-        assignment = fleet.assign(
-            capabilities_required=caps, risk_class=risk, domain=domain,
+
+        def _do_dispatch():
+            assignment = fleet.assign(
+                capabilities_required=caps, risk_class=risk, domain=domain,
+            )
+            if not assignment.agent_type:
+                return assignment.rationale.summary, False
+            dispatch = fleet.dispatch(assignment, description=description)
+            return dispatch.to_dict(), True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"dispatch agent for {caps} desc={description[:50]}",
+            execute_fn=_do_dispatch,
+            source="cockpit",
+            metadata={"capabilities": caps, "risk_class": risk, "description": description},
         )
-        if not assignment.agent_type:
-            raise HTTPException(status_code=404, detail=assignment.rationale.summary)
-        dispatch = fleet.dispatch(assignment, description=description)
-        return dispatch.to_dict()
+        if not resp.success:
+            raise HTTPException(status_code=422, detail=resp.to_http_dict())
+        return resp.to_http_dict()
 
     @r.post("/fleet/wave")
     def fleet_wave(payload: dict) -> dict:
@@ -139,16 +167,29 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         items = payload.get("items", [])
         if not isinstance(items, list):
             raise HTTPException(status_code=400, detail="items must be a list")
-        assignments = []
-        for item in items:
-            caps = item.get("capabilities_required", [])
-            risk = str(item.get("risk_class", "low"))
-            domain = str(item.get("domain", ""))
-            a = fleet.assign(capabilities_required=caps, risk_class=risk, domain=domain)
-            if a.agent_type:
-                assignments.append(a)
-        result = fleet.dispatch_wave(assignments)
-        return result.to_dict()
+
+        def _do_wave():
+            assignments = []
+            for item in items:
+                caps = item.get("capabilities_required", [])
+                risk = str(item.get("risk_class", "low"))
+                domain = str(item.get("domain", ""))
+                a = fleet.assign(capabilities_required=caps, risk_class=risk, domain=domain)
+                if a.agent_type:
+                    assignments.append(a)
+            result = fleet.dispatch_wave(assignments)
+            return result.to_dict(), True
+
+        resp = governed_mutation(
+            mutation_name="work_packet_create",
+            intent=f"dispatch wave of {len(items)} items",
+            execute_fn=_do_wave,
+            source="cockpit",
+            metadata={"item_count": len(items)},
+        )
+        if not resp.success:
+            raise HTTPException(status_code=422, detail=resp.to_http_dict())
+        return resp.to_http_dict()
 
     @r.get("/fleet/utilization")
     def fleet_utilization() -> dict:

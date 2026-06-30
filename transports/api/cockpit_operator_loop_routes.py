@@ -1162,15 +1162,30 @@ async def _record_outcome(request: Request):
     if not outcome_text:
         return {"success": False, "error": "outcome is required"}
 
-    obs_id = _record_outcome_internal(
-        packet_id=body.get("packet_id", ""),
-        outcome_text=outcome_text,
-        domain=body.get("domain", "execution"),
-        confidence=body.get("confidence", 0.7),
+    outcome_data = {}
+
+    def _do_record():
+        obs_id = _record_outcome_internal(
+            packet_id=body.get("packet_id", ""),
+            outcome_text=outcome_text,
+            domain=body.get("domain", "execution"),
+            confidence=body.get("confidence", 0.7),
+        )
+        if obs_id:
+            outcome_data["observation_id"] = obs_id
+            return f"outcome recorded: {obs_id}", True
+        return "recording failed", False
+
+    resp = governed_mutation(
+        mutation_name="outcome_record",
+        intent=f"record outcome: {outcome_text[:80]}",
+        execute_fn=_do_record,
+        source="cockpit",
+        metadata={"packet_id": body.get("packet_id", "")},
     )
-    if obs_id:
-        return {"success": True, "observation_id": obs_id}
-    return {"success": False, "error": "recording failed"}
+    result = resp.to_http_dict()
+    result.update(outcome_data)
+    return result
 
 
 def _loop_health():
@@ -3067,62 +3082,108 @@ def _profile_system_modes(request: Request) -> dict:
 
 
 async def _profile_activate_profile(request: Request) -> dict:
-    try:
-        body = await request.json()
-        profile_mode = body.get("profile_mode", "")
-        source = body.get("source", "cockpit")
-        manual_override = body.get("manual_override", False)
-        if not profile_mode:
-            return {"success": False, "error": "profile_mode is required"}
+    body = await request.json()
+    profile_mode = body.get("profile_mode", "")
+    source = body.get("source", "cockpit")
+    manual_override = body.get("manual_override", False)
+    if not profile_mode:
+        return {"success": False, "error": "profile_mode is required"}
+
+    activate_data = {}
+
+    def _do_activate():
         rt = _get_profile_runtime()
-        result = rt.activate_profile(profile_mode, source=source, manual_override=manual_override)
+        r = rt.activate_profile(profile_mode, source=source, manual_override=manual_override)
         _audit_log("profile_activated", {"profile": profile_mode, "source": source})
-        return result
-    except Exception as exc:
-        logger.error("profile activate failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        activate_data.update(r)
+        return f"profile {profile_mode} activated", r.get("success", True)
+
+    resp = governed_mutation(
+        mutation_name="profile_mutate",
+        intent=f"activate profile {profile_mode}",
+        execute_fn=_do_activate,
+        source="cockpit",
+        metadata={"profile_mode": profile_mode},
+    )
+    result = resp.to_http_dict()
+    result.update(activate_data)
+    return result
 
 
 def _profile_deactivate_profile(request: Request) -> dict:
-    try:
+    deactivate_data = {}
+
+    def _do_deactivate():
         rt = _get_profile_runtime()
-        result = rt.deactivate_profile()
+        r = rt.deactivate_profile()
         _audit_log("profile_deactivated", {})
-        return result
-    except Exception as exc:
-        logger.error("profile deactivate failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        deactivate_data.update(r)
+        return "profile deactivated", r.get("success", True)
+
+    resp = governed_mutation(
+        mutation_name="profile_mutate",
+        intent="deactivate profile",
+        execute_fn=_do_deactivate,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(deactivate_data)
+    return result
 
 
 async def _profile_activate_system_mode(request: Request) -> dict:
-    try:
-        body = await request.json()
-        mode_name = body.get("mode_name", "")
-        source = body.get("source", "cockpit")
-        if not mode_name:
-            return {"success": False, "error": "mode_name is required"}
+    body = await request.json()
+    mode_name = body.get("mode_name", "")
+    source = body.get("source", "cockpit")
+    if not mode_name:
+        return {"success": False, "error": "mode_name is required"}
+
+    mode_data = {}
+
+    def _do_activate():
         rt = _get_profile_runtime()
-        result = rt.activate_system_mode(mode_name, source=source)
+        r = rt.activate_system_mode(mode_name, source=source)
         _audit_log("system_mode_activated", {"mode": mode_name, "source": source})
-        return result
-    except Exception as exc:
-        logger.error("system mode activate failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        mode_data.update(r)
+        return f"system mode {mode_name} activated", r.get("success", True)
+
+    resp = governed_mutation(
+        mutation_name="profile_mutate",
+        intent=f"activate system mode {mode_name}",
+        execute_fn=_do_activate,
+        source="cockpit",
+        metadata={"mode_name": mode_name},
+    )
+    result = resp.to_http_dict()
+    result.update(mode_data)
+    return result
 
 
 async def _profile_deactivate_system_mode(request: Request) -> dict:
-    try:
-        body = await request.json()
-        mode_name = body.get("mode_name", "")
-        if not mode_name:
-            return {"success": False, "error": "mode_name is required"}
+    body = await request.json()
+    mode_name = body.get("mode_name", "")
+    if not mode_name:
+        return {"success": False, "error": "mode_name is required"}
+
+    mode_data = {}
+
+    def _do_deactivate():
         rt = _get_profile_runtime()
-        result = rt.deactivate_system_mode(mode_name)
+        r = rt.deactivate_system_mode(mode_name)
         _audit_log("system_mode_deactivated", {"mode": mode_name})
-        return result
-    except Exception as exc:
-        logger.error("system mode deactivate failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        mode_data.update(r)
+        return f"system mode {mode_name} deactivated", r.get("success", True)
+
+    resp = governed_mutation(
+        mutation_name="profile_mutate",
+        intent=f"deactivate system mode {mode_name}",
+        execute_fn=_do_deactivate,
+        source="cockpit",
+        metadata={"mode_name": mode_name},
+    )
+    result = resp.to_http_dict()
+    result.update(mode_data)
+    return result
 
 
 def _profile_activation_plan(request: Request) -> dict:
@@ -3205,131 +3266,197 @@ def _session_active(request: Request) -> dict:
 
 
 async def _session_start(request: Request) -> dict:
-    try:
-        body = await request.json()
+    body = await request.json()
+    session_data = {}
+
+    def _do_start():
         rt = _get_session_runtime()
         session = rt.start_session(
-            session_type=body.get("session_type", "desktop"),
-            host_id=body.get("host_id", ""),
-            device_id=body.get("device_id", ""),
-            profile_id=body.get("profile_id", ""),
+            session_type=body.get("session_type", "desktop"), host_id=body.get("host_id", ""),
+            device_id=body.get("device_id", ""), profile_id=body.get("profile_id", ""),
             workstation_mode=body.get("workstation_mode", ""),
-            authority=body.get("authority", "secondary"),
-            metadata=body.get("metadata"),
+            authority=body.get("authority", "secondary"), metadata=body.get("metadata"),
         )
         _audit_log("session_started", {"session_id": session.session_id})
-        return {"success": True, "session": session.to_dict()}
-    except Exception as exc:
-        logger.error("session start failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        session_data["session"] = session.to_dict()
+        return f"session {session.session_id} started", True
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent="start session",
+        execute_fn=_do_start,
+        source="cockpit",
+    )
+    result = resp.to_http_dict()
+    result.update(session_data)
+    return result
 
 
 async def _session_suspend(request: Request) -> dict:
-    try:
-        body = await request.json()
-        session_id = body.get("session_id", "")
-        if not session_id:
-            return {"success": False, "error": "session_id is required"}
+    body = await request.json()
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id is required"}
+
+    def _do_suspend():
         rt = _get_session_runtime()
-        result = rt.suspend_session(session_id)
+        ok = rt.suspend_session(session_id)
         _audit_log("session_suspended", {"session_id": session_id})
-        return {"success": result}
-    except Exception as exc:
-        logger.error("session suspend failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"session {session_id} suspended", ok
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"suspend session {session_id}",
+        execute_fn=_do_suspend,
+        source="cockpit",
+        metadata={"session_id": session_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _session_resume(request: Request) -> dict:
-    try:
-        body = await request.json()
-        session_id = body.get("session_id", "")
-        if not session_id:
-            return {"success": False, "error": "session_id is required"}
+    body = await request.json()
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id is required"}
+
+    def _do_resume():
         rt = _get_session_runtime()
-        result = rt.resume_session(session_id)
+        ok = rt.resume_session(session_id)
         _audit_log("session_resumed", {"session_id": session_id})
-        return {"success": result}
-    except Exception as exc:
-        logger.error("session resume failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"session {session_id} resumed", ok
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"resume session {session_id}",
+        execute_fn=_do_resume,
+        source="cockpit",
+        metadata={"session_id": session_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _session_disconnect(request: Request) -> dict:
-    try:
-        body = await request.json()
-        session_id = body.get("session_id", "")
-        if not session_id:
-            return {"success": False, "error": "session_id is required"}
+    body = await request.json()
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id is required"}
+
+    def _do_disconnect():
         rt = _get_session_runtime()
-        result = rt.disconnect_session(session_id)
+        ok = rt.disconnect_session(session_id)
         _audit_log("session_disconnected", {"session_id": session_id})
-        return {"success": result}
-    except Exception as exc:
-        logger.error("session disconnect failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"session {session_id} disconnected", ok
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"disconnect session {session_id}",
+        execute_fn=_do_disconnect,
+        source="cockpit",
+        metadata={"session_id": session_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _session_restore(request: Request) -> dict:
-    try:
-        body = await request.json()
-        session_id = body.get("session_id", "")
-        if not session_id:
-            return {"success": False, "error": "session_id is required"}
+    body = await request.json()
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id is required"}
+
+    def _do_restore():
         rt = _get_session_runtime()
-        result = rt.restore_session(session_id)
+        ok = rt.restore_session(session_id)
         _audit_log("session_restored", {"session_id": session_id})
-        return {"success": result}
-    except Exception as exc:
-        logger.error("session restore failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"session {session_id} restored", ok
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"restore session {session_id}",
+        execute_fn=_do_restore,
+        source="cockpit",
+        metadata={"session_id": session_id},
+    )
+    return resp.to_http_dict()
 
 
 async def _session_promote(request: Request) -> dict:
-    try:
-        body = await request.json()
-        session_id = body.get("session_id", "")
-        if not session_id:
-            return {"success": False, "error": "session_id is required"}
+    body = await request.json()
+    session_id = body.get("session_id", "")
+    if not session_id:
+        return {"success": False, "error": "session_id is required"}
+
+    promote_data = {}
+
+    def _do_promote():
         rt = _get_session_runtime()
-        success, demoted = rt.promote_to_primary(session_id)
+        ok, demoted = rt.promote_to_primary(session_id)
         _audit_log("session_promoted", {"session_id": session_id, "demoted": demoted})
-        return {"success": success, "demoted_session_id": demoted}
-    except Exception as exc:
-        logger.error("session promote failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        promote_data["demoted_session_id"] = demoted
+        return f"session {session_id} promoted", ok
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"promote session {session_id} to primary",
+        execute_fn=_do_promote,
+        source="cockpit",
+        metadata={"session_id": session_id},
+    )
+    result = resp.to_http_dict()
+    result.update(promote_data)
+    return result
 
 
 async def _session_handoff(request: Request) -> dict:
-    try:
-        body = await request.json()
-        source = body.get("source_session_id", "")
-        target = body.get("target_session_id", "")
-        if not source or not target:
-            return {"success": False, "error": "source_session_id and target_session_id required"}
+    body = await request.json()
+    source = body.get("source_session_id", "")
+    target = body.get("target_session_id", "")
+    if not source or not target:
+        return {"success": False, "error": "source_session_id and target_session_id required"}
+
+    handoff_data = {}
+
+    def _do_handoff():
         rt = _get_session_runtime()
         handoff = rt.initiate_handoff(source, target)
         if handoff:
             _audit_log("session_handoff_initiated", {"handoff_id": handoff.handoff_id})
-            return {"success": True, "handoff": handoff.to_dict()}
-        return {"success": False, "error": "Handoff failed — check session IDs"}
-    except Exception as exc:
-        logger.error("session handoff failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+            handoff_data["handoff"] = handoff.to_dict()
+            return f"handoff {handoff.handoff_id} initiated", True
+        return "handoff failed", False
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"handoff session {source} to {target}",
+        execute_fn=_do_handoff,
+        source="cockpit",
+        metadata={"source": source, "target": target},
+    )
+    result = resp.to_http_dict()
+    result.update(handoff_data)
+    return result
 
 
 async def _session_handoff_complete(request: Request) -> dict:
-    try:
-        body = await request.json()
-        handoff_id = body.get("handoff_id", "")
-        if not handoff_id:
-            return {"success": False, "error": "handoff_id is required"}
+    body = await request.json()
+    handoff_id = body.get("handoff_id", "")
+    if not handoff_id:
+        return {"success": False, "error": "handoff_id is required"}
+
+    def _do_complete():
         rt = _get_session_runtime()
-        result = rt.complete_handoff(handoff_id)
+        ok = rt.complete_handoff(handoff_id)
         _audit_log("session_handoff_completed", {"handoff_id": handoff_id})
-        return {"success": result}
-    except Exception as exc:
-        logger.error("session handoff complete failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return f"handoff {handoff_id} completed", ok
+
+    resp = governed_mutation(
+        mutation_name="session_mutate",
+        intent=f"complete handoff {handoff_id}",
+        execute_fn=_do_complete,
+        source="cockpit",
+        metadata={"handoff_id": handoff_id},
+    )
+    return resp.to_http_dict()
 
 
 def _session_history(request: Request) -> dict:

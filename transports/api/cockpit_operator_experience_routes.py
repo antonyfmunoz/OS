@@ -179,11 +179,25 @@ async def _topology_preview(request: Request) -> dict[str, Any]:
     user_input = body.get("input", "")
     if not user_input:
         return {"error": "input_required"}
-    orch = _get_orchestrator()
-    intent = orch.classify_intent(user_input)
-    try:
+    captured: dict = {}
+
+    def _do_topology():
+        orch = _get_orchestrator()
+        intent = orch.classify_intent(user_input)
         result = orch.preview_delegation_topology(intent)
-        return result
+        captured.update(result)
+        return f"topology preview: {user_input[:80]}", True
+
+    try:
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"topology preview: {user_input[:80]}",
+            execute_fn=_do_topology,
+            source="cockpit",
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
     except Exception as e:
         logger.warning("topology preview failed: %s", e)
         return {"error": str(e)}

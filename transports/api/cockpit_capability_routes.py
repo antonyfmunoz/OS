@@ -15,6 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 capability_router: APIRouter = APIRouter()
@@ -89,16 +91,32 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         description = body.get("description", "")
         if not name:
             return {"error": "name is required"}
-        cap = rt = _get_runtime()
-        cap = rt.register(
-            name=name,
-            description=description,
-            origin_intent_id=body.get("origin_intent_id", ""),
-            understanding_sources=body.get("understanding_sources"),
-            owner=body.get("owner", ""),
-            tags=body.get("tags"),
+
+        captured: dict[str, Any] = {}
+
+        def _do_register() -> tuple[str, bool]:
+            rt = _get_runtime()
+            cap = rt.register(
+                name=name,
+                description=description,
+                origin_intent_id=body.get("origin_intent_id", ""),
+                understanding_sources=body.get("understanding_sources"),
+                owner=body.get("owner", ""),
+                tags=body.get("tags"),
+            )
+            captured["capability"] = cap.to_dict()
+            return f"registered capability: {name}", True
+
+        resp = governed_mutation(
+            mutation_name="adapter_update",
+            intent=f"register capability: {name}",
+            execute_fn=_do_register,
+            source="cockpit",
+            metadata={"name": name},
         )
-        return {"capability": cap.to_dict()}
+        if not resp.success:
+            return resp.to_http_dict()
+        return {"capability": captured.get("capability")}
 
     @r.post("/capabilities/{capability_id}/evidence", dependencies=auth)
     async def add_evidence(capability_id: str, request: Request) -> dict[str, Any]:
@@ -110,28 +128,63 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             et = CapabilityEvidenceType(et_str)
         except ValueError:
             return {"error": f"invalid evidence_type: {et_str}"}
-        rt = _get_runtime()
-        ev = rt.add_evidence(
-            capability_id=capability_id,
-            evidence_type=et,
-            source_id=body.get("source_id", ""),
-            description=body.get("description", ""),
-            quality_score=float(body.get("quality_score", 0.5)),
+
+        captured: dict[str, Any] = {}
+
+        def _do_add_evidence() -> tuple[str, bool]:
+            rt = _get_runtime()
+            ev = rt.add_evidence(
+                capability_id=capability_id,
+                evidence_type=et,
+                source_id=body.get("source_id", ""),
+                description=body.get("description", ""),
+                quality_score=float(body.get("quality_score", 0.5)),
+            )
+            if ev is None:
+                return f"capability {capability_id} not found", False
+            captured["evidence"] = ev.to_dict()
+            return f"added evidence to capability: {capability_id}", True
+
+        resp = governed_mutation(
+            mutation_name="adapter_update",
+            intent=f"add evidence to capability: {capability_id}",
+            execute_fn=_do_add_evidence,
+            source="cockpit",
+            metadata={"capability_id": capability_id},
         )
-        if ev is None:
-            return {"error": f"capability {capability_id} not found"}
-        return {"evidence": ev.to_dict()}
+        if not resp.success:
+            if "not found" in resp.output:
+                return {"error": f"capability {capability_id} not found"}
+            return resp.to_http_dict()
+        return {"evidence": captured.get("evidence")}
 
     @r.post("/capabilities/propose", dependencies=auth)
     async def propose_capabilities(request: Request) -> dict[str, Any]:
         body = await request.json()
         outcomes = body.get("outcomes", [])
-        rt = _get_runtime()
-        proposals = rt.propose_from_patterns(
-            outcomes,
-            min_occurrences=int(body.get("min_occurrences", 3)),
-            min_success_rate=float(body.get("min_success_rate", 0.6)),
+
+        captured: dict[str, Any] = {}
+
+        def _do_propose() -> tuple[str, bool]:
+            rt = _get_runtime()
+            proposals = rt.propose_from_patterns(
+                outcomes,
+                min_occurrences=int(body.get("min_occurrences", 3)),
+                min_success_rate=float(body.get("min_success_rate", 0.6)),
+            )
+            captured["proposals"] = proposals
+            return f"proposed {len(proposals)} capabilities", True
+
+        resp = governed_mutation(
+            mutation_name="adapter_update",
+            intent="propose capabilities from patterns",
+            execute_fn=_do_propose,
+            source="cockpit",
+            metadata={"outcome_count": len(outcomes)},
         )
+        if not resp.success:
+            return resp.to_http_dict()
+        proposals = captured.get("proposals", [])
         return {"proposals": proposals, "count": len(proposals)}
 
     return r

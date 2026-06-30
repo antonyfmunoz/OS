@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 compute_fabric_router: APIRouter = APIRouter()
@@ -82,7 +84,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 status_code=400, detail="capability_needs must be a list of strings"
             )
         risk_level = str(payload.get("risk_level", "low"))
-        decision = fabric.route(capability_needs=capability_needs, risk_level=risk_level)
-        return decision.to_dict()
+        captured: dict = {}
+
+        def _do_route():
+            decision = fabric.route(capability_needs=capability_needs, risk_level=risk_level)
+            captured.update(decision.to_dict())
+            return f"compute route: {capability_needs}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"compute fabric route: {capability_needs}",
+            execute_fn=_do_route,
+            source="cockpit",
+            metadata={"capability_needs": capability_needs, "risk_level": risk_level},
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     return r

@@ -15,6 +15,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 operationalization_router: APIRouter = APIRouter()
@@ -110,24 +112,55 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         except ValueError:
             return {"error": f"invalid form: {form_str}"}
         rt = _get_runtime()
-        op = rt.create(
-            capability_id=capability_id,
-            form=form,
-            name=name,
-            description=body.get("description", ""),
-            template_id=body.get("template_id", ""),
-            invariants=body.get("invariants"),
-            variables=body.get("variables"),
+        captured: dict[str, Any] = {}
+
+        def _do_create() -> tuple[str, bool]:
+            op = rt.create(
+                capability_id=capability_id,
+                form=form,
+                name=name,
+                description=body.get("description", ""),
+                template_id=body.get("template_id", ""),
+                invariants=body.get("invariants"),
+                variables=body.get("variables"),
+            )
+            captured["operationalization"] = op.to_dict()
+            return f"created operationalization {name}", True
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"create operationalization {name}",
+            execute_fn=_do_create,
+            source="cockpit",
+            metadata={"capability_id": capability_id, "form": form_str},
         )
-        return {"operationalization": op.to_dict()}
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     @r.post("/operationalizations/{op_id}/use", dependencies=auth)
     async def record_use(op_id: str, request: Request) -> dict[str, Any]:
         body = await request.json()
-        success = body.get("success", True)
+        use_success = body.get("success", True)
         rt = _get_runtime()
-        if rt.record_use(op_id, success=success):
-            return {"status": "recorded"}
-        return {"error": f"operationalization {op_id} not found"}
+        captured: dict[str, Any] = {}
+
+        def _do_record() -> tuple[str, bool]:
+            if rt.record_use(op_id, success=use_success):
+                captured["status"] = "recorded"
+                return f"recorded use of {op_id}", True
+            captured["error"] = f"operationalization {op_id} not found"
+            return f"operationalization {op_id} not found", False
+
+        resp = governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"record use of operationalization {op_id}",
+            execute_fn=_do_record,
+            source="cockpit",
+            metadata={"op_id": op_id, "success": use_success},
+        )
+        if not resp.success:
+            return resp.to_http_dict()
+        return captured
 
     return r

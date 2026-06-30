@@ -16,6 +16,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.
 if _REPO_ROOT not in _sys.path:
     _sys.path.insert(0, _REPO_ROOT)
 from substrate.state.memory.memory import AgentMemory
+from transports.api.governed import governed_mutation
 _mem = AgentMemory()
 
 
@@ -226,160 +227,190 @@ def calendly_webhook():
     event_time = payload.get("event", {}).get("start_time", "")
 
     if event_type == "invitee.created":
-        lead_file = find_lead_by_name_or_email(name, email)
-        username = name
-        if lead_file:
-            update_lead_file(lead_file, "Booked", event_time=event_time)
-            filename = os.path.basename(lead_file)
-            username = filename.replace("lead_", "").split("_")[0]
-            move_pipeline_card(username, "Qualifying", "Booked")
-            move_pipeline_card(username, "Replied", "Booked")
-        _log_calendly_outcome(username, "booked", 1.0,
-                              notes=f"Calendly invitee.created — {event_time}")
-        # Publish lead_booked event — triggers handler async (non-blocking)
-        try:
-            from substrate.control_plane.events.event_bus import EventBus
-            EventBus().publish_async("lead_booked", {
-                "username":     username,
-                "booking_time": event_time,
-                "venture_id":   "lyfe_institute",
-            })
-        except Exception as _eb_err:
-            print(f"[EVENT BUS] lead_booked publish failed for {username}: {_eb_err}")
-        update_notion_lead_stage(name, email, 'Booked')
-        send_telegram(
-            f"CALL BOOKED\n\n"
-            f"Name: {name}\n"
-            f"Email: {email}\n"
-            f"Time: {event_time}\n\n"
-            f"Card moved to Booked in Pipeline."
+        def _do_booked():
+            _process_booked(name, email, event_time, payload, data)
+            return f"calendly booking processed: {name}", True
+
+        governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"process calendly booking for {name}",
+            execute_fn=_do_booked,
+            source="webhook",
+            metadata={"event": event_type, "email": email},
         )
-
-        # Person recognition — pre-meeting intel check
-        try:
-            from substrate.understanding.intelligence.person_recognition import recognize_person, format_person_context
-            _recognition = recognize_person(name=name, email=email)
-            _person_context = format_person_context(_recognition, name=name)
-            if _recognition.get('warning'):
-                print(f'[Calendly] {_recognition["warning"]}')
-        except Exception as _pr_err:
-            _recognition = {}
-            _person_context = ''
-            print(f'[Calendly] Person recognition failed: {_pr_err}')
-
-        # Create meeting record (Neon + Notion)
-        try:
-            from adapters.calendar.meetings import create_meeting_record, build_prep_brief
-            _invitee = payload.get('invitee', {})
-            _event_obj = payload.get('event', {})
-            _questions = _invitee.get('questions_and_answers', [])
-            _company = next(
-                (q['answer'] for q in _questions if 'company' in q.get('question', '').lower()),
-                '',
-            )
-            _venture = _detect_venture_from_event(_event_obj.get('name', ''))
-            _meet_link = _event_obj.get('location', {}).get('join_url', '') \
-                if isinstance(_event_obj.get('location'), dict) else ''
-            _cal_event_id = _event_obj.get('uuid', '')
-
-            _record = create_meeting_record(
-                title=_event_obj.get('name', 'Call'),
-                person=name,
-                email=email,
-                company=_company,
-                date_iso=event_time,
-                meeting_type='Sales Call',
-                venture=_venture,
-                source='Calendly',
-                meet_link=_meet_link,
-                calendly_event_id=_cal_event_id,
-            )
-            print(f"[Calendly] Meeting record: neon={_record.get('neon_id')} notion={_record.get('notion_id')}")
-        except Exception as _mr_err:
-            print(f'[Calendly] Meeting record failed: {_mr_err}')
-            _record = {}
-            _company = ''
-            _venture = 'Empyrean Creative'
-            _meet_link = ''
-
-        # Auto-create lead file if no existing one found
-        if not lead_file:
-            try:
-                from substrate.understanding.intelligence.person_recognition import create_lead_file
-                create_lead_file(
-                    name=name,
-                    email=email,
-                    company=_company,
-                    source='calendly',
-                    venture=_venture,
-                )
-            except Exception as e:
-                print(f'[Calendly] Lead file creation failed: {e}')
-
-        # Send Discord alert with prep brief
-        try:
-            _discord_webhook = os.getenv('DISCORD_BRIEF_WEBHOOK') or os.getenv('DISCORD_WEBHOOK_URL')
-            if _discord_webhook:
-                import requests as _req
-                _brief = build_prep_brief(
-                    person=name,
-                    email=email,
-                    company=_company,
-                    meeting_type='Sales Call',
-                    venture=_venture,
-                )
-                _known_flag = ' 🔴 **KNOWN PERSON**' if _recognition.get('known') else ''
-                _msg = (
-                    f"📅 **New booking: {name}**{_known_flag}\n"
-                    f"🕐 {event_time}\n"
-                    f"🏢 {_company or 'No company listed'}\n\n"
-                    f"{_brief}"
-                )
-                if _person_context:
-                    _msg += f"\n\n{_person_context}"
-                # Split if over Discord's 2000 char limit
-                for i in range(0, len(_msg), 1900):
-                    _req.post(
-                        _discord_webhook,
-                        json={'content': _msg[i:i+1900], 'username': 'DEX'},
-                        timeout=5,
-                    )
-        except Exception as _disc_err:
-            print(f'[Calendly] Discord alert failed: {_disc_err}')
-
         return jsonify({"status": "booked"}), 200
 
     elif event_type == "invitee.canceled":
-        cancel_reason = payload.get("cancellation", {}).get("reason", "No reason given")
-        lead_file = find_lead_by_name_or_email(name, email)
-        if lead_file:
-            update_lead_file(lead_file, "Lost", cancel_reason=cancel_reason)
-            filename = os.path.basename(lead_file)
-            username = filename.replace("lead_", "").split("_")[0]
-            move_pipeline_card(username, "Booked", "Lost")
-        _log_calendly_outcome(name, "no_reply", 0.0,
-                              notes=f"Calendly canceled — {cancel_reason}")
-        send_telegram(
-            f"CALL CANCELED\n\n"
-            f"Name: {name}\n"
-            f"Reason: {cancel_reason}\n\n"
-            f"Card moved to Lost."
+        def _do_canceled():
+            _process_canceled(name, email, payload, data)
+            return f"calendly cancellation processed: {name}", True
+
+        governed_mutation(
+            mutation_name="state_mutate",
+            intent=f"process calendly cancellation for {name}",
+            execute_fn=_do_canceled,
+            source="webhook",
+            metadata={"event": event_type, "email": email},
         )
+        return jsonify({"status": "canceled"}), 200
 
-        # Cancellation recovery flow
+    return jsonify({"status": "ignored"}), 200
+
+
+def _process_booked(name, email, event_time, payload, data):
+    lead_file = find_lead_by_name_or_email(name, email)
+    username = name
+    if lead_file:
+        update_lead_file(lead_file, "Booked", event_time=event_time)
+        filename = os.path.basename(lead_file)
+        username = filename.replace("lead_", "").split("_")[0]
+        move_pipeline_card(username, "Qualifying", "Booked")
+        move_pipeline_card(username, "Replied", "Booked")
+    _log_calendly_outcome(username, "booked", 1.0,
+                          notes=f"Calendly invitee.created — {event_time}")
+    # Publish lead_booked event — triggers handler async (non-blocking)
+    try:
+        from substrate.control_plane.events.event_bus import EventBus
+        EventBus().publish_async("lead_booked", {
+            "username":     username,
+            "booking_time": event_time,
+            "venture_id":   "lyfe_institute",
+        })
+    except Exception as _eb_err:
+        print(f"[EVENT BUS] lead_booked publish failed for {username}: {_eb_err}")
+    update_notion_lead_stage(name, email, 'Booked')
+    send_telegram(
+        f"CALL BOOKED\n\n"
+        f"Name: {name}\n"
+        f"Email: {email}\n"
+        f"Time: {event_time}\n\n"
+        f"Card moved to Booked in Pipeline."
+    )
+
+    # Person recognition — pre-meeting intel check
+    try:
+        from substrate.understanding.intelligence.person_recognition import recognize_person, format_person_context
+        _recognition = recognize_person(name=name, email=email)
+        _person_context = format_person_context(_recognition, name=name)
+        if _recognition.get('warning'):
+            print(f'[Calendly] {_recognition["warning"]}')
+    except Exception as _pr_err:
+        _recognition = {}
+        _person_context = ''
+        print(f'[Calendly] Person recognition failed: {_pr_err}')
+
+    # Create meeting record (Neon + Notion)
+    try:
+        from adapters.calendar.meetings import create_meeting_record, build_prep_brief
+        _invitee = payload.get('invitee', {})
+        _event_obj = payload.get('event', {})
+        _questions = _invitee.get('questions_and_answers', [])
+        _company = next(
+            (q['answer'] for q in _questions if 'company' in q.get('question', '').lower()),
+            '',
+        )
+        _venture = _detect_venture_from_event(_event_obj.get('name', ''))
+        _meet_link = _event_obj.get('location', {}).get('join_url', '') \
+            if isinstance(_event_obj.get('location'), dict) else ''
+        _cal_event_id = _event_obj.get('uuid', '')
+
+        _record = create_meeting_record(
+            title=_event_obj.get('name', 'Call'),
+            person=name,
+            email=email,
+            company=_company,
+            date_iso=event_time,
+            meeting_type='Sales Call',
+            venture=_venture,
+            source='Calendly',
+            meet_link=_meet_link,
+            calendly_event_id=_cal_event_id,
+        )
+        print(f"[Calendly] Meeting record: neon={_record.get('neon_id')} notion={_record.get('notion_id')}")
+    except Exception as _mr_err:
+        print(f'[Calendly] Meeting record failed: {_mr_err}')
+        _record = {}
+        _company = ''
+        _venture = 'Empyrean Creative'
+        _meet_link = ''
+
+    # Auto-create lead file if no existing one found
+    if not lead_file:
         try:
-            from adapters.models.model_router import get_router, TaskType
-            import os as _os
-            _router = get_router()
-            _model = _router.route(TaskType.FAST_RESPONSE)
+            from substrate.understanding.intelligence.person_recognition import create_lead_file
+            create_lead_file(
+                name=name,
+                email=email,
+                company=_company,
+                source='calendly',
+                venture=_venture,
+            )
+        except Exception as e:
+            print(f'[Calendly] Lead file creation failed: {e}')
 
-            _inv = data.get('payload', {}).get('invitee', {})
-            _ev = data.get('payload', {}).get('event', {})
-            _cname = _inv.get('name', 'there')
-            _cemail = _inv.get('email', '')
-            _event_name = _ev.get('name', 'our call')
+    # Send Discord alert with prep brief
+    try:
+        _discord_webhook = os.getenv('DISCORD_BRIEF_WEBHOOK') or os.getenv('DISCORD_WEBHOOK_URL')
+        if _discord_webhook:
+            import requests as _req
+            _brief = build_prep_brief(
+                person=name,
+                email=email,
+                company=_company,
+                meeting_type='Sales Call',
+                venture=_venture,
+            )
+            _known_flag = ' 🔴 **KNOWN PERSON**' if _recognition.get('known') else ''
+            _msg = (
+                f"📅 **New booking: {name}**{_known_flag}\n"
+                f"🕐 {event_time}\n"
+                f"🏢 {_company or 'No company listed'}\n\n"
+                f"{_brief}"
+            )
+            if _person_context:
+                _msg += f"\n\n{_person_context}"
+            # Split if over Discord's 2000 char limit
+            for i in range(0, len(_msg), 1900):
+                _req.post(
+                    _discord_webhook,
+                    json={'content': _msg[i:i+1900], 'username': 'DEX'},
+                    timeout=5,
+                )
+    except Exception as _disc_err:
+        print(f'[Calendly] Discord alert failed: {_disc_err}')
 
-            _draft = _router.call(_model, f"""Draft a brief, warm re-engagement email for someone who cancelled a meeting.
+
+def _process_canceled(name, email, payload, data):
+    cancel_reason = payload.get("cancellation", {}).get("reason", "No reason given")
+    lead_file = find_lead_by_name_or_email(name, email)
+    if lead_file:
+        update_lead_file(lead_file, "Lost", cancel_reason=cancel_reason)
+        filename = os.path.basename(lead_file)
+        username = filename.replace("lead_", "").split("_")[0]
+        move_pipeline_card(username, "Booked", "Lost")
+    _log_calendly_outcome(name, "no_reply", 0.0,
+                          notes=f"Calendly canceled — {cancel_reason}")
+    send_telegram(
+        f"CALL CANCELED\n\n"
+        f"Name: {name}\n"
+        f"Reason: {cancel_reason}\n\n"
+        f"Card moved to Lost."
+    )
+
+    # Cancellation recovery flow
+    try:
+        from adapters.models.model_router import get_router, TaskType
+        import os as _os
+        _router = get_router()
+        _model = _router.route(TaskType.FAST_RESPONSE)
+
+        _inv = data.get('payload', {}).get('invitee', {})
+        _ev = data.get('payload', {}).get('event', {})
+        _cname = _inv.get('name', 'there')
+        _cemail = _inv.get('email', '')
+        _event_name = _ev.get('name', 'our call')
+
+        _draft = _router.call(_model, f"""Draft a brief, warm re-engagement email for someone who cancelled a meeting.
 
 Person: {_cname}
 Meeting: {_event_name}
@@ -394,35 +425,31 @@ Subject: [subject]
 DEX
 On behalf of Antony Munoz""").strip()
 
-            _mem.log_event(
-                event_type='email_draft_pending',
-                event_data={
-                    'draft': _draft,
-                    'to_email': _cemail,
-                    'to_name': _cname,
-                    'type': 'cancellation_recovery',
-                    'status': 'pending_approval',
-                },
-                agent_name='dex_calendly',
+        _mem.log_event(
+            event_type='email_draft_pending',
+            event_data={
+                'draft': _draft,
+                'to_email': _cemail,
+                'to_name': _cname,
+                'type': 'cancellation_recovery',
+                'status': 'pending_approval',
+            },
+            agent_name='dex_calendly',
+        )
+
+        import requests as _req
+        _webhook = _os.getenv('DISCORD_BRIEF_WEBHOOK')
+        if _webhook:
+            _msg = (
+                f'❌ **Cancelled: {_cname}**\n'
+                f'Re-engagement email drafted:\n'
+                f'```\n{_draft[:600]}\n```\n'
+                f'`!approve_followup` to send.'
             )
+            _req.post(_webhook, json={'content': _msg}, timeout=5)
 
-            import requests as _req
-            _webhook = _os.getenv('DISCORD_BRIEF_WEBHOOK')
-            if _webhook:
-                _msg = (
-                    f'❌ **Cancelled: {_cname}**\n'
-                    f'Re-engagement email drafted:\n'
-                    f'```\n{_draft[:600]}\n```\n'
-                    f'`!approve_followup` to send.'
-                )
-                _req.post(_webhook, json={'content': _msg}, timeout=5)
-
-        except Exception as e:
-            print(f'[Calendly] Cancellation recovery failed: {e}')
-
-        return jsonify({"status": "canceled"}), 200
-
-    return jsonify({"status": "ignored"}), 200
+    except Exception as e:
+        print(f'[Calendly] Cancellation recovery failed: {e}')
 
 
 @app.route("/health", methods=["GET"])

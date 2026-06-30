@@ -10,11 +10,15 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 echo "── UMH Pre-Commit Gate ──"
 
 # Gate 1: Type Coherence — no parallel type definitions
-echo "  [1/2] Type divergence check..."
+echo "  [1/3] Type divergence check..."
 python3 "$REPO_ROOT/scripts/check_type_divergence.py"
 
 # Gate 2: Instance Context — no hardcoded instance values in substrate
-echo "  [2/2] Instance context leak check..."
+echo "  [2/3] Instance context leak check..."
 python3 "$REPO_ROOT/scripts/check_instance_leak.py"
+
+# Gate 3: Governed Mutations — no ungoverned POST/PUT/PATCH/DELETE in route files
+echo "  [3/3] Ungoverned mutation check..."
+python3 "$REPO_ROOT/scripts/check_ungoverned_mutations.py"
 
 echo "── All gates passed ──"

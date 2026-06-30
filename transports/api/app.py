@@ -35,6 +35,7 @@ from adapters.notion.integration.correlation import CorrelationMap, WritebackTar
 from substrate.execution.pipeline import ExecutionPipeline
 from substrate.memory.watcher import start_memory_watcher
 from transports.api.runtime import SubstrateRuntime
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -518,13 +519,22 @@ async def signal_intake(req: SignalRequest):
         source_identifier=req.source_identifier,
     )
 
-    trace = await _runtime.ingest_signal(signal)
+    def _do_signal_intake():
+        import asyncio as _aio
+        loop = _aio.new_event_loop()
+        try:
+            loop.run_until_complete(_runtime.ingest_signal(signal))
+        finally:
+            loop.close()
+        return f"signal ingested: {req.source}", True
 
-    return SignalResponse(
-        signal_id=str(signal.id),
-        trace_id=str(trace.id),
-        received_at=signal.received_at.isoformat(),
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"ingest signal from {req.source}",
+        execute_fn=_do_signal_intake,
+        source="api",
     )
+    return resp.to_http_dict()
 
 
 @app.get("/api/umh/events")
@@ -616,12 +626,7 @@ class SubmitRequest(BaseModel):
 
 @app.post("/api/umh/submit")
 async def pipeline_submit(req: SubmitRequest):
-    """Submit a signal through the full ExecutionPipeline.
-
-    Runs synchronously in a thread pool. ViewFrames are emitted at
-    every pipeline stage and broadcast to WebSocket clients.
-    If writeback_to is set, the outcome is written back to the target Notion page.
-    """
+    """Submit a signal through the full ExecutionPipeline."""
     if not _runtime.is_running:
         raise HTTPException(status_code=503, detail="Substrate runtime not started")
 
@@ -650,53 +655,49 @@ async def pipeline_submit(req: SubmitRequest):
             ),
         )
 
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None,
-        lambda: _pipeline.submit_signal(
+    def _do_submit():
+        result = _pipeline.submit_signal(
             req.content,
             risk_class=risk,
             adapter_name=req.adapter_name,
             operation=req.operation,
             params=req.params,
             pre_approved=req.pre_approved,
-        ),
-    )
-
-    if correlation_id and _notion_outcome_receiver and result.outcome_type:
-        envelope = OutcomeEnvelope(
-            outcome_id=uuid4(),
-            signal_id=result.signal_id,
-            trace_id=result.trace_id,
-            integration_id="notion",
-            outcome_type=result.outcome_type,
-            summary=f"{result.outcome_type}: {req.content[:200]}",
-            correlation_id=correlation_id,
         )
-        try:
-            _notion_outcome_receiver.on_outcome(envelope)
-        except Exception as exc:
-            logger.error("outcome writeback dispatch failed: %s", exc)
 
-    get_audit_log().record(
-        action="pipeline_submit",
-        target=req.adapter_name,
-        outcome="success" if result.success else "blocked",
-        detail=f"risk={req.risk_class} outcome={result.outcome_type}",
-        risk_level="high"
-        if risk not in (RiskClass.READ_ONLY, RiskClass.REVERSIBLE_WRITE)
-        else "low",
+        if correlation_id and _notion_outcome_receiver and result.outcome_type:
+            envelope = OutcomeEnvelope(
+                outcome_id=uuid4(),
+                signal_id=result.signal_id,
+                trace_id=result.trace_id,
+                integration_id="notion",
+                outcome_type=result.outcome_type,
+                summary=f"{result.outcome_type}: {req.content[:200]}",
+                correlation_id=correlation_id,
+            )
+            try:
+                _notion_outcome_receiver.on_outcome(envelope)
+            except Exception as exc:
+                logger.error("outcome writeback dispatch failed: %s", exc)
+
+        get_audit_log().record(
+            action="pipeline_submit",
+            target=req.adapter_name,
+            outcome="success" if result.success else "blocked",
+            detail=f"risk={req.risk_class} outcome={result.outcome_type}",
+            risk_level="high"
+            if risk not in (RiskClass.READ_ONLY, RiskClass.REVERSIBLE_WRITE)
+            else "low",
+        )
+        return f"pipeline submitted: {req.content[:50]}", result.success
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"pipeline submit: {req.content[:80]}",
+        execute_fn=_do_submit,
+        source="api",
     )
-
-    return {
-        "trace_id": str(result.trace_id),
-        "signal_id": str(result.signal_id),
-        "governance_approved": result.governance_approved,
-        "governance_rationale": result.governance_rationale,
-        "executed": result.executed,
-        "success": result.success,
-        "outcome_type": result.outcome_type,
-    }
+    return resp.to_http_dict()
 
 
 def get_runtime() -> SubstrateRuntime:

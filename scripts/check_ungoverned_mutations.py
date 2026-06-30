@@ -41,12 +41,14 @@ GOVERNED_PATTERNS_TS = [
     re.compile(r"from\s+['\"].*governed_bridge['\"]"),
 ]
 
-MUTATION_ROUTE_PY = re.compile(
-    r"""
-    @\w+\.(post|put|patch|delete)\s*\(    |   # decorator style
-    \.add_api_route\s*\(                       # add_api_route style
-    """,
+MUTATION_ROUTE_DECORATOR_PY = re.compile(
+    r"""@\w+\.(post|put|patch|delete)\s*\(""",
     re.IGNORECASE | re.VERBOSE,
+)
+
+MUTATION_METHOD_IN_ADD_ROUTE = re.compile(
+    r"""methods\s*=\s*\[\s*"(POST|PUT|PATCH|DELETE)""",
+    re.IGNORECASE,
 )
 
 MUTATION_ROUTE_TS = re.compile(
@@ -83,7 +85,9 @@ def _check_python_file(filepath: Path) -> list[str]:
     has_governed_import = False
 
     for line in lines:
-        if MUTATION_ROUTE_PY.search(line):
+        if MUTATION_ROUTE_DECORATOR_PY.search(line):
+            has_mutation_route = True
+        if MUTATION_METHOD_IN_ADD_ROUTE.search(line):
             has_mutation_route = True
         for pat in GOVERNED_PATTERNS_PY:
             if pat.search(line):
@@ -92,7 +96,7 @@ def _check_python_file(filepath: Path) -> list[str]:
 
     if has_mutation_route and not has_governed_import:
         for i, line in enumerate(lines, 1):
-            if MUTATION_ROUTE_PY.search(line):
+            if MUTATION_ROUTE_DECORATOR_PY.search(line) or MUTATION_METHOD_IN_ADD_ROUTE.search(line):
                 violations.append(
                     f"  {filepath}:{i} — mutation route without governed_mutation()"
                 )

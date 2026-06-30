@@ -15,6 +15,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
@@ -659,25 +661,34 @@ async def _approval_decide(request: Request, approval_id: str) -> dict[str, Any]
         return {"ok": False, "error": "decision must be 'approved' or 'denied'"}
     decided_by = _sanitize_text(str(body.get("decided_by", "operator")), 100)
 
-    try:
-        from substrate.organism.approval_store import ApprovalStore
-        store = ApprovalStore()
-        result = store.decide(approval_id, decision, decided_by=decided_by)
-    except Exception as exc:
-        logger.warning("approval decide failed: %s", exc)
-        return {"ok": False, "error": str(exc)}
+    def _do_decide():
+        try:
+            from substrate.organism.approval_store import ApprovalStore
+            store = ApprovalStore()
+            result = store.decide(approval_id, decision, decided_by=decided_by)
+        except Exception as exc:
+            logger.warning("approval decide failed: %s", exc)
+            return str(exc), False
 
-    if result is None:
-        return {"ok": False, "error": f"approval {approval_id} not found"}
+        if result is None:
+            return f"approval {approval_id} not found", False
 
-    _log_journal_entry({
-        "event": "approval_decided",
-        "approval_id": _sanitize_text(approval_id, 100),
-        "decision": decision,
-        "decided_by": decided_by,
-    })
+        _log_journal_entry({
+            "event": "approval_decided",
+            "approval_id": _sanitize_text(approval_id, 100),
+            "decision": decision,
+            "decided_by": decided_by,
+        })
+        return decision, True
 
-    return {"ok": True, "approval": result, "source_env": _detect_env()}
+    resp = governed_mutation(
+        mutation_name="approval_decide",
+        intent=f"{decision} approval {approval_id}",
+        execute_fn=_do_decide,
+        source="cockpit",
+        metadata={"approval_id": approval_id, "decision": decision},
+    )
+    return resp.to_http_dict()
 
 
 @command_center_router.post("/work-packets/create")
@@ -702,35 +713,43 @@ async def _work_packet_create(request: Request) -> dict[str, Any]:
         source_type = "jarvis_command"
     source_id = _sanitize_text(str(body.get("source_id", "")), 200)
 
-    try:
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        from substrate.organism.work_packet import persist_packets, load_packets
-        engine = WorkPacketEngine()
-        packet = engine.create_packet_from_intent(
-            user_intent=user_intent,
-            desired_end_state=desired_end_state,
-            constraints=constraints,
-            source_type=source_type,
-            source_id=source_id,
-        )
-        all_packets = load_packets()
-        all_packets.append(packet)
-        persist_packets(all_packets)
-    except Exception as exc:
-        logger.warning("work packet create failed: %s", exc)
-        return {"ok": False, "error": str(exc)}
+    def _do_create():
+        try:
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            from substrate.organism.work_packet import persist_packets, load_packets
+            engine = WorkPacketEngine()
+            packet = engine.create_packet_from_intent(
+                user_intent=user_intent,
+                desired_end_state=desired_end_state,
+                constraints=constraints,
+                source_type=source_type,
+                source_id=source_id,
+            )
+            all_packets = load_packets()
+            all_packets.append(packet)
+            persist_packets(all_packets)
+        except Exception as exc:
+            logger.warning("work packet create failed: %s", exc)
+            return str(exc), False
 
-    _log_journal_entry({
-        "event": "work_packet_created",
-        "packet_id": packet.packet_id,
-        "title": _sanitize_text(packet.title, 200),
-        "risk_class": packet.risk_class,
-        "source_type": source_type,
-        "user_intent": _sanitize_text(user_intent, 200),
-    })
+        _log_journal_entry({
+            "event": "work_packet_created",
+            "packet_id": packet.packet_id,
+            "title": _sanitize_text(packet.title, 200),
+            "risk_class": packet.risk_class,
+            "source_type": source_type,
+            "user_intent": _sanitize_text(user_intent, 200),
+        })
+        return f"created packet {packet.packet_id}", True
 
-    result = _label_environment(packet.to_safe_dict())
-    return {"ok": True, "packet": result, "source_env": _detect_env()}
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"create work packet: {_sanitize_text(user_intent, 100)}",
+        execute_fn=_do_create,
+        source="cockpit",
+        metadata={"source_type": source_type},
+    )
+    return resp.to_http_dict()
 
 
 @command_center_router.post("/work-packets/decompose")
@@ -752,27 +771,36 @@ async def _work_packet_decompose(request: Request) -> dict[str, Any]:
     constraints = constraints[:_MAX_CONSTRAINTS]
     idempotency_key = _sanitize_text(str(body.get("idempotency_key", "")), 100)
 
-    try:
-        from substrate.organism.work_packet_engine import WorkPacketEngine
-        engine = WorkPacketEngine()
-        result = engine.decompose_intent_to_batch(
-            user_intent=user_intent,
-            desired_end_state=desired_end_state,
-            constraints=constraints,
-            idempotency_key=idempotency_key,
-        )
-    except Exception as exc:
-        logger.warning("work packet decompose failed: %s", exc)
-        return {"ok": False, "error": str(exc)}
+    def _do_decompose():
+        try:
+            from substrate.organism.work_packet_engine import WorkPacketEngine
+            engine = WorkPacketEngine()
+            result = engine.decompose_intent_to_batch(
+                user_intent=user_intent,
+                desired_end_state=desired_end_state,
+                constraints=constraints,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            logger.warning("work packet decompose failed: %s", exc)
+            return str(exc), False
 
-    _log_journal_entry({
-        "event": "work_packet_decomposed",
-        "batch_id": result.get("batch_id", ""),
-        "created_count": result.get("created_count", 0),
-        "user_intent": _sanitize_text(user_intent, 200),
-    })
+        _log_journal_entry({
+            "event": "work_packet_decomposed",
+            "batch_id": result.get("batch_id", ""),
+            "created_count": result.get("created_count", 0),
+            "user_intent": _sanitize_text(user_intent, 200),
+        })
+        return f"decomposed into {result.get('created_count', 0)} packets", True
 
-    return {**result, "source_env": _detect_env()}
+    resp = governed_mutation(
+        mutation_name="work_packet_create",
+        intent=f"decompose intent: {_sanitize_text(user_intent, 100)}",
+        execute_fn=_do_decompose,
+        source="cockpit",
+        metadata={"idempotency_key": idempotency_key},
+    )
+    return resp.to_http_dict()
 
 
 def _log_journal_entry(entry: dict[str, Any]) -> None:

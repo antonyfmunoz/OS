@@ -13,6 +13,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 projection_integration_router: APIRouter = APIRouter()
@@ -70,18 +72,40 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     @r.post("/projections/integration/{projection_id}/location", dependencies=auth)
     async def register_location(projection_id: str, request: Request) -> dict[str, Any]:
         body = await request.json()
-        loc = _get_runtime().register_projection_location(
-            projection_id=projection_id,
-            machine=body.get("machine", "unknown"),
-            root_path=body.get("root_path", ""),
-            repo_url=body.get("repo_url", ""),
-            branch=body.get("branch", ""),
-            metadata=body.get("metadata"),
+
+        def _do() -> tuple[str, bool]:
+            loc = _get_runtime().register_projection_location(
+                projection_id=projection_id,
+                machine=body.get("machine", "unknown"),
+                root_path=body.get("root_path", ""),
+                repo_url=body.get("repo_url", ""),
+                branch=body.get("branch", ""),
+                metadata=body.get("metadata"),
+            )
+            return f"registered location for {projection_id}", True
+
+        resp = governed_mutation(
+            mutation_name="projection_event",
+            intent=f"register projection location for {projection_id}",
+            execute_fn=_do,
+            source="cockpit",
+            metadata={"projection_id": projection_id, "body": body},
         )
-        return loc.to_dict()
+        return resp.to_http_dict()
 
     @r.post("/projections/integration/{projection_id}/audit", dependencies=auth)
     def audit_projection(projection_id: str) -> dict[str, Any]:
-        return _get_runtime().audit_projection(projection_id).to_dict()
+        def _do() -> tuple[str, bool]:
+            result = _get_runtime().audit_projection(projection_id)
+            return f"audited projection {projection_id}", True
+
+        resp = governed_mutation(
+            mutation_name="projection_event",
+            intent=f"audit projection {projection_id}",
+            execute_fn=_do,
+            source="cockpit",
+            metadata={"projection_id": projection_id},
+        )
+        return resp.to_http_dict()
 
     return r

@@ -16,6 +16,8 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from transports.api.governed import governed_mutation
+
 logger = logging.getLogger(__name__)
 
 _UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
@@ -166,16 +168,29 @@ async def _activate(request: Request) -> dict[str, Any]:
         capabilities=[c.to_dict() for c in caps],
     )
 
-    _log_presence_event({
-        "event": "activation",
-        "activation_id": signal.activation_id,
-        "source": source,
-        "session_id": session.session_id,
-        "continuity_state": continuity,
-        "timestamp": signal.timestamp,
-    })
+    session_dict = session.to_dict()
 
-    return {"ok": True, "session": session.to_dict()}
+    def _do_activate():
+        _log_presence_event({
+            "event": "activation",
+            "activation_id": signal.activation_id,
+            "source": source,
+            "session_id": session.session_id,
+            "continuity_state": continuity,
+            "timestamp": signal.timestamp,
+        })
+        return f"presence activated: {session.session_id}", True
+
+    resp = governed_mutation(
+        mutation_name="presence_update",
+        intent=f"activate presence session from {source}",
+        execute_fn=_do_activate,
+        source="cockpit",
+        metadata={"session_id": session.session_id, "source": source},
+    )
+    result = resp.to_http_dict()
+    result["session"] = session_dict
+    return result
 
 
 @presence_router.get("/presence/current")
@@ -305,16 +320,27 @@ async def _command(request: Request) -> dict[str, Any]:
     else:
         result["response_text"] = "Command not recognized. Try: status, agents, blocked, approvals, mode switch, or navigation."
 
-    _log_presence_event({
-        "event": "command",
-        "command_id": result["command_id"],
-        "intent": intent.value,
-        "governance": gov.value,
-        "source": source,
-        "text": text,
-        "timestamp": result["timestamp"],
-    })
+    def _do_command():
+        _log_presence_event({
+            "event": "command",
+            "command_id": result["command_id"],
+            "intent": intent.value,
+            "governance": gov.value,
+            "source": source,
+            "text": text,
+            "timestamp": result["timestamp"],
+        })
+        return f"command processed: {intent.value}", True
 
+    gm_resp = governed_mutation(
+        mutation_name="presence_update",
+        intent=f"presence command: {intent.value}",
+        execute_fn=_do_command,
+        source="cockpit",
+        metadata={"command_id": result["command_id"], "intent": intent.value},
+    )
+    if not gm_resp.success:
+        return {"ok": False, "error": gm_resp.output}
     return result
 
 

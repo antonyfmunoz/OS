@@ -424,7 +424,30 @@ async def vision_analyze(request: Request) -> dict[str, Any]:
     if not image_b64:
         raise HTTPException(status_code=400, detail="image field required (base64)")
 
-    return await _vision_analyze(image_b64, prompt, mime_type)
+    def _do_vision():
+        import base64
+        image_bytes = base64.b64decode(image_b64)
+        if len(image_bytes) > _MAX_VISION_FRAME_BYTES:
+            return "Image too large (max 2 MB)", False
+        vision_prompt = prompt or "Describe what you see in this image concisely."
+        try:
+            from adapters.models.model_router import call_with_fallback
+            call_with_fallback(
+                prompt=vision_prompt,
+                task_type="multimodal",
+                images=[(image_bytes, mime_type)],
+            )
+            return "vision analysis complete", True
+        except Exception as e:
+            return str(e), False
+
+    resp = governed_mutation(
+        mutation_name="state_mutate",
+        intent=f"analyze vision: {prompt[:50] if prompt else 'default'}",
+        execute_fn=_do_vision,
+        source="operator",
+    )
+    return resp.to_http_dict()
 
 
 # ─── WebSocket ─────────────────────────────────────────────────────────────────
