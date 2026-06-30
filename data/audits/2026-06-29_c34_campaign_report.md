@@ -20,9 +20,10 @@ in the codebase now routes through `governed_mutation()` → MutationRouter
 | Governed mutation call sites (TypeScript) | 0 | 33 |
 | Route files with governed_mutation import | 0 | 73 (Python) + 6 (TS) |
 | Registered mutation specs | 22 | 46 |
-| Pre-commit enforcement gates | 2 | 3 |
+| Pre-commit enforcement gates | 5 | 6 |
 | Files scanned by enforcement hook | — | 155 |
-| C34 test suite | 0 | 25 (all passing) |
+| C34 test suite | 0 | 30 (all passing) |
+| Compound intelligence signals wired | 1/6 | 5/6 |
 
 ## Phase Completion
 
@@ -49,19 +50,25 @@ Converted 155 route files (73 Python + 6 TypeScript) to use governed_mutation().
 
 ### Phase 5: Enforcement Hook (COMPLETE)
 Created `scripts/check_ungoverned_mutations.py` — scans for POST/PUT/PATCH/DELETE
-handlers without governed_mutation import. Wired into `scripts/pre-commit` as Gate 3.
-Runs on staged files by default, `--all` for full scan.
+handlers without governed_mutation import. Wired into `.git/hooks/pre-commit` as
+Gate 6. Runs on staged files by default, `--all` for full scan.
 
-### Phase 6: Runtime Observability (COMPLETE — pre-existing)
-EventSpine → cockpit WS bridge already wired in `services/operator_api.py`.
-Governed spine emits EventDomain.GOVERNANCE and EventDomain.EXECUTION events.
-All events forwarded to cockpit WebSocket clients without domain filtering.
+### Phase 6: Runtime Observability (COMPLETE)
+EventSpine → WebSocket bridge wired in `transports/api/app.py` lifespan startup.
+Governed spine emits 7 lifecycle events (proposed, rejected, awaiting_approval,
+executing, completed, outcome_committed, outcome_failed) via EventDomain.EXECUTION
+and EventDomain.GOVERNANCE. Bridge uses `asyncio.run_coroutine_threadsafe` to push
+sync EventSpine events to async WebSocket `ConnectionManager.broadcast()`.
+Subscriber ID: `cockpit_ws_bridge`. Unsubscribed on shutdown.
 
 ### Phase 7: Validation (COMPLETE)
-- 25/25 C34 tests passing
+- 30/30 C34 tests passing (25 unit + 5 validation)
 - 0 ungoverned mutation violations across 155 files
-- All modified files compile clean
-- Pre-commit hook updated with Gate 3
+- Structural audit: 0 spine bypasses
+- All mutation files spine-connected
+- 73+ Python files with governed_mutation import
+- EventSpine→WebSocket bridge verified in app.py
+- Pre-commit hook updated with Gate 6
 
 ### Phase 8: Reality Synchronization (THIS REPORT)
 
@@ -105,7 +112,8 @@ GovernedExecutionSpine.submit()             ← 8-stage pipeline
 ### Modified files
 - `substrate/organism/governed_spine.py` — compounding pipeline wiring
 - `substrate/organism/mutation_registry.py` — 46 specs (was 22)
-- `scripts/pre-commit` — Gate 3 added
+- `.git/hooks/pre-commit` — Gate 6 added
+- `transports/api/app.py` — EventSpine→WebSocket bridge
 - 73 Python route files — governed_mutation() calls
 - 6 TypeScript route files — governedMutation() calls
 
