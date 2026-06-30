@@ -144,7 +144,7 @@ class TestDriftDetection:
     def test_insufficient_data(self):
         harness = QualificationHarness()
         mutations = [
-            MutationRecord(success=True, governance_cost_ms=10.0, duration_ms=100.0)
+            MutationRecord(source="c35_qualification", success=True, governance_cost_ms=10.0, duration_ms=100.0)
             for _ in range(50)
         ]
         drift = harness.compute_drift(mutations)
@@ -154,6 +154,7 @@ class TestDriftDetection:
         harness = QualificationHarness()
         mutations = [
             MutationRecord(
+                source="c35_qualification",
                 success=True,
                 governance_cost_ms=10.0,
                 duration_ms=100.0,
@@ -171,12 +172,14 @@ class TestDriftDetection:
         mutations = []
         for i in range(100):
             mutations.append(MutationRecord(
+                source="c35_qualification",
                 success=True,
                 governance_cost_ms=100.0,
                 duration_ms=100.0,
             ))
         for i in range(100):
             mutations.append(MutationRecord(
+                source="c35_qualification",
                 success=False,
                 governance_cost_ms=200.0,
                 duration_ms=300.0,
@@ -190,12 +193,14 @@ class TestDriftDetection:
         mutations = []
         for i in range(100):
             mutations.append(MutationRecord(
+                source="c35_qualification",
                 success=True,
                 governance_cost_ms=100.0,
                 duration_ms=100.0,
             ))
         for i in range(100):
             mutations.append(MutationRecord(
+                source="c35_qualification",
                 success=True,
                 governance_cost_ms=50.0,
                 duration_ms=80.0,
