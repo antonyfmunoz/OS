@@ -31,9 +31,19 @@ BINARY_METRICS = frozenset({"failure_prob", "template_match"})
 
 MIN_SAMPLES = 5
 
+_EMA_BLEND_WELFORD = 0.6
+_EMA_BLEND_EMA = 0.4
+_CI_FLOOR_PCT = 0.05
+_CI_SMALL_SAMPLE_THRESHOLD = 30
+
+
+_NEAR_ZERO_THRESHOLD = 1.0
+
 
 def _prediction_error(metric: str, predicted: float, actual: float) -> float:
     if metric in BINARY_METRICS:
+        return abs(predicted - actual)
+    if abs(actual) < _NEAR_ZERO_THRESHOLD and abs(predicted) < _NEAR_ZERO_THRESHOLD:
         return abs(predicted - actual)
     if actual != 0:
         return abs(predicted - actual) / abs(actual)
@@ -179,8 +189,15 @@ class PredictiveSelfModel:
 
     # ── Feature key hierarchy ────────────────────────────────────────
 
-    def _feature_keys(self, mutation_name: str, action_type: str) -> list[str]:
+    def _feature_keys(
+        self, mutation_name: str, action_type: str, fast_path: bool = False
+    ) -> list[str]:
         keys: list[str] = []
+        if fast_path:
+            if mutation_name and action_type:
+                keys.append(f"fp::{action_type}::{mutation_name}")
+            if action_type:
+                keys.append(f"fp::{action_type}")
         if mutation_name and action_type:
             keys.append(f"{action_type}::{mutation_name}")
         if action_type:
@@ -209,14 +226,17 @@ class PredictiveSelfModel:
         action_type: str,
         mutation_name: str = "",
         risk_level: str = "",
+        fast_path: bool = False,
     ) -> dict[str, PredictionResult]:
         if not risk_level and mutation_name:
             risk_level = self._resolve_risk(mutation_name)
 
-        keys = self._feature_keys(mutation_name, action_type)
+        keys = self._feature_keys(mutation_name, action_type, fast_path=fast_path)
         results: dict[str, PredictionResult] = {}
         for metric in METRICS:
-            results[metric] = self._predict_metric(metric, keys, risk_level)
+            results[metric] = self._predict_metric(
+                metric, keys, risk_level, action_type=action_type
+            )
         return results
 
     def _predict_metric(
@@ -224,19 +244,35 @@ class PredictiveSelfModel:
         metric: str,
         feature_keys: list[str],
         risk_level: str,
+        action_type: str = "",
     ) -> PredictionResult:
         for key in feature_keys:
             acc = self._accumulators.get(key, {}).get(metric)
             if acc and acc.count >= MIN_SAMPLES:
-                margin = acc.ci_margin()
+                raw_margin = max(acc.ci_margin(), abs(acc.mean) * _CI_FLOOR_PCT)
+                if acc.count < _CI_SMALL_SAMPLE_THRESHOLD:
+                    margin = raw_margin * math.sqrt(_CI_SMALL_SAMPLE_THRESHOLD / acc.count)
+                else:
+                    margin = raw_margin
                 confidence = min(1.0, acc.count / 100.0)
+                predicted = acc.mean
+                model = "welford"
+                if (
+                    not key.startswith("fp::")
+                    and key != "__global__"
+                    and acc.count >= MIN_SAMPLES * 2
+                ):
+                    ema_val = self._ema.get(key, {}).get(metric)
+                    if ema_val is not None:
+                        predicted = _EMA_BLEND_WELFORD * acc.mean + _EMA_BLEND_EMA * ema_val
+                        model = "welford+ema"
                 return PredictionResult(
-                    predicted_value=acc.mean,
+                    predicted_value=predicted,
                     lower_bound=acc.mean - margin,
                     upper_bound=acc.mean + margin,
                     confidence=confidence,
                     sample_size=acc.count,
-                    model_used="welford",
+                    model_used=model,
                     feature_key=key,
                 )
 
@@ -261,11 +297,12 @@ class PredictiveSelfModel:
         mutation_name: str,
         actuals: dict[str, float],
         risk_level: str = "",
+        fast_path: bool = False,
     ) -> dict[str, PredictionResult]:
         if not risk_level and mutation_name:
             risk_level = self._resolve_risk(mutation_name)
 
-        predicted = self.predict(action_type, mutation_name, risk_level)
+        predicted = self.predict(action_type, mutation_name, risk_level, fast_path=fast_path)
         self._predictions.append((predicted, actuals, action_type, mutation_name))
 
         for metric in METRICS:
@@ -276,7 +313,7 @@ class PredictiveSelfModel:
                 if pred.contains(actual_val):
                     self._calibration_hits += 1
 
-        keys = self._feature_keys(mutation_name, action_type)
+        keys = self._feature_keys(mutation_name, action_type, fast_path=fast_path)
         for key in keys:
             for metric, val in actuals.items():
                 if metric in METRICS:
@@ -286,6 +323,9 @@ class PredictiveSelfModel:
         for metric, val in actuals.items():
             if metric in METRICS:
                 self._update_ema(action_type, metric, val)
+                for key in keys:
+                    if key != "__global__":
+                        self._update_ema_keyed(key, metric, val)
 
         return predicted
 
@@ -296,19 +336,27 @@ class PredictiveSelfModel:
             "template_match": 1.0 if record.template_matched else 0.0,
             "duration_ms": record.duration_ms,
         }
+        fp = getattr(record, "fast_path_used", False)
         return self.record_actual(
             action_type=record.action_type,
             mutation_name=record.mutation_name,
             actuals=actuals,
+            fast_path=fp,
         )
 
-    # ── EMA (backward compat) ───────────────────────────────────────
+    # ── EMA tracking ──────────────────────────────────────────────
 
     def _update_ema(self, action_type: str, metric: str, value: float) -> None:
         if action_type not in self._ema:
             self._ema[action_type] = {}
         prev = self._ema[action_type].get(metric, value)
         self._ema[action_type][metric] = self._alpha * value + (1 - self._alpha) * prev
+
+    def _update_ema_keyed(self, feature_key: str, metric: str, value: float) -> None:
+        if feature_key not in self._ema:
+            self._ema[feature_key] = {}
+        prev = self._ema[feature_key].get(metric, value)
+        self._ema[feature_key][metric] = self._alpha * value + (1 - self._alpha) * prev
 
     # ── Accuracy metrics ─────────────────────────────────────────────
 
@@ -326,6 +374,28 @@ class PredictiveSelfModel:
                 p = pred_dict[metric].predicted_value
                 a = actual_dict[metric]
                 err = _prediction_error(metric, p, a)
+                if err > 0 or a != 0 or p != 0:
+                    errors.append(err)
+
+        if not errors:
+            return ConfidenceEstimate()
+        return ConfidenceEstimate.from_samples(errors)
+
+    def robust_prediction_accuracy(self) -> Any:
+        """Secondary metric: capped MAPE (max 1.0 per error) for outlier-robust reporting."""
+        from substrate.organism.qualification_harness import ConfidenceEstimate
+
+        if not self._predictions:
+            return ConfidenceEstimate()
+
+        errors: list[float] = []
+        for pred_dict, actual_dict, _, _ in self._predictions:
+            for metric in METRICS:
+                if metric not in pred_dict or metric not in actual_dict:
+                    continue
+                p = pred_dict[metric].predicted_value
+                a = actual_dict[metric]
+                err = min(1.0, _prediction_error(metric, p, a))
                 if err > 0 or a != 0 or p != 0:
                     errors.append(err)
 
@@ -455,9 +525,11 @@ class PredictiveSelfModel:
 
     def diagnostics(self) -> dict[str, Any]:
         accuracy = self.prediction_accuracy()
+        robust = self.robust_prediction_accuracy()
         cold_mature = self.cold_vs_mature_accuracy()
         return {
             "overall_mape": accuracy.to_dict(),
+            "robust_mape": robust.to_dict(),
             "calibration_score": round(self.calibration_score(), 4),
             "ci_coverage": round(self.calibration_score(), 4),
             "per_metric": {k: v.to_dict() for k, v in self.per_metric_accuracy().items()},
