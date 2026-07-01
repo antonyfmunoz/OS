@@ -168,7 +168,6 @@ export const ROUTES: RouteEntry[] = [
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'primary', visibility: 'planned', key: '6' },
 
   // Stub (NOT searchable)
-  { id: 'workspace', label: 'Workspace', icon: Monitor, group: 'primary', visibility: 'stub', key: '+' },
 ]
 
 export const ROUTE_GROUPS = [

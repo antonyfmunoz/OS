@@ -79,10 +79,12 @@ def _qualify_organism(ctx: CampaignContext) -> DimensionVerdict:
             effective_orl = orl_val
             effective_conf = conf
 
+        pa_evaluated = pa > 0.0 and "0/0 properties" not in report.hypothesis_result
         verdict.details = {
             "orl": effective_orl,
             "confidence": round(effective_conf, 4),
             "predictive_accuracy": round(pa, 4),
+            "pa_status": "measured" if pa_evaluated else "not_evaluated",
             "total_mutations": report.total_mutations,
             "hypothesis": report.hypothesis_result,
             "weakest_property": report.weakest_property,

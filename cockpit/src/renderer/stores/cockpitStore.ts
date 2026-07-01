@@ -29,7 +29,6 @@ export type Panel =
   | 'runtime'
   | 'tmux'
   | 'browser'
-  | 'workspace'
   | 'commandcenter'
   | 'work'
   | 'vision'
@@ -142,7 +141,6 @@ export const useCockpitStore = create<CockpitState>()(
           universalwork: 'work',
           runtime: 'execution',
           skills: 'knowledge',
-          workspace: 'editor',
           infrastructure: 'organismmap',
           agents: 'canvas',
           workflows: 'canvas',

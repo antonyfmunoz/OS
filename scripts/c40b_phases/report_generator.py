@@ -154,7 +154,7 @@ def generate_report(ctx: CampaignContext) -> str:
         ("Browser prerequisite", ctx.slo.chrome_successes > 0),
         ("Zero runtime defects", True),
         ("25 operator scenarios", len(set(
-            r.get("scenario", "")
+            r.get("scenario_id", r.get("scenario", ""))
             for tf in (DATA_DIR / "operator_traces").glob("*.json")
             for r in [_safe_load(tf)]
             if r
