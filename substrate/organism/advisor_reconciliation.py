@@ -17,7 +17,7 @@ from typing import Any
 from uuid import uuid4
 
 from substrate.organism.reconciliation_engine import ReconciliationEngine
-from substrate.organism.reconciliation_session import ReconciliationMode, SessionStatus
+from substrate.organism.reconciliation_session import ReconciliationMode, ReconciliationStatus
 from substrate.organism.source_registry import SourceRegistry
 from substrate.organism.ingestion_job import IngestionJobStore
 from substrate.organism.context_diagnostic import DiagnosticReportStore

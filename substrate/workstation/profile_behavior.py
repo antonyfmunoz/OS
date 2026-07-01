@@ -34,7 +34,7 @@ class CameraPolicy(str, Enum):
     OFF = "off"
 
 
-class ExecutionMode(str, Enum):
+class ProfileExecutionMode(str, Enum):
     MANUAL = "manual"
     GUIDED = "guided"
     AUTONOMOUS = "autonomous"
@@ -62,7 +62,7 @@ class ProfileBehavior:
     agent_policy: str = "continue_approved_loops"
     approval_policy: str = "immediate"
     reporting_cadence: str = ReportingCadence.BLOCKER_OR_COMPLETION.value
-    default_execution_mode: str = ExecutionMode.GUIDED.value
+    default_execution_mode: str = ProfileExecutionMode.GUIDED.value
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -83,7 +83,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="continue_approved_loops",
         approval_policy="batch_noncritical",
         reporting_cadence=ReportingCadence.BLOCKER_OR_COMPLETION.value,
-        default_execution_mode=ExecutionMode.AUTONOMOUS_WITH_APPROVAL.value,
+        default_execution_mode=ProfileExecutionMode.AUTONOMOUS_WITH_APPROVAL.value,
     ),
     "research": ProfileBehavior(
         profile_mode="research",
@@ -95,7 +95,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="continue_approved_loops",
         approval_policy="immediate",
         reporting_cadence=ReportingCadence.CHECKPOINT_INTERVAL.value,
-        default_execution_mode=ExecutionMode.GUIDED.value,
+        default_execution_mode=ProfileExecutionMode.GUIDED.value,
     ),
     "music": ProfileBehavior(
         profile_mode="music",
@@ -107,7 +107,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="pause_nonessential",
         approval_policy="batch_noncritical",
         reporting_cadence=ReportingCadence.COMPLETION_ONLY.value,
-        default_execution_mode=ExecutionMode.MANUAL.value,
+        default_execution_mode=ProfileExecutionMode.MANUAL.value,
     ),
     "design": ProfileBehavior(
         profile_mode="design",
@@ -119,7 +119,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="continue_approved_loops",
         approval_policy="immediate",
         reporting_cadence=ReportingCadence.HIGH_TOUCH.value,
-        default_execution_mode=ExecutionMode.GUIDED.value,
+        default_execution_mode=ProfileExecutionMode.GUIDED.value,
     ),
     "content": ProfileBehavior(
         profile_mode="content",
@@ -131,7 +131,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="continue_approved_loops",
         approval_policy="immediate",
         reporting_cadence=ReportingCadence.HIGH_TOUCH.value,
-        default_execution_mode=ExecutionMode.GUIDED.value,
+        default_execution_mode=ProfileExecutionMode.GUIDED.value,
     ),
     "command_center": ProfileBehavior(
         profile_mode="command_center",
@@ -143,7 +143,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="continue_approved_loops",
         approval_policy="immediate",
         reporting_cadence=ReportingCadence.CHECKPOINT_INTERVAL.value,
-        default_execution_mode=ExecutionMode.AUTONOMOUS_WITH_APPROVAL.value,
+        default_execution_mode=ProfileExecutionMode.AUTONOMOUS_WITH_APPROVAL.value,
     ),
     "finance": ProfileBehavior(
         profile_mode="finance",
@@ -155,7 +155,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="pause_nonessential",
         approval_policy="immediate",
         reporting_cadence=ReportingCadence.BLOCKER_OR_COMPLETION.value,
-        default_execution_mode=ExecutionMode.MANUAL.value,
+        default_execution_mode=ProfileExecutionMode.MANUAL.value,
     ),
     "learning": ProfileBehavior(
         profile_mode="learning",
@@ -167,7 +167,7 @@ DEFAULT_BEHAVIORS: dict[str, ProfileBehavior] = {
         agent_policy="pause_nonessential",
         approval_policy="batch_noncritical",
         reporting_cadence=ReportingCadence.COMPLETION_ONLY.value,
-        default_execution_mode=ExecutionMode.MANUAL.value,
+        default_execution_mode=ProfileExecutionMode.MANUAL.value,
     ),
 }
 

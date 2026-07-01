@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 
-class SessionStatus(str, Enum):
+class OperatorSessionStatus(str, Enum):
     ACTIVE = "active"
     WAITING_FOR_OPERATOR = "waiting_for_operator"
     WAITING_FOR_APPROVAL = "waiting_for_approval"
@@ -37,54 +37,54 @@ class SessionStatus(str, Enum):
 
 
 _TERMINAL_SESSION_STATUSES = frozenset({
-    SessionStatus.COMPLETED,
-    SessionStatus.ARCHIVED,
+    OperatorSessionStatus.COMPLETED,
+    OperatorSessionStatus.ARCHIVED,
 })
 
-_VALID_SESSION_TRANSITIONS: dict[SessionStatus, frozenset[SessionStatus]] = {
-    SessionStatus.ACTIVE: frozenset({
-        SessionStatus.WAITING_FOR_OPERATOR,
-        SessionStatus.WAITING_FOR_APPROVAL,
-        SessionStatus.PACKET_DRAFTED,
-        SessionStatus.BLOCKED,
-        SessionStatus.COMPLETED,
-        SessionStatus.ARCHIVED,
+_VALID_SESSION_TRANSITIONS: dict[OperatorSessionStatus, frozenset[OperatorSessionStatus]] = {
+    OperatorSessionStatus.ACTIVE: frozenset({
+        OperatorSessionStatus.WAITING_FOR_OPERATOR,
+        OperatorSessionStatus.WAITING_FOR_APPROVAL,
+        OperatorSessionStatus.PACKET_DRAFTED,
+        OperatorSessionStatus.BLOCKED,
+        OperatorSessionStatus.COMPLETED,
+        OperatorSessionStatus.ARCHIVED,
     }),
-    SessionStatus.WAITING_FOR_OPERATOR: frozenset({
-        SessionStatus.ACTIVE,
-        SessionStatus.BLOCKED,
-        SessionStatus.COMPLETED,
-        SessionStatus.ARCHIVED,
+    OperatorSessionStatus.WAITING_FOR_OPERATOR: frozenset({
+        OperatorSessionStatus.ACTIVE,
+        OperatorSessionStatus.BLOCKED,
+        OperatorSessionStatus.COMPLETED,
+        OperatorSessionStatus.ARCHIVED,
     }),
-    SessionStatus.WAITING_FOR_APPROVAL: frozenset({
-        SessionStatus.ACTIVE,
-        SessionStatus.PACKET_RELEASED,
-        SessionStatus.BLOCKED,
-        SessionStatus.COMPLETED,
-        SessionStatus.ARCHIVED,
+    OperatorSessionStatus.WAITING_FOR_APPROVAL: frozenset({
+        OperatorSessionStatus.ACTIVE,
+        OperatorSessionStatus.PACKET_RELEASED,
+        OperatorSessionStatus.BLOCKED,
+        OperatorSessionStatus.COMPLETED,
+        OperatorSessionStatus.ARCHIVED,
     }),
-    SessionStatus.PACKET_DRAFTED: frozenset({
-        SessionStatus.ACTIVE,
-        SessionStatus.WAITING_FOR_APPROVAL,
-        SessionStatus.PACKET_RELEASED,
-        SessionStatus.BLOCKED,
-        SessionStatus.COMPLETED,
-        SessionStatus.ARCHIVED,
+    OperatorSessionStatus.PACKET_DRAFTED: frozenset({
+        OperatorSessionStatus.ACTIVE,
+        OperatorSessionStatus.WAITING_FOR_APPROVAL,
+        OperatorSessionStatus.PACKET_RELEASED,
+        OperatorSessionStatus.BLOCKED,
+        OperatorSessionStatus.COMPLETED,
+        OperatorSessionStatus.ARCHIVED,
     }),
-    SessionStatus.PACKET_RELEASED: frozenset({
-        SessionStatus.ACTIVE,
-        SessionStatus.COMPLETED,
-        SessionStatus.ARCHIVED,
+    OperatorSessionStatus.PACKET_RELEASED: frozenset({
+        OperatorSessionStatus.ACTIVE,
+        OperatorSessionStatus.COMPLETED,
+        OperatorSessionStatus.ARCHIVED,
     }),
-    SessionStatus.BLOCKED: frozenset({
-        SessionStatus.ACTIVE,
-        SessionStatus.COMPLETED,
-        SessionStatus.ARCHIVED,
+    OperatorSessionStatus.BLOCKED: frozenset({
+        OperatorSessionStatus.ACTIVE,
+        OperatorSessionStatus.COMPLETED,
+        OperatorSessionStatus.ARCHIVED,
     }),
-    SessionStatus.COMPLETED: frozenset({
-        SessionStatus.ARCHIVED,
+    OperatorSessionStatus.COMPLETED: frozenset({
+        OperatorSessionStatus.ARCHIVED,
     }),
-    SessionStatus.ARCHIVED: frozenset(),
+    OperatorSessionStatus.ARCHIVED: frozenset(),
 }
 
 
@@ -202,7 +202,7 @@ class OperatorTurn:
 class OperatorSession:
     """Multi-turn operator session with lifecycle tracking."""
     session_id: str = field(default_factory=lambda: "os-" + uuid4().hex[:12])
-    status: str = SessionStatus.ACTIVE.value
+    status: str = OperatorSessionStatus.ACTIVE.value
     turns: list[OperatorTurn] = field(default_factory=list)
     linked_packet_ids: list[str] = field(default_factory=list)
     linked_propagation_plan_ids: list[str] = field(default_factory=list)
@@ -230,8 +230,8 @@ class OperatorSession:
     def transition_status(self, new_status: str) -> bool:
         """Transition session status with validation."""
         try:
-            current = SessionStatus(self.status)
-            target = SessionStatus(new_status)
+            current = OperatorSessionStatus(self.status)
+            target = OperatorSessionStatus(new_status)
         except ValueError:
             logger.warning("invalid session status: %s -> %s", self.status, new_status)
             return False
@@ -257,11 +257,11 @@ class OperatorSession:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> OperatorSession:
-        status = d.get("status", SessionStatus.ACTIVE.value)
+        status = d.get("status", OperatorSessionStatus.ACTIVE.value)
         try:
-            SessionStatus(status)
+            OperatorSessionStatus(status)
         except ValueError:
-            status = SessionStatus.ACTIVE.value
+            status = OperatorSessionStatus.ACTIVE.value
         return cls(
             session_id=d.get("session_id", "os-" + uuid4().hex[:12]),
             status=status,

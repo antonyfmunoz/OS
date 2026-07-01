@@ -30,7 +30,7 @@ _DECISIONS_PATH = os.path.join(
 )
 
 
-class SessionStatus(str, Enum):
+class ReconciliationStatus(str, Enum):
     DRAFTED = "drafted"
     ACTIVE = "active"
     WAITING_FOR_OPERATOR = "waiting_for_operator"
@@ -89,7 +89,7 @@ class ReconciliationSession:
     topic: str = ""
     scope: str = ""
     mode: str = ReconciliationMode.EXPLORATION.value
-    status: str = SessionStatus.DRAFTED.value
+    status: str = ReconciliationStatus.DRAFTED.value
     started_at: float = 0.0
     completed_at: float = 0.0
     source_ids: list[str] = field(default_factory=list)
@@ -224,7 +224,7 @@ class ReconciliationSessionStore:
         sess = self._sessions.get(session_id)
         if not sess:
             return False
-        sess.status = SessionStatus.COMPLETED.value
+        sess.status = ReconciliationStatus.COMPLETED.value
         sess.completed_at = time.time()
         sess.summary = summary
         self._save_sessions()

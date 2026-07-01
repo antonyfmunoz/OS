@@ -33,7 +33,7 @@ _SAFE_DRY_RUN_ACTIONS = frozenset({
 })
 
 
-class ExecutionMode:
+class PropagationMode:
     DRY_RUN = "dry_run"
     RECOMPUTE_ONLY = "recompute_only"
     NOTIFY_ONLY = "notify_only"
@@ -46,7 +46,7 @@ class PropagationExecutor:
     def __init__(
         self,
         graph: PropagationGraph,
-        mode: str = ExecutionMode.DRY_RUN,
+        mode: str = PropagationMode.DRY_RUN,
     ) -> None:
         self._graph = graph
         self._mode = mode
@@ -163,9 +163,9 @@ class PropagationExecutor:
                 "timestamp": time.time(),
             }
 
-        if self._mode == ExecutionMode.DRY_RUN:
+        if self._mode == PropagationMode.DRY_RUN:
             return self._dry_run_action(action)
-        elif self._mode == ExecutionMode.RECOMPUTE_ONLY:
+        elif self._mode == PropagationMode.RECOMPUTE_ONLY:
             if action.action_type in ("recompute", "revalidate", "no_op", "notify"):
                 return self._recompute_action(action)
             return {
@@ -176,7 +176,7 @@ class PropagationExecutor:
                 "reason": f"recompute_only mode: {action.action_type} not safe",
                 "timestamp": time.time(),
             }
-        elif self._mode == ExecutionMode.NOTIFY_ONLY:
+        elif self._mode == PropagationMode.NOTIFY_ONLY:
             return {
                 "action_id": action.action_id,
                 "node_id": action.node_id,

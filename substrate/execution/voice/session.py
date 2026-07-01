@@ -25,7 +25,7 @@ from substrate.execution.voice.voice_engine import VoiceEngine, SpeechClassifica
 logger = logging.getLogger(__name__)
 
 
-class SessionStatus(str, Enum):
+class VoiceSessionStatus(str, Enum):
     IDLE = "idle"
     LISTENING = "listening"
     PROCESSING = "processing"
@@ -54,7 +54,7 @@ class VoiceExchange:
 @dataclass
 class SessionState:
     session_id: str = ""
-    status: SessionStatus = SessionStatus.IDLE
+    status: VoiceSessionStatus = VoiceSessionStatus.IDLE
     exchange_count: int = 0
     exchanges: list[VoiceExchange] = field(default_factory=list)
     started_at: float = 0.0
@@ -104,13 +104,13 @@ class VoiceSession:
         return self._state
 
     def start(self) -> None:
-        self._state.status = SessionStatus.LISTENING
+        self._state.status = VoiceSessionStatus.LISTENING
         self._state.started_at = time.time()
         self._state.last_activity = time.time()
         logger.info("Voice session started: %s", self._state.session_id)
 
     def stop(self) -> None:
-        self._state.status = SessionStatus.IDLE
+        self._state.status = VoiceSessionStatus.IDLE
         logger.info(
             "Voice session stopped: %s (%d exchanges)",
             self._state.session_id,
@@ -127,14 +127,14 @@ class VoiceSession:
         """
         t0 = time.monotonic()
         exchange = VoiceExchange()
-        self._state.status = SessionStatus.PROCESSING
+        self._state.status = VoiceSessionStatus.PROCESSING
         self._state.last_activity = time.time()
 
         try:
             text = self._engine.intelligent.transcribe_fast(audio_path)
             if not text or len(text.strip()) < 2:
                 exchange.classification = SpeechClassification.SILENCE
-                self._state.status = SessionStatus.LISTENING
+                self._state.status = VoiceSessionStatus.LISTENING
                 return exchange
 
             exchange.utterance = text
@@ -145,7 +145,7 @@ class VoiceSession:
 
             if not should_respond:
                 exchange.duration_ms = (time.monotonic() - t0) * 1000
-                self._state.status = SessionStatus.LISTENING
+                self._state.status = VoiceSessionStatus.LISTENING
                 self._record_exchange(exchange)
                 return exchange
 
@@ -154,18 +154,18 @@ class VoiceSession:
             exchange.responded = True
 
             if response_text:
-                self._state.status = SessionStatus.SPEAKING
+                self._state.status = VoiceSessionStatus.SPEAKING
                 audio_out = self._engine.speak(response_text)
                 exchange.response_audio_path = audio_out
                 self._engine.intelligent.add_to_context(response_text, "assistant")
 
         except Exception as e:
             self._state.errors.append(str(e)[:200])
-            self._state.status = SessionStatus.ERROR
+            self._state.status = VoiceSessionStatus.ERROR
             logger.warning("Voice processing error: %s", e)
 
         exchange.duration_ms = (time.monotonic() - t0) * 1000
-        self._state.status = SessionStatus.LISTENING
+        self._state.status = VoiceSessionStatus.LISTENING
         self._record_exchange(exchange)
         return exchange
 
@@ -173,7 +173,7 @@ class VoiceSession:
         """Process text input directly (skip STT). Useful for testing."""
         t0 = time.monotonic()
         exchange = VoiceExchange(utterance=text)
-        self._state.status = SessionStatus.PROCESSING
+        self._state.status = VoiceSessionStatus.PROCESSING
         self._state.last_activity = time.time()
 
         try:
@@ -182,7 +182,7 @@ class VoiceSession:
 
             if not should_respond:
                 exchange.duration_ms = (time.monotonic() - t0) * 1000
-                self._state.status = SessionStatus.LISTENING
+                self._state.status = VoiceSessionStatus.LISTENING
                 self._record_exchange(exchange)
                 return exchange
 
@@ -191,17 +191,17 @@ class VoiceSession:
             exchange.responded = True
 
             if response_text:
-                self._state.status = SessionStatus.SPEAKING
+                self._state.status = VoiceSessionStatus.SPEAKING
                 audio_out = self._engine.speak(response_text)
                 exchange.response_audio_path = audio_out
 
         except Exception as e:
             self._state.errors.append(str(e)[:200])
-            self._state.status = SessionStatus.ERROR
+            self._state.status = VoiceSessionStatus.ERROR
             logger.warning("Voice processing error: %s", e)
 
         exchange.duration_ms = (time.monotonic() - t0) * 1000
-        self._state.status = SessionStatus.LISTENING
+        self._state.status = VoiceSessionStatus.LISTENING
         self._record_exchange(exchange)
         return exchange
 

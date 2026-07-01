@@ -46,7 +46,7 @@ from substrate.organism.impact_analyzer import (
     ImpactedNode,
 )
 from substrate.organism.propagation_planner import PropagationPlanner
-from substrate.organism.propagation_executor import PropagationExecutor, ExecutionMode
+from substrate.organism.propagation_executor import PropagationExecutor, PropagationMode
 
 
 # ── PropagationNode serialization ──────────────────────────────────────────
@@ -661,7 +661,7 @@ class TestPropagationExecutor:
 
     def test_dry_run_execution(self):
         g, plan = self._make_plan()
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         assert result.status in ("completed", "completed_with_gates")
         assert len(result.completed_actions) == 2
@@ -675,35 +675,35 @@ class TestPropagationExecutor:
                 idempotency_key="idem-a1",
             )
         )
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         assert len(result.no_op_actions) >= 1
 
     def test_blocked_action(self):
         g, plan = self._make_plan()
         plan.propagation_waves[0].actions[0].status = PropagationActionStatus.BLOCKED
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         assert len(result.blocked_actions) >= 1
 
     def test_approval_required_action(self):
         g, plan = self._make_plan()
         plan.propagation_waves[0].actions[0].status = PropagationActionStatus.APPROVAL_REQUIRED
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         assert len(result.approval_required_actions) >= 1
 
     def test_human_required_action(self):
         g, plan = self._make_plan()
         plan.propagation_waves[0].actions[0].status = PropagationActionStatus.HUMAN_REQUIRED
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         assert len(result.human_required_actions) >= 1
 
     def test_failure_isolation(self):
         g, plan = self._make_plan()
         plan.propagation_waves[0].actions[0].status = PropagationActionStatus.BLOCKED
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         assert len(result.completed_actions) >= 1
         assert len(result.blocked_actions) >= 1
@@ -711,20 +711,20 @@ class TestPropagationExecutor:
     def test_recompute_only_mode(self):
         g, plan = self._make_plan()
         plan.propagation_waves[0].actions[0].action_type = "regenerate"
-        executor = PropagationExecutor(g, mode=ExecutionMode.RECOMPUTE_ONLY)
+        executor = PropagationExecutor(g, mode=PropagationMode.RECOMPUTE_ONLY)
         result = executor.execute(plan)
         skipped = [a for a in result.no_op_actions]
         assert len(skipped) >= 1
 
     def test_governed_mode_blocked(self):
         g, plan = self._make_plan()
-        executor = PropagationExecutor(g, mode=ExecutionMode.GOVERNED)
+        executor = PropagationExecutor(g, mode=PropagationMode.GOVERNED)
         result = executor.execute(plan)
         assert len(result.blocked_actions) == 2
 
     def test_persist_result(self):
         g, plan = self._make_plan()
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "results.jsonl")
@@ -747,7 +747,7 @@ class TestPropagationExecutor:
             actions=[PropagationAction(node_id="n2", idempotency_key="k2")],
         )
         plan = PropagationPlan(propagation_waves=[w1, w2])
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         assert len(result.wave_results) == 2
         assert result.wave_results[0]["wave_number"] == 1
@@ -861,7 +861,7 @@ class TestCorrespondenceProof:
             planner = PropagationPlanner(g)
             plan = planner.plan(event, analysis)
             assert len(plan.propagation_waves) >= 1
-            executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+            executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
             result = executor.execute(plan)
             assert result.status in ("completed", "completed_with_gates")
 
@@ -957,7 +957,7 @@ class TestSafetyInvariants:
         analysis = analyzer.analyze(event)
         planner = PropagationPlanner(g)
         plan = planner.plan(event, analysis)
-        executor = PropagationExecutor(g, mode=ExecutionMode.DRY_RUN)
+        executor = PropagationExecutor(g, mode=PropagationMode.DRY_RUN)
         result = executor.execute(plan)
         for wr in result.wave_results:
             for ar in wr.get("action_results", []):
@@ -983,7 +983,7 @@ class TestSafetyInvariants:
             actions=[PropagationAction(node_id="n1", idempotency_key="k1")],
         )
         plan = PropagationPlan(propagation_waves=[wave])
-        executor = PropagationExecutor(g, mode=ExecutionMode.GOVERNED)
+        executor = PropagationExecutor(g, mode=PropagationMode.GOVERNED)
         result = executor.execute(plan)
         assert len(result.blocked_actions) == 1
         assert len(result.completed_actions) == 0

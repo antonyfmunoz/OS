@@ -41,11 +41,7 @@ def _get_proof_store() -> Any:
 
 
 def _get_obs_proof_store() -> Any:
-    try:
-        from substrate.observability.proof_store import ProofStore
-        return ProofStore()
-    except Exception:
-        return None
+    return _get_proof_store()
 
 
 def _get_journal() -> Any:
@@ -188,7 +184,7 @@ async def _artifacts(request: Request) -> dict[str, Any]:
 
     limit = int(request.query_params.get("limit", "50"))
     try:
-        recent = obs.recent_proofs(limit=limit)
+        recent = obs.query(limit=limit)
         return {
             "artifacts": [a.to_dict() if hasattr(a, "to_dict") else vars(a) for a in recent],
             "store_available": True,

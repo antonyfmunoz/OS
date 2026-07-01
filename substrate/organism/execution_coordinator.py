@@ -87,8 +87,8 @@ class ExecutionTargetType(str, Enum):
     EXTERNAL = "external"
 
 
-class ExecutionMode(str, Enum):
-    """How the execution should proceed."""
+class ExecutionTiming(str, Enum):
+    """How the execution should proceed (timing/scheduling)."""
     SYNCHRONOUS = "synchronous"
     ASYNCHRONOUS = "asynchronous"
     BACKGROUND = "background"
@@ -143,7 +143,7 @@ class CoordinatorExecutionPlan:
     profile_id: str = ""
     session_id: str = ""
     target_executor: str = ""
-    execution_mode: str = ExecutionMode.ASYNCHRONOUS.value
+    execution_mode: str = ExecutionTiming.ASYNCHRONOUS.value
     approval_state: str = CoordinatorApprovalState.PENDING.value
     priority: str = ExecutionPriority.NORMAL.value
     risk_class: str = "low"
@@ -814,7 +814,7 @@ class ExecutionCoordinator:
         *,
         profile_id: str = "",
         session_id: str = "",
-        execution_mode: str = ExecutionMode.ASYNCHRONOUS.value,
+        execution_mode: str = ExecutionTiming.ASYNCHRONOUS.value,
         priority: str = ExecutionPriority.NORMAL.value,
         risk_class: str = "low",
         description: str = "",

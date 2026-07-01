@@ -27,7 +27,7 @@ from substrate.organism.action_envelope import (
 logger = logging.getLogger(__name__)
 
 
-class SessionStatus:
+class DevSessionStatus:
     ACTIVE = "active"
     COMPLETED = "completed"
     ABANDONED = "abandoned"
@@ -41,7 +41,7 @@ class DevSession:
     projection_id: str = "umh"
     commits: list[dict[str, str]] = field(default_factory=list)
     files_modified: int = 0
-    status: str = SessionStatus.ACTIVE
+    status: str = DevSessionStatus.ACTIVE
     completed_at: float = 0.0
     outcome: str = ""
 
@@ -107,7 +107,7 @@ class DevSessionTracker:
 
     def record_commit(self, session_id: str, sha: str, message: str) -> bool:
         s = self._sessions.get(session_id)
-        if s is None or s.status != SessionStatus.ACTIVE:
+        if s is None or s.status != DevSessionStatus.ACTIVE:
             return False
         s.commits.append({"sha": sha, "message": message[:200]})
         self._rewrite()
@@ -115,7 +115,7 @@ class DevSessionTracker:
 
     def record_files_modified(self, session_id: str, count: int) -> bool:
         s = self._sessions.get(session_id)
-        if s is None or s.status != SessionStatus.ACTIVE:
+        if s is None or s.status != DevSessionStatus.ACTIVE:
             return False
         s.files_modified = count
         self._rewrite()
@@ -123,9 +123,9 @@ class DevSessionTracker:
 
     def complete_session(self, session_id: str, outcome: str) -> ActionEnvelope | None:
         s = self._sessions.get(session_id)
-        if s is None or s.status != SessionStatus.ACTIVE:
+        if s is None or s.status != DevSessionStatus.ACTIVE:
             return None
-        s.status = SessionStatus.COMPLETED
+        s.status = DevSessionStatus.COMPLETED
         s.completed_at = time.time()
         s.outcome = outcome[:500]
         self._rewrite()
@@ -185,24 +185,24 @@ class DevSessionTracker:
 
     def abandon_session(self, session_id: str) -> bool:
         s = self._sessions.get(session_id)
-        if s is None or s.status != SessionStatus.ACTIVE:
+        if s is None or s.status != DevSessionStatus.ACTIVE:
             return False
-        s.status = SessionStatus.ABANDONED
+        s.status = DevSessionStatus.ABANDONED
         s.completed_at = time.time()
         self._rewrite()
         logger.info("dev session abandoned: %s", session_id)
         return True
 
     def active_sessions(self) -> list[DevSession]:
-        return [s for s in self._sessions.values() if s.status == SessionStatus.ACTIVE]
+        return [s for s in self._sessions.values() if s.status == DevSessionStatus.ACTIVE]
 
     def recent_sessions(self, limit: int = 20) -> list[DevSession]:
         ordered = sorted(self._sessions.values(), key=lambda s: s.started_at, reverse=True)
         return ordered[:limit]
 
     def summary(self) -> dict[str, Any]:
-        active = [s for s in self._sessions.values() if s.status == SessionStatus.ACTIVE]
-        completed = [s for s in self._sessions.values() if s.status == SessionStatus.COMPLETED]
+        active = [s for s in self._sessions.values() if s.status == DevSessionStatus.ACTIVE]
+        completed = [s for s in self._sessions.values() if s.status == DevSessionStatus.COMPLETED]
         last = max(completed, key=lambda s: s.completed_at) if completed else None
         return {
             "active_count": len(active),
