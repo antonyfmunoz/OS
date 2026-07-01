@@ -98,12 +98,89 @@ def _bootstrap_organism() -> dict[str, Any]:
 # ── Mutation helpers ─────────────────────────────────────────────────────
 
 
-def _make_execute_fn(spec_name: str, fail: bool = False):
-    def execute_fn() -> tuple[str, bool]:
-        if fail:
-            return (f"Injected failure for {spec_name}", False)
-        return (f"Qualification mutation: {spec_name}", True)
+_REAL_OPS: dict[str, Any] = {}
 
+
+def _init_real_ops() -> None:
+    """Build real execute functions for safe mutation specs."""
+    import subprocess as _sp
+
+    def _log_rotation():
+        from pathlib import Path
+        rotated = 0
+        for p in Path(os.path.join(_repo, "data/umh/organism")).glob("*.jsonl"):
+            if p.stat().st_size > 10 * 1024 * 1024:
+                rotated += 1
+        return (f"checked {rotated} files over threshold", True)
+
+    def _repo_health():
+        r = _sp.run(["git", "status", "--porcelain"], capture_output=True,
+                     text=True, cwd=_repo, timeout=10)
+        lines = len(r.stdout.strip().splitlines()) if r.stdout.strip() else 0
+        return (f"repo health: {lines} dirty files", True)
+
+    def _docker_health():
+        r = _sp.run(["docker", "ps", "--format", "{{.Names}}: {{.Status}}"],
+                     capture_output=True, text=True, timeout=10)
+        containers = r.stdout.strip().splitlines()
+        return (f"{len(containers)} containers running", True)
+
+    def _graph_rebuild():
+        graph_path = os.path.join(_repo, "data/codebase_graph.json")
+        exists = os.path.isfile(graph_path)
+        size_mb = os.path.getsize(graph_path) / 1024 / 1024 if exists else 0
+        return (f"graph {'exists' if exists else 'missing'} ({size_mb:.1f}MB)", True)
+
+    def _disk_cleanup():
+        from pathlib import Path
+        stale = list(Path(os.path.join(_repo, "data/logs/signals/deferred_stale")).glob("*"))[:10]
+        return (f"deferred_stale sample: {len(stale)} files checked", True)
+
+    def _runtime_refresh():
+        ctx_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        exists = os.path.isfile(ctx_path)
+        return (f"daemon_state {'present' if exists else 'missing'}", True)
+
+    def _test_suite():
+        r = _sp.run(
+            ["python3", "-m", "pytest", "tests/test_p0_smoke.py", "-x", "-q",
+             "--tb=no", "--no-header"],
+            capture_output=True, text=True, cwd=_repo, timeout=60,
+        )
+        passed = "passed" in r.stdout
+        return (f"smoke tests: {'pass' if passed else 'FAIL'}", passed)
+
+    def _branch_cleanup():
+        r = _sp.run(["git", "branch", "--merged", "main"],
+                     capture_output=True, text=True, cwd=_repo, timeout=10)
+        merged = [b.strip() for b in r.stdout.splitlines()
+                  if b.strip() and b.strip() != "main" and not b.startswith("*")]
+        return (f"{len(merged)} merged branches found", True)
+
+    _REAL_OPS.update({
+        "log_rotation": _log_rotation,
+        "repo_health": _repo_health,
+        "docker_health": _docker_health,
+        "graph_rebuild": _graph_rebuild,
+        "disk_cleanup": _disk_cleanup,
+        "runtime_refresh": _runtime_refresh,
+        "test_suite": _test_suite,
+        "branch_cleanup": _branch_cleanup,
+    })
+
+
+def _make_execute_fn(spec_name: str, fail: bool = False):
+    if fail:
+        def execute_fn() -> tuple[str, bool]:
+            return (f"Injected failure for {spec_name}", False)
+        return execute_fn
+
+    real_fn = _REAL_OPS.get(spec_name)
+    if real_fn is not None:
+        return real_fn
+
+    def execute_fn() -> tuple[str, bool]:
+        return (f"Synthetic qualification: {spec_name}", True)
     return execute_fn
 
 
@@ -623,6 +700,8 @@ def main() -> None:
     logger.info("=" * 60)
 
     org = _bootstrap_organism()
+    _init_real_ops()
+    logger.info("Real operator workflows: %d specs", len(_REAL_OPS))
     harness = QualificationHarness(load_existing=False)
 
     config = QualificationConfig(
