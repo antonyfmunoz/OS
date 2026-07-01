@@ -16,9 +16,7 @@ export type Panel =
   | 'execution'
   | 'comms'
   | 'workflows'
-  | 'tracking'
   | 'skills'
-  | 'experiments'
   | 'infrastructure'
   | 'profile'
   | 'organism'
@@ -84,6 +82,8 @@ export type Panel =
   | 'umhnode'
   | 'workspacetopology'
   | 'canvas'
+  | 'proofinspector'
+  | 'recoverydashboard'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

@@ -112,9 +112,9 @@ UMH (Universal Meta Harness) is a production AI intelligence substrate operating
 ### Gaps
 
 - Credential injection hook (`check_credential_injection.py`) exists but is NOT wired into pre-commit, despite spec Section 14 invariant 6 claiming enforcement
-- Duplicate ApprovalStore: `substrate/organism/approval_store.py` (daemon) vs `substrate/state/stores/approval_store.py` (governance)
-- Duplicate OutcomeRecord: `substrate/organism/outcome_learning.py` vs `substrate/organism/benchmarks/outcome_accuracy.py`
-- MutationStore referenced in spec Section 7 daemon interface but no MutationStore class exists in codebase
+- Dual ApprovalStore: `substrate/organism/approval_store.py` (JSONL, canonical) vs `substrate/state/stores/approval_store.py` (SQL, deprecated — used by authority_engine)
+- ~~Duplicate OutcomeRecord~~ FIXED: benchmark version renamed to BenchmarkOutcomeRecord (M1)
+- ~~MutationStore referenced in spec Section 7~~ FIXED: corrected to MutationRegistry (M1)
 - No continuous SLO monitoring outside campaign runs
 
 **Overall constitution compliance: 88%** (10/10 contracts qualified, 3 unwired hooks, 2 type duplications).
@@ -496,10 +496,10 @@ UMH MVP = **governed operator workstation**: the operator can communicate with t
 
 | # | Gap | Dimension | Impact |
 |---|---|---|---|
-| 3 | Credential injection hook not wired in pre-commit | Platform | Spec claims enforcement that does not exist |
-| 4 | MutationStore in spec Section 7 but missing from code | Platform | Spec-code misalignment |
-| 5 | Duplicate ApprovalStore (organism/ vs state/stores/) | Platform | Type coherence violation, drift risk |
-| 6 | Duplicate OutcomeRecord (outcome_learning vs benchmarks/) | Platform | Type coherence violation |
+| 3 | ~~Credential injection hook not wired in pre-commit~~ FIXED M1 | Platform | ~~Spec claims enforcement that does not exist~~ |
+| 4 | ~~MutationStore in spec Section 7 but missing from code~~ FIXED M1 | Platform | ~~Spec-code misalignment~~ |
+| 5 | Dual ApprovalStore: organism/ (JSONL canonical) vs state/stores/ (SQL deprecated) | Platform | Documented, consolidated in future |
+| 6 | ~~Duplicate OutcomeRecord~~ FIXED M1: benchmark renamed to BenchmarkOutcomeRecord | Platform | ~~Type coherence violation~~ |
 
 ### Priority 3: Dead/Orphaned Code
 
