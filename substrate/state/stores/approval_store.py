@@ -1,4 +1,10 @@
-"""ApprovalStore — canonical write API for the approvals table."""
+"""ApprovalStore — SQL-backed multi-tenant approval API (deprecated).
+
+DEPRECATED: This is the SQL/Neon multi-tenant version used by authority_engine.
+The canonical substrate-layer ApprovalStore is substrate/organism/approval_store.py
+(JSONL-backed, single-tenant). This version will be consolidated in a future
+migration once authority_engine moves to the organism-layer store.
+"""
 
 import json
 import uuid

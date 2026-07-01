@@ -15,7 +15,6 @@ import {
   MessageSquare,
   Workflow,
   Target,
-  FlaskConical,
   Server,
   User,
   Brain,
@@ -161,12 +160,14 @@ export const ROUTES: RouteEntry[] = [
   { id: 'umhnode', label: 'UMH Node', icon: Server, group: 'primary', visibility: 'dev', key: '=' },
   { id: 'workspacetopology', label: 'Workspace Topology', icon: Map, group: 'primary', visibility: 'dev', key: '\\' },
 
+  // M1 — Operator MVP Closure (G10 + G11)
+  { id: 'proofinspector', label: 'Proof Inspector', icon: ShieldCheck, group: 'primary', visibility: 'dev', key: '#' },
+  { id: 'recoverydashboard', label: 'Recovery Dashboard', icon: RotateCcw, group: 'primary', visibility: 'dev', key: '$' },
+
   // Planned (searchable with [PLANNED] badge)
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'primary', visibility: 'planned', key: '6' },
 
   // Stub (NOT searchable)
-  { id: 'tracking', label: 'Tracking', icon: Target, group: 'primary', visibility: 'stub', key: 'A' },
-  { id: 'experiments', label: 'Experiments', icon: FlaskConical, group: 'primary', visibility: 'stub', key: 'X' },
   { id: 'workspace', label: 'Workspace', icon: Monitor, group: 'primary', visibility: 'stub', key: '+' },
 ]
 
