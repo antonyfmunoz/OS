@@ -60,6 +60,8 @@ from substrate.organism.agent_capability_model import AgentCapabilityModel
 from substrate.organism.assisted_executor import AssistedExecutor
 from substrate.organism.execution_journal import ExecutionJournal
 from substrate.organism.governed_spine import GovernedExecutionSpine
+from substrate.organism.proof_store import get_proof_store
+from substrate.organism.continuous_qualification import ContinuousQualificationStage
 from substrate.organism.memory_promotion import MemoryPromotionPipeline
 from substrate.organism.mutation_registry import MutationRegistry
 from substrate.organism.outcome_learning import OutcomeLearningLoop
@@ -306,6 +308,8 @@ class OrganismDaemon:
             propagation_engine=self._propagation_engine,
             learning_loop=self._outcome_learning,
         )
+        self._governed_spine.set_proof_store(get_proof_store())
+
         self._spine_guard = SpineGuard(
             mode=GuardMode.BLOCK_HIGH_RISK,
             event_spine=self._event_spine,
@@ -348,6 +352,14 @@ class OrganismDaemon:
 
         self._projection_port = OrganismStatePort(
             state_dir=str(self._state_dir / "projections"),
+        )
+
+        self._continuous_qualification = ContinuousQualificationStage(
+            spine=self._governed_spine,
+            journal=self._execution_journal,
+            event_spine=self._event_spine,
+            learning=self._outcome_learning,
+            mutation_registry=self._mutation_registry,
         )
 
         self._autonomous_tick = AutonomousTick(
@@ -524,6 +536,10 @@ class OrganismDaemon:
         self._autonomous_tick.register_stage(
             "projection_broadcast",
             self._broadcast_state,
+        )
+        self._autonomous_tick.register_stage(
+            "continuous_qualification",
+            self._continuous_qualification.tick,
         )
 
     def _bottleneck_detection_tick(self) -> dict[str, Any]:

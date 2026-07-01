@@ -124,6 +124,7 @@ class GovernedExecutionSpine:
         self._learning = learning_loop
         self._compounding = compounding_engine
         self._template_extractor = template_extractor
+        self._proof_store: Any = None
         self._lock = threading.Lock()
 
         self._pending: deque[ActionEnvelope] = deque(maxlen=_MAX_QUEUE)
@@ -137,6 +138,28 @@ class GovernedExecutionSpine:
         self._total_rejected: int = 0
         self._total_rolled_back: int = 0
         self._total_verified: int = 0
+
+    def set_proof_store(self, proof_store: Any) -> None:
+        self._proof_store = proof_store
+
+    def _capture_proof(
+        self, envelope: ActionEnvelope, timing: SpineTimingData, use_fast: bool
+    ) -> None:
+        if self._proof_store is None or use_fast:
+            return
+        try:
+            proof_start = time.monotonic()
+            pkg = self._proof_store.create(
+                request_id=envelope.envelope_id,
+                description=envelope.intent,
+            )
+            pkg.commands_run.append(envelope.result_output[:500])
+            pkg.status = "verified" if envelope.result_success else "failed"
+            self._proof_store.update(pkg)
+            envelope.metadata["proof_id"] = pkg.proof_id
+            timing.proof_capture_ms = (time.monotonic() - proof_start) * 1000
+        except Exception as exc:
+            logger.debug("proof capture failed: %s", exc)
 
     def _check_fast_path(self, envelope: ActionEnvelope) -> FastPathResult:
         """Determine if this envelope qualifies for reduced-overhead execution.
@@ -442,6 +465,8 @@ class GovernedExecutionSpine:
         envelope.completed_at = time.time()
         self._total_executed += 1
         timing.journal_write_ms = (time.monotonic() - j_start) * 1000 - timing.execution_ms
+
+        self._capture_proof(envelope, timing, use_fast)
 
         if envelope.result_success and envelope.verification is not None:
             self._verify(envelope)

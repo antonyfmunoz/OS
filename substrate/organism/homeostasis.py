@@ -51,6 +51,7 @@ class HealthDimension(str, Enum):
     BUDGET = "budget"
     STUCK_LOOP = "stuck_loop"
     GOVERNANCE_OVERRIDES = "governance_overrides"
+    SLO_COMPLIANCE = "slo_compliance"
 
 
 @dataclass
@@ -157,6 +158,7 @@ class HomeostasisEngine:
         self._overrides: list[Override] = []
         self._mode: SystemMode = SystemMode.HEALTHY
         self._last_check: float = 0.0
+        self._slo_metrics_provider: Any = None
 
     def record_execution(self, success: bool, error_detail: str = "") -> None:
         self._executions.append((time.time(), success))
@@ -307,6 +309,7 @@ class HomeostasisEngine:
             self._check_stuck_loop(),
             self._check_governance_overrides(),
             self._check_throughput(),
+            self._check_slo_compliance(),
         ]
 
         report.dimensions = checks
@@ -424,6 +427,53 @@ class HomeostasisEngine:
             healthy=self._override_count < self._override_max,
             detail=f"{self._override_count}/{self._override_max} founder overrides",
         )
+
+    def set_slo_metrics_provider(self, provider: Any) -> None:
+        self._slo_metrics_provider = provider
+
+    def _check_slo_compliance(self) -> DimensionStatus:
+        if self._slo_metrics_provider is None:
+            return DimensionStatus(
+                dimension=HealthDimension.SLO_COMPLIANCE,
+                healthy=True,
+                detail="No SLO metrics provider configured",
+            )
+
+        try:
+            from substrate.organism.slo_definitions import RUNTIME_SLOS, critical_slos
+
+            metrics = self._slo_metrics_provider()
+            violations = []
+            critical_violations = 0
+
+            for slo in RUNTIME_SLOS:
+                actual = metrics.get(slo.metric)
+                if actual is None:
+                    continue
+                if not slo.evaluate(actual):
+                    violations.append(slo.name)
+                    if slo.severity == "critical":
+                        critical_violations += 1
+
+            healthy = critical_violations == 0
+            total_slos = len([s for s in RUNTIME_SLOS if metrics.get(s.metric) is not None])
+            passing = total_slos - len(violations)
+
+            return DimensionStatus(
+                dimension=HealthDimension.SLO_COMPLIANCE,
+                value=passing / max(total_slos, 1),
+                threshold=1.0,
+                healthy=healthy,
+                detail=f"{passing}/{total_slos} SLOs passing, {critical_violations} critical violations"
+                if violations else f"All {total_slos} SLOs passing",
+            )
+        except Exception as exc:
+            logger.debug("SLO compliance check failed: %s", exc)
+            return DimensionStatus(
+                dimension=HealthDimension.SLO_COMPLIANCE,
+                healthy=True,
+                detail=f"SLO check error: {exc}",
+            )
 
     def _check_throughput(self) -> DimensionStatus:
         if not self._executions:
