@@ -29,6 +29,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 ROUTE_DIRS = [
     "transports/api/",
     "saas/",
+    "services/",
 ]
 
 GOVERNED_PATTERNS_PY = [
@@ -51,6 +52,11 @@ MUTATION_METHOD_IN_ADD_ROUTE = re.compile(
     re.IGNORECASE,
 )
 
+DIRECT_SQL_WRITE = re.compile(
+    r"""cur\.execute\s*\(\s*["']{1,3}\s*(INSERT|UPDATE|DELETE|ALTER|DROP)""",
+    re.IGNORECASE,
+)
+
 MUTATION_ROUTE_TS = re.compile(
     r"""\.(post|put|patch|delete)\s*\(""",
     re.IGNORECASE,
@@ -62,7 +68,10 @@ EXEMPT_FILES = {
     "transports/api/cockpit_spine_router.py",
 }
 
-GRANDFATHERED_FILES: set[str] = set()
+GRANDFATHERED_FILES: set[str] = {
+    "services/goal_api.py",
+    "services/higgsfield_webhook.py",
+}
 
 
 def _is_route_file(path: str) -> bool:
@@ -83,12 +92,15 @@ def _check_python_file(filepath: Path) -> list[str]:
     lines = content.splitlines()
     has_mutation_route = False
     has_governed_import = False
+    has_direct_sql_write = False
 
     for line in lines:
         if MUTATION_ROUTE_DECORATOR_PY.search(line):
             has_mutation_route = True
         if MUTATION_METHOD_IN_ADD_ROUTE.search(line):
             has_mutation_route = True
+        if DIRECT_SQL_WRITE.search(line):
+            has_direct_sql_write = True
         for pat in GOVERNED_PATTERNS_PY:
             if pat.search(line):
                 has_governed_import = True
@@ -99,6 +111,13 @@ def _check_python_file(filepath: Path) -> list[str]:
             if MUTATION_ROUTE_DECORATOR_PY.search(line) or MUTATION_METHOD_IN_ADD_ROUTE.search(line):
                 violations.append(
                     f"  {filepath}:{i} — mutation route without governed_mutation()"
+                )
+
+    if has_direct_sql_write and not has_governed_import:
+        for i, line in enumerate(lines, 1):
+            if DIRECT_SQL_WRITE.search(line):
+                violations.append(
+                    f"  {filepath}:{i} — direct SQL write without governed_mutation()"
                 )
 
     return violations
