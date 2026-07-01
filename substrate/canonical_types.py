@@ -73,6 +73,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ProofStatus": ["substrate.types"],
     "WorkPacketStatus": ["substrate.types"],
     "WorkPacketPriority": ["substrate.types"],
+    "RouterWorkPacket": ["substrate.control_plane.router.router_contracts"],
     "DecompositionComponentType": ["substrate.types"],
     "AdapterType": ["substrate.types"],
     "AdapterStatus": ["substrate.types"],
@@ -99,9 +100,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AuthorityDomain": ["substrate.execution.runtime.worker_runtime_contracts"],
     "MessageBusType": ["substrate.execution.runtime.worker_runtime_contracts"],
     # ── nodes/environments/work_packet.py ───────────────────────────────
-    # WorkPacketStatus also in substrate.types — both canonical (different schemas)
-    "WorkPacketRiskLevel": ["nodes.environments.work_packet"],
-    "WorkPacketExecutionEnvironment": ["nodes.environments.work_packet"],
+    "EnvironmentPacketStatus": ["nodes.environments.work_packet"],
+    "EnvironmentPacketRiskLevel": ["nodes.environments.work_packet"],
+    "EnvironmentPacketExecutionTarget": ["nodes.environments.work_packet"],
+    "EnvironmentWorkPacket": ["nodes.environments.work_packet"],
     # ── substrate/organism/runtime_graph.py ─────────────────────────────
     "AvailabilityStatus": ["substrate.organism.runtime_graph"],
     "RuntimeClass": ["substrate.organism.runtime_graph"],
@@ -205,7 +207,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "VoiceBehavior": ["substrate.workstation.profile_behavior"],
     "NotificationPolicy": ["substrate.workstation.profile_behavior"],
     "CameraPolicy": ["substrate.workstation.profile_behavior"],
-    "ExecutionMode": ["substrate.workstation.profile_behavior"],
+    "ProfileExecutionMode": ["substrate.workstation.profile_behavior"],
     "ReportingCadence": ["substrate.workstation.profile_behavior"],
     "ActivationSource": ["substrate.workstation.activation"],
     "ActivationSignal": ["substrate.workstation.activation"],
@@ -414,6 +416,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # Phase 12: Session Runtime
     "SessionType": ["substrate.organism.session_runtime"],
     "SessionStatus": ["substrate.organism.session_runtime"],
+    "DevSessionStatus": ["substrate.organism.dev_session_tracker"],
+    "ReconciliationStatus": ["substrate.organism.reconciliation_session"],
+    "OperatorSessionStatus": ["substrate.organism.operator_session"],
+    "VoiceSessionStatus": ["substrate.execution.voice.session"],
     "SessionAuthority": ["substrate.organism.session_runtime"],
     "SessionEventType": ["substrate.organism.session_runtime"],
     "HandoffStatus": ["substrate.organism.session_runtime"],
@@ -431,7 +437,9 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # Phase 13: Execution Coordinator Runtime
     "ExecutionPlanStatus": ["substrate.organism.execution_coordinator"],
     "ExecutionTargetType": ["substrate.organism.execution_coordinator"],
-    "ExecutionMode": ["substrate.organism.execution_coordinator"],
+    "ExecutionTiming": ["substrate.organism.execution_coordinator"],
+    "ExecutionMode": ["substrate.organism.execution_modes"],
+    "CommandExecutionMode": ["substrate.composition.registries.canonical_command_registry_v1"],
     "ExecutionPriority": ["substrate.organism.execution_coordinator"],
     "CoordinatorApprovalState": ["substrate.organism.execution_coordinator"],
     "LifecycleEventType": ["substrate.organism.execution_coordinator"],
@@ -718,7 +726,6 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "VoiceQueryEngine": ["substrate.operator.voice_query_engine"],
     "ActionResolution": ["substrate.operator.voice_query_engine"],
     # ── Voice Session & Wake Producer (pre-C20) ─────────────────────
-    "VoiceSessionStatus": ["substrate.execution.bridge.voice_session"],
     "VoiceTurnSource": ["substrate.execution.bridge.voice_session"],
     "VoiceTurn": ["substrate.execution.bridge.voice_session"],
     "VoiceSession": ["substrate.execution.bridge.voice_session"],
@@ -1286,9 +1293,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
 # The gate blocks NEW divergence; this allowlist grandfathers OLD divergence.
 
 LEGACY_DUPLICATES: dict[str, set[str]] = {
-    # substrate.types defines both WorkPacketStatus (Enum) and references it
-    # nodes.environments.work_packet also defines it — same semantics, needs merge
-    "nodes.environments.work_packet": {"WorkPacketStatus"},
+    # nodes/environments types renamed to EnvironmentPacket* — no longer conflicts
     # substrate.types.ProofStatus vs worker_runtime_contracts.ProofStatus
     "substrate.execution.runtime.worker_runtime_contracts": {"ProofStatus"},
     # Older contract modules that predate type centralization
