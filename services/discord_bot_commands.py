@@ -18,6 +18,7 @@ from discord.ext import commands
 
 from substrate.observability.error_recorder import record_error as _record_error
 from substrate.execution.bridge.session_discord_bridge import send_reply as _send_reply
+from transports.api.governed import governed_mutation
 
 # ─── Shared context (set by register_commands) ──────────────────────────────
 
@@ -471,16 +472,27 @@ def register_commands(
                             f"Run `!proofread` to review before sending, "
                             f"or `!force_send` to send anyway."
                         )
-                        with get_conn(_local_ctx.org_id) as cur:
-                            cur.execute(
-                                """
-                                UPDATE events
-                                SET payload_json = payload_json ||
-                                    '{"awaiting_force_send": true}'::jsonb
-                                WHERE id = %s
-                            """,
-                                (row["id"],),
-                            )
+                        _row_id = row["id"]
+
+                        def _mark_force_send():
+                            with get_conn(_local_ctx.org_id) as cur:
+                                cur.execute(
+                                    """
+                                    UPDATE events
+                                    SET payload_json = payload_json ||
+                                        '{"awaiting_force_send": true}'::jsonb
+                                    WHERE id = %s
+                                """,
+                                    (_row_id,),
+                                )
+                            return ("marked awaiting_force_send", True)
+
+                        governed_mutation(
+                            mutation_name="event_status_update",
+                            intent=f"Mark email {_row_id} as awaiting force send",
+                            execute_fn=_mark_force_send,
+                            source="discord",
+                        )
                         return
                 except Exception as _qg_err:
                     _record_error("quality_gate", _qg_err)
@@ -494,16 +506,27 @@ def register_commands(
                     body=body,
                 )
                 if result.get("id"):
-                    with get_conn(_local_ctx.org_id) as cur:
-                        cur.execute(
-                            """
-                            UPDATE events
-                            SET payload_json = payload_json ||
-                                '{"status": "sent"}'::jsonb
-                            WHERE id = %s
-                        """,
-                            (row["id"],),
-                        )
+                    _row_id_sent = row["id"]
+
+                    def _mark_sent():
+                        with get_conn(_local_ctx.org_id) as cur:
+                            cur.execute(
+                                """
+                                UPDATE events
+                                SET payload_json = payload_json ||
+                                    '{"status": "sent"}'::jsonb
+                                WHERE id = %s
+                            """,
+                                (_row_id_sent,),
+                            )
+                        return ("marked sent", True)
+
+                    governed_mutation(
+                        mutation_name="event_status_update",
+                        intent=f"Mark email {_row_id_sent} as sent to {to_email}",
+                        execute_fn=_mark_sent,
+                        source="discord",
+                    )
                     await ctx.reply(
                         f"✅ **Email sent to {to_email}**\nSubject: {subject}\nPreview: {body[:200]}..."
                     )
@@ -514,17 +537,27 @@ def register_commands(
                         f"`gws auth login`"
                     )
             else:
-                # No recipient — mark approved, no send
-                with get_conn(_local_ctx.org_id) as cur:
-                    cur.execute(
-                        """
-                        UPDATE events
-                        SET payload_json = payload_json ||
-                            '{"status": "approved"}'::jsonb
-                        WHERE id = %s
-                    """,
-                        (row["id"],),
-                    )
+                _row_id_approve = row["id"]
+
+                def _mark_approved():
+                    with get_conn(_local_ctx.org_id) as cur:
+                        cur.execute(
+                            """
+                            UPDATE events
+                            SET payload_json = payload_json ||
+                                '{"status": "approved"}'::jsonb
+                            WHERE id = %s
+                        """,
+                            (_row_id_approve,),
+                        )
+                    return ("marked approved", True)
+
+                governed_mutation(
+                    mutation_name="event_status_update",
+                    intent=f"Mark email {_row_id_approve} as approved (no recipient)",
+                    execute_fn=_mark_approved,
+                    source="discord",
+                )
                 await ctx.reply(
                     f"✅ Approved (no recipient email on file).\nDraft:\n```\n{draft[:400]}\n```"
                 )
@@ -577,16 +610,27 @@ def register_commands(
             gws = GWSConnector()
             result = gws.send_email(to_email, subject, body)
             if result.get("id"):
-                with get_conn(_local_ctx.org_id) as cur:
-                    cur.execute(
-                        """
-                        UPDATE events
-                        SET payload_json = payload_json ||
-                            '{"status": "sent", "force_sent": true}'::jsonb
-                        WHERE id = %s
-                    """,
-                        (row["id"],),
-                    )
+                _row_id_force = row["id"]
+
+                def _mark_force_sent():
+                    with get_conn(_local_ctx.org_id) as cur:
+                        cur.execute(
+                            """
+                            UPDATE events
+                            SET payload_json = payload_json ||
+                                '{"status": "sent", "force_sent": true}'::jsonb
+                            WHERE id = %s
+                        """,
+                            (_row_id_force,),
+                        )
+                    return ("force sent", True)
+
+                governed_mutation(
+                    mutation_name="event_status_update",
+                    intent=f"Mark email {_row_id_force} as force-sent to {to_email}",
+                    execute_fn=_mark_force_sent,
+                    source="discord",
+                )
                 await ctx.reply(f"✅ Force sent to {to_email}")
             else:
                 await ctx.reply("❌ Send failed. Check GWS token.")
@@ -1667,27 +1711,38 @@ Subject: [subject]
                 energized = parts[2] if len(parts) > 2 else ""
 
                 _local_ctx = load_context_from_env()
-                with get_conn(_local_ctx.org_id) as cur:
-                    cur.execute(
-                        """
-                        INSERT INTO events
-                        (org_id, event_type, payload_json, handled_by)
-                        VALUES (%s, %s, %s, %s)
-                    """,
-                        (
-                            str(_local_ctx.org_id),
-                            "energy_checkin",
-                            _ej.dumps(
-                                {
-                                    "score": score,
-                                    "drained": drained,
-                                    "energized": energized,
-                                    "date": _dt.now(_PDT).strftime("%Y-%m-%d"),
-                                }
+                _payload = _ej.dumps(
+                    {
+                        "score": score,
+                        "drained": drained,
+                        "energized": energized,
+                        "date": _dt.now(_PDT).strftime("%Y-%m-%d"),
+                    }
+                )
+
+                def _insert_energy():
+                    with get_conn(_local_ctx.org_id) as cur:
+                        cur.execute(
+                            """
+                            INSERT INTO events
+                            (org_id, event_type, payload_json, handled_by)
+                            VALUES (%s, %s, %s, %s)
+                        """,
+                            (
+                                str(_local_ctx.org_id),
+                                "energy_checkin",
+                                _payload,
+                                "dex_energy",
                             ),
-                            "dex_energy",
-                        ),
-                    )
+                        )
+                    return ("energy checkin logged", True)
+
+                governed_mutation(
+                    mutation_name="event_create",
+                    intent=f"Log energy checkin: {score}/10",
+                    execute_fn=_insert_energy,
+                    source="discord",
+                )
 
                 emoji = "🔴" if score <= 3 else "🟡" if score <= 6 else "🟢"
                 lines = [f"{emoji} Energy logged: {score}/10"]
@@ -2608,16 +2663,27 @@ Subject: [subject]
             if isinstance(payload, str):
                 payload = _json.loads(payload)
 
-            with get_conn(_local_ctx.org_id) as cur:
-                cur.execute(
-                    """
-                    UPDATE events
-                    SET payload_json = payload_json ||
-                        '{"approved": true}'::jsonb
-                    WHERE id = %s
-                """,
-                    (row["id"],),
-                )
+            _row_id_task = row["id"]
+
+            def _approve_task():
+                with get_conn(_local_ctx.org_id) as cur:
+                    cur.execute(
+                        """
+                        UPDATE events
+                        SET payload_json = payload_json ||
+                            '{"approved": true}'::jsonb
+                        WHERE id = %s
+                    """,
+                        (_row_id_task,),
+                    )
+                return ("task approved", True)
+
+            governed_mutation(
+                mutation_name="event_status_update",
+                intent=f"Approve agent task {task_id}",
+                execute_fn=_approve_task,
+                source="discord",
+            )
 
             result_preview = payload.get("result", "")[:300]
             await ctx.reply(
