@@ -9,9 +9,9 @@
 #   - CPU load gate (skip if system already overloaded)
 #   - 1Password secret injection (if OP_SERVICE_ACCOUNT_TOKEN is set)
 
-# OP_SERVICE_ACCOUNT_TOKEN loaded from /root/.op-service-account-token at install time.
-# Install: scripts/install-crontab.sh
-OP_SERVICE_ACCOUNT_TOKEN=__OP_TOKEN__
+# OP_SERVICE_ACCOUNT_TOKEN: cron-run loads from /root/.op-service-account-token automatically.
+# Never inline the token here — it appears in crontab -l output.
+# Install: crontab /opt/OS/infra/crontab.managed
 CR=/opt/OS/scripts/cron-run
 
 # ── Every 5 minutes (staggered: one per minute) ──
@@ -40,6 +40,7 @@ CR=/opt/OS/scripts/cron-run
 0 3 * * * cd /opt/OS && $CR scripts/discord_daily_clear.py >> /opt/OS/logs/discord_clear.log 2>&1
 0 3 * * * cd /opt/OS && $CR scripts/emit_signal.py nightly_cycle >> /opt/OS/logs/cron_emit.log 2>&1
 0 4 * * * docker-compose run --rm os-scraper >> /opt/OS/logs/scraper.log 2>&1
+30 2 * * * cd /opt/OS && $CR scripts/rotate_jsonl.py >> /opt/OS/logs/rotate_jsonl.log 2>&1
 
 # ── Monthly secret rotation (1st of month, 5am) ──
 0 5 1 * * cd /opt/OS && op run --env-file=services/.env.tpl -- bash scripts/rotate_secrets.sh >> /opt/OS/logs/secret_rotation.log 2>&1

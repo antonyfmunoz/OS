@@ -59,8 +59,8 @@ services/instagram_session.json
 *.session
 
 # Memory conversation logs (may contain raw prompts/keys)
-vault/memory/conversations/
-vault/memory/summaries/
+data/vault/memory/conversations/
+data/vault/memory/summaries/
 
 # Local overrides
 .claude/settings.local.json
@@ -105,6 +105,16 @@ data/improvement_log.jsonl
 # Runtime traces and memory candidates (grow unbounded)
 data/umh/traces/
 data/umh/memory_candidates/
+
+# Organism runtime state (append-only JSONL, daemon state, heartbeats)
+data/umh/organism/*.jsonl
+data/umh/organism/*.json
+data/umh/organism/workcells/*/heartbeat.json
+data/umh/organism/supervisor/supervisor_state.json
+
+# Derivable graph data (rebuilt by scripts/update-graph)
+data/codebase_graph.json
+data/node_summaries.json
 
 # All generated runtime proofs, examples, and state (dirs created on demand by writers)
 data/runtime/

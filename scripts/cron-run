@@ -39,6 +39,13 @@ fi
 # Build the command pipeline
 CMD=(python3 "$SCRIPT" "$@")
 
+# Load 1Password service account token from secure file if not in env
+OP_TOKEN_FILE="/root/.op-service-account-token"
+if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ] && [ -r "$OP_TOKEN_FILE" ]; then
+    export OP_SERVICE_ACCOUNT_TOKEN
+    OP_SERVICE_ACCOUNT_TOKEN=$(cat "$OP_TOKEN_FILE")
+fi
+
 # If 1Password CLI is available, wrap with op run for secret injection
 UMH_ROOT="${UMH_ROOT:-/opt/OS}"
 if command -v op &>/dev/null && [ -n "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
