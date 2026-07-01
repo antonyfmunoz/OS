@@ -1,7 +1,7 @@
 """Control plane router contracts for the UMH substrate layer.
 
 Typed dataclasses for the routing lifecycle:
-  WorkPacket        -- incoming request from any interface
+  RouterWorkPacket  -- incoming request from any interface
   CapabilityRequirement -- what the packet needs
   RouterDecision    -- which runtime/adapter was selected and why
   RuntimeProofReference -- pointer to a RuntimeProofRecord
@@ -88,7 +88,7 @@ ALLOWED_ACTION_TYPES = frozenset(
 
 
 @dataclass
-class WorkPacket:
+class RouterWorkPacket:
     """Incoming work request from any interface adapter."""
 
     packet_id: str
@@ -109,7 +109,7 @@ class WorkPacket:
 
 @dataclass
 class CapabilityRequirement:
-    """Resolved capability needed for a WorkPacket."""
+    """Resolved capability needed for a RouterWorkPacket."""
 
     action_type: str
     capability_type: CapabilityType

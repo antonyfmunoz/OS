@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any
 
 
-class WorkPacketStatus(str, Enum):
+class EnvironmentEnvironmentPacketStatus(str, Enum):
     DRAFT = "draft"
     APPROVED = "approved"
     DISPATCHED = "dispatched"
@@ -29,14 +29,14 @@ class WorkPacketStatus(str, Enum):
     EXPIRED = "expired"
 
 
-class WorkPacketRiskLevel(str, Enum):
+class EnvironmentEnvironmentPacketRiskLevel(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
 
-class WorkPacketExecutionEnvironment(str, Enum):
+class EnvironmentEnvironmentPacketExecutionTarget(str, Enum):
     VPS = "vps"
     LOCAL_WSL = "local_wsl"
     LOCAL_WINDOWS_GUI = "local_windows_gui"
@@ -46,7 +46,7 @@ class WorkPacketExecutionEnvironment(str, Enum):
 
 
 @dataclass
-class WorkPacket:
+class EnvironmentWorkPacket:
     packet_id: str = ""
     work_order_id: str = ""
     title: str = ""
@@ -55,8 +55,8 @@ class WorkPacket:
     target_environment: list[str] = field(default_factory=list)
     required_adapter_packages: list[str] = field(default_factory=list)
     required_tool_mastery_packs: list[str] = field(default_factory=list)
-    risk_level: WorkPacketRiskLevel = WorkPacketRiskLevel.LOW
-    approval_status: WorkPacketStatus = WorkPacketStatus.DRAFT
+    risk_level: EnvironmentEnvironmentPacketRiskLevel = EnvironmentEnvironmentPacketRiskLevel.LOW
+    approval_status: EnvironmentEnvironmentPacketStatus = EnvironmentEnvironmentPacketStatus.DRAFT
     founder_confirmation_required: bool = False
     allowed_actions: list[str] = field(default_factory=list)
     blocked_actions: list[str] = field(default_factory=list)
@@ -65,7 +65,7 @@ class WorkPacket:
     timeout_seconds: int = 3600
     created_at: str = ""
     expires_at: str = ""
-    status: WorkPacketStatus = WorkPacketStatus.DRAFT
+    status: EnvironmentEnvironmentPacketStatus = EnvironmentEnvironmentPacketStatus.DRAFT
     external_interaction_id: str = ""
     adapter_boundary_required: bool = True
     required_environment_adapters: list[str] = field(default_factory=list)
@@ -128,16 +128,16 @@ def build_work_packet(
     description: str = "",
     action_type: str = "",
     target_environment: list[str] | None = None,
-    risk_level: WorkPacketRiskLevel = WorkPacketRiskLevel.LOW,
-    approval_status: WorkPacketStatus = WorkPacketStatus.DRAFT,
+    risk_level: EnvironmentEnvironmentPacketRiskLevel = EnvironmentEnvironmentPacketRiskLevel.LOW,
+    approval_status: EnvironmentEnvironmentPacketStatus = EnvironmentEnvironmentPacketStatus.DRAFT,
     founder_confirmation_required: bool = False,
     allowed_actions: list[str] | None = None,
     blocked_actions: list[str] | None = None,
     expected_outputs: list[str] | None = None,
     proof_requirements: list[str] | None = None,
     timeout_seconds: int = 3600,
-) -> WorkPacket:
-    return WorkPacket(
+) -> EnvironmentWorkPacket:
+    return EnvironmentWorkPacket(
         packet_id=packet_id,
         work_order_id=work_order_id,
         title=title,
@@ -157,39 +157,39 @@ def build_work_packet(
     )
 
 
-def work_packet_requires_approval(packet: WorkPacket) -> bool:
+def work_packet_requires_approval(packet: EnvironmentWorkPacket) -> bool:
     return packet.risk_level in (
-        WorkPacketRiskLevel.HIGH,
-        WorkPacketRiskLevel.CRITICAL,
+        EnvironmentEnvironmentPacketRiskLevel.HIGH,
+        EnvironmentEnvironmentPacketRiskLevel.CRITICAL,
     )
 
 
-def work_packet_is_executable(packet: WorkPacket) -> bool:
-    if packet.approval_status != WorkPacketStatus.APPROVED:
+def work_packet_is_executable(packet: EnvironmentWorkPacket) -> bool:
+    if packet.approval_status != EnvironmentEnvironmentPacketStatus.APPROVED:
         return False
     if not packet.blocked_actions:
         return False
     return True
 
 
-def work_packet_targets_local_gui(packet: WorkPacket) -> bool:
+def work_packet_targets_local_gui(packet: EnvironmentWorkPacket) -> bool:
     gui_envs = {
-        WorkPacketExecutionEnvironment.LOCAL_WINDOWS_GUI.value,
-        WorkPacketExecutionEnvironment.LOCAL_BROWSER.value,
+        EnvironmentEnvironmentPacketExecutionTarget.LOCAL_WINDOWS_GUI.value,
+        EnvironmentEnvironmentPacketExecutionTarget.LOCAL_BROWSER.value,
     }
     return bool(set(packet.target_environment) & gui_envs)
 
 
-def work_packet_blocks_if_unapproved(packet: WorkPacket) -> bool:
+def work_packet_blocks_if_unapproved(packet: EnvironmentWorkPacket) -> bool:
     if packet.risk_level in (
-        WorkPacketRiskLevel.HIGH,
-        WorkPacketRiskLevel.CRITICAL,
+        EnvironmentEnvironmentPacketRiskLevel.HIGH,
+        EnvironmentEnvironmentPacketRiskLevel.CRITICAL,
     ):
-        return packet.approval_status != WorkPacketStatus.APPROVED
+        return packet.approval_status != EnvironmentEnvironmentPacketStatus.APPROVED
     return False
 
 
-def summarize_work_packet(packet: WorkPacket) -> dict[str, Any]:
+def summarize_work_packet(packet: EnvironmentWorkPacket) -> dict[str, Any]:
     return {
         "packet_id": packet.packet_id,
         "title": packet.title,

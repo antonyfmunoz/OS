@@ -237,6 +237,21 @@ projections/       — platform-specific views
 | `adapters/models/model_router.py` | Intelligence routing — cc_sdk → Gemini → Groq → Ollama | ✅ |
 | `projections/eos/agents/base.py` | DepartmentAgent base — skills, tiers, browser | ✅ |
 | `projections/eos/entities.py` | Entity model — 10 departments, 10 roles | ✅ |
+
+### Execution Spines — Three Pipelines, One Canonical
+
+UMH has three execution spine classes. Only one is canonical for mutations.
+
+| Spine | File | Role | Canonical? |
+|---|---|---|---|
+| `GovernedExecutionSpine` | `substrate/organism/governed_spine.py` | **Mutation gateway** — all state writes route through `execute()`. Risk classification, journaling, event propagation, learning loop. | **YES** |
+| `ExecutionPipeline` | `substrate/execution/pipeline.py` | Signal processing — composes PolicyEngine, WorkPacketExecutor, OutcomeClassifier, TraceStore into a governed read→execute→trace flow. | No (read/signal path) |
+| `ConcreteExecutionSpine` | `substrate/execution/spine.py` | 8-stage deterministic-first pipeline: interpret→recall→lookup→compose→route→execute→trace→feedback. | No (legacy/general execution) |
+
+**Rule:** `governed_mutation()` in `transports/api/governed.py` is the public API for
+mutations. It delegates to `GovernedExecutionSpine.execute()`. All other execution
+paths are for reads, signal processing, or general-purpose execution — never for
+state writes.
 | `transports/api/cockpit.py` | Governance tier check + tier listing endpoints | ✅ |
 
 ### Missing — High Priority
