@@ -400,21 +400,31 @@ This number must match your reported total. No exceptions.
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
-**Phase 10.0 — Production Template Library + Cadence Candidate Supply + Cockpit Quality Gate**
+**Platform v1.0.0 — Production Certified (FROZEN)**
 
-UMH Phase 10.0 transforms the dry-run autonomous cadence from "alive but empty" into a useful continuous improvement radar. It builds a governed template library, candidate supply engine, and cockpit quality improvements so the system continuously surfaces evidence-backed, template-matched, low-risk improvements for operator-governed execution.
+UMH Platform v1.0.0 was certified production ready on 2026-07-01.
+PLATFORM_SPEC.md is frozen. Campaign engineering (C34-C40B) is retired.
 
-**Core Value:** UMH can maintain a governed library of low-risk production templates, feed scheduled cadence with real candidate supply, keep the cockpit quality gate clean, and verify the cockpit through authenticated browser testing.
+Future development extends the platform through its published contracts.
+Architectural changes require the Breaking Change Process in PLATFORM_SPEC.md.
 
-### Constraints
+### Current Roadmap
 
-- **No mutation**: Cadence must remain dry_run_only — no production changes without operator approval
-- **Evidence-backed**: Every template must trace to a proven prior phase outcome
-- **Risk-gated**: Only LOW risk templates are cadence-eligible
-- **Quality gate**: cockpit.py must be under 3000 lines
-- **Docker**: Python 3.11 only — no 3.12+ syntax
-- **Architecture**: substrate/ never imports from transports/ or services/
-- **Type coherence**: No parallel types — check canonical_types.py first
+- **P1**: Core Operator Workflows — daily workflows (research, coding, planning,
+  execution, communication, review) through existing governed mutation contracts
+- **P2**: Capability Expansion — new governed capabilities (GitHub, Figma,
+  browser tasks, document generation, Slack) through existing platform contracts
+- **P3**: Productization — operator experiences and customer-facing products
+
+### Constraints (permanent)
+
+- All state changes through `governed_mutation()`
+- All execution through the canonical spine
+- Platform Spec changes require RFC + migration + regression qualification
+- Docker: Python 3.11 only
+- Architecture: substrate/ never imports from transports/ or services/
+- Type coherence: check canonical_types.py first
+- ORL-8 and runtime SLOs must be preserved
 <!-- GSD:project-end -->
 
 <!-- GSD:stack-start source:STACK.md -->

@@ -1,0 +1,65 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-07-01T03:30:00Z",
+  "purpose": "Machine-readable baseline for regression qualification. Future audits diff against this file.",
+  "architecture": {
+    "layers": ["substrate", "adapters", "transports", "projections"],
+    "dependency_direction": "downward_only",
+    "substrate_imports_from_transports": 0,
+    "substrate_imports_from_services": 0
+  },
+  "execution_model": {
+    "canonical_mutation_path": "substrate.organism.governed_spine.governed_mutation",
+    "mutation_count": 46,
+    "execution_spine": "substrate.execution.spine.ExecutionSpine",
+    "governance_engine": "substrate.control_plane.governance.GovernanceEngine",
+    "proof_store": "substrate.organism.proof_store.ProofStore",
+    "outcome_learning": "substrate.organism.outcome_learning.OutcomeLearningLoop",
+    "work_recovery": "substrate.organism.work_recovery_runtime.WorkRecoveryRuntime"
+  },
+  "operator_mvp": {
+    "gates_total": 16,
+    "gates_passing": 16,
+    "gate_list": [
+      {"id": "G1", "name": "Operator can communicate intent", "status": "PASS"},
+      {"id": "G2", "name": "System creates actionable plan", "status": "PASS"},
+      {"id": "G3", "name": "Operator can review and approve", "status": "PASS"},
+      {"id": "G4", "name": "System executes approved work", "status": "PASS"},
+      {"id": "G5", "name": "Event timeline updates in real-time", "status": "PASS"},
+      {"id": "G6", "name": "Execution produces verifiable proof", "status": "PASS"},
+      {"id": "G7", "name": "Operator can see system health", "status": "PASS"},
+      {"id": "G8", "name": "Session state persists across disconnects", "status": "PASS"},
+      {"id": "G9", "name": "Operator can delegate recurring work", "status": "PASS"},
+      {"id": "G10", "name": "Operator can inspect proof from cockpit", "status": "PASS"},
+      {"id": "G11", "name": "Operator can recover failures from cockpit", "status": "PASS"},
+      {"id": "G12", "name": "Audit trail preserved for all actions", "status": "PASS"},
+      {"id": "G13", "name": "Risk classification enforced", "status": "PASS"},
+      {"id": "G14", "name": "Approval gate blocks high-risk work", "status": "PASS"},
+      {"id": "G15", "name": "System surfaces next best actions", "status": "PASS"},
+      {"id": "G16", "name": "Governed mutation path for all state changes", "status": "PASS"}
+    ]
+  },
+  "runtime_slos": {
+    "orl_level": 8,
+    "mutation_success_rate": 0.998,
+    "event_loss": 0,
+    "calibration": 0.768,
+    "prediction_accuracy": 0.838
+  },
+  "cockpit": {
+    "panel_count": 81,
+    "route_count": 422,
+    "primary_panels": 6,
+    "dev_panels": 72,
+    "system_panels": 1,
+    "planned_panels": 1,
+    "stub_panels": 0
+  },
+  "infrastructure": {
+    "containers": 5,
+    "precommit_gates": 9,
+    "canonical_types": 1029,
+    "mesh_relay_port": 8095,
+    "cockpit_deploy": "cockpit/deploy.sh"
+  }
+}

@@ -1,11 +1,30 @@
-# UMH Platform Specification v1.0
+# UMH Platform Specification v1.0.0
+
+**Status: FROZEN**
 
 Established 2026-06-30 after C40B achieved PRODUCTION READY.
+Frozen 2026-07-01 after RC1 production certification.
+
 This document is the constitution of the execution platform.
 
 Every future feature is measured against this specification.
 If a proposal violates a contract, it either changes the specification
-through an explicit versioned process, or adapts to the platform.
+through the Breaking Change Process below, or adapts to the platform.
+
+---
+
+## Breaking Change Process
+
+Every platform contract change requires:
+1. RFC with justification — why the current contract is insufficient
+2. Migration plan — how existing consumers adapt
+3. Regression qualification pass — all prior qualification suites green
+4. Version bump (minor or major) — following the versioning policy
+5. Contract approval from platform owner
+
+No contract may be changed without completing all five steps.
+Additive extensions (new optional fields, new methods) follow MINOR rules
+and do not require the full RFC process.
 
 ---
 
