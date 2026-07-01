@@ -135,5 +135,15 @@ data/audits/line_audit_2026-06-23/
 data/certification/c29/c29_auth_state.json
 data/certification/c29/runs/
 
+# Campaign data artifacts (runtime-generated, not source)
+data/umh/c39/
+data/umh/c40a/
+data/umh/learning/signal_feed.jsonl
+data/umh/learning/signal_feed_tail.jsonl
+data/umh/organism/agents/
+data/umh/organism/memory/
+data/umh/organism/propagation/
+data/umh/organism/templates/
+
 # Root-level runtime artifacts
 runtime/
