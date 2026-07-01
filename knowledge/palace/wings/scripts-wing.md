@@ -1,7 +1,7 @@
 ---
 type: palace-wing
 wing: scripts
-generated: 2026-06-29
+generated: 2026-07-01
 ---
 
 # Wing — scripts

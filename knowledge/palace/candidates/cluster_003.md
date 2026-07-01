@@ -2,31 +2,77 @@
 type: palace-candidate
 cluster_id: cluster_003
 source: graphify
-generated: 2026-04-11
+generated: 2026-07-01
 ---
 
-# Candidate Cluster — core/orchestrator/decisions.py
+# Candidate Cluster — transports/api/governed.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 11 files  
-**Seed label:** `core/orchestrator/decisions.py`
+**Size:** 57 files  
+**Seed label:** `transports/api/governed.py`
 
 ## Members
 
-- `core/action_system/deferred.py`
-- `core/action_system/logging.py`
-- `core/orchestrator/decisions.py`
-- `core/orchestrator/loop.py`
-- `core/orchestrator/orchestrator.py`
-- `core/orchestrator/pipeline.py`
-- `core/orchestrator/signals.py`
-- `core/orchestrator/workflows.py`
-- `scripts/emit_signal.py`
-- `scripts/orchestrator_loop.py`
-- `scripts/orchestrator_status.py`
+- `transports/api/cockpit_action_bridge_routes.py`
+- `transports/api/cockpit_agent_fleet_routes.py`
+- `transports/api/cockpit_ambient_wake_routes.py`
+- `transports/api/cockpit_autonomous_routes.py`
+- `transports/api/cockpit_capability_routes.py`
+- `transports/api/cockpit_chat_routes.py`
+- `transports/api/cockpit_command_center_routes.py`
+- `transports/api/cockpit_compounding_routes.py`
+- `transports/api/cockpit_compute_fabric_routes.py`
+- `transports/api/cockpit_context_assimilation_routes.py`
+- `transports/api/cockpit_context_resolution_routes.py`
+- `transports/api/cockpit_core_bootstrap_routes.py`
+- `transports/api/cockpit_core_feedback_routes.py`
+- `transports/api/cockpit_core_governance_routes.py`
+- `transports/api/cockpit_core_session_routes.py`
+- `transports/api/cockpit_delegation_routes.py`
+- `transports/api/cockpit_distributed_runtime_routes.py`
+- `transports/api/cockpit_economy_routes.py`
+- `transports/api/cockpit_embodiment_routes.py`
+- `transports/api/cockpit_engineering_review_routes.py`
+- `transports/api/cockpit_engineering_routes.py`
+- `transports/api/cockpit_entity_routes.py`
+- `transports/api/cockpit_execution_graph_routes.py`
+- `transports/api/cockpit_execution_routes.py`
+- `transports/api/cockpit_infrastructure_routes.py`
+- `transports/api/cockpit_intent_routes.py`
+- `transports/api/cockpit_loop_coherence_routes.py`
+- `transports/api/cockpit_meta_ide_context_routes.py`
+- `transports/api/cockpit_meta_ide_conv_routes.py`
+- `transports/api/cockpit_meta_ide_critical_routes.py`
+- `transports/api/cockpit_meta_ide_projection_loop_routes.py`
+- `transports/api/cockpit_migration_routes.py`
+- `transports/api/cockpit_operating_loop_routes.py`
+- `transports/api/cockpit_operationalization_routes.py`
+- `transports/api/cockpit_operator_experience_routes.py`
+- `transports/api/cockpit_operator_loop_routes.py`
+- `transports/api/cockpit_orchestrator_presence_routes.py`
+- `transports/api/cockpit_organism_routes.py`
+- `transports/api/cockpit_presence_routes.py`
+- `transports/api/cockpit_projection_integration_routes.py`
+- `transports/api/cockpit_projection_routes.py`
+- `transports/api/cockpit_propagation_graph_routes.py`
+- `transports/api/cockpit_push_routes.py`
+- `transports/api/cockpit_reality_model_routes.py`
+- `transports/api/cockpit_runtime_surface_routes.py`
+- `transports/api/cockpit_self_build_routes.py`
+- `transports/api/cockpit_self_improvement_routes.py`
+- `transports/api/cockpit_session_routes.py`
+- `transports/api/cockpit_spine_router.py`
+- `transports/api/cockpit_universal_work_routes.py`
+- `transports/api/cockpit_voice_ops_routes.py`
+- `transports/api/cockpit_voice_routes.py`
+- `transports/api/cockpit_voice_session_routes.py`
+- `transports/api/cockpit_work_center_routes.py`
+- `transports/api/cockpit_workstation_control_routes.py`
+- `transports/api/cockpit_workstation_presence_routes.py`
+- `transports/api/governed.py`
 
 ## Traversal
 

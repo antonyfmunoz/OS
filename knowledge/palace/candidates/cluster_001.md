@@ -2,92 +2,85 @@
 type: palace-candidate
 cluster_id: cluster_001
 source: graphify
-generated: 2026-04-11
+generated: 2026-07-01
 ---
 
-# Candidate Cluster — eos_ai/agent_teams.py
+# Candidate Cluster — adapters/models/model_router.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 72 files  
-**Seed label:** `eos_ai/agent_teams.py`
+**Size:** 65 files  
+**Seed label:** `adapters/models/model_router.py`
 
 ## Members
 
-- `core/execution_contract.py`
-- `eos_ai/agent_messages.py`
-- `eos_ai/agent_runtime.py`
-- `eos_ai/agent_teams.py`
-- `eos_ai/authority_engine.py`
-- `eos_ai/business_instance.py`
-- `eos_ai/ceo_agent.py`
-- `eos_ai/cognitive_loop.py`
-- `eos_ai/context.py`
-- `eos_ai/context_compaction.py`
-- `eos_ai/coordination_engine.py`
-- `eos_ai/db.py`
-- `eos_ai/decision_log.py`
-- `eos_ai/discord_utils.py`
-- `eos_ai/email_gps.py`
-- `eos_ai/embedding_engine.py`
-- `eos_ai/error_handler.py`
-- `eos_ai/event_bus.py`
-- `eos_ai/evolution_engine.py`
-- `eos_ai/execution_engine.py`
-- `eos_ai/gateway.py`
-- `eos_ai/gws_connector.py`
-- `eos_ai/gws_scanner.py`
-- `eos_ai/higgsfield_client.py`
-- `eos_ai/human_intelligence.py`
-- `eos_ai/integration_test.py`
-- `eos_ai/intent_router.py`
-- `eos_ai/knowledge_graph.py`
-- `eos_ai/knowledge_integrator.py`
-- `eos_ai/media_processor.py`
-- `eos_ai/memory.py`
-- `eos_ai/model_preferences.py`
-- `eos_ai/notebooklm_sync.py`
-- `eos_ai/onboarding_backfill.py`
-- `eos_ai/onboarding_engine.py`
-- `eos_ai/orchestrator.py`
-- `eos_ai/os_registry.py`
-- `eos_ai/os_trinity.py`
-- `eos_ai/pattern_engine.py`
-- `eos_ai/portfolio_advisor.py`
-- `eos_ai/primitives.py`
-- `eos_ai/principle_engine.py`
-- `eos_ai/reality_context.py`
-- `eos_ai/reality_engine.py`
-- `eos_ai/research_engine.py`
-- `eos_ai/skill_improvement.py`
-- `eos_ai/skill_registry.py`
-- `eos_ai/stage_manager.py`
-- `eos_ai/status.py`
-- `eos_ai/strategy_engine.py`
-- `eos_ai/substrate/execution_trace.py`
-- `eos_ai/system_context.py`
-- `eos_ai/task_executor.py`
-- `eos_ai/trinity.py`
-- `eos_ai/user_model.py`
-- `eos_ai/venture_knowledge.py`
-- `eos_ai/voice_engine.py`
-- `eos_ai/voice_interface.py`
-- `eos_ai/workflow_engine.py`
-- `eos_ai/world_pulse.py`
-- `scripts/higgsfield_smoke_test.py`
-- `scripts/inbox_gps_afternoon.py`
-- `scripts/inbox_zero_init.py`
-- `scripts/memory_neon.py`
+- `adapters/google_workspace/gws_scanner.py`
+- `adapters/models/agent_runtime.py`
+- `adapters/models/cc_sdk.py`
+- `adapters/models/codex_cli.py`
+- `adapters/models/hermes_cli.py`
+- `adapters/models/model_router.py`
+- `adapters/models/opencode_cli.py`
+- `adapters/notebooklm/notebooklm_sync.py`
 - `scripts/sync_skills_to_neon.py`
-- `scripts/test_execution_contract.py`
-- `services/apify_scraper.py`
-- `services/calendly_webhook.py`
-- `services/discord_bot.py`
-- `services/dm_monitor.py`
 - `services/higgsfield_webhook.py`
 - `services/icp_scorer.py`
+- `substrate/contracts/agent_runtime_contracts.py`
+- `substrate/contracts/agent_types.py`
+- `substrate/control_plane/agents/agent_teams.py`
+- `substrate/control_plane/agents/ceo_agent.py`
+- `substrate/control_plane/context/context_builder.py`
+- `substrate/control_plane/context/context_compaction.py`
+- `substrate/control_plane/coordination/coordination_engine.py`
+- `substrate/control_plane/events/event_bus.py`
+- `substrate/control_plane/orchestrator/orchestrator.py`
+- `substrate/control_plane/router/intent_router.py`
+- `substrate/control_plane/runtime/cognitive_loop.py`
+- `substrate/control_plane/strategy/portfolio_advisor.py`
+- `substrate/control_plane/strategy/strategy_engine.py`
+- `substrate/execution/feedback_loop.py`
+- `substrate/governance/policy/authority_engine.py`
+- `substrate/governance/principles/principle_engine.py`
+- `substrate/intelligence/runtime.py`
+- `substrate/state/business/venture_knowledge.py`
+- `substrate/state/context/context.py`
+- `substrate/state/lifecycle/stage_manager.py`
+- `substrate/state/logs/decision_log.py`
+- `substrate/state/memory/memory.py`
+- `substrate/state/permissions/os_trinity.py`
+- `substrate/state/preferences/model_preferences.py`
+- `substrate/state/profiles/user_model.py`
+- `substrate/state/providers/provider_state.py`
+- `substrate/state/registries/skill_registry.py`
+- `substrate/state/storage/db.py`
+- `substrate/state/stores/agent_registry_store.py`
+- `substrate/state/stores/approval_store.py`
+- `substrate/state/stores/context_compaction_store.py`
+- `substrate/state/stores/email_folder_store.py`
+- `substrate/state/stores/embedding_store.py`
+- `substrate/state/stores/entity_link_store.py`
+- `substrate/state/stores/entity_store.py`
+- `substrate/state/stores/goal_store.py`
+- `substrate/state/stores/higgsfield_store.py`
+- `substrate/state/stores/permission_store.py`
+- `substrate/state/stores/preference_store.py`
+- `substrate/state/stores/profile_store.py`
+- `substrate/state/stores/skill_store.py`
+- `substrate/state/stores/task_store.py`
+- `substrate/state/stores/venture_store.py`
+- `substrate/understanding/embedding/embedding_engine.py`
+- `substrate/understanding/intelligence/human_intelligence.py`
+- `substrate/understanding/knowledge/knowledge_graph.py`
+- `substrate/understanding/knowledge/knowledge_integrator.py`
+- `substrate/understanding/ontology/primitives.py`
+- `substrate/understanding/patterns/pattern_engine.py`
+- `substrate/understanding/reality/reality_context.py`
+- `substrate/understanding/reality/reality_engine.py`
+- `substrate/understanding/research/research_engine.py`
+- `substrate/understanding/world_pulse/world_pulse.py`
+- `transports/api/webhooks/calendly_webhook.py`
 
 ## Traversal
 

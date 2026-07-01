@@ -2,7 +2,7 @@
 type: palace-room
 room_id: transports
 wing: services
-generated: 2026-06-29
+generated: 2026-07-01
 ---
 
 # Room — Transports
@@ -23,9 +23,9 @@ These are the files you most often need; open them before grepping.
 |---|-------|-------|-------|-----------|
 | 1 | [[services-discord_bot-py]] | 29 | `critical` `entry` | EntrepreneurOS Discord Bot — DEX conversational layer. |
 | 2 | [[services-discord_message_handlers-py]] | 8 | — | Discord message handlers — extracted from discord_bot.py. |
-| 3 | [[services-discord_bot_commands-py]] | 5 | — | Discord bot commands — extracted from discord_bot.py. |
-| 4 | [[services-icp_scorer-py]] | 5 | `entry` |  |
-| 5 | [[services-operator_api-py]] | 5 | `entry` | UMH Operator Workstation API — FastAPI backend for the operator UI. |
+| 3 | [[services-operator_api-py]] | 6 | `entry` | UMH Operator Workstation API — FastAPI backend for the operator UI. |
+| 4 | [[services-discord_bot_commands-py]] | 5 | — | Discord bot commands — extracted from discord_bot.py. |
+| 5 | [[services-icp_scorer-py]] | 5 | `entry` |  |
 | 6 | [[services-bridge_health-py]] | 4 | `entry` | bridge_health.py — VPS-side watchdog for the Windows bridge. |
 | 7 | [[services-goal_api-py]] | 4 | `entry` | Goal API — REST endpoints for goal selection + focus management. |
 | 8 | [[services-higgsfield_webhook-py]] | 4 | `entry` | Higgsfield Cloud API webhook receiver. |
@@ -48,9 +48,9 @@ These are the files you most often need; open them before grepping.
 ```
   services/discord_bot.py
   services/discord_message_handlers.py
+  services/operator_api.py
   services/discord_bot_commands.py
   services/icp_scorer.py
-  services/operator_api.py
   services/bridge_health.py
   services/goal_api.py
   services/higgsfield_webhook.py
