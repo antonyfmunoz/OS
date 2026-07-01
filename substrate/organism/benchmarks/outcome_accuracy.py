@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class OutcomeRecord:
+class BenchmarkOutcomeRecord:
     production_id: str = ""
     original_intent: str = ""
     acceptance_criteria: list[str] = field(default_factory=list)
@@ -46,7 +46,7 @@ class OutcomeAccuracyResult:
 class OutcomeAccuracyBenchmark:
     """Evaluates outcome accuracy from production records."""
 
-    def evaluate(self, outcomes: list[OutcomeRecord]) -> OutcomeAccuracyResult:
+    def evaluate(self, outcomes: list[BenchmarkOutcomeRecord]) -> OutcomeAccuracyResult:
         if not outcomes:
             return OutcomeAccuracyResult()
 

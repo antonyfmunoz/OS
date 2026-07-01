@@ -23,9 +23,7 @@ import { ExecutionPanel } from '../panels/ExecutionPanel'
 import { PortfolioPanel } from '../panels/PortfolioPanel'
 import { CompanyPanel } from '../panels/CompanyPanel'
 import { CommsPanel } from '../panels/CommsPanel'
-import { TrackingPanel } from '../panels/TrackingPanel'
 import { SkillsPanel } from '../panels/SkillsPanel'
-import { ExperimentsPanel } from '../panels/ExperimentsPanel'
 import { InfrastructurePanel } from '../panels/InfrastructurePanel'
 import { ProfilePanel } from '../panels/ProfilePanel'
 import { OrganismPanel } from '../panels/OrganismPanel'
@@ -91,6 +89,8 @@ import ServiceGraphPanel from '../panels/ServiceGraphPanel'
 import StateAuthorityPanel from '../panels/StateAuthorityPanel'
 import UMHNodePanel from '../panels/UMHNodePanel'
 import WorkspaceTopologyPanel from '../panels/WorkspaceTopologyPanel'
+import { ProofInspectorPanel } from '../panels/ProofInspectorPanel'
+import { RecoveryDashboardPanel } from '../panels/RecoveryDashboardPanel'
 import { UnifiedCanvasWorkspace } from './canvas/UnifiedCanvasWorkspace'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
@@ -129,12 +129,8 @@ function ActivePanel() {
       return <CommsPanel />
     case 'workflows':
       return <UnifiedCanvasWorkspace />
-    case 'tracking':
-      return <TrackingPanel />
     case 'skills':
       return <SkillsPanel />
-    case 'experiments':
-      return <ExperimentsPanel />
     case 'infrastructure':
       return <InfrastructurePanel />
     case 'profile':
@@ -265,6 +261,10 @@ function ActivePanel() {
       return <WorkspaceTopologyPanel />
     case 'canvas':
       return <ErrorBoundary><UnifiedCanvasWorkspace /></ErrorBoundary>
+    case 'proofinspector':
+      return <ProofInspectorPanel />
+    case 'recoverydashboard':
+      return <RecoveryDashboardPanel />
 
     default:
       return <DashboardPanel />

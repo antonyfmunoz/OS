@@ -470,6 +470,30 @@ def _mount_operator_loop_router() -> None:
 
 _mount_operator_loop_router()
 
+
+def _mount_operator_loop_ext_router() -> None:
+    from transports.api import cockpit_operator_loop_ext_routes
+
+    cockpit_operator_loop_ext_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_operator_loop_ext_routes.operator_loop_ext_router)
+
+
+_mount_operator_loop_ext_router()
+
+
+def _mount_operator_loop_session_router() -> None:
+    from transports.api import cockpit_operator_loop_session_routes
+
+    cockpit_operator_loop_session_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_operator_loop_session_routes.operator_loop_session_router)
+
+
+_mount_operator_loop_session_router()
+
 # ── Phase 18: Operator timeline routes ─────────────────────────────────────
 
 
@@ -1515,3 +1539,33 @@ def _mount_adapter_status_router() -> None:
 
 
 _mount_adapter_status_router()
+
+
+# ── M1: Proof Inspector routes (G10) ──────────────────────────────────────
+
+
+def _mount_proof_inspector_router() -> None:
+    from transports.api import cockpit_proof_inspector_routes
+
+    cockpit_proof_inspector_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_proof_inspector_routes.proof_inspector_router)
+
+
+_mount_proof_inspector_router()
+
+
+# ── M1: Recovery Dashboard routes (G11) ───────────────────────────────────
+
+
+def _mount_recovery_dashboard_router() -> None:
+    from transports.api import cockpit_recovery_dashboard_routes
+
+    cockpit_recovery_dashboard_routes.configure(
+        require_operator_dep=_require_operator_role,
+    )
+    router.include_router(cockpit_recovery_dashboard_routes.recovery_dashboard_router)
+
+
+_mount_recovery_dashboard_router()
