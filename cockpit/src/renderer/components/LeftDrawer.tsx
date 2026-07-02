@@ -16,7 +16,7 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
       style={{
         width: 160,
         left: 6,
-        top: 12,
+        top: 52,
         bottom: 78,
       }}
     >
