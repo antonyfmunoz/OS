@@ -12,9 +12,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 31,
+      "observation_count": 32,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:42:47.171886+00:00",
+      "last_seen": "2026-07-01T04:32:46.422992+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit cognitive_loop.py for state mutations outside canonical paths'\", 'returncode': 0, 'stdout': 'Researcher task: Audit cognitive_loop.py for state mutations outs"
     },
     {
@@ -26,9 +26,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 31,
+      "observation_count": 32,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:42:54.641989+00:00",
+      "last_seen": "2026-07-01T04:35:41.048182+00:00",
       "domain": "{'command': 'echo hello', 'returncode': 0, 'stdout': 'hello\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -40,9 +40,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 31,
+      "observation_count": 32,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:42:54.972105+00:00",
+      "last_seen": "2026-07-01T04:35:41.137232+00:00",
       "domain": "{'command': 'echo test', 'returncode': 0, 'stdout': 'test\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -54,9 +54,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 31,
+      "observation_count": 32,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:42:55.357440+00:00",
+      "last_seen": "2026-07-01T04:35:41.421390+00:00",
       "domain": "{'command': 'echo status', 'returncode': 0, 'stdout': 'status\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -71,9 +71,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 31,
+      "observation_count": 32,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:44:03.598902+00:00",
+      "last_seen": "2026-07-01T04:36:50.012281+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit the services/umh/organism/ directory for any missing __init__.py files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit the services/umh/organism/ direct"
     },
     {
@@ -88,9 +88,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 26,
+      "observation_count": 27,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:45:09.812820+00:00",
+      "last_seen": "2026-07-01T04:37:51.517004+00:00",
       "domain": "{'command': \"echo 'Researcher task: Check for unused imports in app.py'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports in app.py\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -105,9 +105,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 21,
+      "observation_count": 22,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:46:20.772615+00:00",
+      "last_seen": "2026-07-01T04:38:56.377201+00:00",
       "domain": "{'command': \"echo 'Researcher task: Search for TODO comments in the codebase'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments in the codebase\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -122,9 +122,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 18,
+      "observation_count": 19,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:47:33.172068+00:00",
+      "last_seen": "2026-07-01T04:39:56.329851+00:00",
       "domain": "{'command': \"echo 'Researcher task: List all Python files in services/umh/'\", 'returncode': 0, 'stdout': 'Researcher task: List all Python files in services/umh/\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -138,10 +138,10 @@
         "files"
       ],
       "predicted_outcome": "success",
-      "confidence": 1.0,
-      "observation_count": 15,
+      "confidence": 0.0,
+      "observation_count": 16,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T23:19:26.181209+00:00",
+      "last_seen": "2026-07-01T04:42:08.213667+00:00",
       "domain": "{'command': \"echo 'Researcher task: Audit services/umh/organism/ for missing files'\", 'returncode': 0, 'stdout': 'Researcher task: Audit services/umh/organism/ for missing files\\n', 'stderr': '', 'suc"
     },
     {
@@ -154,10 +154,10 @@
         "imports"
       ],
       "predicted_outcome": "success",
-      "confidence": 1.0,
-      "observation_count": 15,
+      "confidence": 0.0,
+      "observation_count": 16,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T23:19:26.247461+00:00",
+      "last_seen": "2026-07-01T04:42:08.376155+00:00",
       "domain": "{'command': \"echo 'Researcher task: Check for unused imports'\", 'returncode': 0, 'stdout': 'Researcher task: Check for unused imports\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -170,10 +170,10 @@
         "comments"
       ],
       "predicted_outcome": "success",
-      "confidence": 1.0,
-      "observation_count": 30,
+      "confidence": 0.0,
+      "observation_count": 32,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T23:19:26.434818+00:00",
+      "last_seen": "2026-07-01T04:42:08.817100+00:00",
       "domain": "{'command': \"echo 'Researcher task: Search for TODO comments'\", 'returncode': 0, 'stdout': 'Researcher task: Search for TODO comments\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -184,10 +184,10 @@
         "files"
       ],
       "predicted_outcome": "success",
-      "confidence": 1.0,
-      "observation_count": 15,
+      "confidence": 0.0,
+      "observation_count": 16,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T23:19:26.505281+00:00",
+      "last_seen": "2026-07-01T04:42:08.929533+00:00",
       "domain": "{'command': \"echo 'Researcher task: List files'\", 'returncode': 0, 'stdout': 'Researcher task: List files\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -200,9 +200,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 16,
+      "observation_count": 17,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T23:39:30.563002+00:00",
+      "last_seen": "2026-07-01T04:43:31.515530+00:00",
       "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
     },
     {
@@ -214,9 +214,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 16,
-      "success_rate": 0.5,
-      "last_seen": "2026-05-30T23:39:30.777693+00:00",
+      "observation_count": 17,
+      "success_rate": 1.0,
+      "last_seen": "2026-07-01T04:43:31.571274+00:00",
       "domain": "{'command': 'query', 'returncode': 127, 'stdout': '', 'stderr': '/bin/sh: 1: query: not found\\n', 'success': False}"
     },
     {
@@ -229,9 +229,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 42,
+      "observation_count": 44,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:47:35.159648+00:00",
+      "last_seen": "2026-07-01T04:40:07.421057+00:00",
       "domain": "{'command': \"echo 'Researcher task: search for files'\", 'returncode': 0, 'stdout': 'Researcher task: search for files\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -244,9 +244,9 @@
       ],
       "predicted_outcome": "success",
       "confidence": 1.0,
-      "observation_count": 15,
+      "observation_count": 16,
       "success_rate": 0.5,
-      "last_seen": "2026-05-30T22:47:35.725043+00:00",
+      "last_seen": "2026-07-01T04:40:07.872227+00:00",
       "domain": "{'command': \"echo 'Researcher task: search for patterns'\", 'returncode': 0, 'stdout': 'Researcher task: search for patterns\\n', 'stderr': '', 'success': True}"
     },
     {
@@ -347,7 +347,7 @@
       "predicted_outcome": "This conversation contains sensitive signals, specifically regarding acquisition strategy. This information will not be logged.\n\nHere are 6 specific, plausible market signals for Antony in the current landscape:\n\nSIGNAL: COMPETITOR | Tony Robbins' organization is observed to be increasing micro-cont",
       "confidence": 1.0,
       "observation_count": 56,
-      "success_rate": 1.0,
+      "success_rate": 0.5,
       "last_seen": "2026-06-12T17:10:47.120800+00:00",
       "domain": "business_sales"
     }

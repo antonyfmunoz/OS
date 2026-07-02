@@ -1,0 +1,73 @@
+{
+  "started": true,
+  "tick_count": 1,
+  "timestamp": 1782881001.5068448,
+  "last_qual_settings_check": 1782921263.2752945,
+  "qual_config": {
+    "last_verified": 1782921269.2642388
+  },
+  "approval_log": [
+    {
+      "ts": 1782921025.5408058,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921216.9755602,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921219.8044865,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921225.0966456,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921228.1332262,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921239.2371569,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921245.1572056,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921251.877045,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921263.3612494,
+      "decision": "auto_approve",
+      "source": "qualification"
+    },
+    {
+      "ts": 1782921269.416955,
+      "decision": "auto_approve",
+      "source": "qualification"
+    }
+  ],
+  "adapter_status": {
+    "last_check": 1782921271.8104117
+  },
+  "governance": {
+    "last_mode_check": 1782921263.4002872
+  },
+  "workstation": {
+    "last_qual_check": 1782921263.9688919
+  },
+  "qual_profile": {
+    "last_check": 1782921264.0073838
+  }
+}
