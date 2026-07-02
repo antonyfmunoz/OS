@@ -1,0 +1,28 @@
+{
+  "scenario_id": "submit_mutation",
+  "scenario_name": "Submit mutation via cockpit",
+  "rep": 8,
+  "started_at": 1782860902.449495,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "3e60b75895fd41d1",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 236.6
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782860902.6861317,
+  "latency_ms": 236.6
+}

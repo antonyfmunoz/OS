@@ -1,0 +1,15 @@
+{
+  "scenario_id": "nav_organism",
+  "scenario_name": "Navigate to organism panel",
+  "rep": 6,
+  "started_at": 1782860885.0407817,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_nav_organism_rep6\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782860885.2490516,
+  "latency_ms": 208.3
+}

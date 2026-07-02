@@ -1,0 +1,24 @@
+{
+  "id": "art-0a8bb1d4",
+  "name": "Test Framework",
+  "source_url": "",
+  "artifact_type": "framework",
+  "status": "scored",
+  "primitives_count": 2,
+  "leverage_summary": {
+    "count": 2,
+    "avg_score": 0.708,
+    "max_score": 0.725
+  },
+  "redundancy_report": {
+    "artifact_id": "art-0a8bb1d4",
+    "total_primitives": 2,
+    "redundant": [],
+    "novel": [
+      "prim-f287517d",
+      "prim-1119093d"
+    ],
+    "partial_overlap": []
+  },
+  "created_at": 1782719239.9262257
+}

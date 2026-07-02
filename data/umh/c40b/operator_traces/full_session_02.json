@@ -1,0 +1,33 @@
+{
+  "scenario_id": "full_session",
+  "scenario_name": "Full operator session (5 min sustained)",
+  "rep": 2,
+  "started_at": 1782861127.6507564,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "0f9387ae81cd45e8",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 241.0
+    },
+    "event_emitted": true,
+    "browser": {
+      "type": "real",
+      "stdout": "c40b_scenario_full_session_rep2\n",
+      "dispatch_result": "success"
+    }
+  },
+  "error": null,
+  "completed_at": 1782861127.89192,
+  "latency_ms": 241.2
+}

@@ -1,0 +1,1228 @@
+{
+  "total": 50,
+  "matches": 50,
+  "mismatches": 0,
+  "rate": 1.0,
+  "results": [
+    {
+      "index": 0,
+      "mutation_name": "log_rotation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 1,
+      "mutation_name": "container_restart",
+      "python_status": "proposed",
+      "cli_status": "proposed",
+      "python_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "cli_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 2,
+      "mutation_name": "runtime_refresh",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 3,
+      "mutation_name": "test_suite",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 4,
+      "mutation_name": "graph_rebuild",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 5,
+      "mutation_name": "branch_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 6,
+      "mutation_name": "disk_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 7,
+      "mutation_name": "repo_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 8,
+      "mutation_name": "docker_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 9,
+      "mutation_name": "runtime_reconciliation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 10,
+      "mutation_name": "log_rotation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 11,
+      "mutation_name": "container_restart",
+      "python_status": "proposed",
+      "cli_status": "proposed",
+      "python_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "cli_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 12,
+      "mutation_name": "runtime_refresh",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 13,
+      "mutation_name": "test_suite",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 14,
+      "mutation_name": "graph_rebuild",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 15,
+      "mutation_name": "branch_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 16,
+      "mutation_name": "disk_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 17,
+      "mutation_name": "repo_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 18,
+      "mutation_name": "docker_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 19,
+      "mutation_name": "runtime_reconciliation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 20,
+      "mutation_name": "log_rotation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 21,
+      "mutation_name": "container_restart",
+      "python_status": "proposed",
+      "cli_status": "proposed",
+      "python_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "cli_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 22,
+      "mutation_name": "runtime_refresh",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 23,
+      "mutation_name": "test_suite",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 24,
+      "mutation_name": "graph_rebuild",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 25,
+      "mutation_name": "branch_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 26,
+      "mutation_name": "disk_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 27,
+      "mutation_name": "repo_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 28,
+      "mutation_name": "docker_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 29,
+      "mutation_name": "runtime_reconciliation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 30,
+      "mutation_name": "log_rotation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 31,
+      "mutation_name": "container_restart",
+      "python_status": "proposed",
+      "cli_status": "proposed",
+      "python_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "cli_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 32,
+      "mutation_name": "runtime_refresh",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 33,
+      "mutation_name": "test_suite",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 34,
+      "mutation_name": "graph_rebuild",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 35,
+      "mutation_name": "branch_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 36,
+      "mutation_name": "disk_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 37,
+      "mutation_name": "repo_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 38,
+      "mutation_name": "docker_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 39,
+      "mutation_name": "runtime_reconciliation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 40,
+      "mutation_name": "log_rotation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 41,
+      "mutation_name": "container_restart",
+      "python_status": "proposed",
+      "cli_status": "proposed",
+      "python_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "cli_phases": [
+        "governance_check",
+        "proposed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 42,
+      "mutation_name": "runtime_refresh",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 43,
+      "mutation_name": "test_suite",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 44,
+      "mutation_name": "graph_rebuild",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 45,
+      "mutation_name": "branch_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 46,
+      "mutation_name": "disk_cleanup",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 47,
+      "mutation_name": "repo_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 48,
+      "mutation_name": "docker_health",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    },
+    {
+      "index": 49,
+      "mutation_name": "runtime_reconciliation",
+      "python_status": "completed",
+      "cli_status": "completed",
+      "python_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "cli_phases": [
+        "execution_started",
+        "governance_check",
+        "proposed",
+        "approved",
+        "execution_completed"
+      ],
+      "phases_match": true,
+      "classification_match": true,
+      "python_events": true,
+      "cli_events": true,
+      "equivalent": true
+    }
+  ]
+}

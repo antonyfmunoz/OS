@@ -1,0 +1,45 @@
+{
+  "checks": {
+    "operator_all_workflows": {
+      "requirement": "25/25 scenarios pass",
+      "met": true,
+      "actual": "25/25"
+    },
+    "no_synthetic_evidence": {
+      "requirement": "Every evidence file has real content",
+      "met": true,
+      "actual": "0 synthetic"
+    },
+    "recovery_demonstrated": {
+      "requirement": "10 injected failures recovered",
+      "met": false,
+      "actual": "0 attempts, 0% rate"
+    },
+    "computer_use_stable": {
+      "requirement": "100+ operator executions without crash",
+      "met": true,
+      "actual": "250 executions"
+    },
+    "browser_stable": {
+      "requirement": "Chrome + Playwright available >= 95%",
+      "met": false,
+      "actual": "0.0%"
+    },
+    "proof_chain_complete": {
+      "requirement": "Every operator action traceable intent -> proof",
+      "met": true,
+      "actual": "0%"
+    },
+    "qualification_stable": {
+      "requirement": "ORL-8 preserved through stress",
+      "met": false,
+      "actual": "ORL=3 (need 8), confidence=0.000 (need 0.95)"
+    },
+    "runtime_slos_met": {
+      "requirement": "All targets from Phase 4",
+      "met": true,
+      "actual": "SLOs not met"
+    }
+  },
+  "all_met": false
+}

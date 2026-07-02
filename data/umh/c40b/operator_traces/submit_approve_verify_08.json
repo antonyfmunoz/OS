@@ -1,0 +1,28 @@
+{
+  "scenario_id": "submit_approve_verify",
+  "scenario_name": "Submit + approve + verify",
+  "rep": 8,
+  "started_at": 1782861037.1676722,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "82a60238019541ab",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 249.8
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782861037.4176016,
+  "latency_ms": 249.9
+}

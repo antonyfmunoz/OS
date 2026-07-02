@@ -1,0 +1,15 @@
+{
+  "scenario_id": "open_proof",
+  "scenario_name": "Open proof package",
+  "rep": 5,
+  "started_at": 1782860994.4956458,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_open_proof_rep5\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782860995.9836428,
+  "latency_ms": 1488.0
+}

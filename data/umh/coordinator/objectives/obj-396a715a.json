@@ -1,0 +1,41 @@
+{
+  "id": "obj-396a715a",
+  "title": "phased work",
+  "status": "completed",
+  "completion_rate": 1.0,
+  "work_units": [
+    {
+      "id": "wu-74095a76",
+      "objective_id": "obj-396a715a",
+      "title": "Research",
+      "unit_type": "research",
+      "status": "completed",
+      "assigned_runtime": "fake",
+      "required_capability": "research",
+      "blocked_by": [],
+      "blocks": [
+        "wu-fd99da14"
+      ],
+      "attempt_count": 1,
+      "generation": 1,
+      "result": "done",
+      "error": ""
+    },
+    {
+      "id": "wu-fd99da14",
+      "objective_id": "obj-396a715a",
+      "title": "Build",
+      "unit_type": "build",
+      "status": "completed",
+      "assigned_runtime": "fake",
+      "required_capability": "code_write",
+      "blocked_by": [],
+      "blocks": [],
+      "attempt_count": 1,
+      "generation": 1,
+      "result": "done",
+      "error": ""
+    }
+  ],
+  "generation": 1
+}

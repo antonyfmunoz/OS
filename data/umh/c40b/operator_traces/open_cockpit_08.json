@@ -1,0 +1,15 @@
+{
+  "scenario_id": "open_cockpit",
+  "scenario_name": "Open cockpit dashboard",
+  "rep": 8,
+  "started_at": 1782860883.3838346,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_open_cockpit_rep8\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782860883.9925385,
+  "latency_ms": 608.7
+}

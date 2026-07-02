@@ -1,0 +1,25 @@
+{
+  "scenario_id": "submit_approve_verify",
+  "scenario_name": "Submit + approve + verify",
+  "rep": 9,
+  "started_at": 1782861037.4178336,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "2c640d4b883d4d16",
+      "status": "rejected",
+      "success": false,
+      "classification": "governance_constraint",
+      "journal_phases": [
+        "proposed",
+        "rejected"
+      ],
+      "latency_ms": 179.7
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782861037.597635,
+  "latency_ms": 179.8
+}

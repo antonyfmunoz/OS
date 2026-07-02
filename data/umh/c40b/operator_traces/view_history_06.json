@@ -1,0 +1,15 @@
+{
+  "scenario_id": "view_history",
+  "scenario_name": "View mutation history",
+  "rep": 6,
+  "started_at": 1782861056.7865767,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_view_history_rep6\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861058.4232078,
+  "latency_ms": 1636.6
+}

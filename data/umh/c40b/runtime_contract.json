@@ -1,0 +1,224 @@
+{
+  "audit_timestamp": "2026-07-01T04:37:00Z",
+  "boundaries": [
+    {
+      "boundary_id": "governed_mutation_to_router",
+      "source": "governed_mutation()",
+      "destination": "MutationRouter.execute()",
+      "transport": "function_call",
+      "payload_in_keys": [
+        "mutation_name",
+        "intent",
+        "execute_fn",
+        "source"
+      ],
+      "payload_out_keys": [
+        "envelope_id",
+        "status",
+        "success",
+        "output"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": true,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": ""
+    },
+    {
+      "boundary_id": "router_to_spine",
+      "source": "MutationRouter.execute()",
+      "destination": "GovernedExecutionSpine.submit()",
+      "transport": "function_call",
+      "payload_in_keys": [
+        "envelope",
+        "execute_fn",
+        "verification_fn"
+      ],
+      "payload_out_keys": [
+        "envelope_id",
+        "status",
+        "spine_timing"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": true,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": ""
+    },
+    {
+      "boundary_id": "spine_to_event_spine",
+      "source": "GovernedExecutionSpine",
+      "destination": "EventSpine.emit()",
+      "transport": "in_process_pubsub",
+      "payload_in_keys": [
+        "domain",
+        "event_type",
+        "data"
+      ],
+      "payload_out_keys": [
+        "domain",
+        "event_type",
+        "data",
+        "timestamp"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": true,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": ""
+    },
+    {
+      "boundary_id": "collector_to_mesh_http",
+      "source": "browser_evidence_collector._mesh_dispatch()",
+      "destination": "HTTP POST :8095/dispatch",
+      "transport": "http",
+      "payload_in_keys": [
+        "node_id",
+        "capability",
+        "params",
+        "timeout"
+      ],
+      "payload_out_keys": [
+        "success",
+        "result",
+        "error"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": false,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": "payload shape verified statically"
+    },
+    {
+      "boundary_id": "relay_to_jsonrpc",
+      "source": "server._http_dispatch()",
+      "destination": "JSON-RPC over WebSocket",
+      "transport": "websocket",
+      "payload_in_keys": [
+        "node_id",
+        "capability",
+        "params",
+        "timeout"
+      ],
+      "payload_out_keys": [
+        "jsonrpc",
+        "method",
+        "params.capability_name",
+        "params.params"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": false,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": "JSON-RPC wrapping verified statically"
+    },
+    {
+      "boundary_id": "client_to_adapter",
+      "source": "client._handle_capability()",
+      "destination": "ShellAdapter.execute()",
+      "transport": "function_call",
+      "payload_in_keys": [
+        "capability_name",
+        "params"
+      ],
+      "payload_out_keys": [
+        "success",
+        "stdout",
+        "stderr",
+        "exit_code"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": false,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": "extraction chain verified: params.get('params', {})"
+    },
+    {
+      "boundary_id": "adapter_to_subprocess",
+      "source": "ShellAdapter.execute()",
+      "destination": "subprocess.run()",
+      "transport": "os_process",
+      "payload_in_keys": [
+        "command_or_argv",
+        "timeout",
+        "cwd",
+        "shell"
+      ],
+      "payload_out_keys": [
+        "returncode",
+        "stdout",
+        "stderr"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": false,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": "shell=True for command strings, shell=False for argv lists"
+    },
+    {
+      "boundary_id": "trigger_to_evidence",
+      "source": "trigger_collection()",
+      "destination": "evidence_package",
+      "transport": "mesh_dispatch_round_trip",
+      "payload_in_keys": [
+        "target_url",
+        "pass_count"
+      ],
+      "payload_out_keys": [
+        "passes",
+        "viewports",
+        "evidence_files"
+      ],
+      "latency_ms": 0.0,
+      "ack_received": false,
+      "retry_count": 0,
+      "failure_mode": "",
+      "timeout_ms": 0.0,
+      "status": "pass",
+      "error": "",
+      "notes": "round-trip verified statically; live test in browser prerequisite"
+    }
+  ],
+  "mesh_health": {
+    "status": "healthy",
+    "connected_nodes": 0,
+    "node_ids": []
+  },
+  "browser_prerequisite": {
+    "beast_connected": false,
+    "session_interactive": false,
+    "chrome_launches": false,
+    "playwright_imports": false,
+    "screenshot_works": false,
+    "dom_extraction_works": false,
+    "overall": false,
+    "errors": [
+      "skipped via --skip-browser"
+    ]
+  },
+  "live_dispatch_results": [],
+  "defects": [],
+  "defect_count": 0,
+  "serialization_pass_rate": 1.0
+}

@@ -1,0 +1,15 @@
+{
+  "scenario_id": "launch_evidence",
+  "scenario_name": "Launch browser evidence",
+  "rep": 0,
+  "started_at": 1782861064.0287104,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_launch_evidence_rep0\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861064.1974363,
+  "latency_ms": 168.7
+}

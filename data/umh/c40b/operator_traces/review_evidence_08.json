@@ -1,0 +1,15 @@
+{
+  "scenario_id": "review_evidence",
+  "scenario_name": "Review collected evidence",
+  "rep": 8,
+  "started_at": 1782861085.9000242,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_review_evidence_rep8\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861086.797653,
+  "latency_ms": 897.6
+}

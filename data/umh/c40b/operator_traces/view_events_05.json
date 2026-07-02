@@ -1,0 +1,15 @@
+{
+  "scenario_id": "view_events",
+  "scenario_name": "View event spine activity",
+  "rep": 5,
+  "started_at": 1782860962.1874251,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_view_events_rep5\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782860966.4450436,
+  "latency_ms": 4257.6
+}

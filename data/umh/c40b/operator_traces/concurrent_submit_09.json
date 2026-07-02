@@ -1,0 +1,33 @@
+{
+  "scenario_id": "concurrent_submit",
+  "scenario_name": "Concurrent submit + view",
+  "rep": 9,
+  "started_at": 1782861119.0610986,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "328bc456b14147db",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 282.5
+    },
+    "event_emitted": true,
+    "browser": {
+      "type": "real",
+      "stdout": "c40b_scenario_concurrent_submit_rep9\n",
+      "dispatch_result": "success"
+    }
+  },
+  "error": null,
+  "completed_at": 1782861119.3437228,
+  "latency_ms": 282.6
+}

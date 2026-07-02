@@ -1,0 +1,15 @@
+{
+  "scenario_id": "check_mesh",
+  "scenario_name": "Check mesh node status",
+  "rep": 4,
+  "started_at": 1782861097.656319,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_check_mesh_rep4\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861097.78024,
+  "latency_ms": 123.9
+}

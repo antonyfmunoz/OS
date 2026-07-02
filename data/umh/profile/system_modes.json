@@ -1,0 +1,122 @@
+{
+  "system_modes": [
+    {
+      "mode_id": "smode-b16af4b3b22e",
+      "name": "day",
+      "description": "Normal daytime operation, full capability",
+      "exclusivity_group": "time_of_day",
+      "priority": 50,
+      "effects": {
+        "risk_ceiling": "HIGH",
+        "notification_policy": "all"
+      },
+      "allowed_concurrency": [
+        "maintenance",
+        "security",
+        "focus"
+      ],
+      "metadata": {}
+    },
+    {
+      "mode_id": "smode-f1c9112c8771",
+      "name": "night",
+      "description": "Nighttime operation, reduced risk ceiling, suppress noncritical",
+      "exclusivity_group": "time_of_day",
+      "priority": 50,
+      "effects": {
+        "risk_ceiling": "LOW",
+        "notification_policy": "critical_only"
+      },
+      "allowed_concurrency": [
+        "maintenance",
+        "security"
+      ],
+      "metadata": {}
+    },
+    {
+      "mode_id": "smode-04face74cc3c",
+      "name": "afk",
+      "description": "Operator away from keyboard, preserve state",
+      "exclusivity_group": "",
+      "priority": 40,
+      "effects": {
+        "notification_policy": "critical_only",
+        "pause_interactive": true
+      },
+      "allowed_concurrency": [
+        "day",
+        "night",
+        "maintenance"
+      ],
+      "metadata": {}
+    },
+    {
+      "mode_id": "smode-b26d88f8eb86",
+      "name": "maintenance",
+      "description": "System maintenance window, restrict user-facing changes",
+      "exclusivity_group": "",
+      "priority": 60,
+      "effects": {
+        "risk_ceiling": "MEDIUM",
+        "restrict_deploys": true
+      },
+      "allowed_concurrency": [
+        "day",
+        "night",
+        "security"
+      ],
+      "metadata": {}
+    },
+    {
+      "mode_id": "smode-f1f52af2c0ab",
+      "name": "security",
+      "description": "Security-hardened mode, elevated monitoring",
+      "exclusivity_group": "",
+      "priority": 80,
+      "effects": {
+        "elevated_monitoring": true,
+        "restrict_external": true
+      },
+      "allowed_concurrency": [
+        "day",
+        "night",
+        "maintenance",
+        "focus"
+      ],
+      "metadata": {}
+    },
+    {
+      "mode_id": "smode-701529d9be08",
+      "name": "focus",
+      "description": "Deep focus, suppress all non-critical interruptions",
+      "exclusivity_group": "",
+      "priority": 70,
+      "effects": {
+        "notification_policy": "critical_only",
+        "suppress_recommendations": true
+      },
+      "allowed_concurrency": [
+        "day",
+        "night",
+        "security"
+      ],
+      "metadata": {}
+    },
+    {
+      "mode_id": "smode-ed4a997d8ade",
+      "name": "emergency",
+      "description": "Emergency degraded mode, critical-path-only execution",
+      "exclusivity_group": "",
+      "priority": 100,
+      "effects": {
+        "risk_ceiling": "CRITICAL",
+        "notification_policy": "all",
+        "critical_only": true
+      },
+      "allowed_concurrency": [
+        "security"
+      ],
+      "metadata": {}
+    }
+  ]
+}

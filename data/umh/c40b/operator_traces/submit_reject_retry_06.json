@@ -1,0 +1,25 @@
+{
+  "scenario_id": "submit_reject_retry",
+  "scenario_name": "Submit + reject + retry",
+  "rep": 6,
+  "started_at": 1782861038.0634787,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "addea0324b6a411c",
+      "status": "rejected",
+      "success": false,
+      "classification": "governance_constraint",
+      "journal_phases": [
+        "proposed",
+        "rejected"
+      ],
+      "latency_ms": 36.9
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782861038.1005213,
+  "latency_ms": 37.0
+}

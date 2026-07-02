@@ -1,0 +1,151 @@
+[
+  {
+    "template_id": "tpl-engineering",
+    "mode": "engineering",
+    "label": "Engineering",
+    "required_applications": [
+      "vscode",
+      "claude_code",
+      "terminal"
+    ],
+    "required_repositories": [
+      "OS"
+    ],
+    "recommended_cockpit_panels": [
+      "commandcenter",
+      "work",
+      "execution",
+      "workspace"
+    ],
+    "recommended_browser_tabs": [
+      "github"
+    ],
+    "required_context_sources": [
+      "continuity",
+      "work_packets",
+      "gap_engine"
+    ],
+    "description": "Full development environment with IDE, CLI, and work tracking"
+  },
+  {
+    "template_id": "tpl-content",
+    "mode": "content",
+    "label": "Content",
+    "required_applications": [
+      "browser",
+      "editor"
+    ],
+    "required_repositories": [],
+    "recommended_cockpit_panels": [
+      "commandcenter",
+      "comms",
+      "knowledge"
+    ],
+    "recommended_browser_tabs": [
+      "social_dashboard",
+      "content_calendar"
+    ],
+    "required_context_sources": [
+      "continuity",
+      "projections",
+      "reality_model"
+    ],
+    "description": "Content creation and publishing workflow"
+  },
+  {
+    "template_id": "tpl-music",
+    "mode": "music",
+    "label": "Music",
+    "required_applications": [
+      "daw",
+      "browser"
+    ],
+    "required_repositories": [],
+    "recommended_cockpit_panels": [
+      "commandcenter",
+      "activity"
+    ],
+    "recommended_browser_tabs": [],
+    "required_context_sources": [
+      "continuity"
+    ],
+    "description": "Music production environment"
+  },
+  {
+    "template_id": "tpl-business",
+    "mode": "business",
+    "label": "Business",
+    "required_applications": [
+      "browser",
+      "email",
+      "calendar"
+    ],
+    "required_repositories": [],
+    "recommended_cockpit_panels": [
+      "commandcenter",
+      "strategy",
+      "projections",
+      "work"
+    ],
+    "recommended_browser_tabs": [
+      "crm",
+      "analytics"
+    ],
+    "required_context_sources": [
+      "continuity",
+      "projections",
+      "gap_engine",
+      "reality_model"
+    ],
+    "description": "Business operations, sales, and strategy"
+  },
+  {
+    "template_id": "tpl-research",
+    "mode": "research",
+    "label": "Research",
+    "required_applications": [
+      "browser",
+      "editor"
+    ],
+    "required_repositories": [],
+    "recommended_cockpit_panels": [
+      "commandcenter",
+      "knowledge",
+      "projections"
+    ],
+    "recommended_browser_tabs": [
+      "search",
+      "references"
+    ],
+    "required_context_sources": [
+      "continuity",
+      "projections",
+      "reality_model"
+    ],
+    "description": "Research, analysis, and investigation workflow"
+  },
+  {
+    "template_id": "tpl-admin",
+    "mode": "admin",
+    "label": "Admin",
+    "required_applications": [
+      "browser",
+      "terminal",
+      "email"
+    ],
+    "required_repositories": [],
+    "recommended_cockpit_panels": [
+      "commandcenter",
+      "infrastructure",
+      "settings"
+    ],
+    "recommended_browser_tabs": [
+      "admin_dashboard"
+    ],
+    "required_context_sources": [
+      "continuity",
+      "presence"
+    ],
+    "description": "System administration and maintenance"
+  }
+]

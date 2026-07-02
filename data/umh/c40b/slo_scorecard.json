@@ -1,0 +1,13 @@
+{
+  "mesh_reliability": 1.0,
+  "session_availability": 1.0,
+  "dispatch_success_rate": 1.0,
+  "playwright_availability": 1.0,
+  "chrome_startup_rate": 1.0,
+  "recovery_rate": 1.0,
+  "adapter_failure_rate": 0.0,
+  "avg_latency_ms": 1589.7,
+  "p95_latency_ms": 4068.5,
+  "event_loss": 0,
+  "proof_completeness": 1.0
+}

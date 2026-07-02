@@ -1,0 +1,25 @@
+{
+  "overall": "NOT READY",
+  "verdicts": {
+    "organism": "FAIL",
+    "runtime": "UNTESTED",
+    "projection": "PASS",
+    "operator": "PASS"
+  },
+  "slo_scorecard": {
+    "mesh_reliability": 0.0,
+    "session_availability": 0.0,
+    "dispatch_success_rate": 0.0,
+    "playwright_availability": 0.0,
+    "chrome_startup_rate": 0.0,
+    "recovery_rate": 0.0,
+    "adapter_failure_rate": 0.0,
+    "avg_latency_ms": 0.0,
+    "p95_latency_ms": 0.0,
+    "event_loss": 0,
+    "proof_completeness": 0.0
+  },
+  "total_mutations": 0,
+  "phase_count": 5,
+  "timestamp": 1782880620.9120317
+}

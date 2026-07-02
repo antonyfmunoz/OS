@@ -1,0 +1,25 @@
+{
+  "scenario_id": "approve_mutation",
+  "scenario_name": "Approve pending mutation",
+  "rep": 5,
+  "started_at": 1782860903.343383,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "0578b59cdc954373",
+      "status": "rejected",
+      "success": false,
+      "classification": "governance_constraint",
+      "journal_phases": [
+        "proposed",
+        "rejected"
+      ],
+      "latency_ms": 33.8
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782860903.377262,
+  "latency_ms": 33.9
+}

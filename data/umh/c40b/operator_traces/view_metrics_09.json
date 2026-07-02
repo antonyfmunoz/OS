@@ -1,0 +1,15 @@
+{
+  "scenario_id": "view_metrics",
+  "scenario_name": "View runtime metrics",
+  "rep": 9,
+  "started_at": 1782861097.0213816,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_view_metrics_rep9\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861097.1483483,
+  "latency_ms": 127.0
+}

@@ -1,0 +1,28 @@
+{
+  "scenario_id": "python_cross_surface",
+  "scenario_name": "Submit from Python, verify in cockpit",
+  "rep": 3,
+  "started_at": 1782861100.6793969,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "7c16923829f843b2",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 93.9
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782861100.7734652,
+  "latency_ms": 94.1
+}

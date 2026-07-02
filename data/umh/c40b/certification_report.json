@@ -1,0 +1,60 @@
+{
+  "verdicts": {
+    "organism": {
+      "status": "FAIL",
+      "evidence": "ORL=3 (need 8), confidence=0.000 (need 0.95)",
+      "details": {
+        "orl": 3,
+        "confidence": 0.0,
+        "predictive_accuracy": 0.0,
+        "pa_status": "not_evaluated",
+        "total_mutations": 28226,
+        "hypothesis": "H0 NOT REJECTED: 0/0 properties converged. ORL-3. More work needed.",
+        "weakest_property": "",
+        "prior_orl": 8,
+        "cold_start_orl": 3,
+        "no_degradation": false
+      }
+    },
+    "runtime": {
+      "status": "UNTESTED",
+      "evidence": "No dispatch attempts recorded (browser skipped?)",
+      "details": {
+        "mesh_reliability": 0.0,
+        "session_availability": 0.0,
+        "dispatch_success_rate": 0.0,
+        "playwright_availability": 0.0,
+        "chrome_startup_rate": 0.0,
+        "recovery_rate": 0.0,
+        "adapter_failure_rate": 0.0,
+        "avg_latency_ms": 0.0,
+        "p95_latency_ms": 0.0,
+        "event_loss": 0,
+        "proof_completeness": 0.0
+      }
+    },
+    "projection": {
+      "status": "PASS",
+      "evidence": "0 event loss, proof=0%, equivalence=100%",
+      "details": {
+        "event_loss": 0,
+        "proof_completeness": 0.0,
+        "equivalence_rate": 1.0,
+        "surfaces_tested": 50
+      }
+    },
+    "operator": {
+      "status": "PASS",
+      "evidence": "250/250 success (100%), 25 scenarios, 0 synthetic",
+      "details": {
+        "total_executions": 250,
+        "successes": 250,
+        "success_rate": 1.0,
+        "scenarios_covered": 25,
+        "synthetic_count": 0
+      }
+    }
+  },
+  "all_pass": false,
+  "timestamp": 1782880620.904502
+}

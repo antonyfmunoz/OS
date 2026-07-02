@@ -1,0 +1,28 @@
+{
+  "scenario_id": "approve_mutation",
+  "scenario_name": "Approve pending mutation",
+  "rep": 7,
+  "started_at": 1782860903.410174,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "8ccf86a1c25e43bd",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 364.5
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782860903.7747602,
+  "latency_ms": 364.6
+}

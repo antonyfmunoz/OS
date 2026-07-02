@@ -1,0 +1,15 @@
+{
+  "scenario_id": "nav_settings",
+  "scenario_name": "Navigate to settings panel",
+  "rep": 2,
+  "started_at": 1782860891.036548,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_nav_settings_rep2\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782860891.6780028,
+  "latency_ms": 641.5
+}

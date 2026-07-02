@@ -1,0 +1,28 @@
+{
+  "scenario_id": "reject_mutation",
+  "scenario_name": "Reject mutation with reason",
+  "rep": 8,
+  "started_at": 1782860905.0314875,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "95823ec5bbae4df2",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 253.6
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782860905.2852232,
+  "latency_ms": 253.7
+}

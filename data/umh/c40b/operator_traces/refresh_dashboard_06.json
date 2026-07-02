@@ -1,0 +1,15 @@
+{
+  "scenario_id": "refresh_dashboard",
+  "scenario_name": "Refresh dashboard",
+  "rep": 6,
+  "started_at": 1782861021.85174,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_refresh_dashboard_rep6\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861024.3170779,
+  "latency_ms": 2465.3
+}

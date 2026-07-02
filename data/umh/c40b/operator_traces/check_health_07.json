@@ -1,0 +1,15 @@
+{
+  "scenario_id": "check_health",
+  "scenario_name": "Check organism health",
+  "rep": 7,
+  "started_at": 1782861063.1665165,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_check_health_rep7\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861063.5048497,
+  "latency_ms": 338.3
+}

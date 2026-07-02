@@ -1,0 +1,28 @@
+{
+  "scenario_id": "cli_cross_surface",
+  "scenario_name": "Submit from CLI, verify in cockpit",
+  "rep": 8,
+  "started_at": 1782861099.7407875,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "ab7bd9ba75594288",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 246.0
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782861099.9869177,
+  "latency_ms": 246.1
+}

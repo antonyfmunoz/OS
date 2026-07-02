@@ -1,0 +1,221 @@
+{
+  "profiles": [
+    {
+      "profile_id": "prof-a29643cf89a6",
+      "name": "engineer",
+      "description": "Software engineering, debugging, deployment, infrastructure",
+      "default_workspace_template": "engineering",
+      "preferred_domains": [
+        "engineering",
+        "infrastructure",
+        "operator",
+        "vision"
+      ],
+      "preferred_agents": [
+        "developer",
+        "reviewer",
+        "executor"
+      ],
+      "preferred_cockpit_panels": [
+        "commandcenter",
+        "editor",
+        "workspace",
+        "runtime"
+      ],
+      "preferred_tools": [
+        "claude-code",
+        "git",
+        "docker",
+        "ssh"
+      ],
+      "interruption_preference": "low",
+      "risk_tolerance": "medium",
+      "default_session_preference": "focused",
+      "domain_weights": {
+        "engineering": 1.0,
+        "infrastructure": 0.8,
+        "operator": 0.7,
+        "vision": 0.5,
+        "content": 0.2,
+        "music": 0.1
+      },
+      "metadata": {}
+    },
+    {
+      "profile_id": "prof-175cedd458d2",
+      "name": "founder",
+      "description": "Strategic oversight, business decisions, portfolio management",
+      "default_workspace_template": "business",
+      "preferred_domains": [
+        "business",
+        "strategy",
+        "portfolio",
+        "analytics"
+      ],
+      "preferred_agents": [
+        "advisor",
+        "ceo",
+        "analyst"
+      ],
+      "preferred_cockpit_panels": [
+        "commandcenter",
+        "portfolio",
+        "analytics",
+        "strategy"
+      ],
+      "preferred_tools": [
+        "cockpit",
+        "analytics-dashboard"
+      ],
+      "interruption_preference": "normal",
+      "risk_tolerance": "high",
+      "default_session_preference": "executive",
+      "domain_weights": {
+        "business": 1.0,
+        "strategy": 0.9,
+        "portfolio": 0.8,
+        "analytics": 0.7,
+        "engineering": 0.3,
+        "content": 0.4
+      },
+      "metadata": {}
+    },
+    {
+      "profile_id": "prof-8dc3826b057d",
+      "name": "artist",
+      "description": "Music production, composition, creative expression",
+      "default_workspace_template": "music",
+      "preferred_domains": [
+        "music",
+        "creative",
+        "content"
+      ],
+      "preferred_agents": [
+        "advisor"
+      ],
+      "preferred_cockpit_panels": [
+        "advisor"
+      ],
+      "preferred_tools": [
+        "daw",
+        "midi-controller"
+      ],
+      "interruption_preference": "none",
+      "risk_tolerance": "low",
+      "default_session_preference": "creative",
+      "domain_weights": {
+        "music": 1.0,
+        "creative": 0.8,
+        "content": 0.5,
+        "engineering": 0.1
+      },
+      "metadata": {}
+    },
+    {
+      "profile_id": "prof-8d6f989a74c3",
+      "name": "content",
+      "description": "Content creation, writing, editing, publishing",
+      "default_workspace_template": "content",
+      "preferred_domains": [
+        "content",
+        "marketing",
+        "brand",
+        "social"
+      ],
+      "preferred_agents": [
+        "advisor",
+        "writer"
+      ],
+      "preferred_cockpit_panels": [
+        "advisor",
+        "knowledge"
+      ],
+      "preferred_tools": [
+        "editor",
+        "canva",
+        "social-scheduler"
+      ],
+      "interruption_preference": "low",
+      "risk_tolerance": "low",
+      "default_session_preference": "creative",
+      "domain_weights": {
+        "content": 1.0,
+        "marketing": 0.8,
+        "brand": 0.7,
+        "social": 0.6,
+        "engineering": 0.1
+      },
+      "metadata": {}
+    },
+    {
+      "profile_id": "prof-fe6905312fc7",
+      "name": "research",
+      "description": "Investigation, analysis, reading, learning",
+      "default_workspace_template": "research",
+      "preferred_domains": [
+        "research",
+        "knowledge",
+        "analysis"
+      ],
+      "preferred_agents": [
+        "researcher",
+        "advisor"
+      ],
+      "preferred_cockpit_panels": [
+        "knowledge",
+        "commandcenter",
+        "worldmodel"
+      ],
+      "preferred_tools": [
+        "browser",
+        "notebook",
+        "search"
+      ],
+      "interruption_preference": "low",
+      "risk_tolerance": "low",
+      "default_session_preference": "focused",
+      "domain_weights": {
+        "research": 1.0,
+        "knowledge": 0.8,
+        "analysis": 0.7,
+        "engineering": 0.3
+      },
+      "metadata": {}
+    },
+    {
+      "profile_id": "prof-15f4b5852869",
+      "name": "admin",
+      "description": "System administration, maintenance, operations",
+      "default_workspace_template": "admin",
+      "preferred_domains": [
+        "infrastructure",
+        "operations",
+        "maintenance"
+      ],
+      "preferred_agents": [
+        "executor",
+        "monitor"
+      ],
+      "preferred_cockpit_panels": [
+        "infrastructure",
+        "runtime",
+        "organism"
+      ],
+      "preferred_tools": [
+        "ssh",
+        "docker",
+        "monitoring"
+      ],
+      "interruption_preference": "normal",
+      "risk_tolerance": "medium",
+      "default_session_preference": "operational",
+      "domain_weights": {
+        "infrastructure": 1.0,
+        "operations": 0.9,
+        "maintenance": 0.8,
+        "engineering": 0.5
+      },
+      "metadata": {}
+    }
+  ]
+}

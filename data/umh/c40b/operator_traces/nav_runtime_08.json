@@ -1,0 +1,15 @@
+{
+  "scenario_id": "nav_runtime",
+  "scenario_name": "Navigate to runtime panel",
+  "rep": 8,
+  "started_at": 1782860888.3194969,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_nav_runtime_rep8\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782860888.9301555,
+  "latency_ms": 610.7
+}

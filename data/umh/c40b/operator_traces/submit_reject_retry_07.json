@@ -1,0 +1,28 @@
+{
+  "scenario_id": "submit_reject_retry",
+  "scenario_name": "Submit + reject + retry",
+  "rep": 7,
+  "started_at": 1782861038.1007493,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "a2cceaa4f2b04f3a",
+      "status": "completed",
+      "success": true,
+      "classification": "success",
+      "journal_phases": [
+        "proposed",
+        "governance_check",
+        "approved",
+        "execution_started",
+        "execution_completed"
+      ],
+      "latency_ms": 244.8
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782861038.3456652,
+  "latency_ms": 244.9
+}

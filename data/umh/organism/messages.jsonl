@@ -199,3 +199,4 @@
 {"type": "qualification_message", "ts": 1782921251.967778, "sender": "qualification", "content": "qualification conversation check"}
 {"type": "qualification_message", "ts": 1782921259.341164, "sender": "qualification", "content": "qualification conversation check"}
 {"type": "qualification_message", "ts": 1782921271.6357906, "sender": "qualification", "content": "qualification conversation check"}
+{"id":"e6dc2ccc-2749-4af8-a880-84022a0b25af","sender":"system","recipient":"operator","intent":"report","payload":{"title":"expand codebase graph to 100% coverage","summary":"- `e67f4d0d` expand codebase graph to 100% coverage\n\n 1 file changed, 20 insertions(+), 1 deletion(-)","file_path":null,"metadata":{},"source":"cockpit_advisor_channel"},"conversation_id":"04cd7631-6e44-4ffb-8645-daca39b4d143","parent_message_id":null,"created_at":"2026-07-02T05:23:42.498195+00:00"}

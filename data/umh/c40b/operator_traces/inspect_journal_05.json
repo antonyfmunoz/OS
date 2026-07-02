@@ -1,0 +1,15 @@
+{
+  "scenario_id": "inspect_journal",
+  "scenario_name": "Inspect execution journal",
+  "rep": 5,
+  "started_at": 1782860922.188423,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_inspect_journal_rep5\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782860924.1423128,
+  "latency_ms": 1953.9
+}

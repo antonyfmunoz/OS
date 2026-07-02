@@ -1,0 +1,25 @@
+{
+  "scenario_id": "submit_mutation",
+  "scenario_name": "Submit mutation via cockpit",
+  "rep": 2,
+  "started_at": 1782860901.8805752,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "bd2c0d1c24364c1e",
+      "status": "rejected",
+      "success": false,
+      "classification": "governance_constraint",
+      "journal_phases": [
+        "proposed",
+        "rejected"
+      ],
+      "latency_ms": 180.0
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782860902.0606322,
+  "latency_ms": 180.1
+}

@@ -1,0 +1,25 @@
+{
+  "scenario_id": "retry_mutation",
+  "scenario_name": "Retry failed mutation",
+  "rep": 9,
+  "started_at": 1782860906.5085127,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "mutation_result": {
+      "envelope_id": "a83727e2342943d5",
+      "status": "rejected",
+      "success": false,
+      "classification": "governance_constraint",
+      "journal_phases": [
+        "proposed",
+        "rejected"
+      ],
+      "latency_ms": 202.7
+    },
+    "event_emitted": true
+  },
+  "error": null,
+  "completed_at": 1782860906.7113528,
+  "latency_ms": 202.8
+}

@@ -1,0 +1,207 @@
+{"batch": "operator_batch_25", "ts": 1782854812.4585211, "type": "operator_scenarios", "completed": 25, "successes": 14, "failures": 11, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2.6, "p95_latency_ms": 3.1, "event_loss": 0, "proof_completeness": 0.0}}
+{"batch": "operator_batch_50", "ts": 1782854812.471943, "type": "operator_scenarios", "completed": 50, "successes": 22, "failures": 28, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2.6, "p95_latency_ms": 3.1, "event_loss": 0, "proof_completeness": 0.0}}
+{"batch": "operator_batch_75", "ts": 1782854812.5014324, "type": "operator_scenarios", "completed": 75, "successes": 36, "failures": 39, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2.6, "p95_latency_ms": 3.1, "event_loss": 0, "proof_completeness": 0.0}}
+{"batch": "operator_batch_100", "ts": 1782854812.5178518, "type": "operator_scenarios", "completed": 100, "successes": 46, "failures": 54, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2.6, "p95_latency_ms": 3.1, "event_loss": 0, "proof_completeness": 0.0}}
+{"batch": "operator_batch_25", "ts": 1782854916.6938317, "type": "operator_scenarios", "completed": 25, "successes": 25, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 3.1, "p95_latency_ms": 3.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_50", "ts": 1782854918.9411445, "type": "operator_scenarios", "completed": 50, "successes": 50, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 3.1, "p95_latency_ms": 3.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_75", "ts": 1782854920.7289257, "type": "operator_scenarios", "completed": 75, "successes": 75, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 3.1, "p95_latency_ms": 3.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_100", "ts": 1782854923.2328348, "type": "operator_scenarios", "completed": 100, "successes": 100, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 0.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 3.1, "p95_latency_ms": 3.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "equivalence_batch_10", "ts": 1782854926.7626216, "type": "cross_surface", "completed": 10, "matches": 10, "mismatches": 0}
+{"batch": "equivalence_batch_20", "ts": 1782854931.1976802, "type": "cross_surface", "completed": 20, "matches": 20, "mismatches": 0}
+{"batch": "equivalence_batch_30", "ts": 1782854935.671479, "type": "cross_surface", "completed": 30, "matches": 30, "mismatches": 0}
+{"batch": "equivalence_batch_40", "ts": 1782854940.349335, "type": "cross_surface", "completed": 40, "matches": 40, "mismatches": 0}
+{"batch": "equivalence_batch_50", "ts": 1782854945.586761, "type": "cross_surface", "completed": 50, "matches": 50, "mismatches": 0}
+{"batch": 0, "ts": 1782854945.5893304, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 1, "ts": 1782854945.5906615, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 2, "ts": 1782854945.5919893, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 3, "ts": 1782854945.593549, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 4, "ts": 1782854945.59525, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": "approval_batch_5", "ts": 1782854945.5957785, "type": "approval", "completed": 5, "successes": 5, "failures": 0}
+{"batch": "approval_batch_10", "ts": 1782854945.5962176, "type": "approval", "completed": 10, "successes": 10, "failures": 0}
+{"batch": "approval_batch_15", "ts": 1782854945.5965564, "type": "approval", "completed": 15, "successes": 15, "failures": 0}
+{"batch": "approval_batch_20", "ts": 1782854945.596905, "type": "approval", "completed": 20, "successes": 20, "failures": 0}
+{"batch": "approval_batch_25", "ts": 1782854945.5971766, "type": "approval", "completed": 25, "successes": 25, "failures": 0}
+{"batch": "recovery_0", "ts": 1782854945.597312, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_1", "ts": 1782854945.5974352, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_2", "ts": 1782854945.5975707, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_3", "ts": 1782854945.597699, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_4", "ts": 1782854945.5978472, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_5", "ts": 1782854945.598035, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_6", "ts": 1782854945.5981684, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_7", "ts": 1782854945.5982966, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_8", "ts": 1782854945.5984464, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_9", "ts": 1782854945.5985732, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "operator_batch_25", "ts": 1782856057.8304164, "type": "operator_scenarios", "completed": 25, "successes": 12, "failures": 13, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 1.0, "avg_latency_ms": 2549.5, "p95_latency_ms": 4389.5, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_50", "ts": 1782856089.305781, "type": "operator_scenarios", "completed": 50, "successes": 27, "failures": 23, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 1.0, "avg_latency_ms": 2567.2, "p95_latency_ms": 4389.5, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_75", "ts": 1782856119.3211122, "type": "operator_scenarios", "completed": 75, "successes": 34, "failures": 41, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 1.0, "avg_latency_ms": 2488.3, "p95_latency_ms": 4384.0, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_100", "ts": 1782856165.4051907, "type": "operator_scenarios", "completed": 100, "successes": 44, "failures": 56, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.0, "playwright_availability": 0.0, "chrome_startup_rate": 0.0, "recovery_rate": 0.0, "adapter_failure_rate": 1.0, "avg_latency_ms": 2513.3, "p95_latency_ms": 4384.0, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "equivalence_batch_10", "ts": 1782856170.9878063, "type": "cross_surface", "completed": 10, "matches": 10, "mismatches": 0}
+{"batch": "equivalence_batch_20", "ts": 1782856176.6957288, "type": "cross_surface", "completed": 20, "matches": 20, "mismatches": 0}
+{"batch": "equivalence_batch_30", "ts": 1782856182.8373313, "type": "cross_surface", "completed": 30, "matches": 30, "mismatches": 0}
+{"batch": "equivalence_batch_40", "ts": 1782856188.3156183, "type": "cross_surface", "completed": 40, "matches": 40, "mismatches": 0}
+{"batch": "equivalence_batch_50", "ts": 1782856193.0905623, "type": "cross_surface", "completed": 50, "matches": 50, "mismatches": 0}
+{"batch": 0, "ts": 1782856193.09467, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 1, "ts": 1782856193.1000016, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 2, "ts": 1782856193.103094, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 3, "ts": 1782856193.1059608, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 4, "ts": 1782856193.108107, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": "approval_batch_5", "ts": 1782856193.10865, "type": "approval", "completed": 5, "successes": 5, "failures": 0}
+{"batch": "approval_batch_10", "ts": 1782856193.1090016, "type": "approval", "completed": 10, "successes": 10, "failures": 0}
+{"batch": "approval_batch_15", "ts": 1782856193.1093342, "type": "approval", "completed": 15, "successes": 15, "failures": 0}
+{"batch": "approval_batch_20", "ts": 1782856193.109702, "type": "approval", "completed": 20, "successes": 20, "failures": 0}
+{"batch": "approval_batch_25", "ts": 1782856193.11005, "type": "approval", "completed": 25, "successes": 25, "failures": 0}
+{"batch": "recovery_0", "ts": 1782856193.1102211, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_1", "ts": 1782856193.1103795, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_2", "ts": 1782856193.1105506, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_3", "ts": 1782856193.1106925, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_4", "ts": 1782856193.1108518, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_5", "ts": 1782856193.1117284, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_6", "ts": 1782856193.112335, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_7", "ts": 1782856193.1126919, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_8", "ts": 1782856193.1131349, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_9", "ts": 1782856193.1135223, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "operator_batch_25", "ts": 1782856919.2860394, "type": "operator_scenarios", "completed": 25, "successes": 25, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.97, "playwright_availability": 0.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2643.7, "p95_latency_ms": 4341.5, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_50", "ts": 1782856928.3112152, "type": "operator_scenarios", "completed": 50, "successes": 50, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.9721, "playwright_availability": 0.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2481.9, "p95_latency_ms": 4214.6, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_75", "ts": 1782856967.6506865, "type": "operator_scenarios", "completed": 75, "successes": 75, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.9746, "playwright_availability": 0.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2423.0, "p95_latency_ms": 4214.2, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_100", "ts": 1782857010.6387365, "type": "operator_scenarios", "completed": 100, "successes": 100, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 0.9759, "playwright_availability": 0.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2456.8, "p95_latency_ms": 4214.2, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "equivalence_batch_10", "ts": 1782857015.403161, "type": "cross_surface", "completed": 10, "matches": 10, "mismatches": 0}
+{"batch": "equivalence_batch_20", "ts": 1782857021.0901744, "type": "cross_surface", "completed": 20, "matches": 20, "mismatches": 0}
+{"batch": "equivalence_batch_30", "ts": 1782857026.7889483, "type": "cross_surface", "completed": 30, "matches": 30, "mismatches": 0}
+{"batch": "equivalence_batch_40", "ts": 1782857031.9046657, "type": "cross_surface", "completed": 40, "matches": 40, "mismatches": 0}
+{"batch": "equivalence_batch_50", "ts": 1782857037.151203, "type": "cross_surface", "completed": 50, "matches": 50, "mismatches": 0}
+{"batch": 0, "ts": 1782857037.1537886, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 1, "ts": 1782857037.1554985, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 2, "ts": 1782857037.1569846, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 3, "ts": 1782857037.158603, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 4, "ts": 1782857037.1606445, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": "approval_batch_5", "ts": 1782857037.1612263, "type": "approval", "completed": 5, "successes": 5, "failures": 0}
+{"batch": "approval_batch_10", "ts": 1782857037.1614962, "type": "approval", "completed": 10, "successes": 10, "failures": 0}
+{"batch": "approval_batch_15", "ts": 1782857037.161746, "type": "approval", "completed": 15, "successes": 15, "failures": 0}
+{"batch": "approval_batch_20", "ts": 1782857037.1620972, "type": "approval", "completed": 20, "successes": 20, "failures": 0}
+{"batch": "approval_batch_25", "ts": 1782857037.1623466, "type": "approval", "completed": 25, "successes": 25, "failures": 0}
+{"batch": "recovery_0", "ts": 1782857037.1625023, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_1", "ts": 1782857037.16262, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_2", "ts": 1782857037.162729, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_3", "ts": 1782857037.162833, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_4", "ts": 1782857037.163003, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_5", "ts": 1782857037.163181, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_6", "ts": 1782857037.1632988, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_7", "ts": 1782857037.1634092, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_8", "ts": 1782857037.1635284, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_9", "ts": 1782857037.1636348, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "operator_batch_25", "ts": 1782857475.1767085, "type": "operator_scenarios", "completed": 25, "successes": 25, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1888.0, "p95_latency_ms": 4297.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_50", "ts": 1782857515.6797287, "type": "operator_scenarios", "completed": 50, "successes": 50, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1893.8, "p95_latency_ms": 4282.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_75", "ts": 1782857538.3599277, "type": "operator_scenarios", "completed": 75, "successes": 75, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1894.5, "p95_latency_ms": 4281.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_100", "ts": 1782857580.9692445, "type": "operator_scenarios", "completed": 100, "successes": 100, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1965.9, "p95_latency_ms": 4318.8, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "equivalence_batch_10", "ts": 1782857586.8621955, "type": "cross_surface", "completed": 10, "matches": 10, "mismatches": 0}
+{"batch": "equivalence_batch_20", "ts": 1782857592.1433246, "type": "cross_surface", "completed": 20, "matches": 20, "mismatches": 0}
+{"batch": "equivalence_batch_30", "ts": 1782857598.0003548, "type": "cross_surface", "completed": 30, "matches": 30, "mismatches": 0}
+{"batch": "equivalence_batch_40", "ts": 1782857603.6910818, "type": "cross_surface", "completed": 40, "matches": 40, "mismatches": 0}
+{"batch": "equivalence_batch_50", "ts": 1782857609.803306, "type": "cross_surface", "completed": 50, "matches": 50, "mismatches": 0}
+{"batch": 0, "ts": 1782857609.8062382, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 1, "ts": 1782857609.80777, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 2, "ts": 1782857609.809336, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 3, "ts": 1782857609.8106143, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 4, "ts": 1782857609.8126397, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": "approval_batch_5", "ts": 1782857609.8132637, "type": "approval", "completed": 5, "successes": 5, "failures": 0}
+{"batch": "approval_batch_10", "ts": 1782857609.8135602, "type": "approval", "completed": 10, "successes": 10, "failures": 0}
+{"batch": "approval_batch_15", "ts": 1782857609.8138444, "type": "approval", "completed": 15, "successes": 15, "failures": 0}
+{"batch": "approval_batch_20", "ts": 1782857609.8143122, "type": "approval", "completed": 20, "successes": 20, "failures": 0}
+{"batch": "approval_batch_25", "ts": 1782857609.8147244, "type": "approval", "completed": 25, "successes": 25, "failures": 0}
+{"batch": "recovery_0", "ts": 1782857609.8166268, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_1", "ts": 1782857609.817016, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_2", "ts": 1782857609.8173494, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_3", "ts": 1782857609.8176265, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_4", "ts": 1782857609.817817, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_5", "ts": 1782857609.818203, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_6", "ts": 1782857609.8186932, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_7", "ts": 1782857609.818996, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_8", "ts": 1782857609.8194046, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_9", "ts": 1782857609.819765, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "operator_batch_25", "ts": 1782860674.4826424, "type": "operator_scenarios", "completed": 25, "successes": 25, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 3052.3, "p95_latency_ms": 5538.7, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_25", "ts": 1782860680.552529, "type": "operator_scenarios", "completed": 25, "successes": 25, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2949.1, "p95_latency_ms": 5294.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_50", "ts": 1782860683.1683533, "type": "operator_scenarios", "completed": 50, "successes": 50, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2855.5, "p95_latency_ms": 5474.7, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_50", "ts": 1782860705.5334387, "type": "operator_scenarios", "completed": 50, "successes": 50, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2833.9, "p95_latency_ms": 5269.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_75", "ts": 1782860729.7603228, "type": "operator_scenarios", "completed": 75, "successes": 75, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2853.0, "p95_latency_ms": 5307.3, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_75", "ts": 1782860751.541578, "type": "operator_scenarios", "completed": 75, "successes": 75, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2829.7, "p95_latency_ms": 5230.1, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_100", "ts": 1782860763.8260822, "type": "operator_scenarios", "completed": 100, "successes": 100, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2789.4, "p95_latency_ms": 5295.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "equivalence_batch_10", "ts": 1782860768.7580204, "type": "cross_surface", "completed": 10, "matches": 10, "mismatches": 0}
+{"batch": "operator_batch_100", "ts": 1782860770.6194475, "type": "operator_scenarios", "completed": 100, "successes": 100, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 2668.8, "p95_latency_ms": 5210.7, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "equivalence_batch_20", "ts": 1782860772.936624, "type": "cross_surface", "completed": 20, "matches": 20, "mismatches": 0}
+{"batch": "equivalence_batch_10", "ts": 1782860775.2366784, "type": "cross_surface", "completed": 10, "matches": 10, "mismatches": 0}
+{"batch": "equivalence_batch_30", "ts": 1782860776.3464708, "type": "cross_surface", "completed": 30, "matches": 30, "mismatches": 0}
+{"batch": "equivalence_batch_20", "ts": 1782860780.1740265, "type": "cross_surface", "completed": 20, "matches": 20, "mismatches": 0}
+{"batch": "equivalence_batch_40", "ts": 1782860781.2770185, "type": "cross_surface", "completed": 40, "matches": 40, "mismatches": 0}
+{"batch": "equivalence_batch_30", "ts": 1782860783.6882505, "type": "cross_surface", "completed": 30, "matches": 30, "mismatches": 0}
+{"batch": "equivalence_batch_50", "ts": 1782860785.0621817, "type": "cross_surface", "completed": 50, "matches": 50, "mismatches": 0}
+{"batch": 0, "ts": 1782860785.064687, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 1, "ts": 1782860785.0661106, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 2, "ts": 1782860785.0694745, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 3, "ts": 1782860785.0721242, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 4, "ts": 1782860785.0733137, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": "approval_batch_5", "ts": 1782860785.0739396, "type": "approval", "completed": 5, "successes": 5, "failures": 0}
+{"batch": "approval_batch_10", "ts": 1782860785.0742757, "type": "approval", "completed": 10, "successes": 10, "failures": 0}
+{"batch": "approval_batch_15", "ts": 1782860785.0745778, "type": "approval", "completed": 15, "successes": 15, "failures": 0}
+{"batch": "approval_batch_20", "ts": 1782860785.0751112, "type": "approval", "completed": 20, "successes": 20, "failures": 0}
+{"batch": "approval_batch_25", "ts": 1782860785.0757067, "type": "approval", "completed": 25, "successes": 25, "failures": 0}
+{"batch": "recovery_0", "ts": 1782860785.0760748, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_1", "ts": 1782860785.0763214, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_2", "ts": 1782860785.0765417, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_3", "ts": 1782860785.0769088, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_4", "ts": 1782860785.0772033, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_5", "ts": 1782860785.077476, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_6", "ts": 1782860785.0777442, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_7", "ts": 1782860785.0780241, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_8", "ts": 1782860785.0783105, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_9", "ts": 1782860785.0785222, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "equivalence_batch_40", "ts": 1782860787.2941859, "type": "cross_surface", "completed": 40, "matches": 40, "mismatches": 0}
+{"batch": "equivalence_batch_50", "ts": 1782860790.3966362, "type": "cross_surface", "completed": 50, "matches": 50, "mismatches": 0}
+{"batch": 0, "ts": 1782860790.400661, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 1, "ts": 1782860790.4024515, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 2, "ts": 1782860790.4055932, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 3, "ts": 1782860790.4078813, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 4, "ts": 1782860790.4093535, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": "approval_batch_5", "ts": 1782860790.409818, "type": "approval", "completed": 5, "successes": 5, "failures": 0}
+{"batch": "approval_batch_10", "ts": 1782860790.4102118, "type": "approval", "completed": 10, "successes": 10, "failures": 0}
+{"batch": "approval_batch_15", "ts": 1782860790.410573, "type": "approval", "completed": 15, "successes": 15, "failures": 0}
+{"batch": "approval_batch_20", "ts": 1782860790.410817, "type": "approval", "completed": 20, "successes": 20, "failures": 0}
+{"batch": "approval_batch_25", "ts": 1782860790.4111586, "type": "approval", "completed": 25, "successes": 25, "failures": 0}
+{"batch": "recovery_0", "ts": 1782860790.411299, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_1", "ts": 1782860790.4114807, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_2", "ts": 1782860790.411706, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_3", "ts": 1782860790.411823, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_4", "ts": 1782860790.4119747, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_5", "ts": 1782860790.4120798, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_6", "ts": 1782860790.412179, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_7", "ts": 1782860790.4122756, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_8", "ts": 1782860790.4124389, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_9", "ts": 1782860790.4126437, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "operator_batch_25", "ts": 1782861144.0243556, "type": "operator_scenarios", "completed": 25, "successes": 25, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1511.4, "p95_latency_ms": 4240.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_50", "ts": 1782861176.1116164, "type": "operator_scenarios", "completed": 50, "successes": 50, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1526.7, "p95_latency_ms": 4206.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_75", "ts": 1782861214.0185804, "type": "operator_scenarios", "completed": 75, "successes": 75, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1565.4, "p95_latency_ms": 4192.9, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "operator_batch_100", "ts": 1782861248.3549905, "type": "operator_scenarios", "completed": 100, "successes": 100, "failures": 0, "slo_snapshot": {"mesh_reliability": 1.0, "session_availability": 1.0, "dispatch_success_rate": 1.0, "playwright_availability": 1.0, "chrome_startup_rate": 1.0, "recovery_rate": 0.0, "adapter_failure_rate": 0.0, "avg_latency_ms": 1589.7, "p95_latency_ms": 4068.5, "event_loss": 0, "proof_completeness": 1.0}}
+{"batch": "equivalence_batch_10", "ts": 1782861252.0298254, "type": "cross_surface", "completed": 10, "matches": 10, "mismatches": 0}
+{"batch": "equivalence_batch_20", "ts": 1782861255.9711034, "type": "cross_surface", "completed": 20, "matches": 20, "mismatches": 0}
+{"batch": "equivalence_batch_30", "ts": 1782861260.3763094, "type": "cross_surface", "completed": 30, "matches": 30, "mismatches": 0}
+{"batch": "equivalence_batch_40", "ts": 1782861264.6695254, "type": "cross_surface", "completed": 40, "matches": 40, "mismatches": 0}
+{"batch": "equivalence_batch_50", "ts": 1782861268.176219, "type": "cross_surface", "completed": 50, "matches": 50, "mismatches": 0}
+{"batch": 0, "ts": 1782861268.1789324, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 1, "ts": 1782861268.1804519, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 2, "ts": 1782861268.1825194, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 3, "ts": 1782861268.1850178, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": 4, "ts": 1782861268.1867452, "type": "concurrent", "success": 4, "failure": 0}
+{"batch": "approval_batch_5", "ts": 1782861268.187244, "type": "approval", "completed": 5, "successes": 5, "failures": 0}
+{"batch": "approval_batch_10", "ts": 1782861268.1876042, "type": "approval", "completed": 10, "successes": 10, "failures": 0}
+{"batch": "approval_batch_15", "ts": 1782861268.187948, "type": "approval", "completed": 15, "successes": 15, "failures": 0}
+{"batch": "approval_batch_20", "ts": 1782861268.1882157, "type": "approval", "completed": 20, "successes": 20, "failures": 0}
+{"batch": "approval_batch_25", "ts": 1782861268.1885016, "type": "approval", "completed": 25, "successes": 25, "failures": 0}
+{"batch": "recovery_0", "ts": 1782861268.188672, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_1", "ts": 1782861268.1887763, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_2", "ts": 1782861268.1889286, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_3", "ts": 1782861268.1890302, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_4", "ts": 1782861268.1891325, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_5", "ts": 1782861268.1892245, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_6", "ts": 1782861268.1893198, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_7", "ts": 1782861268.189483, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_8", "ts": 1782861268.1896353, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}
+{"batch": "recovery_9", "ts": 1782861268.1897693, "type": "recovery", "recovery_time_s": 0.0, "recovered": true, "within_30s": true}

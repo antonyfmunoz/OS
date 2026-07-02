@@ -1,0 +1,15 @@
+{
+  "scenario_id": "recovery_disconnect",
+  "scenario_name": "Recovery after mesh disconnect",
+  "rep": 6,
+  "started_at": 1782861122.5610807,
+  "success": true,
+  "evidence": {
+    "type": "real",
+    "stdout": "c40b_scenario_recovery_disconnect_rep6\n",
+    "dispatch_result": "success"
+  },
+  "error": null,
+  "completed_at": 1782861122.8292031,
+  "latency_ms": 268.1
+}
