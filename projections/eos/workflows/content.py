@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
+from projections.eos.workflows.types import WorkflowStep
+
 
 @dataclass
 class ContentPiece:
@@ -37,6 +39,47 @@ class ContentCalendarWorkflow:
     def __init__(self, org_id: str = "", venture_id: str = "") -> None:
         self._org_id = org_id
         self._venture_id = venture_id
+
+    def steps(self, days: int = 7) -> list[WorkflowStep]:
+        """Return governed workflow steps for the WorkflowRunner."""
+        self._days = days
+        self._calendar: ContentCalendar | None = None
+        return [
+            WorkflowStep(
+                name="generate_calendar",
+                mutation_name="command_submit",
+                intent=f"Generate content calendar for {days} days",
+                execute_fn=lambda: self._step_generate(),
+            ),
+            WorkflowStep(
+                name="ideate_content",
+                mutation_name="command_submit",
+                intent=f"Ideate content for {days}-day calendar",
+                execute_fn=lambda: self._step_ideate(),
+            ),
+        ]
+
+    def _step_generate(self) -> tuple[str, bool]:
+        self._calendar = self.generate_calendar(self._days)
+        return (
+            f"Calendar generated: {len(self._calendar.pieces)} pieces over {self._days} days",
+            True,
+        )
+
+    def _step_ideate(self) -> tuple[str, bool]:
+        if not self._calendar or not self._calendar.pieces:
+            return ("No calendar to ideate for", False)
+        ideated = 0
+        for piece in self._calendar.pieces[:5]:
+            if not piece.title:
+                result = self.ideate(
+                    f"{piece.channel} {piece.content_type} for {piece.scheduled_for}",
+                    piece.channel,
+                )
+                piece.title = result.title
+                piece.draft = result.draft
+                ideated += 1
+        return (f"Ideated {ideated} content pieces", True)
 
     def generate_calendar(self, days: int = 7) -> ContentCalendar:
         """Generate a content calendar for the next N days."""
