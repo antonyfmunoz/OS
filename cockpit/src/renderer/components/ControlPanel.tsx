@@ -1,11 +1,12 @@
-import { useCallback } from 'react'
-import { ChevronDown, ChevronUp, Moon, Sun, Shield, Hammer } from 'lucide-react'
+import { useCallback, useState, useEffect } from 'react'
+import { ChevronDown, ChevronUp, Moon, Sun, Shield, Hammer, PlayCircle, GitBranch, FileText, AlertCircle, Clock, X } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useUnifiedApprovalStore } from '../stores/unifiedApprovalStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useCollapseStore } from '../stores/collapseStore'
 import { fetchApi } from '../api/client'
 import { useChatStore } from '../stores/chatStore'
+import { useWorkspaceContextStore } from '../stores/workspaceContextStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 import { useEngineeringStore } from '../stores/engineeringStore'
@@ -63,6 +64,51 @@ export function ControlPanel() {
   const sendMessage = useChatStore((s) => s.sendMessage)
   const allPlans = useEngineeringStore((s) => s.plans)
   const storeFetchPlans = useEngineeringStore((s) => s.fetchPlans)
+
+  /* ── Resume snapshot ── */
+  const [resumeSnapshot, setResumeSnapshot] = useState<{
+    active_project?: string; active_branch?: string; active_file?: string
+    current_objective?: string; last_execution_status?: string
+    last_execution_ago?: string; pending_approvals?: number
+    next_action?: string; since_away?: string[]
+  } | null>(null)
+  const [resumeDismissed, setResumeDismissed] = useState(false)
+  const setPanel = useCockpitStore((s) => s.setPanel)
+  const setActiveProject = useWorkspaceContextStore((s) => s.setActiveProject)
+  const setActiveFile = useWorkspaceContextStore((s) => s.setActiveFile)
+  const setActiveBranch = useWorkspaceContextStore((s) => s.setActiveBranch)
+
+  useEffect(() => {
+    const lastDismissed = localStorage.getItem('umh-resume-dismissed-at')
+    if (lastDismissed && Date.now() - parseInt(lastDismissed, 10) < 60_000) {
+      setResumeDismissed(true)
+      return
+    }
+    fetchApi<Record<string, unknown>>('/workstation/resume')
+      .then((data: any) => {
+        if (data.active_project || data.active_file || data.current_objective) {
+          setResumeSnapshot(data)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleResume = useCallback(() => {
+    if (resumeSnapshot) {
+      if (resumeSnapshot.active_project) setActiveProject(resumeSnapshot.active_project)
+      if (resumeSnapshot.active_file) setActiveFile(resumeSnapshot.active_file)
+      if (resumeSnapshot.active_branch) setActiveBranch(resumeSnapshot.active_branch)
+      setPanel('editor')
+    }
+    setResumeDismissed(true)
+    localStorage.setItem('umh-resume-dismissed-at', String(Date.now()))
+  }, [resumeSnapshot, setActiveProject, setActiveFile, setActiveBranch, setPanel])
+
+  const handleDismissResume = useCallback(() => {
+    setResumeDismissed(true)
+    localStorage.setItem('umh-resume-dismissed-at', String(Date.now()))
+  }, [])
+
   const engineeringPlans = allPlans.filter((p) => p.status === 'draft' || p.status === 'approved')
 
 
@@ -330,6 +376,57 @@ export function ControlPanel() {
               </p>
             </div>
           </div>
+          {/* Resume snapshot */}
+          {resumeSnapshot && !resumeDismissed && (
+            <div className="mt-3 pt-2 border-t border-border">
+              <div className="flex items-center justify-between mb-2">
+                <span className="wv-label">RESUME</span>
+                <button onClick={handleDismissResume} className="p-0.5 text-text-tertiary hover:text-text-secondary">
+                  <X size={10} />
+                </button>
+              </div>
+              <div className="space-y-1 text-[11px]">
+                {resumeSnapshot.current_objective && (
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle size={10} className="text-text-tertiary shrink-0" />
+                    <span className="text-text-secondary truncate">{resumeSnapshot.current_objective}</span>
+                  </div>
+                )}
+                {resumeSnapshot.active_project && (
+                  <div className="flex items-center gap-1.5">
+                    <FileText size={10} className="text-text-tertiary shrink-0" />
+                    <span className="text-text-secondary truncate">{resumeSnapshot.active_project}</span>
+                  </div>
+                )}
+                {resumeSnapshot.active_branch && (
+                  <div className="flex items-center gap-1.5">
+                    <GitBranch size={10} className="text-text-tertiary shrink-0" />
+                    <span className="text-text-secondary truncate">{resumeSnapshot.active_branch}</span>
+                  </div>
+                )}
+                {resumeSnapshot.last_execution_status && (
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={10} className="text-text-tertiary shrink-0" />
+                    <span className="text-text-secondary">{resumeSnapshot.last_execution_status} {resumeSnapshot.last_execution_ago}</span>
+                  </div>
+                )}
+                {resumeSnapshot.next_action && (
+                  <div className="flex items-center gap-1.5">
+                    <PlayCircle size={10} className="text-cyan shrink-0" />
+                    <span className="text-cyan font-medium truncate">{resumeSnapshot.next_action}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleResume}
+                className="flex items-center gap-1 mt-2 px-2 py-1 rounded text-[10px] font-medium"
+                style={{ background: 'var(--color-accent)', color: '#000' }}
+              >
+                <PlayCircle size={10} />
+                Resume
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

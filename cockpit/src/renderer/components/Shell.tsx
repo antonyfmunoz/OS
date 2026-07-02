@@ -14,7 +14,6 @@ import { useDeviceSessionStore } from '../stores/deviceSessionStore'
 import { UnifiedCanvasWorkspace } from './canvas/UnifiedCanvasWorkspace'
 import { ErrorBoundary } from './ErrorBoundary'
 import { CallOverlay } from './CallOverlay'
-import { ResumeCard } from './ResumeCard'
 import { VoiceCommandBar } from './VoiceCommandBar'
 
 export function Shell() {
@@ -66,7 +65,6 @@ export function Shell() {
         <ControlPanel />
         <RightDrawer />
         <CallOverlay />
-        <ResumeCard />
       </main>
 
       <HudBar />
