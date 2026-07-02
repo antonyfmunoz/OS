@@ -178,20 +178,9 @@ export const useCockpitStore = create<CockpitState>()(
       toggleRail: () => set((s) => ({ railCollapsed: !s.railCollapsed })),
       toggleRightRail: () => set((s) => ({ rightRailCollapsed: !s.rightRailCollapsed })),
       toggleControlPanel: () => set((s) => ({ controlPanelExpanded: !s.controlPanelExpanded })),
-      toggleLeftDrawer: () => set((s) => {
-        const opening = !s.leftDrawerOpen
-        const mobile = window.innerWidth <= 640
-        return { leftDrawerOpen: opening, ...(mobile && opening ? { rightDrawerOpen: false } : {}) }
-      }),
-      toggleRightDrawer: () => set((s) => {
-        const opening = !s.rightDrawerOpen
-        const mobile = window.innerWidth <= 640
-        return { rightDrawerOpen: opening, ...(mobile && opening ? { leftDrawerOpen: false } : {}) }
-      }),
-      setRightPanelView: (view) => set(() => {
-        const mobile = window.innerWidth <= 640
-        return { rightPanelView: view, rightDrawerOpen: true, ...(mobile ? { leftDrawerOpen: false } : {}) }
-      }),
+      toggleLeftDrawer: () => set((s) => ({ leftDrawerOpen: !s.leftDrawerOpen })),
+      toggleRightDrawer: () => set((s) => ({ rightDrawerOpen: !s.rightDrawerOpen })),
+      setRightPanelView: (view) => set({ rightPanelView: view, rightDrawerOpen: true }),
       cycleWindowMode: (direction) =>
         set((s) => {
           const idx = WINDOW_MODE_ORDER.indexOf(s.windowMode)
