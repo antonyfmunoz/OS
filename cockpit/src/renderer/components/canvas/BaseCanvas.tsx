@@ -277,11 +277,11 @@ export function BaseCanvas({
         </div>
       )}
 
-      {/* Toolbar slot — floats at bottom center */}
+      {/* Toolbar slot — floats at bottom center, clears the fixed HudBar (30px) */}
       {toolbar && (
         <div
           className="absolute left-1/2 -translate-x-1/2 z-10 pointer-events-auto"
-          style={{ bottom: 6 }}
+          style={{ bottom: 36 }}
         >
           {toolbar}
         </div>
