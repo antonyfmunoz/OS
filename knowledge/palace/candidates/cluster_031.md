@@ -2,26 +2,28 @@
 type: palace-candidate
 cluster_id: cluster_031
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — substrate/organism/device_role_registry.py
+# Candidate Cluster — nodes/windows/umh_node/adapters/clipboard.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 6 files  
-**Seed label:** `substrate/organism/device_role_registry.py`
+**Size:** 8 files  
+**Seed label:** `nodes/windows/umh_node/adapters/clipboard.py`
 
 ## Members
 
-- `substrate/organism/device_capacity.py`
-- `substrate/organism/device_role_registry.py`
-- `substrate/organism/distributed_runtime.py`
-- `substrate/organism/packet_router.py`
-- `substrate/organism/worker_lifecycle.py`
-- `substrate/organism/worker_registry.py`
+- `nodes/windows/umh_desktop/tray.py`
+- `nodes/windows/umh_node/adapters/clipboard.py`
+- `nodes/windows/umh_node/adapters/desktop.py`
+- `nodes/windows/umh_node/config.py`
+- `nodes/windows/umh_node/governance.py`
+- `nodes/windows/umh_node/launcher.py`
+- `nodes/windows/umh_node/service.py`
+- `nodes/windows/umh_node/workspace.py`
 
 ## Traversal
 

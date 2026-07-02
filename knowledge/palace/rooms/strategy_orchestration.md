@@ -2,7 +2,7 @@
 type: palace-room
 room_id: strategy_orchestration
 wing: runtime
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Room — Strategy & Orchestration

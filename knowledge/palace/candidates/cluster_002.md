@@ -2,7 +2,7 @@
 type: palace-candidate
 cluster_id: cluster_002
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Candidate Cluster — substrate/organism/daemon.py
@@ -11,7 +11,7 @@ generated: 2026-07-01
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 59 files  
+**Size:** 63 files  
 **Seed label:** `substrate/organism/daemon.py`
 
 ## Members
@@ -23,6 +23,7 @@ generated: 2026-07-01
 - `substrate/organism/autonomous_tick.py`
 - `substrate/organism/bottleneck_engine.py`
 - `substrate/organism/capability_compounding_runtime.py`
+- `substrate/organism/continuous_qualification.py`
 - `substrate/organism/coordinator.py`
 - `substrate/organism/daemon.py`
 - `substrate/organism/development_session_bridge.py`
@@ -41,6 +42,7 @@ generated: 2026-07-01
 - `substrate/organism/observability.py`
 - `substrate/organism/operator_compression.py`
 - `substrate/organism/projection_port.py`
+- `substrate/organism/proof_store.py`
 - `substrate/organism/recursion_governance.py`
 - `substrate/organism/runtime_graph.py`
 - `substrate/organism/runtime_supervisor.py`
@@ -75,6 +77,8 @@ generated: 2026-07-01
 - `substrate/organism/tests/test_workcell_protocol.py`
 - `substrate/organism/workcell_daemon.py`
 - `substrate/organism/workcell_protocol.py`
+- `tests/test_c22_capability_compounding.py`
+- `tests/test_override_tracking.py`
 
 ## Traversal
 

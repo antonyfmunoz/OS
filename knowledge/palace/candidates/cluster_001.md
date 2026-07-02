@@ -2,7 +2,7 @@
 type: palace-candidate
 cluster_id: cluster_001
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Candidate Cluster — adapters/models/model_router.py
@@ -11,7 +11,7 @@ generated: 2026-07-01
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 65 files  
+**Size:** 68 files  
 **Seed label:** `adapters/models/model_router.py`
 
 ## Members
@@ -31,7 +31,6 @@ generated: 2026-07-01
 - `substrate/contracts/agent_types.py`
 - `substrate/control_plane/agents/agent_teams.py`
 - `substrate/control_plane/agents/ceo_agent.py`
-- `substrate/control_plane/context/context_builder.py`
 - `substrate/control_plane/context/context_compaction.py`
 - `substrate/control_plane/coordination/coordination_engine.py`
 - `substrate/control_plane/events/event_bus.py`
@@ -44,6 +43,7 @@ generated: 2026-07-01
 - `substrate/governance/policy/authority_engine.py`
 - `substrate/governance/principles/principle_engine.py`
 - `substrate/intelligence/runtime.py`
+- `substrate/sockets/intelligence_port.py`
 - `substrate/state/business/venture_knowledge.py`
 - `substrate/state/context/context.py`
 - `substrate/state/lifecycle/stage_manager.py`
@@ -80,6 +80,9 @@ generated: 2026-07-01
 - `substrate/understanding/reality/reality_engine.py`
 - `substrate/understanding/research/research_engine.py`
 - `substrate/understanding/world_pulse/world_pulse.py`
+- `tests/substrate/test_entity_store.py`
+- `tests/substrate/test_feedback_loop.py`
+- `tests/test_provider_state.py`
 - `transports/api/webhooks/calendly_webhook.py`
 
 ## Traversal

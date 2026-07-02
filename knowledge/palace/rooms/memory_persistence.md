@@ -2,7 +2,7 @@
 type: palace-room
 room_id: memory_persistence
 wing: runtime
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Room — Memory & Persistence

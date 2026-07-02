@@ -2,7 +2,7 @@
 type: palace-candidate
 cluster_id: cluster_000
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Candidate Cluster — substrate/execution/cpu_gate.py
@@ -11,16 +11,17 @@ generated: 2026-07-01
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 101 files  
+**Size:** 123 files  
 **Seed label:** `substrate/execution/cpu_gate.py`
 
 ## Members
 
 - `adapters/github/github_operations.py`
 - `adapters/ssh/ssh_utils.py`
-- `scripts/run_c39_simulation.py`
-- `scripts/run_c40a_campaign.py`
+- `nodes/environments/workspace_probe.py`
+- `scripts/verify_pr47_cadence_learning.py`
 - `scripts/verify_pr47_production.py`
+- `scripts/verify_pr47_reliability.py`
 - `services/bridge_health.py`
 - `services/export_bridge_handler.py`
 - `services/local_bridge_server.py`
@@ -43,19 +44,19 @@ generated: 2026-07-01
 - `substrate/intelligence/finetune_harness.py`
 - `substrate/meta_ide/browser_evidence_collector.py`
 - `substrate/meta_ide/browser_verification_gate.py`
-- `substrate/meta_ide/engineering_execution.py`
 - `substrate/meta_ide/engineering_session_coordinator.py`
 - `substrate/meta_ide/repository_model.py`
-- `substrate/meta_ide/review_package_builder.py`
 - `substrate/meta_ide/workspace_intelligence.py`
 - `substrate/organism/action_envelope.py`
 - `substrate/organism/agent_capability_model.py`
 - `substrate/organism/approval_gate.py`
 - `substrate/organism/assisted_executor.py`
 - `substrate/organism/autonomous_action_gateway.py`
+- `substrate/organism/autonomous_cadence.py`
 - `substrate/organism/autonomous_improvement_lane.py`
 - `substrate/organism/autonomous_pr_factory.py`
 - `substrate/organism/benchmarks/reality_recovery.py`
+- `substrate/organism/candidate_supply_engine.py`
 - `substrate/organism/changeset_manifest.py`
 - `substrate/organism/coherence_propagation.py`
 - `substrate/organism/composition_engine.py`
@@ -63,7 +64,6 @@ generated: 2026-07-01
 - `substrate/organism/correspondence_scheduler.py`
 - `substrate/organism/dependency_graph.py`
 - `substrate/organism/dev_session_tracker.py`
-- `substrate/organism/device_provisioner.py`
 - `substrate/organism/execution_journal.py`
 - `substrate/organism/execution_modes.py`
 - `substrate/organism/executor_runtime.py`
@@ -87,6 +87,9 @@ generated: 2026-07-01
 - `substrate/organism/sandbox_orchestrator.py`
 - `substrate/organism/spine_guard.py`
 - `substrate/organism/tailscale_discovery.py`
+- `substrate/organism/template_governance.py`
+- `substrate/organism/template_registry.py`
+- `substrate/organism/template_seeder.py`
 - `substrate/organism/tests/test_assisted_executor.py`
 - `substrate/organism/tests/test_composition_engine.py`
 - `substrate/organism/tests/test_contradiction_engine.py`
@@ -96,6 +99,7 @@ generated: 2026-07-01
 - `substrate/organism/tests/test_maintenance_loop.py`
 - `substrate/organism/tests/test_memory_promotion.py`
 - `substrate/organism/tests/test_outcome_learning.py`
+- `substrate/organism/tests/test_phase10_template_supply.py`
 - `substrate/organism/tests/test_phase59_integration.py`
 - `substrate/organism/tests/test_phase61_governed_spine.py`
 - `substrate/organism/tests/test_phase62_spine_enforcement.py`
@@ -112,6 +116,24 @@ generated: 2026-07-01
 - `substrate/organism/workload_runner.py`
 - `substrate/organism/worktree_sandbox.py`
 - `substrate/organism/world_model.py`
+- `tests/certification/c28_certification.py`
+- `tests/test_agent_executor.py`
+- `tests/test_c23a_reality_recovery.py`
+- `tests/test_c31_phase6.py`
+- `tests/test_c31_spine_learning.py`
+- `tests/test_c34_mutation_router.py`
+- `tests/test_c39_live_simulation.py`
+- `tests/test_c40a_runtime_convergence.py`
+- `tests/test_correspondence_ledger.py`
+- `tests/test_executor_runtime.py`
+- `tests/test_phase10_2_sandbox_pr.py`
+- `tests/test_phase10_3_production_truth.py`
+- `tests/test_phase10_4_reliability_campaign.py`
+- `tests/test_phase9_5_spine_native_propagation.py`
+- `tests/test_phase9_5b_template_campaign.py`
+- `tests/test_phase9_6_autonomous_lane.py`
+- `tests/test_phase9_7_pr_factory.py`
+- `tests/test_workstation_executor.py`
 - `transports/api/cockpit_core_routes.py`
 - `transports/api/cockpit_device_routes.py`
 - `transports/api/cockpit_workspace_routes.py`

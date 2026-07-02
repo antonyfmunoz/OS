@@ -2,26 +2,29 @@
 type: palace-candidate
 cluster_id: cluster_028
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — adapters/browser_exports/contract.py
+# Candidate Cluster — substrate/organism/device_role_registry.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 6 files  
-**Seed label:** `adapters/browser_exports/contract.py`
+**Size:** 9 files  
+**Seed label:** `substrate/organism/device_role_registry.py`
 
 ## Members
 
-- `adapters/browser_exports/chatgpt_export.py`
-- `adapters/browser_exports/claude_export.py`
-- `adapters/browser_exports/contract.py`
-- `adapters/browser_exports/instagram_export.py`
-- `adapters/browser_exports/profile_manager.py`
-- `substrate/execution/agents/browser_agent.py`
+- `substrate/organism/compute_fabric_runtime.py`
+- `substrate/organism/device_capacity.py`
+- `substrate/organism/device_role_registry.py`
+- `substrate/organism/distributed_runtime.py`
+- `substrate/organism/packet_router.py`
+- `substrate/organism/worker_lifecycle.py`
+- `substrate/organism/worker_registry.py`
+- `tests/test_compute_fabric_runtime.py`
+- `tests/test_phase24_distributed_worker_runtime.py`
 
 ## Traversal
 

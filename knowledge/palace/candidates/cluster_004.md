@@ -2,7 +2,7 @@
 type: palace-candidate
 cluster_id: cluster_004
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Candidate Cluster — substrate/sockets/envelopes.py
@@ -11,7 +11,7 @@ generated: 2026-07-01
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 36 files  
+**Size:** 38 files  
 **Seed label:** `substrate/sockets/envelopes.py`
 
 ## Members
@@ -33,6 +33,9 @@ generated: 2026-07-01
 - `substrate/sockets/view/broadcaster.py`
 - `substrate/sockets/view/websocket.py`
 - `substrate/sockets/view_socket.py`
+- `tests/test_conference_rooms.py`
+- `tests/test_daemon_e2e.py`
+- `tests/test_node_mesh_ws.py`
 - `transports/api/_mesh_dispatch.py`
 - `transports/api/app.py`
 - `transports/api/cockpit.py`
@@ -40,7 +43,6 @@ generated: 2026-07-01
 - `transports/api/cockpit_auth.py`
 - `transports/api/cockpit_rooms_routes.py`
 - `transports/api/computer_use.py`
-- `transports/api/distribution.py`
 - `transports/api/workstation.py`
 - `transports/node_mesh/config.py`
 - `transports/node_mesh/integration/handlers.py`

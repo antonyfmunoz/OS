@@ -2,34 +2,37 @@
 type: palace-candidate
 cluster_id: cluster_012
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — scripts/github_trinity_ingest.py
+# Candidate Cluster — projections/eos/agents/ceo.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 14 files  
-**Seed label:** `scripts/github_trinity_ingest.py`
+**Size:** 17 files  
+**Seed label:** `projections/eos/agents/ceo.py`
 
 ## Members
 
-- `adapters/browser_exports/instagram_export_parser.py`
-- `adapters/data_source_adapters/github_source.py`
-- `adapters/data_source_adapters/gws_source.py`
-- `adapters/data_source_adapters/local_file_source.py`
-- `scripts/github_trinity_ingest.py`
-- `scripts/ingest_github_repos.py`
-- `substrate/contracts/understanding_protocol.py`
-- `substrate/governance/policy/authority_tier.py`
-- `substrate/ontology/domains/contract.py`
-- `substrate/understanding/domains/business.py`
-- `substrate/understanding/domains/contract.py`
-- `substrate/understanding/domains/registry.py`
-- `substrate/understanding/perception/orchestrator.py`
-- `substrate/understanding/perception/source.py`
+- `projections/creatoros/integration/correlation.py`
+- `projections/eos/agents/base.py`
+- `projections/eos/agents/ceo.py`
+- `projections/eos/agents/customer_success.py`
+- `projections/eos/agents/engineering.py`
+- `projections/eos/agents/finance.py`
+- `projections/eos/agents/hr.py`
+- `projections/eos/agents/legal.py`
+- `projections/eos/agents/marketing.py`
+- `projections/eos/agents/operations.py`
+- `projections/eos/agents/product.py`
+- `projections/eos/agents/sales.py`
+- `substrate/operator/intent_receipt.py`
+- `substrate/operator/intent_router.py`
+- `tests/test_browser_wiring.py`
+- `tests/test_convergence_acceptance.py`
+- `tests/test_phase18_operator_convergence.py`
 
 ## Traversal
 

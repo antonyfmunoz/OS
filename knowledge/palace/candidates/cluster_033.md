@@ -2,26 +2,28 @@
 type: palace-candidate
 cluster_id: cluster_033
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — substrate/organism/runtime_adapter.py
+# Candidate Cluster — substrate/meta_ide/engineering_session_coordinator.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 6 files  
-**Seed label:** `substrate/organism/runtime_adapter.py`
+**Size:** 8 files  
+**Seed label:** `substrate/meta_ide/engineering_session_coordinator.py`
 
 ## Members
 
-- `substrate/organism/claude_code_runtime_adapter.py`
-- `substrate/organism/runtime_adapter.py`
-- `substrate/organism/runtime_handoff.py`
-- `substrate/organism/runtime_manager.py`
-- `substrate/organism/runtime_session.py`
-- `substrate/organism/shell_runtime_adapter.py`
+- `substrate/meta_ide/engineering_execution.py`
+- `substrate/meta_ide/review_package_builder.py`
+- `substrate/organism/outcome_verification.py`
+- `substrate/organism/projection_certification.py`
+- `tests/test_outcome_verification.py`
+- `tests/test_phase23_engineering_proof_loop.py`
+- `tests/test_projection_certification.py`
+- `tests/test_reality_ambush.py`
 
 ## Traversal
 

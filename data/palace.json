@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-07-01T00:14:05.117154+00:00",
-  "source_graph_generated_at": "2026-07-01T00:13:47.371520+00:00",
+  "generated_at": "2026-07-02T05:13:42.778926+00:00",
+  "source_graph_generated_at": "2026-07-02T05:13:03.757771+00:00",
   "source_graph_stale": false,
-  "source_graph_age_hours": 0.0,
+  "source_graph_age_hours": 0.01,
   "stale_threshold_hours": 24,
   "rooms": [
     {
@@ -90,20 +90,20 @@
           "docstring": "Discord message handlers \u2014 extracted from discord_bot.py."
         },
         {
+          "path": "services/discord_bot_commands.py",
+          "score": 6,
+          "module": "services.discord_bot_commands",
+          "critical": false,
+          "entry_point": false,
+          "docstring": "Discord bot commands \u2014 extracted from discord_bot.py."
+        },
+        {
           "path": "services/operator_api.py",
           "score": 6,
           "module": "services.operator_api",
           "critical": false,
           "entry_point": true,
           "docstring": "UMH Operator Workstation API \u2014 FastAPI backend for the operator UI."
-        },
-        {
-          "path": "services/discord_bot_commands.py",
-          "score": 5,
-          "module": "services.discord_bot_commands",
-          "critical": false,
-          "entry_point": false,
-          "docstring": "Discord bot commands \u2014 extracted from discord_bot.py."
         },
         {
           "path": "services/icp_scorer.py",
@@ -221,28 +221,12 @@
           "docstring": "Shared helpers for Tool Mastery Engine system scripts."
         },
         {
-          "path": "scripts/run_c39_simulation.py",
-          "score": 10,
-          "module": "scripts.run_c39_simulation",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "C39 \u2014 Live Gap-Closure Simulation Campaign."
-        },
-        {
           "path": "scripts/orchestrator_status.py",
           "score": 9,
           "module": "scripts.orchestrator_status",
           "critical": false,
           "entry_point": true,
           "docstring": "orchestrator_status.py \u2014 operator-friendly snapshot of the Control Plane."
-        },
-        {
-          "path": "scripts/run_c40a_campaign.py",
-          "score": 9,
-          "module": "scripts.run_c40a_campaign",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "C40A \u2014 Surface Runtime Convergence Campaign."
         },
         {
           "path": "scripts/check_skill_staleness.py",
@@ -269,14 +253,6 @@
           "docstring": "Continuous memory synchronization."
         },
         {
-          "path": "scripts/run_c33_benchmarks.py",
-          "score": 8,
-          "module": "scripts.run_c33_benchmarks",
-          "critical": false,
-          "entry_point": true,
-          "docstring": "C33 Benchmark Execution \u2014 runs all programmatic benchmarks."
-        },
-        {
           "path": "scripts/run_reconciliation_ingestion.py",
           "score": 8,
           "module": "scripts.run_reconciliation_ingestion",
@@ -291,6 +267,14 @@
           "critical": false,
           "entry_point": true,
           "docstring": "Tool Mastery Manager \u2014 CLI."
+        },
+        {
+          "path": "scripts/validate_w0_coherence_dry.py",
+          "score": 8,
+          "module": "scripts.validate_w0_coherence_dry",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "W0 Dry Validation with Coherence Envelope."
         },
         {
           "path": "scripts/query_graph.py",
@@ -323,6 +307,22 @@
           "critical": false,
           "entry_point": true,
           "docstring": "github_trinity_ingest.py \u2014 Clone and ingest the three core repos via canonical pipeline."
+        },
+        {
+          "path": "scripts/incremental_graph.py",
+          "score": 6,
+          "module": "scripts.incremental_graph",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "incremental_graph.py \u2014 Dirty-set incremental updates for the codebase graph."
+        },
+        {
+          "path": "scripts/ingest_conversations.py",
+          "score": 6,
+          "module": "scripts.ingest_conversations",
+          "critical": false,
+          "entry_point": true,
+          "docstring": "Batch ingest conversation exports into UMH canonical memory store."
         }
       ]
     },
@@ -341,37 +341,37 @@
     {
       "id": "cluster_000",
       "label": "substrate/execution/cpu_gate.py",
-      "size": 101,
+      "size": 123,
       "path": "knowledge/palace/candidates/cluster_000.md"
     },
     {
       "id": "cluster_001",
       "label": "adapters/models/model_router.py",
-      "size": 65,
+      "size": 68,
       "path": "knowledge/palace/candidates/cluster_001.md"
     },
     {
       "id": "cluster_002",
       "label": "substrate/organism/daemon.py",
-      "size": 59,
+      "size": 63,
       "path": "knowledge/palace/candidates/cluster_002.md"
     },
     {
       "id": "cluster_003",
       "label": "transports/api/governed.py",
-      "size": 57,
+      "size": 61,
       "path": "knowledge/palace/candidates/cluster_003.md"
     },
     {
       "id": "cluster_004",
       "label": "substrate/sockets/envelopes.py",
-      "size": 36,
+      "size": 38,
       "path": "knowledge/palace/candidates/cluster_004.md"
     },
     {
       "id": "cluster_005",
-      "label": "adapters/adapter_engine/adapter_manifest.py",
-      "size": 30,
+      "label": "substrate/execution/bridge/storage.py",
+      "size": 32,
       "path": "knowledge/palace/candidates/cluster_005.md"
     },
     {
@@ -382,189 +382,327 @@
     },
     {
       "id": "cluster_007",
-      "label": "substrate/execution/bridge/storage.py",
-      "size": 30,
+      "label": "adapters/adapter_engine/adapter_manifest.py",
+      "size": 28,
       "path": "knowledge/palace/candidates/cluster_007.md"
     },
     {
       "id": "cluster_008",
-      "label": "projections/eos/agents/ceo.py",
-      "size": 19,
+      "label": "substrate/types.py",
+      "size": 28,
       "path": "knowledge/palace/candidates/cluster_008.md"
     },
     {
       "id": "cluster_009",
-      "label": "substrate/types.py",
-      "size": 19,
+      "label": "substrate/canonical_types.py",
+      "size": 22,
       "path": "knowledge/palace/candidates/cluster_009.md"
     },
     {
       "id": "cluster_010",
-      "label": "substrate/organism/agent_runtime.py",
-      "size": 17,
+      "label": "scripts/github_trinity_ingest.py",
+      "size": 20,
       "path": "knowledge/palace/candidates/cluster_010.md"
     },
     {
       "id": "cluster_011",
-      "label": "substrate/execution/bridge/local_listener.py",
-      "size": 15,
+      "label": "scripts/run_reconciliation_ingestion.py",
+      "size": 20,
       "path": "knowledge/palace/candidates/cluster_011.md"
     },
     {
       "id": "cluster_012",
-      "label": "scripts/github_trinity_ingest.py",
-      "size": 14,
+      "label": "projections/eos/agents/ceo.py",
+      "size": 17,
       "path": "knowledge/palace/candidates/cluster_012.md"
     },
     {
       "id": "cluster_013",
-      "label": "scripts/run_reconciliation_ingestion.py",
-      "size": 14,
+      "label": "substrate/organism/agent_runtime.py",
+      "size": 17,
       "path": "knowledge/palace/candidates/cluster_013.md"
     },
     {
       "id": "cluster_014",
-      "label": "substrate/execution/bridge/actions.py",
-      "size": 14,
+      "label": "scripts/c40b_phases/embodiment_harness.py",
+      "size": 16,
       "path": "knowledge/palace/candidates/cluster_014.md"
     },
     {
       "id": "cluster_015",
-      "label": "substrate/self_model.py",
-      "size": 13,
+      "label": "substrate/execution/bridge/local_listener.py",
+      "size": 15,
       "path": "knowledge/palace/candidates/cluster_015.md"
     },
     {
       "id": "cluster_016",
-      "label": "substrate/organism/canonical_update.py",
-      "size": 12,
+      "label": "substrate/execution/bridge/actions.py",
+      "size": 14,
       "path": "knowledge/palace/candidates/cluster_016.md"
     },
     {
       "id": "cluster_017",
-      "label": "scripts/build_skill_graph.py",
-      "size": 10,
+      "label": "substrate/organism/strategic_gap_engine.py",
+      "size": 14,
       "path": "knowledge/palace/candidates/cluster_017.md"
     },
     {
       "id": "cluster_018",
-      "label": "substrate/control_plane/actions/deferred.py",
-      "size": 10,
+      "label": "substrate/self_model.py",
+      "size": 14,
       "path": "knowledge/palace/candidates/cluster_018.md"
     },
     {
       "id": "cluster_019",
       "label": "substrate/execution/runtime/workpacket_execution_gate_v1.py",
-      "size": 10,
+      "size": 12,
       "path": "knowledge/palace/candidates/cluster_019.md"
     },
     {
       "id": "cluster_020",
-      "label": "scripts/c40b_phases/embodiment_harness.py",
-      "size": 9,
+      "label": "substrate/organism/canonical_update.py",
+      "size": 12,
       "path": "knowledge/palace/candidates/cluster_020.md"
     },
     {
       "id": "cluster_021",
-      "label": "substrate/operator/operator_presence.py",
-      "size": 9,
+      "label": "adapters/broadcast/ffmpeg_args.py",
+      "size": 10,
       "path": "knowledge/palace/candidates/cluster_021.md"
     },
     {
       "id": "cluster_022",
-      "label": "adapters/tool_adapters/filesystem.py",
-      "size": 8,
+      "label": "nodes/windows/umh_node/client.py",
+      "size": 10,
       "path": "knowledge/palace/candidates/cluster_022.md"
     },
     {
       "id": "cluster_023",
-      "label": "substrate/organism/autonomous_cadence.py",
-      "size": 8,
+      "label": "scripts/build_skill_graph.py",
+      "size": 10,
       "path": "knowledge/palace/candidates/cluster_023.md"
     },
     {
       "id": "cluster_024",
-      "label": "adapters/broadcast/ffmpeg_args.py",
-      "size": 7,
+      "label": "substrate/control_plane/actions/deferred.py",
+      "size": 10,
       "path": "knowledge/palace/candidates/cluster_024.md"
     },
     {
       "id": "cluster_025",
-      "label": "substrate/organism/impact_analyzer.py",
-      "size": 7,
+      "label": "substrate/control_plane/actions/notifier.py",
+      "size": 9,
       "path": "knowledge/palace/candidates/cluster_025.md"
     },
     {
       "id": "cluster_026",
-      "label": "substrate/organism/tests/test_phase11_1_universal_work.py",
-      "size": 7,
+      "label": "substrate/operator/operator_presence.py",
+      "size": 9,
       "path": "knowledge/palace/candidates/cluster_026.md"
     },
     {
       "id": "cluster_027",
-      "label": "transports/api/runtime.py",
-      "size": 7,
+      "label": "substrate/organism/benchmarks/harness_superiority.py",
+      "size": 9,
       "path": "knowledge/palace/candidates/cluster_027.md"
     },
     {
       "id": "cluster_028",
-      "label": "adapters/browser_exports/contract.py",
-      "size": 6,
+      "label": "substrate/organism/device_role_registry.py",
+      "size": 9,
       "path": "knowledge/palace/candidates/cluster_028.md"
     },
     {
       "id": "cluster_029",
-      "label": "substrate/composition/mastery/authoring/draft.py",
-      "size": 6,
+      "label": "substrate/workstation/mode_commands.py",
+      "size": 9,
       "path": "knowledge/palace/candidates/cluster_029.md"
     },
     {
       "id": "cluster_030",
-      "label": "substrate/organism/benchmark_harness.py",
-      "size": 6,
+      "label": "adapters/tool_adapters/filesystem.py",
+      "size": 8,
       "path": "knowledge/palace/candidates/cluster_030.md"
     },
     {
       "id": "cluster_031",
-      "label": "substrate/organism/device_role_registry.py",
-      "size": 6,
+      "label": "nodes/windows/umh_node/adapters/clipboard.py",
+      "size": 8,
       "path": "knowledge/palace/candidates/cluster_031.md"
     },
     {
       "id": "cluster_032",
-      "label": "substrate/organism/projection_source_registry.py",
-      "size": 6,
+      "label": "substrate/execution/feedback.py",
+      "size": 8,
       "path": "knowledge/palace/candidates/cluster_032.md"
     },
     {
       "id": "cluster_033",
-      "label": "substrate/organism/runtime_adapter.py",
-      "size": 6,
+      "label": "substrate/meta_ide/engineering_session_coordinator.py",
+      "size": 8,
       "path": "knowledge/palace/candidates/cluster_033.md"
     },
     {
       "id": "cluster_034",
-      "label": "scripts/inbox_gps_afternoon.py",
-      "size": 5,
+      "label": "substrate/organism/source_truth_linker.py",
+      "size": 8,
       "path": "knowledge/palace/candidates/cluster_034.md"
     },
     {
       "id": "cluster_035",
-      "label": "substrate/control_plane/goals/goal_selector.py",
-      "size": 5,
+      "label": "scripts/validate_w0_coherence_dry.py",
+      "size": 7,
       "path": "knowledge/palace/candidates/cluster_035.md"
     },
     {
       "id": "cluster_036",
-      "label": "substrate/execution/bridge/voice_session.py",
-      "size": 5,
+      "label": "substrate/execution/mastery_gate.py",
+      "size": 7,
       "path": "knowledge/palace/candidates/cluster_036.md"
     },
     {
       "id": "cluster_037",
-      "label": "substrate/execution/feedback.py",
-      "size": 5,
+      "label": "substrate/organism/impact_analyzer.py",
+      "size": 7,
       "path": "knowledge/palace/candidates/cluster_037.md"
+    },
+    {
+      "id": "cluster_038",
+      "label": "substrate/organism/runtime_adapter.py",
+      "size": 7,
+      "path": "knowledge/palace/candidates/cluster_038.md"
+    },
+    {
+      "id": "cluster_039",
+      "label": "substrate/organism/tests/test_phase11_1_universal_work.py",
+      "size": 7,
+      "path": "knowledge/palace/candidates/cluster_039.md"
+    },
+    {
+      "id": "cluster_040",
+      "label": "tests/test_c16_integration.py",
+      "size": 7,
+      "path": "knowledge/palace/candidates/cluster_040.md"
+    },
+    {
+      "id": "cluster_041",
+      "label": "tests/test_capability_intelligence_integration.py",
+      "size": 7,
+      "path": "knowledge/palace/candidates/cluster_041.md"
+    },
+    {
+      "id": "cluster_042",
+      "label": "tests/test_meta_ide_context_runtime.py",
+      "size": 7,
+      "path": "knowledge/palace/candidates/cluster_042.md"
+    },
+    {
+      "id": "cluster_043",
+      "label": "transports/api/runtime.py",
+      "size": 7,
+      "path": "knowledge/palace/candidates/cluster_043.md"
+    },
+    {
+      "id": "cluster_044",
+      "label": "transports/discord/interface_adapter_v1.py",
+      "size": 7,
+      "path": "knowledge/palace/candidates/cluster_044.md"
+    },
+    {
+      "id": "cluster_045",
+      "label": "adapters/browser_exports/contract.py",
+      "size": 6,
+      "path": "knowledge/palace/candidates/cluster_045.md"
+    },
+    {
+      "id": "cluster_046",
+      "label": "adapters/notion/integration/poller.py",
+      "size": 6,
+      "path": "knowledge/palace/candidates/cluster_046.md"
+    },
+    {
+      "id": "cluster_047",
+      "label": "substrate/composition/mastery/authoring/draft.py",
+      "size": 6,
+      "path": "knowledge/palace/candidates/cluster_047.md"
+    },
+    {
+      "id": "cluster_048",
+      "label": "substrate/organism/projection_source_registry.py",
+      "size": 6,
+      "path": "knowledge/palace/candidates/cluster_048.md"
+    },
+    {
+      "id": "cluster_049",
+      "label": "tests/test_decision_impact_engine.py",
+      "size": 6,
+      "path": "knowledge/palace/candidates/cluster_049.md"
+    },
+    {
+      "id": "cluster_050",
+      "label": "tests/test_vision.py",
+      "size": 6,
+      "path": "knowledge/palace/candidates/cluster_050.md"
+    },
+    {
+      "id": "cluster_051",
+      "label": "scripts/inbox_gps_afternoon.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_051.md"
+    },
+    {
+      "id": "cluster_052",
+      "label": "substrate/control_plane/goals/goal_selector.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_052.md"
+    },
+    {
+      "id": "cluster_053",
+      "label": "substrate/execution/bridge/voice_session.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_053.md"
+    },
+    {
+      "id": "cluster_054",
+      "label": "substrate/meta_ide/engineering_planner.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_054.md"
+    },
+    {
+      "id": "cluster_055",
+      "label": "tests/test_attention_aggregation_runtime.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_055.md"
+    },
+    {
+      "id": "cluster_056",
+      "label": "tests/test_c19_integration.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_056.md"
+    },
+    {
+      "id": "cluster_057",
+      "label": "tests/test_c23b_organism_audits.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_057.md"
+    },
+    {
+      "id": "cluster_058",
+      "label": "tests/test_c23b_production_benchmarks.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_058.md"
+    },
+    {
+      "id": "cluster_059",
+      "label": "tests/test_context_resolution.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_059.md"
+    },
+    {
+      "id": "cluster_060",
+      "label": "tests/test_vision_14_16.py",
+      "size": 5,
+      "path": "knowledge/palace/candidates/cluster_060.md"
     }
   ]
 }

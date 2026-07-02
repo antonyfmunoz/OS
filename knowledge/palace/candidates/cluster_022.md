@@ -2,28 +2,30 @@
 type: palace-candidate
 cluster_id: cluster_022
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — adapters/tool_adapters/filesystem.py
+# Candidate Cluster — nodes/windows/umh_node/client.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 8 files  
-**Seed label:** `adapters/tool_adapters/filesystem.py`
+**Size:** 10 files  
+**Seed label:** `nodes/windows/umh_node/client.py`
 
 ## Members
 
-- `adapters/broadcast/integration/manifest.py`
-- `adapters/notion/integration/manifest.py`
-- `adapters/tool_adapters/base.py`
-- `adapters/tool_adapters/filesystem.py`
-- `adapters/tool_adapters/git.py`
-- `adapters/tool_adapters/shell.py`
-- `adapters/tool_adapters/tmux.py`
-- `substrate/governance/risk_classes.py`
+- `nodes/windows/umh_node/adapters/camera.py`
+- `nodes/windows/umh_node/adapters/container.py`
+- `nodes/windows/umh_node/adapters/desktop_stream.py`
+- `nodes/windows/umh_node/adapters/filesystem.py`
+- `nodes/windows/umh_node/adapters/hermes.py`
+- `nodes/windows/umh_node/adapters/shell.py`
+- `nodes/windows/umh_node/client.py`
+- `nodes/windows/umh_node/metrics.py`
+- `nodes/windows/umh_node/peripheral_scanner.py`
+- `nodes/windows/umh_node/subprocess_utils.py`
 
 ## Traversal
 

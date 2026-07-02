@@ -2,7 +2,7 @@
 type: palace-candidate
 cluster_id: cluster_019
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Candidate Cluster — substrate/execution/runtime/workpacket_execution_gate_v1.py
@@ -11,7 +11,7 @@ generated: 2026-07-01
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 10 files  
+**Size:** 12 files  
 **Seed label:** `substrate/execution/runtime/workpacket_execution_gate_v1.py`
 
 ## Members
@@ -25,6 +25,8 @@ generated: 2026-07-01
 - `substrate/execution/runtime/workpacket_execution_gate_v1.py`
 - `substrate/governance/policy/execution_authority_engine_v1.py`
 - `substrate/state/transformation_state_ledger.py`
+- `tests/test_execution_authority_engine_v1.py`
+- `tests/test_transformation_state_ledger.py`
 - `transports/discord/spine_integration_v1.py`
 
 ## Traversal

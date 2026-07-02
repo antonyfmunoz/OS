@@ -2,32 +2,34 @@
 type: palace-candidate
 cluster_id: cluster_016
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — substrate/organism/canonical_update.py
+# Candidate Cluster — substrate/execution/bridge/actions.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 12 files  
-**Seed label:** `substrate/organism/canonical_update.py`
+**Size:** 14 files  
+**Seed label:** `substrate/execution/bridge/actions.py`
 
 ## Members
 
-- `substrate/organism/advisor_reconciliation.py`
-- `substrate/organism/canonical_update.py`
-- `substrate/organism/context_diagnostic.py`
-- `substrate/organism/context_ingestion_engine.py`
-- `substrate/organism/cross_source_reconciler.py`
-- `substrate/organism/dex_reconciliation.py`
-- `substrate/organism/diagnostic_engine.py`
-- `substrate/organism/ingestion_job.py`
-- `substrate/organism/permission_dialogue.py`
-- `substrate/organism/reconciliation_engine.py`
-- `substrate/organism/reconciliation_session.py`
-- `substrate/organism/source_registry.py`
+- `scripts/substrate_claude_session_cli.py`
+- `scripts/substrate_operator_cli.py`
+- `substrate/execution/bridge/actions.py`
+- `substrate/execution/bridge/app_allowlist.py`
+- `substrate/execution/bridge/capabilities.py`
+- `substrate/execution/bridge/capability_tagging.py`
+- `substrate/execution/bridge/claude_responder.py`
+- `substrate/execution/bridge/scene_capabilities.py`
+- `substrate/execution/bridge/scene_policy.py`
+- `substrate/execution/bridge/scenes.py`
+- `substrate/execution/bridge/station.py`
+- `substrate/execution/bridge/station_bus.py`
+- `substrate/execution/bridge/station_daemon.py`
+- `substrate/execution/bridge/station_helpers.py`
 
 ## Traversal
 

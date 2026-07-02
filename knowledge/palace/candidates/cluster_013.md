@@ -2,34 +2,37 @@
 type: palace-candidate
 cluster_id: cluster_013
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — scripts/run_reconciliation_ingestion.py
+# Candidate Cluster — substrate/organism/agent_runtime.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 14 files  
-**Seed label:** `scripts/run_reconciliation_ingestion.py`
+**Size:** 17 files  
+**Seed label:** `substrate/organism/agent_runtime.py`
 
 ## Members
 
-- `adapters/adapter_engine/gws_scanner_bridge_v1.py`
-- `adapters/adapter_engine/substrate_candidate_gen_v1.py`
-- `adapters/adapter_engine/substrate_decomposer_v1.py`
-- `scripts/run_reconciliation_ingestion.py`
-- `scripts/run_reconciliation_query_validation.py`
-- `scripts/run_reconciliation_replay_validation.py`
-- `substrate/ontology/domains/creator.py`
-- `substrate/ontology/domains/life.py`
-- `substrate/state/memory/contracts/canonical_memory_reconciliation_engine_v1.py`
-- `substrate/state/memory/contracts/canonical_memory_store_v1.py`
-- `substrate/understanding/domains/creator.py`
-- `substrate/understanding/domains/life.py`
-- `substrate/understanding/interpretation/interpretation_engine_v1.py`
-- `substrate/understanding/ontology/primitive_decomposition_v1.py`
+- `substrate/contracts/organism_protocol.py`
+- `substrate/organism/advisor.py`
+- `substrate/organism/agent_runtime.py`
+- `substrate/organism/agents.py`
+- `substrate/organism/delegation_followup.py`
+- `substrate/organism/handoff.py`
+- `substrate/organism/parallel.py`
+- `substrate/organism/protocols.py`
+- `substrate/organism/store.py`
+- `substrate/organism/tests/test_advisor.py`
+- `substrate/organism/tests/test_agent_runtime.py`
+- `substrate/organism/tests/test_e2e.py`
+- `substrate/organism/tests/test_organism_events.py`
+- `substrate/organism/tests/test_protocols.py`
+- `substrate/organism/tests/test_store.py`
+- `substrate/organism/tests/test_worker_cell.py`
+- `substrate/organism/worker_cell.py`
 
 ## Traversal
 

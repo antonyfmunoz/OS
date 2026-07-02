@@ -2,25 +2,27 @@
 type: palace-candidate
 cluster_id: cluster_035
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — substrate/control_plane/goals/goal_selector.py
+# Candidate Cluster — scripts/validate_w0_coherence_dry.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 5 files  
-**Seed label:** `substrate/control_plane/goals/goal_selector.py`
+**Size:** 7 files  
+**Seed label:** `scripts/validate_w0_coherence_dry.py`
 
 ## Members
 
-- `scripts/goals.py`
-- `scripts/loop_runner.py`
-- `services/goal_api.py`
-- `substrate/control_plane/goals/goal_selector.py`
-- `substrate/execution/loop/execution_loop.py`
+- `nodes/environments/execution_binding_validator.py`
+- `nodes/environments/packet_validator.py`
+- `nodes/environments/w0_packet_builder.py`
+- `scripts/validate_w0_coherence_dry.py`
+- `substrate/control_plane/invariants/coherence_gate.py`
+- `substrate/control_plane/invariants/spine_coherence_validator.py`
+- `substrate/control_plane/invariants/spine_lineage_contracts.py`
 
 ## Traversal
 

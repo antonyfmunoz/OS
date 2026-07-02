@@ -2,33 +2,35 @@
 type: palace-candidate
 cluster_id: cluster_015
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — substrate/self_model.py
+# Candidate Cluster — substrate/execution/bridge/local_listener.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 13 files  
-**Seed label:** `substrate/self_model.py`
+**Size:** 15 files  
+**Seed label:** `substrate/execution/bridge/local_listener.py`
 
 ## Members
 
-- `substrate/control_plane/delegation/delegation_tracker.py`
-- `substrate/control_plane/events/event_manager.py`
-- `substrate/control_plane/scheduling/daily_sync.py`
-- `substrate/control_plane/scheduling/ideal_week.py`
-- `substrate/control_plane/scheduling/personal_admin.py`
-- `substrate/control_plane/strategy/task_yield_matrix.py`
-- `substrate/self_model.py`
-- `substrate/state/finance/expense_tracker.py`
-- `substrate/state/finance/subscription_tracker.py`
-- `substrate/state/metrics/founder_rate.py`
-- `substrate/state/metrics/okr_tracker.py`
-- `substrate/understanding/intelligence/stakeholder_map.py`
-- `substrate/understanding/signals/founder_capture.py`
+- `scripts/substrate_local_listener.py`
+- `scripts/substrate_wake_producer_cli.py`
+- `substrate/execution/bridge/day_workflows.py`
+- `substrate/execution/bridge/local_listener.py`
+- `substrate/execution/bridge/nodes.py`
+- `substrate/execution/bridge/operator_session.py`
+- `substrate/execution/bridge/result_query.py`
+- `substrate/execution/bridge/result_store.py`
+- `substrate/execution/bridge/ritual_body.py`
+- `substrate/execution/bridge/ritual_inference.py`
+- `substrate/execution/bridge/ritual_runner.py`
+- `substrate/execution/bridge/rituals.py`
+- `substrate/execution/bridge/station_readiness.py`
+- `substrate/execution/bridge/storage.py`
+- `substrate/execution/bridge/wake_producer.py`
 
 ## Traversal
 

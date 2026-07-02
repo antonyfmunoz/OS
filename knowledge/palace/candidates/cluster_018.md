@@ -2,30 +2,34 @@
 type: palace-candidate
 cluster_id: cluster_018
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — substrate/control_plane/actions/deferred.py
+# Candidate Cluster — substrate/self_model.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 10 files  
-**Seed label:** `substrate/control_plane/actions/deferred.py`
+**Size:** 14 files  
+**Seed label:** `substrate/self_model.py`
 
 ## Members
 
-- `scripts/emit_signal.py`
-- `scripts/orchestrator_loop.py`
-- `scripts/orchestrator_status.py`
-- `substrate/control_plane/actions/deferred.py`
-- `substrate/control_plane/actions/logging.py`
-- `substrate/control_plane/runtime/orchestrator/decisions.py`
-- `substrate/control_plane/runtime/orchestrator/loop.py`
-- `substrate/control_plane/runtime/orchestrator/orchestrator.py`
-- `substrate/control_plane/runtime/orchestrator/signals.py`
-- `substrate/control_plane/runtime/orchestrator/workflows.py`
+- `substrate/control_plane/delegation/delegation_tracker.py`
+- `substrate/control_plane/events/event_manager.py`
+- `substrate/control_plane/scheduling/daily_sync.py`
+- `substrate/control_plane/scheduling/ideal_week.py`
+- `substrate/control_plane/scheduling/personal_admin.py`
+- `substrate/control_plane/strategy/task_yield_matrix.py`
+- `substrate/self_model.py`
+- `substrate/state/finance/expense_tracker.py`
+- `substrate/state/finance/subscription_tracker.py`
+- `substrate/state/metrics/founder_rate.py`
+- `substrate/state/metrics/okr_tracker.py`
+- `substrate/understanding/intelligence/stakeholder_map.py`
+- `substrate/understanding/signals/founder_capture.py`
+- `tests/test_self_model.py`
 
 ## Traversal
 

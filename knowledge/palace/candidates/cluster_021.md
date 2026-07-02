@@ -2,29 +2,30 @@
 type: palace-candidate
 cluster_id: cluster_021
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
-# Candidate Cluster — substrate/operator/operator_presence.py
+# Candidate Cluster — adapters/broadcast/ffmpeg_args.py
 
 > **UNCURATED.** This cluster was auto-detected by Graphify overlay.
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 9 files  
-**Seed label:** `substrate/operator/operator_presence.py`
+**Size:** 10 files  
+**Seed label:** `adapters/broadcast/ffmpeg_args.py`
 
 ## Members
 
-- `substrate/operator/continuity_engine.py`
-- `substrate/operator/device_continuity.py`
-- `substrate/operator/operator_presence.py`
-- `substrate/operator/presence_timeline.py`
-- `substrate/operator/repository_context_resolver.py`
-- `substrate/operator/screen_awareness.py`
-- `substrate/operator/screen_context_providers.py`
-- `substrate/operator/screen_observation_engine.py`
-- `substrate/operator/workstation_translator.py`
+- `adapters/broadcast/engine.py`
+- `adapters/broadcast/ffmpeg_args.py`
+- `adapters/broadcast/filtergraph.py`
+- `adapters/broadcast/process_lifecycle.py`
+- `adapters/broadcast/scene_model.py`
+- `adapters/broadcast/zmq_client.py`
+- `nodes/windows/umh_node/adapters/broadcast.py`
+- `tests/adapters/broadcast/test_filtergraph.py`
+- `tests/adapters/broadcast/test_process_lifecycle.py`
+- `transports/api/cockpit_broadcast_routes.py`
 
 ## Traversal
 

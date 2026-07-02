@@ -2,7 +2,7 @@
 type: palace-candidate
 cluster_id: cluster_003
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Candidate Cluster — transports/api/governed.py
@@ -11,7 +11,7 @@ generated: 2026-07-01
 > It is NOT part of the curated palace. Promote to a real room by
 > editing `scripts/build_palace.py` ROOM_DEFS if the grouping is useful.
 
-**Size:** 57 files  
+**Size:** 61 files  
 **Seed label:** `transports/api/governed.py`
 
 ## Members
@@ -51,15 +51,19 @@ generated: 2026-07-01
 - `transports/api/cockpit_operating_loop_routes.py`
 - `transports/api/cockpit_operationalization_routes.py`
 - `transports/api/cockpit_operator_experience_routes.py`
+- `transports/api/cockpit_operator_loop_ext_routes.py`
 - `transports/api/cockpit_operator_loop_routes.py`
+- `transports/api/cockpit_operator_loop_session_routes.py`
 - `transports/api/cockpit_orchestrator_presence_routes.py`
 - `transports/api/cockpit_organism_routes.py`
 - `transports/api/cockpit_presence_routes.py`
 - `transports/api/cockpit_projection_integration_routes.py`
 - `transports/api/cockpit_projection_routes.py`
+- `transports/api/cockpit_proof_inspector_routes.py`
 - `transports/api/cockpit_propagation_graph_routes.py`
 - `transports/api/cockpit_push_routes.py`
 - `transports/api/cockpit_reality_model_routes.py`
+- `transports/api/cockpit_recovery_dashboard_routes.py`
 - `transports/api/cockpit_runtime_surface_routes.py`
 - `transports/api/cockpit_self_build_routes.py`
 - `transports/api/cockpit_self_improvement_routes.py`

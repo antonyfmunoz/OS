@@ -2,7 +2,7 @@
 type: palace-candidate
 cluster_id: cluster_006
 source: graphify
-generated: 2026-07-01
+generated: 2026-07-02
 ---
 
 # Candidate Cluster — services/discord_bot_commands.py
