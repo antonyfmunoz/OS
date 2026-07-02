@@ -236,7 +236,8 @@ class ResearchEngine:
             topic, venture_id, summary, confidence, sources_quality,
             knowledge_object, raw_output, researched_at
         """
-        from adapters.scrapling.scrapling_connector import ScraplingConnector
+        from substrate.sockets.browser_port import get_scrapling_connector_class
+        ScraplingConnector = get_scrapling_connector_class()
 
         venture_context = ""
         if venture_id:

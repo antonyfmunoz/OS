@@ -178,7 +178,7 @@ class Council:
     def _call_model(self, prompt: str) -> str | None:
         """Call best available model for council review."""
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             result = call_with_fallback(
                 prompt=prompt,

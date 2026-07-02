@@ -52,6 +52,7 @@ class HealthDimension(str, Enum):
     STUCK_LOOP = "stuck_loop"
     GOVERNANCE_OVERRIDES = "governance_overrides"
     SLO_COMPLIANCE = "slo_compliance"
+    COGNITIVE_LOOP = "cognitive_loop"
 
 
 @dataclass
@@ -159,6 +160,10 @@ class HomeostasisEngine:
         self._mode: SystemMode = SystemMode.HEALTHY
         self._last_check: float = 0.0
         self._slo_metrics_provider: Any = None
+        self._cognitive_metrics_provider: Any = None
+
+    def set_cognitive_metrics_provider(self, provider: Any) -> None:
+        self._cognitive_metrics_provider = provider
 
     def record_execution(self, success: bool, error_detail: str = "") -> None:
         self._executions.append((time.time(), success))
@@ -310,6 +315,7 @@ class HomeostasisEngine:
             self._check_governance_overrides(),
             self._check_throughput(),
             self._check_slo_compliance(),
+            self._check_cognitive_loop(),
         ]
 
         report.dimensions = checks
@@ -473,6 +479,40 @@ class HomeostasisEngine:
                 dimension=HealthDimension.SLO_COMPLIANCE,
                 healthy=True,
                 detail=f"SLO check error: {exc}",
+            )
+
+    def _check_cognitive_loop(self) -> DimensionStatus:
+        if self._cognitive_metrics_provider is None:
+            return DimensionStatus(
+                dimension=HealthDimension.COGNITIVE_LOOP,
+                healthy=True,
+                detail="No cognitive metrics provider configured",
+            )
+
+        try:
+            metrics = self._cognitive_metrics_provider()
+            error_rate = metrics.get("error_rate", 0.0)
+            avg_latency = metrics.get("avg_latency_seconds", 0.0)
+            total = metrics.get("total_executions", 0)
+
+            healthy = error_rate < 0.3 and avg_latency < 60.0
+            return DimensionStatus(
+                dimension=HealthDimension.COGNITIVE_LOOP,
+                value=1.0 - error_rate,
+                threshold=0.7,
+                healthy=healthy,
+                detail=(
+                    f"{total} executions, "
+                    f"error_rate={error_rate:.1%}, "
+                    f"avg_latency={avg_latency:.1f}s"
+                ),
+            )
+        except Exception as exc:
+            logger.debug("cognitive loop check failed: %s", exc)
+            return DimensionStatus(
+                dimension=HealthDimension.COGNITIVE_LOOP,
+                healthy=True,
+                detail=f"Cognitive check error: {exc}",
             )
 
     def _check_throughput(self) -> DimensionStatus:

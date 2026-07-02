@@ -185,7 +185,8 @@ def _handle_new_lead(payload: dict) -> dict:
     Logs the result to memory.db via AgentRuntime.
     """
     from substrate.contracts.agent_types import TaskType
-    from adapters.models.agent_runtime import AgentRuntime
+    from substrate.sockets.intelligence_port import get_agent_runtime
+    AgentRuntime = get_agent_runtime
 
     username = payload.get("username", "unknown")
     score = payload.get("score", 0)
@@ -224,7 +225,8 @@ def _handle_lead_replied(payload: dict) -> dict:
     Analyzes the reply and returns the best next response.
     """
     from substrate.contracts.agent_types import TaskType
-    from adapters.models.agent_runtime import AgentRuntime
+    from substrate.sockets.intelligence_port import get_agent_runtime
+    AgentRuntime = get_agent_runtime
 
     username = payload.get("username", "unknown")
     message = payload.get("message", "")
@@ -371,7 +373,8 @@ def _handle_signal_captured(payload: dict) -> dict:
     Analyzes the signal for ICP relevance and recommended action.
     """
     from substrate.contracts.agent_types import TaskType
-    from adapters.models.agent_runtime import AgentRuntime
+    from substrate.sockets.intelligence_port import get_agent_runtime
+    AgentRuntime = get_agent_runtime
 
     signal_text = payload.get("signal_text", "")
     source = payload.get("source", "unknown")
@@ -402,7 +405,8 @@ def _handle_content_needed(payload: dict) -> dict:
     Generates a hook and content angle for the given topic.
     """
     from substrate.contracts.agent_types import TaskType
-    from adapters.models.agent_runtime import AgentRuntime
+    from substrate.sockets.intelligence_port import get_agent_runtime
+    AgentRuntime = get_agent_runtime
 
     topic = payload.get("topic", "")
     platform = payload.get("platform", "instagram")

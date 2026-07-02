@@ -176,9 +176,11 @@ class WorkPacketExecutor:
 
 def build_default_executor() -> WorkPacketExecutor:
     """Factory that returns a WorkPacketExecutor with all local adapters registered."""
-    from adapters.tool_adapters import FilesystemAdapter, GitAdapter, ShellAdapter, TmuxAdapter
+    from substrate.sockets.tool_adapter_port import get_tool_adapter_class
 
     executor = WorkPacketExecutor()
-    for adapter in (ShellAdapter(), FilesystemAdapter(), GitAdapter(), TmuxAdapter()):
-        executor.register_adapter(adapter)
+    for name in ("shell", "filesystem", "git", "tmux"):
+        cls = get_tool_adapter_class(name)
+        if cls is not None:
+            executor.register_adapter(cls())
     return executor

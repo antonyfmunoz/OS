@@ -53,7 +53,8 @@ class CCSDKAdapter:
         return shutil.which("claude") is not None
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
-        from adapters.models.cc_sdk import query_cc_sync
+        from substrate.sockets.intelligence_port import get_cli_query
+        query_cc_sync = get_cli_query("cc_sdk")
 
         result = query_cc_sync(
             prompt,
@@ -93,12 +94,13 @@ class CodexAdapter:
         )
 
     def check_available(self) -> bool:
-        from adapters.models.codex_cli import is_available
+        from substrate.sockets.intelligence_port import cli_is_available
 
-        return is_available()
+        return cli_is_available("codex")
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
-        from adapters.models.codex_cli import query_codex_sync
+        from substrate.sockets.intelligence_port import get_cli_query
+        query_codex_sync = get_cli_query("codex")
 
         result = query_codex_sync(
             prompt,
@@ -145,12 +147,13 @@ class HermesAdapter:
         )
 
     def check_available(self) -> bool:
-        from adapters.models.hermes_cli import is_available
+        from substrate.sockets.intelligence_port import cli_is_available
 
-        return is_available()
+        return cli_is_available("hermes")
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
-        from adapters.models.hermes_cli import query_hermes_sync
+        from substrate.sockets.intelligence_port import get_cli_query
+        query_hermes_sync = get_cli_query("hermes")
 
         result = query_hermes_sync(
             prompt,
@@ -189,12 +192,13 @@ class OpenCodeAdapter:
         )
 
     def check_available(self) -> bool:
-        from adapters.models.opencode_cli import is_available
+        from substrate.sockets.intelligence_port import cli_is_available
 
-        return is_available()
+        return cli_is_available("opencode")
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
-        from adapters.models.opencode_cli import query_opencode_sync
+        from substrate.sockets.intelligence_port import get_cli_query
+        query_opencode_sync = get_cli_query("opencode")
 
         result = query_opencode_sync(
             prompt,
@@ -238,11 +242,9 @@ class GeminiAdapter:
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
         try:
-            from adapters.models.model_router import (
-                get_router,
-                ModelProvider,
-                MODEL_REGISTRY,
-            )
+            from substrate.sockets.intelligence_port import get_router, get_model_registry
+            from substrate.contracts.agent_types import ModelProvider
+            MODEL_REGISTRY = get_model_registry()
 
             router = get_router()
             configs = [

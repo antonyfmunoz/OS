@@ -180,7 +180,7 @@ class CEOAgent:
 
         try:
             from substrate.contracts.agent_types import TaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             # Discover available agent templates from soul docs on disk
             template_dir = f'{_ROOT}/agents'
             excluded = {'ceo_agent.md', 'portfolio_advisor.md', 'CLAUDE.md'}

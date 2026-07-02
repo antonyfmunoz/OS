@@ -572,7 +572,7 @@ class VoiceEngine:
             system_msg = system
         try:
             from substrate.contracts.agent_types import TaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             router = get_router()
             model = router.route(TaskType.FAST_RESPONSE)
             full_prompt = f'{system_msg}\n\nUser: {prompt}'
@@ -625,7 +625,7 @@ class VoiceEngine:
     def is_running(self) -> bool:
         """Check if local model backend is reachable."""
         try:
-            from adapters.models.model_router import _ollama_available
-            return _ollama_available()
+            from substrate.sockets.intelligence_port import ollama_available
+            return ollama_available()
         except Exception:
             return False

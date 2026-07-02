@@ -295,7 +295,8 @@ class ContextBuilder:
 
         # Layer 1e-viii: NotebookLM insights
         try:
-            from adapters.notebooklm.notebooklm_sync import NotebookLMSync
+            from substrate.sockets.data_source_port import get_notebooklm_sync_class
+            NotebookLMSync = get_notebooklm_sync_class()
             nls = NotebookLMSync(ctx)
             insights = nls.get_recent_insights(
                 venture_id=venture_id or "", limit=3,
@@ -355,7 +356,8 @@ class ContextBuilder:
 
         # Calendar context
         try:
-            from adapters.google_workspace.gws_connector import GWSConnector
+            from substrate.sockets.data_source_port import get_gws_connector_class
+            GWSConnector = get_gws_connector_class()
             gws = GWSConnector()
             events = gws.get_today_events()
             if events:

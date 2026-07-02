@@ -111,7 +111,7 @@ def synthesize_competitive_landscape(venture: str, ctx=None) -> str:
     """
     try:
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         router = get_router()
         model = router.route(TaskType.ANALYSIS) or router.route(TaskType.FAST_RESPONSE)
 

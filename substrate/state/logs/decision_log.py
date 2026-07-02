@@ -109,7 +109,7 @@ class DecisionLog:
         """
         try:
             from substrate.contracts.agent_types import TaskType as RouterTaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             router  = get_router()
             model   = router.route(RouterTaskType.ANALYSIS)
             if not model:

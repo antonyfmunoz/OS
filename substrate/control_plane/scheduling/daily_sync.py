@@ -99,7 +99,8 @@ class DailySync:
         # ── Section 2: Calendar review ────────────────────────────────────
         # Mondays: 6 weeks out. Other days: 2 weeks out.
         try:
-            from adapters.google_workspace.gws_connector import GWSConnector
+            from substrate.sockets.data_source_port import get_gws_connector_class
+            GWSConnector = get_gws_connector_class()
             gws  = GWSConnector()
             days = 42 if is_monday else 14
             events = gws.get_upcoming_events(days=days)
@@ -138,7 +139,7 @@ class DailySync:
         # ── Section 3: Past meetings — open loops ────────────────────────
         # Completed calls with unresolved follow-ups from Notion Meetings DB.
         try:
-            from adapters.calendar.meetings import get_open_loop_meetings
+            from substrate.sockets.data_source_port import get_open_loop_meetings
             _open_loops = get_open_loop_meetings(days_back=7)
             if _open_loops:
                 for m in _open_loops:
@@ -198,7 +199,7 @@ class DailySync:
         if len(agenda.action_items) > 1:
             try:
                 from substrate.contracts.agent_types import TaskType
-                from adapters.models.model_router import get_router
+                from substrate.sockets.intelligence_port import get_router
                 from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
                 import json as _pjson
                 router = get_router()
@@ -239,7 +240,7 @@ class DailySync:
         # ── Section 4c: Goal alignment — does today's top item move the needle?
         try:
             from substrate.contracts.agent_types import TaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
             _router = get_router()
             _model = _router.route(TaskType.FAST_RESPONSE)
@@ -275,7 +276,7 @@ class DailySync:
         # ── 3-3-3 Priority Framework ──────────────────────────────────────────
         try:
             from substrate.contracts.agent_types import TaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             import json as _pjson333
             _router333 = get_router()
             _model333 = _router333.route(TaskType.FAST_RESPONSE)
@@ -384,7 +385,8 @@ Return JSON only:
         # ── Section 6: Emails ────────────────────────────────────────────
         # TO_RESPOND + REVIEW from GPS labels.
         try:
-            from adapters.google_workspace.email_gps import EmailGPS
+            from substrate.sockets.data_source_port import get_email_gps_class
+            EmailGPS = get_email_gps_class()
             gps            = EmailGPS(self.ctx)
             review_emails  = gps.get_emails_for_review(limit=5)
             respond_emails = gps.get_emails_to_respond(limit=5)

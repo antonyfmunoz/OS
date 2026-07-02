@@ -179,7 +179,7 @@ class WorldPulse:
         signals: list[dict] = []
         try:
             from substrate.contracts.agent_types import TaskType as RouterTaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             router = get_router()
 
             # Build a substrate-neutral venture context string from ctx.ventures
@@ -238,7 +238,8 @@ class WorldPulse:
                 'sources_scanned':  list[str],
             }
         """
-        from adapters.scrapling.scrapling_connector import ScraplingConnector
+        from substrate.sockets.browser_port import get_scrapling_connector_class
+        ScraplingConnector = get_scrapling_connector_class()
         sc = ScraplingConnector()
 
         results_summary: list[str] = []
@@ -370,7 +371,8 @@ class WorldPulse:
                 'sources_scanned': list[str],  # one line per source
             }
         """
-        from adapters.scrapling.scrapling_connector import ScraplingConnector
+        from substrate.sockets.browser_port import get_scrapling_connector_class
+        ScraplingConnector = get_scrapling_connector_class()
         sc = ScraplingConnector()
 
         results_summary: list[str] = []
@@ -456,7 +458,8 @@ class WorldPulse:
         gws_ingested = 0
         gws_skipped  = 0
         try:
-            from adapters.google_workspace.gws_scanner import GWSDocumentScanner
+            from substrate.sockets.data_source_port import get_gws_scanner_class
+            GWSDocumentScanner = get_gws_scanner_class()
             gws = GWSDocumentScanner(self.ctx)
             docs = gws.scan_all(limit=200, incremental=True)
             gws_skipped = gws._scan_skipped
@@ -499,7 +502,8 @@ class WorldPulse:
 
         # Sync pulse report to NotebookLM
         try:
-            from adapters.notebooklm.notebooklm_sync import NotebookLMSync
+            from substrate.sockets.data_source_port import get_notebooklm_sync_class
+            NotebookLMSync = get_notebooklm_sync_class()
             nls = NotebookLMSync(self.ctx)
             nls.sync_world_pulse_to_notebook(report)
         except Exception as e:
@@ -509,7 +513,8 @@ class WorldPulse:
         try:
             from datetime import datetime as _dt
             if _dt.now().weekday() == 5:  # Saturday
-                from adapters.notebooklm.notebooklm_sync import NotebookLMSync
+                from substrate.sockets.data_source_port import get_notebooklm_sync_class
+                NotebookLMSync = get_notebooklm_sync_class()
                 nls = NotebookLMSync(self.ctx)
                 nls.check_and_update()
         except Exception as e:

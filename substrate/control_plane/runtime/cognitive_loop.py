@@ -27,6 +27,7 @@ Usage:
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 import json, logging, os, re, sys, uuid, tempfile, time as _time
 
 from substrate.self_model import get_handler_prefix as _ghp
@@ -309,6 +310,143 @@ class CognitiveLoop:
         self._last_transcript: str = ""
         # Ordering — monotonic turn counter for in-order processing
         self._turn_counter: int = 0
+        # Phase 2 bridge — late-binding organism wiring (null-safe)
+        self._governed_spine: Any = None
+        self._outcome_learning: Any = None
+        self._world_model: Any = None
+        self._homeostasis: Any = None
+        # Cognitive metrics for homeostasis reporting
+        self._exec_count: int = 0
+        self._exec_errors: int = 0
+        self._exec_total_latency: float = 0.0
+
+    # ─── Phase 2: Late-binding organism setters ──────────────────────────────
+
+    def set_governed_spine(self, spine: Any) -> None:
+        self._governed_spine = spine
+
+    def set_outcome_learning(self, learning: Any) -> None:
+        self._outcome_learning = learning
+
+    def set_world_model(self, world_model: Any) -> None:
+        self._world_model = world_model
+
+    def set_homeostasis(self, homeostasis: Any) -> None:
+        self._homeostasis = homeostasis
+
+    def cognitive_metrics(self) -> dict:
+        """Provide cognitive loop health metrics for homeostasis."""
+        return {
+            "total_executions": self._exec_count,
+            "error_rate": (
+                self._exec_errors / self._exec_count
+                if self._exec_count > 0
+                else 0.0
+            ),
+            "avg_latency_seconds": (
+                self._exec_total_latency / self._exec_count
+                if self._exec_count > 0
+                else 0.0
+            ),
+        }
+
+    # ─── Phase 2: Governed execution bridge ──────────────────────────────────
+
+    def _governed_execute(
+        self,
+        task_type: Any,
+        prompt: str,
+        venture_id: str | None,
+        skill_name: str | None,
+        agent: str,
+        system_extra: str | None = None,
+        raw_input: str | None = None,
+    ) -> Any:
+        """Execute through governed spine when bridge is active, else direct."""
+        _use_bridge = (
+            self._governed_spine is not None
+            and os.environ.get("UMH_COGNITIVE_BRIDGE")
+        )
+
+        if not _use_bridge:
+            return self.runtime.run(
+                task_type=task_type,
+                prompt=prompt,
+                venture_id=venture_id,
+                skill_name=skill_name,
+                agent=agent,
+                ctx=self.ctx,
+                system_extra=system_extra,
+                raw_input=raw_input,
+            )
+
+        from substrate.organism.action_envelope import (
+            ActionEnvelope,
+            ActionType,
+            BlastRadius,
+            ReversibilityClass,
+        )
+
+        _runtime_ref = self.runtime
+        _ctx_ref = self.ctx
+        _run_kwargs = dict(
+            task_type=task_type,
+            prompt=prompt,
+            venture_id=venture_id,
+            skill_name=skill_name,
+            agent=agent,
+            ctx=_ctx_ref,
+            system_extra=system_extra,
+            raw_input=raw_input,
+        )
+        _captured_result = {}
+
+        def _execute_fn() -> tuple[str, bool]:
+            r = _runtime_ref.run(**_run_kwargs)
+            _captured_result["runtime_result"] = r
+            _ok = bool(r.output and r.output.strip())
+            return (r.output or "", _ok)
+
+        envelope = ActionEnvelope(
+            intent=f"cognitive_execution:{agent}:{str(task_type)}",
+            action_type=ActionType.STATE,
+            source="cognitive_loop",
+            execute_fn=_execute_fn,
+            risk_level="medium",
+            blast_radius=BlastRadius.SINGLE_SERVICE,
+            reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+            metadata={
+                "mutation_name": "cognitive_execution",
+                "agent": agent,
+                "task_type": str(task_type),
+                "venture_id": venture_id or "",
+                "session_id": self.session_id,
+            },
+        )
+
+        executed = self._governed_spine.submit(envelope)
+        logger.info(
+            "cognitive bridge: spine returned status=%s for %s",
+            executed.status.value,
+            envelope.envelope_id,
+        )
+
+        if "runtime_result" in _captured_result:
+            return _captured_result["runtime_result"]
+
+        # Spine rejected or queued — return the envelope output as fallback
+        class _SpineResult:
+            def __init__(self):
+                self.output = executed.result_output or ""
+                self.model_used = "governed_spine"
+                self.tokens_used = {}
+                self.cost_usd = 0.0
+                self.duration_ms = 0
+                self.skill_used = None
+                self.interaction_id = None
+                self.authority = None
+
+        return _SpineResult()
 
     # ─── Public: run ─────────────────────────────────────────────────────────
 
@@ -530,6 +668,20 @@ class CognitiveLoop:
         enhanced_prompt = enhanced
         system_extra = _unified.to_system_prompt() or None
 
+        # 2e. UNDERSTAND — inject organism self-model (system health/readiness)
+        if self._world_model is not None:
+            try:
+                _wm_summary = self._world_model.summary()
+                _health_ctx = (
+                    f"\n[ORGANISM STATE] "
+                    f"status={_wm_summary.get('status', 'unknown')}, "
+                    f"categories={_wm_summary.get('category_count', 0)}, "
+                    f"gaps={_wm_summary.get('gap_count', 0)}"
+                )
+                system_extra = (system_extra or "") + _health_ctx
+            except Exception as _wm_err:
+                logger.debug("world model injection failed: %s", _wm_err)
+
         # 3. PLAN — authority check before committing
         action_type = self._infer_action_type(task_type)
         authority_check = self.authority.check_can_execute(action_type, workflow_id)
@@ -546,18 +698,35 @@ class CognitiveLoop:
                 authority=authority_check,
             )
 
-        # 4. EXECUTE — initial run through agent runtime
-        # Deterministic-first: if runtime.run() throws or returns empty,
-        # fall back to intent-aware deterministic response.
+        # 3b. PLAN — strategic enrichment (additive, never blocks)
+        if self._world_model is not None and os.environ.get("UMH_COGNITIVE_BRIDGE"):
+            try:
+                from substrate.organism.strategic_planning_engine import (
+                    StrategicPlanningEngine,
+                )
+
+                _planner = StrategicPlanningEngine(self._world_model)
+                _snapshot = _planner.snapshot()
+                if _snapshot.get("active_goals"):
+                    _goal_ctx = (
+                        f"\n[STRATEGIC CONTEXT] "
+                        f"active_goals={len(_snapshot.get('active_goals', []))}, "
+                        f"top_goal={_snapshot['active_goals'][0].get('id', 'unknown') if _snapshot.get('active_goals') else 'none'}"
+                    )
+                    system_extra = (system_extra or "") + _goal_ctx
+            except Exception as _plan_err:
+                logger.debug("strategic planning enrichment failed: %s", _plan_err)
+
+        # 4. EXECUTE — through governed spine when bridge is active
         _execute_failed = False
+        _exec_start = _time.monotonic()
         try:
-            result = self.runtime.run(
+            result = self._governed_execute(
                 task_type=task_type,
                 prompt=enhanced,
                 venture_id=venture_id,
                 skill_name=skill_name,
                 agent=agent,
-                ctx=self.ctx,
                 system_extra=system_extra,
                 raw_input=_true_raw_input,
             )
@@ -583,6 +752,11 @@ class CognitiveLoop:
                 },
             )
             _execute_failed = True
+        _exec_duration = _time.monotonic() - _exec_start
+        self._exec_count += 1
+        self._exec_total_latency += _exec_duration
+        if _execute_failed:
+            self._exec_errors += 1
 
         if _execute_failed:
 
@@ -700,6 +874,32 @@ class CognitiveLoop:
 
         # 6. REFLECT — extract learnings from iteration count
         reflection = self._reflect(text, result.output, iteration)
+
+        # 6b. BRIDGE — emit outcome to organism OutcomeLearningLoop
+        if self._outcome_learning is not None:
+            try:
+                from substrate.organism.outcome_learning import OutcomeRecord, OutcomeStatus
+
+                _status = OutcomeStatus.SUCCESS if not _execute_failed else OutcomeStatus.FAILURE
+                _outcome = OutcomeRecord(
+                    action_type=f"cognitive:{agent or 'system'}",
+                    plan_id=self.session_id,
+                    step_id=f"turn_{self._turn_counter}",
+                    description=text[:200] if text else "",
+                    status=_status,
+                    expected_result="meaningful response",
+                    actual_result=(result.output or "")[:300],
+                    duration_seconds=_exec_duration,
+                    error="" if not _execute_failed else "execution failed or empty",
+                )
+                self._outcome_learning.record_outcome(_outcome)
+                logger.debug("cognitive bridge: outcome emitted to organism learning loop")
+            except Exception as _ol_err:
+                _record_error(
+                    "outcome_learning_bridge",
+                    _ol_err,
+                    {"agent": agent or "", "session_id": self.session_id},
+                )
 
         # 7. LEARN — log reflection to Neon if there's a real insight
         if reflection.get("insight"):
@@ -1276,7 +1476,7 @@ def detect_intent_and_inject(
         injections["intent"] = "meeting_minutes"
         injections["capability"] = "draft_meeting_minutes"
         try:
-            from adapters.calendar.meetings import draft_meeting_minutes  # noqa: F401
+            from substrate.sockets.data_source_port import draft_meeting_minutes  # noqa: F401
 
             injections["capability_available"] = True
         except Exception as e:
@@ -1372,7 +1572,8 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "calendar"
         try:
-            from adapters.google_workspace.gws_connector import GWSConnector
+            from substrate.sockets.data_source_port import get_gws_connector_class
+            GWSConnector = get_gws_connector_class()
 
             gws = GWSConnector()
             events = gws.get_upcoming_events(days=7)

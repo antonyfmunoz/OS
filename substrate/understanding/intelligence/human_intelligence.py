@@ -31,7 +31,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from substrate.contracts.agent_types import TaskType
-from adapters.models.agent_runtime import AgentRuntime
+from substrate.sockets.intelligence_port import get_agent_runtime
 from substrate.state.context.context import SubstrateContext, load_context_from_env
 from substrate.state.storage.db import get_conn, resolve_venture, ORG_ID, USER_ID
 
@@ -252,7 +252,8 @@ class HumanIntelligenceEngine:
         # Enrich with any Gmail threads from this lead
         email_context = ""
         try:
-            from adapters.google_workspace.gws_connector import GWSConnector
+            from substrate.sockets.data_source_port import get_gws_connector_class
+            GWSConnector = get_gws_connector_class()
             gws    = GWSConnector()
             emails = gws.search_emails_from(username)
             if emails:

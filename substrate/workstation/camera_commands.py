@@ -611,7 +611,7 @@ def analyze_snapshot(
     """
     import base64
 
-    from adapters.models.model_router import call_with_fallback
+    from substrate.sockets.intelligence_port import call_with_fallback
 
     context_hint = ""
     if "posture" in transcript.lower():

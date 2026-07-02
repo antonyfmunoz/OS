@@ -154,7 +154,7 @@ def recognize_person(
         # 3. Meetings database (Notion) — via SDK client
         if name or email:
             try:
-                from adapters.notion.integration.auth import get_notion_client
+                from substrate.sockets.data_source_port import get_notion_client
                 db_id = os.getenv('NOTION_MEETINGS_ID')
                 if db_id:
                     client = get_notion_client()
@@ -342,7 +342,7 @@ def build_intelligence_profile(
 
         # 2. Pull meeting history from Notion — via SDK client
         try:
-            from adapters.notion.integration.auth import get_notion_client
+            from substrate.sockets.data_source_port import get_notion_client
             db_id = os.getenv('NOTION_MEETINGS_ID')
             if db_id:
                 client = get_notion_client()
@@ -383,7 +383,7 @@ def build_intelligence_profile(
         if raw_context or profile.relationship_history:
             try:
                 from substrate.contracts.agent_types import TaskType
-                from adapters.models.model_router import get_router
+                from substrate.sockets.intelligence_port import get_router
                 router = get_router()
                 model = router.route(TaskType.ANALYSIS)
 
@@ -499,7 +499,7 @@ def score_relationship_health(
 
         if db_id:
             try:
-                from adapters.notion.integration.auth import get_notion_client
+                from substrate.sockets.data_source_port import get_notion_client
                 client = get_notion_client()
                 filter_clause: dict = {'or': []}
                 if name:

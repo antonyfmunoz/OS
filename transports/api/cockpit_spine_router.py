@@ -45,6 +45,13 @@ def configure(
     _check_rate_limit = check_rate_limit_fn
     _configured = True
 
+    # Register organism accessor in substrate socket port
+    try:
+        from substrate.sockets.organism_port import register_organism_accessor
+        register_organism_accessor(get_organism_fn)
+    except Exception:
+        pass
+
     spine_router = _build_router(require_operator_dep)
 
 

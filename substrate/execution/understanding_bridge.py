@@ -129,7 +129,7 @@ class UnderstandingBridge:
         if not self._should_escalate(content, ctx):
             return None
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             result = call_with_fallback(
                 prompt=f"Interpret this signal:\n\n{content[:1000]}",

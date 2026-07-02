@@ -29,7 +29,7 @@ from substrate.self_model import get_handler_prefix as _ghp
 from substrate.state.context.context import SubstrateContext, load_context_from_env
 from substrate.state.storage.db import get_conn
 from substrate.contracts.agent_types import TaskType
-from adapters.models.agent_runtime import AgentRuntime
+from substrate.sockets.intelligence_port import get_agent_runtime
 
 
 # ─── VentureHealth ────────────────────────────────────────────────────────────
@@ -426,7 +426,8 @@ trajectory of the next 90 days.]"""
             pass
 
         try:
-            from adapters.google_workspace.gws_connector import GWSConnector
+            from substrate.sockets.data_source_port import get_gws_connector_class
+            GWSConnector = get_gws_connector_class()
             _gws = GWSConnector()
             _issues = _gws.audit_drive()
             _root_count = len(_issues.get('root_files', []))

@@ -588,7 +588,8 @@ class AgentExecutionRunner:
         env["CLAUDE_CODE_ENTRYPOINT"] = "agent-execution-runner"
 
         try:
-            from adapters.models.cc_sdk import _get_subprocess_env
+            from substrate.sockets.intelligence_port import get_cli_extra
+            _get_subprocess_env = get_cli_extra("cc_sdk", "get_subprocess_env")
             sdk_env = _get_subprocess_env()
             env.update(sdk_env)
         except Exception:

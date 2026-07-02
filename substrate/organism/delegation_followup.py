@@ -166,7 +166,7 @@ class DelegationFollowup:
     ) -> str | None:
         """Use LLM for nuanced follow-up messages."""
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             result = call_with_fallback(
                 prompt=(

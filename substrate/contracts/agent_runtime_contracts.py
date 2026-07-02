@@ -36,6 +36,5 @@ def get_agent_runtime(ctx: SubstrateContext | None = None) -> AgentRuntimeProtoc
     This is the single boundary crossing point. Substrate code calls this
     factory instead of importing adapters directly.
     """
-    from adapters.models.agent_runtime import AgentRuntime
-
-    return AgentRuntime(ctx)
+    from substrate.sockets.intelligence_port import get_agent_runtime
+    return get_agent_runtime(ctx)
