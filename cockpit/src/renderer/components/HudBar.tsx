@@ -115,7 +115,7 @@ export function HudBar() {
 
   return (
     <footer
-      className="flex items-center gap-4 px-3 select-none bg-surface border-t border-border"
+      className="flex items-center gap-4 px-3 select-none bg-surface border-t border-border relative z-50"
       style={{ height: 'var(--spacing-hud-height)' }}
     >
       {/* Left drawer toggle */}

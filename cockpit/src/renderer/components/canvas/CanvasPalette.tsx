@@ -197,17 +197,15 @@ export function CanvasPalette({
     <div
       className="h-full flex"
       style={{
-        width: expanded ? 200 : 0,
-        transition: 'width 200ms ease',
+        width: '100%',
         overflow: 'hidden',
       }}
     >
       <div
         className="h-full flex flex-col shrink-0 overflow-y-auto overflow-x-hidden"
         style={{
-          width: 200,
+          width: '100%',
           background: 'var(--color-surface)',
-          borderRight: '1px solid var(--color-border)',
         }}
       >
         {/* Section 1: Add to Canvas */}
