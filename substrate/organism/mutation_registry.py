@@ -667,6 +667,19 @@ OUTCOME_RECORD = MutationSpec(
     description="Record an outcome or execution result",
 )
 
+COGNITIVE_EXECUTION = MutationSpec(
+    name="cognitive_execution",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=120.0,
+    max_retries=0,
+    verification_required=True,
+    description="Cognitive loop LLM execution through governed spine",
+)
+
 
 class MutationRegistry:
     """Registry of all executable mutation types.
@@ -727,6 +740,7 @@ class MutationRegistry:
             CONTINUITY_MUTATE,
             TICK_CANDIDATE_DECIDE,
             OUTCOME_RECORD,
+            COGNITIVE_EXECUTION,
         ):
             self.register(spec)
 

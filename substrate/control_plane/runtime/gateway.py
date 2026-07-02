@@ -1012,6 +1012,22 @@ class Gateway:
         # for feature parity before becoming primary (later convergence phases).
         loop = CognitiveLoop(ctx)
 
+        # Phase 2 bridge — wire organism components into cognitive loop
+        if os.environ.get("UMH_COGNITIVE_BRIDGE"):
+            try:
+                from transports.api.cockpit_spine_router import _get_organism
+
+                _daemon = _get_organism()
+                if _daemon is not None:
+                    loop.set_governed_spine(_daemon.governed_spine)
+                    loop.set_outcome_learning(_daemon.outcome_learning)
+                    _homeo = _daemon.homeostasis
+                    if _homeo is not None:
+                        loop.set_homeostasis(_homeo)
+                        _homeo.set_cognitive_metrics_provider(loop.cognitive_metrics)
+            except Exception as _bridge_err:
+                print(f"[Gateway] Cognitive bridge wiring failed: {_bridge_err}")
+
         # Named agent teams — direct agent routing with context injection
         _ai_team = os.environ.get("AI_NAME", "").lower() or "ai"
         _NAMED_AGENT_TEAMS = frozenset(
