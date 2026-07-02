@@ -58,12 +58,12 @@ export function Shell() {
     <div className="flex flex-col h-screen bg-surface">
       <StorePolling />
       <TitleBar />
-      <ControlPanel />
 
       <main className="flex-1 overflow-hidden bg-surface relative" style={{ paddingBottom: "var(--spacing-hud-height)" }}>
         <ErrorBoundary>
           <UnifiedCanvasWorkspace />
         </ErrorBoundary>
+        <ControlPanel />
         <RightDrawer />
         <CallOverlay />
         <ResumeCard />
