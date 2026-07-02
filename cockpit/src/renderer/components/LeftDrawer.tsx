@@ -14,9 +14,9 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
     <div
       className="wv-card absolute left-2 z-20 flex flex-col overflow-hidden overflow-y-auto"
       style={{
-        width: 200,
+        width: 180,
         top: 52,
-        bottom: 96,
+        bottom: 120,
       }}
     >
       {children}
