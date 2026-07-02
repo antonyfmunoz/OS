@@ -11,8 +11,8 @@ export function RightDrawer() {
       className="wv-card absolute right-2 z-20 flex flex-col overflow-hidden"
       style={{
         width: 180,
-        top: 52,
-        height: 280,
+        top: 64,
+        bottom: 100,
       }}
     >
       <RightRail />
