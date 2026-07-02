@@ -248,7 +248,7 @@ export function BaseCanvas({
       {/* Toolbar slot — floats at bottom center */}
       {toolbar && (
         <div
-          className="absolute bottom-12 left-1/2 -translate-x-1/2 z-10 pointer-events-auto"
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 z-10 pointer-events-auto"
         >
           {toolbar}
         </div>

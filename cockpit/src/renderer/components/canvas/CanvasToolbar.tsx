@@ -5,29 +5,15 @@ import {
   RotateCcw,
   PanelLeft,
   ChevronDown,
-  Layers,
-  Bot,
-  Workflow,
-  RefreshCcw,
-  Cpu,
-  Brain,
   PanelRight,
   FileStack,
   Plus as PlusIcon,
+  MessageSquare,
+  FolderOpen,
+  Play,
 } from 'lucide-react'
-import { useUnifiedCanvasStore, type CanvasMode } from '../../stores/unifiedCanvasStore'
-import { useCockpitStore } from '../../stores/cockpitStore'
-
-const MODE_ORDER: CanvasMode[] = ['general', 'organism', 'agents', 'harnesses', 'loops', 'workflows']
-
-const MODE_META: Record<CanvasMode, { label: string; icon: typeof Layers }> = {
-  general: { label: 'General', icon: Layers },
-  organism: { label: 'Organism', icon: Brain },
-  agents: { label: 'Agents', icon: Bot },
-  harnesses: { label: 'Harnesses', icon: Cpu },
-  loops: { label: 'Loops', icon: RefreshCcw },
-  workflows: { label: 'Workflows', icon: Workflow },
-}
+import { useUnifiedCanvasStore } from '../../stores/unifiedCanvasStore'
+import { useCockpitStore, type RightPanelView } from '../../stores/cockpitStore'
 
 interface CanvasToolbarProps {
   zoom: number
@@ -36,8 +22,6 @@ interface CanvasToolbarProps {
   onZoomReset: () => void
   onTogglePalette: () => void
   paletteOpen: boolean
-  mode?: CanvasMode
-  onSetMode?: (mode: CanvasMode) => void
   extraButtons?: React.ReactNode
 }
 
@@ -86,11 +70,20 @@ function Separator() {
   )
 }
 
-function ModeDropdown({ mode, onSetMode }: { mode: CanvasMode; onSetMode: (m: CanvasMode) => void }) {
+const VIEW_OPTIONS: Array<{ id: RightPanelView; label: string; icon: typeof MessageSquare }> = [
+  { id: 'chat', label: 'Chat', icon: MessageSquare },
+  { id: 'context', label: 'Context', icon: FolderOpen },
+  { id: 'execution', label: 'Execution', icon: Play },
+]
+
+function RightPanelSwitcher() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const meta = MODE_META[mode]
-  const Icon = meta.icon
+  const rightPanelView = useCockpitStore((s) => s.rightPanelView)
+  const setRightPanelView = useCockpitStore((s) => s.setRightPanelView)
+
+  const current = VIEW_OPTIONS.find((v) => v.id === rightPanelView) ?? VIEW_OPTIONS[0]
+  const Icon = current.icon
 
   useEffect(() => {
     if (!open) return
@@ -116,7 +109,7 @@ function ModeDropdown({ mode, onSetMode }: { mode: CanvasMode; onSetMode: (m: Ca
         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
       >
         <Icon size={12} />
-        <span>{meta.label}</span>
+        <span>{current.label}</span>
         <ChevronDown size={10} />
       </button>
       {open && (
@@ -129,23 +122,22 @@ function ModeDropdown({ mode, onSetMode }: { mode: CanvasMode; onSetMode: (m: Ca
             minWidth: 140,
           }}
         >
-          {MODE_ORDER.map((m) => {
-            const mi = MODE_META[m]
-            const MIcon = mi.icon
+          {VIEW_OPTIONS.map((v) => {
+            const VIcon = v.icon
             return (
               <button
-                key={m}
+                key={v.id}
                 className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-left"
                 style={{
-                  color: m === mode ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                  background: m === mode ? 'var(--color-surface-overlay)' : 'transparent',
+                  color: v.id === rightPanelView ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                  background: v.id === rightPanelView ? 'var(--color-surface-overlay)' : 'transparent',
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-overlay)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = m === mode ? 'var(--color-surface-overlay)' : 'transparent' }}
-                onClick={() => { onSetMode(m); setOpen(false) }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = v.id === rightPanelView ? 'var(--color-surface-overlay)' : 'transparent' }}
+                onClick={() => { setRightPanelView(v.id); setOpen(false) }}
               >
-                <MIcon size={12} />
-                <span>{mi.label}</span>
+                <VIcon size={12} />
+                <span>{v.label}</span>
               </button>
             )
           })}
@@ -261,7 +253,7 @@ function ChatToggle() {
   return (
     <ToolbarButton
       onClick={toggleRightDrawer}
-      title={rightDrawerOpen ? 'Hide chat' : 'Open chat'}
+      title={rightDrawerOpen ? 'Hide panel' : 'Open panel'}
       active={rightDrawerOpen}
     >
       <PanelRight size={14} />
@@ -276,8 +268,6 @@ export function CanvasToolbar({
   onZoomReset,
   onTogglePalette,
   paletteOpen,
-  mode,
-  onSetMode,
   extraButtons,
 }: CanvasToolbarProps) {
   return (
@@ -301,12 +291,9 @@ export function CanvasToolbar({
 
       <Separator />
 
-      {mode && onSetMode && (
-        <>
-          <ModeDropdown mode={mode} onSetMode={onSetMode} />
-          <Separator />
-        </>
-      )}
+      <CanvasDropdown />
+
+      <Separator />
 
       <ToolbarButton onClick={onZoomOut} title="Zoom out">
         <Minus size={14} />
@@ -336,7 +323,7 @@ export function CanvasToolbar({
 
       <Separator />
 
-      <CanvasDropdown />
+      <RightPanelSwitcher />
 
       <Separator />
 

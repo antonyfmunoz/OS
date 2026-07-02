@@ -1,12 +1,11 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, MessageSquare, FolderOpen, Play, Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
+import { Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
 import { useConfigStore } from '../stores/configStore'
-import { useCollapseStore } from '../stores/collapseStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
@@ -30,46 +29,15 @@ const markdownComponents = {
   img: () => null,
 }
 
-type RightTab = 'conversation' | 'context' | 'execution'
-
 export function RightRail() {
-  const [activeTab, setActiveTab] = useState<RightTab>('conversation')
-
-  const tabs: Array<{ id: RightTab; icon: typeof MessageSquare; label: string }> = [
-    { id: 'conversation', icon: MessageSquare, label: 'Chat' },
-    { id: 'context', icon: FolderOpen, label: 'Context' },
-    { id: 'execution', icon: Play, label: 'Execution' },
-  ]
+  const rightPanelView = useCockpitStore((s) => s.rightPanelView)
 
   return (
-    <div className="flex flex-col w-full h-full bg-surface border-l border-border">
-      {/* Tab bar */}
-      <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
-        <div className="flex items-center flex-1 min-w-0">
-          {tabs.map((t) => {
-            const Icon = t.icon
-            return (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={clsx(
-                  'flex items-center gap-1 px-1.5 py-1 text-[10px] font-mono uppercase tracking-wider leading-none transition-colors',
-                  activeTab === t.id ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
-                )}
-              >
-                <Icon size={12} />
-                {t.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Content */}
+    <div className="flex flex-col w-full h-full bg-surface">
       <div className="flex-1 overflow-y-auto p-3">
-        {activeTab === 'conversation' && <ChatSection />}
-        {activeTab === 'context' && <ContextSection />}
-        {activeTab === 'execution' && <ExecutionSection />}
+        {rightPanelView === 'chat' && <ChatSection />}
+        {rightPanelView === 'context' && <ContextSection />}
+        {rightPanelView === 'execution' && <ExecutionSection />}
       </div>
     </div>
   )

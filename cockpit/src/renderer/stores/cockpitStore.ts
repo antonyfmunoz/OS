@@ -88,6 +88,8 @@ export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' 
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected'
 
+export type RightPanelView = 'chat' | 'context' | 'execution'
+
 const WINDOW_MODE_ORDER: WindowMode[] = ['maximized', 'large-fab', 'medium-fab', 'small-fab', 'invisible']
 
 interface CockpitState {
@@ -101,6 +103,7 @@ interface CockpitState {
   controlPanelExpanded: boolean
   leftDrawerOpen: boolean
   rightDrawerOpen: boolean
+  rightPanelView: RightPanelView
   apiStatus: ConnectionStatus
   wsStatus: ConnectionStatus
   voiceStatus: ConnectionStatus
@@ -117,6 +120,7 @@ interface CockpitState {
   toggleControlPanel: () => void
   toggleLeftDrawer: () => void
   toggleRightDrawer: () => void
+  setRightPanelView: (view: RightPanelView) => void
   setApiStatus: (status: ConnectionStatus) => void
   setWsStatus: (status: ConnectionStatus) => void
   setVoiceStatus: (status: ConnectionStatus) => void
@@ -136,6 +140,7 @@ export const useCockpitStore = create<CockpitState>()(
       controlPanelExpanded: false,
       leftDrawerOpen: false,
       rightDrawerOpen: false,
+      rightPanelView: 'chat' as RightPanelView,
       apiStatus: 'disconnected' as ConnectionStatus,
       wsStatus: 'disconnected' as ConnectionStatus,
       voiceStatus: 'disconnected' as ConnectionStatus,
@@ -175,6 +180,7 @@ export const useCockpitStore = create<CockpitState>()(
       toggleControlPanel: () => set((s) => ({ controlPanelExpanded: !s.controlPanelExpanded })),
       toggleLeftDrawer: () => set((s) => ({ leftDrawerOpen: !s.leftDrawerOpen })),
       toggleRightDrawer: () => set((s) => ({ rightDrawerOpen: !s.rightDrawerOpen })),
+      setRightPanelView: (view) => set({ rightPanelView: view, rightDrawerOpen: true }),
       cycleWindowMode: (direction) =>
         set((s) => {
           const idx = WINDOW_MODE_ORDER.indexOf(s.windowMode)
@@ -202,6 +208,7 @@ export const useCockpitStore = create<CockpitState>()(
         rightRailCollapsed: state.rightRailCollapsed,
         leftDrawerOpen: state.leftDrawerOpen,
         rightDrawerOpen: state.rightDrawerOpen,
+        rightPanelView: state.rightPanelView,
       }),
     },
   ),
