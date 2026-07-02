@@ -12,11 +12,11 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
 
   return (
     <div
-      className="wv-card absolute left-2 z-20 flex flex-col overflow-hidden"
+      className="wv-card absolute left-2 z-20 flex flex-col overflow-hidden overflow-y-auto"
       style={{
-        width: 220,
-        top: 48,
-        bottom: 52,
+        width: 200,
+        top: 52,
+        bottom: 96,
       }}
     >
       {children}
