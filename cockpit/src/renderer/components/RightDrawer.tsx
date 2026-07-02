@@ -12,7 +12,7 @@ export function RightDrawer() {
       style={{
         width: 180,
         top: 52,
-        bottom: 130,
+        height: 280,
       }}
     >
       <RightRail />
