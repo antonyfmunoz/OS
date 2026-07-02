@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from projections.eos.workflows.types import WorkflowStep
+
 
 @dataclass
 class OutreachStep:
@@ -33,6 +35,52 @@ class OutreachWorkflow:
     def __init__(self, org_id: str = "", venture_id: str = "") -> None:
         self._org_id = org_id
         self._venture_id = venture_id
+
+    def steps(self, lead: dict[str, Any]) -> list[WorkflowStep]:
+        """Return governed workflow steps for the WorkflowRunner."""
+        self._lead = lead
+        self._result = OutreachResult(lead_id=lead.get("id", ""))
+        return [
+            WorkflowStep(
+                name="qualify",
+                mutation_name="command_submit",
+                intent=f"Qualify lead: {lead.get('name', 'unknown')[:60]}",
+                execute_fn=lambda: self._step_qualify(),
+            ),
+            WorkflowStep(
+                name="research",
+                mutation_name="command_submit",
+                intent=f"Research lead: {lead.get('name', 'unknown')[:60]}",
+                execute_fn=lambda: self._step_research(),
+            ),
+            WorkflowStep(
+                name="draft",
+                mutation_name="command_submit",
+                intent=f"Draft outreach for: {lead.get('name', 'unknown')[:60]}",
+                execute_fn=lambda: self._step_draft(),
+            ),
+        ]
+
+    def _step_qualify(self) -> tuple[str, bool]:
+        result = self._qualify(self._lead)
+        self._result.steps.append(OutreachStep("qualify", "completed", result))
+        if "not qualified" in result.lower():
+            return (result, False)
+        return (result, True)
+
+    def _step_research(self) -> tuple[str, bool]:
+        research = self._research(self._lead)
+        self._result.steps.append(OutreachStep("research", "completed", research))
+        self._research_output = research
+        return (research, True)
+
+    def _step_draft(self) -> tuple[str, bool]:
+        research = getattr(self, "_research_output", "")
+        draft = self._draft_message(self._lead, research)
+        self._result.steps.append(OutreachStep("draft", "completed", draft))
+        self._result.message_draft = draft
+        self._result.completed = True
+        return (draft, True)
 
     def execute(self, lead: dict[str, Any]) -> OutreachResult:
         """Run the full outreach workflow for a lead."""

@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
+from projections.eos.workflows.types import WorkflowStep
+
 
 @dataclass
 class FollowUpAction:
@@ -25,6 +27,50 @@ class FollowUpWorkflow:
 
     def __init__(self, org_id: str = "") -> None:
         self._org_id = org_id
+
+    def steps(self, stale_after_days: int = 3) -> list[WorkflowStep]:
+        """Return governed workflow steps for the WorkflowRunner."""
+        self._stale_after = stale_after_days
+        self._actions: list[FollowUpAction] = []
+        return [
+            WorkflowStep(
+                name="check_stale",
+                mutation_name="command_submit",
+                intent=f"Check leads stale >{stale_after_days} days",
+                execute_fn=self._step_check_stale,
+            ),
+            WorkflowStep(
+                name="generate_followups",
+                mutation_name="command_submit",
+                intent="Generate follow-up actions for stale leads",
+                execute_fn=self._step_generate,
+            ),
+        ]
+
+    def _step_check_stale(self) -> tuple[str, bool]:
+        self._stale_leads = self._fetch_stale(self._stale_after)
+        return (f"Found {len(self._stale_leads)} stale leads", True)
+
+    def _step_generate(self) -> tuple[str, bool]:
+        stale = getattr(self, "_stale_leads", [])
+        self._actions = []
+        for lead in stale:
+            days = lead.get("days_since_contact", 0)
+            approach = self._decide_approach(days)
+            message = self._draft_followup(lead, approach)
+            self._actions.append(FollowUpAction(
+                lead_id=lead.get("id", ""),
+                days_stale=days,
+                approach=approach,
+                message=message,
+                priority="high" if days > 7 else "normal",
+            ))
+        if not self._actions:
+            return ("No stale leads need follow-up", True)
+        return (
+            f"Generated {len(self._actions)} follow-up actions",
+            True,
+        )
 
     def check_stale_leads(self, stale_after_days: int = 3) -> list[FollowUpAction]:
         """Find leads that need follow-up and generate actions."""
