@@ -8,6 +8,8 @@ from projections.eos.workflows.planning import PlanningWorkflow
 from projections.eos.workflows.review import ReviewWorkflow
 from projections.eos.workflows.execution import ExecutionWorkflow
 from projections.eos.workflows.daily import DailyRhythmWorkflow
+from projections.eos.workflows.github import GitHubWorkflow
+from projections.eos.workflows.document import DocumentWorkflow
 from projections.eos.workflows.runner import WorkflowRunner
 from projections.eos.workflows.types import WorkflowStep, WorkflowResult, StepResult
 
@@ -20,6 +22,8 @@ __all__ = [
     "ReviewWorkflow",
     "ExecutionWorkflow",
     "DailyRhythmWorkflow",
+    "GitHubWorkflow",
+    "DocumentWorkflow",
     "WorkflowRunner",
     "WorkflowStep",
     "WorkflowResult",
