@@ -340,7 +340,8 @@ def run_team_task(
         dict with keys: output, model_used, tokens_used, skill_used,
         interaction_id, cost_usd, duration_ms.
     """
-    from adapters.models.agent_runtime import AgentRuntime
+    from substrate.sockets.intelligence_port import get_agent_runtime
+    AgentRuntime = get_agent_runtime
     from substrate.state.context.context import load_context_from_env
 
     runtime = AgentRuntime(ctx or load_context_from_env())

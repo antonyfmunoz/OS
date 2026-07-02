@@ -91,7 +91,8 @@ def _collect_docker() -> tuple[dict[str, Any], str]:
 
 
 def _collect_providers() -> tuple[dict[str, Any], str]:
-    from adapters.models.model_router import MODEL_REGISTRY
+    from substrate.sockets.intelligence_port import get_model_registry
+    MODEL_REGISTRY = get_model_registry()
 
     providers = []
     for name, config in MODEL_REGISTRY.items():

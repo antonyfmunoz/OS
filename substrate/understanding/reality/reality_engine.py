@@ -153,7 +153,8 @@ class RealityIntelligenceEngine:
             )
             return []
 
-        from adapters.scrapling.scrapling_connector import ScraplingConnector
+        from substrate.sockets.browser_port import get_scrapling_connector_class
+        ScraplingConnector = get_scrapling_connector_class()
 
         venture_ctx = VentureKnowledgeBase.to_agent_context(venture_id, detail="full")
 

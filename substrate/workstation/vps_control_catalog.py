@@ -580,10 +580,11 @@ def _strip_docker_log_prefix(raw: bytes) -> list[str]:
 def _execute_provider_health(entry: CatalogEntry) -> VpsCommandResult:
     """Read provider health from model_router without shell."""
     try:
-        from adapters.models.model_router import MODEL_REGISTRY, refresh_provider_health
+        from substrate.sockets.intelligence_port import get_model_registry, refresh_provider_health as _refresh
+        MODEL_REGISTRY = get_model_registry()
 
         try:
-            refresh_provider_health()
+            _refresh()
         except Exception:
             pass
 

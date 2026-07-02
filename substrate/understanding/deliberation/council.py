@@ -412,7 +412,7 @@ class DeliberationCouncil:
         if heuristic_result.confidence >= 0.65:
             return None
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             opinions_text = "\n".join(
                 f"- {o.role.value}: {o.verdict.value} (confidence={o.confidence:.2f}) — {o.rationale}"

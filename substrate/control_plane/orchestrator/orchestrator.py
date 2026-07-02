@@ -532,7 +532,8 @@ def run_full_morning_cycle(ctx: SubstrateContext, return_content: bool = False):
     calendar_section = "📅 TODAY\nNo events scheduled"
     tasks_section = "✅ TASKS\nNo pending tasks"
     try:
-        from adapters.google_workspace.gws_connector import GWSConnector
+        from substrate.sockets.data_source_port import get_gws_connector_class
+        GWSConnector = get_gws_connector_class()
 
         gws = GWSConnector()
 
@@ -570,7 +571,7 @@ def run_full_morning_cycle(ctx: SubstrateContext, return_content: bool = False):
     # Write to Notion
     notion_url = ""
     try:
-        from adapters.notion.notion_publisher import get_publisher
+        from substrate.sockets.data_source_port import get_notion_publisher as get_publisher
 
         publisher = get_publisher(ctx)
         notion_url = publisher.publish_morning_brief(content=brief_content)
@@ -869,7 +870,7 @@ def run_ceo_morning_delegation(
     if results:
         notion_url = ""
         try:
-            from adapters.notion.notion_publisher import get_publisher
+            from substrate.sockets.data_source_port import get_notion_publisher as get_publisher
 
             publisher = get_publisher(ctx)
             notion_url = publisher.publish_ceo_delegation(content={"results": results})
@@ -1126,7 +1127,8 @@ async def generate_morning_brief(ctx: SubstrateContext) -> str:
     # Add today's calendar
     calendar_section = ""
     try:
-        from adapters.google_workspace.gws_connector import GWSConnector
+        from substrate.sockets.data_source_port import get_gws_connector_class
+        GWSConnector = get_gws_connector_class()
 
         gws = GWSConnector()
         events = gws.get_today_events()
@@ -1504,7 +1506,8 @@ class Orchestrator:
 
         # Email GPS — 6am inbox processing pass (AI handles email before founder)
         try:
-            from adapters.google_workspace.email_gps import EmailGPS
+            from substrate.sockets.data_source_port import get_email_gps_class
+            EmailGPS = get_email_gps_class()
             from substrate.state.context.context import load_context_from_env as _lcfe
 
             _ctx = _lcfe()

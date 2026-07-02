@@ -24,7 +24,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
 
-from adapters.ssh.ssh_utils import ssh_reachable, ssh_run, scp_to
+from substrate.sockets.remote_exec_port import ssh_reachable, ssh_run, scp_to
 
 logger = logging.getLogger(__name__)
 

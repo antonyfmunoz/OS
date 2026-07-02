@@ -402,7 +402,7 @@ class AdvisorConversation:
         prompt = "\n".join(prompt_parts)
 
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             result = call_with_fallback(
                 prompt,
@@ -745,7 +745,9 @@ class AdvisorConversation:
 
         # Provider health
         try:
-            from adapters.models.model_router import MODEL_REGISTRY, ROLE_SLOTS
+            from substrate.sockets.intelligence_port import get_model_registry, get_role_slots
+            MODEL_REGISTRY = get_model_registry()
+            ROLE_SLOTS = get_role_slots()
 
             healthy = [k for k, c in MODEL_REGISTRY.items() if c.available]
             lines.append(f"**Providers:** {len(healthy)} healthy — {', '.join(healthy) or 'none'}")
@@ -865,7 +867,7 @@ class AdvisorConversation:
         prompt = "\n".join(prompt_parts)
 
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             result = call_with_fallback(prompt, task_type="conversation")
             response_text = ""

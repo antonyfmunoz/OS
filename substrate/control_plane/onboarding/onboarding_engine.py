@@ -191,7 +191,8 @@ class OnboardingEngine:
         data: dict = {}
         try:
             from substrate.contracts.agent_types import TaskType
-            from adapters.models.agent_runtime import AgentRuntime
+            from substrate.sockets.intelligence_port import get_agent_runtime
+            AgentRuntime = get_agent_runtime
 
             rt     = AgentRuntime(self.ctx)
             loop   = asyncio.get_event_loop()

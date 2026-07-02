@@ -178,7 +178,7 @@ class ComputerUseAgent(ABC):
             import os
             import sys
             sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
         except ImportError:
             return {"done": True, "reason": "model_router not available"}
 

@@ -111,7 +111,7 @@ def research_gift(
     """
     try:
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         from substrate.understanding.intelligence.person_recognition import build_intelligence_profile
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)

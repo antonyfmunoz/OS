@@ -204,7 +204,7 @@ class SimulationReality:
     ) -> dict[str, Any] | None:
         """Use LLM to reason about detected risk factors and suggest mitigations."""
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             result = call_with_fallback(
                 prompt=(

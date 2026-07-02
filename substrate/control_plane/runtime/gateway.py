@@ -448,9 +448,10 @@ class Gateway:
         # Try AI for richer extraction
         try:
             from substrate.state.context.context import load_context_from_env
-            from adapters.google_workspace.email_gps import EmailGPS
+            from substrate.sockets.data_source_port import get_email_gps_class
+            EmailGPS = get_email_gps_class()
             from substrate.contracts.agent_types import TaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             ctx_eos = load_context_from_env()
             gps = EmailGPS(ctx_eos)
             router = get_router(ctx_eos)
@@ -488,7 +489,8 @@ class Gateway:
 
         try:
             from substrate.state.context.context import load_context_from_env
-            from adapters.google_workspace.email_gps import EmailGPS
+            from substrate.sockets.data_source_port import get_email_gps_class
+            EmailGPS = get_email_gps_class()
 
             ctx_eos = load_context_from_env()
             gps = EmailGPS(ctx_eos)
@@ -887,7 +889,7 @@ class Gateway:
     def _web_search(self, query: str) -> str:
         try:
             from substrate.contracts.agent_types import TaskType as RouterTaskType
-            from adapters.models.model_router import get_router
+            from substrate.sockets.intelligence_port import get_router
             router = get_router()
             result = router.call_with_fallback(
                 RouterTaskType.WEB_SEARCH,
@@ -983,7 +985,8 @@ class Gateway:
 
     def _route_agent_task(self, request: dict, session_id: str = None, cm=None) -> dict:
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.agent_runtime import AgentRuntime
+        from substrate.sockets.intelligence_port import get_agent_runtime
+        AgentRuntime = get_agent_runtime
         from substrate.control_plane.runtime.cognitive_loop import CognitiveLoop
         from substrate.state.context.context import load_context_from_env
 
@@ -1015,9 +1018,9 @@ class Gateway:
         # Phase 2 bridge — wire organism components into cognitive loop
         if os.environ.get("UMH_COGNITIVE_BRIDGE"):
             try:
-                from transports.api.cockpit_spine_router import _get_organism
+                from substrate.sockets.organism_port import get_organism
 
-                _daemon = _get_organism()
+                _daemon = get_organism()
                 if _daemon is not None:
                     loop.set_governed_spine(_daemon.governed_spine)
                     loop.set_outcome_learning(_daemon.outcome_learning)
@@ -1853,7 +1856,7 @@ class Gateway:
         _VALID = set(self._INTENT_KEYWORDS.keys()) | {"UNKNOWN"}
         try:
             from substrate.contracts.agent_types import TaskType
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
             _SYSTEM = (
                 "Classify this message into exactly one intent. "
                 "Reply with ONLY the intent word.\n"

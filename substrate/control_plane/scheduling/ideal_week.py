@@ -120,7 +120,7 @@ def create_process_capture(task_name: str, description: str, ctx=None) -> str:
     """
     try:
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         from substrate.state.context.context import load_context_from_env
         ctx = ctx or load_context_from_env()
 

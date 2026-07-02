@@ -128,7 +128,7 @@ class MediaProcessor:
             if user_prompt and 'transcri' not in user_prompt.lower():
                 # user wants analysis not just transcript
                 full = f'Transcript: {transcript}\n\n{user_prompt}'
-                from adapters.models.model_router import call_with_fallback
+                from substrate.sockets.intelligence_port import call_with_fallback
                 _routing = call_with_fallback(prompt=full, task_type="fast_response")
                 _analysis = _routing.output if _routing else ""
                 return (

@@ -1476,7 +1476,7 @@ def detect_intent_and_inject(
         injections["intent"] = "meeting_minutes"
         injections["capability"] = "draft_meeting_minutes"
         try:
-            from adapters.calendar.meetings import draft_meeting_minutes  # noqa: F401
+            from substrate.sockets.data_source_port import draft_meeting_minutes  # noqa: F401
 
             injections["capability_available"] = True
         except Exception as e:
@@ -1572,7 +1572,8 @@ def detect_intent_and_inject(
     ):
         injections["intent"] = "calendar"
         try:
-            from adapters.google_workspace.gws_connector import GWSConnector
+            from substrate.sockets.data_source_port import get_gws_connector_class
+            GWSConnector = get_gws_connector_class()
 
             gws = GWSConnector()
             events = gws.get_upcoming_events(days=7)

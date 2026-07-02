@@ -35,7 +35,7 @@ def create_event(
         from substrate.state.context.context import load_context_from_env
         from substrate.state.memory.memory import AgentMemory
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         ctx = ctx or load_context_from_env()
         router = get_router()
 
@@ -170,7 +170,7 @@ def draft_talking_points(
     try:
         from substrate.state.context.context import load_context_from_env
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         ctx = ctx or load_context_from_env()
         router = get_router()
 

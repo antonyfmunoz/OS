@@ -23,7 +23,7 @@ def architect_week(ctx=None) -> str:
     try:
         from substrate.control_plane.scheduling.ideal_week import get_ideal_week
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         ideal_week = get_ideal_week(ctx)
 
         # Format ideal week for LLM context (Mon-Fri only)
@@ -36,7 +36,8 @@ def architect_week(ctx=None) -> str:
         # Get real calendar events for the week if available
         calendar_context = ""
         try:
-            from adapters.google_workspace.gws_connector import GWSConnector
+            from substrate.sockets.data_source_port import get_gws_connector_class
+            GWSConnector = get_gws_connector_class()
 
             gws = GWSConnector()
             upcoming = gws.get_upcoming_events(days=7)

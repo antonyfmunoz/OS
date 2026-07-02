@@ -122,63 +122,68 @@ def _track(provider_id: str, success: bool) -> None:
 
 
 def _codex_review_provider() -> ProviderEntry:
-    from adapters.models.codex_cli import is_available, review_codex_sync
+    from substrate.sockets.intelligence_port import cli_is_available, get_cli_extra
+    review_fn = get_cli_extra("codex", "review_fn")
     return ProviderEntry(
         provider_id="codex_review",
-        is_available=is_available,
-        invoke=lambda prompt, **kw: review_codex_sync(
+        is_available=lambda: cli_is_available("codex") and review_fn is not None,
+        invoke=lambda prompt, **kw: review_fn(
             uncommitted=True,
             cwd=kw.get("cwd"),
             timeout=kw.get("timeout", 90),
-        ),
+        ) if review_fn else None,
         priority=0,
     )
 
 
 def _codex_exec_provider() -> ProviderEntry:
-    from adapters.models.codex_cli import is_available, query_codex_sync
+    from substrate.sockets.intelligence_port import cli_is_available, get_cli_query
+    query_fn = get_cli_query("codex")
     return ProviderEntry(
         provider_id="codex_exec",
-        is_available=is_available,
-        invoke=lambda prompt, **kw: query_codex_sync(prompt, timeout=kw.get("timeout", 120)),
+        is_available=lambda: cli_is_available("codex"),
+        invoke=lambda prompt, **kw: query_fn(prompt, timeout=kw.get("timeout", 120)) if query_fn else None,
         priority=1,
     )
 
 
 def _cc_sdk_provider() -> ProviderEntry:
-    from adapters.models.cc_sdk import query_cc_sync
+    from substrate.sockets.intelligence_port import get_cli_query
+    query_fn = get_cli_query("cc_sdk")
 
     def _available() -> bool:
-        return query_cc_sync is not None
+        return query_fn is not None
 
     return ProviderEntry(
         provider_id="cc_sdk",
         is_available=_available,
-        invoke=lambda prompt, **kw: query_cc_sync(
+        invoke=lambda prompt, **kw: query_fn(
             prompt,
             task_type=kw.get("task_type", "analyze"),
             agent_id=kw.get("agent_id", "capability_router"),
-        ),
+        ) if query_fn else None,
         priority=1,
     )
 
 
 def _hermes_provider() -> ProviderEntry:
-    from adapters.models.hermes_cli import is_available, query_hermes_sync
+    from substrate.sockets.intelligence_port import cli_is_available, get_cli_query
+    query_fn = get_cli_query("hermes")
     return ProviderEntry(
         provider_id="hermes",
-        is_available=is_available,
-        invoke=lambda prompt, **kw: query_hermes_sync(prompt, timeout=kw.get("timeout", 120)),
+        is_available=lambda: cli_is_available("hermes"),
+        invoke=lambda prompt, **kw: query_fn(prompt, timeout=kw.get("timeout", 120)) if query_fn else None,
         priority=2,
     )
 
 
 def _opencode_provider() -> ProviderEntry:
-    from adapters.models.opencode_cli import is_available, query_opencode_sync
+    from substrate.sockets.intelligence_port import cli_is_available, get_cli_query
+    query_fn = get_cli_query("opencode")
     return ProviderEntry(
         provider_id="opencode",
-        is_available=is_available,
-        invoke=lambda prompt, **kw: query_opencode_sync(prompt, timeout=kw.get("timeout", 120)),
+        is_available=lambda: cli_is_available("opencode"),
+        invoke=lambda prompt, **kw: query_fn(prompt, timeout=kw.get("timeout", 120)) if query_fn else None,
         priority=2,
     )
 
@@ -190,7 +195,7 @@ def _perplexity_provider() -> ProviderEntry:
         return bool(os.environ.get("PERPLEXITY_API_KEY"))
 
     def _invoke(prompt: str, **kw: Any) -> CapabilityResult | None:
-        from adapters.models.model_router import get_router, ModelProvider, MODEL_REGISTRY
+        from substrate.sockets.intelligence_port import get_router, ModelProvider, MODEL_REGISTRY
         router = get_router()
         configs = [c for c in MODEL_REGISTRY.values() if c.provider == ModelProvider.PERPLEXITY and c.available]
         if not configs:
@@ -215,7 +220,7 @@ def _gemini_provider() -> ProviderEntry:
         return bool(os.environ.get("GEMINI_API_KEY"))
 
     def _invoke(prompt: str, **kw: Any) -> CapabilityResult | None:
-        from adapters.models.model_router import get_router, ModelProvider, MODEL_REGISTRY
+        from substrate.sockets.intelligence_port import get_router, ModelProvider, MODEL_REGISTRY
         router = get_router()
         configs = [c for c in MODEL_REGISTRY.values() if c.provider == ModelProvider.GEMINI and c.available]
         if not configs:

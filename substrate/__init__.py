@@ -133,7 +133,10 @@ class Substrate:
     async def _do_register_boot_adapters(self) -> None:
         """Async implementation: build and register the LLM adapter component."""
         try:
-            from adapters.models.llm_adapter import LLMAdapter
+            from substrate.sockets.intelligence_port import get_llm_adapter_class
+            LLMAdapter = get_llm_adapter_class()
+            if LLMAdapter is None:
+                return
 
             adapter = LLMAdapter()
             component = Component(

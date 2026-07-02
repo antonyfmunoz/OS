@@ -547,7 +547,7 @@ DOCUMENT SOURCE: {source_path}
         for attempt in range(2):
             try:
                 from substrate.contracts.agent_types import TaskType
-                from adapters.models.model_router import call_with_fallback
+                from substrate.sockets.intelligence_port import call_with_fallback
                 result = call_with_fallback(
                     prompt=prompt,
                     system="You are a structured data extraction engine. Return only valid JSON.",

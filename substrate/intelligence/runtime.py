@@ -317,7 +317,7 @@ class PredictiveIntelligence:
     def _ai_predict(self, content: str, action: str) -> Prediction | None:
         """Escalate to LLM for novel situation reasoning."""
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             action_ctx = f"\nPlanned action: {action}" if action else ""
             result = call_with_fallback(

@@ -66,7 +66,7 @@ def _classify_venture(text: str) -> str:
     """Classify which venture a capture belongs to using the model router."""
     _default_venture = os.environ.get("UMH_ACTIVE_VENTURE", "")
     try:
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         router = get_router()
 
         # Build venture list dynamically from instance config
@@ -137,7 +137,7 @@ def capture_to_notion(text: str, capture_type: str, venture_id: str = None) -> b
     try:
         from datetime import date
 
-        from adapters.notion.integration.auth import get_notion_client
+        from substrate.sockets.data_source_port import get_notion_client
 
         # Resolve Notion DB and label from env vars — keyed by venture_id
         _vid_upper = (venture_id or "").upper().replace(" ", "_")

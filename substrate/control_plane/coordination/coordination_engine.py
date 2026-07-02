@@ -144,7 +144,8 @@ class CoordinationEngine:
                 f"Reply /done {task_id[:8]} when complete."
             )
             try:
-                from adapters.google_workspace.gws_connector import GWSConnector
+                from substrate.sockets.data_source_port import get_gws_connector_class
+                GWSConnector = get_gws_connector_class()
 
                 gws = GWSConnector()
                 gws.create_task(

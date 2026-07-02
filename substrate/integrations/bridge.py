@@ -16,8 +16,8 @@ sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 from substrate.contracts.routing_contracts import CapabilityClass
 
 def _load_routing():
-    from adapters.models.routing.config import RoutingConfig, load_routing_config
-    return RoutingConfig, load_routing_config
+    from substrate.sockets.intelligence_port import load_routing_config
+    return None, load_routing_config
 
 
 class CapabilityBridge:
@@ -43,7 +43,7 @@ class CapabilityBridge:
         """Lazy-load model_router to avoid circular imports."""
         if self._model_router is None:
             try:
-                from adapters.models.model_router import call_with_fallback
+                from substrate.sockets.intelligence_port import call_with_fallback
 
                 self._model_router = call_with_fallback
             except ImportError:
@@ -75,7 +75,7 @@ class CapabilityBridge:
     def is_available(self) -> bool:
         """Check if the model router is importable."""
         try:
-            from adapters.models.model_router import call_with_fallback
+            from substrate.sockets.intelligence_port import call_with_fallback
 
             return True
         except ImportError:

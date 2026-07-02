@@ -390,7 +390,8 @@ class ContinuityEngine:
     def _collect_provider_status(self) -> dict[str, Any]:
         """Collect real provider health — never fabricated."""
         try:
-            from adapters.models.model_router import MODEL_REGISTRY
+            from substrate.sockets.intelligence_port import get_model_registry
+            MODEL_REGISTRY = get_model_registry()
 
             healthy = []
             unhealthy = []

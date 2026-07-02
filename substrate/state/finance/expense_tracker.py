@@ -38,7 +38,7 @@ def extract_expense_from_email(
     """Extract expense details from a receipt email using LLM."""
     try:
         from substrate.contracts.agent_types import TaskType
-        from adapters.models.model_router import get_router
+        from substrate.sockets.intelligence_port import get_router
         router = get_router()
 
         prompt = f"""Extract expense details from this receipt email.
@@ -141,7 +141,8 @@ def process_receipt_emails(ctx=None) -> int:
     """
     try:
         from substrate.state.context.context import load_context_from_env
-        from adapters.google_workspace.gws_connector import GWSConnector
+        from substrate.sockets.data_source_port import get_gws_connector_class
+        GWSConnector = get_gws_connector_class()
         ctx = ctx or load_context_from_env()
         gws = GWSConnector()
 
