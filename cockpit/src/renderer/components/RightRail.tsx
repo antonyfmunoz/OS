@@ -33,8 +33,6 @@ const markdownComponents = {
 type RightTab = 'conversation' | 'context' | 'execution'
 
 export function RightRail() {
-  const collapsed = useCollapseStore((s) => !s.isOpen('right-rail'))
-  const toggleCollapsed = useCallback(() => useCollapseStore.getState().toggle('right-rail'), [])
   const [activeTab, setActiveTab] = useState<RightTab>('conversation')
 
   const tabs: Array<{ id: RightTab; icon: typeof MessageSquare; label: string }> = [
@@ -43,37 +41,11 @@ export function RightRail() {
     { id: 'execution', icon: Play, label: 'Execution' },
   ]
 
-  if (collapsed) {
-    return (
-      <div className="flex flex-col items-center py-2 w-10 bg-surface border-l border-border">
-        <button onClick={toggleCollapsed} className="p-1 text-text-tertiary hover:text-cyan">
-          <ChevronLeft size={14} />
-        </button>
-        {tabs.map((t) => {
-          const Icon = t.icon
-          return (
-            <button
-              key={t.id}
-              onClick={() => { toggleCollapsed(); setActiveTab(t.id) }}
-              className={clsx('p-2 mt-1', activeTab === t.id ? 'text-cyan' : 'text-text-tertiary')}
-              title={t.label}
-            >
-              <Icon size={14} />
-            </button>
-          )
-        })}
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col w-[240px] bg-surface border-l border-border">
-      {/* Tab bar — mirrored from LeftRail: collapse on inner edge, tabs on outer (right) edge */}
+    <div className="flex flex-col w-full h-full bg-surface border-l border-border">
+      {/* Tab bar */}
       <div className="flex items-center border-b border-border px-2 h-9 shrink-0">
-        <button onClick={toggleCollapsed} className="p-1 text-text-tertiary hover:text-cyan transition-colors shrink-0">
-          <ChevronRight size={14} />
-        </button>
-        <div className="flex items-center justify-end flex-1 min-w-0">
+        <div className="flex items-center flex-1 min-w-0">
           {tabs.map((t) => {
             const Icon = t.icon
             return (

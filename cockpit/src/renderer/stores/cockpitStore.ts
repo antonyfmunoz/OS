@@ -99,6 +99,8 @@ interface CockpitState {
   railCollapsed: boolean
   rightRailCollapsed: boolean
   controlPanelExpanded: boolean
+  leftDrawerOpen: boolean
+  rightDrawerOpen: boolean
   apiStatus: ConnectionStatus
   wsStatus: ConnectionStatus
   voiceStatus: ConnectionStatus
@@ -113,6 +115,8 @@ interface CockpitState {
   toggleRail: () => void
   toggleRightRail: () => void
   toggleControlPanel: () => void
+  toggleLeftDrawer: () => void
+  toggleRightDrawer: () => void
   setApiStatus: (status: ConnectionStatus) => void
   setWsStatus: (status: ConnectionStatus) => void
   setVoiceStatus: (status: ConnectionStatus) => void
@@ -130,6 +134,8 @@ export const useCockpitStore = create<CockpitState>()(
       railCollapsed: true,
       rightRailCollapsed: true,
       controlPanelExpanded: false,
+      leftDrawerOpen: false,
+      rightDrawerOpen: false,
       apiStatus: 'disconnected' as ConnectionStatus,
       wsStatus: 'disconnected' as ConnectionStatus,
       voiceStatus: 'disconnected' as ConnectionStatus,
@@ -167,6 +173,8 @@ export const useCockpitStore = create<CockpitState>()(
       toggleRail: () => set((s) => ({ railCollapsed: !s.railCollapsed })),
       toggleRightRail: () => set((s) => ({ rightRailCollapsed: !s.rightRailCollapsed })),
       toggleControlPanel: () => set((s) => ({ controlPanelExpanded: !s.controlPanelExpanded })),
+      toggleLeftDrawer: () => set((s) => ({ leftDrawerOpen: !s.leftDrawerOpen })),
+      toggleRightDrawer: () => set((s) => ({ rightDrawerOpen: !s.rightDrawerOpen })),
       cycleWindowMode: (direction) =>
         set((s) => {
           const idx = WINDOW_MODE_ORDER.indexOf(s.windowMode)
@@ -192,6 +200,8 @@ export const useCockpitStore = create<CockpitState>()(
         activePanel: state.activePanel,
         railCollapsed: state.railCollapsed,
         rightRailCollapsed: state.rightRailCollapsed,
+        leftDrawerOpen: state.leftDrawerOpen,
+        rightDrawerOpen: state.rightDrawerOpen,
       }),
     },
   ),
