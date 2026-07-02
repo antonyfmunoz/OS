@@ -59,6 +59,19 @@ SCAN_DIRS = [
     "services",
     "scripts",
     "runtime",
+    "nodes",
+    "tests",
+    "umh",
+    "cockpit",
+    "skills",
+    "saas",
+    "infra",
+    "docker",
+    "agents",
+    "config",
+    ".agents",
+    ".claude",
+    "knowledge",
 ]
 
 # Directories and patterns to skip
@@ -73,7 +86,8 @@ SKIP_DIRS = {
     "build",
     ".eggs",
     "archive",
-    "saas",
+    "repos",
+    "worktrees",
 }
 
 SKIP_FILES = {
@@ -372,6 +386,11 @@ def scan_codebase(target_module: str | None = None) -> CodebaseGraph:
                 if not mod.startswith(target_module):
                     continue
             python_files.append(path)
+
+    if not target_module:
+        for path in sorted(ROOT.glob("*.py")):
+            if path.name not in SKIP_FILES:
+                python_files.append(path)
 
     print(f"[scan] Found {len(python_files)} Python files")
 
