@@ -180,15 +180,35 @@ def register_commands(
 
     @bot.command(name="brief")
     async def cmd_brief(ctx: commands.Context):
-        """Trigger morning brief on demand."""
-        _run_gw = _ctx["run_gateway"]
+        """Trigger morning brief on demand (governed workflow with gateway fallback)."""
         async with ctx.typing():
             loop = asyncio.get_event_loop()
-            output = await loop.run_in_executor(
-                None,
-                lambda: _run_gw("morning brief", ctx.channel.name, str(ctx.author)),
-            )
-        await ctx.reply(output or "Brief generated.")
+
+            def _run_governed_brief():
+                try:
+                    from projections.eos.workflows.daily import DailyRhythmWorkflow
+                    from projections.eos.workflows.runner import WorkflowRunner
+
+                    wf = DailyRhythmWorkflow()
+                    runner = WorkflowRunner()
+                    result = runner.run("morning_brief", wf.brief_steps(), source="discord")
+                    if result.success:
+                        outputs = result.outputs
+                        return outputs[-1] if outputs else result.summary()
+                except Exception:
+                    pass
+                return None
+
+            output = await loop.run_in_executor(None, _run_governed_brief)
+
+            if not output:
+                _run_gw = _ctx["run_gateway"]
+                output = await loop.run_in_executor(
+                    None,
+                    lambda: _run_gw("morning brief", ctx.channel.name, str(ctx.author)),
+                )
+
+        await _send_reply(ctx.channel, output or "Brief generated.")
 
     @bot.command(name="status")
     async def cmd_status(ctx: commands.Context):
@@ -300,9 +320,32 @@ def register_commands(
 
     @bot.command(name="eod")
     async def cmd_eod(ctx: commands.Context):
-        """Trigger EOD sync manually."""
-        gated_popen(["python3", str(_REPO_ROOT / "scripts" / "eod_sync.py")])
-        await ctx.reply("📊 EOD sync running...")
+        """Trigger EOD sync (governed workflow with script fallback)."""
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run_governed_eod():
+                try:
+                    from projections.eos.workflows.daily import DailyRhythmWorkflow
+                    from projections.eos.workflows.runner import WorkflowRunner
+
+                    wf = DailyRhythmWorkflow()
+                    runner = WorkflowRunner()
+                    result = runner.run("end_of_day", wf.eod_steps(), source="discord")
+                    if result.success:
+                        outputs = result.outputs
+                        return outputs[-1] if outputs else result.summary()
+                except Exception:
+                    pass
+                return None
+
+            output = await loop.run_in_executor(None, _run_governed_eod)
+
+        if output:
+            await _send_reply(ctx.channel, f"**EOD Summary**\n{output[:1800]}")
+        else:
+            gated_popen(["python3", str(_REPO_ROOT / "scripts" / "eod_sync.py")])
+            await ctx.reply("📊 EOD sync running (fallback)...")
 
     @bot.command(name="openday")
     async def cmd_openday(ctx: commands.Context, *, args: str = ""):
@@ -1272,7 +1315,8 @@ Subject: [subject]
             "`!folder-update <folder> <instruction>` — update GPS folder rule",
             "",
             "**EOS Commands**",
-            "`!brief` — morning brief",
+            "`!brief` — morning brief (governed)",
+            "`!eod` — end-of-day sync (governed)",
             "`!report profile` — EOS learning report from docs",
             "`!report pulse` — run world pulse scan",
             "`!status` — system health check",
@@ -1286,6 +1330,16 @@ Subject: [subject]
             "`!join` — connect to your voice channel",
             "`!leave` — disconnect from voice",
             "`!say <text>` — speak text aloud in voice channel",
+            "",
+            "**Governed Workflows**",
+            "`!research <topic>` — research workflow with source gathering",
+            "`!plan <goal>` — planning workflow with gap analysis",
+            "`!review <scope>` — code/architecture review",
+            "`!task <desc>` — define and start a governed task",
+            "`!done [summary]` — complete the current task",
+            "`!outreach <name>` — outreach workflow for a lead",
+            "`!followup` — check and act on stale leads",
+            "`!content [days]` — generate content calendar",
             "",
             "**Voice**",
             "Drop a `.wav`/`.mp3`/`.ogg` in any channel while connected",
@@ -2805,3 +2859,255 @@ Subject: [subject]
         except Exception as e:
             _record_error("cmd_trace", e)
             await ctx.reply(f"Trace error: {e}", tts=False)
+
+    # ─── P2: Governed Workflow Commands ──────────────────────────────────
+
+    def _run_workflow_sync(workflow_name, steps, source="discord"):
+        """Run a workflow through the governed runner (sync helper)."""
+        from projections.eos.workflows.runner import WorkflowRunner
+
+        runner = WorkflowRunner()
+        return runner.run(workflow_name, steps, source=source)
+
+    @bot.command(name="research")
+    async def cmd_research(ctx: commands.Context, *, topic: str = ""):
+        """Run a governed research workflow. Usage: !research <topic>"""
+        if not topic.strip():
+            await ctx.reply("Usage: `!research <topic>`\nExample: `!research competitor pricing models`")
+            return
+        await ctx.reply(f"🔍 Researching: **{topic[:100]}**...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.research import ResearchWorkflow
+
+                    wf = ResearchWorkflow()
+                    return _run_workflow_sync("research", wf.steps(topic))
+                except Exception as e:
+                    _record_error("cmd_research", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            outputs = result.outputs
+            summary = outputs[-1] if outputs else result.summary()
+            await _send_reply(ctx.channel, f"**Research Complete** ({result.steps_completed}/{result.steps_total} steps)\n{summary[:1800]}")
+        elif result:
+            await ctx.reply(f"⚠️ Research partially complete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Research workflow failed.")
+
+    @bot.command(name="plan")
+    async def cmd_plan(ctx: commands.Context, *, goal: str = ""):
+        """Run a governed planning workflow. Usage: !plan <goal>"""
+        if not goal.strip():
+            await ctx.reply("Usage: `!plan <goal>`\nExample: `!plan reach $10K/month net profit`")
+            return
+        await ctx.reply(f"📋 Planning: **{goal[:100]}**...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.planning import PlanningWorkflow
+
+                    wf = PlanningWorkflow()
+                    return _run_workflow_sync("planning", wf.steps(goal))
+                except Exception as e:
+                    _record_error("cmd_plan", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            outputs = result.outputs
+            summary = outputs[-1] if outputs else result.summary()
+            await _send_reply(ctx.channel, f"**Plan Created** ({result.steps_completed}/{result.steps_total} steps)\n{summary[:1800]}")
+        elif result:
+            await ctx.reply(f"⚠️ Planning partially complete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Planning workflow failed.")
+
+    @bot.command(name="review")
+    async def cmd_review(ctx: commands.Context, *, scope: str = ""):
+        """Run a governed review workflow. Usage: !review <scope|type>"""
+        if not scope.strip():
+            await ctx.reply(
+                "Usage: `!review <scope>`\n"
+                "Types: `gates`, `architecture`, `types`, `imports`, `tests`\n"
+                "Or pass a directory/file path."
+            )
+            return
+        await ctx.reply(f"🔎 Reviewing: **{scope[:100]}**...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.review import ReviewWorkflow
+
+                    wf = ReviewWorkflow()
+                    return _run_workflow_sync("review", wf.steps(scope))
+                except Exception as e:
+                    _record_error("cmd_review", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            outputs = result.outputs
+            summary = outputs[-1] if outputs else result.summary()
+            await _send_reply(ctx.channel, f"**Review Complete** ({result.steps_completed}/{result.steps_total} steps)\n{summary[:1800]}")
+        elif result:
+            await ctx.reply(f"⚠️ Review partially complete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Review workflow failed.")
+
+    @bot.command(name="task")
+    async def cmd_task(ctx: commands.Context, *, description: str = ""):
+        """Define and start a governed task. Usage: !task <description>"""
+        if not description.strip():
+            await ctx.reply("Usage: `!task <description>`\nExample: `!task fix outreach email template`")
+            return
+        await ctx.reply(f"📝 Task: **{description[:100]}**...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.execution import ExecutionWorkflow
+
+                    wf = ExecutionWorkflow()
+                    return _run_workflow_sync("task_define", wf.steps_define(description))
+                except Exception as e:
+                    _record_error("cmd_task", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            outputs = result.outputs
+            task_info = outputs[0] if outputs else result.summary()
+            await ctx.reply(f"✅ {task_info[:500]}\nUse `!done <summary>` when finished.")
+        elif result:
+            await ctx.reply(f"⚠️ Task creation incomplete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Task creation failed.")
+
+    @bot.command(name="done")
+    async def cmd_done(ctx: commands.Context, *, summary: str = ""):
+        """Complete the current task. Usage: !done [summary]"""
+        summary = summary.strip() or "task completed"
+        await ctx.reply(f"✅ Completing task: **{summary[:100]}**...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.execution import ExecutionWorkflow
+
+                    wf = ExecutionWorkflow()
+                    return _run_workflow_sync("task_complete", wf.steps_complete(summary))
+                except Exception as e:
+                    _record_error("cmd_done", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            await ctx.reply(f"✅ Task completed and outcome recorded.\n{result.summary()}")
+        elif result:
+            await ctx.reply(f"⚠️ Completion incomplete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Task completion failed.")
+
+    @bot.command(name="outreach")
+    async def cmd_outreach(ctx: commands.Context, *, lead_name: str = ""):
+        """Run governed outreach workflow. Usage: !outreach <lead_name>"""
+        if not lead_name.strip():
+            await ctx.reply("Usage: `!outreach <lead_name>`\nExample: `!outreach John Smith`")
+            return
+        await ctx.reply(f"📧 Running outreach for: **{lead_name[:80]}**...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.outreach import OutreachWorkflow
+
+                    wf = OutreachWorkflow()
+                    lead = {"id": lead_name.lower().replace(" ", "_"), "name": lead_name}
+                    return _run_workflow_sync("outreach", wf.steps(lead))
+                except Exception as e:
+                    _record_error("cmd_outreach", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            outputs = result.outputs
+            summary = outputs[-1] if outputs else result.summary()
+            await _send_reply(ctx.channel, f"**Outreach Complete** ({result.steps_completed}/{result.steps_total} steps)\n{summary[:1800]}")
+        elif result:
+            await ctx.reply(f"⚠️ Outreach partially complete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Outreach workflow failed.")
+
+    @bot.command(name="followup")
+    async def cmd_followup(ctx: commands.Context):
+        """Check and act on stale leads. Usage: !followup"""
+        await ctx.reply("🔄 Checking stale leads...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.followup import FollowUpWorkflow
+
+                    wf = FollowUpWorkflow()
+                    return _run_workflow_sync("followup", wf.steps())
+                except Exception as e:
+                    _record_error("cmd_followup", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            outputs = result.outputs
+            summary = outputs[-1] if outputs else result.summary()
+            await _send_reply(ctx.channel, f"**Follow-up Check** ({result.steps_completed}/{result.steps_total} steps)\n{summary[:1800]}")
+        elif result:
+            await ctx.reply(f"⚠️ Follow-up partially complete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Follow-up workflow failed.")
+
+    @bot.command(name="content")
+    async def cmd_content(ctx: commands.Context, days: int = 7):
+        """Generate content calendar. Usage: !content [days]"""
+        await ctx.reply(f"📅 Generating {days}-day content calendar...")
+        async with ctx.typing():
+            loop = asyncio.get_event_loop()
+
+            def _run():
+                try:
+                    from projections.eos.workflows.content import ContentCalendarWorkflow
+
+                    wf = ContentCalendarWorkflow()
+                    return _run_workflow_sync("content", wf.steps(days))
+                except Exception as e:
+                    _record_error("cmd_content", e)
+                    return None
+
+            result = await loop.run_in_executor(None, _run)
+
+        if result and result.success:
+            outputs = result.outputs
+            summary = outputs[-1] if outputs else result.summary()
+            await _send_reply(ctx.channel, f"**Content Calendar** ({result.steps_completed}/{result.steps_total} steps)\n{summary[:1800]}")
+        elif result:
+            await ctx.reply(f"⚠️ Content generation partially complete: {result.summary()}")
+        else:
+            await ctx.reply("❌ Content workflow failed.")
