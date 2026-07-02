@@ -15,7 +15,7 @@ export function RightDrawer() {
         width: 160,
         right: 6,
         top: mobile ? '50%' : 48,
-        bottom: 48,
+        bottom: 78,
       }}
     >
       <RightRail />

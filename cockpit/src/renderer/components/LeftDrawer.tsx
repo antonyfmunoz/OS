@@ -19,7 +19,7 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
         width: 160,
         left: 6,
         top: mobile ? '50%' : 48,
-        bottom: 48,
+        bottom: 78,
       }}
     >
       {children}
