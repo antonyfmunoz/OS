@@ -54,7 +54,7 @@ export function Shell() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-surface">
+    <div className="flex flex-col bg-surface" style={{ height: '100dvh' }}>
       <StorePolling />
       <TitleBar />
 

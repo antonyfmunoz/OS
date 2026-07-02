@@ -1,9 +1,9 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Pencil, Check, Download, Mic, MicOff } from 'lucide-react'
+import { Send, Pencil, Check, Download, Mic, MicOff, ImagePlus, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { useChatStore, type ChatMessage, type Provenance, type Attachment } from '../stores/chatStore'
+import { useChatStore, type ChatMessage, type Provenance, type Attachment, type MediaAttachment } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
@@ -109,6 +109,39 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
   )
 }
 
+function MediaGrid({ media }: { media: MediaAttachment[] }) {
+  const apiUrl = import.meta.env.VITE_API_URL || '/api/umh'
+  return (
+    <div className="flex flex-wrap gap-1 mt-1.5">
+      {media.map((m) => {
+        const src = m.url.startsWith('/') ? `${apiUrl.replace(/\/api\/umh$/, '')}${m.url}` : m.url
+        const previewSrc = m.previewUrl || src
+        if (m.media_type === 'video') {
+          return (
+            <video
+              key={m.id}
+              src={src}
+              controls
+              className="rounded max-w-full"
+              style={{ maxHeight: 200 }}
+            />
+          )
+        }
+        return (
+          <a key={m.id} href={src} target="_blank" rel="noopener noreferrer">
+            <img
+              src={previewSrc}
+              alt={m.filename}
+              className="rounded cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'cover' }}
+            />
+          </a>
+        )
+      })}
+    </div>
+  )
+}
+
 function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void }) {
   if (msg.sender === 'operator') {
     return (
@@ -120,8 +153,14 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
               <Mic size={8} className="inline" /> voice
             </span>
           )}
+          {msg.media && msg.media.length > 0 && (
+            <span className="text-[8px] px-1 rounded bg-cyan/10 text-cyan/70">
+              {msg.media.length} media
+            </span>
+          )}
         </div>
-        <p className="whitespace-pre-wrap">{msg.content}</p>
+        {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
+        {msg.media && msg.media.length > 0 && <MediaGrid media={msg.media} />}
       </div>
     )
   }
@@ -218,6 +257,9 @@ function ChatSection() {
   const error = useChatStore((s) => s.error)
   const setInput = useChatStore((s) => s.setInput)
   const sendMessage = useChatStore((s) => s.sendMessage)
+  const pendingMedia = useChatStore((s) => s.pendingMedia)
+  const addPendingMedia = useChatStore((s) => s.addPendingMedia)
+  const removePendingMedia = useChatStore((s) => s.removePendingMedia)
   const viewContext = useViewContextStore((s) => s.context)
   const setPanel = useCockpitStore((s) => s.setPanel)
   const micState = useVoiceStore((s) => s.micState)
@@ -227,6 +269,7 @@ function ChatSection() {
   const draftMessage = useChatStore((s) => s.draftMessage)
   const placeholderMessage = useChatStore((s) => s.placeholderMessage)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const displayName = aiName
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(aiName)
@@ -244,11 +287,27 @@ function ChatSection() {
   }, [])
 
   const handleSend = () => {
-    if (input.trim()) {
+    if (input.trim() || pendingMedia.length > 0) {
       const ctx: Record<string, unknown> = { ...viewContext }
       sendMessage(input, 'text', ctx)
     }
   }
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const files = Array.from(e.clipboardData.files).filter(
+      (f) => f.type.startsWith('image/') || f.type.startsWith('video/'),
+    )
+    if (files.length > 0) {
+      e.preventDefault()
+      addPendingMedia(files)
+    }
+  }, [addPendingMedia])
+
+  const handleFilePick = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length > 0) addPendingMedia(files)
+    e.target.value = ''
+  }, [addPendingMedia])
 
   const handleMicToggle = useCallback(() => {
     if (micState === 'idle') {
@@ -443,11 +502,48 @@ function ChatSection() {
         {voiceError && micState === 'idle' && (
           <button onClick={handleMicToggle} className="text-[9px] font-mono text-cyan/70 px-1 hover:text-cyan cursor-pointer">Try again</button>
         )}
+        {pendingMedia.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-1">
+            {pendingMedia.map((pm, i) => (
+              <div key={i} className="relative group">
+                {pm.media_type === 'image' ? (
+                  <img src={pm.previewUrl} alt="" className="rounded" style={{ height: 48, width: 48, objectFit: 'cover' }} />
+                ) : (
+                  <div className="flex items-center justify-center rounded bg-surface-raised" style={{ height: 48, width: 48 }}>
+                    <span className="text-[8px] font-mono text-text-tertiary">VID</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => removePendingMedia(i)}
+                  className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-danger text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={8} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-1">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            className="hidden"
+            onChange={handleFilePick}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-1.5 rounded text-text-tertiary hover:text-cyan transition-colors"
+            title="Attach image or video"
+          >
+            <ImagePlus size={12} />
+          </button>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            onPaste={handlePaste}
             placeholder={`Message ${aiName}...`}
             className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
             disabled={sending}
@@ -466,7 +562,7 @@ function ChatSection() {
           >
             {(micState === 'listening' || micState === 'recording') ? <MicOff size={12} /> : <Mic size={12} />}
           </button>
-          <button onClick={handleSend} disabled={sending || !input.trim()} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
+          <button onClick={handleSend} disabled={sending || (!input.trim() && pendingMedia.length === 0)} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
             <Send size={12} />
           </button>
         </div>

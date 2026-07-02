@@ -10,12 +10,13 @@ import json
 import logging
 import os
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 
 from transports.api.governed import governed_mutation
 
@@ -441,14 +442,13 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         """Download an attachment file referenced in a chat message."""
         from pathlib import Path as PathLib
 
-        from fastapi.responses import FileResponse
-
         repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
         if path.startswith("/opt/OS/") and repo_root != "/opt/OS":
             path = os.path.join(repo_root, path[len("/opt/OS/"):])
         allowed_dirs = [
             PathLib(os.path.realpath(os.path.join(repo_root, "docs"))),
             PathLib(os.path.realpath(os.path.join(repo_root, "data", "audits"))),
+            PathLib(os.path.realpath(os.path.join(repo_root, "data", "chat_media"))),
         ]
         resolved = PathLib(os.path.realpath(path))
         if not any(resolved.is_relative_to(d) for d in allowed_dirs):
@@ -461,4 +461,81 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             str(resolved), filename=resolved.name, media_type="application/octet-stream"
         )
 
+    # ── Media upload for multimodal chat ─────────────────────────────────────
+
+    ALLOWED_MEDIA_TYPES = {
+        "image/jpeg", "image/png", "image/gif", "image/webp",
+        "video/mp4", "video/webm", "video/quicktime",
+    }
+    MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
+    @r.post("/chat/upload", dependencies=auth)
+    async def chat_upload(file: UploadFile = File(...)):
+        """Upload an image or video for chat. Returns a serving URL."""
+        if file.content_type not in ALLOWED_MEDIA_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported media type: {file.content_type}. "
+                f"Allowed: {', '.join(sorted(ALLOWED_MEDIA_TYPES))}",
+            )
+
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        media_dir = Path(repo_root) / "data" / "chat_media"
+        media_dir.mkdir(parents=True, exist_ok=True)
+
+        ext = Path(file.filename or "upload").suffix or _ext_from_content_type(file.content_type)
+        file_id = f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
+        dest = media_dir / file_id
+
+        size = 0
+        with open(dest, "wb") as f:
+            while chunk := await file.read(64 * 1024):
+                size += len(chunk)
+                if size > MAX_UPLOAD_SIZE:
+                    dest.unlink(missing_ok=True)
+                    raise HTTPException(status_code=413, detail="File too large (max 50 MB)")
+                f.write(chunk)
+
+        media_type = "image" if file.content_type.startswith("image/") else "video"
+
+        return {
+            "id": file_id,
+            "url": f"/api/umh/chat/media/{file_id}",
+            "filename": file.filename or file_id,
+            "content_type": file.content_type,
+            "media_type": media_type,
+            "size": size,
+        }
+
+    @r.get("/chat/media/{file_id}")
+    def chat_media(file_id: str):
+        """Serve uploaded chat media."""
+        if "/" in file_id or ".." in file_id or file_id.startswith("."):
+            raise HTTPException(status_code=400, detail="Invalid file ID")
+
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        media_path = Path(repo_root) / "data" / "chat_media" / file_id
+
+        if not media_path.is_file():
+            raise HTTPException(status_code=404, detail="Media not found")
+
+        ext = media_path.suffix.lower()
+        content_types = {
+            ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+            ".gif": "image/gif", ".webp": "image/webp",
+            ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
+        }
+        ct = content_types.get(ext, "application/octet-stream")
+
+        return FileResponse(str(media_path), media_type=ct)
+
     return r
+
+
+def _ext_from_content_type(ct: str) -> str:
+    """Map content type to file extension."""
+    return {
+        "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif",
+        "image/webp": ".webp", "video/mp4": ".mp4", "video/webm": ".webm",
+        "video/quicktime": ".mov",
+    }.get(ct, ".bin")
