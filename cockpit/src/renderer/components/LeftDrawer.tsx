@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react'
 import { useCockpitStore } from '../stores/cockpitStore'
-import { useIsMobile } from '../hooks/useIsMobile'
 
 interface LeftDrawerProps {
   children: ReactNode
@@ -8,7 +7,6 @@ interface LeftDrawerProps {
 
 export function LeftDrawer({ children }: LeftDrawerProps) {
   const open = useCockpitStore((s) => s.leftDrawerOpen)
-  const mobile = useIsMobile()
 
   if (!open) return null
 
@@ -18,7 +16,7 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
       style={{
         width: 160,
         left: 6,
-        top: mobile ? '50%' : 12,
+        top: 12,
         bottom: 78,
       }}
     >

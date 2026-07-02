@@ -1,10 +1,8 @@
 import { useCockpitStore } from '../stores/cockpitStore'
-import { useIsMobile } from '../hooks/useIsMobile'
 import { RightRail } from './RightRail'
 
 export function RightDrawer() {
   const open = useCockpitStore((s) => s.rightDrawerOpen)
-  const mobile = useIsMobile()
 
   if (!open) return null
 
@@ -14,7 +12,7 @@ export function RightDrawer() {
       style={{
         width: 240,
         right: 6,
-        top: mobile ? '50%' : 12,
+        top: 12,
         bottom: 78,
       }}
     >
