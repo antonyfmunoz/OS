@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
+import { useCanvasStore } from '../stores/canvasStore'
 import { useConfigStore } from '../stores/configStore'
 import { fetchApi } from '../api/client'
 import { ROUTES } from '../types/routes'
@@ -32,7 +33,7 @@ export function CommandPalette() {
       if (!data.ok) return
 
       if (data.panel_target) {
-        setPanel(data.panel_target as Panel)
+        useCanvasStore.getState().addWindow('panel', { panelId: data.panel_target })
         setOpen(false)
         return
       }
@@ -49,15 +50,17 @@ export function CommandPalette() {
     } catch { /* silent */ }
   }, [setPanel, setMode])
 
+  const addWindow = useCanvasStore((s) => s.addWindow)
+
   const routeCommands: Command[] = ROUTES
     .filter((r) => r.visibility !== 'stub')
     .map((r) => {
       const badge = r.visibility === 'dev' ? ' [DEV]' : r.visibility === 'planned' ? ' [PLANNED]' : ''
       return {
         id: r.id,
-        label: `Go to ${r.label}${badge}`,
+        label: `Open ${r.label}${badge}`,
         shortcut: r.visibility === 'primary' || r.visibility === 'system' ? `Ctrl+${r.key}` : undefined,
-        action: () => setPanel(r.id),
+        action: () => addWindow('panel', { panelId: r.id }),
       }
     })
 

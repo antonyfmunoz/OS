@@ -22,24 +22,9 @@ declare global {
   }
 }
 
-import { useCockpitStore } from '../stores/cockpitStore'
-import { useWorkspaceContextStore } from '../stores/workspaceContextStore'
-import { ROUTES } from '../types/routes'
-import { IDEMenuBar } from './IDEMenuBar'
 import { CanvasMenuBar } from './CanvasMenuBar'
 
-const CANVAS_PANELS = new Set(['canvas', 'agents', 'workflows'])
-
-function getPanelLabel(panelId: string): string {
-  const route = ROUTES.find(r => r.id === panelId)
-  return route?.label ?? panelId
-}
-
 export function TitleBar() {
-  const activePanel = useCockpitStore(s => s.activePanel)
-  const panelLabel = getPanelLabel(activePanel)
-  const contextLine = useWorkspaceContextStore(s => s.contextLine())
-
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {})
@@ -53,54 +38,37 @@ export function TitleBar() {
       className="titlebar-drag flex items-center px-3 select-none bg-surface border-b border-border"
       style={{ height: 'var(--spacing-titlebar-height)' }}
     >
-      {activePanel === 'editor' ? (
-        <IDEMenuBar />
-      ) : CANVAS_PANELS.has(activePanel) ? (
-        <CanvasMenuBar />
-      ) : (
-        <>
-          <span className="font-mono text-[10px] tracking-widest uppercase leading-none text-text-secondary">
-            {panelLabel}
-          </span>
-          {contextLine && (
-            <span className="ml-3 font-mono text-[10px] leading-none text-text-tertiary truncate max-w-[400px]">
-              {contextLine}
-            </span>
-          )}
-        </>
-      )}
+      <CanvasMenuBar />
 
       <div className="flex-1" />
 
-      {activePanel !== 'editor' && (
-        <div className="titlebar-no-drag flex items-center gap-1">
-          <button
-            onClick={toggleFullscreen}
-            className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-surface-raised transition-colors"
-            title="Toggle full-screen"
-          >
-            ⛶
-          </button>
-          <button
-            onClick={() => window.cockpit?.window.minimize()}
-            className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-surface-raised transition-colors"
-          >
-            ─
-          </button>
-          <button
-            onClick={() => window.cockpit?.window.maximize()}
-            className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-surface-raised transition-colors"
-          >
-            □
-          </button>
-          <button
-            onClick={() => window.cockpit?.window.close()}
-            className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-danger hover:text-white transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-      )}
+      <div className="titlebar-no-drag flex items-center gap-1">
+        <button
+          onClick={toggleFullscreen}
+          className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-surface-raised transition-colors"
+          title="Toggle full-screen"
+        >
+          ⛶
+        </button>
+        <button
+          onClick={() => window.cockpit?.window.minimize()}
+          className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-surface-raised transition-colors"
+        >
+          ─
+        </button>
+        <button
+          onClick={() => window.cockpit?.window.maximize()}
+          className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-surface-raised transition-colors"
+        >
+          □
+        </button>
+        <button
+          onClick={() => window.cockpit?.window.close()}
+          className="w-8 h-6 flex items-center justify-center rounded text-[10px] text-text-secondary hover:bg-danger hover:text-white transition-colors"
+        >
+          ✕
+        </button>
+      </div>
     </header>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect } from 'react'
 import { useUnifiedCanvasStore } from '../../stores/unifiedCanvasStore'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { useAgentCanvasStore } from '../../stores/agentCanvasStore'
@@ -7,6 +7,7 @@ import { useLoopCanvasStore } from '../../stores/loopCanvasStore'
 import { useHarnessCanvasStore } from '../../stores/harnessCanvasStore'
 import { useOrganismCanvasStore } from '../../stores/organismCanvasStore'
 import { useAgentStore } from '../../stores/agentStore'
+import { useCockpitStore } from '../../stores/cockpitStore'
 import { fetchApi } from '../../api/client'
 import { CanvasPalette } from './CanvasPalette'
 import { CanvasWorkspace } from './CanvasWorkspace'
@@ -15,7 +16,9 @@ import { WorkflowCanvasWorkspace } from './WorkflowCanvasWorkspace'
 import { LoopCanvasWorkspace } from './LoopCanvasWorkspace'
 import { HarnessCanvasWorkspace } from './HarnessCanvasWorkspace'
 import { OrganismCanvasWorkspace } from './OrganismCanvasWorkspace'
+import { LeftDrawer } from '../LeftDrawer'
 import type { CanvasMode } from '../../stores/unifiedCanvasStore'
+import { useState } from 'react'
 
 function snapshotModeState(mode: CanvasMode): Record<string, unknown> {
   switch (mode) {
@@ -76,7 +79,8 @@ export function UnifiedCanvasWorkspace() {
 
   const storeAgents = useAgentStore((s) => s.agents)
   const fetchAgents = useAgentStore((s) => s.fetchAgents)
-  const [paletteOpen, setPaletteOpen] = useState(true)
+  const leftDrawerOpen = useCockpitStore((s) => s.leftDrawerOpen)
+  const toggleLeftDrawer = useCockpitStore((s) => s.toggleLeftDrawer)
   const [tmuxSessions, setTmuxSessions] = useState<Array<{ name: string; windows: number }>>([])
   const [beastSessions, setBeastSessions] = useState<Array<{ name: string; shell?: string; shell_type?: string }>>([])
   const [vpsShells, setVpsShells] = useState<Array<{ id: string; label: string }>>([])
@@ -145,10 +149,10 @@ export function UnifiedCanvasWorkspace() {
   }, [])
 
   useEffect(() => {
-    const handler = () => setPaletteOpen(v => !v)
+    const handler = () => toggleLeftDrawer()
     document.addEventListener('canvas:toggle-palette', handler)
     return () => document.removeEventListener('canvas:toggle-palette', handler)
-  }, [])
+  }, [toggleLeftDrawer])
 
   const handleSetMode = useCallback((newMode: CanvasMode) => {
     const currentMode = useUnifiedCanvasStore.getState().activeMode
@@ -258,35 +262,11 @@ export function UnifiedCanvasWorkspace() {
 
   const currentActiveCanvasId = activeCanvasId[activeMode]
 
-  const palette = (
-    <CanvasPalette
-      mode={activeMode}
-      onAddWindow={handleAddWindow}
-      onAction={handleAction}
-      savedCanvases={savedCanvases}
-      activeCanvasId={currentActiveCanvasId}
-      onCreateCanvas={handleCreateCanvas}
-      onLoadCanvas={handleLoadCanvas}
-      onRenameCanvas={handleRenameCanvas}
-      onDeleteCanvas={handleDeleteCanvas}
-      open={paletteOpen}
-      onToggle={() => setPaletteOpen((v) => !v)}
-      agents={agents.map((a) => ({ id: a.id, name: a.name }))}
-      tmuxSessions={tmuxSessions}
-      beastSessions={beastSessions}
-      vpsShells={vpsShells}
-      beastShells={beastShells}
-      vpsMultiplexers={vpsMultiplexers}
-      beastMultiplexers={beastMultiplexers}
-    />
-  )
-
   const modeProps = {
-    palette,
     mode: activeMode,
     onSetMode: handleSetMode,
-    paletteOpen,
-    onTogglePalette: () => setPaletteOpen((v) => !v),
+    paletteOpen: leftDrawerOpen,
+    onTogglePalette: toggleLeftDrawer,
   }
 
   return (
@@ -297,6 +277,29 @@ export function UnifiedCanvasWorkspace() {
       {activeMode === 'loops' && <LoopCanvasWorkspace {...modeProps} />}
       {activeMode === 'harnesses' && <HarnessCanvasWorkspace {...modeProps} />}
       {activeMode === 'organism' && <OrganismCanvasWorkspace {...modeProps} />}
+
+      <LeftDrawer>
+        <CanvasPalette
+          mode={activeMode}
+          onAddWindow={handleAddWindow}
+          onAction={handleAction}
+          savedCanvases={savedCanvases}
+          activeCanvasId={currentActiveCanvasId}
+          onCreateCanvas={handleCreateCanvas}
+          onLoadCanvas={handleLoadCanvas}
+          onRenameCanvas={handleRenameCanvas}
+          onDeleteCanvas={handleDeleteCanvas}
+          open={true}
+          onToggle={toggleLeftDrawer}
+          agents={agents.map((a) => ({ id: a.id, name: a.name }))}
+          tmuxSessions={tmuxSessions}
+          beastSessions={beastSessions}
+          vpsShells={vpsShells}
+          beastShells={beastShells}
+          vpsMultiplexers={vpsMultiplexers}
+          beastMultiplexers={beastMultiplexers}
+        />
+      </LeftDrawer>
     </div>
   )
 }
