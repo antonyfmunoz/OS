@@ -58,7 +58,7 @@ export function Shell() {
       <StorePolling />
       <TitleBar />
 
-      <main className="flex-1 overflow-hidden bg-surface relative" style={{ paddingBottom: "var(--spacing-hud-height)" }}>
+      <main className="flex-1 overflow-hidden bg-surface relative">
         <ErrorBoundary>
           <UnifiedCanvasWorkspace />
         </ErrorBoundary>
