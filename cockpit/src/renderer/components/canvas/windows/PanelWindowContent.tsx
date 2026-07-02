@@ -4,7 +4,6 @@ const PANEL_COMPONENTS: Record<string, React.LazyExoticComponent<React.Component
   dashboard: lazy(() => import('../../../panels/DashboardPanel').then(m => ({ default: m.DashboardPanel }))),
   commandcenter: lazy(() => import('../../../panels/CommandCenterPanel').then(m => ({ default: m.CommandCenterPanel }))),
   work: lazy(() => import('../../../panels/WorkPanel').then(m => ({ default: m.WorkPanel }))),
-  agents: lazy(() => import('../../../panels/AgentsPanel').then(m => ({ default: m.AgentsPanel }))),
   approvals: lazy(() => import('../../../panels/ApprovalsPanel').then(m => ({ default: m.ApprovalsPanel }))),
   activity: lazy(() => import('../../../panels/ActivityPanel').then(m => ({ default: m.ActivityPanel }))),
   knowledge: lazy(() => import('../../../panels/KnowledgePanel').then(m => ({ default: m.KnowledgePanel }))),
