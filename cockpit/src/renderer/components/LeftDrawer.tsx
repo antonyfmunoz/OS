@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react'
 import { useCockpitStore } from '../stores/cockpitStore'
-import { useIsMobile } from '../hooks/useIsMobile'
 
 interface LeftDrawerProps {
   children: ReactNode
@@ -8,7 +7,6 @@ interface LeftDrawerProps {
 
 export function LeftDrawer({ children }: LeftDrawerProps) {
   const open = useCockpitStore((s) => s.leftDrawerOpen)
-  const mobile = useIsMobile()
 
   if (!open) return null
 
@@ -16,11 +14,10 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
     <div
       className="wv-card absolute z-20 flex flex-col overflow-hidden overflow-y-auto"
       style={{
-        width: mobile ? 'calc(100% - 12px)' : 160,
+        width: 160,
         left: 6,
         top: 48,
         bottom: 48,
-        ...(mobile ? { right: 6 } : {}),
       }}
     >
       {children}
