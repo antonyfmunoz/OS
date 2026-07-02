@@ -4,12 +4,8 @@ import { BaseCanvas } from './BaseCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { useOrganismCanvasStore, type TopologyNode, type TopologyEdge } from '../../stores/organismCanvasStore'
 import { clampZoom } from '../../utils/canvasCoords'
-import type { CanvasMode } from '../../stores/unifiedCanvasStore'
-
 interface OrganismCanvasWorkspaceProps {
   palette?: ReactNode
-  mode?: CanvasMode
-  onSetMode?: (mode: CanvasMode) => void
   paletteOpen?: boolean
   onTogglePalette?: () => void
 }
@@ -101,7 +97,7 @@ function OrganismMapOverlay() {
   )
 }
 
-function OrganismMapView({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: OrganismCanvasWorkspaceProps) {
+function OrganismMapView({ palette, paletteOpen = false, onTogglePalette }: OrganismCanvasWorkspaceProps) {
   const panX = useOrganismCanvasStore((s) => s.panX)
   const panY = useOrganismCanvasStore((s) => s.panY)
   const zoom = useOrganismCanvasStore((s) => s.zoom)
@@ -114,7 +110,7 @@ function OrganismMapView({ palette, mode, onSetMode, paletteOpen = false, onTogg
   return (
     <>
       <BaseCanvas panX={panX} panY={panY} zoom={zoom} setPan={setPan} setZoom={setZoom} palette={palette}
-        toolbar={<CanvasToolbar zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onZoomReset={handleZoomReset} onFitAll={() => {}} onTile={() => {}} onTogglePalette={onTogglePalette ?? (() => {})} paletteOpen={paletteOpen} mode={mode} onSetMode={onSetMode} />}
+        toolbar={<CanvasToolbar zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onZoomReset={handleZoomReset} onTogglePalette={onTogglePalette ?? (() => {})} paletteOpen={paletteOpen} />}
       >{null}</BaseCanvas>
       <OrganismMapOverlay />
     </>

@@ -4,12 +4,8 @@ import { BaseCanvas } from './BaseCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { useHarnessCanvasStore, type RuntimeNode } from '../../stores/harnessCanvasStore'
 import { clampZoom } from '../../utils/canvasCoords'
-import type { CanvasMode } from '../../stores/unifiedCanvasStore'
-
 interface HarnessCanvasWorkspaceProps {
   palette?: ReactNode
-  mode?: CanvasMode
-  onSetMode?: (mode: CanvasMode) => void
   paletteOpen?: boolean
   onTogglePalette?: () => void
 }
@@ -158,7 +154,7 @@ function HarnessListOverlay() {
   )
 }
 
-function HarnessList({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: HarnessCanvasWorkspaceProps) {
+function HarnessList({ palette, paletteOpen = false, onTogglePalette }: HarnessCanvasWorkspaceProps) {
   const panX = useHarnessCanvasStore((s) => s.panX)
   const panY = useHarnessCanvasStore((s) => s.panY)
   const zoom = useHarnessCanvasStore((s) => s.zoom)
@@ -172,7 +168,7 @@ function HarnessList({ palette, mode, onSetMode, paletteOpen = false, onTogglePa
   return (
     <>
       <BaseCanvas panX={panX} panY={panY} zoom={zoom} setPan={setPan} setZoom={setZoom} palette={palette}
-        toolbar={<CanvasToolbar zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onZoomReset={handleZoomReset} onFitAll={() => {}} onTile={() => {}} onTogglePalette={onTogglePalette ?? (() => {})} paletteOpen={paletteOpen} mode={mode} onSetMode={onSetMode} />}
+        toolbar={<CanvasToolbar zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onZoomReset={handleZoomReset} onTogglePalette={onTogglePalette ?? (() => {})} paletteOpen={paletteOpen} />}
       >{null}</BaseCanvas>
       <HarnessListOverlay />
     </>

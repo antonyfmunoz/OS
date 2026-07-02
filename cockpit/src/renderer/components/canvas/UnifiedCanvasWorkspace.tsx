@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useUnifiedCanvasStore } from '../../stores/unifiedCanvasStore'
 import { useCanvasStore } from '../../stores/canvasStore'
 import { useAgentCanvasStore } from '../../stores/agentCanvasStore'
@@ -17,65 +17,10 @@ import { LoopCanvasWorkspace } from './LoopCanvasWorkspace'
 import { HarnessCanvasWorkspace } from './HarnessCanvasWorkspace'
 import { OrganismCanvasWorkspace } from './OrganismCanvasWorkspace'
 import { LeftDrawer } from '../LeftDrawer'
-import type { CanvasMode } from '../../stores/unifiedCanvasStore'
 import { useState } from 'react'
-
-function snapshotModeState(mode: CanvasMode): Record<string, unknown> {
-  switch (mode) {
-    case 'general': {
-      const s = useCanvasStore.getState()
-      return { windows: s.windows, clusters: s.clusters, presets: s.presets, panX: s.panX, panY: s.panY, zoom: s.zoom, nextZIndex: s.nextZIndex }
-    }
-    case 'agents': {
-      const s = useAgentCanvasStore.getState()
-      return { nodes: s.nodes, panX: s.panX, panY: s.panY, zoom: s.zoom, nextZIndex: s.nextZIndex, dismissedAgentIds: s.dismissedAgentIds }
-    }
-    case 'workflows': {
-      const s = useWorkflowCanvasStore.getState()
-      return { workflows: s.workflows, panX: s.panX, panY: s.panY, zoom: s.zoom, activeWorkflowId: s.activeWorkflowId, nodes: s.nodes, connections: s.connections }
-    }
-    case 'loops': {
-      const s = useLoopCanvasStore.getState()
-      return { panX: s.panX, panY: s.panY, zoom: s.zoom, activeLoopId: s.activeLoopId, activeLoopType: s.activeLoopType }
-    }
-    case 'harnesses': {
-      const s = useHarnessCanvasStore.getState()
-      return { panX: s.panX, panY: s.panY, zoom: s.zoom, activeHarnessId: s.activeHarnessId }
-    }
-    case 'organism': {
-      const s = useOrganismCanvasStore.getState()
-      return { panX: s.panX, panY: s.panY, zoom: s.zoom, activeNodeId: s.activeNodeId }
-    }
-  }
-}
-
-function restoreModeState(mode: CanvasMode, state: Record<string, unknown>) {
-  switch (mode) {
-    case 'general':
-      useCanvasStore.setState(state)
-      break
-    case 'agents':
-      useAgentCanvasStore.setState(state)
-      break
-    case 'workflows':
-      useWorkflowCanvasStore.setState(state)
-      break
-    case 'loops':
-      useLoopCanvasStore.setState(state)
-      break
-    case 'harnesses':
-      useHarnessCanvasStore.setState(state)
-      break
-    case 'organism':
-      useOrganismCanvasStore.setState(state)
-      break
-  }
-}
 
 export function UnifiedCanvasWorkspace() {
   const activeMode = useUnifiedCanvasStore((s) => s.activeMode)
-  const savedCanvases = useUnifiedCanvasStore((s) => s.savedCanvases)
-  const activeCanvasId = useUnifiedCanvasStore((s) => s.activeCanvasId)
 
   const storeAgents = useAgentStore((s) => s.agents)
   const fetchAgents = useAgentStore((s) => s.fetchAgents)
@@ -87,7 +32,6 @@ export function UnifiedCanvasWorkspace() {
   const [beastShells, setBeastShells] = useState<Array<{ id: string; label: string }>>([])
   const [vpsMultiplexers, setVpsMultiplexers] = useState<Array<{ id: string; label: string; via: string }>>([])
   const [beastMultiplexers, setBeastMultiplexers] = useState<Array<{ id: string; label: string; via: string }>>([])
-  const prevMode = useRef(activeMode)
 
   const KNOWN_AGENTS = [
     { id: 'agent-ceo', name: 'CEO' },
@@ -154,27 +98,6 @@ export function UnifiedCanvasWorkspace() {
     return () => document.removeEventListener('canvas:toggle-palette', handler)
   }, [toggleLeftDrawer])
 
-  const handleSetMode = useCallback((newMode: CanvasMode) => {
-    const currentMode = useUnifiedCanvasStore.getState().activeMode
-    const currentActiveId = useUnifiedCanvasStore.getState().activeCanvasId[currentMode]
-
-    if (currentActiveId) {
-      const snapshot = snapshotModeState(currentMode)
-      useUnifiedCanvasStore.getState().updateCanvasState(currentActiveId, snapshot)
-    }
-
-    useUnifiedCanvasStore.getState().setMode(newMode)
-    prevMode.current = newMode
-
-    const newActiveId = useUnifiedCanvasStore.getState().activeCanvasId[newMode]
-    if (newActiveId) {
-      const canvas = useUnifiedCanvasStore.getState().savedCanvases.find((c) => c.id === newActiveId)
-      if (canvas && Object.keys(canvas.state).length > 0) {
-        restoreModeState(newMode, canvas.state)
-      }
-    }
-  }, [])
-
   const handleAddWindow = useCallback((type: string, config?: Record<string, string>) => {
     const mode = useUnifiedCanvasStore.getState().activeMode
     if (mode === 'general') {
@@ -229,42 +152,7 @@ export function UnifiedCanvasWorkspace() {
     }
   }, [])
 
-  const handleCreateCanvas = useCallback((name: string) => {
-    const mode = useUnifiedCanvasStore.getState().activeMode
-    const id = useUnifiedCanvasStore.getState().createCanvas(name)
-    const snapshot = snapshotModeState(mode)
-    useUnifiedCanvasStore.getState().updateCanvasState(id, snapshot)
-  }, [])
-
-  const handleLoadCanvas = useCallback((id: string) => {
-    const canvas = useUnifiedCanvasStore.getState().savedCanvases.find((c) => c.id === id)
-    if (!canvas) return
-
-    const currentActiveId = useUnifiedCanvasStore.getState().activeCanvasId[canvas.mode]
-    if (currentActiveId && currentActiveId !== id) {
-      const snapshot = snapshotModeState(canvas.mode)
-      useUnifiedCanvasStore.getState().updateCanvasState(currentActiveId, snapshot)
-    }
-
-    useUnifiedCanvasStore.getState().setActiveCanvas(canvas.mode, id)
-    if (Object.keys(canvas.state).length > 0) {
-      restoreModeState(canvas.mode, canvas.state)
-    }
-  }, [])
-
-  const handleRenameCanvas = useCallback((id: string, name: string) => {
-    useUnifiedCanvasStore.getState().renameCanvas(id, name)
-  }, [])
-
-  const handleDeleteCanvas = useCallback((id: string) => {
-    useUnifiedCanvasStore.getState().deleteCanvas(id)
-  }, [])
-
-  const currentActiveCanvasId = activeCanvasId[activeMode]
-
   const modeProps = {
-    mode: activeMode,
-    onSetMode: handleSetMode,
     paletteOpen: leftDrawerOpen,
     onTogglePalette: toggleLeftDrawer,
   }
@@ -283,12 +171,6 @@ export function UnifiedCanvasWorkspace() {
           mode={activeMode}
           onAddWindow={handleAddWindow}
           onAction={handleAction}
-          savedCanvases={savedCanvases}
-          activeCanvasId={currentActiveCanvasId}
-          onCreateCanvas={handleCreateCanvas}
-          onLoadCanvas={handleLoadCanvas}
-          onRenameCanvas={handleRenameCanvas}
-          onDeleteCanvas={handleDeleteCanvas}
           open={true}
           onToggle={toggleLeftDrawer}
           agents={agents.map((a) => ({ id: a.id, name: a.name }))}

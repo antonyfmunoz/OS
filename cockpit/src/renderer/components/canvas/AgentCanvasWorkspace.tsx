@@ -7,17 +7,13 @@ import { useAgentCanvasStore } from '../../stores/agentCanvasStore'
 import { useAgentStore } from '../../stores/agentStore'
 import { clampZoom } from '../../utils/canvasCoords'
 import { AgentCanvasNode } from './AgentCanvasNode'
-import type { CanvasMode } from '../../stores/unifiedCanvasStore'
-
 interface AgentCanvasWorkspaceProps {
   palette?: ReactNode
-  mode?: CanvasMode
-  onSetMode?: (mode: CanvasMode) => void
   paletteOpen?: boolean
   onTogglePalette?: () => void
 }
 
-export function AgentCanvasWorkspace({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: AgentCanvasWorkspaceProps) {
+export function AgentCanvasWorkspace({ palette, paletteOpen = false, onTogglePalette }: AgentCanvasWorkspaceProps) {
   const nodes = useAgentCanvasStore((s) => s.nodes)
   const panX = useAgentCanvasStore((s) => s.panX)
   const panY = useAgentCanvasStore((s) => s.panY)
@@ -91,8 +87,6 @@ export function AgentCanvasWorkspace({ palette, mode, onSetMode, paletteOpen = f
             onZoomReset={handleZoomReset}
             onTogglePalette={onTogglePalette ?? (() => {})}
             paletteOpen={paletteOpen}
-            mode={mode}
-            onSetMode={onSetMode}
             extraButtons={
               hasDismissed ? (
                 <button

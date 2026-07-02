@@ -7,12 +7,8 @@ import { BaseCanvas } from './BaseCanvas'
 import { CanvasToolbar } from './CanvasToolbar'
 import { useLoopCanvasStore, type PersistentLoopStatus } from '../../stores/loopCanvasStore'
 import { clampZoom } from '../../utils/canvasCoords'
-import type { CanvasMode } from '../../stores/unifiedCanvasStore'
-
 interface LoopCanvasWorkspaceProps {
   palette?: ReactNode
-  mode?: CanvasMode
-  onSetMode?: (mode: CanvasMode) => void
   paletteOpen?: boolean
   onTogglePalette?: () => void
 }
@@ -167,7 +163,7 @@ function LoopListOverlay() {
   )
 }
 
-function LoopList({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: LoopCanvasWorkspaceProps) {
+function LoopList({ palette, paletteOpen = false, onTogglePalette }: LoopCanvasWorkspaceProps) {
   const panX = useLoopCanvasStore((s) => s.panX)
   const panY = useLoopCanvasStore((s) => s.panY)
   const zoom = useLoopCanvasStore((s) => s.zoom)
@@ -180,7 +176,7 @@ function LoopList({ palette, mode, onSetMode, paletteOpen = false, onTogglePalet
   return (
     <>
       <BaseCanvas panX={panX} panY={panY} zoom={zoom} setPan={setPan} setZoom={setZoom} palette={palette}
-        toolbar={<CanvasToolbar zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onZoomReset={handleZoomReset} onFitAll={() => {}} onTile={() => {}} onTogglePalette={onTogglePalette ?? (() => {})} paletteOpen={paletteOpen} mode={mode} onSetMode={onSetMode} />}
+        toolbar={<CanvasToolbar zoom={zoom} onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onZoomReset={handleZoomReset} onTogglePalette={onTogglePalette ?? (() => {})} paletteOpen={paletteOpen} />}
       >{null}</BaseCanvas>
       <LoopListOverlay />
     </>

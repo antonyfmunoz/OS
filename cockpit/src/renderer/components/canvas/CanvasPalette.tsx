@@ -20,7 +20,7 @@ import {
   Play,
   Square,
 } from 'lucide-react'
-import type { CanvasMode, SavedCanvas } from '../../stores/unifiedCanvasStore'
+import type { CanvasMode } from '../../stores/unifiedCanvasStore'
 import { ROUTES } from '../../types/routes'
 import { fetchApi } from '../../api/client'
 
@@ -101,12 +101,6 @@ interface CanvasPaletteProps {
   mode: CanvasMode
   onAddWindow: (type: string, config?: Record<string, string>) => void
   onAction: (action: string) => void
-  savedCanvases: SavedCanvas[]
-  activeCanvasId: string | null
-  onCreateCanvas: (name: string) => void
-  onLoadCanvas: (id: string) => void
-  onRenameCanvas: (id: string, name: string) => void
-  onDeleteCanvas: (id: string) => void
   open?: boolean
   onToggle?: () => void
   agents?: Array<{ id: string; name: string }>
@@ -122,12 +116,6 @@ export function CanvasPalette({
   mode,
   onAddWindow,
   onAction,
-  savedCanvases,
-  activeCanvasId,
-  onCreateCanvas,
-  onLoadCanvas,
-  onRenameCanvas,
-  onDeleteCanvas,
   open,
   onToggle,
   agents,
@@ -148,50 +136,11 @@ export function CanvasPalette({
   const [generalAgentSubmenuOpen, setGeneralAgentSubmenuOpen] = useState(false)
   const [desktopSubmenuOpen, setDesktopSubmenuOpen] = useState(false)
   const [visionSubmenuOpen, setVisionSubmenuOpen] = useState(false)
-  const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
-  const [creatingCanvas, setCreatingCanvas] = useState(false)
-  const [newCanvasName, setNewCanvasName] = useState('')
   const [creatingVpsTmux, setCreatingVpsTmux] = useState<string | false>(false)
   const [newVpsTmuxName, setNewVpsTmuxName] = useState('')
-  const renameRef = useRef<HTMLInputElement>(null)
-  const createRef = useRef<HTMLInputElement>(null)
   const vpsTmuxRef = useRef<HTMLInputElement>(null)
 
   const items = MODE_ITEMS[mode]
-
-  const commitRename = useCallback(() => {
-    if (renamingId && renameValue.trim()) {
-      onRenameCanvas(renamingId, renameValue.trim())
-    }
-    setRenamingId(null)
-    setRenameValue('')
-  }, [renamingId, renameValue, onRenameCanvas])
-
-  const startRename = useCallback((canvas: SavedCanvas) => {
-    setRenamingId(canvas.id)
-    setRenameValue(canvas.name)
-    setTimeout(() => renameRef.current?.select(), 0)
-  }, [])
-
-  const handleCreateCanvas = useCallback(() => {
-    if (newCanvasName.trim()) {
-      onCreateCanvas(newCanvasName.trim())
-      setNewCanvasName('')
-      setCreatingCanvas(false)
-    }
-  }, [newCanvasName, onCreateCanvas])
-
-  const handleDeleteCanvas = useCallback(
-    (canvas: SavedCanvas) => {
-      if (confirm(`Delete canvas "${canvas.name}"?`)) {
-        onDeleteCanvas(canvas.id)
-      }
-    },
-    [onDeleteCanvas],
-  )
-
-  const modeCanvases = savedCanvases.filter((c) => c.mode === mode)
 
   return (
     <div
@@ -481,112 +430,6 @@ export function CanvasPalette({
         </div>
 
         {/* Divider */}
-        <div className="mx-2 my-2" style={{ borderTop: '1px solid var(--color-border)' }} />
-
-        {/* Section 2: Saved Canvases */}
-        <div
-          className="px-3 pb-1 text-[10px] uppercase tracking-wider flex items-center gap-1"
-          style={{ color: 'var(--color-text-tertiary)' }}
-        >
-          <Layers size={10} />
-          Saved Canvases
-        </div>
-        <div className="flex flex-col gap-0.5 px-1 pb-2">
-          {modeCanvases.length === 0 && !creatingCanvas && (
-            <div className="px-2 py-1.5 text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
-              No saved canvases
-            </div>
-          )}
-          {modeCanvases.map((canvas) => (
-            <div key={canvas.id}>
-              {renamingId === canvas.id ? (
-                <input
-                  ref={renameRef}
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  onBlur={commitRename}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') commitRename()
-                    if (e.key === 'Escape') {
-                      setRenamingId(null)
-                      setRenameValue('')
-                    }
-                  }}
-                  className="w-full text-[12px] px-2 py-1 rounded outline-none mx-1"
-                  style={{
-                    background: 'var(--color-surface)',
-                    color: 'var(--color-text-primary)',
-                    border: '1px solid var(--color-border-active)',
-                  }}
-                />
-              ) : (
-                <button
-                  className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[12px] text-left"
-                  style={{
-                    color: canvas.id === activeCanvasId ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                    borderLeft: canvas.id === activeCanvasId ? '2px solid var(--color-cyan)' : '2px solid transparent',
-                    fontWeight: canvas.id === activeCanvasId ? 500 : 400,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--color-surface-overlay)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'transparent'
-                  }}
-                  onClick={() => onLoadCanvas(canvas.id)}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation()
-                    startRename(canvas)
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault()
-                    handleDeleteCanvas(canvas)
-                  }}
-                >
-                  <span className="truncate">{canvas.name}</span>
-                </button>
-              )}
-            </div>
-          ))}
-
-          {/* New canvas input */}
-          {creatingCanvas ? (
-            <input
-              ref={createRef}
-              value={newCanvasName}
-              onChange={(e) => setNewCanvasName(e.target.value)}
-              onBlur={() => {
-                if (newCanvasName.trim()) handleCreateCanvas()
-                else setCreatingCanvas(false)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateCanvas()
-                if (e.key === 'Escape') {
-                  setCreatingCanvas(false)
-                  setNewCanvasName('')
-                }
-              }}
-              placeholder="Canvas name..."
-              className="w-full text-[12px] px-2 py-1 rounded outline-none mx-1"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-text-primary)',
-                border: '1px solid var(--color-border-active)',
-              }}
-              autoFocus
-            />
-          ) : (
-            <PaletteButton
-              label="New Canvas"
-              icon={<Plus size={14} />}
-              onClick={() => {
-                setCreatingCanvas(true)
-                setNewCanvasName('')
-                setTimeout(() => createRef.current?.focus(), 0)
-              }}
-            />
-          )}
-        </div>
       </div>
     </div>
   )
