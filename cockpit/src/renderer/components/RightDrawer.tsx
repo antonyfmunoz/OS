@@ -14,7 +14,7 @@ export function RightDrawer() {
       style={{
         width: 160,
         right: 6,
-        top: mobile ? '50%' : 48,
+        top: mobile ? '50%' : 52,
         bottom: 78,
       }}
     >
