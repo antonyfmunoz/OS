@@ -113,8 +113,6 @@ export function CanvasWorkspace({ palette, mode, onSetMode, paletteOpen = false,
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onZoomReset={handleZoomReset}
-            onFitAll={fitAll}
-            onTile={tileWindows}
             onTogglePalette={onTogglePalette ?? (() => {})}
             paletteOpen={paletteOpen}
             mode={mode}

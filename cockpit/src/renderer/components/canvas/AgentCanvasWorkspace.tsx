@@ -89,8 +89,6 @@ export function AgentCanvasWorkspace({ palette, mode, onSetMode, paletteOpen = f
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onZoomReset={handleZoomReset}
-            onFitAll={fitAll}
-            onTile={tileNodes}
             onTogglePalette={onTogglePalette ?? (() => {})}
             paletteOpen={paletteOpen}
             mode={mode}

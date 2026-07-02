@@ -140,8 +140,6 @@ function WorkflowList({ palette, mode, onSetMode, paletteOpen = false, onToggleP
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onZoomReset={handleZoomReset}
-            onFitAll={() => {}}
-            onTile={() => {}}
             onTogglePalette={onTogglePalette ?? (() => {})}
             paletteOpen={paletteOpen}
             mode={mode}
@@ -212,8 +210,6 @@ function WorkflowEditor({ palette, mode, onSetMode, paletteOpen = false, onToggl
               onZoomIn={handleZoomIn}
               onZoomOut={handleZoomOut}
               onZoomReset={handleZoomReset}
-              onFitAll={() => {}}
-              onTile={() => {}}
               onTogglePalette={onTogglePalette ?? (() => {})}
               paletteOpen={paletteOpen}
               mode={mode}
