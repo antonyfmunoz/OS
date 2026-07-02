@@ -8,11 +8,12 @@ export function RightDrawer() {
 
   return (
     <div
-      className="wv-card absolute right-2 z-20 flex flex-col overflow-hidden"
+      className="wv-card absolute z-20 flex flex-col overflow-hidden"
       style={{
         width: 160,
-        top: 72,
-        bottom: 112,
+        right: 6,
+        top: 48,
+        bottom: 48,
       }}
     >
       <RightRail />

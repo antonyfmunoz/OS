@@ -190,7 +190,7 @@ function CanvasDropdown() {
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-1 py-1 rounded"
+          className="absolute bottom-full left-0 mb-1 py-1 rounded-lg"
           style={{
             background: 'var(--color-surface-raised)',
             border: '1px solid var(--color-border)',
@@ -199,7 +199,7 @@ function CanvasDropdown() {
           }}
         >
           <button
-            className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-left"
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-left"
             style={{
               color: !currentId ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
               background: !currentId ? 'var(--color-surface-overlay)' : 'transparent',
@@ -213,7 +213,7 @@ function CanvasDropdown() {
           {modeCanvases.map((c) => (
             <button
               key={c.id}
-              className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-left"
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-left"
               style={{
                 color: c.id === currentId ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                 background: c.id === currentId ? 'var(--color-surface-overlay)' : 'transparent',
@@ -227,7 +227,7 @@ function CanvasDropdown() {
           ))}
           <div className="my-1 border-t border-border" />
           <button
-            className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-left text-cyan"
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-left text-cyan"
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-overlay)' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
             onClick={() => {

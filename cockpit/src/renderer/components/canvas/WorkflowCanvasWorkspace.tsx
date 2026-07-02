@@ -207,8 +207,6 @@ function WorkflowEditor({ palette, paletteOpen = false, onTogglePalette }: Workf
               onZoomReset={handleZoomReset}
               onTogglePalette={onTogglePalette ?? (() => {})}
               paletteOpen={paletteOpen}
-              mode={mode}
-              onSetMode={onSetMode}
             />
           }
         >
