@@ -13,8 +13,10 @@ import {
   RefreshCcw,
   Cpu,
   Brain,
+  PanelRight,
 } from 'lucide-react'
 import type { CanvasMode } from '../../stores/unifiedCanvasStore'
+import { useCockpitStore } from '../../stores/cockpitStore'
 
 const MODE_ORDER: CanvasMode[] = ['general', 'organism', 'agents', 'harnesses', 'loops', 'workflows']
 
@@ -155,6 +157,20 @@ function ModeDropdown({ mode, onSetMode }: { mode: CanvasMode; onSetMode: (m: Ca
   )
 }
 
+function ChatToggle() {
+  const rightDrawerOpen = useCockpitStore((s) => s.rightDrawerOpen)
+  const toggleRightDrawer = useCockpitStore((s) => s.toggleRightDrawer)
+  return (
+    <ToolbarButton
+      onClick={toggleRightDrawer}
+      title={rightDrawerOpen ? 'Hide chat' : 'Open chat'}
+      active={rightDrawerOpen}
+    >
+      <PanelRight size={14} />
+    </ToolbarButton>
+  )
+}
+
 export function CanvasToolbar({
   zoom,
   onZoomIn,
@@ -231,6 +247,10 @@ export function CanvasToolbar({
           {extraButtons}
         </>
       )}
+
+      <Separator />
+
+      <ChatToggle />
     </div>
   )
 }
