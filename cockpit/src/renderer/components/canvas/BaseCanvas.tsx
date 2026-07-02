@@ -1,6 +1,5 @@
 import { useRef, useCallback, useEffect, type ReactNode } from 'react'
 import { screenToCanvas, zoomAtPoint, clampZoom } from '../../utils/canvasCoords'
-import { useCockpitStore } from '../../stores/cockpitStore'
 
 interface BaseCanvasProps {
   panX: number
@@ -29,7 +28,6 @@ export function BaseCanvas({
   children,
 }: BaseCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const leftDrawerOpen = useCockpitStore((s) => s.leftDrawerOpen)
   const panning = useRef(false)
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const spaceHeld = useRef(false)
@@ -247,15 +245,10 @@ export function BaseCanvas({
         </div>
       )}
 
-      {/* Toolbar slot — floats at bottom center, shifts right when left drawer is open */}
+      {/* Toolbar slot — floats at bottom center */}
       {toolbar && (
         <div
-          className="absolute bottom-16 z-10 pointer-events-auto"
-          style={{
-            left: leftDrawerOpen ? 'calc(50% + 110px)' : '50%',
-            transform: 'translateX(-50%)',
-            transition: 'left 200ms ease',
-          }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 pointer-events-auto"
         >
           {toolbar}
         </div>

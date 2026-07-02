@@ -195,7 +195,7 @@ export function CanvasMenuBar() {
           <button
             onClick={() => setOpenMenu(openMenu === menu.label ? null : menu.label)}
             onMouseEnter={() => { if (openMenu) setOpenMenu(menu.label) }}
-            className={`px-2 py-1 text-[9px] rounded transition-colors ${
+            className={`px-2 py-1 text-[10px] rounded transition-colors ${
               openMenu === menu.label
                 ? 'bg-surface-raised text-text-primary'
                 : 'text-text-secondary hover:text-text-primary hover:bg-surface-raised'
@@ -225,7 +225,7 @@ export function CanvasMenuBar() {
                       }
                     }}
                     disabled={item.disabled}
-                    className={`w-full flex items-center justify-between px-3 py-1 text-[9px] transition-colors ${
+                    className={`w-full flex items-center justify-between px-3 py-1 text-[10px] transition-colors ${
                       item.disabled
                         ? 'text-text-tertiary opacity-50 cursor-default'
                         : item.active

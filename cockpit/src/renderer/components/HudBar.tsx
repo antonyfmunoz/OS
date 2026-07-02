@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Radio, PanelLeft, PanelRight } from 'lucide-react'
+import { Radio } from 'lucide-react'
 import { useSystemStore } from '../stores/systemStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -108,28 +108,12 @@ export function HudBar() {
   usePolling(fetchMeshNodes, 15000)
 
   const isOnline = apiStatus === 'connected' || wsStatus === 'connected'
-  const leftDrawerOpen = useCockpitStore((s) => s.leftDrawerOpen)
-  const rightDrawerOpen = useCockpitStore((s) => s.rightDrawerOpen)
-  const toggleLeftDrawer = useCockpitStore((s) => s.toggleLeftDrawer)
-  const toggleRightDrawer = useCockpitStore((s) => s.toggleRightDrawer)
 
   return (
     <footer
       className="fixed bottom-0 left-0 right-0 flex items-center gap-4 px-3 select-none bg-surface border-t border-border z-50"
       style={{ height: 'var(--spacing-hud-height)' }}
     >
-      {/* Left drawer toggle */}
-      <button
-        onClick={toggleLeftDrawer}
-        className={clsx(
-          'p-0.5 transition-colors shrink-0',
-          leftDrawerOpen ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
-        )}
-        title="Toggle instrument palette"
-      >
-        <PanelLeft size={14} />
-      </button>
-
       {/* Status cluster — fullscreen indicator + online */}
       <div className="flex items-center gap-4">
         <span className="flex items-center gap-1">
@@ -247,18 +231,6 @@ export function HudBar() {
       <span className="wv-label flex items-center gap-1 leading-none">
         <StatusDot status={voiceStatus} /> voice
       </span>
-
-      {/* Right drawer toggle */}
-      <button
-        onClick={toggleRightDrawer}
-        className={clsx(
-          'p-0.5 transition-colors shrink-0',
-          rightDrawerOpen ? 'text-cyan' : 'text-text-tertiary hover:text-text-secondary',
-        )}
-        title="Toggle chat"
-      >
-        <PanelRight size={14} />
-      </button>
 
     </footer>
   )
