@@ -12,7 +12,7 @@ export function RightDrawer() {
       style={{
         width: 240,
         right: 6,
-        top: 52,
+        top: 48,
         bottom: 78,
       }}
     >
