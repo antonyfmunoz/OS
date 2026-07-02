@@ -60,7 +60,7 @@ export function Shell() {
       <TitleBar />
       <ControlPanel />
 
-      <main className="flex-1 overflow-hidden bg-surface relative">
+      <main className="flex-1 overflow-hidden bg-surface relative" style={{ paddingBottom: "var(--spacing-hud-height)" }}>
         <ErrorBoundary>
           <UnifiedCanvasWorkspace />
         </ErrorBoundary>
