@@ -17,15 +17,17 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
     <>
       {open && (
         <div
-          className="absolute inset-0 z-30"
+          className="fixed inset-0 z-40"
           style={{ background: 'rgba(0, 0, 0, 0.3)' }}
           onClick={handleBackdrop}
         />
       )}
       <div
-        className="absolute top-0 left-0 h-full z-40 flex flex-col overflow-hidden"
+        className="fixed left-0 z-40 flex flex-col overflow-hidden"
         style={{
           width: 220,
+          top: 'var(--spacing-titlebar-height)',
+          bottom: 'var(--spacing-hud-height)',
           background: 'var(--color-surface)',
           borderRight: '1px solid var(--color-border)',
           transform: open ? 'translateX(0)' : 'translateX(-100%)',

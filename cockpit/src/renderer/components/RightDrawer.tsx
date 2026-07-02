@@ -14,15 +14,18 @@ export function RightDrawer() {
     <>
       {open && (
         <div
-          className="absolute inset-0 z-30"
+          className="fixed inset-0 z-40"
           style={{ background: 'rgba(0, 0, 0, 0.3)' }}
           onClick={handleBackdrop}
         />
       )}
       <div
-        className="absolute top-0 right-0 h-full z-40 flex flex-col overflow-hidden"
+        className="fixed right-0 z-40 flex flex-col overflow-hidden"
         style={{
           width: 360,
+          top: 'var(--spacing-titlebar-height)',
+          bottom: 'var(--spacing-hud-height)',
+          background: 'var(--color-surface)',
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 200ms ease',
         }}
