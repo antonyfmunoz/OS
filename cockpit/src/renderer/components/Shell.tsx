@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { StorePolling } from './StorePolling'
 import { TitleBar } from './TitleBar'
+import { ControlPanel } from './ControlPanel'
 import { HudBar } from './HudBar'
 import { CommandPalette } from './CommandPalette'
 import { FabLarge } from './FabLarge'
@@ -57,6 +58,7 @@ export function Shell() {
     <div className="flex flex-col h-screen bg-surface">
       <StorePolling />
       <TitleBar />
+      <ControlPanel />
 
       <main className="flex-1 overflow-hidden bg-surface relative">
         <ErrorBoundary>
