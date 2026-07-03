@@ -157,3 +157,6 @@ data/umh/organism/templates/
 
 # Root-level runtime artifacts
 runtime/
+
+# Graphify AST index
+graphify-out/
