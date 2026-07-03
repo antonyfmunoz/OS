@@ -1,6 +1,5 @@
 import { useRef, useCallback, useEffect, type ReactNode } from 'react'
 import { screenToCanvas, zoomAtPoint, clampZoom } from '../../utils/canvasCoords'
-import { useIsMobile } from '../../hooks/useIsMobile'
 
 interface BaseCanvasProps {
   panX: number
@@ -28,7 +27,6 @@ export function BaseCanvas({
   palette,
   children,
 }: BaseCanvasProps) {
-  const mobile = useIsMobile()
   const containerRef = useRef<HTMLDivElement>(null)
   const panning = useRef(false)
   const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
@@ -250,8 +248,8 @@ export function BaseCanvas({
       {/* Toolbar slot — floats at bottom center, clears the fixed HudBar (30px) */}
       {toolbar && (
         <div
-          className={`absolute z-10 pointer-events-auto ${mobile ? '' : 'left-1/2 -translate-x-1/2'}`}
-          style={mobile ? { bottom: 36, left: 6, right: 6 } : { bottom: 36 }}
+          className="absolute left-1/2 -translate-x-1/2 z-10 pointer-events-auto"
+          style={{ bottom: 36 }}
         >
           {toolbar}
         </div>
