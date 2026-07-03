@@ -1,24 +1,40 @@
-# UMH Codebase Guide — Contractor Reference
+# UMH Codebase Guide — Complete Contractor Reference
 
 > Generated 2026-07-03 from graphify AST index (42,603 source nodes, 40,613 edges, 2,979 files)
 > Platform v1.0.0 — Production Certified, Frozen 2026-07-01
+
+This document explains **every file and directory** in the UMH codebase so that any developer — including beginners — can understand the system with zero ambiguity. Sections 1-12 explain how the system works. Section 13 is a file-by-file reference for every source file in the repository.
+
+---
+
+## 0. Where Do I Start? (Read This First)
+
+**If you're adding a new feature:** Read Section 2 (Architecture) to know which layer your code goes in, then Section 6 (The 9 Laws) to know what will block your commit. Find similar existing code in Section 13 (File Reference) and follow its patterns.
+
+**If you're fixing a bug:** Find the file in Section 13, read its description to understand what it does, then check Section 3 (Core Flows) to understand how data moves through the system.
+
+**If you're deploying:** Read Section 5 (Docker Services) and Section 9 (Development Workflow). The most important rule: never run `flyctl deploy` directly — always `bash cockpit/deploy.sh`.
+
+**If you're confused about a file:** Search Section 13 — every source file has a plain-English description.
+
+**Key mental model:** Think of UMH like a factory assembly line. Raw inputs (Discord messages, HTTP requests, scheduled events) enter as "signals." They flow through an 8-stage pipeline (the "spine") where each stage adds context, checks permissions, picks the right AI model, generates a response, and records what happened. Every change to the system's state goes through a separate "governed mutation" pipeline that checks if the change is allowed before executing it.
 
 ---
 
 ## 1. What This System Is
 
-UMH (Universal Mastery Hierarchy) is a production AI intelligence substrate — a modular platform that receives signals from any source (Discord, HTTP, scheduled events, mesh nodes), routes them through an 8-stage execution pipeline with governance checks, and produces responses using a multi-provider LLM chain with deterministic fallbacks.
+UMH (Universal Mastery Hierarchy) is a production AI intelligence substrate. In plain English: it's a platform that takes inputs from multiple sources (a Discord message, an HTTP API call, a scheduled task, a cross-device mesh event), wraps them in a standard format, runs them through an 8-step processing pipeline with permission checks, uses AI models to generate responses (with automatic fallbacks if a model is unavailable), and records everything that happened for learning and debugging.
 
-It is NOT a chatbot framework. It is an operating system for running AI-augmented business operations.
+**What it is NOT:** This is not a chatbot framework or a simple API wrapper around an AI model. It is a complete operating system for running AI-augmented business operations — with governance (permission checks), tracing (audit logs), feedback loops (learning from outcomes), and multi-device orchestration.
 
-**Current state:** Single-user validation phase. One organization, multiple ventures. Solo founder + contractor team. Deployed on a Hostinger VPS (orchestrator) with a Windows workstation (executor) connected via Tailscale.
+**Current state:** Single-user validation phase. One organization, multiple ventures. Solo founder + contractor team. Deployed on a Hostinger VPS (lightweight orchestrator — no heavy compute) with a Windows workstation called "Beast" (GPU executor) connected via Tailscale private network.
 
-**Tech stack:**
-- Backend: Python 3.12 (host), Python 3.11 (Docker containers — no 3.12+ syntax in containerized code)
-- Frontend: TypeScript, React 18, Vite, Tailwind CSS, shadcn/ui (Electron + PWA cockpit)
-- API: Express + Drizzle ORM (TypeScript HTTP layer), FastAPI (Python operator API)
-- Database: Neon Postgres with RLS
-- LLM: Claude Opus 4.6 (primary via cc_sdk), Gemini 2.5 Flash, Groq, Ollama (fallback chain)
+**Tech stack (what you need to know):**
+- **Backend:** Python 3.12 on the host machine, but **Python 3.11 inside Docker containers** — this means you cannot use Python 3.12+ syntax (like backslash in f-strings) in any code that runs in a container. If you're unsure, assume 3.11.
+- **Frontend:** TypeScript, React 18, Vite, Tailwind CSS, shadcn/ui — the cockpit is an Electron desktop app that also works as a PWA (Progressive Web App) in the browser.
+- **API layer:** Two separate API surfaces — Express + Drizzle ORM (TypeScript, handles the cockpit's HTTP routes) and FastAPI (Python, the operator API).
+- **Database:** Neon Postgres (serverless PostgreSQL) with Row Level Security (RLS) for multi-tenant isolation.
+- **AI Models:** Claude Opus 4.6 is the primary model (accessed via cc_sdk, which piggybacks on the founder's Claude Code subscription — no API cost). If that fails, it falls back to Gemini 2.5 Flash, then Groq, then a local Ollama model. If ALL models fail, the system still works using regex-based pattern matching.
 
 ---
 
@@ -606,13 +622,14 @@ find /opt/OS -maxdepth 1 -type f | wc -l
 
 **Coverage: 36 directories + 33 root files = 100% of top-level items documented.**
 
+**File-level coverage:** Section 13 documents 2,605 individual source files — every `.py`, `.ts`, `.tsx`, `.js`, `.jsx`, and `.sh` file in the repository, plus root config files. Each entry has a description derived from actual module docstrings, class names, and function signatures.
+
 
 ---
 
 ## 13. File-by-File Reference (Every Source File)
 
-This section documents every source file in the repository. Each file gets a one-line description
-extracted from its docstring, class definitions, or function signatures. Grouped by directory.
+This section documents every source file in the repository — 2,605 files across 15 top-level directories. Each file gets a one-line description extracted from its docstring, class definitions, or function signatures. Grouped by directory.
 
 **Total: 2,245 source files** (1,937 Python + 308 TypeScript)
 
@@ -2978,7 +2995,788 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 - `vision_relay.py` — vision relay server (ws://0.0.0.0:8097/vision) that bridges Beast camera frames to cockpit viewers.
 - `voice_server.py` — cockpit voice server (ws://0.0.0.0:8096/voice) providing pure STT + TTS bridging for DEX conversations.
 
+
+
+### cockpit/ — Electron + React Frontend (311 files)
+
+### cockpit/ (root config)
+- `electron.vite.config.ts` — Electron-Vite build configuration: resolves main/preload/renderer entry points, applies React + Tailwind plugins
+- `vite.web.config.ts` — Vite config for the standalone PWA web build (non-Electron), wires React + Tailwind, sets /src/renderer as root
+- `vitest.config.ts` — Vitest test runner configuration with React plugin and path aliases
+
+### cockpit/src/main/
+- `index.ts` — Electron main process: creates BrowserWindow, manages tray icon, spawns voice/vision/browser relay child processes, handles IPC for window modes (maximized → large-fab → medium-fab → small-fab → invisible), global shortcuts, notifications
+
+### cockpit/src/preload/
+- `index.ts` — Electron preload script: exposes a secure `window.cockpit` bridge via contextBridge for window controls (minimize/maximize/close/setMode), voice start/stop, vision start/stop, browser relay, notifications, file operations
+
+### cockpit/src/renderer/ (root)
+- `App.tsx` — Root React component: wraps app in Clerk auth (SignedIn/SignedOut), initializes keyboard hooks, organism realtime WebSocket, vision connection, guest join routing for conference rooms
+- `main.tsx` — React entry point: mounts App inside ClerkProvider and StrictMode, registers service worker for PWA push notifications
+- `constants.ts` — Exports `getAiName()` which reads the AI assistant's display name from configStore (falls back to VITE_AI_NAME env var)
+- `global.d.ts` — TypeScript declarations for the `window.cockpit` Electron bridge (window, voice, vision, browser, notifications, files) and Vite env vars
+- `sw.ts` — Service worker: handles push notification events, displays notifications with title/body/category, opens cockpit URL on notification click
+
+### cockpit/src/renderer/__tests__/
+- `apiClient.test.ts` — Unit tests for the `fetchApi` HTTP client: verifies auth header injection, JSON parsing, error handling, 401 retry logic
+- `cockpitStore.test.ts` — Unit tests for `cockpitStore`: verifies panel switching, chat toggle, split panel, window mode cycling state transitions
+- `setup.ts` — Vitest setup file: imports jest-dom matchers for React component testing
+
+### cockpit/src/renderer/api/
+- `broadcast-ws.ts` — WebSocket client for the real-time broadcast system: connects to the broadcast relay, sends/receives live state updates across connected devices
+- `browser-ws.ts` — WebSocket client for remote browser streaming: connects to the browser relay, receives page screenshots/DOM state, sends navigation commands and click/type events
+- `client.ts` — Central HTTP API client: `fetchApi()` wrapper that adds Clerk auth token to every request, handles 401 token refresh, exports `setTokenGetter()` and `getApiKey()` for other modules
+- `device-presence.ts` — Device presence API: registers the current device (mobile/desktop/electron/terminal) with the operator API, sends heartbeats, handles disconnect and session recovery
+- `tts-playback-controller.ts` — TTS audio playback controller with iOS Safari unlock: maintains a reusable Audio element unlocked on first user gesture, queues and plays TTS audio chunks sequentially
+- `vision-ws.ts` — WebSocket client for the vision relay: streams camera frames, sends PTZ commands (pan/tilt/zoom), receives object detection and tracking data from the vision pipeline
+- `voice-controller.ts` — Voice session controller: coordinates mic capture → STT → advisor → TTS pipeline, manages voice turn lifecycle (start/stop/barge-in), handles clap detection for hands-free activation
+- `voice-turn-assembler.ts` — Collects STT transcript segments into coherent turns before dispatch: prevents duplicate messages from STT pauses using silence grace timeout (1600ms desktop / 2200ms mobile) and tap-to-stop
+- `voice-ws.ts` — WebSocket client for the voice relay: streams mic audio as PCM chunks, receives STT transcripts and TTS audio responses, handles WebSocket reconnection
+- `websocket.ts` — Generic WebSocket client base class: auto-reconnect with exponential backoff, JSON message routing by type, binary data handlers, heartbeat keepalive
+
+### cockpit/src/renderer/components/
+- `ActionRequired.tsx` — Renders a list of action-required items (approvals, blocked tasks, failures, stale items) with severity-colored badges and click handlers
+- `AgentCard.tsx` — Card component displaying an agent's name, status, role, skills list, and runtime badge (which AI model/runtime is executing it)
+- `CallOverlay.tsx` — Full-screen voice call overlay: shows mic/speaker mute toggles, call duration, hangup button, participant info during active voice sessions
+- `CameraController.tsx` — PTZ camera control panel: directional pad (up/down/left/right), zoom in/out, home position, presets, camera on/off toggle, PiP mode, scene inventory
+- `CameraPreview.tsx` — Compact camera preview widget: shows live vision feed thumbnail with camera toggle, snapshot button, PiP popout, collapsible to save space
+- `CanvasMenuBar.tsx` — Menu bar for the canvas workspace: mode selector (general/agents/workflows/loops/harness/organism), canvas-specific actions, window management
+- `ChannelList.tsx` — Renders a scrollable list of conversation channels with last message preview, sender, timestamp, and unread count badge
+- `ChannelView.tsx` — Renders a single conversation thread: message bubbles with sender, timestamp, intent labels, and a compose input at the bottom
+- `CommandPalette.tsx` — Global command palette (Cmd+K): fuzzy-searches panels, canvas modes, and API commands; navigates to the selected item on enter
+- `ConnectionBanner.tsx` — Alert banner shown when the WebSocket connection to the organism is disconnected: shows reconnect count, events/minute, last pulse timestamp
+- `ControlPanel.tsx` — Bottom control bar: collapsible panel with dark/light theme toggle, governance mode selector, active approvals count, quick-action buttons, operator chat input
+- `CronTable.tsx` — Table component displaying scheduled cron jobs: columns for agent, name, schedule expression, last fired time, next run, and status badge
+- `DetailDrawer.tsx` — Slide-in drawer from the right edge: renders a title, subtitle, optional badge, and arbitrary children content for detail views
+- `DeviceDiagnosisInline.tsx` — Inline device diagnosis component: runs connectivity checks against a Tailscale peer, shows SSH guidance per OS, triggers device registration
+- `DeviceOnboardingCard.tsx` — Card for onboarding a new device: shows device details, role/type dropdowns, approve/reject buttons for adding the device to the UMH mesh
+- `ErrorBoundary.tsx` — React error boundary: catches render errors in child components, shows fallback UI, logs error info
+- `EventConsole.tsx` — Real-time scrolling event log: shows organism events color-coded by domain (runtime=cyan, governance=purple, advisor=amber), filterable by domain
+- `ExecutionTimeline.tsx` — Renders the lifecycle stages of an execution (proposed → governance_check → approved → executing → completed) with timing and duration
+- `ExecutorBadge.tsx` — Small badge showing the executor type and target machine for a task (e.g., "claude-code on VPS")
+- `FabLarge.tsx` — Large floating action button (FAB) mode: shows agent status, chat input, voice waveform, and mode indicator (EXECUTE/PLAN) in an expanded floating widget
+- `FabMedium.tsx` — Medium FAB mode: compact floating widget with voice waveform, mode color indicator, and click-to-expand behavior
+- `FabSmall.tsx` — Small FAB mode: minimal floating circle with voice waveform, auto-cycles window modes on click
+- `GraphView.tsx` — Canvas-based graph renderer: draws nodes and edges with force-directed layout, supports pan/zoom, click selection, and hover tooltips
+- `HudBar.tsx` — Top status HUD bar: shows system status indicators (voice active, vision connected, realtime events/min), workstation mode, connection quality
+- `IDEMenuBar.tsx` — Meta-IDE menu bar: File/Edit/View/Run/Terminal menus for the integrated code editor, triggers API calls for file operations and terminal commands
+- `LeftDrawer.tsx` — Left-side slide-out drawer (mobile): renders children content in an overlay panel that slides in from the left edge on mobile viewports
+- `LeftRail.tsx` — Left navigation rail (240px): renders grouped route icons with labels, active panel highlight, collapse/expand toggle, and a compass icon header
+- `LivePreview.tsx` — Embedded live preview iframe: shows a projection's web UI with navigation controls (back/forward/refresh), viewport selector (desktop/tablet/mobile), and URL bar
+- `NavRail.tsx` — Compact icon-only navigation rail: renders panel icons with keyboard shortcut labels (1-9), highlights active panel
+- `OverlayToggle.tsx` — Toggle button group for enabling/disabling overlay options: renders a row of labeled toggle buttons with optional color indicators
+- `ResumeCard.tsx` — Session resume card: shows the last active session's state (branch, files, time elapsed), with a "Resume" button to restore the workstation context
+- `RightDrawer.tsx` — Right-side slide-out drawer (mobile): renders the chat RightRail in an overlay panel on mobile viewports
+- `RightRail.tsx` — Right chat panel: renders the operator↔DEX conversation with markdown support, message input with attachments (image/file), voice mic toggle, edit/download actions
+- `RingGauge.tsx` — SVG ring gauge component: renders a circular progress indicator with value, max, label, unit text, and configurable color/size
+- `RuntimeBadge.tsx` — Badge showing which runtime is executing a task: normalizes runtime strings to icons (claude-code, codex, hermes, browser, shell, local-model)
+- `Shell.tsx` — Top-level layout shell: composes TitleBar + LeftRail/LeftDrawer + main panel area + RightRail/RightDrawer + ControlPanel + HudBar + CommandPalette + FAB overlays
+- `SplitPane.tsx` — Horizontal split pane with draggable divider: renders left and right children with configurable initial ratio and min/max constraints
+- `SplitPreview.tsx` — Multi-projection live preview: renders 1-4 LivePreview iframes side by side, with add/remove/cycle controls for comparing UMH/EOS/CreatorOS/LyfeOS projections
+- `StatusBadge.tsx` — Colored status badge: maps status strings (active, running, idle, failed, etc.) to color-coded pill badges with consistent styling
+- `StorePolling.tsx` — Background polling coordinator: calls fetch methods on multiple Zustand stores (execution summary, workstation, approvals, engineering) at regular intervals
+- `TaskBlock.tsx` — Task list item: renders task title, status (pending/in_progress/completed/blocked), assigned agent, timestamp, and click handler
+- `TimelineView.tsx` — Vertical timeline component: renders events as connected nodes with labels, timestamps, status indicators, and dependency lines
+- `TitleBar.tsx` — Custom window title bar for Electron: renders minimize/maximize/close buttons, drag region, and window mode indicator
+- `TopologyMap.tsx` — Organism topology visualization: renders workcell nodes (advisor, executor, researcher, reviewer) with status dots and connection lines showing the organism structure
+- `TrackingPanel.tsx` — Vision object tracking controls: manage tracked objects with enable/disable, alert/notify toggles, search filter, delete, and focus-camera actions
+- `ViewportSelector.tsx` — Dropdown selector for viewport presets (responsive, desktop 1440px, tablet 768px, mobile 375px) used by LivePreview
+- `VisionPopout.tsx` — Popout window for the vision feed: opens the camera stream in a separate browser window (480×360) for picture-in-picture viewing
+- `VoiceCommandBar.tsx` — Voice command bar UI: shows mic level indicator, wake-word detection (clap or name), transcript display, and voice state transitions
+- `VoiceRouteHud.tsx` — Compact HUD showing the active voice route: displays which device's mic and TTS are currently active, only visible during voice sessions
+- `VoiceWaveform.tsx` — Animated voice waveform visualization: renders audio level bars that respond to real-time mic input levels
+
+### cockpit/src/renderer/components/canvas/
+- `AgentCanvasNode.tsx` — Draggable agent node on the canvas: shows agent name, status, minimize/maximize/close controls, renders AgentWindowContent inside
+- `AgentCanvasWorkspace.tsx` — Agent-focused canvas workspace: manages layout of multiple agent nodes with add-agent button, auto-layout, and eye-toggle for visibility
+- `BaseCanvas.tsx` — Base canvas component: handles pan (mouse drag), zoom (scroll wheel), provides coordinate system transformation for all canvas workspaces
+- `CanvasContextMenu.tsx` — Right-click context menu for canvas: offers "Add Window" options (browser, desktop, camera, terminal, panel, preview) at cursor position
+- `CanvasPalette.tsx` — Floating palette for adding new windows to the canvas: icon grid for browser, desktop, camera, terminal, panel, preview window types
+- `CanvasToolbar.tsx` — Canvas toolbar: zoom in/out/reset controls, toggle left panel, grid/snap options, fit-to-screen button
+- `CanvasWindow.tsx` — Draggable, resizable window container on the canvas: handles drag, resize from edges/corners, title bar with minimize/maximize/close buttons, renders WindowContent inside
+- `CanvasWorkspace.tsx` — General-purpose canvas workspace: manages multiple CanvasWindow instances with add/remove, context menu, and toolbar
+- `HarnessCanvasWorkspace.tsx` — Harness topology canvas: visualizes runtime nodes (CPU, server, database, monitor, terminal) with health indicators, connection lines, and auto-layout
+- `LoopCanvasWorkspace.tsx` — Loop builder canvas: visual editor for creating/editing execution loops with play/stop/step controls, test runner, and iteration history
+- `OrganismCanvasWorkspace.tsx` — Organism topology canvas: renders workcell nodes (Brain, Server, CPU), connection edges, health indicators, and auto-layout for the organism structure
+- `UnifiedCanvasWorkspace.tsx` — Canvas mode router: switches between general/agents/workflows/loops/harness/organism canvas workspaces based on the active canvas mode
+- `WindowContent.tsx` — Lazy-loading router for canvas window content: maps window types (browser, desktop, vision, terminal, panel, preview) to their content components
+- `WorkflowCanvasWorkspace.tsx` — Workflow builder canvas: visual editor for creating workflow DAGs with nodes, connections, add-node button, and workflow toolbar
+- `WorkflowConnection.tsx` — SVG arrow connecting two workflow nodes: renders a curved bezier path between source and target node positions
+- `WorkflowNode.tsx` — Draggable workflow node: renders node type icon (trigger, action, condition, gate, timer, merge, alert, end), label, and status indicator
+
+### cockpit/src/renderer/components/canvas/windows/
+- `AgentConfigView.tsx` — Agent configuration editor inside a canvas window: edit agent name, model, skills, soul document, with save/reset buttons
+- `AgentWindowContent.tsx` — Agent detail view inside a canvas window: shows agent status, recent tasks, execution history, and live output stream
+- `BrowserWindowContent.tsx` — Embedded browser pane inside a canvas window: wraps BrowserPane component for remote browser streaming
+- `DesktopWindowContent.tsx` — Remote desktop view inside a canvas window: shows a live monitor screenshot from a mesh-connected device, with refresh controls
+- `PanelWindowContent.tsx` — Lazy-loads any cockpit panel (dashboard, agents, work, etc.) inside a canvas window: maps panel names to lazy-imported components
+- `PreviewWindowContent.tsx` — URL preview iframe inside a canvas window: renders any URL in an embedded iframe with loading state
+- `TerminalWindowContent.tsx` — Terminal emulator inside a canvas window: connects to a tmux session via API, renders command output, accepts keyboard input
+- `VisionWindowContent.tsx` — Vision camera feed inside a canvas window: renders the live camera stream with overlay controls
+
+### cockpit/src/renderer/components/cards/
+- `ApprovalCard.tsx` — Chat card for approval requests: renders risk level badge (LOW/MEDIUM/HIGH/CRITICAL), action description, approve/reject buttons, and metadata
+- `CommandResultCard.tsx` — Chat card for command execution results: renders markdown-formatted output with syntax highlighting and suggested follow-up actions
+- `ConversationBubble.tsx` — Chat message bubble: renders markdown content with sender avatar, timestamp, role-based styling (operator, dex, system, agent, external)
+- `ErrorCard.tsx` — Chat card for error messages: renders error description with severity styling and suggested recovery actions
+- `RRIPRenderer.tsx` — RRIP message renderer: dispatches to the correct card type (ConversationBubble, ReportCard, CommandResultCard, ApprovalCard, ErrorCard) based on message kind
+- `ReportCard.tsx` — Chat card for work/audit reports: renders markdown report content with download button and metadata header
+
+### cockpit/src/renderer/components/rooms/
+- `ChannelCreateModal.tsx` — Modal dialog for creating a new channel in a conference server: channel type selector (text/voice/video/forum/stage/broadcast/announcement), name input, optional category
+- `ChannelSidebar.tsx` — Sidebar listing channels grouped by category: collapsible category sections, channel type icons (hash for text, speaker for voice), unread indicators
+- `ForumChannelView.tsx` — Forum-style channel view: renders threaded posts with tags, pinned/locked indicators, reply counts, and a new-post form
+- `GuestJoinPage.tsx` — Guest join page for conference rooms: invite link validation, camera/mic preview, display name input, connection quality indicator, join button
+- `InvitePanel.tsx` — Panel for managing room invites: create invite links with expiry/max-uses, copy link, view active invites, set guest permissions
+- `MeetingRoomPanel.tsx` — Video meeting room: camera/mic/screen-share controls, participant grid, chat sidebar, connection quality indicator, leave button
+- `MemberListPanel.tsx` — Panel listing room members: grouped by presence status (online/idle/offline/dnd), shows role badges and status colors
+- `RoomAuditLog.tsx` — Audit log for a conference server: displays timestamped moderation events (joins, leaves, kicks, role changes, channel updates)
+- `RoomChatPanel.tsx` — Chat panel inside a conference room: message list with replies, compose input, real-time updates from the rooms store
+- `RoomDexPanel.tsx` — DEX AI assistant panel inside a conference room: mode selector (silent/assist/active/moderate), DEX conversation thread
+- `RoomMainView.tsx` — Main content area for a room: routes to TextChannelView, ForumChannelView, or MeetingRoomPanel based on the active channel type
+- `RoomRightRail.tsx` — Right sidebar in conference rooms: tabs for member list, DEX assistant, chat, audit log, and invite management
+- `ServerCreateModal.tsx` — Modal for creating a new conference server: name input, privacy selector (public/private/secret), template selector (team/project/community/gaming)
+- `ServerRail.tsx` — Left rail showing conference server icons: server avatar circles, active server highlight, "+" button for creating new servers
+- `TextChannelView.tsx` — Text channel view: scrolling message list with edit/delete/pin/reply/react actions, compose bar with formatting
+- `ThreadPanel.tsx` — Thread sidebar: shows thread list for the current channel with message counts, archive/lock actions, and new-thread creation
+- `VoiceRoomPanel.tsx` — Voice-only room panel: participant list with speaking indicators, mute/deafen/disconnect controls, connection status
+
+### cockpit/src/renderer/components/vision/
+- `index.ts` — Barrel export for all vision components: re-exports VisionOverlay, TrackedObjectBox, FaceTrackingOverlay, HandLandmarkOverlay, PoseSkeletonOverlay, and OverlayMetadata type
+- `CameraModeSelector.tsx` — Camera mode picker: switches between tracking, face-recognition, alert, autonomous, and security modes with authority level selector
+- `DiagnosticsPanel.tsx` — Vision diagnostics panel: shows stream metrics (FPS, latency, resolution), relay pipeline stats, quality mode selector, collapsible sections
+- `FaceTrackingOverlay.tsx` — SVG overlay rendering detected face landmarks as connected dots on the camera feed
+- `HandLandmarkOverlay.tsx` — SVG overlay rendering detected hand landmarks as connected dots on the camera feed
+- `NotificationCenter.tsx` — Vision notification center: lists security/tracking/alert notifications with severity levels, dismiss/clear actions, collapsible by severity
+- `PoseSkeletonOverlay.tsx` — SVG overlay rendering detected body pose skeleton (limb connections) on the camera feed
+- `SceneInventory.tsx` — Scene inventory panel: lists all detected objects in the current camera view with inline label editing and delete actions
+- `StatusHud.tsx` — Vision status HUD: compact display of camera state (connected/streaming/quality), frame freshness, control authority level
+- `ToastContainer.tsx` — Toast notification container for vision events: renders auto-dismissing alerts with ok/warn/danger variants
+- `TrackedObjectBox.tsx` — Bounding box overlay for a tracked object: renders a labeled rectangle at specified coordinates on the camera feed
+- `VisionConnectionStatus.tsx` — Vision chain status indicator: shows relay connection state (relay_offline → connecting → camera_offline → streaming → error) with color-coded badge
+- `VisionOverlay.tsx` — Composites all vision overlays: renders TrackedObjectBox, PoseSkeletonOverlay, HandLandmarkOverlay, and FaceTrackingOverlay together on the camera feed
+- `VisionSettings.tsx` — Vision settings panel: camera selection, quality profile (low/medium/high), resolution, frame rate, stream metrics, relay configuration
+
+### cockpit/src/renderer/constants/
+- `devices.ts` — Device naming constants: canonical display names for all UMH devices (VPS, Beast) in `tailscale-hostname (device-type)` format, loaded from device_registry.json; `getDeviceDisplayName()` helper
+
+### cockpit/src/renderer/hooks/
+- `useBroadcastConnection.ts` — React hook managing the broadcast WebSocket lifecycle: connects on mount, syncs received state to broadcastStore, exposes client reference
+- `useBrowserStream.ts` — React hook for remote browser streaming: manages BrowserWsClient connection, tracks current URL/title/loading state, provides navigation methods
+- `useCanvasDrag.ts` — React hook for canvas drag interactions: tracks mouse down/move/up with zoom-corrected deltas, calls onDragStart/onDrag/onDragEnd callbacks
+- `useCanvasResize.ts` — React hook for canvas window resizing: handles edge/corner drag with minimum size constraints, zoom-corrected coordinates
+- `useConferenceRoom.ts` — React hook for LiveKit conference rooms: manages audio/video tracks, participant list, screen sharing, connection quality diagnostics
+- `useIsMobile.ts` — React hook detecting mobile viewport: returns true when screen width ≤ 640px, uses matchMedia for efficient re-renders
+- `useKeyboard.ts` — React hook for global keyboard shortcuts: maps number keys (1-9) and letter keys (q, etc.) to panel navigation, Cmd+K for command palette
+- `useOrganismRealtime.ts` — React hook for organism WebSocket: connects to /ws/organism, distributes events to organismStore/systemStore/activityStore/chatStore/roomsStore
+- `usePolling.ts` — React hook for interval-based polling: calls a callback at the specified interval with optional initial delay, cleans up on unmount
+- `useVisionConnection.ts` — React hook managing the vision WebSocket lifecycle: connects to vision relay, handles camera control, object tracking, quality presets, auto-start logic
+- `useVoiceDetection.ts` — React hook for wake-word and clap detection: listens for configurable wake words or loud clap sounds to activate voice recording
+- `useVoiceRoom.ts` — React hook wrapping useConferenceRoom with voice-specific exports: re-exports conference room types and state for voice-only room panels
+
+### cockpit/src/renderer/lib/
+- `pushNotifications.ts` — Push notification helpers: checks browser support, subscribes to push via service worker, sends subscription to the API for server-side push delivery
+- `rrip-normalize.ts` — RRIP message normalizer: converts raw ChatMessage objects into typed RRIPMessage format with role, kind, and metadata extraction
+- `time.ts` — Time formatting utilities: `relativeTime()` returns human-readable durations ("5m ago"), `formatDuration()` converts milliseconds to readable strings
+
+### cockpit/src/renderer/operator/
+- `speechInputAdapter.ts` — Browser Speech Recognition adapter: wraps the Web Speech API for continuous speech-to-text, manages listening state, emits transcript segments
+- `voiceTypes.ts` — TypeScript types for voice command state machine: VoiceCommandState ('idle'|'listening'|'processing'|...) and VoiceTranscript interface
+
+### cockpit/src/renderer/panels/
+- `ActionsPanel.tsx` — Panel listing available system actions: fetches action definitions from API, shows parameters, execute button, and result history
+- `ActivityPanel.tsx` — Real-time activity feed: scrolling list of organism events color-coded by severity (info=cyan, warn=amber, error=red), auto-scrolls to latest
+- `AnalyticsPanel.tsx` — Analytics dashboard: model usage ring gauges, signal volume mini-charts, cost breakdown, time-series data from analyticsStore
+- `ApprovalsPanel.tsx` — Approval queue: lists pending governed mutations requiring human approval, with approve/reject/escalate actions and risk level badges
+- `BroadcastPanel.tsx` — Device broadcast panel: shows connected mesh nodes, broadcast state (idle/starting/live), node health indicators, start/stop controls
+- `BrowserPanel.tsx` — Remote browser panel: URL bar with back/forward/refresh, embedded browser stream via WebSocket, click/type interaction forwarding, full-screen toggle
+- `BuildLoopPanel.tsx` — Build loop panel: shows active build loop status, iteration history, send-command interface, success/failure indicators
+- `CapabilitiesPanel.tsx` — Capability registry panel: lists all 28 registered capabilities with status, category, dependency graph, and alert indicators
+- `CapabilityMapPanel.tsx` — Visual capability map: shows capabilities organized by category with status indicators, copy-to-clipboard, and drill-down detail
+- `CommandCenterPanel.tsx` — Primary command center: combines camera preview, operator chat, vision controls, and system status into the main operational view
+- `CommandsPanel.tsx` — Command registry: lists all available commands (fetched from API), shows command ID, source, parameters, and execution interface
+- `CommsPanel.tsx` — Communications panel: shows agent-to-agent conversation channels with message history and compose interface
+- `CompanyPanel.tsx` — Company overview: displays venture data (name, stage, north star, KPIs) fetched from the API
+- `ConferenceRoomsPanel.tsx` — Conference rooms panel: Discord-like UI with server rail, channel sidebar, main content area (text/forum/meeting), and right rail (members/chat/dex)
+- `ContinuityPanel.tsx` — Operator continuity panel: tabbed view of objectives, active loops, pending approvals, and timeline for maintaining operational continuity
+- `DashboardPanel.tsx` — Main dashboard: system health overview, pending approvals count, recent executions, organism status, quick-action buttons
+- `DelegationPanel.tsx` — Delegation management: tabbed view of delegation proposals, active missions, and work queue with approve/reject controls
+- `DistributedRuntimePanel.tsx` — Distributed runtime panel: tabbed topology/devices/workers/capacity/assignments view of the multi-device compute cluster
+- `EngineeringPanel.tsx` — Engineering metrics: shows engineering plans, code quality indicators, risk assessment with color-coded severity levels
+- `ExecCoordPanel.tsx` — Execution coordination: manages execution plans with start/stop controls, shows plan status and coordination state
+- `ExecutionPanel.tsx` — Execution history: lists recent spine executions with status, duration, input/output, governance decisions, and timeline view
+- `ExecutivePanel.tsx` — Executive overview: tabbed view of allocations, budgets, tradeoffs, and strategic drift analysis
+- `ExecutorPanel.tsx` — Executor management: lists executor requests with status, shows executor capabilities and assignment history
+- `GoalPanel.tsx` — Goal tracker: displays active goals with progress indicators, alert markers, refresh controls
+- `GovernancePanel.tsx` — Governance panel: tabbed view of governance overview, conflicts, coordination state, knowledge, and health metrics
+- `InfrastructurePanel.tsx` — Infrastructure status: shows system health (CPU, memory, disk), node status, Docker container states, and service dependencies
+- `IntelligencePanel.tsx` — Intelligence overview: bottleneck evidence, coherence analysis, model routing status, and intelligence metrics
+- `IntentPanel.tsx` — Intent registry: shows canonical intents organized by scope (empire/product/architecture/engineering/session) with real-time connection status
+- `KnowledgePanel.tsx` — Knowledge management: observations, knowledge graph entries, skill registry, with search and add interfaces
+- `LearningPanel.tsx` — Learning system: tabbed view of lessons learned, patterns detected, evolution tracking, and drift analysis
+- `MVPReadinessPanel.tsx` — MVP readiness tracker: overview of blockers, escape points, and next steps with progress indicators
+- `MemoryPanel.tsx` — Memory system panel: shows memory entries by type (episodic, semantic, procedural), with search, create, and detail views
+- `MetaIDEPanel.tsx` — Meta-IDE panel: integrated code editor with file tree, terminal, git status, database browser, and deployment controls
+- `OperatingLoopPanel.tsx` — Operating loop panel: shows active and completed operating loops with timing, status, and snapshot history
+- `OperationsPanel.tsx` — Operations dashboard: real-time operational metrics from operationsStore with color-coded status indicators
+- `OperatorContinuityPanel.tsx` — Operator continuity: shows device presence states with color-coded indicators for maintaining operator session continuity
+- `OperatorHomePanel.tsx` — Operator home: status cards with severity-colored indicators, quick actions, and system overview for daily operator use
+- `OperatorPanel.tsx` — Operator workstation: intent contracts, work packets, validation results, audit entries, and execution controls with collapsible sections
+- `OperatorTimelinePanel.tsx` — Operator timeline: chronological view of operator actions and system events with type-colored markers
+- `OrchestratorPanel.tsx` — Orchestrator awareness: tabbed context/health/score view of the orchestrator's self-awareness and decision-making state
+- `OrganismLoopPanel.tsx` — Organism loop: shows the organism's autonomous loop cycles with status indicators and event history
+- `OrganismMapPanel.tsx` — Organism topology map: visual map of workcells, connections, and health indicators using the organism canvas store
+- `OrganismPanel.tsx` — Organism overview: spine execution stats, workcell status, daemon state, recent executions, governance decisions, with real-time updates
+- `PortfolioPanel.tsx` — Portfolio panel: shows department-level data (name, stage, KPIs) across the venture portfolio
+- `PredictionPanel.tsx` — Prediction engine: tabbed view of forecasts, scenarios, risk analysis, and confidence levels
+- `PresencePanel.tsx` — Presence panel: shows whether the operator is present, device presence status, and session activity indicators
+- `ProfilePanel.tsx` — Profile panel: operator profile with KPI cards showing key performance indicators
+- `ProjectionIntegrationPanel.tsx` — Projection integration: shows integration status of projections (EOS, CreatorOS, LyfeOS) with health checks and refresh controls
+- `ProjectionPanel.tsx` — Projection metrics: trending up/down indicators, alerts, and performance data for active projections
+- `ProofInspectorPanel.tsx` — Proof inspector: tabbed view of proof packages with overview, detail, timeline, evidence, and raw data views
+- `PropagationGraphPanel.tsx` — Propagation graph: visualizes how changes propagate through the organism with connection lines and node status
+- `RealityGraphPanel.tsx` — Reality graph: tabbed view of entities, artifact resolution, files, docs, runtime state, and knowledge in the reality model
+- `RealityIntelligencePanel.tsx` — Reality intelligence: displays reality evidence entries with source-type-colored badges
+- `RealityTimelinePanel.tsx` — Reality timeline: chronological view of reality observations with source-colored markers and polling updates
+- `RecoveryDashboardPanel.tsx` — Recovery dashboard: tabbed view of recovery queue, action details, action execution, and recovery history
+- `RuntimePanel.tsx` — Runtime overview: shows total sessions, active runtimes, resource usage, and runtime health metrics
+- `ScreenAwarenessPanel.tsx` — Screen awareness: displays focused application information and screen context from the screenAwarenessStore
+- `SelfBuildPanel.tsx` — Self-build panel: shows the organism's self-improvement loop with active builds, operator loop integration, and build history
+- `ServiceGraphPanel.tsx` — Service dependency graph: visualizes service nodes with criticality-colored indicators and dependency connections
+- `SessionPanel.tsx` — Session management: KPI cards for session metrics, session history, and session configuration
+- `SessionResumePanel.tsx` — Session resume: tabbed active/history view of workstation sessions with save/resume/pause controls
+- `SettingsPanel.tsx` — Settings panel: model routing configuration, device management (Tailscale peers), AI name configuration, and system preferences
+- `SkillsPanel.tsx` — Skills registry panel: lists registered skills from knowledgeStore with polling for updates
+- `StateAuthorityPanel.tsx` — State authority panel: shows state authority registrations with status indicators and criticality coloring
+- `StrategicPanel.tsx` — Strategic overview: compass-oriented strategic analysis with alerts, refresh controls, and priority indicators
+- `StrategyPanel.tsx` — Strategy panel: trending metrics, alerts, and strategic goal tracking with drill-down capabilities
+- `TasksPanel.tsx` — Task list panel: renders TaskBlock components from taskStore with polling for live updates
+- `TickLoopPanel.tsx` — Tick loop panel: shows the organism's tick-based execution loop with play/pause controls and iteration metrics
+- `TmuxPanel.tsx` — Tmux panel: remote terminal sessions via API with connection status banner and polling for session output
+- `UMHNodePanel.tsx` — UMH node panel: shows registered UMH nodes with service status indicators and collapsible details
+- `UnifiedExecutionPanel.tsx` — Unified execution panel: merged view of all execution pipelines with play/pause controls and execution history
+- `UniversalWorkPanel.tsx` — Universal work panel: combined view of work items from all sources with operator loop integration and connection status
+- `VisionPanel.tsx` — Vision panel: camera controller, vision feed, and vision overlay controls integrated into a dedicated panel view
+- `WorkIntelligencePanel.tsx` — Work intelligence: success/failure indicators, work pattern analysis, and task completion insights
+- `WorkPanel.tsx` — Work management: cron job table, work item details in a slide-out drawer, with view context filtering
+- `WorkspaceTopologyPanel.tsx` — Workspace topology: read-only visualization of workspace→repos→runtimes→devices relationships with health indicators
+- `WorkstationPanel.tsx` — Workstation preparation: tabbed view of preparation checklists, templates, snapshots, restoration, and recommendations
+- `WorldModelPanel.tsx` — World model: shows canonical patterns, beliefs, and world-state assertions with confidence-colored indicators
+
+### cockpit/src/renderer/stores/
+- `actionsStore.ts` — Zustand store for system actions: fetches action definitions from API, tracks action parameters and execution results
+- `activityStore.ts` — Zustand store for activity feed: fetches and stores organism activity events with severity levels
+- `agentCanvasStore.ts` — Zustand store for agent canvas: persists agent node positions, sizes, and states with pan/zoom for the agent canvas workspace
+- `agentStore.ts` — Zustand store for agents: fetches agent list from API, tracks agent status, roles, skills, and runtime assignments
+- `analyticsStore.ts` — Zustand store for analytics: fetches model usage, signal volume, and cost data from API for the analytics panel
+- `bootstrapStore.ts` — Zustand store for app bootstrap: persists initial setup state, fetches bootstrap config from API, manages hydration
+- `broadcastStore.ts` — Zustand store for broadcast: tracks broadcast state (idle/starting/live/stopping/error), connected nodes, health tier
+- `buildLoopStore.ts` — Zustand store for build loops: fetches build loop state from API, tracks iterations and results
+- `canvasStore.ts` — Zustand store for general canvas: persists window positions/sizes, pan/zoom state, z-order for the canvas workspace
+- `capabilityIntelligenceStore.ts` — Zustand store for capability intelligence: fetches and stores capability health, bottleneck, and optimization data
+- `capabilityMapStore.ts` — Zustand store for capability map: fetches capability registry with categories and status for visual mapping
+- `chatStore.ts` — Zustand store for operator↔DEX chat: manages message history with provenance, attachments, media, send/receive, and conversation state
+- `cockpitStore.ts` — Zustand store for cockpit UI state: persists active panel, chat open/closed, split panel, window mode, rail collapsed, drawer states, and canvas mode
+- `coherenceStore.ts` — Zustand store for coherence analysis: fetches template summaries and coherence drift data from API
+- `collapseStore.ts` — Zustand store for collapsible UI sections: persists which panels/sections are collapsed across sessions
+- `configStore.ts` — Zustand store for UMH configuration: fetches AI name, system config, and runtime settings from API
+- `delegationStore.ts` — Zustand store for delegation: fetches delegation proposals, missions, and queue from API
+- `deviceSessionStore.ts` — Zustand store for device presence session: registers device, sends heartbeats, tracks voice route info and session ID
+- `deviceStore.ts` — Zustand store for devices: fetches registered devices and Tailscale peers, manages device diagnosis and onboarding state
+- `editorStore.ts` — Zustand store for Meta-IDE editor: fetches file tree from API, manages open files, active file, and file content
+- `engineeringStore.ts` — Zustand store for engineering metrics: fetches engineering plans and code quality data with risk-colored indicators
+- `executionSummaryStore.ts` — Zustand store for execution summary: fetches "what is happening" overview data for the execution panel
+- `executiveStore.ts` — Zustand store for executive data: fetches allocation recommendations and strategic analysis from API
+- `goalStore.ts` — Zustand store for goals: fetches and tracks active goals with progress and alert states
+- `governanceStore.ts` — Zustand store for governance: fetches subsystem conflicts, coordination state, and governance health from API
+- `harnessCanvasStore.ts` — Zustand store for harness canvas: persists runtime node positions and connections, fetches topology from API
+- `intelligenceStore.ts` — Zustand store for intelligence: fetches bottleneck evidence and intelligence metrics from API
+- `intentStore.ts` — Zustand store for canonical intents: fetches intent registry organized by scope from API
+- `knowledgeStore.ts` — Zustand store for knowledge: fetches observations, knowledge graph, and skill registry from API
+- `learningStore.ts` — Zustand store for learning system: fetches lessons, patterns, and evolution data from API
+- `loopCanvasStore.ts` — Zustand store for loop canvas: persists loop node positions and execution state with pan/zoom
+- `memoryStore.ts` — Zustand store for memory system: fetches memory entries by type from API
+- `metaIDEStore.ts` — Zustand store for Meta-IDE: fetches repository health data from API
+- `mvpReadinessStore.ts` — Zustand store for MVP readiness: fetches readiness assessment data from API
+- `operatingLoopStore.ts` — Zustand store for operating loops: fetches active and completed loop data from API
+- `operationsStore.ts` — Zustand store for operations: fetches operational metrics and status from API
+- `operatorExperienceStore.ts` — Zustand store for operator experience: manages speech input adapter integration and operator interaction state
+- `operatorHomeStore.ts` — Zustand store for operator home: fetches status cards and quick-action data from API
+- `operatorLoopStore.ts` — Zustand store for operator loop: fetches loop status, intent contracts, work packets, validation results, and audit entries from API
+- `operatorTimelineStore.ts` — Zustand store for operator timeline: fetches chronological timeline entries from API
+- `orchestratorAwarenessStore.ts` — Zustand store for orchestrator awareness: fetches orchestrator self-model context, health, and score from API
+- `organismCanvasStore.ts` — Zustand store for organism canvas: persists topology node/edge positions, fetches organism topology from API
+- `organismLoopStore.ts` — Zustand store for organism loop: fetches cycle event data and loop state from API
+- `organismStore.ts` — Zustand store for organism state: fetches spine stats, workcell status, daemon state, governance decisions, recent executions from API
+- `predictionStore.ts` — Zustand store for predictions: fetches forecast data and scenario analysis from API
+- `presenceStore.ts` — Zustand store for presence: fetches operator and device presence status from API
+- `projectionIntegrationStore.ts` — Zustand store for projection integration: fetches projection health and integration status from API
+- `proofInspectorStore.ts` — Zustand store for proof inspector: fetches proof packages with detail, timeline, and evidence from API
+- `providerRegistryStore.ts` — Zustand store for provider registry: fetches registered AI/service providers from API
+- `realityGraphStore.ts` — Zustand store for reality graph: fetches reality entities and their relationships from API
+- `realityIntelligenceStore.ts` — Zustand store for reality intelligence: fetches reality evidence observations from API
+- `realityTimelineStore.ts` — Zustand store for reality timeline: fetches chronological reality observations from API
+- `realtimeStore.ts` — Zustand store for real-time WebSocket: manages connection status, event stream, events per minute, GPU metrics, reconnect state
+- `recoveryDashboardStore.ts` — Zustand store for recovery: fetches recovery actions, queue, and history from API
+- `roomsStore.ts` — Zustand store for conference rooms: manages servers, channels, messages, threads, members, invites, and DEX mode with full CRUD operations
+- `screenAwarenessStore.ts` — Zustand store for screen awareness: fetches focused application and screen context from API
+- `serviceGraphStore.ts` — Zustand store for service graph: fetches service nodes with criticality levels from API
+- `settingsStore.ts` — Zustand store for settings: fetches and updates model routes, system preferences, and AI configuration from API
+- `stateAuthorityStore.ts` — Zustand store for state authority: fetches state authority registrations and status from API
+- `strategicStore.ts` — Zustand store for strategic data: fetches strategic analysis and priority data from API
+- `systemStore.ts` — Zustand store for system health: fetches node GPU metrics, CPU/memory/disk stats, Docker container status, and service health from API
+- `taskStore.ts` — Zustand store for tasks: fetches task list with status (pending/in_progress/completed/blocked), agent assignments, and timestamps from API
+- `umhNodeStore.ts` — Zustand store for UMH nodes: fetches registered UMH node services and status from API
+- `unifiedApprovalStore.ts` — Zustand store for approvals: fetches unified approval queue (governed mutations requiring human action) from API
+- `unifiedCanvasStore.ts` — Zustand store for canvas mode: persists which canvas mode is active (general/agents/workflows/loops/harnesses/organism)
+- `unifiedExecutionStore.ts` — Zustand store for unified execution: fetches merged execution data from all pipelines from API
+- `unifiedWorkstationStore.ts` — Zustand store for workstation: fetches overnight status, workstation health, and operational readiness from API
+- `viewContextStore.ts` — Zustand store for view context: tracks which panel is active and provides context for view-specific filtering
+- `visionStore.ts` — Zustand store for vision: manages camera state, overlay metadata, tracked objects, quality profiles, stream metrics, security notifications, presets
+- `voiceSessionStore.ts` — Zustand store for voice sessions: manages LiveKit room connection, participant tracks, mute/deafen state, call duration
+- `voiceStore.ts` — Zustand store for voice: manages mic state (idle/listening/processing/speaking), audio level, transcript, wake-word detection state
+- `workIntelligenceStore.ts` — Zustand store for work intelligence: fetches work pattern analysis and completion insights from API
+- `workflowCanvasStore.ts` — Zustand store for workflow canvas: persists workflow nodes and connections with pan/zoom for the visual workflow editor
+- `workspaceContextStore.ts` — Zustand store for workspace context: persists active workspace selection, fetches workspace list from API
+- `workspaceTopologyStore.ts` — Zustand store for workspace topology: fetches workspace→repo→runtime→device topology from API
+- `workstationSessionStore.ts` — Zustand store for workstation sessions: fetches active and historical workstation session data from API
+- `worldModelStore.ts` — Zustand store for world model: fetches canonical patterns, beliefs, and world-state assertions from API
+
+### cockpit/src/renderer/types/
+- `rooms.ts` — TypeScript types for the conference rooms system: ChannelType, ServerCategory, RoomMessage, ForumPost, PresenceStatus, GuestPermissions, DexRoomMode, and more
+- `routes.ts` — Route definitions mapping panel names to icons and labels: imports Lucide icons, defines ROUTES array and ROUTE_GROUPS for LeftRail navigation
+- `rrip.ts` — TypeScript types for the RRIP message protocol: RRIPRole (operator/dex/system/agent/external), RRIPKind (conversation/command_result/work_report/...), RRIPMessage, RRIPSuggestedAction
+
+### cockpit/src/renderer/utils/
+- `canvasCoords.ts` — Canvas coordinate math utilities: `screenToCanvas()` converts screen coordinates to canvas space, `zoomAtPoint()` adjusts zoom around a focal point, `clampZoom()` enforces min/max zoom limits
+
+### skills/ — Skill Definitions and SaaS Dev Pipeline (131 files)
+
+### skills/meta/tool_mastery_engine/scripts/
+- `scaffold_tool_skill.py` — Scaffolds a new tool skill directory from the canonical template (creates SKILL.md and references/best_practices.md)
+
+### skills/saas-dev-skill/.claude/skills/saas-dev/scripts/
+- `setup.ts` — First-run setup script for saas-dev skill — validates prerequisites, creates .planning/ structure, checks DB connection
+- `verify.ts` — Health check script for saas-dev skill — reports on environment, DB, and pipeline readiness
+
+### skills/saas-dev-skill/lib/agents/
+- `agent-runner.ts` — Spawns, coordinates, and manages agent lifecycle with retries, exponential backoff, and progress reporting
+- `architecture-agent.ts` — Designs complete system architecture from a ProjectBrief and ProductInsights — outputs SystemArchitecture artifact
+- `artifact-store.ts` — Central typed artifact store for inter-agent communication — persists as JSON under .planning/artifacts/
+- `backend-agent.ts` — Generates Express route handlers, storage methods, and Drizzle schemas from SystemArchitecture
+- `component-library-agent.ts` — Builds all shared components with design system context, extracts TypeScript interfaces for downstream page agents
+- `copy-agent.ts` — Orchestrates brand voice loading, copy generation, and copy review via copy-planner and brand-voice-inferrer
+- `design-system-agent.ts` — Generates product-specific design tokens, CSS custom properties, Tailwind config, and component design guide
+- `page-agent.ts` — Wraps component-writer with full ArtifactStore context — delegates generation, validation, review, and tsc checks
+- `pm-orchestrator.ts` — Coordinates intake, all build agents, live preview, and progress — runs agents in dependency-ordered waves
+- `product-intel-agent.ts` — Wraps competitive researcher and adds product analysis layer — produces ProductInsights for downstream agents
+- `qa-agent.ts` — Validates entire project after all agents complete — runs tsc, import validation, null-safety, and state-pattern checks
+- `types.ts` — Shared TypeScript interfaces for the v3 multi-agent architecture — all agents communicate through these types
+
+### skills/saas-dev-skill/lib/analytics-delivery/
+- `analytics-injector.ts` — Injects PostHog analytics event calls into generated React components based on taxonomy
+- `deploy-runner.ts` — Runs deployment commands for Fly.io, Vercel, and Railway with preflight checks and rollback
+- `docker-config-generator.ts` — Generates multi-stage Dockerfiles for all hosting targets (Vite client + esbuild server)
+- `env-scanner.ts` — Scans codebase for environment variable usage and produces an inventory for deployment config
+- `github-actions-generator.ts` — Generates CI/CD GitHub Actions workflows with shared setup steps for build and deploy
+- `posthog-setup.ts` — Checks and configures PostHog analytics setup — verifies API key, project, and event taxonomy
+- `taxonomy-auditor.ts` — Audits analytics event taxonomy against spec — ensures all user-facing actions have tracking
+- `types.ts` — Zod schemas and TypeScript types for analytics delivery (TaxonomyReport, DeployConfig, HostingTarget)
+
+### skills/saas-dev-skill/lib/backend-wirer/
+- `brownfield-backend-audit.ts` — Audits existing backend code to build an inventory of routes, schemas, and storage methods
+- `codex-adversarial.ts` — Adversarial code review via Claude — validates generated routes and schemas against spec
+- `hook-injector.ts` — Injects React Query hooks into frontend pages to connect them to generated backend endpoints
+- `migration-runner.ts` — Writes and executes Drizzle ORM SQL migration files from generated schema changes
+- `route-generator.ts` — Generates Express route handler code from BackendEndpointSpec definitions
+- `schema-generator.ts` — Generates Drizzle ORM pgTable schema code from data model definitions
+- `tdd-skill.ts` — Generates test files via Claude for backend routes before implementation (test-driven development)
+- `types.ts` — Zod schemas and types for backend wiring (BackendSpec, RouteCodeBlock, SchemaCodeBlock, WiringPlan)
+- `wiring-applier.ts` — Applies generated routes, schemas, and hooks to the existing codebase without breaking imports
+
+### skills/saas-dev-skill/lib/copy-planner/
+- `copy-reviewer.ts` — Reviews all project copy at once for cross-page voice consistency and brand compliance via Claude
+- `copy-writer.ts` — Generates all UI copy for a project in one Claude call for cross-page voice coherence
+- `types.ts` — Zod schemas for copy planning (PageCopy, CopyReview, BrandVoice)
+
+### skills/saas-dev-skill/lib/intake/
+- `codebase-scanner.ts` — Scans an existing codebase to extract what already exists (routes, components, schemas, packages)
+- `competitive-researcher.ts` — Researches competitor websites to extract copy patterns, UX flows, and competitive intelligence
+- `doc-scanner.ts` — Scans .planning/ directory for existing documentation and reads all files for context
+- `intake-orchestrator.ts` — Unified intake phase — collects everything needed before generation and produces a ProjectBrief
+- `mode-detector.ts` — Detects which intake mode to use (greenfield vs brownfield) based on filesystem state
+- `types.ts` — Zod schemas for unified intake phase (ProjectBrief, CompetitorAnalysis, CodebaseSnapshot)
+
+### skills/saas-dev-skill/lib/orchestrator/
+- `approval-gate.ts` — Approval gate handling — formats approval messages for Claude to relay to the human operator
+- `context-detector.ts` — Determines current pipeline position so the orchestrator can skip completed phases
+- `db.ts` — Postgres-backed state for pipeline runs — wraps pipeline_runs and pipeline_pages tables (never JSON files)
+- `index.ts` — Pipeline spine — loads config, detects state, runs phases in order with per-page Postgres checkpointing
+- `phase-runner.ts` — Generic per-page phase runner — accepts a PhaseImplementation and handles retry/checkpoint bookkeeping
+
+### skills/saas-dev-skill/lib/react-gen/
+- `build-status-overlay.ts` — Injects a build progress overlay into running Vite app — communicates via public/build-status.json
+- `component-writer.ts` — Generates a single production-ready React/TypeScript page component using Claude with design validation
+- `design-linter.ts` — Programmatic checker that scans component code for design system violations before writing to disk
+- `design-tokens.ts` — Design token constants and mandatory rules enforced in every generated component (colors, spacing, typography)
+- `edit-mode.ts` — Post-build surgical file-level component updates with instant Vite preview and full validation pipeline
+- `live-preview-server.ts` — Ensures a Vite dev server is running for live preview during generation — pages hot-reload automatically
+- `screenshot-reviewer.ts` — Playwright-based screenshot capture + Claude vision quality gate — scores against design rules
+- `shared-component-builder.ts` — Builds shared layout components before pages (sequential — each can import the previous)
+- `skill-loader.ts` — Loads design-relevant skill content from ~/.claude/skills/ and .claude/skills/ for injection into prompts
+
+### skills/saas-dev-skill/lib/spec-parser/
+- `brand-voice-inferrer.ts` — Infers brand voice from a PRD/spec document via Claude — writes to .planning/BRAND-VOICE.md
+- `chunk-spec.ts` — Splits a large spec into per-page chunks for parallel processing by downstream agents
+- `collaborative-flow.ts` — Interactive spec refinement flow — Claude asks clarifying questions, user answers, spec improves
+- `deduplicate-components.ts` — Identifies and merges duplicate shared components across pages via Claude analysis
+- `derive-backend-spec.ts` — Derives backend API specification from frontend page specs via Claude
+- `gap-analyzer.ts` — Analyzes draft SpecOutput for missing pages, flows, states, and assumptions (static + LLM checks)
+- `parse-spec.ts` — Entry point for spec parsing — orchestrates restructuring, chunking, and validation
+- `restructure-spec.ts` — Restructures raw PRD text into structured SpecOutput format via Claude with Zod validation
+- `spec-approval.ts` — Formats GapAnalysis as a human-readable report for the approval gate
+- `spec-editor.ts` — Applies targeted edits to an existing SpecOutput (add/remove/modify pages and components)
+- `types.ts` — Re-exports from shared/spec-schema.ts for use within spec-parser modules
+
+### skills/saas-dev-skill/lib/ (root)
+- `claude-subprocess.ts` — Drop-in replacement for @anthropic-ai/sdk — routes all LLM calls through `claude -p` subprocess
+- `detect-framework.ts` — Detects project framework (currently React+Vite+Tailwind+shadcn) from package.json and file structure
+- `env.ts` — Single source of truth for all environment variables used in lib/ — never read process.env directly
+- `project-config.ts` — Loads and validates project config from .planning/project.config.json — throws if missing
+
+### skills/saas-dev-skill/scripts/
+- `saas-dev-build.ts` — Single entry point for SaaS dev pipeline (v3 multi-agent architecture) — supports --resume
+- `saas-dev-fix.ts` — Targeted fix script — re-runs only failed or low-quality phases, skips completed artifacts
+
+### skills/saas-dev-skill/shared/
+- `design-schema.ts` — Drizzle ORM table definitions for design memory (pipeline_runs, pipeline_pages, design sessions)
+- `spec-schema.ts` — Zod schemas for spec parsing — PageSpec, SharedComponentSpec, BackendSpec, SpecOutput with provenance tracking
+
+### skills/saas-dev-skill/tests/unit/agents/
+- `agent-runner.test.ts` — Tests for agent lifecycle management (spawn, retry, backoff, progress)
+- `architecture-agent.test.ts` — Tests for architecture agent artifact generation
+- `artifact-store.test.ts` — Tests for artifact store read/write/persist operations
+- `design-system-agent.test.ts` — Tests for design system generation output
+- `page-agent.test.ts` — Tests for page component generation and validation
+- `pm-orchestrator.test.ts` — Tests for PM orchestrator wave execution and state management
+- `qa-agent.test.ts` — Tests for QA validation pipeline (tsc, imports, null-safety)
+
+### skills/saas-dev-skill/tests/unit/analytics-delivery/
+- `analytics-injector.test.ts` — Tests for PostHog event injection into React components
+- `deploy-runner.test.ts` — Tests for deployment command execution and preflight checks
+- `docker-config-generator.test.ts` — Tests for Dockerfile generation across hosting targets
+- `env-scanner.test.ts` — Tests for environment variable scanning and inventory
+- `github-actions-generator.test.ts` — Tests for CI/CD workflow generation
+- `posthog-setup.test.ts` — Tests for PostHog configuration validation
+- `taxonomy-auditor.test.ts` — Tests for analytics event taxonomy auditing
+
+### skills/saas-dev-skill/tests/unit/backend-wirer/
+- `brownfield-backend-audit.test.ts` — Tests for existing backend inventory scanning
+- `codex-adversarial.test.ts` — Tests for adversarial code review validation
+- `hook-injector.test.ts` — Tests for React Query hook injection into pages
+- `migration-runner.test.ts` — Tests for SQL migration file generation and execution
+- `route-generator.test.ts` — Tests for Express route handler generation
+- `schema-generator.test.ts` — Tests for Drizzle schema code generation
+- `types.test.ts` — Tests for backend wiring Zod schema validation
+- `wiring-applier.test.ts` — Tests for applying generated code without breaking imports
+
+### skills/saas-dev-skill/tests/unit/code-integrator/
+- `brownfield-audit.test.ts` — Tests for brownfield codebase audit accuracy
+- `brownfield-planner.test.ts` — Tests for brownfield integration planning
+- `codex-review.test.ts` — Tests for code review pass validation
+- `git-workflow.test.ts` — Tests for git branch and commit workflow
+- `html-to-shadcn.test.ts` — Tests for HTML to shadcn/ui component conversion
+- `nav-injector.test.ts` — Tests for navigation menu injection into layouts
+- `page-writer.test.ts` — Tests for page file writing and import management
+- `route-injector.test.ts` — Tests for router configuration injection
+
+### skills/saas-dev-skill/tests/unit/copy-planner/
+- `copy-reviewer.test.ts` — Tests for cross-page copy consistency review
+- `copy-writer.test.ts` — Tests for UI copy generation coherence
+
+### skills/saas-dev-skill/tests/unit/ (root)
+- `design-schema.test.ts` — Tests for design memory Drizzle schema validation
+- `detect-framework.test.ts` — Tests for framework detection accuracy
+
+### skills/saas-dev-skill/tests/unit/intake/
+- `competitive-researcher.test.ts` — Tests for competitor website analysis
+- `intake-orchestrator.test.ts` — Tests for unified intake phase orchestration
+- `mode-detector.test.ts` — Tests for greenfield vs brownfield detection
+
+### skills/saas-dev-skill/tests/unit/orchestrator/
+- `copy-adapter.test.ts` — Tests for copy agent adapter integration
+- `deploy-adapter-inject-import.test.ts` — Tests for deploy adapter import injection
+- `integration-adapter-name-matching.test.ts` — Tests for integration adapter name matching logic
+- `phase-runner-hook.test.ts` — Tests for phase runner hook execution
+- `react-gen-adapter.test.ts` — Tests for React generation adapter integration
+
+### skills/saas-dev-skill/tests/unit/react-gen/
+- `component-writer.test.ts` — Tests for React component generation and validation
+- `design-linter.test.ts` — Tests for design system violation detection
+- `design-tokens.test.ts` — Tests for design token constant validation
+- `screenshot-reviewer.test.ts` — Tests for Playwright screenshot quality gate
+- `shared-component-builder.test.ts` — Tests for shared component sequential build
+- `skill-loader.test.ts` — Tests for skill content loading and caching
+
+### skills/saas-dev-skill/tests/unit/spec-parser/
+- `brand-voice-inferrer.test.ts` — Tests for brand voice inference from PRD
+- `chunk-spec.test.ts` — Tests for spec chunking into per-page segments
+- `collaborative-flow.test.ts` — Tests for interactive spec refinement flow
+- `deduplicate-components.test.ts` — Tests for shared component deduplication
+- `derive-backend-spec.test.ts` — Tests for backend spec derivation from frontend specs
+- `gap-analyzer.test.ts` — Tests for spec gap analysis (missing pages, flows, states)
+- `parse-spec.test.ts` — Tests for end-to-end spec parsing pipeline
+- `restructure-spec.test.ts` — Tests for raw PRD to structured SpecOutput conversion
+- `spec-editor.test.ts` — Tests for targeted spec editing operations
+
 ---
+
+### data/ — Trinity App Repo Snapshots (154 files)
+
+These are snapshot copies of the three Trinity SaaS applications (EntrepreneurOS, CreatorOS, LyfeOS). They serve as reference implementations and schema sources — not actively developed here.
+
+### data/repos/LYFEOS/
+- `drizzle.config.ts` — Drizzle ORM configuration pointing to LyfeOS database
+- `postcss.config.js` — PostCSS configuration with Tailwind CSS plugin
+- `tailwind.config.ts` — Tailwind CSS theme configuration for LyfeOS
+- `vite.config.ts` — Vite build configuration for LyfeOS
+- `vitest.config.ts` — Vitest test runner configuration for LyfeOS
+
+### data/repos/LYFEOS/scripts/
+- `capture-screenshots.ts` — Playwright script to capture screenshots of all LyfeOS pages for visual regression
+- `seed-demo-user.ts` — Seeds a demo user with sample data for LyfeOS development/testing
+
+### data/repos/LYFEOS/shared/
+- `schema.ts` — Drizzle ORM database schema for LyfeOS (users, XP, achievements, habits, journal)
+
+### data/repos/LYFEOS/shared/models/
+- `chat.ts` — Chat message types for LyfeOS AI conversation feature
+
+### data/repos/LYFEOS/tests/
+- `api-auth.test.ts` — API authentication endpoint tests for LyfeOS
+- `xp-calculations.test.ts` — XP (experience points) calculation logic tests for LyfeOS gamification
+
+### data/repos/creatoros/
+- `drizzle.config.ts` — Drizzle ORM configuration pointing to CreatorOS database
+- `postcss.config.js` — PostCSS configuration with Tailwind CSS plugin
+- `tailwind.config.ts` — Tailwind CSS theme configuration for CreatorOS
+- `vite.config.ts` — Vite build configuration for CreatorOS
+
+### data/repos/creatoros/scripts/
+- `seed-db.ts` — Seeds the CreatorOS database with initial data for development
+
+### data/repos/creatoros/shared/
+- `schema.ts` — Drizzle ORM database schema for CreatorOS (creators, content, analytics, subscriptions)
+
+### data/repos/entrepreneuros/
+- `drizzle.config.ts` — Drizzle ORM configuration pointing to EntrepreneurOS database
+- `llmApi.ts` — LLM API client for EntrepreneurOS — wraps multiple AI providers (OpenAI, Anthropic, Gemini)
+- `postcss.config.js` — PostCSS configuration with Tailwind CSS plugin
+- `tailwind.config.ts` — Tailwind CSS theme configuration for EntrepreneurOS
+- `vite.config.ts` — Vite build configuration for EntrepreneurOS
+
+### data/repos/entrepreneuros/client/src/
+- `App.tsx` — Root React component with route definitions (Dashboard, TaskBoard, AgentChat, CRM, Settings, etc.)
+- `main.tsx` — React DOM entry point — mounts App component to #root element
+
+### data/repos/entrepreneuros/client/src/components/
+- `action-approval-panel.tsx` — UI panel for approving/rejecting AI-proposed actions before execution
+- `agent-card.tsx` — Card component displaying an AI agent's name, status, capabilities, and metrics
+- `agent-metrics.tsx` — Dashboard metrics for agent performance (tasks completed, success rate, response time)
+- `ai-fab.tsx` — Floating action button for triggering AI assistant from any page
+- `ai-model-selector.tsx` — Dropdown selector for choosing AI model (GPT-4, Claude, Gemini, etc.)
+- `api-key-dialog.tsx` — Dialog for entering and validating API keys for AI providers
+- `create-agent-form.tsx` — Form for configuring a new AI agent (name, role, model, instructions)
+- `create-agent-modal.tsx` — Modal wrapper around create-agent-form with save/cancel actions
+- `direct-gpt4o-chat.tsx` — Direct chat interface with GPT-4o model (bypasses agent layer)
+- `gmail-connect-button.tsx` — OAuth button for connecting Gmail integration to EntrepreneurOS
+- `header.tsx` — Top navigation header with user menu, notifications, and search
+- `integrations.tsx` — Integration management panel listing connected services (Gmail, Slack, etc.)
+- `layout.tsx` — Main application layout with sidebar, header, and content area
+- `notification-dropdown.tsx` — Dropdown showing recent notifications with read/unread state
+- `performance-analytics.tsx` — Charts and metrics for overall business performance analytics
+- `sidebar.tsx` — Left navigation sidebar with page links and agent shortcuts
+- `sop-template-button.tsx` — Button that generates Standard Operating Procedure templates via AI
+- `stats-overview.tsx` — Dashboard overview cards showing key business statistics
+- `task-board.tsx` — Kanban-style task board with drag-and-drop columns (To Do, In Progress, Done)
+- `task-card.tsx` — Individual task card showing title, assignee, priority, and due date
+
+### data/repos/entrepreneuros/client/src/components/ui/
+- `accordion.tsx` — shadcn/ui accordion component (collapsible content sections)
+- `alert-dialog.tsx` — shadcn/ui alert dialog (confirmation modal with destructive action support)
+- `alert.tsx` — shadcn/ui alert component (info, warning, error banners)
+- `aspect-ratio.tsx` — shadcn/ui aspect ratio container (maintains width:height ratio)
+- `avatar.tsx` — shadcn/ui avatar component (user profile image with fallback initials)
+- `badge.tsx` — shadcn/ui badge component (small status/category labels)
+- `breadcrumb.tsx` — shadcn/ui breadcrumb navigation component
+- `button.tsx` — shadcn/ui button component (primary, secondary, destructive, outline, ghost variants)
+- `calendar.tsx` — shadcn/ui calendar date picker component
+- `card.tsx` — shadcn/ui card component (container with header, content, footer)
+- `carousel.tsx` — shadcn/ui carousel component (horizontal scrolling content)
+- `chart.tsx` — shadcn/ui chart wrapper component (Recharts integration with theme support)
+- `checkbox.tsx` — shadcn/ui checkbox input component
+- `collapsible.tsx` — shadcn/ui collapsible component (expandable/collapsible section)
+- `command.tsx` — shadcn/ui command palette component (searchable command menu)
+- `context-menu.tsx` — shadcn/ui context menu (right-click menu)
+- `dialog.tsx` — shadcn/ui dialog component (modal overlay)
+- `drawer.tsx` — shadcn/ui drawer component (slide-in panel from screen edge)
+- `dropdown-menu.tsx` — shadcn/ui dropdown menu component
+- `form.tsx` — shadcn/ui form component (react-hook-form integration with validation)
+- `hover-card.tsx` — shadcn/ui hover card (tooltip-like popover on hover)
+- `input-otp.tsx` — shadcn/ui OTP input component (one-time password entry)
+- `input.tsx` — shadcn/ui text input component
+- `label.tsx` — shadcn/ui label component (form field labels)
+- `menubar.tsx` — shadcn/ui menubar component (horizontal menu with dropdowns)
+- `navigation-menu.tsx` — shadcn/ui navigation menu component (complex nav with submenus)
+- `pagination.tsx` — shadcn/ui pagination component (page navigation controls)
+- `popover.tsx` — shadcn/ui popover component (floating content panel)
+- `progress.tsx` — shadcn/ui progress bar component
+- `radio-group.tsx` — shadcn/ui radio group component (single-select options)
+- `resizable.tsx` — shadcn/ui resizable panels component (draggable dividers)
+- `scroll-area.tsx` — shadcn/ui scroll area component (custom scrollbar)
+- `select.tsx` — shadcn/ui select component (dropdown selection)
+- `separator.tsx` — shadcn/ui separator component (horizontal/vertical divider)
+- `sheet.tsx` — shadcn/ui sheet component (side panel overlay)
+- `sidebar.tsx` — shadcn/ui sidebar component (responsive navigation sidebar)
+- `skeleton.tsx` — shadcn/ui skeleton component (loading placeholder animation)
+- `slider.tsx` — shadcn/ui slider component (range input)
+- `switch.tsx` — shadcn/ui switch component (toggle on/off)
+- `table.tsx` — shadcn/ui table component (data table with header, body, footer)
+- `tabs.tsx` — shadcn/ui tabs component (tabbed content sections)
+- `textarea.tsx` — shadcn/ui textarea component (multi-line text input)
+- `toast.tsx` — shadcn/ui toast component (temporary notification popup)
+- `toaster.tsx` — shadcn/ui toaster provider (manages toast notification stack)
+- `toggle-group.tsx` — shadcn/ui toggle group component (multi-select toggle buttons)
+- `toggle.tsx` — shadcn/ui toggle component (pressed/unpressed state button)
+- `tooltip.tsx` — shadcn/ui tooltip component (hover text hint)
+
+### data/repos/entrepreneuros/client/src/hooks/
+- `use-ai-api-keys.ts` — React hook for managing AI provider API keys (CRUD operations via React Query)
+- `use-ai-models.ts` — React hook for fetching and selecting available AI models
+- `use-auth.tsx` — React hook and context provider for authentication state (login, logout, current user)
+- `use-mobile.tsx` — React hook for detecting mobile viewport (responsive layout switching)
+- `use-notifications.tsx` — React hook for fetching, marking read, and managing notification state
+- `use-toast.ts` — React hook for triggering toast notifications programmatically
+
+### data/repos/entrepreneuros/client/src/lib/
+- `firebase.ts` — Firebase SDK initialization for EntrepreneurOS (auth, Firestore)
+- `llmApi.ts` — Client-side LLM API wrapper for sending prompts to the server
+- `openai.ts` — Direct OpenAI SDK client initialization for client-side features
+- `protected-route.tsx` — Route guard component that redirects unauthenticated users to login
+- `queryClient.ts` — React Query client configuration (retry, stale time, cache settings)
+- `utils.ts` — Utility functions (cn() classname merger via clsx + tailwind-merge)
+
+### data/repos/entrepreneuros/client/src/pages/
+- `agent-chat.tsx` — Chat interface page for conversing with AI agents
+- `agent-os-dashboard.tsx` — Agent OS dashboard showing all agents, their status, and quick actions
+- `agent-programming.tsx` — Page for programming agent behavior (instructions, tools, knowledge)
+- `analytics-page.tsx` — Business analytics page with charts for revenue, engagement, and growth
+- `auth-page.tsx` — Login/register page with email/password authentication
+- `crm-page.tsx` — Customer Relationship Management page (contacts, deals, pipeline)
+- `dashboard.tsx` — Main dashboard with overview stats, recent activity, and quick actions
+- `documents-page.tsx` — Document management page (create, edit, organize business documents)
+- `gpt4o-chat-page.tsx` — Direct GPT-4o chat page (standalone AI conversation without agent layer)
+- `integrations-page.tsx` — Integration management page (connect/disconnect third-party services)
+- `not-found.tsx` — 404 Not Found page
+- `notifications-page.tsx` — Full notifications page with filtering and bulk actions
+- `settings-page.tsx` — User settings page (profile, preferences, API keys, billing)
+- `support-page.tsx` — Support page with FAQ, contact form, and documentation links
+- `task-board-page.tsx` — Task management page with kanban board and list views
+- `tutorials-page.tsx` — Tutorials and onboarding page for new users
+
+### data/repos/entrepreneuros/scripts/
+- `add-metadata-column.ts` — Migration script adding metadata JSONB column to agents table
+- `create-demo-user.ts` — Seeds a demo user with sample agents, tasks, and messages
+- `create-notifications-table.ts` — Migration script creating the notifications table
+- `fix-messages-table.ts` — Migration script fixing messages table schema (column types/constraints)
+- `setup-crm-tables.ts` — Migration script creating CRM tables (contacts, deals, pipeline_stages)
+- `setup-documents-table.ts` — Migration script creating the documents table
+- `setup-folders-table.ts` — Migration script creating the folders table for document organization
+- `setup-tables.ts` — Initial migration script creating all core tables (users, agents, tasks, messages)
+- `update-agents-table.ts` — Migration script adding new columns to agents table
+- `update-messages-table.ts` — Migration script updating messages table schema
+- `update-notifications-table.ts` — Migration script updating notifications table schema
+- `update-tasks-table.ts` — Migration script adding priority and due date to tasks table
+
+### data/repos/entrepreneuros/server/
+- `auth.ts` — Passport.js local strategy authentication with scrypt password hashing and session management
+- `db.ts` — Drizzle ORM database client initialization (PostgreSQL via postgres.js)
+- `firebase.ts` — Server-side Firebase Admin SDK initialization
+- `index.ts` — Express server entry point — registers routes, sets up Vite dev server or static serving
+- `openai.ts` — OpenAI SDK initialization and helper functions for agent response generation
+- `routes.ts` — Express route definitions — REST API for agents, tasks, messages, CRM, documents, AI chat
+- `storage.ts` — Database storage layer — CRUD operations for all entities via Drizzle ORM queries
+- `vite.ts` — Vite dev server integration for Express (HMR in development, static in production)
+
+### data/repos/entrepreneuros/server/ai/
+- `anthropic-service.ts` — Anthropic Claude API service for generating agent responses
+- `gemini-service.ts` — Google Gemini API service for generating agent responses
+- `index.ts` — AI service aggregator — exports all provider services and routing logic
+- `openai-service.ts` — OpenAI GPT API service for generating agent responses
+- `perplexity-service.ts` — Perplexity API service for research-oriented agent responses
+- `xai-service.ts` — xAI (Grok) API service for generating agent responses
+
+### data/repos/entrepreneuros/server/integrations/
+- `gmail.ts` — Gmail OAuth2 integration — connects user's Gmail for email automation
+
+### data/repos/entrepreneuros/server/replit_integrations/batch/
+- `index.ts` — Batch processing entry point for Replit agent integrations
+- `utils.ts` — Utility functions for batch processing (rate limiting, error handling)
+
+### data/repos/entrepreneuros/server/replit_integrations/chat/
+- `index.ts` — Chat integration entry point for Replit agent communication
+- `routes.ts` — Express routes for Replit chat integration API
+- `storage.ts` — Chat message storage for Replit integration sessions
+
+### data/repos/entrepreneuros/server/services/
+- `action-executor.ts` — Executes AI-approved actions (send email, create task, update CRM) after human approval
+
+### data/repos/entrepreneuros/shared/
+- `schema.ts` — Drizzle ORM database schema for EntrepreneurOS (users, agents, tasks, messages, CRM, documents, notifications)
+
+### data/repos/entrepreneuros/shared/models/
+- `chat.ts` — Chat message type definitions for EntrepreneurOS AI conversation feature
+
+---
+
+### .claude/ — Claude Code Configuration (6 code files)
+
+### .claude/hooks/
+- `validate_change.py` — Pre-tool-use hook — fires before Write, Edit, and Bash to detect risk level and surface warnings for high-risk operations
+
+### .claude/skills/impeccable/scripts/
+- `modern-screenshot.umd.js` — UMD bundle of modern-screenshot library — captures DOM elements as images for visual comparison
+- `live-browser.js` — Browser-side script for Impeccable live variant mode — injects design feedback overlay into running app
+- `live-browser-dom.js` — Browser-side DOM helpers for Impeccable live mode — element selection and measurement utilities
+- `live-browser-session.js` — Browser-side durable session helpers for Impeccable live mode — persists state across page reloads
+
+### .claude/skills/impeccable/scripts/detector/
+- `detect-antipatterns-browser.js` — Anti-pattern browser detector for Impeccable — scans rendered DOM for common UI/UX anti-patterns
+
+---
+
+### knowledge/ — Knowledge Wiki Code Files (2 files)
+
+### knowledge/skills/marketing/content/remotion/
+- `remotion.config.ts` — Remotion video framework configuration (render settings, codec, frame rate)
+
+### knowledge/skills/marketing/content/remotion/src/
+- `index.ts` — Remotion entry point — registers the RemotionRoot component for video composition
+
+---
+
+## Entry Counts
+
+| Directory | Files |
+|-----------|-------|
+| skills/ | 131 |
+| data/ | 154 |
+| .claude/ | 6 |
+| knowledge/ | 2 |
+| **Total** | **293** |
+
+---
+
 
 
 ### Root-Level Files
