@@ -442,7 +442,10 @@ Run tests: `python3 -m pytest tests/`
 - `requirements.txt` — Python dependencies
 - `skills-lock.json` — skill lockfile
 
-**Setup:** `install.sh`, `setup.sh`, `patch_pycord.py`
+**Setup:**
+- `install.sh` — initial system setup: installs Python deps, Docker, creates directories, sets permissions
+- `setup.sh` — post-clone setup: creates .env from .env.example, installs pre-commit hooks, pulls Docker images
+- `patch_pycord.py` — monkey-patches py-cord library to fix known Discord gateway issues
 
 **Dotfiles:** `.gitignore`, `.dockerignore`, `.env.example`, `.env.sessions.tpl`, `.mcp.json`
 
@@ -2320,11 +2323,15 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 - `tier_3_fallback.py` — Tier 3 fallback — stub for future UI-TARS / computer-use integration.
 - `trigger_export.py` — Functions: fire_export() + 1 more
 
+#### services/ (shell scripts)
+
+- `local_bridge_send_to_discord.sh` — stop hook for local CC sessions (Windows WSL): reads last assistant message from CC transcript and POSTs to VPS webhook receiver via Tailscale
+
 #### services/auth_flows/
 
-- `__init__.py` — Package init
-- `chatgpt.py` — Chatgpt module
-- `claude.py` — Claude module
+- `__init__.py` — empty package marker
+- `chatgpt.py` — scripted login for chatgpt.com: email-based auth flow with adaptive challenge detection (password, verification code, or magic-link)
+- `claude.py` — scripted login for claude.ai: email magic-link flow using Gmail poller bridge to intercept magic-link URLs
 
 ### nodes/ — Node Management (51 files)
 
@@ -2554,6 +2561,10 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 - `test_bridge_lifecycle.sh` — chaos test for Windows bridge auto-recovery (kills the bridge, triggers an export, checks recovery).
 - `test_code_view_e2e.sh` — E2E test for the operator-UI Code View backend (`/api/code` endpoints).
 - `verify_relay_end_to_end.sh` — end-to-end verification of the Windows relay path (requires WSL + Tailscale up).
+
+### scripts/ (root, other)
+
+- `userscript_meet_captions.example.js` — reference example of a browser userscript for Google Meet captions (not active code — operator wires their own endpoint)
 
 ### scripts/c40b_phases/ — C40B runtime certification campaign
 
@@ -2997,12 +3008,17 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 
 
 
-### cockpit/ — Electron + React Frontend (311 files)
+### cockpit/ — Electron + React Frontend (314 files)
 
-### cockpit/ (root config)
+### cockpit/ (root config + scripts)
+- `deploy.sh` — cockpit deploy gate: verifies nginx.conf.template, Dockerfile, and start.sh match main before running flyctl deploy. NEVER run flyctl deploy directly.
+- `start.sh` — container startup script: copies nginx template to config, starts nginx to serve the built cockpit PWA
 - `electron.vite.config.ts` — Electron-Vite build configuration: resolves main/preload/renderer entry points, applies React + Tailwind plugins
 - `vite.web.config.ts` — Vite config for the standalone PWA web build (non-Electron), wires React + Tailwind, sets /src/renderer as root
 - `vitest.config.ts` — Vitest test runner configuration with React plugin and path aliases
+
+### cockpit/tests/
+- `__init__.py` — empty package marker for cockpit test suite
 
 ### cockpit/src/main/
 - `index.ts` — Electron main process: creates BrowserWindow, manages tray icon, spawns voice/vision/browser relay child processes, handles IPC for window modes (maximized → large-fab → medium-fab → small-fab → invisible), global shortcuts, notifications
@@ -3531,11 +3547,15 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 
 ---
 
-### data/ — Trinity App Repo Snapshots (154 files)
+### data/ — Trinity App Repo Snapshots + Misc Data Scripts (154 files)
 
 These are snapshot copies of the three Trinity SaaS applications (EntrepreneurOS, CreatorOS, LyfeOS). They serve as reference implementations and schema sources — not actively developed here.
 
+### data/ (root)
+- `notion_datasource_ids.sh` — Notion data source IDs resolved from database IDs via ntn CLI (generated 2026-05-17, used for ntn datasources queries)
+
 ### data/repos/LYFEOS/
+- `build.sh` — simple build script: runs npm install + npm run build
 - `drizzle.config.ts` — Drizzle ORM configuration pointing to LyfeOS database
 - `postcss.config.js` — PostCSS configuration with Tailwind CSS plugin
 - `tailwind.config.ts` — Tailwind CSS theme configuration for LyfeOS
@@ -3543,6 +3563,7 @@ These are snapshot copies of the three Trinity SaaS applications (EntrepreneurOS
 - `vitest.config.ts` — Vitest test runner configuration for LyfeOS
 
 ### data/repos/LYFEOS/scripts/
+- `kill-port.sh` — kills any process on port 5000 (dev server cleanup)
 - `capture-screenshots.ts` — Playwright script to capture screenshots of all LyfeOS pages for visual regression
 - `seed-demo-user.ts` — Seeds a demo user with sample data for LyfeOS development/testing
 
@@ -3762,22 +3783,21 @@ These are snapshot copies of the three Trinity SaaS applications (EntrepreneurOS
 
 ### knowledge/skills/marketing/content/remotion/src/
 - `index.ts` — Remotion entry point — registers the RemotionRoot component for video composition
+- `Composition.tsx` — React component stub for Remotion video composition (returns null placeholder)
+- `Root.tsx` — Remotion root: registers MyComposition with default dimensions and frame rate
+
+### docker/ — Computer Use Container (1 file)
+
+- `computer-use/start.sh` — container startup: launches Xvfb virtual display, starts VNC server and noVNC web UI for headless browser automation
+
+### infra/scripts/ — Infrastructure Shell Scripts (4 files)
+
+- `dc-up.sh` — starts Docker services with secrets from 1Password: generates ephemeral .env files from op:// references, starts containers, then shreds plaintext files
+- `install-crontab.sh` — installs the managed crontab from infra/crontab.managed with 1Password service account token injection
+- `op-setup.sh` — one-time 1Password vault population: reads secrets from existing .env files and creates 1Password items (run once after account creation)
+- `run.sh` — universal secret-injected command runner: wraps any command with UMH secrets from 1Password (usage: `bash infra/scripts/run.sh <command>`)
 
 ---
-
-## Entry Counts
-
-| Directory | Files |
-|-----------|-------|
-| skills/ | 131 |
-| data/ | 154 |
-| .claude/ | 6 |
-| knowledge/ | 2 |
-| **Total** | **293** |
-
----
-
-
 
 ### Root-Level Files
 
@@ -3805,7 +3825,10 @@ These are snapshot copies of the three Trinity SaaS applications (EntrepreneurOS
 - `requirements.txt` — Python dependencies
 - `skills-lock.json` — skill lockfile
 
-**Setup:** `install.sh`, `setup.sh`, `patch_pycord.py`
+**Setup:**
+- `install.sh` — initial system setup: installs Python deps, Docker, creates directories, sets permissions
+- `setup.sh` — post-clone setup: creates .env from .env.example, installs pre-commit hooks, pulls Docker images
+- `patch_pycord.py` — monkey-patches py-cord library to fix known Discord gateway issues
 
 **Dotfiles:** `.gitignore`, `.dockerignore`, `.env.example`, `.env.sessions.tpl`, `.mcp.json`
 
