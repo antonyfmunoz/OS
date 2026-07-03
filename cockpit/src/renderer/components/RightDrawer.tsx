@@ -13,7 +13,7 @@ export function RightDrawer() {
         width: 240,
         right: 6,
         top: 52,
-        bottom: 78,
+        bottom: 36,
       }}
     >
       <RightRail />
