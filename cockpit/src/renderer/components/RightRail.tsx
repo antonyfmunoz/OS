@@ -159,16 +159,16 @@ function MediaGrid({ media }: { media: MediaAttachment[] }) {
 function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void }) {
   if (msg.sender === 'operator') {
     return (
-      <div className="px-2 py-2 rounded text-[11px] bg-cyan-glow text-text-primary ml-4">
+      <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-primary ml-4">
         <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
           <span>YOU</span>
           {msg.source === 'voice' && (
-            <span className="text-[8px] px-1 rounded bg-violet/10 text-violet/70">
+            <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary">
               <Mic size={8} className="inline" /> voice
             </span>
           )}
           {msg.media && msg.media.length > 0 && (
-            <span className="text-[8px] px-1 rounded bg-cyan/10 text-cyan/70">
+            <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary">
               {msg.media.length} media
             </span>
           )}
@@ -215,7 +215,7 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
         )}
         <span className="text-[9px] text-text-tertiary ml-auto flex items-center gap-1">
           {msg.metadata?.model_tier && msg.metadata.model_tier !== 'deterministic' && (
-            <span className="text-[8px] font-mono px-1 rounded bg-violet/10 text-violet/70">
+            <span className="text-[8px] font-mono px-1 rounded bg-surface text-text-tertiary">
               via {String(msg.metadata.model_tier)}
             </span>
           )}
@@ -236,7 +236,7 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
         </div>
       )}
       {msg.provenance && <ProvenanceLine provenance={msg.provenance} />}
-      <div className="chat-markdown leading-relaxed" style={{ color: 'var(--color-violet)' }}>
+      <div className="chat-markdown leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
       </div>
       {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
@@ -465,10 +465,10 @@ function ChatSection() {
           <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} />
         ))}
         {draftMessage && (
-          <div className="px-2 py-2 rounded text-[11px] bg-cyan-glow text-text-primary ml-4 opacity-70">
+          <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-primary ml-4 opacity-70">
             <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
               <span>YOU</span>
-              <span className="text-[8px] px-1 rounded bg-violet/10 text-violet/70">
+              <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary">
                 <Mic size={8} className="inline" /> speaking...
               </span>
             </div>
