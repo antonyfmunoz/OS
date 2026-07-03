@@ -17,8 +17,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
     "@capacitor/core": "^7.0.0",
     "@capacitor/haptics": "^7.0.0",
+    "@capacitor/ios": "^8.4.1",
     "@capacitor/keyboard": "^7.0.0",
     "@capacitor/push-notifications": "^7.0.0",
     "@capacitor/splash-screen": "^7.0.0",
@@ -38,17 +40,17 @@
     "@capacitor/assets": "^3.0.0",
     "@capacitor/cli": "^7.0.0",
     "@tailwindcss/vite": "^4.3.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "electron": "^42.2.0",
     "electron-vite": "^5.0.0",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
-    "vitest": "^3.2.4",
-    "@testing-library/react": "^16.3.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "jsdom": "^26.1.0"
+    "vitest": "^3.2.4"
   }
 }
