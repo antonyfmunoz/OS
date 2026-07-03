@@ -3,3 +3,7 @@ out/
 dist/
 dist-web/
 *.tsbuildinfo
+
+# Capacitor — web assets synced into native projects (build output)
+ios/App/App/public/
+android/app/src/main/assets/public/

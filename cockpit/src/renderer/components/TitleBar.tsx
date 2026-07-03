@@ -36,7 +36,7 @@ export function TitleBar() {
   return (
     <header
       className="titlebar-drag flex items-center px-3 select-none bg-surface border-b border-border relative z-50"
-      style={{ height: 'var(--spacing-titlebar-height)' }}
+      style={{ height: 'calc(var(--spacing-titlebar-height) + var(--sat))', paddingTop: 'var(--sat)' }}
     >
       <CanvasMenuBar />
 

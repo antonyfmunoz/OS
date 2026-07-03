@@ -6,7 +6,12 @@ import './styles/globals.css'
 
 const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string
 
-if ('serviceWorker' in navigator) {
+import { Capacitor } from '@capacitor/core'
+import { initCapacitor } from './capacitor-init'
+
+if (Capacitor.isNativePlatform()) {
+  initCapacitor()
+} else if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {})
 }
 
