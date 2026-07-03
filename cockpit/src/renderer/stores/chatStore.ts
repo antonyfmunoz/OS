@@ -20,7 +20,7 @@ export interface MediaAttachment {
   url: string
   filename: string
   content_type: string
-  media_type: 'image' | 'video'
+  media_type: 'image' | 'video' | 'file'
   size: number
   previewUrl?: string
 }
@@ -61,7 +61,7 @@ interface ChatResponse {
 interface PendingMedia {
   file: File
   previewUrl: string
-  media_type: 'image' | 'video'
+  media_type: 'image' | 'video' | 'file'
 }
 
 interface ChatState {
@@ -310,13 +310,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   clearPlaceholderMessage: () => set({ placeholderMessage: null }),
 
   addPendingMedia: (files) => {
-    const ALLOWED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']
-    const valid = files.filter((f) => ALLOWED.includes(f.type))
-    if (valid.length === 0) return
-    const items: PendingMedia[] = valid.map((f) => ({
+    if (files.length === 0) return
+    const items: PendingMedia[] = files.map((f) => ({
       file: f,
-      previewUrl: URL.createObjectURL(f),
-      media_type: f.type.startsWith('video/') ? 'video' : 'image',
+      previewUrl: f.type.startsWith('image/') || f.type.startsWith('video/') ? URL.createObjectURL(f) : '',
+      media_type: f.type.startsWith('video/') ? 'video' : f.type.startsWith('image/') ? 'image' : 'file',
     }))
     set((s) => ({ pendingMedia: [...s.pendingMedia, ...items] }))
   },
