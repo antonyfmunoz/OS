@@ -31,7 +31,8 @@ UMH (Universal Mastery Hierarchy) is a production AI intelligence substrate. In 
 
 **Tech stack (what you need to know):**
 - **Backend:** Python 3.12 on the host machine, but **Python 3.11 inside Docker containers** — this means you cannot use Python 3.12+ syntax (like backslash in f-strings) in any code that runs in a container. If you're unsure, assume 3.11.
-- **Frontend:** TypeScript, React 18, Vite, Tailwind CSS, shadcn/ui — the cockpit is an Electron desktop app that also works as a PWA (Progressive Web App) in the browser.
+- **Frontend:** TypeScript, React 18, Vite, Tailwind CSS, shadcn/ui — the cockpit is an Electron desktop app, PWA (Progressive Web App), and native mobile app (iOS + Android via Capacitor). One React codebase renders on all surfaces.
+- **CLI:** `transports/cli/` — a Rich/prompt_toolkit terminal interface. Run with `python -m transports.cli`. Connects to the UMH API for operator commands and advisor chat.
 - **API layer:** Two separate API surfaces — Express + Drizzle ORM (TypeScript, handles the cockpit's HTTP routes) and FastAPI (Python, the operator API).
 - **Database:** Neon Postgres (serverless PostgreSQL) with Row Level Security (RLS) for multi-tenant isolation.
 - **AI Models:** Claude Opus 4.6 is the primary model (accessed via cc_sdk, which piggybacks on the founder's Claude Code subscription — no API cost). If that fails, it falls back to Gemini 2.5 Flash, then Groq, then a local Ollama model. If ALL models fail, the system still works using regex-based pattern matching.
@@ -47,7 +48,7 @@ Dependency direction is **strictly one-way downward**. Pre-commit hooks enforce 
 │  projections/  (EOS, CreatorOS, LyfeOS)             │
 │  saas/         (EOS-specific routes, schema, seeds) │
 ├─────────────────────────────────────────────────────┤
-│  transports/   (Discord, HTTP API, node mesh)       │  ← I/O surfaces
+│  transports/   (Discord, HTTP API, CLI, node mesh)  │  ← I/O surfaces
 ├─────────────────────────────────────────────────────┤
 │  adapters/     (LLM routing, browser, calendar)     │  ← external integrations
 ├─────────────────────────────────────────────────────┤
@@ -288,7 +289,7 @@ ssh <executor> "op run --env-file=<tpl> -- python collector.py ..."
 |-----------|---------|---------------|-------|---------|---------|
 | `substrate/` | Universal platform — types, execution, governance, state, organism, sockets | 17,350 | 889 | 2,298 | 10,932 |
 | `adapters/` | External system integrations — LLM routing, browser, calendar, GitHub | 856 | 77 | 69 | 435 |
-| `transports/` | I/O surfaces — Discord, HTTP API, node mesh, channels, presence | 2,043 | 193 | 22 | 156 |
+| `transports/` | I/O surfaces — Discord, HTTP API, CLI, node mesh, channels, presence | 2,043 | 200 | 22 | 156 |
 | `projections/` | Projection-specific logic — EOS, CreatorOS, LyfeOS | 474 | 50 | 42 | 310 |
 
 ### substrate/ Subdirectories (20+)
@@ -344,6 +345,7 @@ ssh <executor> "op run --env-file=<tpl> -- python collector.py ..."
 |-------------|---------|
 | `api/` | HTTP API layer (153 files) — auth middleware, routes for organism/governance/system/dex/execution/settings, Python bridges |
 | `api/http/` | Platform DB schema (users/orgs/portfolios), substrate route handlers |
+| `cli/` | UMH CLI — operator terminal interface (7 files). Rich + prompt_toolkit REPL with slash commands (/status, /agents, /loops, /nodes, /approvals, /history). Run: `python -m transports.cli` |
 | `discord/` | signal_factory.py — converts Discord messages to SignalEnvelope |
 | `node_mesh/` | Cross-device mesh networking (server.py, client.py) |
 | `channels/` | Channel base class + Discord/Telegram/Webhook/Console channels |
@@ -354,7 +356,7 @@ ssh <executor> "op run --env-file=<tpl> -- python collector.py ..."
 | Directory | Purpose | Notes |
 |-----------|---------|-------|
 | `services/` | Deployment entrypoints only. 37 files. No business logic. | discord_bot.py, operator_api.py, browser_relay.py, overnight_scrape.py, heartbeat.py, cost_tracker.py, etc. |
-| `cockpit/` | Electron + React frontend. Own Dockerfile. | `src/renderer/` — React 18 + Tailwind + Zustand. 307 source files. Deploy: always `bash cockpit/deploy.sh` |
+| `cockpit/` | Electron + React + Capacitor frontend. Own Dockerfile. | `src/renderer/` — React 18 + Tailwind + Zustand. 5 surfaces: web (PWA), desktop (Electron), mobile (Capacitor iOS + Android), Discord, CLI. `android/` (51 files), `ios/` (15 files), `assets/` (5 icon/splash PNGs), `DESIGN.md` (locked UI spec). Deploy: always `bash cockpit/deploy.sh`. CI: `.github/workflows/mobile-build.yml` |
 | `nodes/` | Node management. | `windows/` (executor node daemon), `environments/` (work packets), `distribution/` |
 | `umh/` | Relay servers | desktop_relay.py, vision_relay.py, voice_server.py |
 | `saas/` | EOS projection only | EOS-specific routes, DB schema, seed data, bridge/ |
@@ -405,6 +407,7 @@ Run tests: `python3 -m pytest tests/`
 
 | Directory | Purpose | Notes |
 |-----------|---------|-------|
+| `.github/` | GitHub Actions CI | `workflows/mobile-build.yml` — builds web, iOS, and Android on push to `cockpit/` on main |
 | `.claude/` | Claude Code config | CLAUDE.md, `agents/` (4 subagents), `commands/` (24 slash commands), `hooks/`, `rules/` (10 rule files), `skills/` (31 skills) |
 | `.agents/` | Installed agent skill packs | 17 skills from skills.sh ecosystem |
 | `.planning/` | GSD workflow state | PROJECT.md, ROADMAP.md, STATE.md, config.json, `phases/` (13 phase dirs) |
@@ -517,7 +520,7 @@ python3 -c "from adapters.models.model_router import call_with_fallback; print('
 ### Git Workflow
 - Commit directly to main (solo founder phase)
 - Feature branches for experimental or risky changes
-- No CI/CD — hooks run locally only
+- **CI:** `.github/workflows/mobile-build.yml` runs on pushes to `cockpit/` on main — builds web, iOS archive, and Android APK via GitHub Actions
 - Pre-commit hooks managed in `.git/hooks/` (not `.pre-commit-config.yaml`)
 
 ### Service Restart After Code Changes
@@ -1975,7 +1978,7 @@ This section documents every source file in the repository — 2,605 files acros
 ---
 
 
-### transports/ — I/O Surfaces (188 files)
+### transports/ — I/O Surfaces (195 files)
 
 ### transports/ (root)
 - `__init__.py` — package init (empty)
@@ -2024,7 +2027,7 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 - `cockpit_capability_intelligence_routes.py` — capability intelligence: gap analysis, portfolio health, compounding scores (Campaign 10.4)
 - `cockpit_capability_map_routes.py` — capability map: snapshot of all capabilities, surfaces, duplications, MVP gaps
 - `cockpit_capability_routes.py` — capability tracking: register, list, get, and trace capability lineage
-- `cockpit_chat_routes.py` — advisor/DEX chat: conversation endpoints for the operator chat interface
+- `cockpit_chat_routes.py` — advisor/DEX chat: conversation endpoints with multimodal file upload (images, video), message history, conversation management
 - `cockpit_command_center_mvp_routes.py` — command center MVP: operator landing page with situation summary and attention items
 - `cockpit_command_center_routes.py` — command center: agent registry, work packet board, and summary views
 - `cockpit_compounding_routes.py` — capability compounding: detect, approve, reject, and promote compounded capabilities
@@ -2217,6 +2220,15 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 - `resilience.py` — generates resilience reports (failure recovery, redundancy status)
 - `strategy.py` — generates strategy reports (strategic alignment, goal progress)
 - `telos.py` — generates telos reports (purpose alignment, mission progress)
+
+### transports/cli/ — UMH CLI Transport (7 files)
+- `__init__.py` — package marker: UMH CLI — operator terminal interface
+- `__main__.py` — allows `python -m transports.cli` invocation: sets sys.path and calls main()
+- `client.py` — classes: UMHClient, APIError. Synchronous httpx HTTP client for UMH API. Methods: ping, converse, history, agents, loops, execution_overview, approvals, nodes, providers_health
+- `commands.py` — slash command dispatch: handle_command() routes /status, /agents, /loops, /approvals, /nodes, /history, /help, /exit, /clear
+- `display.py` — Rich display formatters: render_ai_response (markdown advisor output), render_status (system health table), render_agents, render_loops, render_approvals, render_nodes, render_history, render_help
+- `main.py` — entry point: argparse for --url/--api-key/--verbose, prompt_toolkit REPL loop with Rich console. Slash commands go to commands.py, free text goes to client.converse()
+- `theme.py` — WorldView design tokens for terminal: UMH_THEME (Rich Theme matching cockpit tokens.css), status_dot() color mapper, RUNTIME_COLORS per-runtime palette, VERSION/BANNER_LINE constants
 
 ### projections/ — Projection-Specific Logic (59 files)
 
@@ -3008,7 +3020,7 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 
 
 
-### cockpit/ — Electron + React Frontend (314 files)
+### cockpit/ — Electron + React + Capacitor Frontend (385+ files)
 
 ### cockpit/ (root config + scripts)
 - `deploy.sh` — cockpit deploy gate: verifies nginx.conf.template, Dockerfile, and start.sh match main before running flyctl deploy. NEVER run flyctl deploy directly.
@@ -3016,6 +3028,47 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 - `electron.vite.config.ts` — Electron-Vite build configuration: resolves main/preload/renderer entry points, applies React + Tailwind plugins
 - `vite.web.config.ts` — Vite config for the standalone PWA web build (non-Electron), wires React + Tailwind, sets /src/renderer as root
 - `vitest.config.ts` — Vitest test runner configuration with React plugin and path aliases
+- `capacitor.config.ts` — Capacitor mobile config: app ID `tech.universalmetaharness.cockpit`, webDir `dist-web`, dark splash/status bar, push notification presentation options, iOS scheme and Android background color
+- `DESIGN.md` — LOCKED UI design specification (2026-07-03): complete token system (colors, spacing, typography), component dimensions (TitleBar 46px, HudBar 28px, drawers 160/240px), layout rules for desktop/mobile/web, chat styling, and canvas behavior. Authoritative — changes require explicit approval.
+
+### cockpit/assets/ — icon and splash source images (5 files)
+- `icon-background.png` — adaptive icon background layer
+- `icon-foreground.png` — adaptive icon foreground layer
+- `icon-only.png` — standalone app icon (no background)
+- `splash.png` — light splash screen image
+- `splash-dark.png` — dark splash screen image
+
+### cockpit/android/ — Capacitor Android native project (51 files)
+Generated by `npx cap add android`. Gradle build system, Android SDK.
+- `build.gradle` — root Gradle build config
+- `settings.gradle` — Gradle module settings
+- `variables.gradle` — Capacitor version variables
+- `gradle.properties` — Gradle JVM and AndroidX settings
+- `gradlew` / `gradlew.bat` — Gradle wrapper scripts
+- `gradle/wrapper/gradle-wrapper.properties` — Gradle distribution URL
+- `gradle/wrapper/gradle-wrapper.jar` — Gradle wrapper binary
+- `app/build.gradle` — app module Gradle config (minSdk, targetSdk, dependencies)
+- `app/proguard-rules.pro` — ProGuard rules (empty by default)
+- `app/src/main/AndroidManifest.xml` — Android manifest: permissions, activity declaration
+- `app/src/main/java/tech/universalmetaharness/cockpit/MainActivity.java` — Capacitor BridgeActivity entry point
+- `app/src/main/res/` — Android resources: launcher icons (hdpi through xxxhdpi), splash screens (portrait/landscape per density), layout XML, strings, styles, adaptive icon XML
+- `app/src/test/` — unit test stub (ExampleUnitTest.java)
+- `app/src/androidTest/` — instrumented test stub (ExampleInstrumentedTest.java)
+
+### cockpit/ios/ — Capacitor iOS native project (15 files)
+Generated by `npx cap add ios`. Xcode workspace, CocoaPods.
+- `App/Podfile` — CocoaPods dependency file (Capacitor pods)
+- `App/App.xcodeproj/project.pbxproj` — Xcode project config
+- `App/App.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist` — workspace metadata
+- `App/App/AppDelegate.swift` — iOS app delegate (Capacitor CAPBridgeViewController)
+- `App/App/Info.plist` — iOS app info (bundle ID, version, permissions)
+- `App/App/Base.lproj/Main.storyboard` — main storyboard
+- `App/App/Base.lproj/LaunchScreen.storyboard` — launch screen storyboard
+- `App/App/Assets.xcassets/Contents.json` — asset catalog root
+- `App/App/Assets.xcassets/AppIcon.appiconset/Contents.json` — app icon config
+- `App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` — 1024x1024 app icon
+- `App/App/Assets.xcassets/Splash.imageset/Contents.json` — splash image config
+- `App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png` / `-1.png` / `-2.png` — splash images at 1x/2x/3x
 
 ### cockpit/tests/
 - `__init__.py` — empty package marker for cockpit test suite
@@ -3028,15 +3081,25 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 
 ### cockpit/src/renderer/ (root)
 - `App.tsx` — Root React component: wraps app in Clerk auth (SignedIn/SignedOut), initializes keyboard hooks, organism realtime WebSocket, vision connection, guest join routing for conference rooms
-- `main.tsx` — React entry point: mounts App inside ClerkProvider and StrictMode, registers service worker for PWA push notifications
+- `main.tsx` — React entry point: mounts App inside ClerkProvider and StrictMode, registers service worker for PWA push notifications, initializes Capacitor on native platforms
+- `capacitor-init.ts` — Capacitor native platform init: sets dark status bar, hides keyboard accessory bar, requests push notification permissions, registers device token with API, handles notification tap → URL navigation. Only runs on native (iOS/Android), no-op on web.
 - `constants.ts` — Exports `getAiName()` which reads the AI assistant's display name from configStore (falls back to VITE_AI_NAME env var)
 - `global.d.ts` — TypeScript declarations for the `window.cockpit` Electron bridge (window, voice, vision, browser, notifications, files) and Vite env vars
-- `sw.ts` — Service worker: handles push notification events, displays notifications with title/body/category, opens cockpit URL on notification click
+- `sw.ts` — Service worker: caches app shell (index.html, JS/CSS bundles) for offline support, serves offline.html fallback when network unavailable, handles push notification events with title/body/category, opens cockpit URL on notification click
 
 ### cockpit/src/renderer/__tests__/
 - `apiClient.test.ts` — Unit tests for the `fetchApi` HTTP client: verifies auth header injection, JSON parsing, error handling, 401 retry logic
 - `cockpitStore.test.ts` — Unit tests for `cockpitStore`: verifies panel switching, chat toggle, split panel, window mode cycling state transitions
 - `setup.ts` — Vitest setup file: imports jest-dom matchers for React component testing
+
+### cockpit/src/renderer/public/ — PWA static assets (6 files)
+- `manifest.json` — PWA manifest: app name "UMH Cockpit", start URL, theme color #07080a, display standalone, icon references (192/512 standard + maskable)
+- `offline.html` — PWA offline fallback page: dark-themed "You're offline" message with retry button, shown when network unavailable and no cached page exists
+- `favicon.ico` — browser tab icon
+- `icon-192.png` — PWA icon 192x192 (standard)
+- `icon-512.png` — PWA icon 512x512 (standard)
+- `icon-maskable-192.png` — PWA maskable icon 192x192 (safe area for adaptive icon shapes)
+- `icon-maskable-512.png` — PWA maskable icon 512x512 (safe area for adaptive icon shapes)
 
 ### cockpit/src/renderer/api/
 - `broadcast-ws.ts` — WebSocket client for the real-time broadcast system: connects to the broadcast relay, sends/receives live state updates across connected devices
@@ -3291,8 +3354,8 @@ Each file provides HTTP endpoints for a specific cockpit feature area, mounted u
 - `canvasStore.ts` — Zustand store for general canvas: persists window positions/sizes, pan/zoom state, z-order for the canvas workspace
 - `capabilityIntelligenceStore.ts` — Zustand store for capability intelligence: fetches and stores capability health, bottleneck, and optimization data
 - `capabilityMapStore.ts` — Zustand store for capability map: fetches capability registry with categories and status for visual mapping
-- `chatStore.ts` — Zustand store for operator↔DEX chat: manages message history with provenance, attachments, media, send/receive, and conversation state
-- `cockpitStore.ts` — Zustand store for cockpit UI state: persists active panel, chat open/closed, split panel, window mode, rail collapsed, drawer states, and canvas mode
+- `chatStore.ts` — Zustand store for operator↔DEX chat: manages message history with provenance, multimodal file attachments (image/video upload, paste, preview, inline display), send/receive, and conversation state
+- `cockpitStore.ts` — Zustand store for cockpit UI state: persists active panel, chat open/closed, split panel, window mode, rail collapsed, drawer states, canvas mode, and mobile viewport detection
 - `coherenceStore.ts` — Zustand store for coherence analysis: fetches template summaries and coherence drift data from API
 - `collapseStore.ts` — Zustand store for collapsible UI sections: persists which panels/sections are collapsed across sessions
 - `configStore.ts` — Zustand store for UMH configuration: fetches AI name, system config, and runtime settings from API
@@ -3757,6 +3820,13 @@ These are snapshot copies of the three Trinity SaaS applications (EntrepreneurOS
 
 ### data/repos/entrepreneuros/shared/models/
 - `chat.ts` — Chat message type definitions for EntrepreneurOS AI conversation feature
+
+---
+
+### .github/ — GitHub Actions CI (1 file)
+
+### .github/workflows/
+- `mobile-build.yml` — GitHub Actions CI for mobile: triggers on pushes to `cockpit/` on main. 3 jobs: (1) build-web — Vite build with web config, uploads dist-web artifact; (2) build-ios — downloads web artifact, runs `cap sync ios`, builds unsigned Xcode archive on macos-latest; (3) build-android — downloads web artifact, runs `cap sync android`, builds debug APK with Gradle on ubuntu-latest
 
 ---
 
