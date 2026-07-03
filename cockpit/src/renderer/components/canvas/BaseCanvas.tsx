@@ -34,9 +34,11 @@ export function BaseCanvas({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (e.button === 1 || (e.button === 0 && spaceHeld.current)) {
+      const target = e.target as HTMLElement
+      const isCanvas = target.hasAttribute('data-canvas-pan')
+      if (e.button === 1 || (e.button === 0 && (spaceHeld.current || isCanvas))) {
         e.preventDefault()
-        ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+        containerRef.current?.setPointerCapture(e.pointerId)
         panning.current = true
         panStart.current = { x: e.clientX, y: e.clientY, panX, panY }
       }
@@ -57,7 +59,7 @@ export function BaseCanvas({
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!panning.current) return
     panning.current = false
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    containerRef.current?.releasePointerCapture(e.pointerId)
   }, [])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -73,7 +75,13 @@ export function BaseCanvas({
     }
   }, [])
 
-  // ── Multi-touch: two-finger pan + pinch-to-zoom ──
+  // ── Touch: single-finger pan + two-finger pinch-to-zoom ──
+  const singleTouch = useRef<{
+    startX: number
+    startY: number
+    startPanX: number
+    startPanY: number
+  } | null>(null)
   const touchState = useRef<{
     startTouches: { x: number; y: number }[]
     startPanX: number
@@ -116,7 +124,17 @@ export function BaseCanvas({
     }
 
     function onTouchStart(e: TouchEvent) {
-      if (e.touches.length === 2) {
+      if (e.touches.length === 1 && (e.target as HTMLElement).hasAttribute?.('data-canvas-pan')) {
+        const t = e.touches[0]
+        const s = stateRef.current
+        singleTouch.current = {
+          startX: t.clientX,
+          startY: t.clientY,
+          startPanX: s.panX,
+          startPanY: s.panY,
+        }
+      } else if (e.touches.length === 2) {
+        singleTouch.current = null
         e.preventDefault()
         const t1 = e.touches[0], t2 = e.touches[1]
         const s = stateRef.current
@@ -134,7 +152,14 @@ export function BaseCanvas({
     }
 
     function onTouchMove(e: TouchEvent) {
-      if (e.touches.length === 2 && touchState.current) {
+      if (e.touches.length === 1 && singleTouch.current) {
+        e.preventDefault()
+        const t = e.touches[0]
+        const st = singleTouch.current
+        const dx = t.clientX - st.startX
+        const dy = t.clientY - st.startY
+        setPan(st.startPanX + dx, st.startPanY + dy)
+      } else if (e.touches.length === 2 && touchState.current) {
         e.preventDefault()
         const ts = touchState.current
         const t1 = e.touches[0], t2 = e.touches[1]
@@ -165,6 +190,9 @@ export function BaseCanvas({
     function onTouchEnd(e: TouchEvent) {
       if (e.touches.length < 2) {
         touchState.current = null
+      }
+      if (e.touches.length === 0) {
+        singleTouch.current = null
       }
     }
 
@@ -200,10 +228,11 @@ export function BaseCanvas({
   return (
     <div
       ref={containerRef}
+      data-canvas-pan=""
       className="relative w-full h-full overflow-hidden outline-none"
       style={{
         background: 'var(--color-canvas)',
-        cursor: panning.current || spaceHeld.current ? 'grabbing' : 'default',
+        cursor: panning.current || spaceHeld.current ? 'grabbing' : 'grab',
         touchAction: 'none',
       }}
       tabIndex={0}
@@ -227,12 +256,15 @@ export function BaseCanvas({
 
       {/* Transform layer — all nodes live here */}
       <div
+        data-canvas-pan=""
         style={{
           transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
           transformOrigin: '0 0',
           position: 'absolute',
           top: 0,
           left: 0,
+          width: '100%',
+          height: '100%',
         }}
       >
         {children}
