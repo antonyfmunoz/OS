@@ -16,7 +16,7 @@ export function LeftDrawer({ children }: LeftDrawerProps) {
     <div
       className="wv-card absolute z-20 flex flex-col overflow-hidden overflow-y-auto"
       style={{
-        width: mobile ? 'calc(100vw - 12px)' : 160,
+        width: mobile ? 'calc(33vw)' : 160,
         left: 6,
         top: mobile ? 52 : 6,
         bottom: mobile ? 78 : 36,
