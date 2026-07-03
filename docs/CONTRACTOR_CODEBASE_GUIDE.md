@@ -3076,25 +3076,25 @@ extracted from its docstring, class definitions, or function signatures. Grouped
 
 #### cockpit/src/main/
 
-- `index.ts` — (infer from imports)
+- `index.ts` — Electron main process — creates BrowserWindow, spawns voice/vision/browser relay child processes
 
 #### cockpit/src/preload/
 
-- `index.ts` — (infer from imports)
+- `index.ts` — Electron preload bridge — contextBridge.exposeInMainWorld for secure IPC
 
 #### cockpit/src/renderer/
 
-- `App.tsx` — (infer from imports)
-- `constants.ts` — (infer from imports)
-- `global.d.ts` — (infer from imports)
-- `main.tsx` — (infer from imports)
-- `sw.ts` — <reference lib="webworker" />
+- `App.tsx` — Root React app — wraps Clerk auth, keyboard hooks, organism realtime, routing
+- `constants.ts` — App-wide constants (API base URLs, polling intervals, feature flags)
+- `global.d.ts` — TypeScript global type declarations (window.electron, env vars)
+- `main.tsx` — React root mount — createRoot with ClerkProvider
+- `sw.ts` — Service worker for PWA push notifications and offline caching
 
 #### cockpit/src/renderer/__tests__/
 
-- `apiClient.test.ts` — (infer from imports)
-- `cockpitStore.test.ts` — (infer from imports)
-- `setup.ts` — (empty)
+- `apiClient.test.ts` — Unit tests for API client (fetchApi, error handling)
+- `cockpitStore.test.ts` — Unit tests for cockpit Zustand store
+- `setup.ts` — Vitest test setup — imports jest-dom matchers
 
 #### cockpit/src/renderer/api/
 
@@ -3259,14 +3259,14 @@ extracted from its docstring, class definitions, or function signatures. Grouped
 
 #### cockpit/src/renderer/lib/
 
-- `pushNotifications.ts` — (infer from imports)
-- `rrip-normalize.ts` — (infer from imports)
-- `time.ts` — (infer from imports)
+- `pushNotifications.ts` — PWA push notification registration and handling
+- `rrip-normalize.ts` — RRIP (Rich Response Interchange Protocol) data normalization
+- `time.ts` — Time formatting utilities (relative timestamps, duration display)
 
 #### cockpit/src/renderer/operator/
 
-- `speechInputAdapter.ts` — (infer from imports)
-- `voiceTypes.ts` — (infer from imports)
+- `speechInputAdapter.ts` — Speech-to-text input adapter for voice commands
+- `voiceTypes.ts` — TypeScript types for voice session state and events
 
 #### cockpit/src/renderer/panels/
 
@@ -3431,13 +3431,13 @@ extracted from its docstring, class definitions, or function signatures. Grouped
 
 #### cockpit/src/renderer/types/
 
-- `rooms.ts` — (infer from imports)
-- `routes.ts` — (infer from imports)
-- `rrip.ts` — (infer from imports)
+- `rooms.ts` — TypeScript types for Discord-style rooms (channels, permissions, roles)
+- `routes.ts` — Route definitions and panel-to-route mapping constants
+- `rrip.ts` — TypeScript types for RRIP (Rich Response Interchange Protocol) messages
 
 #### cockpit/src/renderer/utils/
 
-- `canvasCoords.ts` — (infer from imports)
+- `canvasCoords.ts` — Canvas coordinate math utilities (pan, zoom clamping, viewport transforms)
 
 ### Root-Level Files
 
