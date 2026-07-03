@@ -34,10 +34,11 @@ export function BaseCanvas({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      const isCanvasBackground = e.target === e.currentTarget
-      if (e.button === 1 || (e.button === 0 && (spaceHeld.current || isCanvasBackground))) {
+      const target = e.target as HTMLElement
+      const isCanvas = target.hasAttribute('data-canvas-pan')
+      if (e.button === 1 || (e.button === 0 && (spaceHeld.current || isCanvas))) {
         e.preventDefault()
-        ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+        containerRef.current?.setPointerCapture(e.pointerId)
         panning.current = true
         panStart.current = { x: e.clientX, y: e.clientY, panX, panY }
       }
@@ -58,7 +59,7 @@ export function BaseCanvas({
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!panning.current) return
     panning.current = false
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    containerRef.current?.releasePointerCapture(e.pointerId)
   }, [])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -123,7 +124,7 @@ export function BaseCanvas({
     }
 
     function onTouchStart(e: TouchEvent) {
-      if (e.touches.length === 1 && e.target === el) {
+      if (e.touches.length === 1 && (e.target as HTMLElement).hasAttribute?.('data-canvas-pan')) {
         const t = e.touches[0]
         const s = stateRef.current
         singleTouch.current = {
@@ -227,6 +228,7 @@ export function BaseCanvas({
   return (
     <div
       ref={containerRef}
+      data-canvas-pan=""
       className="relative w-full h-full overflow-hidden outline-none"
       style={{
         background: 'var(--color-canvas)',
@@ -254,12 +256,15 @@ export function BaseCanvas({
 
       {/* Transform layer — all nodes live here */}
       <div
+        data-canvas-pan=""
         style={{
           transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
           transformOrigin: '0 0',
           position: 'absolute',
           top: 0,
           left: 0,
+          width: '100%',
+          height: '100%',
         }}
       >
         {children}
