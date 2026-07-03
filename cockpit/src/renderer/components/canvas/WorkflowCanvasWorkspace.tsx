@@ -6,12 +6,8 @@ import { useWorkflowCanvasStore } from '../../stores/workflowCanvasStore'
 import { WorkflowNode as WorkflowNodeComponent } from './WorkflowNode'
 import { WorkflowConnection } from './WorkflowConnection'
 import { clampZoom } from '../../utils/canvasCoords'
-import type { CanvasMode } from '../../stores/unifiedCanvasStore'
-
 interface WorkflowCanvasWorkspaceProps {
   palette?: ReactNode
-  mode?: CanvasMode
-  onSetMode?: (mode: CanvasMode) => void
   paletteOpen?: boolean
   onTogglePalette?: () => void
 }
@@ -111,7 +107,7 @@ function WorkflowListOverlay() {
   )
 }
 
-function WorkflowList({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: WorkflowCanvasWorkspaceProps) {
+function WorkflowList({ palette, paletteOpen = false, onTogglePalette }: WorkflowCanvasWorkspaceProps) {
   const panX = useWorkflowCanvasStore((s) => s.panX)
   const panY = useWorkflowCanvasStore((s) => s.panY)
   const zoom = useWorkflowCanvasStore((s) => s.zoom)
@@ -142,8 +138,7 @@ function WorkflowList({ palette, mode, onSetMode, paletteOpen = false, onToggleP
             onZoomReset={handleZoomReset}
             onTogglePalette={onTogglePalette ?? (() => {})}
             paletteOpen={paletteOpen}
-            mode={mode}
-            onSetMode={onSetMode}
+
           />
         }
       >
@@ -155,7 +150,7 @@ function WorkflowList({ palette, mode, onSetMode, paletteOpen = false, onToggleP
   )
 }
 
-function WorkflowEditor({ palette, mode, onSetMode, paletteOpen = false, onTogglePalette }: WorkflowCanvasWorkspaceProps) {
+function WorkflowEditor({ palette, paletteOpen = false, onTogglePalette }: WorkflowCanvasWorkspaceProps) {
   const nodes = useWorkflowCanvasStore((s) => s.nodes)
   const connections = useWorkflowCanvasStore((s) => s.connections)
   const selectedNodeId = useWorkflowCanvasStore((s) => s.selectedNodeId)
@@ -212,8 +207,6 @@ function WorkflowEditor({ palette, mode, onSetMode, paletteOpen = false, onToggl
               onZoomReset={handleZoomReset}
               onTogglePalette={onTogglePalette ?? (() => {})}
               paletteOpen={paletteOpen}
-              mode={mode}
-              onSetMode={onSetMode}
             />
           }
         >

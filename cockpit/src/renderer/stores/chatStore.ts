@@ -15,6 +15,16 @@ export interface Attachment {
   filename: string
 }
 
+export interface MediaAttachment {
+  id: string
+  url: string
+  filename: string
+  content_type: string
+  media_type: 'image' | 'video'
+  size: number
+  previewUrl?: string
+}
+
 export interface SuggestedAction {
   label: string
   action: string
@@ -32,6 +42,7 @@ export interface ChatMessage {
   title?: string
   provenance?: Provenance
   attachment?: Attachment
+  media?: MediaAttachment[]
   suggested_actions?: SuggestedAction[]
   metadata?: Record<string, unknown>
 }
@@ -47,6 +58,12 @@ interface ChatResponse {
   timestamp: string
 }
 
+interface PendingMedia {
+  file: File
+  previewUrl: string
+  media_type: 'image' | 'video'
+}
+
 interface ChatState {
   messages: ChatMessage[]
   input: string
@@ -55,10 +72,9 @@ interface ChatState {
   targetChannel: string
   conversationId: string
   _pollTimer: ReturnType<typeof setInterval> | null
-  /** Draft message shown during voice recording (live updating "YOU is speaking...") */
   draftMessage: ChatMessage | null
-  /** Placeholder message for "DEX is thinking..." during voice flow */
   placeholderMessage: ChatMessage | null
+  pendingMedia: PendingMedia[]
 
   setInput: (input: string) => void
   setTargetChannel: (channel: string) => void
@@ -73,6 +89,9 @@ interface ChatState {
   commitDraftMessage: () => void
   setPlaceholderMessage: (msg: ChatMessage | null) => void
   clearPlaceholderMessage: () => void
+  addPendingMedia: (files: File[]) => void
+  removePendingMedia: (index: number) => void
+  clearPendingMedia: () => void
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -85,14 +104,37 @@ export const useChatStore = create<ChatState>((set, get) => ({
   _pollTimer: null,
   draftMessage: null,
   placeholderMessage: null,
+  pendingMedia: [],
 
   setInput: (input) => set({ input }),
   setTargetChannel: (channel) => set({ targetChannel: channel }),
 
   sendMessage: async (content, source = 'text', viewContext?: Record<string, unknown>, voiceTurnId?: string) => {
-    if (!content.trim()) return
+    const { targetChannel, conversationId, pendingMedia } = get()
+    if (!content.trim() && pendingMedia.length === 0) return
 
-    const { targetChannel, conversationId } = get()
+    let uploadedMedia: MediaAttachment[] = []
+    if (pendingMedia.length > 0) {
+      try {
+        const uploads = await Promise.all(
+          pendingMedia.map(async (pm) => {
+            const form = new FormData()
+            form.append('file', pm.file)
+            const API_URL = (import.meta.env.VITE_API_URL as string) || '/api/umh'
+            const res = await fetch(`${API_URL}/chat/upload`, {
+              method: 'POST',
+              body: form,
+            })
+            if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`)
+            return res.json() as Promise<MediaAttachment>
+          }),
+        )
+        uploadedMedia = uploads.map((u, i) => ({ ...u, previewUrl: pendingMedia[i].previewUrl }))
+      } catch (e) {
+        set({ error: e instanceof Error ? e.message : 'Media upload failed' })
+        return
+      }
+    }
 
     const operatorMsg: ChatMessage = {
       id: `op-${Date.now()}`,
@@ -101,13 +143,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       timestamp: new Date().toISOString(),
       source,
       origin_channel: targetChannel,
+      ...(uploadedMedia.length > 0 ? { media: uploadedMedia } : {}),
     }
+
+    pendingMedia.forEach((pm) => URL.revokeObjectURL(pm.previewUrl))
 
     set((s) => ({
       messages: [...s.messages, operatorMsg],
       input: '',
       sending: true,
       error: null,
+      pendingMedia: [],
     }))
 
     try {
@@ -262,4 +308,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setPlaceholderMessage: (msg) => set({ placeholderMessage: msg }),
 
   clearPlaceholderMessage: () => set({ placeholderMessage: null }),
+
+  addPendingMedia: (files) => {
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'video/quicktime']
+    const valid = files.filter((f) => ALLOWED.includes(f.type))
+    if (valid.length === 0) return
+    const items: PendingMedia[] = valid.map((f) => ({
+      file: f,
+      previewUrl: URL.createObjectURL(f),
+      media_type: f.type.startsWith('video/') ? 'video' : 'image',
+    }))
+    set((s) => ({ pendingMedia: [...s.pendingMedia, ...items] }))
+  },
+
+  removePendingMedia: (index) => {
+    set((s) => {
+      const item = s.pendingMedia[index]
+      if (item) URL.revokeObjectURL(item.previewUrl)
+      return { pendingMedia: s.pendingMedia.filter((_, i) => i !== index) }
+    })
+  },
+
+  clearPendingMedia: () => {
+    set((s) => {
+      s.pendingMedia.forEach((pm) => URL.revokeObjectURL(pm.previewUrl))
+      return { pendingMedia: [] }
+    })
+  },
 }))

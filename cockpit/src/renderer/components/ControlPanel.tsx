@@ -10,6 +10,7 @@ import { useWorkspaceContextStore } from '../stores/workspaceContextStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 import { useUnifiedWorkstationStore } from '../stores/unifiedWorkstationStore'
 import { useEngineeringStore } from '../stores/engineeringStore'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 /* ── colour maps ── */
 const CONTINUITY_COLORS: Record<string, string> = {
@@ -58,6 +59,7 @@ export function ControlPanel() {
   const unifiedPending = useUnifiedApprovalStore((s) => s.byUrgency)
   const unifiedApprove = useUnifiedApprovalStore((s) => s.approve)
   const unifiedReject = useUnifiedApprovalStore((s) => s.reject)
+  const mobile = useIsMobile()
   const mode = useCockpitStore((s) => s.mode)
   const apiStatus = useCockpitStore((s) => s.apiStatus)
   const wsStatus = useCockpitStore((s) => s.wsStatus)
@@ -173,7 +175,7 @@ export function ControlPanel() {
     continuityState === 'NIGHT_SLEEPING' || continuityState === 'EXTENDED_ABSENCE'
 
   return (
-    <div className="wv-card absolute top-2 left-4 right-4 z-20">
+    <div className={`wv-card absolute ${mobile ? 'z-30' : 'z-20'}`} style={{ top: 6, left: mobile ? 6 : 172, right: mobile ? 6 : 252 }}>
       {/* ── Collapsed: instrument strip ── */}
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
         {/* 1. Status badge */}
