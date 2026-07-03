@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Pencil, Check, Download, Mic, MicOff, ImagePlus, X } from 'lucide-react'
+import { Send, Pencil, Check, Download, Mic, MicOff, Paperclip, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment, type MediaAttachment } from '../stores/chatStore'
@@ -125,6 +125,20 @@ function MediaGrid({ media }: { media: MediaAttachment[] }) {
               className="rounded max-w-full"
               style={{ maxHeight: 200 }}
             />
+          )
+        }
+        if (m.media_type === 'file') {
+          return (
+            <a
+              key={m.id}
+              href={src}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1.5 rounded bg-surface-raised border border-border text-[10px] font-mono text-text-secondary hover:border-cyan transition-colors"
+            >
+              <Download size={10} />
+              <span className="truncate">{m.filename}</span>
+            </a>
           )
         }
         return (
@@ -508,9 +522,13 @@ function ChatSection() {
               <div key={i} className="relative group">
                 {pm.media_type === 'image' ? (
                   <img src={pm.previewUrl} alt="" className="rounded" style={{ height: 48, width: 48, objectFit: 'cover' }} />
-                ) : (
+                ) : pm.media_type === 'video' ? (
                   <div className="flex items-center justify-center rounded bg-surface-raised" style={{ height: 48, width: 48 }}>
                     <span className="text-[8px] font-mono text-text-tertiary">VID</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center rounded bg-surface-raised px-1" style={{ height: 48, minWidth: 48 }}>
+                    <span className="text-[8px] font-mono text-text-tertiary truncate max-w-[60px]">{pm.file.name}</span>
                   </div>
                 )}
                 <button
@@ -527,42 +545,44 @@ function ChatSection() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*"
+            accept="*/*"
             multiple
             className="hidden"
             onChange={handleFilePick}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-1.5 rounded text-text-tertiary hover:text-cyan transition-colors"
-            title="Attach image or video"
-          >
-            <ImagePlus size={12} />
-          </button>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-            onPaste={handlePaste}
-            placeholder={`Message ${aiName}...`}
-            className="flex-1 text-[11px] px-2 py-1.5 rounded bg-surface-raised text-text-primary border border-border outline-none placeholder:text-text-tertiary"
-            disabled={sending}
-          />
-          <button
-            onClick={handleMicToggle}
-            disabled={!voiceAvailable || micState === 'requesting_permission' || micState === 'connecting_voice_ws' || micState === 'transcribing' || micState === 'processing'}
-            className={clsx(
-              'p-1.5 rounded transition-colors',
-              !voiceAvailable ? 'text-text-tertiary opacity-30 cursor-not-allowed' :
-              (micState === 'listening' || micState === 'recording') ? 'text-danger bg-danger/10' :
-              (micState === 'requesting_permission' || micState === 'connecting_voice_ws' || micState === 'transcribing') ? 'text-amber opacity-60' :
-              'text-text-tertiary hover:text-cyan',
-            )}
-            title={!voiceAvailable ? (voiceError || 'Voice requires desktop app or HTTPS') : (micState === 'listening' || micState === 'recording') ? 'Tap to send' : 'Voice input'}
-          >
-            {(micState === 'listening' || micState === 'recording') ? <MicOff size={12} /> : <Mic size={12} />}
-          </button>
-          <button onClick={handleSend} disabled={sending || (!input.trim() && pendingMedia.length === 0)} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30">
+          <div className="flex-1 flex items-center rounded bg-surface-raised border border-border">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="p-1 ml-0.5 rounded text-text-tertiary hover:text-cyan transition-colors shrink-0"
+              title="Attach file or take photo"
+            >
+              <Paperclip size={12} />
+            </button>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+              onPaste={handlePaste}
+              placeholder={`Message ${aiName}...`}
+              className="flex-1 text-[11px] px-1.5 py-1.5 bg-transparent text-text-primary outline-none placeholder:text-text-tertiary min-w-0"
+              disabled={sending}
+            />
+            <button
+              onClick={handleMicToggle}
+              disabled={!voiceAvailable || micState === 'requesting_permission' || micState === 'connecting_voice_ws' || micState === 'transcribing' || micState === 'processing'}
+              className={clsx(
+                'p-1 mr-0.5 rounded transition-colors shrink-0',
+                !voiceAvailable ? 'text-text-tertiary opacity-30 cursor-not-allowed' :
+                (micState === 'listening' || micState === 'recording') ? 'text-danger bg-danger/10' :
+                (micState === 'requesting_permission' || micState === 'connecting_voice_ws' || micState === 'transcribing') ? 'text-amber opacity-60' :
+                'text-text-tertiary hover:text-cyan',
+              )}
+              title={!voiceAvailable ? (voiceError || 'Voice requires desktop app or HTTPS') : (micState === 'listening' || micState === 'recording') ? 'Tap to send' : 'Voice input'}
+            >
+              {(micState === 'listening' || micState === 'recording') ? <MicOff size={12} /> : <Mic size={12} />}
+            </button>
+          </div>
+          <button onClick={handleSend} disabled={sending || (!input.trim() && pendingMedia.length === 0)} className="p-1.5 rounded text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30 shrink-0">
             <Send size={12} />
           </button>
         </div>
