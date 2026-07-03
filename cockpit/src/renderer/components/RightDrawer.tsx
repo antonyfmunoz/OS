@@ -1,8 +1,10 @@
 import { useCockpitStore } from '../stores/cockpitStore'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { RightRail } from './RightRail'
 
 export function RightDrawer() {
   const open = useCockpitStore((s) => s.rightDrawerOpen)
+  const mobile = useIsMobile()
 
   if (!open) return null
 
@@ -10,10 +12,10 @@ export function RightDrawer() {
     <div
       className="wv-card absolute z-20 flex flex-col overflow-hidden"
       style={{
-        width: 240,
+        width: mobile ? 'calc(100vw - 12px)' : 240,
         right: 6,
-        top: 6,
-        bottom: 36,
+        top: mobile ? 52 : 6,
+        bottom: mobile ? 78 : 36,
       }}
     >
       <RightRail />
