@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#07080a" />
+  <title>UMH Cockpit — Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #07080a;
+      color: #e0e0e0;
+      font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px;
+    }
+    .container {
+      text-align: center;
+      max-width: 360px;
+    }
+    .dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff3d3d;
+      margin-bottom: 24px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #00e5ff;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+    button {
+      background: none;
+      border: 1px solid #333;
+      color: #e0e0e0;
+      padding: 8px 24px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    button:hover { border-color: #00e5ff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="dot"></span>
+    <h1>No Connection</h1>
+    <p>The cockpit requires a connection to the UMH API. Check your network and try again.</p>
+    <button onclick="location.reload()">Reconnect</button>
+  </div>
+</body>
+</html>

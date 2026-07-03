@@ -112,7 +112,7 @@ export function HudBar() {
   return (
     <footer
       className="fixed bottom-0 left-0 right-0 flex items-center gap-4 px-3 select-none bg-surface border-t border-border z-50"
-      style={{ height: 'var(--spacing-hud-height)' }}
+      style={{ height: 'calc(var(--spacing-hud-height) + var(--sab))', paddingBottom: 'var(--sab)' }}
     >
       {/* Status cluster — fullscreen indicator + online */}
       <div className="flex items-center gap-4">

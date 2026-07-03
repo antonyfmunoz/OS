@@ -1,6 +1,9 @@
 /// <reference lib="webworker" />
 declare const self: ServiceWorkerGlobalScope
 
+const CACHE_NAME = 'umh-shell-v1'
+const SHELL_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/offline.html']
+
 interface PushPayload {
   title: string
   body: string
@@ -8,6 +11,8 @@ interface PushPayload {
   url: string
   data: Record<string, unknown>
 }
+
+// --- Push notifications ---
 
 self.addEventListener('push', (event: PushEvent) => {
   if (!event.data) return
@@ -42,10 +47,62 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   )
 })
 
-self.addEventListener('install', () => {
+// --- App shell caching ---
+
+self.addEventListener('install', (event: ExtendableEvent) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
+  )
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (event: ExtendableEvent) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  )
+})
+
+self.addEventListener('fetch', (event: FetchEvent) => {
+  const { request } = event
+  if (request.method !== 'GET') return
+
+  const url = new URL(request.url)
+
+  // Hashed assets (assets/*-[hash].js/css) — cache-first, immutable
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then(
+        (cached) =>
+          cached ||
+          fetch(request).then((response) => {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
+            return response
+          })
+      )
+    )
+    return
+  }
+
+  // Navigation requests — network-first, offline fallback
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('/offline.html').then((r) => r || new Response('Offline')))
+    )
+    return
+  }
+
+  // Everything else — network-first, cache fallback
+  event.respondWith(
+    fetch(request)
+      .then((response) => {
+        const clone = response.clone()
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
+        return response
+      })
+      .catch(() => caches.match(request).then((r) => r || new Response('', { status: 503 })))
+  )
 })

@@ -345,30 +345,95 @@ Stored as JSON in `ventures.config_json`. Per-venture structured config: stage (
 
 ---
 
-## 9. UX Surfaces
+## 9. Distribution Surfaces
 
-### Discord (current, operational)
+<!-- LOCKED 2026-07-03 — Do not modify without explicit AFM request -->
 
-Single founder access. Full system control. NLP routing with 40+ commands. Handles: text, voice, images, documents. Morning brief, proactive alerts, approval queue. Always-on via Docker (`os-discord` container). Telegram available as outbound notification channel only.
+UMH reaches operators through five surfaces. All five are built.
+Same codebase (`cockpit/src/renderer/`) renders on all visual surfaces.
+Same API (`transports/api/http/`) serves all clients.
 
-### Web Dashboard (Phase 2)
+### 9.1 Web App / PWA (LIVE)
 
-| View | Contents |
-|---|---|
-| Portfolio | All companies, P&L overview, strategic summary, Portfolio Advisor |
-| Company | BIS status, stage guidance, CEO Agent, department overview |
-| Department | Role boards, task queues, workflows, metrics, department agent |
-| Role | Specific role surface, tools, documents, AI copilot, approval queue |
+| Property | Value |
+|----------|-------|
+| URL | universalmetaharness.tech |
+| Build | `vite build --config vite.web.config.ts` → `dist-web/` |
+| Deploy | Fly.io via `cockpit/deploy.sh` |
+| Desktop | Browser tab at any resolution |
+| Mobile | Home screen install via PWA manifest |
+| Offline | Service worker with cache-first assets, network-first navigation, offline fallback page |
+| Auth | Clerk (same as all surfaces) |
 
-Permission model: Founder sees all. Manager sees own department and below. Team member sees own role only.
+Key files: `vite.web.config.ts`, `sw.ts`, `public/manifest.json`, `public/offline.html`
 
-### Mobile App (Phase 3)
+### 9.2 Desktop App — Electron (BUILT)
 
-Quick decisions, approvals, notifications. AI chat, brief consumption, voice interface. Designed for running the business from a phone.
+| Property | Value |
+|----------|-------|
+| Build | `electron-vite build` → `out/` |
+| Entry | `cockpit/src/main/index.ts` |
+| Window | Frameless, titlebar-drag regions, window controls |
+| Platform | macOS, Windows, Linux |
+| Voice | VoiceCommandBar via Electron IPC |
 
-### Voice Interface (built, not primary)
+Key files: `src/main/index.ts`, `electron.vite.config.ts`
 
-`VoiceOutput` in `umh/voice.py` with persona/cloned voice profiles and streaming TTS. `substrate/execution/bridge/voice_session.py` handles live sessions. 11 meeting types with pre-meeting brief, during-meeting assist, and post-meeting action routing. Activated via `/meeting [type]` in Discord.
+### 9.3 Mobile App — Capacitor (BUILT)
+
+| Property | Value |
+|----------|-------|
+| Config | `cockpit/capacitor.config.ts` |
+| App ID | `tech.universalmetaharness.cockpit` |
+| Web dir | `dist-web/` (same as PWA) |
+| Safe areas | CSS vars `--sat`, `--sab`, `--sal`, `--sar` via `env(safe-area-inset-*)` |
+| TitleBar | `padding-top: var(--sat)` for notch/Dynamic Island |
+| HudBar | `padding-bottom: var(--sab)` for home indicator |
+| Push | Native via `@capacitor/push-notifications`, web via service worker |
+| Status bar | Dark style, `#07080a` background |
+| CI | `.github/workflows/mobile-build.yml` — GitHub Actions (macOS for iOS, Ubuntu for Android) |
+| Platforms | iOS (unsigned archive), Android (debug APK) |
+
+Key files: `capacitor.config.ts`, `capacitor-init.ts`, `mobile-build.yml`
+
+### 9.4 CLI (BUILT)
+
+| Property | Value |
+|----------|-------|
+| Module | `transports/cli/` |
+| Entry | `python3 -m transports.cli` |
+| Commands | status, chat, execute, agents, system, logs |
+| Auth | API key via env var or `~/.umh/config.json` |
+| Theme | WorldView-consistent colors (cyan accent, dark bg) |
+
+Key files: `transports/cli/main.py`, `commands.py`, `client.py`, `theme.py`, `display.py`
+
+### 9.5 Messaging — Discord (LIVE)
+
+| Property | Value |
+|----------|-------|
+| Service | `os-discord` Docker container |
+| Entry | `services/discord_bot.py` |
+| Transport | `transports/discord/signal_factory.py` |
+| Capabilities | Full system control, NLP routing, text/voice/images/documents |
+| Features | Morning brief, proactive alerts, approval queue, file attachments |
+| Primary channel | Founders Office (1485765456739696714) |
+
+### 9.6 Voice Interface (BUILT, secondary)
+
+Built into Discord and Electron surfaces. Not a standalone surface.
+`substrate/execution/bridge/voice_session.py` handles live sessions.
+11 meeting types with pre/during/post-meeting support.
+
+---
+
+### Distribution principles (locked)
+
+1. **One codebase** — `cockpit/src/renderer/` is the single React app. Electron, web, and Capacitor all render it.
+2. **One API** — `transports/api/http/` serves all clients. No surface-specific backends.
+3. **Platform-aware init** — `capacitor-init.ts` runs on native only, SW runs on web only. Detection via `Capacitor.isNativePlatform()`.
+4. **Safe areas are CSS vars** — `--sat`/`--sab`/`--sal`/`--sar` default to `0px` on non-mobile. No conditional rendering needed.
+5. **Auth is Clerk everywhere** — same Clerk publishable key, same auth flow, all surfaces.
 
 ---
 
@@ -389,19 +454,22 @@ All three OS products live. All 15 department agents with full skill sets. Brows
 - 778+ tests passing, 0 failures
 - Production deployed: Discord bot, Cockpit Electron app, API
 
-### MVP Phase 2 (current)
+### MVP Phase 2 `✅ COMPLETE` (2026-07-03)
 
-- Cockpit Electron desktop app — window modes, execution substrate panel
-- SaaS product connections (EOS, CreatorOS, LYFEOS)
-- Firebase auth — public users can sign up
-- Stripe billing
-- Notification engine (push, email, SMS beyond Discord)
+- Cockpit web app / PWA — live at universalmetaharness.tech
+- Cockpit Electron desktop app — window modes, canvas workspace
+- Capacitor mobile app — iOS + Android wrapper, safe areas, push notifications
+- UMH CLI — `transports/cli/`, full operator terminal interface
+- Five distribution surfaces operational (web, desktop, mobile, CLI, Discord)
+- Clerk auth across all visual surfaces
+- GitHub Actions CI for mobile builds
 
 ### MVP Phase 3 (following)
 
+- App Store / Play Store submission (Apple Developer $99/yr + Google Play $25)
+- Signed release builds + Fastlane automation
 - CreatorOS frontend + backend connection
 - LYFEOS frontend + backend connection
-- Mobile app
 - Cross-product intelligence compounding
 
 ---
