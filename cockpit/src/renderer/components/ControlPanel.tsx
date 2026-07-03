@@ -175,7 +175,7 @@ export function ControlPanel() {
     continuityState === 'NIGHT_SLEEPING' || continuityState === 'EXTENDED_ABSENCE'
 
   return (
-    <div className="wv-card absolute z-20" style={{ top: 6, left: mobile ? 'calc(33vw + 12px)' : 172, right: mobile ? 'calc(33vw + 12px)' : 252 }}>
+    <div className={`wv-card absolute ${mobile ? 'z-30' : 'z-20'}`} style={{ top: 6, left: mobile ? 6 : 172, right: mobile ? 6 : 252 }}>
       {/* ── Collapsed: instrument strip ── */}
       <div className="flex items-center gap-2 px-4 py-2 flex-wrap">
         {/* 1. Status badge */}
