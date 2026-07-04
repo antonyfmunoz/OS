@@ -5,14 +5,32 @@ dispatches replies to Discord channels.
 Architecture:
     CC session completes a turn
     → Stop hook reads last assistant message from JSONL transcript
-    → POSTs {session_name, text} to http://127.0.0.1:8765/cc-reply
+    → POSTs {session_name, text} to http://<bind_host>:8765/cc-reply
     → This receiver maps session_name → Discord channel and sends the reply
+
+Security (WP-P0-004):
+    This surface can inject responses into tmux Claude Code sessions
+    (/cc-prompt button callbacks → watcher.send_response) and relays MFA
+    challenge codes (/mfa-challenge). It is therefore an authenticated,
+    loopback-first control surface:
+      - Binds 127.0.0.1 by default. A wider bind requires the explicit
+        governed CC_WEBHOOK_BIND_HOST env override (e.g. the VPS Tailscale
+        IP for the Windows→VPS MFA relay).
+      - Every control endpoint (/cc-reply, /cc-prompt, /mfa-challenge)
+        requires `Authorization: Bearer <CC_WEBHOOK_TOKEN>`. Missing or
+        invalid tokens are rejected with 401 BEFORE any side effect.
+      - FAIL CLOSED: if CC_WEBHOOK_TOKEN is unset, every control endpoint is
+        rejected (503). There is no unauthenticated path.
+      - The token is read from env (1Password-injected .env); never hardcoded,
+        never accepted in the URL.
+    /health is the only unauthenticated endpoint (liveness only, no side effect).
 
 Started as a background task inside discord_bot.py's on_ready.
 """
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
 import os
@@ -38,6 +56,62 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 
 # Port for the webhook receiver
 CC_WEBHOOK_PORT = int(os.getenv("CC_WEBHOOK_PORT", "8765"))
+
+# Bind host — loopback by default. Widening the bind (e.g. to the VPS Tailscale
+# IP so the Windows MFA bridge can reach it) requires an explicit governed
+# override AND is only safe because bearer auth is enforced below.
+CC_WEBHOOK_BIND_HOST = os.getenv("CC_WEBHOOK_BIND_HOST", "127.0.0.1")
+
+# Control endpoints that require bearer authentication. /health is exempt
+# (liveness probe, no side effect).
+_AUTH_REQUIRED_PATHS = frozenset({"/cc-reply", "/cc-prompt", "/mfa-challenge"})
+
+
+def _get_webhook_token() -> str:
+    """Bearer token for control-endpoint auth. Env-only (1Password-injected);
+    never hardcoded. Empty string means 'no token configured' → fail closed."""
+    return os.getenv("CC_WEBHOOK_TOKEN", "").strip()
+
+
+def _extract_bearer(request: "web.Request") -> str:
+    """Extract the bearer token from the Authorization header only.
+
+    Tokens are NEVER read from the URL/query string — header transport only.
+    """
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        return header[len("Bearer ") :].strip()
+    return ""
+
+
+@web.middleware
+async def _auth_middleware(request: "web.Request", handler):
+    """Fail-closed bearer auth for every control endpoint.
+
+    Rejects BEFORE the handler runs (no side effect):
+      - 503 if CC_WEBHOOK_TOKEN is not configured (fail closed).
+      - 401 if the Authorization: Bearer token is missing or does not match.
+    /health and any non-control path pass through unauthenticated.
+    """
+    if request.path in _AUTH_REQUIRED_PATHS:
+        expected = _get_webhook_token()
+        if not expected:
+            logger.error(
+                "[CCWebhook] FAIL CLOSED: CC_WEBHOOK_TOKEN unset — rejecting %s",
+                request.path,
+            )
+            return web.Response(status=503, text="webhook auth not configured")
+        presented = _extract_bearer(request)
+        # Constant-time comparison; both operands are str.
+        if not presented or not hmac.compare_digest(presented, expected):
+            logger.warning(
+                "[CCWebhook] 401 unauthenticated request to %s from %s",
+                request.path,
+                request.remote,
+            )
+            return web.Response(status=401, text="unauthorized")
+    return await handler(request)
+
 
 # Session name → Discord channel ID mapping.
 # Built from the same env vars discord_mode_routing uses.
@@ -107,7 +181,13 @@ async def start_webhook_server(
     _SESSION_CHANNEL_MAP = _build_session_channel_map()
     logger.info("[CCWebhook] Session→Channel map: %s", _SESSION_CHANNEL_MAP)
 
-    app = web.Application()
+    if not _get_webhook_token():
+        logger.warning(
+            "[CCWebhook] CC_WEBHOOK_TOKEN is not set — control endpoints will "
+            "fail closed (503) until it is configured."
+        )
+
+    app = web.Application(middlewares=[_auth_middleware])
 
     async def handle_cc_reply(request: web.Request) -> web.Response:
         try:
@@ -268,26 +348,20 @@ async def start_webhook_server(
         )
 
         if mfa_type in ("TOTP", "SMS", "EMAIL_2FA"):
-            mfa_msg += (
-                f"**Reply with the 6-digit code:**\n"
-                f"`!mfa {service} <code>`\n"
-            )
+            mfa_msg += f"**Reply with the 6-digit code:**\n`!mfa {service} <code>`\n"
         elif mfa_type == "PUSH":
             mfa_msg += (
-                f"**Approve the push notification, then reply:**\n"
-                f"`!mfa {service} approved`\n"
+                f"**Approve the push notification, then reply:**\n`!mfa {service} approved`\n"
             )
         else:
-            mfa_msg += (
-                f"**Check screenshot and respond:**\n"
-                f"`!mfa {service} <code-or-approved>`\n"
-            )
+            mfa_msg += f"**Check screenshot and respond:**\n`!mfa {service} <code-or-approved>`\n"
 
         try:
             await channel.send(mfa_msg)
             logger.info(
                 "[CCWebhook] MFA challenge surfaced to Discord for %s (type=%s)",
-                service, mfa_type,
+                service,
+                mfa_type,
             )
         except Exception as exc:
             logger.error("[CCWebhook] MFA Discord send failed: %s", exc)
@@ -302,8 +376,16 @@ async def start_webhook_server(
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
+    site = web.TCPSite(runner, CC_WEBHOOK_BIND_HOST, port)
     await site.start()
-    logger.info("[CCWebhook] Listening on http://127.0.0.1:%d/cc-reply", port)
-    print(f"[CCWebhook] Listening on http://127.0.0.1:{port}/cc-reply")
+    logger.info(
+        "[CCWebhook] Listening on http://%s:%d/cc-reply (auth=%s)",
+        CC_WEBHOOK_BIND_HOST,
+        port,
+        "on" if _get_webhook_token() else "FAIL-CLOSED (token unset)",
+    )
+    print(
+        f"[CCWebhook] Listening on http://{CC_WEBHOOK_BIND_HOST}:{port}/cc-reply "
+        f"(bearer auth {'enabled' if _get_webhook_token() else 'FAIL-CLOSED — token unset'})"
+    )
     return runner

@@ -88,10 +88,17 @@ payload = json.dumps({
     "text": last_text,
 }).encode("utf-8")
 
+# WP-P0-004: the receiver requires bearer auth on /cc-reply. Read the token
+# from env (1Password-injected); never hardcoded, never in the URL.
+_headers = {"Content-Type": "application/json"}
+_token = os.environ.get("CC_WEBHOOK_TOKEN", "").strip()
+if _token:
+    _headers["Authorization"] = f"Bearer {_token}"
+
 req = urllib.request.Request(
     vps_url,
     data=payload,
-    headers={"Content-Type": "application/json"},
+    headers=_headers,
     method="POST",
 )
 
