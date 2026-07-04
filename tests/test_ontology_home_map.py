@@ -105,9 +105,11 @@ def test_frozen_home_set_matches_disk():
 
 
 def test_frozen_home_set_is_shrink_only():
-    """The home set may only shrink. This count freezes today's membership (27).
+    """The home set may only shrink. This count freezes today's membership (26,
+    down from 27 after the WP-P3 primitives relocation evicted
+    understanding/ontology/primitives.py to substrate/state/business/).
     A NEW home must be a deliberate edit here AND to the gate ledger."""
-    assert len(FROZEN_ONTOLOGY_HOMES) <= 27, (
+    assert len(FROZEN_ONTOLOGY_HOMES) <= 26, (
         f"FROZEN_ONTOLOGY_HOMES grew to {len(FROZEN_ONTOLOGY_HOMES)}; new homes must be "
         "reviewed, not silently added"
     )
@@ -115,8 +117,11 @@ def test_frozen_home_set_is_shrink_only():
 
 def test_frozen_competitors_are_shrink_only_with_metadata():
     # Shrank 3 → 2 at the WP-P3 world-model sunset (understanding/world_model
-    # resolved to a distinct concern via disambiguation, not relocation).
-    assert len(FROZEN_ONTOLOGY_COMPETITORS) <= 2, (
+    # resolved to a distinct concern via disambiguation), then 2 → 1 at the WP-P3
+    # primitives relocation (understanding/ontology/primitives.py git-moved to
+    # substrate/state/business/primitives.py). Only primitive_decomposition_v1.py
+    # remains frozen (P3 metamodel dedup packet).
+    assert len(FROZEN_ONTOLOGY_COMPETITORS) <= 1, (
         f"FROZEN_ONTOLOGY_COMPETITORS grew to {len(FROZEN_ONTOLOGY_COMPETITORS)}; new leaks "
         "must be fixed, not frozen"
     )
@@ -138,6 +143,21 @@ def test_world_model_resolved_out_of_competitor_ledger():
     organism = (ROOT / "substrate/organism/world_model.py").read_text()
     assert "NOT the organism self-model" in understanding
     assert "NOT the understanding/world_model" in organism
+
+
+def test_primitives_relocated_out_of_both_ledgers():
+    """The L3 business-rule primitives were EVICTED by relocation (not
+    disambiguation): git-moved from understanding/ontology/ to its L3 state home
+    substrate/state/business/. It is gone from BOTH Gate-13 ledgers, absent at the
+    old path, present at the new path, and no longer under a guarded ontology dir."""
+    old = "substrate/understanding/ontology/primitives.py"
+    new = "substrate/state/business/primitives.py"
+    assert old not in FROZEN_ONTOLOGY_COMPETITORS
+    assert old not in FROZEN_ONTOLOGY_HOMES
+    assert not (ROOT / old).exists(), "old ontology-dir path must be gone (no shim)"
+    assert (ROOT / new).exists(), "primitives.py must live at its L3 state home"
+    # the new home is NOT a guarded ontology-home dir, so it needs no home entry
+    assert new not in FROZEN_ONTOLOGY_HOMES
 
 
 # ── the home gate enforces the map (negative controls) ───────────────────────

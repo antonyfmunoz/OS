@@ -829,7 +829,7 @@ class CognitiveLoop:
         # 5b. STAGE FILTER — prepend stage-appropriate correction if needed
         _output_str = result.output or ""
         try:
-            from substrate.understanding.ontology.primitives import ContextualReasoningEngine
+            from substrate.state.business.primitives import ContextualReasoningEngine
 
             _cre = ContextualReasoningEngine(self.ctx)
             _stage_ctx = _cre.get_current_context(venture_id or self.ctx.active_venture_id or "")
