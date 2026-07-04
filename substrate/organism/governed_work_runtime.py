@@ -227,14 +227,21 @@ class GovernedWorkRuntime:
         requires_approval = True
         policy_id = ""
 
-        if self.packet_engine is not None:
-            try:
-                packet = self.packet_engine.create_from_intent(intent)
-                packet_id = packet.packet_id
-                if hasattr(packet, "risk_class") and risk_class == "low":
-                    risk_class = packet.risk_class
-            except Exception:
-                logger.debug("WorkPacketEngine.create_from_intent failed, using raw packet ID")
+        if self.packet_engine is None:
+            return WorkSubmission(
+                error="WorkPacketEngine unavailable — cannot create governed packet",
+            )
+
+        # Canonical DO layer: intent → real WorkPacket with classifier-derived
+        # risk. AttributeError/TypeError here means the call site drifted from
+        # the engine contract — surface it, never swallow (GAP-C1-001).
+        packet = self.packet_engine.create_packet_from_intent(
+            user_intent=intent,
+            desired_end_state=description or "",
+        )
+        packet_id = packet.packet_id
+        if getattr(packet, "risk_class", "") and risk_class == "low":
+            risk_class = packet.risk_class
 
         if self.approval_registry is not None:
             try:

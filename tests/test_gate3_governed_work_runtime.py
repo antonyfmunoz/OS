@@ -13,10 +13,15 @@ Tests all 8 workcells:
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 
-sys.path.insert(0, "/opt/OS")
+# Root the import path at the repo checkout that owns THIS test file (works in
+# the main checkout and in any worktree), not a hardcoded /opt/OS. Without this
+# a worktree run would import substrate from main and never exercise local edits.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _REPO_ROOT)
 
 import pytest
 
@@ -943,3 +948,182 @@ class TestFullLoop:
             WorkRecoveryRuntime, OperatorLoopRuntime,
             ApprovalPolicyRegistry, ActionResolution, work_center_router,
         ])
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WP-P0-007 — Broken governed path regressions (GAP-C1-001)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+class TestSubmitWorkRoundTrip:
+    """submit_work must create a REAL WorkPacket via the engine.
+
+    Regression guard for GAP-C1-001: submit_work previously called a
+    non-existent WorkPacketEngine.create_from_intent and swallowed the
+    AttributeError, so it silently returned a raw-uuid packet id and never
+    applied classifier-derived risk. These tests exercise the full
+    intent → packet → plan path with isolated stores (no shared Neon/network).
+    """
+
+    def _isolated_runtime(self, tmp_path):
+        from substrate.organism.governed_work_runtime import GovernedWorkRuntime
+        from substrate.organism.work_packet_engine import WorkPacketEngine
+        from substrate.organism.execution_coordinator import ExecutionCoordinator
+
+        engine = WorkPacketEngine(
+            packets_path=str(tmp_path / "work_packets.jsonl"),
+            workcells_path=str(tmp_path / "workcells.jsonl"),
+            knowledge_path=str(tmp_path / "knowledge.jsonl"),
+        )
+        coordinator = ExecutionCoordinator(data_dir=str(tmp_path / "coord"))
+        return GovernedWorkRuntime(
+            packet_engine=engine,
+            execution_coordinator=coordinator,
+        ), engine
+
+    def test_submit_creates_real_packet(self, tmp_path):
+        rt, engine = self._isolated_runtime(tmp_path)
+        sub = rt.submit_work("deploy latest changes to production")
+
+        assert not sub.error, f"unexpected error: {sub.error}"
+        assert sub.work_id.startswith("wp-")
+
+        # The returned work_id must correspond to a packet the engine actually
+        # created and persisted — not a raw uuid produced by a swallowed error.
+        packet = engine.get_packet(sub.work_id)
+        assert packet is not None, "submit_work did not create a real engine packet"
+        assert packet.packet_id == sub.work_id
+        assert packet.user_intent == "deploy latest changes to production"
+
+    def test_submit_applies_classifier_risk(self, tmp_path):
+        rt, engine = self._isolated_runtime(tmp_path)
+        # A deployment-to-production intent classifies above "low"; submit_work
+        # must adopt the classifier-derived risk instead of the default "low".
+        sub = rt.submit_work("delete the production database and drop all tables")
+
+        assert not sub.error
+        packet = engine.get_packet(sub.work_id)
+        assert packet is not None
+        # risk_class on the submission must match the packet the engine classified
+        assert sub.risk_class == packet.risk_class
+
+    def test_submit_produces_execution_plan(self, tmp_path):
+        rt, engine = self._isolated_runtime(tmp_path)
+        sub = rt.submit_work("run the automated test suite")
+
+        assert not sub.error
+        assert sub.work_id.startswith("wp-")
+        # A real packet feeds the coordinator, yielding a plan and a governed
+        # status (never the silent-failure empty submission).
+        assert sub.status in ("approval_pending", "queued")
+
+    def test_submit_missing_engine_returns_typed_error(self):
+        from substrate.organism.governed_work_runtime import GovernedWorkRuntime
+
+        class _NoEngine(GovernedWorkRuntime):
+            @property
+            def packet_engine(self):
+                return None
+
+        rt = _NoEngine()
+        sub = rt.submit_work("do something")
+        # Fails loud with a typed error instead of silently fabricating a packet.
+        assert sub.error
+        assert "WorkPacketEngine unavailable" in sub.error
+
+
+class TestCommandApprovalRoundTrip:
+    """CommandRouter approve/reject must call the real queue method.
+
+    Regression guard for GAP-C1-001: _process_approval previously called a
+    non-existent UniversalWorkQueue.update_status and swallowed the
+    AttributeError, so every operator approve/reject returned an error dict.
+    """
+
+    def _seed_queue(self, tmp_path, status):
+        """Persist a single packet at ``status`` and return a queue bound to it."""
+        from substrate.organism.universal_work_queue import UniversalWorkQueue
+        from substrate.organism.work_packet import WorkPacket, persist_packets
+
+        store = str(tmp_path / "work_packets.jsonl")
+        pkt = WorkPacket(
+            title="approval target",
+            user_intent="ship the release",
+            status=status,
+        )
+        persist_packets([pkt], store)
+        return UniversalWorkQueue(store_path=store), pkt.packet_id
+
+    def _run_process_approval(self, monkeypatch, queue, packet_id, approved):
+        """Invoke the real _process_approval, routing the queue to our store."""
+        import substrate.organism.command_runtime as cr
+
+        # _process_approval constructs UniversalWorkQueue() with no args; bind it
+        # to our seeded, isolated store so the corrected call site is exercised
+        # end-to-end without touching the canonical on-disk queue.
+        monkeypatch.setattr(
+            cr, "UniversalWorkQueue", lambda *a, **k: queue, raising=False
+        )
+        # command_runtime imports UniversalWorkQueue lazily inside the method, so
+        # patch it at its source module too.
+        import substrate.organism.universal_work_queue as uwq
+        monkeypatch.setattr(uwq, "UniversalWorkQueue", lambda *a, **k: queue)
+
+        router = cr.CommandRouter()
+        return router._process_approval(packet_id, approved=approved)
+
+    def test_approve_returns_success(self, monkeypatch, tmp_path):
+        from substrate.organism.work_packet import PacketLifecycleStatus
+
+        queue, packet_id = self._seed_queue(
+            tmp_path, PacketLifecycleStatus.APPROVAL_PENDING
+        )
+        result = self._run_process_approval(
+            monkeypatch, queue, packet_id, approved=True
+        )
+        assert result.get("processed") is True, f"got error dict: {result}"
+        assert result.get("new_status") == "approved"
+        assert "error" not in result
+
+    def test_reject_returns_success(self, monkeypatch, tmp_path):
+        from substrate.organism.work_packet import PacketLifecycleStatus
+
+        queue, packet_id = self._seed_queue(
+            tmp_path, PacketLifecycleStatus.APPROVAL_PENDING
+        )
+        result = self._run_process_approval(
+            monkeypatch, queue, packet_id, approved=False
+        )
+        assert result.get("processed") is True, f"got error dict: {result}"
+        assert result.get("new_status") == "rejected"
+        assert "error" not in result
+
+    def test_missing_packet_returns_error(self, monkeypatch, tmp_path):
+        from substrate.organism.work_packet import PacketLifecycleStatus
+
+        queue, _ = self._seed_queue(
+            tmp_path, PacketLifecycleStatus.APPROVAL_PENDING
+        )
+        result = self._run_process_approval(
+            monkeypatch, queue, "wp-doesnotexist", approved=True
+        )
+        assert "error" in result
+        assert "not found" in result["error"]
+
+    def test_invalid_transition_surfaces_typed_error(self, monkeypatch, tmp_path):
+        """A packet not awaiting approval must yield a typed error, not a false success.
+
+        This is the swallow-fix: update_packet_status returns False on an invalid
+        lifecycle transition; _process_approval must report that, not claim success.
+        """
+        from substrate.organism.work_packet import PacketLifecycleStatus
+
+        # CLASSIFIED cannot transition directly to APPROVED.
+        queue, packet_id = self._seed_queue(
+            tmp_path, PacketLifecycleStatus.CLASSIFIED
+        )
+        result = self._run_process_approval(
+            monkeypatch, queue, packet_id, approved=True
+        )
+        assert result.get("processed") is not True
+        assert "error" in result
+        assert "invalid lifecycle transition" in result["error"]
