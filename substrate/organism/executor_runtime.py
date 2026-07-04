@@ -66,6 +66,7 @@ def _ensure_dirs() -> None:
 
 class ExecutorLifecycleStatus(str, Enum):
     """Lifecycle stages of an executor request."""
+
     CREATED = "created"
     VALIDATED = "validated"
     PREPARED = "prepared"
@@ -79,6 +80,7 @@ class ExecutorLifecycleStatus(str, Enum):
 
 class ExecutorType(str, Enum):
     """Canonical executor target types."""
+
     WORKSTATION = "workstation"
     AGENT = "agent"
     CONTAINER = "container"
@@ -90,6 +92,7 @@ class ExecutorType(str, Enum):
 
 class ExecutorRequestStatus(str, Enum):
     """Status of an executor request through the runtime."""
+
     PENDING = "pending"
     VALIDATING = "validating"
     PREPARING = "preparing"
@@ -106,6 +109,7 @@ class ExecutorRequestStatus(str, Enum):
 
 class ExecutorEventType(str, Enum):
     """Event types in the executor lifecycle."""
+
     REQUEST_CREATED = "request_created"
     VALIDATION_STARTED = "validation_started"
     VALIDATION_PASSED = "validation_passed"
@@ -126,6 +130,7 @@ class ExecutorEventType(str, Enum):
 
 class ExecutorApprovalState(str, Enum):
     """Approval state for executor requests."""
+
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
@@ -171,9 +176,7 @@ class ExecutorRuntimeContext:
 class ExecutorRequest:
     """Canonical request from coordinator to executor."""
 
-    request_id: str = field(
-        default_factory=lambda: f"exrq-{uuid4().hex[:12]}"
-    )
+    request_id: str = field(default_factory=lambda: f"exrq-{uuid4().hex[:12]}")
     execution_plan_id: str = ""
     executor_type: str = ExecutorType.WORKSTATION.value
     context: dict[str, Any] = field(default_factory=dict)
@@ -215,9 +218,7 @@ class ExecutorRequest:
 class ExecutorArtifact:
     """An artifact produced by execution."""
 
-    artifact_id: str = field(
-        default_factory=lambda: f"exart-{uuid4().hex[:12]}"
-    )
+    artifact_id: str = field(default_factory=lambda: f"exart-{uuid4().hex[:12]}")
     artifact_type: str = ""
     name: str = ""
     content: str = ""
@@ -243,9 +244,7 @@ class ExecutorArtifact:
 class ExecutorResult:
     """Canonical result from executor."""
 
-    result_id: str = field(
-        default_factory=lambda: f"exrs-{uuid4().hex[:12]}"
-    )
+    result_id: str = field(default_factory=lambda: f"exrs-{uuid4().hex[:12]}")
     request_id: str = ""
     executor_type: str = ""
     success: bool = False
@@ -283,9 +282,7 @@ class ExecutorResult:
 class ExecutorLifecycleEvent:
     """An event in the executor lifecycle."""
 
-    event_id: str = field(
-        default_factory=lambda: f"exlce-{uuid4().hex[:12]}"
-    )
+    event_id: str = field(default_factory=lambda: f"exlce-{uuid4().hex[:12]}")
     request_id: str = ""
     event_type: str = ""
     timestamp: float = field(default_factory=time.time)
@@ -313,9 +310,7 @@ class ExecutorLifecycleEvent:
 class ExecutorRuntimeSnapshot:
     """Point-in-time snapshot of the executor runtime state."""
 
-    snapshot_id: str = field(
-        default_factory=lambda: f"exsnap-{uuid4().hex[:12]}"
-    )
+    snapshot_id: str = field(default_factory=lambda: f"exsnap-{uuid4().hex[:12]}")
     timestamp: float = field(default_factory=time.time)
     total_requests: int = 0
     by_status: dict[str, int] = field(default_factory=dict)
@@ -420,12 +415,14 @@ class SimulationExecutor(ExecutorContract):
             ExecutorArtifact(
                 artifact_type="simulation_report",
                 name="simulation_output.json",
-                content=json.dumps({
-                    "request_id": request.request_id,
-                    "simulated": True,
-                    "executor_type": request.executor_type,
-                    "description": request.description,
-                }),
+                content=json.dumps(
+                    {
+                        "request_id": request.request_id,
+                        "simulated": True,
+                        "executor_type": request.executor_type,
+                        "description": request.description,
+                    }
+                ),
             ).to_dict(),
         ]
         completed = time.time()
@@ -504,9 +501,7 @@ class ExecutorRequestStore:
     """Persistent store for executor requests."""
 
     def __init__(self, store_dir: str | None = None) -> None:
-        self._store_dir = store_dir or os.path.join(
-            _executor_data_dir(), "requests"
-        )
+        self._store_dir = store_dir or os.path.join(_executor_data_dir(), "requests")
         os.makedirs(self._store_dir, exist_ok=True)
 
     def _path(self, request_id: str) -> str:
@@ -587,9 +582,7 @@ class ExecutorResultStore:
     """Persistent store for executor results."""
 
     def __init__(self, store_dir: str | None = None) -> None:
-        self._store_dir = store_dir or os.path.join(
-            _executor_data_dir(), "results"
-        )
+        self._store_dir = store_dir or os.path.join(_executor_data_dir(), "results")
         os.makedirs(self._store_dir, exist_ok=True)
 
     def _path(self, result_id: str) -> str:
@@ -652,9 +645,7 @@ class ExecutorLifecycleTracker:
     """Append-only lifecycle event recording for executor requests."""
 
     def __init__(self, log_path: str | None = None) -> None:
-        self._log_path = log_path or os.path.join(
-            _executor_data_dir(), "lifecycle", "events.jsonl"
-        )
+        self._log_path = log_path or os.path.join(_executor_data_dir(), "lifecycle", "events.jsonl")
         os.makedirs(os.path.dirname(self._log_path), exist_ok=True)
 
     def record(
@@ -699,9 +690,7 @@ class ExecutorLifecycleTracker:
                     if not line:
                         continue
                     try:
-                        events.append(
-                            ExecutorLifecycleEvent.from_dict(json.loads(line))
-                        )
+                        events.append(ExecutorLifecycleEvent.from_dict(json.loads(line)))
                     except (json.JSONDecodeError, KeyError):
                         continue
         except OSError:
@@ -736,9 +725,7 @@ class ExecutorGovernanceGate:
         ):
             return False, f"Not approved: {request.approval_state}"
 
-        risk_level = ExecutorGovernanceGate._RISK_ORDER.get(
-            request.risk_class, 99
-        )
+        risk_level = ExecutorGovernanceGate._RISK_ORDER.get(request.risk_class, 99)
         if risk_level >= 3 and request.approval_state != ExecutorApprovalState.APPROVED.value:
             return False, f"High-risk ({request.risk_class}) requires explicit approval"
 
@@ -750,9 +737,7 @@ class ExecutorGovernanceGate:
     @staticmethod
     def auto_approve_eligible(request: ExecutorRequest) -> bool:
         """Check if request qualifies for auto-approval."""
-        risk_level = ExecutorGovernanceGate._RISK_ORDER.get(
-            request.risk_class, 99
-        )
+        risk_level = ExecutorGovernanceGate._RISK_ORDER.get(request.risk_class, 99)
         return risk_level <= ExecutorGovernanceGate._AUTO_APPROVE_THRESHOLD
 
     @staticmethod
@@ -767,9 +752,7 @@ class ExecutorGovernanceGate:
         operator_authority: str = "primary",
     ) -> tuple[bool, str]:
         """Validate operator has authority for this request."""
-        risk_level = ExecutorGovernanceGate._RISK_ORDER.get(
-            request.risk_class, 99
-        )
+        risk_level = ExecutorGovernanceGate._RISK_ORDER.get(request.risk_class, 99)
         if risk_level >= 4 and operator_authority != "primary":
             return False, "Critical-risk requires primary operator authority"
         return True, "Authority validated"
@@ -830,6 +813,7 @@ class ExecutorContextAssembler:
     def _gather_profile() -> dict[str, Any]:
         try:
             from substrate.organism.profile_runtime import get_profile_runtime
+
             pr = get_profile_runtime()
             return pr.snapshot().to_dict()
         except Exception:
@@ -839,6 +823,7 @@ class ExecutorContextAssembler:
     def _gather_presence() -> dict[str, Any]:
         try:
             from substrate.organism.presence_runtime import PresenceRuntime
+
             pr = PresenceRuntime()
             return pr.snapshot()
         except Exception:
@@ -848,6 +833,7 @@ class ExecutorContextAssembler:
     def _gather_session() -> dict[str, Any]:
         try:
             from substrate.organism.session_runtime import get_session_runtime
+
             sr = get_session_runtime()
             return sr.snapshot().to_dict()
         except Exception:
@@ -857,6 +843,7 @@ class ExecutorContextAssembler:
     def _gather_workstation() -> dict[str, Any]:
         try:
             from substrate.organism.workstation_runtime import get_workstation_runtime
+
             wr = get_workstation_runtime()
             return wr.snapshot().to_dict()
         except Exception:
@@ -866,6 +853,7 @@ class ExecutorContextAssembler:
     def _gather_objectives() -> list[str]:
         try:
             from substrate.organism.strategic_gap_engine import get_strategic_gap_engine
+
             sg = get_strategic_gap_engine()
             goals = sg.active_goals()
             return [g.name for g in goals[:10]]
@@ -899,9 +887,7 @@ class ExecutorRuntime:
 
         self._request_store = ExecutorRequestStore(os.path.join(dd, "requests"))
         self._result_store = ExecutorResultStore(os.path.join(dd, "results"))
-        self._lifecycle = ExecutorLifecycleTracker(
-            os.path.join(dd, "lifecycle", "events.jsonl")
-        )
+        self._lifecycle = ExecutorLifecycleTracker(os.path.join(dd, "lifecycle", "events.jsonl"))
         self._impl_registry = ExecutorImplementationRegistry()
         self._gate = ExecutorGovernanceGate()
         self._assembler = ExecutorContextAssembler()
@@ -929,9 +915,7 @@ class ExecutorRuntime:
         )
 
         approval = ExecutorApprovalState.PENDING.value
-        if self._gate.auto_approve_eligible(
-            ExecutorRequest(risk_class=risk_class)
-        ):
+        if self._gate.auto_approve_eligible(ExecutorRequest(risk_class=risk_class)):
             approval = ExecutorApprovalState.AUTO_APPROVED.value
 
         request = ExecutorRequest(
@@ -959,7 +943,9 @@ class ExecutorRuntime:
         )
         logger.info(
             "Created request %s for plan %s → %s",
-            request.request_id, execution_plan_id[:12], executor_type,
+            request.request_id,
+            execution_plan_id[:12],
+            executor_type,
         )
         return request
 
@@ -973,9 +959,7 @@ class ExecutorRuntime:
         request = self._request_store.get(request_id)
         if not request:
             return None
-        if request.approval_state not in (
-            ExecutorApprovalState.PENDING.value,
-        ):
+        if request.approval_state not in (ExecutorApprovalState.PENDING.value,):
             return request
 
         request.approval_state = ExecutorApprovalState.APPROVED.value
@@ -1075,7 +1059,8 @@ class ExecutorRuntime:
         request.status = ExecutorRequestStatus.VALIDATING.value
         self._request_store.save(request)
         self._lifecycle.record(
-            request_id, ExecutorEventType.VALIDATION_STARTED.value,
+            request_id,
+            ExecutorEventType.VALIDATION_STARTED.value,
             summary="Validation started",
         )
         self._tel("execution_validating", request, message="Validation started")
@@ -1083,7 +1068,8 @@ class ExecutorRuntime:
         valid, reason = impl.validate(request)
         if not valid:
             self._lifecycle.record(
-                request_id, ExecutorEventType.VALIDATION_FAILED.value,
+                request_id,
+                ExecutorEventType.VALIDATION_FAILED.value,
                 summary=f"Validation failed: {reason}",
             )
             self._tel("execution_failed", request, error=f"Validation: {reason}")
@@ -1091,7 +1077,8 @@ class ExecutorRuntime:
             return None
 
         self._lifecycle.record(
-            request_id, ExecutorEventType.VALIDATION_PASSED.value,
+            request_id,
+            ExecutorEventType.VALIDATION_PASSED.value,
             summary="Validation passed",
         )
 
@@ -1099,7 +1086,8 @@ class ExecutorRuntime:
         request.status = ExecutorRequestStatus.PREPARING.value
         self._request_store.save(request)
         self._lifecycle.record(
-            request_id, ExecutorEventType.PREPARATION_STARTED.value,
+            request_id,
+            ExecutorEventType.PREPARATION_STARTED.value,
             summary="Preparation started",
         )
         self._tel("execution_preparing", request, message="Preparation started")
@@ -1107,7 +1095,8 @@ class ExecutorRuntime:
         prepared, prep_reason = impl.prepare(request)
         if not prepared:
             self._lifecycle.record(
-                request_id, ExecutorEventType.PREPARATION_FAILED.value,
+                request_id,
+                ExecutorEventType.PREPARATION_FAILED.value,
                 summary=f"Preparation failed: {prep_reason}",
             )
             self._tel("execution_failed", request, error=f"Preparation: {prep_reason}")
@@ -1115,7 +1104,8 @@ class ExecutorRuntime:
             return None
 
         self._lifecycle.record(
-            request_id, ExecutorEventType.PREPARATION_COMPLETED.value,
+            request_id,
+            ExecutorEventType.PREPARATION_COMPLETED.value,
             summary="Preparation completed",
         )
         request.status = ExecutorRequestStatus.READY.value
@@ -1125,7 +1115,8 @@ class ExecutorRuntime:
         request.status = ExecutorRequestStatus.EXECUTING.value
         self._request_store.save(request)
         self._lifecycle.record(
-            request_id, ExecutorEventType.EXECUTION_STARTED.value,
+            request_id,
+            ExecutorEventType.EXECUTION_STARTED.value,
             summary="Execution started",
         )
         self._tel("execution_started", request, message="Execution started")
@@ -1134,7 +1125,8 @@ class ExecutorRuntime:
             result = impl.execute(request)
         except Exception as exc:
             self._lifecycle.record(
-                request_id, ExecutorEventType.EXECUTION_FAILED.value,
+                request_id,
+                ExecutorEventType.EXECUTION_FAILED.value,
                 summary=f"Execution error: {exc}",
             )
             self._tel("execution_failed", request, error=str(exc))
@@ -1144,19 +1136,22 @@ class ExecutorRuntime:
         if result.success:
             request.status = ExecutorRequestStatus.COMPLETED.value
             self._lifecycle.record(
-                request_id, ExecutorEventType.EXECUTION_COMPLETED.value,
+                request_id,
+                ExecutorEventType.EXECUTION_COMPLETED.value,
                 summary=result.outcome,
                 details={"artifacts_count": len(result.artifacts)},
             )
             proof = result.metadata.get("proof", {})
             if proof:
                 self._tel(
-                    "proof_generated", request,
+                    "proof_generated",
+                    request,
                     proof_id=proof.get("proof_id", ""),
                     duration_ms=proof.get("duration_ms", 0),
                 )
             self._tel(
-                "execution_completed", request,
+                "execution_completed",
+                request,
                 message=result.outcome,
                 duration_ms=result.duration_seconds * 1000,
                 artifact_count=len(result.artifacts),
@@ -1164,7 +1159,8 @@ class ExecutorRuntime:
         else:
             request.status = ExecutorRequestStatus.FAILED.value
             self._lifecycle.record(
-                request_id, ExecutorEventType.EXECUTION_FAILED.value,
+                request_id,
+                ExecutorEventType.EXECUTION_FAILED.value,
                 summary=f"Failed: {'; '.join(result.errors)}",
             )
             self._tel("execution_failed", request, error="; ".join(result.errors))
@@ -1174,7 +1170,8 @@ class ExecutorRuntime:
 
         # Cleanup
         self._lifecycle.record(
-            request_id, ExecutorEventType.CLEANUP_STARTED.value,
+            request_id,
+            ExecutorEventType.CLEANUP_STARTED.value,
             summary="Cleanup started",
         )
         self._tel("execution_cleaning_up", request, message="Cleanup started")
@@ -1190,7 +1187,8 @@ class ExecutorRuntime:
         )
         self._request_store.save(request)
         self._lifecycle.record(
-            request_id, ExecutorEventType.CLEANUP_COMPLETED.value,
+            request_id,
+            ExecutorEventType.CLEANUP_COMPLETED.value,
             summary="Cleanup completed",
         )
 
@@ -1215,6 +1213,7 @@ class ExecutorRuntime:
             from substrate.organism.execution_coordinator import (
                 get_execution_coordinator,
             )
+
             coord = get_execution_coordinator()
             if result.success:
                 coord.mark_completed(
@@ -1242,16 +1241,21 @@ class ExecutorRuntime:
         """Request runtime approval intercept. Blocks until decided.
 
         Returns (approved: bool, message: str).
-        If no intercept service is available, auto-approves (fail-open
-        for backwards compatibility with executors that don't use intercepts).
+        Fail-closed (WP-P1-007): if the approval intercept service is
+        unavailable, the operation is BLOCKED — never auto-approved. Approval
+        is a human-governance trust boundary; a missing authority must refuse,
+        not wave the request through.
         """
         try:
             from substrate.organism.executors.approval_intercept import (
                 get_approval_intercept_service,
             )
+
             svc = get_approval_intercept_service()
         except Exception:
-            logger.warning("Approval service unavailable — blocking (caller requested approval for %s)", reason)
+            logger.warning(
+                "Approval service unavailable — blocking (caller requested approval for %s)", reason
+            )
             return False, "Approval service unavailable — operation blocked"
 
         intercept = svc.request_approval(
@@ -1288,7 +1292,8 @@ class ExecutorRuntime:
             )
             self._request_store.save(request)
             self._tel(
-                "approval_rejected", request,
+                "approval_rejected",
+                request,
                 approval_id=intercept.approval_id,
                 reason=result.rejection_reason,
             )
@@ -1323,7 +1328,8 @@ class ExecutorRuntime:
         request.status = ExecutorRequestStatus.CANCELLED.value
         self._request_store.save(request)
         self._lifecycle.record(
-            request_id, ExecutorEventType.CANCELLED.value,
+            request_id,
+            ExecutorEventType.CANCELLED.value,
             summary="Request cancelled",
         )
         self._tel("execution_cancelled", request, message="Cancelled by operator")
@@ -1445,6 +1451,7 @@ def get_executor_runtime() -> ExecutorRuntime:
             from substrate.organism.executors.execution_telemetry import (
                 get_telemetry_emitter,
             )
+
             emitter = get_telemetry_emitter()
         except Exception:
             emitter = None

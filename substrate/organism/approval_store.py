@@ -123,5 +123,11 @@ class ApprovalStore:
             logger.warning("approval decision alert failed: %s", exc)
         return target
 
+    def list_pending(self) -> list[dict[str, Any]]:
+        """All pending approval records. Used by the canonical ApprovalAuthority
+        projection (WP-P1-007) to surface this store's approvals in the unified
+        pending view."""
+        return [a for a in self._read_all() if a.get("status") == "pending"]
+
     def pending_count(self) -> int:
-        return len([a for a in self._read_all() if a.get("status") == "pending"])
+        return len(self.list_pending())

@@ -306,6 +306,171 @@ class PipelineGovernanceVerdict(BaseModel):
         return False
 
 
+# ─── Approval (WP-P1-007: one canonical approval authority) ──────────────────
+
+
+class ApprovalState(str, Enum):
+    """Canonical approval lifecycle state.
+
+    Unifies the divergent vocabularies across the codebase: gate/intercept use
+    ``rejected``; coordinator/executor use ``denied``. The canonical state is
+    ``REJECTED``; adapters accept ``denied`` as an input alias (see
+    ``ApprovalState.coerce``). ``AUTO_APPROVED`` collapses to ``APPROVED`` with
+    ``metadata["auto"] = True`` preserved by adapters.
+    """
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+    PROVIDE_INPUT = "provide_input"
+
+    @classmethod
+    def coerce(cls, value: str) -> "ApprovalState":
+        """Map any source vocabulary string onto a canonical state.
+
+        Deterministic lookup table — no LLM, fail-closed to PENDING for unknown
+        inputs so an unrecognized status never reads as approved.
+        """
+        v = (value or "").strip().lower()
+        mapping = {
+            "pending": cls.PENDING,
+            "approved": cls.APPROVED,
+            "auto_approved": cls.APPROVED,
+            "rejected": cls.REJECTED,
+            "denied": cls.REJECTED,
+            "expired": cls.EXPIRED,
+            "provide_input": cls.PROVIDE_INPUT,
+        }
+        return mapping.get(v, cls.PENDING)
+
+
+class ApprovalOrigin(str, Enum):
+    """Which surface/runtime an approval originated from.
+
+    Every approval variant across the system maps to exactly one origin so the
+    unified authority can project a single pending view while preserving the
+    native source record.
+    """
+
+    SPINE = "spine"
+    COORDINATOR = "coordinator"
+    COMMAND = "command"
+    EXECUTOR_INTERCEPT = "executor_intercept"
+    DISCORD = "discord"
+    CC_SESSION = "cc_session"
+    NODE_DISTRIBUTION = "node_distribution"
+    ORGANISM_STORE = "organism_store"
+    GOVERNED_WORK = "governed_work"
+    SANDBOX_GATE = "sandbox_gate"
+    OTHER = "other"
+
+
+class ApprovalRequest(BaseModel):
+    """The one canonical approval record (WP-P1-007).
+
+    Every approval origin, surface, channel, and runtime submits to or projects
+    from this type. It is the superset of ``ApprovalPacket`` (the richest legacy
+    shape) with canonical field names and preserved source identity, so any
+    variant round-trips into and out of it without loss of the fields that
+    matter for a human-governance trust boundary.
+
+    This type is a projection/authority record, not a new store: the durable
+    home remains the ExecutionCoordinator PlanStore + OperatorApprovalGate JSONL
+    (see ``substrate/organism/approval_authority.py``).
+    """
+
+    approval_id: str = Field(default_factory=lambda: f"apr-{uuid4().hex[:12]}")
+    source_origin: ApprovalOrigin = ApprovalOrigin.OTHER
+    # The origin's native id (packet_id / execution_plan_id / request_id / …).
+    source_id: str = Field(default="", max_length=200)
+    # Free-form origin surface label (e.g. the module or channel name).
+    source_channel: str = Field(default="", max_length=120)
+
+    title: str = Field(default="", max_length=300)
+    description: str = Field(default="", max_length=2000)
+    operation: str = Field(default="", max_length=300)
+    requested_action: str = Field(default="", max_length=300)
+
+    risk_class: RiskClass = RiskClass.LOW
+    state: ApprovalState = ApprovalState.PENDING
+
+    requester_identity: str = Field(default="", max_length=120)
+    decided_by: str = Field(default="", max_length=120)
+
+    # Tenant / operator context where available.
+    org_id: str = Field(default="", max_length=120)
+    operator_id: str = Field(default="", max_length=120)
+    session_id: str = Field(default="", max_length=120)
+
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime | None = None
+    decided_at: datetime | None = None
+
+    # Multi-surface claim/resolve (folded from OperatorApprovalGate CAS).
+    claimed_by_surface: str = Field(default="", max_length=80)
+    resolved_by_surface: str = Field(default="", max_length=80)
+    # Optimistic-lock counter for compare-and-swap across calls.
+    version: int = 0
+
+    # Audit / proof linkage where available.
+    proof_id: str = Field(default="", max_length=120)
+    trace_id: str = Field(default="", max_length=120)
+
+    rejection_reason: str = Field(default="", max_length=600)
+    operator_input: str = Field(default="", max_length=2000)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def status(self) -> str:
+        """String status — the minimal contract every legacy caller expects."""
+        return self.state.value
+
+    @property
+    def is_pending(self) -> bool:
+        return self.state == ApprovalState.PENDING
+
+    @property
+    def is_resolved(self) -> bool:
+        return self.state in (
+            ApprovalState.APPROVED,
+            ApprovalState.REJECTED,
+            ApprovalState.EXPIRED,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to a plain dict. Includes at least approval_id + status."""
+        return {
+            "approval_id": self.approval_id,
+            "status": self.status,
+            "state": self.state.value,
+            "source_origin": self.source_origin.value,
+            "source_id": self.source_id,
+            "source_channel": self.source_channel,
+            "title": self.title,
+            "description": self.description,
+            "operation": self.operation,
+            "requested_action": self.requested_action,
+            "risk_class": self.risk_class.value,
+            "requester_identity": self.requester_identity,
+            "decided_by": self.decided_by,
+            "org_id": self.org_id,
+            "operator_id": self.operator_id,
+            "session_id": self.session_id,
+            "created_at": self.created_at.isoformat(),
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "decided_at": self.decided_at.isoformat() if self.decided_at else None,
+            "claimed_by_surface": self.claimed_by_surface,
+            "resolved_by_surface": self.resolved_by_surface,
+            "version": self.version,
+            "proof_id": self.proof_id,
+            "trace_id": self.trace_id,
+            "rejection_reason": self.rejection_reason,
+            "operator_input": self.operator_input,
+            "metadata": self.metadata,
+        }
+
+
 # ─── Execution ───────────────────────────────────────────────────────────────
 
 
