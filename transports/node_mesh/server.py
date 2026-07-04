@@ -32,6 +32,13 @@ from substrate.sockets.view_socket import ViewSocket
 logger = logging.getLogger(__name__)
 
 
+def hmac_compare(a: str, b: str) -> bool:
+    """Constant-time token comparison (avoids timing side channels)."""
+    import hmac as _hmac
+
+    return _hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
 class NodeMeshServer:
     """WebSocket server for the UMH node mesh."""
 
@@ -304,9 +311,7 @@ class NodeMeshServer:
 
         if self._desktop_relay_url:
             self._desktop_frame_queue = asyncio.Queue(maxsize=8)
-            self._desktop_relay_task = self._loop.create_task(
-                self._desktop_relay_ws_loop()
-            )
+            self._desktop_relay_task = self._loop.create_task(self._desktop_relay_ws_loop())
             self._desktop_relay_task.add_done_callback(self._task_done_cb)
             logger.info("desktop relay WS push enabled → %s", self._desktop_relay_url)
 
@@ -371,7 +376,7 @@ class NodeMeshServer:
                 msg_id = msg.get("id")
 
                 if method == "node.hello":
-                    node_id = await self._handle_hello(ws, params, msg_id)
+                    node_id = await self._handle_hello(ws, params, msg_id, token)
                 elif method == "node.heartbeat" and node_id:
                     await self._handle_heartbeat(node_id, params, msg_id, ws)
                 elif method == "node.capabilities_changed" and node_id:
@@ -459,7 +464,25 @@ class NodeMeshServer:
             future.set_result(result)
 
     def _extract_token(self, ws: ServerConnection) -> str:
-        path = ws.request.path if ws.request else ""
+        """Read the node auth token from the request.
+
+        Preferred transport: an Authorization: Bearer <token> header (or the
+        X-UMH-Mesh-Token header). The token is NEVER logged. A legacy query
+        string (?token=) is still read for backward compatibility with nodes
+        that have not yet been upgraded, but this path is deprecated because
+        query strings leak into access logs.
+        """
+        request = ws.request
+        headers = getattr(request, "headers", None) if request else None
+        if headers is not None:
+            auth = headers.get("authorization") or headers.get("Authorization") or ""
+            if auth[:7].lower() == "bearer ":
+                return auth[7:].strip()
+            mesh_hdr = headers.get("x-umh-mesh-token") or headers.get("X-UMH-Mesh-Token")
+            if mesh_hdr:
+                return mesh_hdr.strip()
+
+        path = request.path if request else ""
         if "?" in path:
             query = path.split("?", 1)[1]
             for part in query.split("&"):
@@ -468,13 +491,26 @@ class NodeMeshServer:
         return ""
 
     def _authenticate(self, token: str) -> bool:
+        """Authenticate a node token. FAIL CLOSED.
+
+        When no tokens are configured the mesh refuses every connection — an
+        unconfigured mesh must not accept anonymous nodes. A configured mesh
+        accepts only a token that matches a registered node entry.
+        """
         if not self._config.node_tokens:
-            return True
-        return any(nt.token == token for nt in self._config.node_tokens.values())
+            logger.error(
+                "mesh WS auth fail-closed: no node tokens configured — refusing connection"
+            )
+            return False
+        if not token:
+            return False
+        return any(hmac_compare(nt.token, token) for nt in self._config.node_tokens.values())
 
     def _node_id_for_token(self, token: str) -> str | None:
+        if not token:
+            return None
         for nt in self._config.node_tokens.values():
-            if nt.token == token:
+            if hmac_compare(nt.token, token):
                 return nt.node_id
         return None
 
@@ -483,8 +519,37 @@ class NodeMeshServer:
         ws: ServerConnection,
         params: dict[str, Any],
         msg_id: Any,
+        token: str = "",
     ) -> str:
         node_id = params.get("node_id", "unknown")
+
+        # Token → node binding. The node_id is self-declared in the hello
+        # payload, so it MUST be checked against the node this token is bound
+        # to. A token issued for node A must never register as node B. When
+        # tokens are configured, a token that is not bound to any node, or is
+        # bound to a different node than declared, is rejected (fail-closed).
+        if self._config.node_tokens:
+            bound_node_id = self._node_id_for_token(token)
+            if bound_node_id is None or bound_node_id != node_id:
+                logger.error(
+                    "mesh hello rejected: token/node binding mismatch (declared=%s bound=%s)",
+                    node_id,
+                    bound_node_id,
+                )
+                await ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "error": {
+                                "code": -32001,
+                                "message": "token not bound to declared node_id",
+                            },
+                            "id": msg_id,
+                        }
+                    )
+                )
+                await ws.close(4003, "token/node binding mismatch")
+                return node_id
 
         if self._registry.node_count() >= self._config.max_nodes:
             existing = self._registry.get(node_id)
@@ -513,10 +578,7 @@ class NodeMeshServer:
             for c in params.get("capabilities", [])
         ]
 
-        peripherals = [
-            Peripheral.from_dict(p)
-            for p in params.get("peripherals", [])
-        ]
+        peripherals = [Peripheral.from_dict(p) for p in params.get("peripherals", [])]
 
         node = ConnectedNode(
             node_id=node_id,
@@ -557,7 +619,10 @@ class NodeMeshServer:
         self._emit_mesh_event("mesh.node_connected", node)
         logger.info(
             "node connected: %s (%s %s, %d peripherals)",
-            node_id, node.os, node.hostname, len(node.peripherals),
+            node_id,
+            node.os,
+            node.hostname,
+            len(node.peripherals),
         )
         return node_id
 
@@ -642,10 +707,7 @@ class NodeMeshServer:
         node = self._registry.get(node_id)
         if node is None:
             return
-        node.peripherals = [
-            Peripheral.from_dict(p)
-            for p in params.get("peripherals", [])
-        ]
+        node.peripherals = [Peripheral.from_dict(p) for p in params.get("peripherals", [])]
         self._registry._write_snapshot()
         self._emit_mesh_event("mesh.node_peripherals_changed", node)
         logger.info("node %s peripherals updated: %d devices", node_id, len(node.peripherals))
@@ -848,6 +910,34 @@ class NodeMeshServer:
 
     # ── HTTP Command Relay ─────────────────────────────────────────────
 
+    @staticmethod
+    def _relay_auth_ok(auth_header: str) -> bool:
+        """Relay bearer auth. FAIL CLOSED.
+
+        When UMH_MESH_RELAY_SECRET is unset the relay refuses every request —
+        "no secret" is NEVER treated as "allow". A configured secret requires
+        an exact constant-time match of the Authorization: Bearer header.
+        """
+        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+        if not relay_secret:
+            logger.error("mesh relay fail-closed: UMH_MESH_RELAY_SECRET unset — refusing request")
+            return False
+        if not auth_header:
+            return False
+        expected = f"Bearer {relay_secret}"
+        return hmac_compare(auth_header, expected)
+
+    @staticmethod
+    async def _write_unauthorized(writer: asyncio.StreamWriter) -> None:
+        resp_body = json.dumps({"error": "unauthorized"}).encode()
+        writer.write(
+            b"HTTP/1.1 401 Unauthorized\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Content-Length: " + str(len(resp_body)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + resp_body
+        )
+        await writer.drain()
+
     async def _run_http_relay(self) -> None:
         """Lightweight HTTP server for command dispatch from Docker containers."""
         logger.info("_run_http_relay task started")
@@ -873,7 +963,15 @@ class NodeMeshServer:
                 if content_length > 0:
                     body = await asyncio.wait_for(reader.readexactly(content_length), timeout=10)
 
+                # /reload and /health both read node state; everything except
+                # nothing is anonymous now. Relay bearer auth is required on
+                # every dispatch and every read that leaks node identity.
+                relay_authed = self._relay_auth_ok(headers.get("authorization", ""))
+
                 if method == "GET" and path.rstrip("/") == "/health":
+                    if not relay_authed:
+                        await self._write_unauthorized(writer)
+                        return
                     resp = self._http_health()
                 elif method == "POST" and path.rstrip("/") == "/reload":
                     peer = writer.get_extra_info("peername")
@@ -882,33 +980,21 @@ class NodeMeshServer:
                         self.reload_config()
                         resp = {"ok": True, "message": "config reloaded"}
                     else:
-                        logger.warning(
-                            "mesh relay /reload rejected from %s", peer_ip
-                        )
+                        logger.warning("mesh relay /reload rejected from %s", peer_ip)
                         resp = {"error": "localhost only"}
                 elif method == "POST" and path.rstrip("/") == "/dispatch":
-                    import hmac
-                    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
-                    auth_header = headers.get("authorization", "")
-                    expected = f"Bearer {relay_secret}" if relay_secret else ""
-                    auth_ok = (
-                        bool(relay_secret)
-                        and bool(auth_header)
-                        and hmac.compare_digest(auth_header.encode(), expected.encode())
-                    ) or not relay_secret
-                    if not auth_ok:
-                        logger.warning("mesh relay /dispatch auth failed from %s", writer.get_extra_info("peername"))
-                        resp_body = json.dumps({"error": "unauthorized"}).encode()
-                        writer.write(
-                            b"HTTP/1.1 401 Unauthorized\r\n"
-                            b"Content-Type: application/json\r\n"
-                            b"Content-Length: " + str(len(resp_body)).encode() + b"\r\n"
-                            b"Connection: close\r\n\r\n" + resp_body
+                    if not relay_authed:
+                        logger.warning(
+                            "mesh relay /dispatch auth failed from %s",
+                            writer.get_extra_info("peername"),
                         )
-                        await writer.drain()
+                        await self._write_unauthorized(writer)
                         return
                     resp = await self._http_dispatch(json.loads(body))
                 elif method == "GET" and path.rstrip("/") == "/nodes":
+                    if not relay_authed:
+                        await self._write_unauthorized(writer)
+                        return
                     resp = self._http_nodes()
                 else:
                     resp = {"error": "not found"}
@@ -952,6 +1038,7 @@ class NodeMeshServer:
     def reload_config(self) -> None:
         """Reload node_mesh_config.toml without restart. Thread-safe."""
         from transports.node_mesh.config import load_mesh_config
+
         new_config = load_mesh_config()
         self._config = new_config
         logger.info(
@@ -971,12 +1058,24 @@ class NodeMeshServer:
         return [n.to_api_dict() for n in self._registry.all_nodes()]
 
     async def _http_dispatch(self, body: dict[str, Any]) -> dict[str, Any]:
-        """Dispatch a capability.execute to a connected node via WS and wait for response."""
+        """Dispatch a capability.execute to a connected node via WS and wait for response.
+
+        This is NOT an ungoverned path. Every write-class capability MUST carry
+        a signed governance verdict token (minted upstream by the governed
+        mutation that authorized the dispatch). The relay verifies the verdict
+        server-side (defense in depth) AND forwards it to the node, which
+        validates it independently before executing. A write-class dispatch with
+        a missing or invalid verdict is rejected here (fail-closed).
+        """
         from uuid import uuid4
+
+        from substrate.execution.mesh_verdict import is_write_class, verify_verdict
 
         node_id = body.get("node_id", "")
         capability = body.get("capability", "")
         params = body.get("params", {})
+        risk_class = body.get("risk_class", "")
+        verdict_token = body.get("verdict_token", "") or body.get("governance_verdict_id", "")
         _MAX_DISPATCH_TIMEOUT = 600
         raw_timeout = body.get("timeout", 15)
         timeout = max(
@@ -989,6 +1088,38 @@ class NodeMeshServer:
 
         if not node_id or not capability:
             return {"ok": False, "error": "node_id and capability required"}
+
+        # Fail-closed verdict enforcement for write-class capabilities.
+        if is_write_class(risk_class):
+            if not verdict_token:
+                logger.error(
+                    "mesh dispatch rejected: write-class capability %s for node %s "
+                    "carries no verdict token",
+                    capability,
+                    node_id,
+                )
+                return {
+                    "ok": False,
+                    "error": "governance verdict required for write-class capability",
+                    "status": "verdict_required",
+                }
+            check = verify_verdict(
+                verdict_token,
+                expected_node_id=node_id,
+                expected_capability=capability,
+            )
+            if not check.valid:
+                logger.error(
+                    "mesh dispatch rejected: invalid verdict for %s on %s: %s",
+                    capability,
+                    node_id,
+                    check.reason,
+                )
+                return {
+                    "ok": False,
+                    "error": f"invalid governance verdict: {check.reason}",
+                    "status": "verdict_invalid",
+                }
 
         node = self._registry.get(node_id)
         if node is None:
@@ -1005,6 +1136,8 @@ class NodeMeshServer:
                     "request_id": req_id,
                     "capability_name": capability,
                     "params": params,
+                    "risk_class": risk_class,
+                    "governance_verdict_id": verdict_token,
                     "timeout_seconds": timeout,
                 },
                 "id": req_id,

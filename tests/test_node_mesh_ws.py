@@ -23,7 +23,16 @@ from substrate.sockets.view_socket import ViewSocket
 
 
 async def run_test():
-    config = MeshConfig(port=19094, heartbeat_timeout_s=5, max_nodes=3)
+    from transports.node_mesh.config import NodeTokenEntry
+
+    # Mesh auth is fail-closed: a token bound to the declared node is required.
+    token = "test-win-token"
+    config = MeshConfig(
+        port=19094,
+        heartbeat_timeout_s=5,
+        max_nodes=3,
+        node_tokens={"test-win": NodeTokenEntry(node_id="test-win", token=token)},
+    )
 
     server = NodeMeshServer(
         config=config,
@@ -37,8 +46,11 @@ async def run_test():
     await asyncio.sleep(1)
 
     try:
-        # 1. Connect and send hello
-        ws = await websockets.connect(f"ws://127.0.0.1:{config.port}/ws")
+        # 1. Connect (token in Authorization header, not the URL) and send hello
+        ws = await websockets.connect(
+            f"ws://127.0.0.1:{config.port}/ws",
+            additional_headers={"Authorization": f"Bearer {token}"},
+        )
 
         hello = {
             "jsonrpc": "2.0",
@@ -137,8 +149,11 @@ async def run_test():
         assert len(node.capabilities) == 1
         print("PASS: capabilities updated (1 capability)")
 
-        # 5. Reconnect (same node_id — should not error)
-        ws2 = await websockets.connect(f"ws://127.0.0.1:{config.port}/ws")
+        # 5. Reconnect (same node_id — should not error). Header auth again.
+        ws2 = await websockets.connect(
+            f"ws://127.0.0.1:{config.port}/ws",
+            additional_headers={"Authorization": f"Bearer {token}"},
+        )
         await ws2.send(json.dumps(hello))
         resp = json.loads(await ws2.recv())
         assert resp["result"]["accepted"] is True

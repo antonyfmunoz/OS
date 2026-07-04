@@ -74,11 +74,19 @@ def _resolve_executor_info() -> dict[str, Any]:
 
 
 def _mesh_health_check() -> bool:
-    """Check if the mesh HTTP relay is reachable."""
+    """Check if the mesh HTTP relay is reachable.
+
+    /health now requires relay bearer auth (it leaks node identity), so the
+    relay secret is attached. Without the secret the relay refuses (fail-closed)
+    and this returns False.
+    """
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    headers = {"Authorization": f"Bearer {relay_secret}"} if relay_secret else {}
     try:
         req = urllib.request.Request(
             f"http://localhost:{_MESH_HTTP_PORT}/health",
             method="GET",
+            headers=headers,
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode())
@@ -92,26 +100,26 @@ def _mesh_dispatch(
     command: str,
     timeout: int = 300,
 ) -> dict[str, Any]:
-    """Dispatch a shell command to a mesh node via the HTTP relay.
+    """Dispatch a shell command to a mesh node through the governed mesh port.
+
+    Routes DOWN through substrate.sockets.mesh_dispatch_port — never the raw
+    HTTP relay. The registered governed dispatcher mints a signed verdict and
+    attaches the relay bearer secret so the node can validate before executing.
+    Fail-closed: if no governed dispatcher is registered, returns a not-ok
+    result and performs no network call.
 
     Returns the full dispatch response dict:
     {"ok": bool, "status": str, "result_data": {"stdout": str, "stderr": str, "exit_code": int}}
     """
-    payload = json.dumps({
-        "node_id": node_id,
-        "capability": "shell",
-        "params": {"command": command, "timeout": timeout},
-        "timeout": timeout,
-    }).encode()
+    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
 
-    req = urllib.request.Request(
-        f"http://localhost:{_MESH_HTTP_PORT}/dispatch",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST",
+    return mesh_dispatch(
+        node_id=node_id,
+        capability="shell",
+        params={"command": command, "timeout": timeout},
+        risk_class="reversible_write",
+        timeout=timeout,
     )
-    with urllib.request.urlopen(req, timeout=timeout + 30) as resp:
-        return json.loads(resp.read().decode())
 
 
 def _get_local_node_role() -> str:
@@ -129,6 +137,7 @@ def _get_local_node_role() -> str:
     except (FileNotFoundError, json.JSONDecodeError):
         pass
     return "unknown"
+
 
 VIEWPORTS: list[dict[str, Any]] = [
     {
@@ -268,14 +277,11 @@ def _build_collector_command(
     executor_os = executor_info.get("os", "")
 
     if executor_os == "windows":
-        script = f'{project_root}\\OS\\scripts\\browser_gate_collector.py'
+        script = f"{project_root}\\OS\\scripts\\browser_gate_collector.py"
         collector_cmd = (
-            f'python "{script}" '
-            f"--url {target_url} "
-            f"--passes {int(pass_count)} "
-            f"--output-json"
+            f'python "{script}" --url {target_url} --passes {int(pass_count)} --output-json'
         )
-        tpl = f'{project_root}\\OS\\scripts\\.env.beast.tpl'
+        tpl = f"{project_root}\\OS\\scripts\\.env.beast.tpl"
     else:
         script = f"{project_root}/scripts/browser_gate_collector.py"
         collector_cmd = (
@@ -293,9 +299,7 @@ def _build_collector_command(
         else:
             return f"op run --env-file={shlex.quote(tpl)} -- {collector_cmd}"
     else:
-        logger.warning(
-            "Running without credential injection: %s", cred_gate.fallback_reason
-        )
+        logger.warning("Running without credential injection: %s", cred_gate.fallback_reason)
         return collector_cmd
 
 
@@ -392,9 +396,12 @@ def _trigger_via_ssh(
 
     ssh_args = [
         "ssh",
-        "-o", "ConnectTimeout=30",
-        "-o", "StrictHostKeyChecking=accept-new",
-        "-o", "ServerAliveInterval=15",
+        "-o",
+        "ConnectTimeout=30",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-o",
+        "ServerAliveInterval=15",
         ssh_target,
         command,
     ]

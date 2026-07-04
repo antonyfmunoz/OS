@@ -54,6 +54,7 @@ class CCSDKAdapter:
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
         from substrate.sockets.intelligence_port import get_cli_query
+
         query_cc_sync = get_cli_query("cc_sdk")
 
         result = query_cc_sync(
@@ -100,6 +101,7 @@ class CodexAdapter:
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
         from substrate.sockets.intelligence_port import get_cli_query
+
         query_codex_sync = get_cli_query("codex")
 
         result = query_codex_sync(
@@ -153,6 +155,7 @@ class HermesAdapter:
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
         from substrate.sockets.intelligence_port import get_cli_query
+
         query_hermes_sync = get_cli_query("hermes")
 
         result = query_hermes_sync(
@@ -198,6 +201,7 @@ class OpenCodeAdapter:
 
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
         from substrate.sockets.intelligence_port import get_cli_query
+
         query_opencode_sync = get_cli_query("opencode")
 
         result = query_opencode_sync(
@@ -244,6 +248,7 @@ class GeminiAdapter:
         try:
             from substrate.sockets.intelligence_port import get_router, get_model_registry
             from substrate.contracts.agent_types import ModelProvider
+
             MODEL_REGISTRY = get_model_registry()
 
             router = get_router()
@@ -539,9 +544,18 @@ class MeshNodeRuntimeAdapter:
     def check_available(self) -> bool:
         try:
             import json
+            import os as _os
             import urllib.request
 
-            req = urllib.request.Request(f"{self._relay_url}/nodes", method="GET")
+            relay_secret = _os.environ.get("UMH_MESH_RELAY_SECRET", "")
+            if not relay_secret:
+                # /nodes now requires relay auth (fail-closed) — no secret, no read.
+                return False
+            req = urllib.request.Request(
+                f"{self._relay_url}/nodes",
+                method="GET",
+                headers={"Authorization": f"Bearer {relay_secret}"},
+            )
             with urllib.request.urlopen(req, timeout=3) as resp:
                 nodes = json.loads(resp.read().decode())
             return any(n.get("id") == self._node_id for n in nodes)
@@ -551,36 +565,24 @@ class MeshNodeRuntimeAdapter:
     def execute(self, prompt: str, **kwargs: Any) -> RuntimeResult | None:
         import json
         import time
-        import urllib.request
+
+        from substrate.sockets.mesh_dispatch_port import mesh_dispatch
 
         cap_name = kwargs.get("capability_name", "shell")
         params = kwargs.get("params", {"command": prompt})
         if isinstance(params, str):
             params = {"command": params}
 
-        payload = json.dumps(
-            {
-                "node_id": self._node_id,
-                "capability": f"{cap_name}.execute",
-                "params": params,
-                "timeout": kwargs.get("timeout", 30),
-            }
-        ).encode()
-
-        req = urllib.request.Request(
-            f"{self._relay_url}/dispatch",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-
+        # Routes through the governed mesh dispatch port: signs a verdict and
+        # authenticates to the relay. No raw ungoverned relay POST here.
         start_ms = time.monotonic_ns() // 1_000_000
-        try:
-            with urllib.request.urlopen(req, timeout=kwargs.get("timeout", 35)) as resp:
-                data = json.loads(resp.read().decode())
-        except Exception as exc:
-            logger.warning("mesh dispatch to %s failed: %s", self._node_id, exc)
-            return None
+        data = mesh_dispatch(
+            node_id=self._node_id,
+            capability=f"{cap_name}.execute",
+            params=params,
+            risk_class="reversible_write",
+            timeout=kwargs.get("timeout", 30),
+        )
 
         elapsed = (time.monotonic_ns() // 1_000_000) - start_ms
 

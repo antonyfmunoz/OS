@@ -54,12 +54,20 @@ class NodeCapabilityHandler:
         return self._descriptors
 
     def handle_capability(self, request: CapabilityRequest) -> CapabilityResponse:
-        """Send capability request to node and block until response arrives."""
+        """Send capability request to node and block until response arrives.
+
+        For write-class capabilities the bare verdict UUID is upgraded to a
+        signed verdict token bound to this node + capability, so the node can
+        validate it independently before executing. Read-only capabilities pass
+        the verdict id through unchanged (the node does not require a verdict).
+        """
         req_id = request.request_id.hex
 
         event = threading.Event()
         holder: list[CapabilityResponse] = []
         self._pending[req_id] = (event, holder)
+
+        verdict_field = self._verdict_field_for(request)
 
         rpc_msg = json.dumps(
             {
@@ -69,7 +77,8 @@ class NodeCapabilityHandler:
                     "request_id": req_id,
                     "capability_name": request.capability_name,
                     "params": request.params,
-                    "governance_verdict_id": str(request.governance_verdict_id),
+                    "governance_verdict_id": verdict_field,
+                    "risk_class": self._risk_class_for(request.capability_name),
                     "trace_id": str(request.trace_id),
                     "timeout_seconds": request.timeout_seconds,
                 },
@@ -103,6 +112,48 @@ class NodeCapabilityHandler:
             )
 
         return holder[0]
+
+    def _risk_class_for(self, capability_name: str) -> str:
+        """Resolve the wire risk class for a capability from its descriptor."""
+        base = capability_name.split(".")[0] if "." in capability_name else capability_name
+        for desc in self._descriptors:
+            if desc.name == base or desc.name == capability_name:
+                rc = desc.risk_class
+                return rc.value if hasattr(rc, "value") else str(rc)
+        # Unknown capability → treat as write-class (fail-closed).
+        return "reversible_write"
+
+    def _verdict_field_for(self, request: CapabilityRequest) -> str:
+        """Return the verdict field to send to the node.
+
+        Write-class capabilities get a signed verdict token bound to node +
+        capability. Read-only capabilities pass the raw verdict id through.
+        Fail-closed: if the token cannot be signed (no secret), send the raw id
+        — the node's own gate will reject a write-class request without a valid
+        token, so nothing executes ungoverned.
+        """
+        from substrate.execution.mesh_verdict import is_write_class, sign_verdict
+
+        risk_class = self._risk_class_for(request.capability_name)
+        raw_id = str(request.governance_verdict_id)
+        if not is_write_class(risk_class):
+            return raw_id
+        try:
+            return sign_verdict(
+                verdict_id=raw_id,
+                node_id=self._node_id,
+                capability=request.capability_name,
+                risk_class=risk_class,
+                ttl_seconds=int(request.timeout_seconds) + 60,
+            )
+        except ValueError as exc:
+            logger.error(
+                "cannot sign verdict for %s on %s (node will reject): %s",
+                request.capability_name,
+                self._node_id,
+                exc,
+            )
+            return raw_id
 
     def receive_response(self, msg_id: str, result: dict[str, Any]) -> None:
         """Called by the server when a capability response arrives over WebSocket."""

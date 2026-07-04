@@ -49,7 +49,17 @@ class NodeConfig:
 
     @property
     def ws_url(self) -> str:
-        return f"ws://{self.vps_host}:{self.vps_port}/ws?token={self.token}"
+        # Token is NOT embedded in the URL — query strings leak into access
+        # logs and proxies. The token travels in the Authorization header
+        # (see NodeClient._connect_and_serve). Keep this URL token-free.
+        return f"ws://{self.vps_host}:{self.vps_port}/ws"
+
+    @property
+    def auth_header(self) -> dict[str, str]:
+        """WS auth header carrying the node token as a bearer credential."""
+        if not self.token:
+            return {}
+        return {"Authorization": f"Bearer {self.token}"}
 
 
 def _load_env(path: Path) -> None:

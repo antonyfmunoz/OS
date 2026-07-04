@@ -40,6 +40,7 @@ def _validate_node_id(node_id: str) -> None:
 
 def _validate_cwd(cwd: str) -> None:
     from pathlib import PureWindowsPath
+
     normalized = str(PureWindowsPath(cwd))
     if ".." in normalized or normalized.startswith("\\\\"):
         raise ValueError("cwd rejected: path traversal or UNC not allowed")
@@ -71,10 +72,13 @@ async def dispatch_plan_to_node(
 
     tasks = plan.tasks if hasattr(plan, "tasks") else []
 
+    _health_headers = (
+        {"Authorization": f"Bearer {_MESH_RELAY_SECRET}"} if _MESH_RELAY_SECRET else {}
+    )
     try:
         async with httpx.AsyncClient(timeout=10) as warmup:
             health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
-            await warmup.get(health_url)
+            await warmup.get(health_url, headers=_health_headers)
             logger.info("mesh relay warmup ok")
     except Exception as warmup_exc:
         logger.warning("mesh relay warmup failed (proceeding anyway): %r", warmup_exc)
@@ -87,15 +91,49 @@ async def dispatch_plan_to_node(
         argv = ["claude", "-p", prompt, "--output-format", "json"]
 
         try:
+            from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
+            from uuid import uuid4
+
             req_headers = {}
             if _MESH_RELAY_SECRET:
                 req_headers["Authorization"] = f"Bearer {_MESH_RELAY_SECRET}"
-            logger.info("dispatch task %s sending to %s (timeout=%d)", task_id, _MESH_RELAY_URL, timeout_per_task)
+            logger.info(
+                "dispatch task %s sending to %s (timeout=%d)",
+                task_id,
+                _MESH_RELAY_URL,
+                timeout_per_task,
+            )
             timeouts = httpx.Timeout(timeout_per_task + 10, connect=10.0)
+
+            # Shell is write-class — mint a signed verdict bound to node+capability
+            # so the relay and node can validate before executing (fail-closed).
+            if not get_verdict_secret():
+                failed += 1
+                logger.error(
+                    "dispatch task %s aborted: no mesh verdict secret (fail-closed)", task_id
+                )
+                results.append(
+                    {
+                        "task_id": task_id,
+                        "description": description[:120],
+                        "status": "error",
+                        "error": "no mesh verdict secret configured (fail-closed)",
+                    }
+                )
+                continue
+            verdict_token = sign_verdict(
+                verdict_id=uuid4().hex,
+                node_id=node_id,
+                capability="shell",
+                risk_class="reversible_write",
+                ttl_seconds=timeout_per_task + 30,
+            )
             payload = {
                 "node_id": node_id,
                 "capability": "shell",
                 "params": {"argv": argv, "cwd": cwd},
+                "risk_class": "reversible_write",
+                "verdict_token": verdict_token,
                 "timeout": timeout_per_task,
             }
             data = None
@@ -103,54 +141,76 @@ async def dispatch_plan_to_node(
                 try:
                     if attempt > 0:
                         import asyncio
+
                         await asyncio.sleep(1)
                         try:
                             async with httpx.AsyncClient(timeout=10) as warmup:
                                 health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
-                                await warmup.get(health_url)
+                                await warmup.get(health_url, headers=_health_headers)
                                 logger.info("dispatch task %s retry warmup ok", task_id)
                         except Exception:
                             pass
                     async with httpx.AsyncClient(timeout=timeouts) as client:
                         resp = await client.post(_MESH_RELAY_URL, headers=req_headers, json=payload)
-                        logger.info("dispatch task %s got HTTP %d, %d bytes", task_id, resp.status_code, len(resp.content))
+                        logger.info(
+                            "dispatch task %s got HTTP %d, %d bytes",
+                            task_id,
+                            resp.status_code,
+                            len(resp.content),
+                        )
                         data = resp.json()
                     break
                 except httpx.ReadError as read_err:
                     if attempt < 2:
-                        logger.warning("dispatch task %s ReadError on attempt %d, retrying: %r", task_id, attempt + 1, read_err)
+                        logger.warning(
+                            "dispatch task %s ReadError on attempt %d, retrying: %r",
+                            task_id,
+                            attempt + 1,
+                            read_err,
+                        )
                         continue
                     raise
 
-            logger.info("dispatch task %s response: ok=%s latency=%s", task_id, data.get("ok"), data.get("latency_ms"))
+            logger.info(
+                "dispatch task %s response: ok=%s latency=%s",
+                task_id,
+                data.get("ok"),
+                data.get("latency_ms"),
+            )
             if data.get("ok"):
                 dispatched += 1
-                results.append({
-                    "task_id": task_id,
-                    "description": description[:120],
-                    "status": "executed",
-                    "result": data.get("result_data", {}),
-                    "latency_ms": data.get("latency_ms"),
-                })
+                results.append(
+                    {
+                        "task_id": task_id,
+                        "description": description[:120],
+                        "status": "executed",
+                        "result": data.get("result_data", {}),
+                        "latency_ms": data.get("latency_ms"),
+                    }
+                )
             else:
                 failed += 1
                 logger.warning("dispatch task %s not ok: %s", task_id, json.dumps(data)[:500])
-                results.append({
-                    "task_id": task_id,
-                    "description": description[:120],
-                    "status": "failed",
-                    "error": data.get("error", "unknown"),
-                })
+                results.append(
+                    {
+                        "task_id": task_id,
+                        "description": description[:120],
+                        "status": "failed",
+                        "error": data.get("error", "unknown"),
+                    }
+                )
 
         except Exception as exc:
             failed += 1
             logger.error("dispatch task %s failed: %r", task_id, exc)
-            results.append({
-                "task_id": task_id,
-                "description": description[:120],
-                "status": "error",
-                "error": "dispatch failed",
-            })
+            results.append(
+                {
+                    "task_id": task_id,
+                    "description": description[:120],
+                    "status": "error",
+                    "error": "dispatch failed",
+                }
+            )
 
     proof = _assemble_proof(plan, results, node_id)
 
@@ -212,13 +272,13 @@ def _assemble_proof(
 
     try:
         from substrate.meta_ide.review_package_builder import ReviewPackageBuilder
+
         builder = ReviewPackageBuilder()
         proof = builder.build_package(session)
     except Exception as exc:
         logger.error("proof assembly failed, building minimal: %s", exc)
         recommendation = (
-            OperatorRecommendation.APPROVE if all_succeeded
-            else OperatorRecommendation.REJECT
+            OperatorRecommendation.APPROVE if all_succeeded else OperatorRecommendation.REJECT
         )
         proof = EngineeringProofPackage(
             session_id=session.session_id,
@@ -237,7 +297,9 @@ def _assemble_proof(
         "proof package %s assembled for plan %s: %s",
         proof.proof_id,
         plan_id,
-        proof.operator_recommendation.value if hasattr(proof.operator_recommendation, "value") else proof.operator_recommendation,
+        proof.operator_recommendation.value
+        if hasattr(proof.operator_recommendation, "value")
+        else proof.operator_recommendation,
     )
 
     return proof_dict
@@ -252,5 +314,3 @@ def _build_claude_prompt(task_description: str, plan: Any) -> str:
         f"Work in the current directory. Make real changes. "
         f"Run tests after changes. Commit when done."
     )
-
-

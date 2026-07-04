@@ -179,39 +179,37 @@ def _track_result(success: bool) -> None:
 
 
 def _mesh_dispatch(capability: str, params: dict, timeout: float | None = None) -> dict | None:
-    """Dispatch a capability request to Beast via the mesh relay HTTP endpoint."""
-    import urllib.request
+    """Dispatch a capability request to Beast via the governed mesh dispatch port.
 
+    Routes DOWN through substrate.sockets.mesh_dispatch_port — never a raw relay
+    POST. The port signs a verdict for write-class capabilities and
+    authenticates to the relay (fail-closed on missing secrets).
+    """
     if timeout is None:
         timeout = _resolve_timeout()
 
-    url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/dispatch"
-    body = json.dumps(
-        {
-            "node_id": _HERMES_NODE_ID,
-            "capability": capability,
-            "params": params,
-            "timeout": int(timeout),
-        }
-    ).encode()
+    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
+
+    # hermes.cancel is control-only; everything else actuates inference.
+    risk_class = "read_only" if capability.endswith(".cancel") else "reversible_write"
 
     try:
-        req = urllib.request.Request(
-            url,
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
+        data = mesh_dispatch(
+            node_id=_HERMES_NODE_ID,
+            capability=capability,
+            params=params,
+            risk_class=risk_class,
+            timeout=int(timeout),
         )
-        with urllib.request.urlopen(req, timeout=timeout + 10) as resp:
-            data = json.loads(resp.read())
-            if data.get("ok") and data.get("result_data"):
-                return data["result_data"]
-            if data.get("error"):
-                logger.debug("[hermes] dispatch error: %s", data["error"])
-            return data
     except Exception as exc:
         logger.debug("[hermes] mesh dispatch failed: %s", exc)
         return None
+
+    if data.get("ok") and data.get("result_data"):
+        return data["result_data"]
+    if data.get("error"):
+        logger.debug("[hermes] dispatch error: %s", data["error"])
+    return data
 
 
 def _hermes_shell(command: str, timeout: float = 15) -> dict | None:
@@ -223,7 +221,9 @@ def _hermes_shell(command: str, timeout: float = 15) -> dict | None:
     )
 
 
-def _hermes_operation(operation: str, params: dict | None = None, timeout: float = 30) -> dict | None:
+def _hermes_operation(
+    operation: str, params: dict | None = None, timeout: float = 30
+) -> dict | None:
     """Dispatch a typed hermes operation on Beast."""
     return _mesh_dispatch(
         "hermes",
@@ -252,8 +252,14 @@ def _beast_connected() -> bool:
     try:
         import urllib.request
 
+        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+        if not relay_secret:
+            # /nodes now requires relay auth (fail-closed).
+            return False
         url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/nodes"
-        req = urllib.request.Request(url, method="GET")
+        req = urllib.request.Request(
+            url, method="GET", headers={"Authorization": f"Bearer {relay_secret}"}
+        )
         with urllib.request.urlopen(req, timeout=3) as resp:
             nodes = json.loads(resp.read())
             return any(n.get("id") == _HERMES_NODE_ID for n in nodes)
@@ -609,20 +615,26 @@ def diagnostics() -> dict:
 
     blockers = []
     if not beast_up:
-        blockers.append({
-            "blocker": "Beast daemon is offline",
-            "recovery": "Start Beast daemon — it auto-reconnects to mesh",
-        })
+        blockers.append(
+            {
+                "blocker": "Beast daemon is offline",
+                "recovery": "Start Beast daemon — it auto-reconnects to mesh",
+            }
+        )
     elif not avail:
-        blockers.append({
-            "blocker": "Hermes binary not on Beast PATH",
-            "recovery": "Install hermes on Beast or check PATH configuration",
-        })
+        blockers.append(
+            {
+                "blocker": "Hermes binary not on Beast PATH",
+                "recovery": "Install hermes on Beast or check PATH configuration",
+            }
+        )
     elif not verified:
-        blockers.append({
-            "blocker": "No successful Hermes call yet this session",
-            "recovery": "Run probe_hermes() or make a test call",
-        })
+        blockers.append(
+            {
+                "blocker": "No successful Hermes call yet this session",
+                "recovery": "Run probe_hermes() or make a test call",
+            }
+        )
 
     return {
         "provider": "hermes-agent",
@@ -737,7 +749,16 @@ def probe_hermes() -> dict:
         _first_call_succeeded = True
 
     if not liveness_pass:
-        for name in ("grounding", "summarization", "conversation", "code_review", "code_patch", "identity", "no_data_refusal", "supplied_data"):
+        for name in (
+            "grounding",
+            "summarization",
+            "conversation",
+            "code_review",
+            "code_patch",
+            "identity",
+            "no_data_refusal",
+            "supplied_data",
+        ):
             results["tests"][name] = {"pass": False, "reason": "skipped (liveness failed)"}
         results["tests"]["latency"] = {"pass": False, "latency_ms": liveness_latency}
         _benchmark_result = results
@@ -757,8 +778,13 @@ def probe_hermes() -> dict:
         has_refusal = any(
             phrase in output_lower
             for phrase in (
-                "can't check", "cannot check", "don't have access",
-                "unable to", "no access", "i can't", "not able",
+                "can't check",
+                "cannot check",
+                "don't have access",
+                "unable to",
+                "no access",
+                "i can't",
+                "not able",
             )
         )
         if has_number and not has_refusal:
@@ -830,18 +856,20 @@ def probe_hermes() -> dict:
     results["tests"]["no_data_refusal"] = {"pass": no_data_pass}
 
     # Test 8: Supplied data summarization
-    fake_data = json.dumps({"containers": [
-        {"name": "test-app", "status": "running", "cpu": "2.1%"},
-        {"name": "test-db", "status": "running", "cpu": "0.3%"},
-    ]})
+    fake_data = json.dumps(
+        {
+            "containers": [
+                {"name": "test-app", "status": "running", "cpu": "2.1%"},
+                {"name": "test-db", "status": "running", "cpu": "0.3%"},
+            ]
+        }
+    )
     r = query_hermes_sync(
         f"Summarize ONLY this data, do not add information: {fake_data}",
         timeout=60,
     )
     supplied_pass = (
-        r is not None
-        and "test-app" in r.output.lower()
-        and "test-db" in r.output.lower()
+        r is not None and "test-app" in r.output.lower() and "test-db" in r.output.lower()
     )
     results["tests"]["supplied_data"] = {"pass": supplied_pass}
 
@@ -903,7 +931,10 @@ def _save_benchmark(results: dict) -> None:
 
         path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "umh", "operational_truth", "hermes_benchmark.json",
+            "data",
+            "umh",
+            "operational_truth",
+            "hermes_benchmark.json",
         )
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w") as f:
@@ -920,7 +951,10 @@ def get_benchmark_result() -> dict | None:
     try:
         path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "umh", "operational_truth", "hermes_benchmark.json",
+            "data",
+            "umh",
+            "operational_truth",
+            "hermes_benchmark.json",
         )
         if os.path.exists(path):
             with open(path) as f:

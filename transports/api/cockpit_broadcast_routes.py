@@ -88,6 +88,7 @@ def _get_engine():
     global _engine
     if _engine is None:
         from adapters.broadcast.engine import BroadcastEngine
+
         _engine = BroadcastEngine()
     return _engine
 
@@ -118,14 +119,47 @@ async def _dispatch_remote(
     params: dict[str, Any],
     timeout: int = _REMOTE_TIMEOUT_S,
 ) -> dict[str, Any]:
-    """Dispatch a broadcast capability to a remote mesh node via HTTP relay."""
+    """Dispatch a broadcast capability to a remote mesh node via the mesh relay.
+
+    Authenticates to the relay with the bearer secret and, for write-class
+    broadcast operations (everything except read-only health), attaches a
+    signed governance verdict bound to node+capability so the relay and node
+    validate before executing. Fail-closed on missing secrets.
+    """
+    import os
+    from uuid import uuid4
+
     import aiohttp
+
+    from substrate.execution.mesh_verdict import get_verdict_secret, is_write_class, sign_verdict
+
+    full_cap = f"broadcast.{capability}"
+    risk_class = "read_only" if capability in ("health", "status") else "reversible_write"
+
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    if not relay_secret:
+        raise HTTPException(status_code=503, detail="mesh relay secret unset (fail-closed)")
+    req_headers = {"Authorization": f"Bearer {relay_secret}"}
+
+    verdict_token = ""
+    if is_write_class(risk_class):
+        if not get_verdict_secret():
+            raise HTTPException(status_code=503, detail="mesh verdict secret unset (fail-closed)")
+        verdict_token = sign_verdict(
+            verdict_id=uuid4().hex,
+            node_id=node_id,
+            capability=full_cap,
+            risk_class=risk_class,
+            ttl_seconds=timeout + 30,
+        )
 
     relay_url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/dispatch"
     payload = {
         "node_id": node_id,
-        "capability": f"broadcast.{capability}",
+        "capability": full_cap,
         "params": params,
+        "risk_class": risk_class,
+        "verdict_token": verdict_token,
         "timeout": timeout,
     }
 
@@ -134,6 +168,7 @@ async def _dispatch_remote(
             async with session.post(
                 relay_url,
                 json=payload,
+                headers=req_headers,
                 timeout=aiohttp.ClientTimeout(total=timeout + 5),
             ) as resp:
                 result = await resp.json()
@@ -201,7 +236,11 @@ async def start_broadcast(
 
     async with _active_node_lock:
         _active_node = _LOCAL
-    return {"status": "started", "node": _LOCAL, "pid": engine._lifecycle.pid if engine._lifecycle else None}
+    return {
+        "status": "started",
+        "node": _LOCAL,
+        "pid": engine._lifecycle.pid if engine._lifecycle else None,
+    }
 
 
 @broadcast_router.post("/stop")
@@ -340,16 +379,13 @@ async def start_composite_broadcast(
             raise HTTPException(status_code=409, detail="Already broadcasting")
 
         config = CompositeConfig(
-            sources=[
-                SourceEntry(**s.model_dump()) for s in req.sources
-            ],
+            sources=[SourceEntry(**s.model_dump()) for s in req.sources],
             scenes=[
                 Scene(
                     scene_id=s.scene_id,
                     name=s.name,
                     source_layouts={
-                        k: SourceLayout(**v.model_dump())
-                        for k, v in s.source_layouts.items()
+                        k: SourceLayout(**v.model_dump()) for k, v in s.source_layouts.items()
                     },
                 )
                 for s in req.scenes
@@ -451,14 +487,22 @@ async def list_scenes(
 @broadcast_router.get("/nodes")
 async def list_broadcast_nodes(_user=Depends(require_clerk_auth)):
     """List mesh nodes that advertise broadcast capability."""
+    import os
+
     import aiohttp
 
     nodes = [{"node_id": _LOCAL, "status": "available", "local": True}]
+
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    if not relay_secret:
+        # /nodes now requires relay auth (fail-closed) — return local only.
+        return {"nodes": nodes, "active_node": _active_node}
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"http://127.0.0.1:{_MESH_RELAY_PORT}/nodes",
+                headers={"Authorization": f"Bearer {relay_secret}"},
                 timeout=aiohttp.ClientTimeout(total=5),
             ) as resp:
                 all_nodes = await resp.json()
@@ -468,13 +512,15 @@ async def list_broadcast_nodes(_user=Depends(require_clerk_auth)):
     for n in all_nodes:
         caps = [c.get("name", "") if isinstance(c, dict) else c for c in n.get("capabilities", [])]
         if "broadcast" in caps:
-            nodes.append({
-                "node_id": n.get("node_id", ""),
-                "hostname": n.get("hostname", ""),
-                "os": n.get("os", ""),
-                "status": n.get("status", "connected"),
-                "local": False,
-            })
+            nodes.append(
+                {
+                    "node_id": n.get("node_id", ""),
+                    "hostname": n.get("hostname", ""),
+                    "os": n.get("os", ""),
+                    "status": n.get("status", "connected"),
+                    "local": False,
+                }
+            )
 
     return {"nodes": nodes, "active_node": _active_node}
 
@@ -497,6 +543,7 @@ async def broadcast_ws(ws: WebSocket):
     if user is None:
         if os.environ.get("UMH_ALLOW_LOCAL_WS") == "1":
             import ipaddress
+
             client_host = ws.client.host if ws.client else ""
             try:
                 if not ipaddress.ip_address(client_host).is_loopback:
@@ -541,7 +588,14 @@ async def broadcast_ws(ws: WebSocket):
 
 async def _get_remote_health(node_id: str) -> dict[str, Any]:
     """Poll remote engine health via mesh relay — best-effort."""
+    import os
+
     import aiohttp
+
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    if not relay_secret:
+        return {"state": "unknown", "error": "mesh relay secret unset (fail-closed)"}
+    req_headers = {"Authorization": f"Bearer {relay_secret}"}
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -551,8 +605,10 @@ async def _get_remote_health(node_id: str) -> dict[str, Any]:
                     "node_id": node_id,
                     "capability": "broadcast.health",
                     "params": {},
+                    "risk_class": "read_only",
                     "timeout": 5,
                 },
+                headers=req_headers,
                 timeout=aiohttp.ClientTimeout(total=8),
             ) as resp:
                 result = await resp.json()

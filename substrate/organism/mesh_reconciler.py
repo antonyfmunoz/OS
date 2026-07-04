@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def _detect_relay_host() -> str:
     """Return the correct host for reaching the mesh relay.
 
@@ -137,7 +138,15 @@ class MeshReconciler:
 
     def _fetch_mesh_nodes(self) -> list[dict[str, Any]] | None:
         try:
-            req = urllib.request.Request(f"{self._relay_url}/nodes", method="GET")
+            relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+            if not relay_secret:
+                # /nodes now requires relay auth (fail-closed).
+                return None
+            req = urllib.request.Request(
+                f"{self._relay_url}/nodes",
+                method="GET",
+                headers={"Authorization": f"Bearer {relay_secret}"},
+            )
             with urllib.request.urlopen(req, timeout=3) as resp:
                 return json.loads(resp.read().decode())
         except Exception:
