@@ -1,10 +1,18 @@
-"""
-WorldModel — two-layer world model for the Meta Harness.
+"""Domain-knowledge world model — two-layer world model for the Meta Harness.
+
+NOT the organism self-model. `substrate/organism/world_model.py` also defines a
+class named `WorldModel`, but that one is the organism knowing ITSELF (subsystems,
+runtime state, gaps). THIS module is the DOMAIN-KNOWLEDGE world model: what the
+system knows about the world/domain it operates in. The two share a class name but
+are distinct concerns and must not be merged (WP-P3 ontology-home consolidation).
 
 Canonical layer: shared truths across all orgs (slow-changing, seeded).
 Instance layer: per-org observations and learnings (fast-changing).
 
 Instance entries can be promoted to canonical when they prove universal.
+
+Sole live consumer: `substrate/control_plane/context/context_builder.py`, which
+constructs `WorldModel(org_id=...)` and calls `get_context_for_prompt(message)`.
 """
 
 import os

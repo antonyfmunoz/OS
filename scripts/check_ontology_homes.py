@@ -135,15 +135,15 @@ FROZEN_ONTOLOGY_COMPETITORS: dict[str, tuple[str, str]] = {
         "parallel-L2-metamodel",
         "P3 metamodel dedup packet",
     ),
-    # Understanding-layer domain world model (WorldModelEntry/CanonicalWorldModel).
-    # Owner: developer. Rationale: name-collides with organism/world_model.py
-    # (organism self-model, 13 importers) but is a distinct concern; only 1 live
-    # importer (context_builder) — deprecation candidate but NOT dead. Sunset:
-    # confirm context_builder repoint, then deprecate.
-    "substrate/understanding/world_model/world_model.py": (
-        "understanding-domain-world-model (name-collision, low use)",
-        "deprecation review after context_builder repoint",
-    ),
+    # RESOLVED (WP-P3 world-model sunset): substrate/understanding/world_model/
+    # world_model.py was the third frozen competitor (name-collision with
+    # organism/world_model.py). It is not a competitor — it is a distinct concern
+    # (domain-knowledge world model vs organism self-model). Resolution was
+    # disambiguation, not relocation: both modules now carry reciprocal docstrings
+    # stating they are distinct concerns, and it remains a classified home in
+    # FROZEN_ONTOLOGY_HOMES ("understanding-world-model"). Removed from this ledger,
+    # shrinking it 3 → 2. Deprecation was rejected: context_builder is a live
+    # consumer (WorldModel(org_id=...).get_context_for_prompt(...)).
 }
 
 # ── Competing ontology/domain-MODEL registry patterns ─────────────────────────
