@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Request
 
 from transports.api.governed import governed_mutation
 
@@ -48,6 +48,7 @@ def configure(
     # Register organism accessor in substrate socket port
     try:
         from substrate.sockets.organism_port import register_organism_accessor
+
         register_organism_accessor(get_organism_fn)
     except Exception:
         pass
@@ -261,7 +262,10 @@ async def _spine_retry(envelope_id: str, request: Request):
             return f"envelope {envelope_id} not found in completed queue", False
 
         if target.get("status") not in ("failed", "verification_failed", "rolled_back"):
-            return f"envelope {envelope_id} status is {target.get('status')} — only failed envelopes can be retried", False
+            return (
+                f"envelope {envelope_id} status is {target.get('status')} — only failed envelopes can be retried",
+                False,
+            )
 
         return f"retry acknowledged for {envelope_id}", True
 
@@ -457,17 +461,19 @@ async def _adapter_health():
 
     adapters = []
     for m in ALL_PRODUCTION_MANIFESTS:
-        adapters.append({
-            "adapter_id": m.adapter_id,
-            "adapter_type": m.adapter_type,
-            "maturity": m.maturity.value if hasattr(m.maturity, "value") else str(m.maturity),
-            "capabilities": [
-                {"id": c.capability_id, "action_type": c.action_type}
-                for c in (m.capabilities or [])
-            ],
-            "capability_count": len(m.capabilities or []),
-            "version": m.version,
-        })
+        adapters.append(
+            {
+                "adapter_id": m.adapter_id,
+                "adapter_type": m.adapter_type,
+                "maturity": m.maturity.value if hasattr(m.maturity, "value") else str(m.maturity),
+                "capabilities": [
+                    {"id": c.capability_id, "action_type": c.action_type}
+                    for c in (m.capabilities or [])
+                ],
+                "capability_count": len(m.capabilities or []),
+                "version": m.version,
+            }
+        )
 
     maturity_counts: dict[str, int] = {}
     for a in adapters:
@@ -527,20 +533,17 @@ async def _spine_analytics():
 
 async def _projection_health():
     """Cycle 4: Projection health — drift status + adapter coverage for all projections."""
-    import json as _json
-    import os as _os
+    # WP-P3 read-side convergence: read the projection seed config through the
+    # canonical ProjectionPort view instead of opening the registry JSON here.
+    from substrate.sockets.projection_port import load_umh_projection_seed
 
-    repo_root = _os.environ.get("UMH_ROOT", "/opt/OS")
-    registry_path = _os.path.join(repo_root, "data", "umh", "projection_registry.json")
-
-    try:
-        with open(registry_path) as f:
-            registry = _json.load(f)
-    except (OSError, _json.JSONDecodeError):
+    registry = load_umh_projection_seed()
+    if not registry:
         return {"error": "projection registry unavailable"}
 
     try:
         from adapters.adapter_engine.production_manifests import ALL_PRODUCTION_MANIFESTS
+
         adapter_ids = {m.adapter_id for m in ALL_PRODUCTION_MANIFESTS}
         total_adapters = len(adapter_ids)
     except ImportError:
@@ -549,14 +552,16 @@ async def _projection_health():
 
     projections = []
     for pid, pdata in registry.items():
-        projections.append({
-            "projection_id": pid,
-            "app_name": pdata.get("app_name", ""),
-            "health_url": pdata.get("health_url", ""),
-            "public_url": pdata.get("public_url", ""),
-            "has_l4_workflow": bool(pdata.get("l4_workflow")),
-            "adapter_coverage": total_adapters,
-        })
+        projections.append(
+            {
+                "projection_id": pid,
+                "app_name": pdata.get("app_name", ""),
+                "health_url": pdata.get("health_url", ""),
+                "public_url": pdata.get("public_url", ""),
+                "has_l4_workflow": bool(pdata.get("l4_workflow")),
+                "adapter_coverage": total_adapters,
+            }
+        )
 
     return {
         "total_projections": len(projections),

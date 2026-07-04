@@ -9,7 +9,6 @@ C26C: Reality Correspondence Certification — Phase 1.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 from dataclasses import dataclass, field
@@ -43,9 +42,7 @@ class LevelCheckResult:
     passed: bool
     detail: str = ""
     evidence: dict[str, Any] = field(default_factory=dict)
-    checked_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -62,9 +59,7 @@ class LevelCheckResult:
 class ProjectionCertification:
     """Complete certification record for a projection."""
 
-    certification_id: str = field(
-        default_factory=lambda: f"pc-{uuid4().hex[:12]}"
-    )
+    certification_id: str = field(default_factory=lambda: f"pc-{uuid4().hex[:12]}")
     projection_name: str = ""
     app_name: str = ""
     public_url: str = ""
@@ -73,9 +68,7 @@ class ProjectionCertification:
     level_results: list[LevelCheckResult] = field(default_factory=list)
     failure_level: CertificationLevel | None = None
     failure_detail: str = ""
-    certified_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    certified_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def is_fully_certified(self) -> bool:
@@ -92,9 +85,7 @@ class ProjectionCertification:
             "highest_level_attempted": self.highest_level_attempted.name,
             "is_fully_certified": self.is_fully_certified,
             "level_results": [r.to_dict() for r in self.level_results],
-            "failure_level": (
-                self.failure_level.name if self.failure_level else None
-            ),
+            "failure_level": (self.failure_level.name if self.failure_level else None),
             "failure_detail": self.failure_detail,
             "certified_at": self.certified_at.isoformat(),
         }
@@ -132,30 +123,23 @@ class ProjectionRegistry:
     def __init__(self, config_path: str | None = None) -> None:
         if config_path is None:
             root = os.environ.get("UMH_ROOT", "/opt/OS")
-            config_path = os.path.join(
-                root, "data", "umh", "projection_registry.json"
-            )
+            config_path = os.path.join(root, "data", "umh", "projection_registry.json")
         self._config_path = config_path
         self._projections: dict[str, ProjectionConfig] = {}
         self._load()
 
     def _load(self) -> None:
-        if not os.path.exists(self._config_path):
-            logger.warning(
-                "Projection registry not found: %s", self._config_path
-            )
+        # WP-P3 read-side convergence: read the seed config through the canonical
+        # ProjectionPort view instead of opening the registry JSON here. The file
+        # stays a seed input; this class is a certification read model over it.
+        from substrate.sockets.projection_port import ProjectionPort
+
+        data = ProjectionPort().load_seed_config(self._config_path)
+        if not data:
+            logger.warning("Projection registry empty or not found: %s", self._config_path)
             return
-        try:
-            with open(self._config_path) as f:
-                data = json.load(f)
-            for name, config in data.items():
-                self._projections[name] = ProjectionConfig.from_dict(
-                    name, config
-                )
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.warning(
-                "Failed to load projection registry: %s", exc
-            )
+        for name, config in data.items():
+            self._projections[name] = ProjectionConfig.from_dict(name, config)
 
     def get(self, name: str) -> ProjectionConfig | None:
         return self._projections.get(name)
@@ -257,9 +241,7 @@ class ProjectionCertificationEngine:
             results[name] = self.certify(name)
         return results
 
-    def get_certification(
-        self, projection_name: str
-    ) -> ProjectionCertification | None:
+    def get_certification(self, projection_name: str) -> ProjectionCertification | None:
         return self._certifications.get(projection_name)
 
     def summary(self) -> dict[str, Any]:
@@ -282,6 +264,7 @@ class ProjectionCertificationEngine:
         for name, cert in self._certifications.items():
             try:
                 from substrate.reality_model.instance import InstanceObservation
+
                 obs = InstanceObservation(
                     content=(
                         f"Projection '{name}' certified at {cert.current_level.name}. "
@@ -374,9 +357,7 @@ class ProjectionCertificationEngine:
                     detail="No JS bundles found in HTML",
                 )
 
-            all_found: dict[str, bool] = {
-                v: False for v in config.critical_bundle_values
-            }
+            all_found: dict[str, bool] = {v: False for v in config.critical_bundle_values}
             for script_path in matches:
                 bundle_url = f"{config.public_url.rstrip('/')}{script_path}"
                 try:
@@ -437,8 +418,8 @@ class ProjectionCertificationEngine:
         if self._http is not None:
             return self._http(url)
 
-        import urllib.request
         import urllib.error
+        import urllib.request
 
         try:
             req = urllib.request.Request(

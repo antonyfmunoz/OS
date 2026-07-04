@@ -14,7 +14,6 @@ UMH transport layer. Instance-agnostic.
 
 from __future__ import annotations
 
-import asyncio
 import dataclasses
 import logging
 import time
@@ -68,16 +67,24 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/organism/metrics", _organism_metrics, methods=["GET"])
     r.add_api_route("/organism/bottlenecks", _organism_bottlenecks, methods=["GET"])
     r.add_api_route("/organism/intelligence", _organism_intelligence, methods=["GET"])
-    r.add_api_route("/organism/intelligence/leverage", _organism_intelligence_leverage, methods=["GET"])
-    r.add_api_route("/organism/intelligence/next-actions", _organism_intelligence_next_actions, methods=["GET"])
-    r.add_api_route("/organism/intelligence/readiness", _organism_intelligence_readiness, methods=["GET"])
+    r.add_api_route(
+        "/organism/intelligence/leverage", _organism_intelligence_leverage, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/intelligence/next-actions", _organism_intelligence_next_actions, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/intelligence/readiness", _organism_intelligence_readiness, methods=["GET"]
+    )
     r.add_api_route("/organism/physics", _organism_physics, methods=["GET"])
     r.add_api_route("/organism/compression", _organism_compression, methods=["GET"])
     r.add_api_route("/organism/workload", _organism_workload, methods=["GET"])
     r.add_api_route("/organism/execution-mode", _organism_execution_mode, methods=["GET"])
     r.add_api_route("/organism/workloads", _organism_workloads, methods=["GET"])
     r.add_api_route("/organism/workloads/outcomes", _organism_workload_outcomes, methods=["GET"])
-    r.add_api_route("/organism/automation-candidates", _organism_automation_candidates, methods=["GET"])
+    r.add_api_route(
+        "/organism/automation-candidates", _organism_automation_candidates, methods=["GET"]
+    )
     r.add_api_route("/organism/maintenance", _organism_maintenance, methods=["GET"])
     r.add_api_route("/organism/assisted", _organism_assisted, methods=["GET"])
     r.add_api_route("/organism/assisted/audit", _organism_assisted_audit, methods=["GET"])
@@ -86,29 +93,87 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     # ── Privileged endpoints (operator auth required) ──────────────────────
 
-    r.add_api_route("/organism/execution-mode/promote", _organism_promote_mode, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/workloads/run", _organism_run_workload, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/workloads/run-all", _organism_run_all_workloads, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/automation-candidates/{proposal_id}/approve", _organism_approve_automation, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/automation-candidates/{proposal_id}/deny", _organism_deny_automation, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/maintenance/run", _organism_run_maintenance, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/assisted/execute", _organism_assisted_execute, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/loop/execute", _organism_loop_execute, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/organism/execution-mode/promote",
+        _organism_promote_mode,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/workloads/run", _organism_run_workload, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/organism/workloads/run-all",
+        _organism_run_all_workloads,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/automation-candidates/{proposal_id}/approve",
+        _organism_approve_automation,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/automation-candidates/{proposal_id}/deny",
+        _organism_deny_automation,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/maintenance/run", _organism_run_maintenance, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/organism/assisted/execute",
+        _organism_assisted_execute,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/loop/execute", _organism_loop_execute, methods=["POST"], dependencies=auth
+    )
 
     # ── Operator acceptance endpoints ────────────────────────────────────
     r.add_api_route("/organism/operator-acceptance", _operator_acceptance_overview, methods=["GET"])
-    r.add_api_route("/organism/operator-acceptance/runs", _operator_acceptance_runs, methods=["GET"])
-    r.add_api_route("/organism/operator-acceptance/runs/{run_id}", _operator_acceptance_run_detail, methods=["GET"])
-    r.add_api_route("/organism/operator-acceptance/artifacts", _operator_acceptance_artifacts, methods=["GET"])
-    r.add_api_route("/organism/operator-acceptance/scenarios", _operator_acceptance_scenarios, methods=["GET"])
-    r.add_api_route("/organism/operator-acceptance/readiness", _operator_acceptance_readiness, methods=["GET"])
-    r.add_api_route("/organism/operator-acceptance/start", _operator_acceptance_start, methods=["POST"], dependencies=auth)
-    r.add_api_route("/organism/operator-acceptance/primary-proof", _operator_acceptance_primary_proof, methods=["GET"])
-    r.add_api_route("/organism/operator-acceptance/safety-proof", _operator_acceptance_safety_proof, methods=["GET"])
+    r.add_api_route(
+        "/organism/operator-acceptance/runs", _operator_acceptance_runs, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/operator-acceptance/runs/{run_id}",
+        _operator_acceptance_run_detail,
+        methods=["GET"],
+    )
+    r.add_api_route(
+        "/organism/operator-acceptance/artifacts", _operator_acceptance_artifacts, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/operator-acceptance/scenarios", _operator_acceptance_scenarios, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/operator-acceptance/readiness", _operator_acceptance_readiness, methods=["GET"]
+    )
+    r.add_api_route(
+        "/organism/operator-acceptance/start",
+        _operator_acceptance_start,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/organism/operator-acceptance/primary-proof",
+        _operator_acceptance_primary_proof,
+        methods=["GET"],
+    )
+    r.add_api_route(
+        "/organism/operator-acceptance/safety-proof",
+        _operator_acceptance_safety_proof,
+        methods=["GET"],
+    )
 
     # ── Projection health endpoints ─────────────────────────────────────
     r.add_api_route("/organism/projections", _organism_projections, methods=["GET"])
-    r.add_api_route("/organism/projections/{projection_id}/health", _organism_projection_health, methods=["GET"])
+    r.add_api_route(
+        "/organism/projections/{projection_id}/health", _organism_projection_health, methods=["GET"]
+    )
 
     return r
 
@@ -232,9 +297,7 @@ def _organism_physics():
         return {"error": "organism not running"}
     return {
         **daemon.objective_physics.to_dict(),
-        "critical_paths": [
-            cp.to_dict() for cp in daemon.objective_physics.critical_paths()[:5]
-        ],
+        "critical_paths": [cp.to_dict() for cp in daemon.objective_physics.critical_paths()[:5]],
         "top_gravity": daemon.objective_physics.what_matters_most(5),
         "blockers": daemon.objective_physics.what_blocks_everything(),
     }
@@ -246,9 +309,7 @@ def _organism_compression():
         return {"error": "organism not running"}
     return {
         **daemon.operator_compression.to_dict(),
-        "candidates": [
-            c.to_dict() for c in daemon.operator_compression.automation_candidates()
-        ],
+        "candidates": [c.to_dict() for c in daemon.operator_compression.automation_candidates()],
     }
 
 
@@ -286,6 +347,7 @@ def _organism_promote_mode(payload: dict, request: Request):
             return "organism not running", False
         try:
             from substrate.organism.execution_modes import ExecutionMode, TransitionReason
+
             mode = ExecutionMode(target)
             ok = daemon.execution_mode_manager.promote(
                 mode,
@@ -330,11 +392,17 @@ def _organism_run_workload(payload: dict):
 
     try:
         from substrate.organism.workload_runner import WorkloadType
+
         wt = WorkloadType(workload_type)
     except ValueError:
         return {
             "error": f"unknown workload_type: {workload_type}",
-            "available": [t.value for t in __import__("substrate.organism.workload_runner", fromlist=["WorkloadType"]).WorkloadType],
+            "available": [
+                t.value
+                for t in __import__(
+                    "substrate.organism.workload_runner", fromlist=["WorkloadType"]
+                ).WorkloadType
+            ],
         }
 
     def _do_run():
@@ -356,6 +424,7 @@ def _organism_run_workload(payload: dict):
 
 def _organism_run_all_workloads():
     """Run all OBSERVE-safe workloads."""
+
     def _do_run_all():
         daemon = _get_organism()
         if daemon is None:
@@ -447,6 +516,7 @@ def _organism_maintenance():
 
 def _organism_run_maintenance():
     """Trigger a manual maintenance cycle."""
+
     def _do_maintenance():
         daemon = _get_organism()
         if daemon is None:
@@ -482,11 +552,17 @@ def _organism_assisted_execute(payload: dict, request: Request):
 
     try:
         from substrate.organism.maintenance_loop import ActionCategory
+
         cat = ActionCategory(category)
     except ValueError:
         return {
             "error": f"unknown category: {category}",
-            "available": [c.value for c in __import__("substrate.organism.maintenance_loop", fromlist=["ActionCategory"]).ActionCategory],
+            "available": [
+                c.value
+                for c in __import__(
+                    "substrate.organism.maintenance_loop", fromlist=["ActionCategory"]
+                ).ActionCategory
+            ],
         }
 
     action_id = f"assisted-{category}-{int(time.time())}"
@@ -551,9 +627,7 @@ def _organism_loop_status():
         return {"cycles": [], "count": 0}
     spine = daemon.event_spine
     all_events = spine.replay()
-    loop_events = [
-        e for e in all_events if e.event_type == "organism_loop_cycle"
-    ]
+    loop_events = [e for e in all_events if e.event_type == "organism_loop_cycle"]
     recent = loop_events[-20:]
     return {
         "cycles": [e.to_dict() for e in recent],
@@ -598,16 +672,19 @@ async def _organism_loop_execute(payload: dict, request: Request):
 
 def _operator_acceptance_overview():
     from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
+
     return OperatorLoopCoordinator().get_overview()
 
 
 def _operator_acceptance_runs():
     from substrate.organism.operator_acceptance import load_runs
+
     return [r.to_dict() for r in load_runs()]
 
 
 def _operator_acceptance_run_detail(run_id: str):
     from substrate.organism.operator_acceptance import get_run
+
     run = get_run(run_id)
     if not run:
         return {"error": "run not found"}
@@ -616,16 +693,19 @@ def _operator_acceptance_run_detail(run_id: str):
 
 def _operator_acceptance_artifacts():
     from substrate.organism.operator_acceptance import load_artifacts
+
     return [a.to_dict() for a in load_artifacts()]
 
 
 def _operator_acceptance_scenarios():
     from substrate.organism.operator_acceptance_scenarios import get_all_scenarios
+
     return [s.to_dict() for s in get_all_scenarios()]
 
 
 def _operator_acceptance_readiness():
     from substrate.organism.operator_readiness_gate import assess_readiness
+
     return assess_readiness().to_dict()
 
 
@@ -636,6 +716,7 @@ def _operator_acceptance_start(payload: dict):
 
     def _do_start():
         from substrate.organism.operator_loop_coordinator import OperatorLoopCoordinator
+
         coord = OperatorLoopCoordinator()
         coord.run_scenario_e2e(
             input_text,
@@ -656,9 +737,13 @@ def _operator_acceptance_start(payload: dict):
 def _operator_acceptance_primary_proof():
     import json as _json
     import os
+
     path = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "operator_acceptance", "phase13_4_primary_e2e_proof.json",
+        "data",
+        "umh",
+        "operator_acceptance",
+        "phase13_4_primary_e2e_proof.json",
     )
     if not os.path.isfile(path):
         return {"error": "primary proof not found"}
@@ -669,9 +754,13 @@ def _operator_acceptance_primary_proof():
 def _operator_acceptance_safety_proof():
     import json as _json
     import os
+
     path = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "operator_acceptance", "phase13_4_policy_safety_proof.json",
+        "data",
+        "umh",
+        "operator_acceptance",
+        "phase13_4_policy_safety_proof.json",
     )
     if not os.path.isfile(path):
         return {"error": "safety proof not found"}
@@ -683,21 +772,17 @@ def _operator_acceptance_safety_proof():
 
 
 def _load_projection_registry() -> dict[str, Any]:
-    import json as _json
-    import os
-    path = os.path.join(
-        os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "projection_registry.json",
-    )
-    if not os.path.isfile(path):
-        return {}
-    with open(path) as f:
-        return _json.load(f)
+    # WP-P3 read-side convergence: read the projection seed config through the
+    # canonical ProjectionPort view instead of opening the registry JSON here.
+    from substrate.sockets.projection_port import load_umh_projection_seed
+
+    return load_umh_projection_seed()
 
 
 async def _check_projection_health(entry: dict[str, Any]) -> dict[str, Any]:
     """Probe a projection's health endpoint via HTTP."""
     import aiohttp
+
     app_name = entry.get("app_name", "")
     health_url = entry.get("health_url", "/api/health")
     base = f"https://{app_name}.fly.dev"
@@ -740,13 +825,15 @@ async def _organism_projections() -> dict[str, Any]:
         is_healthy = health.get("healthy", False)
         if is_healthy:
             healthy_count += 1
-        projections.append({
-            "id": pid,
-            "app_name": entry.get("app_name", ""),
-            "public_url": entry.get("public_url", ""),
-            "healthy": is_healthy,
-            "health_check": health,
-        })
+        projections.append(
+            {
+                "id": pid,
+                "app_name": entry.get("app_name", ""),
+                "public_url": entry.get("public_url", ""),
+                "healthy": is_healthy,
+                "health_check": health,
+            }
+        )
 
     return {
         "projections": projections,

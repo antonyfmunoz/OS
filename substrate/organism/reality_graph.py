@@ -281,9 +281,15 @@ class RealityGraph:
         now = time.time()
 
         device_path = device_registry_path or os.path.join(_ROOT, "infra", "device_registry.json")
-        workspace_path = workspace_registry_path or os.path.join(_ROOT, "infra", "workspace_registry.json")
-        project_path = project_registry_path or os.path.join(_ROOT, "infra", "project_registry.json")
-        projection_path = projection_registry_path or os.path.join(_ROOT, "data", "umh", "projection_registry.json")
+        workspace_path = workspace_registry_path or os.path.join(
+            _ROOT, "infra", "workspace_registry.json"
+        )
+        project_path = project_registry_path or os.path.join(
+            _ROOT, "infra", "project_registry.json"
+        )
+        projection_path = projection_registry_path or os.path.join(
+            _ROOT, "data", "umh", "projection_registry.json"
+        )
 
         graph._seed_devices(device_path, now)
         graph._seed_workspaces(workspace_path, now)
@@ -308,10 +314,7 @@ class RealityGraph:
                 entity_type=RealityEntityType.DEVICE,
                 name=dev.get("display_name", dev["id"]),
                 status=RealityEntityStatus.ACTIVE,
-                properties={
-                    k: v for k, v in dev.items()
-                    if k not in ("id", "display_name")
-                },
+                properties={k: v for k, v in dev.items() if k not in ("id", "display_name")},
                 source_system="device_registry",
                 source_id=dev["id"],
                 last_observed=now,
@@ -365,18 +368,22 @@ class RealityGraph:
                 )
                 if self._add_entity(repo_entity):
                     count += 1
-                self._add_relation(RealityRelation(
-                    source_id=ws_id,
-                    target_id=repo_id,
-                    relation_type=RealityRelationType.CONTAINS,
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=ws_id,
+                        target_id=repo_id,
+                        relation_type=RealityRelationType.CONTAINS,
+                    )
+                )
 
             for device_id in ws.get("device_ids", []):
-                self._add_relation(RealityRelation(
-                    source_id=ws_id,
-                    target_id=f"dev-{device_id}",
-                    relation_type=RealityRelationType.DEPLOYED_TO,
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=ws_id,
+                        target_id=f"dev-{device_id}",
+                        relation_type=RealityRelationType.DEPLOYED_TO,
+                    )
+                )
 
         logger.debug("Seeded %d workspace/repo entities", count)
         return count
@@ -396,10 +403,21 @@ class RealityGraph:
                 entity_id=proj_id,
                 entity_type=RealityEntityType.PROJECT,
                 name=proj.get("name", proj["project_id"]),
-                status=RealityEntityStatus.ACTIVE if proj.get("status") == "active" else RealityEntityStatus.INACTIVE,
+                status=RealityEntityStatus.ACTIVE
+                if proj.get("status") == "active"
+                else RealityEntityStatus.INACTIVE,
                 properties={
-                    k: v for k, v in proj.items()
-                    if k not in ("project_id", "name", "status", "repositories", "infrastructure", "owner_device_ids")
+                    k: v
+                    for k, v in proj.items()
+                    if k
+                    not in (
+                        "project_id",
+                        "name",
+                        "status",
+                        "repositories",
+                        "infrastructure",
+                        "owner_device_ids",
+                    )
                 },
                 source_system="project_registry",
                 source_id=proj["project_id"],
@@ -409,44 +427,53 @@ class RealityGraph:
                 count += 1
 
             for repo_ref in proj.get("repositories", []):
-                self._add_relation(RealityRelation(
-                    source_id=proj_id,
-                    target_id=f"repo-{repo_ref}",
-                    relation_type=RealityRelationType.CONTAINS,
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=proj_id,
+                        target_id=f"repo-{repo_ref}",
+                        relation_type=RealityRelationType.CONTAINS,
+                    )
+                )
 
             for infra_ref in proj.get("infrastructure", []):
-                self._add_relation(RealityRelation(
-                    source_id=proj_id,
-                    target_id=f"infra-{infra_ref}",
-                    relation_type=RealityRelationType.DEPENDS_ON,
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=proj_id,
+                        target_id=f"infra-{infra_ref}",
+                        relation_type=RealityRelationType.DEPENDS_ON,
+                    )
+                )
 
             for device_ref in proj.get("owner_device_ids", []):
-                self._add_relation(RealityRelation(
-                    source_id=proj_id,
-                    target_id=f"dev-{device_ref}",
-                    relation_type=RealityRelationType.DEPLOYED_TO,
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=proj_id,
+                        target_id=f"dev-{device_ref}",
+                        relation_type=RealityRelationType.DEPLOYED_TO,
+                    )
+                )
 
             if proj.get("projection"):
-                self._add_relation(RealityRelation(
-                    source_id=proj_id,
-                    target_id=f"proj-{proj['projection']}",
-                    relation_type=RealityRelationType.OWNED_BY,
-                    properties={"relationship": "projection_of"},
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=proj_id,
+                        target_id=f"proj-{proj['projection']}",
+                        relation_type=RealityRelationType.OWNED_BY,
+                        properties={"relationship": "projection_of"},
+                    )
+                )
 
         logger.debug("Seeded %d project entities", count)
         return count
 
     def _seed_projections(self, path: str, now: float) -> int:
+        # WP-P3 read-side convergence: read the projection seed config through the
+        # canonical ProjectionPort view instead of opening the registry JSON here.
+        from substrate.sockets.projection_port import load_umh_projection_seed
+
         count = 0
-        try:
-            with open(path, "r") as f:
-                projections = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError) as exc:
-            logger.debug("Could not load projection registry %s: %s", path, exc)
+        projections = load_umh_projection_seed(path)
+        if not projections:
             return 0
 
         for name, config in projections.items():
@@ -505,7 +532,10 @@ class RealityGraph:
                 status=RealityEntityStatus.ACTIVE,
                 properties={
                     "node_id": node_id,
-                    "roles": [r.value if hasattr(r, "value") else str(r) for r in getattr(node, "roles", [])],
+                    "roles": [
+                        r.value if hasattr(r, "value") else str(r)
+                        for r in getattr(node, "roles", [])
+                    ],
                     "purpose": getattr(node, "purpose", ""),
                 },
                 source_system="umh_node_topology",
@@ -555,11 +585,13 @@ class RealityGraph:
                 )
                 if self._add_entity(repo_entity):
                     count += 1
-                self._add_relation(RealityRelation(
-                    source_id=ws_entity_id,
-                    target_id=repo_entity_id,
-                    relation_type=RealityRelationType.CONTAINS,
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=ws_entity_id,
+                        target_id=repo_entity_id,
+                        relation_type=RealityRelationType.CONTAINS,
+                    )
+                )
         return count
 
     def ingest_from_source_registry(self, registry: Any) -> int:
@@ -623,7 +655,9 @@ class RealityGraph:
                 entity_id=f"mission-{m_id}",
                 entity_type=RealityEntityType.DELEGATION_MISSION,
                 name=getattr(mission, "title", m_id),
-                status=RealityEntityStatus.ACTIVE if status_val not in ("completed", "cancelled", "failed") else RealityEntityStatus.INACTIVE,
+                status=RealityEntityStatus.ACTIVE
+                if status_val not in ("completed", "cancelled", "failed")
+                else RealityEntityStatus.INACTIVE,
                 properties={
                     "mission_status": status_val,
                     "intent": getattr(mission, "intent", ""),
@@ -648,7 +682,9 @@ class RealityGraph:
         for infra in entities:
             i_id = getattr(infra, "entity_id", "") or getattr(infra, "id", "")
             health = getattr(infra, "health", None)
-            health_val = health.value if hasattr(health, "value") else str(health) if health else "unknown"
+            health_val = (
+                health.value if hasattr(health, "value") else str(health) if health else "unknown"
+            )
 
             status = RealityEntityStatus.ACTIVE
             if health_val in ("degraded",):
@@ -719,7 +755,9 @@ class RealityGraph:
                 entity_id=f"art-{a_id}",
                 entity_type=RealityEntityType.ARTIFACT,
                 name=getattr(artifact, "name", a_id),
-                status=RealityEntityStatus.ACTIVE if getattr(artifact, "status", "") == "active" else RealityEntityStatus.INACTIVE,
+                status=RealityEntityStatus.ACTIVE
+                if getattr(artifact, "status", "") == "active"
+                else RealityEntityStatus.INACTIVE,
                 properties={
                     "artifact_type": getattr(artifact, "artifact_type", ""),
                     "source_path": getattr(artifact, "source_path", ""),
@@ -733,11 +771,13 @@ class RealityGraph:
                 count += 1
 
             for ref in getattr(artifact, "entity_refs", []):
-                self._add_relation(RealityRelation(
-                    source_id=f"art-{a_id}",
-                    target_id=ref,
-                    relation_type=RealityRelationType.DOCUMENTS,
-                ))
+                self._add_relation(
+                    RealityRelation(
+                        source_id=f"art-{a_id}",
+                        target_id=ref,
+                        relation_type=RealityRelationType.DOCUMENTS,
+                    )
+                )
         return count
 
     # ── Summary ───────────────────────────────────────────────────────
