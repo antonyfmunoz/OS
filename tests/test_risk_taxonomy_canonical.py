@@ -138,3 +138,19 @@ def test_approval_authority_coerce_still_fail_closed():
 
     assert _coerce_risk("bogus") == RiskClass.HIGH
     assert _coerce_risk("low") == RiskClass.LOW
+
+
+# ── role/permission canonicals verified + registered (WP-P2-002) ─────────────
+# WP-P2-002 VERIFIES (does not rebuild) the existing role/permission canonicals.
+# The unknown→READ permission-envelope fail-open in required_tier_for_action is
+# tracked follow-on (see test_permission_tiers.test_unknown_defaults_to_read):
+# fixing it couples into the authority engine's risk classification, which is
+# out of this packet's mandate ("no new risk taxonomy").
+
+
+def test_role_permission_canonicals_registered():
+    from substrate.canonical_types import CANONICAL_TYPES
+
+    assert "PermissionTier" in CANONICAL_TYPES
+    assert "AutonomyLevel" in CANONICAL_TYPES
+    assert "AgentRole" in CANONICAL_TYPES
