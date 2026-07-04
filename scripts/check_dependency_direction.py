@@ -39,32 +39,101 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 IMPORT_RULES: list[tuple[str, str, str, str]] = [
     # substrate/ must never import from upper layers
-    ("substrate/", r"^\s*from\s+transports\b", "substrate_imports_transport",
-     "substrate/ cannot import from transports/ — use an abstract port in substrate/sockets/"),
-    ("substrate/", r"^\s*from\s+services\b", "substrate_imports_services",
-     "substrate/ cannot import from services/ — use an abstract port in substrate/sockets/"),
-    ("substrate/", r"^\s*from\s+projections\b", "substrate_imports_projections",
-     "substrate/ cannot import from projections/"),
-    ("substrate/", r"^\s*from\s+adapters\b", "substrate_imports_adapters",
-     "substrate/ cannot import from adapters/ — use a contract in substrate/contracts/ or substrate/sockets/"),
-    ("substrate/", r"^\s*import\s+transports\b", "substrate_imports_transport",
-     "substrate/ cannot import from transports/ — use an abstract port in substrate/sockets/"),
-    ("substrate/", r"^\s*import\s+services\b", "substrate_imports_services",
-     "substrate/ cannot import from services/ — use an abstract port in substrate/sockets/"),
-    ("substrate/", r"^\s*import\s+adapters\b", "substrate_imports_adapters",
-     "substrate/ cannot import from adapters/ — use a contract in substrate/contracts/ or substrate/sockets/"),
-
+    (
+        "substrate/",
+        r"^\s*from\s+transports\b",
+        "substrate_imports_transport",
+        "substrate/ cannot import from transports/ — use an abstract port in substrate/sockets/",
+    ),
+    (
+        "substrate/",
+        r"^\s*from\s+services\b",
+        "substrate_imports_services",
+        "substrate/ cannot import from services/ — use an abstract port in substrate/sockets/",
+    ),
+    (
+        "substrate/",
+        r"^\s*from\s+projections\b",
+        "substrate_imports_projections",
+        "substrate/ cannot import from projections/",
+    ),
+    (
+        "substrate/",
+        r"^\s*from\s+adapters\b",
+        "substrate_imports_adapters",
+        "substrate/ cannot import from adapters/ — use a contract in substrate/contracts/ or substrate/sockets/",
+    ),
+    (
+        "substrate/",
+        r"^\s*import\s+transports\b",
+        "substrate_imports_transport",
+        "substrate/ cannot import from transports/ — use an abstract port in substrate/sockets/",
+    ),
+    (
+        "substrate/",
+        r"^\s*import\s+services\b",
+        "substrate_imports_services",
+        "substrate/ cannot import from services/ — use an abstract port in substrate/sockets/",
+    ),
+    (
+        "substrate/",
+        r"^\s*import\s+adapters\b",
+        "substrate_imports_adapters",
+        "substrate/ cannot import from adapters/ — use a contract in substrate/contracts/ or substrate/sockets/",
+    ),
     # adapters/ must not import from upper layers
-    ("adapters/", r"^\s*from\s+transports\b", "adapters_imports_transport",
-     "adapters/ cannot import from transports/"),
-    ("adapters/", r"^\s*from\s+services\b", "adapters_imports_services",
-     "adapters/ cannot import from services/"),
-    ("adapters/", r"^\s*from\s+projections\b", "adapters_imports_projections",
-     "adapters/ cannot import from projections/"),
-
+    (
+        "adapters/",
+        r"^\s*from\s+transports\b",
+        "adapters_imports_transport",
+        "adapters/ cannot import from transports/",
+    ),
+    (
+        "adapters/",
+        r"^\s*from\s+services\b",
+        "adapters_imports_services",
+        "adapters/ cannot import from services/",
+    ),
+    (
+        "adapters/",
+        r"^\s*from\s+projections\b",
+        "adapters_imports_projections",
+        "adapters/ cannot import from projections/",
+    ),
     # transports/ must not import from projection layer
-    ("transports/", r"^\s*from\s+projections\b", "transport_imports_projections",
-     "transports/ cannot import from projections/"),
+    (
+        "transports/",
+        r"^\s*from\s+projections\b",
+        "transport_imports_projections",
+        "transports/ cannot import from projections/",
+    ),
+    # WP-P3-001: L2 metamodel sub-layer — substrate/ontology/ (the universal
+    # ontology) must not import L3 domain state. Ontology is currently clean of
+    # these, so the rule is strict from day one (no legacy grandfathering).
+    (
+        "substrate/ontology/",
+        r"^\s*from\s+substrate\.state\.business\b",
+        "ontology_imports_bis",
+        "substrate/ontology/ (L2) cannot import substrate/state/business/ (L3 BIS state)",
+    ),
+    (
+        "substrate/ontology/",
+        r"^\s*import\s+substrate\.state\.business\b",
+        "ontology_imports_bis",
+        "substrate/ontology/ (L2) cannot import substrate/state/business/ (L3 BIS state)",
+    ),
+    (
+        "substrate/ontology/",
+        r"^\s*from\s+projections\b",
+        "ontology_imports_projections",
+        "substrate/ontology/ (L2) cannot import from projections/ (L3)",
+    ),
+    (
+        "substrate/ontology/",
+        r"^\s*import\s+projections\b",
+        "ontology_imports_projections",
+        "substrate/ontology/ (L2) cannot import from projections/ (L3)",
+    ),
 ]
 
 # ── Files grandfathered for existing violations ───────────────────────────────
@@ -164,15 +233,19 @@ INFRA_IN_PROJECTION_DIRS: list[tuple[str, str]] = [
 
 INFRA_ROUTE_PATTERNS: list[tuple[str, str]] = [
     (r"callOrganism\(", "Organism bridge calls belong in transports/api/http/routes/, not saas/"),
-    (r"organism\.(snapshot|status|health|governor|supervisor|workcells|runtimes)",
-     "Organism route handlers belong in transports/api/http/routes/organism.ts"),
+    (
+        r"organism\.(snapshot|status|health|governor|supervisor|workcells|runtimes)",
+        "Organism route handlers belong in transports/api/http/routes/organism.ts",
+    ),
 ]
 
 
 def _get_staged_files() -> list[Path]:
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
-        capture_output=True, text=True, cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
     )
     return [REPO_ROOT / f for f in result.stdout.strip().split("\n") if f]
 

@@ -40,25 +40,37 @@ import sys
 from pathlib import Path
 
 PROJECTION_PATTERNS: list[tuple[str, str, str]] = [
-    (r'\bEntrepreneurOS(?:Gateway|Context|Orchestrator)\b',
-     'eos_class', 'Use Gateway, SubstrateContext, or Orchestrator'),
-    (r'\bEntrepreneurOS\b',
-     'eos_brand', 'Projection name — use generic term or move to projections/'),
-    (r'(?<!\bor\s)(?<!\bget\()(?<!")\bEOS_ORG_ID\b',
-     'eos_env', 'Use UMH_ORG_ID with EOS_ORG_ID as fallback'),
-    (r'(?<!\bor\s)(?<!\bget\()(?<!")\bEOS_USER_ID\b',
-     'eos_env', 'Use UMH_USER_ID with EOS_USER_ID as fallback'),
-    (r'(?<!\bor\s)(?<!\bget\()(?<!")\bEOS_PORTFOLIO_ID\b',
-     'eos_env', 'Use UMH_PORTFOLIO_ID with EOS_PORTFOLIO_ID as fallback'),
-    (r'\bCreatorOS\b',
-     'creatoros_brand', 'Projection name — belongs in projections/'),
-    (r'\bLyfeOS\b',
-     'lyfeos_brand', 'Projection name — belongs in projections/'),
+    (
+        r"\bEntrepreneurOS(?:Gateway|Context|Orchestrator)\b",
+        "eos_class",
+        "Use Gateway, SubstrateContext, or Orchestrator",
+    ),
+    (
+        r"\bEntrepreneurOS\b",
+        "eos_brand",
+        "Projection name — use generic term or move to projections/",
+    ),
+    (
+        r'(?<!\bor\s)(?<!\bget\()(?<!")\bEOS_ORG_ID\b',
+        "eos_env",
+        "Use UMH_ORG_ID with EOS_ORG_ID as fallback",
+    ),
+    (
+        r'(?<!\bor\s)(?<!\bget\()(?<!")\bEOS_USER_ID\b',
+        "eos_env",
+        "Use UMH_USER_ID with EOS_USER_ID as fallback",
+    ),
+    (
+        r'(?<!\bor\s)(?<!\bget\()(?<!")\bEOS_PORTFOLIO_ID\b',
+        "eos_env",
+        "Use UMH_PORTFOLIO_ID with EOS_PORTFOLIO_ID as fallback",
+    ),
+    (r"\bCreatorOS\b", "creatoros_brand", "Projection name — belongs in projections/"),
+    (r"\bLyfeOS\b", "lyfeos_brand", "Projection name — belongs in projections/"),
 ]
 
 _COMPILED_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
-    (re.compile(pat), cat, fix)
-    for pat, cat, fix in PROJECTION_PATTERNS
+    (re.compile(pat), cat, fix) for pat, cat, fix in PROJECTION_PATTERNS
 ]
 
 # Files that already contain projection references before this gate was installed.
@@ -69,10 +81,19 @@ LEGACY_PROJECTION_LEAKS: dict[str, set[str]] = {
     "substrate/control_plane/runtime/gateway.py": {"eos_class"},
     "substrate/control_plane/orchestrator/orchestrator.py": {"eos_class"},
     "substrate/state/context/context.py": {"eos_class"},
-    # Projection registry — product names are data entries, not code
-    "substrate/state/registries/os_registry.py": {"eos_brand", "creatoros_brand", "lyfeos_brand"},
     # Projection integration — alias normalization + seed data (C3.5)
-    "substrate/organism/projection_integration_runtime.py": {"eos_brand", "creatoros_brand", "lyfeos_brand"},
+    "substrate/organism/projection_integration_runtime.py": {
+        "eos_brand",
+        "creatoros_brand",
+        "lyfeos_brand",
+    },
+    # Stale-name linter — intentionally holds projection names as scan data
+    # (it scans scripts/ for these very strings). Not a leak; scan data.
+    "substrate/organism/candidate_supply_engine.py": {
+        "eos_brand",
+        "creatoros_brand",
+        "lyfeos_brand",
+    },
     # Architecture docstrings that list projection names for clarity
     "substrate/types.py": {"creatoros_brand", "lyfeos_brand"},
     "substrate/integrations/__init__.py": {"creatoros_brand", "lyfeos_brand"},
@@ -91,9 +112,17 @@ LEGACY_PROJECTION_LEAKS: dict[str, set[str]] = {
 }
 
 _EXCLUDES = {
-    "__pycache__", ".git", "node_modules", ".mypy_cache",
-    ".ruff_cache", ".pytest_cache", ".claude/worktrees",
-    "data/", "saas/", "skills/", "/tests/",
+    "__pycache__",
+    ".git",
+    "node_modules",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    ".claude/worktrees",
+    "data/",
+    "saas/",
+    "skills/",
+    "/tests/",
 }
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -117,22 +146,26 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
 
     for line_no, line in enumerate(lines, start=1):
         stripped = line.strip()
-        if stripped.startswith("#") and ("backward" in stripped.lower()
-                                         or "compat" in stripped.lower()
-                                         or "legacy" in stripped.lower()):
+        if stripped.startswith("#") and (
+            "backward" in stripped.lower()
+            or "compat" in stripped.lower()
+            or "legacy" in stripped.lower()
+        ):
             continue
 
         for pattern, category, fix in _COMPILED_PATTERNS:
             if pattern.search(line):
                 if legacy_cats is not None and category in legacy_cats:
                     continue
-                violations.append({
-                    "file": rel_path,
-                    "line": str(line_no),
-                    "category": category,
-                    "content": line.strip()[:120],
-                    "fix": fix,
-                })
+                violations.append(
+                    {
+                        "file": rel_path,
+                        "line": str(line_no),
+                        "category": category,
+                        "content": line.strip()[:120],
+                        "fix": fix,
+                    }
+                )
 
     return violations
 
@@ -141,7 +174,9 @@ def _get_staged_files() -> list[Path]:
     """Get Python files staged for commit under substrate/."""
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-        capture_output=True, text=True, cwd=str(_REPO_ROOT),
+        capture_output=True,
+        text=True,
+        cwd=str(_REPO_ROOT),
     )
     files = []
     for name in result.stdout.strip().splitlines():
@@ -194,8 +229,8 @@ def main() -> int:
     print("\n" + "=" * 72)
     print("PROJECTION BOUNDARY LEAK BLOCKED")
     print("=" * 72)
-    print(f"\nSubstrate code must be projection-agnostic.")
-    print(f"No projection names (EOS, CreatorOS, LyfeOS) in substrate/.")
+    print("\nSubstrate code must be projection-agnostic.")
+    print("No projection names (EOS, CreatorOS, LyfeOS) in substrate/.")
     print(f"Scanned: {mode} ({len(files)} files)")
     print(f"Violations: {len(all_violations)}\n")
 
