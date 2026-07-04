@@ -15,9 +15,9 @@ from substrate.organism.benchmarks.autonomous_execution import (
     SessionRecord,
 )
 from substrate.organism.benchmarks.outcome_accuracy import (
+    BenchmarkOutcomeRecord,
     OutcomeAccuracyBenchmark,
     OutcomeAccuracyResult,
-    OutcomeRecord,
 )
 from substrate.organism.benchmarks.efficiency import (
     EfficiencyBenchmark,
@@ -101,7 +101,7 @@ class TestOutcomeAccuracy:
         assert r.productions_evaluated == 0
 
     def test_full_achievement(self):
-        o = OutcomeRecord(
+        o = BenchmarkOutcomeRecord(
             production_id="p1",
             acceptance_criteria=["a", "b", "c"],
             criteria_met=[True, True, True],
@@ -114,7 +114,7 @@ class TestOutcomeAccuracy:
         assert r.deployment_success_rate == 1.0
 
     def test_partial_achievement(self):
-        o = OutcomeRecord(
+        o = BenchmarkOutcomeRecord(
             acceptance_criteria=["a", "b", "c", "d"],
             criteria_met=[True, True, False, False],
         )
@@ -123,7 +123,7 @@ class TestOutcomeAccuracy:
         assert r.partial_achievement_count == 1
 
     def test_zero_achievement(self):
-        o = OutcomeRecord(
+        o = BenchmarkOutcomeRecord(
             acceptance_criteria=["a", "b"],
             criteria_met=[False, False],
         )
@@ -132,15 +132,15 @@ class TestOutcomeAccuracy:
         assert r.zero_achievement_count == 1
 
     def test_no_criteria(self):
-        o = OutcomeRecord(production_id="p1")
+        o = BenchmarkOutcomeRecord(production_id="p1")
         r = OutcomeAccuracyBenchmark().evaluate([o])
         assert r.intent_achievement_rate == 0.0
         assert r.zero_achievement_count == 1
 
     def test_multiple_outcomes(self):
         outcomes = [
-            OutcomeRecord(acceptance_criteria=["a"], criteria_met=[True], tests_passed=True, deployed=True),
-            OutcomeRecord(acceptance_criteria=["a", "b"], criteria_met=[True, False], tests_passed=False, deployed=False),
+            BenchmarkOutcomeRecord(acceptance_criteria=["a"], criteria_met=[True], tests_passed=True, deployed=True),
+            BenchmarkOutcomeRecord(acceptance_criteria=["a", "b"], criteria_met=[True, False], tests_passed=False, deployed=False),
         ]
         r = OutcomeAccuracyBenchmark().evaluate(outcomes)
         assert r.intent_achievement_rate == 2 / 3
@@ -350,7 +350,7 @@ class TestAllJsonSerializable:
 
     def test_outcome(self):
         r = OutcomeAccuracyBenchmark().evaluate([
-            OutcomeRecord(acceptance_criteria=["a"], criteria_met=[True])
+            BenchmarkOutcomeRecord(acceptance_criteria=["a"], criteria_met=[True])
         ])
         json.dumps(r.to_dict())
 

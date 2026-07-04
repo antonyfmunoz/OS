@@ -19,11 +19,11 @@ from substrate.organism.execution_coordinator import (
     ExecutionCoordinator,
     ExecutionCoordinatorSnapshot,
     ExecutionLifecycleTracker,
-    ExecutionMode,
     ExecutionPlanStatus,
     ExecutionPriority,
     ExecutionQueue,
     ExecutionTargetType,
+    ExecutionTiming,
     ExecutorDefinition,
     ExecutorRegistry,
     GovernanceGate,
@@ -67,9 +67,9 @@ class TestExecutionTargetType(unittest.TestCase):
         self.assertIn("external", vals)
 
 
-class TestExecutionMode(unittest.TestCase):
+class TestExecutionTiming(unittest.TestCase):
     def test_all_values(self):
-        vals = [e.value for e in ExecutionMode]
+        vals = [e.value for e in ExecutionTiming]
         self.assertEqual(len(vals), 4)
         self.assertIn("synchronous", vals)
         self.assertIn("asynchronous", vals)
