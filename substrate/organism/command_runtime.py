@@ -887,15 +887,43 @@ class CommandRouter:
     def _process_approval(self, packet_id: str, approved: bool) -> dict[str, Any]:
         try:
             from substrate.organism.universal_work_queue import UniversalWorkQueue
+            from substrate.organism.work_packet import PacketLifecycleStatus
 
             q = UniversalWorkQueue()
             pkt = q.get_packet(packet_id)
             if not pkt:
                 return {"error": f"packet {packet_id} not found"}
-            new_status = "approved" if approved else "rejected"
-            q.update_status(packet_id, new_status)
-            return {"processed": True, "packet_id": packet_id, "new_status": new_status}
+
+            new_status = (
+                PacketLifecycleStatus.APPROVED
+                if approved
+                else PacketLifecycleStatus.REJECTED
+            )
+            reason = "operator approved" if approved else "operator rejected"
+
+            # Canonical mutation: update_packet_status enforces the lifecycle
+            # transition graph. A False return means the packet was not in a
+            # state that permits approval/rejection — surface it as a typed
+            # error instead of reporting a false success (GAP-C1-001).
+            updated = q.update_packet_status(packet_id, new_status, reason=reason)
+            if not updated:
+                return {
+                    "error": (
+                        f"packet {packet_id} could not transition "
+                        f"{pkt.status.value} -> {new_status.value} "
+                        "(invalid lifecycle transition)"
+                    ),
+                    "packet_id": packet_id,
+                    "current_status": pkt.status.value,
+                }
+
+            return {
+                "processed": True,
+                "packet_id": packet_id,
+                "new_status": new_status.value,
+            }
         except Exception as exc:
+            logger.error("approval processing failed for %s: %s", packet_id, exc)
             return {"error": str(exc)}
 
 
