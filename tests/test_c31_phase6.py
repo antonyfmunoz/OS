@@ -24,7 +24,7 @@ import pytest
 from substrate.organism.dev_session_tracker import (
     DevSession,
     DevSessionTracker,
-    SessionStatus,
+    DevSessionStatus,
 )
 from substrate.organism.action_envelope import ActionType, BlastRadius
 
@@ -39,7 +39,7 @@ class TestDevSessionTracker:
 
     def test_start_session(self) -> None:
         s = self.tracker.start_session("implement feature X", "eos")
-        assert s.status == SessionStatus.ACTIVE
+        assert s.status == DevSessionStatus.ACTIVE
         assert s.intent == "implement feature X"
         assert s.projection_id == "eos"
         assert s.session_id.startswith("ds-")
@@ -80,14 +80,14 @@ class TestDevSessionTracker:
     def test_complete_session_marks_completed(self) -> None:
         s = self.tracker.start_session("test")
         self.tracker.complete_session(s.session_id, "done")
-        assert s.status == SessionStatus.COMPLETED
+        assert s.status == DevSessionStatus.COMPLETED
         assert s.completed_at > 0
         assert len(self.tracker.active_sessions()) == 0
 
     def test_abandon_session(self) -> None:
         s = self.tracker.start_session("test")
         assert self.tracker.abandon_session(s.session_id)
-        assert s.status == SessionStatus.ABANDONED
+        assert s.status == DevSessionStatus.ABANDONED
         assert len(self.tracker.active_sessions()) == 0
 
     def test_recent_sessions(self) -> None:
