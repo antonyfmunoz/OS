@@ -168,7 +168,13 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/organism/async_coordinator.py ───────────────────────
     "AsyncObjectiveStatus": ["substrate.organism.async_coordinator"],
     # ── substrate/organism/projection_port.py ────────────────────────
+    # WP-P3-004: this is the organism STATE-BROADCAST port (OrganismStatePort +
+    # ProjectionSubscriber), a DIFFERENT concern from the projection REGISTRATION
+    # port in substrate.sockets.projection_port. Registered explicitly so the two
+    # same-named files are unambiguous in the canonical registry.
     "StateSlice": ["substrate.organism.projection_port"],
+    "OrganismStatePort": ["substrate.organism.projection_port"],
+    "ProjectionSubscriber": ["substrate.organism.projection_port"],
     # ── substrate/self_model.py ────────────────────────────────────────
     "Layer": ["substrate.self_model"],
     "ContextKind": ["substrate.self_model"],
