@@ -17,8 +17,16 @@ Usage in any route file::
         return result.to_http_dict()
 
 This module lives in transports/ because it obtains the organism
-singleton from the running daemon — a transport-layer concern.
-The core routing logic lives in substrate/organism/mutation_router.py.
+singleton from the running daemon — a transport-layer concern. The core
+routing and fail-closed logic lives in substrate/organism/mutation_router.py.
+
+Fail-closed contract: when the organism daemon (and therefore the
+GovernedExecutionSpine) is unavailable, this shim does NOT execute mutations
+directly. It delegates DOWN into substrate's route_mutation_degraded(), which
+rejects any non-LOW-risk or non-opted-in mutation with a 503-equivalent result
+and performs no state change. Only a low-risk, LOCAL blast-radius mutation whose
+spec sets degraded_mode_allowed=True may proceed — and only with a mandatory
+degraded audit record. There is no ungoverned execution path.
 """
 
 from __future__ import annotations
@@ -30,6 +38,7 @@ from substrate.organism.mutation_router import (
     MutationRequest,
     MutationResponse,
     MutationRouter,
+    route_mutation_degraded,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +53,7 @@ def _get_router() -> MutationRouter | None:
 
     try:
         from transports.api.cockpit_spine_router import _get_organism
+
         daemon = _get_organism()
         if daemon is None:
             return None
@@ -74,8 +84,12 @@ def governed_mutation(
 ) -> MutationResponse:
     """Submit a mutation through the governed spine.
 
-    If the organism is not running, falls back to direct execution
-    with ungoverned status so the caller still gets a response.
+    If the organism daemon is running, the request routes through the
+    GovernedExecutionSpine as normal. If it is NOT running, the request is
+    handled by substrate's deterministic fail-closed gate: non-LOW-risk (and
+    any non-opted-in) mutations are rejected with a 503-equivalent response and
+    no state change; only low-risk local mutations that explicitly opt in may
+    execute in degraded mode, always with a mandatory audit record.
     """
     request = MutationRequest(
         mutation_name=mutation_name,
@@ -92,20 +106,6 @@ def governed_mutation(
     if router is not None:
         return router.execute(request)
 
-    logger.warning(
-        "organism not running — executing %s ungoverned", mutation_name
-    )
-    try:
-        output, success = execute_fn()
-        return MutationResponse(
-            success=success,
-            output=output,
-            status="completed_ungoverned",
-        )
-    except Exception as exc:
-        logger.error("ungoverned execution failed for %s: %s", mutation_name, exc)
-        return MutationResponse(
-            success=False,
-            output=str(exc),
-            status="failed_ungoverned",
-        )
+    # Control plane unavailable. Delegate DOWN into substrate's fail-closed gate.
+    # No ungoverned execution happens here — the decision is owned by substrate.
+    return route_mutation_degraded(request)
