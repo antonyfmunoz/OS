@@ -17,7 +17,10 @@ Verified against the live tree by recon. All refs are file:line at this base.
 - ~9 severity-alias enums (`RiskLevel`, `ActionRiskLevel`, `RiskSeverity`, `WorkloadRisk`, `AutomationRisk`, `VpsRisk`, `EnvironmentEnvironmentPacketRiskLevel`) — all collapse onto `RiskClass`. `RiskCategory` (risk_engine) is thematic, not severity — leave.
 - ~6 duck-typed `risk_class: str` / `risk_level: str` fields (mutation_registry, agent_registry, approval_gate, config).
 
-### The 8 "unknown → fail-OPEN" sites (safety-critical — must become fail-closed)
+### The 8 "unknown → fail-OPEN" sites identified (2 are hard access gates; 6 are scoring/planning defaults)
+The two hard access gates (#1 request/ceiling, #5 retry-escalation decision) are fixed in this packet.
+The remaining six (#2 node ceiling, #3 authority level — mitigated, #4/#6/#7/#8 scoring/planning defaults)
+are documented follow-on: they tune scores/schedules, not access decisions.
 1. `substrate/organism/agent_registry.py:52` — `risk_rank.get(risk_class, 0) <= risk_rank.get(self.max_risk_class, 1)` → unknown request risk → 0 (lowest) → passes as "low". **Fail-OPEN.**
 2. `nodes/windows/umh_node/config.py:24` + `nodes/windows/umh_node/governance.py` — `max_risk_class` default + unknown ceiling → allows everything. **Fail-OPEN ceiling.**
 3. `substrate/governance/policy/authority_engine.py:122` — `MIN_LEVEL_TO_EXECUTE.get(risk_class, 0)` → unknown → level 0. Permissive default.
@@ -43,7 +46,7 @@ A mass enum rewrite (collapsing 11 risk enums into one) touches dozens of files,
 **IN scope:**
 1. **Declare the canonical risk vocabulary** in `substrate/governance/risk_classes.py`: keep the `RiskClass = ActionRiskCategory` back-compat alias (28–31 importers) but document it explicitly and add a clear `SeverityClass = RiskClass_severity` re-export path so new code can name the severity axis unambiguously. Register `ActionRiskCategory` in `canonical_types.py`.
 2. **One canonical fail-closed coercion helper**: `coerce_risk_class(value) -> RiskClass` (severity) — unknown → **HIGH** (strictest reasonable non-FORBIDDEN), never LOW. Mirrors the proven `approval_authority._coerce_risk`. Plus `stricter_of(a, b)` combinator (choose the higher-severity when two taxonomies disagree). Centralized in `substrate/governance/risk_classes.py` so every consumer imports one helper.
-3. **Fix the 8 fail-open sites** to route unknown → strict via the helper (request side → max rank; ceiling side → min rank / explicit reject). Preserve every already-fail-closed site.
+3. **Fix the two hard-gate fail-open sites** (`agent_registry.can_handle_risk`, `orchestrator/decisions._risk`) to route unknown → strict via the helper (request side → max rank; ceiling side → min rank / explicit reject). The remaining 6 sites from §1 are scoring/planning/default computations, not access-control gates — documented as follow-on, not fixed in this packet. Preserve every already-fail-closed site.
 4. **Register the role/permission canonicals** already identified (ensure `AgentRole`/`RoleScope` + `PermissionTier`/`AutonomyLevel` registered; they are).
 5. **Tests**: known risk enums map into canonical; unknown fails closed; node verdict downgrade still rejected; approval authority uses canonical risk; governed_mutation + GovernedExecutionSpine agree; role/permission rejects unknown/overbroad.
 
@@ -67,6 +70,6 @@ A mass enum rewrite (collapsing 11 risk enums into one) touches dozens of files,
 ## 3. Proof
 - Before/after taxonomy map (this doc).
 - `coerce_risk_class` unknown → HIGH; `stricter_of` picks higher severity — tests.
-- The 8 fail-open sites now fail closed — tests + grep proof.
+- The two hard-gate fail-open sites now fail closed. The remaining scoring/planning/default sites are documented follow-on work and are not access-control gates in this packet. — tests + grep proof.
 - P0 mesh tests pass; P1 approval + spine tests pass; all 9 gates exit 0.
 - No new enum; `ActionRiskCategory` registered; role/permission canonicals registered.

@@ -3,7 +3,9 @@
 Proves the canonical two-axis risk spine (SeverityClass x ActionRiskCategory)
 coerces every vocabulary into the canonical severity, that unknown values FAIL
 CLOSED (never downgrade to LOW), that the stricter-of-two rule holds, and that
-the previously fail-open governance sites now fail closed.
+the two hard-gate fail-open sites (agent_registry.can_handle_risk,
+orchestrator/decisions._risk) now fail closed. The remaining scoring/planning
+default sites are documented follow-on and are not covered here.
 """
 
 from __future__ import annotations
@@ -96,7 +98,7 @@ def test_severity_rank_monotonic():
     assert severity_rank("bogus") == severity_rank("high")
 
 
-# ── the previously fail-open governance sites now fail closed ─────────────────
+# ── the two hard-gate fail-open sites now fail closed ─────────────────────────
 
 
 def test_agent_registry_fails_closed_on_unknown_risk():
