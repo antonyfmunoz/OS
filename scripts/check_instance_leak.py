@@ -45,31 +45,38 @@ from pathlib import Path
 
 INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
     # AI persona name
-    (r'\bDEX\b', 'ai_name', 'get_ai_name() from substrate.control_plane.identity'),
+    (r"\bDEX\b", "ai_name", "get_ai_name() from substrate.control_plane.identity"),
     # Founder/user identity
-    (r'\bAntony\b', 'founder_name', 'BIS founder profile at runtime'),
-    (r'\bMunoz\b', 'founder_name', 'BIS founder profile at runtime'),
+    (r"\bAntony\b", "founder_name", "BIS founder profile at runtime"),
+    (r"\bMunoz\b", "founder_name", "BIS founder profile at runtime"),
     # Company/venture names
-    (r'\bLyfe Institute\b', 'company_name', 'BIS venture registry at runtime'),
-    (r'\bEmpyrean\s+(?:Studio|Creative)\b', 'company_name', 'BIS venture registry at runtime'),
-    (r'\bInitiate Arena\b', 'product_name', 'BIS product registry at runtime'),
-    (r'\bMunoz (?:Conglomerate|Holdings)\b', 'company_name', 'BIS org profile at runtime'),
+    (r"\bLyfe Institute\b", "company_name", "BIS venture registry at runtime"),
+    (r"\bEmpyrean\s+(?:Studio|Creative)\b", "company_name", "BIS venture registry at runtime"),
+    (r"\bInitiate Arena\b", "product_name", "BIS product registry at runtime"),
+    (r"\bMunoz (?:Conglomerate|Holdings)\b", "company_name", "BIS org profile at runtime"),
     # Infrastructure (Tailscale IPs for specific nodes)
-    (r'\b100\.77\.233\.50\b', 'infra_ip', 'env var (e.g., UMH_VPS_IP)'),
-    (r'\b100\.74\.199\.102\b', 'infra_ip', 'env var (e.g., UMH_BEAST_IP)'),
+    (r"\b100\.77\.233\.50\b", "infra_ip", "env var (e.g., UMH_VPS_IP)"),
+    (r"\b100\.74\.199\.102\b", "infra_ip", "env var (e.g., UMH_BEAST_IP)"),
     # Account identifiers
-    (r'antonyfmunoz', 'account_id', 'env var (e.g., GITHUB_USER)'),
-    (r'antonys beast pc', 'account_id', 'env var for SSH host identity'),
-    (r'antony-workstation', 'node_id', 'env var or BIS node registry'),
+    (r"antonyfmunoz", "account_id", "env var (e.g., GITHUB_USER)"),
+    (r"antonys beast pc", "account_id", "env var for SSH host identity"),
+    (r"antony-workstation", "node_id", "env var or BIS node registry"),
     # Session name prefixes derived from instance AI name
-    (r'\bdex_(?:builder|product|main|discord|unnamed)\b', 'session_prefix',
-     'config-driven session naming from get_ai_name()'),
+    (
+        r"\bdex_(?:builder|product|main|discord|unnamed)\b",
+        "session_prefix",
+        "config-driven session naming from get_ai_name()",
+    ),
+    # WP-P3-001: snake_case venture identifiers — the space-form Empyrean pattern
+    # above missed these, which saturate substrate. Load from BIS venture registry.
+    (r"\bempyrean_creative\b", "venture_slug", "BIS venture registry at runtime"),
+    (r"\blyfe_institute\b", "venture_slug", "BIS venture registry at runtime"),
+    (r"\bpersonal_brand\b", "venture_slug", "BIS venture registry at runtime"),
 ]
 
 # Compile once
 _COMPILED_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
-    (re.compile(pat, re.IGNORECASE), cat, fix)
-    for pat, cat, fix in INSTANCE_PATTERNS
+    (re.compile(pat, re.IGNORECASE), cat, fix) for pat, cat, fix in INSTANCE_PATTERNS
 ]
 
 # ── Legacy Leaks ─────────────────────────────────────────────────────────────
@@ -81,13 +88,44 @@ _COMPILED_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
 LEGACY_INSTANCE_LEAKS: dict[str, set[str]] = {
     # Benchmark defect seeder — intentionally contains instance values as test data
     "substrate/organism/benchmarks/production_quality.py": {"ai_name", "infra_ip"},
+    # WP-P3-001: pre-existing snake_case venture-slug leaks frozen at main
+    # bb39b3abd. Adding the venture_slug patterns above would otherwise turn the
+    # gate red; these 19 files are tech debt to be migrated to BIS lookups in a
+    # later guarded packet. Shrink-only — the non-growth test enforces it.
+    "substrate/understanding/reality/reality_engine.py": {"venture_slug"},
+    "substrate/understanding/reality/reality_context.py": {"venture_slug"},
+    "substrate/understanding/world_pulse/world_pulse.py": {"venture_slug"},
+    "substrate/understanding/world_model/world_model.py": {"venture_slug"},
+    "substrate/understanding/intelligence/competitive_intel.py": {"venture_slug"},
+    "substrate/governance/accountability/accountability.py": {"venture_slug"},
+    "substrate/governance/principles/principle_engine.py": {"venture_slug"},
+    "substrate/control_plane/runtime/cognitive_loop.py": {"venture_slug"},
+    "substrate/control_plane/runtime/gateway.py": {"venture_slug"},
+    "substrate/control_plane/proactive/proactive_engine.py": {"venture_slug"},
+    "substrate/control_plane/events/event_bus.py": {"venture_slug"},
+    "substrate/control_plane/strategy/strategy_engine.py": {"venture_slug"},
+    "substrate/control_plane/context/context_builder.py": {"venture_slug"},
+    "substrate/control_plane/agents/ceo_agent.py": {"venture_slug"},
+    "substrate/control_plane/agents/agent_hierarchy.py": {"venture_slug"},
+    "substrate/control_plane/scheduling/daily_sync.py": {"venture_slug"},
+    "substrate/execution/bridge/roles.py": {"venture_slug"},
+    "substrate/state/business/business_instance.py": {"venture_slug"},
+    "substrate/state/lifecycle/stage_manager.py": {"venture_slug"},
 }
 
 # ── Directories to skip ──────────────────────────────────────────────────────
 _EXCLUDES = {
-    "__pycache__", ".git", "node_modules", ".mypy_cache",
-    ".ruff_cache", ".pytest_cache", ".claude/worktrees",
-    "data/", "saas/", "skills/", "/tests/",
+    "__pycache__",
+    ".git",
+    "node_modules",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    ".claude/worktrees",
+    "data/",
+    "saas/",
+    "skills/",
+    "/tests/",
 }
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -112,21 +150,24 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
     for line_no, line in enumerate(lines, start=1):
         # Skip comments that are documenting the migration
         stripped = line.strip()
-        if stripped.startswith("#") and ("TODO" in stripped or "LEGACY" in stripped
-                                         or "migrate" in stripped.lower()):
+        if stripped.startswith("#") and (
+            "TODO" in stripped or "LEGACY" in stripped or "migrate" in stripped.lower()
+        ):
             continue
 
         for pattern, category, fix in _COMPILED_PATTERNS:
             if pattern.search(line):
                 if legacy_cats is not None and category in legacy_cats:
                     continue
-                violations.append({
-                    "file": rel_path,
-                    "line": str(line_no),
-                    "category": category,
-                    "content": line.strip()[:120],
-                    "fix": fix,
-                })
+                violations.append(
+                    {
+                        "file": rel_path,
+                        "line": str(line_no),
+                        "category": category,
+                        "content": line.strip()[:120],
+                        "fix": fix,
+                    }
+                )
 
     return violations
 
@@ -135,7 +176,9 @@ def _get_staged_files() -> list[Path]:
     """Get Python files staged for commit under substrate/."""
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-        capture_output=True, text=True, cwd=str(_REPO_ROOT),
+        capture_output=True,
+        text=True,
+        cwd=str(_REPO_ROOT),
     )
     files = []
     for name in result.stdout.strip().splitlines():
@@ -182,7 +225,8 @@ def main() -> int:
         if "--all" in args:
             print(f"Instance Context Gate: {len(files)} files scanned — clean")
             legacy_count = sum(
-                1 for f, cats in LEGACY_INSTANCE_LEAKS.items()
+                1
+                for f, cats in LEGACY_INSTANCE_LEAKS.items()
                 if cats  # non-empty = has known leaks
             )
             print(f"  Legacy leaks grandfathered: {legacy_count} files (tech debt)")
@@ -191,7 +235,7 @@ def main() -> int:
     print("\n" + "=" * 72)
     print("INSTANCE CONTEXT LEAK BLOCKED")
     print("=" * 72)
-    print(f"\nSubstrate code must be instance-agnostic.")
+    print("\nSubstrate code must be instance-agnostic.")
     print(f"Scanned: {mode} ({len(files)} files)")
     print(f"Violations: {len(all_violations)}\n")
 

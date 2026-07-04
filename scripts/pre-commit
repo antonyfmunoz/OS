@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# UMH Pre-Commit Gate
-# Runs all substrate integrity checks before allowing a commit.
-# Install: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit
+# UMH Pre-Commit Gate — canonical runner (source of truth).
+# Runs all substrate integrity gates before allowing a commit.
+# Install: bash scripts/install_hooks.sh   (or: ln -sf ../../scripts/pre-commit .git/hooks/pre-commit)
+#
+# This is the ONE canonical gate list. The live .git/hooks/pre-commit and
+# scripts/install_hooks.sh must run this same set. Do not disable or remove a
+# gate — add new ones here and to install_hooks.sh together.
 
 set -e
 
@@ -9,16 +13,25 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 echo "── UMH Pre-Commit Gate ──"
 
-# Gate 1: Type Coherence — no parallel type definitions
-echo "  [1/3] Type divergence check..."
-python3 "$REPO_ROOT/scripts/check_type_divergence.py"
+run_gate() {
+    # $1 = human label, $2 = script basename
+    local label="$1" script="$2"
+    if [ -f "$REPO_ROOT/scripts/$script" ]; then
+        echo "  → $label"
+        python3 "$REPO_ROOT/scripts/$script"
+    fi
+}
 
-# Gate 2: Instance Context — no hardcoded instance values in substrate
-echo "  [2/3] Instance context leak check..."
-python3 "$REPO_ROOT/scripts/check_instance_leak.py"
-
-# Gate 3: Governed Mutations — no ungoverned POST/PUT/PATCH/DELETE in route files
-echo "  [3/3] Ungoverned mutation check..."
-python3 "$REPO_ROOT/scripts/check_ungoverned_mutations.py"
+run_gate "Gate 1: Type Coherence"          check_type_divergence.py
+run_gate "Gate 2: Instance Context"        check_instance_leak.py
+run_gate "Gate 3: Projection Boundary"     check_projection_leak.py
+run_gate "Gate 4: Dependency Direction"    check_dependency_direction.py
+run_gate "Gate 5: CPU Gate"                check_cpu_gate.py
+run_gate "Gate 6: Ungoverned Mutations"    check_ungoverned_mutations.py
+run_gate "Gate 7: Credential Injection"    check_credential_injection.py
+run_gate "Gate 8: Secret Patterns"         check_secret_patterns.py
+run_gate "Gate 9: Mesh Relay Firewall"     check_mesh_relay_firewall.py
+run_gate "Gate 10: Pytest Collection"      check_pytest_collection.py
+run_gate "Gate 11: Ontology Layers"        check_ontology_layers.py
 
 echo "── All gates passed ──"
