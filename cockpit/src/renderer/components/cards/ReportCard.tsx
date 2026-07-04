@@ -3,9 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Download } from 'lucide-react'
 import type { RRIPMessage } from '../../types/rrip'
-import { getApiKey } from '../../api/client'
-
-const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
+import { getApiKey, API_BASE } from '../../api/client'
 
 function safeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : ''
@@ -22,7 +20,7 @@ export function ReportCard({ message }: { message: RRIPMessage }) {
   const handleDownload = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault()
     if (!message.attachment) return
-    const url = `${API_URL}/chat/attachment?path=${encodeURIComponent(message.attachment.path)}`
+    const url = `${API_BASE}/chat/attachment?path=${encodeURIComponent(message.attachment.path)}`
     const headers: Record<string, string> = {}
     const key = getApiKey()
     if (key) headers['X-API-Key'] = key

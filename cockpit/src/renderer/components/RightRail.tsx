@@ -9,14 +9,12 @@ import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
 import { startVoice, stopVoice } from '../api/voice-controller'
-import { getApiKey } from '../api/client'
-import { fetchApi } from '../api/client'
+import { getApiKey, fetchApi, API_BASE } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 import { VoiceRouteHud } from './VoiceRouteHud'
 
-const API_URL = import.meta.env.VITE_API_URL || '/api/umh'
 
 function safeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : ''
@@ -75,7 +73,7 @@ function ProvenanceLine({ provenance }: { provenance: Provenance }) {
 function AttachmentLink({ attachment }: { attachment: Attachment }) {
   const handleDownload = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault()
-    const url = `${API_URL}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
+    const url = `${API_BASE}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
     const headers: Record<string, string> = {}
     const key = getApiKey()
     if (key) headers['X-API-Key'] = key
@@ -110,7 +108,7 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
 }
 
 function MediaGrid({ media }: { media: MediaAttachment[] }) {
-  const apiUrl = import.meta.env.VITE_API_URL || '/api/umh'
+  const apiUrl = API_BASE
   return (
     <div className="flex flex-wrap gap-1 mt-1.5">
       {media.map((m) => {

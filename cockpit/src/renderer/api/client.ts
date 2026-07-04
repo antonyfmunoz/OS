@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL as string || '/api/umh'
+export const API_BASE = import.meta.env.VITE_API_URL as string || '/api/umh'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
