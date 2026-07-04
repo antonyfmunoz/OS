@@ -1,10 +1,19 @@
-"""Command Runtime — canonical intent-to-action layer for all operator surfaces.
+"""Command Runtime — operator intent normalization/classification layer.
 
 Every operator interaction (voice, cockpit, API, mobile, meeting) routes
 through the Command Runtime. It normalizes raw input into a structured
 Command, classifies the action type deterministically, assembles full
 context from all Phase 4-8 subsystems, and routes into existing UMH
 infrastructure (EmpireRouter, WorkPacketEngine, Continuity, Presence).
+
+WP-P1-001: CommandRuntime is NOT the canonical operation runtime. The one
+canonical mutation-submission runtime is
+``CANONICAL_OPERATION_RUNTIME`` (``governed_mutation`` → ``MutationRouter`` →
+``GovernedExecutionSpine``). CommandRuntime is subordinate to it: its
+mutation-classed commands must ultimately submit envelopes through that
+canonical path. This packet demotes CommandRuntime by declaration and flag
+only; wiring each mutation-classed CommandActionType to submit an ActionEnvelope
+is WP-P1-009 (do not do that deeper work here).
 
 Phase 9. UMH substrate subsystem. Instance-agnostic.
 """
@@ -20,7 +29,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from substrate.organism.canonical_runtime import CANONICAL_OPERATION_RUNTIME
+
 logger = logging.getLogger(__name__)
+
+# WP-P1-001: CommandRuntime is subordinate to the canonical operation runtime.
+# Referenced here so the subordination is explicit and greppable; the deeper
+# envelope-submission wiring per mutation-classed command is WP-P1-009.
+_SUBORDINATE_TO = CANONICAL_OPERATION_RUNTIME
 
 
 def _repo_root() -> str:
@@ -895,9 +911,7 @@ class CommandRouter:
                 return {"error": f"packet {packet_id} not found"}
 
             new_status = (
-                PacketLifecycleStatus.APPROVED
-                if approved
-                else PacketLifecycleStatus.REJECTED
+                PacketLifecycleStatus.APPROVED if approved else PacketLifecycleStatus.REJECTED
             )
             reason = "operator approved" if approved else "operator rejected"
 

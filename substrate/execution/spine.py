@@ -229,9 +229,7 @@ class ConcreteExecutionSpine:
                     )
 
                     council = DeliberationCouncil()
-                    delib = council.deliberate(
-                        signal.content, context={"domain": "execution"}
-                    )
+                    delib = council.deliberate(signal.content, context={"domain": "execution"})
                     trace.add_event(
                         TraceEventType.GOVERNANCE_DECIDED,
                         f"Council: {delib.final_verdict.value} "
@@ -425,6 +423,32 @@ class ConcreteExecutionSpine:
                     agent=context.identity.ai_name,
                     task_type=intent,
                 )
+
+                # WP-P1-001: route the interaction into the canonical memory
+                # promotion pipeline. The transcript writes above are the durable
+                # conversation log; this additionally emits a promotion candidate
+                # through the canonical MemoryCandidateGenerator so learnings from
+                # the LLM lineage enter the same candidate→promotion path the
+                # organism loop uses (canonical_write), rather than living only as
+                # a raw AgentMemory record. Non-fatal, deterministic, side-channel.
+                try:
+                    from substrate.memory.candidate_generator import (
+                        MemoryCandidateGenerator,
+                    )
+
+                    MemoryCandidateGenerator().generate_from_trace(
+                        trace_id=str(signal.id),
+                        input_signal=signal.content[:2000],
+                        outcome="success",
+                        outcome_detail=f"agent={context.identity.ai_name} intent={intent}",
+                        execution_result={"output": output[:2000]},
+                    )
+                except Exception as promo_err:
+                    _record_error(
+                        "spine.memory_promotion_candidate",
+                        str(promo_err),
+                        {"signal_id": str(signal.id)},
+                    )
             except Exception as mem_err:
                 _record_error(
                     "spine.memory_write",

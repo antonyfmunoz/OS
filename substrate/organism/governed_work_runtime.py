@@ -1,20 +1,20 @@
-"""Governed Work Runtime — MANDATORY execution gateway.
+"""Governed Work Runtime — work-lifecycle adapter onto the canonical runtime.
 
-There is exactly ONE path from operator intent to execution:
+WP-P1-001: this is an ADAPTER onto the one canonical operation runtime
+(``governed_mutation`` → ``MutationRouter`` → ``GovernedExecutionSpine``), not a
+second execution surface. It owns the work *lifecycle* (intent → packet → plan →
+approval → dispatch); its mutation-executing step (``execute_work``) routes
+through the canonical governed runtime when canonical routing is enabled, and
+preserves its prior coordinator-dispatch behavior when it is not.
 
   Operator
     ↓
   CommandRuntime (normalize + classify)
     ↓
-  GovernedWorkRuntime (this — the only execution surface)
+  GovernedWorkRuntime (this — work lifecycle adapter)
     ↓
-  ExecutionCoordinator (plan + queue + dispatch)
-    ↓
-  Executor (workstation / agent / simulation)
-
-No other component may call ExecutionCoordinator.dispatch_next() or
-ExecutorRuntime.execute() directly. VoiceQueryEngine, ActionBridge,
-cockpit routes — all route through THIS, never around it.
+  [canonical routing ON]  MutationRouter → GovernedExecutionSpine → executor
+  [canonical routing OFF] ExecutionCoordinator (plan + queue + dispatch) → executor
 
 Gate 3 — Governed Work Runtime. UMH substrate subsystem. Instance-agnostic.
 """
@@ -26,6 +26,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
+
+from substrate.organism.canonical_runtime import canonical_runtime_routing_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +134,7 @@ class GovernedWorkRuntime:
         approval_registry: Any | None = None,
         proof_runtime: Any | None = None,
         recovery_runtime: Any | None = None,
+        mutation_router: Any | None = None,
     ) -> None:
         self._work_graph = work_graph
         self._packet_engine = packet_engine
@@ -139,6 +142,12 @@ class GovernedWorkRuntime:
         self._approval_registry = approval_registry
         self._proof_runtime = proof_runtime
         self._recovery_runtime = recovery_runtime
+        # Optional injected MutationRouter (the canonical runtime). When canonical
+        # routing is enabled and a router is available, execute_work submits the
+        # dispatch as a governed mutation through the canonical spine. Injected by
+        # the daemon (which holds the spine); None means "canonical routing not
+        # wired here" and execute_work uses its prior coordinator-dispatch path.
+        self._mutation_router = mutation_router
 
     # ── Lazy subsystem access ────────────────────────────────────
 
@@ -147,6 +156,7 @@ class GovernedWorkRuntime:
         if self._work_graph is None:
             try:
                 from substrate.organism.work_graph import WorkGraph
+
                 self._work_graph = WorkGraph()
             except Exception:
                 logger.debug("WorkGraph unavailable")
@@ -157,6 +167,7 @@ class GovernedWorkRuntime:
         if self._packet_engine is None:
             try:
                 from substrate.organism.work_packet_engine import WorkPacketEngine
+
                 self._packet_engine = WorkPacketEngine()
             except Exception:
                 logger.debug("WorkPacketEngine unavailable")
@@ -167,6 +178,7 @@ class GovernedWorkRuntime:
         if self._execution_coordinator is None:
             try:
                 from substrate.organism.execution_coordinator import ExecutionCoordinator
+
                 self._execution_coordinator = ExecutionCoordinator()
             except Exception:
                 logger.debug("ExecutionCoordinator unavailable")
@@ -179,6 +191,7 @@ class GovernedWorkRuntime:
                 from substrate.organism.executors.approval_intercept import (
                     ApprovalPolicyRegistry,
                 )
+
                 self._approval_registry = ApprovalPolicyRegistry()
             except Exception:
                 logger.debug("ApprovalPolicyRegistry unavailable")
@@ -189,6 +202,7 @@ class GovernedWorkRuntime:
         if self._proof_runtime is None:
             try:
                 from substrate.organism.proof_runtime import ProofRuntime
+
                 self._proof_runtime = ProofRuntime()
             except Exception:
                 logger.debug("ProofRuntime unavailable")
@@ -199,6 +213,7 @@ class GovernedWorkRuntime:
         if self._recovery_runtime is None:
             try:
                 from substrate.organism.work_recovery_runtime import WorkRecoveryRuntime
+
                 self._recovery_runtime = WorkRecoveryRuntime(
                     work_graph=self.work_graph,
                 )
@@ -246,8 +261,10 @@ class GovernedWorkRuntime:
         if self.approval_registry is not None:
             try:
                 from substrate.organism.executors.approval_intercept import ApprovalScope
+
                 requires_approval, policy_id = self.approval_registry.evaluate(
-                    risk_class, ApprovalScope.PLAN,
+                    risk_class,
+                    ApprovalScope.PLAN,
                 )
             except Exception:
                 pass
@@ -292,13 +309,15 @@ class GovernedWorkRuntime:
         plan = self._find_plan_for_work(work_id)
         if plan is None:
             return ApprovalDecision(
-                work_id=work_id, status="error",
+                work_id=work_id,
+                status="error",
                 reason="No plan found for work_id",
             ).to_dict()
 
         if self.execution_coordinator is not None:
             approved_plan = self.execution_coordinator.approve_plan(
-                plan.execution_plan_id, approved_by=decided_by,
+                plan.execution_plan_id,
+                approved_by=decided_by,
             )
             if approved_plan:
                 self.execution_coordinator.enqueue_plan(plan.execution_plan_id)
@@ -322,7 +341,8 @@ class GovernedWorkRuntime:
         plan = self._find_plan_for_work(work_id)
         if plan is None:
             return ApprovalDecision(
-                work_id=work_id, status="error",
+                work_id=work_id,
+                status="error",
                 reason="No plan found for work_id",
             ).to_dict()
 
@@ -343,17 +363,27 @@ class GovernedWorkRuntime:
     # ── Execution ────────────────────────────────────────────────
 
     def execute_work(self, work_id: str) -> ExecutionReceipt:
-        """Execute an approved work item through the coordinator→executor chain."""
+        """Execute an approved work item.
+
+        WP-P1-001: when canonical routing is enabled and a MutationRouter is
+        available, the dispatch is submitted as a governed mutation through the
+        canonical runtime (``MutationRouter`` → ``GovernedExecutionSpine``), so
+        the executor is only reached via a governed verdict. When routing is
+        disabled (default) or no router is wired, the prior
+        coordinator→executor path runs unchanged.
+        """
         plan = self._find_plan_for_work(work_id)
         if plan is None:
             return ExecutionReceipt(
-                work_id=work_id, status="error",
+                work_id=work_id,
+                status="error",
                 error="No plan found for work_id",
             )
 
         if plan.approval_state != "approved":
             return ExecutionReceipt(
-                work_id=work_id, status="error",
+                work_id=work_id,
+                status="error",
                 error=f"Plan not approved (state: {plan.approval_state})",
             )
 
@@ -361,8 +391,15 @@ class GovernedWorkRuntime:
         if self.proof_runtime is not None:
             snapshot_id = self.proof_runtime.capture_before(work_id)
 
+        # Canonical-runtime routing decision (deterministic, flag-based). When
+        # enabled with a router wired, the dispatch step goes through the governed
+        # spine; otherwise the executor is reached via the coordinator as before.
+        route_canonical = canonical_runtime_routing_enabled() and self._mutation_router is not None
+
         dispatched_plan = None
-        if self.execution_coordinator is not None:
+        if route_canonical:
+            dispatched_plan = self._dispatch_via_canonical_runtime(plan)
+        elif self.execution_coordinator is not None:
             if plan.status in ("approved", "queued"):
                 if plan.status == "approved":
                     self.execution_coordinator.enqueue_plan(plan.execution_plan_id)
@@ -490,6 +527,54 @@ class GovernedWorkRuntime:
         return {"total": 0, "active": 0, "blocked": 0, "completed": 0, "failed": 0, "nodes": []}
 
     # ── Internal ─────────────────────────────────────────────────
+
+    def _dispatch_via_canonical_runtime(self, plan: Any) -> Any | None:
+        """Submit the plan dispatch through the canonical governed runtime.
+
+        Wraps ``ExecutionCoordinator.dispatch_next()`` in a MutationRequest and
+        routes it through the injected MutationRouter (→ GovernedExecutionSpine),
+        so reaching the executor requires a governed verdict. Returns the
+        dispatched plan on a successful governed execution, else None (the spine
+        may reject or hold for approval, in which case nothing is dispatched).
+        """
+        from substrate.organism.mutation_router import MutationRequest
+
+        if self.execution_coordinator is None:
+            return None
+        if plan.status == "approved":
+            self.execution_coordinator.enqueue_plan(plan.execution_plan_id)
+
+        dispatched_holder: dict[str, Any] = {}
+
+        def _do_dispatch() -> tuple[str, bool]:
+            dispatched = self.execution_coordinator.dispatch_next()
+            dispatched_holder["plan"] = dispatched
+            return (
+                (f"dispatched plan {plan.execution_plan_id}", True)
+                if dispatched is not None
+                else ("no dispatchable plan", False)
+            )
+
+        request = MutationRequest(
+            mutation_name="work_packet_execute",
+            intent=f"dispatch approved work plan {plan.execution_plan_id}",
+            execute_fn=_do_dispatch,
+            source="governed_work_runtime",
+            risk_level=getattr(plan, "risk_class", None),
+            metadata={
+                "plan_id": plan.execution_plan_id,
+                "target_executor": getattr(plan, "target_executor", ""),
+            },
+        )
+        response = self._mutation_router.execute(request)
+        if not response.success:
+            logger.warning(
+                "canonical dispatch not executed for plan %s: %s",
+                plan.execution_plan_id,
+                response.rejected_reason or response.status,
+            )
+            return None
+        return dispatched_holder.get("plan")
 
     def _find_plan_for_work(self, work_id: str) -> Any | None:
         """Find the execution plan associated with a work packet ID."""
