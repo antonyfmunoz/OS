@@ -93,6 +93,14 @@ class TestRequiredTier:
         assert required_tier_for_action("execute_payment") == PermissionTier.COMMIT
 
     def test_unknown_defaults_to_read(self):
+        # NOTE (WP-P2-002 follow-on): unknown → READ is a permission-envelope
+        # fail-open (READ is least-privileged). It is NOT fixed in WP-P2-002:
+        # the authority engine couples COMMIT-tier to CRITICAL/DENY risk
+        # amplification, so a blanket unknown→COMMIT wrongly escalates
+        # legitimately-HIGH actions (e.g. data_deletion) to CRITICAL/DENY and
+        # breaks the engine's deliberate HIGH-not-CRITICAL classification.
+        # Converging this requires touching the authority engine's risk
+        # classification — tracked as explicit follow-on, out of P2-002 scope.
         assert required_tier_for_action("totally_unknown") == PermissionTier.READ
 
 

@@ -37,7 +37,17 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "MemoryQuery": ["substrate.types"],
     "ExecutionContext": ["substrate.types"],
     "PermissionTier": ["substrate.types"],
+    # WP-P2-002: authority-role canonicals (verified present, now registered so
+    # the registry audit polices them). RoleScope is the scope enum; AgentRole /
+    # RoleRegistry the role type + registry, all in the roles bridge module.
+    "AgentRole": ["substrate.execution.bridge.roles"],
+    "RoleScope": ["substrate.execution.bridge.roles"],
+    "RoleRegistry": ["substrate.execution.bridge.roles"],
     "RiskClass": ["substrate.types"],
+    # WP-P2-002: the side-effect CATEGORY axis (8 members), bridges to the
+    # severity RiskClass via to_risk_class(). The canonical risk vocabulary is
+    # the pair (RiskClass severity x ActionRiskCategory category).
+    "ActionRiskCategory": ["substrate.governance.risk_classes"],
     "GovernanceDecision": ["substrate.types"],
     "GovernanceVerdict": ["substrate.types"],
     "PipelineGovernanceVerdict": ["substrate.types"],
