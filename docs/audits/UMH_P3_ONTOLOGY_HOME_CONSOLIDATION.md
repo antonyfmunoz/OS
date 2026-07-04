@@ -54,7 +54,11 @@ by `FROZEN_ONTOLOGY_COMPETITORS` in `scripts/check_ontology_homes.py` +
 |---|---|---|---|
 | `substrate/understanding/ontology/primitives.py` | L3 business-rule logic in an ontology dir | imports `substrate.state.context` (`:36`); stage-aware business vocab (hiring/ICP/paid-ads/BIS-stage); 5 live importers | **P3 domain-object eviction packet** → relocate to an L3 home |
 | `substrate/understanding/ontology/primitive_decomposition_v1.py` | parallel L2 metamodel | redefines `PrimitiveType`/`RelationshipType`/`PrimitiveObservation` (`:17,:33,:47`) instead of importing `substrate.types`; 11 importers (perception pipeline) vs `substrate.ontology`'s 3 | **P3 metamodel dedup packet** → re-point to `substrate.types` |
-| `substrate/understanding/world_model/world_model.py` | understanding-domain world model (name-collision, low use) | collides with organism self-model name; 1 live importer | deprecation review after `context_builder` repoint |
+| ~~`substrate/understanding/world_model/world_model.py`~~ | **RESOLVED (WP-P3 world-model sunset)** | Not a competitor — a distinct concern (domain-knowledge world model vs organism self-model). Resolved by **disambiguation, not relocation**: both `world_model.py` modules now carry reciprocal docstrings; it stays a classified home (`understanding-world-model`). Deprecation rejected — `context_builder` is a live consumer. Removed from ledger (3 → 2). | done |
+
+**Ledger status:** 2 remaining frozen competitors (was 3). The world-model name-collision
+was the first sunset — resolved by disambiguation because it was never a true
+competitor and has a live consumer.
 
 ## Ambiguous cases — REPORTED, not silently decided
 

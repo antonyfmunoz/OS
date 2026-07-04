@@ -114,13 +114,30 @@ def test_frozen_home_set_is_shrink_only():
 
 
 def test_frozen_competitors_are_shrink_only_with_metadata():
-    assert len(FROZEN_ONTOLOGY_COMPETITORS) <= 3, (
+    # Shrank 3 → 2 at the WP-P3 world-model sunset (understanding/world_model
+    # resolved to a distinct concern via disambiguation, not relocation).
+    assert len(FROZEN_ONTOLOGY_COMPETITORS) <= 2, (
         f"FROZEN_ONTOLOGY_COMPETITORS grew to {len(FROZEN_ONTOLOGY_COMPETITORS)}; new leaks "
         "must be fixed, not frozen"
     )
     for rel, (disposition, sunset) in FROZEN_ONTOLOGY_COMPETITORS.items():
         assert (ROOT / rel).exists(), f"frozen competitor missing: {rel}"
         assert disposition and sunset, f"{rel} missing disposition/sunset metadata"
+
+
+def test_world_model_resolved_out_of_competitor_ledger():
+    """The understanding world model is a distinct concern, not a competitor:
+    removed from the competitor ledger, still a classified home, and both
+    world_model modules carry reciprocal disambiguation docstrings."""
+    assert "substrate/understanding/world_model/world_model.py" not in FROZEN_ONTOLOGY_COMPETITORS
+    assert (
+        FROZEN_ONTOLOGY_HOMES["substrate/understanding/world_model/world_model.py"]
+        == "understanding-world-model"
+    )
+    understanding = (ROOT / "substrate/understanding/world_model/world_model.py").read_text()
+    organism = (ROOT / "substrate/organism/world_model.py").read_text()
+    assert "NOT the organism self-model" in understanding
+    assert "NOT the understanding/world_model" in organism
 
 
 # ── the home gate enforces the map (negative controls) ───────────────────────
