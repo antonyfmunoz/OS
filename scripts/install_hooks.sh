@@ -43,6 +43,7 @@ run_gate "Gate 9: Mesh Relay Firewall"     check_mesh_relay_firewall.py
 run_gate "Gate 10: Pytest Collection"      check_pytest_collection.py
 run_gate "Gate 11: Ontology Layers"        check_ontology_layers.py
 run_gate "Gate 12: Projection Registry Reads" check_projection_registry_reads.py
+run_gate "Gate 13: Ontology Home Map"       check_ontology_homes.py
 
 exit $FAILED
 HOOK
@@ -50,4 +51,5 @@ HOOK
 chmod +x "$HOOK_DIR/pre-commit"
 echo "Pre-commit hook installed at $HOOK_DIR/pre-commit"
 echo "Gates: type, instance, projection, dependency, cpu, ungoverned,"
-echo "       credential, secret, mesh, pytest, ontology, registry-reads (12 total)"
+echo "       credential, secret, mesh, pytest, ontology, registry-reads,"
+echo "       ontology-homes (13 total)"

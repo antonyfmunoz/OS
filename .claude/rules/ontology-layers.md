@@ -17,6 +17,34 @@ Dependency direction: **L3 depends on L2 and L4; L2 depends on nothing above it.
 L2 (`substrate/ontology/`, `substrate/types.py`) must never import L3 domain
 state or projection modules.
 
+## Ontology-home map (WP-P3 ontology consolidation)
+
+The **set** of ontology/reality/domain/world-model homes is frozen and enforced by
+`scripts/check_ontology_homes.py` (Gate 13) — a new home may not appear silently.
+Full map + evidence: `docs/audits/UMH_P3_ONTOLOGY_HOME_CONSOLIDATION.md`.
+
+Same-name modules that are **distinct concerns and must not be merged**:
+- `substrate/organism/world_model.py` = organism **self-model** (organism knowing
+  itself). NOT `substrate/understanding/world_model/` (domain-knowledge world model).
+- `substrate/organism/domain_registry.py` = **execution-policy** registry (allowed
+  actions / proofs / approval gates per WorkPacket domain). NOT an ontology or
+  domain-model registry, and NOT the L4 `BridgeRegistry` in
+  `substrate/understanding/domains/registry.py`.
+- `substrate/ontology/domains/` = compat **re-export shim** of the L4 home
+  `substrate/understanding/domains/`, not a second L4 home.
+
+A new ontology/domain-**model** registry (`OntologyRegistry`, `DomainModelRegistry`,
+`MetamodelRegistry`, or a second `DomainRegistry`) outside the canonical
+`substrate/organism/domain_registry.py` is blocked by Gate 13. Ordinary registries
+(Template/Device/Session/…) are unaffected.
+
+Known frozen ontology-home leaks/competitors (shrink-only, resolved in later
+guarded packets, not here): `understanding/ontology/primitives.py` (L3 business
+logic in an ontology dir), `understanding/ontology/primitive_decomposition_v1.py`
+(parallel L2 metamodel duplicating `substrate.types`),
+`understanding/world_model/world_model.py` (low-use name-collision). See the audit
+doc's ledger for owner/rationale/sunset.
+
 ## The core question — ask before adding any class
 
 > **Before adding a class to `substrate/types.py` or `substrate/ontology/`, ask:
