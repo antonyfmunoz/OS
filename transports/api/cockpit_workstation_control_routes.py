@@ -33,6 +33,7 @@ def configure(require_operator_dep: Any) -> None:
 
 def _get_manager() -> Any:
     from substrate.organism.runtime_manager import RuntimeManager
+
     return RuntimeManager()
 
 
@@ -40,9 +41,15 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
 
-    r.add_api_route("/workstation/execution/pause", _execution_pause, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workstation/execution/resume", _execution_resume, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workstation/execution/stop", _execution_stop, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/workstation/execution/pause", _execution_pause, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/workstation/execution/resume", _execution_resume, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/workstation/execution/stop", _execution_stop, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/workstation/execution/status", _execution_status, methods=["GET"])
     r.add_api_route("/workstation/nodes", _workstation_nodes, methods=["GET"])
     r.add_api_route("/workstation/resume", _workstation_resume, methods=["GET"])
@@ -51,23 +58,56 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/tmux/create", _tmux_create, methods=["POST"], dependencies=auth)
     r.add_api_route("/tmux/shells", _tmux_shells, methods=["GET"])
     r.add_api_route("/tmux/capture/{session_name}/{pane_id}", _tmux_capture, methods=["GET"])
-    r.add_api_route("/terminal/remote/create", _remote_terminal_create, methods=["POST"], dependencies=auth)
-    r.add_api_route("/terminal/remote/sessions", _remote_terminal_sessions, methods=["GET"], dependencies=auth)
-    r.add_api_route("/terminal/remote/shells", _remote_terminal_shells, methods=["GET"], dependencies=auth)
-    r.add_api_route("/terminal/remote/capture/{session_name}", _remote_terminal_capture, methods=["GET"], dependencies=auth)
-    r.add_api_route("/terminal/remote/send", _remote_terminal_send, methods=["POST"], dependencies=auth)
-    r.add_api_route("/terminal/remote/send-key", _remote_terminal_send_key, methods=["POST"], dependencies=auth)
-    r.add_api_route("/terminal/remote/destroy", _remote_terminal_destroy, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/terminal/remote/create", _remote_terminal_create, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/terminal/remote/sessions", _remote_terminal_sessions, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/terminal/remote/shells", _remote_terminal_shells, methods=["GET"], dependencies=auth
+    )
+    r.add_api_route(
+        "/terminal/remote/capture/{session_name}",
+        _remote_terminal_capture,
+        methods=["GET"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/terminal/remote/send", _remote_terminal_send, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/terminal/remote/send-key", _remote_terminal_send_key, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/terminal/remote/destroy", _remote_terminal_destroy, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/workstation/continuity", _continuity_state, methods=["GET"])
-    r.add_api_route("/workstation/continuity/transition", _continuity_transition, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/workstation/continuity/transition",
+        _continuity_transition,
+        methods=["POST"],
+        dependencies=auth,
+    )
     r.add_api_route("/workstation/checkpoint", _latest_checkpoint, methods=["GET"])
     r.add_api_route("/workstation/return-brief", _return_brief, methods=["GET"])
-    r.add_api_route("/workstation/return-brief/generate", _generate_return_brief, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/workstation/return-brief/generate",
+        _generate_return_brief,
+        methods=["POST"],
+        dependencies=auth,
+    )
     r.add_api_route("/workstation/mode-switch", _mode_switch, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workstation/profile-modes", _set_profile_modes, methods=["POST"], dependencies=auth)
-    r.add_api_route("/workstation/overnight/queue", _overnight_queue_work, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/workstation/profile-modes", _set_profile_modes, methods=["POST"], dependencies=auth
+    )
+    r.add_api_route(
+        "/workstation/overnight/queue", _overnight_queue_work, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/workstation/overnight/status", _overnight_status, methods=["GET"])
-    r.add_api_route("/workstation/overnight/approve", _overnight_approve, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/workstation/overnight/approve", _overnight_approve, methods=["POST"], dependencies=auth
+    )
 
     return r
 
@@ -79,13 +119,18 @@ def _resolve_adapter(session_id: str) -> tuple[Any, Any, dict[str, Any] | None]:
     """
     mgr = _get_manager()
     from substrate.organism.runtime_session import get_session
+
     session = get_session(session_id)
     if not session:
         return mgr, None, {"ok": False, "error": f"session {session_id} not found"}
 
     adapter = mgr._adapters.get(session.runtime_type)
     if not adapter:
-        return mgr, None, {"ok": False, "error": f"no adapter for runtime_type={session.runtime_type}"}
+        return (
+            mgr,
+            None,
+            {"ok": False, "error": f"no adapter for runtime_type={session.runtime_type}"},
+        )
 
     return mgr, adapter, None
 
@@ -119,11 +164,15 @@ async def _execution_pause(request: Request) -> dict[str, Any]:
             result["supported"] = pause_result.get("supported", False)
         else:
             result["supported"] = False
-            result["runtime_pause"] = {"paused": False, "reason": "no session_id — packet-only pause"}
+            result["runtime_pause"] = {
+                "paused": False,
+                "reason": "no session_id — packet-only pause",
+            }
 
         if packet_id:
             from substrate.organism.work_packet_engine import WorkPacketEngine
             from substrate.organism.work_packet import PacketLifecycleStatus
+
             wpe = WorkPacketEngine()
             pkt = wpe.get_packet(packet_id)
             if pkt and pkt.status == PacketLifecycleStatus.EXECUTING:
@@ -177,11 +226,15 @@ async def _execution_resume(request: Request) -> dict[str, Any]:
             result["supported"] = resume_result.get("supported", False)
         else:
             result["supported"] = False
-            result["runtime_resume"] = {"resumed": False, "reason": "no session_id — packet-only resume"}
+            result["runtime_resume"] = {
+                "resumed": False,
+                "reason": "no session_id — packet-only resume",
+            }
 
         if packet_id:
             from substrate.organism.work_packet_engine import WorkPacketEngine
             from substrate.organism.work_packet import PacketLifecycleStatus
+
             wpe = WorkPacketEngine()
             pkt = wpe.get_packet(packet_id)
             if pkt and pkt.status == PacketLifecycleStatus.PAUSED:
@@ -233,11 +286,15 @@ async def _execution_stop(request: Request) -> dict[str, Any]:
             result["runtime_stop"] = stop_result
             result["ok"] = stop_result.get("stopped", False)
         else:
-            result["runtime_stop"] = {"stopped": False, "reason": "no session_id — packet-only stop"}
+            result["runtime_stop"] = {
+                "stopped": False,
+                "reason": "no session_id — packet-only stop",
+            }
 
         if packet_id:
             from substrate.organism.work_packet_engine import WorkPacketEngine
             from substrate.organism.work_packet import PacketLifecycleStatus
+
             wpe = WorkPacketEngine()
             ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
             result["packet_status_updated"] = ok
@@ -274,37 +331,177 @@ def _execution_status(request: Request) -> dict[str, Any]:
 
 # ── Remote terminal dispatch (mesh relay) ──────────────────────────────────
 
+# Read-only terminal operations do not actuate the remote node and need no
+# governance verdict. Every other operation is write-class: it spawns, writes
+# to, keys, or destroys a remote session and MUST flow through a governed
+# mutation carrying a verifiable verdict token.
+_READ_ONLY_TERMINAL_OPS = frozenset({"list", "shells", "capture"})
 
-async def _remote_terminal_dispatch(
-    node_id: str, operation: str, params: dict[str, Any], timeout: int = 15
-) -> dict[str, Any]:
-    """Dispatch a terminal operation to a remote mesh node."""
+# Map a terminal operation to the canonical governed mutation spec that
+# authorizes it. `send`/`send_key` write into a live session (tmux_send);
+# `create`/`destroy` actuate a remote process (remote_node_exec).
+_TERMINAL_OP_MUTATION = {
+    "create": "remote_node_exec",
+    "destroy": "remote_node_exec",
+    "send": "tmux_send",
+    "send_key": "tmux_send",
+}
+
+
+async def _post_to_relay(payload: dict[str, Any], timeout: int) -> dict[str, Any]:
+    """POST a dispatch payload to the mesh relay with the relay bearer secret."""
     import aiohttp
 
     relay_host = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
     relay_url = f"http://{relay_host}:8095/dispatch"
-    payload = {
-        "node_id": node_id,
-        "capability": f"terminal.{operation}",
-        "params": params,
-        "timeout": timeout,
-    }
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                relay_url,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=timeout + 5),
-            ) as resp:
-                result = await resp.json()
-    except Exception as exc:
-        logger.error("remote terminal dispatch failed: %s", exc)
-        return {"ok": False, "error": f"Node unreachable: {exc}"}
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    req_headers: dict[str, str] = {}
+    if relay_secret:
+        req_headers["Authorization"] = f"Bearer {relay_secret}"
 
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            relay_url,
+            json=payload,
+            headers=req_headers,
+            timeout=aiohttp.ClientTimeout(total=timeout + 5),
+        ) as resp:
+            return await resp.json()
+
+
+async def _remote_terminal_dispatch(
+    node_id: str, operation: str, params: dict[str, Any], timeout: int = 15
+) -> dict[str, Any]:
+    """Dispatch a terminal operation to a remote mesh node.
+
+    Read-only operations dispatch directly (no actuation). Write-class
+    operations (create/send/send_key/destroy) route through a governed mutation
+    that mints a signed verdict token bound to this node + capability; the token
+    travels in the dispatch payload so the relay and the node can both validate
+    it. The governed mutation also produces the trace event for the actuation.
+    """
+    capability = f"terminal.{operation}"
+
+    # Read-only path: no verdict, no governance actuation record required.
+    if operation in _READ_ONLY_TERMINAL_OPS:
+        payload = {
+            "node_id": node_id,
+            "capability": capability,
+            "params": params,
+            "risk_class": "read_only",
+            "timeout": timeout,
+        }
+        try:
+            result = await _post_to_relay(payload, timeout)
+        except Exception as exc:
+            logger.error("remote terminal dispatch failed: %s", exc)
+            return {"ok": False, "error": f"Node unreachable: {exc}"}
+        if not result.get("ok"):
+            return {"ok": False, "error": result.get("error", "dispatch failed")}
+        return {"ok": True, **result.get("result_data", {})}
+
+    # Write-class path: governed mutation → signed verdict → dispatch.
+    return await _governed_remote_dispatch(node_id, operation, capability, params, timeout)
+
+
+async def _governed_remote_dispatch(
+    node_id: str,
+    operation: str,
+    capability: str,
+    params: dict[str, Any],
+    timeout: int,
+) -> dict[str, Any]:
+    """Run a write-class remote actuation through the governed spine.
+
+    The dispatch itself (the network call to the relay) is performed by the
+    governed mutation's execute_fn — so it runs ONLY if governance authorizes
+    it. Inside execute_fn we mint a verdict token bound to node+capability,
+    forward it in the payload, and require the relay/node to validate it.
+    """
+    from uuid import uuid4
+
+    from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
+
+    mutation_name = _TERMINAL_OP_MUTATION.get(operation, "remote_node_exec")
+
+    # Container to smuggle the dispatch result out of the sync execute_fn.
+    holder: dict[str, Any] = {"result": None, "error": None}
+    # aiohttp is async; the governed spine's execute_fn is sync. Bridge by
+    # capturing the running loop and driving the coroutine to completion.
+    import asyncio
+
+    loop = asyncio.get_event_loop()
+
+    def _do_dispatch() -> tuple[str, bool]:
+        if not get_verdict_secret():
+            holder["error"] = "no mesh verdict secret configured (fail-closed)"
+            return holder["error"], False
+
+        verdict_id = uuid4().hex
+        try:
+            verdict_token = sign_verdict(
+                verdict_id=verdict_id,
+                node_id=node_id,
+                capability=capability,
+                risk_class="reversible_write",
+                ttl_seconds=timeout + 30,
+            )
+        except ValueError as exc:
+            holder["error"] = str(exc)
+            return str(exc), False
+
+        payload = {
+            "node_id": node_id,
+            "capability": capability,
+            "params": params,
+            "risk_class": "reversible_write",
+            "verdict_token": verdict_token,
+            "timeout": timeout,
+        }
+
+        fut = asyncio.run_coroutine_threadsafe(_post_to_relay(payload, timeout), loop)
+        try:
+            result = fut.result(timeout=timeout + 15)
+        except Exception as exc:
+            holder["error"] = f"Node unreachable: {exc}"
+            return holder["error"], False
+
+        holder["result"] = result
+        ok = bool(result.get("ok"))
+        if ok:
+            return f"remote {capability} on {node_id} executed (verdict {verdict_id})", True
+        return (
+            f"remote {capability} on {node_id} failed: {result.get('error', 'dispatch failed')}",
+            False,
+        )
+
+    # Run the governed mutation off the event loop thread. Its execute_fn
+    # drives the relay coroutine back on the loop via run_coroutine_threadsafe,
+    # so the mutation itself must NOT block the loop (that would deadlock).
+    resp = await loop.run_in_executor(
+        None,
+        lambda: governed_mutation(
+            mutation_name=mutation_name,
+            intent=f"remote terminal {operation} on {node_id}",
+            execute_fn=_do_dispatch,
+            source="cockpit",
+            metadata={"node_id": node_id, "capability": capability},
+        ),
+    )
+
+    if not resp.success:
+        reason = (
+            holder.get("error")
+            or resp.rejected_reason
+            or resp.output
+            or "governed dispatch rejected"
+        )
+        return {"ok": False, "error": reason, "governed": resp.to_http_dict()}
+
+    result = holder.get("result") or {}
     if not result.get("ok"):
         return {"ok": False, "error": result.get("error", "dispatch failed")}
-    result_data = result.get("result_data", {})
-    return {"ok": True, **result_data}
+    return {"ok": True, **result.get("result_data", {})}
 
 
 async def _remote_terminal_create(request: Request) -> dict[str, Any]:
@@ -343,9 +540,7 @@ async def _remote_terminal_send(request: Request) -> dict[str, Any]:
     text = body.get("text", "")
     if not session_name or not text:
         return {"ok": False, "error": "session_name and text required"}
-    return await _remote_terminal_dispatch(
-        node_id, "send", {"name": session_name, "text": text}
-    )
+    return await _remote_terminal_dispatch(node_id, "send", {"name": session_name, "text": text})
 
 
 async def _remote_terminal_send_key(request: Request) -> dict[str, Any]:
@@ -355,9 +550,7 @@ async def _remote_terminal_send_key(request: Request) -> dict[str, Any]:
     key = body.get("key", "")
     if not session_name or not key:
         return {"ok": False, "error": "session_name and key required"}
-    return await _remote_terminal_dispatch(
-        node_id, "send_key", {"name": session_name, "key": key}
-    )
+    return await _remote_terminal_dispatch(node_id, "send_key", {"name": session_name, "key": key})
 
 
 async def _remote_terminal_destroy(request: Request) -> dict[str, Any]:
@@ -366,9 +559,7 @@ async def _remote_terminal_destroy(request: Request) -> dict[str, Any]:
     session_name = body.get("session_name", "")
     if not session_name:
         return {"ok": False, "error": "session_name required"}
-    return await _remote_terminal_dispatch(
-        node_id, "destroy", {"name": session_name}
-    )
+    return await _remote_terminal_dispatch(node_id, "destroy", {"name": session_name})
 
 
 # ── Cross-device node awareness ─────────────────────────────────────────────
@@ -378,9 +569,12 @@ def _read_mesh_snapshot() -> list[dict[str, Any]]:
     """Read the node mesh snapshot file for connected nodes."""
     import json
     import os
+
     path = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "runtime", "mesh_nodes.json",
+        "data",
+        "runtime",
+        "mesh_nodes.json",
     )
     if not os.path.exists(path):
         return []
@@ -393,6 +587,7 @@ def _read_mesh_snapshot() -> list[dict[str, Any]]:
 def _read_vps_node() -> dict[str, Any]:
     """Build VPS node info from local system."""
     import os
+
     hostname = platform.node()
     return {
         "id": f"vps-{hostname}",
@@ -425,9 +620,13 @@ def _workstation_nodes(request: Request) -> dict[str, Any]:
 def _workstation_resume(request: Request) -> dict[str, Any]:
     import json
     import os
+
     resume_path = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "runtime", "workstation", "resume_state.json",
+        "data",
+        "runtime",
+        "workstation",
+        "resume_state.json",
     )
 
     resume_data: dict[str, Any] = {}
@@ -438,6 +637,7 @@ def _workstation_resume(request: Request) -> dict[str, Any]:
             resume_data = {}
 
     from substrate.workstation.mode_resolver import resolve_composite_mode
+
     mode = resolve_composite_mode()
 
     return {
@@ -454,6 +654,7 @@ def _workstation_resume(request: Request) -> dict[str, Any]:
 
 def _mode_composite(request: Request) -> dict[str, Any]:
     from substrate.workstation.mode_resolver import resolve_composite_mode
+
     mode = resolve_composite_mode()
     return {
         "ok": True,
@@ -466,6 +667,7 @@ def _mode_composite(request: Request) -> dict[str, Any]:
 
 def _tmux_sessions(request: Request) -> dict[str, Any]:
     from adapters.tool_adapters.tmux import TmuxAdapter
+
     adapter = TmuxAdapter()
     result = adapter._execute_impl("list_sessions", {})
     if not result.get("success"):
@@ -481,11 +683,13 @@ def _tmux_sessions(request: Request) -> dict[str, Any]:
             continue
         parts = line.split(":")
         if len(parts) >= 3:
-            sessions.append({
-                "name": parts[0],
-                "windows": int(parts[1]) if parts[1].isdigit() else 0,
-                "attached": parts[2] == "1",
-            })
+            sessions.append(
+                {
+                    "name": parts[0],
+                    "windows": int(parts[1]) if parts[1].isdigit() else 0,
+                    "attached": parts[2] == "1",
+                }
+            )
 
     return {"ok": True, "sessions": sessions, "count": len(sessions)}
 
@@ -499,6 +703,7 @@ async def _tmux_create(request: Request) -> dict[str, Any]:
 
     def _do_create():
         from adapters.tool_adapters.tmux import TmuxAdapter
+
         adapter = TmuxAdapter()
         result = adapter._execute_impl("new_session", {"name": name, "shell": shell})
         if not result.get("success"):
@@ -552,6 +757,7 @@ def _tmux_shells(request: Request) -> dict[str, Any]:
 
 def _tmux_capture(request: Request, session_name: str, pane_id: str) -> dict[str, Any]:
     from adapters.tool_adapters.tmux import TmuxAdapter
+
     adapter = TmuxAdapter()
     target = f"{session_name}:{pane_id}"
     result = adapter._execute_impl("capture_pane", {"target": target})
@@ -582,9 +788,13 @@ def _get_continuity_machine():
         import json
         import os
         from substrate.workstation.continuity import ContinuityStateMachine
+
         path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "umh", "workstation_state", "continuity.json",
+            "data",
+            "umh",
+            "workstation_state",
+            "continuity.json",
         )
         if os.path.exists(path):
             try:
@@ -600,10 +810,14 @@ def _get_continuity_machine():
 def _persist_continuity():
     import json
     import os
+
     machine = _get_continuity_machine()
     path = os.path.join(
         os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "workstation_state", "continuity.json",
+        "data",
+        "umh",
+        "workstation_state",
+        "continuity.json",
     )
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -616,7 +830,9 @@ def _continuity_state(request: Request) -> dict[str, Any]:
         "ok": True,
         "current_state": machine.current_state.value,
         "valid_transitions": [s.value for s in machine.valid_transitions()],
-        "last_transition": machine.last_transition().to_dict() if machine.last_transition() else None,
+        "last_transition": machine.last_transition().to_dict()
+        if machine.last_transition()
+        else None,
     }
 
 
@@ -626,6 +842,7 @@ async def _continuity_transition(request: Request) -> dict[str, Any]:
     reason = body.get("reason", "")
 
     from substrate.workstation.continuity import ContinuityState
+
     try:
         target = ContinuityState(target_str)
     except ValueError:
@@ -657,6 +874,7 @@ async def _continuity_transition(request: Request) -> dict[str, Any]:
 
         from substrate.workstation.checkpoint import CheckpointManager
         from substrate.workstation.mode_resolver import resolve_composite_mode
+
         mode = resolve_composite_mode(continuity_state=target_str)
         mgr = CheckpointManager()
         mgr.create_checkpoint(
@@ -685,6 +903,7 @@ async def _continuity_transition(request: Request) -> dict[str, Any]:
 
 def _latest_checkpoint(request: Request) -> dict[str, Any]:
     from substrate.workstation.checkpoint import CheckpointManager
+
     mgr = CheckpointManager()
     cp = mgr.latest()
     if not cp:
@@ -697,6 +916,7 @@ def _latest_checkpoint(request: Request) -> dict[str, Any]:
 
 def _return_brief(request: Request) -> dict[str, Any]:
     from substrate.workstation.resume_brief import ReturnBriefGenerator
+
     gen = ReturnBriefGenerator()
     brief = gen.latest()
     if not brief:
@@ -742,6 +962,7 @@ async def _mode_switch(request: Request) -> dict[str, Any]:
         return {"ok": False, "error": "No command text provided"}
 
     from substrate.workstation.mode_commands import parse_mode_command
+
     result = parse_mode_command(text)
 
     if not result.recognized:
@@ -754,6 +975,7 @@ async def _mode_switch(request: Request) -> dict[str, Any]:
     def _do_mode_switch():
         if result.command_type == "continuity":
             from substrate.workstation.continuity import ContinuityState
+
             try:
                 target = ContinuityState(result.target_value)
             except ValueError:
@@ -761,7 +983,10 @@ async def _mode_switch(request: Request) -> dict[str, Any]:
 
             machine = _get_continuity_machine()
             if not machine.can_transition(target):
-                return f"Cannot transition to {result.target_value} from {machine.current_state.value}", False
+                return (
+                    f"Cannot transition to {result.target_value} from {machine.current_state.value}",
+                    False,
+                )
 
             prev = machine.current_state.value
             machine.transition(target, reason=f"mode command: {text}")
@@ -769,6 +994,7 @@ async def _mode_switch(request: Request) -> dict[str, Any]:
 
             from substrate.workstation.checkpoint import CheckpointManager
             from substrate.workstation.mode_resolver import resolve_composite_mode
+
             mode = resolve_composite_mode(continuity_state=result.target_value)
             mgr = CheckpointManager()
             mgr.create_checkpoint(
@@ -797,20 +1023,33 @@ async def _set_profile_modes(request: Request) -> dict[str, Any]:
         return {"ok": False, "error": "No modes provided"}
 
     from substrate.workstation.profile_modes import ProfileMode
+
     valid_values = {m.value for m in ProfileMode}
     invalid = [m for m in modes if m not in valid_values]
     if invalid:
-        return {"ok": False, "error": f"Invalid profile modes: {invalid}", "valid": sorted(valid_values)}
+        return {
+            "ok": False,
+            "error": f"Invalid profile modes: {invalid}",
+            "valid": sorted(valid_values),
+        }
 
     def _do_set_modes():
         import json as _json
+
         path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "umh", "workstation_state", "profile_modes.json",
+            "data",
+            "umh",
+            "workstation_state",
+            "profile_modes.json",
         )
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            _json.dump({"active_modes": modes, "updated_at": datetime.now(timezone.utc).isoformat()}, f, indent=2)
+            _json.dump(
+                {"active_modes": modes, "updated_at": datetime.now(timezone.utc).isoformat()},
+                f,
+                indent=2,
+            )
         return f"profile modes set: {modes}", True
 
     resp = governed_mutation(
@@ -830,6 +1069,7 @@ async def _overnight_queue_work(request: Request) -> dict[str, Any]:
 
     def _do_queue():
         from substrate.workstation.overnight_queue import OvernightQueue
+
         queue = OvernightQueue()
         queue.queue_work(
             work_packet_id=body.get("work_packet_id", ""),
@@ -850,6 +1090,7 @@ async def _overnight_queue_work(request: Request) -> dict[str, Any]:
 
 def _overnight_status(request: Request) -> dict[str, Any]:
     from substrate.workstation.overnight_queue import OvernightQueue
+
     queue = OvernightQueue()
     return {"ok": True, "summary": queue.morning_summary()}
 
@@ -862,6 +1103,7 @@ async def _overnight_approve(request: Request) -> dict[str, Any]:
 
     def _do_approve():
         from substrate.workstation.overnight_queue import OvernightQueue
+
         queue = OvernightQueue()
         item = queue.approve(item_id)
         if not item:

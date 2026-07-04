@@ -313,23 +313,33 @@ class AdvisorConversation:
 
         try:
             from substrate.reality_model.instance import InstanceRealityModel
+
             instance = InstanceRealityModel()
             recent = instance.recent(limit=5)
             if recent:
                 obs_lines = []
                 for obs in recent:
-                    conf = obs.effective_confidence() if hasattr(obs, "effective_confidence") else obs.confidence
-                    obs_lines.append(f"- [{obs.domain}] {obs.content[:120]} (confidence: {conf:.2f})")
+                    conf = (
+                        obs.effective_confidence()
+                        if hasattr(obs, "effective_confidence")
+                        else obs.confidence
+                    )
+                    obs_lines.append(
+                        f"- [{obs.domain}] {obs.content[:120]} (confidence: {conf:.2f})"
+                    )
                 sections.append("Recent observations:\n" + "\n".join(obs_lines))
         except Exception:
             pass
 
         try:
             from substrate.reality_model.canonical import CanonicalRealityModel
+
             canonical = CanonicalRealityModel()
             patterns = canonical.all()[:5]
             if patterns:
-                pat_lines = [f"- {p.name}: {p.description[:100]}" for p in patterns if p.description]
+                pat_lines = [
+                    f"- {p.name}: {p.description[:100]}" for p in patterns if p.description
+                ]
                 if pat_lines:
                     sections.append("Known patterns:\n" + "\n".join(pat_lines))
         except Exception:
@@ -337,6 +347,7 @@ class AdvisorConversation:
 
         try:
             from substrate.organism.universal_work_queue import UniversalWorkQueue
+
             q = UniversalWorkQueue()
             summary = q.compute_queue_summary()
             approvals = q.get_packets_requiring_approval()
@@ -746,6 +757,7 @@ class AdvisorConversation:
         # Provider health
         try:
             from substrate.sockets.intelligence_port import get_model_registry, get_role_slots
+
             MODEL_REGISTRY = get_model_registry()
             ROLE_SLOTS = get_role_slots()
 
@@ -1355,8 +1367,7 @@ class AdvisorConversation:
                 lines.append(f"**Providers:** {prov['error']}")
             elif prov.get("healthy"):
                 lines.append(
-                    f"**Providers:** {len(prov['healthy'])} healthy — "
-                    f"{', '.join(prov['healthy'])}"
+                    f"**Providers:** {len(prov['healthy'])} healthy — {', '.join(prov['healthy'])}"
                 )
             else:
                 lines.append("**Providers:** status unavailable")
@@ -1410,7 +1421,11 @@ class AdvisorConversation:
                     "pending_approvals": len(result.pending_approvals),
                 },
                 suggested_actions=[
-                    {"label": "Full Status", "action": "query", "payload": {"content": "full status"}},
+                    {
+                        "label": "Full Status",
+                        "action": "query",
+                        "payload": {"content": "full status"},
+                    },
                     {
                         "label": "What's Next?",
                         "action": "query",
@@ -1437,9 +1452,7 @@ class AdvisorConversation:
             lines = ["**Shutting down for the day.**\n"]
 
             if result.completed_work:
-                lines.append(
-                    f"**Completed:** {', '.join(result.completed_work[:5])}"
-                )
+                lines.append(f"**Completed:** {', '.join(result.completed_work[:5])}")
 
             if result.open_loops:
                 lines.append(
@@ -1522,7 +1535,11 @@ class AdvisorConversation:
                 metadata={
                     "plan_id": plan.plan_id,
                     "task_count": len(plan.tasks),
-                    "intent_type": str(plan.intent.intent_type.value if hasattr(plan.intent.intent_type, "value") else plan.intent.intent_type),
+                    "intent_type": str(
+                        plan.intent.intent_type.value
+                        if hasattr(plan.intent.intent_type, "value")
+                        else plan.intent.intent_type
+                    ),
                 },
                 suggested_actions=[
                     {
@@ -1713,38 +1730,46 @@ class AdvisorConversation:
         success_text: str,
         intent: str,
     ) -> AdvisorResponse:
-        """Dispatch a command to a node via the mesh server's HTTP relay."""
-        import urllib.request
+        """Dispatch a command to a node via the governed mesh dispatch port.
 
-        relay_host = os.environ.get("UMH_MESH_RELAY_HOST", "172.18.0.1")
-        relay_port = os.environ.get("UMH_MESH_RELAY_PORT", "8095")
-        url = f"http://{relay_host}:{relay_port}/dispatch"
-
-        payload = json.dumps(
-            {
-                "node_id": node_id,
-                "capability": capability,
-                "params": params,
-                "timeout": 15,
-            }
-        ).encode()
+        Routes DOWN through substrate.sockets.mesh_dispatch_port — never a raw
+        relay POST. Workstation commands actuate the remote desktop, so they are
+        treated as write-class: the port signs a verdict and authenticates to
+        the relay before the node executes (fail-closed).
+        """
+        from substrate.sockets.mesh_dispatch_port import mesh_dispatch
 
         try:
-            req = urllib.request.Request(
-                url,
-                data=payload,
-                method="POST",
-                headers={"Content-Type": "application/json"},
+            result = mesh_dispatch(
+                node_id=node_id,
+                capability=capability,
+                params=params,
+                risk_class="reversible_write",
+                timeout=15,
             )
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                result = json.loads(resp.read())
         except Exception as exc:
-            logger.error("Mesh HTTP relay dispatch failed: %s", exc)
+            logger.error("Mesh dispatch failed: %s", exc)
             return AdvisorResponse(
                 text=f"Mesh relay unreachable — can't dispatch {capability} to {node_id}. ({exc})",
                 conversation_id="",
                 intent=intent,
                 metadata={"ok": False, "status": "relay_unreachable", "error": str(exc)},
+            )
+        if not result.get("ok") and result.get("status") in (
+            "relay_secret_unset",
+            "verdict_secret_unset",
+            "transport_error",
+            "dispatcher_unregistered",
+        ):
+            return AdvisorResponse(
+                text=f"Mesh dispatch blocked ({result.get('status')}) — can't run {capability} on {node_id}.",
+                conversation_id="",
+                intent=intent,
+                metadata={
+                    "ok": False,
+                    "status": result.get("status"),
+                    "error": result.get("error", ""),
+                },
             )
 
         if result.get("ok"):

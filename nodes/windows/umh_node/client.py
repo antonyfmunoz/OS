@@ -84,6 +84,7 @@ class NodeClient:
         if cap_cfg.get("shell") is None or cap_cfg.get("shell").enabled:
             self._adapters["shell"] = ShellAdapter()
         from nodes.windows.umh_node.adapters.terminal import TerminalAdapter
+
         self._adapters["terminal"] = TerminalAdapter()
         if cap_cfg.get("filesystem") is None or cap_cfg.get("filesystem").enabled:
             self._adapters["filesystem"] = FilesystemAdapter()
@@ -96,7 +97,9 @@ class NodeClient:
             cam.set_frame_callback(self._on_camera_frame)
             self._adapters["camera"] = cam
             try:
-                result = cam.execute("camera.stream_start", {"fps": 2, "quality": 70, "resolution": [1280, 720]})
+                result = cam.execute(
+                    "camera.stream_start", {"fps": 2, "quality": 70, "resolution": [1280, 720]}
+                )
                 if result.get("success"):
                     logger.info("camera stream auto-started (2fps, 1280x720, q70)")
                 else:
@@ -105,6 +108,7 @@ class NodeClient:
                 logger.debug("camera auto-start failed: %s", exc)
         try:
             import mss
+
             with mss.mss() as sct:
                 monitor_count = len(sct.monitors) - 1  # index 0 is virtual combined
             for idx in range(1, monitor_count + 1):
@@ -246,12 +250,14 @@ class NodeClient:
             )
 
         if "terminal" in self._adapters:
-            caps.append({
-                "name": "terminal",
-                "category": "compute",
-                "risk_class": "reversible_write",
-                "max_risk_class": "irreversible_write",
-            })
+            caps.append(
+                {
+                    "name": "terminal",
+                    "category": "compute",
+                    "risk_class": "reversible_write",
+                    "max_risk_class": "irreversible_write",
+                }
+            )
 
         return caps
 
@@ -291,8 +297,13 @@ class NodeClient:
         url = self._config.ws_url
         logger.info("connecting to %s", url.split("?")[0])
 
+        # Token travels in the Authorization header, never in the URL.
         async with websockets.connect(
-            url, ping_interval=120, ping_timeout=60, max_size=4 * 1024 * 1024
+            url,
+            ping_interval=120,
+            ping_timeout=60,
+            max_size=4 * 1024 * 1024,
+            additional_headers=self._config.auth_header,
         ) as ws:
             self._ws = ws
             await self._send_hello()
@@ -352,19 +363,25 @@ class NodeClient:
         """Rescan peripherals and notify the server of changes."""
         loop = asyncio.get_running_loop()
         peripherals = await loop.run_in_executor(
-            None, scan_all_peripherals, True,
+            None,
+            scan_all_peripherals,
+            True,
         )
         if self._connected and self._ws is not None:
             try:
-                await self._ws.send(json.dumps({
-                    "jsonrpc": "2.0",
-                    "method": "node.peripherals_changed",
-                    "params": {
-                        "peripherals": peripherals,
-                        "scan_age_s": get_scan_age_s(),
-                    },
-                    "id": self._next_id(),
-                }))
+                await self._ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "method": "node.peripherals_changed",
+                            "params": {
+                                "peripherals": peripherals,
+                                "scan_age_s": get_scan_age_s(),
+                            },
+                            "id": self._next_id(),
+                        }
+                    )
+                )
                 logger.info("peripherals_changed sent: %d devices", len(peripherals))
             except Exception as exc:
                 logger.warning("failed to send peripherals_changed: %s", exc)
@@ -429,6 +446,72 @@ class NodeClient:
         else:
             logger.debug("unhandled message method: %s", method)
 
+    def _effective_write_class(self, cap_name: str, wire_risk_class: str) -> bool:
+        """Decide whether a capability is write-class for verdict purposes.
+
+        Write-class if EITHER the caller-declared wire risk class OR the
+        capability's own configured max_risk_class is not read-only. This stops
+        a caller from downgrading a write-class capability to "read_only" to
+        skip the verdict (fail-closed against risk downgrade).
+        """
+        from substrate.execution.mesh_verdict import is_write_class
+
+        if is_write_class(wire_risk_class):
+            return True
+        adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
+        cap_config = self._config.capabilities.get(adapter_key)
+        if cap_config is not None and is_write_class(cap_config.max_risk_class):
+            return True
+        return False
+
+    def _validate_verdict(
+        self, cap_name: str, risk_class: str, verdict_token: str
+    ) -> tuple[bool, str]:
+        """Validate a governance verdict token before executing a capability.
+
+        Read-only capabilities do not require a verdict. Write-class ones do:
+        the token must be signed with the shared mesh verdict secret and bound
+        to this node_id and this capability. Fail-closed — any failure to
+        verify rejects execution.
+
+        The verdict signer/verifier is the single canonical module shared with
+        the orchestrator (substrate.execution.mesh_verdict).
+        """
+        try:
+            from substrate.execution.mesh_verdict import (
+                get_verdict_secret,
+                is_write_class,
+                verify_verdict,
+            )
+        except Exception as exc:  # pragma: no cover - defensive import guard
+            # If the shared verifier cannot be imported, we cannot validate a
+            # verdict — fail closed for anything that is not explicitly
+            # read-only, allow read-only.
+            if not self._effective_write_class(cap_name, risk_class):
+                return True, "read-only (verifier unavailable)"
+            return False, f"verdict verifier unavailable: {exc}"
+
+        # A caller must NOT be able to skip the verdict by lying that a
+        # write-class capability is read_only. The node classifies write-class
+        # from the wire risk_class OR the capability's own configured max risk —
+        # whichever is stricter (fail-closed against downgrade attacks).
+        if not self._effective_write_class(cap_name, risk_class):
+            return True, "read-only capability, no verdict required"
+
+        if not get_verdict_secret():
+            return False, "no mesh verdict secret configured on node (fail-closed)"
+        if not verdict_token:
+            return False, "write-class capability requires a governance verdict"
+
+        check = verify_verdict(
+            verdict_token,
+            expected_node_id=self._config.node_id,
+            expected_capability=cap_name,
+        )
+        if not check.valid:
+            return False, check.reason
+        return True, "verdict valid"
+
     async def _safe_handle_capability(self, msg: dict[str, Any]) -> None:
         try:
             await self._handle_capability(msg)
@@ -456,6 +539,33 @@ class NodeClient:
             cap_name = params.get("capability_name", "")
             cap_params = params.get("params", {})
             risk_class = params.get("risk_class", "REVERSIBLE_WRITE")
+            verdict_token = params.get("governance_verdict_id", "")
+
+            # Node-side verdict validation (fail-closed). A write-class
+            # capability must carry a signed governance verdict bound to THIS
+            # node and THIS capability. Missing or invalid verdict → reject
+            # before touching any adapter. This is the last line of the mesh
+            # trust boundary — the node never trusts the orchestrator blindly.
+            verdict_ok, verdict_reason = self._validate_verdict(cap_name, risk_class, verdict_token)
+            if not verdict_ok:
+                logger.warning(
+                    "capability %s rejected by node verdict gate: %s",
+                    cap_name,
+                    verdict_reason,
+                )
+                await self._ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "result": {
+                                "success": False,
+                                "error": f"node verdict rejected: {verdict_reason}",
+                            },
+                            "id": msg_id,
+                        }
+                    )
+                )
+                return
 
             adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
             cap_config = self._config.capabilities.get(adapter_key)
@@ -568,6 +678,7 @@ class NodeClient:
             import subprocess
 
             from nodes.windows.umh_node.subprocess_utils import no_window_kwargs
+
             result = subprocess.run(
                 ["tailscale", "ip", "-4"],
                 capture_output=True,
