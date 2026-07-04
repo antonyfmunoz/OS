@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchApi } from '../api/client'
+import { fetchApi, API_BASE } from '../api/client'
 
 export interface Provenance {
   node?: string
@@ -120,8 +120,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           pendingMedia.map(async (pm) => {
             const form = new FormData()
             form.append('file', pm.file)
-            const API_URL = (import.meta.env.VITE_API_URL as string) || '/api/umh'
-            const res = await fetch(`${API_URL}/chat/upload`, {
+            const res = await fetch(`${API_BASE}/chat/upload`, {
               method: 'POST',
               body: form,
             })

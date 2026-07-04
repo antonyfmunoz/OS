@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'UMH Cockpit',
   webDir: 'dist-web',
   server: {
+    url: 'https://universalmetaharness.tech',
     cleartext: true,
   },
   plugins: {
