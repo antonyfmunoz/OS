@@ -252,6 +252,21 @@ UMH has three execution spine classes. Only one is canonical for mutations.
 mutations. It delegates to `GovernedExecutionSpine.execute()`. All other execution
 paths are for reads, signal processing, or general-purpose execution — never for
 state writes.
+
+**Canonical operation runtime (WP-P1-001).** The one declared runtime is
+`governed_mutation` → `MutationRouter` → `GovernedExecutionSpine`, named in
+`substrate/organism/canonical_runtime.py` (`CANONICAL_OPERATION_RUNTIME`). The
+work/command runtimes are **adapters** onto it, not second choke points:
+
+| Runtime | File | Disposition |
+|---|---|---|
+| `GovernedWorkRuntime` | `substrate/organism/governed_work_runtime.py` | Work-lifecycle **adapter** — `execute_work` routes dispatch through the canonical runtime when routing is enabled (`UMH_CANONICAL_RUNTIME_ROUTING`). |
+| `CommandRuntime` | `substrate/organism/command_runtime.py` | Intent normalization/classification, **subordinate** to the canonical runtime by declaration (envelope wiring per command is WP-P1-009). |
+| `OrganismLoop` | `substrate/organism/organism_loop.py` | Execution step routes through the canonical runtime when enabled, so it is not a second governance choke point. |
+
+Routing is staged behind `UMH_CANONICAL_RUNTIME_ROUTING` (off by default;
+rollback = unset the flag). The architecture invariant is enforced by
+`tests/test_single_spine_architecture.py`.
 | `transports/api/cockpit.py` | Governance tier check + tier listing endpoints | ✅ |
 
 ### Missing — High Priority

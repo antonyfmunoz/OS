@@ -28,6 +28,7 @@ from substrate.execution.executor import (
     build_default_executor,
 )
 from substrate.memory.canonical_write import CanonicalWritePath, MemoryWriteReceipt
+from substrate.organism.canonical_runtime import canonical_runtime_routing_enabled
 from substrate.organism.empire_router import EmpireRouter, RealitySnapshot
 from substrate.organism.event_spine import EventDomain, EventSpine
 from substrate.organism.universal_work_queue import UniversalWorkQueue
@@ -98,6 +99,7 @@ class OrganismLoopEngine:
         event_spine: EventSpine | None = None,
         canonical_write: CanonicalWritePath | None = None,
         canonical_reality_write: Any | None = None,
+        mutation_router: Any | None = None,
     ) -> None:
         self._empire_router = empire_router or EmpireRouter()
         self._work_queue = work_queue or UniversalWorkQueue()
@@ -106,6 +108,12 @@ class OrganismLoopEngine:
         self._event_spine = event_spine or EventSpine()
         self._canonical_write = canonical_write or CanonicalWritePath()
         self._canonical_reality_write = canonical_reality_write
+        # WP-P1-001: optional injected canonical MutationRouter. When canonical
+        # routing is enabled and a router is wired, Step 5's execution is
+        # submitted through the canonical runtime so the organism loop is not a
+        # second, independent governance choke point. None / flag-off preserves
+        # the prior PolicyEngine-gated direct-executor behavior exactly.
+        self._mutation_router = mutation_router
 
     async def execute_intent(
         self,
@@ -239,9 +247,12 @@ class OrganismLoopEngine:
 
             adapter_name = self._select_adapter(organism_packet)
 
-            # WorkPacketExecutor.execute is synchronous -- wrap in thread
-            execution_bundle = await asyncio.to_thread(
-                self._executor.execute,
+            # WP-P1-001 convergence point: when canonical routing is enabled and
+            # a MutationRouter is wired, the execution is submitted through the
+            # canonical governed runtime so this loop shares the one choke point
+            # instead of being a second one. Otherwise the prior PolicyEngine-
+            # gated direct-executor call runs unchanged.
+            _executor_call = lambda: self._executor.execute(  # noqa: E731
                 executor_packet,
                 verdict,
                 adapter_name,
@@ -252,6 +263,17 @@ class OrganismLoopEngine:
                     "_risk_class": organism_packet.risk_class,
                 },
             )
+
+            if canonical_runtime_routing_enabled() and self._mutation_router is not None:
+                execution_bundle = await asyncio.to_thread(
+                    self._execute_via_canonical_runtime,
+                    _executor_call,
+                    organism_packet,
+                    intent,
+                )
+            else:
+                # WorkPacketExecutor.execute is synchronous -- wrap in thread
+                execution_bundle = await asyncio.to_thread(_executor_call)
             result.execution_bundle_id = str(execution_bundle.result.id)
             result.proof_artifact_ids.append(str(execution_bundle.proof.id))
             result.proof_artifact_ids.append(str(execution_bundle.governance_proof.id))
@@ -314,6 +336,48 @@ class OrganismLoopEngine:
         result.total_duration_ms = int((time.monotonic() - t0) * 1000)
         return result
 
+    def _execute_via_canonical_runtime(
+        self,
+        executor_call: Any,
+        organism_packet: OrganismWorkPacket,
+        intent: str,
+    ) -> ExecutionBundle | None:
+        """Run the executor step through the canonical governed runtime.
+
+        Wraps the (already PolicyEngine-approved) WorkPacketExecutor call in a
+        MutationRequest and submits it through the injected MutationRouter, so the
+        organism loop's execution shares the one canonical choke point. Returns
+        the ExecutionBundle produced by the executor, or None if the canonical
+        runtime rejected/held the submission (fail-closed — no direct fallback).
+        """
+        from substrate.organism.mutation_router import MutationRequest
+
+        bundle_holder: dict[str, Any] = {}
+
+        def _do_execute() -> tuple[str, bool]:
+            bundle = executor_call()
+            bundle_holder["bundle"] = bundle
+            success = bundle.result.outcome.value == "success"
+            return (str(bundle.result.id), success)
+
+        request = MutationRequest(
+            mutation_name="work_packet_execute",
+            intent=f"organism loop execute: {intent[:200]}",
+            execute_fn=_do_execute,
+            source="organism_loop",
+            risk_level=organism_packet.risk_class,
+            metadata={"work_packet_id": organism_packet.packet_id},
+        )
+        response = self._mutation_router.execute(request)
+        if not response.success:
+            logger.warning(
+                "organism_loop canonical routing did not execute %s: %s",
+                organism_packet.packet_id,
+                response.rejected_reason or response.status,
+            )
+            return None
+        return bundle_holder.get("bundle")
+
     def _select_adapter(self, packet: OrganismWorkPacket) -> str:
         """Select an appropriate adapter for the work packet.
 
@@ -370,9 +434,12 @@ class OrganismLoopEngine:
     ) -> None:
         try:
             from substrate.reality_model.reality_mutation import (
-                RealityMutation, MutationSource, MutationType,
+                RealityMutation,
+                MutationSource,
+                MutationType,
             )
             from substrate.reality_model.canonical_reality_write import CanonicalRealityWritePath
+
             gov_mutation = RealityMutation(
                 mutation_id=f"rm-gov-{uuid4().hex[:12]}",
                 source_system=MutationSource.GOVERNANCE,

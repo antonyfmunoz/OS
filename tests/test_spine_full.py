@@ -1,7 +1,13 @@
-"""Tests for ConcreteExecutionSpine — 8-stage pipeline.
+"""Tests for ConcreteExecutionSpine — the LLM/cognitive 8-stage pipeline.
 
-Phase 6 invariant verification.
-Tests the deterministic path (no LLM required).
+Phase 6 invariant verification. Tests the deterministic path (no LLM required).
+
+WP-P1-001: ConcreteExecutionSpine is the LLM/cognitive-execution lineage, NOT
+the canonical operation runtime. The one canonical mutation-submission runtime
+is governed_mutation → MutationRouter → GovernedExecutionSpine (see
+tests/test_single_spine_architecture.py). These tests assert the cognitive
+pipeline's behavior; they do not pin ConcreteExecutionSpine as the primary
+mutation spine.
 """
 from __future__ import annotations
 
@@ -79,6 +85,12 @@ def _make_verdict(signal: SignalEnvelope, decision: GovernanceDecision = Governa
 # ---------------------------------------------------------------------------
 
 class TestExecutionSpine:
+    """Behavioral tests for the LLM/cognitive pipeline (ConcreteExecutionSpine).
+
+    Legacy naming note (WP-P1-001): "ExecutionSpine" here refers to the cognitive
+    pipeline, not the canonical governed mutation runtime.
+    """
+
     @pytest.fixture
     def spine(self):
         # No injected memory/registry — tests deterministic path only
