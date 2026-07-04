@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umh.local/schemas/convergence/operation_lifecycle.schema.json",
+  "title": "UMH Governed Operation Lifecycle Record",
+  "description": "Target-state contract for one governed operation moving through the control plane: intent -> desired/current state diff -> policy decision -> approval -> work packets -> execution steps (adapter/tool calls on runtime nodes/sessions) -> proof artifacts -> trace events -> evaluation -> state commit -> memory candidates -> rollback. This is the convergence target shape; today the lifecycle is split across substrate/execution/spine.py (8-stage pipeline), substrate/organism/governed_spine.py, substrate/control_plane/governance.py, and substrate/execution/trace.py, with no single durable operation record (see GAP-B1-010, GAP-B1-012).",
+  "type": "object",
+  "required": [
+    "operation_id",
+    "intent",
+    "desired_state",
+    "current_state",
+    "gap",
+    "risk_class",
+    "policy_decision",
+    "approval",
+    "work_packets",
+    "execution_steps",
+    "proof_artifacts",
+    "trace_events",
+    "evaluation_result",
+    "state_commit",
+    "memory_candidates",
+    "rollback",
+    "timestamps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "operation_id": {
+      "description": "Globally unique, durable operation identifier. Single ID namespace for the whole lifecycle (replaces the coexisting apk-/apvl-/uappr- prefixes noted in B3).",
+      "type": "string",
+      "minLength": 1
+    },
+    "intent": {
+      "description": "Operator or agent intent that originated the operation, with its source signal reference.",
+      "type": "object",
+      "required": ["statement"],
+      "additionalProperties": false,
+      "properties": {
+        "statement": { "type": "string", "minLength": 1 },
+        "source_signal_id": { "type": ["string", "null"] },
+        "initiator": {
+          "description": "Identity of the human operator or agent instance that raised the intent.",
+          "type": "string"
+        },
+        "initiator_kind": { "type": "string", "enum": ["human", "agent", "scheduler", "reconciler"] }
+      }
+    },
+    "desired_state": {
+      "description": "Declarative description of the target state of the external/internal entities the operation reconciles toward.",
+      "type": "string",
+      "minLength": 1
+    },
+    "current_state": {
+      "description": "Observed state at operation start (from the relevant state authority), against which the gap is computed.",
+      "type": "string",
+      "minLength": 1
+    },
+    "gap": {
+      "description": "Computed delta between desired_state and current_state that this operation closes.",
+      "type": "string",
+      "minLength": 1
+    },
+    "risk_class": {
+      "description": "Deterministic risk classification assigned by the policy engine (substrate/control_plane/governance.py).",
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    },
+    "policy_decision": {
+      "description": "Outcome of policy-engine evaluation (today: GovernanceVerdict / PipelineGovernanceVerdict in substrate/types.py; convergence target is a single verdict type with a scope discriminator).",
+      "type": "object",
+      "required": ["decision"],
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": ["approved", "conditional", "requires_approval", "denied"]
+        },
+        "verdict_id": { "type": ["string", "null"] },
+        "rationale": { "type": "string" },
+        "conditions": { "type": "array", "items": { "type": "string" } },
+        "policy_version": {
+          "description": "Identifier/version of the policy evaluated against (missing field flagged by B3 for GovernanceVerdict).",
+          "type": ["string", "null"]
+        },
+        "permission_envelope": {
+          "description": "Reference to the permission envelope the operation is confined to.",
+          "type": ["string", "null"]
+        },
+        "blast_radius": {
+          "description": "Declared blast radius of the operation (systems/entities reachable if it misbehaves).",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "approval": {
+      "description": "Human authorization state. Blocks execution for HIGH/CRITICAL risk classes until decided.",
+      "type": "object",
+      "required": ["status"],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["not_required", "pending", "approved", "rejected", "expired", "escalated"]
+        },
+        "approver": {
+          "description": "Identity of the deciding human operator (null while pending or when not required).",
+          "type": ["string", "null"]
+        },
+        "channel": {
+          "description": "Surface the approval was requested/decided on.",
+          "type": ["string", "null"],
+          "enum": ["discord", "cockpit", "api", "cli", "voice", null]
+        },
+        "approval_request_id": { "type": ["string", "null"] },
+        "expires_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "work_packets": {
+      "description": "IDs of work packets decomposed from this operation (see work_packet.schema.json).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "execution_steps": {
+      "description": "Ordered execution steps. ExecutionStep is a MISSING primitive today (B2); this defines its target shape: every step records the adapter or tool call it made and where it ran.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["step_id", "runtime_node"],
+        "additionalProperties": false,
+        "properties": {
+          "step_id": { "type": "string", "minLength": 1 },
+          "work_packet_id": { "type": ["string", "null"] },
+          "adapter_call": {
+            "description": "Reference to the adapter contract invocation (adapter id + method + argument digest), when the step went through an adapter.",
+            "type": ["string", "null"]
+          },
+          "tool_call": {
+            "description": "Reference to the tool invocation (tool name + argument digest), when the step was a direct tool call.",
+            "type": ["string", "null"]
+          },
+          "runtime_node": {
+            "description": "Node id from the device/node registry (infra/device_registry.json) the step executed on.",
+            "type": "string",
+            "minLength": 1
+          },
+          "runtime_session": {
+            "description": "Runtime session identifier (interactive desktop session, tmux session, container, subprocess group) the step ran inside.",
+            "type": ["string", "null"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "succeeded", "failed", "skipped", "rolled_back"]
+          },
+          "started_at": { "type": ["string", "null"], "format": "date-time" },
+          "finished_at": { "type": ["string", "null"], "format": "date-time" },
+          "idempotency_key": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "proof_artifacts": {
+      "description": "Evidence produced by execution, satisfying the operation's proof contract. Each entry references an artifact by id/URI plus its type.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["artifact_ref"],
+        "additionalProperties": false,
+        "properties": {
+          "artifact_ref": { "type": "string", "minLength": 1 },
+          "artifact_type": { "type": "string" },
+          "content_hash": { "type": ["string", "null"] },
+          "satisfies_criteria": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "trace_events": {
+      "description": "Ordered trace event references for the full lifecycle (recorded today via substrate/execution/trace.py; convergence target is one trace per operation_id).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "evaluation_result": {
+      "description": "Post-execution evaluation: did the observed state converge to the desired state, and at what quality (today: quality scoring in substrate/execution/feedback.py).",
+      "type": "object",
+      "required": ["outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "type": "string",
+          "enum": ["converged", "partially_converged", "failed", "rolled_back", "inconclusive"]
+        },
+        "quality_score": { "type": ["number", "null"] },
+        "acceptance_criteria_met": { "type": "array", "items": { "type": "string" } },
+        "acceptance_criteria_unmet": { "type": "array", "items": { "type": "string" } },
+        "notes": { "type": "string" }
+      }
+    },
+    "state_commit": {
+      "description": "Reference to the durable state commit recording the post-operation observed state against the owning state authority. StateCommit is a MISSING primitive today (B3); this is its target linkage.",
+      "type": ["object", "null"],
+      "required": ["commit_ref"],
+      "additionalProperties": false,
+      "properties": {
+        "commit_ref": { "type": "string", "minLength": 1 },
+        "state_authority": {
+          "description": "The declared source of truth the commit was written to (state authority domain, e.g. from substrate/organism/state_authority_graph.py).",
+          "type": ["string", "null"]
+        },
+        "committed_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "memory_candidates": {
+      "description": "Learnings proposed for memory promotion out of this operation (today: substrate/organism/memory_promotion.py decision path).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rollback": {
+      "description": "Rollback plan declared before execution and whether it was exercised.",
+      "type": "object",
+      "required": ["plan", "executed"],
+      "additionalProperties": false,
+      "properties": {
+        "plan": { "type": "string", "minLength": 1 },
+        "executed": { "type": "boolean" },
+        "executed_at": { "type": ["string", "null"], "format": "date-time" },
+        "result": { "type": ["string", "null"] }
+      }
+    },
+    "timestamps": {
+      "description": "Lifecycle timestamps (ISO 8601).",
+      "type": "object",
+      "required": ["created_at"],
+      "additionalProperties": false,
+      "properties": {
+        "created_at": { "type": "string", "format": "date-time" },
+        "policy_decided_at": { "type": ["string", "null"], "format": "date-time" },
+        "approved_at": { "type": ["string", "null"], "format": "date-time" },
+        "execution_started_at": { "type": ["string", "null"], "format": "date-time" },
+        "execution_finished_at": { "type": ["string", "null"], "format": "date-time" },
+        "evaluated_at": { "type": ["string", "null"], "format": "date-time" },
+        "closed_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    },
+    "tenant": {
+      "description": "Optional tenant scoping (org_id/user_id) — flagged by B1/B3 as missing on several current types.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "org_id": { "type": "string" },
+        "user_id": { "type": "string" }
+      }
+    }
+  }
+}
