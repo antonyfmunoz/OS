@@ -309,6 +309,41 @@ class ProjectionPort:
             logger.debug("Failed to seed from config: %s", exc)
             return 0
 
+    @staticmethod
+    def _read_umh_seed_file(registry_path: str = "") -> dict[str, Any]:
+        """The ONE reader of data/umh/projection_registry.json.
+
+        WP-P3 read-side convergence: this is the single code path that opens the
+        UMH projection registry file. Returns the raw keyed per-projection config
+        (all fields preserved — app_name/health_url/public_url/l4_workflow/
+        critical_bundle_values), or {} when the file is missing or malformed.
+        Both seed_from_umh_registry() (registration) and load_seed_config()
+        (read model) go through here, so no other module opens the file.
+        """
+        if not registry_path:
+            registry_path = os.path.join(_REPO_ROOT, "data", "umh", "projection_registry.json")
+        if not os.path.exists(registry_path):
+            return {}
+        try:
+            with open(registry_path, "r") as f:
+                entries = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug("Failed to load UMH projection registry: %s", exc)
+            return {}
+        return entries if isinstance(entries, dict) else {}
+
+    def load_seed_config(self, registry_path: str = "") -> dict[str, dict[str, Any]]:
+        """Canonical read model over the UMH projection registry seed file.
+
+        WP-P3 read-side convergence: read-side consumers (certification,
+        reality-graph, cockpit projection-health routes) call this instead of
+        opening data/umh/projection_registry.json themselves. The file stays a
+        SEED INPUT — this method is a port-backed view of it, not a competing
+        registry. Returns the raw keyed config so callers preserve their own
+        output shapes (l4_workflow / critical_bundle_values included).
+        """
+        return dict(self._read_umh_seed_file(registry_path))
+
     def seed_from_umh_registry(self, registry_path: str = "") -> int:
         """Seed projections from data/umh/projection_registry.json.
 
@@ -318,16 +353,7 @@ class ProjectionPort:
         load so the daemon (and anyone else) registers through the one port
         exactly once, instead of hand-rolling the JSON walk inline.
         """
-        if not registry_path:
-            registry_path = os.path.join(_REPO_ROOT, "data", "umh", "projection_registry.json")
-        if not os.path.exists(registry_path):
-            return 0
-        try:
-            with open(registry_path, "r") as f:
-                entries = json.load(f)
-        except (json.JSONDecodeError, OSError) as exc:
-            logger.debug("Failed to load UMH projection registry: %s", exc)
-            return 0
+        entries = self._read_umh_seed_file(registry_path)
         added = 0
         for proj_id, cfg in entries.items():
             if proj_id in self._registrations:
@@ -379,3 +405,14 @@ def get_default_projection_port() -> ProjectionPort:
             if _default_port is None:
                 _default_port = ProjectionPort()
     return _default_port
+
+
+def load_umh_projection_seed(registry_path: str = "") -> dict[str, dict[str, Any]]:
+    """Port-backed read of the UMH projection registry seed config.
+
+    WP-P3 read-side convergence: the single entry point read-side consumers use
+    to obtain per-projection seed config, instead of opening
+    data/umh/projection_registry.json themselves. Delegates to the canonical
+    ProjectionPort so the file is read through the one port surface.
+    """
+    return get_default_projection_port().load_seed_config(registry_path)
