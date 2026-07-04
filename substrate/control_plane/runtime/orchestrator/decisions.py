@@ -92,7 +92,15 @@ def _action_type(action: dict[str, Any]) -> str:
 
 
 def _risk(action: dict[str, Any]) -> str:
-    return str(action.get("risk_level") or "low").lower()
+    # WP-P2-002: fail-closed. A missing/unknown risk_level is treated as HIGH,
+    # not "low" — an action that does not declare its risk must be handled
+    # cautiously by downstream routing, never waved through as low-risk.
+    from substrate.governance.risk_classes import coerce_risk_class
+
+    raw = action.get("risk_level")
+    if raw is None or str(raw).strip() == "":
+        return coerce_risk_class(None).value  # -> "high"
+    return coerce_risk_class(raw).value
 
 
 def _has_idempotency(action: dict[str, Any]) -> bool:

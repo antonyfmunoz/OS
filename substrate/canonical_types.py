@@ -38,6 +38,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ExecutionContext": ["substrate.types"],
     "PermissionTier": ["substrate.types"],
     "RiskClass": ["substrate.types"],
+    # WP-P2-002: the side-effect CATEGORY axis (8 members), bridges to the
+    # severity RiskClass via to_risk_class(). The canonical risk vocabulary is
+    # the pair (RiskClass severity x ActionRiskCategory category).
+    "ActionRiskCategory": ["substrate.governance.risk_classes"],
     "GovernanceDecision": ["substrate.types"],
     "GovernanceVerdict": ["substrate.types"],
     "PipelineGovernanceVerdict": ["substrate.types"],
