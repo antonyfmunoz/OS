@@ -31,6 +31,12 @@ from substrate.organism.mutation_registry import MutationRegistry, MutationSpec
 
 logger = logging.getLogger(__name__)
 
+# Risk classes that must NEVER execute without the governed spine. Only "low"
+# is potentially eligible for degraded execution — and even then, only when the
+# spec explicitly opts in via degraded_mode_allowed and its blast radius is local.
+_DEGRADED_ELIGIBLE_RISK = frozenset({"low"})
+_DEGRADED_ELIGIBLE_BLAST = frozenset({BlastRadius.LOCAL_RUNTIME, BlastRadius.LOCAL_FILE})
+
 
 @dataclass
 class MutationRequest:
@@ -60,6 +66,12 @@ class MutationResponse:
     awaiting_approval: bool = False
     rejected_reason: str = ""
     envelope: ActionEnvelope | None = None
+    # True only for the narrow degraded-mode execution path (control plane down,
+    # spec opted in, low-risk local). Callers/monitoring can surface this.
+    degraded: bool = False
+    # HTTP-equivalent status hint. 503 when the control plane is unavailable and
+    # the mutation fails closed; None means "use the normal 200/422 mapping".
+    http_status: int | None = None
 
     def to_http_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -73,6 +85,8 @@ class MutationResponse:
             d["awaiting_approval"] = True
         if self.rejected_reason:
             d["rejected_reason"] = self.rejected_reason
+        if self.degraded:
+            d["degraded"] = True
         return d
 
 
@@ -93,9 +107,7 @@ class MutationRouter:
     def execute(self, request: MutationRequest) -> MutationResponse:
         spec = self._registry.lookup(request.mutation_name)
         if spec is None:
-            logger.warning(
-                "unregistered mutation rejected: %s", request.mutation_name
-            )
+            logger.warning("unregistered mutation rejected: %s", request.mutation_name)
             return MutationResponse(
                 success=False,
                 output=f"unregistered mutation: {request.mutation_name}",
@@ -125,9 +137,7 @@ class MutationRouter:
 
         return self._to_response(result)
 
-    def _build_envelope(
-        self, request: MutationRequest, spec: MutationSpec
-    ) -> ActionEnvelope:
+    def _build_envelope(self, request: MutationRequest, spec: MutationSpec) -> ActionEnvelope:
         verification = None
         if request.verification_fn is not None:
             verification = VerificationStrategy(
@@ -188,3 +198,181 @@ class MutationRouter:
             rejected_reason=envelope.rejected_reason,
             envelope=envelope,
         )
+
+
+# ── Fail-closed degraded-mode gate (control plane unavailable) ────────────
+#
+# This is the choke point BELOW the transport layer. When the organism daemon
+# (and therefore the GovernedExecutionSpine) is unavailable, the transport shim
+# in transports/api/governed.py delegates DOWN into this function rather than
+# executing directly. The decision is a deterministic rules table keyed on the
+# mutation's registered risk class and blast radius — no LLM, no network.
+#
+# Contract:
+#   - Non-LOW risk (medium/high/critical), or any mutation whose spec does not
+#     opt in via degraded_mode_allowed, or a non-local blast radius → FAIL CLOSED.
+#     No execute_fn is ever called. No state changes.
+#   - LOW risk + degraded_mode_allowed=True + LOCAL_RUNTIME/LOCAL_FILE → permitted,
+#     and a mandatory degraded audit record is emitted BEFORE returning.
+
+
+@dataclass
+class DegradedDecision:
+    """Result of the deterministic fail-closed evaluation."""
+
+    allowed: bool
+    reason: str
+    spec: MutationSpec | None = None
+
+
+def evaluate_degraded_mutation(
+    request: MutationRequest,
+    registry: MutationRegistry,
+) -> DegradedDecision:
+    """Deterministic rules table: may this mutation run without the spine?
+
+    Pure function — inspects only the registered spec's risk class, blast radius,
+    and degraded_mode_allowed opt-in. Never executes anything.
+    """
+    spec = registry.lookup(request.mutation_name)
+    if spec is None:
+        return DegradedDecision(
+            allowed=False,
+            reason=f"unregistered mutation: {request.mutation_name}",
+        )
+
+    if not spec.degraded_mode_allowed:
+        return DegradedDecision(
+            allowed=False,
+            reason=(
+                f"{request.mutation_name} not permitted in degraded mode "
+                "(spec.degraded_mode_allowed is False)"
+            ),
+            spec=spec,
+        )
+
+    if spec.risk_level not in _DEGRADED_ELIGIBLE_RISK:
+        return DegradedDecision(
+            allowed=False,
+            reason=(
+                f"{request.mutation_name} risk={spec.risk_level} cannot run "
+                "ungoverned (only low-risk permitted in degraded mode)"
+            ),
+            spec=spec,
+        )
+
+    if spec.blast_radius not in _DEGRADED_ELIGIBLE_BLAST:
+        return DegradedDecision(
+            allowed=False,
+            reason=(
+                f"{request.mutation_name} blast_radius={spec.blast_radius.value} "
+                "cannot run ungoverned (only local blast radius permitted)"
+            ),
+            spec=spec,
+        )
+
+    return DegradedDecision(
+        allowed=True,
+        reason="low-risk local mutation with degraded_mode_allowed opt-in",
+        spec=spec,
+    )
+
+
+def _emit_degraded_audit(
+    request: MutationRequest, decision: DegradedDecision, status: str, output: str
+) -> str:
+    """Emit the mandatory degraded audit record to the execution ledger.
+
+    Uses the existing ExecutionLedger (data/runtime/execution_ledger.jsonl),
+    which persists standalone without the daemon. Returns the ledger entry id
+    (empty string only if the ledger itself is unreachable, which is logged).
+    """
+    try:
+        from substrate.organism.execution_ledger import get_execution_ledger
+
+        ledger = get_execution_ledger()
+        entry = ledger.record(
+            request_id=f"degraded:{request.mutation_name}",
+            executor_type="degraded_mode",
+            description=f"[DEGRADED] {request.intent} ({decision.reason})",
+            status=status,
+        )
+        return entry.entry_id
+    except Exception as exc:  # ledger must never crash the mutation path
+        logger.error("degraded audit record FAILED for %s: %s", request.mutation_name, exc)
+        return ""
+
+
+def route_mutation_degraded(
+    request: MutationRequest,
+    registry: MutationRegistry | None = None,
+) -> MutationResponse:
+    """Fail-closed entry point used when the control plane is unavailable.
+
+    The transport shim calls this instead of executing directly. Non-eligible
+    mutations are REJECTED with a 503-equivalent response and perform NO state
+    change. Eligible low-risk local mutations execute and emit a degraded audit
+    record.
+    """
+    if registry is None:
+        # Registry is instance-agnostic (built-in specs only); safe to build
+        # standalone when the daemon that would normally own it is down.
+        registry = MutationRegistry()
+
+    decision = evaluate_degraded_mutation(request, registry)
+
+    if not decision.allowed:
+        logger.warning(
+            "control plane unavailable — FAIL CLOSED on %s: %s",
+            request.mutation_name,
+            decision.reason,
+        )
+        _emit_degraded_audit(
+            request, decision, status="rejected_fail_closed", output=decision.reason
+        )
+        return MutationResponse(
+            success=False,
+            output=(
+                "control plane unavailable; mutation rejected (fail-closed): " + decision.reason
+            ),
+            status="rejected_control_plane_unavailable",
+            rejected_reason=decision.reason,
+            degraded=True,
+            http_status=503,
+        )
+
+    # Permitted degraded execution. Emit the audit record FIRST so there is a
+    # durable record even if execute_fn raises.
+    audit_id = _emit_degraded_audit(
+        request, decision, status="degraded_executing", output=request.intent
+    )
+    logger.warning(
+        "control plane unavailable — DEGRADED execution of %s (audit=%s)",
+        request.mutation_name,
+        audit_id,
+    )
+
+    try:
+        output, success = request.execute_fn()
+    except Exception as exc:
+        logger.error("degraded execution failed for %s: %s", request.mutation_name, exc)
+        _emit_degraded_audit(request, decision, status="degraded_failed", output=str(exc))
+        return MutationResponse(
+            success=False,
+            output=str(exc),
+            status="failed_degraded",
+            degraded=True,
+        )
+
+    _emit_degraded_audit(
+        request,
+        decision,
+        status="degraded_completed" if success else "degraded_failed",
+        output=output,
+    )
+    return MutationResponse(
+        success=success,
+        output=output,
+        status="completed_degraded",
+        degraded=True,
+    )

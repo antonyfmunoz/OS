@@ -45,6 +45,11 @@ class MutationSpec:
     timeout_seconds: float = 60.0
     max_retries: int = 0
     require_approval: bool = False
+    # When the control plane (organism daemon) is unavailable, only a mutation
+    # whose spec sets this True — AND which is low-risk and LOCAL_RUNTIME/LOCAL_FILE
+    # in blast radius — may execute in degraded mode. Everything else fails closed.
+    # Default False: absence of an explicit opt-in means "reject when ungoverned".
+    degraded_mode_allowed: bool = False
     description: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,6 +66,7 @@ class MutationSpec:
             "timeout_seconds": self.timeout_seconds,
             "max_retries": self.max_retries,
             "require_approval": self.require_approval,
+            "degraded_mode_allowed": self.degraded_mode_allowed,
             "description": self.description,
         }
 
@@ -176,6 +182,7 @@ REPO_HEALTH_SCAN = MutationSpec(
     verification_required=False,
     blast_radius=BlastRadius.LOCAL_RUNTIME,
     timeout_seconds=30.0,
+    degraded_mode_allowed=True,
     description="Read-only repo health scan",
 )
 
@@ -193,6 +200,7 @@ DOCKER_HEALTH_SCAN = MutationSpec(
     verification_required=False,
     blast_radius=BlastRadius.LOCAL_RUNTIME,
     timeout_seconds=30.0,
+    degraded_mode_allowed=True,
     description="Read-only Docker health scan",
 )
 
