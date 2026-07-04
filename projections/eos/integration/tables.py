@@ -231,19 +231,31 @@ def fetch_tasks_since(
     since: str,
     limit: int = 100,
 ) -> list[TaskRow]:
-    """Fetch tasks created after `since` assigned to agents owned by user."""
+    """Fetch tasks created after `since` assigned to agents owned by `user_id`.
+
+    Tenant scope. The vendored `agents` table has no owner column, so agent
+    ownership is derived from the tables that DO bind an agent to a user:
+    `agent_actions(agent_id, user_id)` and `agent_metrics(agent_id, user_id)`.
+    An agent is in the caller's scope if it appears under `user_id` in either.
+    `user_id` is bound into the query so a poll returns ONLY the caller's tasks
+    (WP-P0-010: the previous predicate `a.id IN (SELECT id FROM agents)` was
+    tautological and returned tasks across every tenant).
+    """
     query = """
         SELECT t.id, t.title, t.description, t.status, t.priority,
                t.agent_id, t.task_type, t.created_at
         FROM tasks t
-        JOIN agents a ON t.agent_id = a.id
-        WHERE a.id IN (SELECT id FROM agents)
+        WHERE t.agent_id IN (
+                  SELECT agent_id FROM agent_actions WHERE user_id = %s
+                  UNION
+                  SELECT agent_id FROM agent_metrics WHERE user_id = %s
+              )
               AND t.created_at > %s
         ORDER BY t.created_at ASC
         LIMIT %s
     """
     with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-        cur.execute(query, (since, limit))
+        cur.execute(query, (user_id, user_id, since, limit))
         rows = cur.fetchall()
 
     return [
