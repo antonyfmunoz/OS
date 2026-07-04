@@ -53,7 +53,9 @@ def _get_powershell_path() -> str:
     return "powershell.exe"
 
 
-async def _notify_vps_mfa(service: str, mfa_type: str, url: str, screenshot_path: str | None) -> bool:
+async def _notify_vps_mfa(
+    service: str, mfa_type: str, url: str, screenshot_path: str | None
+) -> bool:
     """POST MFA challenge back to VPS webhook receiver for Discord surfacing."""
     import aiohttp
 
@@ -66,11 +68,19 @@ async def _notify_vps_mfa(service: str, mfa_type: str, url: str, screenshot_path
         "timestamp": time.time(),
     }
 
+    # WP-P0-004: the receiver requires bearer auth on /mfa-challenge. Read the
+    # token from env (1Password-injected); never hardcoded, never in the URL.
+    headers: dict[str, str] = {}
+    _token = os.getenv("CC_WEBHOOK_TOKEN", "").strip()
+    if _token:
+        headers["Authorization"] = f"Bearer {_token}"
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
                 f"{_VPS_WEBHOOK_URL}/mfa-challenge",
                 json=payload,
+                headers=headers,
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
                 return resp.status == 200
@@ -82,7 +92,9 @@ async def _notify_vps_mfa(service: str, mfa_type: str, url: str, screenshot_path
 async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
     """Execute the export script and monitor for MFA challenges."""
     if dry_run:
-        logger.info("[ExportBridge] DRY RUN — would execute: fire_exports_windows.ps1 -Service %s", service)
+        logger.info(
+            "[ExportBridge] DRY RUN — would execute: fire_exports_windows.ps1 -Service %s", service
+        )
         return {
             "ok": True,
             "message": f"dry_run: would execute fire_exports_windows.ps1 -Service {service}",
@@ -98,7 +110,9 @@ async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
     env = os.environ.copy()
     env["BROWSER_HEADLESS"] = "false"
     env["CAMOUFOX_PROFILES_DIR"] = str(_PROFILE_DIR)
-    env["EOS_EXPORT_MFA_CALLBACK_URL"] = f"http://localhost:{os.getenv('EOS_LOCAL_BRIDGE_PORT', '8767')}/mfa-response"
+    env["EOS_EXPORT_MFA_CALLBACK_URL"] = (
+        f"http://localhost:{os.getenv('EOS_LOCAL_BRIDGE_PORT', '8767')}/mfa-response"
+    )
 
     _PROFILE_DIR.mkdir(parents=True, exist_ok=True)
     (_PROFILE_DIR / service).mkdir(parents=True, exist_ok=True)
@@ -107,7 +121,13 @@ async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            ps, "-ExecutionPolicy", "Bypass", "-File", str(script_path), "-Service", service,
+            ps,
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script_path),
+            "-Service",
+            service,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
@@ -147,7 +167,9 @@ async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
 
                     try:
                         mfa_response = await asyncio.wait_for(future, timeout=300)
-                        logger.info("[ExportBridge:%s] MFA response received: %s", service, mfa_response)
+                        logger.info(
+                            "[ExportBridge:%s] MFA response received: %s", service, mfa_response
+                        )
                     except asyncio.TimeoutError:
                         logger.warning("[ExportBridge:%s] MFA response timed out (300s)", service)
                     finally:
@@ -163,15 +185,22 @@ async def _run_export(service: str, dry_run: bool = False) -> dict[str, Any]:
         await proc.wait()
 
         full_output = "\n".join(stdout_lines)
-        has_error = "[ERROR]" in full_output or "Traceback" in full_output or "ModuleNotFoundError" in full_output
-        has_success = any(sig in full_output for sig in [
-            "export submitted",
-            "Export result: success",
-            "export complete",
-            "[OK]",
-            "No MFA detected",
-            "Export attempt complete",
-        ])
+        has_error = (
+            "[ERROR]" in full_output
+            or "Traceback" in full_output
+            or "ModuleNotFoundError" in full_output
+        )
+        has_success = any(
+            sig in full_output
+            for sig in [
+                "export submitted",
+                "Export result: success",
+                "export complete",
+                "[OK]",
+                "No MFA detected",
+                "Export attempt complete",
+            ]
+        )
         screenshot_path = None
         for line in stdout_lines:
             if "Screenshot saved:" in line:
