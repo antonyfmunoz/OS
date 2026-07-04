@@ -211,13 +211,15 @@
   padding: 6px;
   border-radius: 3px;
   background: var(--color-surface-raised);
-  overflow-x: auto;
+  overflow-x: hidden;
   font-size: 0.85em;
 }
 
 .chat-markdown pre code {
   padding: 0;
   background: none;
+  word-break: break-all;
+  white-space: pre-wrap;
 }
 
 .chat-markdown table {
@@ -225,6 +227,8 @@
   margin: 0.5em 0;
   border-collapse: collapse;
   font-size: 0.85em;
+  table-layout: fixed;
+  word-break: break-word;
 }
 
 .chat-markdown th,

@@ -12,7 +12,7 @@ export function RightDrawer() {
     <div
       className="wv-card absolute z-20 flex flex-col overflow-hidden"
       style={{
-        width: mobile ? 'calc(55vw)' : 200,
+        width: mobile ? 'calc(55vw)' : 240,
         right: 6,
         top: mobile ? 80 : 6,
         bottom: mobile ? 78 : 36,

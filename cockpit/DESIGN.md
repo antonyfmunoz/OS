@@ -186,7 +186,7 @@ CommandPalette                   (fixed overlay, z-50, Ctrl+K)
 ### RightDrawer
 
 - **CSS**: `wv-card absolute z-20 flex flex-col overflow-hidden`
-- **Desktop**: width 200px, right:6, top:6, bottom:36
+- **Desktop**: width 240px, right:6, top:6, bottom:36
 - **Mobile**: width calc(55vw), right:6, top:80, bottom:78
 - **Content**: RightRail (chat panel)
 - **Default state**: closed (`rightDrawerOpen: false`)
@@ -319,7 +319,7 @@ Breakpoint: **640px** (`useIsMobile()` via `window.matchMedia`)
 | Component | Desktop | Mobile |
 |-----------|---------|--------|
 | LeftDrawer | 160px, top:6, bottom:36 | calc(33vw), top:80, bottom:78 |
-| RightDrawer | 200px, top:6, bottom:36 | calc(55vw), top:80, bottom:78 |
+| RightDrawer | 240px, top:6, bottom:36 | calc(55vw), top:80, bottom:78 |
 | ControlPanel | left:172, right:252, z-20 | left:6, right:6, z-30 |
 | CanvasToolbar max-width | unconstrained | calc(100vw - 12px) |
 | Toolbar zoom % text | visible | hidden |
