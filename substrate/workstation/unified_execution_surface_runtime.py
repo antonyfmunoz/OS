@@ -197,16 +197,22 @@ class UnifiedExecutionSurfaceRuntime:
             status = self._map_status(status_raw)
             if filter_status and status.value != filter_status:
                 continue
-            streams.append(UnifiedExecutionStream(
-                stream_id=f"wp-{wid}" if wid else f"wp-{uuid4().hex[:8]}",
-                stream_type=ExecutionStreamType.WORK_PACKET,
-                status=status,
-                description=_extract_str(item, "title", _extract_str(item, "description", "work packet")),
-                risk_class=_extract_str(item, "risk_class", _extract_str(item, "risk", "")),
-                started_at=_extract_float(item, "created_at", _extract_float(item, "started_at")),
-                source_id=wid,
-                source_system="governed_work",
-            ))
+            streams.append(
+                UnifiedExecutionStream(
+                    stream_id=f"wp-{wid}" if wid else f"wp-{uuid4().hex[:8]}",
+                    stream_type=ExecutionStreamType.WORK_PACKET,
+                    status=status,
+                    description=_extract_str(
+                        item, "title", _extract_str(item, "description", "work packet")
+                    ),
+                    risk_class=_extract_str(item, "risk_class", _extract_str(item, "risk", "")),
+                    started_at=_extract_float(
+                        item, "created_at", _extract_float(item, "started_at")
+                    ),
+                    source_id=wid,
+                    source_system="governed_work",
+                )
+            )
         return streams
 
     def _agent_streams(self) -> list[UnifiedExecutionStream]:
@@ -214,18 +220,22 @@ class UnifiedExecutionSurfaceRuntime:
         streams: list[UnifiedExecutionStream] = []
         for d in dispatches:
             did = _extract_id(d, "dispatch_id", "id")
-            streams.append(UnifiedExecutionStream(
-                stream_id=f"ad-{did}" if did else f"ad-{uuid4().hex[:8]}",
-                stream_type=ExecutionStreamType.AGENT_DISPATCH,
-                status=ExecutionStreamStatus.EXECUTING,
-                description=_extract_str(d, "description", _extract_str(d, "task", "agent dispatch")),
-                agent_type=_extract_str(d, "agent_type", _extract_str(d, "agent", "")),
-                compute_node_id=_extract_str(d, "node_id", ""),
-                risk_class=_extract_str(d, "risk_class", ""),
-                started_at=_extract_float(d, "dispatched_at", _extract_float(d, "started_at")),
-                source_id=did,
-                source_system="agent_fleet",
-            ))
+            streams.append(
+                UnifiedExecutionStream(
+                    stream_id=f"ad-{did}" if did else f"ad-{uuid4().hex[:8]}",
+                    stream_type=ExecutionStreamType.AGENT_DISPATCH,
+                    status=ExecutionStreamStatus.EXECUTING,
+                    description=_extract_str(
+                        d, "description", _extract_str(d, "task", "agent dispatch")
+                    ),
+                    agent_type=_extract_str(d, "agent_type", _extract_str(d, "agent", "")),
+                    compute_node_id=_extract_str(d, "node_id", ""),
+                    risk_class=_extract_str(d, "risk_class", ""),
+                    started_at=_extract_float(d, "dispatched_at", _extract_float(d, "started_at")),
+                    source_id=did,
+                    source_system="agent_fleet",
+                )
+            )
         return streams
 
     def _compute_streams(self) -> list[UnifiedExecutionStream]:
@@ -233,17 +243,21 @@ class UnifiedExecutionSurfaceRuntime:
         streams: list[UnifiedExecutionStream] = []
         for t in tasks:
             tid = _extract_id(t, "task_id", "execution_id", "id")
-            streams.append(UnifiedExecutionStream(
-                stream_id=f"ct-{tid}" if tid else f"ct-{uuid4().hex[:8]}",
-                stream_type=ExecutionStreamType.COMPUTE_TASK,
-                status=ExecutionStreamStatus.EXECUTING,
-                description=_extract_str(t, "description", _extract_str(t, "task", "compute task")),
-                compute_node_id=_extract_str(t, "node_id", _extract_str(t, "device_id", "")),
-                risk_class=_extract_str(t, "risk_class", ""),
-                started_at=_extract_float(t, "started_at"),
-                source_id=tid,
-                source_system="compute_fabric",
-            ))
+            streams.append(
+                UnifiedExecutionStream(
+                    stream_id=f"ct-{tid}" if tid else f"ct-{uuid4().hex[:8]}",
+                    stream_type=ExecutionStreamType.COMPUTE_TASK,
+                    status=ExecutionStreamStatus.EXECUTING,
+                    description=_extract_str(
+                        t, "description", _extract_str(t, "task", "compute task")
+                    ),
+                    compute_node_id=_extract_str(t, "node_id", _extract_str(t, "device_id", "")),
+                    risk_class=_extract_str(t, "risk_class", ""),
+                    started_at=_extract_float(t, "started_at"),
+                    source_id=tid,
+                    source_system="compute_fabric",
+                )
+            )
         return streams
 
     @staticmethod
@@ -299,36 +313,45 @@ class UnifiedExecutionSurfaceRuntime:
             if status_raw.lower() not in ("approval_pending", "awaiting_approval", "pending"):
                 continue
             wid = _extract_id(w, "work_id", "id", "packet_id")
-            items.append(UnifiedApprovalItem(
-                approval_id=f"gw-{wid}" if wid else f"gw-{uuid4().hex[:8]}",
-                source_system="governed_work",
-                title=_extract_str(w, "title", "work item"),
-                description=_extract_str(w, "description", ""),
-                risk_class=_extract_str(w, "risk_class", _extract_str(w, "risk", "")),
-                waiting_since=_extract_float(w, "created_at"),
-                work_id=wid,
-            ))
+            items.append(
+                UnifiedApprovalItem(
+                    approval_id=f"gw-{wid}" if wid else f"gw-{uuid4().hex[:8]}",
+                    source_system="governed_work",
+                    title=_extract_str(w, "title", "work item"),
+                    description=_extract_str(w, "description", ""),
+                    risk_class=_extract_str(w, "risk_class", _extract_str(w, "risk", "")),
+                    waiting_since=_extract_float(w, "created_at"),
+                    work_id=wid,
+                )
+            )
         return items
 
     def _compounding_approvals(self) -> list[UnifiedApprovalItem]:
-        candidates = _safe_call(self._compounding_engine, "list_candidates", status="proposed") or []
+        candidates = (
+            _safe_call(self._compounding_engine, "list_candidates", status="proposed") or []
+        )
         items: list[UnifiedApprovalItem] = []
         for c in candidates:
             cid = _extract_id(c, "candidate_id", "id")
-            items.append(UnifiedApprovalItem(
-                approval_id=f"ce-{cid}" if cid else f"ce-{uuid4().hex[:8]}",
-                source_system="compounding",
-                title=_extract_str(c, "title", _extract_str(c, "name", "compounding candidate")),
-                description=_extract_str(c, "description", ""),
-                risk_class="low",
-                waiting_since=_extract_float(c, "proposed_at", _extract_float(c, "created_at")),
-                work_id=cid,
-            ))
+            items.append(
+                UnifiedApprovalItem(
+                    approval_id=f"ce-{cid}" if cid else f"ce-{uuid4().hex[:8]}",
+                    source_system="compounding",
+                    title=_extract_str(
+                        c, "title", _extract_str(c, "name", "compounding candidate")
+                    ),
+                    description=_extract_str(c, "description", ""),
+                    risk_class="low",
+                    waiting_since=_extract_float(c, "proposed_at", _extract_float(c, "created_at")),
+                    work_id=cid,
+                )
+            )
         return items
 
     def _approval_gate_approvals(self) -> list[UnifiedApprovalItem]:
         try:
-            from substrate.organism.executors.approval_intercept import OperatorApprovalGate
+            from substrate.organism.approval_gate import OperatorApprovalGate
+
             gate = OperatorApprovalGate()
             packets = gate.pending_packets() or []
         except Exception:
@@ -336,15 +359,17 @@ class UnifiedExecutionSurfaceRuntime:
         items: list[UnifiedApprovalItem] = []
         for p in packets:
             pid = _extract_id(p, "packet_id", "id")
-            items.append(UnifiedApprovalItem(
-                approval_id=f"ag-{pid}" if pid else f"ag-{uuid4().hex[:8]}",
-                source_system="approval_gate",
-                title=_extract_str(p, "title", "approval gate packet"),
-                description=_extract_str(p, "description", ""),
-                risk_class=_extract_str(p, "risk_class", ""),
-                waiting_since=_extract_float(p, "created_at"),
-                work_id=pid,
-            ))
+            items.append(
+                UnifiedApprovalItem(
+                    approval_id=f"ag-{pid}" if pid else f"ag-{uuid4().hex[:8]}",
+                    source_system="approval_gate",
+                    title=_extract_str(p, "title", "approval gate packet"),
+                    description=_extract_str(p, "description", ""),
+                    risk_class=_extract_str(p, "risk_class", ""),
+                    waiting_since=_extract_float(p, "created_at"),
+                    work_id=pid,
+                )
+            )
         return items
 
     # ── Public API ─────────────────────────────────────────────────────
@@ -370,7 +395,9 @@ class UnifiedExecutionSurfaceRuntime:
         return self._completed[-limit:]
 
     def stream_detail(self, stream_id: str) -> dict[str, Any]:
-        for s in self.active_streams() + self.queued_streams() + self.blocked_streams() + self._completed:
+        for s in (
+            self.active_streams() + self.queued_streams() + self.blocked_streams() + self._completed
+        ):
             if s.stream_id == stream_id:
                 detail = s.to_dict()
                 if s.source_id and self._proof_runtime is not None:
@@ -383,7 +410,9 @@ class UnifiedExecutionSurfaceRuntime:
                 if s.lineage_node_id and self._execution_graph is not None:
                     trace = _safe_call(self._execution_graph, "trace_full", s.lineage_node_id)
                     if trace is not None:
-                        detail["lineage_trace"] = trace if isinstance(trace, (dict, list)) else str(trace)
+                        detail["lineage_trace"] = (
+                            trace if isinstance(trace, (dict, list)) else str(trace)
+                        )
                 return detail
         return {"error": "stream_not_found", "stream_id": stream_id}
 
@@ -395,7 +424,8 @@ class UnifiedExecutionSurfaceRuntime:
             result = _safe_call(self._compounding_engine, "approve", work_id)
         elif source_system == "approval_gate":
             try:
-                from substrate.organism.executors.approval_intercept import OperatorApprovalGate
+                from substrate.organism.approval_gate import OperatorApprovalGate
+
                 gate = OperatorApprovalGate()
                 result = gate.approve(work_id)
             except Exception as exc:
@@ -415,7 +445,8 @@ class UnifiedExecutionSurfaceRuntime:
             result = _safe_call(self._compounding_engine, "reject", work_id, reason)
         elif source_system == "approval_gate":
             try:
-                from substrate.organism.executors.approval_intercept import OperatorApprovalGate
+                from substrate.organism.approval_gate import OperatorApprovalGate
+
                 gate = OperatorApprovalGate()
                 result = gate.reject(work_id, reason)
             except Exception as exc:
@@ -425,7 +456,12 @@ class UnifiedExecutionSurfaceRuntime:
 
         if result is None:
             return {"status": "error", "message": "subsystem returned None"}
-        return {"status": "rejected", "approval_id": approval_id, "source_system": source_system, "reason": reason}
+        return {
+            "status": "rejected",
+            "approval_id": approval_id,
+            "source_system": source_system,
+            "reason": reason,
+        }
 
     def snapshot(self) -> ExecutionSurfaceSnapshot:
         fleet_health = _safe_call(self._agent_fleet, "fleet_health")

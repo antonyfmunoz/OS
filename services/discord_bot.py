@@ -167,6 +167,7 @@ from transports.presence.handlers.cc_command_handler import try_inline_commands
 # Extracted modules
 import services.discord_message_handlers as _handlers
 import services.discord_bot_commands as _bot_commands
+
 try:
     from transports.presence.handlers.substrate_command_handler import (
         handle_substrate_command,
@@ -174,7 +175,10 @@ try:
         log_startup as _substrate_log_startup,
     )
 except ImportError:
-    async def handle_substrate_command(_msg, _text): pass
+
+    async def handle_substrate_command(_msg, _text):
+        pass
+
     is_substrate_command = lambda _content: False
     _substrate_log_startup = lambda: None
 
@@ -187,7 +191,9 @@ _gateway = EntrepreneurOSGateway()  # singleton — no ctx arg
 _ki = KnowledgeIntegrator(_ctx_eos)
 _ve = VoiceEngine()
 
-from substrate.control_plane.onboarding.onboarding_engine import OnboardingEngine as _OnboardingEngine
+from substrate.control_plane.onboarding.onboarding_engine import (
+    OnboardingEngine as _OnboardingEngine,
+)
 
 _onboarding = _OnboardingEngine(_ctx_eos)
 
@@ -733,7 +739,9 @@ async def handle_meeting_voice(
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: __import__("substrate.control_plane.agents.agent_teams", fromlist=["run_team_task"]).run_team_task(
+            lambda: __import__(
+                "substrate.control_plane.agents.agent_teams", fromlist=["run_team_task"]
+            ).run_team_task(
                 team="sales",
                 sub_agent="objection_handler",
                 prompt=f"Objection on call: {text}",
@@ -828,7 +836,9 @@ async def start_meeting_mode(
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(
         None,
-        lambda: __import__("substrate.control_plane.agents.agent_teams", fromlist=["run_team_task"]).run_team_task(
+        lambda: __import__(
+            "substrate.control_plane.agents.agent_teams", fromlist=["run_team_task"]
+        ).run_team_task(
             team="sales",
             sub_agent="closer",
             prompt=(
@@ -1061,7 +1071,12 @@ async def on_ready():
 
         _set_approval_bot(bot)
         _set_approval_channel(os.getenv("DISCORD_FOUNDERS_OFFICE", ""))
-        print("[Discord] Approval bridge registered")
+        # WP-P1-007: wire the canonical approval authority behind the substrate
+        # approval_port so Discord buttons resolve the SAME record they display.
+        from substrate.organism.approval_authority import register_with_port
+
+        register_with_port()
+        print("[Discord] Approval bridge + canonical authority port registered")
     except Exception as e:
         _record_error("approval_bridge", e)
         print(f"[Discord] Approval bridge setup failed: {e}")
@@ -1482,7 +1497,6 @@ async def _send_response(message: discord.Message, output: str) -> None:
 # ─── Message dispatcher ─────────────────────────────────────────────────────
 
 
-
 @bot.event
 async def on_message(message: discord.Message):
     # ── Early returns ────────────────────────────────────────────────────
@@ -1512,23 +1526,27 @@ async def on_message(message: discord.Message):
             from substrate.organism.protocols import AgentMessage as _RelayMsg
 
             _relay_store = _RelayStore()
-            _relay_store.save_message(_RelayMsg(
-                sender=_relay_author,
-                recipient="system",
-                intent="chat",
-                payload={"content": _relay_text, "source": "discord"},
-                origin_channel=f"discord/{_relay_channel}",
-            ))
+            _relay_store.save_message(
+                _RelayMsg(
+                    sender=_relay_author,
+                    recipient="system",
+                    intent="chat",
+                    payload={"content": _relay_text, "source": "discord"},
+                    origin_channel=f"discord/{_relay_channel}",
+                )
+            )
             from transports.api.cockpit import push_chat_message as _relay_push
 
-            _relay_push({
-                "sender": _relay_author,
-                "content": _relay_text,
-                "origin_channel": f"discord/{_relay_channel}",
-                "timestamp": __import__("datetime").datetime.now(
-                    __import__("datetime").timezone.utc
-                ).isoformat(),
-            })
+            _relay_push(
+                {
+                    "sender": _relay_author,
+                    "content": _relay_text,
+                    "origin_channel": f"discord/{_relay_channel}",
+                    "timestamp": __import__("datetime")
+                    .datetime.now(__import__("datetime").timezone.utc)
+                    .isoformat(),
+                }
+            )
     except Exception as _relay_err:
         _record_error("cross_channel_relay", _relay_err)
 
@@ -1559,7 +1577,13 @@ async def on_message(message: discord.Message):
 
     if text.strip().lower() == "/done" and _ib is not None:
         handled, text = await _handlers._handle_buffer_done(
-            message, text, channel_name, username, _ib, _uid, _cid_str,
+            message,
+            text,
+            channel_name,
+            username,
+            _ib,
+            _uid,
+            _cid_str,
         )
         if handled:
             return
@@ -1567,13 +1591,25 @@ async def on_message(message: discord.Message):
 
     elif text.strip().lower() == "/buffer" and _ib is not None:
         await _handlers._handle_buffer_start(
-            message, text, channel_name, username, _ib, _uid, _cid_str,
+            message,
+            text,
+            channel_name,
+            username,
+            _ib,
+            _uid,
+            _cid_str,
         )
         return
 
     elif _ib is not None and _ib.has_active(_uid, _cid_str):
         await _handlers._handle_buffer_accumulate(
-            message, text, channel_name, username, _ib, _uid, _cid_str,
+            message,
+            text,
+            channel_name,
+            username,
+            _ib,
+            _uid,
+            _cid_str,
         )
         return
 
@@ -1609,7 +1645,12 @@ async def on_message(message: discord.Message):
 
     # ── Orchestration ingress ───────────────────────────────────────────
     if await _handlers._handle_orchestration_ingress(
-        message, text, channel_name, username, _uid, _cid_str,
+        message,
+        text,
+        channel_name,
+        username,
+        _uid,
+        _cid_str,
     ):
         return
 
@@ -1844,6 +1885,7 @@ if __name__ == "__main__":
     from substrate.sockets.channel_port import register_channel_router
     from transports.discord.discord_utils import post_to_webhook, chunk_message
     from transports.channels.channel import get_channel_router as _get_channel_router
+
     register_notifier(post_to_webhook)
     register_chunker(chunk_message)
     register_channel_router(_get_channel_router)
@@ -1853,11 +1895,11 @@ if __name__ == "__main__":
         get_notification_engine,
         NotificationChannel,
     )
+
     def _discord_notify_handler(title: str, body: str, **kwargs) -> bool:
         return post_to_webhook(body, title=title)
-    get_notification_engine().register_channel(
-        NotificationChannel.DISCORD, _discord_notify_handler
-    )
+
+    get_notification_engine().register_channel(NotificationChannel.DISCORD, _discord_notify_handler)
 
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:

@@ -21,7 +21,32 @@ def _get_approval_runtime() -> Any:
     if _approval_runtime is None:
         from substrate.workstation.unified_approval_runtime import UnifiedApprovalRuntime
 
-        _approval_runtime = UnifiedApprovalRuntime()
+        # WP-P1-007: wire real sources so the cockpit pending list actually
+        # spans channels. Previously this was UnifiedApprovalRuntime() with zero
+        # sources — every collector iterated None and the list was always empty.
+        # Each source is best-effort: a missing one degrades the view, it does
+        # not blank it.
+        approval_gate = None
+        approval_intercept = None
+        try:
+            from substrate.organism.approval_gate import OperatorApprovalGate
+
+            approval_gate = OperatorApprovalGate()
+        except Exception:  # noqa: BLE001
+            approval_gate = None
+        try:
+            from substrate.organism.executors.approval_intercept import (
+                get_approval_intercept_service,
+            )
+
+            approval_intercept = get_approval_intercept_service()
+        except Exception:  # noqa: BLE001
+            approval_intercept = None
+
+        _approval_runtime = UnifiedApprovalRuntime(
+            approval_gate=approval_gate,
+            approval_intercept=approval_intercept,
+        )
     return _approval_runtime
 
 
@@ -160,6 +185,7 @@ def _build_router() -> Any:
     @router.post("/claim")
     def claim_approval(req: ClaimRequest) -> dict[str, Any]:
         """Atomically claim a pending approval from a surface (CAS)."""
+
         def _do_claim():
             from substrate.organism.approval_gate import OperatorApprovalGate
 
@@ -184,6 +210,7 @@ def _build_router() -> Any:
     @router.post("/resolve")
     def resolve_approval(req: ResolveRequest) -> dict[str, Any]:
         """Resolve a claimed approval (approve/reject/provide_input)."""
+
         def _do_resolve():
             from substrate.organism.approval_gate import OperatorApprovalGate
 
@@ -206,10 +233,14 @@ def _build_router() -> Any:
                 from transports.api.cockpit_core_routes import push_mutation_event
 
                 if push_mutation_event is not None:
-                    push_mutation_event("approvals", req.decision, {
-                        "id": req.approval_id,
-                        "surface": req.surface,
-                    })
+                    push_mutation_event(
+                        "approvals",
+                        req.decision,
+                        {
+                            "id": req.approval_id,
+                            "surface": req.surface,
+                        },
+                    )
             except Exception:
                 pass
             return f"resolved {req.approval_id}: {req.decision}", ok

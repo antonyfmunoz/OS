@@ -66,6 +66,7 @@ def _ensure_dirs() -> None:
 
 class ExecutionPlanStatus(str, Enum):
     """Lifecycle of a coordinator-level execution plan."""
+
     DRAFTED = "drafted"
     APPROVED = "approved"
     QUEUED = "queued"
@@ -78,6 +79,7 @@ class ExecutionPlanStatus(str, Enum):
 
 class ExecutionTargetType(str, Enum):
     """Canonical executor targets."""
+
     WORKSTATION = "workstation"
     AGENT = "agent"
     VPS = "vps"
@@ -89,6 +91,7 @@ class ExecutionTargetType(str, Enum):
 
 class ExecutionTiming(str, Enum):
     """How the execution should proceed (timing/scheduling)."""
+
     SYNCHRONOUS = "synchronous"
     ASYNCHRONOUS = "asynchronous"
     BACKGROUND = "background"
@@ -97,6 +100,7 @@ class ExecutionTiming(str, Enum):
 
 class ExecutionPriority(str, Enum):
     """Priority within the execution queue."""
+
     CRITICAL = "critical"
     HIGH = "high"
     NORMAL = "normal"
@@ -106,6 +110,7 @@ class ExecutionPriority(str, Enum):
 
 class CoordinatorApprovalState(str, Enum):
     """Approval state of an execution plan."""
+
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
@@ -114,6 +119,7 @@ class CoordinatorApprovalState(str, Enum):
 
 class LifecycleEventType(str, Enum):
     """Execution lifecycle event types."""
+
     PLAN_CREATED = "plan_created"
     PLAN_APPROVED = "plan_approved"
     PLAN_DENIED = "plan_denied"
@@ -136,9 +142,7 @@ class LifecycleEventType(str, Enum):
 class CoordinatorExecutionPlan:
     """A coordinator-level execution plan binding WorkPacket to executor."""
 
-    execution_plan_id: str = field(
-        default_factory=lambda: f"expl-{uuid4().hex[:12]}"
-    )
+    execution_plan_id: str = field(default_factory=lambda: f"expl-{uuid4().hex[:12]}")
     source_workpacket_id: str = ""
     profile_id: str = ""
     session_id: str = ""
@@ -198,9 +202,7 @@ class CoordinatorExecutionPlan:
 class ExecutorDefinition:
     """Registry entry for a supported executor target."""
 
-    executor_id: str = field(
-        default_factory=lambda: f"extr-{uuid4().hex[:12]}"
-    )
+    executor_id: str = field(default_factory=lambda: f"extr-{uuid4().hex[:12]}")
     executor_type: str = ""
     name: str = ""
     description: str = ""
@@ -230,9 +232,7 @@ class ExecutorDefinition:
 class LifecycleEvent:
     """An event in the execution lifecycle."""
 
-    event_id: str = field(
-        default_factory=lambda: f"lcevt-{uuid4().hex[:12]}"
-    )
+    event_id: str = field(default_factory=lambda: f"lcevt-{uuid4().hex[:12]}")
     execution_plan_id: str = ""
     event_type: str = ""
     timestamp: float = field(default_factory=time.time)
@@ -260,9 +260,7 @@ class LifecycleEvent:
 class ExecutionCoordinatorSnapshot:
     """Point-in-time snapshot of the coordinator state."""
 
-    snapshot_id: str = field(
-        default_factory=lambda: f"ecsnap-{uuid4().hex[:12]}"
-    )
+    snapshot_id: str = field(default_factory=lambda: f"ecsnap-{uuid4().hex[:12]}")
     timestamp: float = field(default_factory=time.time)
     total_plans: int = 0
     by_status: dict[str, int] = field(default_factory=dict)
@@ -293,9 +291,7 @@ class ExecutorRegistry:
     """Registry of canonical executor targets."""
 
     def __init__(self, store_path: str | None = None) -> None:
-        self._store_path = store_path or os.path.join(
-            _coord_data_dir(), "executors.json"
-        )
+        self._store_path = store_path or os.path.join(_coord_data_dir(), "executors.json")
         self._executors: dict[str, ExecutorDefinition] = {}
         self._load()
 
@@ -315,7 +311,8 @@ class ExecutorRegistry:
         with open(self._store_path, "w") as f:
             json.dump(
                 [e.to_dict() for e in self._executors.values()],
-                f, indent=2,
+                f,
+                indent=2,
             )
 
     def register(self, executor: ExecutorDefinition) -> ExecutorDefinition:
@@ -423,9 +420,7 @@ class ExecutionQueue:
     """Priority queue for approved execution plans."""
 
     def __init__(self, store_path: str | None = None) -> None:
-        self._store_path = store_path or os.path.join(
-            _coord_data_dir(), "queue", "queue.json"
-        )
+        self._store_path = store_path or os.path.join(_coord_data_dir(), "queue", "queue.json")
         self._queue: list[CoordinatorExecutionPlan] = []
         self._load()
 
@@ -518,9 +513,7 @@ class ExecutionLifecycleTracker:
                     for line in f:
                         line = line.strip()
                         if line:
-                            self._events.append(
-                                LifecycleEvent.from_dict(json.loads(line))
-                            )
+                            self._events.append(LifecycleEvent.from_dict(json.loads(line)))
             except (json.JSONDecodeError, OSError):
                 logger.warning("Failed to load lifecycle events")
 
@@ -665,15 +658,18 @@ class PlanStore:
 
     def awaiting_approval(self) -> list[CoordinatorExecutionPlan]:
         return [
-            p for p in self._plans.values()
+            p
+            for p in self._plans.values()
             if p.approval_state == CoordinatorApprovalState.PENDING.value
             and p.status == ExecutionPlanStatus.DRAFTED.value
         ]
 
     def active(self) -> list[CoordinatorExecutionPlan]:
         return [
-            p for p in self._plans.values()
-            if p.status in (
+            p
+            for p in self._plans.values()
+            if p.status
+            in (
                 ExecutionPlanStatus.DISPATCHED.value,
                 ExecutionPlanStatus.EXECUTING.value,
             )
@@ -681,14 +677,18 @@ class PlanStore:
 
     def history(self, limit: int = 50) -> list[CoordinatorExecutionPlan]:
         terminal = [
-            p for p in self._plans.values()
-            if p.status in (
+            p
+            for p in self._plans.values()
+            if p.status
+            in (
                 ExecutionPlanStatus.COMPLETED.value,
                 ExecutionPlanStatus.FAILED.value,
                 ExecutionPlanStatus.CANCELLED.value,
             )
         ]
-        terminal.sort(key=lambda p: p.completed_at or p.failed_at or p.cancelled_at or 0, reverse=True)
+        terminal.sort(
+            key=lambda p: p.completed_at or p.failed_at or p.cancelled_at or 0, reverse=True
+        )
         return terminal[:limit]
 
     def all_plans(self) -> list[CoordinatorExecutionPlan]:
@@ -707,6 +707,7 @@ class CrossRuntimeCompositor:
     def gather_profile_context() -> dict[str, Any]:
         try:
             from substrate.organism.profile_runtime import get_profile_runtime
+
             pr = get_profile_runtime()
             snap = pr.snapshot()
             return snap.to_dict()
@@ -717,6 +718,7 @@ class CrossRuntimeCompositor:
     def gather_session_context() -> dict[str, Any]:
         try:
             from substrate.organism.session_runtime import get_session_runtime
+
             sr = get_session_runtime()
             snap = sr.snapshot()
             return snap.to_dict()
@@ -727,6 +729,7 @@ class CrossRuntimeCompositor:
     def gather_presence_context() -> dict[str, Any]:
         try:
             from substrate.organism.presence_runtime import PresenceRuntime
+
             pr = PresenceRuntime()
             return pr.snapshot()
         except Exception:
@@ -736,6 +739,7 @@ class CrossRuntimeCompositor:
     def gather_workstation_context() -> dict[str, Any]:
         try:
             from substrate.organism.workstation_runtime import get_workstation_runtime
+
             wr = get_workstation_runtime()
             snap = wr.snapshot()
             return snap.to_dict()
@@ -746,6 +750,7 @@ class CrossRuntimeCompositor:
     def gather_projection_context() -> dict[str, Any]:
         try:
             from substrate.organism.projection_engine import get_projection_engine
+
             pe = get_projection_engine()
             snap = pe.snapshot()
             return snap.to_dict()
@@ -756,6 +761,7 @@ class CrossRuntimeCompositor:
     def gather_continuity_context() -> dict[str, Any]:
         try:
             from substrate.organism.continuity_runtime import get_continuity_runtime
+
             cr = get_continuity_runtime()
             snap = cr.snapshot()
             return snap.to_dict()
@@ -796,12 +802,8 @@ class ExecutionCoordinator:
 
         self._plan_store = PlanStore(os.path.join(dd, "plans"))
         self._queue = ExecutionQueue(os.path.join(dd, "queue", "queue.json"))
-        self._lifecycle = ExecutionLifecycleTracker(
-            os.path.join(dd, "lifecycle", "events.jsonl")
-        )
-        self._executor_registry = ExecutorRegistry(
-            os.path.join(dd, "executors.json")
-        )
+        self._lifecycle = ExecutionLifecycleTracker(os.path.join(dd, "lifecycle", "events.jsonl"))
+        self._executor_registry = ExecutorRegistry(os.path.join(dd, "executors.json"))
         self._compositor = CrossRuntimeCompositor()
         self._gate = GovernanceGate()
 
@@ -852,7 +854,9 @@ class ExecutionCoordinator:
 
         logger.info(
             "Created plan %s for WP %s → %s",
-            plan.execution_plan_id, source_workpacket_id[:12], target_executor,
+            plan.execution_plan_id,
+            source_workpacket_id[:12],
+            target_executor,
         )
         return plan
 
@@ -894,6 +898,14 @@ class ExecutionCoordinator:
         plan = self._plan_store.get(execution_plan_id)
         if not plan:
             return None
+        # WP-P1-007: compare-and-swap guard — only a PENDING plan may be denied.
+        # Without this an already-APPROVED plan could be flipped to DENIED
+        # (double-resolve race). Mirrors approve_plan's PENDING guard.
+        if plan.approval_state != CoordinatorApprovalState.PENDING.value:
+            logger.warning(
+                "Plan %s already %s — deny refused", execution_plan_id, plan.approval_state
+            )
+            return plan
 
         plan.approval_state = CoordinatorApprovalState.DENIED.value
         plan.status = ExecutionPlanStatus.CANCELLED.value

@@ -57,39 +57,48 @@ class GovernanceApprovalView(discord.ui.View):
                 pass
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green, emoji="✅")
-    async def approve(
-        self, button: discord.ui.Button, interaction: discord.Interaction
-    ) -> None:
+    async def approve(self, button: discord.ui.Button, interaction: discord.Interaction) -> None:
         if self.responded:
             await interaction.response.send_message("Already responded.", ephemeral=True)
             return
         decided_by = str(interaction.user)
         try:
-            from substrate.organism.approval_gate import OperatorApprovalGate
-
-            gate = OperatorApprovalGate()
-            claimed = gate.claim_approval(self.approval_id, "discord")
-            if not claimed:
-                await interaction.response.edit_message(
-                    content=f"Already claimed by another surface.\n`{self.approval_id}`",
-                    view=None,
-                )
-                return
-            self.responded = True
-            ok = gate.resolve_approval(
-                self.approval_id, "approve", "discord", decided_by=decided_by,
+            # WP-P1-007: resolve through the substrate approval_port trust
+            # boundary so the button resolves the SAME canonical record it was
+            # built from (previously it claimed a DIFFERENT store and silently
+            # failed). The port's registered authority owns store routing.
+            from substrate.sockets.approval_port import (
+                ApprovalPortUnavailable,
+                submit_approval,
             )
-            if ok:
+
+            self.responded = True
+            resp = submit_approval(
+                self.approval_id,
+                True,
+                decided_by=decided_by,
+                surface="discord",
+            )
+            if resp.success:
                 await interaction.response.edit_message(
                     content=f"**Approved** by {decided_by}\n`{self.approval_id}`",
                     view=None,
                 )
             else:
+                self.responded = False
                 await interaction.response.edit_message(
-                    content=f"Approval `{self.approval_id}` could not be resolved.",
+                    content=f"Approval `{self.approval_id}` could not be resolved: {resp.detail}",
                     view=None,
                 )
+        except ApprovalPortUnavailable as exc:
+            self.responded = False
+            logger.error("approval port unavailable: %s", exc)
+            await interaction.response.edit_message(
+                content=f"Approval authority unavailable — `{self.approval_id}` NOT approved.",
+                view=None,
+            )
         except Exception as exc:
+            self.responded = False
             logger.error("approval button callback failed: %s", exc)
             await interaction.response.edit_message(
                 content=f"Error processing approval: {exc}",
@@ -97,39 +106,46 @@ class GovernanceApprovalView(discord.ui.View):
             )
 
     @discord.ui.button(label="Deny", style=discord.ButtonStyle.red, emoji="❌")
-    async def deny(
-        self, button: discord.ui.Button, interaction: discord.Interaction
-    ) -> None:
+    async def deny(self, button: discord.ui.Button, interaction: discord.Interaction) -> None:
         if self.responded:
             await interaction.response.send_message("Already responded.", ephemeral=True)
             return
         decided_by = str(interaction.user)
         try:
-            from substrate.organism.approval_gate import OperatorApprovalGate
-
-            gate = OperatorApprovalGate()
-            claimed = gate.claim_approval(self.approval_id, "discord")
-            if not claimed:
-                await interaction.response.edit_message(
-                    content=f"Already claimed by another surface.\n`{self.approval_id}`",
-                    view=None,
-                )
-                return
-            self.responded = True
-            ok = gate.resolve_approval(
-                self.approval_id, "reject", "discord", decided_by=decided_by,
+            # WP-P1-007: resolve through the substrate approval_port trust
+            # boundary — same canonical record the button was built from.
+            from substrate.sockets.approval_port import (
+                ApprovalPortUnavailable,
+                submit_approval,
             )
-            if ok:
+
+            self.responded = True
+            resp = submit_approval(
+                self.approval_id,
+                False,
+                decided_by=decided_by,
+                surface="discord",
+            )
+            if resp.success:
                 await interaction.response.edit_message(
                     content=f"**Denied** by {decided_by}\n`{self.approval_id}`",
                     view=None,
                 )
             else:
+                self.responded = False
                 await interaction.response.edit_message(
-                    content=f"Approval `{self.approval_id}` could not be resolved.",
+                    content=f"Approval `{self.approval_id}` could not be resolved: {resp.detail}",
                     view=None,
                 )
+        except ApprovalPortUnavailable as exc:
+            self.responded = False
+            logger.error("approval port unavailable: %s", exc)
+            await interaction.response.edit_message(
+                content=f"Approval authority unavailable — `{self.approval_id}` NOT denied.",
+                view=None,
+            )
         except Exception as exc:
+            self.responded = False
             logger.error("denial button callback failed: %s", exc)
             await interaction.response.edit_message(
                 content=f"Error processing denial: {exc}",
@@ -146,9 +162,7 @@ def _format_approval_message(approval: dict[str, Any]) -> str:
     approval_id = approval.get("id", "")
     description = approval.get("description", "")
 
-    risk_emoji = {"low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴"}.get(
-        risk, "⚪"
-    )
+    risk_emoji = {"low": "🟢", "medium": "🟡", "high": "🟠", "critical": "🔴"}.get(risk, "⚪")
 
     if event == "decided":
         status = approval.get("status", "unknown")
@@ -177,11 +191,13 @@ def handle_approval_alert(approval: dict[str, Any]) -> None:
     try:
         from transports.api.cockpit import push_organism_event
 
-        push_organism_event({
-            "type": "approval",
-            "event": approval.get("event", "created"),
-            "approval": approval,
-        })
+        push_organism_event(
+            {
+                "type": "approval",
+                "event": approval.get("event", "created"),
+                "approval": approval,
+            }
+        )
     except Exception as exc:
         logger.debug("cockpit WS push for approval failed: %s", exc)
 

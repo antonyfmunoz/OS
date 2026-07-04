@@ -33,9 +33,11 @@ from substrate.operator.operator_context import (
     OperatorTimelineEvent,
 )
 from substrate.operator.operator_context_engine import OperatorContextEngine
+from substrate.types import ApprovalRequest, ApprovalState  # WP-P1-007: real canonical type
 
 
 # ── Helpers ──────────────────────────────────────────────────────
+
 
 def _make_card(label: str = "Test", value: int = 5, status: str = "healthy") -> OperatorStatusCard:
     return OperatorStatusCard(label=label, value=value, status=status, detail="test detail")
@@ -78,6 +80,7 @@ def _make_health(status: str = "healthy") -> OperatorHealthSummary:
 @dataclass
 class MockOrganismEvent:
     """Minimal mock of substrate.organism.event_spine.OrganismEvent."""
+
     event_id: str = "evt-mock"
     domain: str = "runtime"
     event_type: str = "test"
@@ -119,20 +122,18 @@ class MockNodeRegistry:
         return self._nodes[0] if self._nodes else None
 
 
-class MockApprovalRequest:
-    def __init__(self, approval_id: str = "apr-001", status: str = "pending") -> None:
-        self.approval_id = approval_id
-        self.status = status
-
-    def to_dict(self) -> dict[str, Any]:
-        return {"approval_id": self.approval_id, "status": self.status}
+def MockApprovalRequest(approval_id: str = "apr-001", status: str = "pending") -> "ApprovalRequest":
+    """WP-P1-007: construct the REAL canonical ApprovalRequest (the type this
+    test previously mocked as nonexistent). Kept as a factory so existing call
+    sites are unchanged."""
+    return ApprovalRequest(approval_id=approval_id, state=ApprovalState.coerce(status))
 
 
 class MockApprovalStore:
-    def __init__(self, pending: list[MockApprovalRequest] | None = None) -> None:
+    def __init__(self, pending: "list[ApprovalRequest] | None" = None) -> None:
         self._pending = pending or []
 
-    def list_pending(self) -> list[MockApprovalRequest]:
+    def list_pending(self) -> "list[ApprovalRequest]":
         return self._pending
 
     @property
@@ -150,11 +151,25 @@ class MockServiceFailureEngine:
         "highest_risk_service": "event_spine",
     }
     _DEFAULT_PATH: list[dict[str, Any]] = [
-        {"service_role": "event_spine", "criticality": "critical", "blast_radius": 5, "direct_dependents": 3, "transitive_dependents": 2},
-        {"service_role": "governance", "criticality": "critical", "blast_radius": 4, "direct_dependents": 3, "transitive_dependents": 1},
+        {
+            "service_role": "event_spine",
+            "criticality": "critical",
+            "blast_radius": 5,
+            "direct_dependents": 3,
+            "transitive_dependents": 2,
+        },
+        {
+            "service_role": "governance",
+            "criticality": "critical",
+            "blast_radius": 4,
+            "direct_dependents": 3,
+            "transitive_dependents": 1,
+        },
     ]
 
-    def __init__(self, health: dict[str, Any] | None = None, path: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self, health: dict[str, Any] | None = None, path: list[dict[str, Any]] | None = None
+    ) -> None:
         self._health = health if health is not None else self._DEFAULT_HEALTH.copy()
         self._path = path if path is not None else list(self._DEFAULT_PATH)
 
@@ -166,7 +181,9 @@ class MockServiceFailureEngine:
 
 
 class MockStateCoherenceEngine:
-    def __init__(self, health: dict[str, Any] | None = None, report: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, health: dict[str, Any] | None = None, report: dict[str, Any] | None = None
+    ) -> None:
         self._health = health or {
             "total_domains": 10,
             "coherent": 10,
@@ -249,7 +266,15 @@ class TestOperatorSeverityEnum(unittest.TestCase):
 
 class TestOperatorAttentionTypeEnum(unittest.TestCase):
     def test_values(self) -> None:
-        expected = {"governance", "action", "service", "workspace", "runtime", "state", "engineering"}
+        expected = {
+            "governance",
+            "action",
+            "service",
+            "workspace",
+            "runtime",
+            "state",
+            "engineering",
+        }
         actual = {m.value for m in OperatorAttentionType}
         self.assertEqual(actual, expected)
 
@@ -371,8 +396,12 @@ class TestOperatorTimelineEvent(unittest.TestCase):
 
     def test_default_priority(self) -> None:
         evt = OperatorTimelineEvent(
-            event_id="e", domain="d", event_type="t",
-            source="s", summary="sum", timestamp=0,
+            event_id="e",
+            domain="d",
+            event_type="t",
+            source="s",
+            summary="sum",
+            timestamp=0,
         )
         self.assertEqual(evt.priority, "normal")
 
@@ -489,7 +518,14 @@ class TestOperatorContextEngine(unittest.TestCase):
     def test_overall_degraded_when_state_unhealthy(self) -> None:
         engine = _make_engine(
             state_coherence_engine=MockStateCoherenceEngine(
-                health={"total_domains": 10, "coherent": 8, "stale": 2, "drifted": 0, "unknown": 0, "healthy": False}
+                health={
+                    "total_domains": 10,
+                    "coherent": 8,
+                    "stale": 2,
+                    "drifted": 0,
+                    "unknown": 0,
+                    "healthy": False,
+                }
             ),
         )
         hs = engine.health_summary()
@@ -546,7 +582,8 @@ class TestOperatorContextEngine(unittest.TestCase):
     def test_graceful_degradation_no_services(self) -> None:
         engine = _make_engine(
             service_failure_engine=MockServiceFailureEngine(
-                health={}, path=[],
+                health={},
+                path=[],
             ),
         )
         snap = engine.snapshot()
@@ -584,7 +621,11 @@ class TestAttentionGeneration(unittest.TestCase):
                     "overall_health": "degraded",
                     "domain_count": 10,
                     "domains": [
-                        {"domain": "runtime", "status": "stale", "service_owner": "distributed_runtime"},
+                        {
+                            "domain": "runtime",
+                            "status": "stale",
+                            "service_owner": "distributed_runtime",
+                        },
                     ],
                 },
             ),
@@ -632,15 +673,21 @@ class TestAttentionGeneration(unittest.TestCase):
                 report={
                     "overall_health": "degraded",
                     "domain_count": 1,
-                    "domains": [{"domain": "memory", "status": "drifted", "service_owner": "memory"}],
+                    "domains": [
+                        {"domain": "memory", "status": "drifted", "service_owner": "memory"}
+                    ],
                 },
             ),
         )
         items = engine.attention_items()
         self.assertGreater(len(items), 1)
         severities = [i.severity for i in items]
-        critical_idx = next((idx for idx, s in enumerate(severities) if s == OperatorSeverity.CRITICAL), None)
-        warning_idx = next((idx for idx, s in enumerate(severities) if s == OperatorSeverity.WARNING), None)
+        critical_idx = next(
+            (idx for idx, s in enumerate(severities) if s == OperatorSeverity.CRITICAL), None
+        )
+        warning_idx = next(
+            (idx for idx, s in enumerate(severities) if s == OperatorSeverity.WARNING), None
+        )
         if critical_idx is not None and warning_idx is not None:
             self.assertLess(critical_idx, warning_idx)
 
@@ -658,8 +705,16 @@ class TestAttentionGeneration(unittest.TestCase):
                     "domain_count": 10,
                     "domains": [
                         {"domain": "memory", "status": "drifted", "service_owner": "memory"},
-                        {"domain": "runtime", "status": "stale", "service_owner": "distributed_runtime"},
-                        {"domain": "governance", "status": "coherent", "service_owner": "governance"},
+                        {
+                            "domain": "runtime",
+                            "status": "stale",
+                            "service_owner": "distributed_runtime",
+                        },
+                        {
+                            "domain": "governance",
+                            "status": "coherent",
+                            "service_owner": "governance",
+                        },
                     ],
                 },
             ),
@@ -695,7 +750,11 @@ class TestTimeline(unittest.TestCase):
         self.assertEqual(len(tl), 2)
 
     def test_timeline_event_format(self) -> None:
-        events = [MockOrganismEvent(event_id="e1", domain="governance", event_type="approve", source="operator")]
+        events = [
+            MockOrganismEvent(
+                event_id="e1", domain="governance", event_type="approve", source="operator"
+            )
+        ]
         engine = _make_engine(event_spine=MockEventSpine(events=events))
         tl = engine.timeline()
         self.assertEqual(tl[0].event_id, "e1")
@@ -703,13 +762,18 @@ class TestTimeline(unittest.TestCase):
         self.assertEqual(tl[0].event_type, "approve")
 
     def test_timeline_limit(self) -> None:
-        events = [MockOrganismEvent(event_id=f"e{i}", event_type="tick", source="test") for i in range(100)]
+        events = [
+            MockOrganismEvent(event_id=f"e{i}", event_type="tick", source="test")
+            for i in range(100)
+        ]
         engine = _make_engine(event_spine=MockEventSpine(events=events))
         tl = engine.timeline(limit=10)
         self.assertEqual(len(tl), 10)
 
     def test_timeline_priority_preserved(self) -> None:
-        events = [MockOrganismEvent(event_id="e1", priority="critical", event_type="crash", source="test")]
+        events = [
+            MockOrganismEvent(event_id="e1", priority="critical", event_type="crash", source="test")
+        ]
         engine = _make_engine(event_spine=MockEventSpine(events=events))
         tl = engine.timeline()
         self.assertEqual(tl[0].priority, "critical")
@@ -743,17 +807,20 @@ class TestTimeline(unittest.TestCase):
 class TestCockpitRoutes(unittest.TestCase):
     def test_route_module_imports(self) -> None:
         from transports.api import cockpit_operator_home_routes
+
         self.assertTrue(hasattr(cockpit_operator_home_routes, "configure"))
         self.assertTrue(hasattr(cockpit_operator_home_routes, "operator_home_router"))
 
     def test_router_is_api_router(self) -> None:
         from transports.api.cockpit_operator_home_routes import operator_home_router
         from fastapi import APIRouter
+
         self.assertIsInstance(operator_home_router, APIRouter)
 
     def test_configure_idempotent(self) -> None:
         import importlib
         from transports.api import cockpit_operator_home_routes
+
         importlib.reload(cockpit_operator_home_routes)
         mock_dep = MagicMock()
         cockpit_operator_home_routes.configure(require_operator_dep=mock_dep)
@@ -763,6 +830,7 @@ class TestCockpitRoutes(unittest.TestCase):
     def test_build_router_has_prefix(self) -> None:
         import importlib
         from transports.api import cockpit_operator_home_routes
+
         importlib.reload(cockpit_operator_home_routes)
         mock_dep = MagicMock()
         cockpit_operator_home_routes.configure(require_operator_dep=mock_dep)
@@ -772,6 +840,7 @@ class TestCockpitRoutes(unittest.TestCase):
     def test_route_count(self) -> None:
         import importlib
         from transports.api import cockpit_operator_home_routes
+
         importlib.reload(cockpit_operator_home_routes)
         mock_dep = MagicMock()
         cockpit_operator_home_routes.configure(require_operator_dep=mock_dep)
@@ -787,6 +856,7 @@ class TestCockpitRoutes(unittest.TestCase):
     def test_engine_instantiation(self) -> None:
         import importlib
         from transports.api import cockpit_operator_home_routes
+
         importlib.reload(cockpit_operator_home_routes)
         if hasattr(cockpit_operator_home_routes._get_engine, "_instance"):
             del cockpit_operator_home_routes._get_engine._instance
@@ -797,6 +867,7 @@ class TestCockpitRoutes(unittest.TestCase):
 class TestTypeRegistration(unittest.TestCase):
     def test_types_registered(self) -> None:
         from substrate.canonical_types import CANONICAL_TYPES
+
         expected = [
             "OperatorSeverity",
             "OperatorAttentionType",
@@ -812,6 +883,7 @@ class TestTypeRegistration(unittest.TestCase):
 
     def test_type_module_paths(self) -> None:
         from substrate.canonical_types import CANONICAL_TYPES
+
         self.assertEqual(
             CANONICAL_TYPES["OperatorSeverity"],
             ["substrate.operator.operator_context"],
@@ -823,13 +895,19 @@ class TestTypeRegistration(unittest.TestCase):
 
     def test_registration_count(self) -> None:
         from substrate.canonical_types import CANONICAL_TYPES
-        phase31_types = [k for k in CANONICAL_TYPES if k.startswith("Operator") and
-                         CANONICAL_TYPES[k] == ["substrate.operator.operator_context"] or
-                         CANONICAL_TYPES[k] == ["substrate.operator.operator_context_engine"]]
+
+        phase31_types = [
+            k
+            for k in CANONICAL_TYPES
+            if k.startswith("Operator")
+            and CANONICAL_TYPES[k] == ["substrate.operator.operator_context"]
+            or CANONICAL_TYPES[k] == ["substrate.operator.operator_context_engine"]
+        ]
         self.assertGreaterEqual(len(phase31_types), 8)
 
     def test_no_duplicate_registrations(self) -> None:
         from substrate.canonical_types import CANONICAL_TYPES
+
         phase31_modules = [
             "substrate.operator.operator_context",
             "substrate.operator.operator_context_engine",
@@ -841,7 +919,9 @@ class TestTypeRegistration(unittest.TestCase):
 
 class TestIntegration(unittest.TestCase):
     def test_full_snapshot_composition(self) -> None:
-        events = [MockOrganismEvent(event_id=f"e{i}", event_type="tick", source="test") for i in range(5)]
+        events = [
+            MockOrganismEvent(event_id=f"e{i}", event_type="tick", source="test") for i in range(5)
+        ]
         engine = _make_engine(
             event_spine=MockEventSpine(events=events),
             approval_store=MockApprovalStore(pending=[MockApprovalRequest()]),
