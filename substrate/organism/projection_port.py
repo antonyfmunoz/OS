@@ -1,15 +1,18 @@
-"""Projection-agnostic organism state port.
+"""Projection-agnostic organism state-broadcast port.
 
-Abstract port that any projection can register against to receive
-organism state updates. Follows the socket/port pattern used
-throughout UMH substrate (see substrate/sockets/).
+NOT the projection REGISTRATION port. That is `OrganismStatePort`'s namesake in
+`substrate/sockets/projection_port.py` (ProjectionPort / ProjectionRegistration),
+which is the one canonical surface where a projection DECLARES itself (capabilities
+consumed, routes mounted, drift). This file is the STATE-BROADCAST bus: the
+organism pushes typed `StateSlice` updates OUT to registered subscribers.
 
-Projections register as subscribers with optional slice filtering.
-The port broadcasts state updates and bridges EventSpine events
-to the appropriate state slices.
+`register()` here takes a `ProjectionSubscriber` (a live update sink), whereas the
+sockets port's `register()` takes a `ProjectionRegistration` (a static declaration).
+The two are distinct concerns and must not be merged (WP-P3-004).
 
-No projection-specific code lives here. The port knows about
-state slices, not about cockpits, EOS, or any specific consumer.
+Abstract port that any projection can subscribe against to receive organism state
+updates. Follows the socket/port pattern used throughout UMH substrate. The port
+knows about state slices, not about cockpits, EOS, or any specific consumer.
 
 UMH substrate subsystem. Instance-agnostic.
 """
@@ -95,7 +98,9 @@ class OrganismStatePort:
             except Exception as exc:
                 logger.warning(
                     "projection '%s' raised %s: %s",
-                    sub.subscriber_id, type(exc).__name__, exc,
+                    sub.subscriber_id,
+                    type(exc).__name__,
+                    exc,
                 )
 
     def bridge_from_spine(
@@ -108,19 +113,22 @@ class OrganismStatePort:
         Maps EventDomains to StateSlices so projections receive
         typed state updates without knowing about the event spine.
         """
-        from substrate.organism.event_spine import EventDomain, OrganismEvent
+        from substrate.organism.event_spine import OrganismEvent
 
         domains = set(domain_to_slice.keys())
 
         def _on_event(event: OrganismEvent) -> None:
             slice_type = domain_to_slice.get(event.domain)
             if slice_type is not None:
-                self.broadcast(slice_type, {
-                    "event_type": event.event_type,
-                    "source": event.source,
-                    "data": event.data,
-                    "correlation_id": event.correlation_id,
-                })
+                self.broadcast(
+                    slice_type,
+                    {
+                        "event_type": event.event_type,
+                        "source": event.source,
+                        "data": event.data,
+                        "correlation_id": event.correlation_id,
+                    },
+                )
 
         spine.subscribe("state_port_bridge", _on_event, domains=domains)
 

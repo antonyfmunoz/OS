@@ -18,6 +18,10 @@ Names that are ALWAYS projection-specific:
 
 Projections register with UMH at runtime via abstract ports:
 - `substrate/sockets/channel_port.py` — channel routing
-- `substrate/sockets/projection_port.py` — projection registration (planned)
+- `substrate/sockets/projection_port.py` — the ONE canonical projection
+  registration surface (`ProjectionPort` / `ProjectionRegistration`). Seed inputs:
+  `data/umh/projection_registry.json` via `seed_from_umh_registry()`. NOT to be
+  confused with `substrate/organism/projection_port.py`, which is the organism
+  STATE-BROADCAST port (`OrganismStatePort`) — a different concern.
 
 Pre-commit hook enforces this: `scripts/check_projection_leak.py`

@@ -31,24 +31,38 @@ _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 _PORT_DIR = os.path.join(_REPO_ROOT, "data", "umh", "projections")
 _PORT_PATH = os.path.join(_PORT_DIR, "registrations.jsonl")
 
-# Legacy in-memory registry (backward compat with original API)
-_projections: dict[str, dict[str, Any]] = {}
+# ── Legacy module-level API (WP-P3-004: thin delegation, NOT a second registry) ──
+# These four functions predate the ProjectionPort class. They now delegate to the
+# ONE canonical in-memory config store below — there is no separate `_projections`
+# registry. New code should use the ProjectionPort class + ProjectionRegistration;
+# these wrappers survive only for backward compatibility (free-form config dicts).
+
+# Free-form config registrations keyed by projection_id — the single store the
+# legacy wrappers read/write. Kept distinct from ProjectionPort's typed JSONL
+# registrations because the legacy API stores arbitrary dicts, not the typed
+# ProjectionRegistration; both are views the canonical port exposes.
+_legacy_config_store: dict[str, dict[str, Any]] = {}
 
 
 def register_projection(projection_id: str, config: dict[str, Any]) -> None:
-    _projections[projection_id] = config
+    """Backward-compat: register a free-form projection config.
+
+    Delegates to the single canonical config store. New code should use
+    ProjectionPort.register(ProjectionRegistration(...)) instead.
+    """
+    _legacy_config_store[projection_id] = config
 
 
 def get_projection(projection_id: str) -> dict[str, Any] | None:
-    return _projections.get(projection_id)
+    return _legacy_config_store.get(projection_id)
 
 
 def list_projections() -> list[str]:
-    return list(_projections.keys())
+    return list(_legacy_config_store.keys())
 
 
 def unregister_projection(projection_id: str) -> bool:
-    return _projections.pop(projection_id, None) is not None
+    return _legacy_config_store.pop(projection_id, None) is not None
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -271,7 +285,12 @@ class ProjectionPort:
         }
 
     def seed_from_config(self, config_path: str = "") -> int:
-        """Seed projections from a JSON config file (instance data, not substrate)."""
+        """Seed projections from a JSON config file (instance data, not substrate).
+
+        Reads a LIST of ProjectionRegistration-shaped dicts. For the UMH
+        projection registry (a keyed object of projection configs) use
+        seed_from_umh_registry() instead.
+        """
         if not config_path:
             config_path = os.path.join(_REPO_ROOT, "data", "runtime", "projection_seed.json")
         if not os.path.exists(config_path):
@@ -290,6 +309,42 @@ class ProjectionPort:
             logger.debug("Failed to seed from config: %s", exc)
             return 0
 
+    def seed_from_umh_registry(self, registry_path: str = "") -> int:
+        """Seed projections from data/umh/projection_registry.json.
+
+        WP-P3-004: the UMH projection registry (a keyed object of per-projection
+        configs — app_name/health_url/public_url/...) is a SEED INPUT to this
+        canonical port, not a competing registry. This method encapsulates the
+        load so the daemon (and anyone else) registers through the one port
+        exactly once, instead of hand-rolling the JSON walk inline.
+        """
+        if not registry_path:
+            registry_path = os.path.join(_REPO_ROOT, "data", "umh", "projection_registry.json")
+        if not os.path.exists(registry_path):
+            return 0
+        try:
+            with open(registry_path, "r") as f:
+                entries = json.load(f)
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.debug("Failed to load UMH projection registry: %s", exc)
+            return 0
+        added = 0
+        for proj_id, cfg in entries.items():
+            if proj_id in self._registrations:
+                continue
+            self.register(
+                ProjectionRegistration(
+                    projection_id=proj_id,
+                    name=cfg.get("app_name", proj_id),
+                    capabilities_consumed=[],
+                    routes_mounted=[],
+                    health_url=cfg.get("health_url", ""),
+                    preview_url=cfg.get("public_url", ""),
+                )
+            )
+            added += 1
+        return added
+
     # ── Summary ────────────────────────────────────────────────────
 
     def summary(self) -> dict[str, Any]:
@@ -307,3 +362,20 @@ class ProjectionPort:
                 for r in self._registrations.values()
             ],
         }
+
+
+# ── Canonical singleton ──────────────────────────────────────────────────────
+# WP-P3-004: the ONE canonical projection registration surface. Callers that want
+# the shared registration port (rather than a throwaway instance) use this.
+_default_port: ProjectionPort | None = None
+_default_port_lock = threading.Lock()
+
+
+def get_default_projection_port() -> ProjectionPort:
+    """Return the process-wide canonical ProjectionPort instance."""
+    global _default_port
+    if _default_port is None:
+        with _default_port_lock:
+            if _default_port is None:
+                _default_port = ProjectionPort()
+    return _default_port

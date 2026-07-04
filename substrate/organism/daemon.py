@@ -25,64 +25,64 @@ import time
 from pathlib import Path
 from typing import Any
 
+from substrate.execution.pipeline import ExecutionPipeline
 from substrate.organism.advisor import Advisor
+from substrate.organism.agent_capability_model import AgentCapabilityModel
 from substrate.organism.allocation_loop import AllocationLoop
 from substrate.organism.approval_store import ApprovalStore
+from substrate.organism.assisted_executor import AssistedExecutor
 from substrate.organism.async_coordinator import AsyncCoordinator
+from substrate.organism.automation_pipeline import AutomationPipeline
+from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
+from substrate.organism.autonomous_cadence import AutonomousCadence, CadencePolicy
 from substrate.organism.autonomous_tick import AutonomousTick, TickConfig
 from substrate.organism.bottleneck_engine import BottleneckEngine
+from substrate.organism.candidate_supply_engine import CandidateSupplyEngine
+from substrate.organism.capability_compounding_runtime import CapabilityCompoundingRuntime
+from substrate.organism.continuous_qualification import ContinuousQualificationStage
 from substrate.organism.coordinator import OrganismCoordinator
+from substrate.organism.dev_session_tracker import DevSessionTracker
 from substrate.organism.environment_graph import EnvironmentGraph
 from substrate.organism.environment_reconciler import EnvironmentReconciler
-from substrate.organism.mesh_reconciler import MeshReconciler
-from substrate.organism.tailscale_discovery import TailscaleDiscoveryTick
 from substrate.organism.event_spine import EventDomain, EventSpine
 from substrate.organism.execution_economy import ExecutionEconomy
+from substrate.organism.execution_journal import ExecutionJournal
 from substrate.organism.execution_modes import ExecutionModeManager
+from substrate.organism.governed_spine import GovernedExecutionSpine
 from substrate.organism.homeostasis import HomeostasisEngine
 from substrate.organism.leverage_assimilation import LeverageAssimilator
+from substrate.organism.leverage_engine import LeverageEngine
 from substrate.organism.leverage_metrics import LeverageMetrics
+from substrate.organism.maintenance_loop import MaintenanceLoop
+from substrate.organism.memory_promotion import MemoryPromotionPipeline
+from substrate.organism.mesh_reconciler import MeshReconciler
+from substrate.organism.mutation_registry import MutationRegistry
+from substrate.organism.next_action_engine import NextActionEngine
 from substrate.organism.objective_physics import ObjectivePhysics
 from substrate.organism.objective_queue import ObjectiveQueue
 from substrate.organism.operator_compression import OperatorCompression
+from substrate.organism.outcome_learning import OutcomeLearningLoop
+from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
 from substrate.organism.projection_port import OrganismStatePort, StateSlice
+from substrate.organism.proof_store import get_proof_store
+from substrate.organism.propagation_wiring import build_propagation_engine
+from substrate.organism.readiness_model import ReadinessModel
 from substrate.organism.recursion_governance import RecursionGovernor
 from substrate.organism.runtime_graph import RuntimeGraph
 from substrate.organism.runtime_supervisor import RuntimeSupervisor
+from substrate.organism.spine_guard import GuardMode, SpineGuard
 from substrate.organism.store import OrganismStore
+from substrate.organism.tailscale_discovery import TailscaleDiscoveryTick
+from substrate.organism.template_registry import TemplateRegistry
 from substrate.organism.workcell_daemon import WorkcellDaemon as WorkcellDaemonV2
 from substrate.organism.workcell_protocol import Workcell, WorkcellRole
+from substrate.organism.worker_cell import WorkerCell
 from substrate.organism.workload_probes import WorkloadProbes
 from substrate.organism.workload_runner import WorkloadRunner
-from substrate.organism.automation_pipeline import AutomationPipeline
-from substrate.organism.maintenance_loop import MaintenanceLoop
-from substrate.organism.agent_capability_model import AgentCapabilityModel
-from substrate.organism.assisted_executor import AssistedExecutor
-from substrate.organism.execution_journal import ExecutionJournal
-from substrate.organism.governed_spine import GovernedExecutionSpine
-from substrate.organism.proof_store import get_proof_store
-from substrate.organism.continuous_qualification import ContinuousQualificationStage
-from substrate.organism.memory_promotion import MemoryPromotionPipeline
-from substrate.organism.mutation_registry import MutationRegistry
-from substrate.organism.outcome_learning import OutcomeLearningLoop
-from substrate.organism.propagation_wiring import build_propagation_engine
-from substrate.organism.template_registry import TemplateRegistry
-from substrate.organism.spine_guard import GuardMode, SpineGuard
-from substrate.organism.autonomous_action_gateway import AutonomousActionGateway, AutonomousPolicy
-from substrate.organism.capability_compounding_runtime import CapabilityCompoundingRuntime
-from substrate.organism.autonomous_cadence import AutonomousCadence, CadencePolicy
-from substrate.organism.candidate_supply_engine import CandidateSupplyEngine
-from substrate.organism.leverage_engine import LeverageEngine
-from substrate.organism.next_action_engine import NextActionEngine
-from substrate.organism.plan_execution_adapter import PlanExecutionAdapter
 from substrate.sockets.projection_port import (
     ProjectionPort,
     ProjectionRegistration,
 )
-from substrate.organism.dev_session_tracker import DevSessionTracker
-from substrate.organism.readiness_model import ReadinessModel
-from substrate.organism.worker_cell import WorkerCell
-from substrate.execution.pipeline import ExecutionPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +422,13 @@ class OrganismDaemon:
         )
 
     def _register_umh_projection(self) -> None:
-        """Register UMH itself + known projections into the substrate projection port."""
+        """Register UMH itself + known projections into the substrate projection port.
+
+        WP-P3-004: registration flows through the ONE canonical ProjectionPort.
+        UMH is registered explicitly; the rest are seeded from the UMH projection
+        registry via the port's own seed method (not an inline JSON walk), so
+        there is exactly one registration path.
+        """
         self._substrate_projection_port.register(
             ProjectionRegistration(
                 projection_id="umh",
@@ -434,24 +440,9 @@ class OrganismDaemon:
         )
 
         registry_path = os.path.join(self._repo_root, "data", "umh", "projection_registry.json")
-        if os.path.exists(registry_path):
-            try:
-                with open(registry_path, "r") as f:
-                    entries = json.load(f)
-                for proj_id, cfg in entries.items():
-                    self._substrate_projection_port.register(
-                        ProjectionRegistration(
-                            projection_id=proj_id,
-                            name=cfg.get("app_name", proj_id),
-                            capabilities_consumed=[],
-                            routes_mounted=[],
-                            health_url=cfg.get("health_url", ""),
-                            preview_url=cfg.get("public_url", ""),
-                        )
-                    )
-                logger.info("registered %d projections from registry", len(entries))
-            except (json.JSONDecodeError, OSError) as exc:
-                logger.debug("failed to load projection registry: %s", exc)
+        added = self._substrate_projection_port.seed_from_umh_registry(registry_path)
+        if added:
+            logger.info("seeded %d projections from UMH registry", added)
 
     def _register_tick_stages(self) -> None:
         """Register all subsystems as autonomous tick stages."""
