@@ -104,9 +104,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AuthorityDomain": ["substrate.execution.runtime.worker_runtime_contracts"],
     "MessageBusType": ["substrate.execution.runtime.worker_runtime_contracts"],
     # ── nodes/environments/work_packet.py ───────────────────────────────
-    "EnvironmentPacketStatus": ["nodes.environments.work_packet"],
-    "EnvironmentPacketRiskLevel": ["nodes.environments.work_packet"],
-    "EnvironmentPacketExecutionTarget": ["nodes.environments.work_packet"],
+    # WP-P2-001: names follow the real source symbols. A prior rename doubled
+    # the "Environment" prefix in work_packet.py; the registry now matches the
+    # actual class names so entries resolve (was EnvironmentPacket* — stale).
+    "EnvironmentEnvironmentPacketStatus": ["nodes.environments.work_packet"],
+    "EnvironmentEnvironmentPacketRiskLevel": ["nodes.environments.work_packet"],
+    "EnvironmentEnvironmentPacketExecutionTarget": ["nodes.environments.work_packet"],
     "EnvironmentWorkPacket": ["nodes.environments.work_packet"],
     # ── substrate/organism/runtime_graph.py ─────────────────────────────
     "AvailabilityStatus": ["substrate.organism.runtime_graph"],
@@ -213,11 +216,14 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "CameraPolicy": ["substrate.workstation.profile_behavior"],
     "ProfileExecutionMode": ["substrate.workstation.profile_behavior"],
     "ReportingCadence": ["substrate.workstation.profile_behavior"],
-    "ActivationSource": ["substrate.workstation.activation"],
+    "ActivationSource": ["substrate.workstation.activation", "substrate.organism.profile_runtime"],
     "ActivationSignal": ["substrate.workstation.activation"],
     "PresenceSession": ["substrate.workstation.activation"],
     "DeviceSession": ["substrate.workstation.device_presence"],
-    "ContinuityCheckpoint": ["substrate.workstation.checkpoint"],
+    "ContinuityCheckpoint": [
+        "substrate.workstation.checkpoint",
+        "substrate.operator.operator_presence",
+    ],
     "CheckpointManager": ["substrate.workstation.checkpoint"],
     "ReturnBrief": ["substrate.workstation.resume_brief"],
     "ReturnBriefGenerator": ["substrate.workstation.resume_brief"],
@@ -225,7 +231,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "IntentContractManager": ["substrate.workstation.intent_contract"],
     "IntentStatus": ["substrate.workstation.intent_contract"],
     "CompositeState": ["substrate.workstation.continuity_engine"],
-    "ContinuityEngine": ["substrate.workstation.continuity_engine"],
+    "ContinuityEngine": [
+        "substrate.workstation.continuity_engine",
+        "substrate.operator.continuity_engine",
+    ],
     "StartupResult": ["substrate.workstation.continuity_engine"],
     "ShutdownResult": ["substrate.workstation.continuity_engine"],
     "CommandIntent": ["substrate.workstation.command_router"],
@@ -259,7 +268,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "DecisionRecord": ["substrate.organism.strategic_gap_engine"],
     "GoalRegistry": ["substrate.organism.strategic_gap_engine"],
     "GapDetector": ["substrate.organism.strategic_gap_engine"],
-    "RecommendationEngine": ["substrate.organism.strategic_gap_engine"],
+    "RecommendationEngine": [
+        "substrate.organism.strategic_gap_engine",
+        "substrate.organism.workstation_runtime",
+    ],
     "StrategicGapEngine": ["substrate.organism.strategic_gap_engine"],
     # Campaign 8: Goal Systems & Strategic Planning
     "GoalHierarchyEngine": ["substrate.organism.goal_hierarchy_engine"],
@@ -330,7 +342,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ResumeReport": ["substrate.organism.continuity_runtime"],
     "OperatorBrief": ["substrate.organism.continuity_runtime"],
     "WorkLineage": ["substrate.organism.continuity_runtime"],
-    "SessionHandoff": ["substrate.organism.continuity_runtime"],
+    "SessionHandoff": [
+        "substrate.organism.continuity_runtime",
+        "substrate.organism.session_runtime",
+    ],
     "AttentionModel": ["substrate.organism.continuity_runtime"],
     "TimelineEngine": ["substrate.organism.continuity_runtime"],
     "ResumeStateEngine": ["substrate.organism.continuity_runtime"],
@@ -345,13 +360,22 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "InteractionSurface": ["substrate.organism.presence_runtime"],
     "DeviceInfo": ["substrate.organism.presence_runtime"],
     "SessionInfo": ["substrate.organism.presence_runtime"],
-    "PresenceSnapshot": ["substrate.organism.presence_runtime"],
+    "PresenceSnapshot": [
+        "substrate.organism.presence_runtime",
+        "substrate.operator.operator_presence",
+    ],
     "PresenceEvent": ["substrate.organism.presence_runtime"],
     "DeviceRegistry": ["substrate.organism.presence_runtime"],
-    "SessionRegistry": ["substrate.organism.presence_runtime"],
+    "SessionRegistry": [
+        "substrate.organism.presence_runtime",
+        "substrate.organism.session_runtime",
+    ],
     "AttentionEngine": ["substrate.organism.presence_runtime"],
     "InterruptibilityEngine": ["substrate.organism.presence_runtime"],
-    "PresenceTimeline": ["substrate.organism.presence_runtime"],
+    "PresenceTimeline": [
+        "substrate.organism.presence_runtime",
+        "substrate.operator.presence_timeline",
+    ],
     "PresenceRuntime": ["substrate.organism.presence_runtime"],
     # Phase 9: Command Runtime
     "CommandActionType": ["substrate.organism.command_runtime"],
@@ -379,7 +403,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "WorkspacePreparationPlan": ["substrate.organism.workstation_runtime"],
     "ApplicationState": ["substrate.organism.workstation_runtime"],
     "WorkspaceState": ["substrate.organism.workstation_runtime"],
-    "WorkspaceSnapshot": ["substrate.organism.workstation_runtime"],
+    "WorkspaceSnapshot": [
+        "substrate.organism.workstation_runtime",
+        "substrate.organism.meta_ide_runtime",
+    ],
     "RestorationPlan": ["substrate.organism.workstation_runtime"],
     "WorkspaceSequence": ["substrate.organism.workstation_runtime"],
     "WorkstationProfile": ["substrate.organism.workstation_runtime"],
@@ -389,13 +416,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "WorkspaceTemplateRegistry": ["substrate.organism.workstation_runtime"],
     "WorkspaceContextAssembler": ["substrate.organism.workstation_runtime"],
     "SnapshotStore": ["substrate.organism.workstation_runtime"],
-    "RecommendationEngine": ["substrate.organism.workstation_runtime"],
     "PreparationSequencer": ["substrate.organism.workstation_runtime"],
     "WorkstationRuntime": ["substrate.organism.workstation_runtime"],
     # Phase 11: Profile Runtime
     "ProfileModeEnum": ["substrate.organism.profile_runtime"],
     "SystemModeEnum": ["substrate.organism.profile_runtime"],
-    "ActivationSource": ["substrate.organism.profile_runtime"],
     "ProfileEventType": ["substrate.organism.profile_runtime"],
     "ConflictSeverity": ["substrate.organism.profile_runtime"],
     "Profile": ["substrate.organism.profile_runtime"],
@@ -429,10 +454,8 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "HandoffStatus": ["substrate.organism.session_runtime"],
     "Session": ["substrate.organism.session_runtime"],
     "SessionEvent": ["substrate.organism.session_runtime"],
-    "SessionHandoff": ["substrate.organism.session_runtime"],
     "SessionContinuityLink": ["substrate.organism.session_runtime"],
     "SessionRuntimeSnapshot": ["substrate.organism.session_runtime"],
-    "SessionRegistry": ["substrate.organism.session_runtime"],
     "SessionLifecycleEngine": ["substrate.organism.session_runtime"],
     "SessionHandoffRuntime": ["substrate.organism.session_runtime"],
     "SessionContinuityGraph": ["substrate.organism.session_runtime"],
@@ -536,7 +559,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "BranchSnapshot": ["substrate.meta_ide.repository_model"],
     "WorktreeSnapshot": ["substrate.meta_ide.repository_model"],
     "RepositoryHealth": ["substrate.meta_ide.repository_model"],
-    "RepositorySnapshot": ["substrate.meta_ide.repository_model"],
+    "RepositorySnapshot": [
+        "substrate.meta_ide.repository_model",
+        "substrate.organism.repository_awareness_runtime",
+    ],
     "RepositoryReader": ["substrate.meta_ide.repository_model"],
     "MetaIDEWorkspaceEngine": ["substrate.meta_ide.workspace_intelligence"],
     "EngineeringRisk": ["substrate.meta_ide.workspace_intelligence"],
@@ -639,7 +665,6 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # W2: Meta IDE Runtime
     "ReviewStatus": ["substrate.organism.meta_ide_runtime"],
     "DevelopmentPhase": ["substrate.organism.meta_ide_runtime"],
-    "WorkspaceSnapshot": ["substrate.organism.meta_ide_runtime"],
     "IDEPlan": ["substrate.organism.meta_ide_runtime"],
     "DevelopmentStream": ["substrate.organism.meta_ide_runtime"],
     "ReviewDetail": ["substrate.organism.meta_ide_runtime"],
@@ -699,11 +724,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ContinuityStatus": ["substrate.operator.operator_presence"],
     "OperatorPresence": ["substrate.operator.operator_presence"],
     "ActiveContext": ["substrate.operator.operator_presence"],
-    "ContinuityCheckpoint": ["substrate.operator.operator_presence"],
-    "PresenceSnapshot": ["substrate.operator.operator_presence"],
-    "ContinuityEngine": ["substrate.operator.continuity_engine"],
     "PresenceTransition": ["substrate.operator.presence_timeline"],
-    "PresenceTimeline": ["substrate.operator.presence_timeline"],
     "DevicePresenceState": ["substrate.operator.device_continuity"],
     "DeviceContinuityTracker": ["substrate.operator.device_continuity"],
     # Phase 33: Screen Awareness Runtime
@@ -927,7 +948,6 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # Campaign 6.1 — Repository Awareness
     "FileCategory": ["substrate.organism.repository_awareness_runtime"],
     "FileEntry": ["substrate.organism.repository_awareness_runtime"],
-    "RepositorySnapshot": ["substrate.organism.repository_awareness_runtime"],
     "RepositoryAwarenessRuntime": ["substrate.organism.repository_awareness_runtime"],
     # Campaign 6.2 — Documentation Awareness
     "DocumentStatus": ["substrate.organism.documentation_awareness_runtime"],
@@ -1263,39 +1283,158 @@ CANONICAL_TYPES: dict[str, list[str]] = {
 
 # ── Legacy Duplicates ───────────────────────────────────────────────────────
 # Pre-existing type definitions that duplicate canonical types. These existed
-# before the divergence gate was installed (2026-05-27). Each entry is:
-#   file_module_path → set of type names it's allowed to define despite
-#   those names being owned by another module.
+# before the divergence gate was installed (2026-05-27). They are TECHNICAL
+# DEBT, not design — each should be converged to import from the canonical
+# source. The gate blocks NEW divergence; this allowlist grandfathers OLD.
 #
-# These are TECHNICAL DEBT, not design. Each should be converged to import
-# from the canonical source. New entries here require explicit justification.
-# The gate blocks NEW divergence; this allowlist grandfathers OLD divergence.
+# WP-P2-001: each exemption now carries required metadata (owner, sunset,
+# rationale) and is validated to resolve to a real symbol by
+# `scripts/check_type_divergence.py --registry-audit`. An exemption that points
+# to a missing module/symbol, or lacks metadata, or is past its sunset, FAILS
+# the audit — so this list cannot silently grandfather a symbol that no longer
+# exists, and cannot be padded without accountability. The list must SHRINK.
+#
+# Shape: {module_path: {type_name: {"owner", "sunset" (YYYY-MM-DD), "rationale"}}}
 
-LEGACY_DUPLICATES: dict[str, set[str]] = {
-    # nodes/environments types renamed to EnvironmentPacket* — no longer conflicts
-    # substrate.types.ProofStatus vs worker_runtime_contracts.ProofStatus
-    "substrate.execution.runtime.worker_runtime_contracts": {"ProofStatus"},
-    # Older contract modules that predate type centralization
-    "substrate.execution.runtime.execution_contracts_v1": {"SignalSource", "GovernanceVerdict"},
-    "substrate.execution.runtime.runtime_execution_result_v1": {"ExecutionOutcome"},
-    "substrate.execution.bridge.capabilities": {"Capability"},
-    "substrate.execution.loop.execution_loop": {"ExecutionResult"},
-    "substrate.state.memory.contracts.canonical_memory_store_v1": {"MemoryEntry"},
-    "substrate.sockets.envelopes": {"SignalEnvelope"},
-    "substrate.foundation.primitives": {"Modality"},
-    "substrate.understanding.ontology.primitive_decomposition_v1": {
-        "PrimitiveType",
-        "RelationshipType",
-        "PrimitiveObservation",
+LEGACY_DUPLICATES_META: dict[str, dict[str, dict[str, str]]] = {
+    "substrate.execution.runtime.worker_runtime_contracts": {
+        "ProofStatus": {
+            "owner": "execution-runtime",
+            "sunset": "2026-12-31",
+            "rationale": "worker contract ProofStatus predates substrate.types centralization",
+        },
     },
-    "substrate.understanding.perception.orchestrator": {"IngestionResult"},
-    "adapters.adapter_engine.substrate_candidate_gen_v1": {"MemoryType"},
-    "nodes.environments.execution_binding_contracts": {"EnvironmentType"},
-    # Pre-Phase-26 types that share names with new canonical action types
-    "substrate.organism.next_action_engine": {"ActionCategory", "ActionResult"},
-    "substrate.organism.recommendation_engine": {"RecommendationEngine"},
-    "substrate.execution.bridge.actions": {"ActionStatus", "ActionResult"},
-    "substrate.composition.mastery.research.extraction": {"ActionCategory"},
+    "substrate.execution.runtime.execution_contracts_v1": {
+        "SignalSource": {
+            "owner": "execution-runtime",
+            "sunset": "2026-12-31",
+            "rationale": "v1 contract module predates type centralization",
+        },
+        "GovernanceVerdict": {
+            "owner": "execution-runtime",
+            "sunset": "2026-12-31",
+            "rationale": "v1 contract module predates type centralization",
+        },
+    },
+    "substrate.execution.runtime.runtime_execution_result_v1": {
+        "ExecutionOutcome": {
+            "owner": "execution-runtime",
+            "sunset": "2026-12-31",
+            "rationale": "v1 result contract predates type centralization",
+        },
+    },
+    "substrate.execution.bridge.capabilities": {
+        "Capability": {
+            "owner": "execution-bridge",
+            "sunset": "2026-12-31",
+            "rationale": "bridge Capability enum is a legitimate homonym of the BaseModel Capability",
+        },
+    },
+    "substrate.execution.loop.execution_loop": {
+        "ExecutionResult": {
+            "owner": "execution-loop",
+            "sunset": "2026-12-31",
+            "rationale": "loop-local ExecutionResult predates centralization",
+        },
+    },
+    "substrate.state.memory.contracts.canonical_memory_store_v1": {
+        "MemoryEntry": {
+            "owner": "state-memory",
+            "sunset": "2026-12-31",
+            "rationale": "v1 memory store contract predates centralization",
+        },
+    },
+    "substrate.sockets.envelopes": {
+        "SignalEnvelope": {
+            "owner": "sockets",
+            "sunset": "2026-12-31",
+            "rationale": "sockets envelope predates substrate.types.SignalEnvelope",
+        },
+    },
+    "substrate.understanding.ontology.primitive_decomposition_v1": {
+        "PrimitiveType": {
+            "owner": "understanding-ontology",
+            "sunset": "2026-12-31",
+            "rationale": "ontology v1 primitive types predate centralization",
+        },
+        "RelationshipType": {
+            "owner": "understanding-ontology",
+            "sunset": "2026-12-31",
+            "rationale": "ontology v1 primitive types predate centralization",
+        },
+        "PrimitiveObservation": {
+            "owner": "understanding-ontology",
+            "sunset": "2026-12-31",
+            "rationale": "ontology v1 primitive types predate centralization",
+        },
+    },
+    "substrate.understanding.perception.orchestrator": {
+        "IngestionResult": {
+            "owner": "understanding-perception",
+            "sunset": "2026-12-31",
+            "rationale": "perception orchestrator IngestionResult predates centralization",
+        },
+    },
+    "adapters.adapter_engine.substrate_candidate_gen_v1": {
+        "MemoryType": {
+            "owner": "adapters",
+            "sunset": "2026-12-31",
+            "rationale": "candidate-gen v1 MemoryType predates centralization",
+        },
+    },
+    "nodes.environments.execution_binding_contracts": {
+        "EnvironmentType": {
+            "owner": "nodes-environments",
+            "sunset": "2026-12-31",
+            "rationale": "environment binding contract EnvironmentType predates centralization",
+        },
+    },
+    "substrate.organism.next_action_engine": {
+        "ActionCategory": {
+            "owner": "organism-actions",
+            "sunset": "2026-12-31",
+            "rationale": "pre-Phase-26 ActionCategory shares name with canonical action types",
+        },
+    },
+    "substrate.organism.recommendation_engine": {
+        "RecommendationEngine": {
+            "owner": "organism-recommendation",
+            "sunset": "2026-12-31",
+            "rationale": "legacy RecommendationEngine homonym predates centralization",
+        },
+    },
+    "substrate.execution.bridge.actions": {
+        "ActionStatus": {
+            "owner": "execution-bridge",
+            "sunset": "2026-12-31",
+            "rationale": "pre-Phase-26 bridge action types share names with canonical",
+        },
+        "ActionResult": {
+            "owner": "execution-bridge",
+            "sunset": "2026-12-31",
+            "rationale": "pre-Phase-26 bridge action types share names with canonical",
+        },
+    },
+    # Removed 2026-07-04 (WP-P2-001) — dead exemptions masking nothing:
+    #   substrate.foundation.primitives::Modality  (module no longer exists)
+    #   substrate.organism.next_action_engine::ActionResult  (symbol removed)
+    #   substrate.composition.mastery.research.extraction::ActionCategory  (symbol removed)
+}
+
+
+def legacy_names_for(module: str) -> set[str]:
+    """Back-compat accessor: the set of legacy-exempted type names for a module.
+
+    Preserves the old `LEGACY_DUPLICATES.get(module, set())` contract for
+    consumers, now sourced from the metadata-carrying registry.
+    """
+    return set(LEGACY_DUPLICATES_META.get(module, {}).keys())
+
+
+# Back-compat alias so existing `from ... import LEGACY_DUPLICATES` keeps working
+# and behaves like the old `dict[str, set[str]]`.
+LEGACY_DUPLICATES: dict[str, set[str]] = {
+    module: set(names.keys()) for module, names in LEGACY_DUPLICATES_META.items()
 }
 
 
@@ -1318,8 +1457,7 @@ def check_name(type_name: str, defining_module: str) -> str | None:
     for canonical in canonical_list:
         if defining_module == canonical or defining_module.endswith(canonical):
             return None
-    legacy = LEGACY_DUPLICATES.get(defining_module, set())
-    if type_name in legacy:
+    if type_name in legacy_names_for(defining_module):
         return None
     return (
         f"DIVERGENCE BLOCKED: '{type_name}' already exists in "

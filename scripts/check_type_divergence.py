@@ -30,7 +30,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from substrate.canonical_types import CANONICAL_TYPES, LEGACY_DUPLICATES
+from substrate.canonical_types import (
+    CANONICAL_TYPES,
+    LEGACY_DUPLICATES_META,
+    legacy_names_for,
+)
 
 _EXCLUDES = {
     "__pycache__",
@@ -59,21 +63,33 @@ _TYPE_BASES = frozenset(
 
 
 def _file_to_module(filepath: str) -> str:
-    """Convert file path to dotted module path."""
-    p = filepath.replace("/opt/OS/", "").replace(".py", "").replace("/", ".")
-    for worktree_prefix in [".claude.worktrees.", ".claude/worktrees/"]:
-        if worktree_prefix.replace("/", ".") in p:
-            parts = p.split(".")
-            try:
-                wt_idx = parts.index("worktrees")
-                p = ".".join(parts[wt_idx + 2 :])
-            except ValueError:
-                pass
-    return p
+    """Convert file path to dotted module path, relative to the working tree root.
+
+    WP-P2-001: relative to the repo/worktree root (was hard-coded "/opt/OS/"),
+    so a file scanned from inside a worktree maps to its real module path.
+    """
+    try:
+        rel = str(Path(filepath).resolve().relative_to(_repo_root().resolve()))
+    except ValueError:
+        rel = filepath.replace("/opt/OS/", "")
+    return rel.replace(".py", "").replace("/", ".")
+
+
+def _rel_to_root(filepath: str) -> str:
+    """Path relative to the working-tree root (for exclusion checks)."""
+    try:
+        return str(Path(filepath).resolve().relative_to(_repo_root().resolve()))
+    except ValueError:
+        return filepath
 
 
 def _is_excluded(filepath: str) -> bool:
-    return any(ex in filepath for ex in _EXCLUDES)
+    # WP-P2-001: exclude based on the path RELATIVE to the working-tree root, so
+    # the worktree's own root prefix (…/.claude/worktrees/<name>/) does not make
+    # the gate skip every file in the tree it is scanning. A nested worktree or
+    # excluded subdir still matches.
+    rel = _rel_to_root(filepath)
+    return any(ex in rel for ex in _EXCLUDES)
 
 
 def _extract_type_definitions(filepath: str) -> list[tuple[str, int, str]]:
@@ -131,9 +147,28 @@ def _get_staged_files() -> list[str]:
     return [f"{root}/{f.strip()}" for f in result.stdout.splitlines() if f.strip().endswith(".py")]
 
 
+def _repo_root() -> Path:
+    """The working tree root — the actual checkout (worktree-aware).
+
+    WP-P2-001: derive from git instead of hard-coding "/opt/OS", so a full scan
+    covers the tree being committed (including a worktree), not a fixed path.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if out:
+            return Path(out)
+    except Exception:  # noqa: BLE001 — fall back to the script's repo root
+        pass
+    return Path(__file__).resolve().parent.parent
+
+
 def _get_all_python_files() -> list[str]:
-    """Get all Python files in the repo."""
-    root = Path("/opt/OS")
+    """Get all Python files in the working tree (worktree-aware)."""
+    root = _repo_root()
     return [str(p) for p in root.rglob("*.py") if not _is_excluded(str(p))]
 
 
@@ -177,7 +212,7 @@ def check_files(files: list[str]) -> tuple[list[str], list[str]]:
             canonical_list = CANONICAL_TYPES.get(class_name)
             if canonical_list is not None:
                 is_canonical = any(module == c or module.endswith(c) for c in canonical_list)
-                is_legacy = class_name in LEGACY_DUPLICATES.get(module, set())
+                is_legacy = class_name in legacy_names_for(module)
                 if not is_canonical and not is_legacy:
                     errors.append(
                         f"  BLOCKED: {filepath}:{lineno}\n"
@@ -196,7 +231,119 @@ def check_files(files: list[str]) -> tuple[list[str], list[str]]:
     return errors, warnings
 
 
+def _registry_source_dup_keys() -> list[str]:
+    """Duplicate keys in the CANONICAL_TYPES literal (the runtime dict collapses
+    them, so we read the source AST). Each dup silently loses a canonical
+    location — a truthfulness hole."""
+    from collections import Counter
+
+    canonical_src = Path(_repo_root()) / "substrate" / "canonical_types.py"
+    try:
+        tree = ast.parse(canonical_src.read_text())
+    except Exception:  # noqa: BLE001
+        return []
+    keys: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if getattr(t, "id", None) == "CANONICAL_TYPES" and isinstance(node.value, ast.Dict):
+                    keys = [k.value for k in node.value.keys if isinstance(k, ast.Constant)]
+    return [k for k, c in Counter(keys).items() if c > 1]
+
+
+def _module_defines(module: str, name: str) -> bool:
+    """True if importing `module` yields an attribute `name`. Import failure or
+    a missing attribute both count as 'does not resolve' (fail-closed)."""
+    import importlib
+
+    try:
+        mod = importlib.import_module(module)
+    except Exception:  # noqa: BLE001
+        return False
+    return hasattr(mod, name)
+
+
+def verify_registry_truthful() -> list[str]:
+    """Fail-closed audit of the registry's own truthfulness (WP-P2-001).
+
+    Returns a list of error strings (empty = clean). Checks:
+      (a) every CANONICAL_TYPES entry resolves to a real importable symbol;
+      (b) no duplicate keys in the source literal (which silently drop a
+          canonical location);
+      (c) every LEGACY_DUPLICATES exemption resolves to a real symbol AND
+          carries owner/sunset/rationale metadata with a non-past sunset.
+    """
+    import datetime
+
+    errors: list[str] = []
+
+    # (a) registry entries resolve
+    for name, modules in CANONICAL_TYPES.items():
+        if not any(_module_defines(m, name) for m in modules):
+            errors.append(
+                f"  STALE REGISTRY ENTRY: '{name}' -> {modules} (no listed module defines it)"
+            )
+
+    # (b) duplicate source keys
+    for dup in _registry_source_dup_keys():
+        errors.append(
+            f"  DUPLICATE REGISTRY KEY: '{dup}' appears more than once in the "
+            f"CANONICAL_TYPES literal (a canonical location is silently lost)"
+        )
+
+    # (c) exemptions resolve + carry metadata
+    today = datetime.date.today()
+    for module, names in LEGACY_DUPLICATES_META.items():
+        for name, meta in names.items():
+            if not _module_defines(module, name):
+                errors.append(
+                    f"  DEAD EXEMPTION: {module}::{name} does not resolve "
+                    f"(remove it — it masks nothing)"
+                )
+            for field in ("owner", "sunset", "rationale"):
+                if not meta.get(field):
+                    errors.append(f"  EXEMPTION MISSING METADATA: {module}::{name} lacks '{field}'")
+            sunset = meta.get("sunset", "")
+            try:
+                if sunset and datetime.date.fromisoformat(sunset) < today:
+                    errors.append(
+                        f"  EXEMPTION PAST SUNSET: {module}::{name} sunset "
+                        f"{sunset} is in the past — converge or renew"
+                    )
+            except ValueError:
+                errors.append(
+                    f"  EXEMPTION BAD SUNSET: {module}::{name} sunset '{sunset}' is not YYYY-MM-DD"
+                )
+
+    return errors
+
+
+def _run_registry_audit() -> int:
+    """--registry-audit: verify the registry is truthful. Fail-closed."""
+    errors = verify_registry_truthful()
+    if errors:
+        print("\n✗ REGISTRY TRUTHFULNESS AUDIT FAILED")
+        print("═" * 60)
+        for e in errors:
+            print(e)
+        print("═" * 60)
+        print(
+            f"{len(errors)} truthfulness violation(s). The registry must resolve, "
+            f"have no duplicate keys, and carry valid exemption metadata."
+        )
+        return 1
+    print(
+        f"✓ Registry truthful: {len(CANONICAL_TYPES)} entries resolve, "
+        f"0 duplicate keys, {sum(len(v) for v in LEGACY_DUPLICATES_META.values())} "
+        f"exemptions all resolve + carry metadata."
+    )
+    return 0
+
+
 def main() -> int:
+    if "--registry-audit" in sys.argv:
+        return _run_registry_audit()
+
     if "--all" in sys.argv:
         files = _get_all_python_files()
         mode = "full codebase"
