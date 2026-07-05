@@ -1,8 +1,20 @@
 # WP-P3 — Ontology-Home Consolidation
 
+> **HISTORICAL — PR #158 packet document.** This describes the *boundary-gate*
+> packet (`e8538890a`) that froze the ontology-home map. Its packet-local scope
+> language below ("no file moves/deletes", "does not move
+> Venture/BusinessInstance/…", the frozen-competitor ambiguities) was true **for
+> #158 only**. Later P3 packets deliberately DID relocate files — #161 moved the
+> business primitives to `substrate/state/business/primitives.py`, and #163 moved
+> `primitive_decomposition_v1.py` to `substrate/understanding/perception/` and
+> repointed its enums to `substrate.types`. The competitor table below is kept
+> current (rows marked RESOLVED as each landed), but for the **current P3
+> final-state truth** read `docs/audits/UMH_P3_ONTOLOGY_HOME_CLOSEOUT.md`, not the
+> scope/non-goals sections here.
+
 **Branch:** `fix/p3-ontology-home-consolidation`
 **Base:** `85cf1206e` (main after WP-P3-001, WP-P3-004, read-side registry convergence)
-**Risk class:** MEDIUM (adds a boundary gate + docs + a shrink-only ledger; **no domain-object relocation, no file moves/deletes, no code-behavior change**)
+**Risk class:** MEDIUM (adds a boundary gate + docs + a shrink-only ledger; **no domain-object relocation, no file moves/deletes, no code-behavior change** — *for #158; see the historical banner above*)
 
 ## Purpose
 
@@ -82,13 +94,14 @@ Per the packet constraint ("report any ambiguous cases instead of deciding silen
 - **New** `tests/test_ontology_home_map.py` proves L2-only ontology, L1-oriented reality_model, L4 domains, shrink-only ledgers, and the negative controls.
 - `.claude/rules/ontology-layers.md` updated with the home table (not weakened).
 
-## Non-goals (Scope OUT)
+## Non-goals (Scope OUT) — *for PR #158 only (see historical banner)*
 
 No P4/P5, no projection/cockpit features, no domain-object relocation, no moving
 Venture/BusinessInstance/Company/Department/Portfolio, no new registry/type
 system/ontology framework, no new dependencies, no file moves/deletes,
 `UMH_CANONICAL_RUNTIME_ROUTING` untouched, unrelated gate debt (node_modules noise)
-left alone.
+left alone. — **These were #158's non-goals. Later P3 packets (#161, #163) did
+relocate files by design; `Venture`/`BusinessInstance`/etc. remain unmoved.**
 
 ## Rollback
 
