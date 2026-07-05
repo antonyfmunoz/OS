@@ -315,7 +315,7 @@ class ContextBuilder:
 
         # Layer 1f: Primitives
         try:
-            from substrate.understanding.ontology.primitives import PrimitiveRegistry
+            from substrate.state.business.primitives import PrimitiveRegistry
             pr = PrimitiveRegistry(ctx)
             prim_ctx = pr.compose_business_context(
                 venture_id or getattr(ctx, "active_venture_id", "") or ""

@@ -39,11 +39,12 @@ A new ontology/domain-**model** registry (`OntologyRegistry`, `DomainModelRegist
 (Template/Device/Session/…) are unaffected.
 
 Known frozen ontology-home leaks/competitors (shrink-only, resolved in later
-guarded packets, not here): `understanding/ontology/primitives.py` (L3 business
-logic in an ontology dir), `understanding/ontology/primitive_decomposition_v1.py`
-(parallel L2 metamodel duplicating `substrate.types`),
-`understanding/world_model/world_model.py` (low-use name-collision). See the audit
-doc's ledger for owner/rationale/sunset.
+guarded packets): one remains — `understanding/ontology/primitive_decomposition_v1.py`
+(parallel L2 metamodel duplicating `substrate.types`; P3 metamodel dedup packet).
+Two were resolved: `understanding/world_model/world_model.py` (low-use
+name-collision → resolved by disambiguation) and `understanding/ontology/primitives.py`
+(L3 business logic in an ontology dir → RELOCATED to `substrate/state/business/primitives.py`).
+See the audit doc's ledger for owner/rationale/sunset.
 
 ## The core question — ask before adding any class
 

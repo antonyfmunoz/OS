@@ -1056,7 +1056,7 @@ async def generate_morning_brief(ctx: SubstrateContext) -> str:
         try:
             from substrate.state.business.business_instance import BusinessInstanceManager
             # learning/ removed in convergence — EvolutionEngine no longer exists
-            from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
+            from substrate.state.business.primitives import PRIMITIVE_LIBRARY
 
             bim = BusinessInstanceManager(ctx)
             bis = bim.get_bis(venture_id)

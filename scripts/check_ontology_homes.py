@@ -91,8 +91,9 @@ FROZEN_ONTOLOGY_HOMES: dict[str, str] = {
     "substrate/ontology/domains/life.py": "L4-shim",
     # understanding/ontology/ — mixed; classified per-file (see FROZEN_ONTOLOGY_COMPETITORS)
     "substrate/understanding/ontology/__init__.py": "package-marker",
-    # primitives.py is L3 business-rule logic living in an ontology dir (frozen leak)
-    "substrate/understanding/ontology/primitives.py": "L3-leak-frozen",
+    # primitives.py RELOCATED (WP-P3 primitives relocation) → substrate/state/
+    # business/primitives.py. It was L3 business-rule logic in an ontology dir;
+    # evicted to its L3 state home. No longer a frozen home here (26).
     # primitive_decomposition_v1.py is a parallel L2 metamodel (frozen competitor)
     "substrate/understanding/ontology/primitive_decomposition_v1.py": "L2-parallel-frozen",
     # understanding world model (distinct concern from organism self-model)
@@ -116,15 +117,13 @@ FROZEN_ONTOLOGY_HOMES: dict[str, str] = {
 # frozen.
 # Format: relative path → (disposition, sunset/follow-on).
 FROZEN_ONTOLOGY_COMPETITORS: dict[str, tuple[str, str]] = {
-    # L3 business-rule logic (KnowledgePrimitive / stage-aware reasoning) sitting
-    # in an ontology/ dir and importing substrate.state.context. Owner: developer.
-    # Rationale: 5 live importers (context_builder/orchestrator/cognitive_loop/
-    # proactive_engine/stage_manager); relocating is a domain-object move, out of
-    # scope here. Sunset: P3 domain-object eviction packet → move to an L3 home.
-    "substrate/understanding/ontology/primitives.py": (
-        "L3-business-logic-in-ontology-dir",
-        "P3 domain-object eviction packet",
-    ),
+    # RESOLVED (WP-P3 primitives relocation): understanding/ontology/primitives.py
+    # was L3 business-rule logic (KnowledgePrimitive / stage-aware reasoning) in an
+    # ontology/ dir importing substrate.state.context. Resolution was RELOCATION,
+    # not disambiguation: git-moved whole to substrate/state/business/primitives.py
+    # (co-located with its BusinessInstanceManager dependency), the 6 lazy imports
+    # (5 consumers) + the new-primitive skill re-pointed, no shim. Removed from this
+    # ledger, shrinking it 2 → 1. The move is downward-legal (substrate→substrate).
     # Parallel L2 metamodel: redefines PrimitiveType/RelationshipType/
     # PrimitiveObservation instead of importing substrate.types. Owner: developer.
     # Rationale: 11 importers (the understanding→domains→adapter perception

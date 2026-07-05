@@ -38,7 +38,7 @@ import sys; sys.path.insert(0, '/opt/OS')
 from substrate.state.context.context import load_context_from_env
 # NOTE: EvolutionEngine was removed during convergence.
 # Primitive validation now lives in substrate.ontology.primitives
-from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
+from substrate.state.business.primitives import PRIMITIVE_LIBRARY
 print('primitive_id' in PRIMITIVE_LIBRARY)
 "
 

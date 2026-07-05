@@ -147,7 +147,7 @@ class ProactiveIntelligenceEngine:
         try:
             from substrate.state.memory.memory import ConversationMemory
             # learning/ removed in convergence — EvolutionEngine no longer exists
-            from substrate.understanding.ontology.primitives import PRIMITIVE_LIBRARY
+            from substrate.state.business.primitives import PRIMITIVE_LIBRARY
         except ImportError:
             print("[ProactiveEngine] _scan_primitive_violations skipped: learning/ removed")
             return signals
