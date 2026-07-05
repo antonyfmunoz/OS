@@ -77,10 +77,10 @@ Transport/Input
 **Status:** COMPLETE but not in substrate/types.py
 **Action needed:** Promote to substrate/types.py or substrate/sockets/
 
-### ProjectionContract
-**Existing:** `substrate/integrations/product_connections.py` — `IntegrationManifest`
-**Status:** EXISTS via IntegrationManifest and IntegrationRegistry
-**Action needed:** Formalize as a documented contract
+### ProjectionRegistration (app-projection registration contract)
+**Existing:** `substrate/sockets/projection_port.py` — `ProjectionRegistration` + `ProjectionPort` (WP-P3-004)
+**Status:** CANONICAL — the ONE app-projection registration contract; seeded from `data/umh/projection_registry.json`
+**Action needed:** none. (A dead, forked `ProjectionContract` Pydantic model in `substrate/types.py` was removed in WP-P4-001 — it had zero runtime consumers and duplicated this contract.)
 
 ### HumanApprovalRequest
 **Existing:** `substrate/governance/policy/authority_engine.py` — approval queue methods

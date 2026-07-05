@@ -73,7 +73,7 @@ projection — never added to the L2 shape.
 ## What is acceptable (a mention, not a definition)
 
 - A registry/contract that *names* a projection as a data entry
-  (`ProjectionContract`, projection alias maps, domain-bridge docstrings).
+  (`ProjectionRegistration`, projection alias maps, domain-bridge docstrings).
 - Runtime lookup of instance values (BIS profile, `get_ai_name()`), never a literal.
 
 ## Enforcement

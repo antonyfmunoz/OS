@@ -147,6 +147,50 @@ def test_ontology_gate_still_active():
     assert result.returncode == 0, result.stdout
 
 
+# ── WP-P4-001: exactly one app-projection registration contract ──────────────
+
+
+def test_dead_projection_contract_fork_removed():
+    """The forked ProjectionContract Pydantic model in substrate.types (dead: zero
+    runtime consumers, disjoint fields, brand-named in L2) was removed in WP-P4-001.
+    It must not reappear — ProjectionRegistration is the sole registration contract."""
+    import substrate.types as t
+
+    assert not hasattr(t, "ProjectionContract"), (
+        "the dead ProjectionContract fork reappeared in substrate.types — "
+        "the one app-projection registration contract is ProjectionRegistration "
+        "in substrate/sockets/projection_port.py"
+    )
+
+
+def test_no_renamed_second_registration_contract_in_substrate_types():
+    """Belt-and-suspenders: no *Projection*Contract* / *Projection*Registration*
+    class may live in substrate.types. Gate 1 already blocks a class literally
+    named ProjectionRegistration outside the sockets port (it's a CANONICAL_TYPES
+    key); this closes the differently-named re-fork vector the gate misses."""
+    import re
+
+    import substrate.types as t
+
+    pattern = re.compile(r"Projection.*(Contract|Registration)")
+    offenders = [n for n in dir(t) if pattern.search(n)]
+    assert offenders == [], (
+        f"substrate.types defines app-projection registration contract(s) {offenders}; "
+        "the canonical (and only) one is ProjectionRegistration in "
+        "substrate/sockets/projection_port.py — do not fork it into substrate.types"
+    )
+
+
+def test_projection_registration_is_sole_contract_in_sockets_port():
+    """ProjectionRegistration is defined only in the sockets port, and is the
+    canonical app-projection registration contract."""
+    from substrate.sockets.projection_port import ProjectionRegistration
+
+    assert ProjectionRegistration.__module__ == "substrate.sockets.projection_port"
+    reg_defs = [n for n in dir(pp) if n == "ProjectionRegistration"]
+    assert reg_defs == ["ProjectionRegistration"]
+
+
 @pytest.fixture(autouse=True)
 def _clean_legacy_store():
     pp._legacy_config_store.clear()
