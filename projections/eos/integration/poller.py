@@ -12,7 +12,7 @@ import psycopg2
 
 from substrate.types import ActionRiskClass as RiskClass, OutcomeEnvelope
 
-from adapters.notion.integration.watermarks import WatermarkStore
+from substrate.state.stores.watermark_store import WatermarkStore
 
 from .correlation import EOSCorrelationMap, EOSWritebackTarget
 from .signals import EOSSignalEmitter
