@@ -118,3 +118,19 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return intel.health()
         except Exception as e:
             return {"error": str(e)}
+
+    @router.get("/eos/activation")
+    def eos_activation():
+        """EOS projection activation / readiness — WP-P4-006.
+
+        Proves EOS is alive as a projection over the substrate: registered in the
+        canonical seed view, runtime registration status, and env-gated boot
+        eligibility. Env-disabled-safe: returns a stable "disconnected" readiness
+        response when EOS_DATABASE_URL is unset, never a 500.
+        """
+        try:
+            from projections.eos.integration.readiness import eos_readiness
+
+            return eos_readiness()
+        except Exception as e:
+            return {"error": str(e), "projection_id": "eos", "registered_in_seed": False}
