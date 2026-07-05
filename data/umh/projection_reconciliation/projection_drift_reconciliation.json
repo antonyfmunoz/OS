@@ -50,7 +50,11 @@
       ],
       "source_current": true,
       "dormant_claim_refuted": false,
-      "notes": "Beast feature/company-system @17ceaab is CLEAN and PUSHED (matches GitHub feature/company-system head). Branch-diverged from GitHub default main (86041f5). Mirror is full fidelity. The one fully-consistent, source-current row \u2014 but on a feature branch, not default main."
+      "notes": "Beast feature/company-system @17ceaab is CLEAN and PUSHED (matches GitHub feature/company-system head). Branch-diverged from GitHub default main (86041f5). Mirror is full fidelity. The one fully-consistent, source-current row \u2014 but on a feature branch, not default main.",
+      "backup": {
+        "status": "no_backup_needed",
+        "reason": "clean + pushed on feature/company-system"
+      }
     },
     {
       "projection_id": "cos",
@@ -87,7 +91,12 @@
       ],
       "source_current": false,
       "dormant_claim_refuted": true,
-      "notes": "ACTIVE, not dormant: Beast has 1 uncommitted file on main. Committed head ca4e161 == GitHub main (synced commits) but the working tree has unreconciled local edits. Mirror is schema-only (14 files, no client/server) \u2014 NOT the app body, though the Beast has full client+server."
+      "notes": "ACTIVE, not dormant: Beast has 1 uncommitted file on main. Committed head ca4e161 == GitHub main (synced commits) but the working tree has unreconciled local edits. Mirror is schema-only (14 files, no client/server) \u2014 NOT the app body, though the Beast has full client+server.",
+      "backup": {
+        "status": "no_backup_needed",
+        "reason": "0 unpushed commits (head synced with GitHub); only dirty item is untracked DB dump 'dump (1).sql' (not source work)",
+        "backed_up_at": "2026-07-05"
+      }
     },
     {
       "projection_id": "lyfeos",
@@ -126,7 +135,22 @@
       ],
       "source_current": false,
       "dormant_claim_refuted": true,
-      "notes": "ABSOLUTELY NOT dormant: Beast main is 19 commits AHEAD of GitHub (head 536b8888 returns 404 on GitHub \u2014 never pushed) PLUS 29 uncommitted dirty files. This is the highest-drift projection: real source exists ONLY on the Beast, in neither GitHub nor the VPS mirror (schema-only, 23 files). Losing the Beast = losing this work."
+      "notes": "ABSOLUTELY NOT dormant: Beast main is 19 commits AHEAD of GitHub (head 536b8888 returns 404 on GitHub \u2014 never pushed) PLUS 29 uncommitted dirty files. This is the highest-drift projection: real source exists ONLY on the Beast, in neither GitHub nor the VPS mirror (schema-only, 23 files). Losing the Beast = losing this work.",
+      "backup": {
+        "status": "backed_up",
+        "branch": "backup/beast-source-20260705-1341",
+        "head": "e113ea46",
+        "pushed_to_github": true,
+        "backed_up_at": "2026-07-05",
+        "excluded_secrets": [
+          ".env",
+          ".env.tpl",
+          "dump.sql"
+        ],
+        "committed_files": 26,
+        "record": "docs/PROJECTION_BEAST_BACKUP_2026-07-05.md",
+        "note": "24 source files + 2 migration docs preserved on non-main branch; .env/secrets/DB-dump excluded and never pushed; main restored to pre-backup state (536b8888, 29 dirty, 19 ahead)."
+      }
     }
   ],
   "_summary": {
