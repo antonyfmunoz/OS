@@ -53,13 +53,16 @@ by `FROZEN_ONTOLOGY_COMPETITORS` in `scripts/check_ontology_homes.py` +
 | Module | Disposition | Rationale | Sunset / follow-on |
 |---|---|---|---|
 | ~~`substrate/understanding/ontology/primitives.py`~~ | **RESOLVED (WP-P3 primitives relocation)** | L3 business-rule logic (stage-aware business vocab: hiring/ICP/paid-ads/BIS-stage) that imported `substrate.state.context`. Resolved by **relocation, not disambiguation**: `git mv` whole to `substrate/state/business/primitives.py` — co-located with its `BusinessInstanceManager` dependency, downward-legal (substrate→substrate). The 6 lazy imports (5 consumers) + the `new-primitive` skill re-pointed; no shim. Removed from both ledgers (homes 27→26, competitors 2→1). | done |
-| `substrate/understanding/ontology/primitive_decomposition_v1.py` | parallel L2 metamodel | redefines `PrimitiveType`/`RelationshipType`/`PrimitiveObservation` (`:17,:33,:47`) instead of importing `substrate.types`; 11 importers (perception pipeline) vs `substrate.ontology`'s 3 | **P3 metamodel dedup packet** → re-point to `substrate.types` |
+| ~~`substrate/understanding/ontology/primitive_decomposition_v1.py`~~ | **RESOLVED (WP-P3 rehome)** | Was a parallel L2 metamodel (redefined `PrimitiveType`/`RelationshipType` instead of importing `substrate.types`) wrapping a perception/decomposition data model. Resolved by a **split**: the two duplicate enums were **repointed to `substrate.types`** (fork removed, `LEGACY_DUPLICATES` enum entries dropped), and the surviving perception dataclasses (`PrimitiveObservation` v1 / `PrimitiveRelationship` / `DecompositionResult` / `REQUIRED_PRIMITIVE_TYPES`) were **`git mv`'d intact** to `substrate/understanding/perception/primitive_decomposition_v1.py` — their honest perception home, co-located with the orchestrator that constructs them. 10 runtime + 7 test importers repointed; no shim; no class rename. Removed from both ledgers (homes 26→25, competitors 1→0). | done |
 | ~~`substrate/understanding/world_model/world_model.py`~~ | **RESOLVED (WP-P3 world-model sunset)** | Not a competitor — a distinct concern (domain-knowledge world model vs organism self-model). Resolved by **disambiguation, not relocation**: both `world_model.py` modules now carry reciprocal docstrings; it stays a classified home (`understanding-world-model`). Deprecation rejected — `context_builder` is a live consumer. Removed from ledger (3 → 2). | done |
 
-**Ledger status:** 1 remaining frozen competitor (was 3). Two resolved: the
-world-model name-collision (disambiguation) and the primitives.py L3 leak
-(relocation to `substrate/state/business/`). Only
-`primitive_decomposition_v1.py` remains, deferred to the P3 metamodel dedup packet.
+**Ledger status:** **0 remaining frozen competitors** (was 3). All three resolved:
+the world-model name-collision (disambiguation), the primitives.py L3 leak
+(relocation to `substrate/state/business/`), and the
+`primitive_decomposition_v1.py` parallel-metamodel (split — enums repointed to
+`substrate.types`, perception model rehomed to `substrate/understanding/perception/`).
+`substrate/understanding/ontology/` now contains only `__init__.py` — no metamodel
+fork remains in an ontology dir.
 
 ## Ambiguous cases — REPORTED, not silently decided
 

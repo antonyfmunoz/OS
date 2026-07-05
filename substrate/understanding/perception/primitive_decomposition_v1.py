@@ -10,37 +10,14 @@ UMH substrate subsystem.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import Any
 
-
-class PrimitiveType(str, Enum):
-    STATE = "state"
-    CHANGE = "change"
-    CONSTRAINT = "constraint"
-    RESOURCE = "resource"
-    SIGNAL = "signal"
-    ACTION = "action"
-    OUTCOME = "outcome"
-    FEEDBACK = "feedback"
-    GOAL = "goal"
-    TIME = "time"
-
+# PrimitiveType / RelationshipType are the canonical substrate metamodel enums.
+# This module used to redefine them (a parallel-L2 fork); they are now imported
+# from substrate.types so there is a single metamodel enum source (WP-P3 rehome).
+from substrate.types import PrimitiveType, RelationshipType
 
 REQUIRED_PRIMITIVE_TYPES = frozenset(PrimitiveType)
-
-
-class RelationshipType(str, Enum):
-    CAUSES = "causes"
-    CONSTRAINS = "constrains"
-    ENABLES = "enables"
-    REQUIRES = "requires"
-    PRECEDES = "precedes"
-    FOLLOWS = "follows"
-    PRODUCES = "produces"
-    CONSUMES = "consumes"
-    MEASURES = "measures"
-    CONFLICTS_WITH = "conflicts_with"
 
 
 @dataclass

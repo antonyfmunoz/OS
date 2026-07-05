@@ -105,11 +105,12 @@ def test_frozen_home_set_matches_disk():
 
 
 def test_frozen_home_set_is_shrink_only():
-    """The home set may only shrink. This count freezes today's membership (26,
+    """The home set may only shrink. This count freezes today's membership (25,
     down from 27 after the WP-P3 primitives relocation evicted
-    understanding/ontology/primitives.py to substrate/state/business/).
+    understanding/ontology/primitives.py, then to 25 after the WP-P3 rehome moved
+    understanding/ontology/primitive_decomposition_v1.py to the perception home).
     A NEW home must be a deliberate edit here AND to the gate ledger."""
-    assert len(FROZEN_ONTOLOGY_HOMES) <= 26, (
+    assert len(FROZEN_ONTOLOGY_HOMES) <= 25, (
         f"FROZEN_ONTOLOGY_HOMES grew to {len(FROZEN_ONTOLOGY_HOMES)}; new homes must be "
         "reviewed, not silently added"
     )
@@ -117,13 +118,14 @@ def test_frozen_home_set_is_shrink_only():
 
 def test_frozen_competitors_are_shrink_only_with_metadata():
     # Shrank 3 → 2 at the WP-P3 world-model sunset (understanding/world_model
-    # resolved to a distinct concern via disambiguation), then 2 → 1 at the WP-P3
-    # primitives relocation (understanding/ontology/primitives.py git-moved to
-    # substrate/state/business/primitives.py). Only primitive_decomposition_v1.py
-    # remains frozen (P3 metamodel dedup packet).
-    assert len(FROZEN_ONTOLOGY_COMPETITORS) <= 1, (
-        f"FROZEN_ONTOLOGY_COMPETITORS grew to {len(FROZEN_ONTOLOGY_COMPETITORS)}; new leaks "
-        "must be fixed, not frozen"
+    # resolved via disambiguation), 2 → 1 at the WP-P3 primitives relocation
+    # (understanding/ontology/primitives.py → substrate/state/business/), then
+    # 1 → 0 at the WP-P3 rehome (understanding/ontology/primitive_decomposition_v1.py
+    # split: enums repointed to substrate.types, perception dataclasses moved to
+    # substrate/understanding/perception/). No frozen ontology-home competitors remain.
+    assert len(FROZEN_ONTOLOGY_COMPETITORS) == 0, (
+        f"FROZEN_ONTOLOGY_COMPETITORS is {len(FROZEN_ONTOLOGY_COMPETITORS)}; all P3 "
+        "ontology-home competitors are resolved — none may reappear"
     )
     for rel, (disposition, sunset) in FROZEN_ONTOLOGY_COMPETITORS.items():
         assert (ROOT / rel).exists(), f"frozen competitor missing: {rel}"
@@ -158,6 +160,86 @@ def test_primitives_relocated_out_of_both_ledgers():
     assert (ROOT / new).exists(), "primitives.py must live at its L3 state home"
     # the new home is NOT a guarded ontology-home dir, so it needs no home entry
     assert new not in FROZEN_ONTOLOGY_HOMES
+
+
+def test_primitive_decomposition_v1_rehomed_and_split():
+    """The last frozen competitor was resolved by a SPLIT (WP-P3 rehome):
+    - the PrimitiveType / RelationshipType enum fork is gone — the moved module
+      imports the *canonical* substrate.types enums (identity-equal objects);
+    - the perception dataclasses (PrimitiveObservation v1 / PrimitiveRelationship /
+      DecompositionResult / REQUIRED_PRIMITIVE_TYPES) moved intact to the perception
+      home with behavior unchanged;
+    - the old ontology-dir path is gone (no shim) and the module is out of both
+      Gate-13 ledgers; the perception home is not a guarded ontology dir."""
+    import importlib
+
+    old_rel = "substrate/understanding/ontology/primitive_decomposition_v1.py"
+    new_rel = "substrate/understanding/perception/primitive_decomposition_v1.py"
+
+    # ledgers: gone from both, competitor count is zero
+    assert old_rel not in FROZEN_ONTOLOGY_COMPETITORS
+    assert old_rel not in FROZEN_ONTOLOGY_HOMES
+    assert new_rel not in FROZEN_ONTOLOGY_HOMES  # perception is not a guarded home
+
+    # disk: old gone (no shim), new present
+    assert not (ROOT / old_rel).exists(), "old ontology-dir path must be gone (no shim)"
+    assert (ROOT / new_rel).exists(), "perception model must live at its perception home"
+
+    # old import path must not resolve (no shim)
+    try:
+        importlib.import_module("substrate.understanding.ontology.primitive_decomposition_v1")
+        raise AssertionError("old module path still importable — a shim leaked")
+    except ModuleNotFoundError:
+        pass
+
+    # enum fork removed: the moved module's PrimitiveType/RelationshipType ARE the
+    # canonical substrate.types objects (same identity, not a parallel definition)
+    import substrate.types as canon
+
+    moved = importlib.import_module(
+        "substrate.understanding.perception.primitive_decomposition_v1"
+    )
+    assert moved.PrimitiveType is canon.PrimitiveType
+    assert moved.RelationshipType is canon.RelationshipType
+
+    # perception dataclasses preserved with behavior unchanged
+    obs = moved.PrimitiveObservation(
+        observation_id="OBS-1",
+        primitive_type=canon.PrimitiveType.GOAL,
+        label="ship",
+        description="ship the thing",
+        confidence=0.9,
+        source_reference="doc:1",
+        evidence="e",
+        is_inferred=False,
+        authority_tier=3,
+    )
+    d = obs.to_dict()
+    assert d["observation_id"] == "OBS-1"
+    assert d["primitive_type"] == "goal"
+    assert d["is_inferred"] is False
+    assert d["authority_tier"] == 3
+
+    rel = moved.PrimitiveRelationship(
+        from_observation_id="OBS-1",
+        to_observation_id="OBS-2",
+        relationship_type=canon.RelationshipType.ENABLES,
+        confidence=0.8,
+    )
+    assert rel.to_dict()["relationship_type"] == "enables"
+
+    result = moved.DecompositionResult(
+        decomposition_id="D-1",
+        source_content_hash="abc",
+        observations=[obs],
+        relationships=[rel],
+    )
+    cov = result.compute_coverage()
+    assert cov == {"goal": 1}
+    assert result.to_dict()["primitive_type_coverage"] == {"goal": 1}
+
+    # REQUIRED_PRIMITIVE_TYPES preserved and equal to all canonical primitive types
+    assert moved.REQUIRED_PRIMITIVE_TYPES == frozenset(canon.PrimitiveType)
 
 
 # ── the home gate enforces the map (negative controls) ───────────────────────

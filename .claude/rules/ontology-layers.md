@@ -38,13 +38,15 @@ A new ontology/domain-**model** registry (`OntologyRegistry`, `DomainModelRegist
 `substrate/organism/domain_registry.py` is blocked by Gate 13. Ordinary registries
 (Template/Device/Session/…) are unaffected.
 
-Known frozen ontology-home leaks/competitors (shrink-only, resolved in later
-guarded packets): one remains — `understanding/ontology/primitive_decomposition_v1.py`
-(parallel L2 metamodel duplicating `substrate.types`; P3 metamodel dedup packet).
-Two were resolved: `understanding/world_model/world_model.py` (low-use
-name-collision → resolved by disambiguation) and `understanding/ontology/primitives.py`
-(L3 business logic in an ontology dir → RELOCATED to `substrate/state/business/primitives.py`).
-See the audit doc's ledger for owner/rationale/sunset.
+Frozen ontology-home leaks/competitors: **none remain** — all three resolved.
+`understanding/world_model/world_model.py` (low-use name-collision → resolved by
+disambiguation); `understanding/ontology/primitives.py` (L3 business logic in an
+ontology dir → RELOCATED to `substrate/state/business/primitives.py`); and
+`understanding/ontology/primitive_decomposition_v1.py` (parallel L2 metamodel
+duplicating `substrate.types` → SPLIT: enums repointed to `substrate.types`, the
+perception dataclasses rehomed to `substrate/understanding/perception/`).
+`substrate/understanding/ontology/` now holds only `__init__.py`. See the audit
+doc's ledger for owner/rationale/sunset.
 
 ## The core question — ask before adding any class
 

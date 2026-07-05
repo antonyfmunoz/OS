@@ -19,7 +19,7 @@ from substrate.understanding.perception.orchestrator import (
     WorldUpdate,
 )
 from substrate.understanding.perception.source import RawContent, Source
-from substrate.understanding.ontology.primitive_decomposition_v1 import (
+from substrate.understanding.perception.primitive_decomposition_v1 import (
     DecompositionResult,
     PrimitiveObservation,
     PrimitiveType,

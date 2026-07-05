@@ -30,7 +30,7 @@ from substrate.understanding.interpretation.interpretation_engine_v1 import (
     InterpretationInput,
     InterpretationResult,
 )
-from substrate.understanding.ontology.primitive_decomposition_v1 import (
+from substrate.understanding.perception.primitive_decomposition_v1 import (
     DecompositionResult,
 )
 from substrate.understanding.breadth_expansion import BreadthExpansionEngine, BreadthResult
