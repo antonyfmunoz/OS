@@ -1,0 +1,147 @@
+{
+  "_law": "docs/PROJECTION_SOURCE_TRUTH.md",
+  "_report": "docs/PROJECTION_DRIFT_RECONCILIATION.md",
+  "_contract": "tests/test_projection_drift_reconciliation.py",
+  "_method": "Three-way NON-MUTATING comparison: Beast working tree (read-only SSH probe via scripts/probe_beast_projection_source.sh) vs GitHub canonical (gh api, read-only) vs /opt/OS mirror (data/repos/*). No Beast writes, no code copied.",
+  "_probe_at": "2026-07-05",
+  "_classification_vocab": {
+    "source_current": "Beast clean AND Beast head == GitHub head for the tracked branch (fully reconciled)",
+    "source_dirty": "Beast has uncommitted changes (dirty_count > 0) not on GitHub or mirror",
+    "source_unpushed": "Beast has committed changes ahead of GitHub (ahead > 0 / head absent from GitHub)",
+    "source_stale": "Beast is BEHIND GitHub (GitHub has commits the Beast lacks)",
+    "branch_diverged": "Beast tracks a non-default branch (source is current on that branch but not GitHub default main)",
+    "mirror_full": "data/repos mirror has client + server + schema + build",
+    "mirror_schema_only": "data/repos mirror has schema/config but NO client/server (not the app body)"
+  },
+  "projections": [
+    {
+      "projection_id": "eos",
+      "aka": "EntrepreneurOS",
+      "beast": {
+        "branch": "feature/company-system",
+        "head": "17ceaab",
+        "dirty_count": 0,
+        "ahead": 0,
+        "behind": 0,
+        "client": true,
+        "server": true,
+        "schema": true
+      },
+      "github": {
+        "default_branch": "main",
+        "default_head": "86041f5",
+        "beast_branch_on_github": "feature/company-system",
+        "beast_branch_head": "17ceaab",
+        "beast_head_pushed": true
+      },
+      "mirror": {
+        "path": "data/repos/entrepreneuros",
+        "files": 154,
+        "client": true,
+        "server": true,
+        "schema": true,
+        "build": true,
+        "fidelity": "mirror_full"
+      },
+      "classification": [
+        "source_current",
+        "branch_diverged",
+        "mirror_full"
+      ],
+      "source_current": true,
+      "dormant_claim_refuted": false,
+      "notes": "Beast feature/company-system @17ceaab is CLEAN and PUSHED (matches GitHub feature/company-system head). Branch-diverged from GitHub default main (86041f5). Mirror is full fidelity. The one fully-consistent, source-current row \u2014 but on a feature branch, not default main."
+    },
+    {
+      "projection_id": "cos",
+      "aka": "CreatorOS",
+      "beast": {
+        "branch": "main",
+        "head": "ca4e161",
+        "dirty_count": 1,
+        "ahead": 0,
+        "behind": 0,
+        "client": true,
+        "server": true,
+        "schema": true
+      },
+      "github": {
+        "default_branch": "main",
+        "default_head": "ca4e161",
+        "beast_branch_on_github": "main",
+        "beast_branch_head": "ca4e161",
+        "beast_head_pushed": true
+      },
+      "mirror": {
+        "path": "data/repos/creatoros",
+        "files": 14,
+        "client": false,
+        "server": false,
+        "schema": true,
+        "build": true,
+        "fidelity": "mirror_schema_only"
+      },
+      "classification": [
+        "source_dirty",
+        "mirror_schema_only"
+      ],
+      "source_current": false,
+      "dormant_claim_refuted": true,
+      "notes": "ACTIVE, not dormant: Beast has 1 uncommitted file on main. Committed head ca4e161 == GitHub main (synced commits) but the working tree has unreconciled local edits. Mirror is schema-only (14 files, no client/server) \u2014 NOT the app body, though the Beast has full client+server."
+    },
+    {
+      "projection_id": "lyfeos",
+      "aka": "LyfeOS",
+      "beast": {
+        "branch": "main",
+        "head": "536b8888",
+        "dirty_count": 29,
+        "ahead": 19,
+        "behind": 0,
+        "client": true,
+        "server": true,
+        "schema": true
+      },
+      "github": {
+        "default_branch": "main",
+        "default_head": "afc3823",
+        "beast_branch_on_github": "main",
+        "beast_branch_head_present": false,
+        "beast_head_pushed": false,
+        "compare_result": "404 \u2014 Beast head 536b8888 is NOT present on GitHub (19 commits never pushed)"
+      },
+      "mirror": {
+        "path": "data/repos/LYFEOS",
+        "files": 23,
+        "client": false,
+        "server": false,
+        "schema": true,
+        "build": true,
+        "fidelity": "mirror_schema_only"
+      },
+      "classification": [
+        "source_unpushed",
+        "source_dirty",
+        "mirror_schema_only"
+      ],
+      "source_current": false,
+      "dormant_claim_refuted": true,
+      "notes": "ABSOLUTELY NOT dormant: Beast main is 19 commits AHEAD of GitHub (head 536b8888 returns 404 on GitHub \u2014 never pushed) PLUS 29 uncommitted dirty files. This is the highest-drift projection: real source exists ONLY on the Beast, in neither GitHub nor the VPS mirror (schema-only, 23 files). Losing the Beast = losing this work."
+    }
+  ],
+  "_summary": {
+    "highest_drift": "lyfeos (19 unpushed + 29 dirty, Beast-only)",
+    "dormant_labels_refuted": [
+      "cos",
+      "lyfeos"
+    ],
+    "fully_source_current": [],
+    "source_current_on_feature_branch": [
+      "eos"
+    ],
+    "mirrors_not_app_body": [
+      "cos",
+      "lyfeos"
+    ]
+  }
+}
