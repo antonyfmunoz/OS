@@ -125,11 +125,14 @@ the protocol implementations an integration provides.
 
 | Contract | Location | Purpose |
 |----------|----------|---------|
-| **ProjectionContract** | `substrate/types.py` | Declaration a projection provides to register with the substrate |
+| **ProjectionRegistration** | `substrate/sockets/projection_port.py` | Declaration a projection provides to register with the substrate (the ONE app-projection registration contract) |
 
 Every application projection (EOS, CreatorOS, LyfeOS) produces a
-ProjectionContract declaring its identity, domains, entity types,
-and required adapters.
+`ProjectionRegistration` (registered via `ProjectionPort` / seeded from
+`data/umh/projection_registry.json`) declaring its `capabilities_consumed`,
+`routes_mounted`, `substrate_imports`, and health/preview URLs. (The former
+`ProjectionContract` Pydantic model in `substrate/types.py` was a dead, forked
+duplicate and was removed in WP-P4-001.)
 
 ### Node Mesh Layer
 

@@ -1523,22 +1523,12 @@ class WorldModelUpdate(BaseModel):
 
 
 # ─── Projection ─────────────────────────────────────────────────────────────
-
-
-class ProjectionContract(BaseModel):
-    """Declaration a projection provides to register with the substrate.
-
-    Every application-layer projection (EOS, CreatorOS, LyfeOS) must
-    produce one of these to plug into the substrate runtime.
-    """
-
-    projection_id: str = Field(max_length=60)
-    name: str = Field(max_length=80)
-    version: str = Field(default="0.1.0", max_length=20)
-    domains: list[str] = Field(default_factory=list)
-    entity_types: list[str] = Field(default_factory=list)
-    required_adapters: list[str] = Field(default_factory=list)
-    registered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+# The ONE app-projection registration contract is ProjectionRegistration +
+# ProjectionPort in substrate/sockets/projection_port.py (WP-P3-004). A dead,
+# forked ProjectionContract Pydantic model formerly lived here — it had zero
+# runtime consumers, a disjoint field set, and hard-named EOS/CreatorOS/LyfeOS in
+# L2. Removed in WP-P4-001 to leave exactly one app-projection registration
+# contract. Do not reintroduce a second one here (see tests/test_projection_port_convergence.py).
 
 
 # ─── Deferred model resolution ──────────────────────────────────────────────
