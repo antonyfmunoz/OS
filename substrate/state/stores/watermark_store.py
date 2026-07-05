@@ -1,9 +1,13 @@
-"""Watermark persistence — JSONL append-log for per-database poll high-water marks."""
+"""Generic watermark persistence — thread-safe JSONL append-log for per-key poll
+high-water marks. Projection- and provider-agnostic substrate infrastructure:
+any adapter or projection poller can persist opaque key→ISO-timestamp watermarks.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,7 +15,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "notion_watermarks.jsonl"
+_DEFAULT_PATH = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "watermarks.jsonl"
 
 
 def _default_watermark() -> str:

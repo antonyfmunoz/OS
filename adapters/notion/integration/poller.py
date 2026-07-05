@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
+from pathlib import Path
 import time
 from typing import Any, Callable
 from uuid import uuid4
@@ -13,7 +15,7 @@ from notion_client import APIResponseError, Client
 from substrate.governance.risk_classes import RiskClass
 from adapters.notion.integration.correlation import CorrelationMap, WritebackTarget
 from adapters.notion.integration.signals import NotionSignalEmitter
-from adapters.notion.integration.watermarks import WatermarkStore
+from substrate.state.stores.watermark_store import WatermarkStore
 from substrate.sockets.envelopes import OutcomeEnvelope
 
 logger = logging.getLogger(__name__)
@@ -49,7 +51,9 @@ class NotionPoller:
         self._submit_fn = pipeline_submit_fn
         self._outcome_receiver = outcome_receiver
         self._signal_sources = signal_sources
-        self._watermarks = watermark_store or WatermarkStore()
+        self._watermarks = watermark_store or WatermarkStore(
+            path=Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "notion_watermarks.jsonl"
+        )
         self.shutdown_event = shutdown_event or threading.Event()
         self._thread: threading.Thread | None = None
 
