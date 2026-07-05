@@ -1,0 +1,106 @@
+{
+  "_law": "docs/PROJECTION_SOURCE_TRUTH.md",
+  "_contract": "docs/PROJECTION_SOURCE_TRUTH.md + tests/test_projection_source_truth.py",
+  "_probe_evidence": "Beast filesystem probe 2026-07-05 (read-only SSH). No row is source-current while beast_verification is UNVERIFIED.",
+  "beast_node": {
+    "id": "beast",
+    "tailscale_name": "desktop-lvguiq9",
+    "ip": "100.74.199.102",
+    "ssh_user": "antonys beast pc",
+    "os": "windows",
+    "repos_root": "C:\\dev\\dev\\"
+  },
+  "projections": [
+    {
+      "projection_id": "eos",
+      "aka": "EntrepreneurOS",
+      "umh_shell_path": "projections/eos",
+      "umh_shell_class": "full_substrate_projection",
+      "tier1_canonical_github": "github.com/antonyfmunoz/EntrepreneurOS.git",
+      "tier2_beast_working_tree": "C:\\dev\\dev\\EntrepreneurOS",
+      "tier3_vps_mirror": "data/repos/entrepreneuros",
+      "tier3_mirror_fidelity": "near_full_source_mirror",
+      "tier4_deploy_url": "https://entrepreneuros.net",
+      "beast_verification": "VERIFIED",
+      "beast_probe_at": "2026-07-05",
+      "beast_observed": {
+        "git_remote": "git@github.com:antonyfmunoz/EntrepreneurOS.git",
+        "branch": "feature/company-system",
+        "head": "17ceaab",
+        "dirty_count": 0,
+        "upstream": "origin/feature/company-system",
+        "client_present": true,
+        "server_present": true,
+        "schema": "shared/schema.ts + drizzle.config.ts"
+      },
+      "source_current": true,
+      "notes": "Only fully-consistent row: Beast confirms SYSTEM_ARCHITECTURE.md branch, clean tree."
+    },
+    {
+      "projection_id": "cos",
+      "aka": "CreatorOS",
+      "umh_shell_path": "projections/creatoros",
+      "umh_shell_class": "bare_integration_shell",
+      "tier1_canonical_github": "github.com/antonyfmunoz/CreatorOS.git",
+      "tier2_beast_working_tree": "C:\\dev\\dev\\CreatorOS",
+      "tier3_vps_mirror": "data/repos/creatoros",
+      "tier3_mirror_fidelity": "schema_only_snapshot",
+      "tier4_deploy_url": "https://creatoros-app.fly.dev",
+      "beast_verification": "VERIFIED",
+      "beast_probe_at": "2026-07-05",
+      "beast_observed": {
+        "git_remote": "git@github.com:antonyfmunoz/CreatorOS.git",
+        "branch": "main",
+        "head": "ca4e161",
+        "dirty_count": 1,
+        "upstream": "origin/main",
+        "client_present": true,
+        "server_present": true,
+        "schema": "shared/schema.ts + drizzle.config.ts"
+      },
+      "source_current": false,
+      "notes": "Beast has 1 uncommitted file + full client/server; VPS mirror is schema-only (14 files). Doc 'dormant' label understates live Beast state."
+    },
+    {
+      "projection_id": "lyfeos",
+      "aka": "LyfeOS",
+      "umh_shell_path": "projections/lyfeos",
+      "umh_shell_class": "bare_integration_shell",
+      "tier1_canonical_github": "github.com/antonyfmunoz/LYFEOS.git",
+      "tier2_beast_working_tree": "C:\\dev\\dev\\LyfeOS",
+      "tier3_vps_mirror": "data/repos/LYFEOS",
+      "tier3_mirror_fidelity": "schema_only_snapshot",
+      "tier4_deploy_url": "https://lyfeos.net",
+      "beast_verification": "VERIFIED",
+      "beast_probe_at": "2026-07-05",
+      "beast_observed": {
+        "git_remote": "git@github.com:antonyfmunoz/LYFEOS.git",
+        "branch": "main",
+        "head": "536b8888",
+        "dirty_count": 29,
+        "upstream": "origin/main [ahead 19]",
+        "client_present": true,
+        "server_present": true,
+        "schema": "shared/schema.ts + drizzle.config.ts"
+      },
+      "source_current": false,
+      "notes": "HIGH DRIFT: 19 unpushed commits + 29 uncommitted files exist ONLY on the Beast (not GitHub, not VPS mirror). VPS mirror is schema-only (23 files). Beast is authoritative and ahead."
+    },
+    {
+      "projection_id": "umh",
+      "aka": "UMH",
+      "umh_shell_path": "/opt/OS",
+      "umh_shell_class": "canonical_vps_repo",
+      "tier1_canonical_github": "github.com/antonyfmunoz/OS.git",
+      "tier2_beast_working_tree": null,
+      "tier3_vps_mirror": "/opt/OS",
+      "tier3_mirror_fidelity": "canonical",
+      "tier4_deploy_url": "https://universalmetaharness.tech",
+      "beast_verification": "NOT_APPLICABLE",
+      "beast_probe_at": null,
+      "beast_observed": null,
+      "source_current": true,
+      "notes": "UMH is canonical on the VPS; there is a C:\\dev\\dev\\UMH working tree on the Beast but /opt/OS is authoritative for the substrate. No Beast source-truth dependency."
+    }
+  ]
+}
