@@ -189,14 +189,14 @@ def _register_eos_integration() -> None:
             pipeline_submit_fn=_pipeline.submit_signal,
             outcome_receiver=outcome_receiver,
             tables=config["tables"],
-            org_ids=config["org_ids"] if config["org_ids"] else None,
+            user_ids=config["user_ids"] if config["user_ids"] else None,
             poll_interval=config["poll_interval"],
         )
-        org_scope = ", ".join(config["org_ids"]) if config["org_ids"] else "all"
+        user_scope = ", ".join(config["user_ids"]) if config["user_ids"] else "all"
         logger.info(
-            "eos poller configured: tables=%s, orgs=%s, interval=%.1fs",
+            "eos poller configured: tables=%s, users=%s, interval=%.1fs",
             config["tables"],
-            org_scope,
+            user_scope,
             config["poll_interval"],
         )
     except Exception as exc:
