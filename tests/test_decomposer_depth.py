@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from substrate.understanding.ontology.primitive_decomposition_v1 import (
+from substrate.understanding.perception.primitive_decomposition_v1 import (
     PrimitiveType,
     RelationshipType,
 )

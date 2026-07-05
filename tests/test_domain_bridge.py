@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT") or "/opt/OS")
 
-from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
+from substrate.understanding.perception.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
 from substrate.understanding.domains.contract import DomainBridge, DomainProjection
 from substrate.understanding.domains.business import BusinessBridge
 from adapters.data_source_adapters.local_file_source import LocalFileSource

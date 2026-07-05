@@ -16,7 +16,7 @@ from substrate.understanding.domains.contract import DomainBridge, DomainProject
 from substrate.understanding.domains.life import LifeBridge
 from substrate.understanding.domains.creator import CreatorBridge
 from substrate.understanding.domains.registry import default_registry
-from substrate.understanding.ontology.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
+from substrate.understanding.perception.primitive_decomposition_v1 import PrimitiveObservation, PrimitiveType
 
 
 def _make_obs(

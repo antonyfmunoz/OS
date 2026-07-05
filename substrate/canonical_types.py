@@ -1367,21 +1367,19 @@ LEGACY_DUPLICATES_META: dict[str, dict[str, dict[str, str]]] = {
             "rationale": "sockets envelope predates substrate.types.SignalEnvelope",
         },
     },
-    "substrate.understanding.ontology.primitive_decomposition_v1": {
-        "PrimitiveType": {
-            "owner": "understanding-ontology",
-            "sunset": "2026-12-31",
-            "rationale": "ontology v1 primitive types predate centralization",
-        },
-        "RelationshipType": {
-            "owner": "understanding-ontology",
-            "sunset": "2026-12-31",
-            "rationale": "ontology v1 primitive types predate centralization",
-        },
+    "substrate.understanding.perception.primitive_decomposition_v1": {
+        # WP-P3 rehome: the PrimitiveType/RelationshipType enum fork was removed —
+        # this module now imports both from substrate.types (single metamodel enum
+        # source), so they are no longer duplicates and are dropped from this ledger.
+        # PrimitiveObservation remains a v1 perception dataclass (str observation_id,
+        # to_dict, is_inferred) distinct from the canonical Pydantic
+        # substrate.types.PrimitiveObservation; kept here as a name-homonym duplicate,
+        # re-anchored to the new perception path. A later naming-cleanup packet may
+        # rename it (→ PerceptionPrimitiveObservation), which would retire this entry.
         "PrimitiveObservation": {
-            "owner": "understanding-ontology",
+            "owner": "understanding-perception",
             "sunset": "2026-12-31",
-            "rationale": "ontology v1 primitive types predate centralization",
+            "rationale": "v1 perception decomposition observation predates centralization; distinct shape from canonical PrimitiveObservation",
         },
     },
     "substrate.understanding.perception.orchestrator": {

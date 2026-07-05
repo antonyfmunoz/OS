@@ -11,7 +11,7 @@ UMH ontology-home map (see docs/audits/UMH_P3_ONTOLOGY_HOME_CONSOLIDATION.md and
   L1  external/current reality      → substrate/reality_model/
   L1  reality reflection (read)     → substrate/organism/reality_graph.py
   L2  metamodel laws/primitives     → substrate/ontology/, substrate/types.py
-  L2r primitive-decomposition/reason→ substrate/understanding/ontology/  (distinct concern)
+  perception decomposition model    → substrate/understanding/perception/  (NOT an ontology home)
   L4  semantic grounding / bridges  → substrate/understanding/domains/
   L4  governed reality write path   → substrate/reality_model/canonical_reality_write.py
   organism self-model               → substrate/organism/world_model.py    (distinct concern)
@@ -94,8 +94,11 @@ FROZEN_ONTOLOGY_HOMES: dict[str, str] = {
     # primitives.py RELOCATED (WP-P3 primitives relocation) → substrate/state/
     # business/primitives.py. It was L3 business-rule logic in an ontology dir;
     # evicted to its L3 state home. No longer a frozen home here (26).
-    # primitive_decomposition_v1.py is a parallel L2 metamodel (frozen competitor)
-    "substrate/understanding/ontology/primitive_decomposition_v1.py": "L2-parallel-frozen",
+    # primitive_decomposition_v1.py REHOMED (WP-P3 rehome) → substrate/understanding/
+    # perception/primitive_decomposition_v1.py. Its PrimitiveType/RelationshipType
+    # enum fork was removed (now imported from substrate.types); the surviving
+    # perception/decomposition dataclasses moved to their perception home. No longer
+    # a frozen home here (25). understanding/ontology/ now holds only __init__.py.
     # understanding world model (distinct concern from organism self-model)
     "substrate/understanding/world_model/__init__.py": "understanding-world-model",
     "substrate/understanding/world_model/world_model.py": "understanding-world-model",
@@ -124,16 +127,15 @@ FROZEN_ONTOLOGY_COMPETITORS: dict[str, tuple[str, str]] = {
     # (co-located with its BusinessInstanceManager dependency), the 6 lazy imports
     # (5 consumers) + the new-primitive skill re-pointed, no shim. Removed from this
     # ledger, shrinking it 2 → 1. The move is downward-legal (substrate→substrate).
-    # Parallel L2 metamodel: redefines PrimitiveType/RelationshipType/
-    # PrimitiveObservation instead of importing substrate.types. Owner: developer.
-    # Rationale: 11 importers (the understanding→domains→adapter perception
-    # pipeline) vs substrate.ontology's 3; collapsing onto substrate.types is a
-    # type-system dedup requiring its own regression pass. Sunset: P3 metamodel
-    # dedup packet → re-point to substrate.types.
-    "substrate/understanding/ontology/primitive_decomposition_v1.py": (
-        "parallel-L2-metamodel",
-        "P3 metamodel dedup packet",
-    ),
+    # RESOLVED (WP-P3 rehome): understanding/ontology/primitive_decomposition_v1.py
+    # was a parallel L2 metamodel (redefined PrimitiveType/RelationshipType instead
+    # of importing substrate.types) wrapping a perception/decomposition data model.
+    # Resolution was a SPLIT: the two duplicate enums were repointed to
+    # substrate.types (fork removed), and the surviving perception dataclasses
+    # (PrimitiveObservation v1 / PrimitiveRelationship / DecompositionResult) were
+    # git-moved intact to substrate/understanding/perception/primitive_decomposition_v1.py.
+    # No shim. Removed from this ledger, shrinking it 1 → 0 — no frozen ontology-home
+    # competitors remain. Sunset achieved ahead of the 2026-12-31 registry date.
     # RESOLVED (WP-P3 world-model sunset): substrate/understanding/world_model/
     # world_model.py was the third frozen competitor (name-collision with
     # organism/world_model.py). It is not a competitor — it is a distinct concern
