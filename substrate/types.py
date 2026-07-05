@@ -1360,10 +1360,8 @@ class Company(BaseModel):
     venture_id: str = ""
     portfolio_id: str | None = None
     stage: int = Field(ge=1, le=6, default=1)
-    stage_name: str = Field(default="validation", max_length=40)
     bis_id: str | None = None
     departments: list[str] = Field(default_factory=list)
-    north_star: str = ""
     active: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: dict[str, Any] = Field(default_factory=dict)

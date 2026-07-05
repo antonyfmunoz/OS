@@ -107,11 +107,12 @@ _INSTANCE_LITERAL_RE = re.compile(r"\b(empyrean_creative|lyfe_institute|personal
 # non-growth test in tests/test_ontology_layer_contract.py enforces that.
 # Format: relative path → set of frozen categories allowed in that file.
 LEGACY_ONTOLOGY_LEAKS: dict[str, set[str]] = {
-    # substrate/types.py — Company/Department/Portfolio carry EOS-specific fields
-    # (stage_name, north_star, "maps to a venture"). Operator decision: the
-    # abstract org primitives may stay L2, but these L3 fields are frozen
-    # contamination for later relocation to projections/eos.
-    "substrate/types.py": {"l3_field"},
+    # EMPTY (WP-P4-002). substrate/types.py previously carried the L3 fields
+    # Company.stage_name / Company.north_star, frozen here for later relocation.
+    # They were evicted to their L3 home (BusinessInstance, ventures.config_json)
+    # in WP-P4-002, so the grandfather is removed and the field-level detector now
+    # actively blocks any _L3_FIELD_VOCAB field on an L2 class. Do not re-add an
+    # entry here to hide a new leak — relocate the field instead.
     # substrate/ontology/ surface is otherwise clean today; no ontology import
     # leaks currently exist. (If one is found on --all it is a real regression.)
 }

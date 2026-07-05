@@ -274,9 +274,7 @@ def default_company(org_id: str, venture_id: str = "", name: str = "Primary") ->
         organization_id=org_id,
         venture_id=venture_id,
         stage=1,
-        stage_name="validation",
         departments=[d.slug for d in depts],
-        north_star="$10K/month net profit",
     )
 
 

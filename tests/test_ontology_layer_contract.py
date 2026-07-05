@@ -67,8 +67,36 @@ def test_gate_passes_on_real_tree():
 
 def test_gate_supports_file_mode():
     result = _run_gate("--file", "substrate/types.py")
-    # types.py is frozen (l3_field) → passes
+    # types.py is now CLEAN (not grandfathered) — the L3 fields stage_name/
+    # north_star were evicted to BusinessInstance in WP-P4-002, so the file
+    # passes on its own merit with no ledger exemption.
     assert result.returncode == 0, result.stdout
+
+
+def test_company_l2_model_has_no_l3_fields():
+    """WP-P4-002: Company is an abstract L2 org primitive — it must carry NO L3
+    EOS vocabulary. stage_name/north_star live on BusinessInstance (L3)."""
+    from substrate.types import Company
+
+    fields = set(Company.model_fields)
+    leaked = fields & {"stage_name", "north_star", "monthly_revenue", "icp_description", "offer_name"}
+    assert not leaked, f"Company (L2) leaked L3 field(s): {leaked} — relocate to BusinessInstance/projections"
+
+
+def test_gate_blocks_reintroduced_company_l3_field(tmp_path: Path):
+    """The field-level guard actively blocks re-adding stage_name/north_star to an
+    L2 class now that the substrate/types.py grandfather is removed (WP-P4-002)."""
+    bad = _ONTOLOGY_DIR / "_test_readded_company_field.py"
+    bad.write_text(
+        "class Company:\n    id: str\n    name: str\n    stage_name: str\n    north_star: str\n",
+        encoding="utf-8",
+    )
+    try:
+        result = _run_gate("--file", "substrate/ontology/_test_readded_company_field.py")
+        assert result.returncode == 1, "gate must block re-added stage_name/north_star on an L2 class"
+        assert "l3_field" in result.stdout
+    finally:
+        bad.unlink(missing_ok=True)
 
 
 def test_injected_l3_field_class_fails(tmp_path: Path):
@@ -128,7 +156,9 @@ def test_false_positive_control():
 # ── shrink-only ledgers (non-growth caps) ────────────────────────────────────
 
 # Baselines frozen at WP-P3-001 (main bb39b3abd). These may only SHRINK.
-_ONTOLOGY_LEDGER_BASELINE = 1  # files in LEGACY_ONTOLOGY_LEAKS
+# Ontology ledger shrank 1→0 at WP-P4-002 (Company.stage_name/north_star evicted
+# to L3 BusinessInstance; substrate/types.py grandfather removed).
+_ONTOLOGY_LEDGER_BASELINE = 0  # files in LEGACY_ONTOLOGY_LEAKS
 _INSTANCE_VENTURE_SLUG_BASELINE = 19  # files grandfathered for venture_slug
 
 

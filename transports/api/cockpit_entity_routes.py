@@ -22,6 +22,14 @@ from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
+# EOS-projection default display values for the company fallback view (no
+# persisted row). stage_name/north_star are L3 EOS vocabulary — evicted from the
+# L2 substrate Company model (WP-P4-002); their canonical home is the venture's
+# BusinessInstance (ventures.config_json). These constants preserve the cockpit
+# /entities/companies response shape for the empty-state default company only.
+_EOS_DEFAULT_STAGE_NAME = "validation"
+_EOS_DEFAULT_NORTH_STAR = "$10K/month net profit"
+
 entity_router: APIRouter = APIRouter()
 
 _get_org_id: Callable[[], str] = lambda: ""
@@ -231,9 +239,9 @@ def _entity_companies():
                     "org_id": company.organization_id,
                     "venture_id": company.venture_id,
                     "stage": company.stage,
-                    "stage_name": company.stage_name,
+                    "stage_name": _EOS_DEFAULT_STAGE_NAME,
                     "departments": company.departments,
-                    "north_star": company.north_star,
+                    "north_star": _EOS_DEFAULT_NORTH_STAR,
                 }
             ]
         }
@@ -263,9 +271,9 @@ def _entity_company_detail(company_id: str):
                     "org_id": default.organization_id,
                     "venture_id": default.venture_id,
                     "stage": default.stage,
-                    "stage_name": default.stage_name,
+                    "stage_name": _EOS_DEFAULT_STAGE_NAME,
                     "departments": default.departments,
-                    "north_star": default.north_star,
+                    "north_star": _EOS_DEFAULT_NORTH_STAR,
                 }
             }
         return {"error": f"company {company_id} not found"}
