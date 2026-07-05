@@ -102,3 +102,31 @@ def test_report_is_non_mutating_and_declares_method():
     assert "NON-MUTATING" in method, "report must declare non-mutating method"
     assert "No Beast writes" in method or "no Beast writes" in method.lower()
     assert "no code copied" in method.lower()
+
+
+# --- WP-P4-BEAST-BACKUP-001: backup recording ---
+
+def test_lyfeos_beast_only_work_is_backed_up_to_github_non_main():
+    """LyfeOS's Beast-only source must be recorded as backed up to a non-main GitHub branch."""
+    r = _rows()["lyfeos"]
+    bk = r.get("backup", {})
+    assert bk.get("status") == "backed_up", "LyfeOS backup must be recorded"
+    assert bk.get("pushed_to_github") is True
+    assert bk.get("branch", "").startswith("backup/"), "must be a non-main backup branch"
+    assert bk.get("branch") != "main"
+    assert bk.get("head"), "backup head must be recorded"
+
+
+def test_backup_excluded_secrets_and_dumps():
+    """The backup must have excluded .env/secrets/DB-dumps — never pushed."""
+    bk = _rows()["lyfeos"].get("backup", {})
+    excluded = set(bk.get("excluded_secrets", []))
+    assert ".env" in excluded, ".env must be excluded from the backup"
+    assert any(x.endswith(".sql") or "dump" in x for x in excluded), "DB dump must be excluded"
+
+
+def test_creatoros_documented_no_source_backup_needed():
+    """CreatorOS has no unbacked source work — must be documented, not force-backed-up."""
+    bk = _rows()["cos"].get("backup", {})
+    assert bk.get("status") == "no_backup_needed"
+    assert "dump" in bk.get("reason", "").lower() or "0 unpushed" in bk.get("reason", "")
