@@ -400,6 +400,15 @@ def update_action_decision(
     approve/reject semantics: approve stamps approved_by/approved_at; reject
     changes status only. The SET clause names approval-state columns ONLY —
     retry counters, outcome payloads, and action inputs are never written.
+
+    ``approved_by`` is FK-constrained to the app's ``users.id``
+    (agent_actions_approved_by_users_id_fk), and the app's own approve route
+    stamps it with an app user id (actions.ts: ``approvedBy: userId``). A UMH
+    operator identity is NOT an app user, so writing ``decided_by`` there
+    violates the FK (found live by the first organic proposal). We stamp the
+    row's own ``user_id`` — the app principal on whose behalf the operator
+    acts, FK-valid by construction. The true UMH decider identity is recorded
+    in the governed mutation envelope and the route response, never this row.
     Returns the post-update governance fields, or None when no row qualified.
     """
     new_status = DECISION_STATUS.get(decision)
@@ -407,8 +416,8 @@ def update_action_decision(
         raise ValueError(f"invalid decision '{decision}', must be one of: approve, reject")
 
     if new_status == "approved":
-        set_clause = "status = %s, approved_by = %s, approved_at = NOW(), updated_at = NOW()"
-        params: list[Any] = [new_status, decided_by]
+        set_clause = "status = %s, approved_by = user_id, approved_at = NOW(), updated_at = NOW()"
+        params: list[Any] = [new_status]
     else:
         set_clause = "status = %s, updated_at = NOW()"
         params = [new_status]
