@@ -421,3 +421,54 @@ def test_only_eos_is_touched(monkeypatch):
     text = _ACCESSOR_PATH.read_text(encoding="utf-8").lower()
     for name in ("creatoros", "lyfeos", "crm_"):
         assert name not in text, f"accessor references {name!r}"
+
+
+# ── WP-P4-FIRST-LIVE-PROPOSAL-PROOF-001 — live-run regression ─────────────────
+#
+# The first live proposal run (2026-07-06) surfaced that both EOS seam mutation
+# names were UNREGISTERED in the canonical MutationRegistry: every fake
+# mutation_runner in this suite accepted them, but the real governed spine
+# fail-closed with "unregistered mutation: eos_action_proposal_decision" and
+# no decision could ever be applied in production. These tests pin the real
+# registry — not a fake — so the gap can never silently reopen.
+
+
+def test_decision_mutation_is_registered_in_real_registry():
+    from substrate.organism.mutation_registry import MutationRegistry
+
+    reg = MutationRegistry()
+    spec = reg.lookup("eos_action_proposal_decision")
+    assert spec is not None, (
+        "eos_action_proposal_decision missing from MutationRegistry builtins — "
+        "the governed approve/reject seam fail-closes on every live call"
+    )
+    assert spec.risk_level == "medium"
+    assert spec.require_approval is False  # operator already authenticated at the route
+
+
+def test_execute_mutation_is_registered_in_real_registry():
+    from substrate.organism.mutation_registry import MutationRegistry
+
+    reg = MutationRegistry()
+    spec = reg.lookup("eos_action_proposal_execute")
+    assert spec is not None, (
+        "eos_action_proposal_execute missing from MutationRegistry builtins — "
+        "the governed executor seam fail-closes on every live call"
+    )
+    assert spec.risk_level == "medium"
+    assert spec.require_approval is False
+
+
+def test_registered_names_match_seam_call_sites():
+    """The literal mutation_name each seam submits must be the registered name."""
+    from substrate.organism.mutation_registry import MutationRegistry
+
+    reg = MutationRegistry()
+    decisions_src = _ACCESSOR_PATH.read_text(encoding="utf-8")
+    assert 'mutation_name="eos_action_proposal_decision"' in decisions_src
+    execution_src = (
+        Path(_WORKTREE) / "projections" / "eos" / "integration" / "action_execution.py"
+    ).read_text(encoding="utf-8")
+    assert 'mutation_name="eos_action_proposal_execute"' in execution_src
+    for name in ("eos_action_proposal_decision", "eos_action_proposal_execute"):
+        assert reg.is_registered(name)

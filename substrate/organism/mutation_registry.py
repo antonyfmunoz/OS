@@ -441,6 +441,36 @@ APPROVAL_DECIDE = MutationSpec(
     description="Approve or reject a pending action",
 )
 
+EOS_ACTION_PROPOSAL_DECISION = MutationSpec(
+    name="eos_action_proposal_decision",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.EXTERNAL,
+    timeout_seconds=15.0,
+    description=(
+        "Approve or reject a pending EOS agent action proposal — bounded UPDATE "
+        "of one agent_actions row via the approve-reject-decision seam "
+        "(decider is the authenticated operator; never executes the action)"
+    ),
+)
+
+EOS_ACTION_PROPOSAL_EXECUTE = MutationSpec(
+    name="eos_action_proposal_execute",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.IRREVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.EXTERNAL,
+    timeout_seconds=30.0,
+    description=(
+        "Execute an approved EOS action proposal through the executor seam — "
+        "atomic approved→executing claim, non-provider allowlist "
+        "(create_task/create_document) writes in the EOS app database"
+    ),
+)
+
 GOVERNANCE_UPDATE = MutationSpec(
     name="governance_update",
     action_type=ActionType.STATE,
@@ -727,6 +757,8 @@ class MutationRegistry:
             SETTINGS_UPDATE,
             CONFIG_SET,
             APPROVAL_DECIDE,
+            EOS_ACTION_PROPOSAL_DECISION,
+            EOS_ACTION_PROPOSAL_EXECUTE,
             GOVERNANCE_UPDATE,
             CHANNEL_MESSAGE_SEND,
             CONVERSATION_SEND,
