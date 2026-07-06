@@ -1,0 +1,90 @@
+{
+  "record": "P4-SYNC — RealityTemplate taxonomy seed",
+  "compiled": "2026-07-06",
+  "mode": "compile_only",
+  "doc": "docs/REALITY_TEMPLATE_GRAPH.md",
+  "ontology": {
+    "Primitive": "Smallest irreducible unit of capability the substrate understands (Signal, Operation, WorkPacket, Approval, Proof, Trace). Lives in L2 (substrate/types.py). Never projection-specific.",
+    "Invariant": "The part of a repeatable pattern that must NOT change across instances — the contract that makes proof transferable (e.g. 'pending row may only transition via atomic status-claim').",
+    "Variable": "The declared, typed slots a template exposes for instantiation (action_type set, target table, approval principal, projection_id, tenant_id). Everything tenant/projection-specific enters ONLY through variables.",
+    "RealityTemplate": "f(invariants, variables, context) — a named, versioned, provable pattern: primitives composed under invariants with declared variables. Compiled once, instantiated many times.",
+    "TemplateInstance": "One binding of a RealityTemplate's variables for one tenant+projection, with its own proof record.",
+    "TemplateGraph": "A DAG of TemplateInstances where one instance's proof/context output feeds the next instance's variables. Workflows ARE TemplateGraphs.",
+    "TemplateEdge": "A typed connection: (producer_instance, proof_field) -> (consumer_instance, variable). Edges carry proof, never raw trust.",
+    "ProofRequirement": "What a template demands before its instance may be marked complete: envelope ids, server-truth reads, row verification, gate output. No proof, no completion.",
+    "CapabilityRevision": "The learning edge: a completed instance's proof + defects found feed a revision of the template (invariant sharpened, variable added, gotcha recorded). Templates only improve through executed instances.",
+    "essentialism_rules": [
+      "One canonical home per durable capability — duplicates must be classified (substrate/projection/template) or converged.",
+      "A template is only created from a pattern that has EXECUTED at least once with proof (no speculative templates).",
+      "A template with one instance is a record; extraction into an abstraction requires a second real instance (N>=2 rule).",
+      "Instance values (tenant, node, brand) never appear in template bodies — only in variable bindings.",
+      "Every template names its ProofRequirement; instances without proof cannot feed TemplateEdges."
+    ]
+  },
+  "template_candidates": [
+    {
+      "id": "RT-GOVERNED-PROPOSAL-LOOP",
+      "status": "PROVEN_1_INSTANCE",
+      "source_instance": "EOS agent_actions loop (proof PR #201)",
+      "invariants": [
+        "proposal row created pending, requires_approval=true, insert-only",
+        "decision transitions only pending->approved|rejected via atomic status-claim under governed_mutation with registered MutationSpec",
+        "approved_by stamps an app-principal FK-safe value; UMH decider lives in the governance envelope only",
+        "execution only for server-truth execute_enabled rows, atomic approved->executing claim, allowlisted types, no provider actions without separate enablement",
+        "proof: decision envelope + execution envelope + created-row verification"
+      ],
+      "variables": ["tenant_id", "projection_id", "proposal_table", "action_type_allowlist", "app_principal_column", "read_surface_route", "executor_scope"],
+      "proof_requirement": "PENDING->APPROVED->EXECUTED server-truth chain + result row read-only verified + secret scan clean",
+      "next_instances": ["lyfeos (quest/action proposals)", "creatoros (publish-content approvals)"]
+    },
+    {
+      "id": "RT-PROJECTION-READ-SURFACE",
+      "status": "PROVEN_1_INSTANCE",
+      "source_instance": "eos_readiness() -> /eos/activation (PR #171 discipline)",
+      "invariants": [
+        "projection-owned accessor, thin transport wrapper, lazy import, try/except->dict, never 500",
+        "env-disabled-safe, side-effect-free, stable flat shape, no direct registry/file reads"
+      ],
+      "variables": ["projection_id", "accessor_module", "route_prefix", "readiness_fields"],
+      "proof_requirement": "shape test + env-unset disconnected dict + live 200",
+      "next_instances": ["lyfeos_readiness()", "creatoros_readiness()"]
+    },
+    {
+      "id": "RT-SECRET-RUNTIME-BINDING",
+      "status": "PROVEN_N_INSTANCES",
+      "source_instance": "op_run.sh + services/.env.tpl (UMH), .env.op.tpl (EOS/CreatorOS/LyfeOS), mesh.env.tpl (least-privilege service)",
+      "invariants": ["vault -> committed op:// manifest -> op run injection; plaintext env never canonical; least-privilege manifests for host services; values never in argv/logs"],
+      "variables": ["vault_name", "manifest_path", "consumer (compose service | systemd unit | scheduled task)"],
+      "proof_requirement": "op run child sees vars (booleans/lengths only); manifest gates pass; no plaintext staged",
+      "next_instances": ["provider tokens per adapter (gws done — #195)", "LyfeOS .env.tpl retirement"]
+    },
+    {
+      "id": "RT-AGENT-CHAT-ACTION-EMISSION",
+      "status": "CANDIDATE",
+      "source_instance": "EOS agents.ts:151 pipeline ([ACTION:] grammar)",
+      "invariants": ["authenticated principal required for action leg", "typed grammar validated against allowlist before insert", "anonymous chat never mints proposals"],
+      "variables": ["agent_config", "grammar/action_type set", "model_route", "target proposal_table"],
+      "proof_requirement": "one organic emission producing a pending row through the app's own parser",
+      "next_instances": ["LifeOS Nova actions", "CreatorOS AI agents"],
+      "blockers": ["EOS W4 (unauth agent PATCH prompt-injection) must be fixed before this template is certified"]
+    },
+    {
+      "id": "RT-EXECUTOR-NODE-DAEMON",
+      "status": "PROVEN_1_INSTANCE",
+      "source_instance": "windows executor node daemon under op run (Task Scheduler, Session 1, verdict secret)",
+      "invariants": ["daemon launches under secret runtime", "verdict validated node-side fail-closed", "browser verification only in interactive session"],
+      "variables": ["node_id", "os/launcher", "capability set", "manifest path"],
+      "proof_requirement": "node connects with capabilities; write-class dispatch validates verdict",
+      "next_instances": ["additional executor nodes"]
+    },
+    {
+      "id": "RT-GAMIFIED-PROGRESS-SURFACE",
+      "status": "CANDIDATE",
+      "source_instance": "LifeOS dashboard/XP/rank cluster",
+      "invariants": ["progress computed from event log, never hand-set", "rank thresholds declared as data"],
+      "variables": ["stat dimensions", "rank table", "event sources"],
+      "proof_requirement": "xp-calculations tests + rendered dashboard against real events",
+      "next_instances": ["EOS venture progress", "CreatorOS creator growth"]
+    }
+  ]
+}

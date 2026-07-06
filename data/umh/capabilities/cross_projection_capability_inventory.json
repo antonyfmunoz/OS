@@ -1,0 +1,121 @@
+{
+  "record": "P4-SYNC — cross-projection capability inventory",
+  "compiled": "2026-07-06",
+  "mode": "compile_only",
+  "classification_legend": {
+    "maturity": ["LIVE", "PARTIAL", "SHELL", "GAP"],
+    "candidate": ["substrate", "projection_specific", "template"],
+    "extraction_priority": ["P0_now", "P1_next", "P2_later", "P3_backlog"]
+  },
+  "rule": "No durable capability is duplicated without a row here classifying which instance is canonical (substrate) vs projection-native vs template. Duplicated equivalents must converge to one substrate home or be declared deliberately projection-specific.",
+  "capabilities": [
+    {
+      "name": "governed_mutation (approve/execute/proof)",
+      "location": "substrate/organism/canonical_runtime.py + projections/eos/integration/*",
+      "maturity": "LIVE", "owner": "substrate",
+      "duplicates": ["EOS app-side executeAction (action-executor.ts) — mirrors, races until W2 merged"],
+      "candidate": "substrate", "extraction_priority": "P0_now", "mvp_relevant": true
+    },
+    {
+      "name": "action proposal grammar ([ACTION:] tags -> pending row)",
+      "location": "EOS server/routes/agents.ts:232-304",
+      "maturity": "LIVE", "owner": "projection_specific",
+      "duplicates": ["LifeOS Nova actions (use-nova-actions)", "CreatorOS AI agents"],
+      "candidate": "template", "extraction_priority": "P1_next", "mvp_relevant": true,
+      "note": "The proposal-emission pattern is a RealityTemplate candidate: agent-emits-typed-intent -> governed pending row. Each projection instantiates with its own action-type variable set."
+    },
+    {
+      "name": "projection read surface (readiness/activation/queue)",
+      "location": "projections/eos/integration/readiness.py + transports/api/cockpit_core_eos_routes.py",
+      "maturity": "LIVE", "owner": "substrate",
+      "duplicates": ["5 legacy /eos/* routes (pipeline/kpis/activity/accountability/intelligence) predate the discipline"],
+      "candidate": "substrate", "extraction_priority": "P0_now", "mvp_relevant": true,
+      "note": "The projection-owned-accessor + thin-transport-wrapper pattern (rules/projection-read-surfaces.md) is the standard shape; lyfeos/creatoros need their own accessors."
+    },
+    {
+      "name": "1Password secret runtime (op run + op:// manifest)",
+      "location": "scripts/op_run.sh + services/.env.tpl + per-projection .env.op.tpl",
+      "maturity": "LIVE", "owner": "substrate",
+      "duplicates": ["LyfeOS .env.tpl plaintext (VIOLATION — rotation pending)"],
+      "candidate": "substrate", "extraction_priority": "P0_now", "mvp_relevant": true
+    },
+    {
+      "name": "mesh dispatch (relay + verdict, executor node)",
+      "location": "transports/node_mesh/* + nodes/windows/umh_node/*",
+      "maturity": "LIVE", "owner": "substrate",
+      "duplicates": [], "candidate": "substrate", "extraction_priority": "P0_now", "mvp_relevant": true
+    },
+    {
+      "name": "AI agent chat surface",
+      "location": "EOS agents.ts:151 / LifeOS Nova (server/replit_integrations/chat) / CreatorOS ai.tsx",
+      "maturity": "PARTIAL", "owner": "projection_specific",
+      "duplicates": ["3 independent chat implementations across projections"],
+      "candidate": "template", "extraction_priority": "P1_next", "mvp_relevant": true,
+      "note": "Chat-with-agent -> optional typed-action-emission is one template with per-projection agent config + action-type variables. Do NOT collapse UX; extract the CONTRACT."
+    },
+    {
+      "name": "task/kanban execution target",
+      "location": "EOS tasks + LifeOS kanban(Boards/Columns/Tasks) + CreatorOS (none)",
+      "maturity": "PARTIAL", "owner": "projection_specific",
+      "duplicates": ["EOS tasks table", "LifeOS kanbanTasks"],
+      "candidate": "projection_specific", "extraction_priority": "P2_later", "mvp_relevant": false,
+      "note": "Task schemas differ enough to stay projection-native; the WorkPacket primitive is the substrate abstraction over them."
+    },
+    {
+      "name": "CRM / contacts",
+      "location": "EOS crm_contacts/deals/activities + LifeOS rolodex(contacts) + CreatorOS contacts",
+      "maturity": "PARTIAL", "owner": "projection_specific",
+      "duplicates": ["3 contact models"], "candidate": "projection_specific",
+      "extraction_priority": "P3_backlog", "mvp_relevant": false
+    },
+    {
+      "name": "documents / vault",
+      "location": "EOS documents + LifeOS documents(vault) + CreatorOS documents",
+      "maturity": "PARTIAL", "owner": "projection_specific",
+      "duplicates": ["3 document models"], "candidate": "template",
+      "extraction_priority": "P2_later", "mvp_relevant": false,
+      "note": "create_document is already a governed action type; the storage stays projection-native."
+    },
+    {
+      "name": "gamification / XP / rank / progress",
+      "location": "LifeOS (userStats, ranks, experienceUtils, *DetailPage)",
+      "maturity": "LIVE", "owner": "projection_specific",
+      "duplicates": [], "candidate": "template", "extraction_priority": "P2_later", "mvp_relevant": false,
+      "note": "Richest reusable UI/progress template set — feeds the template registry, not the substrate."
+    },
+    {
+      "name": "reflections / journal / memory",
+      "location": "LifeOS content cluster (Chronilog/timeline/codex) + EOS agent_metrics",
+      "maturity": "PARTIAL", "owner": "projection_specific",
+      "duplicates": [], "candidate": "substrate", "extraction_priority": "P1_next", "mvp_relevant": true,
+      "note": "Memory/context sync is a substrate concern (Trace/feedback). LifeOS journal is a projection-native surface OVER the substrate memory, not a second memory."
+    },
+    {
+      "name": "publishing / campaign approval",
+      "location": "CreatorOS marketplace/create-product/create-post",
+      "maturity": "SHELL", "owner": "projection_specific",
+      "duplicates": [], "candidate": "template", "extraction_priority": "P2_later", "mvp_relevant": false,
+      "note": "publish-content is a future governed action type (approve->execute->proof), same loop shape as create_task."
+    },
+    {
+      "name": "cockpit command surface (voice/text intent, panels)",
+      "location": "cockpit/ (super-app)",
+      "maturity": "PARTIAL", "owner": "substrate",
+      "duplicates": [], "candidate": "substrate", "extraction_priority": "P0_now", "mvp_relevant": true,
+      "note": "Cockpit is the ONE command surface + projection MIRROR. Projection native UX is NOT collapsed into it."
+    },
+    {
+      "name": "capability registry",
+      "location": "substrate/execution/runtime/capability_router.py (28 job capabilities)",
+      "maturity": "PARTIAL", "owner": "substrate",
+      "duplicates": [], "candidate": "substrate", "extraction_priority": "P1_next", "mvp_relevant": true
+    },
+    {
+      "name": "template registry (RealityTemplate)",
+      "location": "GAP — does not exist yet",
+      "maturity": "GAP", "owner": "substrate",
+      "duplicates": [], "candidate": "substrate", "extraction_priority": "P1_next", "mvp_relevant": true,
+      "note": "New substrate home; taxonomy defined in reality_template_taxonomy.json / REALITY_TEMPLATE_GRAPH.md."
+    }
+  ]
+}
