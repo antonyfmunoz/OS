@@ -1084,6 +1084,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             if daemon is None:
                 return "organism not running", False
             from substrate.organism.protocols import AgentMessage
+
             msg = AgentMessage(
                 sender="operator",
                 recipient=recipient,
@@ -1152,7 +1153,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         def _do_settings():
             if action == "toggle_provider":
-                result = toggle_provider(payload.get("provider_key", ""), payload.get("enabled", False))
+                result = toggle_provider(
+                    payload.get("provider_key", ""), payload.get("enabled", False)
+                )
             elif action == "set_purpose_chain":
                 result = set_purpose_chain(payload.get("purpose", ""), payload.get("roles", []))
             else:
@@ -1186,6 +1189,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 return {"running": False}
             return {"running": daemon.is_running}
         elif action in ("start", "stop"):
+
             def _do_control():
                 daemon = _get_organism()
                 if action == "stop":
@@ -1195,7 +1199,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 else:
                     if daemon is not None:
                         daemon.start()
-                    return f"organism started (running={daemon.is_running if daemon else False})", True
+                    return (
+                        f"organism started (running={daemon.is_running if daemon else False})",
+                        True,
+                    )
 
             resp = governed_mutation(
                 mutation_name="state_mutate",
@@ -1845,6 +1852,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             event_id = ""
             try:
                 from substrate.state.memory.memory import ConversationMemory
+
                 mem = ConversationMemory()
                 org_id = os.environ.get("UMH_ORG_ID") or os.environ.get("EOS_ORG_ID", "")
                 if org_id:
@@ -1917,6 +1925,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         def _do_approve():
             from substrate.organism.proof_store import get_proof_store
+
             pkg = get_proof_store().approve(proof_id, notes=notes)
             if pkg is None:
                 return f"proof '{proof_id}' not found", False
@@ -1937,6 +1946,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         def _do_reject():
             from substrate.organism.proof_store import get_proof_store
+
             pkg = get_proof_store().reject(proof_id, notes=notes)
             if pkg is None:
                 return f"proof '{proof_id}' not found", False
@@ -2164,6 +2174,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 save_executor_preference,
                 load_executor_preference,
             )
+
             save_executor_preference(order)
             return f"executor preference set to {load_executor_preference()}", True
 
@@ -2193,6 +2204,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     from transports.api.cockpit_core_eos_routes import register_eos_routes
     from transports.api.cockpit_core_lyfeos_routes import register_lyfeos_routes
     from transports.api.cockpit_core_creatoros_routes import register_creatoros_routes
+    from transports.api.cockpit_intent_loop_routes import register_intent_loop_routes
 
     register_bootstrap_routes(router, _require_operator_role, _helpers)
     register_session_routes(router, _require_operator_role, _helpers)
@@ -2201,5 +2213,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     register_eos_routes(router, _require_operator_role, _helpers)
     register_lyfeos_routes(router, _require_operator_role, _helpers)
     register_creatoros_routes(router, _require_operator_role, _helpers)
+    register_intent_loop_routes(router, _require_operator_role, _helpers)
 
     return router, ws_router, push_chat_message, push_organism_event

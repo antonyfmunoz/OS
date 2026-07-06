@@ -84,6 +84,7 @@ export type Panel =
   | 'proofinspector'
   | 'recoverydashboard'
   | 'projectionmirrors'
+  | 'intentloop'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

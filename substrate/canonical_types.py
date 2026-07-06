@@ -116,6 +116,19 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ProviderTokenRequirement": ["substrate.execution.credential_gate"],
     "AdapterCallCredentialDecision": ["substrate.execution.credential_gate"],
     "ProviderTokenUnavailableError": ["substrate.execution.credential_gate"],
+    # ── substrate/execution/intent/ (P4S-31 MVP operating-loop skeleton) ─
+    # New types: thin intent→proof loop records. IntentSpec was unregistered
+    # and unused anywhere before this packet. WorkPacketDraft is the PRE-
+    # governance draft, distinct from substrate.types.WorkPacket (the heavy
+    # runtime packet) — it reuses WorkPacketStatus/Priority for its lifecycle.
+    "IntentSpec": ["substrate.execution.intent.intent_spec"],
+    "IntentKind": ["substrate.execution.intent.intent_spec"],
+    "IntentLoopStage": ["substrate.execution.intent.intent_spec"],
+    "WorkPacketDraft": ["substrate.execution.intent.intent_spec"],
+    "IntentLoop": ["substrate.execution.intent.loop"],
+    "IntentLoopRecord": ["substrate.execution.intent.loop"],
+    "IntentLoopStore": ["substrate.execution.intent.loop"],
+    "ProofRecord": ["substrate.execution.intent.loop"],
     # ── substrate/execution/runtime/worker_runtime_contracts.py ─────────
     "EnvironmentType": ["substrate.execution.runtime.worker_runtime_contracts"],
     "AuthorityDomain": ["substrate.execution.runtime.worker_runtime_contracts"],

@@ -80,6 +80,7 @@ const PANEL_COMPONENTS: Record<string, React.LazyExoticComponent<React.Component
   recoverydashboard: lazy(() => import('../../../panels/RecoveryDashboardPanel').then(m => ({ default: m.RecoveryDashboardPanel }))),
   realitygraph: lazy(() => import('../../../panels/RealityGraphPanel').then(m => ({ default: m.RealityGraphPanel }))),
   projectionmirrors: lazy(() => import('../../../panels/ProjectionMirrorsPanel').then(m => ({ default: m.ProjectionMirrorsPanel }))),
+  intentloop: lazy(() => import('../../../panels/IntentLoopPanel').then(m => ({ default: m.IntentLoopPanel }))),
 }
 
 interface Props {
