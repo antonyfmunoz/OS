@@ -26,6 +26,23 @@ function AuthenticatedApp() {
   useOrganismRealtime()
   useVisionConnection()
 
+  // Panel deep-link: ?panel=<id> opens that panel as a canvas window on load.
+  // Bookmarkable and projection-general; also the navigation hook automated
+  // browser verification uses. Panels only render as canvas windows
+  // (canvasStore.addWindow) — cockpitStore.activePanel does not render.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('panel')
+    if (requested) {
+      import('./stores/canvasStore').then(({ useCanvasStore }) => {
+        const store = useCanvasStore.getState()
+        const alreadyOpen = store.windows.some(
+          (w) => w.type === 'panel' && w.config?.panelId === requested,
+        )
+        if (!alreadyOpen) store.addWindow('panel', { panelId: requested })
+      })
+    }
+  }, [])
+
   const boot = useBootstrapStore((s) => s.boot)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const startPolling = useChatStore((s) => s.startPolling)

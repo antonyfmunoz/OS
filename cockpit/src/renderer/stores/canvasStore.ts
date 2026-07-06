@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { clampZoom } from '../utils/canvasCoords'
 import { ROUTES } from '../types/routes'
+import { randomId } from '../utils/ids'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -180,7 +181,7 @@ export const useCanvasStore = create<CanvasState>()(
       // ── Window CRUD ────────────────────────────────────────
 
       addWindow: (type, config) => {
-        const id = crypto.randomUUID()
+        const id = randomId()
         const size = DEFAULT_SIZES[type]
         const state = get()
         const last = state.windows[state.windows.length - 1]
@@ -315,7 +316,7 @@ export const useCanvasStore = create<CanvasState>()(
       // ── Cluster actions ────────────────────────────────────
 
       createCluster: (label, windowIds, color) => {
-        const id = crypto.randomUUID()
+        const id = randomId()
         const clusterColor = color ?? CLUSTER_COLORS[get().clusters.length % CLUSTER_COLORS.length]
         set((s) => ({
           clusters: [...s.clusters, { id, label, windowIds, color: clusterColor, collapsed: false }],
@@ -394,7 +395,7 @@ export const useCanvasStore = create<CanvasState>()(
       // ── Preset actions ─────────────────────────────────────
 
       savePreset: (name) => {
-        const id = crypto.randomUUID()
+        const id = randomId()
         const state = get()
         const preset: CanvasPreset = {
           id,
