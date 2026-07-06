@@ -115,6 +115,32 @@ class AgentActionRow:
     created_at: datetime
 
 
+@dataclass(frozen=True)
+class AgentActionProposalRow:
+    """Governance view of an EOS agent_actions row (WP-P4-EOS-ACTION-PROPOSAL-READ-001).
+
+    Carries the fields the UMH approval surface needs to REPRESENT a proposal —
+    identity, lifecycle, retry bounds, provenance — and deliberately EXCLUDES the
+    `parameters` jsonb payload (may contain email bodies / user content) and
+    `execution_result`. Read model only; execution stays disabled.
+    """
+
+    id: str
+    agent_id: str
+    agent_name: str | None
+    user_id: str
+    action_type: str
+    action_name: str
+    description: str | None
+    status: str
+    requires_approval: bool
+    priority: str
+    retry_count: int
+    max_retries: int
+    created_at: datetime
+    updated_at: datetime | None
+
+
 def fetch_user_ids(conn: Any) -> list[str]:
     """Discover all user IDs in the EOS database."""
     with conn.cursor() as cur:
@@ -268,6 +294,63 @@ def fetch_tasks_since(
             agent_id=row["agent_id"],
             task_type=row["task_type"] or "standard",
             created_at=row["created_at"],
+        )
+        for row in rows
+    ]
+
+
+def fetch_pending_agent_actions(
+    conn: Any,
+    user_ids: list[str] | None = None,
+    limit: int = 50,
+) -> list[AgentActionProposalRow]:
+    """Fetch PENDING agent_actions rows (the human approval queue), read-only.
+
+    WP-P4-EOS-ACTION-PROPOSAL-READ-001. Mirrors the EOS app's own
+    getPendingActions() semantics (status='pending', newest first) and joins the
+    agents table for the display name. Never selects the `parameters` payload or
+    `execution_result` — governance representation only, never execution inputs.
+    `user_ids` non-empty restricts to those tenants (EOS_USER_IDS whitelist);
+    empty/None means all.
+    """
+    where = ["a.status = 'pending'"]
+    params: list[Any] = []
+    if user_ids:
+        where.append("a.user_id = ANY(%s)")
+        params.append(list(user_ids))
+    params.append(limit)
+
+    query = f"""
+        SELECT a.id, a.agent_id, ag.name AS agent_name, a.user_id,
+               a.action_type, a.action_name, a.description, a.status,
+               a.requires_approval, a.priority, a.retry_count, a.max_retries,
+               a.created_at, a.updated_at
+        FROM agent_actions a
+        LEFT JOIN agents ag ON ag.id = a.agent_id
+        WHERE {" AND ".join(where)}
+        ORDER BY a.created_at DESC
+        LIMIT %s
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+
+    return [
+        AgentActionProposalRow(
+            id=str(row["id"]),
+            agent_id=str(row["agent_id"]),
+            agent_name=row["agent_name"],
+            user_id=str(row["user_id"]),
+            action_type=row["action_type"],
+            action_name=row["action_name"],
+            description=row["description"],
+            status=row["status"] or "pending",
+            requires_approval=bool(row["requires_approval"]),
+            priority=row["priority"] or "medium",
+            retry_count=int(row["retry_count"] or 0),
+            max_retries=int(row["max_retries"] or 3),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
         )
         for row in rows
     ]
