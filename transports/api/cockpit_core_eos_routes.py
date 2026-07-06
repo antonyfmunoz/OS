@@ -3,11 +3,14 @@
 Covers: /eos/pipeline, /eos/kpis, /eos/activity, /eos/accountability, /eos/intelligence.
 Phase 0.3 route split. UMH transport layer.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 from typing import Any
+
+from fastapi import Depends
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +137,62 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return eos_readiness()
         except Exception as e:
             return {"error": str(e), "projection_id": "eos", "registered_in_seed": False}
+
+    def _decide_proposal(proposal_id: str, decision: str, payload: dict | None):
+        """Shared thin body for the two decision routes: lazy accessor import,
+        no inline construction, no execution, never raises. The mutation is
+        explicitly wired through governed_mutation (C34 canonical mutation law)."""
+        try:
+            from transports.api.governed import governed_mutation
+
+            from projections.eos.integration.action_decisions import (
+                decide_action_proposal,
+            )
+
+            body = payload or {}
+            return decide_action_proposal(
+                proposal_id,
+                decision,
+                decided_by=str(body.get("decided_by") or "umh_operator"),
+                reason=(str(body["reason"]) if body.get("reason") else None),
+                mutation_runner=governed_mutation,
+            )
+        except Exception as e:
+            return {
+                "error": str(e),
+                "projection_id": "eos",
+                "surface": "action_decision",
+                "proposal_id": proposal_id,
+                "decision": decision,
+                "decision_applied": False,
+                "execute_enabled": False,
+            }
+
+    @router.post(
+        "/eos/action-proposals/{proposal_id}/approve",
+        dependencies=[Depends(_require_operator_role)],
+    )
+    def eos_action_proposal_approve(proposal_id: str, payload: dict | None = None):
+        """Approve one pending EOS action proposal — WP-P4-EOS-ACTION-APPROVAL-COMMAND-001.
+
+        Governed write seam over the #182 approve-reject-decision seam: transitions
+        pending→approved through governed_mutation, records proof fields, and NEVER
+        executes the action (execute_enabled=false). Fail-closed on env-disabled,
+        non-build-safe Beast state, or governance unavailability.
+        """
+        return _decide_proposal(proposal_id, "approve", payload)
+
+    @router.post(
+        "/eos/action-proposals/{proposal_id}/reject",
+        dependencies=[Depends(_require_operator_role)],
+    )
+    def eos_action_proposal_reject(proposal_id: str, payload: dict | None = None):
+        """Reject one pending EOS action proposal — WP-P4-EOS-ACTION-APPROVAL-COMMAND-001.
+
+        Governed write seam: transitions pending→rejected through governed_mutation.
+        Same fail-closed contract as approve; nothing ever executes.
+        """
+        return _decide_proposal(proposal_id, "reject", payload)
 
     @router.get("/eos/action-proposals")
     def eos_action_proposals_route(limit: int = 50):
