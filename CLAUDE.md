@@ -338,6 +338,11 @@ AI is a cognitive enhancement, not a dependency.
 - Business stage pre_revenue → economy mode → forces Haiku. Override: agent_type='ceo'
 - After Ollama model change: `docker restart` services
 - Never hardcode `anthropic.Anthropic()` — always model_router.call_with_fallback
+- After spawning parallel executor agents: never let them run git branch/checkout/
+  commit in /opt/OS — the main checkout is the LIVE runtime's file source
+  (containers volume-mount it). Executors may READ /opt/OS paths but write and
+  branch ONLY in their own isolated worktree. (2026-07-06: two wave-1 executors
+  branch-switched /opt/OS mid-run; the trunk captain had to restore main.)
 
 ## Ingestion — canonical path is substrate.execution.ingestion (see .claude/CLAUDE.md)
 
