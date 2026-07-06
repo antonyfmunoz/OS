@@ -14,7 +14,7 @@ PERPLEXITY_API_KEY=op://UMH-Production/AI-Perplexity/api_key
 
 # ── Database ─────────────────────────────────────────────────────────────────
 DATABASE_URL=op://UMH-Production/Database-Neon/url
-EOS_DATABASE_URL=op://UMH-Production/Database-Neon/url
+EOS_DATABASE_URL=op://EntrepreneurOS/Development/DATABASE_URL
 
 # ── Discord ──────────────────────────────────────────────────────────────────
 DISCORD_BOT_TOKEN=op://UMH-Production/Discord-Bot/token

@@ -1,0 +1,35 @@
+{
+  "deploy": {
+    "app": "umh-cockpit",
+    "image": "registry.fly.io/umh-cockpit:deployment-01KWWAQ15ZS6MGGGAAHR50AZ4P",
+    "machine": "4d8953ddb7d2e8",
+    "public_url": "https://universalmetaharness.tech/",
+    "site_http": 200,
+    "bundle_186_marker_chunk": "ApprovalsPanel-BiC9r-ph.js",
+    "bundle_186_marker": "eos-action-queue + \"Projection Actions \u2014 EOS\" present",
+    "bundle_deeplink": "?panel= URLSearchParams handler present in main bundle",
+    "post_deploy_health_probe": "FAILED \u2014 /api/health returned 404 (health-check path mismatch, not an outage; site 200, EOS read 200 connected)"
+  },
+  "prod_eos_read": {
+    "projection_id": "eos",
+    "surface": "action_proposals",
+    "connection_status": "connected",
+    "source_build_safe": true,
+    "execute_enabled": false,
+    "executor_scope": "non_provider_allowlist",
+    "allowed_action_types": "create_document,create_task",
+    "retry_policy": "human_reapproval_required",
+    "beast_head": "9c8725f",
+    "seam_id": "approval-queue-row",
+    "seam_primitive": "Approval",
+    "seam_target": "substrate/types.py ApprovalRequest (approval_id/operation/requested_action/risk_class/state/requester_identity/decided_by) \u2014 near 1:1 field correspondence",
+    "proposal_count": 0,
+    "proposals": [],
+    "error": null
+  },
+  "prod_mutation_auth": {
+    "approve_nonexistent_no_creds_http": 403,
+    "note": "operator-role gate holds in production even with UMH_DEV_BYPASS=true"
+  },
+  "secret_scan": "CLEAN \u2014 no credential-bearing database URL, op-vault token, or provider key in the read envelope or DOM"
+}
