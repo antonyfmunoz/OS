@@ -109,6 +109,13 @@ CANONICAL_TYPES: dict[str, list[str]] = {
         "substrate.execution.runtime.capability_router",
         "substrate.types",
     ],
+    # ── substrate/execution/credential_gate.py ──────────────────────────
+    # WP-P4-ADAPTERCALL-TOKEN-SEAM-001: fail-closed provider-token seam.
+    # Names/paths only — token values never transit these types.
+    "CredentialGateResult": ["substrate.execution.credential_gate"],
+    "ProviderTokenRequirement": ["substrate.execution.credential_gate"],
+    "AdapterCallCredentialDecision": ["substrate.execution.credential_gate"],
+    "ProviderTokenUnavailableError": ["substrate.execution.credential_gate"],
     # ── substrate/execution/runtime/worker_runtime_contracts.py ─────────
     "EnvironmentType": ["substrate.execution.runtime.worker_runtime_contracts"],
     "AuthorityDomain": ["substrate.execution.runtime.worker_runtime_contracts"],
