@@ -1,0 +1,17 @@
+{
+  "record": "wp-p4-operator-runtime-unblock",
+  "generated_for": "2026-07-06",
+  "runtime_config_source": "1password",
+  "eos_database_source": "op://EntrepreneurOS/Development/DATABASE_URL",
+  "mesh_secret_present": true,
+  "mesh_secret_items": [
+    "op://UMH-Production/Mesh-Relay-Secret/password",
+    "op://UMH-Production/Mesh-Verdict-Secret/password"
+  ],
+  "mesh_dispatcher_injected": true,
+  "mesh_beast_node_injected": true,
+  "mesh_relay_service_injected": false,
+  "mesh_relay_remaining_step": "operator-reviewed apply of infra/systemd/umh-mesh.service (live unit rewrite + restart was correctly denied to auto mode); command documented in the unit file header and packet report",
+  "eos_database_has_agent_actions": true,
+  "eos_agent_actions_row_count": 0
+}

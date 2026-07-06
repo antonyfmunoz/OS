@@ -200,6 +200,13 @@ services:
       - UMH_MESH_RELAY_HOST=host.docker.internal
       - UMH_ROUTER_CLAUDE_CLI_ENABLED=0
       - LIVEKIT_URL=ws://os-livekit:7880
+      # 1Password-runtime-injected (op run at compose time) — never a plaintext file value.
+      # Empty when not injected -> EOS read surfaces stay env-disabled-safe (fail-closed).
+      - EOS_DATABASE_URL=${EOS_DATABASE_URL:-}
+      # Mesh relay auth + verdict signing — empty when not injected keeps the
+      # dispatch path fail-closed (relay refuses, verdict signer raises).
+      - UMH_MESH_RELAY_SECRET=${UMH_MESH_RELAY_SECRET:-}
+      - UMH_MESH_VERDICT_SECRET=${UMH_MESH_VERDICT_SECRET:-}
     ports:
       - "127.0.0.1:8091:8091"
     healthcheck:
