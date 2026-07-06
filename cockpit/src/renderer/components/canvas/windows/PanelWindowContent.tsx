@@ -79,6 +79,7 @@ const PANEL_COMPONENTS: Record<string, React.LazyExoticComponent<React.Component
   proofinspector: lazy(() => import('../../../panels/ProofInspectorPanel').then(m => ({ default: m.ProofInspectorPanel }))),
   recoverydashboard: lazy(() => import('../../../panels/RecoveryDashboardPanel').then(m => ({ default: m.RecoveryDashboardPanel }))),
   realitygraph: lazy(() => import('../../../panels/RealityGraphPanel').then(m => ({ default: m.RealityGraphPanel }))),
+  projectionmirrors: lazy(() => import('../../../panels/ProjectionMirrorsPanel').then(m => ({ default: m.ProjectionMirrorsPanel }))),
 }
 
 interface Props {
