@@ -10,6 +10,7 @@ eos_ai/.env
 # 1Password templates — safe to commit (contain op:// references, not secrets)
 !*.env.tpl
 !.env.sessions.tpl
+!.env.*.tpl
 
 # LiveKit — resolved config with secrets (generated from livekit.yaml.tpl)
 infra/livekit.yaml
