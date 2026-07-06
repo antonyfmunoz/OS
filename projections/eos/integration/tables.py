@@ -303,18 +303,21 @@ def fetch_pending_agent_actions(
     conn: Any,
     user_ids: list[str] | None = None,
     limit: int = 50,
+    statuses: tuple[str, ...] = ("pending",),
 ) -> list[AgentActionProposalRow]:
-    """Fetch PENDING agent_actions rows (the human approval queue), read-only.
+    """Fetch agent_actions rows in the given statuses (approval queue), read-only.
 
-    WP-P4-EOS-ACTION-PROPOSAL-READ-001. Mirrors the EOS app's own
+    WP-P4-EOS-ACTION-PROPOSAL-READ-001. The default mirrors the EOS app's own
     getPendingActions() semantics (status='pending', newest first) and joins the
-    agents table for the display name. Never selects the `parameters` payload or
-    `execution_result` — governance representation only, never execution inputs.
-    `user_ids` non-empty restricts to those tenants (EOS_USER_IDS whitelist);
-    empty/None means all.
+    agents table for the display name. WP-P4-EOS-ACTION-QUEUE-COCKPIT-001 lets
+    the caller widen `statuses` to the full lifecycle so the operator queue can
+    also show approved/executing/completed/failed/rejected rows — still
+    SELECT-only. Never selects the `parameters` payload or `execution_result` —
+    governance representation only, never execution inputs. `user_ids` non-empty
+    restricts to those tenants (EOS_USER_IDS whitelist); empty/None means all.
     """
-    where = ["a.status = 'pending'"]
-    params: list[Any] = []
+    where = ["a.status = ANY(%s)"]
+    params: list[Any] = [list(statuses)]
     if user_ids:
         where.append("a.user_id = ANY(%s)")
         params.append(list(user_ids))

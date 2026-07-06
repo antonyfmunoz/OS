@@ -68,6 +68,9 @@ describe('fetchApi — GET deduplication', () => {
     const p1 = fetchApi('/organism/status')
     const p2 = fetchApi('/organism/status')
 
+    // fetchApi awaits the token getter before calling fetch — wait for the
+    // mock to actually be invoked before resolving it.
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalled())
     resolveFirst!({ ok: true, json: async () => ({ data: 1 }) })
 
     const [r1, r2] = await Promise.all([p1, p2])

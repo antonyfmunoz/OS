@@ -138,10 +138,12 @@ def register_eos_routes(router, _require_operator_role, helpers):
         except Exception as e:
             return {"error": str(e), "projection_id": "eos", "registered_in_seed": False}
 
-    def _decide_proposal(proposal_id: str, decision: str, payload: dict | None):
+    def _decide_proposal(proposal_id: str, decision: str, payload: dict | None, decided_by: str):
         """Shared thin body for the two decision routes: lazy accessor import,
         no inline construction, no execution, never raises. The mutation is
-        explicitly wired through governed_mutation (C34 canonical mutation law)."""
+        explicitly wired through governed_mutation (C34 canonical mutation law).
+        `decided_by` is the AUTHENTICATED principal from the operator-role
+        dependency — never taken from the request body (audit integrity)."""
         try:
             from transports.api.governed import governed_mutation
 
@@ -153,7 +155,7 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return decide_action_proposal(
                 proposal_id,
                 decision,
-                decided_by=str(body.get("decided_by") or "umh_operator"),
+                decided_by=decided_by,
                 reason=(str(body["reason"]) if body.get("reason") else None),
                 mutation_runner=governed_mutation,
             )
@@ -168,37 +170,42 @@ def register_eos_routes(router, _require_operator_role, helpers):
                 "execute_enabled": False,
             }
 
-    @router.post(
-        "/eos/action-proposals/{proposal_id}/approve",
-        dependencies=[Depends(_require_operator_role)],
-    )
-    def eos_action_proposal_approve(proposal_id: str, payload: dict | None = None):
+    @router.post("/eos/action-proposals/{proposal_id}/approve")
+    def eos_action_proposal_approve(
+        proposal_id: str,
+        payload: dict | None = None,
+        operator_identity: str = Depends(_require_operator_role),
+    ):
         """Approve one pending EOS action proposal — WP-P4-EOS-ACTION-APPROVAL-COMMAND-001.
 
         Governed write seam over the #182 approve-reject-decision seam: transitions
         pending→approved through governed_mutation, records proof fields, and NEVER
         executes the action (execute_enabled=false). Fail-closed on env-disabled,
-        non-build-safe Beast state, or governance unavailability.
+        non-build-safe Beast state, or governance unavailability. The recorded
+        decider is the authenticated operator identity, not client input.
         """
-        return _decide_proposal(proposal_id, "approve", payload)
+        return _decide_proposal(proposal_id, "approve", payload, operator_identity)
 
-    @router.post(
-        "/eos/action-proposals/{proposal_id}/reject",
-        dependencies=[Depends(_require_operator_role)],
-    )
-    def eos_action_proposal_reject(proposal_id: str, payload: dict | None = None):
+    @router.post("/eos/action-proposals/{proposal_id}/reject")
+    def eos_action_proposal_reject(
+        proposal_id: str,
+        payload: dict | None = None,
+        operator_identity: str = Depends(_require_operator_role),
+    ):
         """Reject one pending EOS action proposal — WP-P4-EOS-ACTION-APPROVAL-COMMAND-001.
 
         Governed write seam: transitions pending→rejected through governed_mutation.
-        Same fail-closed contract as approve; nothing ever executes.
+        Same fail-closed contract as approve; nothing ever executes. The recorded
+        decider is the authenticated operator identity, not client input.
         """
-        return _decide_proposal(proposal_id, "reject", payload)
+        return _decide_proposal(proposal_id, "reject", payload, operator_identity)
 
-    @router.post(
-        "/eos/action-proposals/{proposal_id}/execute",
-        dependencies=[Depends(_require_operator_role)],
-    )
-    def eos_action_proposal_execute(proposal_id: str, payload: dict | None = None):
+    @router.post("/eos/action-proposals/{proposal_id}/execute")
+    def eos_action_proposal_execute(
+        proposal_id: str,
+        payload: dict | None = None,
+        operator_identity: str = Depends(_require_operator_role),
+    ):
         """Execute one APPROVED non-provider EOS action proposal —
         WP-P4-EOS-EXECUTOR-ACTIVATE-001.
 
@@ -215,10 +222,9 @@ def register_eos_routes(router, _require_operator_role, helpers):
                 execute_action_proposal,
             )
 
-            body = payload or {}
             return execute_action_proposal(
                 proposal_id,
-                executed_by=str(body.get("executed_by") or "umh_operator"),
+                executed_by=operator_identity,
                 mutation_runner=governed_mutation,
             )
         except Exception as e:
@@ -234,10 +240,14 @@ def register_eos_routes(router, _require_operator_role, helpers):
     def eos_action_proposals_route(limit: int = 50):
         """EOS ActionProposal read seam — WP-P4-EOS-ACTION-PROPOSAL-READ-001.
 
-        Read-only view of the EOS agent_actions pending queue mapped into UMH
-        approval semantics (#182 approval-queue-row seam). Execution is disabled
-        by contract (execute_enabled=false). Env-disabled-safe: stable
-        "disconnected" envelope when EOS_DATABASE_URL is unset, never a 500.
+        Read-only view of the EOS agent_actions lifecycle queue mapped into UMH
+        approval semantics (#182 approval-queue-row seam). This surface never
+        executes (envelope execute_enabled=false); per-row execute_enabled
+        REPRESENTS the #185 executor contract — true only for approved rows of
+        allowlisted non-provider action types, mirroring (never exceeding) the
+        allowlist the executor enforces in its atomic claim SQL. Env-disabled-
+        safe: stable "disconnected" envelope when EOS_DATABASE_URL is unset,
+        never a 500.
         """
         try:
             from projections.eos.integration.action_proposals import eos_action_proposals
