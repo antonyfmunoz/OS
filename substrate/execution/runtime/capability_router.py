@@ -19,11 +19,14 @@ Usage:
     # → automatically routes to codex review (best at adversarial review)
 """
 
+import json
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
@@ -613,3 +616,109 @@ def route_capability(
 
     logger.info("[CapRouter] all providers exhausted for %s, falling through", cap.value)
     return None
+
+
+# ─── Capability Registry Manifest (P4S-11) ─────────────────────────────────
+# The manifest is a machine-checkable JSON artifact that unifies the substrate
+# job capabilities (the Capability enum above — the ONE canonical home) with the
+# projection governed action types (owned by each projection). This code reads
+# and audits the manifest; it never becomes a second home for capability names.
+
+
+def _manifest_path() -> Path:
+    """Locate capability_manifest.json under the UMH root (env-overridable)."""
+    root = os.environ.get("UMH_ROOT", "/opt/OS")
+    return Path(root) / "data" / "umh" / "capabilities" / "capability_manifest.json"
+
+
+def load_capability_manifest() -> dict:
+    """Load and return the capability registry manifest as a dict.
+
+    Raises FileNotFoundError if the manifest is missing (a hard artifact —
+    the registry is not optional). Deterministic, no LLM, no network.
+    """
+    path = _manifest_path()
+    with path.open(encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def audit_capability_registry(manifest: dict | None = None) -> dict:
+    """Truthful audit of the capability registry manifest (P4S-11 proof).
+
+    Verifies, against the running Capability enum:
+      1. every declared substrate capability resolves to a real enum member,
+      2. no substrate capability key is duplicated,
+      3. the manifest's substrate set equals the enum exactly (no drift),
+      4. no projection action-type key is duplicated,
+      5. substrate and projection namespaces are disjoint (no capability
+         defined in two homes — the P4S-11 stop condition).
+
+    Returns a report dict with ``ok`` True only when all checks pass and
+    ``violations`` empty. Deterministic; safe to run in CI/pre-commit.
+    """
+    if manifest is None:
+        manifest = load_capability_manifest()
+
+    violations: list[str] = []
+
+    enum_keys = {c.value for c in Capability}
+    enum_by_value = {c.value: c for c in Capability}
+
+    subs = manifest.get("substrate_capabilities", [])
+    sub_keys = [row["key"] for row in subs]
+
+    # (2) no duplicate substrate keys
+    dupes = sorted({k for k in sub_keys if sub_keys.count(k) > 1})
+    if dupes:
+        violations.append(f"duplicate substrate capability keys: {dupes}")
+
+    sub_keyset = set(sub_keys)
+
+    # (1) every declared substrate capability resolves to a real enum member,
+    #     and its enum_member field matches.
+    for row in subs:
+        key = row["key"]
+        member = enum_by_value.get(key)
+        if member is None:
+            violations.append(f"substrate key '{key}' resolves to no Capability enum member")
+            continue
+        declared_member = row.get("enum_member")
+        if declared_member != member.name:
+            violations.append(
+                f"substrate key '{key}' declares enum_member '{declared_member}' "
+                f"but resolves to '{member.name}'"
+            )
+
+    # (3) manifest substrate set equals enum exactly (no drift in either direction)
+    missing_from_manifest = sorted(enum_keys - sub_keyset)
+    extra_in_manifest = sorted(sub_keyset - enum_keys)
+    if missing_from_manifest:
+        violations.append(f"enum capabilities absent from manifest: {missing_from_manifest}")
+    if extra_in_manifest:
+        violations.append(f"manifest capabilities absent from enum: {extra_in_manifest}")
+
+    # (4) no duplicate projection action-type keys (scoped per projection)
+    proj_rows = manifest.get("projection_action_types", [])
+    proj_pairs = [(row.get("projection"), row["key"]) for row in proj_rows]
+    proj_dupes = sorted({p for p in proj_pairs if proj_pairs.count(p) > 1})
+    if proj_dupes:
+        violations.append(f"duplicate projection action-type (projection,key): {proj_dupes}")
+
+    # (5) namespaces disjoint — no capability defined in two homes (STOP condition)
+    proj_keyset = {key for _, key in proj_pairs}
+    collision = sorted(sub_keyset & proj_keyset)
+    if collision:
+        violations.append(
+            f"STOP: capability defined in two homes — keys in both substrate and "
+            f"projection namespaces: {collision}"
+        )
+
+    return {
+        "ok": not violations,
+        "substrate_capability_count": len(sub_keys),
+        "enum_capability_count": len(enum_keys),
+        "projection_action_type_count": len(proj_rows),
+        "resolved_all": all(row["key"] in enum_by_value for row in subs),
+        "namespaces_disjoint": not collision,
+        "violations": violations,
+    }

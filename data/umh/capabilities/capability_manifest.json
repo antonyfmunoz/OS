@@ -1,0 +1,102 @@
+{
+  "record": "P4S-11 — UMH capability registry manifest",
+  "compiled": "2026-07-06",
+  "packet": "P4S-11",
+  "purpose": "Single machine-checkable manifest that unifies the 28 substrate job capabilities with the projection governed action types, each pointing to its ONE canonical home. This manifest references homes; it never becomes a second home. Adding a capability without a home here, or a capability whose home collides with another namespace, is a P4-SYNC stop condition (capability defined in two homes).",
+  "namespaces": {
+    "substrate_capability": {
+      "home": "substrate/execution/runtime/capability_router.py::Capability",
+      "canonical_registration": "substrate/canonical_types.py (\"Capability\")",
+      "resolves_against": "substrate.execution.runtime.capability_router.Capability enum",
+      "meaning": "A discrete JOB the UMH substrate can perform (intent-routed to a provider chain, or LLM-only). Instance-agnostic. Universal across projections.",
+      "kinds": {
+        "provider_backed": "has a specialized provider chain in _build_chains()",
+        "llm_only": "falls through to model_router (REASON / FAST_RESPOND)",
+        "declared": "enum member present; provider chain not yet wired (extraction backlog)"
+      }
+    },
+    "projection_action_type": {
+      "home": "projections/<name>/ (governed action proposal grammar)",
+      "meaning": "A projection-native governed mutation type that flows agent-emits-typed-intent -> pending row -> approve -> execute -> proof through governed_mutation(). Projection-specific vocabulary, NOT a substrate capability. Each projection owns its own set.",
+      "note": "The proposal-emission pattern itself is a RealityTemplate candidate (P4S-12 template registry); the concrete action-type names are projection variables, so they live in the projection, not the substrate enum."
+    }
+  },
+  "invariants": [
+    "Every substrate_capability key resolves to exactly one Capability enum member.",
+    "No key appears in more than one namespace (substrate_capability keys and projection_action_type keys are disjoint).",
+    "No duplicate capability keys within a namespace.",
+    "The substrate_capabilities list is exactly the Capability enum (count and keys), byte-for-byte truthful against the running code.",
+    "A projection_action_type is NEVER promoted into the substrate Capability enum by copying its name; extraction happens by defining a template (P4S-12), not by duplicating the key."
+  ],
+  "substrate_capabilities": [
+    {"key": "code_review", "enum_member": "CODE_REVIEW", "group": "code", "kind": "provider_backed"},
+    {"key": "code_write", "enum_member": "CODE_WRITE", "group": "code", "kind": "provider_backed"},
+    {"key": "code_execute", "enum_member": "CODE_EXECUTE", "group": "code", "kind": "provider_backed"},
+    {"key": "web_scrape", "enum_member": "WEB_SCRAPE", "group": "web", "kind": "declared"},
+    {"key": "web_search", "enum_member": "WEB_SEARCH", "group": "web", "kind": "declared"},
+    {"key": "web_research", "enum_member": "WEB_RESEARCH", "group": "web", "kind": "provider_backed"},
+    {"key": "browser_automate", "enum_member": "BROWSER_AUTOMATE", "group": "web", "kind": "declared"},
+    {"key": "content_write", "enum_member": "CONTENT_WRITE", "group": "creative", "kind": "declared"},
+    {"key": "design_template", "enum_member": "DESIGN_TEMPLATE", "group": "creative", "kind": "declared"},
+    {"key": "image_edit", "enum_member": "IMAGE_EDIT", "group": "creative", "kind": "declared"},
+    {"key": "vector_design", "enum_member": "VECTOR_DESIGN", "group": "creative", "kind": "declared"},
+    {"key": "video_generate", "enum_member": "VIDEO_GENERATE", "group": "creative", "kind": "declared"},
+    {"key": "video_edit", "enum_member": "VIDEO_EDIT", "group": "creative", "kind": "declared"},
+    {"key": "data_query", "enum_member": "DATA_QUERY", "group": "data", "kind": "declared"},
+    {"key": "social_scrape", "enum_member": "SOCIAL_SCRAPE", "group": "data", "kind": "declared"},
+    {"key": "transcribe", "enum_member": "TRANSCRIBE", "group": "data", "kind": "declared"},
+    {"key": "email_send", "enum_member": "EMAIL_SEND", "group": "communication", "kind": "declared"},
+    {"key": "social_post", "enum_member": "SOCIAL_POST", "group": "communication", "kind": "declared"},
+    {"key": "message_send", "enum_member": "MESSAGE_SEND", "group": "communication", "kind": "declared"},
+    {"key": "payment_process", "enum_member": "PAYMENT_PROCESS", "group": "commerce", "kind": "declared"},
+    {"key": "calendar_manage", "enum_member": "CALENDAR_MANAGE", "group": "commerce", "kind": "declared"},
+    {"key": "document_manage", "enum_member": "DOCUMENT_MANAGE", "group": "commerce", "kind": "declared"},
+    {"key": "shell_execute", "enum_member": "SHELL_EXECUTE", "group": "system", "kind": "declared"},
+    {"key": "file_operate", "enum_member": "FILE_OPERATE", "group": "system", "kind": "declared"},
+    {"key": "deploy", "enum_member": "DEPLOY", "group": "system", "kind": "declared"},
+    {"key": "autonomous_task", "enum_member": "AUTONOMOUS_TASK", "group": "orchestration", "kind": "provider_backed"},
+    {"key": "reason", "enum_member": "REASON", "group": "cognition", "kind": "llm_only"},
+    {"key": "fast_respond", "enum_member": "FAST_RESPOND", "group": "cognition", "kind": "llm_only"}
+  ],
+  "projection_action_types": [
+    {
+      "projection": "eos",
+      "key": "create_task",
+      "home": "projections/eos/integration/tables.py::EXECUTABLE_ACTION_TYPES",
+      "status": "executable",
+      "governed": true,
+      "note": "Pure EOS-DB insert; verified non-provider. First closed organic loop (action_1783367421127_b0ztpntev, PR #201)."
+    },
+    {
+      "projection": "eos",
+      "key": "create_document",
+      "home": "projections/eos/integration/tables.py::EXECUTABLE_ACTION_TYPES",
+      "status": "executable",
+      "governed": true,
+      "note": "Pure EOS-DB insert; storage stays projection-native."
+    },
+    {
+      "projection": "eos",
+      "key": "send_email",
+      "home": "projections/eos (proposal grammar) — deliberately absent from EXECUTABLE_ACTION_TYPES",
+      "status": "held",
+      "governed": true,
+      "note": "Blocked until the provider-token / AdapterCall packet (P4S-40, hard-held until MERGE-GATE-0 verified). Proposable, not executable."
+    },
+    {
+      "projection": "eos",
+      "key": "publish_content",
+      "home": "projections (future governed action type)",
+      "status": "future",
+      "governed": true,
+      "note": "Future approve->execute->proof loop, same shape as create_task. Not yet defined in any projection's executable set."
+    }
+  ],
+  "stop_conditions_checked": {
+    "capability_defined_in_two_homes": {
+      "checked": true,
+      "result": "clean",
+      "detail": "substrate_capability keys and projection_action_type keys are disjoint (intersection empty). substrate email_send (a job the substrate can perform) and eos send_email (a projection governed action type) are distinct concepts in distinct namespaces, not the same capability in two homes."
+    }
+  }
+}
