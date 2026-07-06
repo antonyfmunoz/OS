@@ -18,9 +18,14 @@ Composition (all fail-closed, never raises):
                           so a write is mechanically impossible, and only the
                           pending-queue SELECT in tables.py runs.
 
-Execution is disabled by contract: execute_enabled is False on the envelope and
-on every row, and this module imports no executor, no provider adapter, and no
-approve/reject path. Retry policy default per #182: human re-approval required.
+This surface itself never executes: envelope-level execute_enabled stays False
+and this module imports no executor, no provider adapter, and no approve/reject
+path. Per-row execute_enabled is REPRESENTATION of the #185 executor contract
+(WP-P4-EOS-EXECUTOR-ACTIVATE-001): True only for an `approved` row whose
+action_type is in the non-provider EXECUTABLE_ACTION_TYPES allowlist — the same
+allowlist the executor enforces inside its atomic claim SQL, so the flag can
+never grant more than the executor already allows. Retry policy default per
+#182: human re-approval required.
 
 Imports are downward only (projection → same-package/substrate). Flat shape:
 scalars on the envelope plus the single `proposals` list of flat row dicts.
@@ -50,6 +55,19 @@ _STATUS_TO_APPROVAL_STATE = {
     "failed": "EXPIRED",
 }
 
+# Full lifecycle window shown to the operator (WP-P4-EOS-ACTION-QUEUE-COCKPIT-001).
+# Read-only widening of the original pending-only queue: the cockpit needs to
+# see approved rows (to execute them) and terminal rows (to show proof/result),
+# not just the pending approval inbox.
+_LIFECYCLE_STATUSES: tuple[str, ...] = (
+    "pending",
+    "approved",
+    "executing",
+    "completed",
+    "failed",
+    "rejected",
+)
+
 # Deterministic action-type → governed target domain (representation only).
 _ACTION_TYPE_DOMAIN = {
     "send_email": "external_communication",
@@ -67,6 +85,8 @@ def _envelope(
     proposals: list[dict[str, Any]] | None = None,
     error: str | None = None,
 ) -> dict[str, Any]:
+    from projections.eos.integration.tables import EXECUTABLE_ACTION_TYPES
+
     rows = proposals or []
     return {
         "projection_id": _PROJECTION_ID,
@@ -74,6 +94,8 @@ def _envelope(
         "connection_status": connection_status,
         "source_build_safe": source_build_safe,
         "execute_enabled": False,
+        "executor_scope": "non_provider_allowlist",
+        "allowed_action_types": ",".join(sorted(EXECUTABLE_ACTION_TYPES)),
         "retry_policy": "human_reapproval_required",
         "beast_head": beast_head,
         "seam_id": _SEAM_ID,
@@ -87,6 +109,8 @@ def _envelope(
 
 def _proposal_to_dict(row: Any, provenance: dict[str, Any]) -> dict[str, Any]:
     """Render one AgentActionProposalRow as a flat ApprovalRequest-shaped dict."""
+    from projections.eos.integration.tables import EXECUTABLE_ACTION_TYPES
+
     status = str(row.status)
     return {
         "proposal_id": row.id,
@@ -108,18 +132,23 @@ def _proposal_to_dict(row: Any, provenance: dict[str, Any]) -> dict[str, Any]:
         "source": "eos_agent_actions",
         "beast_head": provenance.get("head"),
         "umh_primitive": "Approval",
-        "execute_enabled": False,
+        # #185 executor contract, represented: only an approved row of an
+        # allowlisted non-provider action type is executable. Mirrors (never
+        # exceeds) the allowlist enforced in the executor's atomic claim SQL.
+        "execute_enabled": (status == "approved" and row.action_type in EXECUTABLE_ACTION_TYPES),
     }
 
 
 def eos_action_proposals(limit: int = 50) -> dict[str, Any]:
-    """Return the EOS pending action-proposal queue as a UMH approval read model.
+    """Return the EOS action-proposal lifecycle queue as a UMH approval read model.
 
-    Never raises. Env-disabled (EOS_DATABASE_URL unset) → stable "disconnected"
-    envelope with zero rows. Beast source not build-safe → "source_not_build_safe"
-    with zero rows. #182 seam map unavailable → "seam_map_unavailable" with zero
-    rows. Read-only end to end: the DB session is opened readonly and only the
-    canonical pending-queue SELECT runs.
+    Rows cover the full operator window (_LIFECYCLE_STATUSES): pending rows for
+    approve/reject, approved rows for execute, terminal rows for proof/result
+    visibility. Never raises. Env-disabled (EOS_DATABASE_URL unset) → stable
+    "disconnected" envelope with zero rows. Beast source not build-safe →
+    "source_not_build_safe" with zero rows. #182 seam map unavailable →
+    "seam_map_unavailable" with zero rows. Read-only end to end: the DB session
+    is opened readonly and only the canonical lifecycle SELECT runs.
     """
     # 1. Beast build safety — live truth, not a snapshot.
     source_build_safe = False
@@ -189,10 +218,14 @@ def eos_action_proposals(limit: int = 50) -> dict[str, Any]:
                 conn,
                 user_ids=list(config.get("user_ids") or []),
                 limit=limit,
+                statuses=_LIFECYCLE_STATUSES,
             )
         finally:
             conn.close()
     except Exception as exc:
+        # Never echo the raw driver exception: a psycopg2 OperationalError can
+        # embed the DSN (host/user, sometimes password). Stable code only; the
+        # detail stays in the debug log.
         logger.debug("EOS action-proposal read failed: %s", exc)
         return _envelope(
             "unavailable",
@@ -200,7 +233,7 @@ def eos_action_proposals(limit: int = 50) -> dict[str, Any]:
             beast_head=beast_head,
             seam_primitive=seam_primitive,
             seam_target=seam_target,
-            error=str(exc),
+            error="eos_database_unavailable",
         )
 
     proposals = [_proposal_to_dict(row, provenance) for row in rows]

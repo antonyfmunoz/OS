@@ -6,7 +6,9 @@ Proves the packet's hard constraints:
    disconnected output (never raise).
 2. The /eos/action-proposals route is a thin wrapper over the accessor.
 3. The response shape is flat and stable.
-4. execute_enabled is False everywhere (envelope + rows).
+4. execute_enabled: False on the envelope (the read surface never executes);
+   per-row it represents the #185 executor contract — True only for approved +
+   allowlisted non-provider action types.
 5. No mutation/write is possible (readonly session, SELECT-only SQL, no write
    verbs in the accessor).
 6. No Beast code is copied.
@@ -41,6 +43,8 @@ _ENVELOPE_KEYS = {
     "connection_status",
     "source_build_safe",
     "execute_enabled",
+    "executor_scope",
+    "allowed_action_types",
     "retry_policy",
     "beast_head",
     "seam_id",
@@ -173,7 +177,10 @@ def test_db_failure_is_safe_not_raised(monkeypatch):
     monkeypatch.setenv("EOS_DATABASE_URL", "postgresql://localhost:1/nonexistent_db_for_test")
     result = eos_action_proposals()
     _assert_safe_empty(result, "unavailable")
-    assert result["error"]
+    # Stable error code only — a raw psycopg2 OperationalError can embed the
+    # DSN (host/user/password), so the driver text must never reach the wire.
+    assert result["error"] == "eos_database_unavailable"
+    assert "nonexistent_db_for_test" not in json.dumps(result)
 
 
 # ── 2+3+4+9. Connected path: shape, mapping, execute_enabled, seam source ────
@@ -199,7 +206,7 @@ def _connected(monkeypatch, rows):
     monkeypatch.setattr(
         tables_mod,
         "fetch_pending_agent_actions",
-        lambda conn, user_ids=None, limit=50: rows,
+        lambda conn, user_ids=None, limit=50, statuses=("pending",): rows,
     )
     result = eos_action_proposals()
     return result, _FakeConn
@@ -228,11 +235,95 @@ def test_connected_session_is_readonly(monkeypatch):
     assert fake_conn.readonly_set is True, "DB session must be opened read-only"
 
 
-def test_execute_enabled_false_everywhere(monkeypatch):
+def test_envelope_execute_enabled_stays_false(monkeypatch):
+    """The read surface itself never executes anything."""
     result, _ = _connected(monkeypatch, [_FakeRow()])
     assert result["execute_enabled"] is False
-    for row in result["proposals"]:
-        assert row["execute_enabled"] is False
+
+
+def test_row_execute_enabled_mirrors_185_executor_contract(monkeypatch):
+    """Per-row execute_enabled: approved + allowlisted non-provider only."""
+    rows = [
+        _FakeRow(id="p1", status="pending", action_type="create_task"),
+        _FakeRow(id="p2", status="approved", action_type="create_task"),
+        _FakeRow(id="p3", status="approved", action_type="create_document"),
+        _FakeRow(id="p4", status="approved", action_type="send_email"),
+        _FakeRow(id="p5", status="rejected", action_type="create_task"),
+        _FakeRow(id="p6", status="completed", action_type="create_task"),
+        _FakeRow(id="p7", status="failed", action_type="create_document"),
+    ]
+    result, _ = _connected(monkeypatch, rows)
+    flags = {r["proposal_id"]: r["execute_enabled"] for r in result["proposals"]}
+    assert flags == {
+        "p1": False,  # pending — needs approval first
+        "p2": True,  # approved + allowlisted
+        "p3": True,  # approved + allowlisted
+        "p4": False,  # provider-coupled — blocked by #185 allowlist
+        "p5": False,  # rejected — never executable
+        "p6": False,  # already executed — never again
+        "p7": False,  # terminal failure — human re-approval path only
+    }
+    assert result["allowed_action_types"] == "create_document,create_task"
+    assert result["executor_scope"] == "non_provider_allowlist"
+
+
+def test_lifecycle_statuses_reach_the_real_sql(monkeypatch):
+    """Reachability, not just expression logic: through the REAL
+    fetch_pending_agent_actions, the accessor's SELECT must ask the database
+    for approved (and terminal) rows — otherwise per-row execute_enabled could
+    never be True on the wire and the execute surface would be dead code."""
+    _safe_readiness(monkeypatch, safe=True)
+    monkeypatch.setenv("EOS_DATABASE_URL", "postgresql://ignored-by-fake")
+
+    captured: dict = {}
+
+    class _FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def execute(self, query, params):
+            captured["query"] = query
+            captured["params"] = params
+
+        def fetchall(self):
+            return []
+
+    class _FakeConn:
+        def set_session(self, readonly=False):
+            captured["readonly"] = readonly
+
+        def cursor(self, cursor_factory=None):
+            return _FakeCursor()
+
+        def close(self):
+            pass
+
+    import projections.eos.integration.tables as tables_mod
+
+    fake_extras = type("_FakeExtras", (), {"DictCursor": object})
+    fake_pg = type(
+        "_FakePg",
+        (),
+        {"connect": staticmethod(lambda dsn: _FakeConn()), "extras": fake_extras},
+    )
+    # action_proposals lazy-imports psycopg2 for connect(); tables.py binds it
+    # at module level for the cursor factory — patch both.
+    monkeypatch.setitem(sys.modules, "psycopg2", fake_pg)
+    monkeypatch.setattr(tables_mod, "psycopg2", fake_pg)
+
+    result = eos_action_proposals()
+
+    assert result["connection_status"] == "connected"
+    assert captured["readonly"] is True
+    assert "a.status = ANY(%s)" in captured["query"]
+    statuses = set(captured["params"][0])
+    assert {"pending", "approved"} <= statuses, (
+        "the lifecycle SELECT must surface approved rows or execute_enabled is unreachable"
+    )
+    assert {"executing", "completed", "failed", "rejected"} <= statuses
 
 
 def test_approval_state_mapping_is_deterministic(monkeypatch):

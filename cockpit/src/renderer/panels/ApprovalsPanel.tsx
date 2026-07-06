@@ -6,6 +6,8 @@ import { useViewContextStore } from '../stores/viewContextStore'
 import { usePolling } from '../hooks/usePolling'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { DeviceOnboardingCard } from '../components/DeviceOnboardingCard'
+import { EOSActionQueue } from '../components/EOSActionQueue'
+import { useEOSActionQueueStore } from '../stores/eosActionQueueStore'
 
 const RISK_BADGE: Record<string, string> = {
   low: 'wv-badge-ok',
@@ -37,14 +39,18 @@ export function ApprovalsPanel() {
   const realtimeStatus = useRealtimeStore((s) => s.status)
   const setViewContext = useViewContextStore((s) => s.setContext)
 
+  const eosProposals = useEOSActionQueueStore((s) => s.proposals)
+  const fetchEOSProposals = useEOSActionQueueStore((s) => s.fetchProposals)
+
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({})
 
-  usePolling(() => { fetchPending(); fetchCompleted(); fetchGateway(); fetchGuard(); fetchGatewayDecisions(); fetchExecutionMode() },
+  usePolling(() => { fetchPending(); fetchCompleted(); fetchGateway(); fetchGuard(); fetchGatewayDecisions(); fetchExecutionMode(); fetchEOSProposals() },
     realtimeStatus === 'connected' ? 10000 : 3000)
 
   const pending = legacyPending.filter((a) => a.status === 'pending')
   const history = legacyPending.filter((a) => a.status !== 'pending')
-  const totalPending = pending.length + spineEnvelopes.length
+  const eosPending = eosProposals.filter((p) => p.status === 'pending')
+  const totalPending = pending.length + spineEnvelopes.length + eosPending.length
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -165,6 +171,9 @@ export function ApprovalsPanel() {
               </div>
             </section>
           )}
+
+          {/* Projection action proposals (EOS) — same operator authority path */}
+          <EOSActionQueue />
 
           {totalPending === 0 && (
             <div className="text-center py-8">
