@@ -2191,11 +2191,15 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     from transports.api.cockpit_core_feedback_routes import register_feedback_routes
     from transports.api.cockpit_core_governance_routes import register_governance_routes
     from transports.api.cockpit_core_eos_routes import register_eos_routes
+    from transports.api.cockpit_core_lyfeos_routes import register_lyfeos_routes
+    from transports.api.cockpit_core_creatoros_routes import register_creatoros_routes
 
     register_bootstrap_routes(router, _require_operator_role, _helpers)
     register_session_routes(router, _require_operator_role, _helpers)
     register_feedback_routes(router, _require_operator_role, _helpers)
     register_governance_routes(router, _require_operator_role, _helpers)
     register_eos_routes(router, _require_operator_role, _helpers)
+    register_lyfeos_routes(router, _require_operator_role, _helpers)
+    register_creatoros_routes(router, _require_operator_role, _helpers)
 
     return router, ws_router, push_chat_message, push_organism_event
