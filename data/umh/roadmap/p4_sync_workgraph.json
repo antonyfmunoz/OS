@@ -1,83 +1,290 @@
 {
-  "record": "P4-SYNC — WorkGraph + packet bundle",
-  "compiled": "2026-07-06",
-  "mode": "compile_only — no implementation authorized by this artifact",
-  "doctrine": "parallel at the edges, serial at the trunk; fail-closed at every authority boundary",
-  "serialization_classes": ["trunk merges", "production mutations", "shared secret/infra changes", "Beast source mutations", "schema migrations"],
-  "global_stop_conditions": [
-    "any gate red", "any secret value in output/staged file", "any unregistered mutation",
-    "any destructive Beast op", "any provider execution before W1+W2 merged AND verified",
-    "any fake data without labeled owner approval", "projection UX collapsed into cockpit",
-    "blind projection code copied into /opt/OS"
-  ],
-  "merge_order": [
-    "MERGE-GATE-0 (app-repo): EntrepreneurOS#3 (W1) + EntrepreneurOS#4 (W2) — operator merges; gates provider work",
-    "then P4S-1x substrate packets", "then P4S-2x adapter/read-surface packets",
-    "then P4S-3x template packets", "P4S-4x provider packet LAST and only after MERGE-GATE-0 verified"
-  ],
-  "packets": [
-    {
-      "id": "P4S-10", "objective": "LifeOS + CreatorOS projection read-surface accessors (readiness/activation) per RT-PROJECTION-READ-SURFACE",
-      "dependencies": [], "expected_files": ["projections/lyfeos/integration/readiness.py", "projections/creatoros/integration/readiness.py", "transports/api/cockpit_core_lyfeos_routes.py", "transports/api/cockpit_core_creatoros_routes.py"],
-      "tests": ["shape tests per projection", "env-unset disconnected dict"], "proof": "live 200 + env-disabled-safe dict",
-      "rollback": "revert commit; routes are additive", "stop_conditions": ["direct registry/file read", "500 raised"],
-      "executor": "Sonnet", "lane": "A", "risk": "LOW"
-    },
-    {
-      "id": "P4S-11", "objective": "Formalize capability registry manifest (substrate) unifying the 28 job capabilities + projection action types",
-      "dependencies": [], "expected_files": ["substrate/execution/runtime/capability_router.py", "data/umh/capabilities/capability_manifest.json"],
-      "tests": ["manifest resolves every declared capability", "no duplicate capability keys"], "proof": "registry audit truthful",
-      "rollback": "revert", "stop_conditions": ["capability defined in two homes"], "executor": "Opus", "lane": "B", "risk": "MEDIUM"
-    },
-    {
-      "id": "P4S-12", "objective": "RealityTemplate registry substrate home (types + registry + RT-GOVERNED-PROPOSAL-LOOP recorded from EOS proof)",
-      "dependencies": ["P4S-11"], "expected_files": ["substrate/templates/registry.py", "substrate/templates/reality_template.py", "data/umh/templates/reality_template_taxonomy.json"],
-      "tests": ["template resolves; N>=2 rule enforced for extraction; instance values not in template body"], "proof": "EOS loop recorded as PROVEN_1_INSTANCE with proof pointer to PR #201",
-      "rollback": "revert", "stop_conditions": ["speculative template with 0 instances", "instance literal in template body"], "executor": "Opus", "lane": "B", "risk": "MEDIUM"
-    },
-    {
-      "id": "P4S-20", "objective": "EOS /eos/tasks read surface (first import candidate S6 from #191) — governed-effect visibility",
-      "dependencies": ["P4S-10"], "expected_files": ["projections/eos/integration/tasks_read.py", "transports/api/cockpit_core_eos_routes.py"],
-      "tests": ["read-only; head-match fail-closed; operator-only"], "proof": "live task row surfaced through read seam",
-      "rollback": "revert", "stop_conditions": ["write attempted", "schema drift region touched"], "executor": "Sonnet", "lane": "A", "risk": "LOW"
-    },
-    {
-      "id": "P4S-21", "objective": "agent_actions.task_id backfill by UMH executor (close proof-linkage debt from PR #201)",
-      "dependencies": [], "expected_files": ["projections/eos/integration/tables.py", "projections/eos/integration/action_execution.py"],
-      "tests": ["execution stamps task_id atomically; regression pins real SQL"], "proof": "executed row shows task_id = created task",
-      "rollback": "revert", "stop_conditions": ["non-atomic update", "provider path touched"], "executor": "Sonnet", "lane": "A", "risk": "LOW"
-    },
-    {
-      "id": "P4S-22", "objective": "LifeOS governed proposal loop instance (RT-GOVERNED-PROPOSAL-LOOP second instance) — read+approve+execute over a LifeOS action table",
-      "dependencies": ["P4S-10", "P4S-12"], "expected_files": ["projections/lyfeos/integration/*", "transports/api/cockpit_core_lyfeos_routes.py"],
-      "tests": ["atomic claim; FK-safe principal; allowlist; no provider"], "proof": "one LifeOS PENDING->APPROVED->EXECUTED with proof",
-      "rollback": "revert", "stop_conditions": ["LifeOS source-dirty WIP unresolved", "fake data"], "executor": "Opus", "lane": "C", "risk": "MEDIUM",
-      "precondition": "LifeOS pre-build checklist (WIP push + secret rotation) complete"
-    },
-    {
-      "id": "P4S-30", "objective": "Cockpit projection-mirror panels for LifeOS + CreatorOS read surfaces (mirror, NOT UX collapse)",
-      "dependencies": ["P4S-10"], "expected_files": ["cockpit/src/renderer/panels/*"],
-      "tests": ["panel renders read-surface truth; no projection UX reimplemented"], "proof": "browser-verified panels show server truth",
-      "rollback": "revert", "stop_conditions": ["projection-native UX duplicated in cockpit"], "executor": "Sonnet", "lane": "A", "risk": "LOW"
-    },
-    {
-      "id": "P4S-31", "objective": "UMH MVP operating loop skeleton (voice/text intent -> IntentSpec -> WorkGraph -> WorkPacket -> dispatch -> approval -> proof -> cockpit status)",
-      "dependencies": ["P4S-11", "P4S-12", "P4S-20"], "expected_files": ["substrate/execution/intent/*", "cockpit/src/renderer/*"],
-      "tests": ["intent->packet deterministic spine; approval gate holds; proof recorded"], "proof": "one end-to-end intent producing a governed proof without ChatGPT copy/paste",
-      "rollback": "revert", "stop_conditions": ["LLM call without deterministic fallback", "governed_mutation bypass"], "executor": "Opus", "lane": "B", "risk": "HIGH"
-    },
-    {
-      "id": "P4S-40", "objective": "send_email via AdapterCall + credential gate (C7) — provider execution enablement",
-      "dependencies": ["MERGE-GATE-0 (W1+W2 merged+verified)", "P4S-11"], "expected_files": ["adapters/*", "substrate/execution/credential_gate.py"],
-      "tests": ["fail-closed on missing token; provider token from 1Password only; no OAuth plaintext"], "proof": "gated dry-run refuses without token; one governed send under approval (owner-gated)",
-      "rollback": "revert; op item delete", "stop_conditions": ["W1/W2 not verified", "token in EOS DB response", "unregistered mutation"], "executor": "Opus", "lane": "D", "risk": "HIGH",
-      "hard_hold": "MUST NOT START until MERGE-GATE-0 verified"
-    }
-  ],
-  "lane_assignment": {
-    "A_sonnet_mechanical": ["P4S-10", "P4S-20", "P4S-21", "P4S-30"],
-    "B_opus_substrate": ["P4S-11", "P4S-12", "P4S-31"],
-    "C_opus_projection_loop": ["P4S-22"],
-    "D_opus_provider_held": ["P4S-40"]
+ "record": "P4-SYNC — WorkGraph + packet bundle",
+ "compiled": "2026-07-06",
+ "mode": "compile_only — no implementation authorized by this artifact",
+ "doctrine": "parallel at the edges, serial at the trunk; fail-closed at every authority boundary",
+ "serialization_classes": [
+  "trunk merges",
+  "production mutations",
+  "shared secret/infra changes",
+  "Beast source mutations",
+  "schema migrations"
+ ],
+ "global_stop_conditions": [
+  "any gate red",
+  "any secret value in output/staged file",
+  "any unregistered mutation",
+  "any destructive Beast op",
+  "any provider execution before W1+W2 merged AND verified",
+  "any fake data without labeled owner approval",
+  "projection UX collapsed into cockpit",
+  "blind projection code copied into /opt/OS"
+ ],
+ "merge_order": [
+  "MERGE-GATE-0 (app-repo): EntrepreneurOS#3 (W1) + EntrepreneurOS#4 (W2) — operator merges; gates provider work",
+  "then P4S-1x substrate packets",
+  "then P4S-2x adapter/read-surface packets",
+  "then P4S-3x template packets",
+  "P4S-4x provider packet LAST and only after MERGE-GATE-0 verified"
+ ],
+ "packets": [
+  {
+   "id": "P4S-10",
+   "objective": "LifeOS + CreatorOS projection read-surface accessors (readiness/activation) per RT-PROJECTION-READ-SURFACE",
+   "dependencies": [],
+   "expected_files": [
+    "projections/lyfeos/integration/readiness.py",
+    "projections/creatoros/integration/readiness.py",
+    "transports/api/cockpit_core_lyfeos_routes.py",
+    "transports/api/cockpit_core_creatoros_routes.py"
+   ],
+   "tests": [
+    "shape tests per projection",
+    "env-unset disconnected dict"
+   ],
+   "proof": "live 200 + env-disabled-safe dict",
+   "rollback": "revert commit; routes are additive",
+   "stop_conditions": [
+    "direct registry/file read",
+    "500 raised"
+   ],
+   "executor": "Sonnet",
+   "lane": "A",
+   "risk": "LOW"
+  },
+  {
+   "id": "P4S-11",
+   "objective": "Formalize capability registry manifest (substrate) unifying the 28 job capabilities + projection action types",
+   "dependencies": [],
+   "expected_files": [
+    "substrate/execution/runtime/capability_router.py",
+    "data/umh/capabilities/capability_manifest.json"
+   ],
+   "tests": [
+    "manifest resolves every declared capability",
+    "no duplicate capability keys"
+   ],
+   "proof": "registry audit truthful",
+   "rollback": "revert",
+   "stop_conditions": [
+    "capability defined in two homes"
+   ],
+   "executor": "Opus",
+   "lane": "B",
+   "risk": "MEDIUM"
+  },
+  {
+   "id": "P4S-12",
+   "objective": "RealityTemplate registry substrate home (types + registry + RT-GOVERNED-PROPOSAL-LOOP recorded from EOS proof)",
+   "dependencies": [
+    "P4S-11"
+   ],
+   "expected_files": [
+    "substrate/templates/registry.py",
+    "substrate/templates/reality_template.py",
+    "data/umh/templates/reality_template_taxonomy.json"
+   ],
+   "tests": [
+    "template resolves; N>=2 rule enforced for extraction; instance values not in template body"
+   ],
+   "proof": "EOS loop recorded as PROVEN_1_INSTANCE with proof pointer to PR #201",
+   "rollback": "revert",
+   "stop_conditions": [
+    "speculative template with 0 instances",
+    "instance literal in template body"
+   ],
+   "executor": "Opus",
+   "lane": "B",
+   "risk": "MEDIUM"
+  },
+  {
+   "id": "P4S-20",
+   "objective": "EOS /eos/tasks read surface (first import candidate S6 from #191) — governed-effect visibility",
+   "dependencies": [
+    "P4S-10"
+   ],
+   "expected_files": [
+    "projections/eos/integration/tasks_read.py",
+    "transports/api/cockpit_core_eos_routes.py"
+   ],
+   "tests": [
+    "read-only; head-match fail-closed; operator-only"
+   ],
+   "proof": "live task row surfaced through read seam",
+   "rollback": "revert",
+   "stop_conditions": [
+    "write attempted",
+    "schema drift region touched"
+   ],
+   "executor": "Sonnet",
+   "lane": "A",
+   "risk": "LOW"
+  },
+  {
+   "id": "P4S-21",
+   "objective": "agent_actions.task_id backfill by UMH executor (close proof-linkage debt from PR #201)",
+   "dependencies": [],
+   "expected_files": [
+    "projections/eos/integration/tables.py",
+    "projections/eos/integration/action_execution.py"
+   ],
+   "tests": [
+    "execution stamps task_id atomically; regression pins real SQL"
+   ],
+   "proof": "executed row shows task_id = created task",
+   "rollback": "revert",
+   "stop_conditions": [
+    "non-atomic update",
+    "provider path touched"
+   ],
+   "executor": "Sonnet",
+   "lane": "A",
+   "risk": "LOW"
+  },
+  {
+   "id": "P4S-22",
+   "objective": "LifeOS governed proposal loop instance (RT-GOVERNED-PROPOSAL-LOOP second instance) — read+approve+execute over a LifeOS action table",
+   "dependencies": [
+    "P4S-10",
+    "P4S-12"
+   ],
+   "expected_files": [
+    "projections/lyfeos/integration/*",
+    "transports/api/cockpit_core_lyfeos_routes.py"
+   ],
+   "tests": [
+    "atomic claim; FK-safe principal; allowlist; no provider"
+   ],
+   "proof": "one LifeOS PENDING->APPROVED->EXECUTED with proof",
+   "rollback": "revert",
+   "stop_conditions": [
+    "LifeOS source-dirty WIP unresolved",
+    "fake data"
+   ],
+   "executor": "Opus",
+   "lane": "C",
+   "risk": "MEDIUM",
+   "precondition": "LifeOS pre-build checklist (WIP push + secret rotation) complete"
+  },
+  {
+   "id": "P4S-30",
+   "objective": "Cockpit projection-mirror panels for LifeOS + CreatorOS read surfaces (mirror, NOT UX collapse)",
+   "dependencies": [
+    "P4S-10"
+   ],
+   "expected_files": [
+    "cockpit/src/renderer/panels/*"
+   ],
+   "tests": [
+    "panel renders read-surface truth; no projection UX reimplemented"
+   ],
+   "proof": "browser-verified panels show server truth",
+   "rollback": "revert",
+   "stop_conditions": [
+    "projection-native UX duplicated in cockpit"
+   ],
+   "executor": "Sonnet",
+   "lane": "A",
+   "risk": "LOW"
+  },
+  {
+   "id": "P4S-31",
+   "objective": "UMH MVP operating loop skeleton (voice/text intent -> IntentSpec -> WorkGraph -> WorkPacket -> dispatch -> approval -> proof -> cockpit status)",
+   "dependencies": [
+    "P4S-11",
+    "P4S-12",
+    "P4S-20"
+   ],
+   "expected_files": [
+    "substrate/execution/intent/*",
+    "cockpit/src/renderer/*"
+   ],
+   "tests": [
+    "intent->packet deterministic spine; approval gate holds; proof recorded"
+   ],
+   "proof": "one end-to-end intent producing a governed proof without ChatGPT copy/paste",
+   "rollback": "revert",
+   "stop_conditions": [
+    "LLM call without deterministic fallback",
+    "governed_mutation bypass"
+   ],
+   "executor": "Opus",
+   "lane": "B",
+   "risk": "HIGH"
+  },
+  {
+   "id": "P4S-40",
+   "objective": "send_email via AdapterCall + credential gate (C7) — provider execution enablement",
+   "dependencies": [
+    "MERGE-GATE-0 (W1+W2 merged+verified)",
+    "P4S-11"
+   ],
+   "expected_files": [
+    "adapters/*",
+    "substrate/execution/credential_gate.py"
+   ],
+   "tests": [
+    "fail-closed on missing token; provider token from 1Password only; no OAuth plaintext"
+   ],
+   "proof": "gated dry-run refuses without token; one governed send under approval (owner-gated)",
+   "rollback": "revert; op item delete",
+   "stop_conditions": [
+    "W1/W2 not verified",
+    "token in EOS DB response",
+    "unregistered mutation"
+   ],
+   "executor": "Opus",
+   "lane": "D",
+   "risk": "HIGH",
+   "hard_hold": "MUST NOT START until MERGE-GATE-0 verified"
+  },
+  {
+   "id": "WP-P4-OS-OPERATOR-SUSTAINED-LOAD-001",
+   "objective": "Diagnose and harden os-operator under sustained parallel executor load WITHOUT changing feature behavior (infra-only; separate from P4S feature lanes)",
+   "dependencies": [],
+   "context": "os-operator went unhealthy 3-for-3 under sustained wave load (2026-07-06); symptom is healthcheck/threadpool starvation at 1GiB; docker restart clears it each time. Pattern, not noise.",
+   "expected_files": [
+    "data/audits/2026-07-XX_os_operator_sustained_load_diagnosis.md",
+    "services/operator_api.py (only if diagnosis proves a bounded threadpool/healthcheck fix)",
+    "docker-compose.yml (only if diagnosis proves a resource-limit fix)"
+   ],
+   "tests": [
+    "reproduce starvation under controlled synthetic load BEFORE fixing (ground truth first)",
+    "post-fix: same load profile stays healthy for a full sustained window",
+    "no feature-behavior change: existing operator API test suite green, endpoints byte-identical shapes"
+   ],
+   "proof": "before/after load-run evidence: healthcheck status timeline + container stats under the same reproduced load profile",
+   "rollback": "revert; infra-only changes, no schema or data writes",
+   "stop_conditions": [
+    "fix requires feature-behavior change (escalate to owner instead)",
+    "root cause is outside os-operator (file separate packet, do not scope-creep)",
+    "any change to governed mutation paths"
+   ],
+   "executor": "Opus",
+   "lane": "E",
+   "risk": "MEDIUM"
   }
+ ],
+ "lane_assignment": {
+  "A_sonnet_mechanical": [
+   "P4S-10",
+   "P4S-20",
+   "P4S-21",
+   "P4S-30"
+  ],
+  "B_opus_substrate": [
+   "P4S-11",
+   "P4S-12",
+   "P4S-31"
+  ],
+  "C_opus_projection_loop": [
+   "P4S-22"
+  ],
+  "D_opus_provider_held": [
+   "P4S-40"
+  ],
+  "E_opus_infra": [
+   "WP-P4-OS-OPERATOR-SUSTAINED-LOAD-001"
+  ]
+ }
 }
