@@ -471,6 +471,30 @@ EOS_ACTION_PROPOSAL_EXECUTE = MutationSpec(
     ),
 )
 
+INTENT_LOOP_APPROVAL_DECISION = MutationSpec(
+    name="intent_loop_approval_decision",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    # LOW risk + LOCAL_FILE + degraded opt-in: the P4S-31 MVP operating-loop
+    # approval gate writes ONLY substrate-owned JSON state
+    # (data/umh/operator/intent_loop/). Opting into degraded mode lets the
+    # gate stay REAL-governed even when the organism daemon is down — the
+    # fail-closed router still emits a mandatory degraded audit record. It is
+    # never a provider action, projection-DB write, or non-local mutation.
+    degraded_mode_allowed=True,
+    description=(
+        "Approve or reject one P4S-31 MVP operating-loop packet draft — bounded "
+        "substrate-owned JSON state transition (AWAITING_APPROVAL → APPROVED/"
+        "REJECTED → PROOF_RECORDED); never dispatches, executes, or writes a "
+        "projection DB"
+    ),
+)
+
 GOVERNANCE_UPDATE = MutationSpec(
     name="governance_update",
     action_type=ActionType.STATE,
@@ -759,6 +783,7 @@ class MutationRegistry:
             APPROVAL_DECIDE,
             EOS_ACTION_PROPOSAL_DECISION,
             EOS_ACTION_PROPOSAL_EXECUTE,
+            INTENT_LOOP_APPROVAL_DECISION,
             GOVERNANCE_UPDATE,
             CHANNEL_MESSAGE_SEND,
             CONVERSATION_SEND,

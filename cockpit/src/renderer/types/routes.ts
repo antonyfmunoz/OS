@@ -90,6 +90,8 @@ export const ROUTES: RouteEntry[] = [
   { id: 'projectionintegration', label: 'Projection Integration', icon: Puzzle, group: 'primary', visibility: 'dev', key: 'P' },
   // P4S-30 — LyfeOS + CreatorOS projection mirror panels (read-surface only)
   { id: 'projectionmirrors', label: 'Projection Mirrors', icon: Network, group: 'primary', visibility: 'dev', key: 'X' },
+  // P4S-31 — MVP operating-loop mirror (intent -> draft -> governed proof, read-only)
+  { id: 'intentloop', label: 'Intent Loop', icon: GitBranch, group: 'primary', visibility: 'dev', key: 'A' },
   // Campaign 4 — Operator-Orchestrator Convergence
   { id: 'orchestratorawareness', label: 'Orchestrator', icon: Brain, group: 'primary', visibility: 'dev', key: 'a' },
   { id: 'operatingloopview', label: 'Operating Loop', icon: RotateCcw, group: 'primary', visibility: 'dev', key: 'D' },

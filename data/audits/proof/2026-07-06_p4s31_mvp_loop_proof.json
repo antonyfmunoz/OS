@@ -1,0 +1,142 @@
+{
+  "packet": "P4S-31",
+  "title": "UMH MVP intent -> proof operating loop skeleton",
+  "generated_at": "2026-07-06T23:41:17.094675+00:00",
+  "raw_intent": "Draft follow-up plan for demo lead pipeline",
+  "canonical_runtime": "governed_mutation -> MutationRouter -> GovernedExecutionSpine",
+  "governance_note": "In-process proof runs with no organism daemon, so governance routes through the substrate-native canonical choke point route_mutation_degraded (the fail-closed gate the transport shim itself delegates to). governance_status=completed_degraded with a mandatory ledger audit record. With the daemon up, the transport route injects governed_mutation and the identical call routes through the full GovernedExecutionSpine (yielding an envelope_id).",
+  "loop_id": "loop_f876979d782d",
+  "step_1_intent_spec": {
+    "intent_id": "intent_0bac69341c15",
+    "raw_text": "Draft follow-up plan for demo lead pipeline",
+    "intent_type": "directive",
+    "route_type": "hybrid",
+    "risk_level": "medium",
+    "confidence": 0.45,
+    "org_id": null,
+    "user_id": null,
+    "extracted_entities": {},
+    "reasoning": "action verb present but no clear pattern match",
+    "stage": "spec_parsed",
+    "created_at": 1783381277.0563478,
+    "deterministic": true
+  },
+  "step_2_work_packet_draft": {
+    "draft_id": "draft_2c9b50d06f4c",
+    "intent_id": "intent_0bac69341c15",
+    "description": "Draft follow-up plan for demo lead pipeline",
+    "status": "pending",
+    "priority": "normal",
+    "risk_level": "medium",
+    "actionable": true,
+    "input_data": {
+      "intent_type": "directive",
+      "route_type": "hybrid",
+      "extracted_entities": {}
+    },
+    "created_at": 1783381277.056368
+  },
+  "step_3_gate_held": {
+    "stage_after_submit": "awaiting_approval",
+    "proof_present_before_decision": false
+  },
+  "step_4_governed_approval": {
+    "mutation_name": "intent_loop_approval_decision",
+    "governance_status": "completed_degraded",
+    "governed_success": true,
+    "degraded_audited": true,
+    "envelope_id": ""
+  },
+  "step_5_proof_record": {
+    "proof_id": "proof_da20df56a0a5",
+    "intent_id": "intent_0bac69341c15",
+    "draft_id": "draft_2c9b50d06f4c",
+    "decision": "approve",
+    "decided_by": "umh_operator",
+    "mutation_name": "intent_loop_approval_decision",
+    "envelope_id": "",
+    "governance_status": "completed_degraded",
+    "governed_success": true,
+    "degraded": true,
+    "resulting_stage": "proof_recorded",
+    "recorded_at": 1783381277.0942974,
+    "reason": null,
+    "error": null
+  },
+  "step_6_final_stage": "proof_recorded",
+  "step_7_read_surface": {
+    "surface": "intent_loop",
+    "canonical_runtime": "governed_mutation -> MutationRouter -> GovernedExecutionSpine",
+    "connection_status": "connected",
+    "total": 1,
+    "awaiting_approval": 0,
+    "proof_recorded": 1,
+    "stage_counts": {
+      "proof_recorded": 1
+    },
+    "loops": [
+      {
+        "loop_id": "loop_f876979d782d",
+        "stage": "proof_recorded",
+        "spec": {
+          "intent_id": "intent_0bac69341c15",
+          "raw_text": "Draft follow-up plan for demo lead pipeline",
+          "intent_type": "directive",
+          "route_type": "hybrid",
+          "risk_level": "medium",
+          "confidence": 0.45,
+          "org_id": null,
+          "user_id": null,
+          "extracted_entities": {},
+          "reasoning": "action verb present but no clear pattern match",
+          "stage": "spec_parsed",
+          "created_at": 1783381277.0563478,
+          "deterministic": true
+        },
+        "draft": {
+          "draft_id": "draft_2c9b50d06f4c",
+          "intent_id": "intent_0bac69341c15",
+          "description": "Draft follow-up plan for demo lead pipeline",
+          "status": "pending",
+          "priority": "normal",
+          "risk_level": "medium",
+          "actionable": true,
+          "input_data": {
+            "intent_type": "directive",
+            "route_type": "hybrid",
+            "extracted_entities": {}
+          },
+          "created_at": 1783381277.056368
+        },
+        "proof": {
+          "proof_id": "proof_da20df56a0a5",
+          "intent_id": "intent_0bac69341c15",
+          "draft_id": "draft_2c9b50d06f4c",
+          "decision": "approve",
+          "decided_by": "umh_operator",
+          "mutation_name": "intent_loop_approval_decision",
+          "envelope_id": "",
+          "governance_status": "completed_degraded",
+          "governed_success": true,
+          "degraded": true,
+          "resulting_stage": "proof_recorded",
+          "recorded_at": 1783381277.0942974,
+          "reason": null,
+          "error": null
+        },
+        "created_at": 1783381277.056415,
+        "updated_at": 1783381277.0943072
+      }
+    ],
+    "error": null
+  },
+  "constraints_upheld": {
+    "no_provider_action": true,
+    "no_projection_db_write": true,
+    "substrate_owned_state_only": true,
+    "deterministic_no_llm": true,
+    "governed_no_bypass": true,
+    "gate_held_before_approval": true,
+    "substrate_no_transport_import": true
+  }
+}
