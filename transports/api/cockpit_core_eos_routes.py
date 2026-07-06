@@ -134,3 +134,26 @@ def register_eos_routes(router, _require_operator_role, helpers):
             return eos_readiness()
         except Exception as e:
             return {"error": str(e), "projection_id": "eos", "registered_in_seed": False}
+
+    @router.get("/eos/action-proposals")
+    def eos_action_proposals_route(limit: int = 50):
+        """EOS ActionProposal read seam — WP-P4-EOS-ACTION-PROPOSAL-READ-001.
+
+        Read-only view of the EOS agent_actions pending queue mapped into UMH
+        approval semantics (#182 approval-queue-row seam). Execution is disabled
+        by contract (execute_enabled=false). Env-disabled-safe: stable
+        "disconnected" envelope when EOS_DATABASE_URL is unset, never a 500.
+        """
+        try:
+            from projections.eos.integration.action_proposals import eos_action_proposals
+
+            return eos_action_proposals(limit=limit)
+        except Exception as e:
+            return {
+                "error": str(e),
+                "projection_id": "eos",
+                "surface": "action_proposals",
+                "execute_enabled": False,
+                "proposal_count": 0,
+                "proposals": [],
+            }
