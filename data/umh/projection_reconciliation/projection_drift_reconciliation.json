@@ -54,6 +54,21 @@
       "backup": {
         "status": "no_backup_needed",
         "reason": "clean + pushed on feature/company-system"
+      },
+      "secrets": {
+        "status": "migrated_to_1password",
+        "vault": "EntrepreneurOS",
+        "item": "Development",
+        "key_count": 11,
+        "env_was_gitignored": true,
+        "op_ref_base": "op://EntrepreneurOS/Development/",
+        "all_refs_resolve": true,
+        "env_now_gitignored": true,
+        "env_op_tpl_committable": true,
+        "plaintext_env_deleted": false,
+        "migrated_at": "2026-07-05",
+        "record": "docs/PROJECTION_SECRETS_MIGRATION_2026-07-05.md",
+        "note": "Real secrets migrated to a per-app 1Password vault ON the Beast (values never left the Beast). Loading via op run --env-file=.env.op.tpl. .env now ignored. Plaintext .env NOT deleted (awaits operator archival approval)."
       }
     },
     {
@@ -96,6 +111,21 @@
         "status": "no_backup_needed",
         "reason": "0 unpushed commits (head synced with GitHub); only dirty item is untracked DB dump 'dump (1).sql' (not source work)",
         "backed_up_at": "2026-07-05"
+      },
+      "secrets": {
+        "status": "migrated_to_1password",
+        "vault": "CreatorOS",
+        "item": "Development",
+        "key_count": 3,
+        "env_was_gitignored": true,
+        "op_ref_base": "op://CreatorOS/Development/",
+        "all_refs_resolve": true,
+        "env_now_gitignored": true,
+        "env_op_tpl_committable": true,
+        "plaintext_env_deleted": false,
+        "migrated_at": "2026-07-05",
+        "record": "docs/PROJECTION_SECRETS_MIGRATION_2026-07-05.md",
+        "note": "Real secrets migrated to a per-app 1Password vault ON the Beast (values never left the Beast). Loading via op run --env-file=.env.op.tpl. .env now ignored. Plaintext .env NOT deleted (awaits operator archival approval)."
       }
     },
     {
@@ -150,6 +180,21 @@
         "committed_files": 26,
         "record": "docs/PROJECTION_BEAST_BACKUP_2026-07-05.md",
         "note": "24 source files + 2 migration docs preserved on non-main branch; .env/secrets/DB-dump excluded and never pushed; main restored to pre-backup state (536b8888, 29 dirty, 19 ahead)."
+      },
+      "secrets": {
+        "status": "migrated_to_1password",
+        "vault": "LyfeOS",
+        "item": "Development",
+        "key_count": 6,
+        "env_was_gitignored": false,
+        "op_ref_base": "op://LyfeOS/Development/",
+        "all_refs_resolve": true,
+        "env_now_gitignored": true,
+        "env_op_tpl_committable": true,
+        "plaintext_env_deleted": false,
+        "migrated_at": "2026-07-05",
+        "record": "docs/PROJECTION_SECRETS_MIGRATION_2026-07-05.md",
+        "note": "Real secrets migrated to a per-app 1Password vault ON the Beast (values never left the Beast). Loading via op run --env-file=.env.op.tpl. .env now ignored. Plaintext .env NOT deleted (awaits operator archival approval)."
       }
     }
   ],

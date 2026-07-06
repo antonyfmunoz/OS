@@ -130,3 +130,44 @@ def test_creatoros_documented_no_source_backup_needed():
     bk = _rows()["cos"].get("backup", {})
     assert bk.get("status") == "no_backup_needed"
     assert "dump" in bk.get("reason", "").lower() or "0 unpushed" in bk.get("reason", "")
+
+
+# --- WP-P4-SECRETS-001: secrets migration governance ---
+
+_PROJECTION_VAULTS = {"eos": "EntrepreneurOS", "cos": "CreatorOS", "lyfeos": "LyfeOS"}
+
+
+def test_all_projections_secrets_migrated_to_1password():
+    """Every projection's secrets must be recorded as migrated to its own 1Password vault."""
+    for pid, vault in _PROJECTION_VAULTS.items():
+        s = _rows()[pid].get("secrets", {})
+        assert s.get("status") == "migrated_to_1password", f"{pid} secrets not migrated"
+        assert s.get("vault") == vault, f"{pid} must use its own vault {vault}"
+        assert s.get("all_refs_resolve") is True, f"{pid} op:// refs must resolve"
+        assert s.get("env_now_gitignored") is True, f"{pid} .env must now be gitignored"
+
+
+def test_secrets_record_contains_no_secret_values():
+    """The reconciliation data must NOT contain any secret value — only names/refs."""
+    import re
+    raw = _REPORT.read_text(encoding="utf-8")
+    # value-shaped secret literals must not appear
+    patterns = [r"sk_live_[0-9a-zA-Z]{20,}", r"sk_test_[0-9a-zA-Z]{20,}", r"AKIA[0-9A-Z]{16}",
+                r"AIza[0-9A-Za-z_-]{35}", r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
+                r"(postgres|postgresql|mongodb)://[^\s:]+:[^\s@]{6,}@"]
+    for p in patterns:
+        assert not re.search(p, raw), f"secret value pattern {p!r} found in reconciliation data"
+
+
+def test_plaintext_env_not_deleted_until_approved():
+    """Discipline: plaintext .env must NOT be recorded as deleted (migrate+prove, then archive)."""
+    for pid in _PROJECTION_VAULTS:
+        s = _rows()[pid].get("secrets", {})
+        assert s.get("plaintext_env_deleted") is False, f"{pid} plaintext .env must not be deleted yet"
+
+
+def test_lyfeos_env_gitignore_gap_closed():
+    """LyfeOS .env was NOT gitignored (the live gap) — must now be closed."""
+    s = _rows()["lyfeos"].get("secrets", {})
+    assert s.get("env_was_gitignored") is False, "record must note LyfeOS was the gap"
+    assert s.get("env_now_gitignored") is True, "LyfeOS .env gitignore gap must be closed"
