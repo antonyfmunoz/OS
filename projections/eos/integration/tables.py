@@ -359,6 +359,61 @@ def fetch_pending_agent_actions(
     ]
 
 
+@dataclass(frozen=True)
+class TaskWithActionRow:
+    """A tasks row joined against its originating agent_actions row (P4S-20).
+
+    `agent_actions.task_id` (schema.ts:395) is the FK that links a task back to
+    the governed action that created/owns it. LEFT JOIN so tasks with no
+    action linkage (created outside the governed executor) still surface with
+    action_id/action_type/action_status = None."""
+
+    id: str
+    title: str
+    status: str
+    created_at: datetime
+    action_id: str | None
+    action_type: str | None
+    action_status: str | None
+
+
+def fetch_recent_tasks_with_action_link(
+    conn: Any,
+    limit: int = 25,
+) -> list[TaskWithActionRow]:
+    """Fetch the most recently created tasks, LEFT JOINed to their originating
+    agent_actions row via agent_actions.task_id. Read-only, SELECT-only.
+
+    P4S-20: EOS `/eos/tasks` read surface — governed-effect visibility. Proves
+    that a task surfaced here traces back to the agent_actions row that caused
+    it (id/action_type/status), when such linkage exists.
+    """
+    query = """
+        SELECT t.id, t.title, t.status, t.created_at,
+               a.id AS action_id, a.action_type AS action_type, a.status AS action_status
+        FROM tasks t
+        LEFT JOIN agent_actions a ON a.task_id = t.id
+        ORDER BY t.created_at DESC
+        LIMIT %s
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+        cur.execute(query, (limit,))
+        rows = cur.fetchall()
+
+    return [
+        TaskWithActionRow(
+            id=str(row["id"]),
+            title=row["title"],
+            status=row["status"] or "todo",
+            created_at=row["created_at"],
+            action_id=str(row["action_id"]) if row["action_id"] is not None else None,
+            action_type=row["action_type"],
+            action_status=row["action_status"],
+        )
+        for row in rows
+    ]
+
+
 DECISION_STATUS = {"approve": "approved", "reject": "rejected"}
 
 
