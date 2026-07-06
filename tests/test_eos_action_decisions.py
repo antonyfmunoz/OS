@@ -309,6 +309,51 @@ def test_update_sql_is_bounded():
         assert allowed in src
 
 
+def test_approved_by_is_fk_safe_app_principal():
+    """approved_by must stamp the row's OWN user_id, never a UMH identity.
+
+    agent_actions.approved_by is FK-constrained to the app's users.id
+    (agent_actions_approved_by_users_id_fk). Writing the UMH operator
+    identity there violated the FK on the first live organic approve
+    (action_1783367421127_b0ztpntev). The app's own approve stamps an app
+    user id; the seam mirrors that by stamping the row's user_id column
+    directly in SQL. The UMH decider stays in the governed envelope only.
+    """
+    from projections.eos.integration.tables import update_action_decision
+
+    src = inspect.getsource(update_action_decision)
+    assert "approved_by = user_id" in src, "approve must stamp the row's own app user_id (FK-safe)"
+    assert "approved_by = %s" not in src, "approved_by must never be a caller-supplied parameter"
+
+    captured: dict = {}
+
+    class _Cur:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def execute(self, query, params):
+            captured["query"] = query
+            captured["params"] = list(params)
+
+        def fetchone(self):
+            return None
+
+    class _Conn:
+        def cursor(self, cursor_factory=None):
+            return _Cur()
+
+        def commit(self):
+            pass
+
+    result = update_action_decision(_Conn(), "action_1", "approve", decided_by="umh_operator")
+    assert result is None
+    assert "umh_operator" not in captured["params"], "UMH identity must not reach the EOS row"
+    assert captured["params"] == ["approved", "action_1"]
+
+
 def test_no_oauth_table_access_in_new_sql():
     from projections.eos.integration.tables import fetch_action_status, update_action_decision
 
