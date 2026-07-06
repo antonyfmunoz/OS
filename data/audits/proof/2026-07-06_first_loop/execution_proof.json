@@ -1,0 +1,76 @@
+{
+  "record": "WP-P4-FIRST-LIVE-PROPOSAL-PROOF-001 \u2014 execution completion",
+  "date": "2026-07-06",
+  "proposal_id": "action_1783367421127_b0ztpntev",
+  "origin": "organic \u2014 EntrepreneurOS agent chat (POST /api/agents/agent_executive/chat), model-emitted [ACTION:CREATE_TASK], app-parsed insert; zero manual DB writes, zero seeding",
+  "lifecycle_server_truth": {
+    "created": {
+      "status": "pending",
+      "at": "2026-07-06T19:50:21Z"
+    },
+    "approved": {
+      "decision_applied": true,
+      "prior_status": "pending",
+      "new_status": "approved",
+      "decided_at": "2026-07-06T21:48:04.978989",
+      "decided_by": "operator",
+      "envelope_id": "0b29e3f9754a47ed",
+      "governance_status": "completed"
+    },
+    "executed": {
+      "execution_applied": true,
+      "prior_status": "approved",
+      "new_status": "completed",
+      "executed_at": "2026-07-06T21:48:33.201149",
+      "result_ref": "e455ff56-fc73-48fc-aa27-a91116e1c254",
+      "envelope_id": "4d692aeb6b044543",
+      "governance_status": "completed",
+      "executor_scope": "non_provider_allowlist"
+    }
+  },
+  "task_row_verified_readonly": {
+    "id": "e455ff56-fc73-48fc-aa27-a91116e1c254",
+    "title": "Follow up with Demo Lead",
+    "status": "todo",
+    "agent_id": "agent_executive",
+    "created_at": "2026-07-06 21:48:31.073427"
+  },
+  "action_row_verified_readonly": {
+    "status": "completed",
+    "approved_by": "user_1776306380825 (FK-safe app principal per #198)",
+    "approved_at_set": true,
+    "executed_at_set": true,
+    "completed_at_set": true,
+    "task_id_backfill": null
+  },
+  "defects_found_and_fixed_by_live_run": [
+    {
+      "defect": "eos_action_proposal_decision/execute never registered in MutationRegistry (masked by suite fakes)",
+      "fix": "PR #197 (merged fd668a0ed)"
+    },
+    {
+      "defect": "approve wrote UMH operator identity into FK-constrained agent_actions.approved_by (users.id)",
+      "fix": "PR #198 (merged fc5776193) \u2014 SET approved_by = user_id"
+    }
+  ],
+  "gates_and_tests": {
+    "tests": "133 passed (seam+mesh+adaptercall suites on merged main)",
+    "registry_audit": "truthful \u2014 1051 entries, 0 duplicates",
+    "pre_commit_gates": "13/13 on every packet commit"
+  },
+  "constraints_honored": [
+    "no manual DB writes",
+    "no seed INSERT",
+    "no provider actions / send_email / OAuth",
+    "no schema migration",
+    "no Beast source mutation",
+    "no governed_mutation bypass",
+    "no hot-patch of container",
+    "no secret values in any envelope/artifact"
+  ],
+  "deferred_debt": [
+    "agent_actions.task_id not backfilled by UMH executor (result_ref + execution_result carry it)",
+    "cockpit UI pixel-verification still Clerk-gated (API layer Class A)",
+    "os-operator threadpool starvation defect (separate packet)"
+  ]
+}
