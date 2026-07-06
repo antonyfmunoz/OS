@@ -16,6 +16,12 @@ PERPLEXITY_API_KEY=op://UMH-Production/AI-Perplexity/api_key
 DATABASE_URL=op://UMH-Production/Database-Neon/url
 EOS_DATABASE_URL=op://EntrepreneurOS/Development/DATABASE_URL
 
+# ── Mesh (node dispatch) ─────────────────────────────────────────────────────
+# Relay auth for the node-mesh HTTP relay (fail-closed when unset) and the
+# shared verdict-signing secret (Beast node validates with its own copy).
+UMH_MESH_RELAY_SECRET=op://UMH-Production/Mesh-Relay-Secret/password
+UMH_MESH_VERDICT_SECRET=op://UMH-Production/Mesh-Verdict-Secret/password
+
 # ── Discord ──────────────────────────────────────────────────────────────────
 DISCORD_BOT_TOKEN=op://UMH-Production/Discord-Bot/token
 DISCORD_BRIEF_WEBHOOK=op://UMH-Production/Discord-Bot/brief_webhook

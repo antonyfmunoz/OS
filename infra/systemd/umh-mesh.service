@@ -1,0 +1,30 @@
+# UMH Node Mesh Server — canonical unit (staged copy; live file is
+# /etc/systemd/system/umh-mesh.service).
+#
+# Mesh secrets are 1Password-runtime-injected via the canonical op_run.sh
+# wrapper with the least-privilege manifest services/mesh.env.tpl (op://
+# references only — UMH_MESH_RELAY_SECRET + UMH_MESH_VERDICT_SECRET).
+# The op service-account token is read from root's existing shell config at
+# start (interactive-flag shell passes the bashrc interactivity guard), so
+# no new plaintext copy of the token is persisted anywhere.
+#
+# Apply (operator-reviewed change to a live host service):
+#   sudo cp infra/systemd/umh-mesh.service /etc/systemd/system/umh-mesh.service
+#   sudo systemctl daemon-reload && sudo systemctl restart umh-mesh.service
+#   journalctl -u umh-mesh.service -n 20   # expect no "relay fail-closed" on dispatch
+[Unit]
+Description=UMH Node Mesh Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/OS
+ExecStart=/bin/bash -ic 'exec /opt/OS/scripts/op_run.sh --manifest /opt/OS/services/mesh.env.tpl --repo /opt/OS -- /usr/bin/python3 /opt/OS/transports/node_mesh/run.py'
+Restart=always
+RestartSec=5
+Environment=PYTHONPATH=/opt/OS
+Environment=HOME=/root
+Environment=TERM=dumb
+
+[Install]
+WantedBy=multi-user.target
