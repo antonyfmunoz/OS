@@ -343,11 +343,16 @@ def _post_route_fns():
 
 def test_decision_routes_exist_and_are_thin():
     fns = _post_route_fns()
-    assert set(fns) == {
+    decision_routes = {
         "/eos/action-proposals/{proposal_id}/approve",
         "/eos/action-proposals/{proposal_id}/reject",
     }
-    for route, fn in fns.items():
+    # the decision routes must exist; later packets may add sibling
+    # action-proposal routes (e.g. /execute per WP-P4-EOS-EXECUTOR-ACTIVATE-001)
+    # with their own thinness tests.
+    assert decision_routes <= set(fns)
+    for route in sorted(decision_routes):
+        fn = fns[route]
         # thin: body is a single return delegating to the shared helper
         assert len(fn.body) == 2 and isinstance(fn.body[1], ast.Return), (
             f"{route} must be a one-line delegation after its docstring"

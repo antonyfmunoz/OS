@@ -440,6 +440,202 @@ def update_action_decision(
     }
 
 
+# WP-P4-EOS-EXECUTOR-ACTIVATE-001 — the ONLY action types the UMH executor may
+# run. Both are pure EOS-DB inserts (verified against the Beast source at
+# 9c8725f): no provider SDK, no external network, no credential material.
+# send_email is deliberately absent — it stays blocked until the
+# provider-token/AdapterCall packet.
+EXECUTABLE_ACTION_TYPES = frozenset({"create_task", "create_document"})
+
+
+def fetch_action_exec_state(
+    conn: Any,
+    action_id: str,
+    user_ids: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Read-only status+type lookup used to report WHY execution was refused."""
+    where = ["id = %s"]
+    params: list[Any] = [action_id]
+    if user_ids:
+        where.append("user_id = ANY(%s)")
+        params.append(list(user_ids))
+    query = f"SELECT status, action_type FROM agent_actions WHERE {' AND '.join(where)}"
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        row = cur.fetchone()
+    if row is None:
+        return None
+    return {"status": str(row[0]), "action_type": str(row[1])}
+
+
+def claim_action_for_execution(
+    conn: Any,
+    action_id: str,
+    user_ids: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Atomically claim ONE approved, allowlisted action row for execution.
+
+    The transition approved→executing is enforced in a single UPDATE guarded by
+    ``status = 'approved'`` AND an action-type allowlist — a pending/rejected/
+    completed/failed row, an already-claimed row, or a provider-coupled type
+    can never be claimed (returns None; nothing written). Double execution is
+    structurally impossible: the second claim finds status != 'approved'.
+    Returns the fields execution needs, including the action parameters —
+    callers must never echo parameters into responses or logs.
+    """
+    where = ["id = %s", "status = 'approved'", "action_type = ANY(%s)"]
+    params: list[Any] = [action_id, sorted(EXECUTABLE_ACTION_TYPES)]
+    if user_ids:
+        where.append("user_id = ANY(%s)")
+        params.append(list(user_ids))
+
+    query = f"""
+        UPDATE agent_actions
+        SET status = 'executing', executed_at = NOW(), updated_at = NOW()
+        WHERE {" AND ".join(where)}
+        RETURNING id, agent_id, user_id, action_type, parameters,
+                  retry_count, max_retries, executed_at
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+        cur.execute(query, params)
+        row = cur.fetchone()
+        conn.commit()
+
+    if row is None:
+        return None
+    return {
+        "id": str(row["id"]),
+        "agent_id": str(row["agent_id"]),
+        "user_id": str(row["user_id"]),
+        "action_type": str(row["action_type"]),
+        "parameters": row["parameters"] if isinstance(row["parameters"], dict) else {},
+        "retry_count": int(row["retry_count"] or 0),
+        "max_retries": int(row["max_retries"] or 3),
+        "executed_at": row["executed_at"].isoformat() if row["executed_at"] else None,
+    }
+
+
+def insert_task_from_action(conn: Any, agent_id: str, params: dict[str, Any]) -> str:
+    """Execute create_task: insert an EOS tasks row (mirrors the app's own
+    executeCreateTask defaults). Pure local EOS-DB write; returns the task id."""
+    import uuid
+
+    task_id = str(uuid.uuid4())
+    status = params.get("status") or "todo"
+    if status not in VALID_TASK_STATUSES:
+        status = "todo"
+    priority = params.get("priority") or "medium"
+    if priority not in VALID_TASK_PRIORITIES:
+        priority = "medium"
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO tasks (id, title, description, status, priority, agent_id, due_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                task_id,
+                str(params.get("title") or "Untitled Task"),
+                str(params.get("description") or ""),
+                status,
+                priority,
+                agent_id,
+                params.get("dueDate") or params.get("due_date"),
+            ),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return str(row[0])
+
+
+def insert_document_from_action(conn: Any, user_id: str, params: dict[str, Any]) -> str:
+    """Execute create_document: insert an EOS documents row (mirrors the app's
+    own executeCreateDocument defaults). Pure local EOS-DB write; returns the
+    document id."""
+    import uuid
+
+    document_id = str(uuid.uuid4())
+    tags = params.get("tags")
+    if not (isinstance(tags, list) and all(isinstance(t, str) for t in tags)):
+        tags = None
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO documents (id, title, content, user_id, folder_id, tags)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                document_id,
+                str(params.get("title") or "Untitled Document"),
+                str(params.get("content") or ""),
+                user_id,
+                params.get("folderId") or params.get("folder_id"),
+                tags,
+            ),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return str(row[0])
+
+
+def record_action_execution_outcome(
+    conn: Any,
+    action_id: str,
+    success: bool,
+    result: dict[str, Any] | None = None,
+    error: str | None = None,
+) -> dict[str, Any] | None:
+    """Record the outcome of a claimed execution, atomically from 'executing'.
+
+    Success: executing→completed with completed_at + execution_result.
+    Failure: EOS-faithful retry policy (#182, preserved through #183/#184) —
+    retry_count increments and the row returns to 'pending' (the HUMAN
+    re-approval queue) while retries remain, else terminally 'failed'. There
+    is no auto-retry path: a failed attempt can only run again after a fresh
+    human approval. Both branches are guarded by ``status = 'executing'`` so
+    only the claiming execution can record its outcome.
+    """
+    if success:
+        query = """
+            UPDATE agent_actions
+            SET status = 'completed', completed_at = NOW(),
+                execution_result = %s::jsonb, updated_at = NOW()
+            WHERE id = %s AND status = 'executing'
+            RETURNING status, retry_count, max_retries, completed_at
+        """
+        params: list[Any] = [psycopg2.extras.Json(result or {}), action_id]
+    else:
+        query = """
+            UPDATE agent_actions
+            SET status = CASE WHEN retry_count + 1 < max_retries
+                              THEN 'pending' ELSE 'failed' END,
+                retry_count = retry_count + 1,
+                failed_at = NOW(), error_message = %s, updated_at = NOW()
+            WHERE id = %s AND status = 'executing'
+            RETURNING status, retry_count, max_retries, failed_at
+        """
+        params = [(error or "execution failed")[:300], action_id]
+
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+        cur.execute(query, params)
+        row = cur.fetchone()
+        conn.commit()
+
+    if row is None:
+        return None
+    stamp = row.get("completed_at") if success else row.get("failed_at")
+    return {
+        "status": str(row["status"]),
+        "retry_count": int(row["retry_count"] or 0),
+        "max_retries": int(row["max_retries"] or 3),
+        "recorded_at": stamp.isoformat() if stamp else None,
+    }
+
+
 def _require_str(params: dict[str, Any], key: str) -> str:
     """Extract a required non-empty string from params, or raise ValueError."""
     val = params.get(key)
