@@ -128,6 +128,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "EnvironmentEnvironmentPacketRiskLevel": ["nodes.environments.work_packet"],
     "EnvironmentEnvironmentPacketExecutionTarget": ["nodes.environments.work_packet"],
     "EnvironmentWorkPacket": ["nodes.environments.work_packet"],
+    # ── substrate/templates/ (P4S-12: RealityTemplate metamodel) ─────────
+    # The L2 ontology of provable patterns. Distinct from the runtime
+    # executable-action-pattern store in substrate/organism/template_registry.py
+    # (whose TemplateStatus/TemplateRegistry are a different concern and are NOT
+    # registered here). These names are new to the codebase.
+    "RealityTemplateStatus": ["substrate.templates.reality_template"],
+    "TemplateInvariant": ["substrate.templates.reality_template"],
+    "TemplateVariable": ["substrate.templates.reality_template"],
+    "TemplateProofRequirement": ["substrate.templates.reality_template"],
+    "RealityTemplate": ["substrate.templates.reality_template"],
+    "TemplateInstance": ["substrate.templates.reality_template"],
+    "TemplateEdge": ["substrate.templates.reality_template"],
+    "TemplateGraph": ["substrate.templates.reality_template"],
+    "CapabilityRevision": ["substrate.templates.reality_template"],
+    "RealityTemplateRegistry": ["substrate.templates.registry"],
     # ── substrate/organism/runtime_graph.py ─────────────────────────────
     "AvailabilityStatus": ["substrate.organism.runtime_graph"],
     "RuntimeClass": ["substrate.organism.runtime_graph"],
