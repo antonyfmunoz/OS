@@ -26,6 +26,7 @@
       "id": "RT-GOVERNED-PROPOSAL-LOOP",
       "status": "PROVEN_1_INSTANCE",
       "source_instance": "EOS agent_actions loop (proof PR #201)",
+      "proof_pointer": "PR #201 / docs/audits/2026-07-06_wp_p4_first_loop_execution_proof.md",
       "invariants": [
         "proposal row created pending, requires_approval=true, insert-only",
         "decision transitions only pending->approved|rejected via atomic status-claim under governed_mutation with registered MutationSpec",
