@@ -108,6 +108,17 @@ _mesh_dispatch_url = os.getenv(
     "MESH_DISPATCH_URL",
     "http://localhost:8095/dispatch",
 )
+# Relay bearer auth (same contract as transports/api/_mesh_dispatch.py).
+# The relay fail-closes without it, so an unset secret means every dispatch
+# 401s — launch this process with the mesh op:// manifest injected.
+_MESH_RELAY_SECRET = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+
+
+def _relay_auth_headers() -> dict[str, str]:
+    if _MESH_RELAY_SECRET:
+        return {"Authorization": f"Bearer {_MESH_RELAY_SECRET}"}
+    return {}
+
 
 # ── Frame pipeline metrics (defense-grade) ───────────────────────
 
@@ -2515,7 +2526,7 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
         req = urllib.request.Request(
             _mesh_dispatch_url,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", **_relay_auth_headers()},
         )
         with urllib.request.urlopen(req, timeout=12) as resp:
             data = json.loads(resp.read())
@@ -2609,6 +2620,7 @@ def _build_health() -> dict[str, Any]:
         req = urllib.request.Request(
             _mesh_dispatch_url.replace("/dispatch", "/health"),
             method="GET",
+            headers=_relay_auth_headers(),
         )
         with urllib.request.urlopen(req, timeout=2) as resp:
             mesh_data = json.loads(resp.read())
