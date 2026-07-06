@@ -131,3 +131,49 @@ def test_plaintext_env_retirement_status_explicit_per_projection():
         status = s["plaintext_env_retired_or_pending"]
         assert status, f"{s['system']} must state plaintext env retirement status"
         assert ("pending" in status.lower() or "retired" in status.lower()), s["system"]
+
+
+# --- WP-P4-SECRETS-RETIRE-001: retirement was gated on an op-run boot smoke ---
+
+RETIRE_DOC = REPO / "docs" / "PROJECTION_SECRETS_RETIREMENT_2026-07-05.md"
+
+
+def test_retirement_block_present_and_gated():
+    d = _status()
+    block = d.get("plaintext_env_retirement")
+    assert block, "status JSON must carry a plaintext_env_retirement block"
+    assert block["packet"] == "WP-P4-SECRETS-RETIRE-001"
+    # retirement must be gated on an op-run boot smoke, not a blind delete
+    gate = block["precondition_gate"].lower()
+    assert "op run" in gate and "boot" in gate, "retirement must be gated on op-run boot"
+    assert "archive" in block["policy"].lower(), "policy must be archive-outside-git, not delete"
+    assert set(block["repos_retired"]) == {"EntrepreneurOS", "CreatorOS", "LyfeOS"}
+
+
+def test_each_projection_records_a_boot_smoke_before_retirement():
+    for s in _status()["systems"]:
+        if s["role"] != "projection":
+            continue
+        smoke = s.get("op_run_boot_smoke", "")
+        assert "BOOT_OK" in smoke, f"{s['system']} must record a passing op-run boot smoke"
+        assert "op run" in smoke.lower(), f"{s['system']} boot smoke must be via op run"
+
+
+def test_retired_projections_say_retired_not_pending():
+    """After WP-P4-SECRETS-RETIRE-001 all three projections must read 'retired', truthfully."""
+    for s in _status()["systems"]:
+        if s["role"] != "projection":
+            continue
+        status = s["plaintext_env_retired_or_pending"].lower()
+        assert status.startswith("retired"), f"{s['system']} should be retired: {status!r}"
+        # retirement must reference the outside-git archive location + a re-verified boot
+        assert "_env_archive" in s["plaintext_env_retired_or_pending"], s["system"]
+        assert "boot_ok" in status or "boot ok" in status, s["system"]
+
+
+def test_retirement_doc_present_and_no_secret_values():
+    assert RETIRE_DOC.exists(), "retirement governance doc must exist"
+    text = RETIRE_DOC.read_text()
+    for pat in SECRET_VALUE_PATTERNS:
+        hits = pat.findall(text)
+        assert not hits, f"secret-value pattern {pat.pattern} in retirement doc: {hits}"
