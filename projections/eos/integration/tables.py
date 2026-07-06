@@ -356,6 +356,90 @@ def fetch_pending_agent_actions(
     ]
 
 
+DECISION_STATUS = {"approve": "approved", "reject": "rejected"}
+
+
+def fetch_action_status(
+    conn: Any,
+    action_id: str,
+    user_ids: list[str] | None = None,
+) -> str | None:
+    """Return the current status of one agent_actions row, or None if absent.
+
+    Read-only lookup used to report WHY a decision could not apply
+    (not_found vs invalid_transition). Tenant-scoped like the pending fetch.
+    """
+    where = ["id = %s"]
+    params: list[Any] = [action_id]
+    if user_ids:
+        where.append("user_id = ANY(%s)")
+        params.append(list(user_ids))
+    query = f"SELECT status FROM agent_actions WHERE {' AND '.join(where)}"
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        row = cur.fetchone()
+    return str(row[0]) if row else None
+
+
+def update_action_decision(
+    conn: Any,
+    action_id: str,
+    decision: str,
+    decided_by: str,
+    user_ids: list[str] | None = None,
+) -> dict[str, Any] | None:
+    """Apply a bounded approval decision to ONE pending agent_actions row.
+
+    WP-P4-EOS-ACTION-APPROVAL-COMMAND-001. The ONLY legal transitions are
+    pending→approved and pending→rejected, enforced ATOMICALLY by the
+    ``AND status = 'pending'`` predicate — a non-pending row is never touched
+    and the call returns None (no row updated). Mirrors the EOS app's own
+    approve/reject semantics: approve stamps approved_by/approved_at; reject
+    changes status only. The SET clause names approval-state columns ONLY —
+    retry counters, outcome payloads, and action inputs are never written.
+    Returns the post-update governance fields, or None when no row qualified.
+    """
+    new_status = DECISION_STATUS.get(decision)
+    if new_status is None:
+        raise ValueError(f"invalid decision '{decision}', must be one of: approve, reject")
+
+    if new_status == "approved":
+        set_clause = "status = %s, approved_by = %s, approved_at = NOW(), updated_at = NOW()"
+        params: list[Any] = [new_status, decided_by]
+    else:
+        set_clause = "status = %s, updated_at = NOW()"
+        params = [new_status]
+
+    where = ["id = %s", "status = 'pending'"]
+    params.append(action_id)
+    if user_ids:
+        where.append("user_id = ANY(%s)")
+        params.append(list(user_ids))
+
+    query = f"""
+        UPDATE agent_actions
+        SET {set_clause}
+        WHERE {" AND ".join(where)}
+        RETURNING id, status, retry_count, max_retries, approved_by, approved_at, updated_at
+    """
+    with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+        cur.execute(query, params)
+        row = cur.fetchone()
+        conn.commit()
+
+    if row is None:
+        return None
+    return {
+        "id": str(row["id"]),
+        "status": str(row["status"]),
+        "retry_count": int(row["retry_count"] or 0),
+        "max_retries": int(row["max_retries"] or 3),
+        "approved_by": row["approved_by"],
+        "approved_at": row["approved_at"].isoformat() if row["approved_at"] else None,
+        "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+    }
+
+
 def _require_str(params: dict[str, Any], key: str) -> str:
     """Extract a required non-empty string from params, or raise ValueError."""
     val = params.get(key)
