@@ -236,6 +236,29 @@ def register_eos_routes(router, _require_operator_role, helpers):
                 "execution_applied": False,
             }
 
+    @router.get("/eos/tasks")
+    def eos_tasks_route(limit: int = 25):
+        """EOS tasks read seam — P4S-20 (governed-effect visibility).
+
+        Read-only view of EOS `tasks` rows, each annotated with the
+        `agent_actions` row that governed execution created it from (when
+        linked via `agent_actions.task_id`). Env-disabled-safe: stable
+        "disconnected" envelope when EOS_DATABASE_URL is unset, never a 500.
+        """
+        try:
+            from projections.eos.integration.tasks_read import eos_tasks
+
+            return eos_tasks(limit=limit)
+        except Exception as e:
+            return {
+                "error": str(e),
+                "projection_id": "eos",
+                "surface": "tasks",
+                "connected": False,
+                "count": 0,
+                "tasks": [],
+            }
+
     @router.get("/eos/action-proposals")
     def eos_action_proposals_route(limit: int = 50):
         """EOS ActionProposal read seam — WP-P4-EOS-ACTION-PROPOSAL-READ-001.
