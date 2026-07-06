@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umh.local/schemas/convergence/projection_capability.schema.json",
+  "title": "UMH Projection Capability Matrix Cell",
+  "description": "One cell of the projection x capability matrix assembled from workstreams E1 (EOS, CreatorOS, LyfeOS — see E1 F6), E2 (operator experience/Jarvis-class incl. workstation, meta IDE incl. SaaS-dev skill system, node mesh execution), and E3 (BroadcastOS, Conference Rooms, ManufacturingOS, RoboticsOS, SecurityOS). The status enum is the union of the two vocabularies actually used in the ledgers: the E1/E2 substrate-maturity vocabulary (canonical-and-tested .. unclear-source-of-truth, n/a) and the E3 evidence-tier vocabulary (shipped-code .. inferred-only, stub-only).",
+  "type": "object",
+  "required": [
+    "capability",
+    "projection",
+    "status",
+    "substrate_owner_files",
+    "source_refs",
+    "gap_or_packet_ref"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "capability": {
+      "description": "Capability row name (e.g. 'Identity/tenancy', 'Approval routing', 'Commerce/payments/entitlements', 'Audio pipeline').",
+      "type": "string",
+      "minLength": 1
+    },
+    "projection": {
+      "description": "Matrix column: the projection/surface the cell describes. operator_experience covers the Jarvis-class workstation surface (E2 F1/F2); meta_ide covers the engineering surface including the SaaS-dev skill system; node_mesh covers cross-device execution.",
+      "type": "string",
+      "enum": [
+        "eos",
+        "creatoros",
+        "lyfeos",
+        "operator_experience",
+        "meta_ide",
+        "node_mesh",
+        "broadcastos",
+        "conference_rooms",
+        "manufacturingos",
+        "roboticsos",
+        "securityos"
+      ]
+    },
+    "status": {
+      "description": "Cell status. E1/E2 vocabulary: canonical-and-tested, present-but-fragmented, projection-specific-only, dormant, missing, untested, unclear-source-of-truth, n/a. E3 vocabulary: shipped-code (runtime evidence in repo), stub-only (endpoint/flag exists, no implementation), doc-spec-only (specified, not built), strategy-intent-only (strategy docs only), inferred-only (zero repo evidence; capability inferred).",
+      "type": "string",
+      "enum": [
+        "canonical-and-tested",
+        "present-but-fragmented",
+        "projection-specific-only",
+        "dormant",
+        "missing",
+        "untested",
+        "unclear-source-of-truth",
+        "n/a",
+        "shipped-code",
+        "stub-only",
+        "doc-spec-only",
+        "strategy-intent-only",
+        "inferred-only"
+      ]
+    },
+    "substrate_owner_files": {
+      "description": "Repo-relative paths of the substrate/adapter/transport files that own (or would own) this capability, e.g. 'substrate/sockets/approval_port.py', 'adapters/broadcast/engine.py:103-199'.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "source_refs": {
+      "description": "Evidence references backing the status: ledger id + path:line citations (e.g. 'E1 F6 row 4; data/repos/entrepreneuros/shared/schema.ts:376-423').",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "gap_or_packet_ref": {
+      "description": "Gap id (GAP-...) or work packet id (WP-...) that addresses this cell; null when the cell needs no action (canonical-and-tested, n/a).",
+      "type": ["string", "null"],
+      "pattern": "^(GAP-[A-Z]+[0-9]*-[0-9]{3}|WP-[A-Z0-9]+-[0-9]{3})$"
+    },
+    "notes": {
+      "description": "Optional qualifier (e.g. 'agent path not wired at boot', 'handler complete but never registered').",
+      "type": "string"
+    }
+  }
+}

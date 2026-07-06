@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umh.local/schemas/convergence/ontology_layer.schema.json",
+  "title": "UMH Ontology Layer Assignment Record",
+  "description": "Assigns one concept to a layer of the four-layer separation used across the convergence audit: L1 External Operational Reality Model (entities in the world UMH reconciles: businesses, people, devices, cloud services, physical actuators), L2 UMH Platform Metamodel (control-plane primitives: signals, operations, work packets, policy decisions, traces, capabilities), L3 Projection Domain Models (EOS/CreatorOS/LyfeOS/BroadcastOS product domain objects), L4 Semantic Grounding/Mapping Layer (entity resolution, domain bridges, state-authority declarations, projection registries binding L1<->L2<->L3). Records where the concept currently lives, the proposed canonical owner, and whether its implementation blends layers.",
+  "type": "object",
+  "required": [
+    "concept",
+    "layer",
+    "current_files",
+    "canonical_owner_proposed",
+    "blended",
+    "evidence"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "concept": {
+      "description": "Concept name (a primitive, domain object, registry, or mechanism), e.g. 'StateAuthority', 'broadcast Scene model', 'projection registry'.",
+      "type": "string",
+      "minLength": 1
+    },
+    "layer": {
+      "description": "The layer this concept properly belongs to.",
+      "type": "string",
+      "enum": [
+        "L1_external_reality",
+        "L2_platform_metamodel",
+        "L3_projection_domain",
+        "L4_semantic_grounding"
+      ]
+    },
+    "current_files": {
+      "description": "Repo-relative paths where the concept is currently implemented or defined (with optional :line), e.g. 'adapters/broadcast/scene_model.py:82-125'.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "canonical_owner_proposed": {
+      "description": "Repo-relative path (existing or to-be-created) proposed as the single canonical owner after convergence, e.g. 'substrate/types.py' or 'substrate/organism/state_authority_graph.py'.",
+      "type": "string",
+      "minLength": 1
+    },
+    "blended": {
+      "description": "True when the current implementation mixes this concept with material from other layers (e.g. substrate importing projections by name, L3 domain models living in the adapter layer, instance context hardcoded in platform files).",
+      "type": "boolean"
+    },
+    "blended_with_layers": {
+      "description": "Layers the current implementation illegitimately blends with. Required non-empty when blended is true; empty otherwise.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "L1_external_reality",
+          "L2_platform_metamodel",
+          "L3_projection_domain",
+          "L4_semantic_grounding"
+        ]
+      }
+    },
+    "evidence": {
+      "description": "path:line citations from the ledgers backing the assignment and any blending claim (e.g. 'substrate/integrations/product_connections.py:65-134 imports projections.*.integration.manifest').",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "related_gap_ids": {
+      "description": "Optional gap ledger IDs caused by misplacement or blending of this concept.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^GAP-[A-Z]+[0-9]*-[0-9]{3}$" }
+    }
+  },
+  "if": { "properties": { "blended": { "const": true } } },
+  "then": { "required": ["concept", "layer", "current_files", "canonical_owner_proposed", "blended", "blended_with_layers", "evidence"], "properties": { "blended_with_layers": { "minItems": 1 } } }
+}

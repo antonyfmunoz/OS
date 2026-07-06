@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umh.local/schemas/convergence/gap_record.schema.json",
+  "title": "UMH Convergence Gap Ledger Record",
+  "description": "One gap from the convergence audit's unified gap ledger (270 gap candidates across 17 workstream ledgers; severity distribution at audit time: 23 critical / 87 high / 112 medium / 48 low). IDs follow GAP-<workstream>-<NNN> as emitted by the workstream ledgers (e.g. GAP-A-004, GAP-B1-009, GAP-E1-003). Each gap states current vs desired state with path:line evidence and links to the work packet that closes it.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "severity",
+    "area",
+    "workstream",
+    "current_state",
+    "desired_state",
+    "evidence",
+    "closed_by_work_packet"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "description": "Gap id in the ledger namespace, e.g. GAP-B1-009.",
+      "type": "string",
+      "pattern": "^GAP-[A-Z]+[0-9]*-[0-9]{3}$"
+    },
+    "title": {
+      "description": "One-sentence statement of the gap.",
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "description": "Audit severity. critical = broken source of truth, ungoverned mutation path, or identity/trust-boundary failure; high = contract violation or fragmentation with active drift; medium = contained fragmentation, stale enforcement, or coverage hole; low = hygiene/dormant-classification issue.",
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "area": {
+      "description": "Free-text concern area as recorded in the ledger (e.g. 'entrypoint authority / source of truth', 'type contract', 'policy engine coverage', 'layer contract integrity').",
+      "type": "string",
+      "minLength": 1
+    },
+    "workstream": {
+      "description": "Source workstream ledger that raised the gap.",
+      "type": "string",
+      "enum": [
+        "A",
+        "B1",
+        "B2",
+        "B3",
+        "B4",
+        "C1",
+        "C2",
+        "C3",
+        "D1",
+        "D2",
+        "E1",
+        "E2",
+        "E3",
+        "F1",
+        "F2",
+        "G",
+        "H"
+      ]
+    },
+    "current_state": {
+      "description": "Observed state constituting the gap, with concrete detail.",
+      "type": "string",
+      "minLength": 1
+    },
+    "desired_state": {
+      "description": "Target state once the gap is closed.",
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "description": "path:line citations (and/or command outputs) backing the gap, e.g. 'substrate/control_plane/runtime/cognitive_loop.py:365' or 'check_type_divergence.py --all exit 1'.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "closed_by_work_packet": {
+      "description": "Work packet id that closes this gap (see work_packet.schema.json); null while unassigned.",
+      "type": ["string", "null"],
+      "pattern": "^WP-[A-Z0-9]+-[0-9]{3}$"
+    },
+    "layer": {
+      "description": "Optional four-layer ontology assignment of the gap's owner concern.",
+      "type": "string",
+      "enum": ["L1", "L2", "L3", "L4"]
+    },
+    "status": {
+      "description": "Optional remediation status.",
+      "type": "string",
+      "enum": ["open", "packeted", "in_progress", "closed", "wont_fix"]
+    }
+  }
+}

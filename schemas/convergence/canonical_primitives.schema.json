@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umh.local/schemas/convergence/canonical_primitives.schema.json",
+  "title": "UMH Canonical Primitive Map Record",
+  "description": "One record per audited platform-metamodel primitive from the B1-B4 convergence ledgers. Captures the proposed canonical owner file, every competing/duplicate implementation, test coverage, the fragmentation verdict, and the convergence action required. The 33 primitives enumerated here are the full set audited across workstreams B1 (Signal..Operation), B2 (WorkPacket..AgentInstance), B3 (PolicyDecision..MemoryRecord), and B4 (Capability..StateAuthority). Canonical registry under audit: substrate/canonical_types.py; primary type module: substrate/types.py.",
+  "type": "object",
+  "required": [
+    "primitive",
+    "definition",
+    "canonical_file",
+    "competing_files",
+    "tests",
+    "status",
+    "convergence_action",
+    "layer",
+    "related_gap_ids"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "primitive": {
+      "description": "Primitive name as audited in the B-workstream ledgers.",
+      "type": "string",
+      "enum": [
+        "Signal",
+        "Intent",
+        "DesiredState",
+        "CurrentState",
+        "Gap",
+        "Operation",
+        "WorkPacket",
+        "ExecutionStep",
+        "AdapterCall",
+        "ToolCall",
+        "RuntimeNode",
+        "RuntimeSession",
+        "AgentRole",
+        "AgentInstance",
+        "PolicyDecision",
+        "ApprovalRequest",
+        "ProofContract",
+        "ProofArtifact",
+        "TraceEvent",
+        "EvaluationResult",
+        "StateCommit",
+        "MemoryCandidate",
+        "MemoryRecord",
+        "Capability",
+        "CapabilityPathway",
+        "CapabilityRevision",
+        "Template",
+        "Projection",
+        "ProjectionDomainObject",
+        "ExternalWorldEntity",
+        "EntityResolution",
+        "DomainBridge",
+        "StateAuthority"
+      ]
+    },
+    "definition": {
+      "description": "One-sentence control-plane definition of the primitive (what it means in a desired-state reconciliation platform), taken from the ledger.",
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_file": {
+      "description": "Repo-relative path (optionally :line and ::Symbol) of the proposed canonical owner, e.g. 'substrate/types.py:48 SignalEnvelope'. Null when status is 'missing' and no owner exists yet.",
+      "type": ["string", "null"]
+    },
+    "competing_files": {
+      "description": "Every competing, duplicate, overlapping, or rival implementation. Each entry is a repo-relative path with optional :line/::Symbol and a short role note.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "symbol": { "type": "string" },
+          "role": {
+            "description": "Why this file competes (rival definition, boundary DTO, dormant duplicate, unregistered same-name type, etc.).",
+            "type": "string"
+          },
+          "registered_in_canonical_types": {
+            "description": "Whether the symbol is registered in substrate/canonical_types.py.",
+            "type": "boolean"
+          },
+          "dormant": {
+            "description": "True when the implementation has zero runtime dependents (test-only or _dormant/).",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "tests": {
+      "description": "Repo-relative test file paths that exercise the primitive (e.g. tests/substrate/test_types.py).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "status": {
+      "description": "Fragmentation verdict from the ledger. canonical-clean = single registered owner with tests; canonical-but-contested = clear owner but rival same-name/same-concept types exist; fragmented = multiple parallel definitions with no mapping contract; missing = the primitive does not exist as a type (concept present only as enum markers, string lists, or raw dicts); dormant = implementation exists but has zero runtime dependents.",
+      "type": "string",
+      "enum": [
+        "canonical-clean",
+        "canonical-but-contested",
+        "fragmented",
+        "missing",
+        "dormant"
+      ]
+    },
+    "convergence_action": {
+      "description": "The specific action that converges this primitive (e.g. 'absorb Signal(types.py:990) into SignalEnvelope; rename sockets SignalEnvelope to IntegrationSignalEnvelope and register it').",
+      "type": "string",
+      "minLength": 1
+    },
+    "layer": {
+      "description": "Four-layer ontology assignment. L1 = External Operational Reality Model, L2 = UMH Platform Metamodel, L3 = Projection Domain Models, L4 = Semantic Grounding/Mapping Layer.",
+      "type": "string",
+      "enum": ["L1", "L2", "L3", "L4"]
+    },
+    "related_gap_ids": {
+      "description": "Gap ledger IDs this primitive's fragmentation produced or participates in.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^GAP-[A-Z]+[0-9]*-[0-9]{3}$"
+      }
+    },
+    "missing_fields": {
+      "description": "Optional: fields the canonical type lacks versus a desired-state reconciliation control plane (idempotency key, tenant scoping, permission envelope, blast radius, trace linkage, etc.).",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "workstream": {
+      "description": "Optional: source B-workstream ledger.",
+      "type": "string",
+      "enum": ["B1", "B2", "B3", "B4"]
+    }
+  }
+}

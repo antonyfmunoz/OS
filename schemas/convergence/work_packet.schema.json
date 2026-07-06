@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://umh.local/schemas/convergence/work_packet.schema.json",
+  "title": "UMH Convergence Work Packet",
+  "description": "Executable unit of convergence work handed to an engineer or governed agent. This is the audit's remediation packet format AND the target canonical field set for the WorkPacket primitive, which is currently fragmented across four definitions (substrate/organism/work_packet.py:117, substrate/types.py:929, substrate/control_plane/router/router_contracts.py:91, nodes/environments/work_packet.py:49 — see GAP-B1-009/GAP-B2 ledger). Every packet declares current vs desired state, its file blast radius, acceptance criteria, required proof, and a rollback plan before any execution.",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "current_state",
+    "desired_state",
+    "files_to_inspect",
+    "files_likely_modified",
+    "forbidden_files_or_actions",
+    "dependencies",
+    "risk_class",
+    "approval_required",
+    "acceptance_criteria",
+    "proof_required",
+    "tests_to_add_or_run",
+    "rollback_plan",
+    "expected_output",
+    "parallelizable",
+    "requires_human_approval",
+    "closes_gap_ids",
+    "phase"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "description": "Unique work packet id, e.g. WP-P1-001.",
+      "type": "string",
+      "pattern": "^WP-[A-Z0-9]+-[0-9]{3}$"
+    },
+    "title": {
+      "description": "One-line statement of the work.",
+      "type": "string",
+      "minLength": 1
+    },
+    "current_state": {
+      "description": "Observed state before the packet runs, with path:line evidence.",
+      "type": "string",
+      "minLength": 1
+    },
+    "desired_state": {
+      "description": "Target state after the packet completes.",
+      "type": "string",
+      "minLength": 1
+    },
+    "files_to_inspect": {
+      "description": "Repo-relative paths that MUST be read before writing any code.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "files_likely_modified": {
+      "description": "Repo-relative paths expected to change. Defines the packet's write blast radius.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "forbidden_files_or_actions": {
+      "description": "Explicit exclusions: files that must not be touched and actions that must not be taken (e.g. 'no schema migration', 'do not restart os-discord', 'never flyctl deploy directly').",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "dependencies": {
+      "description": "IDs of work packets that must complete first.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^WP-[A-Z0-9]+-[0-9]{3}$" }
+    },
+    "risk_class": {
+      "description": "Risk classification per the platform's deterministic taxonomy (LOW: new files/features; MEDIUM: modifying existing methods; HIGH: core infrastructure; CRITICAL: schema migrations, RLS, data moves, removing working features).",
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+    },
+    "approval_required": {
+      "description": "Whether the packet requires a policy-engine approval gate before execution (distinct from requires_human_approval, which mandates a human decision specifically).",
+      "type": "boolean"
+    },
+    "acceptance_criteria": {
+      "description": "Objectively checkable statements that must all hold for the packet to be accepted.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "proof_required": {
+      "description": "Proof artifacts execution must produce (command outputs, test logs, grep counts, screenshots, trace ids). No packet closes on assertion alone.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "tests_to_add_or_run": {
+      "description": "Test files/commands to add or execute, e.g. 'pytest tests/substrate/test_types.py -q'.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rollback_plan": {
+      "description": "Concrete rollback procedure if acceptance criteria fail (git revert range, container restart, data restore step).",
+      "type": "string",
+      "minLength": 1
+    },
+    "expected_output": {
+      "description": "What the completed packet delivers (changed files, new contract, retired duplicate, passing gate).",
+      "type": "string",
+      "minLength": 1
+    },
+    "parallelizable": {
+      "description": "True when the packet can run concurrently with its non-dependent peers.",
+      "type": "boolean"
+    },
+    "requires_human_approval": {
+      "description": "True when a human operator must approve before execution (always true for HIGH/CRITICAL risk_class).",
+      "type": "boolean"
+    },
+    "closes_gap_ids": {
+      "description": "Gap ledger IDs this packet closes (see gap_record.schema.json).",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^GAP-[A-Z]+[0-9]*-[0-9]{3}$" }
+    },
+    "phase": {
+      "description": "Convergence phase the packet belongs to (e.g. 'P0', 'P1', 'P2').",
+      "type": "string",
+      "minLength": 1
+    },
+    "estimated_effort": {
+      "description": "Optional effort estimate.",
+      "type": "string",
+      "enum": ["small", "medium", "large", "xlarge"]
+    },
+    "assignee_kind": {
+      "description": "Optional: intended executor class.",
+      "type": "string",
+      "enum": ["human", "governed_agent", "either"]
+    }
+  }
+}
