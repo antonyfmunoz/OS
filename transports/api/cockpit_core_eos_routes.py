@@ -194,6 +194,42 @@ def register_eos_routes(router, _require_operator_role, helpers):
         """
         return _decide_proposal(proposal_id, "reject", payload)
 
+    @router.post(
+        "/eos/action-proposals/{proposal_id}/execute",
+        dependencies=[Depends(_require_operator_role)],
+    )
+    def eos_action_proposal_execute(proposal_id: str, payload: dict | None = None):
+        """Execute one APPROVED non-provider EOS action proposal —
+        WP-P4-EOS-EXECUTOR-ACTIVATE-001.
+
+        The smallest executor slice over the #182 execution-dispatch seam:
+        allowlisted local action types only (create_task, create_document),
+        atomic approved→executing→completed|failed lifecycle through
+        governed_mutation (C34). Provider-coupled actions (send_email) stay
+        blocked; failures follow the human-re-approval retry policy.
+        """
+        try:
+            from transports.api.governed import governed_mutation
+
+            from projections.eos.integration.action_execution import (
+                execute_action_proposal,
+            )
+
+            body = payload or {}
+            return execute_action_proposal(
+                proposal_id,
+                executed_by=str(body.get("executed_by") or "umh_operator"),
+                mutation_runner=governed_mutation,
+            )
+        except Exception as e:
+            return {
+                "error": str(e),
+                "projection_id": "eos",
+                "surface": "action_execution",
+                "proposal_id": proposal_id,
+                "execution_applied": False,
+            }
+
     @router.get("/eos/action-proposals")
     def eos_action_proposals_route(limit: int = 50):
         """EOS ActionProposal read seam — WP-P4-EOS-ACTION-PROPOSAL-READ-001.
