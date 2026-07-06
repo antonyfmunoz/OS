@@ -1,0 +1,325 @@
+{
+  "map_id": "eos_app_module_map",
+  "work_packet": "WP-P4-EOS-APP-MODULE-MAP-001",
+  "created": "2026-07-06",
+  "projection_id": "eos",
+  "provenance": {
+    "source_authority": "beast",
+    "beast_repo": "EntrepreneurOS",
+    "github_repo": "EntrepreneurOS",
+    "operating_branch": "feature/company-system",
+    "head": "9c8725f",
+    "beast_probe_at": "2026-07-05",
+    "beast_verification": "VERIFIED",
+    "source_risk": "source_current",
+    "mirror_fidelity": "full",
+    "inspection_mirror": {
+      "path": "data/repos/entrepreneuros",
+      "is_source_authority": false,
+      "role": "read-only inspection snapshot of the Beast source; never edited, never built from"
+    },
+    "readiness_harness": "WP-P4-BEAST-SOURCE-SYNC-001 (#179) via substrate.sockets.projection_port.get_beast_source_row",
+    "build_safety_surface": "projections.eos.integration.readiness.eos_readiness()['source_build_safe'] (#180)"
+  },
+  "excluded_projections": {
+    "cos": "CreatorOS — source_dirty + schema_only mirror; not build-safe; out of scope",
+    "lyfeos": "LyfeOS — source_dirty (28 dirty files); not build-safe; out of scope"
+  },
+  "app_profile": {
+    "name_in_package_json": "rest-express",
+    "stack": "TypeScript, React 18, Vite, Tailwind, shadcn/ui, Express 4, Drizzle ORM, postgres-js (Neon), wouter, TanStack Query, passport + Firebase auth",
+    "node_scripts": {
+      "dev": "tsx server/index.ts",
+      "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+      "start": "NODE_ENV=production node dist/index.js",
+      "check": "tsc",
+      "db:push": "drizzle-kit push"
+    },
+    "server_port": 5000,
+    "source_file_counts": {
+      "client_ts_tsx": 97,
+      "server_ts": 21,
+      "shared_ts": 2,
+      "scripts_ts": 12,
+      "total_source_and_config": 141
+    }
+  },
+  "env_keys_referenced": {
+    "note": "KEY NAMES ONLY — values live in 1Password (vault EntrepreneurOS), loaded on the Beast via `op run --env-file=.env.op.tpl`. plaintext .env is retired (env_op_tpl_present=yes, env_gitignored=yes, plaintext_env=retired).",
+    "server": [
+      "DATABASE_URL",
+      "SESSION_SECRET",
+      "NODE_ENV",
+      "AI_INTEGRATIONS_ANTHROPIC_API_KEY",
+      "AI_INTEGRATIONS_ANTHROPIC_BASE_URL",
+      "OPENAI_API_KEY",
+      "PERPLEXITY_API_KEY",
+      "XAI_API_KEY",
+      "GEMINI_API_KEY",
+      "FIREBASE_SERVICE_ACCOUNT_KEY",
+      "FIREBASE_CLIENT_EMAIL",
+      "FIREBASE_PRIVATE_KEY",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_REDIRECT_URI"
+    ],
+    "client_vite": [
+      "VITE_FIREBASE_API_KEY",
+      "VITE_FIREBASE_AUTH_DOMAIN",
+      "VITE_FIREBASE_PROJECT_ID",
+      "VITE_FIREBASE_APP_ID"
+    ]
+  },
+  "modules": [
+    {
+      "module": "server-entrypoint",
+      "beast_path": "server/index.ts",
+      "kind": "server",
+      "what_it_is": "Express bootstrap: JSON middleware, API request logging, error handler, Vite dev-server in development / static serve in production, listens on :5000 serving both API and client.",
+      "substrate_mapping": "none — deployment entrypoint stays app-local on the Beast; UMH equivalent is services/ entrypoints",
+      "target_layer": "stays_on_beast",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "Runtime host is the Beast (runtime_ready=yes). VPS node role forbids running app bodies."
+    },
+    {
+      "module": "api-routes",
+      "beast_path": "server/routes.ts",
+      "kind": "server",
+      "what_it_is": "Monolithic route registration (~2,360 lines): AI model info/generation, agents CRUD + chat, tasks CRUD + collaboration/subtasks, conversations, multi-agent collaboration, stats, analytics, integrations, notifications, AI-assistant messages, CRM (contacts/deals/activities), folders, documents, LLM chat, agent-action approve/reject, Gmail OAuth, agent metrics.",
+      "api_surfaces": [
+        "/api/ai/models", "/api/ai/provider-status", "/api/ai/generate", "/api/ai/multi-agent",
+        "/api/keys/save",
+        "/api/agents", "/api/agents/:id", "/api/agents/:id/messages", "/api/agents/:id/chat", "/api/agents/:id/tasks", "/api/agents/:id/generate-response", "/api/agents/:id/collaborative-tasks", "/api/agents/:id/metrics", "/api/agents/:id/clear-messages",
+        "/api/tasks", "/api/tasks/:id", "/api/tasks/:id/collaborators", "/api/tasks/:id/assign", "/api/tasks/:id/subtask", "/api/tasks/:id/subtasks", "/api/tasks/:id/messages",
+        "/api/conversations/:id",
+        "/api/stats", "/api/analytics",
+        "/api/integrations", "/api/integrations/connect", "/api/integrations/gmail/auth", "/api/integrations/gmail/status", "/api/integrations/gmail/disconnect",
+        "/api/auth/google/callback",
+        "/api/notifications", "/api/notifications/count", "/api/notifications/:id/read", "/api/notifications/read-all", "/api/notifications/:id",
+        "/api/ai-assistant/messages",
+        "/api/crm/contacts", "/api/crm/contacts/:id", "/api/crm/deals", "/api/crm/deals/:id", "/api/crm/activities", "/api/crm/activities/:id",
+        "/api/folders", "/api/folders/:id", "/api/documents", "/api/documents/:id",
+        "/api/llm/chat",
+        "/api/actions", "/api/actions/pending", "/api/actions/:id", "/api/actions/:id/approve", "/api/actions/:id/reject",
+        "/api/register", "/api/login", "/api/logout", "/api/user", "/api/auth/firebase", "/api/auth/google"
+      ],
+      "substrate_mapping": "read surfaces map to the projection read-surface discipline (projections/eos accessor + thin transport wrapper); write paths map to governed_mutation through transports/api/governed; agent chat/execution maps to the canonical spine",
+      "target_layer": "projections_eos_plus_transports",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "Violates UMH quality standards as-is (god file, direct provider SDK construction, /api/keys/save mutates process.env from an HTTP body). Route semantics are the import target, not the code."
+    },
+    {
+      "module": "auth-session",
+      "beast_path": "server/auth.ts",
+      "kind": "server",
+      "what_it_is": "passport-local (scrypt password hashing) + Firebase/Google token auth, express-session with connect-pg-simple store, register/login/logout/user endpoints.",
+      "substrate_mapping": "conflicts with UMH auth: cockpit uses Clerk (locked to AFM's Clerk ID), UMH HTTP auth lives in transports/api/http/middleware. Reconciling EOS Firebase/passport auth with Clerk is an owner decision.",
+      "target_layer": "transports_api_http",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "OWNER DECISION REQUIRED: auth model (Firebase/passport vs Clerk) before any EOS user-facing build-out."
+    },
+    {
+      "module": "db-client",
+      "beast_path": "server/db.ts",
+      "kind": "server",
+      "what_it_is": "Drizzle ORM over postgres-js using DATABASE_URL (Neon).",
+      "substrate_mapping": "UMH platform DB client pattern lives in transports/api/http/db; EOS keeps its own Neon database — separate from the UMH platform DB",
+      "target_layer": "stays_on_beast",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "EOS DATABASE_URL is a distinct Neon instance. Never point it at the UMH platform DB."
+    },
+    {
+      "module": "storage-layer",
+      "beast_path": "server/storage.ts",
+      "kind": "server",
+      "what_it_is": "IStorage interface + DatabaseStorage implementation over all 15 Drizzle tables; also owns the pg-backed session store. The single data-access seam of the app.",
+      "substrate_mapping": "the IStorage seam is where a future governed adapter would attach (reads → projection read surfaces; writes → governed_mutation)",
+      "target_layer": "projections_eos",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "Best-understood integration seam in the app body: one interface gates all DB access."
+    },
+    {
+      "module": "domain-schema",
+      "beast_path": "shared/schema.ts",
+      "kind": "shared",
+      "what_it_is": "Drizzle schema + zod insert schemas for 15 tables: users, agents, tasks, messages, integrations, notifications, ai_messages, crm_contacts, crm_deals, crm_activities, folders, documents, agent_actions, oauth_tokens, agent_metrics.",
+      "substrate_mapping": "already mirrored to /opt/OS per node-role discipline (shared/schema.ts is the ONE Trinity file the VPS keeps). Domain concepts map: agents→UMH organism roles (L3 vocabulary), tasks→WorkPacket semantics, agent_actions→governed_mutation approval flow, crm_*→EOS L3 domain (BIS venture/client), oauth_tokens→credential-injection law territory.",
+      "target_layer": "projections_eos",
+      "copy_policy": "already_mirrored_no_further_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "SCHEMA CHANGES = CRITICAL risk class. No migration in this packet or without owner approval + row counts."
+    },
+    {
+      "module": "replit-chat-schema",
+      "beast_path": "shared/models/chat.ts",
+      "kind": "shared",
+      "what_it_is": "Second Drizzle schema (conversations + messages, serial PKs) used by server/replit_integrations.",
+      "substrate_mapping": "none — HAZARD: defines a second `messages` pgTable colliding with shared/schema.ts `messages` (text PK). Type-coherence violation if ever imported together.",
+      "target_layer": "excluded",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "Name collision flagged for the owner; resolve on the Beast before any messages-table integration."
+    },
+    {
+      "module": "ai-provider-router",
+      "beast_path": "server/ai/",
+      "kind": "server",
+      "what_it_is": "Multi-provider AI service registry (anthropic/openai/perplexity/xai/gemini) with per-provider services, availability checks, model catalog, unified generateAIResponse().",
+      "substrate_mapping": "DUPLICATE of UMH intelligence routing (adapters/models/model_router.py call_with_fallback). UMH's router is canonical; the EOS app keeps its own only while it runs standalone on the Beast.",
+      "target_layer": "adapters_models",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "When EOS is rebuilt over the substrate, all LLM calls route through model_router — never a second provider registry."
+    },
+    {
+      "module": "legacy-agent-brain",
+      "beast_path": "server/openai.ts",
+      "kind": "server",
+      "what_it_is": "Legacy generateAgentResponse/generateTaskSuggestion helpers (named openai.ts but actually calls Anthropic via AI_INTEGRATIONS_* env).",
+      "substrate_mapping": "superseded by the canonical spine + model_router",
+      "target_layer": "excluded",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": false,
+      "notes": "Misleading filename; fallback path only."
+    },
+    {
+      "module": "firebase-admin",
+      "beast_path": "server/firebase.ts",
+      "kind": "server",
+      "what_it_is": "Firebase Admin SDK initialization (service-account key or client-email/private-key envs) + ID-token verification.",
+      "substrate_mapping": "part of the auth owner decision (see auth-session)",
+      "target_layer": "excluded",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "Carries the heaviest secret surface (FIREBASE_PRIVATE_KEY, FIREBASE_SERVICE_ACCOUNT_KEY)."
+    },
+    {
+      "module": "gmail-integration",
+      "beast_path": "server/integrations/gmail.ts",
+      "kind": "server",
+      "what_it_is": "Gmail OAuth (googleapis) + send-email; tokens persisted in oauth_tokens table.",
+      "substrate_mapping": "maps to UMH capability expansion (P2) through governed capability contracts + credential-injection law (1Password op run)",
+      "target_layer": "adapters",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "UMH already has GWS adapters; EOS Gmail flow is a projection-level consumer of that capability when rebuilt."
+    },
+    {
+      "module": "action-executor",
+      "beast_path": "server/services/action-executor.ts",
+      "kind": "server",
+      "what_it_is": "Approval-gated agent action execution: send_email / create_task / create_document, with status lifecycle (pending→approved→executing→completed/failed), retries, and metrics increments.",
+      "substrate_mapping": "STRONGEST SUBSTRATE MATCH: this is a hand-rolled governed_mutation. Maps directly to governed_mutation → MutationRouter → GovernedExecutionSpine with approval gates from the authority engine.",
+      "target_layer": "substrate_governed_mutation",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "Import the SEMANTICS (action types, approval flow, retry policy) onto the canonical runtime; never a parallel executor."
+    },
+    {
+      "module": "replit-integrations",
+      "beast_path": "server/replit_integrations/",
+      "kind": "server",
+      "what_it_is": "Replit-platform chat/batch integration code.",
+      "substrate_mapping": "none — Replit-hosting legacy",
+      "target_layer": "excluded",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": false,
+      "notes": "Dead weight from Replit origin; candidate for deletion on the Beast (owner call)."
+    },
+    {
+      "module": "vite-dev-plumbing",
+      "beast_path": "server/vite.ts",
+      "kind": "server",
+      "what_it_is": "Vite dev-middleware / static-serving glue.",
+      "substrate_mapping": "none — build tooling",
+      "target_layer": "stays_on_beast",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": false,
+      "notes": ""
+    },
+    {
+      "module": "client-app-shell",
+      "beast_path": "client/src/App.tsx + main.tsx + lib/ + hooks/",
+      "kind": "client",
+      "what_it_is": "wouter router with 15 protected pages, TanStack Query client, AuthProvider (session + Firebase), protected-route wrapper.",
+      "substrate_mapping": "EOS operator UI. Cockpit (transports/cockpit) is the UMH operator surface; the EOS client is the customer-facing product UI and stays a separate app. Overlapping views (agents, tasks, analytics) may later be re-expressed as cockpit projection views via /eos/* read surfaces.",
+      "target_layer": "stays_on_beast",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "VPS node role forbids hosting Trinity client bodies. Any UI convergence goes through /eos/* read surfaces, not file copies."
+    },
+    {
+      "module": "client-pages",
+      "beast_path": "client/src/pages/",
+      "kind": "client",
+      "what_it_is": "17 pages: dashboard, task-board, agent-chat, agent-programming, agent-os-dashboard, gpt4o-chat, integrations, analytics, crm, documents, notifications, settings, support, tutorials, auth, not-found (+backup dir).",
+      "substrate_mapping": "feature inventory for the EOS product; each page names a domain module (agents, tasks, CRM, documents, analytics, integrations, notifications)",
+      "target_layer": "stays_on_beast",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "Page names reference AgentOS/GPT-4o branding in places — legacy naming, not architecture."
+    },
+    {
+      "module": "client-components",
+      "beast_path": "client/src/components/ (21 app components + 48 shadcn/ui)",
+      "kind": "client",
+      "what_it_is": "App components (task-board, agent-card, action-approval-panel, performance-analytics, integrations, notification-dropdown, ai-fab, model selector...) over a full shadcn/ui kit.",
+      "substrate_mapping": "action-approval-panel is the UI twin of the agent_actions approval flow (governed mutation surface). shadcn/ui is regenerable — never copy.",
+      "target_layer": "stays_on_beast",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": false,
+      "notes": ""
+    },
+    {
+      "module": "db-setup-scripts",
+      "beast_path": "scripts/ (12 ad-hoc table setup/migration scripts)",
+      "kind": "scripts",
+      "what_it_is": "One-off table creation/alteration scripts (setup-tables, setup-crm-tables, update-agents-table, fix-messages-table, create-demo-user...).",
+      "substrate_mapping": "none — schema mutation tools; drizzle-kit push is the sanctioned path",
+      "target_layer": "excluded",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": true,
+      "notes": "NEVER run against any DB from /opt/OS. Schema migrations are CRITICAL risk class."
+    },
+    {
+      "module": "build-config",
+      "beast_path": "package.json, vite.config.ts, drizzle.config.ts, tsconfig.json, tailwind.config.ts, theme.json, postcss.config.js",
+      "kind": "config",
+      "what_it_is": "Vite + esbuild build, drizzle-kit config, Tailwind/shadcn theme, path aliases (@/, @shared/).",
+      "substrate_mapping": "none — app-local build config",
+      "target_layer": "stays_on_beast",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": false,
+      "notes": ""
+    },
+    {
+      "module": "replit-artifacts",
+      "beast_path": ".replit, replit.nix, replit.md, generated-icon.png, llmApi.ts (root)",
+      "kind": "config",
+      "what_it_is": "Replit hosting leftovers; root llmApi.ts duplicates client/src/lib/llmApi.ts.",
+      "substrate_mapping": "none",
+      "target_layer": "excluded",
+      "copy_policy": "do_not_copy",
+      "mutation_requires_owner_approval": false,
+      "notes": "Candidate for cleanup on the Beast (owner call)."
+    }
+  ],
+  "owner_approval_required_before_mutation": [
+    "Any schema migration or drizzle-kit push against the EOS Neon database",
+    "Auth model decision: Firebase/passport (EOS app) vs Clerk (UMH cockpit)",
+    "Any copy of Beast app-body code into /opt/OS (node-role discipline: VPS keeps shared/schema.ts only)",
+    "Resolution of the shared/models/chat.ts vs shared/schema.ts messages-table collision",
+    "Deletion of replit_integrations / Replit artifacts on the Beast",
+    "Any change to the Beast working tree (branch feature/company-system, head 9c8725f)"
+  ],
+  "next_packet_candidates": [
+    "Governed read slice: one /eos/* read surface backed by a real EOS table (e.g. tasks or crm_contacts) through a projection-owned accessor, read-only, discipline-conformant",
+    "Action-executor semantics import: express agent_actions approval flow as governed_mutation contracts (no code copy)",
+    "Beast-side hygiene packet (owner-approved): retire replit artifacts + resolve messages-table collision"
+  ]
+}
