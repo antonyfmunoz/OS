@@ -1,0 +1,210 @@
+{
+  "map_id": "eos_action_executor_seam_map",
+  "work_packet": "WP-P4-EOS-ACTION-EXECUTOR-SEAM-001",
+  "created": "2026-07-06",
+  "projection_id": "eos",
+  "schema_changes": "none",
+  "code_copied_from_beast": false,
+  "provenance": {
+    "source_authority": "beast",
+    "beast_repo": "EntrepreneurOS",
+    "operating_branch": "feature/company-system",
+    "head": "9c8725f",
+    "beast_probe_at": "2026-07-05",
+    "beast_verification": "VERIFIED",
+    "source_risk": "source_current",
+    "inspection_mirror": {
+      "path": "data/repos/entrepreneuros",
+      "is_source_authority": false,
+      "role": "read-only inspection snapshot; never edited, never built from"
+    },
+    "upstream_packets": {
+      "readiness_harness": "WP-P4-BEAST-SOURCE-SYNC-001 (#179)",
+      "build_safety_surface": "WP-P4-EOS-BEAST-BACKED-BUILD-001 (#180) eos_readiness()['source_build_safe']",
+      "module_map": "WP-P4-EOS-APP-MODULE-MAP-001 (#181) eos_app_module_map.json"
+    },
+    "files_read": [
+      "server/services/action-executor.ts",
+      "server/routes.ts (action extraction + /api/actions/* + agent chat)",
+      "server/storage.ts (createAction/updateAction/getActions/getPendingActions/incrementMetric/upsertOauthToken)",
+      "server/integrations/gmail.ts",
+      "shared/schema.ts (agent_actions, oauth_tokens, agent_metrics, tasks, documents, crm_activities)"
+    ]
+  },
+  "excluded_projections": {
+    "cos": "CreatorOS — not build-safe; out of scope",
+    "lyfeos": "LyfeOS — not build-safe; out of scope"
+  },
+  "action_lifecycle_observed": {
+    "propose": "Agent chat reply carries bracket-grammar tags [ACTION:TYPE|key:value|...]; routes.ts regex-extracts them, strips them from the visible reply, and inserts an agent_actions row (status=pending, requiresApproval=true) attributed to agent+user+conversation, with an estimatedTimeSaved heuristic (5 min email / 3 min other).",
+    "approve": "POST /api/actions/:id/approve — ownership check (action.userId == session user), sets status=approved + approvedBy/approvedAt, then IMMEDIATELY executes inline in the same request cycle. POST /api/actions/:id/reject sets status=rejected.",
+    "execute": "action-executor.ts executeAction(): status=executing + executedAt, then a switch on actionType — send_email (Gmail adapter over stored OAuth token), create_task (tasks insert), create_document (documents insert). Unknown types throw.",
+    "record": "Success: status=completed, completedAt, executionResult jsonb. Failure: failedAt, errorMessage, retryCount+1.",
+    "retry": "On failure with retryCount < maxRetries (default 3): status returns to 'pending' — the action re-enters the human approval queue, so every retry is human-re-approved. At maxRetries: status=failed terminally.",
+    "learn": "On success: incrementMetric(actionsExecuted) and incrementMetric(estimatedTimeSavedMinutes) into per-agent per-day agent_metrics rows."
+  },
+  "seams": [
+    {
+      "seam": "action-proposal-grammar",
+      "beast_source": "server/routes.ts (agent chat handler, [ACTION:TYPE|k:v] regex extraction)",
+      "semantic_responsibility": "Turn agent free-text output into a structured, pending, approval-gated action intent; never execute from raw model output.",
+      "umh_primitive": "Operation",
+      "target_owner": "transports/api/governed.py (governed_mutation MutationRequest construction); the bracket grammar itself stays EOS L3 prompt protocol in projections/eos",
+      "universal_or_eos_specific": "universal semantics (propose-before-execute), EOS-specific grammar",
+      "owner_approval_required": false,
+      "notes": "Deterministic regex parsing = deterministic spine. The grammar string format is projection vocabulary, not substrate."
+    },
+    {
+      "seam": "approval-queue-row",
+      "beast_source": "shared/schema.ts agent_actions table + storage.createAction()",
+      "semantic_responsibility": "Durable record of a proposed action awaiting human decision: who proposed, for whom, what, with what parameters, current lifecycle state.",
+      "umh_primitive": "Approval",
+      "target_owner": "substrate/types.py ApprovalRequest (approval_id/operation/requested_action/risk_class/state/requester_identity/decided_by) — near 1:1 field correspondence",
+      "universal_or_eos_specific": "universal",
+      "owner_approval_required": true,
+      "notes": "EOS row lacks risk_class — every action carries equal approval weight. UMH adds deterministic risk classification (ActionRiskClass) on import. Any persistent store change is schema territory: owner approval."
+    },
+    {
+      "seam": "approve-reject-decision",
+      "beast_source": "server/routes.ts POST /api/actions/:id/approve, /api/actions/:id/reject",
+      "semantic_responsibility": "Human decision transition with ownership authorization; approval is the only path to execution.",
+      "umh_primitive": "Approval",
+      "target_owner": "substrate/control_plane (authority engine approval gates) via the canonical governed spine; ApprovalState PENDING→APPROVED/REJECTED",
+      "universal_or_eos_specific": "universal",
+      "owner_approval_required": false,
+      "notes": "EOS executes inline in the approve request cycle; UMH decouples decision from execution through the spine (approve → queued operation), which also fixes the HTTP-timeout blast radius."
+    },
+    {
+      "seam": "execution-dispatch",
+      "beast_source": "server/services/action-executor.ts executeAction() switch",
+      "semantic_responsibility": "Execute exactly one approved action with lifecycle stamping (executing→completed/failed); unknown action types fail closed.",
+      "umh_primitive": "Operation",
+      "target_owner": "substrate/organism/canonical_runtime.py — governed_mutation → MutationRouter → GovernedExecutionSpine (the EOS executor is a hand-rolled instance of this exact path)",
+      "universal_or_eos_specific": "universal",
+      "owner_approval_required": false,
+      "notes": "NEVER a parallel executor in UMH — the canonical runtime is the one choke point."
+    },
+    {
+      "seam": "action-type-routing",
+      "beast_source": "action-executor.ts actionType switch (send_email / create_task / create_document)",
+      "semantic_responsibility": "Map an approved action type to the concrete capability that performs it.",
+      "umh_primitive": "CapabilityPathway",
+      "target_owner": "substrate/execution/runtime/capability_router.py (Capability enum, 28 job capabilities) + CapabilityInvocation in substrate/types.py",
+      "universal_or_eos_specific": "universal mechanism; the three EOS action types are L3 entries in a capability registry",
+      "owner_approval_required": false,
+      "notes": "EOS's three types are seed entries; expansion follows P2 capability contracts, not new switch arms."
+    },
+    {
+      "seam": "external-side-effect-call",
+      "beast_source": "server/integrations/gmail.ts sendEmail() + getAccessToken() refresh flow",
+      "semantic_responsibility": "Perform the real-world side effect (send email) with credential acquisition, token refresh, and provider error propagation.",
+      "umh_primitive": "AdapterCall",
+      "target_owner": "adapters/ (existing GWS adapters) with AdapterRequest/AdapterResponse from substrate/types.py; credentials through substrate/execution/credential_gate.py (1Password op run)",
+      "universal_or_eos_specific": "universal",
+      "owner_approval_required": true,
+      "notes": "SECURITY FLAG: EOS stores accessToken/refreshToken PLAINTEXT in the oauth_tokens table. Importing this seam requires migrating credential storage to the 1Password credential-injection law — owner approval before any credential migration."
+    },
+    {
+      "seam": "outcome-recording",
+      "beast_source": "action-executor.ts + agent_actions columns (executionResult jsonb, errorMessage, executedAt/completedAt/failedAt)",
+      "semantic_responsibility": "Durable, queryable evidence of what an executed action actually did or why it failed.",
+      "umh_primitive": "Proof",
+      "target_owner": "substrate/execution/trace.py (TraceRecord persistence) + Proof/ProofType in substrate/types.py",
+      "universal_or_eos_specific": "universal",
+      "owner_approval_required": false,
+      "notes": "EOS records result-on-row; UMH separates Proof (evidence) from Trace (execution timeline) — both fed from the spine."
+    },
+    {
+      "seam": "bounded-human-gated-retry",
+      "beast_source": "action-executor.ts failure branch (retryCount/maxRetries, status back to 'pending')",
+      "semantic_responsibility": "Failed actions re-enter the approval queue (every retry is human-re-approved), bounded at maxRetries=3, then terminal failure.",
+      "umh_primitive": "Operation",
+      "target_owner": "GovernedExecutionSpine retry policy + approval re-queue through the authority engine",
+      "universal_or_eos_specific": "universal — and a semantics worth PRESERVING: retry-requires-re-approval is stricter than auto-retry and matches UMH fail-closed philosophy",
+      "owner_approval_required": false,
+      "notes": "Do not 'improve' this into silent auto-retry for side-effecting actions."
+    },
+    {
+      "seam": "outcome-learning-metrics",
+      "beast_source": "storage.incrementMetric() into agent_metrics (actionsExecuted, estimatedTimeSavedMinutes, per agent per day)",
+      "semantic_responsibility": "Per-actor per-day outcome counters feeding value accounting (time saved) and activity scoring.",
+      "umh_primitive": "Trace",
+      "target_owner": "substrate/execution/feedback.py (quality scoring + learning loop) + work_portfolio velocity records",
+      "universal_or_eos_specific": "universal mechanism; estimatedTimeSaved heuristics (5/3 min) are EOS L3 values",
+      "owner_approval_required": false,
+      "notes": "read-modify-write increment is racy in EOS; UMH feedback loop is the canonical accumulator."
+    },
+    {
+      "seam": "task-creation-effect",
+      "beast_source": "action-executor.ts executeCreateTask() → tasks table",
+      "semantic_responsibility": "An approved action can mint new units of work attributed to an agent.",
+      "umh_primitive": "WorkPacket",
+      "target_owner": "substrate/types.py WorkPacket + universal_work stores; creation through governed_mutation",
+      "universal_or_eos_specific": "universal",
+      "owner_approval_required": false,
+      "notes": "EOS task fields (status/priority vocab) are L3; WorkPacket is the substrate shape."
+    },
+    {
+      "seam": "document-creation-effect",
+      "beast_source": "action-executor.ts executeCreateDocument() → documents table",
+      "semantic_responsibility": "An approved action can produce a persistent document artifact owned by the user.",
+      "umh_primitive": "Operation",
+      "target_owner": "projections/eos (EOS L3 domain mutation) wrapped in governed_mutation when built; document store remains projection-owned",
+      "universal_or_eos_specific": "eos_specific domain effect through a universal governed write",
+      "owner_approval_required": true,
+      "notes": "Touches the EOS Neon DB — any real write path is schema/data territory."
+    },
+    {
+      "seam": "approval-queue-read-model",
+      "beast_source": "routes.ts GET /api/actions, /api/actions/pending, /api/actions/:id + storage.getActions/getPendingActions",
+      "semantic_responsibility": "Filterable read view of the action queue (by status/agent) for the approval UI.",
+      "umh_primitive": "Approval",
+      "target_owner": "projections/eos read-surface accessor + thin /eos/* transport wrapper (projection read-surface discipline) — the natural FIRST implementation slice",
+      "universal_or_eos_specific": "universal read pattern, EOS data",
+      "owner_approval_required": false,
+      "notes": "Read-only; conforms to the read-surface discipline established by /eos/activation."
+    },
+    {
+      "seam": "actor-hierarchy-authority",
+      "beast_source": "shared/schema.ts agents (roleLevel chief/manager/laborer, department, parentAgentId) + requiresApproval default true",
+      "semantic_responsibility": "Who may propose and how much authority an actor carries; today every agent action requires human approval regardless of level.",
+      "umh_primitive": "RuntimeNode",
+      "target_owner": "substrate/organism (RuntimeNode, WorkcellRole) + authority engine tiers for graduated autonomy",
+      "universal_or_eos_specific": "universal mechanism; chief/manager/laborer vocabulary is EOS L3",
+      "owner_approval_required": true,
+      "notes": "Granting any agent tier approval-free execution is an authority policy change — owner decision."
+    },
+    {
+      "seam": "ungoverned-crm-mutation-boundary",
+      "beast_source": "shared/schema.ts crm_activities.createdByAgentId + crm_deals.assignedAgentId (agent-attributed CRM writes via authenticated CRM routes, NOT via the action approval flow)",
+      "semantic_responsibility": "FLAG: agents can be attributed on CRM mutations that bypass the propose/approve lifecycle entirely.",
+      "umh_primitive": "Operation",
+      "target_owner": "transports/api/governed.py — when CRM mutations are imported they MUST route through governed_mutation; no agent-attributed write outside the approval flow",
+      "universal_or_eos_specific": "eos_specific gap the substrate closes",
+      "owner_approval_required": true,
+      "notes": "The one place the EOS app's own governance model leaks. Do not reproduce."
+    }
+  ],
+  "not_imported_yet": [
+    "Raw Beast DB schema (agent_actions/oauth_tokens/agent_metrics definitions) — no migration, no schema-push tooling",
+    "Raw route handlers (routes.ts bodies) — semantics only",
+    "UI/client code (action-approval-panel.tsx and all client/) — stays on the Beast",
+    "App-specific mutation logic (storage.ts write methods) — writes come later through governed_mutation",
+    "Secrets/env values — key names were catalogued in #181; no values anywhere",
+    "oauth_tokens plaintext credential pattern — explicitly rejected; 1Password law replaces it"
+  ],
+  "owner_approval_required_before_mutation": [
+    "Any persistent approval-store schema work (ApprovalRequest persistence changes)",
+    "Credential migration: oauth_tokens plaintext → 1Password credential-injection law",
+    "Routing EOS CRM mutations through governed_mutation (changes app behavior)",
+    "Risk-class policy assignment for EOS action types (send_email vs create_task vs create_document)",
+    "Any agent-tier autonomy (approval-free execution) policy",
+    "Any write to the EOS Neon database or the Beast working tree"
+  ],
+  "recommended_first_slice": {
+    "name": "EOS ActionProposal read seam",
+    "shape": "A projection-owned, read-only accessor (projections/eos) translating an EOS agent_actions row shape into a substrate ApprovalRequest view, exposed through one discipline-conformant /eos/actions read surface. No writes, no schema, no executor.",
+    "why": "Smallest seam that exercises the Approval primitive mapping end-to-end against real EOS data, conforms to the read-surface discipline (like /eos/activation), and gives the cockpit a real approval-queue view before any execution wiring.",
+    "explicitly_not": "No approve/reject write path, no executor port, no capability routing — those follow once the read seam is proven."
+  }
+}
