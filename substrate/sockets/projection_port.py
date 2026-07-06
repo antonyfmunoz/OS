@@ -416,3 +416,57 @@ def load_umh_projection_seed(registry_path: str = "") -> dict[str, dict[str, Any
     ProjectionPort so the file is read through the one port surface.
     """
     return get_default_projection_port().load_seed_config(registry_path)
+
+
+def _read_beast_source_sync_file(sync_path: str = "") -> dict[str, Any]:
+    """The ONE reader of data/umh/projection_reconciliation/projection_source_sync.json.
+
+    WP-P4-BEAST-SOURCE-SYNC-001 produced this file (the read-only Beast source
+    readiness harness output); WP-P4-EOS-BEAST-BACKED-BUILD-001 makes it a
+    port-backed read surface so projection readiness accessors compose verified
+    Beast source truth WITHOUT opening the file themselves (read-surface
+    invariant #6). Returns the raw document ({"beast_status", "probe_at",
+    "projections":[...]}), or a safe empty envelope when the file is missing or
+    malformed — never raises.
+    """
+    if not sync_path:
+        sync_path = os.path.join(
+            _REPO_ROOT, "data", "umh", "projection_reconciliation", "projection_source_sync.json"
+        )
+    empty = {"beast_status": "UNKNOWN", "probe_at": "unknown", "projections": []}
+    if not os.path.exists(sync_path):
+        return empty
+    try:
+        with open(sync_path, "r") as f:
+            doc = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.debug("Failed to load Beast source sync: %s", exc)
+        return empty
+    return doc if isinstance(doc, dict) else empty
+
+
+def load_beast_source_sync(sync_path: str = "") -> dict[str, Any]:
+    """Port-backed read of the Beast projection source-readiness record.
+
+    The single entry point read-side consumers use to obtain the VERIFIED Beast
+    source state per projection, instead of opening
+    data/umh/projection_reconciliation/projection_source_sync.json themselves.
+    Returns the raw document; callers index `projections` by `projection_id`.
+    """
+    return _read_beast_source_sync_file(sync_path)
+
+
+def get_beast_source_row(projection_id: str, sync_path: str = "") -> dict[str, Any]:
+    """Return the VERIFIED Beast source row for one projection, or {} if absent.
+
+    Only returns a row when the probe was REACHABLE and the row is
+    beast_verification=VERIFIED — an UNKNOWN/UNREACHABLE record or an unverified
+    row yields {} (never surfaces a stale/false-current state). Never raises.
+    """
+    doc = _read_beast_source_sync_file(sync_path)
+    if doc.get("beast_status") != "REACHABLE":
+        return {}
+    for row in doc.get("projections", []):
+        if row.get("projection_id") == projection_id and row.get("beast_verification") == "VERIFIED":
+            return dict(row)
+    return {}
