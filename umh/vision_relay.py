@@ -41,6 +41,7 @@ try:
     import websockets.server
 except ImportError:
     import subprocess
+
     subprocess.check_call([sys.executable, "-m", "pip", "install", "websockets>=13.0"])
     import websockets
     import websockets.server
@@ -63,6 +64,7 @@ _ALLOWED_ORIGINS = {
     "http://127.0.0.1:5173",
     "https://universalmetaharness.tech",
 }
+
 
 def _check_origin(connection: Any, request: Any) -> None:
     """Reject cross-origin WebSocket connections (CSWSH defense).
@@ -261,7 +263,9 @@ def _check_authority_for_command(who: str) -> bool:
 
 
 def _record_pipeline_metrics(
-    frame_size: int, ingest_ms: float, broadcast_ms: float,
+    frame_size: int,
+    ingest_ms: float,
+    broadcast_ms: float,
 ) -> None:
     """Track frame pipeline metrics for defense-grade observability."""
     global _measured_fps, _fps_window_start, _fps_window_count
@@ -296,11 +300,19 @@ def _record_pipeline_metrics(
 def _get_pipeline_metrics() -> dict[str, Any]:
     """Return current pipeline performance metrics."""
     avg_ingest = sum(_frame_ingest_times) / len(_frame_ingest_times) if _frame_ingest_times else 0
-    avg_broadcast = sum(_frame_broadcast_times) / len(_frame_broadcast_times) if _frame_broadcast_times else 0
+    avg_broadcast = (
+        sum(_frame_broadcast_times) / len(_frame_broadcast_times) if _frame_broadcast_times else 0
+    )
     avg_size = sum(_frame_sizes) / len(_frame_sizes) if _frame_sizes else 0
-    avg_jitter = sum(_frame_jitter_samples) / len(_frame_jitter_samples) if _frame_jitter_samples else 0
+    avg_jitter = (
+        sum(_frame_jitter_samples) / len(_frame_jitter_samples) if _frame_jitter_samples else 0
+    )
     max_jitter = max(_frame_jitter_samples) if _frame_jitter_samples else 0
-    p95_ingest = sorted(_frame_ingest_times)[int(len(_frame_ingest_times) * 0.95)] if len(_frame_ingest_times) >= 5 else avg_ingest
+    p95_ingest = (
+        sorted(_frame_ingest_times)[int(len(_frame_ingest_times) * 0.95)]
+        if len(_frame_ingest_times) >= 5
+        else avg_ingest
+    )
     return {
         "measured_fps": _measured_fps,
         "avg_ingest_ms": round(avg_ingest, 2),
@@ -430,9 +442,13 @@ async def _motion_loop() -> None:
     guard_timeout_s = _motion_guard_ms / 1000.0
     use_physical = _is_physical_ptz_available()
 
-    log.info("motion loop started: motion_id=%s cadence=%dHz guard=%dms mode=%s",
-             _motion_id, cadence_hz, _motion_guard_ms,
-             "physical_ptz" if use_physical else "digital_roi")
+    log.info(
+        "motion loop started: motion_id=%s cadence=%dHz guard=%dms mode=%s",
+        _motion_id,
+        cadence_hz,
+        _motion_guard_ms,
+        "physical_ptz" if use_physical else "digital_roi",
+    )
 
     loop_count = 0
     loop_start = time.time()
@@ -443,8 +459,11 @@ async def _motion_loop() -> None:
             now = time.time()
 
             if now - _motion_last_update > guard_timeout_s:
-                log.warning("motion guard timeout: no update for %.1fs, stopping motion_id=%s",
-                            now - _motion_last_update, _motion_id)
+                log.warning(
+                    "motion guard timeout: no update for %.1fs, stopping motion_id=%s",
+                    now - _motion_last_update,
+                    _motion_id,
+                )
                 _motion_guard_timeouts += 1
                 _motion_active = False
                 if use_physical:
@@ -466,11 +485,14 @@ async def _motion_loop() -> None:
 
             if pan_delta != 0 or tilt_delta != 0 or zoom_delta != 0:
                 if use_physical:
-                    await _dispatch_to_beast("camera.set_position_relative", {
-                        "pan_delta": pan_delta,
-                        "tilt_delta": tilt_delta,
-                        "zoom_delta": zoom_delta,
-                    })
+                    await _dispatch_to_beast(
+                        "camera.set_position_relative",
+                        {
+                            "pan_delta": pan_delta,
+                            "tilt_delta": tilt_delta,
+                            "zoom_delta": zoom_delta,
+                        },
+                    )
                 else:
                     _apply_roi_delta(
                         float(pan_delta),
@@ -499,8 +521,12 @@ async def _motion_loop() -> None:
         log.error("motion loop error: %s", exc)
     finally:
         _motion_active = False
-        log.info("motion loop ended: motion_id=%s loops=%d avg_hz=%.1f",
-                 _motion_id, loop_count, _motion_loop_hz)
+        log.info(
+            "motion loop ended: motion_id=%s loops=%d avg_hz=%.1f",
+            _motion_id,
+            loop_count,
+            _motion_loop_hz,
+        )
 
 
 async def _start_motion(
@@ -583,9 +609,14 @@ async def _stop_motion(motion_id: str = "") -> None:
 
 async def _dispatch_motion_stop() -> None:
     """Send immediate stop to Beast hardware — zero-delta command."""
-    await _dispatch_to_beast("camera.set_position_relative", {
-        "pan_delta": 0, "tilt_delta": 0, "zoom_delta": 0,
-    })
+    await _dispatch_to_beast(
+        "camera.set_position_relative",
+        {
+            "pan_delta": 0,
+            "tilt_delta": 0,
+            "zoom_delta": 0,
+        },
+    )
 
 
 async def _broadcast_motion_state(state: str) -> None:
@@ -690,13 +721,23 @@ async def _smooth_preset_transition(preset: str, duration_s: float = 1.0) -> Non
             pan = int(start_pan + (target_pan - start_pan) * t_smooth)
             tilt = int(start_tilt + (target_tilt - start_tilt) * t_smooth)
             zoom = int(start_zoom + (target_zoom - start_zoom) * t_smooth)
-            await _dispatch_to_beast("camera.set_position", {
-                "pan": pan, "tilt": tilt, "zoom": zoom,
-            })
+            await _dispatch_to_beast(
+                "camera.set_position",
+                {
+                    "pan": pan,
+                    "tilt": tilt,
+                    "zoom": zoom,
+                },
+            )
             await asyncio.sleep(interval)
-        await _dispatch_to_beast("camera.set_position", {
-            "pan": target_pan, "tilt": target_tilt, "zoom": target_zoom,
-        })
+        await _dispatch_to_beast(
+            "camera.set_position",
+            {
+                "pan": target_pan,
+                "tilt": target_tilt,
+                "zoom": target_zoom,
+            },
+        )
         await _broadcast_motion_state("idle")
 
     await _broadcast_motion_state("moving")
@@ -734,13 +775,13 @@ def _direction_to_delta(direction: str, speed: int = 1) -> dict[str, int]:
     """Convert a PTZ direction string into pan/tilt deltas."""
     step = 5 * speed
     deltas: dict[str, dict[str, int]] = {
-        "up":         {"tilt": step},
-        "down":       {"tilt": -step},
-        "left":       {"pan": -step},
-        "right":      {"pan": step},
-        "up_left":    {"pan": -step, "tilt": step},
-        "up_right":   {"pan": step, "tilt": step},
-        "down_left":  {"pan": -step, "tilt": -step},
+        "up": {"tilt": step},
+        "down": {"tilt": -step},
+        "left": {"pan": -step},
+        "right": {"pan": step},
+        "up_left": {"pan": -step, "tilt": step},
+        "up_right": {"pan": step, "tilt": step},
+        "down_left": {"pan": -step, "tilt": -step},
         "down_right": {"pan": step, "tilt": -step},
     }
     d = deltas.get(direction, {})
@@ -748,17 +789,23 @@ def _direction_to_delta(direction: str, speed: int = 1) -> dict[str, int]:
 
 
 async def _send_control_result(
-    ws: Any, request_id: str, operation: str, result: dict[str, Any] | None,
+    ws: Any,
+    request_id: str,
+    operation: str,
+    result: dict[str, Any] | None,
 ) -> None:
     """Send a structured control result back to the cockpit."""
     if result is None:
-        await send_json(ws, {
-            "type": "camera_control_result",
-            "request_id": request_id,
-            "operation": operation,
-            "ok": False,
-            "error": "dispatch failed",
-        })
+        await send_json(
+            ws,
+            {
+                "type": "camera_control_result",
+                "request_id": request_id,
+                "operation": operation,
+                "ok": False,
+                "error": "dispatch failed",
+            },
+        )
         return
     ok = result.get("success", False)
     payload: dict[str, Any] = {
@@ -809,14 +856,17 @@ async def handle_vision(ws: Any) -> None:
             elif msg_type == "vision_subscribe":
                 subscribed = True
                 log.info("viewer subscribed: fps=%s q=%s", msg.get("fps"), msg.get("quality"))
-                await send_json(ws, {
-                    "type": "vision_status",
-                    "streaming": _stream_active,
-                    "width": _stream_width if _stream_active else 0,
-                    "height": _stream_height if _stream_active else 0,
-                    "fps": _stream_fps if _stream_active else 0,
-                    "source": _latest_frame_meta.get("node_id", "none"),
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "vision_status",
+                        "streaming": _stream_active,
+                        "width": _stream_width if _stream_active else 0,
+                        "height": _stream_height if _stream_active else 0,
+                        "fps": _stream_fps if _stream_active else 0,
+                        "source": _latest_frame_meta.get("node_id", "none"),
+                    },
+                )
 
             elif msg_type == "vision_unsubscribe":
                 subscribed = False
@@ -841,24 +891,43 @@ async def handle_vision(ws: Any) -> None:
                     _stream_fps = result.get("fps", _stream_fps)
                     _stream_width = result.get("width", _stream_width)
                     _stream_height = result.get("height", _stream_height)
-                    await send_json(ws, {
-                        "type": "camera_profile_applied",
-                        "profile": profile_name,
-                        "profile_label": result.get("profile_label", profile_name),
-                        "fps": _stream_fps,
-                        "width": _stream_width,
-                        "height": _stream_height,
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "camera_profile_applied",
+                            "profile": profile_name,
+                            "profile_label": result.get("profile_label", profile_name),
+                            "fps": _stream_fps,
+                            "width": _stream_width,
+                            "height": _stream_height,
+                        },
+                    )
                     _emit_vision_event("profile_changed", {"profile": profile_name})
                 else:
-                    await send_json(ws, {"type": "vision_error", "error": result.get("error", "profile switch failed") if result else "dispatch failed"})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_error",
+                            "error": result.get("error", "profile switch failed")
+                            if result
+                            else "dispatch failed",
+                        },
+                    )
 
             elif msg_type == "camera_capabilities":
                 result = await _dispatch_to_beast("camera.capabilities", {})
                 if result and result.get("success"):
                     await send_json(ws, {"type": "camera_capabilities", **result})
                 else:
-                    await send_json(ws, {"type": "camera_capabilities", "success": False, "modes": [], "profiles": {}})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "camera_capabilities",
+                            "success": False,
+                            "modes": [],
+                            "profiles": {},
+                        },
+                    )
 
             elif msg_type == "camera_stream_metrics":
                 result = await _dispatch_to_beast("camera.stream_metrics", {})
@@ -875,36 +944,53 @@ async def handle_vision(ws: Any) -> None:
                 else:
                     result = await _dispatch_to_beast("camera.set_preset", {"preset": preset})
                     if result and not result.get("success"):
-                        await send_json(ws, {"type": "vision_error", "error": result.get("error", "preset failed")})
+                        await send_json(
+                            ws,
+                            {"type": "vision_error", "error": result.get("error", "preset failed")},
+                        )
                     else:
                         _emit_vision_event("preset_applied", {"preset": preset})
 
             elif msg_type == "camera_snapshot":
-                result = await _dispatch_to_beast("camera.snapshot", {
-                    "width": msg.get("width", 1280),
-                    "height": msg.get("height", 720),
-                    "quality": msg.get("quality", 75),
-                })
+                result = await _dispatch_to_beast(
+                    "camera.snapshot",
+                    {
+                        "width": msg.get("width", 1280),
+                        "height": msg.get("height", 720),
+                        "quality": msg.get("quality", 75),
+                    },
+                )
                 if result and result.get("success"):
-                    await send_json(ws, {
-                        "type": "vision_snapshot",
-                        "image_base64": result.get("image_base64", ""),
-                        "width": result.get("width"),
-                        "height": result.get("height"),
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_snapshot",
+                            "image_base64": result.get("image_base64", ""),
+                            "width": result.get("width"),
+                            "height": result.get("height"),
+                        },
+                    )
                 else:
-                    await send_json(ws, {
-                        "type": "vision_error",
-                        "error": result.get("error", "snapshot failed") if result else "dispatch failed",
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_error",
+                            "error": result.get("error", "snapshot failed")
+                            if result
+                            else "dispatch failed",
+                        },
+                    )
 
             elif msg_type == "camera_list_presets":
                 result = await _dispatch_to_beast("camera.list_presets", {})
                 if result and result.get("success"):
-                    await send_json(ws, {
-                        "type": "camera_presets",
-                        "presets": result.get("presets", {}),
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "camera_presets",
+                            "presets": result.get("presets", {}),
+                        },
+                    )
 
             elif msg_type == "camera_save_preset":
                 payload: dict = {
@@ -919,66 +1005,99 @@ async def handle_vision(ws: Any) -> None:
                     payload["zoom"] = msg.get("zoom", 100)
                 result = await _dispatch_to_beast("camera.save_preset", payload)
                 if result and result.get("success"):
-                    await send_json(ws, {
-                        "type": "preset_saved",
-                        "preset": msg.get("preset"),
-                        "pan": result.get("pan"),
-                        "tilt": result.get("tilt"),
-                        "zoom": result.get("zoom"),
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "preset_saved",
+                            "preset": msg.get("preset"),
+                            "pan": result.get("pan"),
+                            "tilt": result.get("tilt"),
+                            "zoom": result.get("zoom"),
+                        },
+                    )
                 else:
-                    await send_json(ws, {
-                        "type": "vision_error",
-                        "error": result.get("error", "save failed") if result else "dispatch failed",
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_error",
+                            "error": result.get("error", "save failed")
+                            if result
+                            else "dispatch failed",
+                        },
+                    )
 
             elif msg_type == "camera_delete_preset":
                 preset = msg.get("preset", "")
-                result = await _dispatch_to_beast("camera.delete_preset", {
-                    "preset": preset,
-                })
+                result = await _dispatch_to_beast(
+                    "camera.delete_preset",
+                    {
+                        "preset": preset,
+                    },
+                )
                 if result and result.get("success"):
                     await send_json(ws, {"type": "preset_deleted", "preset": preset})
                 else:
-                    await send_json(ws, {
-                        "type": "vision_error",
-                        "error": result.get("error", "delete failed") if result else "dispatch failed",
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_error",
+                            "error": result.get("error", "delete failed")
+                            if result
+                            else "dispatch failed",
+                        },
+                    )
 
             elif msg_type == "vision_get_label_corrections":
                 result = await _dispatch_to_beast("camera.label_corrections", {})
                 if result and result.get("success"):
-                    await send_json(ws, {
-                        "type": "label_corrections_list",
-                        "corrections": result.get("corrections", {}),
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "label_corrections_list",
+                            "corrections": result.get("corrections", {}),
+                        },
+                    )
                 else:
-                    await send_json(ws, {
-                        "type": "label_corrections_list",
-                        "corrections": {},
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "label_corrections_list",
+                            "corrections": {},
+                        },
+                    )
 
             elif msg_type == "vision_correct_label":
                 track_id = msg.get("track_id", "")
                 corrected = msg.get("corrected_label", "")
                 raw = msg.get("raw_label", "")
-                result = await _dispatch_to_beast("camera.correct_label", {
-                    "track_id": track_id,
-                    "corrected_label": corrected,
-                    "raw_label": raw,
-                })
-                if result and result.get("success"):
-                    await send_json(ws, {
-                        "type": "label_corrected",
+                result = await _dispatch_to_beast(
+                    "camera.correct_label",
+                    {
                         "track_id": track_id,
                         "corrected_label": corrected,
                         "raw_label": raw,
-                    })
+                    },
+                )
+                if result and result.get("success"):
+                    await send_json(
+                        ws,
+                        {
+                            "type": "label_corrected",
+                            "track_id": track_id,
+                            "corrected_label": corrected,
+                            "raw_label": raw,
+                        },
+                    )
                 else:
-                    await send_json(ws, {
-                        "type": "vision_error",
-                        "error": result.get("error", "label correction failed") if result else "dispatch failed",
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_error",
+                            "error": result.get("error", "label correction failed")
+                            if result
+                            else "dispatch failed",
+                        },
+                    )
 
             elif msg_type == "camera_get_position":
                 request_id = msg.get("request_id", "")
@@ -995,9 +1114,11 @@ async def handle_vision(ws: Any) -> None:
             elif msg_type == "camera_list_devices":
                 log.info("device scan requested by %s", ws.remote_address)
                 result = await _dispatch_to_beast("camera.list_devices", {})
-                log.info("device scan result: success=%s devices=%d",
-                         result.get("success") if result else None,
-                         len(result.get("devices", [])) if result else 0)
+                log.info(
+                    "device scan result: success=%s devices=%d",
+                    result.get("success") if result else None,
+                    len(result.get("devices", [])) if result else 0,
+                )
                 if result and result.get("success"):
                     resp = {
                         "type": "camera_devices",
@@ -1009,52 +1130,85 @@ async def handle_vision(ws: Any) -> None:
                         "type": "camera_devices",
                         "devices": [],
                         "selected_index": 0,
-                        "error": result.get("error", "scan failed") if result else "dispatch failed",
+                        "error": result.get("error", "scan failed")
+                        if result
+                        else "dispatch failed",
                     }
-                log.info("sending camera_devices to %s: %d devices, error=%s",
-                         ws.remote_address, len(resp.get("devices", [])), resp.get("error"))
+                log.info(
+                    "sending camera_devices to %s: %d devices, error=%s",
+                    ws.remote_address,
+                    len(resp.get("devices", [])),
+                    resp.get("error"),
+                )
                 await send_json(ws, resp)
 
             elif msg_type == "camera_select_device":
                 device_index = msg.get("device_index", 0)
-                result = await _dispatch_to_beast("camera.select_device", {
-                    "device_index": device_index,
-                    "fps": msg.get("fps", 15),
-                    "width": msg.get("width", 1280),
-                    "height": msg.get("height", 720),
-                    "quality": msg.get("quality", 70),
-                })
+                result = await _dispatch_to_beast(
+                    "camera.select_device",
+                    {
+                        "device_index": device_index,
+                        "fps": msg.get("fps", 15),
+                        "width": msg.get("width", 1280),
+                        "height": msg.get("height", 720),
+                        "quality": msg.get("quality", 70),
+                    },
+                )
                 if result and result.get("success"):
-                    await send_json(ws, {
-                        "type": "camera_device_selected",
-                        "device_index": result.get("device_index"),
-                        "device_name": result.get("device_name", ""),
-                        "restarted_stream": result.get("restarted_stream", False),
-                        "validation": result.get("validation"),
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "camera_device_selected",
+                            "device_index": result.get("device_index"),
+                            "device_name": result.get("device_name", ""),
+                            "restarted_stream": result.get("restarted_stream", False),
+                            "validation": result.get("validation"),
+                        },
+                    )
                 else:
-                    await send_json(ws, {
-                        "type": "camera_device_select_failed",
-                        "error": result.get("error", "select failed") if result else "dispatch failed",
-                        "device_index": result.get("device_index", device_index) if result else device_index,
-                        "rolled_back": result.get("rolled_back", False) if result else False,
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "camera_device_select_failed",
+                            "error": result.get("error", "select failed")
+                            if result
+                            else "dispatch failed",
+                            "device_index": result.get("device_index", device_index)
+                            if result
+                            else device_index,
+                            "rolled_back": result.get("rolled_back", False) if result else False,
+                        },
+                    )
 
             elif msg_type == "camera_ptz_move":
                 request_id = msg.get("request_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
-                    await _send_control_result(ws, request_id, "camera.ptz.move", {"success": False, "error": f"blocked: {_current_authority} holds authority"})
+                    _emit_vision_event(
+                        "command_blocked",
+                        {"cmd": msg_type, "who": who, "holder": _current_authority},
+                    )
+                    await _send_control_result(
+                        ws,
+                        request_id,
+                        "camera.ptz.move",
+                        {
+                            "success": False,
+                            "error": f"blocked: {_current_authority} holds authority",
+                        },
+                    )
                 else:
                     delta = _direction_to_delta(msg.get("direction", ""), msg.get("speed", 1))
                     pos_result = await _dispatch_to_beast("camera.get_position", {})
                     if pos_result and pos_result.get("success"):
-                        result = await _dispatch_to_beast("camera.set_position", {
-                            "pan": pos_result["pan"] + delta.get("pan", 0),
-                            "tilt": pos_result["tilt"] + delta.get("tilt", 0),
-                            "zoom": pos_result.get("zoom", 100),
-                        })
+                        result = await _dispatch_to_beast(
+                            "camera.set_position",
+                            {
+                                "pan": pos_result["pan"] + delta.get("pan", 0),
+                                "tilt": pos_result["tilt"] + delta.get("tilt", 0),
+                                "zoom": pos_result.get("zoom", 100),
+                            },
+                        )
                     else:
                         result = pos_result
                     await _send_control_result(ws, request_id, "camera.ptz.move", result)
@@ -1063,33 +1217,61 @@ async def handle_vision(ws: Any) -> None:
                 request_id = msg.get("request_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
-                    await _send_control_result(ws, request_id, "camera.ptz.set_position", {"success": False, "error": f"blocked: {_current_authority} holds authority"})
+                    _emit_vision_event(
+                        "command_blocked",
+                        {"cmd": msg_type, "who": who, "holder": _current_authority},
+                    )
+                    await _send_control_result(
+                        ws,
+                        request_id,
+                        "camera.ptz.set_position",
+                        {
+                            "success": False,
+                            "error": f"blocked: {_current_authority} holds authority",
+                        },
+                    )
                 else:
-                    result = await _dispatch_to_beast("camera.set_position", {
-                        "pan": msg.get("pan", 0),
-                        "tilt": msg.get("tilt", 0),
-                        "zoom": msg.get("zoom", 100),
-                    })
+                    result = await _dispatch_to_beast(
+                        "camera.set_position",
+                        {
+                            "pan": msg.get("pan", 0),
+                            "tilt": msg.get("tilt", 0),
+                            "zoom": msg.get("zoom", 100),
+                        },
+                    )
                     await _send_control_result(ws, request_id, "camera.ptz.set_position", result)
 
             elif msg_type == "camera_ptz_relative":
                 request_id = msg.get("request_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
-                    await _send_control_result(ws, request_id, "camera.ptz.relative", {"success": False, "error": f"blocked: {_current_authority} holds authority"})
+                    _emit_vision_event(
+                        "command_blocked",
+                        {"cmd": msg_type, "who": who, "holder": _current_authority},
+                    )
+                    await _send_control_result(
+                        ws,
+                        request_id,
+                        "camera.ptz.relative",
+                        {
+                            "success": False,
+                            "error": f"blocked: {_current_authority} holds authority",
+                        },
+                    )
                 else:
                     pos_result = await _dispatch_to_beast("camera.get_position", {})
                     if pos_result and pos_result.get("success"):
                         new_pan = pos_result["pan"] + msg.get("pan_delta", 0)
                         new_tilt = pos_result["tilt"] + msg.get("tilt_delta", 0)
                         new_zoom = max(100, pos_result["zoom"] + msg.get("zoom_delta", 0))
-                        result = await _dispatch_to_beast("camera.set_position", {
-                            "pan": new_pan,
-                            "tilt": new_tilt,
-                            "zoom": new_zoom,
-                        })
+                        result = await _dispatch_to_beast(
+                            "camera.set_position",
+                            {
+                                "pan": new_pan,
+                                "tilt": new_tilt,
+                                "zoom": new_zoom,
+                            },
+                        )
                     else:
                         result = pos_result
                     await _send_control_result(ws, request_id, "camera.ptz.relative", result)
@@ -1106,7 +1288,10 @@ async def handle_vision(ws: Any) -> None:
                 motion_id = msg.get("motion_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    _emit_vision_event(
+                        "command_blocked",
+                        {"cmd": msg_type, "who": who, "holder": _current_authority},
+                    )
                     await _broadcast_motion_ack(motion_id, "start_motion", False)
                 else:
                     await _start_motion(
@@ -1123,7 +1308,10 @@ async def handle_vision(ws: Any) -> None:
                 motion_id = msg.get("motion_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    _emit_vision_event(
+                        "command_blocked",
+                        {"cmd": msg_type, "who": who, "holder": _current_authority},
+                    )
                     await _broadcast_motion_ack(motion_id, "update_motion", False)
                 else:
                     await _update_motion(
@@ -1144,7 +1332,10 @@ async def handle_vision(ws: Any) -> None:
                 motion_id = msg.get("motion_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    _emit_vision_event(
+                        "command_blocked",
+                        {"cmd": msg_type, "who": who, "holder": _current_authority},
+                    )
                     await _broadcast_motion_ack(motion_id, "zoom_start", False)
                 else:
                     await _start_motion(
@@ -1161,7 +1352,10 @@ async def handle_vision(ws: Any) -> None:
                 motion_id = msg.get("motion_id", "")
                 who = msg.get("authority", "operator")
                 if not _check_authority_for_command(who):
-                    _emit_vision_event("command_blocked", {"cmd": msg_type, "who": who, "holder": _current_authority})
+                    _emit_vision_event(
+                        "command_blocked",
+                        {"cmd": msg_type, "who": who, "holder": _current_authority},
+                    )
                     await _broadcast_motion_ack(motion_id, "zoom_update", False)
                 else:
                     await _update_motion(
@@ -1185,26 +1379,72 @@ async def handle_vision(ws: Any) -> None:
             elif msg_type == "vision_scene_describe":
                 result = await _dispatch_to_beast("camera.scene_describe", {})
                 if result and result.get("success"):
-                    await send_json(ws, {"type": "vision_scene_describe_result", "description": result["description"], "success": True})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_scene_describe_result",
+                            "description": result["description"],
+                            "success": True,
+                        },
+                    )
                 else:
                     state = _get_scene_state()
-                    summary = state.get("scene", {}).get("summary", "") if isinstance(state.get("scene"), dict) else ""
-                    await send_json(ws, {"type": "vision_scene_describe_result", "description": summary or "Scene data unavailable.", "success": bool(summary)})
+                    summary = (
+                        state.get("scene", {}).get("summary", "")
+                        if isinstance(state.get("scene"), dict)
+                        else ""
+                    )
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_scene_describe_result",
+                            "description": summary or "Scene data unavailable.",
+                            "success": bool(summary),
+                        },
+                    )
 
             elif msg_type == "vision_active_tracks":
                 result = await _dispatch_to_beast("camera.active_tracks", {})
                 if result and result.get("success"):
-                    await send_json(ws, {"type": "vision_active_tracks_result", "tracks": result["tracks"], "success": True})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_active_tracks_result",
+                            "tracks": result["tracks"],
+                            "success": True,
+                        },
+                    )
                 else:
-                    await send_json(ws, {"type": "vision_active_tracks_result", "tracks": [], "success": False})
+                    await send_json(
+                        ws, {"type": "vision_active_tracks_result", "tracks": [], "success": False}
+                    )
 
             elif msg_type == "vision_track_query":
                 label = msg.get("label", "")
                 result = await _dispatch_to_beast("camera.track_query", {"label": label})
                 if result and result.get("success"):
-                    await send_json(ws, {"type": "vision_track_query_result", "track": result["track"], "success": True, "label": label})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_track_query_result",
+                            "track": result["track"],
+                            "success": True,
+                            "label": label,
+                        },
+                    )
                 else:
-                    await send_json(ws, {"type": "vision_track_query_result", "track": None, "success": False, "label": label, "error": result.get("error", "not found") if result else "dispatch failed"})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_track_query_result",
+                            "track": None,
+                            "success": False,
+                            "label": label,
+                            "error": result.get("error", "not found")
+                            if result
+                            else "dispatch failed",
+                        },
+                    )
 
             elif msg_type == "vision_look_at":
                 label = msg.get("label", "")
@@ -1214,25 +1454,34 @@ async def handle_vision(ws: Any) -> None:
                     cx, cy = track.get("center", [0.5, 0.5])
                     pan_delta = int((cx - 0.5) * 40)
                     tilt_delta = int((0.5 - cy) * 40)
-                    ptz_result = await _dispatch_to_beast("camera.set_position_relative", {
-                        "pan_delta": pan_delta,
-                        "tilt_delta": tilt_delta,
-                        "zoom_delta": 0,
-                    })
-                    await send_json(ws, {
-                        "type": "vision_look_at_result",
-                        "success": bool(ptz_result and ptz_result.get("success")),
-                        "label": label,
-                        "track_id": track.get("track_id"),
-                        "ptz_result": ptz_result,
-                    })
+                    ptz_result = await _dispatch_to_beast(
+                        "camera.set_position_relative",
+                        {
+                            "pan_delta": pan_delta,
+                            "tilt_delta": tilt_delta,
+                            "zoom_delta": 0,
+                        },
+                    )
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_look_at_result",
+                            "success": bool(ptz_result and ptz_result.get("success")),
+                            "label": label,
+                            "track_id": track.get("track_id"),
+                            "ptz_result": ptz_result,
+                        },
+                    )
                 else:
-                    await send_json(ws, {
-                        "type": "vision_look_at_result",
-                        "success": False,
-                        "label": label,
-                        "error": f"no active track for '{label}'",
-                    })
+                    await send_json(
+                        ws,
+                        {
+                            "type": "vision_look_at_result",
+                            "success": False,
+                            "label": label,
+                            "error": f"no active track for '{label}'",
+                        },
+                    )
 
             elif msg_type == "vision_analyze":
                 result = await _analyze_current_frame(msg.get("transcript", ""))
@@ -1391,21 +1640,27 @@ async def handle_vision(ws: Any) -> None:
                 since_seq = msg.get("since_seq", 0)
                 limit = min(msg.get("limit", 100), 500)
                 events = [e for e in _vision_events if e["seq"] > since_seq][-limit:]
-                await send_json(ws, {
-                    "type": "vision_events",
-                    "events": events,
-                    "total": len(_vision_events),
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "vision_events",
+                        "events": events,
+                        "total": len(_vision_events),
+                    },
+                )
 
             elif msg_type == "command_log":
                 last_n = min(msg.get("last", 50), _COMMAND_LOG_MAX)
-                await send_json(ws, {
-                    "type": "command_log",
-                    "commands": _command_log[-last_n:],
-                    "total": _dispatch_total,
-                    "ok": _dispatch_ok_count,
-                    "fail": _dispatch_fail_count,
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "command_log",
+                        "commands": _command_log[-last_n:],
+                        "total": _dispatch_total,
+                        "ok": _dispatch_ok_count,
+                        "fail": _dispatch_fail_count,
+                    },
+                )
 
             elif msg_type == "fault_inject":
                 fault = msg.get("fault", "")
@@ -1414,9 +1669,24 @@ async def handle_vision(ws: Any) -> None:
                     _fault_inject[fault] = bool(active)
                     _emit_vision_event("fault_inject", {"fault": fault, "active": active})
                     log.warning("fault injection: %s = %s", fault, active)
-                    await send_json(ws, {"type": "fault_inject_ack", "fault": fault, "active": active, "faults": dict(_fault_inject)})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "fault_inject_ack",
+                            "fault": fault,
+                            "active": active,
+                            "faults": dict(_fault_inject),
+                        },
+                    )
                 else:
-                    await send_json(ws, {"type": "fault_inject_ack", "error": f"unknown fault: {fault}", "faults": dict(_fault_inject)})
+                    await send_json(
+                        ws,
+                        {
+                            "type": "fault_inject_ack",
+                            "error": f"unknown fault: {fault}",
+                            "faults": dict(_fault_inject),
+                        },
+                    )
 
             elif msg_type == "fault_status":
                 await send_json(ws, {"type": "fault_status", "faults": dict(_fault_inject)})
@@ -1425,45 +1695,60 @@ async def handle_vision(ws: Any) -> None:
                 who = msg.get("who", "operator")
                 reason = msg.get("reason", "")
                 accepted = _claim_authority(who, reason)
-                await send_json(ws, {
-                    "type": "authority_state",
-                    "current": _current_authority,
-                    "accepted": accepted,
-                    "decay_seconds": _AUTHORITY_DECAY_SECONDS,
-                    "log": _authority_log[-10:],
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "authority_state",
+                        "current": _current_authority,
+                        "accepted": accepted,
+                        "decay_seconds": _AUTHORITY_DECAY_SECONDS,
+                        "log": _authority_log[-10:],
+                    },
+                )
 
             elif msg_type == "authority_release":
                 who = msg.get("who", "operator")
                 released = _release_authority(who)
-                await send_json(ws, {
-                    "type": "authority_state",
-                    "current": _current_authority,
-                    "released": released,
-                    "log": _authority_log[-10:],
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "authority_state",
+                        "current": _current_authority,
+                        "released": released,
+                        "log": _authority_log[-10:],
+                    },
+                )
 
             elif msg_type == "authority_state":
-                await send_json(ws, {
-                    "type": "authority_state",
-                    "current": _current_authority,
-                    "decayed": _authority_has_decayed(),
-                    "decay_seconds": _AUTHORITY_DECAY_SECONDS,
-                    "log": _authority_log[-10:],
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "authority_state",
+                        "current": _current_authority,
+                        "decayed": _authority_has_decayed(),
+                        "decay_seconds": _AUTHORITY_DECAY_SECONDS,
+                        "log": _authority_log[-10:],
+                    },
+                )
 
             elif msg_type == "pipeline_metrics":
-                await send_json(ws, {
-                    "type": "pipeline_metrics",
-                    **_get_pipeline_metrics(),
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "pipeline_metrics",
+                        **_get_pipeline_metrics(),
+                    },
+                )
 
             elif msg_type == "camera_registry":
-                await send_json(ws, {
-                    "type": "camera_registry",
-                    "cameras": _camera_registry,
-                    "active": _active_camera_id,
-                })
+                await send_json(
+                    ws,
+                    {
+                        "type": "camera_registry",
+                        "cameras": _camera_registry,
+                        "active": _active_camera_id,
+                    },
+                )
 
     except websockets.exceptions.ConnectionClosed:
         log.info("viewer disconnected: %s", ws.remote_address)
@@ -1567,7 +1852,10 @@ async def _toggle_diagnostic_overlay(enabled: bool) -> None:
 
 
 async def _start_stream(
-    fps: int = 30, width: int = 1280, height: int = 720, quality: int = 70,
+    fps: int = 30,
+    width: int = 1280,
+    height: int = 720,
+    quality: int = 70,
     profile: str = "",
 ) -> None:
     global _stream_active, _stream_fps, _stream_width, _stream_height, _stream_quality
@@ -1580,7 +1868,9 @@ async def _start_stream(
         log.info("stream active with fresh frames (%.1fs ago), skipping re-dispatch", frame_age)
         return
     if _stream_active:
-        log.info("stream marked active but frames stale (%.1fs) — re-dispatching to Beast", frame_age)
+        log.info(
+            "stream marked active but frames stale (%.1fs) — re-dispatching to Beast", frame_age
+        )
     _stream_active = True
     dispatch_params: dict[str, Any] = {
         "fps": _stream_fps,
@@ -1592,16 +1882,37 @@ async def _start_stream(
         dispatch_params["profile"] = profile
     result = await _dispatch_to_beast("camera.stream_start", dispatch_params)
     if result and result.get("success"):
-        log.info("Beast stream started: %dx%d @%dfps q%d profile=%s", width, height, _stream_fps, quality, profile or "default")
-        _emit_vision_event("stream_started", {"width": width, "height": height, "fps": _stream_fps, "profile": profile or "balanced"})
+        log.info(
+            "Beast stream started: %dx%d @%dfps q%d profile=%s",
+            width,
+            height,
+            _stream_fps,
+            quality,
+            profile or "default",
+        )
+        _emit_vision_event(
+            "stream_started",
+            {
+                "width": width,
+                "height": height,
+                "fps": _stream_fps,
+                "profile": profile or "balanced",
+            },
+        )
     else:
         log.warning("Beast stream_start failed: %s", result)
         _stream_active = False
     for ws in list(_clients):
-        await send_json(ws, {
-            "type": "vision_status", "streaming": True,
-            "fps": _stream_fps, "width": _stream_width, "height": _stream_height,
-        })
+        await send_json(
+            ws,
+            {
+                "type": "vision_status",
+                "streaming": True,
+                "fps": _stream_fps,
+                "width": _stream_width,
+                "height": _stream_height,
+            },
+        )
 
 
 async def _stop_stream() -> None:
@@ -1708,7 +2019,8 @@ async def broadcast_frame(jpeg_bytes: bytes, meta: dict[str, Any]) -> None:
         _clients.difference_update(dead)
 
 
-_JPEG_SOI = b'\xff\xd8'
+_JPEG_SOI = b"\xff\xd8"
+
 
 def receive_mesh_frame(frame_data: dict[str, Any]) -> None:
     """Sync entry point for node mesh callback — decodes base64 and broadcasts."""
@@ -1725,7 +2037,11 @@ def receive_mesh_frame(frame_data: dict[str, Any]) -> None:
         return
 
     if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
-        log.warning("frame rejected: not a valid JPEG (header=%s, size=%d)", jpeg_bytes[:2].hex() if jpeg_bytes else "empty", len(jpeg_bytes))
+        log.warning(
+            "frame rejected: not a valid JPEG (header=%s, size=%d)",
+            jpeg_bytes[:2].hex() if jpeg_bytes else "empty",
+            len(jpeg_bytes),
+        )
         return
 
     meta = {k: v for k, v in frame_data.items() if k != "image_base64"}
@@ -1737,6 +2053,7 @@ def receive_mesh_frame(frame_data: dict[str, Any]) -> None:
 
 _binary_frame_count = 0
 
+
 def receive_binary_frame(jpeg_bytes: bytes, meta_json: str = "") -> None:
     """Binary frame ingest — accepts raw JPEG bytes, no base64 overhead.
 
@@ -1746,7 +2063,12 @@ def receive_binary_frame(jpeg_bytes: bytes, meta_json: str = "") -> None:
     global _binary_frame_count
     _binary_frame_count += 1
     if _binary_frame_count <= 3 or _binary_frame_count % 100 == 0:
-        log.info("binary frame received: %d bytes, total=%d, clients=%d", len(jpeg_bytes), _binary_frame_count, len(_clients))
+        log.info(
+            "binary frame received: %d bytes, total=%d, clients=%d",
+            len(jpeg_bytes),
+            _binary_frame_count,
+            len(_clients),
+        )
     if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
         log.warning("binary frame rejected: not JPEG (size=%d)", len(jpeg_bytes))
         return
@@ -1760,7 +2082,12 @@ def receive_binary_frame(jpeg_bytes: bytes, meta_json: str = "") -> None:
     if loop and loop.is_running():
         asyncio.run_coroutine_threadsafe(broadcast_frame(jpeg_bytes, meta), loop)
     elif _binary_frame_count <= 5:
-        log.warning("binary frame %d: event loop not available (loop=%s, running=%s)", _binary_frame_count, loop is not None, loop.is_running() if loop else False)
+        log.warning(
+            "binary frame %d: event loop not available (loop=%s, running=%s)",
+            _binary_frame_count,
+            loop is not None,
+            loop.is_running() if loop else False,
+        )
 
 
 _event_loop: asyncio.AbstractEventLoop | None = None
@@ -1775,10 +2102,12 @@ _BEAST_NODE_ID = os.getenv("VISION_BEAST_NODE_ID", "windows-desktop")
 
 # ── Scene manager integration ───────────────────────────────────────
 
+
 def _get_scene_manager():
     """Lazy-import scene manager to avoid circular deps at module load."""
     try:
         from substrate.workstation.vision_scene import get_scene_manager
+
         return get_scene_manager()
     except Exception as exc:
         log.warning("scene manager unavailable: %s", exc)
@@ -1824,7 +2153,12 @@ def _watch_start(target: str, condition: str = "moved") -> dict:
         return {"success": False, "error": "scene manager unavailable"}
     watch = mgr.start_watch(target, condition=condition)
     if watch:
-        return {"success": True, "watch_id": watch.watch_id, "target": target, "condition": condition}
+        return {
+            "success": True,
+            "watch_id": watch.watch_id,
+            "target": target,
+            "condition": condition,
+        }
     return {"success": False, "error": "max watches reached"}
 
 
@@ -1861,9 +2195,11 @@ def _visual_query(target: str) -> dict:
 
 # ── Tracker stack handlers ────────────────────────────────────────
 
+
 def _get_tracker_manager():
     try:
         from substrate.workstation.tracker_stack import get_tracker_manager
+
         mgr = get_tracker_manager()
         if not mgr.active_stack:
             mgr.create_stack("default", "Default Stack")
@@ -1926,16 +2262,20 @@ def _tracker_state() -> dict:
 
 # ── Preset CRUD handlers ─────────────────────────────────────────
 
+
 def _get_preset_manager():
     try:
         from substrate.workstation.vision_presets import get_preset_manager
+
         return get_preset_manager()
     except Exception as exc:
         log.warning("preset manager unavailable: %s", exc)
         return None
 
 
-def _preset_create(preset_id: str, label: str, description: str = "", ptz: dict | None = None) -> dict:
+def _preset_create(
+    preset_id: str, label: str, description: str = "", ptz: dict | None = None
+) -> dict:
     mgr = _get_preset_manager()
     if not mgr:
         return {"success": False, "error": "preset manager unavailable"}
@@ -1994,9 +2334,11 @@ def _preset_state() -> dict:
 
 # ── Trigger chain handlers ────────────────────────────────────────
 
+
 def _get_chain_manager():
     try:
         from substrate.workstation.trigger_chains import get_chain_manager
+
         return get_chain_manager()
     except Exception as exc:
         log.warning("chain manager unavailable: %s", exc)
@@ -2068,9 +2410,11 @@ def _chain_state() -> dict:
 
 # ── Security mode handlers ────────────────────────────────────────
 
+
 def _get_security_manager():
     try:
         from substrate.workstation.security_mode import get_security_manager
+
         return get_security_manager()
     except Exception as exc:
         log.warning("security manager unavailable: %s", exc)
@@ -2104,13 +2448,19 @@ async def _analyze_current_frame(transcript: str = "") -> dict:
     """Analyze the latest frame with VLM if available."""
     global _latest_frame
     if _latest_frame is None:
-        return {"answer": "No frame available. Camera may be off.", "confidence": "none", "source": "no_frame"}
+        return {
+            "answer": "No frame available. Camera may be off.",
+            "confidence": "none",
+            "source": "no_frame",
+        }
 
     import base64
+
     b64 = base64.b64encode(_latest_frame).decode()
 
     try:
         from substrate.workstation.camera_commands import analyze_snapshot
+
         analysis = analyze_snapshot(image_base64=b64, transcript=transcript)
     except Exception as exc:
         log.warning("VLM analysis failed: %s", exc)
@@ -2124,6 +2474,7 @@ async def _analyze_current_frame(transcript: str = "") -> dict:
     if mgr:
         import time as _time
         from substrate.workstation.vision_query import _extract_objects_from_vlm
+
         detected = _extract_objects_from_vlm(analysis)
         mgr.update_scene_from_frame(
             frame_id=f"frame_{int(_time.time() * 1000)}",
@@ -2153,12 +2504,14 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
     try:
         import urllib.request
 
-        payload = json.dumps({
-            "node_id": _BEAST_NODE_ID,
-            "capability": operation,
-            "params": params,
-            "timeout": 10,
-        }).encode()
+        payload = json.dumps(
+            {
+                "node_id": _BEAST_NODE_ID,
+                "capability": operation,
+                "params": params,
+                "timeout": 10,
+            }
+        ).encode()
         req = urllib.request.Request(
             _mesh_dispatch_url,
             data=payload,
@@ -2190,8 +2543,12 @@ def _dispatch_to_beast_sync(operation: str, params: dict[str, Any]) -> dict[str,
 
 
 def _record_command(
-    cmd_id: int, operation: str, sent_at: float,
-    rtt_ms: float, success: bool, error: str | None = None,
+    cmd_id: int,
+    operation: str,
+    sent_at: float,
+    rtt_ms: float,
+    success: bool,
+    error: str | None = None,
 ) -> None:
     entry: dict[str, Any] = {
         "id": cmd_id,
@@ -2248,6 +2605,7 @@ def _build_health() -> dict[str, Any]:
     beast_mesh_connected = False
     try:
         import urllib.request
+
         req = urllib.request.Request(
             _mesh_dispatch_url.replace("/dispatch", "/health"),
             method="GET",
@@ -2261,14 +2619,11 @@ def _build_health() -> dict[str, Any]:
                     for n in mesh_data.get("nodes", [])
                 ]
             beast_mesh_connected = any(
-                nid.startswith("windows") or nid == "beast_windows"
-                for nid in node_ids
+                nid.startswith("windows") or nid == "beast_windows" for nid in node_ids
             )
     except Exception:
         pass
-    beast_frames_recent = (
-        _last_frame_at > 0 and frame_age_ms >= 0 and frame_age_ms < 10000
-    )
+    beast_frames_recent = _last_frame_at > 0 and frame_age_ms >= 0 and frame_age_ms < 10000
     beast_connected = beast_mesh_connected or beast_frames_recent
 
     # Tracker state
@@ -2443,12 +2798,14 @@ async def _health_server() -> None:
                         if part.startswith("last="):
                             last_n = min(int(part.split("=", 1)[1]), _COMMAND_LOG_MAX)
                 entries = _command_log[-last_n:]
-                body = json.dumps({
-                    "commands": entries,
-                    "total": _dispatch_total,
-                    "ok": _dispatch_ok_count,
-                    "fail": _dispatch_fail_count,
-                }).encode()
+                body = json.dumps(
+                    {
+                        "commands": entries,
+                        "total": _dispatch_total,
+                        "ok": _dispatch_ok_count,
+                        "fail": _dispatch_fail_count,
+                    }
+                ).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -2460,12 +2817,14 @@ async def _health_server() -> None:
                     self.end_headers()
                     self.wfile.write(b'{"error": "no frame available"}')
                     return
-                body = json.dumps({
-                    "image_base64": base64.b64encode(_latest_frame).decode(),
-                    "mime_type": "image/jpeg",
-                    "meta": _latest_frame_meta,
-                    "timestamp": _latest_frame_meta.get("timestamp", ""),
-                }).encode()
+                body = json.dumps(
+                    {
+                        "image_base64": base64.b64encode(_latest_frame).decode(),
+                        "mime_type": "image/jpeg",
+                        "meta": _latest_frame_meta,
+                        "timestamp": _latest_frame_meta.get("timestamp", ""),
+                    }
+                ).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -2478,6 +2837,7 @@ async def _health_server() -> None:
             if self.path == "/frame":
                 if _FRAME_INGEST_TOKEN:
                     import hmac
+
                     provided = self.headers.get("X-Frame-Token", "")
                     if not hmac.compare_digest(provided, _FRAME_INGEST_TOKEN):
                         self.send_response(403)
@@ -2501,6 +2861,7 @@ async def _health_server() -> None:
             elif self.path == "/frame/binary":
                 if _FRAME_INGEST_TOKEN:
                     import hmac
+
                     provided = self.headers.get("X-Frame-Token", "")
                     if not hmac.compare_digest(provided, _FRAME_INGEST_TOKEN):
                         self.send_response(403)
@@ -2544,6 +2905,7 @@ async def _frame_ingest_ws_handler(ws: Any) -> None:
             auth_msg = await asyncio.wait_for(ws.recv(), timeout=5)
             if isinstance(auth_msg, str):
                 import hmac
+
                 if not hmac.compare_digest(auth_msg, _FRAME_INGEST_TOKEN):
                     await ws.close(4001, "auth failed")
                     return
@@ -2563,8 +2925,8 @@ async def _frame_ingest_ws_handler(ws: Any) -> None:
             meta_len = _struct.unpack(">I", msg[:4])[0]
             if meta_len > 65536 or 4 + meta_len > len(msg):
                 continue
-            meta_json = msg[4:4 + meta_len]
-            jpeg_bytes = msg[4 + meta_len:]
+            meta_json = msg[4 : 4 + meta_len]
+            jpeg_bytes = msg[4 + meta_len :]
             if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != _JPEG_SOI:
                 continue
             try:
@@ -2575,7 +2937,12 @@ async def _frame_ingest_ws_handler(ws: Any) -> None:
                 meta = {}
             frame_n += 1
             if frame_n <= 3 or frame_n % 500 == 0:
-                log.info("ingest-ws frame %d: %d bytes jpeg, %d clients", frame_n, len(jpeg_bytes), len(_clients))
+                log.info(
+                    "ingest-ws frame %d: %d bytes jpeg, %d clients",
+                    frame_n,
+                    len(jpeg_bytes),
+                    len(_clients),
+                )
             await broadcast_frame(jpeg_bytes, meta)
     except websockets.ConnectionClosed:
         pass
@@ -2606,13 +2973,21 @@ async def main() -> None:
     asyncio.create_task(_command_path_ping_loop())
 
     ingest_server = await websockets.serve(
-        _frame_ingest_ws_handler, "127.0.0.1", ingest_port,
-        ping_interval=10, ping_timeout=20, max_size=MAX_FRAME_BYTES + 65536,
+        _frame_ingest_ws_handler,
+        "127.0.0.1",
+        ingest_port,
+        ping_interval=10,
+        ping_timeout=20,
+        max_size=MAX_FRAME_BYTES + 65536,
     )
 
     async with websockets.serve(
-        handle_vision, HOST, PORT,
-        ping_interval=20, ping_timeout=20, max_size=MAX_FRAME_BYTES + 1024,
+        handle_vision,
+        HOST,
+        PORT,
+        ping_interval=20,
+        ping_timeout=20,
+        max_size=MAX_FRAME_BYTES + 1024,
         process_request=_check_origin,
     ):
         log.info("Vision relay ready — frame fan-out mode")
