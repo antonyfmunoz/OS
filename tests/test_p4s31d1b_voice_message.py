@@ -38,8 +38,7 @@ _ADAPTER_PATH = _API / "platform-voice-adapter.ts"
 _RIGHT_RAIL_PATH = _RENDERER / "components" / "RightRail.tsx"
 
 _CONTRACT_PATH = (
-    Path(_WORKTREE).parent / "p4s31d1b-contract" / "data" / "umh" / "voice"
-    / "voice_message_contract.json"
+    Path(_WORKTREE) / "data" / "umh" / "voice" / "voice_message_contract.json"
 )
 
 _VOICE_FILES = [_STORE_PATH, _CONTROLLER_PATH, _VOICE_WS_PATH, _ADAPTER_PATH]

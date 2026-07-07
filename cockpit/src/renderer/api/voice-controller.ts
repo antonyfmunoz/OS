@@ -458,6 +458,28 @@ function wireEvents(): void {
 
 export async function startVoice(): Promise<void> {
   const vs = useVoiceStore.getState()
+
+  // P4S-31D1-C: exactly ONE active recorder. A second mic tap while a recording
+  // is live must not spawn a concurrent recorder / zombie "listening…" card —
+  // finalize the in-flight one first, then the caller taps again to start fresh.
+  const activeState = vs.micState
+  if (
+    activeState === 'listening' ||
+    activeState === 'recording' ||
+    activeState === 'requesting_permission' ||
+    activeState === 'connecting_voice_ws'
+  ) {
+    log('start_ignored_recorder_active', activeState)
+    if (activeState === 'listening' || activeState === 'recording') {
+      _finalizeRecording('manual_stop')
+    }
+    return
+  }
+  if (recorder || finalizing) {
+    log('start_ignored_recorder_or_finalizing')
+    return
+  }
+
   vs.setError(null)
   vs.setLastOutcome(null)
   vs.setChunksSent(0)
@@ -502,10 +524,17 @@ export async function startVoice(): Promise<void> {
   log('permission_requesting')
 
   let stream: MediaStream
+  let captureDiagnostics: Record<string, unknown> = {}
   try {
     const started = await c.startMic()
     stream = started.stream
+    captureDiagnostics = started.diagnostics
     log('mic_stream_live', `trackState=${started.trackState}`)
+    // P4S-31D1-C: if the capture context did not resume, chunks will never
+    // flow — surface it immediately rather than after a 40s dead recording.
+    if (captureDiagnostics.audio_context_state !== 'running') {
+      log('capture_context_not_running', String(captureDiagnostics.audio_context_state))
+    }
   } catch (err: unknown) {
     const error = err as Error & { name?: string }
     log('mic_failed', error.name, error.message)
