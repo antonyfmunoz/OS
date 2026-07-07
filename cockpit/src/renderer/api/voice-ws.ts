@@ -167,6 +167,20 @@ export class VoiceWsClient {
     return this._chunkCount
   }
 
+  /**
+   * Send a bare control frame (e.g. 'mic_start' / 'mic_stop') without touching
+   * getUserMedia. Used by the Lane E retry path, which streams a stored blob's
+   * PCM rather than live mic audio.
+   */
+  sendControl(type: string): void {
+    this.ws.send(type)
+  }
+
+  /** Stream one PCM16 chunk over the WS (retry path — no live mic). */
+  sendPcm(buf: ArrayBuffer): void {
+    this.ws.sendBinary(buf)
+  }
+
   on(type: string, handler: (data: Record<string, unknown>) => void): () => void {
     return this.ws.on(type, handler)
   }

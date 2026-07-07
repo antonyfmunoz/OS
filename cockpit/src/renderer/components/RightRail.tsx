@@ -8,6 +8,7 @@ import { usePolling } from '../hooks/usePolling'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
+import { useVoiceMessageStore, type VoiceMessageDraft } from '../stores/voiceMessageStore'
 import { desktopBrowserVoiceAdapter, ConsentRequiredError } from '../api/platform-voice-adapter'
 import { getApiKey, fetchApi, API_BASE } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
@@ -260,6 +261,182 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
   )
 }
 
+const DRAFT_STATUS_LABEL: Record<VoiceMessageDraft['status'], string> = {
+  recording: 'recording',
+  transcribing: 'transcribing',
+  ready: 'ready to send',
+  sent: 'sent',
+  failed: 'failed',
+  deleted: 'deleted',
+}
+
+/** Live-updating recorded duration in seconds while a draft is recording. */
+function useRecordingSeconds(active: boolean): number {
+  const [secs, setSecs] = useState(0)
+  const startRef = useRef<number>(0)
+  useEffect(() => {
+    if (!active) { setSecs(0); return }
+    startRef.current = Date.now()
+    setSecs(0)
+    const t = setInterval(() => setSecs((Date.now() - startRef.current) / 1000), 200)
+    return () => clearInterval(t)
+  }, [active])
+  return secs
+}
+
+/**
+ * Lane C — the voice-MESSAGE bubble. A draft is a REVIEWABLE object, never a
+ * chat message: it only becomes a chat message on the explicit Send
+ * (sendDraft). Recording shows a pulsing indicator + live duration + the
+ * provisional partial; once finalized it shows the audio player, the
+ * transcript underneath, a status label, and the operator actions.
+ */
+function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
+  const sendDraft = useVoiceMessageStore((s) => s.sendDraft)
+  const retryDraft = useVoiceMessageStore((s) => s.retryDraft)
+  const editTranscript = useVoiceMessageStore((s) => s.editTranscript)
+  const deleteDraft = useVoiceMessageStore((s) => s.deleteDraft)
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(draft.transcript)
+  const recordingSecs = useRecordingSeconds(draft.status === 'recording')
+
+  useEffect(() => { if (!editing) setEditText(draft.transcript) }, [draft.transcript, editing])
+
+  const isRecording = draft.status === 'recording'
+  const isFailed = draft.status === 'failed'
+  const canSend =
+    draft.status === 'ready' &&
+    (draft.transcript_status === 'final' || draft.transcript_status === 'edited') &&
+    draft.transcript.trim().length > 0
+
+  const statusColor = isFailed ? 'text-danger'
+    : draft.status === 'ready' ? 'text-cyan'
+    : draft.status === 'sent' ? 'text-ok'
+    : 'text-text-tertiary'
+
+  return (
+    <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-primary ml-4 border border-border">
+      <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
+        <span>YOU</span>
+        <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary flex items-center gap-1">
+          <Mic size={8} className="inline" /> voice
+        </span>
+        {isRecording && (
+          <span className="flex items-center gap-1 text-cyan">
+            <span className="w-1.5 h-1.5 rounded-full bg-danger animate-pulse inline-block" />
+            {recordingSecs.toFixed(1)}s
+          </span>
+        )}
+        <span className={clsx('ml-auto text-[9px] font-mono uppercase', statusColor)}>
+          {DRAFT_STATUS_LABEL[draft.status]}
+        </span>
+      </div>
+
+      {isRecording && (
+        <p className="whitespace-pre-wrap text-[10px] text-text-secondary italic min-h-[14px]">
+          {draft.transcript_partial || 'listening…'}
+        </p>
+      )}
+
+      {!isRecording && draft.audioUrl && (
+        <audio controls src={draft.audioUrl} className="w-full mt-1 mb-1" style={{ height: 32 }} />
+      )}
+
+      {!isRecording && !isFailed && !editing && draft.transcript && (
+        <p className="whitespace-pre-wrap text-[11px] text-text-primary mt-1">{draft.transcript}</p>
+      )}
+
+      {editing && (
+        <textarea
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          rows={2}
+          className="w-full mt-1 text-[11px] font-mono px-1.5 py-1 rounded bg-surface border border-cyan text-text-primary outline-none resize-none"
+          autoFocus
+        />
+      )}
+
+      {isFailed && (
+        <p className="text-[9px] font-mono text-danger mt-1">
+          {draft.error === 'NO_SPEECH' ? 'No speech detected' : `Transcription failed${draft.error ? ` (${draft.error})` : ''}`}
+        </p>
+      )}
+
+      {draft.confidence !== null && !isFailed && !isRecording && (
+        <div className="text-[8px] font-mono text-text-tertiary mt-0.5">
+          confidence {(draft.confidence * 100).toFixed(0)}%
+        </div>
+      )}
+
+      {!isRecording && (
+        <div className="flex flex-wrap gap-1 mt-1.5 pt-1.5 border-t border-border/50">
+          {editing ? (
+            <>
+              <button
+                onClick={() => { editTranscript(draft.draft_id, editText); setEditing(false) }}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan/30 text-cyan hover:bg-cyan-glow transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => { setEditText(draft.transcript); setEditing(false) }}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border text-text-tertiary hover:text-text-primary transition-colors"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              {!isFailed && (
+                <button
+                  onClick={() => sendDraft(draft.draft_id)}
+                  disabled={!canSend}
+                  className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-cyan/30 text-cyan hover:bg-cyan-glow transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  <Send size={9} /> Send
+                </button>
+              )}
+              <button
+                onClick={() => retryDraft(draft.draft_id)}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border text-text-secondary hover:text-cyan hover:border-cyan/40 transition-colors"
+              >
+                Retry
+              </button>
+              {!isFailed && (
+                <button
+                  onClick={() => { setEditText(draft.transcript); setEditing(true) }}
+                  className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border text-text-secondary hover:text-cyan hover:border-cyan/40 transition-colors flex items-center gap-1"
+                >
+                  <Pencil size={9} /> Edit
+                </button>
+              )}
+              <button
+                onClick={() => deleteDraft(draft.draft_id)}
+                className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border text-text-tertiary hover:text-danger hover:border-danger/40 transition-colors flex items-center gap-1"
+              >
+                <X size={9} /> Delete
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VoiceDraftCards() {
+  const drafts = useVoiceMessageStore((s) => s.drafts)
+  const visible = drafts.filter((d) => d.status !== 'sent' && d.status !== 'deleted')
+  if (visible.length === 0) return null
+  return (
+    <>
+      {visible.map((d) => (
+        <VoiceDraftCard key={d.draft_id} draft={d} />
+      ))}
+    </>
+  )
+}
+
 function ChatSection() {
   const aiName = useConfigStore((s) => s.aiName)
   const setConfigValue = useConfigStore((s) => s.setConfigValue)
@@ -281,6 +458,9 @@ function ChatSection() {
   const voicePresentationStatus = useVoiceStore((s) => s.voicePresentationStatus)
   const draftMessage = useChatStore((s) => s.draftMessage)
   const placeholderMessage = useChatStore((s) => s.placeholderMessage)
+  const hasVoiceDrafts = useVoiceMessageStore(
+    (s) => s.drafts.some((d) => d.status !== 'sent' && d.status !== 'deleted'),
+  )
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const displayName = aiName
@@ -483,6 +663,7 @@ function ChatSection() {
         {messages.map((m) => (
           <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} />
         ))}
+        <VoiceDraftCards />
         {draftMessage && (
           <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-primary ml-4 opacity-70">
             <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
@@ -519,7 +700,7 @@ function ChatSection() {
             Tap to play audio
           </button>
         )}
-        {messages.length === 0 && !sending && !draftMessage && (
+        {messages.length === 0 && !sending && !draftMessage && !hasVoiceDrafts && (
           <p className="text-[11px] text-text-tertiary text-center py-4">Ask {aiName} anything</p>
         )}
       </div>

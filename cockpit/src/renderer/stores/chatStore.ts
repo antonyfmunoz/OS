@@ -64,6 +64,24 @@ interface PendingMedia {
   media_type: 'image' | 'video' | 'file'
 }
 
+/**
+ * Voice-message send extras. When present, `media` (the uploaded audio
+ * artifact) is attached to the operator ChatMessage and `meta` is carried in
+ * the /advisor/converse body as `voice_message` so the intent-loop handoff
+ * threads {draft_id, artifact_id, duration_ms, transcript_status,
+ * consent_grant_id}. The finalized transcript text is the message content
+ * verbatim — meta NEVER substitutes for it.
+ */
+export interface VoiceTranscriptOptions {
+  media?: MediaAttachment[]
+  meta?: Record<string, unknown>
+}
+
+interface SendMessageOptions {
+  media?: MediaAttachment[]
+  voiceMessage?: Record<string, unknown>
+}
+
 interface ChatState {
   messages: ChatMessage[]
   input: string
@@ -78,11 +96,11 @@ interface ChatState {
 
   setInput: (input: string) => void
   setTargetChannel: (channel: string) => void
-  sendMessage: (content: string, source?: 'text' | 'voice', viewContext?: Record<string, unknown>, voiceTurnId?: string) => Promise<void>
+  sendMessage: (content: string, source?: 'text' | 'voice', viewContext?: Record<string, unknown>, voiceTurnId?: string, opts?: SendMessageOptions) => Promise<void>
   loadHistory: () => Promise<void>
   startPolling: () => void
   stopPolling: () => void
-  addVoiceTranscript: (text: string, voiceTurnId?: string) => void
+  addVoiceTranscript: (text: string, voiceTurnId?: string, opts?: VoiceTranscriptOptions) => void
   pushExternalMessage: (msg: ChatMessage) => void
   removeMessage: (id: string) => void
   setDraftMessage: (msg: ChatMessage | null) => void
@@ -109,11 +127,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setInput: (input) => set({ input }),
   setTargetChannel: (channel) => set({ targetChannel: channel }),
 
-  sendMessage: async (content, source = 'text', viewContext?: Record<string, unknown>, voiceTurnId?: string) => {
+  sendMessage: async (content, source = 'text', viewContext?: Record<string, unknown>, voiceTurnId?: string, opts?: SendMessageOptions) => {
     const { targetChannel, conversationId, pendingMedia } = get()
-    if (!content.trim() && pendingMedia.length === 0) return
+    // Pre-uploaded media (e.g. the voice audio artifact) still counts as content.
+    const preUploaded = opts?.media ?? []
+    if (!content.trim() && pendingMedia.length === 0 && preUploaded.length === 0) return
 
-    let uploadedMedia: MediaAttachment[] = []
+    let uploadedMedia: MediaAttachment[] = [...preUploaded]
     if (pendingMedia.length > 0) {
       try {
         const uploads = await Promise.all(
@@ -128,7 +148,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             return res.json() as Promise<MediaAttachment>
           }),
         )
-        uploadedMedia = uploads.map((u, i) => ({ ...u, previewUrl: pendingMedia[i].previewUrl }))
+        uploadedMedia = [...uploadedMedia, ...uploads.map((u, i) => ({ ...u, previewUrl: pendingMedia[i].previewUrl }))]
       } catch (e) {
         set({ error: e instanceof Error ? e.message : 'Media upload failed' })
         return
@@ -178,6 +198,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             source,
             ...(routing ? { routing } : {}),
             ...(voiceTurnId ? { voice_turn_id: voiceTurnId } : {}),
+            ...(opts?.voiceMessage ? { voice_message: opts.voiceMessage } : {}),
           }),
         })
 
@@ -267,13 +288,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
-  addVoiceTranscript: (text, voiceTurnId) => {
+  addVoiceTranscript: (text, voiceTurnId, opts) => {
+    // The finalized transcript text is the message content VERBATIM. When
+    // opts.media/opts.meta are present (explicit send of a voice draft), the
+    // audio artifact rides as media and meta becomes the converse body's
+    // `voice_message` for the intent-loop handoff. 2-arg callers keep working.
+    const sendOpts: SendMessageOptions | undefined =
+      opts && (opts.media?.length || opts.meta)
+        ? { media: opts.media, voiceMessage: opts.meta }
+        : undefined
     try {
       const { useViewContextStore } = require('../stores/viewContextStore')
       const viewContext = useViewContextStore.getState().context
-      get().sendMessage(text, 'voice', viewContext as Record<string, unknown>, voiceTurnId)
+      get().sendMessage(text, 'voice', viewContext as Record<string, unknown>, voiceTurnId, sendOpts)
     } catch {
-      get().sendMessage(text, 'voice', undefined, voiceTurnId)
+      get().sendMessage(text, 'voice', undefined, voiceTurnId, sendOpts)
     }
   },
 
