@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Pencil, Check, Download, Mic, MicOff, Paperclip, X } from 'lucide-react'
+import { Send, Pencil, Check, Download, Mic, MicOff, Paperclip, X, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment, type MediaAttachment } from '../stores/chatStore'
@@ -296,6 +296,14 @@ const VOICE_FAILURE_REASON: Record<string, string> = {
   RETRY_UNAVAILABLE: 'Retry could not start',
   AUDIO_UPLOAD_FAILED: 'Audio upload failed — send again',
   CHAT_SEND_FAILED: 'Could not deliver to chat — send again',
+  // Transcription-binding taxonomy — P4S-31D1-E. These distinguish a capture
+  // that produced local audio from a transcription pipeline that never bound
+  // to it. Each MUST read distinctly and MUST NOT collapse to a no-audio /
+  // no-speech phrase — local audio DID arrive; the binding, not the mic, failed.
+  LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: 'Audio recorded but never reached the server — transcription not bound',
+  TRANSCRIPT_BINDING_MISSING: 'Audio recorded but no transcript was bound to it',
+  TRANSCRIPT_BINDING_TIMEOUT: 'Transcription did not bind in time — retry',
+  UPLOAD_PRESENT_TRANSCRIPT_MISSING: 'Server received audio but returned no transcript',
 }
 
 /** Resolve a draft error code to its precise human reason (never a bare fallback). */
@@ -347,6 +355,111 @@ function useRecordingSeconds(active: boolean): number {
     return () => clearInterval(t)
   }, [active])
   return secs
+}
+
+/**
+ * Human status shown in the transcript-section header — P4S-31D1-E.
+ * Derived from transcript_status so the operator always knows the transcript's
+ * lifecycle state (transcribing / ready / edited / failed) without opening the
+ * body. Distinct from DRAFT_STATUS_LABEL, which describes the draft as a whole.
+ */
+function transcriptSectionStatus(
+  draft: VoiceMessageDraft,
+): { label: string; tone: string; spinning: boolean } {
+  if (draft.status === 'transcribing' || draft.transcript_status === 'pending' || draft.transcript_status === 'partial') {
+    return { label: 'transcribing…', tone: 'text-text-tertiary', spinning: true }
+  }
+  if (draft.transcript_status === 'failed' || draft.status === 'failed') {
+    return { label: 'failed', tone: 'text-danger', spinning: false }
+  }
+  if (draft.transcript_status === 'edited') {
+    return { label: 'edited', tone: 'text-cyan', spinning: false }
+  }
+  if (draft.transcript_status === 'final') {
+    return { label: 'ready', tone: 'text-cyan', spinning: false }
+  }
+  return { label: '', tone: 'text-text-tertiary', spinning: false }
+}
+
+/**
+ * Collapsible transcript dropdown — P4S-31D1-E. Renders UNDER the audio card.
+ * A header row ("Transcript" + status + a chevron toggle) sits over a
+ * collapsible body that holds the transcript, the edit affordance, or the
+ * precise failure reason. Long transcripts live inside the body so they never
+ * flood the rail/thread. Expand/collapse is local component state only — no
+ * store field is touched (the transcription-binding agent owns the store), and
+ * the toggle never sends, never pastes into the chat input.
+ *
+ * Default open: short/ready transcripts start expanded; the operator may
+ * collapse or re-expand at will.
+ */
+function TranscriptSection({
+  draft,
+  editing,
+  editText,
+  setEditText,
+}: {
+  draft: VoiceMessageDraft
+  editing: boolean
+  editText: string
+  setEditText: (v: string) => void
+}) {
+  const isFailed = draft.status === 'failed' || draft.transcript_status === 'failed'
+  const hasTranscript = draft.transcript.trim().length > 0
+  // Default open when short & ready; a long transcript defaults collapsed so it
+  // never floods the rail. Editing/failed always start open so the operator can
+  // act. ~180 chars ≈ a few lines in this narrow rail.
+  const longTranscript = draft.transcript.length > 180
+  const [expanded, setExpanded] = useState<boolean>(
+    isFailed || editing || (hasTranscript && !longTranscript),
+  )
+  const status = transcriptSectionStatus(draft)
+  const Chevron = expanded ? ChevronDown : ChevronRight
+  const toggle = () => setExpanded((e) => !e)
+
+  return (
+    <div className="mt-1" data-testid="transcript-section">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={expanded}
+        aria-label="toggle transcript"
+        data-testid="transcript-toggle"
+        className="flex w-full items-center gap-1 font-mono text-[9px] uppercase text-text-tertiary hover:text-text-secondary transition-colors"
+      >
+        <Chevron size={10} className="shrink-0" />
+        <span>Transcript</span>
+        {status.label && (
+          <span className={clsx('flex items-center gap-1', status.tone)}>
+            {status.spinning && <Loader2 size={9} className="animate-spin" />}
+            {status.label}
+          </span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="mt-1" data-testid="transcript-body">
+          {editing ? (
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              rows={2}
+              className="w-full text-[11px] font-mono px-1.5 py-1 rounded bg-surface border border-cyan text-text-primary outline-none resize-none"
+              autoFocus
+            />
+          ) : isFailed ? (
+            <p className="text-[9px] font-mono text-danger" data-testid="voice-failure-reason">
+              {voiceFailureReason(draft.error)}
+            </p>
+          ) : hasTranscript ? (
+            <p className="whitespace-pre-wrap text-[11px] text-text-primary">{draft.transcript}</p>
+          ) : (
+            <p className="text-[9px] font-mono text-text-tertiary italic">no transcript yet</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /**
@@ -410,24 +523,13 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
         <audio controls src={draft.audioUrl} className="w-full mt-1 mb-1" style={{ height: 32 }} />
       )}
 
-      {!isRecording && !isFailed && !editing && draft.transcript && (
-        <p className="whitespace-pre-wrap text-[11px] text-text-primary mt-1">{draft.transcript}</p>
-      )}
-
-      {editing && (
-        <textarea
-          value={editText}
-          onChange={(e) => setEditText(e.target.value)}
-          rows={2}
-          className="w-full mt-1 text-[11px] font-mono px-1.5 py-1 rounded bg-surface border border-cyan text-text-primary outline-none resize-none"
-          autoFocus
+      {!isRecording && (
+        <TranscriptSection
+          draft={draft}
+          editing={editing}
+          editText={editText}
+          setEditText={setEditText}
         />
-      )}
-
-      {isFailed && (
-        <p className="text-[9px] font-mono text-danger mt-1" data-testid="voice-failure-reason">
-          {voiceFailureReason(draft.error)}
-        </p>
       )}
 
       {draft.confidence !== null && !isFailed && !isRecording && (
