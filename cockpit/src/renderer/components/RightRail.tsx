@@ -300,10 +300,13 @@ const VOICE_FAILURE_REASON: Record<string, string> = {
   // that produced local audio from a transcription pipeline that never bound
   // to it. Each MUST read distinctly and MUST NOT collapse to a no-audio /
   // no-speech phrase — local audio DID arrive; the binding, not the mic, failed.
-  LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: 'Audio recorded but never reached the server — transcription not bound',
-  TRANSCRIPT_BINDING_MISSING: 'Audio recorded but no transcript was bound to it',
-  TRANSCRIPT_BINDING_TIMEOUT: 'Transcription did not bind in time — retry',
-  UPLOAD_PRESENT_TRANSCRIPT_MISSING: 'Server received audio but returned no transcript',
+  // Canonical local vocabulary (voicenote_artifact_binding_contract.json). The
+  // earlier off-canon UI names (TRANSCRIPT_BINDING_* / UPLOAD_PRESENT_TRANSCRIPT_
+  // MISSING) were folded into these so the controller and UI share ONE vocabulary.
+  LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: 'Audio recorded but nothing reached the server — retry',
+  LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: 'Audio recorded but the server saw no bytes — retry',
+  AUDIO_ARTIFACT_REF_NOT_FOUND: 'Recorded audio could not be located — retry',
+  MISSING_AUDIO_FIELD: 'No audio was captured for this note',
 }
 
 /** Resolve a draft error code to its precise human reason (never a bare fallback). */

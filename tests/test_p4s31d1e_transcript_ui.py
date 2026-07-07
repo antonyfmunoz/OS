@@ -31,11 +31,15 @@ _RIGHT_RAIL_PATH = _RENDERER / "components" / "RightRail.tsx"
 # D1-E transcription-binding error codes. Each MUST have a distinct human string
 # and MUST NOT collapse to a no-audio / no-speech phrase (local audio DID arrive;
 # the binding, not the mic, failed).
+# The canonical local error vocabulary
+# (data/umh/voice/voicenote_artifact_binding_contract.json). The earlier
+# off-canon UI names (TRANSCRIPT_BINDING_* / UPLOAD_PRESENT_TRANSCRIPT_MISSING)
+# were folded into these — controller and UI now share ONE vocabulary.
 _D1E_BINDING_CODES = [
     "LOCAL_AUDIO_PRESENT_UPLOAD_MISSING",
-    "TRANSCRIPT_BINDING_MISSING",
-    "TRANSCRIPT_BINDING_TIMEOUT",
-    "UPLOAD_PRESENT_TRANSCRIPT_MISSING",
+    "LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY",
+    "AUDIO_ARTIFACT_REF_NOT_FOUND",
+    "MISSING_AUDIO_FIELD",
 ]
 
 # Phrases a binding failure must never read as — these describe a mic that never
