@@ -86,6 +86,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
 
+from umh.voice_preflight import (  # noqa: E402  (after sys.path bootstrap)
+    VoiceErrorCode,
+    error_payload,
+    preflight_pcm16,
+)
+
 load_dotenv("/opt/OS/services/.env")
 load_dotenv("/opt/OS/.env", override=False)
 
@@ -113,7 +119,9 @@ log = logging.getLogger("voice_server")
 HOST = os.getenv("VOICE_SERVER_HOST", "0.0.0.0")
 PORT = int(os.getenv("VOICE_SERVER_PORT", "8096"))
 SAMPLE_RATE = 16000
-MIN_AUDIO_BYTES = int(SAMPLE_RATE * 2 * 0.3)
+# Minimum-utterance / silence / duration gating now lives in the canonical
+# preflight module (umh/voice_preflight.py: MIN_UTTERANCE_BYTES,
+# SILENCE_MEAN_LEVEL_FLOOR, MIN_UTTERANCE_SECONDS). Do not re-derive it here.
 
 SILENCE_END_UTTERANCE_S = 1.8
 SPEECH_LEVEL_THRESHOLD = 0.02
@@ -213,13 +221,36 @@ def process_request(connection: Any, request: Any) -> Any:
 # --- STT ---
 
 
-def _transcribe_groq(audio_path: str) -> str:
+# STT results distinguish three outcomes so the WS layer can emit a PRECISE
+# error code (VAD_NO_SPEECH vs STT_FAILED) instead of a blanket empty transcript:
+#   ok=True                -> transcription succeeded (text may still be empty
+#                             if the engine genuinely found no speech).
+#   ok=False, engine_error -> the engine itself failed (network/crash/timeout).
+# ``text`` is the transcript (bounded logging only). ``engine`` names the STT
+# path that produced the result, for diagnostics (never a secret).
+
+
+class TranscribeResult:
+    """Typed STT outcome. ``engine_error`` distinguishes an engine failure
+    (STT_FAILED) from a genuine empty transcript (VAD_NO_SPEECH)."""
+
+    __slots__ = ("text", "engine_error", "engine")
+
+    def __init__(self, text: str = "", *, engine_error: bool = False, engine: str = "") -> None:
+        self.text = text
+        self.engine_error = engine_error
+        self.engine = engine
+
+
+def _transcribe_groq(audio_path: str) -> TranscribeResult:
     try:
         from groq import Groq as GroqClient
 
         key = os.getenv("GROQ_API_KEY")
         if not key:
-            return ""
+            # Not configured is not an engine failure — let the chain fall
+            # through to the local engine.
+            return TranscribeResult("", engine_error=False, engine="groq")
         client = GroqClient(api_key=key)
         with open(audio_path, "rb") as f:
             result = client.audio.transcriptions.create(
@@ -232,28 +263,43 @@ def _transcribe_groq(audio_path: str) -> str:
             # Privacy: transcript content only at DEBUG, truncated preview.
             log.info("STT (groq): %d chars", len(text))
             log.debug("STT preview: %s", text[:TRANSCRIPT_PREVIEW_CHARS])
-        return text
+        return TranscribeResult(text, engine_error=False, engine="groq")
     except Exception as e:
         log.warning("Groq STT failed: %s", e)
-        return ""
+        return TranscribeResult("", engine_error=True, engine="groq")
 
 
-def _transcribe_local(audio_path: str) -> str:
+def _transcribe_local(audio_path: str) -> TranscribeResult:
     try:
         from substrate.execution.voice.voice_engine import VoiceEngine
 
         engine = VoiceEngine()
-        return engine.intelligent.transcribe_fast(audio_path)
+        text = (engine.intelligent.transcribe_fast(audio_path) or "").strip()
+        return TranscribeResult(text, engine_error=False, engine="faster-whisper")
     except Exception as e:
         log.warning("Local STT failed: %s", e)
-        return ""
+        return TranscribeResult("", engine_error=True, engine="faster-whisper")
 
 
-def transcribe(audio_path: str) -> str:
-    text = _transcribe_groq(audio_path)
-    if text:
-        return text
-    return _transcribe_local(audio_path)
+def transcribe(audio_path: str) -> TranscribeResult:
+    """Run the STT fallback chain and return a typed result.
+
+    Groq first; if it produced text, use it. Otherwise try the local engine.
+    ``engine_error`` is True ONLY if the final engine actually failed — a clean
+    engine that simply found no speech returns ok with empty text so the caller
+    emits VAD_NO_SPEECH, not STT_FAILED."""
+    groq_res = _transcribe_groq(audio_path)
+    if groq_res.text:
+        return groq_res
+    local_res = _transcribe_local(audio_path)
+    if local_res.text:
+        return local_res
+    # No text from either. If EITHER engine hard-failed, this is an engine
+    # failure (STT_FAILED); if both ran cleanly with empty output, it is a
+    # genuine no-speech result (VAD_NO_SPEECH).
+    if groq_res.engine_error or local_res.engine_error:
+        return TranscribeResult("", engine_error=True, engine=local_res.engine or groq_res.engine)
+    return TranscribeResult("", engine_error=False, engine=local_res.engine)
 
 
 # --- TTS: Kokoro (Beast GPU) with espeak fallback ---
@@ -400,20 +446,38 @@ async def handle_voice(ws):
     await send_json({"type": "connected", "server_session_id": session_id})
 
     async def process_utterance(pcm_data: bytes):
+        """Preflight, transcribe, and emit a PRECISE typed outcome.
+
+        Every failure resolves to exactly one typed error code — never a bare
+        empty transcript. The audio buffer is NEVER discarded on failure: it is
+        held by the client (which owns the artifact) and this server only writes
+        a transient temp WAV for the STT call, unlinked in ``finally``.
+        """
         nonlocal has_speech_in_buffer
         has_speech_in_buffer = False
 
-        if len(pcm_data) < MIN_AUDIO_BYTES:
+        # --- Preflight the WHOLE buffer BEFORE any STT work ---
+        pre = preflight_pcm16(pcm_data)
+        if not pre.ok:
+            # EMPTY_AUDIO_BLOB (no/too-few bytes) or SILENT_AUDIO (mic silent).
+            # Distinct, typed, never collapsed into "no speech".
+            assert pre.error_code is not None
             log.info(
-                "Audio too short (%d bytes < %d) — skipping STT", len(pcm_data), MIN_AUDIO_BYTES
+                "Preflight rejected (session=%s code=%s bytes=%d dur=%.2fs level=%.4f)",
+                session_id,
+                pre.error_code.value,
+                pre.n_bytes,
+                pre.duration_s,
+                pre.mean_level,
             )
-            await send_json({"type": "transcript", "text": "", "final": True})
+            await send_json(error_payload(pre.error_code))
             return
 
         log.info(
-            "Processing utterance: %d bytes (%.1fs audio)",
-            len(pcm_data),
-            len(pcm_data) / (SAMPLE_RATE * 2),
+            "Processing utterance: %d bytes (%.1fs audio, mean_level=%.4f)",
+            pre.n_bytes,
+            pre.duration_s,
+            pre.mean_level,
         )
 
         # Audio is never persisted: the temp WAV exists only for the STT
@@ -426,11 +490,20 @@ async def handle_voice(ws):
             await send_json({"type": "transcript", "text": "...", "final": False})
 
             loop = asyncio.get_event_loop()
-            text = await loop.run_in_executor(None, transcribe, wav_path)
+            result = await loop.run_in_executor(None, transcribe, wav_path)
 
-            if not text or len(text.strip()) < 2:
-                log.info("STT returned empty/short result")
-                await send_json({"type": "transcript", "text": "", "final": True})
+            text = result.text.strip()
+            if len(text) < 2:
+                if result.engine_error:
+                    # The engine itself failed — STT_FAILED, distinct from a
+                    # clean "no speech" result.
+                    log.info("STT engine failed (engine=%s) -> STT_FAILED", result.engine)
+                    await send_json(error_payload(VoiceErrorCode.STT_FAILED))
+                else:
+                    # Audio was present and non-silent, but the engine found no
+                    # speech in it — VAD_NO_SPEECH, distinct from SILENT_AUDIO.
+                    log.info("STT clean but no speech (engine=%s) -> VAD_NO_SPEECH", result.engine)
+                    await send_json(error_payload(VoiceErrorCode.VAD_NO_SPEECH))
                 return
 
             await send_json(
@@ -443,11 +516,10 @@ async def handle_voice(ws):
         except Exception as e:
             log.error("Utterance processing error: %s", e)
             await send_json(
-                {
-                    "type": "error",
-                    "code": "stt_failed",
-                    "message": "Speech recognition failed — %s" % str(e)[:100],
-                }
+                error_payload(
+                    VoiceErrorCode.STT_FAILED,
+                    "Speech recognition failed — %s" % str(e)[:60],
+                )
             )
         finally:
             try:
@@ -529,9 +601,20 @@ async def handle_voice(ws):
                         pcm = bytes(audio_buffer)
                         audio_buffer = bytearray()
                         await process_utterance(pcm)
+                    elif audio_buffer:
+                        # Bytes arrived but the per-chunk VAD never crossed the
+                        # speech threshold. Preflight the whole buffer so the
+                        # client gets SILENT_AUDIO (mic silent) vs a real code,
+                        # never a blanket empty transcript.
+                        pcm = bytes(audio_buffer)
+                        audio_buffer = bytearray()
+                        await process_utterance(pcm)
                     else:
-                        log.info("No speech in buffer — sending empty transcript")
-                        await send_json({"type": "transcript", "text": "", "final": True})
+                        # No audio bytes at all reached the server.
+                        log.info(
+                            "No audio bytes buffered (session=%s) -> EMPTY_AUDIO_BLOB", session_id
+                        )
+                        await send_json(error_payload(VoiceErrorCode.EMPTY_AUDIO_BLOB))
 
                 elif msg_type == "tts_request":
                     await handle_tts_request(msg.get("text", ""))
