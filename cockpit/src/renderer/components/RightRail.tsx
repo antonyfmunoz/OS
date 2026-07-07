@@ -8,7 +8,7 @@ import { usePolling } from '../hooks/usePolling'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
-import { startVoice, stopVoice } from '../api/voice-controller'
+import { desktopBrowserVoiceAdapter, ConsentRequiredError } from '../api/platform-voice-adapter'
 import { getApiKey, fetchApi, API_BASE } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
@@ -321,14 +321,30 @@ function ChatSection() {
     e.target.value = ''
   }, [addPendingMedia])
 
-  const handleMicToggle = useCallback(() => {
+  const handleMicToggle = useCallback(async () => {
     if (micState === 'idle') {
       setVoiceAvailable(true)
-      startVoice().catch(() => {
+      try {
+        await desktopBrowserVoiceAdapter.startCapture()
+      } catch (err) {
+        if (err instanceof ConsentRequiredError) {
+          // Explicit per-device consent (VoiceConsentGrant, P4S-31D-1): ask
+          // once; the grant is stored server-side and revocable.
+          const agreed = window.confirm(
+            'Enable push-to-talk voice on this device? The microphone activates only while you tap the mic, and you can revoke this any time.',
+          )
+          if (agreed) {
+            const granted = await desktopBrowserVoiceAdapter.requestConsent('push_to_talk')
+            if (granted.active) {
+              desktopBrowserVoiceAdapter.startCapture().catch(() => setVoiceAvailable(false))
+            }
+          }
+          return
+        }
         setVoiceAvailable(false)
-      })
+      }
     } else {
-      stopVoice()
+      desktopBrowserVoiceAdapter.stopCapture()
     }
   }, [micState])
 
@@ -491,7 +507,7 @@ function ChatSection() {
         {ttsState === 'tts_failed' && voiceError && voiceError.startsWith('Tap to play') && (
           <button
             onClick={() => {
-              startVoice().catch(() => { /* ignore */ })
+              desktopBrowserVoiceAdapter.startCapture().catch(() => { /* ignore */ })
             }}
             className="px-2 py-1.5 rounded text-[10px] font-mono text-cyan border border-cyan/30 hover:bg-cyan-glow transition-colors cursor-pointer"
           >

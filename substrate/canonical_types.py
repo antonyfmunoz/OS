@@ -1193,6 +1193,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "VoiceIngressEvent": ["substrate.workstation.voice_ingress_runtime"],
     "VoiceIngressSnapshot": ["substrate.workstation.voice_ingress_runtime"],
     "VoiceIngressRuntime": ["substrate.workstation.voice_ingress_runtime"],
+    # P4S-31D-1 — Voice Consent (VoiceIntentContract consent gate)
+    "VoiceConsentGrant": ["substrate.workstation.voice_consent"],
+    "VoiceConsentStore": ["substrate.workstation.voice_consent"],
+    "VoiceConsentRefused": ["substrate.workstation.voice_consent"],
     # C20.1 — Voice Session Manager
     "VoiceSessionType": ["substrate.workstation.voice_session_manager"],
     "VoiceSessionPriority": ["substrate.workstation.voice_session_manager"],

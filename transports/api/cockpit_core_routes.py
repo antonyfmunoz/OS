@@ -2205,6 +2205,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     from transports.api.cockpit_core_lyfeos_routes import register_lyfeos_routes
     from transports.api.cockpit_core_creatoros_routes import register_creatoros_routes
     from transports.api.cockpit_intent_loop_routes import register_intent_loop_routes
+    from transports.api.cockpit_voice_consent_routes import register_voice_consent_routes
 
     register_bootstrap_routes(router, _require_operator_role, _helpers)
     register_session_routes(router, _require_operator_role, _helpers)
@@ -2214,5 +2215,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     register_lyfeos_routes(router, _require_operator_role, _helpers)
     register_creatoros_routes(router, _require_operator_role, _helpers)
     register_intent_loop_routes(router, _require_operator_role, _helpers)
+    register_voice_consent_routes(router, _require_operator_role, _helpers)
 
     return router, ws_router, push_chat_message, push_organism_event

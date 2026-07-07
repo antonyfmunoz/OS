@@ -38,6 +38,7 @@ export interface OrganismResponseEnvelope {
 export type VoiceOutcome =
   | 'TRANSCRIPT_RECEIVED'
   | 'NO_SPEECH_DETECTED'
+  | 'CONSENT_REQUIRED'
   | 'MIC_PERMISSION_DENIED'
   | 'MIC_DEVICE_UNAVAILABLE'
   | 'VOICE_WS_UNAVAILABLE'
