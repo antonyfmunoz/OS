@@ -129,7 +129,7 @@ COCKPIT_URL="${COCKPIT_PUBLIC_URL:-https://universalmetaharness.tech}"
 python3 "$REPO_ROOT/scripts/verify_deploy.py" \
   "umh-cockpit" \
   "$COCKPIT_URL" \
-  --health-path "/api/health" \
+  --health-path "/healthz" \
   --health-timeout 60 || {
   echo -e "${RED}=== Post-deploy verification FAILED ===${NC}"
   echo "The deploy succeeded but verification detected issues."
