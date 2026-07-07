@@ -112,12 +112,17 @@ def _drive(vs, incoming: list, transcribe_return: str = "ok"):
     captured_paths: list[str] = []
     captured_bytes: list[bytes] = []
 
-    def _fake_transcribe(path: str) -> str:
+    # #248 changed transcribe() to return a typed TranscribeResult (text +
+    # engine_error + engine), not a bare string — the mock must match. Pull the
+    # class off the loaded module (`vs`), which is the same voice_server module.
+    TranscribeResult = vs.TranscribeResult
+
+    def _fake_transcribe(path: str):
         captured_paths.append(path)
         # Read the WAV the pipeline wrote BEFORE it is unlinked in the finally.
         with open(path, "rb") as f:
             captured_bytes.append(f.read())
-        return transcribe_return
+        return TranscribeResult(transcribe_return, engine_error=False, engine="mock")
 
     ws = _FakeWebSocket(incoming)
     with mock.patch.object(vs, "transcribe", side_effect=_fake_transcribe) as m:
@@ -204,10 +209,18 @@ def test_silence_yields_no_speech_path_without_calling_stt(vs):
     assert len(wavs) == 0, "silence must not reach STT"
     assert ws._transcribe_mock.call_count == 0
 
-    # The server emits the empty final transcript (the NO-SPEECH typed result).
+    # #248: silence no longer collapses into a blanket empty transcript. Pure
+    # silence buffers no chunk (nothing crosses SPEECH_LEVEL_THRESHOLD), so the
+    # server emits a typed EMPTY_AUDIO_BLOB error — NOT an empty transcript.
+    # (Bytes-present-but-silent would be SILENT_AUDIO; no-bytes is EMPTY.)
+    errors = [m for m in ws.sent_json if m.get("type") == "error"]
+    assert errors, "silence must produce a typed error, not an empty transcript"
+    assert errors[-1]["code"] in ("EMPTY_AUDIO_BLOB", "SILENT_AUDIO"), (
+        f"silence must be a distinct typed code, got {errors[-1].get('code')}"
+    )
+    # And it must NOT emit a final transcript (the old blanket-no-speech path).
     finals = [m for m in ws.sent_json if m.get("type") == "transcript" and m.get("final")]
-    assert finals, "silence must still produce a final (empty) transcript event"
-    assert finals[-1]["text"] == "", "NO-SPEECH path delivers an empty transcript"
+    assert not finals, "silence must not produce a final transcript under #248 taxonomy"
 
 
 def test_silence_does_not_hang(vs):
