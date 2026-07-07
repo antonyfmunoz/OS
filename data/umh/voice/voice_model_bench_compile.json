@@ -1,0 +1,371 @@
+{
+  "record": "P4S-VOICE-MODEL-BENCH-001 — Open-source / local STT · TTS · wake-word · VAD model benchmark PLAN + candidate matrix",
+  "compiled": "2026-07-07",
+  "mode": "compile_only — benchmark DESIGN and candidate matrix ONLY; no benchmarks are run, no models are downloaded, no heavy compute is executed by this artifact",
+  "compile_only": true,
+  "packet": "P4S-VOICE-MODEL-BENCH-001",
+  "activation_gate": {
+    "activation_authorized": false,
+    "gate": "This artifact defines the benchmark method and the candidate model matrix ONLY. Actually RUNNING the benchmark (downloading models, transcribing datasets, synthesizing audio, measuring WER/MOS/latency) is a SEPARATE, owner-called execution packet. Nothing in this artifact starts, schedules, downloads, or executes anything. Every latency / footprint / accuracy number in this artifact is flagged ESTIMATE and is a compile-time planning number, not a measurement.",
+    "who_gates": "the owner explicitly calls the execution packet; this artifact cannot. The execution packet MUST run on an executor-role GPU node (never the orchestrator/VPS) and MUST be CPU-gated (see benchmark_method.execution_environment)."
+  },
+  "doctrine": "Benchmark the local/open-source voice stack so the platform can choose STT/TTS/wake/VAD engines on measured evidence, not vendor claims. The current shipping path (umh/voice_server.py) is the BASELINE every candidate is measured against: STT = Groq whisper-large-v3-turbo (API) with faster-whisper local fallback; TTS = Kokoro on the executor GPU node (per infra/device_registry.json services.kokoro_tts:8880) with espeak fallback. Node bindings reference infra/device_registry.json ROLES (orchestrator / executor / controller), never hostnames or device-name literals. The orchestrator-role node NEVER runs a heavy model — no STT model load, no TTS model, no wake/VAD runtime beyond a network-bound API client (Node Role Discipline + CPU Gate Law).",
+  "grounding": {
+    "baseline_source": "umh/voice_server.py — transcribe() (Groq -> faster-whisper), generate_tts() (Kokoro -> espeak)",
+    "feasibility_source": "data/umh/voice/platform_voice_feasibility_matrix.json — which target can host which capability",
+    "wake_ambient_source": "data/umh/voice/desktop_ambient_wake_compile.json — wake runtime candidates (openwakeword_onnx / porcupine_native) and CPU/RSS bounds",
+    "node_roles_source": "infra/device_registry.json — role field decides execution host; executor nodes carry GPU + kokoro_tts service, orchestrator (VPS) is always-on coordination brain with no heavy model",
+    "governance_source": "docs/VOICE_INTENT_CONTRACT.md — transcript-only transit, cloud-STT deferred to privacy review, outbound-voice governance for any voice-clone-capable TTS"
+  },
+  "node_role_discipline": {
+    "law": "CLAUDE.md Node Role Discipline (NON-NEGOTIABLE) + CPU Gate Law (NON-NEGOTIABLE)",
+    "orchestrator_role": {
+      "runs_heavy_model": false,
+      "allowed_voice_work": "network-bound API clients ONLY (Groq STT client, a remote-TTS HTTP client). No local STT/TTS model load, no wake runtime, no VAD model that requires sustained compute. A tiny energy-threshold VAD is the only in-process voice compute permitted here.",
+      "why": "the orchestrator (VPS, per registry) is the lightweight always-on coordination brain; Hostinger throttles the VPS for a week on CPU abuse (CPU Gate Law). Loading whisper/Kokoro/XTTS here is forbidden."
+    },
+    "executor_role": {
+      "runs_heavy_model": true,
+      "allowed_voice_work": "all local STT (faster-whisper / whisper.cpp / distil-whisper), all local TTS (Kokoro / Piper / XTTS), and the on-device wake runtime. Executor nodes carry the GPU and already host kokoro_tts (infra/device_registry.json services.kokoro_tts).",
+      "why": "GPU workhorse role; heavy compute belongs here"
+    },
+    "controller_role": {
+      "runs_heavy_model": "on_device_only",
+      "allowed_voice_work": "on-device capture + optional on-device STT/wake on the user's own device (mobile SFSpeechRecognizer / Android SpeechRecognizer, foreground wake). This is the operator's OWN hardware, not a shared UMH node, so on-device inference here does not violate UMH host discipline — but it is still governed by the feasibility matrix verdicts.",
+      "why": "controller = the operator-facing device; on-device inference runs on the operator's silicon"
+    },
+    "benchmark_host_rule": "the benchmark EXECUTION packet runs on an executor-role node (GPU). It NEVER runs on the orchestrator-role node. The estimate-only matrix below annotates, per candidate, which role may host it at runtime (node_binding.runtime_host)."
+  },
+  "estimate_disclaimer": "EVERY numeric value under est_latency_ms, est_footprint_mb, est_rtf, and est_accuracy in this artifact is a COMPILE-TIME ESTIMATE derived from published third-party benchmarks and model cards. NONE is a measurement taken in this environment. The execution packet replaces each estimate with a measured value on the target executor hardware. Fields carrying estimates are suffixed and every candidate carries is_estimate=true.",
+  "categories": {
+    "stt": {
+      "capability": "speech-to-text (transcription)",
+      "primary_metric": "WER (word error rate, lower is better)",
+      "secondary_metrics": ["real_time_factor (RTF, lower is better)", "latency_ms_first_token", "latency_ms_full", "footprint_mb"],
+      "baseline_candidate": "groq_whisper_large_v3_turbo",
+      "candidates": [
+        {
+          "name": "groq_whisper_large_v3_turbo",
+          "kind": "cloud API (paid baseline)",
+          "license": "proprietary API (Groq ToS); underlying whisper-large-v3-turbo weights are MIT (OpenAI Whisper)",
+          "on_device_vs_api": "api",
+          "node_binding": {"runtime_host_role": "orchestrator|executor|controller", "reason": "network-bound API client is allowed on ANY role including orchestrator — no local model load"},
+          "est_latency_ms": {"full_utterance_5s": 400, "is_estimate": true},
+          "est_footprint_mb": {"client_rss": 30, "is_estimate": true, "note": "API client only; no model resident"},
+          "est_rtf": {"value": 0.15, "is_estimate": true},
+          "est_accuracy": {"wer_pct_librispeech_clean": 3.5, "is_estimate": true},
+          "quality_dimension": "high accuracy, low latency, network-dependent; the CURRENT shipping default and the BASELINE all local candidates are measured against",
+          "governance_flags": ["cloud transcription — transcript-only transit already enforced; audio never persisted (umh/voice_server.py); no additional voice-clone risk (STT)"],
+          "is_estimate": true
+        },
+        {
+          "name": "faster_whisper_large_v3",
+          "kind": "local, CTranslate2 backend",
+          "license": "MIT (model weights) + MIT (faster-whisper / CTranslate2)",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "executor", "reason": "large-v3 needs GPU/heavy RAM; forbidden on orchestrator per Node Role Discipline. This is the CURRENT local fallback in voice_server.py via VoiceEngine."},
+          "est_latency_ms": {"full_utterance_5s_gpu": 600, "full_utterance_5s_cpu": 4500, "is_estimate": true},
+          "est_footprint_mb": {"model_gpu_vram": 3000, "model_cpu_rss": 3000, "is_estimate": true, "note": "large-v3 ~3GB; feasible on the executor GPU (11GB VRAM class) but NOT on the VPS"},
+          "est_rtf": {"gpu": 0.2, "cpu": 1.2, "is_estimate": true},
+          "est_accuracy": {"wer_pct_librispeech_clean": 3.0, "is_estimate": true},
+          "quality_dimension": "highest local accuracy; the accuracy ceiling for on-device; heavy — executor-only",
+          "governance_flags": ["on-device: no cloud transit; strongest privacy posture for STT"],
+          "is_estimate": true
+        },
+        {
+          "name": "faster_whisper_small",
+          "kind": "local, CTranslate2 backend",
+          "license": "MIT (model) + MIT (faster-whisper)",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "executor", "reason": "small model (~500MB) still a model load; keep on executor. CPU-gated on the VPS it would burst 1-1.5 cores per umh/voice_server.py resource profile — do NOT run sustained on orchestrator."},
+          "est_latency_ms": {"full_utterance_5s_gpu": 250, "full_utterance_5s_cpu": 1500, "is_estimate": true},
+          "est_footprint_mb": {"model_gpu_vram": 500, "model_cpu_rss": 900, "is_estimate": true},
+          "est_rtf": {"gpu": 0.08, "cpu": 0.5, "is_estimate": true},
+          "est_accuracy": {"wer_pct_librispeech_clean": 5.0, "is_estimate": true},
+          "quality_dimension": "good accuracy/latency tradeoff for local fallback; the realistic local default",
+          "governance_flags": ["on-device"],
+          "is_estimate": true
+        },
+        {
+          "name": "distil_whisper_large_v3",
+          "kind": "local, distilled Whisper",
+          "license": "MIT (distil-whisper weights) + MIT (transformers)",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "executor", "reason": "distilled but still GPU-favoring; executor-hosted"},
+          "est_latency_ms": {"full_utterance_5s_gpu": 350, "is_estimate": true},
+          "est_footprint_mb": {"model_gpu_vram": 1500, "is_estimate": true},
+          "est_rtf": {"gpu": 0.12, "is_estimate": true},
+          "est_accuracy": {"wer_pct_librispeech_clean": 4.0, "is_estimate": true, "note": "distil-whisper targets ~1% WER of large-v3 while ~6x faster (published claim — VERIFY in execution packet)"},
+          "quality_dimension": "near-large accuracy at a fraction of the cost; strong candidate to REPLACE the local fallback",
+          "governance_flags": ["on-device"],
+          "is_estimate": true
+        },
+        {
+          "name": "whisper_cpp_base_en",
+          "kind": "local, ggml/C++ (whisper.cpp)",
+          "license": "MIT (whisper.cpp) + MIT (ggml Whisper weights)",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "executor|controller", "reason": "quantized ggml base-en runs on modest CPU/Metal; may run on a controller (operator device) or executor. Sustained CPU use on orchestrator is still forbidden — do not host on VPS."},
+          "est_latency_ms": {"full_utterance_5s_cpu": 800, "is_estimate": true},
+          "est_footprint_mb": {"model_rss": 150, "is_estimate": true, "note": "base-en quantized ~150MB"},
+          "est_rtf": {"cpu": 0.3, "is_estimate": true},
+          "est_accuracy": {"wer_pct_librispeech_clean": 6.5, "is_estimate": true},
+          "quality_dimension": "smallest footprint local option; good for controller/edge devices; lower accuracy than large-class",
+          "governance_flags": ["on-device"],
+          "is_estimate": true
+        },
+        {
+          "name": "webgpu_whisper_transformers_js",
+          "kind": "in-browser, WebGPU (transformers.js / whisper-web)",
+          "license": "Apache-2.0 (transformers.js) + MIT (Whisper weights)",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "controller", "reason": "runs in the operator's browser/tab on the operator's own GPU; a controller-role client concern. Not a shared UMH node model load. Feasibility bounded by platform_voice_feasibility_matrix (desktop_browser future:on_device_webgpu_whisper; mobile_browser LIMITED)."},
+          "est_latency_ms": {"full_utterance_5s_client_gpu": 900, "is_estimate": true},
+          "est_footprint_mb": {"client_download": 200, "is_estimate": true, "note": "model downloaded to the browser once; runs client-side"},
+          "est_rtf": {"client_gpu": 0.4, "is_estimate": true},
+          "est_accuracy": {"wer_pct_librispeech_clean": 6.0, "is_estimate": true},
+          "quality_dimension": "fully client-side STT — no server, no cloud, strongest privacy; constrained by browser WebGPU support (limited on mobile)",
+          "governance_flags": ["on-device (client browser) — audio never leaves the operator device"],
+          "is_estimate": true
+        }
+      ]
+    },
+    "tts": {
+      "capability": "text-to-speech (synthesis)",
+      "primary_metric": "MOS (mean opinion score, higher is better; subjective, measured via listening panel)",
+      "secondary_metrics": ["latency_ms_first_audio", "rtf", "footprint_mb"],
+      "baseline_candidate": "kokoro",
+      "outbound_voice_governance": {
+        "rule": "docs/VOICE_INTENT_CONTRACT.md + outbound-voice governance: ANY TTS engine capable of ZERO/FEW-SHOT VOICE CLONING is a governance-flagged candidate. A voice-clone-capable model is NOT recommended without an explicit outbound-voice governance + licensing sign-off, because it can synthesize a target person's voice (impersonation / consent / likeness risk).",
+        "clone_capable_candidates": ["xtts_v2_coqui", "elevenlabs"],
+        "non_clone_candidates": ["kokoro", "piper", "espeak"],
+        "requirement": "no clone-capable engine is RECOMMENDED by this artifact; each is listed with clone_capable=true and a governance_flag. Selecting one requires the outbound-voice governance review, NOT this benchmark."
+      },
+      "candidates": [
+        {
+          "name": "kokoro",
+          "kind": "local, GPU (StyleTTS2-class), the CURRENT baseline",
+          "license": "Apache-2.0 (Kokoro-82M weights + code)",
+          "on_device_vs_api": "on_device",
+          "clone_capable": false,
+          "node_binding": {"runtime_host_role": "executor", "reason": "already runs on the executor GPU node per infra/device_registry.json services.kokoro_tts:8880; voice_server.py calls it over HTTP. NEVER on orchestrator."},
+          "est_latency_ms": {"first_audio_short_sentence": 300, "is_estimate": true, "note": "voice_server.py records real Kokoro latency in tts_meta.latency_ms at runtime; use those logs as ground-truth seed"},
+          "est_footprint_mb": {"model_gpu_vram": 400, "is_estimate": true},
+          "est_rtf": {"gpu": 0.1, "is_estimate": true},
+          "est_accuracy": {"mos_estimate": 4.0, "is_estimate": true},
+          "quality_dimension": "natural, fast, tiny (82M params), permissive license, no clone risk — the incumbent to beat",
+          "governance_flags": ["no voice-clone capability — safe under outbound-voice governance"],
+          "is_estimate": true
+        },
+        {
+          "name": "piper",
+          "kind": "local, CPU-friendly (VITS-based, ONNX)",
+          "license": "MIT (Piper) — model voices vary; most MIT/CC0/permissive (verify per voice)",
+          "on_device_vs_api": "on_device",
+          "clone_capable": false,
+          "node_binding": {"runtime_host_role": "executor|controller", "reason": "CPU-efficient ONNX; can run on a controller device or executor. Sustained synth on the orchestrator is still discouraged (CPU Gate); prefer executor for shared TTS."},
+          "est_latency_ms": {"first_audio_short_sentence": 200, "is_estimate": true},
+          "est_footprint_mb": {"model_rss": 100, "is_estimate": true},
+          "est_rtf": {"cpu": 0.3, "is_estimate": true},
+          "est_accuracy": {"mos_estimate": 3.7, "is_estimate": true},
+          "quality_dimension": "smallest, fastest CPU-only local TTS; slightly more robotic than Kokoro; strong candidate for controller/edge and CPU-only fallback (better than espeak)",
+          "governance_flags": ["no voice-clone capability", "per-voice license must be checked — some community voices carry non-commercial terms"],
+          "is_estimate": true
+        },
+        {
+          "name": "xtts_v2_coqui",
+          "kind": "local, GPU (voice-clone capable)",
+          "license": "Coqui Public Model License (CPML) — NON-commercial for the XTTS-v2 weights; commercial use requires a separate Coqui license. FLAG: this is NOT a permissive license.",
+          "on_device_vs_api": "on_device",
+          "clone_capable": true,
+          "node_binding": {"runtime_host_role": "executor", "reason": "heavy GPU model; executor-only. NEVER on orchestrator."},
+          "est_latency_ms": {"first_audio_short_sentence": 800, "is_estimate": true},
+          "est_footprint_mb": {"model_gpu_vram": 2000, "is_estimate": true},
+          "est_rtf": {"gpu": 0.5, "is_estimate": true},
+          "est_accuracy": {"mos_estimate": 4.2, "is_estimate": true},
+          "quality_dimension": "highest expressiveness + multilingual + few-shot voice cloning; heaviest; CLONE-CAPABLE",
+          "governance_flags": [
+            "VOICE-CLONE CAPABLE — NOT recommended without outbound-voice governance sign-off (impersonation / likeness / consent risk per docs/VOICE_INTENT_CONTRACT.md)",
+            "LICENSE: Coqui CPML is non-commercial for the base weights — commercial use is BLOCKED without a separate Coqui license; do not ship commercially on the default weights"
+          ],
+          "is_estimate": true
+        },
+        {
+          "name": "elevenlabs",
+          "kind": "cloud API (paid baseline, voice-clone capable)",
+          "license": "proprietary API (ElevenLabs ToS); paid",
+          "on_device_vs_api": "api",
+          "clone_capable": true,
+          "node_binding": {"runtime_host_role": "orchestrator|executor|controller", "reason": "network-bound API client allowed on any role; no local model. Cloud transit still subject to the transcript/audio governance and privacy review."},
+          "est_latency_ms": {"first_audio_short_sentence": 500, "is_estimate": true},
+          "est_footprint_mb": {"client_rss": 30, "is_estimate": true},
+          "est_rtf": {"value": 0.2, "is_estimate": true},
+          "est_accuracy": {"mos_estimate": 4.5, "is_estimate": true},
+          "quality_dimension": "highest naturalness + cloning, cloud only, paid; the PAID QUALITY BASELINE for TTS MOS — not a shipping default",
+          "governance_flags": [
+            "VOICE-CLONE CAPABLE — NOT recommended without outbound-voice governance sign-off",
+            "cloud API — audio/text leaves the device; subject to cloud privacy review (deferred per contract)",
+            "paid — cost baseline only, not a local option"
+          ],
+          "is_estimate": true
+        },
+        {
+          "name": "espeak",
+          "kind": "local, formant synthesis (current final fallback)",
+          "license": "GPL-3.0 (espeak-ng)",
+          "on_device_vs_api": "on_device",
+          "clone_capable": false,
+          "node_binding": {"runtime_host_role": "orchestrator|executor|controller", "reason": "trivial CPU cost; the current espeak fallback in voice_server.py runs CPU-gated (gated_subprocess_run). Allowed anywhere as the last-resort fallback."},
+          "est_latency_ms": {"first_audio_short_sentence": 50, "is_estimate": true},
+          "est_footprint_mb": {"rss": 10, "is_estimate": true},
+          "est_rtf": {"cpu": 0.02, "is_estimate": true},
+          "est_accuracy": {"mos_estimate": 2.0, "is_estimate": true},
+          "quality_dimension": "intelligible but robotic; the deterministic last-resort fallback that always works with no model download (Deterministic-First Principle); MOS floor, not a quality target",
+          "governance_flags": ["no voice-clone capability", "GPL-3.0 — copyleft; already shipped as a subprocess fallback, not linked into the codebase"],
+          "is_estimate": true
+        }
+      ]
+    },
+    "wake_word": {
+      "capability": "wake-word / keyword spotting",
+      "primary_metrics": ["false_accept_per_hour (FA/hr, lower is better)", "false_reject_rate (FRR, lower is better)"],
+      "secondary_metrics": ["cpu_pct_single_core", "footprint_mb", "detection_latency_ms"],
+      "note": "candidate set and CPU/RSS bounds inherited from data/umh/voice/desktop_ambient_wake_compile.json (resource_budget.candidate_runtimes). Restated here for the benchmark matrix; this artifact does not soften those bounds.",
+      "candidates": [
+        {
+          "name": "openwakeword_onnx",
+          "kind": "local, ONNX, open-source",
+          "license": "Apache-2.0 (openWakeWord); bundled models MIT/Apache",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "executor|controller", "reason": "on-device wake runtime; hosted in the Electron main process (controller/executor desktop) per desktop_ambient_wake_compile.json. NEVER on orchestrator (no mic on the VPS)."},
+          "est_latency_ms": {"detection": 100, "is_estimate": true},
+          "est_footprint_mb": {"rss": 100, "is_estimate": true, "range": [50, 150]},
+          "est_cpu_pct_single_core": {"sustained": 2.0, "is_estimate": true, "range": [1.0, 3.0]},
+          "est_accuracy": {"false_accept_per_hour": 0.5, "false_reject_rate_pct": 5.0, "is_estimate": true},
+          "quality_dimension": "fully open-source, custom keyword training, no access key; slightly larger footprint than Porcupine",
+          "governance_flags": ["on-device wake; emits WakeEvent metadata only (carries_audio=false); no audio off-device"],
+          "is_estimate": true
+        },
+        {
+          "name": "porcupine",
+          "kind": "local, Picovoice native SDK",
+          "license": "proprietary (Picovoice) — free tier + commercial license required at scale; access key needed. FLAG: not open-source.",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "executor|controller", "reason": "on-device native wake runtime; controller/executor desktop only. NEVER on orchestrator."},
+          "est_latency_ms": {"detection": 60, "is_estimate": true},
+          "est_footprint_mb": {"rss": 5, "is_estimate": true, "range": [2, 10]},
+          "est_cpu_pct_single_core": {"sustained": 0.7, "is_estimate": true, "range": [0.5, 1.0]},
+          "est_accuracy": {"false_accept_per_hour": 0.1, "false_reject_rate_pct": 3.0, "is_estimate": true},
+          "quality_dimension": "smallest footprint, best measured FA/FRR in vendor benchmarks; requires Picovoice access key + commercial licensing review",
+          "governance_flags": ["on-device wake; emits WakeEvent metadata only", "LICENSE: Picovoice is proprietary — commercial licensing review required before ship (decision belongs to the wake implementation packet, not this benchmark)"],
+          "is_estimate": true
+        }
+      ]
+    },
+    "vad": {
+      "capability": "voice activity detection (speech vs non-speech segmentation)",
+      "primary_metrics": ["precision (speech frames)", "recall (speech frames)"],
+      "secondary_metrics": ["cpu_pct_single_core", "footprint_mb", "frame_latency_ms"],
+      "note": "the CURRENT voice_server.py uses an ENERGY-THRESHOLD VAD (compute_audio_level + SPEECH_LEVEL_THRESHOLD=0.02, SILENCE_END_UTTERANCE_S=1.8). That energy baseline is the row every model VAD is measured against.",
+      "candidates": [
+        {
+          "name": "energy_threshold_baseline",
+          "kind": "local, deterministic (current shipping VAD)",
+          "license": "n/a (in-repo, no dependency) — the Deterministic-First VAD",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "orchestrator|executor|controller", "reason": "trivial RMS math (voice_server.compute_audio_level); the ONLY VAD permitted on the orchestrator because it is not a model. Allowed anywhere."},
+          "est_latency_ms": {"per_frame": 1, "is_estimate": true},
+          "est_footprint_mb": {"rss": 0, "is_estimate": true, "note": "no model"},
+          "est_cpu_pct_single_core": {"sustained": 0.1, "is_estimate": true},
+          "est_accuracy": {"precision_pct": 80.0, "recall_pct": 85.0, "is_estimate": true, "note": "poor in noisy conditions; the deterministic floor"},
+          "quality_dimension": "zero-dependency, zero-model, always-works baseline (Deterministic-First Principle); breaks down under background noise — the reason to benchmark real VAD models",
+          "governance_flags": ["no model, no download; deterministic spine"],
+          "is_estimate": true
+        },
+        {
+          "name": "silero_vad",
+          "kind": "local, small neural VAD (ONNX/JIT)",
+          "license": "MIT (Silero VAD)",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "executor|controller", "reason": "tiny (~1-2MB) neural model; low CPU but IS a model load — prefer executor/controller. Its footprint is small enough to POSSIBLY qualify for orchestrator, but per Node Role Discipline default it is hosted on executor/controller and the execution packet must MEASURE its sustained CPU before any orchestrator placement is even considered."},
+          "est_latency_ms": {"per_frame_30ms": 1, "is_estimate": true},
+          "est_footprint_mb": {"rss": 2, "is_estimate": true, "note": "~1.8MB model"},
+          "est_cpu_pct_single_core": {"sustained": 1.0, "is_estimate": true},
+          "est_accuracy": {"precision_pct": 95.0, "recall_pct": 94.0, "is_estimate": true},
+          "quality_dimension": "best-in-class small neural VAD; robust to noise; MIT licensed; the leading candidate to replace the energy threshold",
+          "governance_flags": ["on-device; no audio off-device"],
+          "is_estimate": true
+        },
+        {
+          "name": "webrtc_vad",
+          "kind": "local, GMM-based (WebRTC), C library",
+          "license": "BSD-3-Clause (WebRTC) + MIT (py-webrtcvad binding)",
+          "on_device_vs_api": "on_device",
+          "node_binding": {"runtime_host_role": "orchestrator|executor|controller", "reason": "extremely light C library, no ML model weights; comparable cost to the energy baseline. Allowed anywhere, orchestrator included."},
+          "est_latency_ms": {"per_frame_30ms": 1, "is_estimate": true},
+          "est_footprint_mb": {"rss": 1, "is_estimate": true},
+          "est_cpu_pct_single_core": {"sustained": 0.3, "is_estimate": true},
+          "est_accuracy": {"precision_pct": 88.0, "recall_pct": 90.0, "is_estimate": true},
+          "quality_dimension": "battle-tested, ultra-light, no ML weights; less robust than Silero in noise but far better than energy threshold; safe for any node",
+          "governance_flags": ["on-device; permissive BSD license"],
+          "is_estimate": true
+        }
+      ]
+    }
+  },
+  "benchmark_method": {
+    "principle": "measure every candidate against the SAME datasets and the SAME hardware so verdicts are comparable; the current shipping engines (Groq STT, Kokoro TTS, energy VAD) are the baseline rows.",
+    "datasets_and_utterances": {
+      "stt": {
+        "primary": "LibriSpeech test-clean and test-other (public, standard WER benchmark)",
+        "domain": "a held-out set of ~50 real UMH-style operator commands (transcript-only, synthetic/paraphrased — NEVER real recorded operator audio, per docs/VOICE_INTENT_CONTRACT.md transcript-only + no-audio-persistence policy) covering the command_router intent surface (e.g. 'approve the pending run', 'show the queue')",
+        "conditions": ["clean", "with_background_noise (SNR sweep)", "accented (a small multi-accent subset)"],
+        "labels": "reference transcripts shipped with LibriSpeech; the domain set carries hand-written references"
+      },
+      "tts": {
+        "text_set": "a fixed set of ~30 sentences: short commands, long paragraphs, numbers/dates/acronyms (the hard cases for prosody)",
+        "listening_panel": "MOS is scored by a small human listening panel on the SAME sentences per engine; no synthetic MOS is treated as ground truth",
+        "note": "MOS is subjective and CANNOT be auto-measured; latency/RTF ARE measured mechanically"
+      },
+      "wake_word": {
+        "positive_set": "N clean + N noisy utterances of the (instance-configured) wake keyword, recorded/synthesized on-device only",
+        "negative_set": "many hours of speech + ambient audio NOT containing the keyword, to measure false-accepts per hour (public podcast/audiobook audio is an acceptable negative corpus)",
+        "note": "keyword is instance-configured at runtime, never a literal in this artifact"
+      },
+      "vad": {
+        "dataset": "a labelled speech/non-speech corpus (e.g. a public VAD benchmark or a segment of LibriSpeech mixed with noise at known SNRs)",
+        "labels": "per-frame speech/non-speech ground truth"
+      }
+    },
+    "metrics": {
+      "stt": ["WER (primary)", "RTF", "latency_ms (first + full)", "footprint_mb (VRAM/RSS)"],
+      "tts": ["MOS (primary, human panel)", "latency_ms_first_audio", "RTF", "footprint_mb"],
+      "wake_word": ["false_accept_per_hour (primary)", "false_reject_rate (primary)", "cpu_pct", "detection_latency_ms"],
+      "vad": ["precision (primary)", "recall (primary)", "cpu_pct", "frame_latency_ms"]
+    },
+    "execution_environment": {
+      "host_role": "executor (GPU node) — NEVER the orchestrator/VPS",
+      "host_selection": "the execution packet resolves the target host from infra/device_registry.json by role=executor with a GPU + display; it does not hardcode a hostname",
+      "cpu_gate": "the benchmark runner MUST call substrate.execution.cpu_gate.cpu_gate_check(caller) before each heavy model load/transcription/synthesis and MUST use gated_subprocess_run / gated_popen for any subprocess (CPU Gate Law). If the gate returns overloaded, the run PAUSES — it never saturates the host.",
+      "no_orchestrator_load": "no STT/TTS/wake/VAD MODEL is ever loaded on the orchestrator during the benchmark; only network-bound API baselines (Groq, ElevenLabs) may be invoked from any node",
+      "isolation": "models are downloaded and cached on the executor node's local model store (executor role = GPU workhorse per Node Role Discipline); NOTHING is downloaded or cached on the orchestrator"
+    },
+    "how_to_run_cpu_gated": "1) resolve executor host from device_registry (role=executor, has GPU); 2) on the executor, for each candidate: cpu_gate_check -> load model (gated) -> run dataset -> record metric -> unload; 3) API baselines run as network clients (no model load); 4) each candidate's estimate in this matrix is REPLACED by the measured value; 5) results are written to results_location; 6) the run is idempotent and resumable so a CPU-gate pause never loses progress.",
+    "results_location": {
+      "path": "data/umh/voice/voice_model_bench_results.jsonl",
+      "note": "the EXECUTION packet writes measured results here (one JSON line per candidate per condition). This compile artifact does NOT create or write that file. Each result line carries: category, candidate, condition, metric, measured_value, host_role, measured_at, hardware_fingerprint.",
+      "created_by": "execution packet only — not this artifact"
+    }
+  },
+  "forbidden_in_this_packet": [
+    "running any benchmark (no transcription, no synthesis, no wake/VAD detection executed)",
+    "downloading any model or dataset",
+    "any heavy compute or model load on any node",
+    "any provider execution (no Groq call, no ElevenLabs call, no Kokoro synthesis) beyond referencing existing runtime logs",
+    "adding any STT/TTS/wake/VAD library to any dependency manifest",
+    "recommending a voice-clone-capable model (XTTS-v2 / ElevenLabs) without the outbound-voice governance + licensing flag",
+    "loading or hosting any heavy model on the orchestrator-role node",
+    "writing data/umh/voice/voice_model_bench_results.jsonl (that belongs to the execution packet)",
+    "any tenant or device-hostname literal as global truth — node bindings reference infra/device_registry.json roles only"
+  ]
+}
