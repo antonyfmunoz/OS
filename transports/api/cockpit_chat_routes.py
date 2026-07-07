@@ -2,6 +2,44 @@
 
 Extracted from cockpit_core_routes.py to bring it under the 3,000-line
 quality gate. UMH transport layer.
+
+Media / audio artifact storage law (P4S-31D1-B lane F)
+------------------------------------------------------
+Storage location: ``$UMH_ROOT/data/chat_media/`` (flat directory, one file
+per artifact). File ids are server-generated; the client filename is never
+used to derive the on-disk name.
+
+Naming:
+- image/video: ``YYYYMMDD_HHMMSS_<uuid4-hex-8><ext>`` (legacy format, kept
+  for compatibility with existing chat history).
+- audio (``audio/webm`` | ``audio/wav``): ``<uuid4-hex-32><ext>`` — 128 bits
+  of entropy, non-guessable per the voice-message contract storage law. The
+  extension is derived from the declared content type (``.weba`` / ``.wav``),
+  never from the client filename, so audio/webm is never conflated with
+  video/webm on retrieval.
+
+Auth:
+- ``POST /chat/upload`` — operator-role gated (route-level ``require_operator``
+  dependency) in addition to the parent-router Clerk gate.
+- ``GET /chat/media/{file_id}`` and ``GET /chat/attachment`` — gated by the
+  parent router (``/api/umh`` carries ``Depends(require_clerk_auth)`` in
+  cockpit.py); no unauthenticated retrieval path exists and ``data/chat_media``
+  is never mounted as static files.
+- ``DELETE /chat/media/{file_id}`` — operator-role gated; audio artifacts only.
+
+Lifecycle / retention (audio):
+- Voice-message drafts hold audio CLIENT-SIDE only; nothing is uploaded until
+  the operator explicitly sends (chatStore.sendMessage uploads pendingMedia at
+  send time — the single upload call site). Draft delete before send therefore
+  discards a client-side blob and leaves no server artifact.
+- Once sent, the artifact is operator data and lives with chat history.
+- ``DELETE /chat/media/{file_id}`` exists so the client can remove an audio
+  artifact if the send fails AFTER upload (orphan cleanup) — the only window
+  where an artifact can exist without a chat message referencing it.
+
+Logging law: audio bytes, transcripts, and client filenames are never logged
+at INFO or above on the upload/retrieval/delete paths; previews are bounded
+and DEBUG-only elsewhere in this module.
 """
 
 from __future__ import annotations
@@ -23,6 +61,32 @@ from transports.api.governed import governed_mutation
 logger = logging.getLogger(__name__)
 
 chat_router: APIRouter = APIRouter()
+
+# ── Media upload limits (module-level so tests can exercise them) ────────────
+
+ALLOWED_MEDIA_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+}
+# Voice-message contract (P4S-31D1-B): audio/webm | audio/wav only.
+ALLOWED_AUDIO_TYPES = {
+    "audio/webm",
+    "audio/wav",
+}
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB — image/video
+MAX_AUDIO_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB — audio artifacts
+
+# Server-derived audio extensions — .weba (not .webm) keeps audio/webm
+# distinguishable from video/webm at retrieval time.
+_AUDIO_EXT = {
+    "audio/webm": ".weba",
+    "audio/wav": ".wav",
+}
 
 _get_organism_fn: Callable[[], Any] = lambda: None
 _push_chat_message_fn: Callable[[dict], None] = lambda msg: None
@@ -587,62 +651,88 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             str(resolved), filename=resolved.name, media_type="application/octet-stream"
         )
 
-    # ── Media upload for multimodal chat ─────────────────────────────────────
-
-    ALLOWED_MEDIA_TYPES = {
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "video/mp4",
-        "video/webm",
-        "video/quicktime",
-    }
-    MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+    # ── Media upload for multimodal chat (+ voice audio artifacts) ───────────
 
     @r.post("/chat/upload", dependencies=auth)
     async def chat_upload(file: UploadFile = File(...)):
-        """Upload an image or video for chat. Returns a serving URL."""
-        if file.content_type not in ALLOWED_MEDIA_TYPES:
+        """Upload an image, video, or voice-message audio artifact for chat.
+
+        Returns a serving URL plus integrity fields (sha256, size_bytes) per
+        the voice-message contract AudioArtifactRef shape. See the module
+        docstring for the full storage law.
+        """
+        import hashlib
+
+        # Browsers append codec parameters (e.g. "audio/webm;codecs=opus").
+        base_ct = (file.content_type or "").split(";")[0].strip().lower()
+        is_audio = base_ct in ALLOWED_AUDIO_TYPES
+
+        if not is_audio and base_ct not in ALLOWED_MEDIA_TYPES:
             raise HTTPException(
                 status_code=400,
-                detail=f"Unsupported media type: {file.content_type}. "
-                f"Allowed: {', '.join(sorted(ALLOWED_MEDIA_TYPES))}",
+                detail=f"Unsupported media type: {base_ct or 'unknown'}. "
+                f"Allowed: {', '.join(sorted(ALLOWED_MEDIA_TYPES | ALLOWED_AUDIO_TYPES))}",
             )
 
         repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
         media_dir = Path(repo_root) / "data" / "chat_media"
         media_dir.mkdir(parents=True, exist_ok=True)
 
-        ext = Path(file.filename or "upload").suffix or _ext_from_content_type(file.content_type)
-        file_id = (
-            f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
-        )
+        if is_audio:
+            # Storage law: non-guessable id (128-bit), server-derived extension
+            # (never the client filename — avoids audio/webm vs video/webm
+            # conflation and path tricks).
+            ext = _AUDIO_EXT[base_ct]
+            file_id = f"{uuid.uuid4().hex}{ext}"
+            max_size = MAX_AUDIO_UPLOAD_SIZE
+        else:
+            ext = Path(file.filename or "upload").suffix or _ext_from_content_type(base_ct)
+            file_id = (
+                f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+                f"_{uuid.uuid4().hex[:8]}{ext}"
+            )
+            max_size = MAX_UPLOAD_SIZE
         dest = media_dir / file_id
 
         size = 0
+        hasher = hashlib.sha256()
         with open(dest, "wb") as f:
             while chunk := await file.read(64 * 1024):
                 size += len(chunk)
-                if size > MAX_UPLOAD_SIZE:
+                if size > max_size:
                     dest.unlink(missing_ok=True)
-                    raise HTTPException(status_code=413, detail="File too large (max 50 MB)")
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large (max {max_size // (1024 * 1024)} MB)",
+                    )
+                hasher.update(chunk)
                 f.write(chunk)
 
-        media_type = "image" if file.content_type.startswith("image/") else "video"
+        if is_audio:
+            media_type = "audio"
+        elif base_ct.startswith("image/"):
+            media_type = "image"
+        else:
+            media_type = "video"
 
         return {
             "id": file_id,
             "url": f"/api/umh/chat/media/{file_id}",
             "filename": file.filename or file_id,
-            "content_type": file.content_type,
+            "content_type": base_ct,
             "media_type": media_type,
             "size": size,
+            "size_bytes": size,
+            "sha256": hasher.hexdigest(),
         }
 
     @r.get("/chat/media/{file_id}")
     def chat_media(file_id: str):
-        """Serve uploaded chat media."""
+        """Serve uploaded chat media.
+
+        Auth: parent router (/api/umh) requires the authenticated operator
+        session (Clerk) — see module docstring. Never mounted static.
+        """
         if "/" in file_id or ".." in file_id or file_id.startswith("."):
             raise HTTPException(status_code=400, detail="Invalid file ID")
 
@@ -662,10 +752,39 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             ".mp4": "video/mp4",
             ".webm": "video/webm",
             ".mov": "video/quicktime",
+            ".weba": "audio/webm",
+            ".wav": "audio/wav",
         }
         ct = content_types.get(ext, "application/octet-stream")
 
         return FileResponse(str(media_path), media_type=ct)
+
+    @r.delete("/chat/media/{file_id}", dependencies=auth)
+    def chat_media_delete(file_id: str):
+        """Delete a voice-message audio artifact (orphan cleanup / retention).
+
+        Audio artifacts only (.weba/.wav) — image/video chat media may be
+        referenced by persisted chat history and is out of scope for this
+        route. Operator-role gated like upload. Follows the seam's existing
+        direct-filesystem pattern (upload is the write precedent).
+        """
+        if "/" in file_id or ".." in file_id or file_id.startswith("."):
+            raise HTTPException(status_code=400, detail="Invalid file ID")
+
+        if Path(file_id).suffix.lower() not in (".weba", ".wav"):
+            raise HTTPException(
+                status_code=400, detail="Only audio artifacts are deletable via this route"
+            )
+
+        repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
+        media_path = Path(repo_root) / "data" / "chat_media" / file_id
+
+        if not media_path.is_file():
+            raise HTTPException(status_code=404, detail="Media not found")
+
+        media_path.unlink()
+        logger.debug("audio artifact deleted: %s", file_id)
+        return {"deleted": True, "id": file_id}
 
     return r
 
@@ -680,4 +799,6 @@ def _ext_from_content_type(ct: str) -> str:
         "video/mp4": ".mp4",
         "video/webm": ".webm",
         "video/quicktime": ".mov",
+        "audio/webm": ".weba",
+        "audio/wav": ".wav",
     }.get(ct, ".bin")
