@@ -1,7 +1,7 @@
 {
- "record": "P4-SYNC — WorkGraph + packet bundle",
+ "record": "P4-SYNC \u2014 WorkGraph + packet bundle",
  "compiled": "2026-07-06",
- "mode": "compile_only — no implementation authorized by this artifact",
+ "mode": "compile_only \u2014 no implementation authorized by this artifact",
  "doctrine": "parallel at the edges, serial at the trunk; fail-closed at every authority boundary",
  "serialization_classes": [
   "trunk merges",
@@ -21,7 +21,7 @@
   "blind projection code copied into /opt/OS"
  ],
  "merge_order": [
-  "MERGE-GATE-0 (app-repo): EntrepreneurOS#3 (W1) + EntrepreneurOS#4 (W2) — operator merges; gates provider work",
+  "MERGE-GATE-0 (app-repo): EntrepreneurOS#3 (W1) + EntrepreneurOS#4 (W2) \u2014 operator merges; gates provider work",
   "then P4S-1x substrate packets",
   "then P4S-2x adapter/read-surface packets",
   "then P4S-3x template packets",
@@ -99,7 +99,7 @@
   },
   {
    "id": "P4S-20",
-   "objective": "EOS /eos/tasks read surface (first import candidate S6 from #191) — governed-effect visibility",
+   "objective": "EOS /eos/tasks read surface (first import candidate S6 from #191) \u2014 governed-effect visibility",
    "dependencies": [
     "P4S-10"
    ],
@@ -143,7 +143,7 @@
   },
   {
    "id": "P4S-22",
-   "objective": "LifeOS governed proposal loop instance (RT-GOVERNED-PROPOSAL-LOOP second instance) — read+approve+execute over a LifeOS action table",
+   "objective": "LifeOS governed proposal loop instance (RT-GOVERNED-PROPOSAL-LOOP second instance) \u2014 read+approve+execute over a LifeOS action table",
    "dependencies": [
     "P4S-10",
     "P4S-12"
@@ -214,7 +214,7 @@
   },
   {
    "id": "P4S-40",
-   "objective": "send_email via AdapterCall + credential gate (C7) — provider execution enablement",
+   "objective": "send_email via AdapterCall + credential gate (C7) \u2014 provider execution enablement",
    "dependencies": [
     "MERGE-GATE-0 (W1+W2 merged+verified)",
     "P4S-11"
@@ -266,15 +266,15 @@
   },
   {
    "id": "P4S-31B",
-   "objective": "Cockpit Chat intent rail — intent originates ONLY through sanctioned Cockpit conversational surfaces (Chat now; Voice later as a thin adapter transcribing into the same Chat channel). Chat message = canonical user intent event -> IntentSpec -> WorkPacket draft -> held gate -> governed approve/reject -> proof -> server-truth status back into the same Cockpit conversational thread and panels.",
+   "objective": "Cockpit Chat intent rail \u2014 intent originates ONLY through sanctioned Cockpit conversational surfaces (Chat now; Voice later as a thin adapter transcribing into the same Chat channel). Chat message = canonical user intent event -> IntentSpec -> WorkPacket draft -> held gate -> governed approve/reject -> proof -> server-truth status back into the same Cockpit conversational thread and panels.",
    "dependencies": [
     "P4S-31"
    ],
-   "context": "P4S-31 merged (PR #215). ARCHITECTURE CORRECTION (owner, 2026-07-06): no generic 'intent form' doctrine — Chat is the canonical intent rail; panels/buttons exist only as downstream control surfaces after intent exists (approve, reject, inspect packet, open proof, retry, cancel, escalate) and must not bypass the Chat/Voice rail.",
+   "context": "P4S-31 merged (PR #215). ARCHITECTURE CORRECTION (owner, 2026-07-06): no generic 'intent form' doctrine \u2014 Chat is the canonical intent rail; panels/buttons exist only as downstream control surfaces after intent exists (approve, reject, inspect packet, open proof, retry, cancel, escalate) and must not bypass the Chat/Voice rail.",
    "expected_files": [
     "transports/api/cockpit_intent_loop_routes.py (POST submit fed by the Cockpit Chat intent channel + POST decision; registered mutations only)",
     "cockpit chat pipeline integration (chat message -> canonical intent event -> IntentSpec; status returns into the same thread)",
-    "cockpit/src/renderer/panels/IntentLoopPanel.tsx (downstream control surface ONLY: approve/reject/inspect/proof — no standalone intent form)",
+    "cockpit/src/renderer/panels/IntentLoopPanel.tsx (downstream control surface ONLY: approve/reject/inspect/proof \u2014 no standalone intent form)",
     "tests/test_p4s31b_intent_input_surface.py"
    ],
    "tests": [
@@ -284,7 +284,7 @@
     "deterministic parse (no LLM in the path)",
     "status/proof returns as server truth readable by the chat thread and panel"
    ],
-   "proof": "one intent submitted from the Cockpit-facing route (operator-authed), visible in GET /intent-loop, gate held, then governed approve -> proof_recorded — all ids from the real run",
+   "proof": "one intent submitted from the Cockpit-facing route (operator-authed), visible in GET /intent-loop, gate held, then governed approve -> proof_recorded \u2014 all ids from the real run",
    "rollback": "revert; routes additive",
    "stop_conditions": [
     "any ungoverned write path",
@@ -299,13 +299,13 @@
    "lane": "B",
    "risk": "MEDIUM",
    "followups": [
-    "P4S-31C — Deployed Cockpit Chat Intent Loop Proof",
-    "P4S-31D — Cockpit Voice Adapter Into Chat Intent Loop (only after P4S-31C proven)"
+    "P4S-31C \u2014 Deployed Cockpit Chat Intent Loop Proof",
+    "P4S-31D \u2014 Cockpit Voice Adapter Into Chat Intent Loop (only after P4S-31C proven)"
    ]
   },
   {
    "id": "P4S-31C-RUNTIME-READ-PATH-HARDENING-001",
-   "objective": "os-operator read-path hardening per the PR #212 diagnosis — bounded /snapshot, healthcheck/read route isolation from the shared threadpool, poller starvation prevention. The durable fix behind the P4S-31C CPU-cap unblock.",
+   "objective": "os-operator read-path hardening per the PR #212 diagnosis \u2014 bounded /snapshot, healthcheck/read route isolation from the shared threadpool, poller starvation prevention. The durable fix behind the P4S-31C CPU-cap unblock.",
    "dependencies": [
     "P4S-31C browser proof closed"
    ],
@@ -332,13 +332,13 @@
   },
   {
    "id": "P4S-31D-VOICE-CAPABILITY-MATRIX-001",
-   "objective": "COMPILE ONLY — define the full cross-platform VoiceIntentContract + platform voice capability matrix BEFORE any voice implementation. Voice is a thin adapter into the Cockpit Chat intent rail (source='voice' transcript -> /advisor/converse -> deterministic classify_intent -> governed intent loop -> held gate -> approve -> proof); voice never bypasses Chat, IntentSpec, WorkPacket, governance, proof, tenant identity, or server truth. Produces contract doc + feasibility matrix + type shapes + implementation-sequence packets; implements NO voice code.",
+   "objective": "COMPILE ONLY \u2014 define the full cross-platform VoiceIntentContract + platform voice capability matrix BEFORE any voice implementation. Voice is a thin adapter into the Cockpit Chat intent rail (source='voice' transcript -> /advisor/converse -> deterministic classify_intent -> governed intent loop -> held gate -> approve -> proof); voice never bypasses Chat, IntentSpec, WorkPacket, governance, proof, tenant identity, or server truth. Produces contract doc + feasibility matrix + type shapes + implementation-sequence packets; implements NO voice code.",
    "dependencies": [
     "P4S-31C browser proof closed"
    ],
-   "mode": "compile_only — no voice implementation authorized by this packet",
+   "mode": "compile_only \u2014 no voice implementation authorized by this packet",
    "compile_only": true,
-   "context": "Owner doctrine 2026-07-06: voice is a first-class adapter INTO Cockpit Chat, feeding the P4S-31B/C proven rail. Grounds in existing seams: chatStore.sendMessage(source='voice'), umh/voice_server.py ws://:8096/voice (transcript-only STT+TTS bridge, host process, not compose/systemd-managed — lifecycle gap noted), command_router.classify_intent (deterministic, ignores source), intent loop submit/decide with decided_by = Clerk principal. Device bindings reference infra/device_registry.json roles, never hostnames.",
+   "context": "Owner doctrine 2026-07-06: voice is a first-class adapter INTO Cockpit Chat, feeding the P4S-31B/C proven rail. Grounds in existing seams: chatStore.sendMessage(source='voice'), umh/voice_server.py ws://:8096/voice (transcript-only STT+TTS bridge, host process, not compose/systemd-managed \u2014 lifecycle gap noted), command_router.classify_intent (deterministic, ignores source), intent loop submit/decide with decided_by = Clerk principal. Device bindings reference infra/device_registry.json roles, never hostnames.",
    "expected_files": [
     "docs/VOICE_INTENT_CONTRACT.md",
     "data/umh/voice/platform_voice_feasibility_matrix.json",
@@ -368,12 +368,12 @@
    "lane": "B",
    "risk": "LOW",
    "followups": [
-    "P4S-31D-1 — desktop-browser push-to-talk adapter into Chat rail (+ voice_server lifecycle unit)",
-    "P4S-31D-2 — desktop-browser voice browser-proof (extend P4S-31C by one hop)",
-    "P4S-31D-3 — desktop-app push-to-talk + on-device wake-word (consent-gated)",
-    "P4S-31D-4 — mobile-app push-to-talk (on-device STT)",
-    "P4S-31D-5 — mobile-browser tap-to-talk (constrained; no wake)",
-    "P4S-31D-6 — ambient/always-on (desktop app; owner-gated; LAST)"
+    "P4S-31D-1 \u2014 desktop-browser push-to-talk adapter into Chat rail (+ voice_server lifecycle unit)",
+    "P4S-31D-2 \u2014 desktop-browser voice browser-proof (extend P4S-31C by one hop)",
+    "P4S-31D-3 \u2014 desktop-app push-to-talk + on-device wake-word (consent-gated)",
+    "P4S-31D-4 \u2014 mobile-app push-to-talk (on-device STT)",
+    "P4S-31D-5 \u2014 mobile-browser tap-to-talk (constrained; no wake)",
+    "P4S-31D-6 \u2014 ambient/always-on (desktop app; owner-gated; LAST)"
    ]
   },
   {
@@ -395,7 +395,7 @@
     "consent gate refuses capture fail-closed without an active grant",
     "gate holds at AWAITING_APPROVAL for a voice-origin INTENT_CAPTURE"
    ],
-   "proof": "voice-origin transcript submitted through /advisor/converse, visible in GET /intent-loop, gate held — server truth, ids from a real run",
+   "proof": "voice-origin transcript submitted through /advisor/converse, visible in GET /intent-loop, gate held \u2014 server truth, ids from a real run",
    "rollback": "revert; adapter + consent state are additive",
    "stop_conditions": [
     "voice bypasses /advisor/converse",
@@ -407,15 +407,52 @@
    "executor": "Opus",
    "lane": "B",
    "risk": "MEDIUM",
-   "hard_hold": "MUST NOT START until the owner explicitly calls P4S-31D-1 after the compile packet lands"
+   "hard_hold": "MUST NOT START until the owner explicitly calls P4S-31D-1 after the compile packet lands",
+   "status": "DELIVERED_AS_P4S31D1_A_PIPE_ONLY",
+   "reclassification": "2026-07-07 owner product correction: shipped behavior is dictation-into-chat (mic -> transcript -> immediate chat send). Reclassified P4S-31D1-A: low-level voice pipe proved (capture, WS STT, consent gate, chat rail, held gate). NOT product-complete. The voice-message product ships in P4S-31D1-B."
   },
   {
-   "id": "P4S-31D-2-DESKTOP-BROWSER-VOICE-PROOF-001",
-   "objective": "Desktop-browser voice browser-proof: extend the P4S-31C server-truth chain by one hop — spoken utterance -> transcript in chat -> held gate -> governed approve -> proof_recorded, all ids from the real run, decided_by = Clerk principal. Real Chrome on an executor-role node (Browser Verification Law).",
+   "id": "P4S-31D1-B-VOICE-MESSAGE-UX-001",
+   "objective": "Voice as a governed chat VOICE-MESSAGE object, not raw dictation: record real audio -> voice bubble/recording card with duration indicator -> partial transcript shown as provisional only (never committed) -> pause-aware finalization (VAD config; no premature submit) -> VoiceMessage DRAFT (audio artifact ref, transcript, duration, confidence, device/session id, consent grant id, transcript status, created_at) -> transcript under the bubble -> user review/retry/delete/edit -> ONLY on explicit send does it enter Cockpit Chat -> IntentSpec -> WorkPacket/gate/proof. Intent loop receives finalized transcript + audio artifact pointer. Proof records no Chat bypass.",
    "dependencies": [
     "P4S-31D-1-DESKTOP-BROWSER-PTT-001"
    ],
-   "context": "Proof packet following the first capability packet. HARD-HELD. Class-A evidence only: real deployed UI, real Chrome on the executor node, real Clerk principal, zero synthetic data — mirrors docs/audits/2026-07-06_p4s31c_browser_proof.md, one hop further back.",
+   "context": "Owner correction packet. Contract artifact: data/umh/voice/voice_message_contract.json + docs/VOICE_MESSAGE_CONTRACT.md. LifeOS recon report precedes implementation. Lanes: A recon / B contract / C recording UI / D VAD / E STT quality-retry / F storage-privacy / G proof.",
+   "expected_files": [
+    "voice_message_contract.json + VOICE_MESSAGE_CONTRACT.md (lane B)",
+    "cockpit voice-message draft store + recording card UI (lanes C/D/E, one seam)",
+    "audio artifact storage path per UMH storage law, tenant/session scoped (lane F)",
+    "tests: draft-never-auto-sends, partial-never-committed, VAD thresholds, audio preserved on STT failure"
+   ],
+   "tests": [
+    "partial transcript never appears as a committed chat message",
+    "pause below min_silence never finalizes; finalization only by manual_stop or configured silence_timeout",
+    "no chat message exists until explicit user send; draft delete leaves no chat trace",
+    "STT failure preserves audio artifact and offers retry; low-confidence transcript never auto-enters intent loop",
+    "sent VoiceMessage -> /advisor/converse source='voice' with finalized transcript + artifact pointer; gate holds",
+    "no transcript at INFO logs; audio artifact tenant/session scoped"
+   ],
+   "proof": "Class-A desktop browser: record with mid-sentence pauses -> bubble + transcript underneath -> no premature send -> edit transcript -> send -> loop held -> decide -> proof_recorded; ids from server truth; audio artifact resolvable; secret/leak scan clean.",
+   "rollback": "revert; additive UI + draft store; the D1-A dictation path is replaced, not duplicated",
+   "stop_conditions": [
+    "voice bypasses /advisor/converse",
+    "partial transcript committed as final",
+    "auto-send without explicit mode permitting it",
+    "audio discarded on STT failure",
+    "transcript/audio leakage in logs",
+    "provider execution"
+   ],
+   "executor": "Opus",
+   "lane": "B",
+   "risk": "MEDIUM"
+  },
+  {
+   "id": "P4S-31D-2-DESKTOP-BROWSER-VOICE-PROOF-001",
+   "objective": "Desktop-browser voice browser-proof: extend the P4S-31C server-truth chain by one hop \u2014 spoken utterance -> transcript in chat -> held gate -> governed approve -> proof_recorded, all ids from the real run, decided_by = Clerk principal. Real Chrome on an executor-role node (Browser Verification Law).",
+   "dependencies": [
+    "P4S-31D-1-DESKTOP-BROWSER-PTT-001"
+   ],
+   "context": "Proof packet following the first capability packet. HARD-HELD. Class-A evidence only: real deployed UI, real Chrome on the executor node, real Clerk principal, zero synthetic data \u2014 mirrors docs/audits/2026-07-06_p4s31c_browser_proof.md, one hop further back.",
    "expected_files": [
     "browser voice proof collector (executor-dispatched)",
     "docs/audits/ voice browser-proof record + evidence"
@@ -427,7 +464,7 @@
     "secret/audio scan on evidence clean"
    ],
    "proof": "collector exit 0 with real loop_id, proof_id, envelope_id, decided_by=clerk:user_<id>; orchestrator-side independent read matches",
-   "rollback": "n/a — proof artifact only; no runtime change",
+   "rollback": "n/a \u2014 proof artifact only; no runtime change",
    "stop_conditions": [
     "browser proof run on the orchestrator node",
     "any synthetic/false-positive completion",
