@@ -76,13 +76,19 @@ def governed_consent_grant(
                 "code": refusal.code,
             }
 
-        executed = bool(getattr(response, "executed", False))
-        if not executed or "grant" not in result:
+        # MutationResponse contract field is `success` (substrate/organism/
+        # mutation_router.py) — same check IntentLoop uses. #230 shipped
+        # checking a nonexistent `executed` attr, so successful governed
+        # grants reported as refusals.
+        succeeded = bool(getattr(response, "success", False))
+        if not succeeded or "grant" not in result:
             return {
                 "surface": _SURFACE,
                 "granted": False,
                 "active": False,
-                "error": getattr(response, "reason", None) or "governed grant did not execute",
+                "error": getattr(response, "rejected_reason", "")
+                or getattr(response, "output", "")
+                or "governed grant did not execute",
                 "code": "GOVERNED_REFUSAL",
             }
         return {
@@ -143,14 +149,18 @@ def governed_consent_revoke(
             execute_fn=_execute,
             source="cockpit",
         )
-        executed = bool(getattr(response, "executed", False))
+        succeeded = bool(getattr(response, "success", False))
         return {
             "surface": _SURFACE,
-            "revoked": bool(result["revoked"]) and executed,
+            "revoked": bool(result["revoked"]) and succeeded,
             "active": False,
             "error": None
-            if executed
-            else (getattr(response, "reason", None) or "governed revoke did not execute"),
+            if succeeded
+            else (
+                getattr(response, "rejected_reason", "")
+                or getattr(response, "output", "")
+                or "governed revoke did not execute"
+            ),
         }
     except Exception as e:
         logger.debug("governed consent revoke failed: %s", e)

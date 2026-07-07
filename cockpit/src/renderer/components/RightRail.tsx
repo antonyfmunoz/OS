@@ -277,6 +277,7 @@ function ChatSection() {
   const micState = useVoiceStore((s) => s.micState)
   const ttsState = useVoiceStore((s) => s.ttsState)
   const voiceError = useVoiceStore((s) => s.error)
+  const consentState = useVoiceStore((s) => s.consentState)
   const voicePresentationStatus = useVoiceStore((s) => s.voicePresentationStatus)
   const draftMessage = useChatStore((s) => s.draftMessage)
   const placeholderMessage = useChatStore((s) => s.placeholderMessage)
@@ -328,17 +329,8 @@ function ChatSection() {
         await desktopBrowserVoiceAdapter.startCapture()
       } catch (err) {
         if (err instanceof ConsentRequiredError) {
-          // Explicit per-device consent (VoiceConsentGrant, P4S-31D-1): ask
-          // once; the grant is stored server-side and revocable.
-          const agreed = window.confirm(
-            'Enable push-to-talk voice on this device? The microphone activates only while you tap the mic, and you can revoke this any time.',
-          )
-          if (agreed) {
-            const granted = await desktopBrowserVoiceAdapter.requestConsent('push_to_talk')
-            if (granted.active) {
-              desktopBrowserVoiceAdapter.startCapture().catch(() => setVoiceAvailable(false))
-            }
-          }
+          // consentState is now 'required' — the inline enable control
+          // renders in the voice status strip. No blocking dialog.
           return
         }
         setVoiceAvailable(false)
@@ -347,6 +339,19 @@ function ChatSection() {
       desktopBrowserVoiceAdapter.stopCapture()
     }
   }, [micState])
+
+  const handleEnablePushToTalk = useCallback(async () => {
+    // Explicit per-device VoiceConsentGrant(push_to_talk): user-initiated,
+    // governed server-side, revocable. On success retry capture immediately.
+    const granted = await desktopBrowserVoiceAdapter.grantPushToTalk()
+    if (granted.active) {
+      desktopBrowserVoiceAdapter.startCapture().catch(() => setVoiceAvailable(false))
+    }
+  }, [])
+
+  const handleRevokePushToTalk = useCallback(() => {
+    desktopBrowserVoiceAdapter.revokeConsent('push_to_talk').catch(() => { /* fail-closed */ })
+  }, [])
 
   const handleSuggestedAction = useCallback((action: SuggestedAction) => {
     switch (action.action) {
@@ -527,7 +532,27 @@ function ChatSection() {
             'text-cyan animate-pulse',
           )}>{voiceLabel}</div>
         )}
-        {voiceError && micState === 'idle' && (
+        {consentState === 'required' && micState === 'idle' && (
+          <button
+            onClick={handleEnablePushToTalk}
+            className="text-[10px] font-mono text-cyan px-2 py-1 mx-1 rounded border border-cyan/40 hover:bg-cyan-glow transition-colors cursor-pointer text-left"
+          >
+            Enable Push-to-Talk for this device
+            <span className="block text-[8px] text-text-tertiary">
+              Mic activates only while you tap it. Stored server-side, revocable.
+            </span>
+          </button>
+        )}
+        {consentState === 'granting' && (
+          <div className="text-[9px] font-mono text-cyan animate-pulse px-1">Enabling push-to-talk…</div>
+        )}
+        {consentState === 'active' && micState === 'idle' && !voiceError && (
+          <div className="text-[8px] font-mono text-text-tertiary px-1">
+            Push-to-talk enabled ·{' '}
+            <button onClick={handleRevokePushToTalk} className="underline hover:text-danger cursor-pointer">disable</button>
+          </div>
+        )}
+        {voiceError && micState === 'idle' && consentState !== 'required' && consentState !== 'granting' && (
           <button onClick={handleMicToggle} className="text-[9px] font-mono text-cyan/70 px-1 hover:text-cyan cursor-pointer">Try again</button>
         )}
         {pendingMedia.length > 0 && (

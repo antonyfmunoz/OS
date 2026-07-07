@@ -79,24 +79,48 @@ async function requestConsent(mode: VoiceActivationMode): Promise<VoiceConsentSt
 
 async function revokeConsent(mode: VoiceActivationMode): Promise<VoiceConsentState> {
   try {
-    return await fetchApi<VoiceConsentState>('/voice/consent/revoke', {
+    const out = await fetchApi<VoiceConsentState>('/voice/consent/revoke', {
       method: 'POST',
       body: JSON.stringify({ device_registry_id: deviceRegistryId(), mode }),
     })
+    if (mode === 'push_to_talk') useVoiceStore.getState().setConsentState('required')
+    return out
   } catch (e) {
     return { active: false, error: e instanceof Error ? e.message : 'consent revoke failed' }
   }
 }
 
 /**
+ * Explicit inline grant flow for push-to-talk (Lane A UX). Server truth only:
+ * the store state flips to 'active' ONLY when the governed grant route
+ * confirms an active grant — never faked client-side, never auto-granted.
+ */
+async function grantPushToTalk(): Promise<VoiceConsentState> {
+  const vs = useVoiceStore.getState()
+  vs.setConsentState('granting')
+  const out = await requestConsent('push_to_talk')
+  if (out.active) {
+    vs.setConsentState('active')
+    vs.setError(null)
+    vs.setLastOutcome(null)
+  } else {
+    vs.setConsentState('required')
+    vs.setError(out.error || 'Consent grant failed — try again')
+  }
+  return out
+}
+
+/**
  * Open push-to-talk capture behind the fail-closed consent gate.
- * Throws ConsentRequiredError (and sets the typed VoiceOutcome) when no active
+ * Throws ConsentRequiredError (and sets the typed VoiceOutcome + consentState
+ * 'required' so the UI renders the inline enable control) when no active
  * VoiceConsentGrant(push_to_talk) exists for this device.
  */
 async function startCapture(): Promise<void> {
   const consent = await getConsent('push_to_talk')
+  const vs = useVoiceStore.getState()
   if (!consent.active) {
-    const vs = useVoiceStore.getState()
+    vs.setConsentState('required')
     vs.setError('Voice consent required — enable push-to-talk for this device')
     vs.setLastOutcome('CONSENT_REQUIRED')
     vs.setMicState('idle')
@@ -104,6 +128,7 @@ async function startCapture(): Promise<void> {
       consent.error || 'no active VoiceConsentGrant(push_to_talk) for this device',
     )
   }
+  vs.setConsentState('active')
   await startVoice()
 }
 
@@ -123,6 +148,7 @@ export const desktopBrowserVoiceAdapter = {
   getConsent,
   requestConsent,
   revokeConsent,
+  grantPushToTalk,
   startCapture,
   stopCapture,
   closeSession,
