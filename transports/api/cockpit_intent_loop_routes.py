@@ -1,14 +1,22 @@
-"""Cockpit intent-loop routes — P4S-31 read surface + P4S-31B input surface.
+"""Cockpit intent-loop routes — P4S-31 read surface + P4S-31B intent rail seams.
 
 Covers:
 - GET  /intent-loop                    (read surface — P4S-31)
-- POST /intent-loop/submit             (operator text → captured loop — P4S-31B)
+- POST /intent-loop/submit             (canonical intent event endpoint — P4S-31B)
 - POST /intent-loop/{loop_id}/decision (approve/reject the held gate — P4S-31B)
 
-All three are thin transport wrappers over the substrate-owned IntentLoop,
+Doctrine (P4S-31B architecture correction): intent originates ONLY through
+sanctioned Cockpit conversational surfaces — Cockpit Chat now, Cockpit Voice
+later as a thin adapter into the same Chat channel. The Cockpit Chat rail
+(``transports.api.cockpit_chat_routes.try_chat_intent_rail``) is what feeds
+:func:`governed_intent_submit` — the ONE governed submit shared by the rail and
+the ``POST /intent-loop/submit`` endpoint. Panels are downstream control
+surfaces only (approve, reject, inspect); the cockpit frontend does NOT call
+/intent-loop/submit directly.
+
+All routes are thin transport wrappers over the substrate-owned IntentLoop,
 following the read-surface / governed-write discipline of the sibling EOS
-action-proposal routes (rules/projection-read-surfaces.md adapted for a
-substrate-owned surface):
+action-proposal routes:
 
 - lazy import of the substrate loop INSIDE the handler,
 - try/except → dict, never a 500,
@@ -18,9 +26,11 @@ substrate-owned surface):
   submits each write under its REGISTERED MutationSpec (intent_loop_submit /
   intent_loop_approval_decision). No ungoverned write path.
 
-The gate HOLDS: /submit lands the loop at AWAITING_APPROVAL and never advances;
+The gate HOLDS: submit lands the loop at AWAITING_APPROVAL and never advances;
 /decision is the ONLY way forward, and approval produces a governed proof
-record. The route never auto-executes anything.
+record. A successful decision also persists a server-truth status turn back
+into the Cockpit Chat thread (governed ``conversation_send``; non-fatal when
+the control plane is down — same availability posture as chat itself).
 
 The path is /intent-loop (not /intent/loop) to avoid colliding with the
 existing /intent/{intent_id} intent-preservation route in
@@ -32,12 +42,97 @@ UMH transport layer.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
+def governed_intent_submit(raw_text: str, user_id: str = "umh_operator") -> dict:
+    """The ONE governed intent submission — shared by the Cockpit Chat rail and
+    the POST /intent-loop/submit endpoint.
+
+    Operator text → deterministic IntentSpec + WorkPacketDraft → captured at
+    AWAITING_APPROVAL. The capture WRITE is governed: the substrate loop is
+    built with the live ``governed_mutation`` runner injected, so the append
+    routes through the registered ``intent_loop_submit`` MutationSpec. The gate
+    HOLDS — the loop never auto-advances past AWAITING_APPROVAL. Returns a
+    stable dict; never raises.
+    """
+    try:
+        from substrate.execution.intent.loop import IntentLoop
+        from transports.api.governed import governed_mutation
+
+        text = (raw_text or "").strip()
+        if not text:
+            return {
+                "surface": "intent_loop_submit",
+                "submitted": False,
+                "error": "text is required",
+            }
+
+        loop = IntentLoop(mutation_runner=governed_mutation)
+        record = loop.submit(text, user_id=user_id)
+        return {
+            "surface": "intent_loop_submit",
+            "submitted": True,
+            "loop_id": record.loop_id,
+            "stage": record.stage,
+            "spec": record.spec,
+            "draft": record.draft,
+            "error": None,
+        }
+    except Exception as e:
+        logger.debug("governed intent submit failed: %s", e)
+        return {
+            "surface": "intent_loop_submit",
+            "submitted": False,
+            "error": str(e),
+        }
+
+
+def _persist_decision_status_to_chat(record: Any, decision: str, decided_by: str) -> None:
+    """Server-truth decision status back into the Cockpit Chat thread.
+
+    Doctrine: the conversational surface reflects the loop's stage/proof.
+    Persisted as a governed ``conversation_send`` turn (the same mutation the
+    chat pipeline uses). Best-effort and non-fatal: with the control plane down
+    the conversation_send spec fails closed (chat history is daemon-backed
+    today), while the decision itself was already governed and recorded.
+    Never raises.
+    """
+    try:
+        from transports.api.governed import governed_mutation
+
+        proof = record.proof or {}
+        text = (
+            f"Intent loop `{record.loop_id}` {decision} by {decided_by} — "
+            f"stage {record.stage}, proof `{proof.get('proof_id', '')}` "
+            f"(governed_success={proof.get('governed_success')})."
+        )
+
+        def _persist() -> tuple[str, bool]:
+            from substrate.organism.store import OrganismStore
+
+            OrganismStore().save_conversation_turn(
+                content=f"{decision} intent loop {record.loop_id}",
+                response=text,
+                origin_channel="cockpit",
+                responder="dex",
+            )
+            return ("intent loop decision status saved to chat thread", True)
+
+        governed_mutation(
+            mutation_name="conversation_send",
+            intent=f"intent loop decision status: {record.loop_id}",
+            execute_fn=_persist,
+            source="cockpit",
+        )
+    except Exception as exc:
+        logger.debug("decision status chat persistence failed (non-fatal): %s", exc)
+
+
 def register_intent_loop_routes(router, _require_operator_role, helpers):
-    """Register the intent-loop read + input surfaces onto the given router."""
+    """Register the intent-loop read + decision surfaces onto the given router."""
 
     from fastapi import Depends
 
@@ -72,41 +167,18 @@ def register_intent_loop_routes(router, _require_operator_role, helpers):
         payload: dict | None = None,
         operator_identity: str = Depends(_require_operator_role),
     ):
-        """Capture one operator intent — P4S-31B input surface.
+        """Canonical intent event endpoint — P4S-31B.
 
-        Operator text → deterministic IntentSpec + WorkPacketDraft → captured at
-        AWAITING_APPROVAL. The capture WRITE is governed: the substrate loop is
-        built with the live ``governed_mutation`` runner injected, so the append
-        routes through the registered ``intent_loop_submit`` MutationSpec. The
-        gate HOLDS — the loop never auto-advances past AWAITING_APPROVAL. Thin
-        wrapper, try/except → dict, never a 500.
+        Fed by the Cockpit Chat intent rail (the sanctioned intent origin); the
+        cockpit panel does NOT call this directly. Thin wrapper over
+        :func:`governed_intent_submit`; try/except → dict, never a 500.
         """
         try:
-            from substrate.execution.intent.loop import IntentLoop
-            from transports.api.governed import governed_mutation
-
             body = payload or {}
-            raw_text = str(body.get("text") or body.get("raw_text") or "").strip()
-            if not raw_text:
-                return {
-                    "surface": "intent_loop_submit",
-                    "submitted": False,
-                    "error": "text is required",
-                }
-
-            loop = IntentLoop(mutation_runner=governed_mutation)
-            record = loop.submit(raw_text, user_id=operator_identity)
-            return {
-                "surface": "intent_loop_submit",
-                "submitted": True,
-                "loop_id": record.loop_id,
-                "stage": record.stage,
-                "spec": record.spec,
-                "draft": record.draft,
-                "error": None,
-            }
+            raw_text = str(body.get("text") or body.get("raw_text") or "")
+            return governed_intent_submit(raw_text, user_id=operator_identity)
         except Exception as e:
-            logger.debug("intent loop submit failed: %s", e)
+            logger.debug("intent loop submit route failed: %s", e)
             return {
                 "surface": "intent_loop_submit",
                 "submitted": False,
@@ -125,8 +197,10 @@ def register_intent_loop_routes(router, _require_operator_role, helpers):
         ``governed_mutation`` runtime under the registered
         ``intent_loop_approval_decision`` MutationSpec; approval produces a
         governed proof record and reaches PROOF_RECORDED. The recorded decider is
-        the AUTHENTICATED operator identity, never client input. Thin wrapper,
-        try/except → dict, never a 500. Never executes the drafted work.
+        the AUTHENTICATED operator identity, never client input. A successful
+        decision persists a server-truth status turn into the Cockpit Chat
+        thread. Thin wrapper, try/except → dict, never a 500. Never executes the
+        drafted work.
         """
         try:
             from substrate.execution.intent.loop import IntentLoop
@@ -151,6 +225,10 @@ def register_intent_loop_routes(router, _require_operator_role, helpers):
                     "decision": decision,
                     "error": "unknown loop",
                 }
+
+            if record.proof is not None:
+                _persist_decision_status_to_chat(record, decision, operator_identity)
+
             return {
                 "surface": "intent_loop_decision",
                 "decided": True,

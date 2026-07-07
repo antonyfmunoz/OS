@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""P4S-31B proof harness — operator submit + decide through the ROUTE HANDLERS.
+"""P4S-31B proof harness — Cockpit Chat intent rail, through the REAL handlers.
 
-Runs the intent-loop input surface in-process the way FastAPI would (minus the
-network): registers the real route handlers via a capturing fake router, then
+Doctrine: intent originates ONLY through sanctioned Cockpit conversational
+surfaces. This proof drives the full chain in-process through the ACTUAL
+handler functions (the real /advisor/converse endpoint from the real chat
+router, and the real intent-loop route handlers) — no store poking, no
+fabricated ids:
 
-  1. POST /intent-loop/submit  — captures a real generic intent → held gate,
-  2. reads the surface — shows the gate HELD (AWAITING_APPROVAL, no proof),
+  chat_submit → intent_loop → awaiting_approval → governed_approve → proof_recorded
+
+  1. POST /advisor/converse with an intent-bearing chat message → the
+     deterministic rail (classify_intent, no LLM) captures it via the governed
+     intent_loop_submit mutation; server-truth status returns into the SAME
+     chat thread (ChatResponse dict),
+  2. GET /intent-loop — gate HELD (AWAITING_APPROVAL, no proof),
   3. POST /intent-loop/{loop_id}/decision (approve) — governed decision,
-  4. reads the surface — shows PROOF_RECORDED with the real proof record.
+  4. GET /intent-loop — PROOF_RECORDED with the real proof record.
 
-All ids in the output are REAL (produced by the run). No fabricated ids, no
-poking the store directly. Writes a JSON proof under data/audits/proof/ and a
-markdown proof under docs/audits/.
+Writes a JSON proof under data/audits/proof/ and prints the assertion summary.
 """
 
 from __future__ import annotations
@@ -25,6 +31,9 @@ from datetime import date
 _WORKTREE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _WORKTREE not in sys.path:
     sys.path.insert(0, _WORKTREE)
+
+# Deterministically classifies as CommandIntent.INTENT_CAPTURE ("fix this").
+_CHAT_INTENT = "Fix this bug in the demo pipeline dashboard"
 
 
 class _FakeRouter:
@@ -47,6 +56,22 @@ class _FakeRouter:
         return _register
 
 
+def _real_advisor_converse():
+    """Build the REAL chat router (as cockpit.py does; organism state truthful
+    to this environment) and return the actual /advisor/converse endpoint."""
+    import transports.api.cockpit_chat_routes as chat_mod
+
+    chat_mod.configure(
+        get_organism_fn=lambda: None,  # daemon down in this env — truthful
+        push_chat_message_fn=lambda msg: None,
+        require_operator_dep=lambda: "umh_operator",
+    )
+    for route in chat_mod.chat_router.routes:
+        if getattr(route, "path", "") == "/advisor/converse":
+            return route.endpoint
+    raise AssertionError("/advisor/converse route not found")
+
+
 def main() -> int:
     # Isolated substrate-owned store so the proof reads a clean, real surface.
     tmp = tempfile.mkdtemp(prefix="p4s31b_proof_")
@@ -63,22 +88,23 @@ def main() -> int:
         return "umh_operator"
 
     register_intent_loop_routes(router, _require_operator_role, {})
-    submit = router.post_routes["/intent-loop/submit"]
     decide = router.post_routes["/intent-loop/{loop_id}/decision"]
     read = router.get_routes["/intent-loop"]
 
-    intent_text = "Draft a follow-up plan for the demo pipeline"
+    advisor_converse = _real_advisor_converse()
 
-    # 1. Submit through the ROUTE HANDLER.
-    submitted = submit(payload={"text": intent_text}, operator_identity="umh_operator")
-    loop_id = submitted.get("loop_id")
+    # 1. Chat submit through the REAL /advisor/converse handler.
+    chat_response = advisor_converse({"content": _CHAT_INTENT})
+    meta = chat_response.get("metadata", {}) if isinstance(chat_response, dict) else {}
+    loop_id = meta.get("loop_id")
 
     # 2. Read — gate HELD.
     held_surface = read()
     held_loop = next((lp for lp in held_surface["loops"] if lp["loop_id"] == loop_id), None)
     gate_held = (
-        submitted.get("submitted") is True
-        and submitted.get("stage") == "awaiting_approval"
+        meta.get("submitted") is True
+        and chat_response.get("intent") == "intent_loop_submit"
+        and meta.get("stage") == "awaiting_approval"
         and held_loop is not None
         and held_loop["stage"] == "awaiting_approval"
         and held_loop["proof"] is None
@@ -104,10 +130,14 @@ def main() -> int:
 
     result = {
         "packet": "P4S-31B",
-        "surface": "intent_loop input surface (submit + decide)",
+        "surface": "Cockpit Chat intent rail (chat submit + governed decide)",
+        "chain": (
+            "chat_submit -> intent_loop -> awaiting_approval -> governed_approve -> proof_recorded"
+        ),
         "generated": date.today().isoformat(),
         "store_path": store_path,
-        "step_1_submit_response": submitted,
+        "step_1_chat_message": _CHAT_INTENT,
+        "step_1_chat_thread_response": chat_response,
         "step_2_gate_held": {
             "gate_held": gate_held,
             "held_loop": held_loop,
@@ -118,7 +148,10 @@ def main() -> int:
             "proven_loop": proven_loop,
         },
         "assertions": {
-            "submit_captured_real_loop": bool(loop_id),
+            "chat_rail_captured_real_loop": bool(loop_id),
+            "chat_thread_received_server_truth_status": bool(
+                isinstance(chat_response, dict) and chat_response.get("text")
+            ),
             "gate_held_at_awaiting_approval": gate_held,
             "decision_reached_proof_recorded": proof_recorded,
             "proof_governed_success": bool(
@@ -144,13 +177,16 @@ def main() -> int:
         json.dump(result, f, indent=2, default=str)
 
     ok = (
-        result["assertions"]["submit_captured_real_loop"]
+        result["assertions"]["chat_rail_captured_real_loop"]
+        and result["assertions"]["chat_thread_received_server_truth_status"]
         and result["assertions"]["gate_held_at_awaiting_approval"]
         and result["assertions"]["decision_reached_proof_recorded"]
         and result["assertions"]["proof_governed_success"]
     )
 
     print(json.dumps(result["assertions"], indent=2))
+    print(f"\nchat message: {_CHAT_INTENT}")
+    print(f"chat thread status: {chat_response.get('text', '')}")
     print(f"\nloop_id: {loop_id}")
     if proven_loop and proven_loop["proof"]:
         p = proven_loop["proof"]

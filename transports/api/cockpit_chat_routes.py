@@ -29,6 +29,121 @@ _push_chat_message_fn: Callable[[dict], None] = lambda msg: None
 _configured: bool = False
 
 
+def try_chat_intent_rail(content: str, conversation_id: str = "") -> dict | None:
+    """P4S-31B Cockpit Chat intent rail — deterministic, no LLM.
+
+    Doctrine: intent originates ONLY through sanctioned Cockpit conversational
+    surfaces (Cockpit Chat now; Cockpit Voice later as a thin adapter into the
+    same Chat channel). This rail recognizes an intent-bearing chat message
+    using the EXISTING deterministic classifier
+    (``substrate.workstation.command_router.classify_intent`` — keyword table,
+    explicitly no LLM; ``CommandIntent.INTENT_CAPTURE``) and routes it into the
+    canonical intent loop via the ONE governed submit shared with
+    ``POST /intent-loop/submit`` (``governed_intent_submit`` → registered
+    ``intent_loop_submit`` MutationSpec — no ungoverned path).
+
+    The gate HOLDS: the captured loop lands at AWAITING_APPROVAL and never
+    auto-advances; approve/reject flows through the governed decision seam.
+    Nothing is dispatched or executed here.
+
+    Returns a ChatResponse-shaped dict (server-truth status back into the SAME
+    chat thread) when the message is intent-bearing; ``None`` otherwise so the
+    normal conversation path proceeds. Runs BEFORE the daemon-backed
+    conversation, so intent capture (degraded-safe, audited) works even when
+    the organism is down. Never raises.
+    """
+    try:
+        from substrate.workstation.command_router import (
+            CommandIntent,
+            classify_intent,
+        )
+
+        if classify_intent(content) != CommandIntent.INTENT_CAPTURE:
+            return None
+    except Exception as exc:
+        logger.debug("intent rail classification failed: %s", exc)
+        return None
+
+    timestamp = datetime.now(timezone.utc).isoformat()
+    conv_id = conversation_id or f"conv-{uuid.uuid4().hex[:12]}"
+
+    try:
+        from transports.api.cockpit_intent_loop_routes import governed_intent_submit
+
+        result = governed_intent_submit(content, user_id="cockpit_chat_operator")
+    except Exception as exc:
+        logger.debug("intent rail governed submit failed: %s", exc)
+        result = {"submitted": False, "error": str(exc)}
+
+    if result.get("submitted"):
+        draft = result.get("draft") or {}
+        spec = result.get("spec") or {}
+        text = (
+            f"Intent captured — loop `{result.get('loop_id', '')}` is HELD at the "
+            f"approval gate (awaiting_approval). Draft `{draft.get('draft_id', '')}`, "
+            f"risk {spec.get('risk_level', 'unknown')}, "
+            f"{'actionable' if draft.get('actionable') else 'non-actionable'}. "
+            "Nothing executes until a governed approve/reject — decide in the "
+            "Intent Loop panel."
+        )
+    else:
+        text = (
+            "Intent capture rejected by governance: "
+            f"{result.get('error') or 'unknown'} — nothing was persisted."
+        )
+
+    # Persist the exchange as server truth in the chat thread. Governed under
+    # the existing conversation_send spec (not degraded-eligible): with the
+    # control plane down this fails closed — the thread still receives the
+    # immediate response below, and the intent-loop read surface remains the
+    # durable server truth. Non-fatal by design.
+    def _persist_turn() -> tuple[str, bool]:
+        from substrate.organism.store import OrganismStore
+
+        OrganismStore().save_conversation_turn(
+            content=content,
+            response=text,
+            origin_channel="cockpit",
+            responder="dex",
+        )
+        return ("intent rail turn saved to chat thread", True)
+
+    try:
+        governed_mutation(
+            mutation_name="conversation_send",
+            intent=f"intent rail status: {content[:60]}",
+            execute_fn=_persist_turn,
+            source="cockpit",
+        )
+    except Exception as exc:
+        logger.debug("intent rail turn persistence failed (non-fatal): %s", exc)
+
+    return {
+        "message_id": f"intent-rail-{uuid.uuid4().hex[:8]}",
+        "text": text,
+        "response": text,
+        "conversation_id": conv_id,
+        "intent": "intent_loop_submit",
+        "suggested_actions": [
+            {
+                "label": "Open Intent Loop",
+                "action": "navigate",
+                "payload": {"panel": "intentloop"},
+            },
+        ],
+        "metadata": {
+            "surface": "intent_loop",
+            "submitted": bool(result.get("submitted")),
+            "loop_id": result.get("loop_id", ""),
+            "stage": result.get("stage", ""),
+            "intent_id": (result.get("spec") or {}).get("intent_id", ""),
+            "draft_id": (result.get("draft") or {}).get("draft_id", ""),
+            "error": result.get("error"),
+        },
+        "timestamp": timestamp,
+    }
+
+
 def configure(
     get_organism_fn: Callable[[], Any],
     push_chat_message_fn: Callable[[dict], None],
@@ -109,13 +224,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     @r.post("/advisor/converse")
     def advisor_converse(payload: dict):
         """Multi-turn conversational endpoint for the advisor right rail."""
-        conv = _get_dex_conversation()
-        if conv is None:
-            return {"error": "organism not running"}
-
         content = payload.get("content", "")
         if not content:
             return {"error": "content required"}
+
+        # P4S-31B Cockpit Chat intent rail: deterministic (classify_intent,
+        # no LLM). Intent-bearing messages become the canonical intent event
+        # (governed intent_loop_submit, gate HELD at awaiting_approval) and the
+        # server-truth status returns into this same thread. Runs BEFORE the
+        # daemon-backed conversation so intent capture works daemon-down.
+        rail = try_chat_intent_rail(content, payload.get("conversation_id", ""))
+        if rail is not None:
+            return rail
+
+        conv = _get_dex_conversation()
+        if conv is None:
+            return {"error": "organism not running"}
 
         source = payload.get("source", "text")
         routing = payload.get("routing")
@@ -360,11 +484,13 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 response="Acknowledged. Processing via organism.",
                 origin_channel="cockpit",
             )
-            captured.update({
-                "message_id": str(inbound.id),
-                "response": outbound.payload.get("content", "Acknowledged."),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+            captured.update(
+                {
+                    "message_id": str(inbound.id),
+                    "response": outbound.payload.get("content", "Acknowledged."),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            )
             return "conversation saved", True
 
         resp = governed_mutation(
@@ -444,7 +570,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
         repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
         if path.startswith("/opt/OS/") and repo_root != "/opt/OS":
-            path = os.path.join(repo_root, path[len("/opt/OS/"):])
+            path = os.path.join(repo_root, path[len("/opt/OS/") :])
         allowed_dirs = [
             PathLib(os.path.realpath(os.path.join(repo_root, "docs"))),
             PathLib(os.path.realpath(os.path.join(repo_root, "data", "audits"))),
@@ -464,8 +590,13 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     # ── Media upload for multimodal chat ─────────────────────────────────────
 
     ALLOWED_MEDIA_TYPES = {
-        "image/jpeg", "image/png", "image/gif", "image/webp",
-        "video/mp4", "video/webm", "video/quicktime",
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
     }
     MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
@@ -484,7 +615,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         media_dir.mkdir(parents=True, exist_ok=True)
 
         ext = Path(file.filename or "upload").suffix or _ext_from_content_type(file.content_type)
-        file_id = f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
+        file_id = (
+            f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}{ext}"
+        )
         dest = media_dir / file_id
 
         size = 0
@@ -521,9 +654,14 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
         ext = media_path.suffix.lower()
         content_types = {
-            ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
-            ".gif": "image/gif", ".webp": "image/webp",
-            ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".webp": "image/webp",
+            ".mp4": "video/mp4",
+            ".webm": "video/webm",
+            ".mov": "video/quicktime",
         }
         ct = content_types.get(ext, "application/octet-stream")
 
@@ -535,7 +673,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 def _ext_from_content_type(ct: str) -> str:
     """Map content type to file extension."""
     return {
-        "image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif",
-        "image/webp": ".webp", "video/mp4": ".mp4", "video/webm": ".webm",
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/gif": ".gif",
+        "image/webp": ".webp",
+        "video/mp4": ".mp4",
+        "video/webm": ".webm",
         "video/quicktime": ".mov",
     }.get(ct, ".bin")

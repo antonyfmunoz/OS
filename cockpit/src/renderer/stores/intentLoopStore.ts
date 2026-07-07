@@ -1,15 +1,17 @@
-// Intent-loop store — P4S-31 read surface + P4S-31B input surface.
+// Intent-loop store — P4S-31 read surface + P4S-31B downstream decision.
 //
-// Client for the substrate-owned MVP operating loop:
+// DOCTRINE: intent originates ONLY through sanctioned Cockpit conversational
+// surfaces (Cockpit Chat now; Cockpit Voice later, into the same Chat
+// channel). This store deliberately has NO submit action — intent capture
+// happens in the server-side chat rail (deterministic classify_intent →
+// governed intent_loop_submit). The store is a downstream control client:
 // - GET  /api/umh/intent-loop                    (read surface — P4S-31)
-// - POST /api/umh/intent-loop/submit             (operator submit — P4S-31B)
 // - POST /api/umh/intent-loop/{loop_id}/decision (approve/reject — P4S-31B)
 // backed by transports/api/cockpit_intent_loop_routes.py +
-// substrate.execution.intent.loop. Writes go through the SERVER's governed
-// runtime (every write routes through a registered MutationSpec on the server);
-// this store only calls the authed routes and re-reads server truth. It never
-// advances the gate client-side — the read surface remains the single source of
-// truth. Same authed fetch pattern as the existing read poll.
+// substrate.execution.intent.loop. The decision goes through the SERVER's
+// governed runtime (registered MutationSpec); the store never advances the
+// gate client-side — it re-reads server truth after every write. Same authed
+// fetch pattern as the existing read poll.
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
 
@@ -73,14 +75,6 @@ export interface IntentLoopSurface {
   error?: string | null
 }
 
-export interface IntentLoopSubmitResult {
-  surface: string
-  submitted: boolean
-  loop_id?: string
-  stage?: string
-  error?: string | null
-}
-
 export interface IntentLoopDecisionResult {
   surface: string
   decided: boolean
@@ -94,10 +88,8 @@ interface IntentLoopState {
   surface: IntentLoopSurface | null
   loading: boolean
   error: string | null
-  submitting: boolean
   decidingLoopId: string | null
   fetchSurface: () => Promise<void>
-  submitIntent: (text: string) => Promise<IntentLoopSubmitResult>
   decideLoop: (loopId: string, decision: 'approve' | 'reject') => Promise<IntentLoopDecisionResult>
 }
 
@@ -105,7 +97,6 @@ export const useIntentLoopStore = create<IntentLoopState>((set, get) => ({
   surface: null,
   loading: false,
   error: null,
-  submitting: false,
   decidingLoopId: null,
 
   fetchSurface: async () => {
@@ -115,25 +106,6 @@ export const useIntentLoopStore = create<IntentLoopState>((set, get) => ({
       set({ surface: data, error: data.error ?? null, loading: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), loading: false })
-    }
-  },
-
-  submitIntent: async (text: string) => {
-    set({ submitting: true })
-    try {
-      const result = await fetchApi<IntentLoopSubmitResult>('/intent-loop/submit', {
-        method: 'POST',
-        body: JSON.stringify({ text }),
-      })
-      // Re-read server truth so the newly-held loop appears; the read surface,
-      // not this call, is the source of truth for what is on the server.
-      await get().fetchSurface()
-      set({ submitting: false, error: result.error ?? null })
-      return result
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      set({ submitting: false, error: message })
-      return { surface: 'intent_loop_submit', submitted: false, error: message }
     }
   },
 

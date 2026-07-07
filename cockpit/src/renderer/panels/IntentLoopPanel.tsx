@@ -1,18 +1,19 @@
-// Intent-loop panel — P4S-31 read surface + P4S-31B input surface.
+// Intent-loop panel — P4S-31 read surface + P4S-31B downstream controls.
 //
-// Cockpit surface for the substrate-owned MVP operating loop. Renders the
-// server-truth read surface (GET /api/umh/intent-loop) AND exposes the bounded
-// operating loop: an operator text input that captures one intent (POST
-// /intent-loop/submit → held at AWAITING_APPROVAL) and per-loop approve/reject
-// controls (POST /intent-loop/{id}/decision). Every write routes through the
-// SERVER's governed_mutation runtime under a registered MutationSpec — the
-// cockpit never advances the gate itself; it calls the authed routes and
-// re-reads server truth. Skeleton controls, not product polish. Modeled on
-// OperatingLoopPanel + ProjectionMirrorsPanel: same polling pattern, same
-// tailwind tokens, no layout/nav/chat changes.
-import { useState } from 'react'
+// DOCTRINE: intent originates ONLY through sanctioned Cockpit conversational
+// surfaces — Cockpit Chat (now) and Cockpit Voice (later, into the same Chat
+// channel). This panel has NO intent input: it is a downstream control surface
+// over server truth — the loop list (GET /api/umh/intent-loop), per-loop
+// approve/reject (POST /intent-loop/{id}/decision), and packet/proof
+// inspection. Intent-bearing Cockpit Chat messages are captured by the chat
+// intent rail (deterministic, governed intent_loop_submit) and appear here
+// HELD at the approval gate. Every write routes through the SERVER's
+// governed_mutation runtime under a registered MutationSpec — the panel never
+// advances the gate itself; it calls the authed decision route and re-reads
+// server truth. Modeled on OperatingLoopPanel + ProjectionMirrorsPanel: same
+// polling pattern, same tailwind tokens, no layout/nav/chat changes.
 import {
-  GitBranch, RefreshCw, CheckCircle2, Clock, ShieldCheck, XCircle, Send, Check, X,
+  GitBranch, RefreshCw, CheckCircle2, Clock, ShieldCheck, XCircle, Check, X,
 } from 'lucide-react'
 import { usePolling } from '../hooks/usePolling'
 import { useIntentLoopStore, type IntentLoopRecord } from '../stores/intentLoopStore'
@@ -104,13 +105,9 @@ export function IntentLoopPanel() {
   const surface = useIntentLoopStore((s) => s.surface)
   const loading = useIntentLoopStore((s) => s.loading)
   const error = useIntentLoopStore((s) => s.error)
-  const submitting = useIntentLoopStore((s) => s.submitting)
   const decidingLoopId = useIntentLoopStore((s) => s.decidingLoopId)
   const fetchSurface = useIntentLoopStore((s) => s.fetchSurface)
-  const submitIntent = useIntentLoopStore((s) => s.submitIntent)
   const decideLoop = useIntentLoopStore((s) => s.decideLoop)
-
-  const [text, setText] = useState('')
 
   usePolling(
     () => { fetchSurface() },
@@ -119,20 +116,13 @@ export function IntentLoopPanel() {
 
   const loops = surface?.loops ?? []
 
-  const handleSubmit = async () => {
-    const trimmed = text.trim()
-    if (!trimmed || submitting) return
-    const result = await submitIntent(trimmed)
-    if (result.submitted) setText('')
-  }
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between border-b border-border px-4 h-9 shrink-0">
         <div className="flex items-center gap-2">
           <GitBranch size={14} className="text-cyan" />
           <span className="text-[10px] font-mono text-cyan uppercase tracking-wider">Intent Loop</span>
-          <span className="text-[9px] text-text-tertiary">MVP operating loop — intent → gate → proof</span>
+          <span className="text-[9px] text-text-tertiary">Cockpit Chat intent rail — chat → gate → proof</span>
           {surface && surface.awaiting_approval > 0 && (
             <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-yellow-400/10 text-yellow-400">
               {surface.awaiting_approval} awaiting
@@ -146,26 +136,6 @@ export function IntentLoopPanel() {
         >
           <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
           Refresh
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border shrink-0">
-        <input
-          type="text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
-          placeholder="Capture an intent — submit lands it at the approval gate"
-          disabled={submitting}
-          className="flex-1 bg-surface-raised border border-border rounded px-2 py-1 text-xs font-mono text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-cyan/50 disabled:opacity-50"
-        />
-        <button
-          onClick={handleSubmit}
-          disabled={submitting || text.trim().length === 0}
-          className="flex items-center gap-1 px-3 py-1 text-[10px] font-mono uppercase bg-cyan/10 text-cyan border border-cyan/30 rounded hover:bg-cyan/20 disabled:opacity-50"
-        >
-          <Send size={10} className={submitting ? 'animate-pulse' : ''} />
-          Submit
         </button>
       </div>
 
@@ -204,7 +174,7 @@ export function IntentLoopPanel() {
         {!loading && loops.length === 0 && !error && (
           <div className="flex items-center gap-2 text-text-tertiary text-xs font-mono">
             <Clock size={14} />
-            No intent loops yet
+            No intents yet — capture intent in Cockpit Chat
           </div>
         )}
       </div>

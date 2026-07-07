@@ -1,78 +1,112 @@
-# P4S-31B — Cockpit intent-loop input surface (proof)
+# P4S-31B — Cockpit Chat intent rail (proof)
 
-**Packet:** P4S-31B — Cockpit operating-loop input surface
-**Goal:** Expose the intent → gate → proof loop in the Cockpit so the operator
-submits and decides without an external chat bridge.
+**Packet:** P4S-31B — Cockpit operating-loop input surface (reworked per owner
+architecture correction)
+**Goal:** Expose the intent → gate → proof loop through the sanctioned Cockpit
+conversational surface so the operator stops using external chat as the bridge.
 **Date:** 2026-07-06
-**Scope:** thin text input + governed submit + governed approve/reject. No voice,
-no autonomy, no arbitrary dispatch, no provider execution. Server truth only.
+**Doctrine:** Intent originates ONLY through sanctioned Cockpit conversational
+surfaces — Cockpit Chat now, Cockpit Voice later as a thin adapter into the same
+Chat channel. No generic "intent form". Panels are downstream control surfaces
+only (approve, reject, inspect). No autonomy, no arbitrary dispatch, no provider
+execution. Server truth only.
 
 ---
 
-## What shipped
+## The existing Cockpit Chat pipeline (studied before wiring)
 
-### Substrate
-- New registered `MutationSpec` **`intent_loop_submit`**
-  (`substrate/organism/mutation_registry.py`): `action_type=STATE`, `risk=low`,
-  `blast_radius=LOCAL_FILE`, `degraded_mode_allowed=True`. Registered in the real
-  registry list alongside `intent_loop_approval_decision`.
-- `IntentLoop.submit()` refactored to route the substrate-owned JSONL append
-  through the canonical governed runner under `intent_loop_submit`. There is now
-  **no ungoverned append path** — the capture fails closed if governance rejects
-  it. The gate still HOLDS: a submitted loop lands at `AWAITING_APPROVAL` and
-  never auto-advances.
+- Renderer: `chatStore.sendMessage` (`cockpit/src/renderer/stores/chatStore.ts`)
+  → `POST /api/umh/advisor/converse`.
+- Backend: `advisor_converse` in `transports/api/cockpit_chat_routes.py` wraps
+  `AdvisorConversation.converse()` (`substrate/organism/advisor_conversation.py`,
+  aliased `DexConversation`) in a governed `conversation_send` mutation; the
+  response returns into the same thread as the assistant message; turns persist
+  via `OrganismStore.save_conversation_turn` (local JSONL) → `GET /chat/history`.
+- `AdvisorConversation.converse()` already dispatches on the EXISTING
+  deterministic classifier `substrate.workstation.command_router.classify_intent`
+  — a keyword table, explicitly "no LLM" — including a `CommandIntent.
+  INTENT_CAPTURE` class triggered by directive signals ("fix this", "build
+  this", "ship this", ...).
 
-### Transport
-- `transports/api/cockpit_intent_loop_routes.py`: two new operator-only routes,
-  thin wrappers, try/except → dict, never a 500:
-  - `POST /intent-loop/submit` — operator text → `IntentSpec` + `WorkPacketDraft`,
-    held at `AWAITING_APPROVAL`. Injects the live `governed_mutation` as the
-    loop's `mutation_runner`.
-  - `POST /intent-loop/{loop_id}/decision` — approve/reject through the existing
-    `intent_loop_approval_decision` mutation. Recorded decider is the
-    **authenticated operator identity**, never client input.
+No chat layout or styling was touched (layout lock respected) — only backend
+behavior was wired.
 
-### Cockpit
-- `IntentLoopPanel.tsx` extended with a text input + submit button and per-loop
-  approve/reject controls on held loops. Wired to the store's `submitIntent` /
-  `decideLoop` using the same authed `fetchApi` pattern. No layout/nav/chat
-  changes — all inside the existing panel.
-- `intentLoopStore.ts` extended with `submitIntent` / `decideLoop` actions that
-  POST to the governed routes and re-read server truth.
+## The mechanism (deterministic, documented)
+
+`try_chat_intent_rail(content, conversation_id)` in
+`transports/api/cockpit_chat_routes.py`, consulted by the REAL
+`/advisor/converse` handler BEFORE the daemon-backed conversation:
+
+1. **Trigger:** `classify_intent(content) == CommandIntent.INTENT_CAPTURE` —
+   the existing deterministic keyword classifier. No LLM anywhere in the path.
+   Non-intent messages return `None` and flow to the normal conversation path
+   unchanged.
+2. **Capture:** the message becomes the canonical intent event through
+   `governed_intent_submit()` (`transports/api/cockpit_intent_loop_routes.py`)
+   — the ONE governed submit shared with `POST /intent-loop/submit` — which
+   routes the write through the registered `intent_loop_submit` MutationSpec
+   via the canonical `governed_mutation` runtime. Gate HOLDS at
+   `awaiting_approval`; nothing dispatches or executes.
+3. **Server truth back into the SAME thread:** the rail returns a
+   ChatResponse-shaped dict (loop_id, stage, held-gate status text) that the
+   chat thread renders as the assistant message, and persists the exchange as a
+   governed `conversation_send` turn into chat history. A governed decision
+   later persists a proof-status turn into the same thread
+   (`_persist_decision_status_to_chat`).
+4. **Downstream controls only:** `IntentLoopPanel.tsx` has NO intent input —
+   loop list, approve/reject (POST `/intent-loop/{id}/decision` under the
+   existing `intent_loop_approval_decision` mutation), and proof inspection.
+   The panel/store carry no submit path (regression-tested).
+
+Because the rail runs before the daemon dependency, intent capture works even
+when the organism is down (the `intent_loop_submit` spec is degraded-eligible —
+governed via the substrate fail-closed gate with a mandatory audit record).
+Chat-history persistence uses the existing `conversation_send` spec, which is
+NOT degraded-eligible: daemon-down it fails closed (unchanged posture — chat is
+fully daemon-dependent today), while the thread still receives the immediate
+response and the intent-loop read surface remains the durable server truth.
+
+## MutationSpecs
+
+- `intent_loop_submit` — registered (STATE, low-risk, LOCAL_FILE,
+  degraded_mode_allowed=True). Governs the capture write.
+- `intent_loop_approval_decision` — pre-existing, unchanged. Governs the
+  decision.
+- `conversation_send` — pre-existing, unchanged posture. Governs the chat-turn
+  persistence.
+
+No unregistered mutation; no spec's governance posture was changed.
 
 ---
 
-## Was a new MutationSpec needed?
+## Proof chain (real ids — through the ACTUAL handlers)
 
-**Yes.** The pre-existing `intent_loop_approval_decision` covered only the
-decision write. The packet requires EVERY write to route through a registered
-MutationSpec, and submit persists substrate-owned state. So
-**`intent_loop_submit`** was registered (identical governance profile: low-risk,
-LOCAL_FILE, degraded-safe). The decision path reuses the existing
-`intent_loop_approval_decision` mutation unchanged.
+Generated by `scripts/proof_p4s31b_input_surface.py`: builds the REAL chat
+router via `cockpit_chat_routes.configure(...)` and calls the actual
+`/advisor/converse` endpoint plus the real intent-loop route handlers. No store
+poking, no fabricated ids.
 
----
+Chain: **chat_submit → intent_loop → awaiting_approval → governed_approve → proof_recorded**
 
-## Proof chain (real ids, in-process through the ROUTE HANDLERS)
-
-Generated by `scripts/proof_p4s31b_input_surface.py`, which registers the real
-route handlers via a capturing fake router and calls them exactly as FastAPI
-would (minus the network). No store poking, no fabricated ids.
-
-| Step | Route handler | Result |
+| Step | Handler | Result |
 |---|---|---|
-| 1. Submit | `POST /intent-loop/submit` | `submitted=true`, `loop_id=loop_8ddf6fa800f7`, `stage=awaiting_approval` |
-| 2. Gate held | `GET /intent-loop` | loop present, `stage=awaiting_approval`, `proof=null` — **gate HELD** |
+| 1. Chat submit | `POST /advisor/converse` with "Fix this bug in the demo pipeline dashboard" | rail captured `loop_6e43ad956657`, `intent=intent_loop_submit`, thread status text returned |
+| 2. Gate held | `GET /intent-loop` | `stage=awaiting_approval`, `proof=null` — **gate HELD** |
 | 3. Decide (approve) | `POST /intent-loop/{loop_id}/decision` | `decided=true`, `stage=proof_recorded` |
-| 4. Proof recorded | `GET /intent-loop` | `stage=proof_recorded`, proof record present |
+| 4. Proof recorded | `GET /intent-loop` | proof record present, `governed_success=true` |
+
+### Server-truth status returned into the chat thread (step 1)
+
+> Intent captured — loop `loop_6e43ad956657` is HELD at the approval gate
+> (awaiting_approval). Draft `draft_90adc5ee75c7`, risk medium, actionable.
+> Nothing executes until a governed approve/reject — decide in the Intent Loop
+> panel.
 
 ### Real proof record (step 4)
 
 ```json
 {
-  "proof_id": "proof_86bd6d5495a8",
-  "intent_id": "intent_6b6a8702b463",
-  "draft_id": "draft_ca3fc201094d",
+  "proof_id": "proof_de09af3d26ad",
   "decision": "approve",
   "decided_by": "umh_operator",
   "mutation_name": "intent_loop_approval_decision",
@@ -84,10 +118,12 @@ would (minus the network). No store poking, no fabricated ids.
 ```
 
 `governance_status=completed_degraded` / `degraded=true` because the organism
-daemon is down in this environment: the write routed through the substrate
-fail-closed degraded gate (`route_mutation_degraded`) with a mandatory degraded
-audit record — **governed, never ungoverned**. On a live daemon the same call
-routes through the `GovernedExecutionSpine` and yields a non-degraded envelope.
+daemon is down in this environment: writes routed through the substrate
+fail-closed degraded gate (`route_mutation_degraded`) with mandatory degraded
+audit records (`led-9159afb53be7` submit, `led-8106a6e6aa8e` decision) —
+governed, never ungoverned. On a live daemon the same calls route through the
+`GovernedExecutionSpine`. The proof run also shows `conversation_send` failing
+closed daemon-down (expected, documented above).
 
 Full machine-readable proof: `data/audits/proof/2026-07-06_p4s31b_input_surface_proof.json`
 
@@ -95,32 +131,36 @@ Full machine-readable proof: `data/audits/proof/2026-07-06_p4s31b_input_surface_
 
 ## Test results
 
-- `tests/test_p4s31b_intent_input_surface.py` — **9 passed** (submit mutation
-  registered in the real registry; submit holds the gate; governed capture / no
-  ungoverned append / fail-closed; route wrappers never raise; submit → decide →
-  proof_recorded through the route handlers; read surface reflects both states).
-- Regression: `tests/test_p4s31_intent_loop.py` — **16 passed** (governed submit
-  refactor is backward-compatible).
-- Regression: `tests/test_projection_read_surface_discipline.py` — **6 passed**.
+- `tests/test_p4s31b_intent_input_surface.py` — **16 passed**:
+  - submit mutation registered in the real registry, degraded-safe
+  - submit holds the gate; governed capture; fail-closed on rejection
+  - chat rail: deterministic classification pin; intent-bearing message →
+    canonical intent event with held-gate semantics; conversational text passes
+    through; the REAL `/advisor/converse` handler routes through the rail
+    (functional, organism-down)
+  - NO panel bypass: panel/store sources carry no `/intent-loop/submit` call
+    and no `submitIntent` action; the decision control remains
+  - route wrappers never raise; submit→decide→proof through route handlers;
+    chat_submit→decide→proof end-to-end
+- Regression: `tests/test_p4s31_intent_loop.py` — **16 passed**;
+  `tests/test_projection_read_surface_discipline.py` — **6 passed**.
 - Cockpit: `tsc --noEmit` clean; `vitest run` — **50 passed**.
 
 ## Gates
 
-`check_instance_leak`, `check_projection_leak`, `check_dependency_direction`,
-`check_cpu_gate`, `check_ontology_layers`, `check_ontology_homes`,
-`check_type_divergence --registry-audit` (1069 entries resolve, 0 duplicates) —
-all pass.
-
----
+All 13 pre-commit gates pass at commit (instance-context, projection leak,
+dependency direction, CPU gate, type divergence, ontology layers/homes, pytest
+collection, firewall, etc.).
 
 ## Constraint compliance
 
-- The gate HOLDS: submit never auto-advances; decision is the only way forward;
-  approval produces a proof record. No auto-execution of anything.
-- Deterministic parse only (the P4S-31 path) — no LLM added.
-- Server truth only — the cockpit re-reads the read surface after each write.
+- Intent originates only through the Cockpit Chat conversational surface; the
+  panel is a downstream control surface (no input, approve/reject/inspect only).
+- The gate HOLDS: submission never auto-advances; the governed decision is the
+  only way forward; approval produces a proof record. No auto-execution.
+- Deterministic classification and parse only — no LLM added anywhere.
 - Every write routes through a registered MutationSpec via the canonical
   governed choke point. No ungoverned write path.
-- No P4S-21, no P4S-40, no provider execution, no projection-DB writes, no
-  Beast mutation, no tenant/device literals, no voice scaffolding, no layout
-  changes.
+- No chat layout/styling changes (layout lock). No P4S-21, no P4S-40, no
+  provider execution, no send_email, no arbitrary dispatch, no projection-DB
+  writes, no Beast mutation, no tenant/device literals, no voice scaffolding.

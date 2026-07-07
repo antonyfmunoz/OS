@@ -1,4 +1,9 @@
-"""P4S-31B — Cockpit intent-loop input surface (operator submit + decide).
+"""P4S-31B — Cockpit Chat intent rail (governed submit + decide).
+
+Doctrine (architecture correction): intent originates ONLY through sanctioned
+Cockpit conversational surfaces — Cockpit Chat now, Cockpit Voice later as a
+thin adapter into the same Chat channel. Panels are downstream control surfaces
+only (approve/reject/inspect); no panel-side submit path may exist.
 
 Proves the packet's required behavior and hard constraints:
 
@@ -9,10 +14,17 @@ Proves the packet's required behavior and hard constraints:
 3. The capture WRITE routes through the governed runner (no ungoverned append):
    a fake runner captures the exact mutation_name; nothing persists if the
    governed gate rejects.
-4. The route wrappers never raise: an env-broken loop yields a stable dict, not
-   a 500, for both /submit and /{loop_id}/decision.
-5. The decision through the governed path reaches proof_recorded.
-6. The read surface reflects the submitted loop.
+4. The CHAT RAIL: an intent-bearing Cockpit Chat message (deterministic
+   classify_intent — keyword table, no LLM) produces the canonical intent event
+   with the same held-gate semantics; conversational text passes through to the
+   normal chat path. The rail runs in the real /advisor/converse handler.
+5. NO PANEL BYPASS: the cockpit panel/store have no submit path — intent enters
+   only through the chat rail (or the canonical POST /intent-loop/submit
+   endpoint the rail shares its governed submit with).
+6. The route wrappers never raise: env-broken input yields a stable dict, not a
+   500, for both /submit and /{loop_id}/decision.
+7. The decision through the governed path reaches proof_recorded, and the read
+   surface reflects the submitted loop.
 """
 
 from __future__ import annotations
@@ -20,6 +32,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 _WORKTREE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _WORKTREE not in sys.path:
@@ -35,6 +48,15 @@ from substrate.execution.intent.loop import (
 from substrate.organism.mutation_registry import MutationRegistry
 
 _BOUNDED_INTENT = "Draft follow-up plan for demo lead pipeline"
+# Deterministically classifies as CommandIntent.INTENT_CAPTURE ("fix this").
+_CHAT_INTENT = "Fix this bug in the demo pipeline dashboard"
+# Deterministically does NOT classify as INTENT_CAPTURE (conversation).
+_CHAT_CONVERSATION = "what do you think about our positioning"
+
+_COCKPIT_DIR = Path(_WORKTREE) / "cockpit" / "src" / "renderer"
+_PANEL_PATH = _COCKPIT_DIR / "panels" / "IntentLoopPanel.tsx"
+_STORE_PATH = _COCKPIT_DIR / "stores" / "intentLoopStore.ts"
+_CHAT_ROUTES_PATH = Path(_WORKTREE) / "transports" / "api" / "cockpit_chat_routes.py"
 
 
 def _fresh_loop(tmp_path: str, mutation_runner=None) -> IntentLoop:
@@ -144,7 +166,127 @@ def test_real_governed_submit_end_to_end():
     assert rec.stage == IntentLoopStage.AWAITING_APPROVAL.value
 
 
-# ── 4. Route wrappers never raise ─────────────────────────────────────────────
+# ── 4. The Cockpit Chat intent rail ───────────────────────────────────────────
+
+
+def _isolate_store(tmp_path, monkeypatch):
+    import substrate.execution.intent.loop as loop_mod
+
+    store_path = os.path.join(tmp_path, "rail_loops.jsonl")
+    monkeypatch.setattr(loop_mod, "_DEFAULT_STORE_PATH", store_path)
+    return store_path
+
+
+def test_chat_rail_classification_is_deterministic():
+    """The rail's trigger is the EXISTING deterministic classifier — same input,
+    same classification, no LLM."""
+    from substrate.workstation.command_router import CommandIntent, classify_intent
+
+    assert classify_intent(_CHAT_INTENT) == CommandIntent.INTENT_CAPTURE
+    assert classify_intent(_CHAT_INTENT) == CommandIntent.INTENT_CAPTURE  # stable
+    assert classify_intent(_CHAT_CONVERSATION) != CommandIntent.INTENT_CAPTURE
+
+
+def test_chat_rail_produces_canonical_intent_event(tmp_path, monkeypatch):
+    """An intent-bearing chat message → canonical intent event → gate HELD at
+    AWAITING_APPROVAL, with the server-truth status shaped for the SAME chat
+    thread (ChatResponse dict)."""
+    store_path = _isolate_store(tmp_path, monkeypatch)
+    from transports.api.cockpit_chat_routes import try_chat_intent_rail
+
+    out = try_chat_intent_rail(_CHAT_INTENT, conversation_id="conv-test123")
+    assert out is not None
+    # ChatResponse shape — lands in the same thread as the assistant message.
+    for key in ("message_id", "text", "conversation_id", "intent", "metadata", "timestamp"):
+        assert key in out
+    assert out["conversation_id"] == "conv-test123"
+    assert out["intent"] == "intent_loop_submit"
+    meta = out["metadata"]
+    assert meta["submitted"] is True
+    assert meta["stage"] == IntentLoopStage.AWAITING_APPROVAL.value
+    assert meta["loop_id"]
+
+    # Held-gate semantics on the server-truth store: same as a direct submit.
+    store = IntentLoopStore(store_path=store_path)
+    rec = store.get(meta["loop_id"])
+    assert rec is not None
+    assert rec.stage == IntentLoopStage.AWAITING_APPROVAL.value
+    assert rec.proof is None
+
+
+def test_chat_rail_passes_conversation_through():
+    """Non-intent chat returns None so the normal conversation path proceeds —
+    the rail never fabricates an intent from pure chat."""
+    from transports.api.cockpit_chat_routes import try_chat_intent_rail
+
+    assert try_chat_intent_rail(_CHAT_CONVERSATION) is None
+
+
+def _advisor_converse_endpoint():
+    """Build the REAL chat router (organism down) and return the actual
+    /advisor/converse endpoint function."""
+    import transports.api.cockpit_chat_routes as chat_mod
+
+    chat_mod.configure(
+        get_organism_fn=lambda: None,
+        push_chat_message_fn=lambda msg: None,
+        require_operator_dep=lambda: "umh_operator",
+    )
+    for route in chat_mod.chat_router.routes:
+        if getattr(route, "path", "") == "/advisor/converse":
+            return route.endpoint
+    raise AssertionError("/advisor/converse route not found")
+
+
+def test_advisor_converse_routes_intent_through_rail(tmp_path, monkeypatch):
+    """Through the ACTUAL chat handler: an intent-bearing message is captured by
+    the rail (even with the organism down — degraded-governed), while a
+    conversational message follows the normal daemon-dependent path."""
+    store_path = _isolate_store(tmp_path, monkeypatch)
+    endpoint = _advisor_converse_endpoint()
+
+    out = endpoint({"content": _CHAT_INTENT})
+    assert out["intent"] == "intent_loop_submit"
+    assert out["metadata"]["submitted"] is True
+    assert out["metadata"]["stage"] == IntentLoopStage.AWAITING_APPROVAL.value
+
+    # Gate held on the server-truth store.
+    store = IntentLoopStore(store_path=store_path)
+    rec = store.get(out["metadata"]["loop_id"])
+    assert rec is not None and rec.stage == IntentLoopStage.AWAITING_APPROVAL.value
+
+    # Conversational text does NOT enter the intent loop; with the organism
+    # down it hits the normal daemon-dependent path.
+    conv_out = endpoint({"content": _CHAT_CONVERSATION})
+    assert conv_out == {"error": "organism not running"}
+
+
+# ── 5. No panel-side submit bypass ────────────────────────────────────────────
+
+
+def test_no_panel_submit_bypass():
+    """Doctrine: panels are downstream control surfaces only. Neither the panel
+    nor its store may carry a submit path to the intent loop."""
+    panel_src = _PANEL_PATH.read_text(encoding="utf-8")
+    store_src = _STORE_PATH.read_text(encoding="utf-8")
+    for src, name in ((panel_src, "IntentLoopPanel.tsx"), (store_src, "intentLoopStore.ts")):
+        assert "/intent-loop/submit" not in src, (
+            f"{name} must not call the submit endpoint — intent originates in Cockpit Chat"
+        )
+        assert "submitIntent" not in src, f"{name} must not expose a submit action"
+    # The panel keeps the downstream decision control.
+    assert "/intent-loop/" in store_src and "/decision" in store_src
+
+
+def test_advisor_converse_wires_the_rail():
+    """The real chat handler consults the rail (source-level wiring check)."""
+    src = _CHAT_ROUTES_PATH.read_text(encoding="utf-8")
+    assert "try_chat_intent_rail(" in src
+    assert "classify_intent" in src  # deterministic trigger, no LLM
+    assert "governed_intent_submit" in src  # shared governed submit
+
+
+# ── 6. Route wrappers never raise ─────────────────────────────────────────────
 
 
 class _FakeRouter:
@@ -204,17 +346,15 @@ def test_decision_route_never_raises_on_unknown_loop():
     assert out["error"]
 
 
+# ── 7. Full rail → decision → proof through the route handlers ────────────────
+
+
 def test_submit_and_decide_routes_reach_proof_recorded(tmp_path, monkeypatch):
     """End-to-end through the ROUTE HANDLER functions (not the store directly):
     submit → held → decide(approve) → proof_recorded, and the read surface
     reflects it. Uses an isolated store path so the assertion is on a real,
     freshly-submitted loop."""
-    store_path = os.path.join(tmp_path, "route_loops.jsonl")
-    monkeypatch.setenv("UMH_ROOT", str(tmp_path))
-    # Point the default store at the isolated path via env-derived default.
-    import substrate.execution.intent.loop as loop_mod
-
-    monkeypatch.setattr(loop_mod, "_DEFAULT_STORE_PATH", store_path)
+    _isolate_store(tmp_path, monkeypatch)
 
     router = _register_routes()
     submit = router.post_routes["/intent-loop/submit"]
@@ -245,3 +385,24 @@ def test_submit_and_decide_routes_reach_proof_recorded(tmp_path, monkeypatch):
     proven = next(lp for lp in surface2["loops"] if lp["loop_id"] == loop_id)
     assert proven["stage"] == IntentLoopStage.PROOF_RECORDED.value
     assert proven["proof"] is not None
+
+
+def test_chat_rail_then_decision_reaches_proof(tmp_path, monkeypatch):
+    """The doctrine chain end-to-end: chat_submit → intent_loop →
+    awaiting_approval → governed_approve → proof_recorded."""
+    _isolate_store(tmp_path, monkeypatch)
+    from transports.api.cockpit_chat_routes import try_chat_intent_rail
+
+    rail = try_chat_intent_rail(_CHAT_INTENT)
+    assert rail is not None and rail["metadata"]["submitted"] is True
+    loop_id = rail["metadata"]["loop_id"]
+    assert rail["metadata"]["stage"] == IntentLoopStage.AWAITING_APPROVAL.value
+
+    router = _register_routes()
+    decide = router.post_routes["/intent-loop/{loop_id}/decision"]
+    decided = decide(
+        loop_id=loop_id, payload={"decision": "approve"}, operator_identity="umh_operator"
+    )
+    assert decided["decided"] is True
+    assert decided["stage"] == IntentLoopStage.PROOF_RECORDED.value
+    assert decided["proof"]["governed_success"] is True
