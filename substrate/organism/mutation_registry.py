@@ -471,6 +471,32 @@ EOS_ACTION_PROPOSAL_EXECUTE = MutationSpec(
     ),
 )
 
+INTENT_LOOP_SUBMIT = MutationSpec(
+    name="intent_loop_submit",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    # LOW risk + LOCAL_FILE + degraded opt-in: the P4S-31B operator-submit gate
+    # captures one bounded operator intent as substrate-owned JSON state
+    # (data/umh/operator/intent_loop/) at AWAITING_APPROVAL. The write is
+    # governed (never an ungoverned append); the gate HOLDS — submission never
+    # auto-advances past AWAITING_APPROVAL. Degraded opt-in keeps the capture
+    # REAL-governed even when the organism daemon is down (mandatory degraded
+    # audit record). Never dispatches, executes a provider, or writes a
+    # projection DB.
+    degraded_mode_allowed=True,
+    description=(
+        "Capture one P4S-31B operator intent → deterministic IntentSpec + "
+        "WorkPacketDraft → bounded substrate-owned JSON state at "
+        "AWAITING_APPROVAL (the gate HOLDS; never auto-advances, never "
+        "dispatches, executes, or writes a projection DB)"
+    ),
+)
+
 INTENT_LOOP_APPROVAL_DECISION = MutationSpec(
     name="intent_loop_approval_decision",
     action_type=ActionType.STATE,
@@ -783,6 +809,7 @@ class MutationRegistry:
             APPROVAL_DECIDE,
             EOS_ACTION_PROPOSAL_DECISION,
             EOS_ACTION_PROPOSAL_EXECUTE,
+            INTENT_LOOP_SUBMIT,
             INTENT_LOOP_APPROVAL_DECISION,
             GOVERNANCE_UPDATE,
             CHANNEL_MESSAGE_SEND,

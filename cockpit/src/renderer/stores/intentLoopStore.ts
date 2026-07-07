@@ -1,12 +1,17 @@
-// Intent-loop mirror store — P4S-31.
+// Intent-loop store — P4S-31 read surface + P4S-31B downstream decision.
 //
-// Thin read-only client for the substrate-owned MVP operating-loop read
-// surface (GET /api/umh/intent-loop — transports/api/cockpit_intent_loop_routes
-// .py, backed by substrate.execution.intent.loop::read_intent_loop_surface).
-// MIRROR, NOT CONTROL: this store only reads and reflects that server-truth
-// dict — it never submits or decides an intent (approval flows through the
-// canonical governed_mutation runtime, not the cockpit). Same read-only polling
-// shape as projectionMirrorStore.ts (P4S-30).
+// DOCTRINE: intent originates ONLY through sanctioned Cockpit conversational
+// surfaces (Cockpit Chat now; Cockpit Voice later, into the same Chat
+// channel). This store deliberately has NO submit action — intent capture
+// happens in the server-side chat rail (deterministic classify_intent →
+// governed intent_loop_submit). The store is a downstream control client:
+// - GET  /api/umh/intent-loop                    (read surface — P4S-31)
+// - POST /api/umh/intent-loop/{loop_id}/decision (approve/reject — P4S-31B)
+// backed by transports/api/cockpit_intent_loop_routes.py +
+// substrate.execution.intent.loop. The decision goes through the SERVER's
+// governed runtime (registered MutationSpec); the store never advances the
+// gate client-side — it re-reads server truth after every write. Same authed
+// fetch pattern as the existing read poll.
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
 
@@ -70,17 +75,29 @@ export interface IntentLoopSurface {
   error?: string | null
 }
 
+export interface IntentLoopDecisionResult {
+  surface: string
+  decided: boolean
+  loop_id?: string
+  stage?: string
+  proof?: IntentLoopProof | null
+  error?: string | null
+}
+
 interface IntentLoopState {
   surface: IntentLoopSurface | null
   loading: boolean
   error: string | null
+  decidingLoopId: string | null
   fetchSurface: () => Promise<void>
+  decideLoop: (loopId: string, decision: 'approve' | 'reject') => Promise<IntentLoopDecisionResult>
 }
 
-export const useIntentLoopStore = create<IntentLoopState>((set) => ({
+export const useIntentLoopStore = create<IntentLoopState>((set, get) => ({
   surface: null,
   loading: false,
   error: null,
+  decidingLoopId: null,
 
   fetchSurface: async () => {
     set({ loading: true })
@@ -89,6 +106,23 @@ export const useIntentLoopStore = create<IntentLoopState>((set) => ({
       set({ surface: data, error: data.error ?? null, loading: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), loading: false })
+    }
+  },
+
+  decideLoop: async (loopId: string, decision: 'approve' | 'reject') => {
+    set({ decidingLoopId: loopId })
+    try {
+      const result = await fetchApi<IntentLoopDecisionResult>(
+        `/intent-loop/${loopId}/decision`,
+        { method: 'POST', body: JSON.stringify({ decision }) },
+      )
+      await get().fetchSurface()
+      set({ decidingLoopId: null, error: result.error ?? null })
+      return result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      set({ decidingLoopId: null, error: message })
+      return { surface: 'intent_loop_decision', decided: false, loop_id: loopId, error: message }
     }
   },
 }))

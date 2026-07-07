@@ -62,6 +62,12 @@ _DEFAULT_STORE_PATH = os.path.join(
 # substrate.organism.mutation_registry as INTENT_LOOP_APPROVAL_DECISION.
 APPROVAL_MUTATION_NAME = "intent_loop_approval_decision"
 
+# The registered mutation name for capturing (submitting) one operator intent.
+# Registered in substrate.organism.mutation_registry as INTENT_LOOP_SUBMIT. The
+# submit write is governed (never an ungoverned append); the gate still HOLDS —
+# a submitted loop lands at AWAITING_APPROVAL and never auto-advances.
+SUBMIT_MUTATION_NAME = "intent_loop_submit"
+
 _VALID_DECISIONS = ("approve", "reject")
 
 
@@ -259,8 +265,15 @@ class IntentLoop:
     ) -> IntentLoopRecord:
         """Capture one bounded intent → IntentSpec → draft → AWAITING_APPROVAL.
 
+        The capture WRITE is governed: the substrate-owned JSON append runs
+        inside the registered ``intent_loop_submit`` MutationSpec through the
+        canonical governed runner (injected ``governed_mutation`` on the live
+        spine path, or the substrate-native fail-closed ``route_mutation_degraded``
+        gate when no daemon is injected). There is no ungoverned append path.
+
         The gate HOLDS here: the returned record is at AWAITING_APPROVAL and does
-        NOT advance until :meth:`decide` is called with a governed decision.
+        NOT advance until :meth:`decide` is called with a governed decision. The
+        governance governs the *capture*, never an advancement.
         """
         spec = IntentSpec.from_intent(raw_text, org_id=org_id, user_id=user_id)
         draft = spec.to_draft()
@@ -271,12 +284,52 @@ class IntentLoop:
             spec=spec.to_dict(),
             draft=draft.to_dict(),
         )
-        self._store.append(record)
+
+        # The governed capture: the ONLY thing that persists the loop. Writes
+        # only substrate-owned JSON — no projection DB, no provider, and the gate
+        # stays at AWAITING_APPROVAL (never advanced by the capture).
+        outcome: dict[str, Any] = {}
+
+        def _execute() -> tuple[str, bool]:
+            self._store.append(record)
+            outcome["applied"] = True
+            return (f"intent captured: loop {record.loop_id}", True)
+
+        runner = self._resolve_mutation_runner()
+        try:
+            response = runner(
+                mutation_name=SUBMIT_MUTATION_NAME,
+                intent=f"capture operator intent: {raw_text[:80]}",
+                execute_fn=_execute,
+                source="intent_loop",
+                metadata={
+                    "loop_id": record.loop_id,
+                    "intent_id": spec.intent_id,
+                    "draft_id": draft.draft_id,
+                    "org_id": org_id or "",
+                    "user_id": user_id or "",
+                },
+            )
+        except Exception as exc:
+            logger.error("intent loop submit governed capture failed: %s", exc)
+            raise
+
+        governed_success = (
+            bool(getattr(response, "success", False)) and outcome.get("applied") is True
+        )
+        if not governed_success:
+            # Fail-closed: the governed gate rejected the capture. No loop was
+            # persisted; surface the governance reason rather than a phantom loop.
+            reason = getattr(response, "output", "") or getattr(response, "rejected_reason", "")
+            raise RuntimeError(f"intent loop submit rejected by governance: {reason}")
+
         logger.info(
-            "intent loop %s: intent %s drafted packet %s, gate HELD at AWAITING_APPROVAL",
+            "intent loop %s: intent %s drafted packet %s, gate HELD at AWAITING_APPROVAL "
+            "(governed capture, envelope=%s)",
             record.loop_id,
             spec.intent_id,
             draft.draft_id,
+            getattr(response, "envelope_id", "") or "",
         )
         return record
 
@@ -481,6 +534,7 @@ def read_intent_loop_surface(limit: int = 50) -> dict[str, Any]:
 
 __all__ = [
     "APPROVAL_MUTATION_NAME",
+    "SUBMIT_MUTATION_NAME",
     "IntentLoop",
     "IntentLoopRecord",
     "IntentLoopStore",
