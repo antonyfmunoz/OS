@@ -1,0 +1,168 @@
+{
+  "packet": "P4S-31B",
+  "surface": "intent_loop input surface (submit + decide)",
+  "generated": "2026-07-06",
+  "store_path": "/tmp/p4s31b_proof_ui71w0ic/intent_loops.jsonl",
+  "step_1_submit_response": {
+    "surface": "intent_loop_submit",
+    "submitted": true,
+    "loop_id": "loop_8ddf6fa800f7",
+    "stage": "awaiting_approval",
+    "spec": {
+      "intent_id": "intent_6b6a8702b463",
+      "raw_text": "Draft a follow-up plan for the demo pipeline",
+      "intent_type": "directive",
+      "route_type": "hybrid",
+      "risk_level": "medium",
+      "confidence": 0.45,
+      "org_id": null,
+      "user_id": "umh_operator",
+      "extracted_entities": {},
+      "reasoning": "action verb present but no clear pattern match",
+      "stage": "spec_parsed",
+      "created_at": 1783382971.432994,
+      "deterministic": true
+    },
+    "draft": {
+      "draft_id": "draft_ca3fc201094d",
+      "intent_id": "intent_6b6a8702b463",
+      "description": "Draft a follow-up plan for the demo pipeline",
+      "status": "pending",
+      "priority": "normal",
+      "risk_level": "medium",
+      "actionable": true,
+      "input_data": {
+        "intent_type": "directive",
+        "route_type": "hybrid",
+        "extracted_entities": {}
+      },
+      "created_at": 1783382971.4330142
+    },
+    "error": null
+  },
+  "step_2_gate_held": {
+    "gate_held": true,
+    "held_loop": {
+      "loop_id": "loop_8ddf6fa800f7",
+      "stage": "awaiting_approval",
+      "spec": {
+        "intent_id": "intent_6b6a8702b463",
+        "raw_text": "Draft a follow-up plan for the demo pipeline",
+        "intent_type": "directive",
+        "route_type": "hybrid",
+        "risk_level": "medium",
+        "confidence": 0.45,
+        "org_id": null,
+        "user_id": "umh_operator",
+        "extracted_entities": {},
+        "reasoning": "action verb present but no clear pattern match",
+        "stage": "spec_parsed",
+        "created_at": 1783382971.432994,
+        "deterministic": true
+      },
+      "draft": {
+        "draft_id": "draft_ca3fc201094d",
+        "intent_id": "intent_6b6a8702b463",
+        "description": "Draft a follow-up plan for the demo pipeline",
+        "status": "pending",
+        "priority": "normal",
+        "risk_level": "medium",
+        "actionable": true,
+        "input_data": {
+          "intent_type": "directive",
+          "route_type": "hybrid",
+          "extracted_entities": {}
+        },
+        "created_at": 1783382971.4330142
+      },
+      "proof": null,
+      "created_at": 1783382971.4330494,
+      "updated_at": 1783382971.4330497
+    }
+  },
+  "step_3_decision_response": {
+    "surface": "intent_loop_decision",
+    "decided": true,
+    "loop_id": "loop_8ddf6fa800f7",
+    "stage": "proof_recorded",
+    "proof": {
+      "proof_id": "proof_86bd6d5495a8",
+      "intent_id": "intent_6b6a8702b463",
+      "draft_id": "draft_ca3fc201094d",
+      "decision": "approve",
+      "decided_by": "umh_operator",
+      "mutation_name": "intent_loop_approval_decision",
+      "envelope_id": "",
+      "governance_status": "completed_degraded",
+      "governed_success": true,
+      "degraded": true,
+      "resulting_stage": "proof_recorded",
+      "recorded_at": 1783382971.4370666,
+      "reason": null,
+      "error": null
+    },
+    "error": null
+  },
+  "step_4_proof_recorded": {
+    "proof_recorded": true,
+    "proven_loop": {
+      "loop_id": "loop_8ddf6fa800f7",
+      "stage": "proof_recorded",
+      "spec": {
+        "intent_id": "intent_6b6a8702b463",
+        "raw_text": "Draft a follow-up plan for the demo pipeline",
+        "intent_type": "directive",
+        "route_type": "hybrid",
+        "risk_level": "medium",
+        "confidence": 0.45,
+        "org_id": null,
+        "user_id": "umh_operator",
+        "extracted_entities": {},
+        "reasoning": "action verb present but no clear pattern match",
+        "stage": "spec_parsed",
+        "created_at": 1783382971.432994,
+        "deterministic": true
+      },
+      "draft": {
+        "draft_id": "draft_ca3fc201094d",
+        "intent_id": "intent_6b6a8702b463",
+        "description": "Draft a follow-up plan for the demo pipeline",
+        "status": "pending",
+        "priority": "normal",
+        "risk_level": "medium",
+        "actionable": true,
+        "input_data": {
+          "intent_type": "directive",
+          "route_type": "hybrid",
+          "extracted_entities": {}
+        },
+        "created_at": 1783382971.4330142
+      },
+      "proof": {
+        "proof_id": "proof_86bd6d5495a8",
+        "intent_id": "intent_6b6a8702b463",
+        "draft_id": "draft_ca3fc201094d",
+        "decision": "approve",
+        "decided_by": "umh_operator",
+        "mutation_name": "intent_loop_approval_decision",
+        "envelope_id": "",
+        "governance_status": "completed_degraded",
+        "governed_success": true,
+        "degraded": true,
+        "resulting_stage": "proof_recorded",
+        "recorded_at": 1783382971.4370666,
+        "reason": null,
+        "error": null
+      },
+      "created_at": 1783382971.4330494,
+      "updated_at": 1783382971.437075
+    }
+  },
+  "assertions": {
+    "submit_captured_real_loop": true,
+    "gate_held_at_awaiting_approval": true,
+    "decision_reached_proof_recorded": true,
+    "proof_governed_success": true,
+    "proof_mutation_name": "intent_loop_approval_decision"
+  }
+}
