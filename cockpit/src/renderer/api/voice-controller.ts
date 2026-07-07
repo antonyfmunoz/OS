@@ -29,6 +29,10 @@ let cleanups: (() => void)[] = []
 let chatUnsub: (() => void) | null = null
 let pendingTimeout: ReturnType<typeof setTimeout> | null = null
 let maxRecordingTimeout: ReturnType<typeof setTimeout> | null = null
+/** ~10Hz poll that mirrors client.clientRms into the message store (the meter). */
+let meterInterval: ReturnType<typeof setInterval> | null = null
+/** Wall-clock ms the meter started, for the "mic appears silent" hint. */
+let meterStartedAt = 0
 let heldVoiceMessage: { id: string; content: string } | null = null
 /** The voice turn ID for the currently pending voice response. */
 let _pendingVoiceTurnId: string | null = null
@@ -48,6 +52,12 @@ let finalConfidence: number | null = null
 
 const PENDING_RESPONSE_TIMEOUT_MS = 30_000
 const TTS_GENERATE_TIMEOUT_MS = 15_000
+/** Meter poll cadence — ~10Hz is enough to look live and stays cheap. */
+const METER_POLL_MS = 100
+/** Peak RMS below this after MIC_SILENT_HINT_MS means the mic looks silent. */
+const MIC_SILENT_RMS_FLOOR = 0.005
+/** How long capture may stay flat-at-0 before we surface the silent-mic hint. */
+const MIC_SILENT_HINT_MS = 2_000
 
 const log = (stage: string, ...args: unknown[]) =>
   console.log(`[VoicePipeline] ${stage}`, ...args)
@@ -55,6 +65,37 @@ const log = (stage: string, ...args: unknown[]) =>
 function clearAllTimers(): void {
   if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
   if (maxRecordingTimeout) { clearTimeout(maxRecordingTimeout); maxRecordingTimeout = null }
+}
+
+/**
+ * Start the ~10Hz capture meter: mirror client.clientRms into the message store
+ * so the recording card shows a live audio-level bar. Cheap (one getter read +
+ * one shallow store write per tick); no render loop, no FFT. The card reads the
+ * store field. Cleared on stop / finalize / abort.
+ */
+function startCaptureMeter(): void {
+  stopCaptureMeter()
+  meterStartedAt = Date.now()
+  useVoiceMessageStore.getState().resetCaptureMeter()
+  meterInterval = setInterval(() => {
+    if (!client) return
+    const rms = client.clientRms
+    const elapsed = Date.now() - meterStartedAt
+    // silentMs: elapsed only counts toward the hint once we're past the grace
+    // window AND the session has never risen above the silence floor.
+    const peak = useVoiceMessageStore.getState().captureRmsPeak
+    const silentMs =
+      elapsed >= MIC_SILENT_HINT_MS && Math.max(peak, rms) < MIC_SILENT_RMS_FLOOR
+        ? elapsed
+        : 0
+    useVoiceMessageStore.getState().setCaptureRms(rms, silentMs)
+  }, METER_POLL_MS)
+}
+
+function stopCaptureMeter(): void {
+  if (meterInterval) { clearInterval(meterInterval); meterInterval = null }
+  meterStartedAt = 0
+  useVoiceMessageStore.getState().resetCaptureMeter()
 }
 
 // ── MediaRecorder lifecycle ──────────────────────────────────────────────────
@@ -127,6 +168,7 @@ function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): voi
   if (finalizing) return
   finalizing = true
   clearAllTimers()
+  stopCaptureMeter()
 
   const vms = useVoiceMessageStore.getState()
   const now = Date.now()
@@ -595,6 +637,10 @@ export async function startVoice(): Promise<void> {
   // Parallel audio capture on the SAME MediaStream the PCM16 WS uses.
   _startRecorder(stream)
 
+  // Live audio-level meter: mirror client-computed RMS into the store at ~10Hz
+  // so the recording card visibly moves while the user speaks.
+  startCaptureMeter()
+
   vs.setMicState('listening')
   log('state=listening', 'tap mic again to send')
 
@@ -625,6 +671,7 @@ export function stopVoice(): void {
   if (client) client.stopMic()
   cancelTurn()
   clearAllTimers()
+  stopCaptureMeter()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
   vs.setVadActive(false)
@@ -637,6 +684,7 @@ export function stopVoice(): void {
 export function abortActiveRecording(): void {
   log('abort_active_recording')
   clearAllTimers()
+  stopCaptureMeter()
   finalizing = true
   if (client) client.stopMic()
   _stopRecorder(() => { /* discard — deleteDraft revokes any attached blob */ })
@@ -821,6 +869,7 @@ export function stopTts(): void {
 
 export function destroyVoice(): void {
   clearAllTimers()
+  stopCaptureMeter()
   cancelTurn()
   _stopRecorder(() => { /* discard */ })
   cleanups.forEach(fn => fn())

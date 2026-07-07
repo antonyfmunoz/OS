@@ -270,6 +270,71 @@ const DRAFT_STATUS_LABEL: Record<VoiceMessageDraft['status'], string> = {
   deleted: 'deleted',
 }
 
+/**
+ * Precise failure reasons — P4S-31D1-C. Maps every server + client capture
+ * error code to a DISTINCT human string. A mic-silent or decode failure must
+ * NEVER collapse to a bare "No speech detected": that message caused the
+ * original mis-diagnosis (suspended capture AudioContext read as no-speech).
+ * Each code here maps to its own line so the operator sees the real cause.
+ */
+const VOICE_FAILURE_REASON: Record<string, string> = {
+  // Server error taxonomy (umh/voice_server.py)
+  EMPTY_AUDIO_BLOB: 'No audio captured — mic sent no bytes',
+  SILENT_AUDIO: 'Mic appears silent — no audio energy detected',
+  UNSUPPORTED_AUDIO_FORMAT: 'Unsupported audio format for this browser',
+  DECODE_FAILED: 'Audio could not be decoded',
+  VAD_NO_SPEECH: 'No speech found in the recording',
+  STT_FAILED: 'Transcription failed — try again',
+  // Client-side capture / VAD taxonomy
+  NO_SPEECH: 'No speech detected before the pause',
+  // Retry / transport / send taxonomy
+  RETRY_NO_AUDIO: 'No stored audio to retry',
+  RETRY_WS_UNAVAILABLE: 'Voice server unavailable — retry later',
+  RETRY_DECODE_FAILED: 'Stored audio could not be decoded for retry',
+  RETRY_STT_FAILED: 'Retry transcription failed',
+  RETRY_TIMEOUT: 'Retry timed out — server did not respond',
+  RETRY_UNAVAILABLE: 'Retry could not start',
+  AUDIO_UPLOAD_FAILED: 'Audio upload failed — send again',
+  CHAT_SEND_FAILED: 'Could not deliver to chat — send again',
+}
+
+/** Resolve a draft error code to its precise human reason (never a bare fallback). */
+function voiceFailureReason(code: string | null): string {
+  if (!code) return 'Transcription failed'
+  return VOICE_FAILURE_REASON[code] ?? `Transcription failed (${code})`
+}
+
+/**
+ * Live audio-level meter — P4S-31D1-C. Reads the client-computed capture RMS
+ * the controller mirrors into the store at ~10Hz. This is the VISIBLE proof of
+ * capture: the bar moves when the user speaks. If capture stays flat at 0 past
+ * the grace window, a subtle "mic appears silent" hint appears. No audio loop
+ * lives here — the card only reads a store field.
+ */
+function CaptureMeter() {
+  const rms = useVoiceMessageStore((s) => s.captureRms)
+  const silentMs = useVoiceMessageStore((s) => s.captureSilentMs)
+  // Perceptual scale: sqrt lifts quiet speech into a visible range, clamped 0..1.
+  const level = Math.min(1, Math.sqrt(Math.max(0, rms)) * 1.6)
+  const pct = Math.round(level * 100)
+  const silent = silentMs > 0
+  return (
+    <div className="mt-1" aria-label="capture level meter" data-testid="capture-meter">
+      <div className="h-1.5 w-full rounded bg-surface overflow-hidden border border-border">
+        <div
+          className={clsx('h-full transition-[width] duration-75', silent ? 'bg-danger' : 'bg-cyan')}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {silent && (
+        <p className="text-[9px] font-mono text-danger mt-0.5">
+          mic appears silent — check input device
+        </p>
+      )}
+    </div>
+  )
+}
+
 /** Live-updating recorded duration in seconds while a draft is recording. */
 function useRecordingSeconds(active: boolean): number {
   const [secs, setSecs] = useState(0)
@@ -333,9 +398,12 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
       </div>
 
       {isRecording && (
-        <p className="whitespace-pre-wrap text-[10px] text-text-secondary italic min-h-[14px]">
-          {draft.transcript_partial || 'listening…'}
-        </p>
+        <>
+          <CaptureMeter />
+          <p className="whitespace-pre-wrap text-[10px] text-text-secondary italic min-h-[14px]">
+            {draft.transcript_partial || 'listening…'}
+          </p>
+        </>
       )}
 
       {!isRecording && draft.audioUrl && (
@@ -357,8 +425,8 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
       )}
 
       {isFailed && (
-        <p className="text-[9px] font-mono text-danger mt-1">
-          {draft.error === 'NO_SPEECH' ? 'No speech detected' : `Transcription failed${draft.error ? ` (${draft.error})` : ''}`}
+        <p className="text-[9px] font-mono text-danger mt-1" data-testid="voice-failure-reason">
+          {voiceFailureReason(draft.error)}
         </p>
       )}
 

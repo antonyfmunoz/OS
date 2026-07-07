@@ -53,9 +53,13 @@ export class VoiceWsClient {
   /** P4S-31D1-C: rolling client-side RMS of the mic stream (0..1). If this
    * stays 0 while the user speaks, the mic stream is silent — the exact
    * failure the audio-signal contract catches. Sourced from the SAME PCM the
-   * server sees, so client and server RMS should agree. */
+   * server sees, so client and server RMS should agree. Read by the ~10Hz
+   * meter poll in voice-controller (client.clientRms). Moves even if the
+   * server emits no audio_level events. */
   private _lastClientRms = 0
   private _maxClientRms = 0
+  /** Wall-clock ms of the last buffer processed (capture liveness). */
+  private _lastCaptureTs = 0
 
   constructor() {
     this.ws = new WsClient(VOICE_URL)
@@ -152,6 +156,10 @@ export class VoiceWsClient {
 
     this.sourceNode = this.audioContext.createMediaStreamSource(stream)
     this.processorNode = this.audioContext.createScriptProcessor(CHUNK_SIZE, 1, 1)
+    this._chunkCount = 0
+    this._lastClientRms = 0
+    this._maxClientRms = 0
+    this._lastCaptureTs = 0
 
     this.processorNode.onaudioprocess = (e: AudioProcessingEvent) => {
       const float32 = e.inputBuffer.getChannelData(0)
@@ -163,9 +171,13 @@ export class VoiceWsClient {
         sumSq += s * s
       }
       // Client RMS on the SAME PCM the server measures (0..1, full-scale=1).
+      // The single cheapest proof the mic is actually delivering samples — no
+      // FFT, no per-frame allocation. Moves even if the server emits no
+      // audio_level events; a live capture flat at 0 means a silent mic.
       const rms = float32.length ? Math.sqrt(sumSq / float32.length) : 0
       this._lastClientRms = rms
       if (rms > this._maxClientRms) this._maxClientRms = rms
+      this._lastCaptureTs = Date.now()
       this.ws.sendBinary(pcm16.buffer)
       this._chunkCount++
       if (this._chunkCount === 1) log('first_audio_chunk_sent')
@@ -210,6 +222,13 @@ export class VoiceWsClient {
       track_channel_count: (settings as MediaTrackSettings).channelCount ?? null,
       echo_cancellation: (settings as MediaTrackSettings).echoCancellation ?? null,
       noise_suppression: (settings as MediaTrackSettings).noiseSuppression ?? null,
+      // Capture-liveness aliases (UI meter / P4S-31D1-C-UI contract): same
+      // values, camelCase names the meter + ui-signal tests consume.
+      clientRms: Number(this._lastClientRms.toFixed(4)),
+      peakRms: Number(this._maxClientRms.toFixed(4)),
+      chunksSent: this._chunkCount,
+      lastCaptureMsAgo: this._lastCaptureTs ? Date.now() - this._lastCaptureTs : null,
+      capturing: this.processorNode !== null && this.audioContext !== null,
     }
   }
 
@@ -240,10 +259,19 @@ export class VoiceWsClient {
 
     this.mediaStream?.getTracks().forEach(t => t.stop())
     this.mediaStream = null
+    this._lastClientRms = 0
+    this._maxClientRms = 0
+    this._lastCaptureTs = 0
   }
 
+  /** PCM16 buffers pushed to the server this session (capture liveness). */
   get chunksSent(): number {
     return this._chunkCount
+  }
+
+  /** Peak client RMS observed during the current capture (silence proof). */
+  get peakRms(): number {
+    return this._maxClientRms
   }
 
   /**

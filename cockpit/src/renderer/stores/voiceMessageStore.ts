@@ -186,8 +186,22 @@ interface VoiceMessageState {
   recordingState: RecordingSessionState
   /** vcg-<id> of the active VoiceConsentGrant(push_to_talk); set by the adapter. */
   activeConsentGrantId: string
+  /**
+   * Live client-computed capture RMS (0..1) for the active recording, written
+   * by the controller's ~10Hz meter poll from client.clientRms. The recording
+   * card reads THIS field — it does not run its own audio loop. 0 when idle.
+   */
+  captureRms: number
+  /** Peak captureRms seen this session — powers the "mic appears silent" hint. */
+  captureRmsPeak: number
+  /** ms the current recording has run with peak RMS still ~0 (silence hint gate). */
+  captureSilentMs: number
 
   setActiveConsentGrantId: (id: string) => void
+  /** Meter poll writes the live RMS + rolling peak + silent-duration here. */
+  setCaptureRms: (rms: number, silentMs: number) => void
+  /** Reset meter state (recording start / stop). */
+  resetCaptureMeter: () => void
   transitionRecordingState: (to: RecordingSessionState) => void
 
   createDraft: (input: CreateDraftInput) => VoiceMessageDraft
@@ -236,8 +250,20 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
     activeDraftId: null,
     recordingState: 'idle',
     activeConsentGrantId: '',
+    captureRms: 0,
+    captureRmsPeak: 0,
+    captureSilentMs: 0,
 
     setActiveConsentGrantId: (id) => set({ activeConsentGrantId: id }),
+
+    setCaptureRms: (rms, silentMs) =>
+      set((s) => ({
+        captureRms: rms,
+        captureRmsPeak: rms > s.captureRmsPeak ? rms : s.captureRmsPeak,
+        captureSilentMs: silentMs,
+      })),
+
+    resetCaptureMeter: () => set({ captureRms: 0, captureRmsPeak: 0, captureSilentMs: 0 }),
 
     transitionRecordingState: (to) => {
       const from = get().recordingState
