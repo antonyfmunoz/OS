@@ -188,16 +188,14 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                     palette_item.first.click()
                     stage("panel_window_added_from_palette", True)
                     time.sleep(3)
-            # The panel's GET /intent-loop can queue behind a starved threadpool
-            # (the diagnosed #212 defect) — wait for the row, nudging REFRESH.
-            row_deadline = time.time() + 90
+            # GET /intent-loop runs 20-60s under CPU-cap load (#212 defect
+            # fingerprint) — wait PASSIVELY; clicking Refresh abandons the
+            # in-flight request and re-queues, making it strictly worse.
+            row_deadline = time.time() + 150
             while time.time() < row_deadline:
                 if page.locator(f'div:has-text("{loop_id}")').count() > 1:
                     break
-                refresh = page.get_by_role("button", name="REFRESH")
-                if refresh.count() > 0:
-                    refresh.first.click()
-                time.sleep(8)
+                time.sleep(5)
             shot(page, "03_intent_loop_panel")
 
             # Diagnostics: what the panel window actually shows.
