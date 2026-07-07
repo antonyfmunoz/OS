@@ -219,4 +219,7 @@ services:
       resources:
         limits:
           cpus: "1.00"
-          memory: 1G
+          # 1G caused cgroup thrash: idle RES is ~940MiB, so sustained cockpit
+          # polling pinned the cap (>1M major faults, all reads wedged —
+          # 2026-07-07 post-#228 load watch). 2G gives real headroom; host has 16G.
+          memory: 2G
