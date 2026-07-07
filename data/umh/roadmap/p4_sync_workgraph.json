@@ -263,6 +263,45 @@
    "executor": "Opus",
    "lane": "E",
    "risk": "MEDIUM"
+  },
+  {
+   "id": "P4S-31B",
+   "objective": "Cockpit Chat intent rail — intent originates ONLY through sanctioned Cockpit conversational surfaces (Chat now; Voice later as a thin adapter transcribing into the same Chat channel). Chat message = canonical user intent event -> IntentSpec -> WorkPacket draft -> held gate -> governed approve/reject -> proof -> server-truth status back into the same Cockpit conversational thread and panels.",
+   "dependencies": [
+    "P4S-31"
+   ],
+   "context": "P4S-31 merged (PR #215). ARCHITECTURE CORRECTION (owner, 2026-07-06): no generic 'intent form' doctrine — Chat is the canonical intent rail; panels/buttons exist only as downstream control surfaces after intent exists (approve, reject, inspect packet, open proof, retry, cancel, escalate) and must not bypass the Chat/Voice rail.",
+   "expected_files": [
+    "transports/api/cockpit_intent_loop_routes.py (POST submit fed by the Cockpit Chat intent channel + POST decision; registered mutations only)",
+    "cockpit chat pipeline integration (chat message -> canonical intent event -> IntentSpec; status returns into the same thread)",
+    "cockpit/src/renderer/panels/IntentLoopPanel.tsx (downstream control surface ONLY: approve/reject/inspect/proof — no standalone intent form)",
+    "tests/test_p4s31b_intent_input_surface.py"
+   ],
+   "tests": [
+    "submission routes through a REGISTERED MutationSpec (real-registry regression)",
+    "chat message is the canonical intent event; no parallel form-submit rail",
+    "gate holds after submit (no auto-advance, no auto-execution)",
+    "deterministic parse (no LLM in the path)",
+    "status/proof returns as server truth readable by the chat thread and panel"
+   ],
+   "proof": "one intent submitted from the Cockpit-facing route (operator-authed), visible in GET /intent-loop, gate held, then governed approve -> proof_recorded — all ids from the real run",
+   "rollback": "revert; routes additive",
+   "stop_conditions": [
+    "any ungoverned write path",
+    "a separate generic intent-form doctrine canonized",
+    "chat/voice rail bypassed by panel buttons",
+    "voice scaffolding beyond trivial",
+    "arbitrary agent dispatch",
+    "provider execution",
+    "projection UX collapse into Cockpit"
+   ],
+   "executor": "Opus",
+   "lane": "B",
+   "risk": "MEDIUM",
+   "followups": [
+    "P4S-31C — Deployed Cockpit Chat Intent Loop Proof",
+    "P4S-31D — Cockpit Voice Adapter Into Chat Intent Loop (only after P4S-31C proven)"
+   ]
   }
  ],
  "lane_assignment": {
@@ -275,7 +314,8 @@
   "B_opus_substrate": [
    "P4S-11",
    "P4S-12",
-   "P4S-31"
+   "P4S-31",
+   "P4S-31B"
   ],
   "C_opus_projection_loop": [
    "P4S-22"
