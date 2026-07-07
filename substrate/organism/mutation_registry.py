@@ -521,6 +521,48 @@ INTENT_LOOP_APPROVAL_DECISION = MutationSpec(
     ),
 )
 
+VOICE_CONSENT_GRANT = MutationSpec(
+    name="voice_consent_grant",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    # LOW risk + LOCAL_FILE + degraded opt-in: P4S-31D-1 records one operator's
+    # explicit per-device, per-mode voice capture consent as substrate-owned
+    # JSON state (data/umh/voice/consent_grants.json). Fully reversible via
+    # voice_consent_revoke. Never opens a microphone, never captures audio,
+    # never dispatches — capture itself happens client-side only AFTER the
+    # fail-closed gate (VoiceConsentStore.require_active_grant) sees this grant.
+    degraded_mode_allowed=True,
+    description=(
+        "Record one explicit operator VoiceConsentGrant (per device, per "
+        "activation mode) as substrate-owned JSON state — the fail-closed "
+        "consent gate for voice capture; never captures audio or dispatches"
+    ),
+)
+
+VOICE_CONSENT_REVOKE = MutationSpec(
+    name="voice_consent_revoke",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    # Revocation must ALWAYS be executable (degraded opt-in): losing the
+    # control plane must never leave a consent grant un-revocable.
+    degraded_mode_allowed=True,
+    description=(
+        "Revoke an operator VoiceConsentGrant (per device, per activation "
+        "mode) — sets revoked_at on the substrate-owned JSON record; all "
+        "capture in that mode is refused fail-closed afterwards"
+    ),
+)
+
 GOVERNANCE_UPDATE = MutationSpec(
     name="governance_update",
     action_type=ActionType.STATE,
@@ -811,6 +853,8 @@ class MutationRegistry:
             EOS_ACTION_PROPOSAL_EXECUTE,
             INTENT_LOOP_SUBMIT,
             INTENT_LOOP_APPROVAL_DECISION,
+            VOICE_CONSENT_GRANT,
+            VOICE_CONSENT_REVOKE,
             GOVERNANCE_UPDATE,
             CHANNEL_MESSAGE_SEND,
             CONVERSATION_SEND,

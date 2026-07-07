@@ -1,0 +1,36 @@
+# UMH voice server — STT/TTS WebSocket bridge (ws://:8096/voice).
+# P4S-31D-1 closes the lifecycle gap: this seam was a hand-started host
+# process; nginx proxies /api/umh/voice/ws -> 127.0.0.1:8096/voice, so an
+# unmanaged voice_server means the entire cockpit voice path is silently dead.
+#
+# Host process on purpose (same precedent as the mesh server on :8094):
+# audio WS + STT fallback don't belong in the Docker runtime containers.
+#
+# Install:
+#   cp /opt/OS/infra/systemd/umh-voice-server.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now umh-voice-server
+#
+# Secrets: voice_server.py loads /opt/OS/services/.env itself (same 1Password
+# op-injected file the compose stack uses) — no plaintext values here.
+
+[Unit]
+Description=UMH voice server (STT/TTS WS bridge on :8096)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/OS
+ExecStart=/usr/bin/python3 /opt/OS/umh/voice_server.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=UMH_ROOT=/opt/OS
+# CPU Gate Law: the local faster-whisper STT fallback is CPU-heavy; cap it so
+# a transcription burst can never saturate the host (Hostinger throttles).
+Nice=10
+CPUQuota=150%
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
