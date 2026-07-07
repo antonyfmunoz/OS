@@ -1,0 +1,18 @@
+{
+  "record": "ios_audio_mp4_marker",
+  "why_placeholder": "iOS Safari MediaRecorder emits audio/mp4 (AAC in an MP4/M4A container). Valid AAC cannot be synthesized with the Python stdlib (no encoder); producing a fake .mp4 would be dishonest fixture data. This marker documents the contract the decode seam must satisfy.",
+  "blob": {
+    "mime": "audio/mp4",
+    "codec": "aac (mp4a.40.2)",
+    "container": "mp4 / m4a",
+    "typical_sample_rate_hz": 44100,
+    "channels": 1
+  },
+  "decode_requirement": [
+    "audio/mp4 is NOT raw PCM \u2014 it MUST be demuxed + decoded to PCM first",
+    "decoded PCM must be downsampled to 16000 Hz mono int16 before STT",
+    "the server STT path (save_wav -> _transcribe_groq) assumes 16k mono PCM already; an mp4 blob handed to it un-decoded would be wrong",
+    "Groq whisper-large-v3-turbo DOES accept m4a/mp4 as an uploaded file, so the decode may also be delegated to Groq \u2014 but the LOCAL faster-whisper fallback needs real decode-to-PCM first"
+  ],
+  "route": "browser MediaRecorder(audio/mp4) -> upload seam -> decode-to-PCM16-16k -> STT"
+}
