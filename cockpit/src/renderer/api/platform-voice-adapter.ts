@@ -147,6 +147,16 @@ async function grantPushToTalk(): Promise<VoiceConsentState> {
 async function startCapture(): Promise<void> {
   const vs = useVoiceStore.getState()
 
+  // IMMEDIATE feedback (P4S-31D1-E first-click fix): flip micState OUT of 'idle'
+  // synchronously, BEFORE the first await. Otherwise the whole async chain
+  // (getConsent → browser permission → grant → WS connect) runs while the button
+  // still reads 'idle' — it looks dead on first click, and a second click
+  // re-enters startCapture concurrently because the `micState === 'idle'` guard
+  // in handleMicToggle is still true. Setting it here gives instant visual
+  // feedback AND makes the guard block concurrent re-entry.
+  vs.setError(null)
+  vs.setMicState('requesting_permission')
+
   // (1) Returning device: an active grant already exists — straight to capture.
   const consent = await getConsent('push_to_talk')
   if (consent.active) {
