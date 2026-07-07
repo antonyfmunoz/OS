@@ -1,0 +1,87 @@
+{
+  "record": "P4S-31D1-E — VoiceNote Artifact Binding + Mobile Consent UX contract",
+  "compiled": "2026-07-07",
+  "supersedes_diagnosis": "P4S-31D1-C fixed the capture path (suspended AudioContext -> zero PCM). This packet fixes a DIFFERENT, deeper bug surfaced once capture worked: the local MediaRecorder blob (playback) and the live WS PCM16 stream (STT) are two DIVERGENT artifacts. Playback works (blob is good) while transcription reports 'no audio received' (WS stream was empty). The blob must be the single source of truth.",
+  "root_cause": {
+    "two_capture_paths": [
+      "WS PCM16 stream -> umh/voice_server.py -> STT (this is what finalTranscriptText comes from)",
+      "MediaRecorder blob on the SAME MediaStream -> local playback + upload"
+    ],
+    "the_bug": "voice-controller._finalizeRecording completes the transcript ONLY `if (finalTranscriptText)` (the WS path). When the WS stream produced nothing, the draft has a perfectly playable blob but no transcript, and the server reports no audio. There was no blob-fallback for the PRIMARY transcription — only the retry path used the blob.",
+    "the_fix": "When the WS stream yields no transcript on finalize, transcribe FROM THE ATTACHED BLOB using the same decode->resample->STT mechanism the retry path already proved. Centralize that mechanism in ONE shared helper used by both finalize-fallback and retry."
+  },
+  "voicenote_draft": {
+    "note": "The canonical VoiceNoteDraft IS the existing store type VoiceMessageDraft (cockpit/src/renderer/stores/voiceMessageStore.ts). Do NOT rename it; VoiceNoteDraft is an alias for the same object.",
+    "fields": {
+      "draft_id": "vmd-<uuid> — stable id threaded through playback/transcribe/send/delete",
+      "audioBlob": "Blob | null — the SINGLE source of truth artifact",
+      "audioUrl": "string | null — local object URL for playback (local_object_url)",
+      "duration_ms": "number",
+      "content_type": "string — mime_type, server-derived on upload, never client filename",
+      "size_bytes": "number — blob_size",
+      "transcript_status": "pending|partial|transcribing|final|edited|failed|no_speech",
+      "transcript_draft": "interim transcript (partial)",
+      "transcript_final": "committed transcript text",
+      "consent_grant_id": "vcg-<uuid> — server push_to_talk grant",
+      "device_registry_id": "string",
+      "session_id": "string",
+      "created_at": "ISO-8601"
+    }
+  },
+  "single_artifact_source_of_truth": {
+    "the_blob_feeds": ["local playback", "primary transcription (blob fallback)", "retry transcription", "send", "delete cleanup"],
+    "no_stale_split": "There must be no separate audio state for playback vs transcription. One blob, one object URL.",
+    "object_url_lifecycle": "Created once on attachAudio; revoked ONLY on delete — never on transcription failure (preserved for retry)."
+  },
+  "binding_error_taxonomy": {
+    "law": "NEVER show 'No audio was received' / 'no audio' when draft.audioBlob.size > 0. Emit a precise, distinct code.",
+    "codes": {
+      "LOCAL_AUDIO_PRESENT_UPLOAD_MISSING": "blob exists locally but nothing was sent to the server",
+      "LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY": "sent, but the server received 0 bytes",
+      "AUDIO_ARTIFACT_REF_NOT_FOUND": "artifact_ref referenced but not resolvable server-side",
+      "MISSING_AUDIO_FIELD": "the draft has no audio field at all",
+      "EMPTY_AUDIO_BLOB": "blob present but size 0",
+      "UNSUPPORTED_AUDIO_FORMAT": "container/codec not decodable",
+      "DECODE_FAILED": "decode of a real blob failed",
+      "STT_FAILED": "engine errored"
+    }
+  },
+  "transcript_dropdown_ui": {
+    "requirement": "Transcript is a collapsible/expandable dropdown UNDER the audio card. Long transcripts live in the collapsible body and do not flood the chat thread. User can manually expand/collapse.",
+    "status_visible": ["transcribing", "ready", "failed (precise reason)", "edited"],
+    "editable_before_send": true
+  },
+  "mobile_safari_consent": {
+    "wrong": "mic tap -> browser permission -> SEPARATE 'Enable Push-to-Talk' click before recording (double consent)",
+    "correct": "mic tap ONCE -> browser mic permission (if needed) -> on success, AUTOMATICALLY request the UMH push_to_talk grant in the SAME user-initiated flow -> record/ready. Explicit 'Enable Push-to-Talk' affordance ONLY if the SERVER grant fails.",
+    "rules": ["browser mic permission still required", "UMH consent stays server-side + revocable", "NO client-side fake consent", "NO auto-grant without the user's mic tap", "wake_word/always_on remain REFUSED", "push_to_talk only"]
+  },
+  "input_vs_action_approval": {
+    "voice_input_consent": "once per device/session/permission model — never a per-note approval",
+    "action_approval": "later, only if the voice message becomes an operational command (held gate / proof)",
+    "rule": "Manual Cockpit approval is for execution/gates, NOT for recording a voice note."
+  },
+  "send_semantics": {
+    "before_send": ["audio/transcript are a draft", "no chat message committed", "no intent-loop entry", "delete removes the draft cleanly + revokes object URL"],
+    "on_explicit_send_only": ["finalized transcript enters Cockpit Chat (via sendDraft -> addVoiceTranscript, the sole entry)", "IntentSpec may generate", "WorkPacket/gate/proof may run"]
+  },
+  "acceptance": [
+    "tap mic once (mobile Safari or desktop Chrome), grant browser mic permission if needed, record",
+    "playable voice card appears",
+    "transcript appears in a collapsible dropdown (from the BLOB, even if the WS stream was empty)",
+    "edit/retry/delete work",
+    "explicit Send commits transcript into Cockpit Chat -> IntentSpec -> gate/proof",
+    "playable local audio but missing upload field -> LOCAL_AUDIO_PRESENT_UPLOAD_MISSING",
+    "playable local audio but zero server bytes -> LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY",
+    "delete before send -> no chat entry, no intent entry",
+    "transcript edit before send -> the edited transcript is the one sent",
+    "browser mic permission granted -> push_to_talk grant without a second click",
+    "wake_word grant still refused",
+    "NEVER 'No audio was received' while local playback works"
+  ],
+  "hard_constraints": [
+    "no ambient activation", "no always-on mic", "no AI outbound voice send", "no provider execution",
+    "no P4S-21", "no P4S-40", "no P4S-22", "no raw audio/transcript leakage",
+    "no bypass of Cockpit Chat", "no client-side fake consent"
+  ]
+}
