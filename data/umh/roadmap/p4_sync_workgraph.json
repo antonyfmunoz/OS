@@ -302,6 +302,33 @@
     "P4S-31C — Deployed Cockpit Chat Intent Loop Proof",
     "P4S-31D — Cockpit Voice Adapter Into Chat Intent Loop (only after P4S-31C proven)"
    ]
+  },
+  {
+   "id": "P4S-31C-RUNTIME-READ-PATH-HARDENING-001",
+   "objective": "os-operator read-path hardening per the PR #212 diagnosis — bounded /snapshot, healthcheck/read route isolation from the shared threadpool, poller starvation prevention. The durable fix behind the P4S-31C CPU-cap unblock.",
+   "dependencies": [
+    "P4S-31C browser proof closed"
+   ],
+   "context": "Owner decision 2026-07-06: CPU cap 0.5->1.0 was the explicit immediate unblock (infra-only); this packet carries the behavior-adjacent code remediation SEPARATELY. Evidence: GET /intent-loop measured 22.6s deployed / >150s under cockpit poller load at 0.5 CPU; /snapshot measured 55.2s sync handler; memory RES growth to the 1G limit over ~30min uptime.",
+   "expected_files": [
+    "services/operator_api.py (bounded /snapshot, dedicated lightweight health path, targeted async/threadpool isolation for hot read routes)",
+    "data/audits/ before/after load evidence"
+   ],
+   "tests": [
+    "same load profile: /intent-loop and /snapshot return bounded under sustained cockpit polling",
+    "no endpoint response-shape change (behavior-preserving)",
+    "existing operator API suite green"
+   ],
+   "proof": "before/after latency + healthcheck timeline under the reproduced cockpit-load profile",
+   "rollback": "revert; no schema or data writes",
+   "stop_conditions": [
+    "fix requires endpoint behavior change (escalate)",
+    "any change to governed mutation paths",
+    "RES-growth root cause requires feature change (separate packet)"
+   ],
+   "executor": "Opus",
+   "lane": "E",
+   "risk": "MEDIUM"
   }
  ],
  "lane_assignment": {
@@ -324,7 +351,8 @@
    "P4S-40"
   ],
   "E_opus_infra": [
-   "WP-P4-OS-OPERATOR-SUSTAINED-LOAD-001"
+   "WP-P4-OS-OPERATOR-SUSTAINED-LOAD-001",
+   "P4S-31C-RUNTIME-READ-PATH-HARDENING-001"
   ]
  }
 }
