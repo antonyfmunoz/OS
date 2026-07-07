@@ -1,0 +1,133 @@
+{
+  "record": "P4S-31D — VoiceIntentContract machine-readable type shapes",
+  "compiled": "2026-07-06",
+  "mode": "compile_only — no implementation authorized by this artifact; these shapes are a target a later implementation packet generates and validates against, not runtime code",
+  "packet": "P4S-31D-VOICE-CAPABILITY-MATRIX-001",
+  "doctrine": "Voice is a thin adapter into the Cockpit Chat intent rail. Every type below binds to an EXISTING seam (chatStore.sendMessage source='voice', /advisor/converse routing + voice_turn_id, substrate/workstation/voice_route_resolver.VoiceRoute, cockpit voiceStore state machine, substrate/workstation/device_presence.DeviceSession). No type invents a parallel voice execution path.",
+  "grounding": {
+    "wire_entry": "cockpit/src/renderer/stores/chatStore.ts::sendMessage(content, source='voice', viewContext, voiceTurnId) -> POST /advisor/converse {content, source, routing, voice_turn_id}",
+    "transcript_source": "umh/voice_server.py ws://:8096/voice emits {type:'transcript', text, final} — transcript-only, no intelligence",
+    "routing_metadata": "cockpit/src/renderer/stores/deviceSessionStore.ts::getRoutingMetadata()",
+    "device_binding": "substrate/workstation/device_presence.py::DeviceSession",
+    "existing_route_resolver": "substrate/workstation/voice_route_resolver.py::VoiceRoute (execution_target/audio routing; governance-neutral hint only)",
+    "intent_gate": "substrate/workstation/command_router.py::classify_intent(text) -> CommandIntent (deterministic keyword lookup, no LLM)",
+    "proof_chain": "substrate/execution/intent/loop.py::submit -> AWAITING_APPROVAL -> governed approve -> PROOF_RECORDED with decided_by (P4S-31C proven, PR-era #217)"
+  },
+  "types": [
+    {
+      "name": "TranscriptEvent",
+      "purpose": "One speech-to-text result emitted by the voice capture adapter before it enters Chat. Carries text + provenance; NEVER carries audio bytes and NEVER carries an execution decision.",
+      "binds_to": "umh/voice_server.py transcript frame + chatStore addVoiceTranscript(text, voiceTurnId)",
+      "fields": [
+        {"name": "text", "type": "string", "required": true, "note": "verbatim transcript; enters Chat unmodified as message content"},
+        {"name": "final", "type": "boolean", "required": true, "note": "final vs partial; only final transcripts submit to the intent rail (partials update draft only)"},
+        {"name": "confidence", "type": "number", "required": true, "note": "0.0-1.0 STT confidence"},
+        {"name": "language", "type": "string", "required": true, "note": "BCP-47 tag, e.g. en-US; from STT or session locale"},
+        {"name": "voice_turn_id", "type": "string", "required": true, "note": "format vt-<uuid>; correlation id across capture->transcript->chat->loop; matches chatStore voice_turn_id on the wire"},
+        {"name": "started_at", "type": "string", "required": true, "note": "ISO-8601 UTC; capture start"},
+        {"name": "emitted_at", "type": "string", "required": true, "note": "ISO-8601 UTC; transcript emit"},
+        {"name": "source_device_id", "type": "string", "required": true, "note": "opaque dev-<ts>-<rand>; NOT a hostname; from deviceSessionStore"},
+        {"name": "source_session_id", "type": "string", "required": true, "note": "opaque sess-<ts>-<rand>; browser-tab scoped"},
+        {"name": "control_surface", "type": "string", "required": true, "enum": ["fly_cockpit", "local_cockpit", "electron_cockpit", "terminal"], "note": "which cockpit surface captured it"},
+        {"name": "stt_engine", "type": "string", "required": false, "note": "which STT produced it, e.g. whisper_groq | faster_whisper | on_device; provenance only"},
+        {"name": "carries_audio", "type": "boolean", "required": true, "const": false, "note": "INVARIANT: always false — TranscriptEvent never carries raw audio"}
+      ]
+    },
+    {
+      "name": "WakeEvent",
+      "purpose": "A wake-word detection signal. Opens a capture window ONLY if VoiceSession consent-state permits. Carries the detected keyword and confidence; NEVER carries audio.",
+      "binds_to": "cockpit voiceStore activationMode {'wake_word'} + consent gate (target: on-device wake runtime)",
+      "fields": [
+        {"name": "keyword", "type": "string", "required": true, "note": "the detected wake phrase (instance-configured, not a literal in substrate)"},
+        {"name": "confidence", "type": "number", "required": true, "note": "0.0-1.0 detector confidence; below threshold is discarded"},
+        {"name": "detected_at", "type": "string", "required": true, "note": "ISO-8601 UTC"},
+        {"name": "source_device_id", "type": "string", "required": true, "note": "opaque device id where detection ran (on-device only)"},
+        {"name": "consent_ref", "type": "string", "required": true, "note": "id of the VoiceConsentGrant that authorizes wake-word listening on this device+mode; absent/revoked => event rejected fail-closed"},
+        {"name": "wake_runtime", "type": "string", "required": true, "note": "which on-device detector fired, e.g. openwakeword | porcupine | platform_native; provenance"},
+        {"name": "carries_audio", "type": "boolean", "required": true, "const": false, "note": "INVARIANT: always false — wake detection reports a keyword event, never audio"}
+      ]
+    },
+    {
+      "name": "VoiceSession",
+      "purpose": "The lifecycle of one operator voice interaction on one surface. Binds tenant identity (Clerk principal — the SAME principal that stamps decided_by in the proof) and gates capture behind explicit consent.",
+      "binds_to": "substrate/workstation/device_presence.DeviceSession + cockpit voiceStore micState machine + Clerk operator principal (P4S-31C decided_by)",
+      "fields": [
+        {"name": "voice_session_id", "type": "string", "required": true, "note": "opaque id for this voice interaction"},
+        {"name": "device_session_id", "type": "string", "required": true, "note": "maps to DeviceSession.session_id in the presence registry"},
+        {"name": "operator_principal", "type": "string", "required": true, "note": "Clerk principal, format clerk:user_<id>; the identity that will stamp decided_by; NEVER a hardcoded literal"},
+        {"name": "state", "type": "string", "required": true, "enum": ["consent_pending", "consent_granted", "mic_opening", "capturing", "transcribing", "closed", "denied", "revoked"], "note": "explicit lifecycle; mirrors voiceStore micState transitions"},
+        {"name": "activation_mode", "type": "string", "required": true, "enum": ["push_to_talk", "wake_word", "always_on"], "note": "always_on and wake_word REQUIRE an active VoiceConsentGrant for this device+mode"},
+        {"name": "consent_ref", "type": "string", "required": true, "note": "id of the VoiceConsentGrant covering this session; capture is refused fail-closed without it"},
+        {"name": "device_capability_ref", "type": "string", "required": true, "note": "id/role reference into DeviceCapabilityProfile (via infra/device_registry.json role), never a device name literal"},
+        {"name": "can_capture_audio", "type": "boolean", "required": true, "note": "from DeviceSession.can_capture_audio; false => session cannot enter capturing"},
+        {"name": "opened_at", "type": "string", "required": true, "note": "ISO-8601 UTC"},
+        {"name": "closed_at", "type": "string", "required": false, "note": "ISO-8601 UTC; set on close/deny/revoke"}
+      ]
+    },
+    {
+      "name": "DeviceCapabilityProfile",
+      "purpose": "Per-device voice capability descriptor, keyed by device ROLE/id from infra/device_registry.json — never by hardcoded device name. Declares what voice modes a device may offer.",
+      "binds_to": "infra/device_registry.json (role/id/device_type) + DeviceSession capability flags",
+      "fields": [
+        {"name": "device_registry_id", "type": "string", "required": true, "note": "id key from infra/device_registry.json (resolved at runtime); the ONLY device binding — no hostnames as truth"},
+        {"name": "device_role", "type": "string", "required": true, "enum": ["orchestrator", "executor", "controller"], "note": "orchestrator role MUST have has_microphone=false (no mic on the VPS, hard rule)"},
+        {"name": "has_microphone", "type": "boolean", "required": true, "note": "false for orchestrator role always"},
+        {"name": "can_play_audio", "type": "boolean", "required": true, "note": "TTS output capability"},
+        {"name": "push_to_talk", "type": "boolean", "required": true, "note": "supports explicit press-to-capture"},
+        {"name": "wake_word_runtime", "type": "string", "required": true, "enum": ["none", "on_device", "platform_native"], "note": "'none' => wake mode not offered on this device"},
+        {"name": "on_device_stt", "type": "boolean", "required": true, "note": "whether transcription can run locally (privacy-preferred)"},
+        {"name": "ambient_capable", "type": "boolean", "required": true, "note": "always_on feasibility for this device; false unless platform feasibility is PROVEN in the matrix"},
+        {"name": "capture_api", "type": "string", "required": true, "note": "the platform capture surface, e.g. web_getUserMedia | native_AVAudioEngine | native_AudioRecord; from feasibility matrix"}
+      ]
+    },
+    {
+      "name": "PlatformVoiceAdapter",
+      "purpose": "The ONE adapter contract every platform target implements. It captures audio locally, produces TranscriptEvents, and hands them to Chat via the existing sendMessage source='voice' seam. It NEVER classifies intent, NEVER dispatches work, NEVER calls a provider.",
+      "binds_to": "chatStore.addVoiceTranscript / sendMessage(source='voice'); umh/voice_server.py ws protocol as the reference desktop-browser adapter",
+      "shape": "interface",
+      "fields": [
+        {"name": "methods", "type": "object", "required": true, "members": [
+          {"name": "requestConsent(device_registry_id, activation_mode) -> VoiceConsentGrant", "note": "must resolve before any capture; fail-closed"},
+          {"name": "openSession(consent_ref) -> VoiceSession", "note": "transitions consent_granted -> mic_opening -> capturing; refuses if can_capture_audio=false"},
+          {"name": "startCapture() -> void", "note": "push_to_talk: on press; wake_word/always_on: on WakeEvent under consent"},
+          {"name": "stopCapture() -> void"},
+          {"name": "closeSession() -> void", "note": "releases mic; sets state=closed"}
+        ]},
+        {"name": "events", "type": "object", "required": true, "members": [
+          {"name": "onTranscript(TranscriptEvent)", "note": "final transcript => chat.sendMessage(text, 'voice', routing, voice_turn_id)"},
+          {"name": "onWake(WakeEvent)", "note": "only wired when activation_mode in {wake_word, always_on}"},
+          {"name": "onError(VoiceError)"},
+          {"name": "onStateChange(VoiceSession.state)"}
+        ]},
+        {"name": "error_semantics", "type": "object", "required": true, "members": [
+          {"name": "fail_closed", "type": "boolean", "const": true, "note": "missing consent, mic denied, STT down, or WS unavailable => refuse with typed error, never degrade to an ungoverned path"},
+          {"name": "typed_outcomes", "note": "mirror voiceStore VoiceOutcome enum: MIC_PERMISSION_DENIED | MIC_DEVICE_UNAVAILABLE | VOICE_WS_UNAVAILABLE | STT_FAILED | NO_SPEECH_DETECTED | TIMEOUT | RECORDING_FORMAT_UNSUPPORTED"}
+        ]},
+        {"name": "invariants", "type": "array", "required": true, "items": [
+          "adapter output is ALWAYS a chat message via source='voice' — never a direct call to classify_intent, intent_loop_submit, or governed_mutation",
+          "adapter never persists audio",
+          "adapter attaches voice_turn_id + routing but stamps NO identity — the operator Clerk principal is resolved server-side at /advisor/converse"
+        ]}
+      ]
+    },
+    {
+      "name": "VoiceConsentGrant",
+      "purpose": "Stored, revocable record that an operator authorized voice capture on a specific device in a specific mode. Ambient (always_on) and wake_word capture is IMPOSSIBLE without an active grant. This is the hard constraint against always-on mic.",
+      "binds_to": "new stored state (implementation packet); referenced by VoiceSession.consent_ref and WakeEvent.consent_ref",
+      "fields": [
+        {"name": "consent_id", "type": "string", "required": true},
+        {"name": "operator_principal", "type": "string", "required": true, "note": "Clerk principal who granted; format clerk:user_<id>"},
+        {"name": "device_registry_id", "type": "string", "required": true, "note": "device the grant covers; from infra/device_registry.json"},
+        {"name": "activation_mode", "type": "string", "required": true, "enum": ["push_to_talk", "wake_word", "always_on"], "note": "consent is PER-MODE: a push_to_talk grant does NOT authorize always_on"},
+        {"name": "granted_at", "type": "string", "required": true, "note": "ISO-8601 UTC"},
+        {"name": "revoked_at", "type": "string", "required": false, "note": "ISO-8601 UTC; presence => grant inactive; capture refused"},
+        {"name": "active", "type": "boolean", "required": true, "note": "derived: granted and not revoked; false => all capture in this mode refused fail-closed"}
+      ]
+    }
+  ],
+  "cross_type_invariants": [
+    "voice_turn_id threads TranscriptEvent -> chat message -> intent loop; it is the correlation key proving the spoken word and the governed proof are the same turn",
+    "operator_principal appears on VoiceSession and VoiceConsentGrant and MUST equal the Clerk principal that stamps decided_by in the resulting proof (identity is not re-minted by voice)",
+    "no type carries audio bytes except the transient capture buffer inside PlatformVoiceAdapter, which is never persisted and never leaves the device by default (cloud-transcription is DEFERRED to privacy review)"
+  ]
+}
