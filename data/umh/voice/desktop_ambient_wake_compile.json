@@ -1,0 +1,165 @@
+{
+  "record": "P4S-31D — Desktop ambient wake-word runtime compile artifact",
+  "compiled": "2026-07-06",
+  "mode": "compile_only — no activation authorized; no daemon, no wake runtime, no wake-word library dependency ships with this artifact",
+  "compile_only": true,
+  "activation_gate": {
+    "activation_authorized": false,
+    "gate": "This artifact defines the target shape ONLY. The wake portion belongs to packet P4S-31D-3 and the ambient (always_on) portion to packet P4S-31D-6 — both hard-held. P4S-31D-6 is owner-gated and ships LAST per docs/VOICE_INTENT_CONTRACT.md. Nothing in this artifact starts, schedules, or permits either packet.",
+    "who_gates": "the owner explicitly calls each implementation packet in sequence (P4S-31D-1 first); this artifact cannot"
+  },
+  "packets": {
+    "wake_portion": "P4S-31D-3 — desktop-app push-to-talk + on-device wake-word (consent-gated)",
+    "ambient_portion": "P4S-31D-6 — ambient/always-on (desktop app; owner-gated; LAST)",
+    "registered_in": "data/umh/roadmap/p4_sync_workgraph.json (followups of P4S-31D-VOICE-CAPABILITY-MATRIX-001)"
+  },
+  "doctrine": "The wake daemon exists ONLY to emit WakeEvents that open a consented capture window feeding the SAME Cockpit Chat intent rail (transcript -> sendMessage(source='voice') -> /advisor/converse -> classify_intent -> intent loop -> proof). It never classifies intent, never dispatches work, never carries audio off-device. Grounded in docs/VOICE_INTENT_CONTRACT.md and data/umh/voice/platform_voice_feasibility_matrix.json — this artifact repeats those verdicts, it does not soften them.",
+  "scope": {
+    "applies_to_target": "desktop_app (Electron cockpit shell) — the ONLY clean ambient-wake host per the feasibility matrix (wake_word: LIKELY on desktop_app; CONSTRAINED in-tab on desktop_browser)",
+    "device_roles": ["controller", "executor"],
+    "orchestrator_exclusion": "the orchestrator-role node (per infra/device_registry.json) NEVER runs a microphone, wake runtime, or capture — DeviceCapabilityProfile.has_microphone=false for that role always",
+    "device_binding": "devices referenced by infra/device_registry.json role/id only — never hostnames or device-name literals"
+  },
+  "wake_event_contract": {
+    "binds_to": "WakeEvent as declared in data/umh/voice/voice_intent_contract_types.json (types[].name == 'WakeEvent')",
+    "reference_only": true,
+    "note": "This artifact does NOT redefine WakeEvent fields. The canonical shape lives in voice_intent_contract_types.json: keyword, confidence, detected_at, source_device_id, consent_ref, wake_runtime, carries_audio(const false). The daemon emits exactly that shape and nothing more.",
+    "invariants_inherited": [
+      "carries_audio is const false — a WakeEvent reports a keyword event, never audio",
+      "consent_ref must resolve to an ACTIVE VoiceConsentGrant for this device+mode or the event is rejected fail-closed",
+      "confidence below the configured threshold is discarded before emission (see false_positive_handling)",
+      "keyword is instance-configured at runtime, never a literal in substrate"
+    ]
+  },
+  "daemon_lifecycle": {
+    "owner_process": "Electron MAIN process of the desktop cockpit app hosts the wake daemon (real background thread, no tab throttling). The renderer only displays state and affordances; it never owns the mic.",
+    "starts_when_all_of": [
+      "desktop wake feature flag is ON (default OFF — see rollback_plan)",
+      "an ACTIVE VoiceConsentGrant exists for this device in the requested mode (wake_word for P4S-31D-3 scope; always_on additionally for P4S-31D-6 scope)",
+      "OS microphone permission is granted (macOS TCC / Windows privacy)",
+      "DeviceCapabilityProfile for this device_registry_id has has_microphone=true and wake_word_runtime != 'none'"
+    ],
+    "stops_when_any_of": [
+      "consent grant revoked (revoked_at set) — immediate stop, see consent_model.revocation",
+      "feature flag turned OFF",
+      "operator mute affordance engaged (suspends listening without revoking consent)",
+      "Electron app quits (daemon dies with the main process — it is NOT a system service)",
+      "resource budget breach (self-disarm, see resource_budget)"
+    ],
+    "states": ["disabled", "consent_granted", "armed", "wake_detected", "capture_window", "rearm"],
+    "transitions": [
+      {"from": "disabled", "to": "consent_granted", "on": "active VoiceConsentGrant(mode) present + flag ON + OS mic permission"},
+      {"from": "consent_granted", "to": "armed", "on": "Electron main process opens the on-device wake runtime and begins local-only listening"},
+      {"from": "armed", "to": "wake_detected", "on": "on-device detector fires at/above confidence threshold; WakeEvent emitted with consent_ref"},
+      {"from": "wake_detected", "to": "capture_window", "on": "consent_ref validated ACTIVE — bounded capture window opens; transcript path is the existing TranscriptEvent -> sendMessage(source='voice') seam"},
+      {"from": "capture_window", "to": "rearm", "on": "final transcript emitted, window timeout, or operator cancel"},
+      {"from": "rearm", "to": "armed", "on": "cooldown elapsed (see false_positive_handling.cooldown_seconds)"},
+      {"from": "any", "to": "disabled", "on": "revocation, flag OFF, mute, app quit, or budget breach — mic released immediately"}
+    ],
+    "vocabulary_reuse": {
+      "source": "substrate/workstation/ambient_wake_runtime.py (AmbientState, WakeTransition, COOLDOWN_SECONDS, COMMAND_TIMEOUT_SECONDS)",
+      "note": "The daemon states map onto the EXISTING AmbientState machine rather than inventing a parallel one: disabled<->DORMANT, armed<->PASSIVE_LISTENING, wake_detected<->WAKE_DETECTED, capture_window<->COMMAND_ACTIVE, rearm<->COOLDOWN. consent_granted is the consent precondition layer that VoiceSession already models (consent_pending -> consent_granted) — it gates entry into the AmbientState machine; it does not duplicate it. Transitions are recorded as WakeTransition-shaped entries; no new transition type is defined."
+    }
+  },
+  "consent_model": {
+    "binds_to": "VoiceConsentGrant as declared in data/umh/voice/voice_intent_contract_types.json",
+    "per_mode_strictness": "Consent is PER-MODE and per-device. VoiceConsentGrant(activation_mode='wake_word') authorizes wake-word listening ONLY. VoiceConsentGrant(activation_mode='always_on') is a SEPARATE grant required for ambient continuous operation. Neither grant implies the other; a push_to_talk grant authorizes neither. P4S-31D-3 scope requires the wake_word grant; P4S-31D-6 scope requires BOTH the wake_word grant and the always_on grant active simultaneously.",
+    "required_grants": {
+      "wake_word_mode": ["VoiceConsentGrant(wake_word)"],
+      "always_on_mode": ["VoiceConsentGrant(wake_word)", "VoiceConsentGrant(always_on)"]
+    },
+    "two_layers": "OS microphone permission (macOS TCC / Windows privacy settings) AND the UMH VoiceConsentGrant are BOTH required; either missing means the daemon refuses to arm, fail-closed.",
+    "revocation": {
+      "rule": "revoked_at set on the covering grant => active=false => the daemon kills listening IMMEDIATELY: wake runtime thread stopped, microphone released, state -> disabled. No grace period, no queued events, no draining.",
+      "bound": "revocation-to-mic-release must complete within 1 second on the device (target bound for the implementation packet's acceptance test)",
+      "mid_capture": "revocation during an open capture_window aborts the window; any partial transcript is discarded, not submitted"
+    },
+    "no_silent_listening": "There is NO state in which the daemon listens without an active grant for the exact mode in effect. WakeEvents arriving with a missing/revoked consent_ref are rejected fail-closed and logged to the operator-visible wake log."
+  },
+  "privacy_boundary": {
+    "on_device_detection": "ALL wake-word detection runs on-device inside the Electron main process (openWakeWord ONNX / Porcupine native class runtime). No audio frame ever streams off-device for wake detection.",
+    "what_crosses_the_device_boundary": "ONLY WakeEvent metadata (keyword, confidence, detected_at, source_device_id, consent_ref, wake_runtime, carries_audio=false) and, after a consented capture window, the existing transcript-only path (TranscriptEvent text). Never audio bytes.",
+    "audio_lifetime": "the rolling audio buffer used by the detector lives in main-process memory only, is bounded to the detector's window (a few seconds), is never persisted to disk, and is never transmitted",
+    "cloud_stt": "DEFERRED — this artifact takes NO position on cloud transcription; that remains a separate, owner-gated privacy review per docs/VOICE_INTENT_CONTRACT.md",
+    "identity": "the daemon stamps NO identity; the operator Clerk principal is resolved server-side at /advisor/converse exactly as the contract requires",
+    "orchestrator": "no wake runtime, mic, or capture ever on the orchestrator-role node"
+  },
+  "false_positive_handling": {
+    "confidence_threshold": {
+      "default": 0.6,
+      "range": [0.0, 1.0],
+      "rule": "detections below threshold are discarded on-device and never emitted as WakeEvents; threshold is operator-tunable per device within the range"
+    },
+    "cooldown_seconds": {
+      "default": 5.0,
+      "source": "reuses COOLDOWN_SECONDS from substrate/workstation/ambient_wake_runtime.py — after a capture_window closes, the daemon holds in rearm for this interval before listening resumes, preventing rapid retrigger loops"
+    },
+    "capture_window_timeout_seconds": {
+      "default": 120.0,
+      "source": "reuses COMMAND_TIMEOUT_SECONDS from substrate/workstation/ambient_wake_runtime.py — an open capture_window that produces no final transcript closes itself"
+    },
+    "operator_visible_wake_log": "every emitted WakeEvent (and every consent-rejected wake) is appended to an operator-visible wake log surfaced in the cockpit (wake count, keyword, confidence, timestamp, accepted/rejected). The operator can always answer 'what did it hear and when did it wake?' from the UI — no invisible wakes.",
+    "mute_affordance": "a one-action mute control in the cockpit (HUD/tray) suspends listening immediately WITHOUT revoking consent — state -> disabled until unmuted. Hardware/OS microphone mute is respected as an outer layer. Mute state is visibly indicated.",
+    "false_positive_review": "the wake log is the input for threshold tuning; repeated false wakes are an operator-visible signal, not a silent condition"
+  },
+  "resource_budget": {
+    "law": "CPU Gate Law (CLAUDE.md, NON-NEGOTIABLE): UMH must never saturate CPU on any host. The wake daemon is bound by the same principle on every desktop device it runs on.",
+    "cpu_bounds": {
+      "sustained_pct_single_core_max": 5.0,
+      "sustained_pct_single_core_target": 3.0,
+      "detection_burst_pct_single_core_max": 15.0,
+      "detection_burst_duration_seconds_max": 2.0,
+      "self_disarm": "if the daemon's own sustained usage exceeds sustained_pct_single_core_max, or host load crosses the CPU-gate ceiling used by cpu_gate_check, the daemon self-disarms (state -> disabled) and logs the reason to the wake log; it does not degrade the host"
+    },
+    "memory_bounds": {
+      "resident_mb_max": 200,
+      "note": "hard ceiling for the wake runtime including model(s) and ONNX/native runtime overhead; breach => self-disarm"
+    },
+    "candidate_runtimes": [
+      {
+        "runtime": "openwakeword_onnx",
+        "kind": "open-source, ONNX models, on-device",
+        "est_cpu_pct_single_core": [1.0, 3.0],
+        "est_resident_mb": [50, 150],
+        "notes": "estimates from published desktop-class benchmarks; MUST be re-measured on target hardware during the P4S-31D-3 spike before any threshold is finalized. No dependency is added by this artifact."
+      },
+      {
+        "runtime": "porcupine_native",
+        "kind": "Picovoice native SDK, on-device",
+        "est_cpu_pct_single_core": [0.5, 1.0],
+        "est_resident_mb": [2, 10],
+        "notes": "smallest footprint of the candidates; requires a Picovoice access key and commercial licensing review — the licensing decision belongs to the implementation packet, not this artifact. No dependency is added by this artifact."
+      }
+    ],
+    "measurement_requirement": "the P4S-31D-3 implementation packet must record measured CPU/RSS on the target device class and prove the bounds above before wake mode may be offered; estimates in this artifact are compile-time planning numbers, not proof"
+  },
+  "rollback_plan": {
+    "flag_off": "the desktop wake feature flag defaults OFF; with the flag off the daemon NEVER starts — no thread, no mic handle, no model load. Turning the flag off on a running app stops the daemon immediately.",
+    "revoke": "revoking the covering VoiceConsentGrant stops listening immediately (see consent_model.revocation) — independent of the flag",
+    "mute": "operator mute suspends listening instantly without touching consent state",
+    "uninstall": "uninstalling the desktop app removes the daemon, wake models, and all local wake state with it; there is no persisted audio to purge because audio is never persisted; VoiceConsentGrant records remain server-side as revocable stored state and can be revoked independently of the uninstall",
+    "artifact_rollback": "this compile artifact is additive (docs + data + one test); revert the commit and nothing at runtime changes"
+  },
+  "mobile_ambient_verdicts": {
+    "note": "Repeated VERBATIM from data/umh/voice/platform_voice_feasibility_matrix.json — this artifact does not soften them. Desktop ambient work implies NO mobile ambient promise.",
+    "mobile_ambient_wake_word": {
+      "wake_word": "CONSTRAINED(foreground)/NOT_FEASIBLE(background)",
+      "ambient": "NOT_FEASIBLE"
+    },
+    "sub_verdicts": {
+      "mobile_app_foreground_wake": "CONSTRAINED — foreground on-device wake only, under consent",
+      "mobile_app_background_android": "CONSTRAINED — foreground service (FGS microphone type, persistent notification) approximation; battery-costly",
+      "mobile_app_background_ios": "NOT_FEASIBLE — non-audio app cannot hold continuous background mic; App Review policy blocks it",
+      "mobile_browser": "NOT_FEASIBLE — no background execution; tab suspended; mic released"
+    },
+    "rule": "any mobile ambient work requires a platform spike + privacy review + owner sign-off before it may even be scheduled — it is not part of P4S-31D-3 or P4S-31D-6"
+  },
+  "forbidden_in_this_packet": [
+    "any runtime code (daemon, adapter, route, cockpit component, service)",
+    "any wake-word library dependency added to any manifest",
+    "any activation, scheduling, or start of P4S-31D-3 or P4S-31D-6",
+    "any mobile ambient promise beyond the matrix verdicts above",
+    "any cloud-STT decision (deferred to the privacy review)",
+    "any tenant or device-hostname literal as global truth"
+  ]
+}
