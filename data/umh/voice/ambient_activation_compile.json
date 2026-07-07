@@ -1,0 +1,237 @@
+{
+  "record": "P4S-AMBIENT-ACTIVATION-001 — Unified ambient-activation runtime compile artifact (wake | clap | hotkey | manual)",
+  "compiled": "2026-07-07",
+  "mode": "compile_only — no activation authorized; no daemon, no activation runtime, no acoustic-gesture library, no global-hotkey registration ships with this artifact",
+  "compile_only": true,
+  "activation_gate": {
+    "activation_authorized": false,
+    "gate": "This artifact defines the target shape ONLY for the full AmbientActivation voice-taxonomy category. Every activation mode below is HELD. Nothing in this artifact starts, schedules, registers a hotkey, arms a detector, or permits any implementation packet. The clap and hotkey activation modes are declared as FUTURE-GRANTABLE consent modes — they are NOT grantable now; GRANTABLE_MODES in substrate/workstation/voice_consent.py stays {push_to_talk}.",
+    "who_gates": "the owner explicitly calls each implementation packet in sequence; this artifact cannot activate anything"
+  },
+  "taxonomy_binding": {
+    "category": "AmbientActivation",
+    "category_number": 3,
+    "source": "docs/VOICE_MESSAGE_CONTRACT.md voice-taxonomy table (2026-07-07 owner correction) — AmbientActivation is category 3 of five",
+    "definition_verbatim": "Wake word / double-clap / hotkey opens a voice session; does not execute by itself",
+    "packet": "P4S-AMBIENT-ACTIVATION-001",
+    "status": "held (compile only)",
+    "sibling_categories": {
+      "UserVoiceNote": "P4S-31D1-B — recording -> review -> send rail (shipped)",
+      "LiveVoiceSession": "P4S-LIVE-VOICE-SESSION-001 — real-time conversation with DEX (future)",
+      "AIOutboundVoiceMessage": "P4S-AI-OUTBOUND-VOICE-MESSAGE-001 — AI-rendered outbound voice (compile only)",
+      "ManualCockpitControl": "execution controls, NOT intent ingress"
+    }
+  },
+  "extends": {
+    "wake_artifact": "data/umh/voice/desktop_ambient_wake_compile.json",
+    "wake_doc": "docs/DESKTOP_AMBIENT_WAKE_COMPILE.md",
+    "relationship": "This artifact EXTENDS the merged desktop-ambient-wake compile into the whole AmbientActivation category. The wake-word DIMENSION (WakeEvent contract, daemon lifecycle, AmbientState reuse, on-device wake detection, wake consent, wake resource budget, mobile wake verdicts) is DEFINED THERE and is NOT restated here — this artifact references it and adds the two missing dimensions (double-clap acoustic gesture, hotkey/manual activation) plus the ONE unified activation contract that governs all three. Where a rule is identical to the wake artifact (fail-closed consent, on-device requirement, opens-not-executes, rollback), this artifact points to the wake artifact rather than duplicating it.",
+    "do_not_duplicate": "The WakeEvent field shape, the wake daemon state machine, and the wake resource numbers live in the wake artifact. Reading this artifact without the wake artifact is intentionally incomplete for the wake dimension."
+  },
+  "unified_activation_contract": {
+    "principle": "An activation OPENS a session; it NEVER executes by itself. Every activation mode — wake word, double-clap acoustic gesture, hotkey, or manual press — is a TRIGGER that opens a bounded, consented capture window. It produces NO intent, NO classification, NO dispatch, NO governed mutation on its own. The only thing an activation does is bring a voice-capture surface into the 'ready-to-capture' state; the human still has to speak (or the surface still has to receive a transcript), and the resulting transcript still travels the SAME proven Cockpit Chat intent rail.",
+    "opens_one_of_two_capture_surfaces": {
+      "LiveVoiceSession": "if the surface is configured for live conversational mode, activation opens a LiveVoiceSession (future P4S-LIVE-VOICE-SESSION-001) — real-time transcript+events still land in the Cockpit Chat ledger; actions still governed.",
+      "UserVoiceNote": "if the surface is configured for record-review-send, activation opens a UserVoiceNote draft capture (P4S-31D1-B shipped rail) — record -> partial transcript (provisional) -> pause-aware finalize into REVIEW -> operator send/retry/edit/delete -> only on explicit send does the transcript enter Chat/IntentSpec/gate/proof.",
+      "rule": "Which surface an activation opens is a per-surface configuration decision, NOT a property of the activation mode. A hotkey can open either; a clap can open either; a wake word can open either. The activation contract is uniform; only the opened surface differs."
+    },
+    "downstream_rail_unchanged": "on-device or surface-local activation (consented) -> ActivationEvent (metadata only, carries_audio=false) -> consent_ref validated ACTIVE (fail-closed) -> OPEN capture surface (LiveVoiceSession | UserVoiceNote) -> [human speaks / records] -> TranscriptEvent -> chatStore.sendMessage(text,'voice',routing,voice_turn_id) -> POST /advisor/converse -> deterministic classify_intent -> intent loop -> held gate -> proof. NOTHING between the activation and the transcript is new execution surface.",
+    "what_an_activation_is_not": [
+      "not an intent — an activation carries no user goal, only 'a session was requested'",
+      "not a command — 'double-clap' or a hotkey never maps to an action; it only opens capture",
+      "not a dispatch — no WorkPacket, no governed_mutation, no provider call is triggered by an activation",
+      "not an execution decision — the held gate and proof chain are downstream of the transcript, never of the activation"
+    ],
+    "activation_event_shape": {
+      "reference_only": true,
+      "note": "The wake dimension's ActivationEvent is the canonical WakeEvent declared in data/umh/voice/voice_intent_contract_types.json (types[].name=='WakeEvent') — see the wake artifact; NOT redefined here. The clap and hotkey dimensions emit the SAME event family with the same invariants (metadata only, carries_audio const false, consent_ref must resolve ACTIVE or reject fail-closed). No new event field-list is defined in this artifact; the concrete clap/hotkey field shapes belong to the implementation packet, bound to the existing WakeEvent family rather than forking it.",
+      "shared_invariants": [
+        "carries_audio is const false — an activation reports a trigger event, never audio",
+        "consent_ref must resolve to an ACTIVE VoiceConsentGrant for this device+mode or the event is rejected fail-closed",
+        "source_device_id is the registry id/role, never a hostname literal",
+        "an activation opens capture; it never classifies, dispatches, or executes"
+      ]
+    }
+  },
+  "activation_modes": {
+    "note": "Four activation modes under the ONE unified contract. wake_word is DEFINED in the wake artifact (referenced, not restated). This artifact adds clap and hotkey, and states manual for completeness. All four obey opens-a-session-does-not-execute.",
+    "wake_word": {
+      "dimension": "defined in data/umh/voice/desktop_ambient_wake_compile.json — referenced here, not restated",
+      "consent_mode": "wake_word",
+      "grantable_now": false,
+      "future_grantable": true,
+      "on_device": true
+    },
+    "double_clap": {
+      "dimension": "acoustic gesture — NEW in this artifact (see acoustic_gesture_detection)",
+      "consent_mode": "clap_activation",
+      "grantable_now": false,
+      "future_grantable": true,
+      "on_device": true,
+      "summary": "a short, low-latency acoustic-gesture detector recognizes a double-clap transient pattern on-device and, under an ACTIVE clap_activation grant, emits an ActivationEvent that OPENS a capture surface. It never transcribes, never classifies, never executes."
+    },
+    "hotkey": {
+      "dimension": "OS-level / surface-level manual trigger — NEW in this artifact (see hotkey_model)",
+      "consent_mode": "hotkey_activation",
+      "grantable_now": false,
+      "future_grantable": true,
+      "on_device": true,
+      "summary": "an OS-registered global hotkey (or an in-surface accelerator) OPENS a capture surface on keypress under an ACTIVE hotkey_activation grant. Deterministic, no audio detection at all; the keypress is the trigger. Opens a session; does not execute."
+    },
+    "manual": {
+      "dimension": "explicit in-cockpit press-to-capture — already the shipped push_to_talk rail",
+      "consent_mode": "push_to_talk",
+      "grantable_now": true,
+      "future_grantable": true,
+      "on_device": true,
+      "summary": "the operator explicitly presses the mic control in the cockpit. This is the ONLY activation mode grantable today (push_to_talk) and is the shipped UserVoiceNote entry. Listed here so the taxonomy category is complete; it is not new work."
+    }
+  },
+  "acoustic_gesture_detection": {
+    "scope": "double-clap (and, as a family, short percussive acoustic gestures) as an activation trigger. The gesture OPENS a capture surface; it is NOT a command vocabulary and never maps a gesture to an action.",
+    "on_device_requirement": "ALL acoustic-gesture detection runs on-device (Electron main process on desktop_app; surface-local on any capable device). No audio frame ever streams off-device for gesture detection. Same privacy boundary as the wake dimension: only ActivationEvent metadata crosses the device boundary, never audio bytes. The rolling audio buffer used by the transient detector lives in main-process memory only, bounded to a small window (a few hundred milliseconds to a couple of seconds), never persisted, never transmitted.",
+    "detection_approach": {
+      "signal": "a clap is a short broadband percussive transient: fast attack, high peak-to-RMS (crest factor), broadband energy, rapid decay. Detection is a deterministic DSP envelope/transient detector, NOT a neural wake model.",
+      "method": "on-device amplitude-envelope + onset detection: (1) compute a short-window energy/peak envelope; (2) flag an onset when a transient exceeds an adaptive noise-floor-relative threshold with a high crest factor; (3) a DOUBLE-clap is two qualifying onsets separated by an inter-clap interval within a bounded window (see parameters). Deterministic-first (CLAUDE.md Deterministic-First Principle): the DSP rule is the spine; any future ML refinement is enhancement only, with the DSP detector as the always-works fallback.",
+      "parameters": {
+        "inter_clap_min_ms": {"default": 80, "note": "two onsets closer than this are one event / echo, not a double-clap"},
+        "inter_clap_max_ms": {"default": 600, "note": "two onsets farther apart than this are unrelated; not a double-clap"},
+        "onset_crest_factor_min": {"default": 6.0, "note": "peak-to-RMS ratio floor distinguishing a percussive clap from sustained speech/music"},
+        "onset_threshold_above_noise_floor_db": {"default": 12.0, "note": "adaptive: threshold tracks the ambient noise floor so quiet rooms and loud rooms behave the same"},
+        "post_activation_cooldown_seconds": {"default": 5.0, "source": "reuses COOLDOWN_SECONDS from substrate/workstation/ambient_wake_runtime.py — no new constant"},
+        "note": "all parameters are compile-time planning defaults; the implementation packet MUST re-measure and tune against real rooms before any threshold is finalized."
+      }
+    },
+    "false_positive_handling": {
+      "problem": "everyday sounds are clap-like: door slams, dropped objects, keyboard bangs, hand-slaps, applause, hammering, single claps repeated. A naive amplitude trigger would fire constantly.",
+      "mitigations": [
+        "double-clap (not single) — requiring a bounded-interval PAIR rejects the vast majority of single-impact noises (one door slam is not two claps in 80-600ms)",
+        "crest-factor gate — sustained loud sounds (music, speech, engine) have low crest factor and are rejected; only sharp transients qualify",
+        "adaptive noise-floor threshold — the trigger scales with ambient level so a loud room does not lower the bar",
+        "inter-clap interval window — rejects both echoes (too close) and unrelated impacts (too far)",
+        "refractory / cooldown after activation — reuses COOLDOWN_SECONDS to prevent burst retriggering (applause, repeated bangs)",
+        "operator-visible activation log — every emitted ActivationEvent and every rejected candidate is appended to an operator-visible log (source mode, timestamp, accepted/rejected, why rejected). No invisible activations; the log is the input for threshold tuning",
+        "confirm-open, not confirm-execute — even a false-positive activation only OPENS an empty capture window; it triggers no intent and no execution. A spurious clap opens a mic that then hears nothing and times out (see capture_window_timeout, reused from COMMAND_TIMEOUT_SECONDS=120.0). The cost of a false positive is a harmless empty window, never a wrong action."
+      ],
+      "opens_not_executes_reinforcement": "This is the safety keystone: because an activation opens-but-does-not-execute, even an imperfect gesture detector cannot cause a wrong action. The worst a false clap can do is open a capture window that receives no speech and closes on timeout."
+    },
+    "resource_budget": {
+      "law": "CPU Gate Law (CLAUDE.md, NON-NEGOTIABLE) — the gesture detector must never saturate CPU on any host.",
+      "cpu_bounds": {
+        "sustained_pct_single_core_max": 3.0,
+        "sustained_pct_single_core_target": 1.5,
+        "detection_burst_pct_single_core_max": 8.0,
+        "detection_burst_duration_seconds_max": 1.0,
+        "note": "a DSP envelope/transient detector is CHEAPER than a neural wake model — no ONNX/native model load — so its ceiling is lower than the wake dimension's. self_disarm below.",
+        "self_disarm": "if the gesture detector's sustained usage exceeds sustained_pct_single_core_max, or host load crosses the cpu_gate_check ceiling, the detector self-disarms and logs the reason to the activation log; it never degrades the host"
+      },
+      "memory_bounds": {
+        "resident_mb_max": 30,
+        "note": "no model to load; only the short rolling audio buffer + DSP state. breach => self-disarm"
+      }
+    }
+  },
+  "hotkey_model": {
+    "scope": "an OS-level global hotkey (or in-surface accelerator) as a deterministic activation trigger. Keypress OPENS a capture surface; it never executes.",
+    "surface_ownership": {
+      "who_owns_the_hotkey": "the desktop_app (Electron cockpit shell) MAIN process owns the OS-level global hotkey via Electron's globalShortcut API. The renderer never registers OS-level shortcuts; it may own an in-window accelerator only (active when the window is focused).",
+      "why_main_process": "a global (system-wide) hotkey must survive window blur and work when the cockpit is backgrounded; only the main process can register it. This mirrors the wake artifact's rule that the Electron main process owns the mic/daemon and the renderer only displays state.",
+      "desktop_browser": "a browser TAB cannot register an OS-level global hotkey; the best a desktop_browser surface can do is an in-tab keyboard shortcut active only while the tab is focused. This is CONSTRAINED relative to desktop_app, consistent with the feasibility matrix's desktop-tab constraints. No global hotkey is promised for the browser surface.",
+      "orchestrator_exclusion": "the orchestrator-role node registers NO hotkey and opens NO capture — it has no mic and no interactive desktop for capture (consistent with the wake artifact and DeviceCapabilityProfile has_microphone=false for that role)."
+    },
+    "trigger_semantics": {
+      "deterministic": "the keypress IS the trigger — no audio detection, no probabilistic model, no false-positive class from acoustics. The only misfire is an accidental keypress, mitigated by choosing a non-conflicting chord and by opens-not-executes (an accidental hotkey opens an empty window that times out).",
+      "on_activation": "on registered-hotkey press, under an ACTIVE hotkey_activation grant, the main process emits an ActivationEvent (metadata only, carries_audio=false, consent_ref) and OPENS the configured capture surface (LiveVoiceSession | UserVoiceNote). It classifies nothing and executes nothing.",
+      "conflict_handling": "the implementation packet must detect OS-level hotkey registration conflicts (globalShortcut.register returns false / throws) and surface a operator-visible 'hotkey unavailable' state rather than silently failing — fail-closed and visible, never a silent dead key.",
+      "no_audio_privacy_note": "the hotkey trigger itself captures NO audio and needs NO microphone to fire; the mic only opens AFTER the hotkey activation opens the capture surface, exactly as a manual press does. On-device requirement is trivially satisfied (no detection audio at all)."
+    },
+    "resource_budget": {
+      "law": "CPU Gate Law — trivially satisfied: a registered global hotkey is an OS event callback with effectively zero steady-state CPU. No detector loop, no model, no rolling buffer.",
+      "cpu_bounds": {"sustained_pct_single_core_max": 0.1, "note": "event-driven; near-zero idle cost. The mic/capture cost after activation is the capture surface's budget, not the hotkey's."},
+      "memory_bounds": {"resident_mb_max": 5, "note": "just the registered shortcut handle + config"}
+    }
+  },
+  "consent_model": {
+    "binds_to": "substrate/workstation/voice_consent.py (VoiceConsentStore, VoiceConsentGrant, GRANTABLE_MODES) and the VoiceConsentGrant shape in data/umh/voice/voice_intent_contract_types.json",
+    "per_mode_strictness": "Consent is PER-MODE and per-device, exactly as the wake artifact and voice_consent.py enforce. A grant for one activation mode authorizes ONLY that mode. A push_to_talk grant authorizes neither wake_word nor clap_activation nor hotkey_activation; a clap_activation grant authorizes ONLY double-clap activation; a hotkey_activation grant authorizes ONLY hotkey activation. No grant implies another.",
+    "activation_modes_and_grants": {
+      "push_to_talk": {"grant": "VoiceConsentGrant(push_to_talk)", "grantable_now": true},
+      "wake_word": {"grant": "VoiceConsentGrant(wake_word)", "grantable_now": false, "future_grantable": true, "defined_in": "wake artifact"},
+      "clap_activation": {"grant": "VoiceConsentGrant(clap_activation)", "grantable_now": false, "future_grantable": true, "new_in": "this artifact"},
+      "hotkey_activation": {"grant": "VoiceConsentGrant(hotkey_activation)", "grantable_now": false, "future_grantable": true, "new_in": "this artifact"},
+      "always_on": {"grant": "VoiceConsentGrant(always_on)", "grantable_now": false, "future_grantable": true, "defined_in": "wake artifact"}
+    },
+    "grantable_now_invariant": {
+      "statement": "GRANTABLE_MODES in substrate/workstation/voice_consent.py MUST remain exactly {push_to_talk} after this artifact merges. This artifact adds NO mode to GRANTABLE_MODES. clap_activation and hotkey_activation are declared FUTURE-grantable (their own implementation packets), NOT grantable now.",
+      "mechanical_guard": "VoiceConsentStore.grant() raises VoiceConsentRefused(code='MODE_NOT_GRANTABLE') for any activation_mode not in GRANTABLE_MODES. Because this artifact touches no code, that guard is unchanged and clap/hotkey/wake/always_on grants are all refused today — the mechanical proof that this compile packet activates nothing.",
+      "verified_by": "tests/test_p4s_ambient_activation_compile_artifacts.py imports substrate.workstation.voice_consent and asserts GRANTABLE_MODES == {push_to_talk}."
+    },
+    "two_layers": "OS-level permission (microphone permission for wake/clap; global-hotkey registration for hotkey) AND the UMH VoiceConsentGrant are BOTH required. Either missing => the activation refuses to arm/register, fail-closed. (Hotkey needs no mic permission to fire, but still needs an ACTIVE hotkey_activation grant and, once it opens a capture surface, that surface's own mic consent applies.)",
+    "revocation": {
+      "rule": "revoked_at set on the covering grant => active=false => the detector/hotkey stops IMMEDIATELY: gesture detector thread stopped, global hotkey unregistered, any open capture window aborted. No grace period, no queued events.",
+      "mid_capture": "revocation during an open capture window aborts the window; any partial transcript is discarded, not submitted — identical to the wake artifact rule",
+      "reference": "the wake dimension states the same for wake listening; this artifact applies the identical rule to clap detection and hotkey registration"
+    },
+    "no_silent_activation": "There is NO state in which a gesture detector runs, a global hotkey stays registered, or a capture window opens without an active grant for the exact mode in effect. ActivationEvents arriving with a missing/revoked consent_ref are rejected fail-closed and logged to the operator-visible activation log."
+  },
+  "on_device_requirement": {
+    "statement": "No audio leaves the device for ANY activation detection, across all modes. Wake detection (wake artifact), clap/acoustic-gesture detection (this artifact), and hotkey (no audio at all) are ALL on-device.",
+    "what_crosses_the_device_boundary": "ONLY ActivationEvent metadata (mode, confidence-or-none, detected_at, source_device_id, consent_ref, carries_audio=false) and, after a consented capture window, the existing transcript-only path (TranscriptEvent text). Never audio bytes.",
+    "audio_lifetime": "any rolling audio buffer used by a detector lives in device main-process memory only, bounded to the detector's short window, never persisted to disk, never transmitted. The hotkey mode has no detection buffer at all.",
+    "cloud_stt": "DEFERRED — this artifact takes NO position on cloud transcription of the OPENED capture window; that remains the same separate owner-gated privacy review referenced by the wake artifact and docs/VOICE_MESSAGE_CONTRACT.md.",
+    "identity": "no activation stamps identity; the operator Clerk principal is resolved server-side at /advisor/converse exactly as the rail requires."
+  },
+  "privacy_boundary": {
+    "on_device_detection": "ALL activation detection is on-device (see on_device_requirement). No audio frame streams off-device for wake, clap, or (n/a) hotkey detection.",
+    "orchestrator": "no detector, mic, hotkey, or capture ever on the orchestrator-role node.",
+    "operator_visible_activation_log": "every emitted ActivationEvent (any mode) and every rejected candidate is appended to an operator-visible activation log in the cockpit (mode, timestamp, accepted/rejected, reason). The operator can always answer 'what activated the mic, when, and how?' — no invisible activations across any mode.",
+    "mute_affordance": "a one-action mute control in the cockpit suspends ALL activation detection (wake + clap) and disarms the hotkey immediately WITHOUT revoking consent; visibly indicated; hardware/OS mic mute respected as an outer layer — same affordance the wake artifact defines, extended to cover clap and hotkey.",
+    "reference": "the wake dimension's privacy boundary (data/umh/voice/desktop_ambient_wake_compile.json privacy_boundary) governs the wake mode verbatim; this section extends the same boundary to clap and hotkey."
+  },
+  "resource_budget_summary": {
+    "law": "CPU Gate Law (CLAUDE.md, NON-NEGOTIABLE) applies to every activation runtime on every host.",
+    "per_mode": {
+      "wake_word": "defined in the wake artifact (sustained <=5% single core, <=200MB) — referenced, not restated",
+      "double_clap": "sustained <=3% single core (target 1.5%), <=30MB — DSP detector, no model load (see acoustic_gesture_detection.resource_budget)",
+      "hotkey": "near-zero steady-state (<=0.1% single core, <=5MB) — event-driven OS callback (see hotkey_model.resource_budget)",
+      "manual": "no standing detector — cost is only the capture surface when the operator presses"
+    },
+    "self_disarm_universal": "any standing detector that breaches its budget self-disarms and logs the reason; it never degrades the host. This is the CPU Gate Law applied per activation runtime.",
+    "measurement_requirement": "all per-mode CPU/RSS numbers are compile-time planning estimates; each implementation packet MUST record measured CPU/RSS on the target device class and prove the bounds before that mode may be offered."
+  },
+  "rollback_plan": {
+    "flag_off": "each activation mode has its own feature flag, all DEFAULT OFF. With a mode's flag off its runtime NEVER starts — no detector thread, no registered hotkey, no mic handle. Turning a flag off on a running app stops that mode's runtime immediately.",
+    "revoke": "revoking the covering VoiceConsentGrant stops that mode immediately (detector stopped / hotkey unregistered), independent of the flag — see consent_model.revocation.",
+    "mute": "operator mute suspends all activation detection and disarms the hotkey instantly without touching consent state.",
+    "uninstall": "uninstalling the desktop app removes all detectors, hotkey registrations, and local activation state; there is no persisted audio to purge because audio is never persisted; VoiceConsentGrant records remain server-side as revocable stored state.",
+    "artifact_rollback": "this compile artifact is additive (docs + data + one test, zero code); revert the commit and nothing at runtime changes. GRANTABLE_MODES is untouched, so no mode became grantable."
+  },
+  "mobile_activation_verdicts": {
+    "note": "Repeated honestly — desktop activation work implies NO mobile activation promise. Wake/ambient mobile verdicts are stated verbatim in the wake artifact and platform_voice_feasibility_matrix.json; this artifact does not soften them and adds the clap/hotkey mobile posture.",
+    "mobile_wake_and_ambient": "see data/umh/voice/desktop_ambient_wake_compile.json mobile_ambient_verdicts and platform_voice_feasibility_matrix.json — CONSTRAINED(foreground)/NOT_FEASIBLE(background) for wake, NOT_FEASIBLE for ambient. Unchanged.",
+    "mobile_double_clap": "NOT_FEASIBLE in background (same background-mic constraint as wake); CONSTRAINED in foreground only, under consent — a foreground app could run a DSP transient detector while active, but background continuous acoustic detection is blocked by the same OS constraints that block background wake.",
+    "mobile_hotkey": "NOT_FEASIBLE as an OS-global hotkey on mobile — mobile OSes do not expose app-registered global hardware-key activation for a backgrounded non-system app. In-app buttons are ManualCockpitControl, not a global hotkey.",
+    "rule": "any mobile activation work requires a platform spike + privacy review + owner sign-off before it may even be scheduled — it is not part of this packet."
+  },
+  "forbidden_in_this_packet": [
+    "any runtime code (detector, hotkey registration, adapter, route, cockpit component, service, daemon)",
+    "any acoustic-gesture or wake-word library dependency added to any manifest",
+    "any global-hotkey registration or OS shortcut registration",
+    "adding clap_activation, hotkey_activation, wake_word, or always_on to GRANTABLE_MODES — it MUST stay {push_to_talk}",
+    "any activation, scheduling, or start of any activation-mode implementation packet",
+    "any provider execution, intent classification, or governed_mutation triggered by an activation",
+    "any mobile activation promise beyond the verdicts above",
+    "any cloud-STT decision (deferred to the privacy review)",
+    "any tenant or device-hostname literal as global truth"
+  ],
+  "references": {
+    "wake_dimension_json": "data/umh/voice/desktop_ambient_wake_compile.json",
+    "wake_dimension_doc": "docs/DESKTOP_AMBIENT_WAKE_COMPILE.md",
+    "voice_taxonomy": "docs/VOICE_MESSAGE_CONTRACT.md (AmbientActivation = category 3)",
+    "canonical_types": "data/umh/voice/voice_intent_contract_types.json (WakeEvent, VoiceConsentGrant, VoiceSession, DeviceCapabilityProfile)",
+    "existing_state_machine": "substrate/workstation/ambient_wake_runtime.py (AmbientState, WakeTransition, COOLDOWN_SECONDS=5.0, COMMAND_TIMEOUT_SECONDS=120.0)",
+    "consent_module": "substrate/workstation/voice_consent.py (GRANTABLE_MODES, VoiceConsentStore, VoiceConsentGrant)",
+    "feasibility_matrix": "data/umh/voice/platform_voice_feasibility_matrix.json",
+    "cpu_gate_law": "CLAUDE.md CPU Gate Law + substrate/execution/cpu_gate.py"
+  }
+}
