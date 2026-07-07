@@ -86,7 +86,7 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
 
         def on_response(resp: Any) -> None:
             u = resp.url
-            if "/advisor/converse" in u or "/intent-loop" in u:
+            if "/api/" in u:
                 evidence["network"].append(
                     {"url": u.split("?")[0], "status": resp.status, "method": resp.request.method}
                 )
@@ -106,6 +106,13 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                         pass
 
         page.on("response", on_response)
+        console_errors: list[str] = []
+        page.on(
+            "console",
+            lambda msg: console_errors.append(msg.text[:200]) if msg.type == "error" else None,
+        )
+        page.on("pageerror", lambda exc: console_errors.append(f"pageerror: {exc}"[:200]))
+        evidence["console_errors"] = console_errors
 
         try:
             page.goto(url, wait_until="load", timeout=45000)
@@ -140,7 +147,10 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                 raise RuntimeError("Cockpit chat input not found — not authenticated or UI changed")
             stage("chat_input_found", True)
 
-            intent_text = "Fix this stale healthcheck probe path in the deploy verifier"
+            # Unique per-run text: panel cards render raw_text (not loop_id),
+            # so this is the ONLY reliable row anchor for the Approve click.
+            run_tag = f"run-{int(time.time())}"
+            intent_text = f"Fix this stale probe path {run_tag}"
             chat.first.click()
             chat.first.fill(intent_text)
             chat.first.press("Enter")
@@ -170,10 +180,14 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                 open_btn.first.click()
                 stage("panel_opened_from_thread", True, "suggested action clicked")
                 time.sleep(2)
-            if (
-                page.locator(f'div:has-text("{loop_id}") >> button:has-text("Approve")').count()
-                == 0
-            ):
+            # Panel cards render raw_text, NOT loop_id — the unique run_tag in
+            # the message is the only reliable row anchor.
+            row_card = (
+                page.locator("div.bg-surface-raised")
+                .filter(has_text=run_tag)
+                .filter(has=page.get_by_role("button", name="Approve"))
+            )
+            if row_card.count() == 0:
                 palette_toggle = page.locator('button[title="Show palette"]')
                 if palette_toggle.count() > 0:
                     palette_toggle.first.click()
@@ -188,24 +202,115 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                     palette_item.first.click()
                     stage("panel_window_added_from_palette", True)
                     time.sleep(3)
+            # Wait PASSIVELY for our row (clicking Refresh abandons the
+            # in-flight request); the panel polls every 5-15s.
+            row_deadline = time.time() + 150
+            while time.time() < row_deadline:
+                found = (
+                    page.locator("div.bg-surface-raised")
+                    .filter(has_text=run_tag)
+                    .filter(has=page.get_by_role("button", name="Approve"))
+                )
+                if found.count() > 0:
+                    break
+                time.sleep(5)
             shot(page, "03_intent_loop_panel")
 
-            # Approve THIS loop's row, never a blind first-Approve.
-            row_approve = page.locator(f'div:has-text("{loop_id}") >> button:has-text("Approve")')
-            if row_approve.count() > 0:
-                row_approve.last.click()
-            else:
-                raise RuntimeError(f"Approve control for {loop_id} not found in panel")
-            stage("governed_approve_clicked", True, loop_id)
-            time.sleep(5)
+            # In-page probe: does the route work from THIS origin+session? This
+            # distinguishes a route/auth failure from a client-plumbing hang.
+            try:
+                probe = page.evaluate(
+                    """async () => {
+                        const hasClerk = !!(window.Clerk && window.Clerk.session);
+                        let token = null, tokenMs = -1;
+                        if (hasClerk) {
+                            const t0 = performance.now();
+                            try { token = await Promise.race([
+                                window.Clerk.session.getToken(),
+                                new Promise((_, rej) => setTimeout(() => rej(new Error('token timeout 10s')), 10000)),
+                            ]); } catch (e) { token = 'ERR:' + e.message; }
+                            tokenMs = Math.round(performance.now() - t0);
+                        }
+                        let status = null, fetchMs = -1;
+                        if (token && !String(token).startsWith('ERR:')) {
+                            const t1 = performance.now();
+                            try {
+                                const r = await fetch('/api/umh/intent-loop', { headers: { Authorization: 'Bearer ' + token } });
+                                status = r.status;
+                            } catch (e) { status = 'ERR:' + e.message; }
+                            fetchMs = Math.round(performance.now() - t1);
+                        }
+                        return { hasClerk, tokenState: String(token).startsWith('ERR:') ? String(token) : (token ? 'ok' : 'null'), tokenMs, status, fetchMs };
+                    }"""
+                )
+                evidence["inpage_probe"] = probe
+            except Exception as probe_exc:  # noqa: BLE001
+                evidence["inpage_probe"] = f"probe failed: {probe_exc}"[:200]
+
+            # Diagnostics: what the panel window actually shows.
+            panel_hdr = page.get_by_text("Cockpit Chat intent rail")
+            if panel_hdr.count() > 0:
+                try:
+                    evidence["panel_text"] = panel_hdr.first.locator(
+                        "xpath=ancestor::div[contains(@class,'flex-col')][1]"
+                    ).inner_text()[:600]
+                except Exception as diag_exc:  # noqa: BLE001
+                    evidence["panel_text"] = f"unavailable: {diag_exc}"
+
+            # Approve THIS run's row card — anchored on the unique run_tag AND
+            # the presence of an Approve control (chat bubbles share the same
+            # surface class but carry no decision buttons).
+            row_card = (
+                page.locator("div.bg-surface-raised")
+                .filter(has_text=run_tag)
+                .filter(has=page.get_by_role("button", name="Approve"))
+            )
+            if row_card.count() == 0:
+                raise RuntimeError(f"Decision row card for {run_tag} ({loop_id}) not found")
+            row_approve = row_card.first.get_by_role("button", name="Approve")
+            row_approve.first.click()
+            stage("governed_approve_clicked", True, f"{run_tag} -> {loop_id}")
+
+            # NO fake completion: confirm via SERVER TRUTH fetched from the
+            # browser origin — OUR loop must reach proof_recorded.
+            proof_fields: dict[str, Any] = {}
+            confirm_deadline = time.time() + 90
+            while time.time() < confirm_deadline:
+                try:
+                    state = page.evaluate(
+                        """async (loopId) => {
+                            const token = await window.Clerk.session.getToken();
+                            const r = await fetch('/api/umh/intent-loop', { headers: { Authorization: 'Bearer ' + token } });
+                            const d = await r.json();
+                            const l = (d.loops || []).find(x => x.loop_id === loopId);
+                            return l ? { stage: l.stage, proof: l.proof } : null;
+                        }""",
+                        loop_id,
+                    )
+                    if state and state.get("stage") == "proof_recorded":
+                        proof_fields = state.get("proof") or {}
+                        break
+                except Exception as poll_exc:  # noqa: BLE001
+                    print(f"  server-truth poll retry: {poll_exc}", file=sys.stderr)
+                time.sleep(6)
+            evidence["proof"] = proof_fields
+            proof_ok = (
+                bool(proof_fields.get("proof_id")) and proof_fields.get("decision") == "approve"
+            )
+            stage(
+                "proof_recorded_server_truth",
+                proof_ok,
+                f"proof_id={proof_fields.get('proof_id')} envelope={proof_fields.get('envelope_id')} decided_by={proof_fields.get('decided_by')}",
+            )
+            time.sleep(4)
+            shot(page, "04_proof_recorded")
 
             page_text = page.inner_text("body")
-            proof_ok = "proof_recorded" in page_text
-            shot(page, "04_proof_recorded")
-            stage("proof_recorded_visible", proof_ok)
-
-            thread_status = "approve" in page_text and loop_id in page_text
-            stage("server_truth_status_in_thread", thread_status)
+            row_badge = page.locator("div.bg-surface-raised").filter(has_text=run_tag)
+            badge_ok = row_badge.count() > 0 and "proof_recorded" in (row_badge.first.inner_text())
+            stage("proof_badge_on_own_row", badge_ok)
+            thread_status = loop_id in page_text
+            stage("status_visible_in_cockpit", thread_status, "loop id present in thread/panel")
 
             evidence["proof_confirmed"] = proof_ok and thread_status
         except Exception as exc:  # noqa: BLE001 — evidence must report, never raise
