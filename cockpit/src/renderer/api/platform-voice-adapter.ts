@@ -5,12 +5,14 @@
  * the desktop browser over the seams that already ship:
  *
  *   capture/STT      -> voice-controller.ts (ws://:8096/voice PCM16 bridge)
- *   transcript exit  -> _dispatchCommittedTurn -> chatStore.addVoiceTranscript
+ *   review + send    -> recording produces a reviewable VoiceMessageDraft; the
+ *                       operator's explicit send is voiceMessageStore.sendDraft
+ *                       -> chatStore.addVoiceTranscript
  *                       -> sendMessage(text, 'voice', ...) -> POST /advisor/converse
  *
  * Contract invariants this module enforces:
- * - Output is ALWAYS a chat message via source='voice' (delegated to the
- *   controller's dispatch). This adapter never calls the intent classifier,
+ * - Output is ALWAYS a chat message via source='voice' (delegated to the draft
+ *   send seam). This adapter never calls the intent classifier,
  *   the intent-loop submit endpoint, governed mutations, or any provider.
  * - Fail-closed consent: capture opens ONLY behind an active
  *   VoiceConsentGrant(mode) read from the server (GET /voice/consent). Missing,
@@ -24,6 +26,14 @@
 import { fetchApi } from './client'
 import { startVoice, stopVoice, destroyVoice } from './voice-controller'
 import { useVoiceStore } from '../stores/voiceStore'
+import { useVoiceMessageStore } from '../stores/voiceMessageStore'
+
+/** Thread the active grant id (vcg-…) into the draft store for stamping. */
+function _rememberGrantId(consent: VoiceConsentState): void {
+  const grant = consent.grant as Record<string, unknown> | null | undefined
+  const id = grant && typeof grant.grant_id === 'string' ? grant.grant_id : ''
+  if (id) useVoiceMessageStore.getState().setActiveConsentGrantId(id)
+}
 
 export type VoiceActivationMode = 'push_to_talk' | 'wake_word' | 'always_on'
 
@@ -103,6 +113,7 @@ async function grantPushToTalk(): Promise<VoiceConsentState> {
     vs.setConsentState('active')
     vs.setError(null)
     vs.setLastOutcome(null)
+    _rememberGrantId(out)
   } else {
     vs.setConsentState('required')
     vs.setError(out.error || 'Consent grant failed — try again')
@@ -129,6 +140,7 @@ async function startCapture(): Promise<void> {
     )
   }
   vs.setConsentState('active')
+  _rememberGrantId(consent)
   await startVoice()
 }
 

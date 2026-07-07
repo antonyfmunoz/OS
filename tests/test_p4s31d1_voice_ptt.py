@@ -71,6 +71,16 @@ def _store(tmp_path) -> VoiceConsentStore:
     return VoiceConsentStore(store_path=str(tmp_path / "consent_grants.json"))
 
 
+def _strip_comments_ts(src: str) -> str:
+    """Drop // line and /* */ block comments so identifier assertions test real
+    code, not documentation mentioning the identifier."""
+    import re
+
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.DOTALL)
+    src = re.sub(r"^\s*//.*$", "", src, flags=re.MULTILINE)
+    return src
+
+
 # ── 1. Consent mutations registered + degraded-safe ───────────────────────────
 
 
@@ -337,12 +347,24 @@ def test_voice_path_has_no_bypass_tokens(path):
 
 
 def test_voice_exit_is_the_chat_seam_verbatim():
-    """The controller dispatches the assembled transcript UNMODIFIED into the
-    chat store, and the chat store forwards the text unmodified into
-    sendMessage(source='voice')."""
+    """The ONLY chat exit for voice is sendMessage(source='voice'). Under
+    P4S-31D1-B the D1-A auto-dispatch is gone: recording produces a reviewable
+    draft, and the explicit send (voiceMessageStore.sendDraft) is the sole
+    caller of addVoiceTranscript, forwarding the finalized transcript verbatim
+    into sendMessage(source='voice'). The controller NEVER calls
+    addVoiceTranscript."""
     controller = _CONTROLLER_PATH.read_text(encoding="utf-8")
-    assert "addVoiceTranscript(text, turn.voiceTurnId)" in controller
-    assert "const text = turn.assembledText" in controller
+    # The controller drives drafts, never the chat seam directly.
+    assert "addVoiceTranscript" not in _strip_comments_ts(controller), (
+        "the voice controller must NOT dispatch into chat — the draft send seam does"
+    )
+
+    store = (
+        Path(_WORKTREE)
+        / "cockpit" / "src" / "renderer" / "stores" / "voiceMessageStore.ts"
+    ).read_text(encoding="utf-8")
+    # The draft store forwards the finalized transcript verbatim on explicit send.
+    assert "addVoiceTranscript(draft.transcript, draft.voice_turn_id" in store
 
     chat_store = _CHAT_STORE_PATH.read_text(encoding="utf-8")
     assert "sendMessage(text, 'voice'" in chat_store
