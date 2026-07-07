@@ -108,3 +108,25 @@ def test_doc_exists_and_names_canonical_artifact():
     assert "voice_message_contract.json" in doc
     assert "P4S-31D1-A" in doc
     assert "never bypasses Cockpit Chat" in doc
+
+
+def test_taxonomy_scopes_packet_to_uservoicenote():
+    """2026-07-07 owner correction: this packet is the UserVoiceNote input rail,
+    NOT AIOutboundVoiceMessage. The taxonomy must say so, in both artifacts, so
+    docs can never falsely imply outbound AI voice is built."""
+    tax = _contract()["voice_taxonomy"]
+    assert tax["this_packet_implements"] == "UserVoiceNote"
+    # All five canonical categories are named.
+    for cat in ("UserVoiceNote", "LiveVoiceSession", "AmbientActivation",
+                "AIOutboundVoiceMessage", "ManualCockpitControl"):
+        assert cat in tax["categories"]
+    # Outbound AI voice + cloning are explicitly NOT built here.
+    assert "AIOutboundVoiceMessage" in tax["not_implemented_here"]
+    assert "voice_clone_execution" in tax["not_implemented_here"]
+    # Intent ingress law: text + voice-first only; manual buttons are execution.
+    assert "Cockpit Chat text" in tax["intent_ingress_law"]
+    # The human-readable doc carries the same scoping.
+    doc = _DOC_PATH.read_text(encoding="utf-8")
+    assert "UserVoiceNote" in doc
+    assert "AIOutboundVoiceMessage" in doc
+    assert "NOT built" in doc or "NOT this packet, NOT built" in doc

@@ -5,6 +5,27 @@ Owner product correction: **P4S-31D-1 is reclassified P4S-31D1-A — the low-lev
 voice pipe (capture → WS STT → consent gate → chat rail → held gate) is proved,
 but the shipped UX is dictation-into-chat and is NOT the product.**
 
+## Voice taxonomy — what this packet IS and IS NOT (2026-07-07 owner correction)
+
+"VoiceMessage" must not ambiguously mean every voice feature. The canonical
+categories:
+
+| Category | Meaning | Status in P4S-31D1-B |
+|---|---|---|
+| **UserVoiceNote** | User records audio into Cockpit → audio bubble + transcript underneath → retry/edit/delete/send → only after send does the transcript enter Cockpit Chat / IntentSpec / gate / proof | **THIS PACKET.** The `VoiceMessageDraft` type and the whole recording→review→send rail below ARE the UserVoiceNote rail. (`VoiceMessageDraft` is the internal type name; the product concept is UserVoiceNote / voice input draft.) |
+| **LiveVoiceSession** | Real-time conversation with DEX; voice default response in live mode; transcript+events still in the Cockpit Chat ledger; actions still governed | NOT this packet — future `P4S-LIVE-VOICE-SESSION-001` |
+| **AmbientActivation** | Wake word / double-clap / hotkey opens a voice session; does not execute by itself | NOT this packet — held; `P4S-AMBIENT-ACTIVATION-001` |
+| **AIOutboundVoiceMessage** | AI renders a voice message in Antony's authorized voice for sending to another person; requires Antony approval; proof/audit; no covert impersonation, no third-party cloning | **NOT this packet, NOT built.** `P4S-AI-OUTBOUND-VOICE-MESSAGE-001` (compile only). Nothing here renders or sends AI voice. |
+| **ManualCockpitControl** | approve / reject / execute / retry / cancel / inspect / open-proof | Execution controls, NOT intent ingress |
+
+**Intent ingress law.** User intent enters ONLY through (1) Cockpit Chat text and
+(2) voice-first control (the UserVoiceNote rail here). Manual cockpit buttons
+control execution *after* intent exists — they are not primary user intent.
+
+**This packet implements the user-recorded input rail (UserVoiceNote) only.** It
+does not implement, and its docs must not imply, outbound AI voice messages,
+voice cloning, live voice sessions, or ambient activation.
+
 ## The product
 
 Voice is a governed **voice-message rail**:

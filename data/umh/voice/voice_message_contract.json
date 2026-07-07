@@ -1,7 +1,7 @@
 {
  "record": "voice_message_contract",
  "compiled": "2026-07-07",
- "mode": "contract — binds P4S-31D1-B implementation; no ambient/mobile/desktop-app activation authorized",
+ "mode": "contract \u2014 binds P4S-31D1-B implementation; no ambient/mobile/desktop-app activation authorized",
  "packet": "P4S-31D1-B-VOICE-MESSAGE-UX-001",
  "doctrine": "Voice is a governed voice-MESSAGE rail, not dictation. Recording produces a reviewable draft object; nothing enters Cockpit Chat until the operator explicitly sends. Only after send: Cockpit Chat -> IntentSpec -> WorkPacket/gate/proof. The D1-A behavior (transcript auto-dispatched into chat on silence) is REPLACED.",
  "grounding": {
@@ -17,23 +17,23 @@
   "VoiceMessageDraft": {
    "description": "Client-side reviewable draft. NOT a chat message. Exists from recording start until send or delete.",
    "fields": {
-    "draft_id": "vmd-<uuid> — client correlation id",
-    "voice_turn_id": "vt-<uuid> — threads capture -> transcript -> chat -> loop (existing assembler id)",
-    "audio_artifact": "AudioArtifactRef | null — null only before recording completes; NEVER null after stop (audio is preserved even when STT fails)",
-    "transcript": "string — finalized text, editable by operator before send",
-    "transcript_partial": "string — provisional display only; MUST NEVER be committed as chat content",
+    "draft_id": "vmd-<uuid> \u2014 client correlation id",
+    "voice_turn_id": "vt-<uuid> \u2014 threads capture -> transcript -> chat -> loop (existing assembler id)",
+    "audio_artifact": "AudioArtifactRef | null \u2014 null only before recording completes; NEVER null after stop (audio is preserved even when STT fails)",
+    "transcript": "string \u2014 finalized text, editable by operator before send",
+    "transcript_partial": "string \u2014 provisional display only; MUST NEVER be committed as chat content",
     "transcript_status": "enum: pending | partial | final | failed | edited",
-    "confidence": "float 0..1 | null — from STT when available; low confidence blocks nothing but is displayed",
-    "duration_ms": "int — recorded audio duration",
-    "device_registry_id": "string — from routing metadata, never hardcoded",
-    "session_id": "string — DeviceSession/session correlation",
-    "consent_grant_id": "vcg-<id> — the active VoiceConsentGrant(push_to_talk) under which capture ran",
+    "confidence": "float 0..1 | null \u2014 from STT when available; low confidence blocks nothing but is displayed",
+    "duration_ms": "int \u2014 recorded audio duration",
+    "device_registry_id": "string \u2014 from routing metadata, never hardcoded",
+    "session_id": "string \u2014 DeviceSession/session correlation",
+    "consent_grant_id": "vcg-<id> \u2014 the active VoiceConsentGrant(push_to_talk) under which capture ran",
     "created_at": "ISO-8601 UTC",
     "finalized_by": "enum: manual_stop | silence_timeout | cancel | null",
     "status": "enum: recording | transcribing | ready | sent | failed | deleted"
    },
    "invariants": [
-    "carries_audio over the chat seam = false — the chat message carries an artifact REFERENCE, not audio bytes",
+    "carries_audio over the chat seam = false \u2014 the chat message carries an artifact REFERENCE, not audio bytes",
     "draft.status transitions: recording -> transcribing -> ready -> (sent | deleted); failed -> (retry -> transcribing) | deleted",
     "no chat message may exist for a draft whose status is not 'sent'",
     "identity is never stamped client-side; server resolves the Clerk principal on send"
@@ -42,14 +42,14 @@
   "AudioArtifactRef": {
    "description": "Pointer to the stored audio, per UMH storage law.",
    "fields": {
-    "artifact_id": "string — storage id from the upload seam",
-    "url": "string — tenant/session-scoped retrieval URL (authenticated route, never public)",
+    "artifact_id": "string \u2014 storage id from the upload seam",
+    "url": "string \u2014 tenant/session-scoped retrieval URL (authenticated route, never public)",
     "content_type": "audio/webm | audio/wav",
     "size_bytes": "int",
-    "sha256": "string — integrity"
+    "sha256": "string \u2014 integrity"
    },
    "storage_law": [
-    "tenant/user/session scoped — retrieval requires the authenticated operator session",
+    "tenant/user/session scoped \u2014 retrieval requires the authenticated operator session",
     "no plaintext secrets in path or metadata",
     "retention: operator data, lives with chat history; delete-before-send removes the artifact",
     "audio bytes never logged; never sent to any endpoint other than the storage seam and (for STT) the voice server"
@@ -57,7 +57,20 @@
   },
   "RecordingSessionState": {
    "description": "Explicit client state machine (replaces implicit micState-only flow).",
-   "states": ["idle", "requesting_consent", "requesting_permission", "recording", "paused_speech_gap", "finalizing", "transcribing", "review", "sending", "sent", "failed", "cancelled"],
+   "states": [
+    "idle",
+    "requesting_consent",
+    "requesting_permission",
+    "recording",
+    "paused_speech_gap",
+    "finalizing",
+    "transcribing",
+    "review",
+    "sending",
+    "sent",
+    "failed",
+    "cancelled"
+   ],
    "rules": [
     "paused_speech_gap is INTERNAL: short silences render a paused indicator at most; they never finalize",
     "finalizing is reached ONLY by manual_stop, silence >= vad.min_silence_before_finalize_ms (when auto_finalize mode on), or max duration cap",
@@ -68,19 +81,20 @@
   "VadConfig": {
    "description": "Configurable pause detection. Defaults tuned for sentence-internal pauses.",
    "fields": {
-    "silence_threshold_level": "float, default 0.02 — audio level below which a window counts as silence",
-    "min_speech_ms": "int, default 400 — minimum speech before a turn is accepted at all (else NO_SPEECH, draft recoverable)",
-    "intra_utterance_pause_ms": "int, default 1500 — silences shorter than this are ignored (sentence-internal)",
-    "min_silence_before_finalize_ms": "int, default 2500 — continuous silence required before auto-FINALIZE (finalize != send; it moves the draft to review)",
-    "max_recording_ms": "int, default 120000 — hard cap; finalizes to review",
-    "auto_send": "bool, default false — sending ALWAYS requires explicit operator action unless a future mode explicitly permits; no current mode permits"
+    "silence_threshold_level": "float, default 0.02 \u2014 audio level below which a window counts as silence",
+    "min_speech_ms": "int, default 400 \u2014 minimum speech before a turn is accepted at all (else NO_SPEECH, draft recoverable)",
+    "intra_utterance_pause_ms": "int, default 1500 \u2014 silences shorter than this are ignored (sentence-internal)",
+    "min_silence_before_finalize_ms": "int, default 2500 \u2014 continuous silence required before auto-FINALIZE (finalize != send; it moves the draft to review)",
+    "max_recording_ms": "int, default 120000 \u2014 hard cap; finalizes to review",
+    "auto_send": "bool, default false \u2014 sending ALWAYS requires explicit operator action unless a future mode explicitly permits; no current mode permits"
    }
   },
   "VoiceDiagnostics": {
    "description": "Per-draft capture diagnostics for tuning and proof.",
    "fields": {
-    "speech_start": "ts", "speech_end": "ts",
-    "silence_windows": "[{start_ms, end_ms}] — observed silences and whether each was ignored/finalizing",
+    "speech_start": "ts",
+    "speech_end": "ts",
+    "silence_windows": "[{start_ms, end_ms}] \u2014 observed silences and whether each was ignored/finalizing",
     "transcript_partial_events": "int count (content NOT stored in diagnostics)",
     "transcript_final_at": "ts",
     "finalized_by": "manual_stop | silence_timeout | cancel",
@@ -91,7 +105,13 @@
  },
  "ux_states": {
   "bubble": "voice message renders as a chat-style bubble/card: recording indicator + duration while recording; audio playback affordance + transcript UNDERNEATH once available",
-  "status_display": ["recording", "transcribing", "ready to send", "sent", "failed"],
+  "status_display": [
+   "recording",
+   "transcribing",
+   "ready to send",
+   "sent",
+   "failed"
+  ],
   "operator_actions": {
    "send": "only when transcript_status in {final, edited} and status == ready",
    "retry": "re-run STT against the preserved audio artifact",
@@ -106,10 +126,10 @@
   ]
  },
  "stt_quality": {
-  "engine_now": "server STT via umh/voice_server.py — Groq whisper-large-v3-turbo, faster-whisper fallback",
+  "engine_now": "server STT via umh/voice_server.py \u2014 Groq whisper-large-v3-turbo, faster-whisper fallback",
   "requirements": [
    "surface confidence/error state when the engine provides it; unknown -> null, displayed as none",
-   "audio preserved on STT failure — retry uses the stored artifact, never re-recording by force",
+   "audio preserved on STT failure \u2014 retry uses the stored artifact, never re-recording by force",
    "low-confidence transcript never auto-enters the intent loop: operator send IS the confirmation gate",
    "engine comparison vs any LifeOS path recorded in the Lane A recon report before implementation locks the engine choice"
   ]
@@ -131,12 +151,30 @@
   "surface": "desktop browser Chrome on executor-role node (Browser Verification Law)",
   "steps": [
    "authenticate via Clerk; consent active (inline enable if not)",
-   "record an utterance CONTAINING mid-sentence pauses > intra_utterance_pause_ms/2 — verify no premature finalize/send",
+   "record an utterance CONTAINING mid-sentence pauses > intra_utterance_pause_ms/2 \u2014 verify no premature finalize/send",
    "observe bubble: recording indicator, duration, transcript appears underneath, status transitions",
    "edit the transcript; send explicitly",
    "server truth: loop held at AWAITING_APPROVAL with edited transcript verbatim; artifact pointer in message metadata; approve/reject -> proof_recorded in-thread",
    "negative: record + delete -> assert no chat message, no loop entry; record with silence-only -> recoverable draft, no chat message",
    "capture DOM/screenshot, network trace, consent grant id, proof id, tests/gates output, secret scan"
+  ]
+ },
+ "voice_taxonomy": {
+  "note": "2026-07-07 owner correction: 'VoiceMessage' must not ambiguously mean every voice feature.",
+  "this_packet_implements": "UserVoiceNote",
+  "categories": {
+   "UserVoiceNote": "user records audio -> bubble + transcript underneath -> retry/edit/delete/send -> transcript enters Cockpit Chat/IntentSpec/gate/proof ONLY after send. THIS PACKET (VoiceMessageDraft is the internal type name).",
+   "LiveVoiceSession": "real-time DEX conversation, voice-default in live mode, ledger-recorded, governed. NOT this packet (P4S-LIVE-VOICE-SESSION-001).",
+   "AmbientActivation": "wake word/double-clap/hotkey opens a session, does not execute. NOT this packet, held (P4S-AMBIENT-ACTIVATION-001).",
+   "AIOutboundVoiceMessage": "AI renders a voice message in Antony's authorized voice for external send; requires Antony approval, proof/audit; no covert impersonation, no third-party cloning. NOT this packet, NOT built (P4S-AI-OUTBOUND-VOICE-MESSAGE-001, compile only).",
+   "ManualCockpitControl": "approve/reject/execute/retry/cancel/inspect/open-proof \u2014 execution controls, NOT intent ingress."
+  },
+  "intent_ingress_law": "User intent enters ONLY through (1) Cockpit Chat text and (2) voice-first control (this UserVoiceNote rail). Manual cockpit buttons control execution after intent exists.",
+  "not_implemented_here": [
+   "AIOutboundVoiceMessage",
+   "voice_clone_execution",
+   "LiveVoiceSession",
+   "AmbientActivation"
   ]
  }
 }
