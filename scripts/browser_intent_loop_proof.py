@@ -82,12 +82,28 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
         )
         page = context.new_page()
 
+        live_reply: dict[str, Any] = {}
+
         def on_response(resp: Any) -> None:
             u = resp.url
             if "/advisor/converse" in u or "/intent-loop" in u:
                 evidence["network"].append(
                     {"url": u.split("?")[0], "status": resp.status, "method": resp.request.method}
                 )
+                # The loop id comes from OUR OWN converse response — immune to
+                # history turns rendering asynchronously in the thread.
+                if (
+                    "/advisor/converse" in u
+                    and resp.request.method == "POST"
+                    and resp.status == 200
+                ):
+                    try:
+                        body = resp.json()
+                        m = INTENT_CAPTURED_RE.search(str(body.get("text", "")))
+                        if m and body.get("intent") == "intent_loop_submit":
+                            live_reply["loop_id"] = m.group(0)
+                    except Exception:  # noqa: BLE001 — non-JSON responses are fine
+                        pass
 
         page.on("response", on_response)
 
@@ -124,30 +140,26 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                 raise RuntimeError("Cockpit chat input not found — not authenticated or UI changed")
             stage("chat_input_found", True)
 
-            # Thread may already render PAST intent turns from history — only a
-            # loop id that was NOT visible before this submit proves THIS message.
-            ids_before = set(INTENT_CAPTURED_RE.findall(page.inner_text("body")))
-
             intent_text = "Fix this stale healthcheck probe path in the deploy verifier"
             chat.first.click()
             chat.first.fill(intent_text)
             chat.first.press("Enter")
             stage("chat_submit", True, intent_text)
 
-            loop_id = None
+            # The loop id is taken from OUR converse response via the network
+            # listener — the DOM also renders history turns with other ids.
             deadline = time.time() + 120  # converse degrades with runtime age
-            while time.time() < deadline:
-                fresh = set(INTENT_CAPTURED_RE.findall(page.inner_text("body"))) - ids_before
-                if fresh:
-                    loop_id = sorted(fresh)[0]
-                    break
+            while time.time() < deadline and "loop_id" not in live_reply:
                 time.sleep(3)
             shot(page, "02_intent_captured_held")
+            loop_id = live_reply.get("loop_id")
             if not loop_id:
-                raise RuntimeError("No NEW loop id appeared in thread within 120s")
+                raise RuntimeError("No intent_loop_submit converse response within 120s")
             evidence["loop_id"] = loop_id
             body_text = page.inner_text("body")
-            held = "HELD" in body_text or "awaiting_approval" in body_text
+            held = loop_id in body_text and (
+                "HELD" in body_text or "awaiting_approval" in body_text
+            )
             stage("gate_held_in_thread", held, loop_id)
 
             # Panel = downstream control surface, opened FROM the thread's
@@ -166,6 +178,11 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                 if palette_toggle.count() > 0:
                     palette_toggle.first.click()
                     time.sleep(2)
+                # Panel routes live under the palette's Instruments submenu.
+                instruments = page.get_by_text("Instruments", exact=True)
+                if instruments.count() > 0:
+                    instruments.first.click()
+                    time.sleep(1)
                 palette_item = page.get_by_text("Intent Loop", exact=True)
                 if palette_item.count() > 0:
                     palette_item.first.click()
