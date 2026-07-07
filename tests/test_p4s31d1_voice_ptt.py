@@ -366,6 +366,31 @@ def test_mic_affordance_uses_consent_gated_adapter():
     )
 
 
+def test_consent_required_renders_inline_enable_control():
+    """Lane A UX: CONSENT_REQUIRED must offer an inline grant path (explicit
+    'Enable Push-to-Talk' control calling the governed grant route), never a
+    dead-end or a blocking confirm dialog, and never an auto-grant."""
+    rail = _RIGHT_RAIL_PATH.read_text(encoding="utf-8")
+    adapter = _ADAPTER_PATH.read_text(encoding="utf-8")
+
+    assert "Enable Push-to-Talk for this device" in rail
+    assert "window.confirm" not in rail, "inline control replaces the blocking dialog"
+    assert "grantPushToTalk" in rail and "grantPushToTalk" in adapter
+    assert "revokeConsent" in rail, "revoke must stay reachable from the UI"
+
+    # No auto-grant: the grant call happens only inside the explicit
+    # user-initiated handler, never inside startCapture/getConsent.
+    start_capture = adapter.split("async function startCapture")[1].split("\n}")[0]
+    assert "requestConsent" not in start_capture and "grant" not in start_capture.replace(
+        "VoiceConsentGrant", ""
+    ), "startCapture must never grant consent implicitly"
+
+    # Server-truth consent state: 'active' only after the governed route
+    # confirms; the store flag alone can never fake it.
+    grant_flow = adapter.split("async function grantPushToTalk")[1].split("\n}")[0]
+    assert "requestConsent" in grant_flow and "out.active" in grant_flow
+
+
 # ── 6. voice_server lifecycle unit (managed, CPU-law compliant) ────────────────
 
 
