@@ -29,6 +29,33 @@ const log = (stage: string, ...args: unknown[]) =>
 
 log('voice_ws_url_resolved', VOICE_URL)
 
+/**
+ * Prompt (or confirm) the browser/OS microphone permission on the user gesture,
+ * then immediately release the probe stream. This is the FIRST consent layer —
+ * the browser permission — surfaced up front so the single mic-tap handler can,
+ * on its success, request the UMH push_to_talk grant WITHOUT a second user tap
+ * (P4S-31D1-E single-gesture consent). Once the origin holds the permission the
+ * subsequent full startMic() getUserMedia resolves silently (no re-prompt).
+ *
+ * Rejects with the original getUserMedia error (name preserved:
+ * NotAllowedError / NotFoundError / NotSupportedError) so callers can branch on
+ * a denied browser permission vs a failed server grant.
+ */
+export async function ensureBrowserMicPermission(): Promise<void> {
+  log('browser_mic_permission_probe')
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw Object.assign(
+      new Error('Browser does not support microphone capture'),
+      { name: 'NotSupportedError' },
+    )
+  }
+  const probe = await navigator.mediaDevices.getUserMedia({ audio: true })
+  // Permission is now granted for the origin; drop the probe tracks so the real
+  // capture stream (startMic) is the only live one — no double-open, no prompt.
+  probe.getTracks().forEach((t) => t.stop())
+  log('browser_mic_permission_granted')
+}
+
 export type VoiceEvent =
   | { type: 'transcript'; text: string; final: boolean }
   | { type: 'vad_status'; active: boolean }

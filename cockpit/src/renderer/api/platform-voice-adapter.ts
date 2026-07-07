@@ -25,6 +25,7 @@
 
 import { fetchApi } from './client'
 import { startVoice, stopVoice, destroyVoice } from './voice-controller'
+import { ensureBrowserMicPermission } from './voice-ws'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useVoiceMessageStore } from '../stores/voiceMessageStore'
 
@@ -122,25 +123,72 @@ async function grantPushToTalk(): Promise<VoiceConsentState> {
 }
 
 /**
- * Open push-to-talk capture behind the fail-closed consent gate.
- * Throws ConsentRequiredError (and sets the typed VoiceOutcome + consentState
- * 'required' so the UI renders the inline enable control) when no active
- * VoiceConsentGrant(push_to_talk) exists for this device.
+ * Open push-to-talk capture behind the fail-closed consent gate — P4S-31D1-E
+ * SINGLE-GESTURE flow (fixes the mobile-Safari double-consent).
+ *
+ * One user tap on the mic drives the whole sequence:
+ *   1. If an active VoiceConsentGrant(push_to_talk) already exists for this
+ *      device → go straight to capture (returning device, no grant round-trip).
+ *   2. Otherwise the mic tap IS the authorizing gesture: prompt the BROWSER mic
+ *      permission first (ensureBrowserMicPermission → getUserMedia). On its
+ *      success, AUTOMATICALLY request the UMH push_to_talk grant IN THE SAME
+ *      handler — no second "Enable Push-to-Talk" tap on the happy path. This is
+ *      a REAL server round-trip (requestConsent → governed grant route); the
+ *      store flips to 'active' only when the server confirms an active grant.
+ *   3. Only if the SERVER grant fails (VoiceConsentRefused / network) do we set
+ *      consentState 'required' + throw ConsentRequiredError, so the UI surfaces
+ *      the explicit "Enable Push-to-Talk" RETRY affordance — off the happy path.
+ *   4. If the BROWSER permission is denied, that's the mic layer, not consent:
+ *      map to the typed mic outcome (no server grant is attempted).
+ *
+ * The browser permission and the UMH grant remain two independent fail-closed
+ * layers; this only removes the extra user gesture between them.
  */
 async function startCapture(): Promise<void> {
-  const consent = await getConsent('push_to_talk')
   const vs = useVoiceStore.getState()
-  if (!consent.active) {
-    vs.setConsentState('required')
-    vs.setError('Voice consent required — enable push-to-talk for this device')
+
+  // (1) Returning device: an active grant already exists — straight to capture.
+  const consent = await getConsent('push_to_talk')
+  if (consent.active) {
+    vs.setConsentState('active')
+    _rememberGrantId(consent)
+    await startVoice()
+    return
+  }
+
+  // (2) Fresh device: the mic tap authorizes both layers. Browser permission
+  // first (its own user-gesture prompt), then the server grant automatically.
+  try {
+    await ensureBrowserMicPermission()
+  } catch (err) {
+    // Browser mic layer denied/unavailable — NOT a consent-grant failure.
+    const error = err as Error & { name?: string }
+    if (error.name === 'NotAllowedError') {
+      vs.setError('Microphone permission denied — check browser settings')
+      vs.setLastOutcome('MIC_PERMISSION_DENIED')
+    } else if (error.name === 'NotFoundError') {
+      vs.setError('No microphone found')
+      vs.setLastOutcome('MIC_DEVICE_UNAVAILABLE')
+    } else {
+      vs.setError('Browser does not support microphone capture')
+      vs.setLastOutcome('MIC_DEVICE_UNAVAILABLE')
+    }
+    vs.setMicState('idle')
+    throw err
+  }
+
+  // Browser permission granted → auto-request the UMH grant in the SAME flow.
+  const granted = await grantPushToTalk()
+  if (!granted.active) {
+    // (3) SERVER grant failed → surface the explicit enable RETRY affordance.
+    // grantPushToTalk already set consentState 'required' + the error text.
     vs.setLastOutcome('CONSENT_REQUIRED')
     vs.setMicState('idle')
     throw new ConsentRequiredError(
-      consent.error || 'no active VoiceConsentGrant(push_to_talk) for this device',
+      granted.error || 'no active VoiceConsentGrant(push_to_talk) for this device',
     )
   }
-  vs.setConsentState('active')
-  _rememberGrantId(consent)
+
   await startVoice()
 }
 
