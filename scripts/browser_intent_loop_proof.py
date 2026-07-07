@@ -106,6 +106,13 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                         pass
 
         page.on("response", on_response)
+        console_errors: list[str] = []
+        page.on(
+            "console",
+            lambda msg: console_errors.append(msg.text[:200]) if msg.type == "error" else None,
+        )
+        page.on("pageerror", lambda exc: console_errors.append(f"pageerror: {exc}"[:200]))
+        evidence["console_errors"] = console_errors
 
         try:
             page.goto(url, wait_until="load", timeout=45000)
@@ -197,6 +204,37 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                     break
                 time.sleep(5)
             shot(page, "03_intent_loop_panel")
+
+            # In-page probe: does the route work from THIS origin+session? This
+            # distinguishes a route/auth failure from a client-plumbing hang.
+            try:
+                probe = page.evaluate(
+                    """async () => {
+                        const hasClerk = !!(window.Clerk && window.Clerk.session);
+                        let token = null, tokenMs = -1;
+                        if (hasClerk) {
+                            const t0 = performance.now();
+                            try { token = await Promise.race([
+                                window.Clerk.session.getToken(),
+                                new Promise((_, rej) => setTimeout(() => rej(new Error('token timeout 10s')), 10000)),
+                            ]); } catch (e) { token = 'ERR:' + e.message; }
+                            tokenMs = Math.round(performance.now() - t0);
+                        }
+                        let status = null, fetchMs = -1;
+                        if (token && !String(token).startsWith('ERR:')) {
+                            const t1 = performance.now();
+                            try {
+                                const r = await fetch('/api/umh/intent-loop', { headers: { Authorization: 'Bearer ' + token } });
+                                status = r.status;
+                            } catch (e) { status = 'ERR:' + e.message; }
+                            fetchMs = Math.round(performance.now() - t1);
+                        }
+                        return { hasClerk, tokenState: String(token).startsWith('ERR:') ? String(token) : (token ? 'ok' : 'null'), tokenMs, status, fetchMs };
+                    }"""
+                )
+                evidence["inpage_probe"] = probe
+            except Exception as probe_exc:  # noqa: BLE001
+                evidence["inpage_probe"] = f"probe failed: {probe_exc}"[:200]
 
             # Diagnostics: what the panel window actually shows.
             panel_hdr = page.get_by_text("Cockpit Chat intent rail")
