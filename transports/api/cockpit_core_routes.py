@@ -800,7 +800,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         providers.append(
             {
                 "provider": "cc_sdk",
-                "model_id": "claude-opus-4-6",
+                "model_id": "claude-opus-4-8",
                 "priority": PROVIDER_PRIORITY.get(ModelProvider.CC_SDK, 3),
                 "quality": PROVIDER_QUALITY.get("cc_sdk", 0),
                 "enabled": cc_available,

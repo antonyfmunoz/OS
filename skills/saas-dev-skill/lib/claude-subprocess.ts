@@ -106,6 +106,7 @@ const MODEL_MAP: Record<string, string> = {
   "claude-sonnet-4-5-20250514": "sonnet",
   "claude-sonnet-4-6": "sonnet",
   "claude-opus-4-6": "opus",
+  "claude-opus-4-8": "opus",
   "claude-opus-4-5-20250514": "opus",
 };
 

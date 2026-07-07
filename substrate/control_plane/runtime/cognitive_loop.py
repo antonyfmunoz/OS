@@ -229,7 +229,7 @@ def format_response_footer(
     _display_map = {
         "claude-haiku-4-5-20251001": "Haiku",
         "claude-sonnet-4-6": "Sonnet",
-        "claude-opus-4-6": "Opus",
+        "claude-opus-4-8": "Opus",
         "sonar-pro": "Perplexity",
         "gemini-2.0-flash": "Gemini Flash",
         "gemma3:4b": "Gemma3 4B (local)",

@@ -208,7 +208,7 @@ impossible across all code paths, all devices, current and future.
 ## System
 VPS: 100.77.233.50 | Dir: /opt/OS
 Services: os-discord, os-operator, os-webhook, os-scraper
-LLM: cc_sdk/Opus 4.6 (primary), Gemini 2.5 Flash, Groq, Ollama (fallback chain)
+LLM: cc_sdk/Opus 4.8 (primary), Gemini 2.5 Flash, Groq, Ollama (fallback chain)
 Stage: loaded from BIS at runtime
 
 ## Node Role Discipline (NON-NEGOTIABLE)
@@ -279,7 +279,7 @@ new-primitive, debug-agent
 - All agent calls route through adapters/models/model_router.py
 - call_with_fallback() is the single module-level entry point
 - Provider contract: return None/empty on failure, non-empty content on success
-- cc_sdk is option 0: CLI via Max subscription, Opus 4.6, no API cost
+- cc_sdk is option 0: CLI via Max subscription, Opus 4.8, no API cost
 - cc_sdk timeout: 120s default, configurable via CC_SDK_TIMEOUT_SECONDS env var.
   CLI calls to Opus typically take 30-90s (startup + auth + inference + streaming).
 - cc_sdk subprocess env: `_get_subprocess_env()` injects OAuth token from
@@ -288,7 +288,7 @@ new-primitive, debug-agent
   (adapters/models/cc_sdk.py `_is_error_leak()`). Auth/quota/transport errors
   leaked as streamed text return None so the router falls through.
 - CEO/strategic agents always use best available (pass agent_type='ceo' or force_opus=True)
-- Current routing chain: cc_sdk (Opus 4.6 via subscription) → Gemini 2.5 Flash → Groq → Ollama
+- Current routing chain: cc_sdk (Opus 4.8 via subscription) → Gemini 2.5 Flash → Groq → Ollama
 - When credits restored: Anthropic (CC_MODEL_MAP) → Gemini → Ollama
 - adapters/models/agent_runtime.py has its own fallback via _claude_available flag — do not break
 - MCP_CONNECTION_NONBLOCKING=true always

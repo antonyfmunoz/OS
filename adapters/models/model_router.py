@@ -193,10 +193,10 @@ from substrate.contracts.agent_types import (  # noqa: E402
 # Less steering + better tool use = faster overall.
 
 CC_MODEL_MAP: dict[str, str] = {
-    TaskType.STRATEGIC.value: "claude-opus-4-6",
-    TaskType.CODE.value: "claude-opus-4-6",
-    TaskType.SELF_IMPROVE.value: "claude-opus-4-6",
-    TaskType.PLAN.value: "claude-opus-4-6",
+    TaskType.STRATEGIC.value: "claude-opus-4-8",
+    TaskType.CODE.value: "claude-opus-4-8",
+    TaskType.SELF_IMPROVE.value: "claude-opus-4-8",
+    TaskType.PLAN.value: "claude-opus-4-8",
     TaskType.ANALYZE.value: "claude-sonnet-4-6",
     TaskType.ANALYSIS.value: "claude-sonnet-4-6",
     TaskType.GENERATE.value: "claude-sonnet-4-6",
@@ -210,7 +210,7 @@ CC_MODEL_MAP: dict[str, str] = {
     TaskType.FAST_RESPONSE.value: "claude-haiku-4-5-20251001",
     TaskType.MARKET_INTEL.value: "claude-sonnet-4-6",
     TaskType.WEB_SEARCH.value: "claude-sonnet-4-6",
-    TaskType.AUTONOMOUS.value: "claude-opus-4-6",
+    TaskType.AUTONOMOUS.value: "claude-opus-4-8",
 }
 
 

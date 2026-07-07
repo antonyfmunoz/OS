@@ -38,7 +38,7 @@ PROVIDER_CONFIGS: dict[str, dict] = {
     },
     'claude-opus': {
         'provider': 'anthropic',
-        'model': 'claude-opus-4-6',
+        'model': 'claude-opus-4-8',
         'best_for': ['strategy', 'architecture', 'high_stakes_decision', 'portfolio_advisory'],
         'cost_tier': 3,
         'min_revenue_usd': 0,

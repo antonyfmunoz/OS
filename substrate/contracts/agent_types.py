@@ -102,7 +102,7 @@ class RoutingResult:
 COST_PER_MILLION_TOKENS: dict[str, dict[str, float]] = {
     "claude-haiku-4-5-20251001": {"input": 0.80, "output": 4.00},
     "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
-    "claude-opus-4-6": {"input": 15.00, "output": 75.00},
+    "claude-opus-4-8": {"input": 15.00, "output": 75.00},
 }
 
 
