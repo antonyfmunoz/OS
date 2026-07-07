@@ -151,15 +151,26 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
             stage("gate_held_in_thread", held, loop_id)
 
             # Panel = downstream control surface, opened FROM the thread's
-            # suggested action; Ctrl+A (Intent Loop) as fallback.
+            # suggested action. In canvas layout panels open as canvas windows
+            # via the palette, so follow the button with the palette path.
             open_btn = page.get_by_role("button", name="Open Intent Loop")
             if open_btn.count() > 0:
                 open_btn.first.click()
-                stage("panel_opened_from_thread", True)
-            else:
-                page.keyboard.press("Control+a")
-                stage("panel_opened_from_thread", True, "via Ctrl+A shortcut fallback")
-            time.sleep(3)
+                stage("panel_opened_from_thread", True, "suggested action clicked")
+                time.sleep(2)
+            if (
+                page.locator(f'div:has-text("{loop_id}") >> button:has-text("Approve")').count()
+                == 0
+            ):
+                palette_toggle = page.locator('button[title="Show palette"]')
+                if palette_toggle.count() > 0:
+                    palette_toggle.first.click()
+                    time.sleep(2)
+                palette_item = page.get_by_text("Intent Loop", exact=True)
+                if palette_item.count() > 0:
+                    palette_item.first.click()
+                    stage("panel_window_added_from_palette", True)
+                    time.sleep(3)
             shot(page, "03_intent_loop_panel")
 
             # Approve THIS loop's row, never a blind first-Approve.
