@@ -98,6 +98,17 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
 
             chat = page.locator(CHAT_INPUT_SELECTOR)
             if chat.count() == 0:
+                # Canvas layout boots with the chat rail closed — open it via the
+                # bottom-toolbar Chat toggle (fallback: Ctrl+/ shortcut).
+                toggle = page.get_by_role("button", name="Chat")
+                if toggle.count() > 0:
+                    toggle.first.click()
+                else:
+                    page.keyboard.press("Control+/")
+                time.sleep(3)
+                shot(page, "01b_chat_rail_opened")
+                chat = page.locator(CHAT_INPUT_SELECTOR)
+            if chat.count() == 0:
                 raise RuntimeError("Cockpit chat input not found — not authenticated or UI changed")
             stage("chat_input_found", True)
 
