@@ -71,9 +71,9 @@ def test_client_rms_is_measured_from_the_same_pcm():
 
 def test_capture_diagnostics_are_non_secret_and_complete():
     src = _ws()
-    # The diagnostics object literal, from the method body's `return {` to the
+    # The diagnostics METHOD DEFINITION (not its call site), up to the
     # `get clientRms` accessor that follows it.
-    diag = src.split("captureDiagnostics(")[1].split("get clientRms")[0]
+    diag = src.split("captureDiagnostics(): Record")[1].split("get clientRms")[0]
     for field in (
         "audio_context_state",
         "chunk_count",
