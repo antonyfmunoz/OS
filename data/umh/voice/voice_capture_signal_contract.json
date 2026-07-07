@@ -1,0 +1,123 @@
+{
+ "record": "voice_capture_signal_contract",
+ "compiled": "2026-07-07",
+ "packet": "P4S-31D1-C-VOICE-CAPTURE-SIGNAL-001",
+ "mode": "contract — binds the capture-signal path for the UserVoiceNote rail (P4S-31D1-B/C); no ambient/mobile/desktop-app activation authorized",
+ "extends": "data/umh/voice/voice_message_contract.json (VoiceMessageDraft, RecordingSessionState, VadConfig, VoiceDiagnostics)",
+ "doctrine": "Capture must be VISIBLE and failure must be LEGIBLE. A recording card shows a live client-computed RMS meter so the operator sees the mic is actually delivering samples; when a draft fails, the SPECIFIC cause is shown. A mic-silent, empty-blob, or decode failure must NEVER be reported as a bare 'No speech detected' — that mis-diagnosis is the exact bug this contract closes (a suspended capture AudioContext produced zero samples and the UI called it no-speech).",
+ "root_cause_closed": {
+  "symptom": "every voice note failed with 'No speech detected'",
+  "true_cause": "the capture-side AudioContext was suspended, so ScriptProcessor.onaudioprocess never fired; zero PCM reached the server; the server's VAD correctly reported no speech; the UI collapsed all failures to 'No speech detected', hiding the real (silent-capture) cause",
+  "fix_location": "capture AudioContext resume (fixed elsewhere, P4S-31D1-C capture fix)",
+  "ui_guarantee_here": "the live RMS meter makes a silent capture immediately visible, and the failure taxonomy names the real cause instead of 'No speech detected'"
+ },
+ "acceptance_criteria": {
+  "ordered_signal_chain": [
+   "non_zero_energy: client-computed capture RMS rises above the silence floor while the user speaks (proves the mic + AudioContext deliver samples)",
+   "valid_blob: MediaRecorder produces a non-empty audio blob on stop (EMPTY_AUDIO_BLOB if zero bytes)",
+   "server_decode: the server decodes the uploaded/streamed audio (DECODE_FAILED / UNSUPPORTED_AUDIO_FORMAT otherwise)",
+   "vad_speech: server VAD finds speech in the decoded audio (VAD_NO_SPEECH otherwise, draft recoverable)",
+   "stt_transcript: STT returns a transcript (STT_FAILED otherwise, audio preserved for retry)",
+   "preserved_artifact: the recorded audio is preserved on EVERY failure path — never discarded except on explicit delete",
+   "transcript_under_card: the finalized transcript renders UNDERNEATH the voice bubble, not in the message input",
+   "pause_doesnt_send: a sentence-internal pause (< intra_utterance_pause_ms) never finalizes; a finalize is not a send",
+   "explicit_send: a draft becomes a chat message ONLY on the operator's explicit Send (auto_send=false, no exceptions)",
+   "chat_only_after_send: no chat message, IntentSpec, or loop entry exists for a draft whose status != 'sent'",
+   "delete_leaves_no_trace: delete discards the draft + audio artifact and revokes the blob URL; no chat trace, no loop entry"
+  ]
+ },
+ "client_diagnostics": {
+  "source": "cockpit/src/renderer/api/voice-ws.ts (VoiceWsClient) + voice-controller.ts meter poll",
+  "fields": {
+   "clientRms": "float 0..1 — RMS of the most recent capture buffer, computed client-side from the same PCM the WS ships. The VISIBLE proof of capture. Read at ~10Hz (METER_POLL_MS=100) into voiceMessageStore.captureRms.",
+   "captureRmsPeak": "float 0..1 — highest clientRms seen this session; a peak that stays ~0 during live recording is the silent-capture signature",
+   "captureSilentMs": "int — ms the session has run flat-at-0 past the grace window (MIC_SILENT_HINT_MS=2000); > 0 arms the 'mic appears silent' hint",
+   "chunksSent": "int — PCM16 buffers pushed to the server (0 during a silent/suspended capture)",
+   "lastCaptureMsAgo": "int | null — ms since the last processed buffer (capture liveness)",
+   "capturing": "bool — AudioContext + ScriptProcessor are live"
+  },
+  "meter": {
+   "cadence_ms": 100,
+   "silence_rms_floor": 0.005,
+   "silent_hint_after_ms": 2000,
+   "law": "the meter reads a store field the controller writes; it runs NO audio loop of its own and performs NO FFT — one getter read + one shallow store write per tick"
+  }
+ },
+ "server_diagnostics": {
+  "source": "umh/voice_server.py error taxonomy",
+  "error_codes": {
+   "EMPTY_AUDIO_BLOB": "the uploaded/streamed audio had zero bytes — capture produced nothing",
+   "SILENT_AUDIO": "audio present but below the energy floor — mic delivered near-silence",
+   "UNSUPPORTED_AUDIO_FORMAT": "the audio container/codec is not decodable on the server (e.g. an iOS-only codec)",
+   "DECODE_FAILED": "the audio bytes could not be decoded (corrupt/truncated container)",
+   "VAD_NO_SPEECH": "audio decoded but VAD found no speech segment",
+   "STT_FAILED": "decode + VAD passed but the STT engine returned no transcript"
+  }
+ },
+ "error_taxonomy": {
+  "law": "every code maps to a DISTINCT operator-facing string; none collapses to 'No speech detected'. Mic-silent (SILENT_AUDIO), empty-blob (EMPTY_AUDIO_BLOB), and decode failures (DECODE_FAILED / UNSUPPORTED_AUDIO_FORMAT) are visibly different from a genuine no-speech (VAD_NO_SPEECH / NO_SPEECH).",
+  "ui_map_source": "cockpit/src/renderer/components/RightRail.tsx VOICE_FAILURE_REASON",
+  "codes": {
+   "EMPTY_AUDIO_BLOB": "No audio captured — mic sent no bytes",
+   "SILENT_AUDIO": "Mic appears silent — no audio energy detected",
+   "UNSUPPORTED_AUDIO_FORMAT": "Unsupported audio format for this browser",
+   "DECODE_FAILED": "Audio could not be decoded",
+   "VAD_NO_SPEECH": "No speech found in the recording",
+   "STT_FAILED": "Transcription failed — try again",
+   "NO_SPEECH": "No speech detected before the pause",
+   "RETRY_NO_AUDIO": "No stored audio to retry",
+   "RETRY_WS_UNAVAILABLE": "Voice server unavailable — retry later",
+   "RETRY_DECODE_FAILED": "Stored audio could not be decoded for retry",
+   "RETRY_STT_FAILED": "Retry transcription failed",
+   "RETRY_TIMEOUT": "Retry timed out — server did not respond",
+   "RETRY_UNAVAILABLE": "Retry could not start",
+   "AUDIO_UPLOAD_FAILED": "Audio upload failed — send again",
+   "CHAT_SEND_FAILED": "Could not deliver to chat — send again"
+  }
+ },
+ "platform_matrix": {
+  "note": "This matrix classifies capture status PER PLATFORM for THIS bug. A mobile-platform capture failure must NOT reject the desktop_chrome verdict — each row stands alone.",
+  "platforms": {
+   "desktop_chrome": {
+    "capture_status": "FIXED",
+    "root_cause": "suspended capture AudioContext — onaudioprocess never fired, zero PCM shipped, server VAD correctly saw no speech, UI mislabeled it 'No speech detected'",
+    "resolution": "capture AudioContext resume + this contract's live RMS meter (makes a silent capture visible) + precise failure taxonomy (names the real cause)",
+    "mime": "audio/webm;codecs=opus (fully supported)",
+    "verdict": "PASS — primary target; capture visible, failures legible"
+   },
+   "mobile_chrome": {
+    "capture_status": "SUPPORTED",
+    "root_cause": "n/a — Android Chrome supports the shipped webm/opus MediaRecorder path",
+    "mime": "audio/webm;codecs=opus (supported)",
+    "verdict": "PASS (path supported; end-to-end proof deferred to a mobile pass)"
+   },
+   "mobile_safari": {
+    "capture_status": "BLOCKED",
+    "root_cause": "iOS Safari does not support any MIME in the shipped MediaRecorder candidate list (audio/webm, audio/ogg, audio/wav); iOS requires audio/mp4 (AAC), which is absent from _pickRecorderMime()",
+    "resolution": "add an audio/mp4 candidate to the recorder mime list AND a server-side AAC decode path — tracked, NOT fixed here",
+    "tracked_as": "P4S-31D-5",
+    "mime": "none supported (needs audio/mp4)",
+    "verdict": "DOCUMENTED FAILURE — does not reject desktop_chrome"
+   },
+   "desktop_safari": {
+    "capture_status": "DEFERRED",
+    "root_cause": "not yet evaluated; macOS Safari MediaRecorder support differs from Chrome",
+    "verdict": "LATER — out of scope for this packet"
+   }
+  }
+ },
+ "invariants_reused_from_message_contract": [
+  "no chat message may exist for a draft whose status is not 'sent'",
+  "audio preserved on STT failure — retry uses the stored artifact, never re-recording by force",
+  "send only when transcript_status in {final, edited} and status == ready",
+  "diagnostics carry timings and counts, never transcript text",
+  "delete discards draft + artifact; no chat trace"
+ ],
+ "hard_constraints": [
+  "the meter reads client-computed RMS, never server transcript content",
+  "no transcript (partial or final) is ever pasted into the message input",
+  "send is explicit-only; a pause/finalize is never a send",
+  "a silent-capture / empty-blob / decode failure is never reported as 'No speech detected'",
+  "mobile capture failure does not reject the desktop capture verdict"
+ ]
+}
