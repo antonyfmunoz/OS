@@ -1,0 +1,23 @@
+{
+ "record": "P4S-31C \u2014 deployed Cockpit Chat intent loop browser proof",
+ "date": "2026-07-06",
+ "result": "PASSED",
+ "evidence_class": "A",
+ "intent_text": "Fix this stale probe path run-1783392904",
+ "loop_id": "loop_c63aea43a17c",
+ "proof_id": "proof_1eafcfdc72f3",
+ "envelope_id": "ac0dd375c8ce4776",
+ "decided_by": "clerk:user_3EHDsQSiGJUVF5FdLVkGflrwFlu",
+ "governance_status": "completed",
+ "degraded": false,
+ "mutation": "intent_loop_approval_decision",
+ "stages_green": 10,
+ "executor_node_role": "executor (interactive Session 1, real Chrome)",
+ "dispatch_path": "governed mesh port (signed verdict + relay bearer)",
+ "credential_path": "op run --env-file=scripts/.env.beast.tpl (executor-side; no CLI args, no values in evidence)",
+ "unblocked_by": "PR #225 os-operator cpus 0.50->1.00 (owner Option 1)",
+ "residual_defect": "memory RES growth degrades runtime in ~20-30min under load; queued P4S-31C-RUNTIME-READ-PATH-HARDENING-001",
+ "false_positive_audit": "earlier run approved wrong row (loop_42aaf9907e05, envelope 706b68d2cca14016); caught by server-truth audit; fixed with run-tag row anchoring + server-truth-only completion",
+ "doc": "docs/audits/2026-07-06_p4s31c_browser_proof.md",
+ "screenshots": "data/audits/proof/2026-07-06_p4s31c_browser/"
+}
