@@ -1468,6 +1468,13 @@ LEGACY_DUPLICATES_META: dict[str, dict[str, dict[str, str]]] = {
             "rationale": "pre-Phase-26 bridge action types share names with canonical",
         },
     },
+    "substrate.contracts.agent_types": {
+        "RoutingResult": {
+            "owner": "contracts",
+            "sunset": "2026-12-31",
+            "rationale": "model-routing RoutingResult (output/provider/model/tokens) is a distinct concept from empire_router RoutingResult (domain/objective/scope/urgency)",
+        },
+    },
     # Removed 2026-07-04 (WP-P2-001) — dead exemptions masking nothing:
     #   substrate.foundation.primitives::Modality  (module no longer exists)
     #   substrate.organism.next_action_engine::ActionResult  (symbol removed)
