@@ -33,7 +33,7 @@ import time
 from typing import Any
 
 CHAT_INPUT_SELECTOR = 'input[placeholder^="Message "]'
-INTENT_CAPTURED_RE = re.compile(r"loop_[0-9a-f]+")
+INTENT_CAPTURED_RE = re.compile(r"loop_[0-9a-f]{12}")
 PROOF_DIR_NAME = "p4s31c_browser_proof"
 
 
@@ -124,38 +124,52 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                 raise RuntimeError("Cockpit chat input not found — not authenticated or UI changed")
             stage("chat_input_found", True)
 
+            # Thread may already render PAST intent turns from history — only a
+            # loop id that was NOT visible before this submit proves THIS message.
+            ids_before = set(INTENT_CAPTURED_RE.findall(page.inner_text("body")))
+
             intent_text = "Fix this stale healthcheck probe path in the deploy verifier"
             chat.first.click()
             chat.first.fill(intent_text)
             chat.first.press("Enter")
             stage("chat_submit", True, intent_text)
 
-            page.wait_for_selector("text=Intent captured", timeout=30000)
-            time.sleep(2)
+            loop_id = None
+            deadline = time.time() + 120  # converse degrades with runtime age
+            while time.time() < deadline:
+                fresh = set(INTENT_CAPTURED_RE.findall(page.inner_text("body"))) - ids_before
+                if fresh:
+                    loop_id = sorted(fresh)[0]
+                    break
+                time.sleep(3)
             shot(page, "02_intent_captured_held")
-            body_text = page.inner_text("body")
-            m = INTENT_CAPTURED_RE.search(body_text)
-            if not m:
-                raise RuntimeError("Intent captured but no loop id visible in thread")
-            loop_id = m.group(0)
+            if not loop_id:
+                raise RuntimeError("No NEW loop id appeared in thread within 120s")
             evidence["loop_id"] = loop_id
+            body_text = page.inner_text("body")
             held = "HELD" in body_text or "awaiting_approval" in body_text
-            stage("gate_held_in_thread", held, f"{loop_id}")
+            stage("gate_held_in_thread", held, loop_id)
 
+            # Panel = downstream control surface, opened FROM the thread's
+            # suggested action; Ctrl+A (Intent Loop) as fallback.
             open_btn = page.get_by_role("button", name="Open Intent Loop")
-            if open_btn.count() == 0:
-                raise RuntimeError("Suggested action 'Open Intent Loop' not rendered")
-            open_btn.first.click()
+            if open_btn.count() > 0:
+                open_btn.first.click()
+                stage("panel_opened_from_thread", True)
+            else:
+                page.keyboard.press("Control+a")
+                stage("panel_opened_from_thread", True, "via Ctrl+A shortcut fallback")
             time.sleep(3)
             shot(page, "03_intent_loop_panel")
-            stage("panel_opened_from_thread", True)
 
-            approve = page.get_by_role("button", name="Approve")
-            if approve.count() == 0:
-                raise RuntimeError("Approve control not found in Intent Loop panel")
-            approve.first.click()
-            stage("governed_approve_clicked", True)
-            time.sleep(4)
+            # Approve THIS loop's row, never a blind first-Approve.
+            row_approve = page.locator(f'div:has-text("{loop_id}") >> button:has-text("Approve")')
+            if row_approve.count() > 0:
+                row_approve.last.click()
+            else:
+                raise RuntimeError(f"Approve control for {loop_id} not found in panel")
+            stage("governed_approve_clicked", True, loop_id)
+            time.sleep(5)
 
             page_text = page.inner_text("body")
             proof_ok = "proof_recorded" in page_text
