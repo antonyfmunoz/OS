@@ -9,6 +9,7 @@ presence detection, which is monkeypatched.
 
 from __future__ import annotations
 
+import os
 import sys
 
 import pytest
@@ -188,3 +189,53 @@ class TestRequirementRegistry:
         decision = AdapterCallCredentialDecision(allowed=False, provider="x")
         with pytest.raises(Exception):
             decision.allowed = True  # type: ignore[misc]
+
+
+class TestProvisionedGwsTemplate:
+    """WP-P4-PROVIDER-TOKEN-VAULTING-001 — the committed google_workspace
+    template must conform: declares exactly the required var names and
+    carries op:// references ONLY (never a plaintext value)."""
+
+    _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _tpl_path(self) -> str:
+        req = PROVIDER_TOKEN_REQUIREMENTS["google_workspace"]
+        return os.path.join(self._REPO_ROOT, "scripts", req.tpl_name)
+
+    def test_gws_template_is_provisioned(self):
+        assert os.path.exists(self._tpl_path()), (
+            "scripts/.env.gws.tpl must be committed (op references only) — "
+            "it unblocks resolve_provider_token_injection('google_workspace')"
+        )
+
+    def test_gws_template_declares_exactly_required_vars(self):
+        req = PROVIDER_TOKEN_REQUIREMENTS["google_workspace"]
+        declared = {}
+        with open(self._tpl_path(), "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                name, value = line.split("=", 1)
+                declared[name.strip()] = value.strip()
+        assert set(declared) == set(req.env_var_names)
+
+    def test_gws_template_values_are_op_references_only(self):
+        with open(self._tpl_path(), "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                value = line.split("=", 1)[1].strip()
+                assert value.startswith(_OP_URI_PREFIX), (
+                    "template value must be an op reference, never a plaintext value"
+                )
+
+    def test_gws_seam_resolves_injectable_with_repo_scripts_dir(self, monkeypatch):
+        """With the committed template, the seam returns injectable (op
+        presence monkeypatched so the test is CI-node-agnostic)."""
+        _mock_op_present(monkeypatch)
+        scripts_dir = os.path.join(self._REPO_ROOT, "scripts")
+        decision = resolve_provider_token_injection("google_workspace", scripts_dir=scripts_dir)
+        assert decision.allowed is True
+        assert decision.op_command_prefix[:2] == ("op", "run")

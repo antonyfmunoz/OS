@@ -1,11 +1,12 @@
 # AdapterCall Provider-Token Seam — Injection Contract (Fail-Closed)
 
-**Work packet:** WP-P4-ADAPTERCALL-TOKEN-SEAM-001
+**Work packets:** WP-P4-ADAPTERCALL-TOKEN-SEAM-001 (contract, §1–6) ·
+WP-P4-PROVIDER-TOKEN-VAULTING-001 (gws vaulting + cutover plan, §7–9)
 **Date:** 2026-07-06
 **Type:** boundary packet — contract + minimal fail-closed code. No send_email
 execution, no OAuth flows implemented, no provider SDK imports in projections/.
 **Code:** `substrate/execution/credential_gate.py` (provider-token seam section)
-**Tests:** `tests/test_adaptercall_token_seam.py` (17 tests)
+**Tests:** `tests/test_adaptercall_token_seam.py` (17 tests + 4 template-conformance tests)
 
 ---
 
@@ -40,7 +41,7 @@ only — values live in 1Password per the Credential Injection Law.
 
 | Provider id | Env var names (injected by `op run`) | Template | Governed actions unlocked | Today's (banned) state |
 |---|---|---|---|---|
-| `google_workspace` | `GWS_OAUTH_CLIENT_ID`, `GWS_OAUTH_CLIENT_SECRET`, `GWS_OAUTH_REFRESH_TOKEN` | `scripts/.env.gws.tpl` | future `send_email`, calendar/drive writes | OAuth grant scripts persist plaintext JSON at `~/.config/gws/gmail_credentials.json` (`scripts/oauth_grant_gmail.py`, `services/oauth_device_flow.py`); gws CLI uses OS keyring; Beast EOS app stores plaintext rows in its `oauth_tokens` table (flagged SECURITY gap in `docs/EOS_ACTION_EXECUTOR_SEAM.md` §4) |
+| `google_workspace` | `GWS_OAUTH_CLIENT_ID`, `GWS_OAUTH_CLIENT_SECRET`, `GWS_OAUTH_REFRESH_TOKEN` | `scripts/.env.gws.tpl` | future `send_email`, calendar/drive writes | OAuth grant scripts persist plaintext JSON at `~/.config/gws/gmail_credentials.json` (`scripts/oauth_grant_gmail.py`, `services/oauth_device_flow.py`); gws CLI uses OS keyring; Beast EOS app stores plaintext rows in its `oauth_tokens` table (flagged SECURITY gap in `docs/EOS_ACTION_EXECUTOR_SEAM.md` §4). **Update:** material vaulted + template provisioned on the VPS — see §7; plaintext file remains until the §8 cutover |
 | `github` | `GITHUB_TOKEN` | `scripts/.env.github.tpl` | PR create/merge, branch ops (`adapters/github/github_operations.py`) | gh CLI ambient auth |
 | `notion` | `NOTION_API_KEY` | `scripts/.env.notion.tpl` | Notion writes (`adapters/notion/`) | env var from service .env |
 | `discord` | `DISCORD_BOT_TOKEN` | `scripts/.env.discord.tpl` | bot posts outside the resident `os-discord` service | service .env |
@@ -142,3 +143,122 @@ previously unregistered), `ProviderTokenRequirement`,
   `github_operations.py` (ambient gh auth), Notion/Discord (.env) keep
   their current read-path auth; they migrate to this seam when their WRITE
   actions become governed AdapterCalls.
+
+---
+
+## 7. google_workspace vaulted (WP-P4-PROVIDER-TOKEN-VAULTING-001)
+
+The `google_workspace` provider is now INJECTABLE on the VPS node:
+`resolve_provider_token_injection('google_workspace')` returns
+`allowed=True` with the `op run --env-file=scripts/.env.gws.tpl --` prefix.
+
+### 7.1 What was vaulted
+
+- **Source (plaintext, still in place — see cutover plan §8):**
+  `~/.config/gws/gmail_credentials.json` on the VPS. Keys observed
+  (structure only): `access_token, client_id, client_secret, expiry,
+  issued_at, refresh_token, scopes, token_uri`. The sibling
+  `gmail_credentials_empyreanstudios.co.json` is a byte-identical copy
+  (same sha256) — one OAuth grant, two filenames (see
+  `services/oauth_device_flow.py::_save_credentials`, which writes both).
+- **Vault item:** `Google-Workspace-OAuth` (API_CREDENTIAL) in the
+  `UMH-Production` vault — same vault + hyphenated-title convention as
+  `Discord-Bot`, `Notion-Integration`, `AI-Anthropic`. Concealed fields:
+  `client_id`, `client_secret`, `refresh_token`. Non-secret context field:
+  `token_uri`. The short-lived `access_token` was deliberately NOT vaulted
+  (contract §2 — access tokens are minted at call time from the refresh
+  token; persisting them is the banned pattern).
+- **Transfer mechanism:** `scripts/vault_gws_credentials.py` — reads the
+  JSON in-process and pipes a full item template to `op item create` via
+  STDIN. Values never touched argv, logs, stdout, or shell history; the
+  script prints field NAMES and value LENGTHS only. Re-runnable for
+  rotation via `--rotate`.
+- **Template provisioned:** `scripts/.env.gws.tpl` (committed — op://
+  references only), declaring exactly `GWS_OAUTH_CLIENT_ID`,
+  `GWS_OAUTH_CLIENT_SECRET`, `GWS_OAUTH_REFRESH_TOKEN`. Conformance is
+  regression-tested (`TestProvisionedGwsTemplate`).
+
+### 7.2 Verification performed (lengths/booleans only — no values)
+
+```
+python3 scripts/vault_gws_credentials.py
+  field client_id: len=73 / client_secret: len=35 / refresh_token: len=103
+  created item: title=Google-Workspace-OAuth vault=UMH-Production
+
+op read op://UMH-Production/Google-Workspace-OAuth/<field> | wc -c
+  -> 73 / 35 / 103 (matches source file lengths)
+
+op run --env-file=scripts/.env.gws.tpl -- python3 <sha256 compare>
+  -> all three injected env values hash-identical to the file values
+
+resolve_provider_token_injection('google_workspace')
+  -> allowed=True, op_command_prefix=('op','run','--env-file=.../scripts/.env.gws.tpl','--')
+
+services/magic_link_handler._get_gmail_service() + users().getProfile()
+  -> read-only success (existing gws adapter path unchanged and working)
+```
+
+### 7.3 Beast `oauth_tokens` table (documented only — NO mutation this packet)
+
+- **Schema:** `data/repos/entrepreneuros/shared/schema.ts` (~L425)
+  `oauth_tokens(id, user_id -> users.id, provider, access_token NOT NULL,
+  refresh_token, token_type, expires_at, scope, created_at, updated_at)` —
+  plaintext `text` columns for both tokens.
+- **Where it lives:** the EOS app database (Neon) used by the Beast-hosted
+  EntrepreneurOS app (source truth for the app is on the Beast; `data/repos/
+  entrepreneuros/` on the VPS is a schema mirror).
+- **Where consumed:** the EOS app's own Google OAuth connect flow
+  (server-side token store keyed by `user_id`+`provider`). UMH substrate/
+  adapters do NOT read this table — the VPS gws paths read
+  `~/.config/gws/gmail_credentials.json` (magic-link handler) or the gws
+  CLI keyring (`gws_connector.py`).
+- **Status:** banned pattern per §3.4; flagged as SECURITY gap in
+  `docs/EOS_ACTION_EXECUTOR_SEAM.md` §4 and owner-approval item #2 in §5.
+  Migration (vault rows → 1Password, drop plaintext columns) is a separate
+  owner-approved packet. Nothing in this packet touched that DB.
+
+## 8. Cutover plan — retiring the plaintext file (operator follow-up)
+
+The plaintext file was NOT deleted in this packet: `services/
+magic_link_handler.py` still reads it at call time. Cutover order:
+
+1. **Migrate the reader.** Change `magic_link_handler._get_gmail_service()`
+   to build `google.oauth2.credentials.Credentials` from
+   `GWS_OAUTH_CLIENT_ID/SECRET/REFRESH_TOKEN` env vars, and run the
+   `os-webhook` service under `op run --env-file=scripts/.env.gws.tpl`
+   (or resolve via `require_provider_token_injection('google_workspace')`
+   at service start). Same for any future gws adapter subprocess:
+   `gated_subprocess_run(list(decision.op_command_prefix) + inner_cmd, ...)`.
+2. **Verify via injection.** With the file still present, run the reader
+   under injection and confirm a read-only `users().getProfile()` succeeds
+   with the file path temporarily renamed (proves no fallthrough read).
+3. **Delete the plaintext material** (operator action, after step 2 passes):
+   `rm ~/.config/gws/gmail_credentials.json ~/.config/gws/gmail_credentials_empyreanstudios.co.json`
+   — and review `~/.config/gws/client_secret.json` + `token_cache.json`
+   (grant-flow inputs/caches) for the same treatment.
+4. **Re-point the grant flow.** Update `scripts/oauth_grant_gmail.py` /
+   `services/oauth_device_flow.py::_save_credentials` to write into
+   1Password (`python3 scripts/vault_gws_credentials.py --rotate` from a
+   temp file, or direct stdin pipe) instead of persisting plaintext JSON.
+5. **Guard against reappearance.** Add the two credential filenames to a
+   check (e.g. `scripts/check_credential_injection.py` or a cron audit) so
+   a re-grant that recreates plaintext is flagged.
+
+## 9. Rotation runbook
+
+When the refresh token is revoked/expired or the OAuth client is rotated:
+
+1. Re-run the grant: `python3 scripts/oauth_grant_gmail.py` (writes the
+   credentials file — until cutover step 4 lands, this is still the
+   grant flow's output).
+2. `python3 scripts/vault_gws_credentials.py --rotate` — deletes and
+   recreates the `Google-Workspace-OAuth` item from the fresh file
+   (values via stdin only; prints lengths only).
+3. Verify: `op read op://UMH-Production/Google-Workspace-OAuth/refresh_token | wc -c`
+   (length only) and re-run the §7.2 injection smoke test.
+4. Post-cutover: delete the plaintext file again (cutover step 3).
+
+Rollback of this packet: `op item delete 'Google-Workspace-OAuth' --vault
+UMH-Production` + revert the commit (removes `scripts/.env.gws.tpl` and
+`scripts/vault_gws_credentials.py`). The adapter keeps working throughout —
+it still reads the untouched plaintext file until cutover step 1.
