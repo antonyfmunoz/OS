@@ -360,8 +360,7 @@ def test_voice_exit_is_the_chat_seam_verbatim():
     )
 
     store = (
-        Path(_WORKTREE)
-        / "cockpit" / "src" / "renderer" / "stores" / "voiceMessageStore.ts"
+        Path(_WORKTREE) / "cockpit" / "src" / "renderer" / "stores" / "voiceMessageStore.ts"
     ).read_text(encoding="utf-8")
     # The draft store forwards the finalized transcript verbatim on explicit send.
     assert "addVoiceTranscript(draft.transcript, draft.voice_turn_id" in store
@@ -389,9 +388,15 @@ def test_mic_affordance_uses_consent_gated_adapter():
 
 
 def test_consent_required_renders_inline_enable_control():
-    """Lane A UX: CONSENT_REQUIRED must offer an inline grant path (explicit
-    'Enable Push-to-Talk' control calling the governed grant route), never a
-    dead-end or a blocking confirm dialog, and never an auto-grant."""
+    """SERVER-grant-failure UX: when the governed grant fails, the UI must still
+    offer the explicit 'Enable Push-to-Talk' RETRY control (calling the governed
+    grant route), never a dead-end or a blocking confirm dialog.
+
+    NOTE (P4S-31D1-E): the happy-path auto-grant now lives inside startCapture
+    (single-gesture: browser permission success → auto server grant). This
+    control is now the FAILURE-only retry, not the primary path. The stronger
+    "startCapture never grants" invariant is intentionally lifted here and
+    replaced by test_p4s31d1e_consent_flow.py's single-gesture contract."""
     rail = _RIGHT_RAIL_PATH.read_text(encoding="utf-8")
     adapter = _ADAPTER_PATH.read_text(encoding="utf-8")
 
@@ -399,13 +404,6 @@ def test_consent_required_renders_inline_enable_control():
     assert "window.confirm" not in rail, "inline control replaces the blocking dialog"
     assert "grantPushToTalk" in rail and "grantPushToTalk" in adapter
     assert "revokeConsent" in rail, "revoke must stay reachable from the UI"
-
-    # No auto-grant: the grant call happens only inside the explicit
-    # user-initiated handler, never inside startCapture/getConsent.
-    start_capture = adapter.split("async function startCapture")[1].split("\n}")[0]
-    assert "requestConsent" not in start_capture and "grant" not in start_capture.replace(
-        "VoiceConsentGrant", ""
-    ), "startCapture must never grant consent implicitly"
 
     # Server-truth consent state: 'active' only after the governed route
     # confirms; the store flag alone can never fake it.
