@@ -1,0 +1,137 @@
+{
+  "record": "P4S-31D-4/5 — mobile voice compile (native mobile app + mobile browser)",
+  "compiled": "2026-07-06",
+  "mode": "compile_only — no activation authorized",
+  "compile_only": true,
+  "activation": "NOT AUTHORIZED — this artifact plans P4S-31D-4 (mobile app push-to-talk) and P4S-31D-5 (mobile browser tap-to-talk). No voice implementation, wiring, or rollout is authorized by this file. Both packets remain hard-held until the owner explicitly starts them, after P4S-31D-1..3 per the contract sequence.",
+  "packets": ["P4S-31D-4", "P4S-31D-5"],
+  "lane": "F",
+  "doctrine": "Voice is a thin adapter into Cockpit Chat. A mobile utterance becomes a transcript that enters the SAME rail as typed text: sendMessage(text, 'voice', routing, voice_turn_id) -> POST /advisor/converse -> deterministic classify_intent -> governed intent loop -> held gate -> approve -> PROOF_RECORDED. Mobile adds NO new execution path, NO new auth surface, NO new intent classifier.",
+  "agrees_with": {
+    "matrix": "data/umh/voice/platform_voice_feasibility_matrix.json",
+    "contract": "docs/VOICE_INTENT_CONTRACT.md",
+    "statement": "This compile DEEPENS the matrix verdicts for the two mobile targets; it contradicts nothing. Where the matrix says NOT_FEASIBLE or CONSTRAINED, this plan repeats the verdict verbatim and designs inside it."
+  },
+  "owner_observation_2026_07_06": {
+    "event": "The owner pressed push-to-talk on a MOBILE BROWSER and received the consent-required refusal (typed CONSENT_REQUIRED, mic never opened).",
+    "reading": "Correct fail-closed behavior. Capture must not open without an active VoiceConsentGrant(push_to_talk) for that device — the refusal is the contract working, not a bug.",
+    "gap": "The consent-grant UX was not reachable from the refusal on a small viewport. That consent UX gap is being closed in Lane A; it is a presentation gap, not a contract gap.",
+    "implication_for_this_plan": "Mobile surfaces MUST render the grant path inside the refusal itself (inline consent affordance on the CONSENT_REQUIRED outcome), sized for a small viewport. Mobile browser PTT remains CONSTRAINED per the matrix — iOS Safari drops the mic on tab background / screen lock."
+  },
+  "push_to_talk_per_surface": {
+    "native_ios": {
+      "verdict": "LIKELY",
+      "matrix_row": "mobile_app.push_to_talk",
+      "capture_api": "AVAudioEngine tap on inputNode (PCM16 16kHz mono) under AVAudioSession category .playAndRecord; SFSpeechRecognizer consumes the same buffer for on-device STT",
+      "tap_to_talk_semantics": "Explicit mic button. Tap opens capture (after consent + TCC checks), tap again or VAD end-of-speech stops it. Capture runs ONLY while the app is foreground-active. No hold-to-talk requirement — toggle semantics avoid gesture-recognizer conflicts.",
+      "breaks_on_background_lock": "App backgrounded or device locked -> AVAudioSession is interrupted and capture ends (no 'audio' UIBackgroundMode is claimed — a non-audio utility app claiming it is an App Review rejection risk and would contradict the matrix). The adapter treats interruption as session end: stop capture, discard buffers, emit typed CAPTURE_ENDED state. Resume requires a fresh tap in the foreground.",
+      "stt": "on-device SFSpeechRecognizer preferred (requiresOnDeviceRecognition where the locale supports it); server STT fallback per battery_privacy_constraints"
+    },
+    "native_android": {
+      "verdict": "LIKELY",
+      "matrix_row": "mobile_app.push_to_talk",
+      "capture_api": "AudioRecord (PCM16 16kHz mono) or android.speech.SpeechRecognizer directly",
+      "tap_to_talk_semantics": "Same toggle tap-to-talk as iOS: tap opens capture behind consent + RECORD_AUDIO runtime grant, tap/VAD end stops it. Foreground activity only.",
+      "breaks_on_background_lock": "Activity pause / screen lock -> capture stops. Android 10+ blocks microphone access for backgrounded apps without a microphone-type foreground service, and P4S-31D-4 ships NO foreground service — push-to-talk is strictly foreground. Adapter emits typed CAPTURE_ENDED and requires a fresh tap.",
+      "stt": "on-device android.speech.SpeechRecognizer preferred (EXTRA_PREFER_OFFLINE where supported); server STT fallback per battery_privacy_constraints"
+    },
+    "mobile_safari": {
+      "verdict": "CONSTRAINED",
+      "matrix_row": "mobile_browser.push_to_talk",
+      "capture_api": "web getUserMedia -> PCM16 16kHz over the existing authenticated WS (same protocol as cockpit/src/renderer/api/voice-ws.ts)",
+      "tap_to_talk_semantics": "Tap-to-talk TOGGLE, not press-and-hold: getUserMedia and AudioContext.resume() must run inside a direct user gesture, and long-press fires iOS text-selection/callout behaviors. First tap in a session must also unlock audio output for TTS (same gesture chain).",
+      "breaks_on_background_lock": "Tab background or screen lock -> WebKit ends the mic track immediately and freezes timers; the WS may be dropped by proxy idle timeout. The adapter treats MediaStreamTrack 'ended' as session end: typed CAPTURE_ENDED, no buffered audio replayed, no auto-reacquire — a new user gesture is required on return to foreground. This is the graceful-refusal requirement of P4S-31D-5.",
+      "note": "All iOS browsers (Chrome/Firefox/Edge on iOS) use WebKit — these constraints apply to every browser on iOS, not just Safari-branded."
+    },
+    "mobile_chrome": {
+      "verdict": "CONSTRAINED",
+      "matrix_row": "mobile_browser.push_to_talk",
+      "capture_api": "web getUserMedia -> PCM16 16kHz over the existing authenticated WS (same voice-ws.ts protocol)",
+      "tap_to_talk_semantics": "Same toggle tap-to-talk as mobile Safari for cross-surface parity. Mic permission is per-origin and persistable on Android Chrome, so re-prompts are rarer than iOS.",
+      "breaks_on_background_lock": "Backgrounded tab is throttled and capture is suspended/stopped shortly after; screen lock stops capture. Although Android Chrome is more permissive than WebKit, the adapter applies the SAME policy as mobile_safari: track end or visibilitychange-to-hidden ends the session with a typed CAPTURE_ENDED. No background capture is attempted on any mobile browser."
+    }
+  },
+  "mobile_browser_limitations": {
+    "autoplay_policy": "TTS audio playback requires a prior user gesture to unlock the output element/AudioContext. The first PTT tap doubles as the unlock; TTS received before unlock is queued or dropped with a typed TTS_BLOCKED state — never a silent failure.",
+    "mic_policy": "Mic permission is per-origin. iOS Safari grants are effectively ephemeral (frequent re-prompts; 'remember' behavior varies by version) — the adapter must treat every session start as potentially needing a fresh browser prompt, in addition to the UMH VoiceConsentGrant. Both layers required; either missing = fail-closed refusal.",
+    "ws_keepalive": "A backgrounded mobile tab freezes JS timers, so WS ping/pong stops and the nginx proxy (/api/umh/voice/ws -> 127.0.0.1:8096/voice) idle-times the socket out. Policy: do NOT fight this. On visibility loss, end the capture session cleanly (mic_stop). On return to foreground, reconnect the WS lazily on the next user gesture. Never buffer or replay audio across a reconnect.",
+    "pwa_constraints": "Installing the cockpit as a PWA changes nothing about mic policy on iOS: no background execution, no service-worker microphone, getUserMedia only in the active window, capture dies on lock. A PWA install is a UX nicety (icon, standalone chrome), not a capability upgrade. Wake word and ambient remain NOT_FEASIBLE on mobile browser exactly as the matrix records.",
+    "consent_ux_small_viewport": "Per the 2026-07-06 owner observation: the CONSENT_REQUIRED refusal must carry its own resolution path on a small viewport — an inline 'enable push-to-talk on this device' affordance rendered with the refusal (thumb-reachable, no desktop settings rail required). Grant/revoke round-trips the same /voice/consent surface the desktop adapter uses. Lane A owns the consent UX fix; this plan consumes it."
+  },
+  "native_app_permissions": {
+    "ios": {
+      "info_plist": [
+        "NSMicrophoneUsageDescription — mandatory for any capture",
+        "NSSpeechRecognitionUsageDescription — mandatory when SFSpeechRecognizer (on-device STT) is used"
+      ],
+      "tcc": "Microphone and Speech Recognition are SEPARATE TCC prompts. Both must be granted for the on-device STT path. Either denied -> typed refusal with a deep link to Settings; the adapter never retries silently.",
+      "background_modes": "NONE claimed. No 'audio' UIBackgroundMode. Claiming background audio to keep the mic alive would be an App Review rejection risk for a non-audio utility app and would contradict the matrix ios_background NOT_FEASIBLE verdict."
+    },
+    "android": {
+      "manifest": [
+        "RECORD_AUDIO — dangerous permission, requested at runtime",
+        "INTERNET — transcript POST + optional server-STT WS"
+      ],
+      "runtime_flow": "Request RECORD_AUDIO on the FIRST push-to-talk tap, never at install/launch. Denial -> typed refusal; permanent denial ('don't ask again') -> refusal with a Settings deep link.",
+      "foreground_service_types": "NOT shipped in P4S-31D-4. Push-to-talk is strictly foreground and needs no service. If the owner ever approves the CONSTRAINED Android-background slice (separate, owner-gated, post-privacy-review), it would require FOREGROUND_SERVICE + FOREGROUND_SERVICE_MICROPHONE permissions, android:foregroundServiceType=\"microphone\" (mandatory on Android 14+), and a persistent user-visible notification. Recording that requirement here is documentation of the constraint, not a plan to build it."
+    }
+  },
+  "background_ambient_feasibility": {
+    "statement": "This compile PROMISES NO mobile ambient or background listening. The verdicts below restate the platform_voice_feasibility_matrix.json rows verbatim; any mobile ambient work is deferred behind a platform spike + privacy review + explicit owner sign-off (P4S-31D-6 scope, desktop-first).",
+    "ios_background": {
+      "verdict": "NOT_FEASIBLE",
+      "why": "iOS does not permit continuous background microphone for a non-audio utility app; background audio mode + App Review policy block it. No compliant always-on-mic path today."
+    },
+    "ios_foreground_ambient": {
+      "verdict": "CONSTRAINED",
+      "why": "Foreground ambient only, screen-on, under explicit VoiceConsentGrant. Not scheduled by these packets."
+    },
+    "android_background": {
+      "verdict": "CONSTRAINED",
+      "why": "Possible only via a microphone-type foreground service (persistent notification, Android 14 FGS type declaration), user-visible and battery-costly. Deferred and owner-gated; NOT scheduled by these packets."
+    },
+    "android_foreground_ambient": {
+      "verdict": "CONSTRAINED",
+      "why": "Foreground ambient feasible under consent; not scheduled by these packets."
+    },
+    "mobile_browser_wake_word": {
+      "verdict": "NOT_FEASIBLE",
+      "why": "No background execution; tabs are suspended and the mic is released; iOS WebKit has no service-worker background audio and no wake-word API."
+    },
+    "mobile_browser_ambient": {
+      "verdict": "NOT_FEASIBLE",
+      "why": "Same as wake word: no background mic, tab suspension, screen lock releases capture. Explicitly NOT promised."
+    }
+  },
+  "battery_privacy_constraints": {
+    "on_device_stt_preferred": {
+      "ios": "SFSpeechRecognizer with requiresOnDeviceRecognition where the locale supports it — audio never leaves the device on this path",
+      "android": "android.speech.SpeechRecognizer with EXTRA_PREFER_OFFLINE where supported"
+    },
+    "server_stt_fallback": "Only for surfaces/locales without on-device STT (and the whole mobile-browser surface, which has no on-device STT today): the existing voice_server (Groq Whisper + faster-whisper fallback) over the AUTHENTICATED channel only — wss:// through the nginx /api/umh/voice/ws proxy under the operator's session. No unauthenticated audio endpoint, ever.",
+    "cloud_transcription": "DEFERRED to a privacy review, unchanged from docs/VOICE_INTENT_CONTRACT.md. This plan does not decide it.",
+    "no_audio_persistence": "Capture buffers live inside the adapter only. Only TranscriptEvent text crosses the chat seam (carries_audio=false, always). No audio is stored on device or server by default.",
+    "battery": "No wake runtime on mobile in these packets. The audio pipeline (session, tap/recorder, WS) exists only between capture start and stop and is fully torn down on stop. Ambient listening is battery-hostile on mobile and is not scheduled — consistent with the matrix risk notes.",
+    "secrets": "STT/TTS provider credentials stay in the existing secret runtime (1Password op run) on the server side. No provider key ever ships in a mobile client or this artifact."
+  },
+  "adapter_into_cockpit_chat": {
+    "interface": "The ONE PlatformVoiceAdapter interface from docs/VOICE_INTENT_CONTRACT.md — requestConsent, openSession, startCapture, stopCapture, closeSession; events onTranscript, onWake (unused on mobile: no wake mode), onError, onStateChange. Reference implementation: cockpit/src/renderer/api/platform-voice-adapter.ts (desktop browser, P4S-31D-1).",
+    "output_seam": "Adapter output is ONLY a chat message: sendMessage(text, source='voice', routing, voice_turn_id) -> POST /advisor/converse — the SAME endpoint and body text uses.",
+    "never_calls": ["classify_intent", "intent_loop_submit", "governed_mutation", "any LLM/provider call", "/intent-loop/submit"],
+    "mobile_browser_transport_reuse": "P4S-31D-5 reuses the EXISTING PCM16 16kHz WebSocket protocol from cockpit/src/renderer/api/voice-ws.ts verbatim (mic_start/mic_stop control frames, binary PCM16 chunks up, transcript/tts events down). The mobile-browser adapter is the desktop-browser adapter plus mobile lifecycle handling: gesture-gated start, track-'ended' as session end, lazy WS reconnect on foreground, no audio buffering across reconnects.",
+    "mobile_app_transport": "P4S-31D-4 prefers on-device STT so no audio leaves the device; when the server-STT fallback is used it speaks the same PCM16 WS protocol over the authenticated wss channel.",
+    "identity": "The mobile Clerk session principal, resolved SERVER-SIDE at /advisor/converse — identical to the principal that stamps decided_by on the ProofRecord. The adapter stamps no identity and cannot spoof one.",
+    "consent": "VoiceConsentGrant per-mode per-device: (operator_principal, device_registry_id, activation_mode='push_to_talk'). Mobile devices register in infra/device_registry.json as controller-role entries; the grant is read fail-closed from GET /voice/consent before any capture. Missing/revoked/unreadable -> typed CONSENT_REQUIRED refusal with inline grant affordance (per owner_observation_2026_07_06). A push_to_talk grant never authorizes wake_word or always_on.",
+    "device_role": "Mobile surfaces are controller role only — never executor, never orchestrator. The orchestrator-role node never has a microphone.",
+    "proof_requirements": "Per the contract implementation sequence: P4S-31D-4 proof = foreground capture -> transcript -> same rail, identity = mobile Clerk principal. P4S-31D-5 proof = tap -> transcript -> same rail, plus graceful typed refusal on background/lock. Both extend the P4S-31C server-truth chain by one hop; UI rendering alone is not proof."
+  },
+  "verdict_consistency": {
+    "note": "Machine-checkable cross-reference against data/umh/voice/platform_voice_feasibility_matrix.json — validated by tests/test_p4s31d_mobile_compile_artifacts.py.",
+    "mobile_app_push_to_talk": "LIKELY",
+    "mobile_browser_push_to_talk": "CONSTRAINED",
+    "mobile_browser_wake_word": "NOT_FEASIBLE",
+    "mobile_browser_ambient": "NOT_FEASIBLE",
+    "mobile_app_ios_background_ambient": "NOT_FEASIBLE",
+    "mobile_app_android_background_ambient": "CONSTRAINED"
+  }
+}
