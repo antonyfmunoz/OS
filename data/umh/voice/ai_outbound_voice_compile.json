@@ -1,0 +1,256 @@
+{
+  "record": "ai_outbound_voice_compile",
+  "compiled": "2026-07-07",
+  "packet": "P4S-AI-OUTBOUND-VOICE-MESSAGE-001",
+  "compile_only": true,
+  "mode": "compile_only — authorization + approval + audit design; no rendering, no send, no clone execution authorized; no activation authorized",
+  "category": "AIOutboundVoiceMessage",
+  "category_definition": "AI drafts/renders a voice message in the authorizing operator's own explicitly-authorized voice, intended for delivery to another person. This is the HIGHEST-RISK voice category. Nothing in this packet renders audio, sends a message, or executes a voice model — it is the governance-and-consent design only.",
+  "binds_to": {
+    "taxonomy_source": "docs/VOICE_MESSAGE_CONTRACT.md voice_taxonomy (category: AIOutboundVoiceMessage)",
+    "canonical_taxonomy_json": "data/umh/voice/voice_message_contract.json voice_taxonomy.categories.AIOutboundVoiceMessage",
+    "credential_law": ".claude/rules/credential-injection.md",
+    "mutation_pattern_reference": "substrate/organism/mutation_registry.py (MutationSpec shape) + transports/api/governed.py (governed_mutation entrypoint)"
+  },
+  "activation_gate": {
+    "activation_authorized": false,
+    "rendering_authorized": false,
+    "send_authorized": false,
+    "clone_execution_authorized": false,
+    "mutation_registration_authorized": false,
+    "note": "This artifact DESIGNS a governed mutation and an authorization/approval model. It authorizes none of it. No mutation is registered in mutation_registry.py by this packet."
+  },
+
+  "hard_requirements": {
+    "note": "These five are BINDING and HARD. No downstream packet may weaken, remove, or make optional any of them. Each is phrased as a hard requirement (MUST / never / prohibited).",
+    "HR1_approval_before_send": {
+      "id": "HR1",
+      "requirement": "The authorizing operator's explicit approval is REQUIRED before ANY external send. This is a HELD gate, never an auto-send. Rendering produces a HELD artifact that sits at AWAITING_APPROVAL; the system MUST NOT transmit to any recipient until the operator explicitly approves that specific rendered message.",
+      "phrasing": "MUST have explicit operator approval before any external send; a held gate; never auto-send",
+      "hard": true
+    },
+    "HR2_full_audit_trail": {
+      "id": "HR2",
+      "requirement": "A full proof/audit trail is REQUIRED for every rendered message: who authorized the voice, under which grant, what text was rendered, which voice model/provider was used, who approved the send, when, to whom (recipient identity), and the disclosure applied. The audit record MUST be created before send and MUST be immutable after.",
+      "phrasing": "MUST maintain a full proof/audit trail for every render and every send",
+      "hard": true
+    },
+    "HR3_no_covert_impersonation": {
+      "id": "HR3",
+      "requirement": "NO covert impersonation. Every outbound AI-rendered voice message MUST carry a recipient-facing disclosure that it was AI-rendered in the authorizing operator's voice. Sending an AI-rendered voice message that the recipient would reasonably believe is a live human recording, without disclosure, is PROHIBITED.",
+      "phrasing": "no covert impersonation; recipient-facing disclosure is mandatory",
+      "hard": true
+    },
+    "HR4_no_third_party_cloning": {
+      "id": "HR4",
+      "requirement": "NO third-party voice cloning. ONLY the authorizing operator's OWN voice may be modeled, and ONLY with an explicit, recorded VoiceAuthorizationGrant for that voice model. Cloning, rendering, or sending in any other person's voice is PROHIBITED with no exception.",
+      "phrasing": "no third-party voice cloning; only the operator's own explicitly-authorized voice",
+      "hard": true
+    },
+    "HR5_external_send_is_high_risk_governed_mutation": {
+      "id": "HR5",
+      "requirement": "External send is a HIGH-risk governed mutation with EXTERNAL blast radius and require_approval=true. It MUST route through the canonical governed spine (governed_mutation). There is no ungoverned or direct send path.",
+      "phrasing": "external send MUST be a high-risk, EXTERNAL-blast-radius, approval-required governed mutation",
+      "hard": true
+    }
+  },
+
+  "voice_authorization_model": {
+    "description": "The authorizing operator authorizes use of THEIR OWN voice. This is distinct from send approval: authorization licenses the existence and use of the voice model; send approval gates each individual outbound message.",
+    "VoiceAuthorizationGrant": {
+      "description": "A recorded, revocable, per-purpose consent that the authorizing operator's own voice may be modeled and used to render outbound messages. Design-only shape; nothing here creates one.",
+      "fields": {
+        "grant_id": "vag-<uuid>",
+        "authorizing_principal": "resolved server-side (authenticated Clerk principal) — never a hardcoded literal; the operator who OWNS the voice being authorized",
+        "voice_model_ref": "opaque reference to the authorized voice model artifact (never raw model bytes in this record)",
+        "self_voice_attestation": "bool — MUST be true; attests the voice being authorized is the authorizing principal's OWN voice (HR4)",
+        "purpose_scope": "enum/list — per-purpose scope for which rendering is authorized (e.g. outbound_voice_message); authorization is NOT blanket",
+        "consent_recorded_at": "ISO-8601 UTC — when the authorizing operator granted",
+        "consent_evidence_ref": "reference to the recorded consent/authorization evidence (how the operator expressed authorization)",
+        "revocable": "const true — the grant is always revocable",
+        "revoked_at": "ISO-8601 UTC | null — once set, all rendering and sending under this grant is refused fail-closed",
+        "expires_at": "ISO-8601 UTC | null — optional bounded lifetime"
+      },
+      "invariants": [
+        "self_voice_attestation MUST be true — a grant for any voice other than the authorizing principal's own is invalid (HR4)",
+        "revocation is immediate and fail-closed: after revoked_at, no render and no send may proceed under this grant",
+        "authorization is per-purpose, never blanket — a grant scoped to one purpose does not authorize another",
+        "the grant licenses the voice model's use; it is NOT a send approval — each outbound message still requires HR1 send approval",
+        "identity is resolved server-side; the authorizing_principal is never stamped from client input"
+      ]
+    },
+    "third_party_cloning_prohibition": {
+      "statement": "Third-party voice cloning is PROHIBITED. Only the authorizing operator's own voice, under a VoiceAuthorizationGrant with self_voice_attestation=true, may be modeled or rendered. There is no code path, flag, or mode in this design that renders another person's voice.",
+      "enforcement_design": "render precondition checks self_voice_attestation=true on a live (non-revoked, non-expired, purpose-matching) grant; absence or falsity fails closed with no render",
+      "hard": true
+    }
+  },
+
+  "approval_gate": {
+    "description": "The held-gate lifecycle. Render never sends. Send is the operator's explicit act.",
+    "lifecycle": [
+      "authorized",
+      "render_requested",
+      "rendering",
+      "rendered_held",
+      "awaiting_approval",
+      "approved",
+      "sent",
+      "rejected",
+      "revoked",
+      "failed"
+    ],
+    "flow": "authorize (VoiceAuthorizationGrant) -> render_requested -> rendering -> rendered_held (AWAITING_APPROVAL) -> operator explicitly approves -> proof recorded -> send (governed mutation) -> sent; OR operator rejects -> rejected (no send, no trace to recipient)",
+    "rules": [
+      "render produces a HELD artifact at AWAITING_APPROVAL — rendering NEVER sends (HR1)",
+      "no message reaches any recipient until the authorizing operator explicitly approves that specific rendered artifact (HR1)",
+      "auto_send is not a field, not a mode, and MUST NEVER be added — there is no auto-send path (HR1)",
+      "approval is per-message: approving one rendered artifact never pre-approves the next",
+      "reject or revoke from any pre-sent state discards the rendered artifact and produces NO outbound send",
+      "the send step is the governed mutation (ai_outbound_voice_send) — the gate is enforced by the spine, not by UI alone (HR5)"
+    ],
+    "held_gate": {
+      "state": "rendered_held / awaiting_approval",
+      "no_auto_advance": "MUST NOT auto-advance past awaiting_approval; only an explicit operator approval decision advances it (HR1)"
+    }
+  },
+
+  "audit_proof_trail": {
+    "description": "The shape of the required proof/audit trail (HR2). Every render and every send appends an immutable record.",
+    "AiOutboundVoiceProofRecord": {
+      "fields": {
+        "proof_id": "aovp-<uuid>",
+        "grant_id": "vag-<id> — the VoiceAuthorizationGrant the render ran under",
+        "render_id": "aovr-<id> — the specific rendered artifact",
+        "authorizing_principal": "server-resolved principal who owns the voice",
+        "approving_principal": "server-resolved principal who approved the send (HR1) — recorded, never client-stamped",
+        "voice_model_ref": "which voice model rendered the audio",
+        "provider": "which TTS/voice provider executed the render (design placeholder; provider creds via 1Password per HR/credential law)",
+        "rendered_text": "the exact text rendered to speech (retained for audit; treated as operator data)",
+        "recipient_identity": "who the message was addressed to — required in the record before send (HR2)",
+        "disclosure_applied": "the recipient-facing AI-voice disclosure that was attached (HR3)",
+        "approved_at": "ISO-8601 UTC | null",
+        "sent_at": "ISO-8601 UTC | null",
+        "decision": "enum: approved | rejected | revoked",
+        "audio_artifact_ref": "pointer to the rendered audio (tenant/session-scoped, authenticated retrieval; bytes never logged)",
+        "created_at": "ISO-8601 UTC"
+      },
+      "invariants": [
+        "an AiOutboundVoiceProofRecord MUST exist before any send is permitted (HR2)",
+        "the record is immutable after write — append-only audit, never edited in place",
+        "recipient_identity and disclosure_applied are REQUIRED fields on any record whose decision is 'approved' (HR2, HR3)",
+        "audio bytes and any provider secrets are never written into the proof record or logs — only references"
+      ]
+    },
+    "logging_law": "audio bytes never logged; rendered_text never logged at INFO (<=40-char DEBUG previews only, mirroring the voice storage law); provider credentials never logged"
+  },
+
+  "anti_impersonation_disclosure_policy": {
+    "description": "Recipient-facing disclosure is mandatory (HR3). This specifies what disclosure means and when it applies.",
+    "policy": "Every outbound AI-rendered voice message MUST be accompanied by a recipient-facing disclosure that the audio was AI-rendered in the authorizing operator's voice. The disclosure is part of the message payload, not an optional add-on.",
+    "disclosure_channels": [
+      "in-message audio preamble or trailing statement, and/or",
+      "accompanying text/caption on the message delivery surface"
+    ],
+    "requirements": [
+      "no covert impersonation: an AI-rendered message MUST NEVER be delivered in a way a reasonable recipient would take as a live human recording without the disclosure (HR3)",
+      "the exact disclosure applied is recorded in the proof trail (disclosure_applied) before send (HR2, HR3)",
+      "if the delivery surface cannot carry the disclosure, the send is refused fail-closed — no disclosure, no send"
+    ],
+    "hard": true
+  },
+
+  "governed_mutation_design": {
+    "note": "DESIGN ONLY. This mutation is NOT registered in mutation_registry.py by this packet. Registering it, wiring it, or executing it is out of scope and forbidden here.",
+    "registered": false,
+    "spec_design": {
+      "name": "ai_outbound_voice_send",
+      "action_type": "NETWORK",
+      "risk_level": "high",
+      "blast_radius": "external",
+      "require_approval": true,
+      "reversibility": "irreversible",
+      "verification_required": true,
+      "rollback_supported": false,
+      "degraded_mode_allowed": false,
+      "allowed_modes_design": "ASSISTED only — never AUTONOMOUS; a human approval is structurally required (HR1)",
+      "description": "Send an AI-rendered outbound voice message (rendered in the authorizing operator's own authorized voice) to an external recipient — approval-required, EXTERNAL blast radius, high risk; the held gate is enforced by the governed spine",
+      "rationale": [
+        "risk_level=high + blast_radius=external + require_approval=true encode HR5 and HR1 at the spine level",
+        "degraded_mode_allowed=false: this MUST NEVER execute when the control plane is down (fail closed) — unlike low-risk local mutations",
+        "irreversible: an external send cannot be recalled, which is exactly why the held approval gate precedes it"
+      ]
+    },
+    "entrypoint_design": "governed_mutation(mutation_name='ai_outbound_voice_send', intent=..., execute_fn=<send>, source='cockpit', require_approval=True, verification_fn=<disclosure+grant+proof present>, metadata={grant_id, render_id, recipient, disclosure}) — illustrative shape only; not called by this packet",
+    "not_done_here": [
+      "no MutationSpec constant added to substrate/organism/mutation_registry.py",
+      "no registration in MutationRegistry._register_builtins",
+      "no route handler, no execute_fn, no provider call"
+    ]
+  },
+
+  "secret_credential_handling": {
+    "law": ".claude/rules/credential-injection.md (Credential Injection Law)",
+    "requirements": [
+      "any TTS/voice-provider credentials (API keys, tokens) flow through 1Password — resolved via `op run --env-file=<tpl>` with op:// URIs, never hardcoded, never plaintext CLI args, never committed",
+      "provider credentials never appear in the proof record, logs, artifact metadata, or the JSON of this design",
+      "voice model artifacts and provider secrets are referenced, never inlined",
+      "validate_credential_source() (substrate/execution/credential_gate.py) is the substrate check to call before any authenticated provider use — design reference; not invoked here"
+    ]
+  },
+
+  "threat_model": {
+    "description": "What could go wrong and which gate prevents it. Every threat maps to a hard requirement.",
+    "threats": [
+      {
+        "threat": "Covert impersonation — recipient believes a live human sent the audio",
+        "prevented_by": "HR3 mandatory recipient-facing disclosure; disclosure recorded in proof before send; no disclosure => no send"
+      },
+      {
+        "threat": "Third-party voice cloning — someone else's voice is modeled/rendered",
+        "prevented_by": "HR4 self_voice_attestation=true precondition on a live grant; no render path for non-self voices"
+      },
+      {
+        "threat": "Auto-send / accidental blast — a rendered message goes out without human review",
+        "prevented_by": "HR1 held gate at awaiting_approval; no auto_send field/mode; per-message explicit approval; HR5 spine-enforced require_approval"
+      },
+      {
+        "threat": "Ungoverned or degraded-mode send when the control plane is down",
+        "prevented_by": "HR5 governed mutation with degraded_mode_allowed=false — fails closed, no send"
+      },
+      {
+        "threat": "Credential leak — provider API key exposed in logs/records/CLI",
+        "prevented_by": "Credential Injection Law: 1Password op run injection; secrets never logged or inlined"
+      },
+      {
+        "threat": "Repudiation — no record of who authorized/approved/sent what to whom",
+        "prevented_by": "HR2 immutable AiOutboundVoiceProofRecord created before send with authorizing + approving principal, recipient, disclosure"
+      },
+      {
+        "threat": "Scope creep — a blanket grant used for unauthorized purposes",
+        "prevented_by": "per-purpose VoiceAuthorizationGrant; purpose_scope checked at render; revocable and expirable"
+      }
+    ]
+  },
+
+  "rollback": {
+    "description": "Because this is compile-only, rollback is primarily documentary; the design's own rollback for a future implementation is included.",
+    "compile_rollback": "revert the three artifacts (this JSON, docs/AI_OUTBOUND_VOICE_COMPILE.md, the test) — nothing is wired, so removal is a clean git revert with zero runtime effect",
+    "future_implementation_rollback_design": [
+      "grant revocation: set revoked_at on the VoiceAuthorizationGrant — immediately refuses all render and send fail-closed",
+      "feature flag off: the ai_outbound_voice_send mutation, once (in a future authorized packet) registered, can be gated behind a flag whose off-state means no render, no send",
+      "no recall of already-sent audio is possible (external, irreversible) — which is why HR1's held gate is the real protection, not rollback"
+    ]
+  },
+
+  "forbidden_in_this_packet": [
+    "rendering any audio",
+    "sending any message to any recipient",
+    "executing or training any voice model / clone",
+    "registering ai_outbound_voice_send in substrate/organism/mutation_registry.py",
+    "calling any TTS/voice provider",
+    "writing any projection or live DB",
+    "weakening, removing, or making optional any of HR1–HR5",
+    "any activation-authorizing or implementation-authorizing language"
+  ]
+}
