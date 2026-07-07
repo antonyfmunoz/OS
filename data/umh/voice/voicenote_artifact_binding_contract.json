@@ -35,15 +35,18 @@
   },
   "binding_error_taxonomy": {
     "law": "NEVER show 'No audio was received' / 'no audio' when draft.audioBlob.size > 0. Emit a precise, distinct code.",
+    "authority": "This is the ONE canonical local error vocabulary. No packet (#253/#254/#255 or later) may introduce a different local error code. The controller emits ONLY these; the RightRail failure map covers EXACTLY these; new codes require editing THIS list first.",
     "codes": {
-      "LOCAL_AUDIO_PRESENT_UPLOAD_MISSING": "blob exists locally but nothing was sent to the server",
+      "LOCAL_AUDIO_PRESENT_UPLOAD_MISSING": "blob exists locally but the upload request carried no audio field",
       "LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY": "sent, but the server received 0 bytes",
       "AUDIO_ARTIFACT_REF_NOT_FOUND": "artifact_ref referenced but not resolvable server-side",
       "MISSING_AUDIO_FIELD": "the draft has no audio field at all",
-      "EMPTY_AUDIO_BLOB": "blob present but size 0",
+      "EMPTY_AUDIO_BLOB": "blob present but size 0 (NEVER used when blob.size > 0 / playback works)",
       "UNSUPPORTED_AUDIO_FORMAT": "container/codec not decodable",
-      "DECODE_FAILED": "decode of a real blob failed",
-      "STT_FAILED": "engine errored"
+      "DECODE_FAILED": "decode of a real (size > 0) blob failed",
+      "SILENT_AUDIO": "decoded audio is present but effectively silent (mean energy below floor)",
+      "VAD_NO_SPEECH": "decoded, non-silent audio, but STT found no speech",
+      "STT_FAILED": "the STT engine itself errored"
     }
   },
   "transcript_dropdown_ui": {

@@ -48,10 +48,9 @@ def test_blob_is_single_source_of_truth():
     assert "delete" in lifecycle and "never" in lifecycle.lower()
 
 
-def test_binding_taxonomy_has_the_local_present_codes():
-    c = _load()
-    codes = c["binding_error_taxonomy"]["codes"]
-    for code in (
+# The ONE canonical local error vocabulary shared across #252/#253/#254/#255.
+CANONICAL_CODES = frozenset(
+    {
         "LOCAL_AUDIO_PRESENT_UPLOAD_MISSING",
         "LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY",
         "AUDIO_ARTIFACT_REF_NOT_FOUND",
@@ -59,11 +58,24 @@ def test_binding_taxonomy_has_the_local_present_codes():
         "EMPTY_AUDIO_BLOB",
         "UNSUPPORTED_AUDIO_FORMAT",
         "DECODE_FAILED",
+        "SILENT_AUDIO",
+        "VAD_NO_SPEECH",
         "STT_FAILED",
-    ):
-        assert code in codes, f"missing binding code {code}"
+    }
+)
+
+
+def test_binding_taxonomy_is_exactly_the_canonical_ten():
+    c = _load()
+    codes = set(c["binding_error_taxonomy"]["codes"].keys())
+    assert codes == CANONICAL_CODES, (
+        f"contract taxonomy must be EXACTLY the canonical set; "
+        f"extra={codes - CANONICAL_CODES} missing={CANONICAL_CODES - codes}"
+    )
     # The law: never "no audio" when a blob is present.
     assert "size > 0" in c["binding_error_taxonomy"]["law"]
+    # Declared authoritative — no packet may fork the vocabulary.
+    assert "canonical" in c["binding_error_taxonomy"]["authority"].lower()
 
 
 def test_mobile_consent_is_single_gesture_no_fake_consent():
