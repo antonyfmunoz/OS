@@ -150,10 +150,15 @@ def test_only_push_to_talk_is_grantable_in_this_packet(tmp_path):
 # ── 3. Consent write is governed (no ungoverned append) ───────────────────────
 
 
-class _FakeResponse:
-    def __init__(self, executed: bool, reason: str = "") -> None:
-        self.executed = executed
-        self.reason = reason
+# The fake runner returns the REAL MutationResponse so these tests pin the
+# actual router contract (field: `success`). #230 regression: a hand-rolled
+# fake used a nonexistent `executed` attr, the routes checked the same wrong
+# attr, and live governed grants reported as refusals while persisting.
+from substrate.organism.mutation_router import MutationResponse  # noqa: E402
+
+
+def _real_response(success: bool, rejected_reason: str = "") -> MutationResponse:
+    return MutationResponse(success=success, rejected_reason=rejected_reason)
 
 
 def test_grant_routes_through_governed_runner(tmp_path, monkeypatch):
@@ -166,12 +171,27 @@ def test_grant_routes_through_governed_runner(tmp_path, monkeypatch):
     def fake_runner(**kwargs):
         captured["mutation_name"] = kwargs["mutation_name"]
         kwargs["execute_fn"]()
-        return _FakeResponse(executed=True)
+        return _real_response(success=True)
 
     out = governed_consent_grant(_PRINCIPAL, _DEVICE, _PTT, mutation_runner=fake_runner)
     assert captured["mutation_name"] == GRANT_MUTATION_NAME
     assert out["granted"] is True and out["active"] is True
     assert out["grant"]["activation_mode"] == _PTT
+
+
+def test_grant_success_field_matches_real_router_contract():
+    """#230 regression pin: the routes must read the field the REAL
+    MutationResponse defines (`success`), not an invented one. A successful
+    response object must be interpreted as success."""
+    fields = set(MutationResponse.__dataclass_fields__)
+    assert "success" in fields
+    assert "executed" not in fields  # the attr #230 wrongly checked
+
+    src = Path(_WORKTREE, "transports", "api", "cockpit_voice_consent_routes.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'getattr(response, "success"' in src
+    assert 'getattr(response, "executed"' not in src
 
 
 def test_rejected_governed_grant_persists_nothing(tmp_path, monkeypatch):
@@ -182,10 +202,11 @@ def test_rejected_governed_grant_persists_nothing(tmp_path, monkeypatch):
 
     def rejecting_runner(**kwargs):
         # Governed gate rejects: execute_fn is NEVER called.
-        return _FakeResponse(executed=False, reason="rejected by governance")
+        return _real_response(success=False, rejected_reason="rejected by governance")
 
     out = governed_consent_grant(_PRINCIPAL, _DEVICE, _PTT, mutation_runner=rejecting_runner)
     assert out["granted"] is False
+    assert out["error"] == "rejected by governance"
     store = VoiceConsentStore(store_path=str(tmp_path / "consent_grants.json"))
     assert store.active_grant(_PRINCIPAL, _DEVICE, _PTT) is None
 
@@ -203,7 +224,7 @@ def test_revoke_routes_through_governed_runner(tmp_path, monkeypatch):
     def fake_runner(**kwargs):
         names.append(kwargs["mutation_name"])
         kwargs["execute_fn"]()
-        return _FakeResponse(executed=True)
+        return _real_response(success=True)
 
     governed_consent_grant(_PRINCIPAL, _DEVICE, _PTT, mutation_runner=fake_runner)
     out = governed_consent_revoke(_PRINCIPAL, _DEVICE, _PTT, mutation_runner=fake_runner)
