@@ -264,3 +264,33 @@ def test_recording_triggers_no_approval_or_held_gate():
     # The consent adapter's ONLY grant is the INPUT consent (push_to_talk),
     # never an execution/action approval.
     assert "activationMode: 'push_to_talk'" in adapter
+
+
+def test_startcapture_gives_immediate_feedback_before_first_await():
+    """P4S-31D1-E first-click fix: startCapture must flip micState OUT of 'idle'
+    SYNCHRONOUSLY, before its first `await`. Otherwise the whole async chain
+    (getConsent → browser permission → grant → WS connect) runs while the button
+    still reads 'idle' — it looks dead on first click, and a second click
+    re-enters startCapture concurrently (the `micState === 'idle'` guard is still
+    true). Setting a non-idle state up front gives instant feedback AND makes the
+    guard block re-entry."""
+    src = _adapter()
+    # Isolate the startCapture body up to its FIRST await.
+    body = src.split("async function startCapture")[1]
+    before_first_await = body.split("await ", 1)[0]
+    assert (
+        "setMicState('requesting_permission')" in before_first_await
+        or "setMicState('connecting_voice_ws')" in before_first_await
+    ), (
+        "startCapture must set a non-idle micState before its first await "
+        "(instant first-click feedback + concurrent-reentry guard)"
+    )
+
+
+def test_mic_toggle_guard_blocks_reentry():
+    """The click handler only enters startCapture when micState is 'idle', so the
+    synchronous non-idle flip above prevents a concurrent second-click re-entry."""
+    rr = (_COCKPIT / "components" / "RightRail.tsx").read_text(encoding="utf-8")
+    assert "micState === 'idle'" in rr, (
+        "handleMicToggle must guard startCapture on micState === 'idle'"
+    )
