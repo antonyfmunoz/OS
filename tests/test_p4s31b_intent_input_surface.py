@@ -366,8 +366,15 @@ def test_submit_and_decide_routes_reach_proof_recorded(tmp_path, monkeypatch):
     loop_id = submitted["loop_id"]
     assert submitted["stage"] == IntentLoopStage.AWAITING_APPROVAL.value
 
-    # Read surface reflects the held loop.
+    # Read surface reflects the held loop. The hardening packet
+    # (P4S-31C-RUNTIME-READ-PATH-HARDENING-001) made this route async —
+    # run the coroutine when calling the handler directly.
+    import asyncio as _asyncio
+    import inspect as _inspect
+
     surface = read()
+    if _inspect.iscoroutine(surface):
+        surface = _asyncio.run(surface)
     assert any(lp["loop_id"] == loop_id for lp in surface["loops"])
     held = next(lp for lp in surface["loops"] if lp["loop_id"] == loop_id)
     assert held["stage"] == IntentLoopStage.AWAITING_APPROVAL.value
@@ -382,6 +389,11 @@ def test_submit_and_decide_routes_reach_proof_recorded(tmp_path, monkeypatch):
 
     # Read surface reflects the proof.
     surface2 = read()
+    import asyncio as _asyncio2
+    import inspect as _inspect2
+
+    if _inspect2.iscoroutine(surface2):
+        surface2 = _asyncio2.run(surface2)
     proven = next(lp for lp in surface2["loops"] if lp["loop_id"] == loop_id)
     assert proven["stage"] == IntentLoopStage.PROOF_RECORDED.value
     assert proven["proof"] is not None
