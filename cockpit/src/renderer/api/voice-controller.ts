@@ -24,6 +24,38 @@ import { useVoiceMessageStore, VAD_CONFIG } from '../stores/voiceMessageStore'
 import { unlockAudioForIOS, setPlaybackCallbacks, cancelPlayback, resetPlayback } from './tts-playback-controller'
 import { createTurn, updatePartial, cancelTurn, getCurrentTurn } from './voice-turn-assembler'
 
+/**
+ * P4S-31D1-E artifact-binding error taxonomy. The locally-captured MediaRecorder
+ * blob is the SINGLE SOURCE OF TRUTH for transcription — not just playback. When
+ * transcription cannot proceed, we emit ONE of these DISTINCT codes into the
+ * draft error so the operator sees the real cause. These NEVER collapse to a
+ * bare missing-audio claim while a playable blob exists locally.
+ *
+ * Naming note: the D1-E packet refers to the draft object as `VoiceNoteDraft`.
+ * That is the SAME object as `VoiceMessageDraft` in voiceMessageStore.ts — a doc
+ * alias only. Do NOT rename the store type; `VoiceNoteDraft == VoiceMessageDraft`.
+ */
+export const VOICE_ARTIFACT_ERROR = {
+  /** Blob exists (size>0) but nothing was streamed to the STT WS. */
+  LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: 'LOCAL_AUDIO_PRESENT_UPLOAD_MISSING',
+  /** PCM was streamed but the server saw 0 bytes / no audio energy. */
+  LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: 'LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY',
+  /** The referenced audio artifact could not be located for transcription. */
+  AUDIO_ARTIFACT_REF_NOT_FOUND: 'AUDIO_ARTIFACT_REF_NOT_FOUND',
+  /** The draft carried no audio field at all (blob null). */
+  MISSING_AUDIO_FIELD: 'MISSING_AUDIO_FIELD',
+  /** The audio blob is present but zero-length. */
+  EMPTY_AUDIO_BLOB: 'EMPTY_AUDIO_BLOB',
+  /** The blob mime type is absent or not a decodable audio container. */
+  UNSUPPORTED_AUDIO_FORMAT: 'UNSUPPORTED_AUDIO_FORMAT',
+  /** WebAudio could not decode the blob to PCM. */
+  DECODE_FAILED: 'DECODE_FAILED',
+  /** The STT WS path failed / timed out after valid PCM was sent. */
+  STT_FAILED: 'STT_FAILED',
+} as const
+
+export type VoiceArtifactErrorCode = keyof typeof VOICE_ARTIFACT_ERROR
+
 let client: VoiceWsClient | null = null
 let cleanups: (() => void)[] = []
 let chatUnsub: (() => void) | null = null
@@ -186,15 +218,66 @@ function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): voi
 
   vms.finalizeActiveDraft(finalizedBy, durationMs, speechStartTs, now)
   useVoiceStore.getState().setMicState('transcribing')
+  // The blob is the source of truth for transcription; the draft it binds to is
+  // fixed now, before completeActiveTranscript clears activeDraftId.
+  const finalizingDraftId = useVoiceMessageStore.getState().activeDraftId
 
   if (client) client.stopMic()
 
   // Stop the recorder, then attach its blob (audio preserved regardless of STT).
   _stopRecorder((blob) => {
     if (blob) useVoiceMessageStore.getState().attachAudio(blob)
-    // A final WS transcript may have already landed while the recorder flushed.
+
+    // FAST PATH: the live WS PCM stream already produced a final transcript —
+    // use it and we're done.
     if (finalTranscriptText) {
       useVoiceMessageStore.getState().completeActiveTranscript(finalTranscriptText, finalConfidence)
+      useVoiceStore.getState().setMicState('idle')
+      return
+    }
+
+    // BLOB SOURCE-OF-TRUTH FALLBACK (P4S-31D1-E): the WS PCM path delivered no
+    // transcript (Safari/AudioContext timing). The locally-captured blob played
+    // back fine, so it is the reliable artifact — transcribe FROM IT using the
+    // SAME shared machinery the retry uses. NEVER report "no audio" here while a
+    // size>0 blob exists.
+    const draftId = finalizingDraftId
+    if (blob && blob.size > 0 && draftId) {
+      void _transcribeBlob(draftId, blob).then((res) => {
+        // Guard against a late WS final that landed while the blob transcribed.
+        if (finalTranscriptText) {
+          useVoiceMessageStore.getState().completeActiveTranscript(finalTranscriptText, finalConfidence)
+          useVoiceStore.getState().setMicState('idle')
+          return
+        }
+        if (res.ok) {
+          useVoiceMessageStore.getState().completeActiveTranscript(res.text, res.confidence)
+          useVoiceStore.getState().setMicState('idle')
+          return
+        }
+        // Precise failure — audio is preserved, draft stays retryable.
+        const FINALIZE_CODE: Record<string, string> = {
+          WS_UNAVAILABLE: 'STT_FAILED',
+          DECODE_FAILED: VOICE_ARTIFACT_ERROR.DECODE_FAILED,
+          STT_FAILED: VOICE_ARTIFACT_ERROR.STT_FAILED,
+          TIMEOUT: 'STT_FAILED',
+          LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING,
+          LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY,
+        }
+        useVoiceMessageStore.getState().markTranscriptFailed(FINALIZE_CODE[res.code] ?? res.code)
+        useVoiceStore.getState().setMicState('idle')
+      })
+      return
+    }
+
+    // No usable blob AND no WS transcript — this is the ONLY branch that may
+    // report a missing/empty artifact, and it uses a precise code (never a bare
+    // missing-audio claim while a playable blob exists).
+    if (draftId) {
+      const code = !blob
+        ? VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
+        : VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
+      useVoiceMessageStore.getState().markTranscriptFailed(code)
       useVoiceStore.getState().setMicState('idle')
     }
   })
@@ -767,45 +850,79 @@ async function _resampleToPcm16(blob: Blob): Promise<Int16Array[]> {
 }
 
 /**
- * Lane E. Re-run STT over a failed draft's stored audio: decode → resample →
- * stream over the existing voice WS (mic_start/mic_stop) → collect the final
- * transcript → completeRetry. On WS failure: markRetryFailed, audio kept.
+ * Outcome of transcribing a blob over the WS-STT path. Distinct from the store
+ * mutations so the SAME decode/stream machinery drives both the finalize
+ * fallback (activeDraft actions) and the retry (per-draftId actions) without
+ * either caller reimplementing the WS transport (codebase quality: one helper).
  */
-export async function retryDraftTranscription(draftId: string): Promise<void> {
-  const vms = useVoiceMessageStore.getState()
-  const draft = vms.drafts.find((d) => d.draft_id === draftId)
-  if (!draft) return
-  if (!draft.audioBlob) {
-    vms.markRetryFailed(draftId, 'RETRY_NO_AUDIO')
-    return
-  }
+type BlobTranscribeResult =
+  | { ok: true; text: string; confidence: number | null }
+  | { ok: false; code: VoiceArtifactErrorCode | 'WS_UNAVAILABLE' | 'DECODE_FAILED' | 'TIMEOUT' }
 
-  vms.beginRetry(draftId)
+/**
+ * Binding pre-flight for blob-sourced transcription. The locally-captured blob
+ * is the source of truth — before we stream it we assert it is a real,
+ * decodable artifact bound to THIS draft. Returns a precise
+ * VoiceArtifactErrorCode on violation, or null when the blob is sound.
+ * NEVER returns a "no audio" verdict while a size>0 blob is present.
+ */
+function _assertTranscribableBlob(
+  draftId: string,
+  blob: Blob | null,
+): VoiceArtifactErrorCode | null {
+  if (!draftId) return VOICE_ARTIFACT_ERROR.AUDIO_ARTIFACT_REF_NOT_FOUND
+  if (!blob) return VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
+  if (blob.size <= 0) return VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
+  // mimeType must be present AND an audio container we can decode.
+  const mime = (blob.type || '').split(';')[0].trim().toLowerCase()
+  if (!mime || !mime.startsWith('audio/')) {
+    return VOICE_ARTIFACT_ERROR.UNSUPPORTED_AUDIO_FORMAT
+  }
+  return null
+}
+
+/**
+ * SINGLE shared decode→stream→collect helper (P4S-31D1-E). Decodes the blob to
+ * 16kHz PCM16, streams it over the existing voice WS (mic_start / pcm* /
+ * mic_stop — the same frames the live capture uses so it carries the same
+ * draft_id turn), and resolves with the first final transcript. Used by BOTH
+ * the finalize fallback and the Lane E retry — the decode/stream logic lives
+ * here ONCE, never duplicated across the two callers.
+ */
+async function _transcribeBlob(draftId: string, blob: Blob): Promise<BlobTranscribeResult> {
+  // Binding assertions: real artifact, non-empty, decodable mime, bound to draft.
+  const bindErr = _assertTranscribableBlob(draftId, blob)
+  if (bindErr) {
+    log('transcribe_blob_binding_failed', draftId, bindErr)
+    return { ok: false, code: bindErr }
+  }
 
   let c: VoiceWsClient
   try {
     c = await ensureClient()
   } catch {
-    vms.markRetryFailed(draftId, 'RETRY_WS_UNAVAILABLE')
-    return
+    return { ok: false, code: 'WS_UNAVAILABLE' }
   }
 
   let chunks: Int16Array[]
   try {
-    chunks = await _resampleToPcm16(draft.audioBlob)
+    chunks = await _resampleToPcm16(blob)
   } catch (e) {
-    log('retry_decode_failed', e)
-    vms.markRetryFailed(draftId, 'RETRY_DECODE_FAILED')
-    return
+    log('transcribe_blob_decode_failed', draftId, e)
+    return { ok: false, code: 'DECODE_FAILED' }
   }
 
-  // Collect the retry transcript from the WS transcript stream.
+  // Nothing decoded to PCM — the blob had no audio energy the server can use.
+  if (chunks.length === 0 || chunks.every((ch) => ch.length === 0)) {
+    return { ok: false, code: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY }
+  }
+
   let settled = false
-  const done = new Promise<void>((resolve) => {
+  const result = await new Promise<BlobTranscribeResult>((resolve) => {
     const offTranscript = c.on('transcript', (data) => {
       const text = data.text as string
       const isFinal = data.final as boolean
-      const confidence = typeof data.confidence === 'number' ? (data.confidence as number) : undefined
+      const confidence = typeof data.confidence === 'number' ? (data.confidence as number) : null
       if (!isFinal) {
         if (text?.trim()) useVoiceMessageStore.getState().updateRetryPartial(draftId, text)
         return
@@ -813,44 +930,75 @@ export async function retryDraftTranscription(draftId: string): Promise<void> {
       if (!text.trim()) return
       if (settled) return
       settled = true
-      void confidence
-      useVoiceMessageStore.getState().completeRetry(draftId, text, 'groq_whisper')
       offTranscript()
       offError()
-      resolve()
+      resolve({ ok: true, text, confidence })
     })
     const offError = c.on('error', () => {
       if (settled) return
       settled = true
-      useVoiceMessageStore.getState().markRetryFailed(draftId, 'RETRY_STT_FAILED')
       offTranscript()
       offError()
-      resolve()
+      resolve({ ok: false, code: 'STT_FAILED' })
     })
     // Bounded wait so a silent server never leaves the draft stuck transcribing.
     setTimeout(() => {
       if (settled) return
       settled = true
-      useVoiceMessageStore.getState().markRetryFailed(draftId, 'RETRY_TIMEOUT')
       offTranscript()
       offError()
-      resolve()
+      resolve({ ok: false, code: 'TIMEOUT' })
     }, 15_000)
-  })
 
-  try {
-    c.sendControl('mic_start')
-    for (const chunk of chunks) c.sendPcm(chunk.buffer)
-    c.sendControl('mic_stop')
-  } catch {
-    if (!settled) {
+    try {
+      c.sendControl('mic_start')
+      for (const chunk of chunks) c.sendPcm(chunk.buffer)
+      c.sendControl('mic_stop')
+    } catch {
+      if (settled) return
       settled = true
-      vms.markRetryFailed(draftId, 'RETRY_WS_UNAVAILABLE')
+      offTranscript()
+      offError()
+      // Streamed nothing: a present blob whose PCM never reached the server.
+      resolve({ ok: false, code: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING })
     }
+  })
+  return result
+}
+
+/**
+ * Lane E. Re-run STT over a failed draft's stored audio via the SHARED
+ * `_transcribeBlob` helper (no duplicated decode/stream logic). On success:
+ * completeRetry. On failure: markRetryFailed with a precise code — audio kept.
+ */
+export async function retryDraftTranscription(draftId: string): Promise<void> {
+  const vms = useVoiceMessageStore.getState()
+  const draft = vms.drafts.find((d) => d.draft_id === draftId)
+  if (!draft) return
+  // Binding: a present, non-empty blob is required — never "no audio" if it exists.
+  const bindErr = _assertTranscribableBlob(draftId, draft.audioBlob)
+  if (bindErr) {
+    vms.markRetryFailed(draftId, bindErr)
     return
   }
 
-  await done
+  vms.beginRetry(draftId)
+
+  const res = await _transcribeBlob(draftId, draft.audioBlob as Blob)
+  if (res.ok) {
+    useVoiceMessageStore.getState().completeRetry(draftId, res.text, 'groq_whisper')
+    return
+  }
+  // Map transport-level outcomes to the retry taxonomy the UI already renders.
+  const RETRY_CODE: Record<string, string> = {
+    WS_UNAVAILABLE: 'RETRY_WS_UNAVAILABLE',
+    DECODE_FAILED: 'RETRY_DECODE_FAILED',
+    STT_FAILED: 'RETRY_STT_FAILED',
+    TIMEOUT: 'RETRY_TIMEOUT',
+    LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING,
+    LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY,
+  }
+  useVoiceMessageStore.getState().markRetryFailed(draftId, RETRY_CODE[res.code] ?? res.code)
 }
 
 export function speakResponse(text: string): void {
