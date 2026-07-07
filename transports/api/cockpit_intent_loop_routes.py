@@ -44,6 +44,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from transports.api.read_path_isolation import isolated_read
+
 logger = logging.getLogger(__name__)
 
 
@@ -137,30 +139,43 @@ def register_intent_loop_routes(router, _require_operator_role, helpers):
     from fastapi import Depends
 
     @router.get("/intent-loop", dependencies=[Depends(_require_operator_role)])
-    def intent_loop():
+    async def intent_loop():
         """MVP operating-loop server truth — P4S-31.
 
         Reflects the substrate-owned intent-loop state: each captured intent, its
         drafted packet, the held/decided approval gate, and any governed proof
         record. Read-only mirror; never mutates. Returns a stable flat dict on
         every path (never a 500).
+
+        P4S-31C: this is the primary hot poll surface. It is now ``async`` and
+        runs its (bounded) read on the dedicated read pool under a short hard
+        timeout, so cockpit polling can NEVER drain the shared AnyIO threadpool
+        by piling up copies of this handler, and a stalled filesystem read
+        cannot wedge the poller. Response shape is unchanged; on
+        timeout/failure it returns the same stable ``error``-shaped dict.
         """
-        try:
+        error_fallback = {
+            "surface": "intent_loop",
+            "connection_status": "error",
+            "total": 0,
+            "awaiting_approval": 0,
+            "proof_recorded": 0,
+            "stage_counts": {},
+            "loops": [],
+            "error": "read surface unavailable",
+        }
+
+        def _read() -> dict:
             from substrate.execution.intent.loop import read_intent_loop_surface
 
             return read_intent_loop_surface()
-        except Exception as e:
-            logger.debug("intent loop read surface failed: %s", e)
-            return {
-                "surface": "intent_loop",
-                "connection_status": "error",
-                "total": 0,
-                "awaiting_approval": 0,
-                "proof_recorded": 0,
-                "stage_counts": {},
-                "loops": [],
-                "error": str(e),
-            }
+
+        return await isolated_read(
+            _read,
+            timeout=5.0,
+            fallback=error_fallback,
+            label="intent_loop_surface",
+        )
 
     @router.post("/intent-loop/submit")
     def intent_loop_submit(

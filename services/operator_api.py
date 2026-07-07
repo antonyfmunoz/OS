@@ -196,6 +196,14 @@ async def lifespan(application):
     if _api_executor is not None:
         _api_executor.shutdown(wait=False)
 
+    # P4S-31C: dedicated read-path isolation pool
+    try:
+        from transports.api.read_path_isolation import shutdown_read_pool
+
+        shutdown_read_pool()
+    except Exception as exc:
+        logger.debug("read pool shutdown failed: %s", exc)
+
     if _loop_registry is not None:
         stopped = _loop_registry.stop_all()
         logger.info("persistent loops stopped: %s", stopped)
@@ -216,8 +224,11 @@ class _RequestTimeoutMiddleware(BaseHTTPMiddleware):
     """
 
     _LONG_TIMEOUT_PATHS = (
-        "/advisor/converse", "/dex/converse", "/chat/converse",
-        "/bootstrap", "/bootstrap-slow",
+        "/advisor/converse",
+        "/dex/converse",
+        "/chat/converse",
+        "/bootstrap",
+        "/bootstrap-slow",
     )
 
     async def dispatch(self, request: Request, call_next):
@@ -460,6 +471,7 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
     def _do_ingest():
         try:
             from substrate.understanding.perception.orchestrator import GenericIngestionOrchestrator
+
             orchestrator = GenericIngestionOrchestrator()
             orchestrator.ingest(source=source, path=path)
             return f"ingestion triggered: {source}", True
@@ -547,6 +559,7 @@ async def voice_tts(request: Request) -> Any:
 
     def _do_tts():
         from substrate.execution.bridge.voice_first import prepare_voice_response
+
         cleaned = prepare_voice_response(text)
         path = _generate_tts(cleaned)
         if not path:
@@ -617,12 +630,14 @@ async def vision_analyze(request: Request) -> dict[str, Any]:
 
     def _do_vision():
         import base64
+
         image_bytes = base64.b64decode(image_b64)
         if len(image_bytes) > _MAX_VISION_FRAME_BYTES:
             return "Image too large (max 2 MB)", False
         vision_prompt = prompt or "Describe what you see in this image concisely."
         try:
             from adapters.models.model_router import call_with_fallback
+
             call_with_fallback(
                 prompt=vision_prompt,
                 task_type="multimodal",
