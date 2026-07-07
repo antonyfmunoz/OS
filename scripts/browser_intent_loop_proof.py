@@ -182,7 +182,11 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                 time.sleep(2)
             # Panel cards render raw_text, NOT loop_id — the unique run_tag in
             # the message is the only reliable row anchor.
-            row_card = page.locator("div.bg-surface-raised").filter(has_text=run_tag)
+            row_card = (
+                page.locator("div.bg-surface-raised")
+                .filter(has_text=run_tag)
+                .filter(has=page.get_by_role("button", name="Approve"))
+            )
             if row_card.count() == 0:
                 palette_toggle = page.locator('button[title="Show palette"]')
                 if palette_toggle.count() > 0:
@@ -202,7 +206,12 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
             # in-flight request); the panel polls every 5-15s.
             row_deadline = time.time() + 150
             while time.time() < row_deadline:
-                if page.locator("div.bg-surface-raised").filter(has_text=run_tag).count() > 0:
+                found = (
+                    page.locator("div.bg-surface-raised")
+                    .filter(has_text=run_tag)
+                    .filter(has=page.get_by_role("button", name="Approve"))
+                )
+                if found.count() > 0:
                     break
                 time.sleep(5)
             shot(page, "03_intent_loop_panel")
@@ -248,13 +257,17 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                 except Exception as diag_exc:  # noqa: BLE001
                     evidence["panel_text"] = f"unavailable: {diag_exc}"
 
-            # Approve THIS run's row card — anchored on the unique run_tag.
-            row_card = page.locator("div.bg-surface-raised").filter(has_text=run_tag)
+            # Approve THIS run's row card — anchored on the unique run_tag AND
+            # the presence of an Approve control (chat bubbles share the same
+            # surface class but carry no decision buttons).
+            row_card = (
+                page.locator("div.bg-surface-raised")
+                .filter(has_text=run_tag)
+                .filter(has=page.get_by_role("button", name="Approve"))
+            )
             if row_card.count() == 0:
-                raise RuntimeError(f"Row card for {run_tag} ({loop_id}) not found in panel")
+                raise RuntimeError(f"Decision row card for {run_tag} ({loop_id}) not found")
             row_approve = row_card.first.get_by_role("button", name="Approve")
-            if row_approve.count() == 0:
-                raise RuntimeError(f"Approve control missing in {run_tag} row card")
             row_approve.first.click()
             stage("governed_approve_clicked", True, f"{run_tag} -> {loop_id}")
 
