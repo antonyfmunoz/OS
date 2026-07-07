@@ -147,27 +147,19 @@ async function grantPushToTalk(): Promise<VoiceConsentState> {
 async function startCapture(): Promise<void> {
   const vs = useVoiceStore.getState()
 
-  // IMMEDIATE feedback (P4S-31D1-E first-click fix): flip micState OUT of 'idle'
-  // synchronously, BEFORE the first await. Otherwise the whole async chain
-  // (getConsent → browser permission → grant → WS connect) runs while the button
-  // still reads 'idle' — it looks dead on first click, and a second click
-  // re-enters startCapture concurrently because the `micState === 'idle'` guard
-  // in handleMicToggle is still true. Setting it here gives instant visual
-  // feedback AND makes the guard block concurrent re-entry.
+  // Instant feedback + concurrent-reentry guard: flip micState OUT of 'idle'
+  // synchronously up front (the handleMicToggle guard is micState==='idle').
   vs.setError(null)
   vs.setMicState('requesting_permission')
 
-  // (1) Returning device: an active grant already exists — straight to capture.
-  const consent = await getConsent('push_to_talk')
-  if (consent.active) {
-    vs.setConsentState('active')
-    _rememberGrantId(consent)
-    await startVoice()
-    return
-  }
-
-  // (2) Fresh device: the mic tap authorizes both layers. Browser permission
-  // first (its own user-gesture prompt), then the server grant automatically.
+  // BROWSER MIC PROMPT FIRST. The browser getUserMedia permission dialog must
+  // fire synchronously inside the user gesture. Awaiting a SERVER round-trip
+  // (getConsent) before it delays the prompt and breaks the gesture-context
+  // requirement — the dialog then appears late or not at all (the button just
+  // reads "Requesting mic…" with no OS prompt). So call the browser layer first;
+  // do ALL UMH server consent work AFTER the user has allowed the mic. Browser
+  // permission is origin-cached, so a returning device sees no dialog and this
+  // path stays instant either way.
   try {
     await ensureBrowserMicPermission()
   } catch (err) {
@@ -187,7 +179,18 @@ async function startCapture(): Promise<void> {
     throw err
   }
 
-  // Browser permission granted → auto-request the UMH grant in the SAME flow.
+  // (1) Returning device: an active grant already exists — straight to capture.
+  // (Runs AFTER the browser prompt so the OS dialog is never gated on the server.)
+  const consent = await getConsent('push_to_talk')
+  if (consent.active) {
+    vs.setConsentState('active')
+    _rememberGrantId(consent)
+    await startVoice()
+    return
+  }
+
+  // (2) Fresh device: browser mic already allowed above → auto-request the UMH
+  // push_to_talk grant in the SAME flow.
   const granted = await grantPushToTalk()
   if (!granted.active) {
     // (3) SERVER grant failed → surface the explicit enable RETRY affordance.

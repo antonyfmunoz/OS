@@ -123,6 +123,20 @@ def test_single_gesture_no_second_manual_click():
     assert "handleEnablePushToTalk" not in between
 
 
+def test_browser_prompt_fires_before_any_server_roundtrip():
+    """The browser getUserMedia prompt must run BEFORE the server consent
+    round-trip (getConsent). Awaiting the server first delays the OS mic dialog
+    and breaks the user-gesture requirement — the button reads 'Requesting mic…'
+    with no prompt. Browser layer first, server consent after."""
+    body = _start_capture_body()
+    perm_idx = body.index("ensureBrowserMicPermission")
+    consent_idx = body.index("getConsent(")
+    assert perm_idx < consent_idx, (
+        "ensureBrowserMicPermission (browser OS prompt) must come BEFORE "
+        "getConsent (server round-trip) so the mic dialog fires in the gesture"
+    )
+
+
 def test_browser_permission_probe_is_a_real_getusermedia():
     """ensureBrowserMicPermission is the FIRST layer — a real getUserMedia
     prompt on the user gesture — not a fake/local success."""
