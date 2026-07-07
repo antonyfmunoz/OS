@@ -294,7 +294,9 @@ def test_recorder_uses_the_shared_capture_stream():
     """Lane C/D: a MediaRecorder is created on the SAME getUserMedia stream the
     PCM16 WS capture uses (startMic returns the stream; controller records it)."""
     ws = _read(_VOICE_WS_PATH)
-    assert "return { stream, trackState" in ws, (
+    # startMic returns an object whose first field is `stream` (single- or
+    # multi-line literal after the P4S-31D1-C diagnostics addition).
+    assert "return {" in ws and "\n      stream," in ws, (
         "voice-ws.startMic must expose the MediaStream for the recorder"
     )
     controller = _read(_CONTROLLER_PATH)
