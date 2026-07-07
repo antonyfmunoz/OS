@@ -45,10 +45,17 @@ export class VoiceWsClient {
   private audioContext: AudioContext | null = null
   private sourceNode: MediaStreamAudioSourceNode | null = null
   private processorNode: ScriptProcessorNode | null = null
+  private _sinkNode: GainNode | null = null
   private _audioQueue: ArrayBuffer[] = []
   private _playing = false
   private _currentAudio: HTMLAudioElement | null = null
   private _chunkCount = 0
+  /** P4S-31D1-C: rolling client-side RMS of the mic stream (0..1). If this
+   * stays 0 while the user speaks, the mic stream is silent — the exact
+   * failure the audio-signal contract catches. Sourced from the SAME PCM the
+   * server sees, so client and server RMS should agree. */
+  private _lastClientRms = 0
+  private _maxClientRms = 0
 
   constructor() {
     this.ws = new WsClient(VOICE_URL)
@@ -86,7 +93,11 @@ export class VoiceWsClient {
     this.ws.disconnect()
   }
 
-  async startMic(): Promise<{ stream: MediaStream; trackState: string }> {
+  async startMic(): Promise<{
+    stream: MediaStream
+    trackState: string
+    diagnostics: Record<string, unknown>
+  }> {
     log('mic_permission_request')
 
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -118,31 +129,97 @@ export class VoiceWsClient {
     }
 
     this.mediaStream = stream
+    this._chunkCount = 0
+    this._lastClientRms = 0
+    this._maxClientRms = 0
     this.audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE })
+
+    // P4S-31D1-C ROOT-CAUSE FIX: a browser AudioContext is created 'suspended'
+    // until resumed after a user gesture. Without this resume the
+    // ScriptProcessor's onaudioprocess NEVER fires — zero PCM chunks reach the
+    // server, RMS is 0, and every recording ends in "No speech detected". The
+    // TTS playback context already resumes (unlockAudioForIOS); the capture
+    // context did not. Resume it explicitly.
+    if (this.audioContext.state === 'suspended') {
+      try {
+        await this.audioContext.resume()
+        log('capture_audio_context_resumed')
+      } catch (e) {
+        log('capture_audio_context_resume_failed', e)
+      }
+    }
+    log('capture_audio_context_state', this.audioContext.state)
+
     this.sourceNode = this.audioContext.createMediaStreamSource(stream)
     this.processorNode = this.audioContext.createScriptProcessor(CHUNK_SIZE, 1, 1)
-    this._chunkCount = 0
 
     this.processorNode.onaudioprocess = (e: AudioProcessingEvent) => {
       const float32 = e.inputBuffer.getChannelData(0)
       const pcm16 = new Int16Array(float32.length)
+      let sumSq = 0
       for (let i = 0; i < float32.length; i++) {
         const s = Math.max(-1, Math.min(1, float32[i]))
         pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff
+        sumSq += s * s
       }
+      // Client RMS on the SAME PCM the server measures (0..1, full-scale=1).
+      const rms = float32.length ? Math.sqrt(sumSq / float32.length) : 0
+      this._lastClientRms = rms
+      if (rms > this._maxClientRms) this._maxClientRms = rms
       this.ws.sendBinary(pcm16.buffer)
       this._chunkCount++
       if (this._chunkCount === 1) log('first_audio_chunk_sent')
       if (this._chunkCount % 100 === 0) log('audio_chunks_sent', this._chunkCount)
     }
 
+    // ScriptProcessor must connect to a destination to fire onaudioprocess, but
+    // routing the mic to the speakers would echo. Sink through a zero-gain node.
+    this._sinkNode = this.audioContext.createGain()
+    this._sinkNode.gain.value = 0
     this.sourceNode.connect(this.processorNode)
-    this.processorNode.connect(this.audioContext.destination)
+    this.processorNode.connect(this._sinkNode)
+    this._sinkNode.connect(this.audioContext.destination)
 
     this.ws.send('mic_start')
     log('mic_start_sent')
 
-    return { stream, trackState: track.readyState }
+    return {
+      stream,
+      trackState: track.readyState,
+      diagnostics: this.captureDiagnostics(),
+    }
+  }
+
+  /**
+   * P4S-31D1-C: non-secret capture diagnostics for one recording. No audio
+   * bytes, no transcript — settings + counters only.
+   */
+  captureDiagnostics(): Record<string, unknown> {
+    const track = this.mediaStream?.getAudioTracks()[0]
+    const settings = track?.getSettings?.() ?? {}
+    return {
+      audio_context_state: this.audioContext?.state ?? 'none',
+      audio_context_sample_rate: this.audioContext?.sampleRate ?? null,
+      chunk_count: this._chunkCount,
+      last_client_rms: Number(this._lastClientRms.toFixed(4)),
+      max_client_rms: Number(this._maxClientRms.toFixed(4)),
+      track_ready_state: track?.readyState ?? 'none',
+      track_muted: track?.muted ?? null,
+      track_enabled: track?.enabled ?? null,
+      track_sample_rate: (settings as MediaTrackSettings).sampleRate ?? null,
+      track_channel_count: (settings as MediaTrackSettings).channelCount ?? null,
+      echo_cancellation: (settings as MediaTrackSettings).echoCancellation ?? null,
+      noise_suppression: (settings as MediaTrackSettings).noiseSuppression ?? null,
+    }
+  }
+
+  /** Live client RMS (0..1) for the recording meter. */
+  get clientRms(): number {
+    return this._lastClientRms
+  }
+
+  get maxClientRms(): number {
+    return this._maxClientRms
   }
 
   stopMic(): void {
@@ -151,8 +228,10 @@ export class VoiceWsClient {
 
     this.processorNode?.disconnect()
     this.sourceNode?.disconnect()
+    this._sinkNode?.disconnect()
     this.processorNode = null
     this.sourceNode = null
+    this._sinkNode = null
 
     if (this.audioContext?.state !== 'closed') {
       this.audioContext?.close()
