@@ -1,0 +1,169 @@
+{
+  "record": "P4S-31D — Platform voice capability feasibility matrix",
+  "compiled": "2026-07-06",
+  "mode": "compile_only — feasibility verdicts, no implementation authorized by this artifact",
+  "packet": "P4S-31D-VOICE-CAPABILITY-MATRIX-001",
+  "doctrine": "Every target captures locally and feeds the SAME Cockpit Chat intent rail (source='voice' -> /advisor/converse -> classify_intent -> intent loop -> proof). Wake-word / ambient verdicts are honest: no promise without defensible platform-documented feasibility. Device bindings reference infra/device_registry.json roles, never hostnames.",
+  "verdict_legend": {
+    "PROVEN": "path already exists and runs in this codebase (e.g. desktop-browser voice_server on :8096)",
+    "LIKELY": "standard, well-documented platform capability; low integration risk",
+    "CONSTRAINED": "possible but bounded by documented platform policy; requires a specific workaround and degrades outside it",
+    "NOT_FEASIBLE": "blocked by platform policy with no compliant path today",
+    "UNKNOWN": "cannot be asserted from platform documentation without a spike; must not be promised"
+  },
+  "shared_contract": {
+    "entry_seam": "chatStore.sendMessage(text, 'voice', routing, voice_turn_id) -> POST /advisor/converse",
+    "intent_gate": "substrate/workstation/command_router.py::classify_intent (deterministic, no LLM)",
+    "proof_chain": "substrate/execution/intent/loop.py submit -> AWAITING_APPROVAL -> governed approve -> PROOF_RECORDED (decided_by = Clerk principal)",
+    "tenant_identity_path": "Clerk operator principal resolved server-side at /advisor/converse; identical to the principal that stamps decided_by (P4S-31C proven)",
+    "audio_policy": "on-device capture; transcript-only transit by default; cloud-transcription DEFERRED to privacy review; no audio persistence by default",
+    "orchestrator_rule": "the orchestrator-role node (per device_registry.json) NEVER has a microphone — no capture, no wake runtime on it"
+  },
+  "targets": [
+    {
+      "target": "desktop_browser",
+      "device_roles": ["controller", "executor"],
+      "push_to_talk": {
+        "verdict": "PROVEN",
+        "capture_api": "web getUserMedia (MediaDevices) -> PCM16 16kHz over WebSocket",
+        "why": "already implemented and shipping: umh/voice_server.py on ws://:8096/voice, nginx /api/umh/voice/ws proxy, cockpit voiceStore mic state machine, RightRail mic affordance. STT = Groq Whisper with faster-whisper fallback; TTS = Kokoro (instance GPU node, per infra/device_registry.json) with espeak fallback."
+      },
+      "stt_options": ["server:groq_whisper", "server:faster_whisper_fallback", "future:on_device_webgpu_whisper"],
+      "wake_word": {
+        "verdict": "CONSTRAINED",
+        "why": "openWakeWord/Porcupine-class WASM can run in-tab, but a browser tab has no true background: wake detection only runs while the cockpit tab is foregrounded/active and the mic permission is granted for the origin. Backgrounded/discarded tabs suspend timers and may release the mic. No always-listening across app switches without a native shell.",
+        "runtime_candidates": ["porcupine_web_wasm", "openwakeword_wasm"]
+      },
+      "ambient_always_on": {
+        "verdict": "CONSTRAINED",
+        "why": "requires the tab to stay foreground-active and mic-permitted; browsers throttle background tabs and may drop mic. Acceptable as 'ambient while cockpit tab is the active tab', NOT as system-wide always-on. Requires explicit VoiceConsentGrant(always_on)."
+      },
+      "consent_surface": "browser mic permission prompt (per-origin) + UMH VoiceConsentGrant(mode) stored state",
+      "tenant_identity_path": "Clerk browser session principal -> /advisor/converse",
+      "risk_notes": ["autoplay policy: TTS playback needs a prior user gesture to unlock audio output", "mic permission is per-origin and revocable in browser settings"]
+    },
+    {
+      "target": "desktop_app",
+      "device_roles": ["controller", "executor"],
+      "note": "Electron cockpit shell (control_surface=electron_cockpit); VoiceCommandBar mounts only in Electron (Shell.tsx gate on window.cockpit).",
+      "push_to_talk": {
+        "verdict": "LIKELY",
+        "capture_api": "Electron renderer getUserMedia (Chromium) OR native OS audio via main process; same :8096 voice_server path reused",
+        "why": "Electron has the same getUserMedia as desktop browser PLUS a persistent process, real background execution, and OS-level global shortcut registration for press-to-talk. Existing VoiceCommandBar already targets this shell."
+      },
+      "stt_options": ["server:groq_whisper", "server:faster_whisper_fallback", "on_device:whisper_cpp_via_main_process"],
+      "wake_word": {
+        "verdict": "LIKELY",
+        "why": "Electron main process can host an on-device wake runtime (openWakeWord/Porcupine native or platform-native) with a real background thread — no tab-throttling limit. This is the cleanest desktop wake path. Still gated by VoiceConsentGrant(wake_word).",
+        "runtime_candidates": ["porcupine_native", "openwakeword_onnx", "platform_native_macos_speechrecognizer"]
+      },
+      "ambient_always_on": {
+        "verdict": "CONSTRAINED",
+        "why": "technically feasible (persistent process, background thread, on-device detection) but held to CONSTRAINED by DOCTRINE, not platform limits: always_on ships LAST and only under an explicit, revocable VoiceConsentGrant(always_on) with an on-device wake runtime and CPU/battery budget. No decision to run cloud STT ambiently (deferred to privacy review)."
+      },
+      "consent_surface": "OS mic permission (macOS TCC / Windows privacy) + UMH VoiceConsentGrant(mode)",
+      "tenant_identity_path": "Clerk session in the Electron renderer -> /advisor/converse",
+      "risk_notes": ["macOS requires NSMicrophoneUsageDescription + TCC grant", "global shortcut for push-to-talk must not conflict with OS bindings"]
+    },
+    {
+      "target": "mobile_app",
+      "device_roles": ["controller"],
+      "note": "native iOS/Android app; controller role per device_registry.json (mobile device_type).",
+      "push_to_talk": {
+        "verdict": "LIKELY",
+        "capture_api": "iOS AVAudioEngine/AVAudioRecorder + AVAudioSession; Android AudioRecord/MediaRecorder; stream PCM to :8096 voice_server or transcribe on-device",
+        "why": "foreground push-to-talk with an explicit mic button is a standard, documented capability on both platforms. Requires NSMicrophoneUsageDescription (iOS) / RECORD_AUDIO permission (Android)."
+      },
+      "stt_options": ["on_device:SFSpeechRecognizer_ios", "on_device:android_SpeechRecognizer", "server:groq_whisper"],
+      "wake_word": {
+        "verdict": "CONSTRAINED",
+        "why": "iOS: continuous background mic requires the 'audio' UIBackgroundMode + an active AVAudioSession, which Apple restricts to genuine audio apps; App Review commonly rejects always-listening mic used for non-audio features. Porcupine/openWakeWord can run on-device in the FOREGROUND cleanly. Android: a foreground service with microphoneType + a persistent notification is the documented compliant path (Android 10+ restricts background mic; Android 14 tightens FGS types). So: foreground wake LIKELY; background wake CONSTRAINED (Android via FGS) to NOT_FEASIBLE (iOS non-audio-app).",
+        "runtime_candidates": ["porcupine_ios_android", "openwakeword_mobile"]
+      },
+      "ambient_always_on": {
+        "verdict": "CONSTRAINED",
+        "sub_verdicts": {
+          "ios_background": "NOT_FEASIBLE — iOS does not permit continuous background microphone for a non-audio utility app; background audio mode + App Review policy block it. No compliant always-on-mic path today.",
+          "ios_foreground": "CONSTRAINED — foreground ambient only, screen-on, under explicit consent.",
+          "android_background": "CONSTRAINED — possible via a foreground service (FOREGROUND_SERVICE_MICROPHONE, persistent notification, Android 14 FGS type declaration), user-visible and battery-costly; on-device wake runtime required.",
+          "android_foreground": "CONSTRAINED — foreground ambient feasible under consent."
+        },
+        "why": "NO ambient/always-on mobile promise. iOS background is NOT_FEASIBLE for our use case; Android background is CONSTRAINED behind a foreground service. Any ambient mobile work is deferred and gated on a defensible platform spike + privacy review + VoiceConsentGrant(always_on)."
+      },
+      "consent_surface": "OS mic permission (iOS TCC / Android runtime permission) + UMH VoiceConsentGrant(mode)",
+      "tenant_identity_path": "Clerk mobile session principal -> /advisor/converse",
+      "risk_notes": ["iOS App Review rejects always-listening mic for non-audio apps", "Android 14 requires declared FGS type for microphone foreground services", "battery drain makes always-on hostile UX on mobile"]
+    },
+    {
+      "target": "mobile_browser",
+      "device_roles": ["controller"],
+      "note": "cockpit as a PWA / mobile web (client_type=mobile_browser).",
+      "push_to_talk": {
+        "verdict": "CONSTRAINED",
+        "capture_api": "web getUserMedia; iOS Safari requires a direct user gesture to start capture and to unlock audio output",
+        "why": "foreground press-to-talk works on modern mobile browsers, but iOS Safari is strict: getUserMedia and audio playback both require an explicit user gesture, and capture stops when the tab backgrounds or the screen locks. Usable for tap-to-talk; not for hands-free."
+      },
+      "stt_options": ["server:groq_whisper", "future:on_device_webgpu (limited mobile support)"],
+      "wake_word": {
+        "verdict": "NOT_FEASIBLE",
+        "why": "mobile browsers have no background execution and aggressively suspend backgrounded tabs and release the mic; iOS Safari has no service-worker background audio and no wake-word API. A PWA cannot listen for a wake word while backgrounded or screen-locked. No compliant path."
+      },
+      "ambient_always_on": {
+        "verdict": "NOT_FEASIBLE",
+        "why": "same as wake-word: no background mic, tab suspension, screen-lock releases capture. Ambient on mobile browser is not achievable. Explicitly NOT promised."
+      },
+      "consent_surface": "browser mic permission (per-origin, ephemeral on iOS) + UMH VoiceConsentGrant(push_to_talk only)",
+      "tenant_identity_path": "Clerk mobile-web session principal -> /advisor/converse",
+      "risk_notes": ["iOS Safari drops mic on tab background / screen lock", "PWA has no reliable background execution for audio", "audio output requires user-gesture unlock"]
+    },
+    {
+      "target": "desktop_ambient_wake_word",
+      "is_mode_row": true,
+      "applies_to_targets": ["desktop_app", "desktop_browser"],
+      "wake_word": {
+        "verdict": "LIKELY",
+        "preferred_host": "desktop_app (Electron main process, on-device runtime, real background thread)",
+        "browser_host": "CONSTRAINED (in-tab WASM, foreground-active only)",
+        "why": "the ONLY clean ambient-wake path is the Electron desktop app running an on-device wake runtime in the main process. Desktop browser can approximate it while the cockpit tab is foreground-active. Both gated by VoiceConsentGrant(wake_word/always_on) and an on-device runtime with a CPU budget.",
+        "runtime_candidates": ["porcupine_native", "openwakeword_onnx", "platform_native"]
+      },
+      "ambient_always_on": {
+        "verdict": "CONSTRAINED",
+        "why": "ships LAST, on desktop_app, on-device only, under explicit revocable consent, with a CPU/battery budget. No cloud STT ambiently without privacy review."
+      },
+      "consent_surface": "OS mic permission + UMH VoiceConsentGrant(wake_word) then (always_on)",
+      "tenant_identity_path": "Clerk desktop session principal -> /advisor/converse",
+      "risk_notes": ["on-device wake runtime CPU budget must respect the CPU Gate Law", "no wake runtime EVER on the orchestrator-role node (no mic on the VPS)"]
+    },
+    {
+      "target": "mobile_ambient_wake_word",
+      "is_mode_row": true,
+      "applies_to_targets": ["mobile_app", "mobile_browser"],
+      "wake_word": {
+        "verdict": "CONSTRAINED",
+        "sub_verdicts": {
+          "mobile_app_foreground": "LIKELY — on-device Porcupine/openWakeWord in the foreground under consent",
+          "mobile_app_background_android": "CONSTRAINED — foreground service (FGS microphone type, persistent notification) required; battery-costly",
+          "mobile_app_background_ios": "NOT_FEASIBLE — non-audio app cannot hold continuous background mic; App Review policy blocks it",
+          "mobile_browser": "NOT_FEASIBLE — no background execution / tab suspended / mic released"
+        },
+        "why": "NO mobile ambient wake-word promise. The only feasible slice is foreground on-device wake in the native mobile app. Background wake is CONSTRAINED (Android, via FGS) or NOT_FEASIBLE (iOS non-audio app; mobile browser). Any work here is deferred and gated on a platform spike + privacy review + VoiceConsentGrant(always_on)."
+      },
+      "ambient_always_on": {
+        "verdict": "NOT_FEASIBLE",
+        "why": "true hands-free always-on across app switches / screen-lock is not compliantly achievable on iOS for a non-audio app, and is only a battery-hostile foreground-service approximation on Android. NOT promised. This row exists to record the honest constraint, not a roadmap commitment."
+      },
+      "consent_surface": "OS mic permission + UMH VoiceConsentGrant(always_on) — required but insufficient given platform limits",
+      "tenant_identity_path": "Clerk mobile session principal -> /advisor/converse",
+      "risk_notes": ["iOS App Review is the binding blocker, not just an API limit", "Android FGS mic is user-visible and drains battery", "this row is CONSTRAINED/NOT_FEASIBLE by design — do not implement without owner sign-off after a spike"]
+    }
+  ],
+  "summary_verdicts": {
+    "desktop_browser": {"push_to_talk": "PROVEN", "wake_word": "CONSTRAINED", "ambient": "CONSTRAINED"},
+    "desktop_app": {"push_to_talk": "LIKELY", "wake_word": "LIKELY", "ambient": "CONSTRAINED"},
+    "mobile_app": {"push_to_talk": "LIKELY", "wake_word": "CONSTRAINED", "ambient": "CONSTRAINED(android_fgs)/NOT_FEASIBLE(ios_background)"},
+    "mobile_browser": {"push_to_talk": "CONSTRAINED", "wake_word": "NOT_FEASIBLE", "ambient": "NOT_FEASIBLE"},
+    "desktop_ambient_wake_word": {"wake_word": "LIKELY(electron)/CONSTRAINED(browser)", "ambient": "CONSTRAINED"},
+    "mobile_ambient_wake_word": {"wake_word": "CONSTRAINED(foreground)/NOT_FEASIBLE(background)", "ambient": "NOT_FEASIBLE"}
+  }
+}
