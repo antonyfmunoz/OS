@@ -296,6 +296,13 @@ const VOICE_FAILURE_REASON: Record<string, string> = {
   RETRY_UNAVAILABLE: 'Retry could not start',
   AUDIO_UPLOAD_FAILED: 'Audio upload failed — send again',
   CHAT_SEND_FAILED: 'Could not deliver to chat — send again',
+  // P4S-31D1-E artifact-binding taxonomy. The local blob is the source of truth
+  // for transcription; these codes distinguish precisely why transcription of a
+  // PRESENT blob could not complete — NONE claims the audio was never received.
+  LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: 'Audio recorded but nothing reached the server — retry',
+  LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: 'Audio recorded but the server saw no bytes — retry',
+  AUDIO_ARTIFACT_REF_NOT_FOUND: 'Recorded audio could not be located — retry',
+  MISSING_AUDIO_FIELD: 'No audio was captured for this note',
 }
 
 /** Resolve a draft error code to its precise human reason (never a bare fallback). */
