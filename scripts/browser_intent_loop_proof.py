@@ -86,7 +86,7 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
 
         def on_response(resp: Any) -> None:
             u = resp.url
-            if "/advisor/converse" in u or "/intent-loop" in u:
+            if "/api/" in u:
                 evidence["network"].append(
                     {"url": u.split("?")[0], "status": resp.status, "method": resp.request.method}
                 )
@@ -188,7 +188,27 @@ def run_proof(url: str, email: str, password: str) -> dict[str, Any]:
                     palette_item.first.click()
                     stage("panel_window_added_from_palette", True)
                     time.sleep(3)
+            # The panel's GET /intent-loop can queue behind a starved threadpool
+            # (the diagnosed #212 defect) — wait for the row, nudging REFRESH.
+            row_deadline = time.time() + 90
+            while time.time() < row_deadline:
+                if page.locator(f'div:has-text("{loop_id}")').count() > 1:
+                    break
+                refresh = page.get_by_role("button", name="REFRESH")
+                if refresh.count() > 0:
+                    refresh.first.click()
+                time.sleep(8)
             shot(page, "03_intent_loop_panel")
+
+            # Diagnostics: what the panel window actually shows.
+            panel_hdr = page.get_by_text("Cockpit Chat intent rail")
+            if panel_hdr.count() > 0:
+                try:
+                    evidence["panel_text"] = panel_hdr.first.locator(
+                        "xpath=ancestor::div[contains(@class,'flex-col')][1]"
+                    ).inner_text()[:600]
+                except Exception as diag_exc:  # noqa: BLE001
+                    evidence["panel_text"] = f"unavailable: {diag_exc}"
 
             # Approve THIS loop's row, never a blind first-Approve.
             row_approve = page.locator(f'div:has-text("{loop_id}") >> button:has-text("Approve")')
