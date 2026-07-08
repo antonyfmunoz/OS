@@ -83,6 +83,9 @@ let recorder: MediaRecorder | null = null
 let recorderChunks: Blob[] = []
 let recordingStartedAt = 0
 let onRecorderStop: ((blob: Blob | null) => void) | null = null
+/** ROOT D (iOS): the current capture stream, kept so teardownCapture can detach
+ *  its track health handlers even on paths where recorder.onstop never fires. */
+let captureStream: MediaStream | null = null
 
 // P3 — the current capture as ONE object. Replaces the bare `finalizing` latch
 // (which stranded when an exit path forgot to reset it) and the "read the live
@@ -162,11 +165,21 @@ function startCaptureMeter(): void {
     if (!client) return
     const rms = client.clientRms
     const elapsed = Date.now() - meterStartedAt
+    // ROOT D (iOS): the RMS is only trustworthy when the meter AudioContext is
+    // actually 'running'. On iOS Safari an AudioContext created outside the user
+    // gesture (which is where we are — many awaits past the tap) starts
+    // 'suspended', .resume() is ignored, and the analyser reads all-zeros. Without
+    // this gate that produced a FALSE "mic appears silent" hint on EVERY iOS
+    // recording even while the user spoke normally (the blob itself records fine).
+    // If the context isn't running, RMS is unreliable → never emit the hint.
+    const meterRunning = meterAudioContext?.state === 'running'
     // silentMs: elapsed only counts toward the hint once we're past the grace
-    // window AND the session has never risen above the silence floor.
+    // window, the meter is trustworthy, AND the session never rose above the floor.
     const peak = useVoiceMessageStore.getState().captureRmsPeak
     const silentMs =
-      elapsed >= MIC_SILENT_HINT_MS && Math.max(peak, rms) < MIC_SILENT_RMS_FLOOR
+      meterRunning &&
+      elapsed >= MIC_SILENT_HINT_MS &&
+      Math.max(peak, rms) < MIC_SILENT_RMS_FLOOR
         ? elapsed
         : 0
     useVoiceMessageStore.getState().setCaptureRms(rms, silentMs)
@@ -238,6 +251,9 @@ function stopMeterAnalyser(): void {
 // This owns RESOURCES only; callers still own their own state/flag transitions.
 function teardownCapture(): void {
   _stopRecorder(() => { /* discard */ })
+  // ROOT D (iOS): detach the track mute/ended health handlers so they can't fire
+  // across sessions (on abort/error paths recorder.onstop may never run).
+  if (captureStream) { _detachTrackHandlers(captureStream); captureStream = null }
   stopMeterAnalyser()
   stopCaptureMeter()
   client?.stopMic()
@@ -272,6 +288,7 @@ function _pickRecorderMime(): string {
 function _startRecorder(stream: MediaStream): void {
   recorderChunks = []
   onRecorderStop = null
+  captureStream = stream
   if (typeof MediaRecorder === 'undefined') {
     log('media_recorder_unavailable')
     recorder = null
@@ -298,13 +315,61 @@ function _startRecorder(stream: MediaStream): void {
       // contamination) — the handlers close over the shared module-level array.
       rec.ondataavailable = null
       rec.onstop = null
+      _detachTrackHandlers(stream)
       if (cb) cb(blob)
     }
-    rec.start()
+    // ROOT D (iOS): a MediaRecorder error (e.g. the OS tearing down the audio
+    // session on a call/Siri interruption) must not hang the draft at
+    // 'transcribing' — tear down gracefully so the mic returns to idle.
+    rec.onerror = (e) => {
+      log('recorder_error', e)
+      abortActiveRecording()
+    }
+    // ROOT D (iOS): on screen-lock / backgrounding, iOS fires mute/ended on the
+    // capture track and stops feeding the recorder. Detect it and finalize the
+    // audio captured so far (D3's timeslice means chunks are already flushed)
+    // rather than losing everything or hanging. If nothing was captured, abort.
+    _wireTrackHealth(stream)
+    // ROOT D (iOS): a 1s timeslice flushes `ondataavailable` periodically. Without
+    // it, MediaRecorder emits exactly ONE dataavailable at stop() — so any iOS
+    // interruption before a clean stop() loses ALL audio. With it, recorderChunks
+    // holds the flushed data even when onstop never fires cleanly. The timeslice
+    // only changes chunk cadence; the container/mimeType is fixed at construction,
+    // so the playable bubble + server ffmpeg decode are unaffected.
+    rec.start(1000)
     log('recorder_started', rec.mimeType)
   } catch (e) {
     log('recorder_start_failed', e)
     recorder = null
+  }
+}
+
+/** ROOT D (iOS): wire mute/ended on each audio track so an OS-driven capture
+ *  teardown (screen-lock, call, backgrounding) finalizes gracefully instead of
+ *  hanging the draft at 'transcribing' or silently losing the recording. */
+function _wireTrackHealth(stream: MediaStream): void {
+  for (const track of stream.getAudioTracks()) {
+    const onInterrupt = (evt: string) => {
+      log('capture_track_interrupted', evt, track.readyState)
+      // Only act on a live capture — ignore events during teardown.
+      if (!activeSession || activeSession.done) return
+      if (recorder && recorder.state !== 'inactive') {
+        // Audio was being captured (and, with the timeslice, flushed) — preserve it.
+        _finalizeRecording('manual_stop')
+      } else {
+        abortActiveRecording()
+      }
+    }
+    track.onended = () => onInterrupt('ended')
+    track.onmute = () => onInterrupt('mute')
+  }
+}
+
+/** Detach the track health handlers so they can't fire across sessions. */
+function _detachTrackHandlers(stream: MediaStream): void {
+  for (const track of stream.getAudioTracks()) {
+    track.onended = null
+    track.onmute = null
   }
 }
 
@@ -745,12 +810,17 @@ export async function startVoice(signal?: AbortSignal): Promise<void> {
 
   log('mic_clicked')
 
-  // Unlock audio on user gesture (iOS requires this before any Audio.play())
-  unlockAudioForIOS().then((ok) => {
+  // ROOT D (iOS): unlock audio on the user gesture BEFORE any Audio.play(). On iOS
+  // the silent-buffer unlock must COMPLETE within the gesture to grant later TTS
+  // playback — firing it fire-and-forget let the gesture expire first, so TTS was
+  // then blocked by the autoplay policy ("Tap to play audio"). Await it (bounded;
+  // it self-resolves), early in the chain, before the ensureClient/startMic awaits.
+  try {
+    const ok = await unlockAudioForIOS()
     log('ios_audio_unlock', ok ? 'success' : 'failed')
-  }).catch(() => {
+  } catch {
     log('ios_audio_unlock', 'error')
-  })
+  }
 
   // Wire playback callbacks for TTS state management
   setPlaybackCallbacks(

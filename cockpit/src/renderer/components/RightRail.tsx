@@ -168,6 +168,7 @@ function VoiceMessagePlayer({ src }: { src: string }) {
         ref={audioRef}
         src={src}
         preload="metadata"
+        playsInline
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => { setPlaying(false); setCurrent(0) }}
@@ -622,7 +623,7 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
       )}
 
       {!isRecording && draft.audioUrl && (
-        <audio controls src={draft.audioUrl} className="w-full mt-1 mb-1" style={{ height: 32 }} />
+        <audio controls playsInline src={draft.audioUrl} className="w-full mt-1 mb-1" style={{ height: 32 }} />
       )}
 
       {!isRecording && (

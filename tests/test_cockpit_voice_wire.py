@@ -418,3 +418,53 @@ def test_voice_outcome_union_complete() -> None:
     ).read_text(encoding="utf-8")
     assert "'VOICE_START_TIMEOUT'" in store
     assert "'VOICE_START_FAILED'" in store
+
+
+def test_silent_hint_gated_on_context_running() -> None:
+    # ROOT D (iOS): the "mic appears silent" hint must only fire when the meter
+    # AudioContext is actually 'running'. On iOS an out-of-gesture context is
+    # 'suspended' and reads all-zeros → a false silent hint on EVERY recording.
+    ctrl = _read("voice-controller.ts")
+    import re
+    m = re.search(r"function startCaptureMeter\(\).*?\n}", ctrl, re.S)
+    assert m, "could not locate startCaptureMeter"
+    body = m.group(0)
+    assert "meterAudioContext" in body and "'running'" in body
+    # the running check gates the silentMs computation
+    assert "meterRunning" in body
+
+
+def test_recorder_has_health_handlers() -> None:
+    # ROOT D (iOS): the recorder must wire onerror + track mute/ended handlers so an
+    # OS-driven capture teardown (screen-lock / call) finalizes gracefully instead
+    # of hanging the draft at 'transcribing' or losing the audio.
+    ctrl = _read("voice-controller.ts")
+    assert "rec.onerror" in ctrl
+    assert "track.onended" in ctrl
+    assert "track.onmute" in ctrl
+    # and they are detached on teardown so they can't fire across sessions
+    assert "_detachTrackHandlers" in ctrl
+
+
+def test_recorder_uses_timeslice() -> None:
+    # ROOT D (iOS): recorder.start() must pass a timeslice so ondataavailable flushes
+    # periodically — otherwise any interruption before a clean stop() loses ALL audio.
+    ctrl = _read("voice-controller.ts")
+    import re
+    assert re.search(r"\.start\(\d", ctrl), "recorder must start with a numeric timeslice"
+
+
+def test_ios_unlock_awaited() -> None:
+    # ROOT D (iOS): the audio unlock must be awaited so it completes within the user
+    # gesture — fire-and-forget let the gesture expire and iOS then blocked TTS.
+    ctrl = _read("voice-controller.ts")
+    assert "await unlockAudioForIOS(" in ctrl
+
+
+def test_voice_player_playsinline() -> None:
+    # ROOT D (iOS): the <audio> players carry playsInline so iOS doesn't take an
+    # audio-only mp4 blob fullscreen / block inline playback.
+    rail = (
+        _ROOT / "cockpit" / "src" / "renderer" / "components" / "RightRail.tsx"
+    ).read_text(encoding="utf-8")
+    assert "playsInline" in rail
