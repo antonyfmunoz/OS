@@ -224,6 +224,8 @@ interface VoiceMessageState {
   /** Reset meter state (recording start / stop). */
   resetCaptureMeter: () => void
   transitionRecordingState: (to: RecordingSessionState) => void
+  /** ROOT A: unconditional escape to a terminal state (teardown only). */
+  _forceState: (to: RecordingSessionState) => void
 
   createDraft: (input: CreateDraftInput) => VoiceMessageDraft
   updateActivePartial: (text: string) => void
@@ -240,6 +242,13 @@ interface VoiceMessageState {
   completeActiveTranscript: (text: string, confidence?: number | null) => void
   markNoSpeech: () => void
   markTranscriptFailed: (error: string) => void
+  // ROOT F: draft-id-PARAMETERIZED completion. The controller captures the draft id
+  // at finalize time and passes it here, so a concurrent delete/new-recording that
+  // nulls (or rebinds) activeDraftId mid-flight can never make the returning
+  // transcript land on the WRONG draft. The active-* variants above stay for
+  // callers that legitimately target the live draft.
+  completeTranscript: (draftId: string | null, text: string, confidence?: number | null) => void
+  markFailed: (draftId: string | null, error: string) => void
 
   editTranscript: (draftId: string, text: string) => void
   beginRetry: (draftId: string) => void
@@ -291,10 +300,27 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
       if (from === to) return
       const allowed = RECORDING_STATE_TRANSITIONS[from] || []
       if (!allowed.includes(to)) {
+        // ROOT A: a legal app-transition that isn't in the table is a bug worth a
+        // log — BUT teardown/terminal transitions (idle/cancelled) must NEVER be
+        // silently dropped, or the machine strands (retry-from-idle, delete-during-
+        // finalize). Teardown uses _forceState(); this path stays strict for
+        // genuine app transitions and just records the ignore.
         log('recording_state_transition_ignored', `${from} -> ${to}`)
         return
       }
       log('recording_state', `${from} -> ${to}`)
+      set({ recordingState: to })
+    },
+
+    // ROOT A: unconditional escape to a terminal state. teardownCapture / abort /
+    // delete route through this so the machine can ALWAYS reach 'idle' (or
+    // 'cancelled') no matter the current state — a stuck recordingState can never
+    // block the next capture. Not for ordinary app transitions (use
+    // transitionRecordingState); reserved for terminal teardown.
+    _forceState: (to) => {
+      const from = get().recordingState
+      if (from === to) return
+      log('recording_state_forced', `${from} -> ${to}`)
       set({ recordingState: to })
     },
 
@@ -437,6 +463,40 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
         error,
       }))
       set({ activeDraftId: null })
+      log('draft_transcript_failed', draftId, error)
+    },
+
+    // ROOT F — draft-id-parameterized completion. Writes to the PASSED draft id
+    // (captured at finalize time), never the live activeDraftId. Only clears
+    // activeDraftId if it still points at THIS draft — so a concurrent new
+    // recording that already rebound activeDraftId is left untouched (no cross-
+    // draft transcript write, no marking the wrong live draft ready).
+    completeTranscript: (draftId, text, confidence = null) => {
+      if (!draftId) return
+      if (!_get(draftId)) return // draft deleted mid-flight — drop the late result
+      get().transitionRecordingState('review')
+      _update(draftId, (d) => ({
+        transcript: text,
+        transcript_partial: '',
+        transcript_status: 'final',
+        confidence,
+        status: 'ready',
+        diagnostics: { ...d.diagnostics, transcript_final_at: Date.now() },
+      }))
+      if (get().activeDraftId === draftId) set({ activeDraftId: null })
+      log('draft_ready', draftId)
+    },
+
+    markFailed: (draftId, error) => {
+      if (!draftId) return
+      if (!_get(draftId)) return // draft deleted mid-flight — nothing to mark
+      get().transitionRecordingState('failed')
+      _update(draftId, () => ({
+        status: 'failed',
+        transcript_status: 'failed',
+        error,
+      }))
+      if (get().activeDraftId === draftId) set({ activeDraftId: null })
       log('draft_transcript_failed', draftId, error)
     },
 
@@ -618,8 +678,13 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
           // controller unavailable — still remove the draft below
         }
         set({ activeDraftId: null })
-        get().transitionRecordingState('cancelled')
-        get().transitionRecordingState('idle')
+        // ROOT A: FORCE the terminal transition — a delete must always land the
+        // machine at idle regardless of the current recordingState (transcribing,
+        // review, failed…). The old transitionRecordingState pair was silently
+        // dropped from states that don't legally reach 'cancelled', stranding
+        // recordingState and blocking the next capture.
+        get()._forceState('cancelled')
+        get()._forceState('idle')
       }
       if (draft.audioUrl) URL.revokeObjectURL(draft.audioUrl)
       set((s) => ({ drafts: s.drafts.filter((d) => d.draft_id !== draftId) }))

@@ -23,6 +23,10 @@ def _read(name: str) -> str:
     return (_API / name).read_text(encoding="utf-8")
 
 
+def _read_store(name: str) -> str:
+    return (_ROOT / "cockpit" / "src" / "renderer" / "stores" / name).read_text(encoding="utf-8")
+
+
 def test_voice_ws_resolves_to_governed_endpoint() -> None:
     src = _read("voice-ws.ts")
     assert "/api/umh/voice/ws" in src
@@ -132,16 +136,18 @@ def test_no_client_side_decodeaudiodata_in_transcribe() -> None:
 
 def test_abort_recording_clears_finalizing_latch() -> None:
     # Field bug: "after I deleted it, voice wouldn't work again." abortActiveRecording
-    # (delete-draft / cancel) sets `finalizing = true` but is TERMINAL — there is no
-    # _finalizeRecording completion to reset it. If left true, startVoice()'s
-    # `if (recorder || finalizing) return` guard bails forever and the mic is dead.
-    # The abort MUST reset the latch.
+    # (delete-draft / cancel) is TERMINAL with no _finalizeRecording completion to
+    # reset the latch — if the latch stays set, startVoice's guard bails forever and
+    # the mic is dead. Phase 2 replaced the bare `finalizing = false` with dropping
+    # the CaptureSession (`activeSession = null`), which the guard
+    # (`activeSession && !activeSession.done`) then passes cleanly. Same intent,
+    # structural mechanism.
     ctrl = _read("voice-controller.ts")
     import re
     m = re.search(r"export function abortActiveRecording\(\).*?\n}", ctrl, re.S)
     assert m, "could not locate abortActiveRecording"
     body = m.group(0)
-    assert "finalizing = false" in body, "abort must clear the finalizing latch"
+    assert "activeSession = null" in body, "abort must drop the session so the guard clears"
 
 
 def test_consent_flow_noise_not_surfaced_in_ui() -> None:
@@ -171,8 +177,10 @@ def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
     # and must NOT bail on requesting_permission / connecting_voice_ws
     assert "activeState === 'requesting_permission'" not in ctrl
     assert "activeState === 'connecting_voice_ws'" not in ctrl
-    # the real re-entrancy guard (live recorder) is still present
-    assert "if (recorder || finalizing)" in ctrl
+    # Phase 2: the finalize latch is now the CaptureSession's `done` flag, not the
+    # bare `finalizing` module var. The real re-entrancy guard (live recorder OR an
+    # un-finalized session) is still present — same intent, structural mechanism.
+    assert "if (recorder || (activeSession && !activeSession.done))" in ctrl
 
 
 def test_consent_never_blocks_capture_ws_autogrants() -> None:
@@ -181,13 +189,14 @@ def test_consent_never_blocks_capture_ws_autogrants() -> None:
     # A slow/flaky grant must not strand the user at a "consent failed" button.
     adapter = _read("platform-voice-adapter.ts")
     # _consentAndStart no longer throws ConsentRequiredError on a failed client grant
-    # (it proceeds to startVoice; the WS is the real gate).
+    # (it proceeds to startVoice; the WS is the real gate). Phase 2 added an
+    # AbortSignal param + forwards it to startVoice, so match the signature loosely.
     import re
-    m = re.search(r"async function _consentAndStart\(\).*?\n}", adapter, re.S)
+    m = re.search(r"async function _consentAndStart\([^)]*\).*?\n}", adapter, re.S)
     assert m, "could not locate _consentAndStart"
     body = m.group(0)
     assert "throw new ConsentRequiredError" not in body
-    assert "await startVoice()" in body
+    assert "await startVoice(" in body
 
     # the WS server-side auto-grants for an authenticated principal.
     voice_py = (
@@ -242,3 +251,114 @@ def test_stop_recorder_detaches_handlers() -> None:
     ctrl = _read("voice-controller.ts")
     assert "ondataavailable = null" in ctrl
     assert "onstop = null" in ctrl
+
+
+# ── Phase 2: ROOT A (state latches) + ROOT F (races) ─────────────────────────
+
+def test_finalize_has_terminal_finally() -> None:
+    # ROOT A: _finalizeRecording must GUARANTEE terminal resolution — a try/finally
+    # so micState can never strand at 'transcribing' (blob-present-but-null-draft,
+    # a thrown branch, or a fall-through). The finally forces idle.
+    ctrl = _read("voice-controller.ts")
+    import re
+    _s = ctrl.index("function _finalizeRecording(")
+    _e = ctrl.index("function _resolveMicIdle", _s)
+    body = ctrl[_s:_e]
+    assert "finally" in body, "finalize must have a try/finally terminal guarantee"
+    assert "_resolveMicIdle()" in body
+
+
+def test_transcribing_state_has_watchdog() -> None:
+    # ROOT A: entering 'transcribing' arms a hard watchdog so the mic can never hang
+    # there forever (server never replies / promise never settles).
+    ctrl = _read("voice-controller.ts")
+    assert "micStateWatchdog" in ctrl
+    assert "_armMicStateWatchdog" in ctrl
+    # armed around the transcribing transition
+    assert "MIC_STATE_WATCHDOG_MS" in ctrl
+
+
+def test_transition_table_has_force_escape() -> None:
+    # ROOT A: teardown must be able to reach a terminal state UNCONDITIONALLY — a
+    # stuck recordingState can't block the next capture. _forceState is that escape,
+    # and deleteDraft uses it (not the silently-droppable transitionRecordingState).
+    store = _read_store("voiceMessageStore.ts")
+    assert "_forceState" in store
+    assert "_forceState('cancelled')" in store or "_forceState(\"cancelled\")" in store
+    assert "_forceState('idle')" in store or "_forceState(\"idle\")" in store
+
+
+def test_synchronous_capture_claim() -> None:
+    # ROOT F: the double-tap guard must be SYNCHRONOUS (before any await) — the React
+    # micState guard reads a stale closure. captureClaimed is set before the first
+    # await and released in finally.
+    adapter = _read("platform-voice-adapter.ts")
+    assert "captureClaimed" in adapter
+    # slice from startCapture to the next top-level function so the whole body (incl.
+    # the claim + first await) is in view — a non-greedy `}` stops at the first inner
+    # block close and would truncate before the await.
+    start = adapter.index("async function startCapture(): Promise<void> {")
+    nxt = adapter.index("async function _startCaptureInner", start)
+    body = adapter[start:nxt]
+    # the synchronous claim must precede the (only) real await in the wrapper — the
+    # `await _startCaptureInner()` call. (Match the exact awaited call, not the bare
+    # word "await" which also appears in the doc comment.)
+    claim_idx = body.index("captureClaimed = true")
+    await_idx = body.index("await _startCaptureInner")
+    assert claim_idx < await_idx, "captureClaimed must be set BEFORE the first await"
+    assert "finally" in body and "captureClaimed = false" in body
+
+
+def test_withtimeout_aborts_chain() -> None:
+    # ROOT F: the 8s watchdog must CANCEL the raced chain (AbortController), not just
+    # reject — else startVoice runs on and installs a recorder over a torn-down mic.
+    adapter = _read("platform-voice-adapter.ts")
+    assert "new AbortController()" in adapter
+    assert "abort?.abort()" in adapter
+    # startVoice checks signal.aborted after its awaits
+    ctrl = _read("voice-controller.ts")
+    assert "signal?.aborted" in ctrl
+
+
+def test_completion_uses_captured_draft_id() -> None:
+    # ROOT F: _finalizeRecording must write the returning transcript to the CAPTURED
+    # session.draftId via the parameterized store actions — never the live
+    # activeDraftId (which a concurrent delete/new-recording may have rebound).
+    ctrl = _read("voice-controller.ts")
+    assert "session.draftId" in ctrl
+    import re
+    m = re.search(r"function _finalizeRecording\(.*?\n}\n", ctrl, re.S)
+    body = m.group(0)
+    assert "completeTranscript(draftId" in body
+    assert "markFailed(draftId" in body
+    # the store exposes the draft-id-parameterized variants
+    store = _read_store("voiceMessageStore.ts")
+    assert "completeTranscript: (draftId" in store
+    assert "markFailed: (draftId" in store
+
+
+def test_error_listeners_deconflicted() -> None:
+    # ROOT F: the top-level client.on('error') handler must NOT double-write the
+    # draft while a scoped transcribeUtterance listener owns the error — it defers
+    # via the transcribeInFlight flag, preserving the precise code.
+    ctrl = _read("voice-controller.ts")
+    assert "transcribeInFlight" in ctrl
+    import re
+    m = re.search(r"client\.on\('error'.*?\n    \}\)\n", ctrl, re.S)
+    assert m, "could not locate top-level error handler"
+    body = m.group(0)
+    assert "if (transcribeInFlight)" in body
+
+
+def test_capture_session_replaces_finalizing_latch() -> None:
+    # Phase 2: the bare `finalizing` module var is gone — replaced by the
+    # CaptureSession object whose `done` flag is the latch. abortActiveRecording no
+    # longer relies on a manual `finalizing = false`.
+    ctrl = _read("voice-controller.ts")
+    assert "interface CaptureSession" in ctrl
+    assert "let activeSession: CaptureSession | null" in ctrl
+    # no bare `finalizing` assignment survives (comments referencing the word are ok)
+    import re
+    assert not re.search(r"^\s*finalizing = (true|false)", ctrl, re.M), (
+        "bare finalizing latch assignments must be gone"
+    )

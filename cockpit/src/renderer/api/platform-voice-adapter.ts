@@ -53,6 +53,13 @@ export class ConsentRequiredError extends Error {
   }
 }
 
+// P5 — synchronous re-entrancy claim. Set at the VERY TOP of startCapture, BEFORE
+// any await, and released in a finally. The React-side handleMicToggle guard reads
+// a STALE micState closure, so a fast double-tap can slip two startCapture calls
+// into the pre-await window and spawn two recorders + two drafts. This module-level
+// boolean is checked/set synchronously, so the second tap can never pass.
+let captureClaimed = false
+
 function deviceRegistryId(): string {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -160,6 +167,21 @@ async function grantPushToTalk(): Promise<VoiceConsentState> {
  * layers; this only removes the extra user gesture between them.
  */
 async function startCapture(): Promise<void> {
+  // P5: claim synchronously BEFORE any await. A fast double-tap's second call sees
+  // captureClaimed===true and bails here — no second recorder/draft can spawn.
+  if (captureClaimed) {
+    console.log('[VoicePipeline] start_capture_ignored_already_claimed')
+    return
+  }
+  captureClaimed = true
+  try {
+    await _startCaptureInner()
+  } finally {
+    captureClaimed = false
+  }
+}
+
+async function _startCaptureInner(): Promise<void> {
   const vs = useVoiceStore.getState()
 
   // Instant feedback + concurrent-reentry guard: flip micState OUT of 'idle'
@@ -211,8 +233,13 @@ async function startCapture(): Promise<void> {
   // whole consent→capture chain against a short watchdog so a flaky/down tunnel
   // degrades to a fast, typed "Voice server unreachable" instead of a dead
   // button. Any throw here resets micState to 'idle' (no stuck window).
+  // P4: an AbortController lets the watchdog CANCEL the in-flight chain. Without it,
+  // _withTimeout rejected but _consentAndStart→startVoice kept running and installed
+  // a recorder over the just-torn-down mic (the "resurrected zombie recording after
+  // Voice server unreachable" bug). startVoice checks signal.aborted after each await.
+  const abort = new AbortController()
   try {
-    await _withTimeout(_consentAndStart(), CONSENT_START_TIMEOUT_MS)
+    await _withTimeout(_consentAndStart(abort.signal), CONSENT_START_TIMEOUT_MS, abort)
   } catch (err) {
     if (err instanceof ConsentRequiredError) {
       // Server grant refused (not a timeout) — the inline "Enable Push-to-Talk"
@@ -238,10 +265,13 @@ async function startCapture(): Promise<void> {
  * down tunnel surfaces fast instead of a minute-long dead button. */
 const CONSENT_START_TIMEOUT_MS = 8000
 
-/** Reject with a VoiceStartTimeout if `p` does not settle within `ms`. */
-function _withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+/** Reject with a VoiceStartTimeout if `p` does not settle within `ms`. On timeout,
+ *  ALSO abort the passed controller so the raced chain cancels itself (P4) instead
+ *  of running on and resurrecting a torn-down capture. */
+function _withTimeout<T>(p: Promise<T>, ms: number, abort?: AbortController): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const t = setTimeout(() => {
+      abort?.abort()
       reject(Object.assign(new Error('voice start timed out'), { name: 'VoiceStartTimeout' }))
     }, ms)
     p.then(
@@ -260,7 +290,7 @@ function _withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
  * go straight to startVoice() so a slow/flaky consent round-trip through the SSH
  * tunnel can never (i) trip the 8s watchdog into a false "Voice server unreachable"
  * nor (ii) flash "consent not granted". The WS is the real, fail-closed gate. */
-async function _consentAndStart(): Promise<void> {
+async function _consentAndStart(signal?: AbortSignal): Promise<void> {
   const vs = useVoiceStore.getState()
   vs.setConsentState('active')
 
@@ -276,7 +306,9 @@ async function _consentAndStart(): Promise<void> {
     }
   })()
 
-  await startVoice()
+  // P4: pass the abort signal so startVoice can bail after its awaits if the
+  // watchdog fired mid-flight (no recorder installed over a torn-down mic).
+  await startVoice(signal)
 }
 
 /** Stop capture; a committed turn dispatches into chat via the controller. */

@@ -82,8 +82,26 @@ let _pendingVoiceTurnId: string | null = null
 let recorder: MediaRecorder | null = null
 let recorderChunks: Blob[] = []
 let recordingStartedAt = 0
-let finalizing = false
 let onRecorderStop: ((blob: Blob | null) => void) | null = null
+
+// P3 — the current capture as ONE object. Replaces the bare `finalizing` latch
+// (which stranded when an exit path forgot to reset it) and the "read the live
+// activeDraftId" pattern (which wrote a returning transcript onto the WRONG draft
+// after a concurrent delete/new-recording). `draftId` is CAPTURED here at capture
+// start and used by every completion handler; `done` is the finalize latch and is
+// cleared in a `finally`, so it can never strand. null = no capture in flight.
+interface CaptureSession {
+  id: string
+  draftId: string
+  turnId: string
+  done: boolean
+}
+let activeSession: CaptureSession | null = null
+let _sessionSeq = 0
+/** ROOT F: true only while a transcribeUtterance round-trip owns the WS error
+ *  channel — the top-level error handler must not also stamp the draft failed
+ *  (that double-write loses the precise code the scoped listener returns). */
+let transcribeInFlight = false
 
 // Metering AnalyserNode (meter-ONLY: RMS bar + silent-mic hint). No VAD, no
 // finalize — it can never re-introduce the two-path divergence bug class.
@@ -94,6 +112,10 @@ let meterRafId: number | null = null
 
 const PENDING_RESPONSE_TIMEOUT_MS = 30_000
 const TTS_GENERATE_TIMEOUT_MS = 15_000
+/** ROOT A: max time micState may sit at transcribing/processing before we force
+ *  idle. Bound to the WS transcribe timeout (25s) + margin so a real slow STT
+ *  resolves first and this only fires on a genuine hang. */
+const MIC_STATE_WATCHDOG_MS = 35_000
 /** Meter poll cadence — ~10Hz is enough to look live and stays cheap. */
 const METER_POLL_MS = 100
 /** Peak RMS below this after MIC_SILENT_HINT_MS means the mic looks silent. */
@@ -318,73 +340,115 @@ function _stopRecorder(cb: (blob: Blob | null) => void): void {
  * NEVER dispatches to chat — that is only ever the operator's explicit send.
  */
 function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): void {
-  if (finalizing) return
-  finalizing = true
+  // P3 re-entrancy guard: a finalize already ran/running for this session → no-op.
+  // (Replaces the bare `finalizing` latch; delete-during-finalize + max-timeout-vs-
+  // manual-stop can no longer double-finalize.)
+  const session = activeSession
+  if (!session || session.done) {
+    log('finalize_ignored_no_session_or_done')
+    return
+  }
+  session.done = true
   sessionTimers.clearAll()
   stopCaptureMeter()
   stopMeterAnalyser()
 
   const now = Date.now()
   const durationMs = recordingStartedAt ? now - recordingStartedAt : 0
+  // ROOT F: the draft id is CAPTURED from the session, fixed for this whole
+  // finalize — every completion writes to THIS draft, never the live activeDraftId
+  // (which a concurrent delete/new-recording may have nulled or rebound).
+  const draftId = session.draftId
 
-  // BLOB-ONLY: the captured blob is the single source of truth. Mark the draft
-  // finalizing/transcribing up front; the real "no speech" authority is the
-  // server (SILENT_AUDIO / VAD_NO_SPEECH via _transcribeBlob), not a client
-  // silence estimate. The draft it binds to is fixed now, before
-  // completeActiveTranscript clears activeDraftId.
-  useVoiceMessageStore.getState().finalizeActiveDraft(finalizedBy, durationMs, null, now)
-  useVoiceStore.getState().setMicState('transcribing')
-  const finalizingDraftId = useVoiceMessageStore.getState().activeDraftId
+  // Guarantee terminal resolution even if a branch throws or falls through: the
+  // finally forces micState back to a terminal state so the mic can never strand
+  // at 'transcribing'. Async work (the blob transcribe) resolves its own micState.
+  let asyncPending = false
+  try {
+    useVoiceMessageStore.getState().finalizeActiveDraft(finalizedBy, durationMs, null, now)
+    _armMicStateWatchdog() // ROOT A: transcribing must not hang forever
+    useVoiceStore.getState().setMicState('transcribing')
 
-  if (client) client.stopMic()
+    if (client) client.stopMic()
 
-  // Stop the recorder, then decide from the BLOB (its size only known here).
-  _stopRecorder((blob) => {
-    if (blob) useVoiceMessageStore.getState().attachAudio(blob)
-    const draftId = finalizingDraftId
+    _stopRecorder((blob) => {
+      if (blob) useVoiceMessageStore.getState().attachAudio(blob)
 
-    // No usable blob → recoverable missing/empty draft, NEVER a chat message.
-    // Precise artifact code (blob-size based, not a client speech estimate).
-    if (!blob || blob.size <= 0) {
-      if (draftId) {
-        const code = !blob
-          ? VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
-          : VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
-        useVoiceMessageStore.getState().markTranscriptFailed(code)
-      } else {
-        useVoiceMessageStore.getState().markNoSpeech()
+      // No usable blob → recoverable missing/empty draft, NEVER a chat message.
+      if (!blob || blob.size <= 0) {
+        if (draftId) {
+          const code = !blob
+            ? VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
+            : VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
+          useVoiceMessageStore.getState().markFailed(draftId, code)
+        } else {
+          useVoiceMessageStore.getState().markNoSpeech()
+        }
+        _resolveMicIdle()
+        log('recording_no_usable_blob', `duration=${durationMs}`)
+        return
       }
-      useVoiceStore.getState().setMicState('idle')
-      log('recording_no_usable_blob', `duration=${durationMs}`)
-      return
-    }
 
-    // BLOB SOURCE-OF-TRUTH (the only transcription path): transcribe FROM the
-    // captured blob using the SAME shared machinery retry uses. _transcribeBlob
-    // → _assertTranscribableBlob + server VAD are the real empty/no-speech
-    // authority. NEVER report "no audio" here while a size>0 blob exists.
-    if (draftId) {
-      void _transcribeBlob(draftId, blob).then((res) => {
-        if (res.ok) {
-          useVoiceMessageStore.getState().completeActiveTranscript(res.text, res.confidence)
-          useVoiceStore.getState().setMicState('idle')
-          return
-        }
-        // Precise failure — audio is preserved, draft stays retryable.
-        const FINALIZE_CODE: Record<string, string> = {
-          WS_UNAVAILABLE: 'STT_FAILED',
-          DECODE_FAILED: VOICE_ARTIFACT_ERROR.DECODE_FAILED,
-          STT_FAILED: VOICE_ARTIFACT_ERROR.STT_FAILED,
-          TIMEOUT: 'STT_FAILED',
-          LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING,
-          LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY,
-        }
-        useVoiceMessageStore.getState().markTranscriptFailed(FINALIZE_CODE[res.code] ?? res.code)
-        useVoiceStore.getState().setMicState('idle')
-      })
-    }
-  })
+      // BLOB SOURCE-OF-TRUTH (the only transcription path).
+      if (draftId) {
+        asyncPending = true
+        transcribeInFlight = true
+        void _transcribeBlob(draftId, blob)
+          .then((res) => {
+            if (res.ok) {
+              useVoiceMessageStore.getState().completeTranscript(draftId, res.text, res.confidence)
+            } else {
+              const FINALIZE_CODE: Record<string, string> = {
+                WS_UNAVAILABLE: 'STT_FAILED',
+                DECODE_FAILED: VOICE_ARTIFACT_ERROR.DECODE_FAILED,
+                STT_FAILED: VOICE_ARTIFACT_ERROR.STT_FAILED,
+                TIMEOUT: 'STT_FAILED',
+                LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING,
+                LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY,
+              }
+              useVoiceMessageStore.getState().markFailed(draftId, FINALIZE_CODE[res.code] ?? res.code)
+            }
+          })
+          .finally(() => {
+            transcribeInFlight = false
+            _resolveMicIdle() // ROOT A: transcribing ALWAYS resolves to idle
+          })
+      } else {
+        _resolveMicIdle()
+      }
+    })
+  } finally {
+    // If nothing async is pending, the mic must already be terminal here. The
+    // async path resolves micState in its own .finally above. Either way,
+    // 'transcribing' can never latch forever.
+    if (!asyncPending) _resolveMicIdle()
+  }
   log('recording_finalized', finalizedBy, `duration=${durationMs}`)
+}
+
+/** ROOT A: force micState to a terminal 'idle' + clear the transcribing watchdog.
+ *  Safe to call more than once. Does not clobber a live NEW recording's state. */
+function _resolveMicIdle(): void {
+  sessionTimers.clear('micStateWatchdog')
+  const vs = useVoiceStore.getState()
+  const s = vs.micState
+  // Only force idle from the terminal-ish states this finalize owns. A concurrent
+  // fresh capture may already be 'listening'/'recording'/'requesting_permission' —
+  // never yank that back to idle.
+  if (s === 'transcribing' || s === 'processing') vs.setMicState('idle')
+}
+
+/** ROOT A: a hard watchdog so micState can NEVER hang at transcribing/processing.
+ *  If still stuck after the window, force idle + a terminal outcome. */
+function _armMicStateWatchdog(): void {
+  sessionTimers.arm('micStateWatchdog', () => {
+    const vs = useVoiceStore.getState()
+    if (vs.micState === 'transcribing' || vs.micState === 'processing') {
+      log('mic_state_watchdog_forced_idle', vs.micState)
+      vs.setMicState('idle')
+      vs.setLastOutcome('TIMEOUT')
+    }
+  }, MIC_STATE_WATCHDOG_MS)
 }
 
 async function ensureClient(): Promise<VoiceWsClient> {
@@ -475,7 +539,15 @@ function wireEvents(): void {
         cancelPlayback()
         voiceStore.setTtsState('idle')
         voiceStore.setVoicePresentationStatus('idle')
-        voiceStore.setMicState('interrupted')
+        // ROOT A: 'interrupted' must never persist over a LIVE recorder/session — if
+        // one is in flight, tear it down (no dangling recorder the next tap's guard
+        // would bail on). With nothing live, 'interrupted' is a transient display
+        // state a fresh tap clears.
+        if (recorder || (activeSession && !activeSession.done)) {
+          abortActiveRecording()
+        } else {
+          voiceStore.setMicState('interrupted')
+        }
       }
     })
   )
@@ -512,11 +584,21 @@ function wireEvents(): void {
       const code = data.code as string
       const message = data.message as string
       log('server_error', code, message)
+      // ROOT F: while a transcribeUtterance round-trip is in flight, IT owns the
+      // error channel (its scoped listener returns the PRECISE code, which
+      // _finalizeRecording maps + stamps via markFailed). This top-level handler
+      // must NOT also stamp a generic STT_FAILED — that double-write raced the
+      // scoped one and clobbered the precise code (or hit the wrong draft). Let the
+      // scoped listener own it; we no-op the draft-marking half here.
+      if (transcribeInFlight) {
+        log('server_error_deferred_to_scoped_transcribe_listener', code)
+        return
+      }
       const vs = useVoiceStore.getState()
       vs.setError(message || 'Voice server error')
       vs.setLastOutcome('STT_FAILED')
       vs.setMicState('idle')
-      // STT failed after finalize: keep the draft + audio, mark recoverable.
+      // STT failed OUTSIDE a blob transcribe (e.g. a live session) — keep draft+audio.
       const vms = useVoiceMessageStore.getState()
       if (vms.recordingState === 'transcribing' && vms.activeDraftId) {
         vms.markTranscriptFailed('STT_FAILED')
@@ -628,7 +710,7 @@ function wireEvents(): void {
   })
 }
 
-export async function startVoice(): Promise<void> {
+export async function startVoice(signal?: AbortSignal): Promise<void> {
   const vs = useVoiceStore.getState()
 
   // P4S-31D1-C: exactly ONE active recorder. A second mic tap while a recording
@@ -649,7 +731,9 @@ export async function startVoice(): Promise<void> {
     _finalizeRecording('manual_stop')
     return
   }
-  if (recorder || finalizing) {
+  // P3: a live recorder OR an un-finalized session means a capture is in flight.
+  // `activeSession && !activeSession.done` is the finalize latch (was `finalizing`).
+  if (recorder || (activeSession && !activeSession.done)) {
     log('start_ignored_recorder_or_finalizing')
     return
   }
@@ -694,6 +778,13 @@ export async function startVoice(): Promise<void> {
   } catch {
     return
   }
+  // P4: the watchdog may have aborted the chain while ensureClient awaited — bail
+  // BEFORE opening the mic so we don't install a recorder over a torn-down session.
+  if (signal?.aborted) {
+    log('start_aborted_after_ensure_client')
+    teardownCapture()
+    return
+  }
 
   log('permission_requesting')
 
@@ -732,9 +823,17 @@ export async function startVoice(): Promise<void> {
     return
   }
 
+  // P4: the watchdog may have aborted the chain while startMic awaited. The mic is
+  // now open but the session was torn down — release it instead of resurrecting a
+  // live recorder over a dead/abandoned session.
+  if (signal?.aborted) {
+    log('start_aborted_after_start_mic')
+    teardownCapture()
+    return
+  }
+
   // Fresh recording-session accumulators (blob-only: no VAD/live-transcript state).
   recordingStartedAt = Date.now()
-  finalizing = false
 
   // Voice turn id threads capture → transcript → chat → loop.
   const turn = createTurn()
@@ -755,11 +854,22 @@ export async function startVoice(): Promise<void> {
     // device session store unavailable — role-based id + empty session
   }
 
-  useVoiceMessageStore.getState().createDraft({
+  const draft = useVoiceMessageStore.getState().createDraft({
     voiceTurnId: turn.voiceTurnId,
     deviceRegistryId,
     sessionId,
   })
+
+  // P3: bind the whole capture to ONE session object. draftId is captured HERE and
+  // used by every completion handler — a later delete/new-recording can rebind the
+  // store's activeDraftId without corrupting this capture's outcome. `done` is the
+  // finalize latch (replaces the bare `finalizing` flag).
+  activeSession = {
+    id: `vcs-${++_sessionSeq}-${recordingStartedAt}`,
+    draftId: draft.draft_id,
+    turnId: turn.voiceTurnId,
+    done: false,
+  }
 
   // BLOB-ONLY capture: MediaRecorder on the raw stream is the sole artifact.
   _startRecorder(stream)
@@ -809,19 +919,19 @@ export function stopVoice(): void {
  */
 export function abortActiveRecording(): void {
   log('abort_active_recording')
-  finalizing = true
+  // P3: end the session cleanly. `done = true` blocks any in-flight finalize from
+  // double-running; then we DROP the session (null) so the next startVoice's guard
+  // (`activeSession && !activeSession.done`) passes and the mic works again. This
+  // replaces the fragile manual `finalizing = true; …; finalizing = false` dance
+  // (the "after I deleted it, voice wouldn't work again" field bug).
+  if (activeSession) activeSession.done = true
   cancelTurn()
   teardownCapture()
   const vs = useVoiceStore.getState()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
   vs.setVadActive(false)
-  // CRITICAL: clear the finalizing latch. abortActiveRecording is a TERMINAL
-  // teardown (delete-draft / cancel) with no _finalizeRecording completion to
-  // reset it — if left true, startVoice()'s `if (recorder || finalizing) return`
-  // guard bails FOREVER and the mic never works again after a delete. (Field bug:
-  // "after I deleted it, voice wouldn't work again.")
-  finalizing = false
+  activeSession = null
   recorder = null
 }
 
@@ -1001,6 +1111,10 @@ export function stopTts(): void {
 export function destroyVoice(): void {
   cancelTurn()
   teardownCapture()
+  if (activeSession) activeSession.done = true
+  activeSession = null
+  recorder = null
+  transcribeInFlight = false
   cleanups.forEach(fn => fn())
   cleanups = []
   if (chatUnsub) {
