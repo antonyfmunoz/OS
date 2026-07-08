@@ -944,7 +944,7 @@ export async function retryDraftTranscription(draftId: string): Promise<void> {
   const res = await _transcribeBlob(draftId, draft.audioBlob as Blob)
   if (res.ok) {
     // P4S31: STT is local faster-whisper now (no Groq). Label reflects the truth.
-    useVoiceMessageStore.getState().completeRetry(draftId, res.text, 'local_whisper')
+    useVoiceMessageStore.getState().completeRetry(draftId, res.text, 'faster_whisper')
     return
   }
   // Map transport-level outcomes to the retry taxonomy the UI already renders.
