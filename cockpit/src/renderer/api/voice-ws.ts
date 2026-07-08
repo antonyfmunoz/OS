@@ -172,13 +172,36 @@ export class VoiceWsClient {
       throw Object.assign(new Error('Browser does not support microphone capture'), { name: 'NotSupportedError' })
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        sampleRate: TARGET_SAMPLE_RATE,
-      },
+    // P4S31 mobile fix: this is the REAL capture getUserMedia. On iOS Safari it
+    // can HANG indefinitely (never resolves, never rejects) when the OS audio
+    // session is contended — the true "Requesting mic… forever" stall (the
+    // permission probe was already skipped/cleared upstream, so this call is the
+    // remaining unguarded acquisition). Race it against a timeout so the caller
+    // gets a fast, typed MicAcquireTimeout instead of a dead button.
+    let micTimer: ReturnType<typeof setTimeout> | undefined
+    const micTimeout = new Promise<never>((_, reject) => {
+      micTimer = setTimeout(() => {
+        reject(Object.assign(
+          new Error('Microphone did not open — close other mic apps/tabs and try again'),
+          { name: 'MicAcquireTimeout' },
+        ))
+      }, MIC_ACQUIRE_TIMEOUT_MS)
     })
+    let stream: MediaStream
+    try {
+      stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: TARGET_SAMPLE_RATE,
+          },
+        }),
+        micTimeout,
+      ])
+    } finally {
+      if (micTimer) clearTimeout(micTimer)
+    }
 
     const tracks = stream.getAudioTracks()
     log('mic_stream_acquired', `tracks=${tracks.length}`)
