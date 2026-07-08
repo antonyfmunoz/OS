@@ -196,7 +196,6 @@ services:
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      - VOICE_WS_UPSTREAM=ws://host.docker.internal:8096/voice
       - UMH_MESH_RELAY_HOST=host.docker.internal
       - UMH_ROUTER_CLAUDE_CLI_ENABLED=0
       - LIVEKIT_URL=ws://os-livekit:7880

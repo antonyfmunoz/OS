@@ -1547,106 +1547,13 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             _cockpit_clients.discard(ws)
             logger.info(f"cockpit ws disconnected ({len(_cockpit_clients)} clients)")
 
-    # ─── Voice WebSocket Proxy ────────────────────────────────────────────────────
-
-    _VOICE_WS_UPSTREAM = os.environ.get("VOICE_WS_UPSTREAM", "ws://host.docker.internal:8096/voice")
-    _VOICE_PROXY_MAX_MSG = 2**22  # 4 MiB
-
-    @ws_router.websocket("/voice/ws")
-    async def voice_ws_proxy(ws: WebSocket):
-        """Proxy browser voice WebSocket to the internal voice server.
-
-        Auth: same as cockpit_ws (subprotocol bearer.<token>, query param, or dev-bypass).
-        Forwards binary (PCM audio) and JSON control frames in both directions.
-        """
-        if not _validate_ws_token(ws):
-            await ws.close(code=4001, reason="Authentication required")
-            logger.warning(
-                "[VoiceProxy] auth rejected from %s", ws.client.host if ws.client else "unknown"
-            )
-            return
-
-        subprotocol = _extract_ws_subprotocol(ws)
-        await ws.accept(subprotocol=subprotocol)
-        logger.info(
-            "[VoiceProxy] client_connected from %s", ws.client.host if ws.client else "unknown"
-        )
-
-        upstream = None
-        try:
-            import websockets.client
-
-            upstream = await asyncio.wait_for(
-                websockets.client.connect(
-                    _VOICE_WS_UPSTREAM,
-                    max_size=_VOICE_PROXY_MAX_MSG,
-                    ping_interval=20,
-                    ping_timeout=20,
-                ),
-                timeout=5.0,
-            )
-            logger.info("[VoiceProxy] upstream_connected %s", _VOICE_WS_UPSTREAM)
-        except Exception as e:
-            logger.error("[VoiceProxy] upstream_connect_failed: %s", e)
-            await ws.send_json(
-                {
-                    "type": "error",
-                    "code": "voice_server_unavailable",
-                    "message": "Voice server unreachable",
-                }
-            )
-            await ws.close(code=1011, reason="Voice server unreachable")
-            return
-
-        async def client_to_upstream():
-            try:
-                while True:
-                    msg = await ws.receive()
-                    if msg.get("type") == "websocket.disconnect":
-                        break
-                    if "bytes" in msg and msg["bytes"]:
-                        await upstream.send(msg["bytes"])
-                    elif "text" in msg and msg["text"]:
-                        await upstream.send(msg["text"])
-            except WebSocketDisconnect:
-                pass
-            except Exception as e:
-                logger.debug("[VoiceProxy] client_to_upstream error: %s", e)
-            finally:
-                logger.info("[VoiceProxy] client_closed")
-
-        async def upstream_to_client():
-            try:
-                async for message in upstream:
-                    if isinstance(message, bytes):
-                        await ws.send_bytes(message)
-                    else:
-                        await ws.send_text(message)
-            except Exception as e:
-                logger.debug("[VoiceProxy] upstream_to_client error: %s", e)
-            finally:
-                logger.info("[VoiceProxy] upstream_closed")
-
-        try:
-            done, pending = await asyncio.wait(
-                [
-                    asyncio.ensure_future(client_to_upstream()),
-                    asyncio.ensure_future(upstream_to_client()),
-                ],
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            for task in pending:
-                task.cancel()
-        except Exception as e:
-            logger.error("[VoiceProxy] error: %s", e)
-        finally:
-            if upstream:
-                await upstream.close()
-            try:
-                await ws.close()
-            except Exception:
-                pass
-            logger.info("[VoiceProxy] session_ended")
+    # ─── Voice WebSocket ──────────────────────────────────────────────────────────
+    # P4S31 Voice Convergence: the phantom voice proxy that used to live here (a
+    # ws_router websocket handler forwarding to the standalone voice_server) was
+    # REMOVED. The ONE governed voice WS is served directly by the API backend
+    # (transports/api/voice.py, mounted in operator_api). Keeping this proxy would
+    # double-bind the same governed voice path and re-introduce the retired
+    # standalone voice_server dependency. nginx now proxies the path to api_backend.
 
     # ─── Vision WebSocket Proxy ───────────────────────────────────────────────────
 

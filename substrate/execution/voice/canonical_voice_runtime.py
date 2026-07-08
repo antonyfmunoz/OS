@@ -14,8 +14,9 @@ wired to governance. Rival voice runtimes become *adapters* or *records*:
 - ``substrate/execution/bridge/voice_session.py`` — a compat re-export/store
   shim; its record + turn store fold into ``voice/store.py``. It no longer owns
   a session-execution runtime of its own.
-- ``umh/voice_server.py`` — demoted to a WS framing/codec relay; it owns no
-  STT/VAD/TTS.
+- ``umh/voice_server.py`` — RETIRED. The standalone STT/VAD/TTS server (and its
+  Groq-first STT) was removed entirely; voice runs inside the API backend behind
+  the governed WS. No separate voice process, no second STT/TTS engine.
 - ``substrate/workstation/voice_session_manager.py`` — kept as the multi-session
   PRIORITY ARBITER (COMMAND>CONVERSATION>PASSIVE); it delegates turn *execution*
   to the one runtime.
