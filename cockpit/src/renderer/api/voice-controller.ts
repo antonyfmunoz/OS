@@ -17,7 +17,7 @@
  *  - retryDraftTranscription (Lane E): re-run STT over the preserved audio blob
  *  - abortActiveRecording: tear the mic/recorder down with no dispatch
  */
-import { VoiceWsClient } from './voice-ws'
+import { VoiceWsClient, releaseGestureStream } from './voice-ws'
 import { voiceConsentForCapture } from './platform-voice-adapter'
 import { VOICE_ERROR_CODES } from './voiceErrorCodes'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -65,8 +65,6 @@ export type VoiceArtifactErrorCode = keyof typeof VOICE_ARTIFACT_ERROR
 let client: VoiceWsClient | null = null
 let cleanups: (() => void)[] = []
 let chatUnsub: (() => void) | null = null
-let pendingTimeout: ReturnType<typeof setTimeout> | null = null
-let maxRecordingTimeout: ReturnType<typeof setTimeout> | null = null
 /** ~10Hz poll that mirrors client.clientRms into the message store (the meter). */
 let meterInterval: ReturnType<typeof setInterval> | null = null
 /** Wall-clock ms the meter started, for the "mic appears silent" hint. */
@@ -84,8 +82,29 @@ let _pendingVoiceTurnId: string | null = null
 let recorder: MediaRecorder | null = null
 let recorderChunks: Blob[] = []
 let recordingStartedAt = 0
-let finalizing = false
 let onRecorderStop: ((blob: Blob | null) => void) | null = null
+/** ROOT D (iOS): the current capture stream, kept so teardownCapture can detach
+ *  its track health handlers even on paths where recorder.onstop never fires. */
+let captureStream: MediaStream | null = null
+
+// P3 — the current capture as ONE object. Replaces the bare `finalizing` latch
+// (which stranded when an exit path forgot to reset it) and the "read the live
+// activeDraftId" pattern (which wrote a returning transcript onto the WRONG draft
+// after a concurrent delete/new-recording). `draftId` is CAPTURED here at capture
+// start and used by every completion handler; `done` is the finalize latch and is
+// cleared in a `finally`, so it can never strand. null = no capture in flight.
+interface CaptureSession {
+  id: string
+  draftId: string
+  turnId: string
+  done: boolean
+}
+let activeSession: CaptureSession | null = null
+let _sessionSeq = 0
+/** ROOT F: true only while a transcribeUtterance round-trip owns the WS error
+ *  channel — the top-level error handler must not also stamp the draft failed
+ *  (that double-write loses the precise code the scoped listener returns). */
+let transcribeInFlight = false
 
 // Metering AnalyserNode (meter-ONLY: RMS bar + silent-mic hint). No VAD, no
 // finalize — it can never re-introduce the two-path divergence bug class.
@@ -96,6 +115,10 @@ let meterRafId: number | null = null
 
 const PENDING_RESPONSE_TIMEOUT_MS = 30_000
 const TTS_GENERATE_TIMEOUT_MS = 15_000
+/** ROOT A: max time micState may sit at transcribing/processing before we force
+ *  idle. Bound to the WS transcribe timeout (25s) + margin so a real slow STT
+ *  resolves first and this only fires on a genuine hang. */
+const MIC_STATE_WATCHDOG_MS = 35_000
 /** Meter poll cadence — ~10Hz is enough to look live and stays cheap. */
 const METER_POLL_MS = 100
 /** Peak RMS below this after MIC_SILENT_HINT_MS means the mic looks silent. */
@@ -106,9 +129,26 @@ const MIC_SILENT_HINT_MS = 2_000
 const log = (stage: string, ...args: unknown[]) =>
   console.log(`[VoicePipeline] ${stage}`, ...args)
 
-function clearAllTimers(): void {
-  if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
-  if (maxRecordingTimeout) { clearTimeout(maxRecordingTimeout); maxRecordingTimeout = null }
+// P1 — session timer registry. A single owner for every capture/turn timeout.
+// `arm(key, …)` ALWAYS clears the prior handle for that key before setting the
+// new one, so a timer can never be orphaned by re-arming (the double-send
+// `pendingTimeout` leak class). Keys used: 'pendingResponse', 'maxRecording',
+// 'ttsGenerate'. `clearAll()` replaces the old `clearAllTimers()`.
+const _timers = new Map<string, ReturnType<typeof setTimeout>>()
+const sessionTimers = {
+  arm(key: string, fn: () => void, ms: number): void {
+    const prev = _timers.get(key)
+    if (prev) clearTimeout(prev)
+    _timers.set(key, setTimeout(() => { _timers.delete(key); fn() }, ms))
+  },
+  clear(key: string): void {
+    const t = _timers.get(key)
+    if (t) { clearTimeout(t); _timers.delete(key) }
+  },
+  clearAll(): void {
+    for (const t of _timers.values()) clearTimeout(t)
+    _timers.clear()
+  },
 }
 
 /**
@@ -125,11 +165,21 @@ function startCaptureMeter(): void {
     if (!client) return
     const rms = client.clientRms
     const elapsed = Date.now() - meterStartedAt
+    // ROOT D (iOS): the RMS is only trustworthy when the meter AudioContext is
+    // actually 'running'. On iOS Safari an AudioContext created outside the user
+    // gesture (which is where we are — many awaits past the tap) starts
+    // 'suspended', .resume() is ignored, and the analyser reads all-zeros. Without
+    // this gate that produced a FALSE "mic appears silent" hint on EVERY iOS
+    // recording even while the user spoke normally (the blob itself records fine).
+    // If the context isn't running, RMS is unreliable → never emit the hint.
+    const meterRunning = meterAudioContext?.state === 'running'
     // silentMs: elapsed only counts toward the hint once we're past the grace
-    // window AND the session has never risen above the silence floor.
+    // window, the meter is trustworthy, AND the session never rose above the floor.
     const peak = useVoiceMessageStore.getState().captureRmsPeak
     const silentMs =
-      elapsed >= MIC_SILENT_HINT_MS && Math.max(peak, rms) < MIC_SILENT_RMS_FLOOR
+      meterRunning &&
+      elapsed >= MIC_SILENT_HINT_MS &&
+      Math.max(peak, rms) < MIC_SILENT_RMS_FLOOR
         ? elapsed
         : 0
     useVoiceMessageStore.getState().setCaptureRms(rms, silentMs)
@@ -193,6 +243,24 @@ function stopMeterAnalyser(): void {
   client?.setMeterRms(0)
 }
 
+// P2 — the SINGLE owner of capture-resource teardown. Every abort/stop/destroy
+// path routes its resource cleanup through here instead of re-listing the steps,
+// so no path can forget one. This is also the only place `releaseGestureStream()`
+// is wired on the controller side — previously it had ZERO controller callers, so
+// an abort-before-startMic left the getUserMedia stream live (iOS mic stayed lit).
+// This owns RESOURCES only; callers still own their own state/flag transitions.
+function teardownCapture(): void {
+  _stopRecorder(() => { /* discard */ })
+  // ROOT D (iOS): detach the track mute/ended health handlers so they can't fire
+  // across sessions (on abort/error paths recorder.onstop may never run).
+  if (captureStream) { _detachTrackHandlers(captureStream); captureStream = null }
+  stopMeterAnalyser()
+  stopCaptureMeter()
+  client?.stopMic()
+  releaseGestureStream()
+  sessionTimers.clearAll()
+}
+
 // ── MediaRecorder lifecycle ──────────────────────────────────────────────────
 
 function _pickRecorderMime(): string {
@@ -220,6 +288,7 @@ function _pickRecorderMime(): string {
 function _startRecorder(stream: MediaStream): void {
   recorderChunks = []
   onRecorderStop = null
+  captureStream = stream
   if (typeof MediaRecorder === 'undefined') {
     log('media_recorder_unavailable')
     recorder = null
@@ -227,36 +296,101 @@ function _startRecorder(stream: MediaStream): void {
   }
   try {
     const mime = _pickRecorderMime()
-    recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
-    recorder.ondataavailable = (e: BlobEvent) => {
+    const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+    recorder = rec
+    // Capture the effective mimeType in the closure so blob assembly stays correct
+    // even after `recorder` is nulled and rec's handlers are detached (below).
+    const recMime = rec.mimeType
+    rec.ondataavailable = (e: BlobEvent) => {
       if (e.data && e.data.size > 0) recorderChunks.push(e.data)
     }
-    recorder.onstop = () => {
-      const type = recorder?.mimeType || recorderChunks[0]?.type || 'audio/webm'
+    rec.onstop = () => {
+      const type = recMime || recorderChunks[0]?.type || 'audio/webm'
       const blob = recorderChunks.length > 0 ? new Blob(recorderChunks, { type }) : null
       const cb = onRecorderStop
       onRecorderStop = null
+      // ROOT B: detach THIS recorder's handlers now that its final blob is
+      // delivered. Prevents a late/stray ondataavailable from the OLD recorder
+      // pushing a tail chunk into the NEXT session's recorderChunks (cross-session
+      // contamination) — the handlers close over the shared module-level array.
+      rec.ondataavailable = null
+      rec.onstop = null
+      _detachTrackHandlers(stream)
       if (cb) cb(blob)
     }
-    recorder.start()
-    log('recorder_started', recorder.mimeType)
+    // ROOT D (iOS): a MediaRecorder error (e.g. the OS tearing down the audio
+    // session on a call/Siri interruption) must not hang the draft at
+    // 'transcribing' — tear down gracefully so the mic returns to idle.
+    rec.onerror = (e) => {
+      log('recorder_error', e)
+      abortActiveRecording()
+    }
+    // ROOT D (iOS): on screen-lock / backgrounding, iOS fires mute/ended on the
+    // capture track and stops feeding the recorder. Detect it and finalize the
+    // audio captured so far (D3's timeslice means chunks are already flushed)
+    // rather than losing everything or hanging. If nothing was captured, abort.
+    _wireTrackHealth(stream)
+    // ROOT D (iOS): a 1s timeslice flushes `ondataavailable` periodically. Without
+    // it, MediaRecorder emits exactly ONE dataavailable at stop() — so any iOS
+    // interruption before a clean stop() loses ALL audio. With it, recorderChunks
+    // holds the flushed data even when onstop never fires cleanly. The timeslice
+    // only changes chunk cadence; the container/mimeType is fixed at construction,
+    // so the playable bubble + server ffmpeg decode are unaffected.
+    rec.start(1000)
+    log('recorder_started', rec.mimeType)
   } catch (e) {
     log('recorder_start_failed', e)
     recorder = null
   }
 }
 
+/** ROOT D (iOS): wire mute/ended on each audio track so an OS-driven capture
+ *  teardown (screen-lock, call, backgrounding) finalizes gracefully instead of
+ *  hanging the draft at 'transcribing' or silently losing the recording. */
+function _wireTrackHealth(stream: MediaStream): void {
+  for (const track of stream.getAudioTracks()) {
+    const onInterrupt = (evt: string) => {
+      log('capture_track_interrupted', evt, track.readyState)
+      // Only act on a live capture — ignore events during teardown.
+      if (!activeSession || activeSession.done) return
+      if (recorder && recorder.state !== 'inactive') {
+        // Audio was being captured (and, with the timeslice, flushed) — preserve it.
+        _finalizeRecording('manual_stop')
+      } else {
+        abortActiveRecording()
+      }
+    }
+    track.onended = () => onInterrupt('ended')
+    track.onmute = () => onInterrupt('mute')
+  }
+}
+
+/** Detach the track health handlers so they can't fire across sessions. */
+function _detachTrackHandlers(stream: MediaStream): void {
+  for (const track of stream.getAudioTracks()) {
+    track.onended = null
+    track.onmute = null
+  }
+}
+
 /** Stop the recorder and deliver the assembled blob to `cb` (null if none). */
 function _stopRecorder(cb: (blob: Blob | null) => void): void {
-  if (recorder && recorder.state !== 'inactive') {
+  const rec = recorder
+  if (rec && rec.state !== 'inactive') {
     onRecorderStop = cb
     try {
-      recorder.stop()
+      rec.stop() // onstop delivers the blob AND detaches rec's handlers
     } catch {
       onRecorderStop = null
+      // onstop won't fire — detach here so a stray ondataavailable can't leak.
+      rec.ondataavailable = null
+      rec.onstop = null
       cb(null)
     }
   } else {
+    // Already inactive: onstop already fired (and detached). Detach defensively
+    // in case a recorder was inactive-at-entry with handlers still attached.
+    if (rec) { rec.ondataavailable = null; rec.onstop = null }
     cb(null)
   }
   recorder = null
@@ -271,73 +405,115 @@ function _stopRecorder(cb: (blob: Blob | null) => void): void {
  * NEVER dispatches to chat — that is only ever the operator's explicit send.
  */
 function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): void {
-  if (finalizing) return
-  finalizing = true
-  clearAllTimers()
+  // P3 re-entrancy guard: a finalize already ran/running for this session → no-op.
+  // (Replaces the bare `finalizing` latch; delete-during-finalize + max-timeout-vs-
+  // manual-stop can no longer double-finalize.)
+  const session = activeSession
+  if (!session || session.done) {
+    log('finalize_ignored_no_session_or_done')
+    return
+  }
+  session.done = true
+  sessionTimers.clearAll()
   stopCaptureMeter()
   stopMeterAnalyser()
 
   const now = Date.now()
   const durationMs = recordingStartedAt ? now - recordingStartedAt : 0
+  // ROOT F: the draft id is CAPTURED from the session, fixed for this whole
+  // finalize — every completion writes to THIS draft, never the live activeDraftId
+  // (which a concurrent delete/new-recording may have nulled or rebound).
+  const draftId = session.draftId
 
-  // BLOB-ONLY: the captured blob is the single source of truth. Mark the draft
-  // finalizing/transcribing up front; the real "no speech" authority is the
-  // server (SILENT_AUDIO / VAD_NO_SPEECH via _transcribeBlob), not a client
-  // silence estimate. The draft it binds to is fixed now, before
-  // completeActiveTranscript clears activeDraftId.
-  useVoiceMessageStore.getState().finalizeActiveDraft(finalizedBy, durationMs, null, now)
-  useVoiceStore.getState().setMicState('transcribing')
-  const finalizingDraftId = useVoiceMessageStore.getState().activeDraftId
+  // Guarantee terminal resolution even if a branch throws or falls through: the
+  // finally forces micState back to a terminal state so the mic can never strand
+  // at 'transcribing'. Async work (the blob transcribe) resolves its own micState.
+  let asyncPending = false
+  try {
+    useVoiceMessageStore.getState().finalizeActiveDraft(finalizedBy, durationMs, null, now)
+    _armMicStateWatchdog() // ROOT A: transcribing must not hang forever
+    useVoiceStore.getState().setMicState('transcribing')
 
-  if (client) client.stopMic()
+    if (client) client.stopMic()
 
-  // Stop the recorder, then decide from the BLOB (its size only known here).
-  _stopRecorder((blob) => {
-    if (blob) useVoiceMessageStore.getState().attachAudio(blob)
-    const draftId = finalizingDraftId
+    _stopRecorder((blob) => {
+      if (blob) useVoiceMessageStore.getState().attachAudio(blob)
 
-    // No usable blob → recoverable missing/empty draft, NEVER a chat message.
-    // Precise artifact code (blob-size based, not a client speech estimate).
-    if (!blob || blob.size <= 0) {
-      if (draftId) {
-        const code = !blob
-          ? VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
-          : VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
-        useVoiceMessageStore.getState().markTranscriptFailed(code)
-      } else {
-        useVoiceMessageStore.getState().markNoSpeech()
+      // No usable blob → recoverable missing/empty draft, NEVER a chat message.
+      if (!blob || blob.size <= 0) {
+        if (draftId) {
+          const code = !blob
+            ? VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
+            : VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
+          useVoiceMessageStore.getState().markFailed(draftId, code)
+        } else {
+          useVoiceMessageStore.getState().markNoSpeech()
+        }
+        _resolveMicIdle()
+        log('recording_no_usable_blob', `duration=${durationMs}`)
+        return
       }
-      useVoiceStore.getState().setMicState('idle')
-      log('recording_no_usable_blob', `duration=${durationMs}`)
-      return
-    }
 
-    // BLOB SOURCE-OF-TRUTH (the only transcription path): transcribe FROM the
-    // captured blob using the SAME shared machinery retry uses. _transcribeBlob
-    // → _assertTranscribableBlob + server VAD are the real empty/no-speech
-    // authority. NEVER report "no audio" here while a size>0 blob exists.
-    if (draftId) {
-      void _transcribeBlob(draftId, blob).then((res) => {
-        if (res.ok) {
-          useVoiceMessageStore.getState().completeActiveTranscript(res.text, res.confidence)
-          useVoiceStore.getState().setMicState('idle')
-          return
-        }
-        // Precise failure — audio is preserved, draft stays retryable.
-        const FINALIZE_CODE: Record<string, string> = {
-          WS_UNAVAILABLE: 'STT_FAILED',
-          DECODE_FAILED: VOICE_ARTIFACT_ERROR.DECODE_FAILED,
-          STT_FAILED: VOICE_ARTIFACT_ERROR.STT_FAILED,
-          TIMEOUT: 'STT_FAILED',
-          LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING,
-          LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY,
-        }
-        useVoiceMessageStore.getState().markTranscriptFailed(FINALIZE_CODE[res.code] ?? res.code)
-        useVoiceStore.getState().setMicState('idle')
-      })
-    }
-  })
+      // BLOB SOURCE-OF-TRUTH (the only transcription path).
+      if (draftId) {
+        asyncPending = true
+        transcribeInFlight = true
+        void _transcribeBlob(draftId, blob)
+          .then((res) => {
+            if (res.ok) {
+              useVoiceMessageStore.getState().completeTranscript(draftId, res.text, res.confidence)
+            } else {
+              const FINALIZE_CODE: Record<string, string> = {
+                WS_UNAVAILABLE: 'STT_FAILED',
+                DECODE_FAILED: VOICE_ARTIFACT_ERROR.DECODE_FAILED,
+                STT_FAILED: VOICE_ARTIFACT_ERROR.STT_FAILED,
+                TIMEOUT: 'STT_FAILED',
+                LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING,
+                LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY,
+              }
+              useVoiceMessageStore.getState().markFailed(draftId, FINALIZE_CODE[res.code] ?? res.code)
+            }
+          })
+          .finally(() => {
+            transcribeInFlight = false
+            _resolveMicIdle() // ROOT A: transcribing ALWAYS resolves to idle
+          })
+      } else {
+        _resolveMicIdle()
+      }
+    })
+  } finally {
+    // If nothing async is pending, the mic must already be terminal here. The
+    // async path resolves micState in its own .finally above. Either way,
+    // 'transcribing' can never latch forever.
+    if (!asyncPending) _resolveMicIdle()
+  }
   log('recording_finalized', finalizedBy, `duration=${durationMs}`)
+}
+
+/** ROOT A: force micState to a terminal 'idle' + clear the transcribing watchdog.
+ *  Safe to call more than once. Does not clobber a live NEW recording's state. */
+function _resolveMicIdle(): void {
+  sessionTimers.clear('micStateWatchdog')
+  const vs = useVoiceStore.getState()
+  const s = vs.micState
+  // Only force idle from the terminal-ish states this finalize owns. A concurrent
+  // fresh capture may already be 'listening'/'recording'/'requesting_permission' —
+  // never yank that back to idle.
+  if (s === 'transcribing' || s === 'processing') vs.setMicState('idle')
+}
+
+/** ROOT A: a hard watchdog so micState can NEVER hang at transcribing/processing.
+ *  If still stuck after the window, force idle + a terminal outcome. */
+function _armMicStateWatchdog(): void {
+  sessionTimers.arm('micStateWatchdog', () => {
+    const vs = useVoiceStore.getState()
+    if (vs.micState === 'transcribing' || vs.micState === 'processing') {
+      log('mic_state_watchdog_forced_idle', vs.micState)
+      vs.setMicState('idle')
+      vs.setLastOutcome('TIMEOUT')
+    }
+  }, MIC_STATE_WATCHDOG_MS)
 }
 
 async function ensureClient(): Promise<VoiceWsClient> {
@@ -346,6 +522,19 @@ async function ensureClient(): Promise<VoiceWsClient> {
   const vs = useVoiceStore.getState()
   vs.setMicState('connecting_voice_ws')
   log('connecting_voice_ws')
+
+  // ROOT B: before rebuilding, fully tear down any prior client. Previously this
+  // branch overwrote `client`/`chatUnsub` and pushed onto a stale `cleanups`
+  // array WITHOUT disconnecting the old client — leaking an auto-reconnecting
+  // socket + its heartbeat interval + visibilitychange listener + duplicate
+  // handlers on every reconnect gap. Flush cleanups, drop the chat sub, disconnect.
+  if (client) {
+    cleanups.forEach((fn) => fn())
+    cleanups = []
+    if (chatUnsub) { chatUnsub(); chatUnsub = null }
+    client.disconnect()
+    client = null
+  }
 
   client = new VoiceWsClient()
   wireEvents()
@@ -398,7 +587,7 @@ function wireEvents(): void {
       useVoiceStore.getState().setTtsState('idle')
       useVoiceStore.getState().setAudioLevel(0)
       releaseHeldMessage()
-      clearAllTimers()
+      sessionTimers.clearAll()
     })
   )
 
@@ -415,7 +604,15 @@ function wireEvents(): void {
         cancelPlayback()
         voiceStore.setTtsState('idle')
         voiceStore.setVoicePresentationStatus('idle')
-        voiceStore.setMicState('interrupted')
+        // ROOT A: 'interrupted' must never persist over a LIVE recorder/session — if
+        // one is in flight, tear it down (no dangling recorder the next tap's guard
+        // would bail on). With nothing live, 'interrupted' is a transient display
+        // state a fresh tap clears.
+        if (recorder || (activeSession && !activeSession.done)) {
+          abortActiveRecording()
+        } else {
+          voiceStore.setMicState('interrupted')
+        }
       }
     })
   )
@@ -452,17 +649,27 @@ function wireEvents(): void {
       const code = data.code as string
       const message = data.message as string
       log('server_error', code, message)
+      // ROOT F: while a transcribeUtterance round-trip is in flight, IT owns the
+      // error channel (its scoped listener returns the PRECISE code, which
+      // _finalizeRecording maps + stamps via markFailed). This top-level handler
+      // must NOT also stamp a generic STT_FAILED — that double-write raced the
+      // scoped one and clobbered the precise code (or hit the wrong draft). Let the
+      // scoped listener own it; we no-op the draft-marking half here.
+      if (transcribeInFlight) {
+        log('server_error_deferred_to_scoped_transcribe_listener', code)
+        return
+      }
       const vs = useVoiceStore.getState()
       vs.setError(message || 'Voice server error')
       vs.setLastOutcome('STT_FAILED')
       vs.setMicState('idle')
-      // STT failed after finalize: keep the draft + audio, mark recoverable.
+      // STT failed OUTSIDE a blob transcribe (e.g. a live session) — keep draft+audio.
       const vms = useVoiceMessageStore.getState()
       if (vms.recordingState === 'transcribing' && vms.activeDraftId) {
         vms.markTranscriptFailed('STT_FAILED')
       }
       releaseHeldMessage()
-      clearAllTimers()
+      sessionTimers.clearAll()
     })
   )
 
@@ -509,7 +716,7 @@ function wireEvents(): void {
     if (last?.sender !== 'assistant') return
 
     log('dex_response_received', last.content?.slice(0, 60))
-    if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
+    sessionTimers.clear('pendingResponse')
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('idle')
 
@@ -542,7 +749,7 @@ function wireEvents(): void {
       voiceState.setTtsState('generating_tts')
       voiceState.setVoicePresentationStatus('preparing_voice')
 
-      const ttsTimeout = setTimeout(() => {
+      sessionTimers.arm('ttsGenerate', () => {
         const v = useVoiceStore.getState()
         if (v.ttsState === 'generating_tts') {
           log('tts_generate_timeout')
@@ -560,8 +767,6 @@ function wireEvents(): void {
       // Use spoken_text if available (concise TTS-friendly version)
       const ttsText = (last.metadata?.spoken_text as string | undefined) || last.content
       client.requestTts(ttsText)
-
-      cleanups.push(() => clearTimeout(ttsTimeout))
     } else {
       voiceState.setVoicePresentationStatus('complete')
       setTimeout(() => useVoiceStore.getState().setVoicePresentationStatus('idle'), 500)
@@ -570,7 +775,7 @@ function wireEvents(): void {
   })
 }
 
-export async function startVoice(): Promise<void> {
+export async function startVoice(signal?: AbortSignal): Promise<void> {
   const vs = useVoiceStore.getState()
 
   // P4S-31D1-C: exactly ONE active recorder. A second mic tap while a recording
@@ -591,7 +796,9 @@ export async function startVoice(): Promise<void> {
     _finalizeRecording('manual_stop')
     return
   }
-  if (recorder || finalizing) {
+  // P3: a live recorder OR an un-finalized session means a capture is in flight.
+  // `activeSession && !activeSession.done` is the finalize latch (was `finalizing`).
+  if (recorder || (activeSession && !activeSession.done)) {
     log('start_ignored_recorder_or_finalizing')
     return
   }
@@ -599,16 +806,21 @@ export async function startVoice(): Promise<void> {
   vs.setError(null)
   vs.setLastOutcome(null)
   vs.setChunksSent(0)
-  clearAllTimers()
+  sessionTimers.clearAll()
 
   log('mic_clicked')
 
-  // Unlock audio on user gesture (iOS requires this before any Audio.play())
-  unlockAudioForIOS().then((ok) => {
+  // ROOT D (iOS): unlock audio on the user gesture BEFORE any Audio.play(). On iOS
+  // the silent-buffer unlock must COMPLETE within the gesture to grant later TTS
+  // playback — firing it fire-and-forget let the gesture expire first, so TTS was
+  // then blocked by the autoplay policy ("Tap to play audio"). Await it (bounded;
+  // it self-resolves), early in the chain, before the ensureClient/startMic awaits.
+  try {
+    const ok = await unlockAudioForIOS()
     log('ios_audio_unlock', ok ? 'success' : 'failed')
-  }).catch(() => {
+  } catch {
     log('ios_audio_unlock', 'error')
-  })
+  }
 
   // Wire playback callbacks for TTS state management
   setPlaybackCallbacks(
@@ -634,6 +846,13 @@ export async function startVoice(): Promise<void> {
   try {
     c = await ensureClient()
   } catch {
+    return
+  }
+  // P4: the watchdog may have aborted the chain while ensureClient awaited — bail
+  // BEFORE opening the mic so we don't install a recorder over a torn-down session.
+  if (signal?.aborted) {
+    log('start_aborted_after_ensure_client')
+    teardownCapture()
     return
   }
 
@@ -674,9 +893,17 @@ export async function startVoice(): Promise<void> {
     return
   }
 
+  // P4: the watchdog may have aborted the chain while startMic awaited. The mic is
+  // now open but the session was torn down — release it instead of resurrecting a
+  // live recorder over a dead/abandoned session.
+  if (signal?.aborted) {
+    log('start_aborted_after_start_mic')
+    teardownCapture()
+    return
+  }
+
   // Fresh recording-session accumulators (blob-only: no VAD/live-transcript state).
   recordingStartedAt = Date.now()
-  finalizing = false
 
   // Voice turn id threads capture → transcript → chat → loop.
   const turn = createTurn()
@@ -697,11 +924,22 @@ export async function startVoice(): Promise<void> {
     // device session store unavailable — role-based id + empty session
   }
 
-  useVoiceMessageStore.getState().createDraft({
+  const draft = useVoiceMessageStore.getState().createDraft({
     voiceTurnId: turn.voiceTurnId,
     deviceRegistryId,
     sessionId,
   })
+
+  // P3: bind the whole capture to ONE session object. draftId is captured HERE and
+  // used by every completion handler — a later delete/new-recording can rebind the
+  // store's activeDraftId without corrupting this capture's outcome. `done` is the
+  // finalize latch (replaces the bare `finalizing` flag).
+  activeSession = {
+    id: `vcs-${++_sessionSeq}-${recordingStartedAt}`,
+    draftId: draft.draft_id,
+    turnId: turn.voiceTurnId,
+    done: false,
+  }
 
   // BLOB-ONLY capture: MediaRecorder on the raw stream is the sole artifact.
   _startRecorder(stream)
@@ -714,7 +952,7 @@ export async function startVoice(): Promise<void> {
   vs.setMicState('listening')
   log('state=listening', 'tap mic again to send')
 
-  maxRecordingTimeout = setTimeout(() => {
+  sessionTimers.arm('maxRecording', () => {
     log('max_recording_timeout', `${VAD_CONFIG.max_recording_ms}ms`)
     const v = useVoiceStore.getState()
     if (v.micState === 'listening' || v.micState === 'recording') {
@@ -738,11 +976,8 @@ export function stopVoice(): void {
     return
   }
 
-  if (client) client.stopMic()
   cancelTurn()
-  clearAllTimers()
-  stopCaptureMeter()
-  stopMeterAnalyser()
+  teardownCapture()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
   vs.setVadActive(false)
@@ -754,23 +989,19 @@ export function stopVoice(): void {
  */
 export function abortActiveRecording(): void {
   log('abort_active_recording')
-  clearAllTimers()
-  stopCaptureMeter()
-  stopMeterAnalyser()
-  finalizing = true
-  if (client) client.stopMic()
-  _stopRecorder(() => { /* discard — deleteDraft revokes any attached blob */ })
+  // P3: end the session cleanly. `done = true` blocks any in-flight finalize from
+  // double-running; then we DROP the session (null) so the next startVoice's guard
+  // (`activeSession && !activeSession.done`) passes and the mic works again. This
+  // replaces the fragile manual `finalizing = true; …; finalizing = false` dance
+  // (the "after I deleted it, voice wouldn't work again" field bug).
+  if (activeSession) activeSession.done = true
   cancelTurn()
+  teardownCapture()
   const vs = useVoiceStore.getState()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
   vs.setVadActive(false)
-  // CRITICAL: clear the finalizing latch. abortActiveRecording is a TERMINAL
-  // teardown (delete-draft / cancel) with no _finalizeRecording completion to
-  // reset it — if left true, startVoice()'s `if (recorder || finalizing) return`
-  // guard bails FOREVER and the mic never works again after a delete. (Field bug:
-  // "after I deleted it, voice wouldn't work again.")
-  finalizing = false
+  activeSession = null
   recorder = null
 }
 
@@ -790,7 +1021,7 @@ export function notifyVoiceMessageSent(voiceTurnId: string): void {
   vs.setLastOutcome('TRANSCRIPT_RECEIVED')
   log('[VoiceTurn] voice_message_sent', voiceTurnId)
 
-  pendingTimeout = setTimeout(() => {
+  sessionTimers.arm('pendingResponse', () => {
     const v = useVoiceStore.getState()
     if (v.pendingVoiceResponse) {
       v.setPendingVoiceResponse(false)
@@ -948,11 +1179,12 @@ export function stopTts(): void {
 }
 
 export function destroyVoice(): void {
-  clearAllTimers()
-  stopCaptureMeter()
-  stopMeterAnalyser()
   cancelTurn()
-  _stopRecorder(() => { /* discard */ })
+  teardownCapture()
+  if (activeSession) activeSession.done = true
+  activeSession = null
+  recorder = null
+  transcribeInFlight = false
   cleanups.forEach(fn => fn())
   cleanups = []
   if (chatUnsub) {

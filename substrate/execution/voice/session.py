@@ -195,6 +195,15 @@ class VoiceSession:
             self._state.errors.append(str(e)[:200])
             self._state.status = VoiceSessionStatus.ERROR
             logger.warning("Voice processing error: %s", e)
+            # A genuine STT/processing crash must surface as a TYPED error, not a
+            # blank "success". Previously this fell through with empty utterance and
+            # no error_code, so the client saw an empty transcript instead of a
+            # failure. The legitimate no-speech path above sets classification=SILENCE
+            # and returns early (never reaches here), so this only fires on a real
+            # exception — empty-audio/silence stays distinct.
+            from substrate.execution.voice.error_codes import VoiceErrorCode
+
+            exchange.error_code = VoiceErrorCode.STT_FAILED.value
 
         exchange.duration_ms = (time.monotonic() - t0) * 1000
         self._state.status = VoiceSessionStatus.LISTENING

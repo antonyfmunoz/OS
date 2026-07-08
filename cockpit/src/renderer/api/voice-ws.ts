@@ -189,6 +189,11 @@ export class VoiceWsClient {
         onConnected()
         onDisconnected()
         log('ws_connect_timeout', '5s elapsed')
+        // ROOT B: close the underlying socket before rejecting. Otherwise the
+        // WsClient keeps shouldReconnect=true and its heartbeat/visibility
+        // listeners, so a socket that opens AFTER the 5s timeout becomes an
+        // orphaned, forever-reconnecting zombie with no owning reference.
+        this.ws.disconnect()
         reject(new Error('Voice server connection timed out'))
       }, 5000)
       this.ws.connect()

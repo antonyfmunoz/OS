@@ -46,6 +46,11 @@ export type VoiceOutcome =
   | 'MIC_DEVICE_UNAVAILABLE'
   | 'MIC_ACQUIRE_TIMEOUT'
   | 'VOICE_WS_UNAVAILABLE'
+  // ROOT E: the watchdog/start-failure outcomes the adapter already emits (the 8s
+  // consent→capture watchdog). Previously absent from the union → TS-invisible, so
+  // they slipped past type-checking despite being set at runtime.
+  | 'VOICE_START_TIMEOUT'
+  | 'VOICE_START_FAILED'
   | 'STT_FAILED'
   | 'TIMEOUT'
   | 'RECORDING_FORMAT_UNSUPPORTED'

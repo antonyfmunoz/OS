@@ -9,6 +9,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import Any
@@ -21,6 +22,13 @@ from substrate.execution.voice.session import VoiceSession
 from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
+
+# ROOT C: max idle wait for the next frame in the audio-accumulation loop. Without
+# it, a mobile client that backgrounds / black-holes the connection mid-send (no
+# TCP FIN/RST reaches us) leaves the receive coroutine + the live VoiceSession hung
+# FOREVER. The client transcribeUtterance timeout is bound to the same order of
+# magnitude (~25s client vs 30s server) so the client fails first on a real stall.
+RECEIVE_IDLE_TIMEOUT = 30.0
 
 router = APIRouter(prefix="/api/umh/voice")
 
@@ -305,11 +313,23 @@ async def voice_ws(ws: WebSocket) -> None:
     )
     session.start()
 
-    # 5. Accumulate BINARY audio until the terminator.
+    # 5. Accumulate BINARY audio until the terminator. Each frame receive is bounded
+    #    by RECEIVE_IDLE_TIMEOUT (ROOT C): a client that vanishes mid-send can no
+    #    longer hang this coroutine + session forever — we break and process (or
+    #    empty-audio-fail) whatever accumulated instead.
     audio = bytearray()
     try:
         while True:
-            msg = await ws.receive()
+            try:
+                msg = await asyncio.wait_for(ws.receive(), timeout=RECEIVE_IDLE_TIMEOUT)
+            except asyncio.TimeoutError:
+                logger.info(
+                    "voice ws receive idle-timeout after %.0fs (%d bytes accumulated) — "
+                    "closing to avoid a hung coroutine/session",
+                    RECEIVE_IDLE_TIMEOUT,
+                    len(audio),
+                )
+                break
             if msg.get("type") == "websocket.disconnect":
                 break
             data = msg.get("bytes")
@@ -330,10 +350,16 @@ async def voice_ws(ws: WebSocket) -> None:
         pass
 
     # 6. Run the accumulated audio through the ONE runtime + relay typed frames.
+    #    ROOT C: the typed error/transcript frame is sent AND yielded to the event
+    #    loop (`asyncio.sleep(0)`) BEFORE the finally closes the socket, so the
+    #    precise VoiceErrorCode reliably flushes to the client instead of racing the
+    #    close handshake (which previously surfaced a fast server error as a 25s
+    #    client TIMEOUT).
     try:
         exchange = session.process_audio_blob(bytes(audio), content_type=content_type)
         if exchange.error_code:
             await _send_json(ws, error_payload(VoiceErrorCode(exchange.error_code)))
+            await asyncio.sleep(0)
         else:
             await _send_json(
                 ws,
@@ -345,9 +371,11 @@ async def voice_ws(ws: WebSocket) -> None:
             )
             if exchange.responded and exchange.spoken_text:
                 await _send_json(ws, {"type": "tts", "text": exchange.spoken_text})
+            await asyncio.sleep(0)
     except Exception as e:
         logger.warning("voice ws processing error: %s", e)
         await _send_json(ws, error_payload(VoiceErrorCode.STT_FAILED))
+        await asyncio.sleep(0)
     finally:
         session.stop()
         try:

@@ -17,6 +17,21 @@ import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 import { VoiceRouteHud } from './VoiceRouteHud'
 
 
+// ROOT E: the ONLY VoiceOutcomes whose error text is shown to the operator. These
+// are genuine terminal dead-ends where the mic gave up and the user needs to know
+// why. Consent-flow transients (requesting/granting) and recoverable states are
+// deliberately excluded so the field-test consent-noise silence is preserved.
+const VOICE_TERMINAL_OUTCOMES = new Set<string>([
+  'MIC_PERMISSION_DENIED',
+  'MIC_DEVICE_UNAVAILABLE',
+  'MIC_ACQUIRE_TIMEOUT',
+  'VOICE_WS_UNAVAILABLE',
+  'VOICE_START_TIMEOUT',
+  'VOICE_START_FAILED',
+  'STT_FAILED',
+  'TIMEOUT',
+])
+
 function safeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? url : ''
 }
@@ -153,6 +168,7 @@ function VoiceMessagePlayer({ src }: { src: string }) {
         ref={audioRef}
         src={src}
         preload="metadata"
+        playsInline
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => { setPlaying(false); setCurrent(0) }}
@@ -607,7 +623,7 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
       )}
 
       {!isRecording && draft.audioUrl && (
-        <audio controls src={draft.audioUrl} className="w-full mt-1 mb-1" style={{ height: 32 }} />
+        <audio controls playsInline src={draft.audioUrl} className="w-full mt-1 mb-1" style={{ height: 32 }} />
       )}
 
       {!isRecording && (
@@ -711,6 +727,7 @@ function ChatSection() {
   const micState = useVoiceStore((s) => s.micState)
   const ttsState = useVoiceStore((s) => s.ttsState)
   const voiceError = useVoiceStore((s) => s.error)
+  const voiceLastOutcome = useVoiceStore((s) => s.lastOutcome)
   const consentState = useVoiceStore((s) => s.consentState)
   const voicePresentationStatus = useVoiceStore((s) => s.voicePresentationStatus)
   const draftMessage = useChatStore((s) => s.draftMessage)
@@ -765,26 +782,17 @@ function ChatSection() {
       try {
         await desktopBrowserVoiceAdapter.startCapture()
       } catch (err) {
-        if (err instanceof ConsentRequiredError) {
-          // consentState is now 'required' — the inline enable control
-          // renders in the voice status strip. No blocking dialog.
-          return
-        }
+        // ROOT E: consent is auto-granted by the governed WS, so _consentAndStart no
+        // longer throws ConsentRequiredError on the happy path. Keep the guard as a
+        // defensive no-op (there is no "Enable Push-to-Talk" affordance to fall back
+        // to anymore); any other failure surfaces via the terminal voiceError banner.
+        if (err instanceof ConsentRequiredError) return
         setVoiceAvailable(false)
       }
     } else {
       desktopBrowserVoiceAdapter.stopCapture()
     }
   }, [micState])
-
-  const handleEnablePushToTalk = useCallback(async () => {
-    // Explicit per-device VoiceConsentGrant(push_to_talk): user-initiated,
-    // governed server-side, revocable. On success retry capture immediately.
-    const granted = await desktopBrowserVoiceAdapter.grantPushToTalk()
-    if (granted.active) {
-      desktopBrowserVoiceAdapter.startCapture().catch(() => setVoiceAvailable(false))
-    }
-  }, [])
 
   const handleRevokePushToTalk = useCallback(() => {
     desktopBrowserVoiceAdapter.revokeConsent('push_to_talk').catch(() => { /* fail-closed */ })
@@ -916,6 +924,18 @@ function ChatSection() {
       {error && (
         <div className="text-[9px] font-mono text-danger mb-1 px-1.5 py-1 bg-danger/10 rounded border border-danger/30">
           {error}
+        </div>
+      )}
+      {/* ROOT E: voice failures were written to voiceStore.error but NEVER rendered
+          (the banner above reads chatStore.error), so the mic silently returned to
+          idle with no reason. Surface voiceError ONLY for genuine TERMINAL outcomes
+          — this keeps the deliberate consent-flow silence (no requesting/granting
+          transients) while making real dead-ends (mic denied, WS unreachable, STT
+          failed, timeout) visible. */}
+      {voiceError && VOICE_TERMINAL_OUTCOMES.has(voiceLastOutcome ?? '') && (
+        <div className="text-[9px] font-mono text-danger mb-1 px-1.5 py-1 bg-danger/10 rounded border border-danger/40 flex items-center gap-1">
+          <Mic size={9} className="shrink-0" />
+          <span>{voiceError}</span>
         </div>
       )}
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">

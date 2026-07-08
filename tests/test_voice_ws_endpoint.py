@@ -171,6 +171,46 @@ def test_non_grantable_mode_denied() -> None:
     assert frame["code"] == "CONSENT_DENIED"
 
 
+def test_receive_loop_has_idle_timeout() -> None:
+    # ROOT C: the audio-accumulation receive loop must bound each frame receive so a
+    # client that vanishes mid-send can't hang the coroutine + VoiceSession forever.
+    src = (
+        Path(__file__).resolve().parent.parent / "transports" / "api" / "voice.py"
+    ).read_text(encoding="utf-8")
+    assert "import asyncio" in src
+    assert "RECEIVE_IDLE_TIMEOUT" in src
+    assert "asyncio.wait_for(ws.receive()" in src
+    assert "asyncio.TimeoutError" in src
+
+
+def test_error_frame_flushed_before_close() -> None:
+    # ROOT C: a fast server-side failure must reach the client as its precise typed
+    # error frame, not race the close handshake (which previously surfaced as a 25s
+    # client TIMEOUT). Source-assert the error/transcript send yields to the loop
+    # (asyncio.sleep(0)) before the finally closes the socket.
+    src = (
+        Path(__file__).resolve().parent.parent / "transports" / "api" / "voice.py"
+    ).read_text(encoding="utf-8")
+    # the sleep(0) yields appear in the processing block, before the finally close.
+    processing = src.split("# 6.", 1)[1]
+    finally_idx = processing.index("finally:")
+    before_finally = processing[:finally_idx]
+    assert "asyncio.sleep(0)" in before_finally
+
+
+def test_error_frame_reaches_client_before_close() -> None:
+    # Behavioral: a typed error frame reliably reaches the client BEFORE the socket
+    # closes (ROOT C — no more fast-server-error surfacing as a 25s client TIMEOUT).
+    # Empty audio is the deterministic typed-error trigger (EMPTY_AUDIO_BLOB).
+    client = TestClient(_app())
+    with client.websocket_connect("/api/umh/voice/ws") as ws:
+        ws.send_json(_control())
+        ws.send_bytes(b"")  # empty-binary terminator → empty audio → typed error
+        frame = ws.receive_json()
+    # a typed error frame arrived (client is TOLD, not left to time out).
+    assert frame.get("type") == "error" or "code" in frame
+
+
 def test_ws_transcript_and_converse_invoked(monkeypatch) -> None:
     # A real (stubbed) transcript flows through the runtime and the injected
     # governed converse is called with source='voice' + a voice_turn_id.
@@ -203,3 +243,42 @@ def test_ws_transcript_and_converse_invoked(monkeypatch) -> None:
     assert "transcript" in types
     assert calls and calls[0]["source"] == "voice"
     assert ":" in calls[0]["voice_turn_id"]
+
+
+def test_stt_crash_surfaces_stt_failed(monkeypatch) -> None:
+    # PHASE 3: a genuine STT/processing crash must surface as a TYPED STT_FAILED error
+    # frame, not a blank "success" (empty transcript). Previously process_audio_file
+    # swallowed the exception and returned empty text with no error_code.
+    import struct
+
+    import substrate.workstation.voice_consent as vc
+
+    monkeypatch.setattr(vc.VoiceConsentStore, "active_grant", lambda self, *a, **k: _Grant())
+
+    # A warm engine whose STT RAISES mid-transcribe.
+    from unittest.mock import MagicMock
+
+    fake_engine = MagicMock()
+    fake_engine.intelligent = MagicMock()
+
+    def _boom(_path):
+        raise RuntimeError("stt exploded")
+
+    fake_engine.intelligent.transcribe_fast = MagicMock(side_effect=_boom)
+    import substrate.execution.voice.warm_engine as we
+
+    monkeypatch.setattr(we, "get_warm_engine", lambda: fake_engine)
+
+    # A loud, non-silent PCM16 buffer > MIN_UTTERANCE_BYTES (9600) so it passes
+    # preflight and REACHES transcribe_fast (which then raises).
+    samples = 8000  # 0.5s @ 16kHz
+    loud = b"".join(struct.pack("<h", 8000 if i % 2 == 0 else -8000) for i in range(samples))
+
+    client = TestClient(_app())
+    with client.websocket_connect("/api/umh/voice/ws") as ws:
+        ws.send_json(_control())  # audio/pcm → raw-pcm lane → preflight → STT
+        ws.send_bytes(loud)
+        ws.send_bytes(b"")  # terminator
+        frame = ws.receive_json()
+    assert frame["type"] == "error"
+    assert frame["code"] == "STT_FAILED"
