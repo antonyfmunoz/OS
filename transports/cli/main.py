@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
@@ -45,6 +44,42 @@ def _print_banner(console: Console, base_url: str, connected: bool) -> None:
     console.print(f"  API: {dot} {status}")
     console.print("  [dim]Type /help for commands[/dim]")
     console.print()
+
+
+def _run_voice_capture(console: Console, client) -> str | None:
+    """CLI /voice: capture push-to-talk audio → governed WS → transcript string.
+
+    Thin edge on the ONE governed voice runtime. Returns the transcript to feed
+    the converse path, or None on unavailable capture / a typed failure (the
+    reason is printed). Degrades gracefully when sounddevice is not installed.
+    """
+    from transports.cli import cli_voice
+
+    if not cli_voice.sounddevice_available():
+        console.print(
+            "  [warn]Voice needs the 'sounddevice' package.[/warn] "
+            "Install: [dim]pip install sounddevice[/dim]"
+        )
+        return None
+    try:
+        console.print("  [dim]🎤 recording — press Enter to stop[/dim]")
+        pcm16 = cli_voice.capture_ptt_pcm16()
+        if not pcm16:
+            console.print("  [warn]No audio captured.[/warn]")
+            return None
+        with console.status("[dim]Transcribing...[/dim]", spinner="dots"):
+            result = cli_voice.transcribe_over_ws(
+                pcm16,
+                cli_voice._ws_url_from_base(client.base_url),
+                api_key=getattr(client, "api_key", ""),
+            )
+        if result.get("ok"):
+            return str(result.get("text", "")).strip() or None
+        console.print(f"  [danger]Voice error:[/danger] {result.get('code')}")
+        return None
+    except Exception as e:
+        console.print(f"  [danger]Voice capture failed:[/danger] {e}")
+        return None
 
 
 def main() -> None:
@@ -87,7 +122,17 @@ def main() -> None:
         if not user_input:
             continue
 
-        if user_input.startswith("/"):
+        # /voice — Claude-Code-style push-to-talk. Capture locally, stream to the
+        # ONE governed voice WS, and use the returned transcript as the prompt.
+        if user_input == "/voice":
+            transcript = _run_voice_capture(console, client)
+            if not transcript:
+                console.print()
+                continue
+            console.print(f"  [dim]heard:[/dim] {transcript}")
+            user_input = transcript  # fall through to the converse path
+
+        elif user_input.startswith("/"):
             should_exit = handle_command(user_input, console, client)
             if should_exit:
                 console.print("  [dim]Goodbye.[/dim]")

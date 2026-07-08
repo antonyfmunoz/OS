@@ -60,9 +60,11 @@ function deviceRegistryId(): string {
     const routing = useDeviceSessionStore.getState().getRoutingMetadata() as Record<string, string>
     if (routing.source_device_id) return routing.source_device_id
   } catch {
-    // device session store unavailable — fall through to role-based id
+    // device session store unavailable — fall through to a runtime-derived id
   }
-  return 'desktop_browser'
+  // P4S31: no hardcoded 'desktop_browser' — derive the fallback device id from
+  // the actual runtime platform so native/mobile aren't mislabeled as desktop.
+  return `${currentVoiceSource()}_device`
 }
 
 async function getConsent(mode: VoiceActivationMode): Promise<VoiceConsentState> {
@@ -287,11 +289,24 @@ export async function voiceConsentForCapture(): Promise<{
 
 /**
  * The capture surface label sent as `source` on the control frame. Derived from
- * the platform at runtime (not hardcoded) so web / mobile-web / native / Electron
- * are distinguishable in the one ledger. Commit 6 extends this for Capacitor
- * native + Electron; browsers report 'web'.
+ * the platform at RUNTIME (never hardcoded) so web / mobile-web / iOS / android /
+ * Electron are distinguishable in the one ledger. Capacitor native reports its
+ * real platform ('ios' / 'android'); Electron reports 'electron'; browsers
+ * report 'web' / 'mobile_web'.
  */
 function currentVoiceSource(): string {
+  // Capacitor native shell (iOS / Android) — the real device platform.
+  const cap = (window as Record<string, unknown>).Capacitor as
+    | { getPlatform?: () => string; isNativePlatform?: () => boolean }
+    | undefined
+  try {
+    if (cap?.isNativePlatform?.() && cap.getPlatform) {
+      const p = cap.getPlatform() // 'ios' | 'android' | 'web'
+      if (p === 'ios' || p === 'android') return p
+    }
+  } catch {
+    // fall through to web detection
+  }
   try {
     const isElectron = Boolean((window as Record<string, unknown>).cockpit)
     if (isElectron) return 'electron'

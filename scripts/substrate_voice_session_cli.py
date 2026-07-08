@@ -13,6 +13,13 @@ Subcommands:
 This CLI is intentionally tiny. It is the operator-facing seam over the
 VoiceSessionRuntime + VoiceSessionStore — nothing more. Output is JSON
 for everything except `report`, which prints a compact human summary.
+
+P4S31 Voice Convergence note: this tool manages bounded PRESENCE sessions
+(text-in lifecycle over the bridge VoiceSessionRuntime — Discord/wake flows). It
+is NOT the audio capture path. For push-to-talk voice capture (mic → local
+faster-whisper transcript), use the UMH CLI `/voice` command, which is a thin
+edge on the ONE governed voice runtime. The `report`/`list` subcommands here are
+read-only; `start`/`say`/`switch`/`end` mutate presence sessions only.
 """
 
 from __future__ import annotations

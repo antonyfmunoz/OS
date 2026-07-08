@@ -160,6 +160,7 @@ def render_help(console: Console) -> None:
         ("/approvals", "Pending approvals"),
         ("/nodes", "Mesh node list"),
         ("/history", "Recent chat messages"),
+        ("/voice", "Push-to-talk: speak, then send the transcript"),
         ("/clear", "Clear screen"),
         ("/help", "This help"),
         ("/exit", "Quit"),

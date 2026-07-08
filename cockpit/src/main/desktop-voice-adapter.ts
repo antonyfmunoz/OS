@@ -97,9 +97,10 @@ export async function openSession(
 
 /**
  * Begin push-to-talk capture. Scaffold: refuses — there is no capture code in
- * this module at all. Implementation captures locally, transcribes (on-device
- * preferred, :8096 voice_server fallback), and exits ONLY through
- * sendMessage(text, 'voice', routing, voice_turn_id).
+ * this module at all. When activated it will be a THIN edge on the ONE governed
+ * voice WS (/api/umh/voice/ws), exactly like the browser + CLI edges: capture
+ * PCM16 locally, stream via the GAP F protocol, and exit through
+ * sendMessage(text, 'voice', routing, voice_turn_id). No separate STT engine.
  */
 export async function startCapture(): Promise<DesktopVoiceResult> {
   return disabledRefusal('startCapture')
