@@ -215,6 +215,30 @@ def is_supported_extension(ext: str) -> bool:
     return _EXT_TO_SUPPORTED.get(ext.lower(), False)
 
 
+# Content types that carry RAW PCM16 (no container) — the live-mic lane. The
+# browser AudioWorklet and the CLI sounddevice edge both stream raw PCM16 mono
+# @16kHz and label it as one of these (or send the octet-stream default).
+_RAW_PCM_CONTENT_TYPES = frozenset(
+    {
+        "audio/pcm",
+        "audio/l16",
+        "audio/x-l16",
+        "application/octet-stream",
+        "",  # unset → treat as raw PCM (live-mic default)
+    }
+)
+
+
+def is_raw_pcm_content_type(content_type: str) -> bool:
+    """True if ``content_type`` names the raw-PCM16 live-mic lane (no decode).
+
+    Raw PCM takes the ``preflight_pcm16`` path (validate whole buffer, no ffmpeg);
+    everything else that is a supported container takes ``normalize_to_pcm_wav``.
+    """
+    base = content_type.split(";", 1)[0].strip().lower()
+    return base in _RAW_PCM_CONTENT_TYPES
+
+
 @dataclass(frozen=True)
 class NormalizeResult:
     """Outcome of decoding+normalizing a container blob to canonical PCM WAV.
