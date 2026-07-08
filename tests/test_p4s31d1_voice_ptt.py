@@ -64,7 +64,6 @@ _CONTROLLER_PATH = _COCKPIT_API / "voice-controller.ts"
 _VOICE_WS_PATH = _COCKPIT_API / "voice-ws.ts"
 _CHAT_STORE_PATH = Path(_WORKTREE) / "cockpit" / "src" / "renderer" / "stores" / "chatStore.ts"
 _RIGHT_RAIL_PATH = Path(_WORKTREE) / "cockpit" / "src" / "renderer" / "components" / "RightRail.tsx"
-_SYSTEMD_UNIT_PATH = Path(_WORKTREE) / "infra" / "systemd" / "umh-voice-server.service"
 
 
 def _store(tmp_path) -> VoiceConsentStore:
@@ -411,16 +410,7 @@ def test_consent_required_renders_inline_enable_control():
     assert "requestConsent" in grant_flow and "out.active" in grant_flow
 
 
-# ── 6. voice_server lifecycle unit (managed, CPU-law compliant) ────────────────
-
-
-def test_voice_server_lifecycle_unit_exists_and_is_bounded():
-    assert _SYSTEMD_UNIT_PATH.exists(), (
-        "P4S-31D-1 must close the voice_server lifecycle gap with a managed unit"
-    )
-    unit = _SYSTEMD_UNIT_PATH.read_text(encoding="utf-8")
-    assert "voice_server.py" in unit
-    assert "Restart=on-failure" in unit
-    # CPU Gate Law: the STT fallback must never saturate the host.
-    assert "CPUQuota=" in unit
-    assert "MemoryMax=" in unit
+# ── 6. voice_server lifecycle unit ─────────────────────────────────────────────
+# REMOVED (P4S31 Voice Convergence): the standalone umh/voice_server.py and its
+# systemd unit were retired. Voice runs inside the API backend behind the governed
+# WS /api/umh/voice/ws — no separate long-lived STT process to manage.

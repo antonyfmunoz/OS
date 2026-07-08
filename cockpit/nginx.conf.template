@@ -21,7 +21,9 @@ server {
     }
 
     location /api/umh/voice/ws {
-        proxy_pass http://127.0.0.1:8096/voice;
+        # P4S31 Voice Convergence: the ONE governed voice WS lives on the API
+        # backend now, not the retired standalone voice_server on its old port.
+        proxy_pass http://api_backend/api/umh/voice/ws;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";

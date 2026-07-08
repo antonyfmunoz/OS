@@ -35,5 +35,6 @@ run_gate "Gate 10: Pytest Collection"      check_pytest_collection.py
 run_gate "Gate 11: Ontology Layers"        check_ontology_layers.py
 run_gate "Gate 12: Projection Registry Reads" check_projection_registry_reads.py
 run_gate "Gate 13: Ontology Home Map"       check_ontology_homes.py
+run_gate "Gate 14: Voice Runtime Divergence" check_voice_runtime_divergence.py
 
 echo "── All gates passed ──"

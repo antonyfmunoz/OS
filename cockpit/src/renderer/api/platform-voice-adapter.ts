@@ -4,7 +4,7 @@
  * The ONE adapter interface from docs/VOICE_INTENT_CONTRACT.md, implemented for
  * the desktop browser over the seams that already ship:
  *
- *   capture/STT      -> voice-controller.ts (ws://:8096/voice PCM16 bridge)
+ *   capture/STT      -> voice-controller.ts (governed /api/umh/voice/ws, PCM16)
  *   review + send    -> recording produces a reviewable VoiceMessageDraft; the
  *                       operator's explicit send is voiceMessageStore.sendDraft
  *                       -> chatStore.addVoiceTranscript
@@ -60,9 +60,11 @@ function deviceRegistryId(): string {
     const routing = useDeviceSessionStore.getState().getRoutingMetadata() as Record<string, string>
     if (routing.source_device_id) return routing.source_device_id
   } catch {
-    // device session store unavailable — fall through to role-based id
+    // device session store unavailable — fall through to a runtime-derived id
   }
-  return 'desktop_browser'
+  // P4S31: no hardcoded 'desktop_browser' — derive the fallback device id from
+  // the actual runtime platform so native/mobile aren't mislabeled as desktop.
+  return `${currentVoiceSource()}_device`
 }
 
 async function getConsent(mode: VoiceActivationMode): Promise<VoiceConsentState> {
@@ -261,6 +263,61 @@ function closeSession(): void {
   destroyVoice()
 }
 
+/**
+ * P4S31 Voice Convergence: the capture context the governed voice WS control
+ * frame needs — the active push-to-talk grant id, this surface's device id, and
+ * a source label. Returns an empty grant id when no live grant exists (the WS
+ * will then refuse with CONSENT_DENIED — server truth, never faked client-side).
+ */
+export async function voiceConsentForCapture(): Promise<{
+  source: string
+  deviceRegistryId: string
+  consentGrantId: string
+}> {
+  const device = deviceRegistryId()
+  let consentGrantId = ''
+  try {
+    const state = await getConsent('push_to_talk')
+    if (state.active && state.grant && typeof state.grant.grant_id === 'string') {
+      consentGrantId = state.grant.grant_id as string
+    }
+  } catch {
+    // fail-closed: no grant id → the WS refuses capture.
+  }
+  return { source: currentVoiceSource(), deviceRegistryId: device, consentGrantId }
+}
+
+/**
+ * The capture surface label sent as `source` on the control frame. Derived from
+ * the platform at RUNTIME (never hardcoded) so web / mobile-web / iOS / android /
+ * Electron are distinguishable in the one ledger. Capacitor native reports its
+ * real platform ('ios' / 'android'); Electron reports 'electron'; browsers
+ * report 'web' / 'mobile_web'.
+ */
+function currentVoiceSource(): string {
+  // Capacitor native shell (iOS / Android) — the real device platform.
+  const cap = (window as Record<string, unknown>).Capacitor as
+    | { getPlatform?: () => string; isNativePlatform?: () => boolean }
+    | undefined
+  try {
+    if (cap?.isNativePlatform?.() && cap.getPlatform) {
+      const p = cap.getPlatform() // 'ios' | 'android' | 'web'
+      if (p === 'ios' || p === 'android') return p
+    }
+  } catch {
+    // fall through to web detection
+  }
+  try {
+    const isElectron = Boolean((window as Record<string, unknown>).cockpit)
+    if (isElectron) return 'electron'
+    const ua = navigator.userAgent || ''
+    if (/Mobi|Android|iPhone|iPad/i.test(ua)) return 'mobile_web'
+    return 'web'
+  } catch {
+    return 'web'
+  }
+}
+
 export const desktopBrowserVoiceAdapter = {
   platform: 'desktop_browser' as const,
   activationMode: 'push_to_talk' as const,
@@ -271,4 +328,5 @@ export const desktopBrowserVoiceAdapter = {
   startCapture,
   stopCapture,
   closeSession,
+  voiceConsentForCapture,
 }

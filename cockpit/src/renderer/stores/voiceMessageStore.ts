@@ -85,7 +85,9 @@ export interface VoiceDiagnostics {
   transcript_partial_events: number
   transcript_final_at: number | null
   finalized_by: FinalizedBy
-  stt_engine: 'groq_whisper' | 'faster_whisper' | 'other'
+  // P4S31 convergence: STT is local faster-whisper on the ONE governed runtime.
+  // 'groq_whisper' is retained only so old persisted drafts still type-check.
+  stt_engine: 'faster_whisper' | 'groq_whisper' | 'other'
 }
 
 export interface VoiceMessageDraft {
@@ -321,7 +323,7 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
           transcript_partial_events: 0,
           transcript_final_at: null,
           finalized_by: null,
-          stt_engine: 'groq_whisper',
+          stt_engine: 'faster_whisper',
         },
         error: null,
       }
@@ -464,7 +466,7 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
       }))
     },
 
-    completeRetry: (draftId, text, engine = 'groq_whisper') => {
+    completeRetry: (draftId, text, engine = 'faster_whisper') => {
       get().transitionRecordingState('review')
       _update(draftId, (d) => ({
         transcript: text,

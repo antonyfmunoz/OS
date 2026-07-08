@@ -18,6 +18,8 @@
  *  - abortActiveRecording: tear the mic/recorder down with no dispatch
  */
 import { VoiceWsClient } from './voice-ws'
+import { voiceConsentForCapture } from './platform-voice-adapter'
+import { VOICE_ERROR_CODES } from './voiceErrorCodes'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useChatStore } from '../stores/chatStore'
 import { useVoiceMessageStore, VAD_CONFIG } from '../stores/voiceMessageStore'
@@ -35,8 +37,15 @@ import { createTurn, updatePartial, cancelTurn, getCurrentTurn } from './voice-t
  * That is the SAME object as `VoiceMessageDraft` in voiceMessageStore.ts — a doc
  * alias only. Do NOT rename the store type; `VoiceNoteDraft == VoiceMessageDraft`.
  */
+// P4S31 Voice Convergence: the four codes that also exist server-side
+// (EMPTY_AUDIO_BLOB, UNSUPPORTED_AUDIO_FORMAT, DECODE_FAILED, STT_FAILED) now
+// REFERENCE the canonical, codegen'd VOICE_ERROR_CODES mirror — one source of
+// truth, so client and server can never disagree. The four CLIENT-ONLY codes
+// below are pre-flight binding checks that fire BEFORE any audio reaches the
+// server (a missing artifact ref, a null blob, etc.) and have no server code.
 export const VOICE_ARTIFACT_ERROR = {
-  /** Blob exists (size>0) but nothing was streamed to the STT WS. */
+  // ── client-only pre-flight binding checks (retained) ──
+  /** Blob exists (size>0) but nothing was streamed to the voice WS. */
   LOCAL_AUDIO_PRESENT_UPLOAD_MISSING: 'LOCAL_AUDIO_PRESENT_UPLOAD_MISSING',
   /** PCM was streamed but the server saw 0 bytes / no audio energy. */
   LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY: 'LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY',
@@ -44,14 +53,11 @@ export const VOICE_ARTIFACT_ERROR = {
   AUDIO_ARTIFACT_REF_NOT_FOUND: 'AUDIO_ARTIFACT_REF_NOT_FOUND',
   /** The draft carried no audio field at all (blob null). */
   MISSING_AUDIO_FIELD: 'MISSING_AUDIO_FIELD',
-  /** The audio blob is present but zero-length. */
-  EMPTY_AUDIO_BLOB: 'EMPTY_AUDIO_BLOB',
-  /** The blob mime type is absent or not a decodable audio container. */
-  UNSUPPORTED_AUDIO_FORMAT: 'UNSUPPORTED_AUDIO_FORMAT',
-  /** WebAudio could not decode the blob to PCM. */
-  DECODE_FAILED: 'DECODE_FAILED',
-  /** The STT WS path failed / timed out after valid PCM was sent. */
-  STT_FAILED: 'STT_FAILED',
+  // ── canonical codes, sourced from the ONE server taxonomy (no remap) ──
+  EMPTY_AUDIO_BLOB: VOICE_ERROR_CODES.EMPTY_AUDIO_BLOB,
+  UNSUPPORTED_AUDIO_FORMAT: VOICE_ERROR_CODES.UNSUPPORTED_AUDIO_FORMAT,
+  DECODE_FAILED: VOICE_ERROR_CODES.DECODE_FAILED,
+  STT_FAILED: VOICE_ERROR_CODES.STT_FAILED,
 } as const
 
 export type VoiceArtifactErrorCode = keyof typeof VOICE_ARTIFACT_ERROR
@@ -672,7 +678,7 @@ export async function startVoice(): Promise<void> {
 
   // Voice turn id threads capture → transcript → chat → loop.
   const turn = createTurn()
-  log('[VoiceTurn] turn_started_on_mic_start')
+  log('[VoiceTurn] turn_started_on_capture')
 
   // Create the reviewable draft in the message store (recording state). The
   // consent grant id (vcg-…) was stamped into the store by the adapter when
@@ -864,11 +870,10 @@ function _assertTranscribableBlob(
 
 /**
  * SINGLE shared decode→stream→collect helper (P4S-31D1-E). Decodes the blob to
- * 16kHz PCM16, streams it over the existing voice WS (mic_start / pcm* /
- * mic_stop — the same frames the live capture uses so it carries the same
- * draft_id turn), and resolves with the first final transcript. Used by BOTH
- * the finalize fallback and the Lane E retry — the decode/stream logic lives
- * here ONCE, never duplicated across the two callers.
+ * 16kHz PCM16 and streams it once over the ONE governed voice WS using the GAP F
+ * protocol (control frame → PCM chunks → terminator, in transcribeUtterance),
+ * resolving with the first final transcript. Used by BOTH the finalize fallback
+ * and the Lane E retry — the decode/stream logic lives here ONCE.
  */
 async function _transcribeBlob(draftId: string, blob: Blob): Promise<BlobTranscribeResult> {
   // Binding assertions: real artifact, non-empty, decodable mime, bound to draft.
@@ -898,53 +903,24 @@ async function _transcribeBlob(draftId: string, blob: Blob): Promise<BlobTranscr
     return { ok: false, code: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_SERVER_BYTES_EMPTY }
   }
 
-  let settled = false
-  const result = await new Promise<BlobTranscribeResult>((resolve) => {
-    const offTranscript = c.on('transcript', (data) => {
-      const text = data.text as string
-      const isFinal = data.final as boolean
-      const confidence = typeof data.confidence === 'number' ? (data.confidence as number) : null
-      if (!isFinal) {
-        if (text?.trim()) useVoiceMessageStore.getState().updateRetryPartial(draftId, text)
-        return
-      }
-      if (!text.trim()) return
-      if (settled) return
-      settled = true
-      offTranscript()
-      offError()
-      resolve({ ok: true, text, confidence })
-    })
-    const offError = c.on('error', () => {
-      if (settled) return
-      settled = true
-      offTranscript()
-      offError()
-      resolve({ ok: false, code: 'STT_FAILED' })
-    })
-    // Bounded wait so a silent server never leaves the draft stuck transcribing.
-    setTimeout(() => {
-      if (settled) return
-      settled = true
-      offTranscript()
-      offError()
-      resolve({ ok: false, code: 'TIMEOUT' })
-    }, 15_000)
-
-    try {
-      c.sendControl('mic_start')
-      for (const chunk of chunks) c.sendPcm(chunk.buffer)
-      c.sendControl('mic_stop')
-    } catch {
-      if (settled) return
-      settled = true
-      offTranscript()
-      offError()
-      // Streamed nothing: a present blob whose PCM never reached the server.
-      resolve({ ok: false, code: VOICE_ARTIFACT_ERROR.LOCAL_AUDIO_PRESENT_UPLOAD_MISSING })
-    }
-  })
-  return result
+  // P4S31 Voice Convergence: stream the utterance over the ONE governed WS using
+  // the GAP F protocol (control frame → PCM chunks → terminator). The server's
+  // canonical VoiceErrorCode is relayed verbatim — no client-side remapping.
+  const consent = await voiceConsentForCapture()
+  if (!consent.consentGrantId) {
+    return { ok: false, code: 'CONSENT_DENIED' }
+  }
+  const res = await c.transcribeUtterance(
+    chunks.map((ch) => ch.buffer),
+    {
+      source: consent.source,
+      deviceRegistryId: consent.deviceRegistryId,
+      consentGrantId: consent.consentGrantId,
+      activationMode: 'push_to_talk',
+    },
+  )
+  if (res.ok) return { ok: true, text: res.text, confidence: null }
+  return { ok: false, code: res.code }
 }
 
 /**
@@ -967,7 +943,8 @@ export async function retryDraftTranscription(draftId: string): Promise<void> {
 
   const res = await _transcribeBlob(draftId, draft.audioBlob as Blob)
   if (res.ok) {
-    useVoiceMessageStore.getState().completeRetry(draftId, res.text, 'groq_whisper')
+    // P4S31: STT is local faster-whisper now (no Groq). Label reflects the truth.
+    useVoiceMessageStore.getState().completeRetry(draftId, res.text, 'faster_whisper')
     return
   }
   // Map transport-level outcomes to the retry taxonomy the UI already renders.

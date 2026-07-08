@@ -40,9 +40,7 @@ import math
 import struct
 import tempfile
 from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
-from typing import Any
 
 log = logging.getLogger("voice_server.preflight")
 
@@ -74,50 +72,16 @@ SILENCE_MEAN_LEVEL_FLOOR = 0.008  # raw mean RMS ~64; below = silent mic
 PREVIEW_CHARS = 40
 
 
-class VoiceErrorCode(str, Enum):
-    """Precise, distinct failure taxonomy for the voice pipeline.
-
-    Each value is a stable wire code emitted as
-    ``{"type":"error","code":<value>,"message":<bounded>}``. They are ordered
-    from earliest (no bytes) to latest (engine failed) point of failure and are
-    mutually exclusive — a given utterance resolves to exactly one.
-    """
-
-    # No audio bytes arrived at all (empty buffer / empty blob).
-    EMPTY_AUDIO_BLOB = "EMPTY_AUDIO_BLOB"
-    # Bytes present but the mic was effectively silent (mean energy below floor).
-    SILENT_AUDIO = "SILENT_AUDIO"
-    # A container blob could not be decoded (corrupt / truncated / not audio).
-    DECODE_FAILED = "DECODE_FAILED"
-    # The declared/observed container format is not one we support.
-    UNSUPPORTED_AUDIO_FORMAT = "UNSUPPORTED_AUDIO_FORMAT"
-    # Audio had energy but the STT engine found no speech in it.
-    VAD_NO_SPEECH = "VAD_NO_SPEECH"
-    # The STT engine itself errored / crashed / timed out.
-    STT_FAILED = "STT_FAILED"
-
-
-# Human-readable, BOUNDED default messages. Callers may override, but must keep
-# them free of transcript/audio content. Never interpolate secret content.
-_DEFAULT_MESSAGES: dict[VoiceErrorCode, str] = {
-    VoiceErrorCode.EMPTY_AUDIO_BLOB: "No audio was received.",
-    VoiceErrorCode.SILENT_AUDIO: "The microphone was silent — no audio energy detected.",
-    VoiceErrorCode.DECODE_FAILED: "The audio could not be decoded.",
-    VoiceErrorCode.UNSUPPORTED_AUDIO_FORMAT: "This audio format is not supported.",
-    VoiceErrorCode.VAD_NO_SPEECH: "Audio was captured but no speech was detected.",
-    VoiceErrorCode.STT_FAILED: "Speech recognition failed.",
-}
-
-
-def error_payload(code: VoiceErrorCode, message: str | None = None) -> dict[str, Any]:
-    """Build the WS error payload for a typed failure.
-
-    Shape is fixed: ``{"type":"error","code":<CODE>,"message":<bounded>}``.
-    The message is always bounded to <=100 chars and never carries transcript
-    or audio content.
-    """
-    msg = message if message is not None else _DEFAULT_MESSAGES[code]
-    return {"type": "error", "code": code.value, "message": msg[:100]}
+# VoiceErrorCode + error_payload were relocated to the canonical substrate home
+# ``substrate/execution/voice/error_codes.py`` (P4S31 Voice Convergence). This
+# module re-exports them so every existing consumer of
+# ``umh.voice_preflight.VoiceErrorCode`` / ``error_payload`` keeps working — there
+# is now ONE definition, owned by substrate (the canonical runtime imports it,
+# and substrate may never import from umh, so the enum could not stay here).
+from substrate.execution.voice.error_codes import (  # noqa: E402,F401
+    VoiceErrorCode,
+    error_payload,
+)
 
 
 @dataclass(frozen=True)
@@ -249,6 +213,30 @@ def is_supported_container_type(content_type: str) -> bool:
 def is_supported_extension(ext: str) -> bool:
     """True if a file extension names a container we will attempt to decode."""
     return _EXT_TO_SUPPORTED.get(ext.lower(), False)
+
+
+# Content types that carry RAW PCM16 (no container) — the live-mic lane. The
+# browser AudioWorklet and the CLI sounddevice edge both stream raw PCM16 mono
+# @16kHz and label it as one of these (or send the octet-stream default).
+_RAW_PCM_CONTENT_TYPES = frozenset(
+    {
+        "audio/pcm",
+        "audio/l16",
+        "audio/x-l16",
+        "application/octet-stream",
+        "",  # unset → treat as raw PCM (live-mic default)
+    }
+)
+
+
+def is_raw_pcm_content_type(content_type: str) -> bool:
+    """True if ``content_type`` names the raw-PCM16 live-mic lane (no decode).
+
+    Raw PCM takes the ``preflight_pcm16`` path (validate whole buffer, no ffmpeg);
+    everything else that is a supported container takes ``normalize_to_pcm_wav``.
+    """
+    base = content_type.split(";", 1)[0].strip().lower()
+    return base in _RAW_PCM_CONTENT_TYPES
 
 
 @dataclass(frozen=True)

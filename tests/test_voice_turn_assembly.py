@@ -152,7 +152,9 @@ class TestVoiceTurnControllerIntegration:
         )
         with open(path) as f:
             content = f.read()
-        assert "turn_started_on_mic_start" in content
+        # P4S31 convergence renamed the log label mic_start → capture (the mic is
+        # no longer streamed live; the turn starts when capture begins).
+        assert "turn_started_on_capture" in content
 
     def test_controller_passes_voice_turn_id(self):
         """sendMessage must receive voiceTurnId."""

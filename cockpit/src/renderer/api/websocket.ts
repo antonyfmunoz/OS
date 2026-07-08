@@ -82,6 +82,17 @@ export class WsClient {
     }
   }
 
+  /**
+   * Send a pre-serialized TEXT frame verbatim (no {type,...} wrapping). Used by
+   * the governed voice WS control/terminator frames whose shape is fixed by the
+   * server protocol (top-level fields, not a typed envelope).
+   */
+  sendRaw(text: string): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(text)
+    }
+  }
+
   sendBinary(data: ArrayBuffer | Blob): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(data)

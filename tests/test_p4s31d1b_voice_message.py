@@ -306,12 +306,16 @@ def test_recorder_uses_the_shared_capture_stream():
 
 def test_retry_decodes_and_streams_the_stored_blob():
     """Lane E: retry decodes the stored blob (AudioContext.decodeAudioData),
-    resamples to 16kHz PCM16, and streams over the existing WS."""
+    resamples to 16kHz PCM16, and streams over the ONE governed WS.
+
+    P4S31 convergence: the old bare sendControl('mic_start')/('mic_stop') wire is
+    replaced by the GAP F protocol in transcribeUtterance (control frame → PCM →
+    terminator). The decode/resample logic is unchanged.
+    """
     controller = _read(_CONTROLLER_PATH)
     assert "decodeAudioData" in controller
     assert "16000" in controller
-    assert "sendControl('mic_start')" in controller
-    assert "sendControl('mic_stop')" in controller
+    assert "transcribeUtterance" in controller  # GAP F governed streaming
     assert "completeRetry(draftId" in controller
 
 

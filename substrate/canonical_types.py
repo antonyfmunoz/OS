@@ -802,10 +802,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "VoiceQueryEngine": ["substrate.operator.voice_query_engine"],
     "ActionResolution": ["substrate.operator.voice_query_engine"],
     # ── Voice Session & Wake Producer (pre-C20) ─────────────────────
-    "VoiceTurnSource": ["substrate.execution.bridge.voice_session"],
-    "VoiceTurn": ["substrate.execution.bridge.voice_session"],
-    "VoiceSession": ["substrate.execution.bridge.voice_session"],
-    "VoiceSessionStore": ["substrate.execution.bridge.voice_session"],
+    # P4S31 Voice Convergence: the record store + turn types now live in the
+    # canonical home substrate.execution.voice.store; the runtime VoiceSession
+    # (operational, audio-bearing) is substrate.execution.voice.session. The old
+    # bridge names are re-exported from bridge/voice_session.py for compat.
+    "VoiceErrorCode": ["substrate.execution.voice.error_codes"],
+    "VoiceTurnSource": ["substrate.execution.voice.store"],
+    "VoiceTurn": ["substrate.execution.voice.store"],
+    "VoiceSessionRecord": ["substrate.execution.voice.store"],
+    "VoiceSessionRecordStatus": ["substrate.execution.voice.store"],
+    "VoiceSessionStore": ["substrate.execution.voice.store"],
     "VoiceSessionRuntime": ["substrate.execution.bridge.voice_session"],
     "WakeProducerKind": ["substrate.execution.bridge.wake_producer"],
     "WakeProducerEvent": ["substrate.execution.bridge.wake_producer"],
