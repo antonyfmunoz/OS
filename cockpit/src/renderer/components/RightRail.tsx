@@ -516,8 +516,10 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
       {isRecording && (
         <>
           <CaptureMeter />
+          {/* P4S-31D1-F blob-only: no live partial while recording — the blob is
+              transcribed on stop. Honest "Recording…" copy, meter shows liveness. */}
           <p className="whitespace-pre-wrap text-[10px] text-text-secondary italic min-h-[14px]">
-            {draft.transcript_partial || 'listening…'}
+            Recording… tap the mic again to stop
           </p>
         </>
       )}

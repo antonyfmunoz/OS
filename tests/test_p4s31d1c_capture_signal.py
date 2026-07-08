@@ -34,39 +34,51 @@ def _controller() -> str:
     return _CONTROLLER.read_text(encoding="utf-8")
 
 
-# ── Root-cause fix: the capture context is resumed ────────────────────────────
+# ── Root-cause fix: the METER context is resumed (P4S-31D1-F blob-only) ───────
+# The live capture ScriptProcessor was removed (blob-only rail). The only
+# AudioContext in the capture path is now the metering AnalyserNode in the
+# controller — it must still resume when suspended (iOS creates it 'suspended'),
+# else the RMS meter stays frozen at 0 and false-fires the silent-mic hint.
 
 
-def test_capture_audio_context_is_resumed():
-    """THE fix: the capture AudioContext must resume when suspended, else
-    onaudioprocess never fires and no audio is ever captured."""
-    src = _ws()
-    assert "await this.audioContext.resume()" in src
+def test_meter_audio_context_is_resumed():
+    """The metering AnalyserNode AudioContext must resume when suspended, else the
+    RMS meter never moves on iOS (context created 'suspended')."""
+    src = _controller()
+    assert "meterAudioContext.resume()" in src
     assert "'suspended'" in src or '"suspended"' in src
-    # The resume must live in the capture path (startMic), not only TTS playback.
-    start_mic = src.split("async startMic")[1].split("captureDiagnostics(")[0]
-    assert "resume()" in start_mic
+    # The resume lives in the meter path (startMeterAnalyser).
+    meter = src.split("function startMeterAnalyser")[1].split("function stopMeterAnalyser")[0]
+    assert "resume()" in meter
 
 
-def test_processor_does_not_echo_mic_to_speakers():
-    """The ScriptProcessor needs a destination to fire, but routing mic → speakers
-    echoes. It must sink through a zero-gain node."""
-    src = _ws()
-    assert "createGain()" in src
-    assert "gain.value = 0" in src
-    # It must NOT connect the processor straight to destination.
-    assert "processorNode.connect(this.audioContext.destination)" not in src
+def test_meter_analyser_does_not_echo_mic_to_speakers():
+    """The metering AnalyserNode must NOT connect to destination — routing mic →
+    speakers would echo. Source connects to the analyser only."""
+    src = _controller()
+    assert "createAnalyser()" in src
+    assert "meterSource.connect(meterAnalyser)" in src
+    # It must NOT connect the meter graph to the speakers.
+    assert "connect(meterAudioContext.destination)" not in src
+    # And the deprecated ScriptProcessor / live PCM streaming must be gone.
+    assert "createScriptProcessor" not in _ws()
+    assert "onaudioprocess" not in _ws()
 
 
 # ── Client diagnostics (non-secret) ───────────────────────────────────────────
 
 
-def test_client_rms_is_measured_from_the_same_pcm():
-    src = _ws()
-    assert "_lastClientRms" in src and "_maxClientRms" in src
-    assert "Math.sqrt(sumSq" in src
+def test_client_rms_is_measured_from_the_analyser():
+    """RMS is computed by the controller's metering AnalyserNode (0..1) and pushed
+    into the WS client (setMeterRms), which exposes it via get clientRms()."""
+    ctrl = _controller()
+    assert "getFloatTimeDomainData" in ctrl
+    assert "Math.sqrt(sumSq" in ctrl
+    assert "client?.setMeterRms(" in ctrl
+    ws = _ws()
+    assert "_lastClientRms" in ws and "_maxClientRms" in ws
     # Exposed for the recording meter.
-    assert "get clientRms()" in src
+    assert "get clientRms()" in ws
 
 
 def test_capture_diagnostics_are_non_secret_and_complete():
@@ -75,7 +87,6 @@ def test_capture_diagnostics_are_non_secret_and_complete():
     # `get clientRms` accessor that follows it.
     diag = src.split("captureDiagnostics(): Record")[1].split("get clientRms")[0]
     for field in (
-        "audio_context_state",
         "chunk_count",
         "last_client_rms",
         "max_client_rms",
@@ -100,9 +111,12 @@ def test_exactly_one_active_recorder():
     assert "recorder || finalizing" in guard
 
 
-def test_capture_context_not_running_is_surfaced():
-    """If the context did not resume, that must be surfaced immediately, not
-    after a 40s dead recording."""
+def test_dead_capture_is_surfaced():
+    """A non-live mic track or a failed meter AnalyserNode must be surfaced
+    immediately (logged), not swallowed into a silent dead recording."""
     src = _controller()
-    assert "capture_context_not_running" in src
-    assert "audio_context_state !== 'running'" in src
+    # Track liveness is checked up front (blob-only: no capture AudioContext).
+    assert "capture_track_not_live" in src
+    assert "track_ready_state !== 'live'" in src
+    # A meter AnalyserNode that fails to start is logged, not swallowed.
+    assert "meter_analyser_start_failed" in src
