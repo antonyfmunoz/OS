@@ -166,7 +166,12 @@ export class VoiceWsClient {
   private _lastCaptureTs = 0
 
   constructor() {
-    this.ws = new WsClient(VOICE_URL)
+    // autoReconnect:false — the voice WS is REQUEST-SCOPED (one utterance per
+    // connection, the server closes after the transcript). Auto-reconnect would
+    // reopen a socket that sends no control frame → server 4002 → a reconnect storm
+    // the user sees as "voice server unreachable". ensureClient() opens a fresh WS
+    // per capture instead.
+    this.ws = new WsClient(VOICE_URL, undefined, { autoReconnect: false })
     this.ws.onBinary((buf) => this._queueAudio(buf))
   }
 

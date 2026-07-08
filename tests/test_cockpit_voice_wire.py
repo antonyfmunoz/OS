@@ -164,6 +164,21 @@ def test_consent_flow_noise_not_surfaced_in_ui() -> None:
     assert "fire-and-forget" in adapter.lower() or "void (async ()" in adapter
 
 
+def test_voice_ws_disables_autoreconnect() -> None:
+    # Field bug: "voice server unreachable." The voice WS is REQUEST-SCOPED — the
+    # server closes after each transcript. The shared WsClient auto-reconnects on
+    # close by default; for voice that means every post-turn close reopens a socket
+    # that sends NO control frame → server 4002 → a reconnect STORM (6+ sockets per
+    # tap in the field logs) the user sees as "unreachable". VoiceWsClient MUST
+    # construct the underlying WsClient with autoReconnect:false.
+    ws = _read("voice-ws.ts")
+    assert "autoReconnect: false" in ws
+    # and the WsClient must actually honor the option (not hardcode shouldReconnect)
+    sock = (_API / "websocket.ts").read_text(encoding="utf-8")
+    assert "autoReconnect" in sock
+    assert "opts?.autoReconnect ?? true" in sock
+
+
 def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
     # P4S31 DEADLOCK FIX: startVoice()'s re-entrancy guard must only bail on a LIVE
     # recording ('listening'/'recording'), NOT on the startup states
