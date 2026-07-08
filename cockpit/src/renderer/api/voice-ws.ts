@@ -362,6 +362,11 @@ export class VoiceWsClient {
       deviceRegistryId: string
       consentGrantId: string
       activationMode?: string
+      /** Wire content_type. Defaults to raw PCM16 (live-mic lane). Pass the blob's
+       *  real container type (e.g. audio/mp4) to take the server ffmpeg-decode
+       *  lane — needed on iOS Safari, whose decodeAudioData can't decode its own
+       *  MediaRecorder mp4 output. */
+      contentType?: string
     },
     timeoutMs = 15_000,
   ): Promise<{ ok: true; text: string } | { ok: false; code: string }> {
@@ -394,7 +399,7 @@ export class VoiceWsClient {
             source: control.source,
             device_registry_id: control.deviceRegistryId,
             consent_grant_id: control.consentGrantId,
-            content_type: RAW_PCM_CONTENT_TYPE,
+            content_type: control.contentType ?? RAW_PCM_CONTENT_TYPE,
             activation_mode: control.activationMode ?? 'push_to_talk',
           }),
         )
