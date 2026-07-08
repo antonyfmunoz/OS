@@ -349,3 +349,45 @@ def test_voice_note_draft_documented_as_alias():
 
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))
+
+
+# ── Mobile: iOS Safari audio/mp4 support (voice must work on mobile + desktop) ─
+
+_CONTROLLER = Path(_WORKTREE) / "cockpit" / "src" / "renderer" / "api" / "voice-controller.ts"
+_STORE = Path(_WORKTREE) / "cockpit" / "src" / "renderer" / "stores" / "voiceMessageStore.ts"
+
+
+def test_recorder_mime_offers_ios_mp4():
+    """_pickRecorderMime must offer an iOS-supported type (audio/mp4). Without it
+    iOS Safari falls to MediaRecorder's unlabeled default and the blob is
+    mislabeled — voice then works on desktop but silently breaks on mobile."""
+    src = _CONTROLLER.read_text(encoding="utf-8")
+    picker = src.split("_pickRecorderMime")[1].split("}")[0] + src.split("_pickRecorderMime")[1]
+    assert "audio/mp4" in picker, "recorder MIME candidates must include audio/mp4 for iOS Safari"
+
+
+def test_audio_ext_maps_mp4_to_m4a():
+    """The client extension for audio/mp4 must be .m4a and stay in lockstep with
+    the server's _AUDIO_EXT — a wrong ext gets the upload rejected."""
+    src = _STORE.read_text(encoding="utf-8")
+    ext_fn = src.split("_audioExtFor")[1]
+    assert "'audio/mp4'" in ext_fn and "'.m4a'" in ext_fn, "audio/mp4 must map to .m4a"
+    # No longer the old webm-or-wav-only branch.
+    assert "contentType === 'audio/wav' ? '.wav' : '.webm'" not in src, (
+        "the old two-way ext branch must be replaced by the content-type map"
+    )
+
+
+def test_client_server_audio_types_agree():
+    """Every content type the client can emit an extension for is accepted by the
+    server upload seam — no client/server mobile-audio drift."""
+    import transports.api.cockpit_chat_routes as chat_mod
+
+    store_src = _STORE.read_text(encoding="utf-8")
+    # Client emits these normalized types (from _audioExtFor cases + default webm).
+    client_types = {"audio/wav", "audio/mp4", "audio/ogg", "audio/webm"}
+    assert client_types <= set(chat_mod.ALLOWED_AUDIO_TYPES), (
+        "every client audio type must be server-accepted (mobile + desktop)"
+    )
+    # The store maps iOS aliases to audio/mp4.
+    assert "audio/x-m4a" in store_src and "'audio/mp4'" in store_src

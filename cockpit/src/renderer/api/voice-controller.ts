@@ -133,7 +133,18 @@ function stopCaptureMeter(): void {
 // ── MediaRecorder lifecycle ──────────────────────────────────────────────────
 
 function _pickRecorderMime(): string {
-  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/wav']
+  // Desktop Chrome/Firefox support webm/opus; iOS Safari supports NONE of those
+  // and only records audio/mp4 (AAC). Include the mp4 candidates so mobile picks
+  // an EXPLICIT supported type rather than falling to MediaRecorder's unlabeled
+  // default (which the content-type/extension logic would then mislabel).
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/mp4;codecs=mp4a.40.2', // AAC-LC in mp4 — iOS Safari
+    'audio/mp4',
+    'audio/wav',
+  ]
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
     return ''
   }

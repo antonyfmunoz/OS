@@ -73,19 +73,27 @@ ALLOWED_MEDIA_TYPES = {
     "video/webm",
     "video/quicktime",
 }
-# Voice-message contract (P4S-31D1-B): audio/webm | audio/wav only.
+# Voice-message contract (P4S-31D1-B/E): desktop records audio/webm, iOS Safari
+# records audio/mp4 (AAC) — both must be accepted so voice works on mobile AND
+# desktop. audio/ogg is a Firefox fallback. The voice server (#248) decodes all
+# of these to canonical PCM WAV via ffmpeg.
 ALLOWED_AUDIO_TYPES = {
     "audio/webm",
     "audio/wav",
+    "audio/mp4",  # iOS Safari (AAC)
+    "audio/ogg",  # Firefox fallback
 }
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB — image/video
 MAX_AUDIO_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB — audio artifacts
 
 # Server-derived audio extensions — .weba (not .webm) keeps audio/webm
-# distinguishable from video/webm at retrieval time.
+# distinguishable from video/webm at retrieval time. Must stay in lockstep with
+# the client's _audioExtFor (cockpit/src/renderer/stores/voiceMessageStore.ts).
 _AUDIO_EXT = {
     "audio/webm": ".weba",
     "audio/wav": ".wav",
+    "audio/mp4": ".m4a",  # iOS Safari
+    "audio/ogg": ".ogg",
 }
 
 _get_organism_fn: Callable[[], Any] = lambda: None

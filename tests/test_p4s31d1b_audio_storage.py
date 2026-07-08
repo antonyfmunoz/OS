@@ -134,8 +134,30 @@ def test_codec_parameter_normalized(client):
     assert resp.json()["content_type"] == "audio/webm"
 
 
+def test_audio_mp4_accepted_ios_safari(client):
+    """iOS Safari records audio/mp4 (AAC). It MUST upload so voice works on
+    mobile, not just desktop — the server decodes it to PCM WAV via ffmpeg."""
+    resp = _upload(client, content_type="audio/mp4")
+    assert resp.status_code == 200, "iOS audio/mp4 must be accepted"
+    assert resp.json()["content_type"] == "audio/mp4"
+
+
+def test_audio_mp4_codec_parameter_normalized(client):
+    """iOS emits audio/mp4;codecs=mp4a.40.2 — the codec param must be accepted."""
+    resp = _upload(client, content_type="audio/mp4;codecs=mp4a.40.2")
+    assert resp.status_code == 200
+    assert resp.json()["content_type"] == "audio/mp4"
+
+
+def test_audio_ogg_accepted_firefox(client):
+    resp = _upload(client, content_type="audio/ogg")
+    assert resp.status_code == 200
+    assert resp.json()["content_type"] == "audio/ogg"
+
+
 def test_non_contract_audio_type_rejected(client):
-    for bad in ("audio/mpeg", "audio/ogg", "application/octet-stream", "text/plain"):
+    # mp4/ogg are now accepted (mobile + Firefox); these remain rejected.
+    for bad in ("audio/mpeg", "audio/aac", "application/octet-stream", "text/plain"):
         resp = _upload(client, content_type=bad)
         assert resp.status_code == 400, f"{bad} must be rejected"
 
@@ -153,7 +175,16 @@ def test_audio_cap_is_25mb_and_separate_from_media_cap():
 
     assert chat_mod.MAX_AUDIO_UPLOAD_SIZE == 25 * 1024 * 1024
     assert chat_mod.MAX_UPLOAD_SIZE == 50 * 1024 * 1024
-    assert chat_mod.ALLOWED_AUDIO_TYPES == {"audio/webm", "audio/wav"}
+    # Desktop (webm) + iOS Safari (mp4) + Firefox (ogg) + wav — voice must work
+    # on mobile AND desktop.
+    assert chat_mod.ALLOWED_AUDIO_TYPES == {
+        "audio/webm",
+        "audio/wav",
+        "audio/mp4",
+        "audio/ogg",
+    }
+    # Every accepted type has a server-derived extension.
+    assert set(chat_mod._AUDIO_EXT) == chat_mod.ALLOWED_AUDIO_TYPES
 
 
 def test_oversize_audio_leaves_no_partial_file(client, media_env, monkeypatch):
