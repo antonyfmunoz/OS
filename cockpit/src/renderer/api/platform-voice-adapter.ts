@@ -179,8 +179,55 @@ async function startCapture(): Promise<void> {
     throw err
   }
 
+  // The server consent + WS-open work below goes through the SSH tunnel to the
+  // VPS. If that tunnel is momentarily down the API 502s and fetchApi retries
+  // with backoff (up to ~60s) — pinning the button at 'requesting_permission'
+  // the whole time (the "hangs forever on Requesting mic…" symptom). Race the
+  // whole consent→capture chain against a short watchdog so a flaky/down tunnel
+  // degrades to a fast, typed "Voice server unreachable" instead of a dead
+  // button. Any throw here resets micState to 'idle' (no stuck window).
+  try {
+    await _withTimeout(_consentAndStart(), CONSENT_START_TIMEOUT_MS)
+  } catch (err) {
+    if (err instanceof ConsentRequiredError) {
+      // Server grant refused (not a timeout) — the inline "Enable Push-to-Talk"
+      // retry affordance already showing. Re-throw so handleMicToggle no-ops.
+      throw err
+    }
+    const timedOut = err instanceof Error && err.name === 'VoiceStartTimeout'
+    vs.setError(
+      timedOut
+        ? 'Voice server unreachable — check connection and try again'
+        : 'Could not start voice — try again',
+    )
+    vs.setLastOutcome(timedOut ? 'VOICE_START_TIMEOUT' : 'VOICE_START_FAILED')
+    vs.setMicState('idle')
+    throw err
+  }
+}
+
+/** ~8s ceiling on the consent→capture chain — well under fetchApi's 60s, so a
+ * down tunnel surfaces fast instead of a minute-long dead button. */
+const CONSENT_START_TIMEOUT_MS = 8000
+
+/** Reject with a VoiceStartTimeout if `p` does not settle within `ms`. */
+function _withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => {
+      reject(Object.assign(new Error('voice start timed out'), { name: 'VoiceStartTimeout' }))
+    }, ms)
+    p.then(
+      (v) => { clearTimeout(t); resolve(v) },
+      (e) => { clearTimeout(t); reject(e) },
+    )
+  })
+}
+
+/** The server consent + capture chain, raced against the watchdog above. */
+async function _consentAndStart(): Promise<void> {
+  const vs = useVoiceStore.getState()
+
   // (1) Returning device: an active grant already exists — straight to capture.
-  // (Runs AFTER the browser prompt so the OS dialog is never gated on the server.)
   const consent = await getConsent('push_to_talk')
   if (consent.active) {
     vs.setConsentState('active')
@@ -194,7 +241,6 @@ async function startCapture(): Promise<void> {
   const granted = await grantPushToTalk()
   if (!granted.active) {
     // (3) SERVER grant failed → surface the explicit enable RETRY affordance.
-    // grantPushToTalk already set consentState 'required' + the error text.
     vs.setLastOutcome('CONSENT_REQUIRED')
     vs.setMicState('idle')
     throw new ConsentRequiredError(
