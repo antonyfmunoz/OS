@@ -171,6 +171,46 @@ def test_non_grantable_mode_denied() -> None:
     assert frame["code"] == "CONSENT_DENIED"
 
 
+def test_receive_loop_has_idle_timeout() -> None:
+    # ROOT C: the audio-accumulation receive loop must bound each frame receive so a
+    # client that vanishes mid-send can't hang the coroutine + VoiceSession forever.
+    src = (
+        Path(__file__).resolve().parent.parent / "transports" / "api" / "voice.py"
+    ).read_text(encoding="utf-8")
+    assert "import asyncio" in src
+    assert "RECEIVE_IDLE_TIMEOUT" in src
+    assert "asyncio.wait_for(ws.receive()" in src
+    assert "asyncio.TimeoutError" in src
+
+
+def test_error_frame_flushed_before_close() -> None:
+    # ROOT C: a fast server-side failure must reach the client as its precise typed
+    # error frame, not race the close handshake (which previously surfaced as a 25s
+    # client TIMEOUT). Source-assert the error/transcript send yields to the loop
+    # (asyncio.sleep(0)) before the finally closes the socket.
+    src = (
+        Path(__file__).resolve().parent.parent / "transports" / "api" / "voice.py"
+    ).read_text(encoding="utf-8")
+    # the sleep(0) yields appear in the processing block, before the finally close.
+    processing = src.split("# 6.", 1)[1]
+    finally_idx = processing.index("finally:")
+    before_finally = processing[:finally_idx]
+    assert "asyncio.sleep(0)" in before_finally
+
+
+def test_error_frame_reaches_client_before_close() -> None:
+    # Behavioral: a typed error frame reliably reaches the client BEFORE the socket
+    # closes (ROOT C — no more fast-server-error surfacing as a 25s client TIMEOUT).
+    # Empty audio is the deterministic typed-error trigger (EMPTY_AUDIO_BLOB).
+    client = TestClient(_app())
+    with client.websocket_connect("/api/umh/voice/ws") as ws:
+        ws.send_json(_control())
+        ws.send_bytes(b"")  # empty-binary terminator → empty audio → typed error
+        frame = ws.receive_json()
+    # a typed error frame arrived (client is TOLD, not left to time out).
+    assert frame.get("type") == "error" or "code" in frame
+
+
 def test_ws_transcript_and_converse_invoked(monkeypatch) -> None:
     # A real (stubbed) transcript flows through the runtime and the injected
     # governed converse is called with source='voice' + a voice_turn_id.

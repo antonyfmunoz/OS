@@ -195,3 +195,50 @@ def test_consent_never_blocks_capture_ws_autogrants() -> None:
     ).read_text(encoding="utf-8")
     assert "auto-grant" in voice_py.lower()
     assert "_store.grant(" in voice_py
+
+
+def test_ensure_client_disconnects_before_rebuild() -> None:
+    # ROOT B: ensureClient must NOT overwrite `client`/`chatUnsub`/`cleanups`
+    # without tearing down the old client first — else every reconnect gap leaks an
+    # auto-reconnecting socket + heartbeat interval + visibilitychange listener +
+    # duplicate handlers. It MUST still keep the warm-reuse early return (WS
+    # auto-grant happy path).
+    import re
+    ctrl = _read("voice-controller.ts")
+    m = re.search(r"async function ensureClient\(\).*?\n  return client\n}", ctrl, re.S)
+    assert m, "could not locate ensureClient"
+    body = m.group(0)
+    # warm reuse preserved
+    assert "if (client?.connected) return client" in body
+    # rebuild branch tears the old client down first
+    assert "cleanups.forEach" in body
+    assert "cleanups = []" in body
+    assert "chatUnsub" in body
+    assert "client.disconnect()" in body
+    # the disconnect precedes the rebuild
+    assert body.index("client.disconnect()") < body.index("new VoiceWsClient()")
+
+
+def test_connect_timeout_closes_socket() -> None:
+    # ROOT B: connect()'s 5s timeout must close the underlying socket before
+    # rejecting, or a socket that opens after 5s is an orphaned forever-reconnecting
+    # zombie.
+    import re
+    ws = _read("voice-ws.ts")
+    m = re.search(r"connect\(\): Promise<void> \{.*?\n  \}", ws, re.S)
+    assert m, "could not locate connect()"
+    body = m.group(0)
+    # the timeout callback disconnects before rejecting
+    to_idx = body.index("ws_connect_timeout")
+    tail = body[to_idx:]
+    assert "this.ws.disconnect()" in tail
+    assert tail.index("this.ws.disconnect()") < tail.index("reject(")
+
+
+def test_stop_recorder_detaches_handlers() -> None:
+    # ROOT B: recorder handlers must be detached once the final blob is delivered so
+    # a late ondataavailable from the OLD recorder can't push a tail chunk into the
+    # NEXT session's recorderChunks (cross-session contamination).
+    ctrl = _read("voice-controller.ts")
+    assert "ondataavailable = null" in ctrl
+    assert "onstop = null" in ctrl

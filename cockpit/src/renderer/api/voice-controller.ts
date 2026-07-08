@@ -257,19 +257,29 @@ function _startRecorder(stream: MediaStream): void {
   }
   try {
     const mime = _pickRecorderMime()
-    recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
-    recorder.ondataavailable = (e: BlobEvent) => {
+    const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream)
+    recorder = rec
+    // Capture the effective mimeType in the closure so blob assembly stays correct
+    // even after `recorder` is nulled and rec's handlers are detached (below).
+    const recMime = rec.mimeType
+    rec.ondataavailable = (e: BlobEvent) => {
       if (e.data && e.data.size > 0) recorderChunks.push(e.data)
     }
-    recorder.onstop = () => {
-      const type = recorder?.mimeType || recorderChunks[0]?.type || 'audio/webm'
+    rec.onstop = () => {
+      const type = recMime || recorderChunks[0]?.type || 'audio/webm'
       const blob = recorderChunks.length > 0 ? new Blob(recorderChunks, { type }) : null
       const cb = onRecorderStop
       onRecorderStop = null
+      // ROOT B: detach THIS recorder's handlers now that its final blob is
+      // delivered. Prevents a late/stray ondataavailable from the OLD recorder
+      // pushing a tail chunk into the NEXT session's recorderChunks (cross-session
+      // contamination) — the handlers close over the shared module-level array.
+      rec.ondataavailable = null
+      rec.onstop = null
       if (cb) cb(blob)
     }
-    recorder.start()
-    log('recorder_started', recorder.mimeType)
+    rec.start()
+    log('recorder_started', rec.mimeType)
   } catch (e) {
     log('recorder_start_failed', e)
     recorder = null
@@ -278,15 +288,22 @@ function _startRecorder(stream: MediaStream): void {
 
 /** Stop the recorder and deliver the assembled blob to `cb` (null if none). */
 function _stopRecorder(cb: (blob: Blob | null) => void): void {
-  if (recorder && recorder.state !== 'inactive') {
+  const rec = recorder
+  if (rec && rec.state !== 'inactive') {
     onRecorderStop = cb
     try {
-      recorder.stop()
+      rec.stop() // onstop delivers the blob AND detaches rec's handlers
     } catch {
       onRecorderStop = null
+      // onstop won't fire — detach here so a stray ondataavailable can't leak.
+      rec.ondataavailable = null
+      rec.onstop = null
       cb(null)
     }
   } else {
+    // Already inactive: onstop already fired (and detached). Detach defensively
+    // in case a recorder was inactive-at-entry with handlers still attached.
+    if (rec) { rec.ondataavailable = null; rec.onstop = null }
     cb(null)
   }
   recorder = null
@@ -376,6 +393,19 @@ async function ensureClient(): Promise<VoiceWsClient> {
   const vs = useVoiceStore.getState()
   vs.setMicState('connecting_voice_ws')
   log('connecting_voice_ws')
+
+  // ROOT B: before rebuilding, fully tear down any prior client. Previously this
+  // branch overwrote `client`/`chatUnsub` and pushed onto a stale `cleanups`
+  // array WITHOUT disconnecting the old client — leaking an auto-reconnecting
+  // socket + its heartbeat interval + visibilitychange listener + duplicate
+  // handlers on every reconnect gap. Flush cleanups, drop the chat sub, disconnect.
+  if (client) {
+    cleanups.forEach((fn) => fn())
+    cleanups = []
+    if (chatUnsub) { chatUnsub(); chatUnsub = null }
+    client.disconnect()
+    client = null
+  }
 
   client = new VoiceWsClient()
   wireEvents()
