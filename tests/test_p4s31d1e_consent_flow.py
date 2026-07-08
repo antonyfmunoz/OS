@@ -82,6 +82,28 @@ def _start_capture_body() -> str:
     return after[start:]
 
 
+def _fn_body(name: str) -> str:
+    """The code (comments stripped) of the named async/sync function only."""
+    src = _strip_comments_ts(_adapter())
+    after = src.split(f"function {name}", 1)[1]
+    start = after.index("{")
+    depth = 0
+    for i in range(start, len(after)):
+        if after[i] == "{":
+            depth += 1
+        elif after[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return after[start : i + 1]
+    return after[start:]
+
+
+def _consent_and_start_body() -> str:
+    """The consent→capture chain moved out of startCapture into _consentAndStart
+    (raced against the startCapture watchdog)."""
+    return _fn_body("_consentAndStart")
+
+
 def _store(tmp_path) -> VoiceConsentStore:
     return VoiceConsentStore(store_path=str(tmp_path / "consent_grants.json"))
 
@@ -94,33 +116,27 @@ def test_single_gesture_no_second_manual_click():
     push_to_talk grant AUTOMATICALLY in the same handler — no intervening
     user-action gate (no throw between them, no separate enable tap on the
     happy path)."""
-    body = _start_capture_body()
+    start = _start_capture_body()
+    chain = _consent_and_start_body()
 
-    # The browser permission probe and the auto server grant both live in
-    # startCapture, and the grant is reached WITHOUT a throw between them.
-    assert "ensureBrowserMicPermission" in body, (
+    # Browser permission is prompted up front in startCapture; the auto grant is
+    # in the consent chain it drives (raced against the watchdog). No second tap.
+    assert "ensureBrowserMicPermission" in start, (
         "startCapture must prompt the browser mic permission up front"
     )
-    assert "grantPushToTalk()" in body, (
-        "startCapture must auto-request the server grant in the same handler"
+    assert "grantPushToTalk()" in chain, (
+        "the consent chain must auto-request the server grant in the same flow"
     )
 
-    perm_idx = body.index("ensureBrowserMicPermission")
-    grant_idx = body.index("grantPushToTalk()")
-    assert perm_idx < grant_idx, (
-        "the auto grant must come AFTER the browser mic permission succeeds"
+    # No intervening user-action gate before the auto grant: no separate enable
+    # button between browser permission and the grant. (The only ConsentRequired
+    # throw is AFTER the grant fails.)
+    grant_idx = chain.index("grantPushToTalk()")
+    before_grant = chain[:grant_idx]
+    assert "handleEnablePushToTalk" not in before_grant
+    assert "throw new ConsentRequiredError" not in before_grant, (
+        "no consent-required dead-end before the auto grant"
     )
-
-    # No intervening user-action gate: between a SUCCESSFUL browser permission
-    # and the auto grant there is no ConsentRequiredError throw and no separate
-    # button handler. (The permission-denied branch throws BEFORE grantPushToTalk;
-    # the only ConsentRequiredError throw is AFTER the grant fails.)
-    between = body[perm_idx:grant_idx]
-    assert "throw new ConsentRequiredError" not in between, (
-        "no consent-required dead-end between browser permission success and the "
-        "auto grant — that would force the old second tap"
-    )
-    assert "handleEnablePushToTalk" not in between
 
 
 def test_browser_prompt_fires_before_any_server_roundtrip():
@@ -128,12 +144,19 @@ def test_browser_prompt_fires_before_any_server_roundtrip():
     round-trip (getConsent). Awaiting the server first delays the OS mic dialog
     and breaks the user-gesture requirement — the button reads 'Requesting mic…'
     with no prompt. Browser layer first, server consent after."""
-    body = _start_capture_body()
-    perm_idx = body.index("ensureBrowserMicPermission")
-    consent_idx = body.index("getConsent(")
-    assert perm_idx < consent_idx, (
-        "ensureBrowserMicPermission (browser OS prompt) must come BEFORE "
-        "getConsent (server round-trip) so the mic dialog fires in the gesture"
+    # Browser permission is prompted in startCapture, BEFORE it enters the
+    # consent chain (_consentAndStart) where the getConsent server round-trip
+    # lives. So in source order the browser probe precedes any getConsent.
+    start = _start_capture_body()
+    assert "ensureBrowserMicPermission" in start, (
+        "the browser OS prompt must fire in startCapture, before the consent chain"
+    )
+    assert "getConsent(" not in start, (
+        "getConsent (server round-trip) must NOT run before the browser prompt — "
+        "it lives in the consent chain that runs after ensureBrowserMicPermission"
+    )
+    assert "getConsent(" in _consent_and_start_body(), (
+        "the server consent round-trip belongs in the post-permission chain"
     )
 
 
@@ -155,7 +178,7 @@ def test_server_grant_failure_takes_explicit_enable_path():
     """Only a FAILED server grant surfaces the explicit enable affordance:
     startCapture throws ConsentRequiredError (→ RightRail keeps the inline
     'Enable Push-to-Talk' retry) after grantPushToTalk returns not-active."""
-    body = _start_capture_body()
+    body = _consent_and_start_body()
 
     # The ConsentRequiredError throw is gated on the grant NOT being active.
     assert "grantPushToTalk()" in body
@@ -307,4 +330,28 @@ def test_mic_toggle_guard_blocks_reentry():
     rr = (_COCKPIT / "components" / "RightRail.tsx").read_text(encoding="utf-8")
     assert "micState === 'idle'" in rr, (
         "handleMicToggle must guard startCapture on micState === 'idle'"
+    )
+
+
+def test_consent_chain_has_watchdog_timeout():
+    """A flaky/down SSH tunnel makes the consent API 502 → fetchApi retries with
+    backoff (~60s), pinning the button at 'requesting_permission'. startCapture
+    must race the consent→capture chain against a SHORT watchdog so it degrades
+    to a fast typed error + reset to 'idle', never a minute-long dead button."""
+    adapter = _ADAPTER_PATH.read_text(encoding="utf-8")
+    # A bounded timeout well under fetchApi's 60s default.
+    assert "CONSENT_START_TIMEOUT_MS" in adapter, "consent chain needs a watchdog timeout"
+    assert "_withTimeout(" in adapter, "consent chain must be raced against the timeout"
+    # On timeout: typed outcome + reset to idle (no stuck window).
+    body = _start_capture_body()
+    assert "VOICE_START_TIMEOUT" in body, "a timed-out start must surface a typed outcome"
+    assert "setMicState('idle')" in body, "a timed-out/failed start must reset the button to idle"
+
+
+def test_consent_required_still_surfaces_enable_affordance():
+    """The watchdog must NOT swallow a genuine ConsentRequiredError — a refused
+    server grant re-throws so the inline 'Enable Push-to-Talk' retry still shows."""
+    body = _start_capture_body()
+    assert "instanceof ConsentRequiredError" in body, (
+        "a real consent refusal must be distinguished from a timeout and re-thrown"
     )
