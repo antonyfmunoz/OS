@@ -130,6 +130,34 @@ def test_no_client_side_decodeaudiodata_in_transcribe() -> None:
     assert "async function _resampleToPcm16" not in ctrl
 
 
+def test_abort_recording_clears_finalizing_latch() -> None:
+    # Field bug: "after I deleted it, voice wouldn't work again." abortActiveRecording
+    # (delete-draft / cancel) sets `finalizing = true` but is TERMINAL — there is no
+    # _finalizeRecording completion to reset it. If left true, startVoice()'s
+    # `if (recorder || finalizing) return` guard bails forever and the mic is dead.
+    # The abort MUST reset the latch.
+    ctrl = _read("voice-controller.ts")
+    import re
+    m = re.search(r"export function abortActiveRecording\(\).*?\n}", ctrl, re.S)
+    assert m, "could not locate abortActiveRecording"
+    body = m.group(0)
+    assert "finalizing = false" in body, "abort must clear the finalizing latch"
+
+
+def test_consent_flow_noise_not_surfaced_in_ui() -> None:
+    # Consent is auto-granted by the governed WS — the client must NOT surface
+    # consent-flow transients as user-facing text: no "Enable Push-to-Talk" button,
+    # no "Enabling push-to-talk…" label. (Field bug: a burst of consent/status
+    # noise messages during a capture that ultimately worked.)
+    rail = _ROOT / "cockpit" / "src" / "renderer" / "components" / "RightRail.tsx"
+    txt = rail.read_text(encoding="utf-8")
+    assert "Enable Push-to-Talk for this device" not in txt
+    assert "Enabling push-to-talk" not in txt
+    # the fire-and-forget consent means capture never blocks on / errors from it
+    adapter = _read("platform-voice-adapter.ts")
+    assert "fire-and-forget" in adapter.lower() or "void (async ()" in adapter
+
+
 def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
     # P4S31 DEADLOCK FIX: startVoice()'s re-entrancy guard must only bail on a LIVE
     # recording ('listening'/'recording'), NOT on the startup states

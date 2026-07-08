@@ -863,9 +863,12 @@ function ChatSection() {
     setEditingName(false)
   }
 
-  const voiceLabel = micState === 'requesting_permission' ? 'Requesting mic...'
-    : micState === 'connecting_voice_ws' ? 'Connecting...'
-    : micState === 'listening' ? 'Listening — tap to send'
+  // Consent is now handled INVISIBLY by the governed WS (auto-grant for the
+  // authenticated principal). So the client no longer surfaces consent-flow noise
+  // ("consent not granted", "server unreachable", "requesting mic", "enabling
+  // push-to-talk") as user-facing text — those transients resolve on their own on
+  // the happy path. We show only genuine live capture/playback states.
+  const voiceLabel = micState === 'listening' ? 'Listening — tap to send'
     : micState === 'recording' ? 'Recording — tap to send'
     : micState === 'transcribing' ? 'Transcribing...'
     : micState === 'processing' ? 'Thinking...'
@@ -873,7 +876,6 @@ function ChatSection() {
     : ttsState === 'generating_tts' ? 'Preparing voice...'
     : ttsState === 'speaking' ? 'Speaking...'
     : ttsState === 'tts_failed' ? 'Voice unavailable — showing text'
-    : voiceError ? voiceError
     : null
 
   return (
@@ -965,33 +967,19 @@ function ChatSection() {
         {voiceLabel && (
           <div className={clsx(
             'text-[9px] font-mono px-1',
-            voiceError ? 'text-danger' :
             (micState === 'recording') ? 'text-cyan font-bold' :
             'text-cyan animate-pulse',
           )}>{voiceLabel}</div>
         )}
-        {consentState === 'required' && micState === 'idle' && (
-          <button
-            onClick={handleEnablePushToTalk}
-            className="text-[10px] font-mono text-cyan px-2 py-1 mx-1 rounded border border-cyan/40 hover:bg-cyan-glow transition-colors cursor-pointer text-left"
-          >
-            Enable Push-to-Talk for this device
-            <span className="block text-[8px] text-text-tertiary">
-              Mic activates only while you tap it. Stored server-side, revocable.
-            </span>
-          </button>
-        )}
-        {consentState === 'granting' && (
-          <div className="text-[9px] font-mono text-cyan animate-pulse px-1">Enabling push-to-talk…</div>
-        )}
-        {consentState === 'active' && micState === 'idle' && !voiceError && (
+        {/* Consent is auto-granted by the governed WS for the authenticated
+            principal — no client "Enable Push-to-Talk" button, no "Enabling…"
+            transient, no consent-error toast. The ONLY consent affordance we keep
+            is the (rare) disable control once talk is active, for revocability. */}
+        {consentState === 'active' && micState === 'idle' && (
           <div className="text-[8px] font-mono text-text-tertiary px-1">
             Push-to-talk enabled ·{' '}
             <button onClick={handleRevokePushToTalk} className="underline hover:text-danger cursor-pointer">disable</button>
           </div>
-        )}
-        {voiceError && micState === 'idle' && consentState !== 'required' && consentState !== 'granting' && (
-          <button onClick={handleMicToggle} className="text-[9px] font-mono text-cyan/70 px-1 hover:text-cyan cursor-pointer">Try again</button>
         )}
         {pendingMedia.length > 0 && (
           <div className="flex flex-wrap gap-1 px-1">
