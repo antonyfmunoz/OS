@@ -260,7 +260,19 @@ async def voice_ws(ws: WebSocket) -> None:
         return
     operator_principal = getattr(principal, "user_id", "")
 
-    await ws.accept()
+    # Echo the offered `bearer.<jwt>` subprotocol on accept. A browser WebSocket
+    # cannot set an Authorization header, so the client sends the Clerk token as a
+    # Sec-WebSocket-Protocol subprotocol — and per the WS spec the server MUST echo
+    # the selected subprotocol back, or the browser fails the handshake and closes
+    # the socket (which surfaced as "voice server unreachable"). Mirrors the working
+    # cockpit event WS (cockpit_core_routes _extract_ws_subprotocol → accept).
+    subprotocol = None
+    for _proto in (ws.headers.get("sec-websocket-protocol") or "").split(","):
+        _proto = _proto.strip()
+        if _proto.startswith("bearer."):
+            subprotocol = _proto
+            break
+    await ws.accept(subprotocol=subprotocol)
 
     # 2. First frame MUST be the TEXT control frame (GAP F). Bound the wait so a
     #    client that connects but never sends (a probe, a reconnect that immediately

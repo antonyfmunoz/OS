@@ -164,6 +164,24 @@ def test_consent_flow_noise_not_surfaced_in_ui() -> None:
     assert "fire-and-forget" in adapter.lower() or "void (async ()" in adapter
 
 
+def test_voice_ws_sends_clerk_bearer_subprotocol() -> None:
+    # THE 'voice server unreachable' root cause: the governed voice WS requires Clerk
+    # auth, but a browser WebSocket can't set an Authorization header — the token must
+    # ride as a `bearer.<jwt>` subprotocol (like the working event WS). Without it the
+    # server accept→close(4001)s and the client connect times out. The client MUST
+    # fetch the Clerk token and pass it as the WS subprotocol in connect().
+    ws = _read("voice-ws.ts")
+    assert "getClerkToken" in ws
+    assert "bearer.${token}" in ws or "`bearer.${token}`" in ws
+    # server side must ECHO the offered subprotocol on accept (WS spec), else the
+    # browser fails the handshake and closes the socket.
+    voice_py = (
+        _ROOT / "transports" / "api" / "voice.py"
+    ).read_text(encoding="utf-8")
+    assert "ws.accept(subprotocol=subprotocol)" in voice_py
+    assert 'sec-websocket-protocol' in voice_py
+
+
 def test_voice_ws_disables_autoreconnect() -> None:
     # Field bug: "voice server unreachable." The voice WS is REQUEST-SCOPED — the
     # server closes after each transcript. The shared WsClient auto-reconnects on

@@ -1,4 +1,5 @@
 import { WsClient } from './websocket'
+import { getClerkToken } from './client'
 import {
   playTtsAudio,
   cancelPlayback,
@@ -166,17 +167,34 @@ export class VoiceWsClient {
   private _lastCaptureTs = 0
 
   constructor() {
-    // autoReconnect:false — the voice WS is REQUEST-SCOPED (one utterance per
-    // connection, the server closes after the transcript). Auto-reconnect would
-    // reopen a socket that sends no control frame → server 4002 → a reconnect storm
-    // the user sees as "voice server unreachable". ensureClient() opens a fresh WS
-    // per capture instead.
-    this.ws = new WsClient(VOICE_URL, undefined, { autoReconnect: false })
-    this.ws.onBinary((buf) => this._queueAudio(buf))
+    // Built with no auth here; connect() REBUILDS it with the Clerk bearer
+    // subprotocol (the token isn't available synchronously). autoReconnect:false —
+    // the voice WS is REQUEST-SCOPED (one utterance per connection, the server
+    // closes after the transcript); auto-reconnect would storm 4002s.
+    this.ws = this._buildClient(undefined)
   }
 
-  connect(): Promise<void> {
+  /** Build the underlying WsClient with the given subprotocols + wire the binary
+   *  handler. Centralized so connect() can rebuild it with a fresh auth token. */
+  private _buildClient(protocols: string[] | undefined): WsClient {
+    const c = new WsClient(VOICE_URL, protocols, { autoReconnect: false })
+    c.onBinary((buf) => this._queueAudio(buf))
+    return c
+  }
+
+  async connect(): Promise<void> {
     log('ws_connect', VOICE_URL)
+    // CRITICAL: the governed voice WS requires Clerk auth. A browser WebSocket can't
+    // set an Authorization header, so — like the persistent event WS
+    // (useOrganismRealtime) — the token rides as a `bearer.<jwt>` subprotocol
+    // (server: validate_ws_clerk_token option 2). WITHOUT it the server accepts the
+    // upgrade then immediately close(4001)s → the client's connect times out → the
+    // "voice server unreachable" banner. Rebuild the socket with the fresh token.
+    const token = await getClerkToken()
+    const protocols = token ? [`bearer.${token}`] : undefined
+    if (!token) log('ws_connect_no_clerk_token', 'connecting without auth — server will 4001')
+    this.ws.disconnect()
+    this.ws = this._buildClient(protocols)
     return new Promise<void>((resolve, reject) => {
       const onConnected = this.ws.on('connected', () => {
         log('ws_connected')
