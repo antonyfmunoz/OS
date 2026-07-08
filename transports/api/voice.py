@@ -9,14 +9,16 @@ Endpoints:
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
-from transports.api.governed import governed_mutation
+from substrate.execution.voice.error_codes import VoiceErrorCode, error_payload
 from substrate.execution.voice.session import VoiceSession
+from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +27,78 @@ router = APIRouter(prefix="/api/umh/voice")
 _session: VoiceSession | None = None
 _pipeline_submit_fn: Any = None
 
+# Optional injected organism accessor: () -> object exposing .advisor (with a
+# .converse) and .store. Supplied by operator_api/app at startup so the governed
+# WS can hand the canonical runtime a governed converse path WITHOUT substrate
+# importing transports. When absent, the runtime degrades to deterministic engine
+# routing (Deterministic-First law).
+_organism_accessor: Any = None
+
 
 def wire_pipeline(submit_fn: Any) -> None:
     """Inject the pipeline submit function for voice sessions."""
     global _pipeline_submit_fn
     _pipeline_submit_fn = submit_fn
+
+
+def wire_organism(accessor: Any) -> None:
+    """Inject the running-organism accessor for the governed voice WS.
+
+    ``accessor`` is a zero-arg callable returning the organism daemon (or None
+    when not running). The WS uses ``daemon.advisor.converse`` as the single
+    governed write path (persists the turn to the OrganismStore ledger + sets
+    spoken_text), matching the cockpit chat route's DEX conversation path.
+    """
+    global _organism_accessor
+    _organism_accessor = accessor
+
+
+def _build_converse_fn() -> Any:
+    """Build the injected converse callable for a VoiceSession, or None.
+
+    Returns a function ``(content, conversation_id, source, voice_turn_id) ->
+    AdvisorResponse`` wired to the running organism's advisor under
+    ``governed_mutation(conversation_send)``, or None when no organism is wired
+    (the runtime then degrades to deterministic engine routing).
+    """
+    accessor = _organism_accessor
+    if accessor is None:
+        return None
+
+    def _converse_fn(*, content: str, conversation_id: str, source: str, voice_turn_id: str) -> Any:
+        daemon = accessor() if callable(accessor) else accessor
+        if daemon is None or getattr(daemon, "advisor", None) is None:
+            return None
+
+        # The AdvisorResponse is captured via closure (governed_mutation returns a
+        # status wrapper, not the response) — same pattern as the cockpit chat
+        # route's /advisor/converse.
+        captured: dict[str, Any] = {}
+
+        def _do_converse():
+            from substrate.organism.dex_conversation import DexConversation
+
+            conv = DexConversation(advisor=daemon.advisor, store=daemon.store)
+            response = conv.converse(
+                content=content,
+                conversation_id=conversation_id,
+                source=source,
+                voice_turn_id=voice_turn_id,
+            )
+            captured["response"] = response
+            return (response.text[:200] or "conversed"), True
+
+        resp = governed_mutation(
+            mutation_name="conversation_send",
+            intent=f"voice turn: {content[:50]}",
+            execute_fn=_do_converse,
+            source="voice",
+        )
+        if not getattr(resp, "success", True):
+            return None
+        return captured.get("response")
+
+    return _converse_fn
 
 
 class StartRequest(BaseModel):
@@ -114,3 +183,150 @@ async def session_status():
     state = _session.state.to_dict()
     state["active"] = _session.state.status.value != "idle"
     return state
+
+
+# ── Governed voice WebSocket — the ONE capture ingress for every surface ───────
+#
+# GAP F wire protocol (shared by cockpit edges + CLI + tests):
+#   1. FIRST message MUST be a TEXT JSON control frame:
+#        {source, device_registry_id, consent_grant_id, content_type,
+#         activation_mode?, node_id?}
+#   2. subsequent messages are BINARY audio chunks (accumulated).
+#   3. terminator = an empty binary frame OR a text {"type":"end"}.
+#   malformed / binary-first  -> close 4002, no session created.
+#
+# On terminate, the accumulated audio runs through the canonical VoiceSession
+# (warm engine, local STT) and the typed transcript / error / tts frames are
+# streamed back. Consent is re-asserted at this boundary (not trusted from the
+# client). This is the single governed ingress; :8096 is retired.
+
+
+async def _send_json(ws: WebSocket, payload: dict) -> None:
+    try:
+        await ws.send_json(payload)
+    except Exception:
+        pass
+
+
+@router.websocket("/ws")
+async def voice_ws(ws: WebSocket) -> None:
+    """Governed voice capture ingress for all surfaces (GAP F protocol)."""
+    from substrate.execution.voice.warm_engine import get_warm_engine
+    from substrate.workstation.voice_consent import GRANTABLE_MODES, VoiceConsentStore
+
+    # 1. Authenticate the WS (Clerk bearer / subprotocol). None => refuse.
+    try:
+        from transports.api.cockpit_auth import validate_ws_clerk_token
+
+        principal = validate_ws_clerk_token(ws)
+    except Exception:
+        principal = None
+    if principal is None:
+        await ws.close(code=4001)
+        return
+    operator_principal = getattr(principal, "user_id", "")
+
+    await ws.accept()
+
+    # 2. First frame MUST be the TEXT control frame (GAP F).
+    try:
+        first = await ws.receive()
+    except WebSocketDisconnect:
+        return
+    text0 = first.get("text") if isinstance(first, dict) else None
+    if not text0:
+        # binary-first or non-text control => protocol violation.
+        await ws.close(code=4002)
+        return
+    try:
+        control = json.loads(text0)
+    except Exception:
+        await ws.close(code=4002)
+        return
+
+    source = str(control.get("source", "unknown"))
+    device_registry_id = str(control.get("device_registry_id", ""))
+    consent_grant_id = str(control.get("consent_grant_id", ""))
+    content_type = str(control.get("content_type", "application/octet-stream"))
+    activation_mode = str(control.get("activation_mode", "push_to_talk"))
+    node_id = str(control.get("node_id", ""))
+
+    # 3. Consent re-assertion (GAP5): the activation_mode must be grantable and a
+    #    live grant must exist for this principal+device+mode. Voice input consent
+    #    is NOT action approval — it only authorizes capture into a session.
+    if activation_mode not in GRANTABLE_MODES:
+        await _send_json(ws, error_payload(VoiceErrorCode.CONSENT_DENIED))
+        await ws.close(code=1008)
+        return
+    try:
+        grant = VoiceConsentStore().active_grant(
+            operator_principal, device_registry_id, activation_mode
+        )
+    except Exception:
+        grant = None
+    if grant is None:
+        await _send_json(ws, error_payload(VoiceErrorCode.CONSENT_DENIED))
+        await ws.close(code=1008)
+        return
+
+    # 4. Build the canonical session on the WARM engine (GAP A) + governed converse.
+    #    The session id carries the capture surface (source) + grant/device so the
+    #    ledger turn's provenance identifies which surface it came from.
+    session = VoiceSession(
+        session_id=f"voice-ws-{source}-{consent_grant_id or device_registry_id}",
+        engine=get_warm_engine(),
+        node_id=node_id,
+        converse_fn=_build_converse_fn(),
+        pipeline_submit_fn=_pipeline_submit_fn,
+    )
+    session.start()
+
+    # 5. Accumulate BINARY audio until the terminator.
+    audio = bytearray()
+    try:
+        while True:
+            msg = await ws.receive()
+            if msg.get("type") == "websocket.disconnect":
+                break
+            data = msg.get("bytes")
+            text = msg.get("text")
+            if data is not None:
+                if len(data) == 0:  # empty binary terminator
+                    break
+                audio.extend(data)
+                continue
+            if text is not None:
+                try:
+                    ctrl = json.loads(text)
+                except Exception:
+                    continue
+                if ctrl.get("type") == "end":
+                    break
+    except WebSocketDisconnect:
+        pass
+
+    # 6. Run the accumulated audio through the ONE runtime + relay typed frames.
+    try:
+        exchange = session.process_audio_blob(bytes(audio), content_type=content_type)
+        if exchange.error_code:
+            await _send_json(ws, error_payload(VoiceErrorCode(exchange.error_code)))
+        else:
+            await _send_json(
+                ws,
+                {
+                    "type": "transcript",
+                    "text": exchange.utterance,
+                    "final": True,
+                },
+            )
+            if exchange.responded and exchange.spoken_text:
+                await _send_json(ws, {"type": "tts", "text": exchange.spoken_text})
+    except Exception as e:
+        logger.warning("voice ws processing error: %s", e)
+        await _send_json(ws, error_payload(VoiceErrorCode.STT_FAILED))
+    finally:
+        session.stop()
+        try:
+            await ws.close()
+        except Exception:
+            pass

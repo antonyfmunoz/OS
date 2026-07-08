@@ -12,9 +12,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_ROOT))
 
-_ROOT = Path("/opt/OS")
 _TS = _ROOT / "cockpit" / "src" / "renderer" / "api" / "voiceErrorCodes.ts"
 
 

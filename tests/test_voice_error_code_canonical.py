@@ -8,8 +8,9 @@ is exactly 9 UPPERCASE codes, and that CONSENT_EXPIRED is deliberately absent.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from substrate.execution.voice.error_codes import VoiceErrorCode, error_payload
 

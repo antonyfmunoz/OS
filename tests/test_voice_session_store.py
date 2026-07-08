@@ -9,8 +9,9 @@ are correct and never raise.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from substrate.execution.voice.store import (
     RECORD_TO_RUNTIME_STATUS,

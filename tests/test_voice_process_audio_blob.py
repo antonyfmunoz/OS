@@ -8,9 +8,10 @@ container), and resume() SYSTEM-skip / consecutive-AGENT fold.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
-sys.path.insert(0, "/opt/OS")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from substrate.execution.voice import session as S
 from substrate.execution.voice.store import (

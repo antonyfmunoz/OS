@@ -9,11 +9,10 @@ import sys
 faulthandler.enable()
 faulthandler.register(signal.SIGUSR1, all_threads=True)
 
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
+from substrate.execution.cpu_gate import gated_subprocess_run
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
-import adapters  # noqa: E402 — lock correct resolution before execution_spine shadows it
 
 import asyncio
 import concurrent.futures
@@ -22,11 +21,12 @@ import logging
 import subprocess
 import tempfile
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from contextlib import asynccontextmanager
 from typing import Any
 
+import uvicorn
 from dotenv import load_dotenv
 from fastapi import (
     Depends,
@@ -37,9 +37,8 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-import uvicorn
 
 from transports.api.governed import governed_mutation
 
@@ -109,8 +108,8 @@ async def lifespan(application):
 
     # ── Register config store ─────────────────────────────────────────────
     try:
-        from substrate.state.config.config_store import ConfigStore
         from substrate.sockets.config_port import register_config_store
+        from substrate.state.config.config_store import ConfigStore
 
         _cfg = ConfigStore()
         register_config_store(_cfg.get, _cfg.set, _cfg.get_all, _cfg.on_change)
@@ -161,7 +160,20 @@ async def lifespan(application):
     except Exception as exc:
         import traceback
 
-        logger.warning("organism daemon not started: %s\n%s", exc, traceback.format_exc())
+        logger.error("organism daemon failed to start: %s\n%s", exc, traceback.format_exc())
+
+    # ── Preload the warm VoiceEngine (GAP A) ─────────────────────────────────
+    # The governed voice WS builds VoiceSession(engine=get_warm_engine()); preload
+    # the SAME instance now so the WhisperModel is resident before the first voice
+    # turn (no cold-start latency). Off-thread + best-effort — never blocks
+    # startup. FREE+LOCAL: this is local faster-whisper, no cloud STT.
+    try:
+        from substrate.execution.voice.warm_engine import preload_warm_engine
+
+        await asyncio.get_running_loop().run_in_executor(_api_executor, preload_warm_engine)
+        logger.info("warm VoiceEngine preloaded for governed voice WS")
+    except Exception as exc:
+        logger.warning("warm VoiceEngine preload skipped (will lazy-load): %s", exc)
 
     # ── Register notification port implementations ──────────────────────
     try:
@@ -212,6 +224,7 @@ async def lifespan(application):
 app = FastAPI(title="UMH Operator API", version="1.0.0", lifespan=lifespan)
 
 from starlette.middleware.base import BaseHTTPMiddleware
+
 from substrate.integrations.cors import cors_origins
 
 
@@ -258,8 +271,8 @@ app.add_middleware(_RequestTimeoutMiddleware)
 # ─── ExecutionSpine import (production path) ──────────────────────────────────
 _HAS_SPINE = False
 try:
-    from substrate.execution.runtime.execution_spine import ExecutionSpine
     from substrate.control_plane.context.context_builder import ContextBuilder
+    from substrate.execution.runtime.execution_spine import ExecutionSpine
     from substrate.state.context.context import try_load_context_from_env
 
     _spine = ExecutionSpine()
@@ -855,13 +868,29 @@ async def websocket_endpoint(ws: WebSocket) -> None:
 
 # ─── Cockpit API (substrate command center) ───────────────────────────────────
 try:
-    from transports.api.cockpit import router as cockpit_router, ws_router as cockpit_ws_router
+    from transports.api.cockpit import router as cockpit_router
+    from transports.api.cockpit import ws_router as cockpit_ws_router
 
     app.include_router(cockpit_router)
     app.include_router(cockpit_ws_router)
     logger.info("cockpit router mounted at /api/umh/")
 except Exception as e:
     logger.warning(f"cockpit router not available: {e}")
+
+# ─── Governed voice router (the ONE voice ingress: /api/umh/voice/ws) ──────────
+# P4S31 Voice Convergence: mount the canonical governed voice surface on the
+# DEPLOYED backend (:8091) so every capture edge reaches the one runtime here,
+# not the retired standalone :8096 bridge.
+try:
+    from transports.api.voice import router as voice_router
+    from transports.api.voice import wire_organism
+
+    app.include_router(voice_router)
+    # Inject the running-organism accessor so the WS drives governed converse.
+    wire_organism(lambda: _organism_daemon)
+    logger.info("governed voice router mounted at /api/umh/voice")
+except Exception as e:
+    logger.warning(f"voice router not available: {e}")
 
 
 # ─── Static files (cockpit build) ─────────────────────────────────────────────
