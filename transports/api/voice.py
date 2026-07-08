@@ -216,6 +216,32 @@ async def _send_json(ws: WebSocket, payload: dict) -> None:
         pass
 
 
+async def _safe_close(ws: WebSocket, code: int = 1000) -> None:
+    """Close the WS at most once, and never a socket the client already closed.
+
+    Starlette raises `RuntimeError: Unexpected ASGI message 'websocket.close',
+    after sending 'websocket.close'` if `ws.close()` runs on a socket that is
+    already closing/closed (e.g. the client's connect-timeout closed it, or a
+    disconnect already arrived). Every close in this handler routes through here so
+    a half-open/already-gone socket degrades to a no-op instead of a 500 that the
+    client reads as "voice server unreachable".
+    """
+    try:
+        from starlette.websockets import WebSocketState
+
+        if ws.application_state == WebSocketState.DISCONNECTED:
+            return
+        if ws.client_state == WebSocketState.DISCONNECTED:
+            return
+    except Exception:
+        # If state isn't introspectable, still attempt the close under try/except.
+        pass
+    try:
+        await ws.close(code=code)
+    except Exception:
+        pass
+
+
 @router.websocket("/ws")
 async def voice_ws(ws: WebSocket) -> None:
     """Governed voice capture ingress for all surfaces (GAP F protocol)."""
@@ -230,26 +256,35 @@ async def voice_ws(ws: WebSocket) -> None:
     except Exception:
         principal = None
     if principal is None:
-        await ws.close(code=4001)
+        await _safe_close(ws, code=4001)
         return
     operator_principal = getattr(principal, "user_id", "")
 
     await ws.accept()
 
-    # 2. First frame MUST be the TEXT control frame (GAP F).
+    # 2. First frame MUST be the TEXT control frame (GAP F). Bound the wait so a
+    #    client that connects but never sends (a probe, a reconnect that immediately
+    #    drops, a mobile radio handoff) can't hang here — and, critically, DETECT a
+    #    disconnect message so we never try to close(4002) a socket the client has
+    #    already closed (which raised `Unexpected ASGI 'websocket.close'` → a 500 the
+    #    client read as "voice server unreachable").
     try:
-        first = await ws.receive()
-    except WebSocketDisconnect:
+        first = await asyncio.wait_for(ws.receive(), timeout=RECEIVE_IDLE_TIMEOUT)
+    except (WebSocketDisconnect, asyncio.TimeoutError):
+        await _safe_close(ws, code=4002)
+        return
+    # A disconnect control message means the client already went away — no close.
+    if isinstance(first, dict) and first.get("type") == "websocket.disconnect":
         return
     text0 = first.get("text") if isinstance(first, dict) else None
     if not text0:
         # binary-first or non-text control => protocol violation.
-        await ws.close(code=4002)
+        await _safe_close(ws, code=4002)
         return
     try:
         control = json.loads(text0)
     except Exception:
-        await ws.close(code=4002)
+        await _safe_close(ws, code=4002)
         return
 
     source = str(control.get("source", "unknown"))
@@ -264,7 +299,7 @@ async def voice_ws(ws: WebSocket) -> None:
     #    is NOT action approval — it only authorizes capture into a session.
     if activation_mode not in GRANTABLE_MODES:
         await _send_json(ws, error_payload(VoiceErrorCode.CONSENT_DENIED))
-        await ws.close(code=1008)
+        await _safe_close(ws, code=1008)
         return
     # P4S31 DURABLE consent (how Apple/WhatsApp treat it): the operator is already
     # AUTHENTICATED on this WS (Clerk bearer validated above) and has already
@@ -298,7 +333,7 @@ async def voice_ws(ws: WebSocket) -> None:
             grant = None
     if grant is None:
         await _send_json(ws, error_payload(VoiceErrorCode.CONSENT_DENIED))
-        await ws.close(code=1008)
+        await _safe_close(ws, code=1008)
         return
 
     # 4. Build the canonical session on the WARM engine (GAP A) + governed converse.
@@ -379,6 +414,6 @@ async def voice_ws(ws: WebSocket) -> None:
     finally:
         session.stop()
         try:
-            await ws.close()
+            await _safe_close(ws)
         except Exception:
             pass
