@@ -5,13 +5,25 @@ export class WsClient {
   private handlers = new Map<string, WsHandler[]>()
   private _binaryHandlers: ((data: ArrayBuffer) => void)[] = []
   private reconnectDelay = 1000
-  private shouldReconnect = true
+  private shouldReconnect: boolean
   private _connecting = false
   private _heartbeatTimer: ReturnType<typeof setInterval> | null = null
   private _lastMessageAt = 0
   private _visibilityHandler: (() => void) | null = null
 
-  constructor(private url: string, private protocols?: string[]) {}
+  // `autoReconnect` defaults true for the persistent event channel. The VOICE WS is
+  // REQUEST-SCOPED (one control frame → audio → transcript → server closes), so it
+  // must pass false — otherwise every server-side close after a turn triggers an
+  // auto-reconnect that opens a fresh socket, sends NO control frame, and the server
+  // 4002-closes it → a reconnect STORM (6+ sockets per tap in the field logs) that
+  // the user experiences as "voice server unreachable".
+  constructor(
+    private url: string,
+    private protocols?: string[],
+    opts?: { autoReconnect?: boolean },
+  ) {
+    this.shouldReconnect = opts?.autoReconnect ?? true
+  }
 
   connect(): void {
     if (this._connecting || this.ws?.readyState === WebSocket.OPEN) return
