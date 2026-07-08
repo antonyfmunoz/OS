@@ -106,6 +106,23 @@ def test_mic_single_acquisition_no_double_getusermedia() -> None:
     assert "MIC_ACQUIRE_TIMEOUT" in adapter
 
 
+def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
+    # P4S31 DEADLOCK FIX: startVoice()'s re-entrancy guard must only bail on a LIVE
+    # recording ('listening'/'recording'), NOT on the startup states
+    # 'requesting_permission'/'connecting_voice_ws'. startCapture() sets
+    # 'requesting_permission' then calls startVoice() (active-consent path); if the
+    # guard also matched those, startVoice returned immediately and the button
+    # stranded forever at "Requesting mic…".
+    ctrl = _read("voice-controller.ts")
+    # the guard branch that early-returns must not list the startup states
+    assert "activeState === 'listening' || activeState === 'recording'" in ctrl
+    # and must NOT bail on requesting_permission / connecting_voice_ws
+    assert "activeState === 'requesting_permission'" not in ctrl
+    assert "activeState === 'connecting_voice_ws'" not in ctrl
+    # the real re-entrancy guard (live recorder) is still present
+    assert "if (recorder || finalizing)" in ctrl
+
+
 def test_consent_auto_grants_no_second_gesture() -> None:
     # The browser mic approval IS the authorizing gesture: after it succeeds the
     # UMH push_to_talk grant is auto-requested in the same flow (retried once on a

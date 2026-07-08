@@ -574,19 +574,21 @@ export async function startVoice(): Promise<void> {
   const vs = useVoiceStore.getState()
 
   // P4S-31D1-C: exactly ONE active recorder. A second mic tap while a recording
-  // is live must not spawn a concurrent recorder / zombie "listening…" card —
+  // is LIVE must not spawn a concurrent recorder / zombie "listening…" card —
   // finalize the in-flight one first, then the caller taps again to start fresh.
+  //
+  // P4S31 DEADLOCK FIX: only 'listening'/'recording' mean a recording is actually
+  // in flight. 'requesting_permission'/'connecting_voice_ws' are STARTUP states —
+  // and on the single-gesture flow startVoice() is REACHED with micState already
+  // === 'requesting_permission' (startCapture set it, then called _consentAndStart
+  // → startVoice on the active-consent path). Treating those startup states as
+  // "already active" made startVoice() return immediately, stranding the button
+  // forever at "Requesting mic…". The real re-entrancy guard is a live recorder,
+  // checked just below (recorder || finalizing).
   const activeState = vs.micState
-  if (
-    activeState === 'listening' ||
-    activeState === 'recording' ||
-    activeState === 'requesting_permission' ||
-    activeState === 'connecting_voice_ws'
-  ) {
+  if (activeState === 'listening' || activeState === 'recording') {
     log('start_ignored_recorder_active', activeState)
-    if (activeState === 'listening' || activeState === 'recording') {
-      _finalizeRecording('manual_stop')
-    }
+    _finalizeRecording('manual_stop')
     return
   }
   if (recorder || finalizing) {
