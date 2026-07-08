@@ -1,6 +1,6 @@
 import { clsx } from 'clsx'
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Pencil, Check, Download, Mic, MicOff, Paperclip, X, ChevronDown, ChevronRight, Loader2 } from 'lucide-react'
+import { Send, Pencil, Check, Download, Mic, MicOff, Paperclip, X, ChevronDown, ChevronRight, Loader2, Play, Pause } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment, type MediaAttachment } from '../stores/chatStore'
@@ -108,6 +108,85 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
   )
 }
 
+/**
+ * P4S31 voice message — a playable audio bubble (iMessage / Instagram / Telegram
+ * style) for the operator's REAL recorded audio. Play/pause + a scrubbable
+ * progress bar + elapsed/total duration. The blob is already captured, uploaded,
+ * and attached to the message as an 'audio' MediaAttachment; this just renders it.
+ */
+function VoiceMessagePlayer({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [current, setCurrent] = useState(0)
+
+  const fmt = (s: number) => {
+    if (!isFinite(s) || s < 0) s = 0
+    const m = Math.floor(s / 60)
+    const sec = Math.floor(s % 60)
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
+
+  const toggle = useCallback(() => {
+    const a = audioRef.current
+    if (!a) return
+    if (a.paused) { a.play().catch(() => { /* autoplay/gesture guard */ }) }
+    else { a.pause() }
+  }, [])
+
+  const seek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const a = audioRef.current
+    if (!a || !duration) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+    a.currentTime = ratio * duration
+  }, [duration])
+
+  const pct = duration > 0 ? (current / duration) * 100 : 0
+
+  return (
+    <div
+      className="flex items-center gap-2 mt-1.5 px-2 py-1.5 rounded w-full max-w-[240px]"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+    >
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setCurrent(0) }}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+        onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime || 0)}
+      />
+      <button
+        type="button"
+        onClick={toggle}
+        className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-colors"
+        style={{ background: 'var(--color-cyan-glow)', color: 'var(--color-cyan)' }}
+        title={playing ? 'Pause' : 'Play'}
+      >
+        {playing ? <Pause size={13} /> : <Play size={13} className="ml-0.5" />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div
+          onClick={seek}
+          className="h-1.5 rounded-full cursor-pointer relative"
+          style={{ background: 'var(--color-border)' }}
+        >
+          <div
+            className="h-full rounded-full absolute left-0 top-0"
+            style={{ width: `${pct}%`, background: 'var(--color-cyan)' }}
+          />
+        </div>
+      </div>
+      <span className="shrink-0 text-[9px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+        {fmt(playing || current > 0 ? current : duration)}
+      </span>
+    </div>
+  )
+}
+
 function MediaGrid({ media }: { media: MediaAttachment[] }) {
   const apiUrl = API_BASE
   return (
@@ -125,6 +204,9 @@ function MediaGrid({ media }: { media: MediaAttachment[] }) {
               style={{ maxHeight: 200 }}
             />
           )
+        }
+        if (m.media_type === 'audio') {
+          return <VoiceMessagePlayer key={m.id} src={src} />
         }
         if (m.media_type === 'file') {
           return (
