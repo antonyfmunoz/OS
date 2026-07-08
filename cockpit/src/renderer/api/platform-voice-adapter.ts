@@ -153,6 +153,11 @@ async function startCapture(): Promise<void> {
   // synchronously up front (the handleMicToggle guard is micState==='idle').
   vs.setError(null)
   vs.setMicState('requesting_permission')
+  // Clear any stale 'required' left by a prior failed attempt: the mic tap always
+  // drives a fresh auto-grant flow, so the separate "Enable Push-to-Talk" button
+  // never lingers on the happy path. It only reappears if THIS attempt's grant
+  // is genuinely refused (server fail-closed).
+  if (vs.consentState === 'required') vs.setConsentState('granting')
 
   // BROWSER MIC PROMPT FIRST. The browser getUserMedia permission dialog must
   // fire synchronously inside the user gesture. Awaiting a SERVER round-trip
@@ -173,6 +178,11 @@ async function startCapture(): Promise<void> {
     } else if (error.name === 'NotFoundError') {
       vs.setError('No microphone found')
       vs.setLastOutcome('MIC_DEVICE_UNAVAILABLE')
+    } else if (error.name === 'MicAcquireTimeout') {
+      // P4S31 mobile: getUserMedia stalled (iOS held the audio session). Fast,
+      // typed failure instead of a forever "Requesting mic…" button.
+      vs.setError('Microphone did not open — close other mic apps/tabs and try again')
+      vs.setLastOutcome('MIC_ACQUIRE_TIMEOUT')
     } else {
       vs.setError('Browser does not support microphone capture')
       vs.setLastOutcome('MIC_DEVICE_UNAVAILABLE')
@@ -238,11 +248,18 @@ async function _consentAndStart(): Promise<void> {
     return
   }
 
-  // (2) Fresh device: browser mic already allowed above → auto-request the UMH
-  // push_to_talk grant in the SAME flow.
-  const granted = await grantPushToTalk()
+  // (2) Fresh device: the browser mic approval above IS the authorizing gesture.
+  // Auto-request the UMH push_to_talk grant in the SAME flow — the user never
+  // taps a second "Enable Push-to-Talk" button on the happy path. A transient
+  // grant failure (tunnel flap / 502) is retried ONCE automatically before we
+  // fall back to the manual affordance, so a hiccup doesn't force a second tap.
+  let granted = await grantPushToTalk()
   if (!granted.active) {
-    // (3) SERVER grant failed → surface the explicit enable RETRY affordance.
+    granted = await grantPushToTalk()
+  }
+  if (!granted.active) {
+    // (3) SERVER grant genuinely failed after retry → surface the explicit
+    // enable RETRY affordance (governance is fail-closed: no grant, no capture).
     vs.setLastOutcome('CONSENT_REQUIRED')
     vs.setMicState('idle')
     throw new ConsentRequiredError(

@@ -80,3 +80,31 @@ def test_ts_error_codes_are_subset_of_canonical() -> None:
     mirror = _read("voiceErrorCodes.ts")
     for code in canonical:
         assert code in mirror, code
+
+
+def test_mic_acquire_does_not_hang_on_mobile() -> None:
+    # P4S31 mobile field-test fix: ensureBrowserMicPermission must NOT be able to
+    # hang forever on iOS Safari (getUserMedia stalling after an initial grant).
+    # Two guards: skip the probe when permission is already granted, AND time out
+    # a stalled acquisition to a typed MicAcquireTimeout.
+    ws = _read("voice-ws.ts")
+    assert "permissions" in ws and "granted" in ws  # skip-when-already-granted
+    assert "MicAcquireTimeout" in ws  # bounded acquisition
+    assert "MIC_ACQUIRE_TIMEOUT_MS" in ws
+
+    # The adapter maps that timeout to a typed, fast outcome (not a dead button).
+    adapter = _read("platform-voice-adapter.ts")
+    assert "MicAcquireTimeout" in adapter
+    assert "MIC_ACQUIRE_TIMEOUT" in adapter
+
+
+def test_consent_auto_grants_no_second_gesture() -> None:
+    # The browser mic approval IS the authorizing gesture: after it succeeds the
+    # UMH push_to_talk grant is auto-requested in the same flow (retried once on a
+    # transient failure) and a stale 'required' state never lingers — so the
+    # separate "Enable Push-to-Talk" button never appears on the happy path.
+    adapter = _read("platform-voice-adapter.ts")
+    # auto-grant with a single automatic retry before the manual fallback
+    assert adapter.count("await grantPushToTalk()") >= 2
+    # a stale 'required' is cleared to 'granting' when a fresh capture starts
+    assert "if (vs.consentState === 'required') vs.setConsentState('granting')" in adapter

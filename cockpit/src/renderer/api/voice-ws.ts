@@ -38,7 +38,17 @@ log('voice_ws_url_resolved', VOICE_URL)
  * Rejects with the original getUserMedia error (name preserved:
  * NotAllowedError / NotFoundError / NotSupportedError) so callers can branch on
  * a denied browser permission vs a failed server grant.
+ *
+ * P4S31 mobile fix: getUserMedia can HANG indefinitely on iOS Safari when the
+ * mic was just granted/opened by a prior gesture and the OS audio session is
+ * still held — it never resolves and never rejects, pinning the mic button at
+ * "Requesting mic…" forever (this call runs before startCapture's 8s consent
+ * watchdog, so that watchdog can't save it). Race it against a timeout and reject
+ * with a MicAcquireTimeout (mapped by the caller to a typed, fast failure) so the
+ * button degrades instead of dead-hanging.
  */
+const MIC_ACQUIRE_TIMEOUT_MS = 10000
+
 export async function ensureBrowserMicPermission(): Promise<void> {
   log('browser_mic_permission_probe')
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -47,7 +57,40 @@ export async function ensureBrowserMicPermission(): Promise<void> {
       { name: 'NotSupportedError' },
     )
   }
-  const probe = await navigator.mediaDevices.getUserMedia({ audio: true })
+  // P4S31 mobile fix: if the origin ALREADY holds mic permission, skip the probe
+  // getUserMedia entirely — re-acquiring the mic while iOS still holds the audio
+  // session from the initial grant is exactly what stalls. The real capture
+  // stream (startMic) will open it once, cleanly. Only probe when the state is
+  // 'prompt'/unknown (Permissions API is best-effort; absent on some browsers).
+  try {
+    const perm = await navigator.permissions?.query({
+      name: 'microphone' as PermissionName,
+    })
+    if (perm?.state === 'granted') {
+      log('browser_mic_permission_already_granted')
+      return
+    }
+  } catch {
+    // Permissions API unavailable (older Safari) — fall through to the probe.
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(Object.assign(
+        new Error('Microphone did not open — release the mic and try again'),
+        { name: 'MicAcquireTimeout' },
+      ))
+    }, MIC_ACQUIRE_TIMEOUT_MS)
+  })
+  let probe: MediaStream
+  try {
+    probe = await Promise.race([
+      navigator.mediaDevices.getUserMedia({ audio: true }),
+      timeout,
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
   // Permission is now granted for the origin; drop the probe tracks so the real
   // capture stream (startMic) is the only live one — no double-open, no prompt.
   probe.getTracks().forEach((t) => t.stop())
