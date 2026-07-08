@@ -765,6 +765,13 @@ export function abortActiveRecording(): void {
   vs.setMicState('idle')
   vs.setAudioLevel(0)
   vs.setVadActive(false)
+  // CRITICAL: clear the finalizing latch. abortActiveRecording is a TERMINAL
+  // teardown (delete-draft / cancel) with no _finalizeRecording completion to
+  // reset it — if left true, startVoice()'s `if (recorder || finalizing) return`
+  // guard bails FOREVER and the mic never works again after a delete. (Field bug:
+  // "after I deleted it, voice wouldn't work again.")
+  finalizing = false
+  recorder = null
 }
 
 /**

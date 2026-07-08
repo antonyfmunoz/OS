@@ -251,33 +251,31 @@ function _withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   })
 }
 
-/** The server consent + capture chain, raced against the watchdog above. */
+/** The capture chain, raced against the watchdog above.
+ *
+ * DURABLE consent model: the governed voice WS AUTO-GRANTS for the authenticated
+ * principal on connect. So the client-side consent GET/POST are NO LONGER in the
+ * critical path — they run FIRE-AND-FORGET purely to (a) refresh the local
+ * grant-id for draft stamping and (b) keep the "disable" affordance accurate. We
+ * go straight to startVoice() so a slow/flaky consent round-trip through the SSH
+ * tunnel can never (i) trip the 8s watchdog into a false "Voice server unreachable"
+ * nor (ii) flash "consent not granted". The WS is the real, fail-closed gate. */
 async function _consentAndStart(): Promise<void> {
   const vs = useVoiceStore.getState()
-
-  // (1) Returning device: an active grant already exists — straight to capture.
-  const consent = await getConsent('push_to_talk')
-  if (consent.active) {
-    vs.setConsentState('active')
-    _rememberGrantId(consent)
-    await startVoice()
-    return
-  }
-
-  // (2) Fresh device: try to record the grant up front (best-effort, one attempt)
-  // so the grant id is available to stamp on the draft. But DO NOT block capture
-  // on it — the governed voice WS AUTO-GRANTS for an authenticated principal on
-  // connect (durable-consent, matches how Apple/WhatsApp treat OS mic permission
-  // as the consent). The browser mic approval above already authorized capture, so
-  // a slow/flaky client grant POST must never strand the user at a "consent
-  // failed" button. The WS re-assert is the real, fail-closed gate.
-  try {
-    const granted = await grantPushToTalk()
-    if (granted.active) _rememberGrantId(granted)
-  } catch {
-    // ignore — the WS will auto-grant on connect for the authenticated principal.
-  }
   vs.setConsentState('active')
+
+  // fire-and-forget: refresh local grant id, never block or error the capture.
+  void (async () => {
+    try {
+      const consent = await getConsent('push_to_talk')
+      if (consent.active) { _rememberGrantId(consent); return }
+      const granted = await grantPushToTalk()
+      if (granted.active) _rememberGrantId(granted)
+    } catch {
+      // WS auto-grants for the authenticated principal — nothing to surface.
+    }
+  })()
+
   await startVoice()
 }
 
