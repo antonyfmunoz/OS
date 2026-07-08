@@ -101,6 +101,32 @@ def test_malformed_control_frame_closes_4002() -> None:
             ws.receive_json()
 
 
+def test_client_disconnect_before_control_frame_no_server_error() -> None:
+    # REGRESSION: a client that opens the WS and immediately disconnects (a probe, a
+    # reconnect that drops, the client's own connect-timeout closing the socket)
+    # previously made the server call ws.close(4002) on an already-closing socket →
+    # `RuntimeError: Unexpected ASGI 'websocket.close'` → a 500 the client read as
+    # "voice server unreachable" (which then wedged the mic). The handler must detect
+    # the disconnect / route every close through _safe_close and NOT raise.
+    client = TestClient(_app())
+    with client.websocket_connect("/api/umh/voice/ws") as ws:
+        ws.close()  # go away before sending the control frame
+    # No assertion needed beyond "no exception raised in the handler" — the server
+    # must not 500. _safe_close + the disconnect guard make the close idempotent.
+
+
+def test_safe_close_helper_exists_and_guards_state() -> None:
+    # Every close in the handler routes through _safe_close, which checks WS state so
+    # a second/late close is a no-op instead of a 500.
+    src = (
+        Path(__file__).resolve().parent.parent / "transports" / "api" / "voice.py"
+    ).read_text(encoding="utf-8")
+    assert "async def _safe_close" in src
+    assert "WebSocketState.DISCONNECTED" in src
+    # no raw ws.close at handler sites — only inside _safe_close itself
+    assert src.count("await ws.close(") == 1
+
+
 def test_empty_audio_returns_typed_error() -> None:
     # GAP F: text control(audio/pcm) + zero-length binary terminator → the runtime
     # sees empty audio → EMPTY_AUDIO_BLOB relayed verbatim.
