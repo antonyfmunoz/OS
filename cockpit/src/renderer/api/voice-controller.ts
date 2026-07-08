@@ -17,7 +17,7 @@
  *  - retryDraftTranscription (Lane E): re-run STT over the preserved audio blob
  *  - abortActiveRecording: tear the mic/recorder down with no dispatch
  */
-import { VoiceWsClient } from './voice-ws'
+import { VoiceWsClient, releaseGestureStream } from './voice-ws'
 import { voiceConsentForCapture } from './platform-voice-adapter'
 import { VOICE_ERROR_CODES } from './voiceErrorCodes'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -65,8 +65,6 @@ export type VoiceArtifactErrorCode = keyof typeof VOICE_ARTIFACT_ERROR
 let client: VoiceWsClient | null = null
 let cleanups: (() => void)[] = []
 let chatUnsub: (() => void) | null = null
-let pendingTimeout: ReturnType<typeof setTimeout> | null = null
-let maxRecordingTimeout: ReturnType<typeof setTimeout> | null = null
 /** ~10Hz poll that mirrors client.clientRms into the message store (the meter). */
 let meterInterval: ReturnType<typeof setInterval> | null = null
 /** Wall-clock ms the meter started, for the "mic appears silent" hint. */
@@ -106,9 +104,26 @@ const MIC_SILENT_HINT_MS = 2_000
 const log = (stage: string, ...args: unknown[]) =>
   console.log(`[VoicePipeline] ${stage}`, ...args)
 
-function clearAllTimers(): void {
-  if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
-  if (maxRecordingTimeout) { clearTimeout(maxRecordingTimeout); maxRecordingTimeout = null }
+// P1 — session timer registry. A single owner for every capture/turn timeout.
+// `arm(key, …)` ALWAYS clears the prior handle for that key before setting the
+// new one, so a timer can never be orphaned by re-arming (the double-send
+// `pendingTimeout` leak class). Keys used: 'pendingResponse', 'maxRecording',
+// 'ttsGenerate'. `clearAll()` replaces the old `clearAllTimers()`.
+const _timers = new Map<string, ReturnType<typeof setTimeout>>()
+const sessionTimers = {
+  arm(key: string, fn: () => void, ms: number): void {
+    const prev = _timers.get(key)
+    if (prev) clearTimeout(prev)
+    _timers.set(key, setTimeout(() => { _timers.delete(key); fn() }, ms))
+  },
+  clear(key: string): void {
+    const t = _timers.get(key)
+    if (t) { clearTimeout(t); _timers.delete(key) }
+  },
+  clearAll(): void {
+    for (const t of _timers.values()) clearTimeout(t)
+    _timers.clear()
+  },
 }
 
 /**
@@ -193,6 +208,21 @@ function stopMeterAnalyser(): void {
   client?.setMeterRms(0)
 }
 
+// P2 — the SINGLE owner of capture-resource teardown. Every abort/stop/destroy
+// path routes its resource cleanup through here instead of re-listing the steps,
+// so no path can forget one. This is also the only place `releaseGestureStream()`
+// is wired on the controller side — previously it had ZERO controller callers, so
+// an abort-before-startMic left the getUserMedia stream live (iOS mic stayed lit).
+// This owns RESOURCES only; callers still own their own state/flag transitions.
+function teardownCapture(): void {
+  _stopRecorder(() => { /* discard */ })
+  stopMeterAnalyser()
+  stopCaptureMeter()
+  client?.stopMic()
+  releaseGestureStream()
+  sessionTimers.clearAll()
+}
+
 // ── MediaRecorder lifecycle ──────────────────────────────────────────────────
 
 function _pickRecorderMime(): string {
@@ -273,7 +303,7 @@ function _stopRecorder(cb: (blob: Blob | null) => void): void {
 function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): void {
   if (finalizing) return
   finalizing = true
-  clearAllTimers()
+  sessionTimers.clearAll()
   stopCaptureMeter()
   stopMeterAnalyser()
 
@@ -398,7 +428,7 @@ function wireEvents(): void {
       useVoiceStore.getState().setTtsState('idle')
       useVoiceStore.getState().setAudioLevel(0)
       releaseHeldMessage()
-      clearAllTimers()
+      sessionTimers.clearAll()
     })
   )
 
@@ -462,7 +492,7 @@ function wireEvents(): void {
         vms.markTranscriptFailed('STT_FAILED')
       }
       releaseHeldMessage()
-      clearAllTimers()
+      sessionTimers.clearAll()
     })
   )
 
@@ -509,7 +539,7 @@ function wireEvents(): void {
     if (last?.sender !== 'assistant') return
 
     log('dex_response_received', last.content?.slice(0, 60))
-    if (pendingTimeout) { clearTimeout(pendingTimeout); pendingTimeout = null }
+    sessionTimers.clear('pendingResponse')
     voiceState.setPendingVoiceResponse(false)
     voiceState.setMicState('idle')
 
@@ -542,7 +572,7 @@ function wireEvents(): void {
       voiceState.setTtsState('generating_tts')
       voiceState.setVoicePresentationStatus('preparing_voice')
 
-      const ttsTimeout = setTimeout(() => {
+      sessionTimers.arm('ttsGenerate', () => {
         const v = useVoiceStore.getState()
         if (v.ttsState === 'generating_tts') {
           log('tts_generate_timeout')
@@ -560,8 +590,6 @@ function wireEvents(): void {
       // Use spoken_text if available (concise TTS-friendly version)
       const ttsText = (last.metadata?.spoken_text as string | undefined) || last.content
       client.requestTts(ttsText)
-
-      cleanups.push(() => clearTimeout(ttsTimeout))
     } else {
       voiceState.setVoicePresentationStatus('complete')
       setTimeout(() => useVoiceStore.getState().setVoicePresentationStatus('idle'), 500)
@@ -599,7 +627,7 @@ export async function startVoice(): Promise<void> {
   vs.setError(null)
   vs.setLastOutcome(null)
   vs.setChunksSent(0)
-  clearAllTimers()
+  sessionTimers.clearAll()
 
   log('mic_clicked')
 
@@ -714,7 +742,7 @@ export async function startVoice(): Promise<void> {
   vs.setMicState('listening')
   log('state=listening', 'tap mic again to send')
 
-  maxRecordingTimeout = setTimeout(() => {
+  sessionTimers.arm('maxRecording', () => {
     log('max_recording_timeout', `${VAD_CONFIG.max_recording_ms}ms`)
     const v = useVoiceStore.getState()
     if (v.micState === 'listening' || v.micState === 'recording') {
@@ -738,11 +766,8 @@ export function stopVoice(): void {
     return
   }
 
-  if (client) client.stopMic()
   cancelTurn()
-  clearAllTimers()
-  stopCaptureMeter()
-  stopMeterAnalyser()
+  teardownCapture()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
   vs.setVadActive(false)
@@ -754,13 +779,9 @@ export function stopVoice(): void {
  */
 export function abortActiveRecording(): void {
   log('abort_active_recording')
-  clearAllTimers()
-  stopCaptureMeter()
-  stopMeterAnalyser()
   finalizing = true
-  if (client) client.stopMic()
-  _stopRecorder(() => { /* discard — deleteDraft revokes any attached blob */ })
   cancelTurn()
+  teardownCapture()
   const vs = useVoiceStore.getState()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
@@ -790,7 +811,7 @@ export function notifyVoiceMessageSent(voiceTurnId: string): void {
   vs.setLastOutcome('TRANSCRIPT_RECEIVED')
   log('[VoiceTurn] voice_message_sent', voiceTurnId)
 
-  pendingTimeout = setTimeout(() => {
+  sessionTimers.arm('pendingResponse', () => {
     const v = useVoiceStore.getState()
     if (v.pendingVoiceResponse) {
       v.setPendingVoiceResponse(false)
@@ -948,11 +969,8 @@ export function stopTts(): void {
 }
 
 export function destroyVoice(): void {
-  clearAllTimers()
-  stopCaptureMeter()
-  stopMeterAnalyser()
   cancelTurn()
-  _stopRecorder(() => { /* discard */ })
+  teardownCapture()
   cleanups.forEach(fn => fn())
   cleanups = []
   if (chatUnsub) {
