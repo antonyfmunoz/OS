@@ -106,6 +106,24 @@ def test_mic_single_acquisition_no_double_getusermedia() -> None:
     assert "MIC_ACQUIRE_TIMEOUT" in adapter
 
 
+def test_ios_blob_falls_back_to_server_decode() -> None:
+    # P4S31 mobile decode fix: iOS Safari's AudioContext.decodeAudioData can't
+    # decode the audio/mp4 blob its OWN MediaRecorder produced. When the client
+    # PCM resample fails, _transcribeBlob must fall back to sending the RAW
+    # container blob with its real content_type so the server ffmpeg-decodes it —
+    # never a dead DECODE_FAILED while a playable blob exists.
+    ctrl = _read("voice-controller.ts")
+    # the client-decode failure now becomes a server-decode fallback, not a
+    # terminal DECODE_FAILED return.
+    assert "fallback_server" in ctrl
+    assert "blob.arrayBuffer()" in ctrl  # sends raw container bytes
+    assert "contentType" in ctrl  # real content_type drives the server ffmpeg lane
+    # transcribeUtterance accepts a content_type override for the server lane
+    ws = _read("voice-ws.ts")
+    assert "contentType?" in ws
+    assert "control.contentType ?? RAW_PCM_CONTENT_TYPE" in ws
+
+
 def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
     # P4S31 DEADLOCK FIX: startVoice()'s re-entrancy guard must only bail on a LIVE
     # recording ('listening'/'recording'), NOT on the startup states
