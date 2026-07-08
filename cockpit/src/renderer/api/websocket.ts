@@ -88,15 +88,24 @@ export class WsClient {
    * server protocol (top-level fields, not a typed envelope).
    */
   sendRaw(text: string): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(text)
+    // ROOT C: FAIL FAST, do not silently no-op. If the socket is not OPEN the GAP F
+    // control/terminator frame would be dropped, the server would see binary-first
+    // (→ close 4002), and the client would hang to its 25s transcribe timeout with
+    // no error. transcribeUtterance wraps these sends in try/catch and resolves a
+    // typed RUNTIME_UNAVAILABLE, so throwing turns a silent 25s hang into an instant
+    // typed failure. (send()/heartbeat stay tolerant — a stale ping must not throw.)
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      throw new Error('WS_NOT_OPEN')
     }
+    this.ws.send(text)
   }
 
   sendBinary(data: ArrayBuffer | Blob): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(data)
+    // ROOT C: fail fast (see sendRaw) — a dropped audio frame must surface, not hang.
+    if (this.ws?.readyState !== WebSocket.OPEN) {
+      throw new Error('WS_NOT_OPEN')
     }
+    this.ws.send(data)
   }
 
   onBinary(handler: (data: ArrayBuffer) => void): () => void {

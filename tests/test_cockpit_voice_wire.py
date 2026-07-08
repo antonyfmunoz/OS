@@ -362,3 +362,59 @@ def test_capture_session_replaces_finalizing_latch() -> None:
     assert not re.search(r"^\s*finalizing = (true|false)", ctrl, re.M), (
         "bare finalizing latch assignments must be gone"
     )
+
+
+def test_sendraw_verifies_open() -> None:
+    # ROOT C-client: sendRaw + sendBinary must FAIL FAST (throw) when the socket is
+    # not OPEN — a silent no-op drops the GAP F control frame → server 4002 → 25s
+    # client hang. send() (TTS + heartbeat ping) must stay a tolerant no-op.
+    ws = (_API / "websocket.ts").read_text(encoding="utf-8")
+    import re
+
+    def _body(name: str) -> str:
+        m = re.search(rf"\b{name}\([^)]*\):\s*void\s*\{{(.*?)\n  \}}", ws, re.S)
+        assert m, f"could not locate {name}"
+        return m.group(1)
+
+    send_raw = _body("sendRaw")
+    send_bin = _body("sendBinary")
+    assert "throw" in send_raw and "WS_NOT_OPEN" in send_raw
+    assert "throw" in send_bin and "WS_NOT_OPEN" in send_bin
+    # send() (the typed-envelope path used by heartbeat/TTS) must NOT throw.
+    send_plain = _body("send")
+    assert "throw" not in send_plain
+
+
+def test_voice_error_has_render_path() -> None:
+    # ROOT E: voiceStore.error must be RENDERED (the visible banner previously read
+    # only chatStore.error). It surfaces in a banner gated on a TERMINAL lastOutcome,
+    # NOT inside the Tap-to-play button or the mic title attr.
+    rail = (
+        _ROOT / "cockpit" / "src" / "renderer" / "components" / "RightRail.tsx"
+    ).read_text(encoding="utf-8")
+    assert "VOICE_TERMINAL_OUTCOMES" in rail
+    # the terminal set gates the banner and includes the real dead-ends
+    for code in ("MIC_PERMISSION_DENIED", "VOICE_WS_UNAVAILABLE", "STT_FAILED", "TIMEOUT"):
+        assert code in rail, code
+    # the banner renders voiceError gated on the terminal set (not just Tap-to-play)
+    assert "VOICE_TERMINAL_OUTCOMES.has(voiceLastOutcome" in rail
+
+
+def test_dead_consent_code_removed() -> None:
+    # ROOT E: the "Enable Push-to-Talk" affordance was removed (WS auto-grants); its
+    # dead handler must be gone too.
+    rail = (
+        _ROOT / "cockpit" / "src" / "renderer" / "components" / "RightRail.tsx"
+    ).read_text(encoding="utf-8")
+    assert "handleEnablePushToTalk" not in rail
+    # the revoke/disable affordance stays.
+    assert "handleRevokePushToTalk" in rail
+
+
+def test_voice_outcome_union_complete() -> None:
+    # ROOT E: the watchdog outcomes the adapter emits must be in the VoiceOutcome union.
+    store = (
+        _ROOT / "cockpit" / "src" / "renderer" / "stores" / "voiceStore.ts"
+    ).read_text(encoding="utf-8")
+    assert "'VOICE_START_TIMEOUT'" in store
+    assert "'VOICE_START_FAILED'" in store
