@@ -171,7 +171,26 @@ async function _sha256Hex(blob: Blob): Promise<string> {
 
 function _normalizeAudioContentType(t: string): string {
   const base = (t || 'audio/webm').split(';')[0].trim()
-  return base.startsWith('audio/') ? base : 'audio/webm'
+  if (!base.startsWith('audio/')) return 'audio/webm'
+  // iOS Safari records audio/mp4 (AAC); some engines report audio/x-m4a.
+  if (base === 'audio/x-m4a' || base === 'audio/m4a' || base === 'audio/aac') return 'audio/mp4'
+  return base
+}
+
+/** Server-agreed extension for a normalized audio content type. Must stay in
+ * lockstep with the upload seam's accept-list (_AUDIO_EXT in
+ * transports/api/cockpit_chat_routes.py). iOS mp4 → .m4a. */
+function _audioExtFor(contentType: string): string {
+  switch (contentType) {
+    case 'audio/wav':
+      return '.wav'
+    case 'audio/mp4':
+      return '.m4a'
+    case 'audio/ogg':
+      return '.ogg'
+    default:
+      return '.weba' // audio/webm — matches server _AUDIO_EXT (.weba, not .webm)
+  }
 }
 
 interface CreateDraftInput {
@@ -512,7 +531,7 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
       if (draft.audioBlob) {
         try {
           const contentType = _normalizeAudioContentType(draft.audioBlob.type)
-          const ext = contentType === 'audio/wav' ? '.wav' : '.webm'
+          const ext = _audioExtFor(contentType)
           const file = new File([draft.audioBlob], `voice-message-${draft.draft_id}${ext}`, {
             type: contentType,
           })
