@@ -113,15 +113,53 @@ def test_empty_audio_returns_typed_error() -> None:
     assert frame["code"] == "EMPTY_AUDIO_BLOB"
 
 
-def test_consent_denied_frame(monkeypatch) -> None:
+def test_consent_denied_when_grant_fails(monkeypatch) -> None:
+    # P4S31 DURABLE consent: an authenticated WS AUTO-GRANTS when no live grant
+    # exists (the browser mic approval + Clerk auth are the authorization). So
+    # denial for a grantable mode now requires BOTH: no existing grant AND the
+    # auto-grant write itself failing. This proves the path is still fail-closed —
+    # a grant that cannot be recorded refuses capture rather than proceeding
+    # ungoverned.
     import substrate.workstation.voice_consent as vc
 
     monkeypatch.setattr(vc.VoiceConsentStore, "active_grant", lambda self, *a, **k: None)
+
+    def _boom(self, *a, **k):
+        raise RuntimeError("grant store unavailable")
+
+    monkeypatch.setattr(vc.VoiceConsentStore, "grant", _boom)
     client = TestClient(_app())
     with client.websocket_connect("/api/umh/voice/ws") as ws:
         ws.send_json(_control())
         frame = ws.receive_json()
     assert frame["code"] == "CONSENT_DENIED"
+
+
+def test_authenticated_ws_autogrants_when_no_existing_grant(monkeypatch) -> None:
+    # The durable-consent happy path: no existing grant, but the authenticated
+    # principal triggers an auto-grant and capture proceeds (no CONSENT_DENIED).
+    import substrate.workstation.voice_consent as vc
+
+    monkeypatch.setattr(vc.VoiceConsentStore, "active_grant", lambda self, *a, **k: None)
+    granted = {"called": False}
+
+    class _AutoGrant:
+        grant_id = "auto-g1"
+
+    def _grant(self, *a, **k):
+        granted["called"] = True
+        return _AutoGrant()
+
+    monkeypatch.setattr(vc.VoiceConsentStore, "grant", _grant)
+    client = TestClient(_app())
+    with client.websocket_connect("/api/umh/voice/ws") as ws:
+        ws.send_json(_control())
+        # send an empty-binary terminator immediately — empty audio yields a typed
+        # error, NOT a consent denial. The point: we got PAST consent via auto-grant.
+        ws.send_bytes(b"")
+        frame = ws.receive_json()
+    assert granted["called"] is True
+    assert frame["code"] != "CONSENT_DENIED"
 
 
 def test_non_grantable_mode_denied() -> None:

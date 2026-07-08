@@ -106,22 +106,28 @@ def test_mic_single_acquisition_no_double_getusermedia() -> None:
     assert "MIC_ACQUIRE_TIMEOUT" in adapter
 
 
-def test_ios_blob_falls_back_to_server_decode() -> None:
-    # P4S31 mobile decode fix: iOS Safari's AudioContext.decodeAudioData can't
-    # decode the audio/mp4 blob its OWN MediaRecorder produced. When the client
-    # PCM resample fails, _transcribeBlob must fall back to sending the RAW
-    # container blob with its real content_type so the server ffmpeg-decodes it —
-    # never a dead DECODE_FAILED while a playable blob exists.
+def test_server_decode_is_the_primary_path() -> None:
+    # P4S31 DURABLE: server-decode is the PRIMARY (only) transcription path — the
+    # way Apple/WhatsApp/Telegram do it. The client never decodes the recording
+    # (iOS Safari can't decode its own MediaRecorder mp4). _transcribeBlob sends
+    # the RAW container blob with its real content_type; the server ffmpeg-decodes.
     ctrl = _read("voice-controller.ts")
-    # the client-decode failure now becomes a server-decode fallback, not a
-    # terminal DECODE_FAILED return.
-    assert "fallback_server" in ctrl
+    # the fragile client resample is GONE from the transcribe path
+    assert "_resampleToPcm16" not in ctrl or "REMOVED" in ctrl
     assert "blob.arrayBuffer()" in ctrl  # sends raw container bytes
+    assert "transcribe_blob_server_decode" in ctrl
     assert "contentType" in ctrl  # real content_type drives the server ffmpeg lane
     # transcribeUtterance accepts a content_type override for the server lane
     ws = _read("voice-ws.ts")
     assert "contentType?" in ws
     assert "control.contentType ?? RAW_PCM_CONTENT_TYPE" in ws
+
+
+def test_no_client_side_decodeaudiodata_in_transcribe() -> None:
+    # The WebKit-fragile AudioContext.decodeAudioData must not gate transcription.
+    ctrl = _read("voice-controller.ts")
+    # the decode helper was removed; only a comment referencing it may remain
+    assert "async function _resampleToPcm16" not in ctrl
 
 
 def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
@@ -141,13 +147,23 @@ def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
     assert "if (recorder || finalizing)" in ctrl
 
 
-def test_consent_auto_grants_no_second_gesture() -> None:
-    # The browser mic approval IS the authorizing gesture: after it succeeds the
-    # UMH push_to_talk grant is auto-requested in the same flow (retried once on a
-    # transient failure) and a stale 'required' state never lingers — so the
-    # separate "Enable Push-to-Talk" button never appears on the happy path.
+def test_consent_never_blocks_capture_ws_autogrants() -> None:
+    # P4S31 DURABLE consent (Apple/WhatsApp model): the authenticated WS auto-grants
+    # on connect, so the client grant POST is best-effort and NEVER blocks capture.
+    # A slow/flaky grant must not strand the user at a "consent failed" button.
     adapter = _read("platform-voice-adapter.ts")
-    # auto-grant with a single automatic retry before the manual fallback
-    assert adapter.count("await grantPushToTalk()") >= 2
-    # a stale 'required' is cleared to 'granting' when a fresh capture starts
-    assert "if (vs.consentState === 'required') vs.setConsentState('granting')" in adapter
+    # _consentAndStart no longer throws ConsentRequiredError on a failed client grant
+    # (it proceeds to startVoice; the WS is the real gate).
+    import re
+    m = re.search(r"async function _consentAndStart\(\).*?\n}", adapter, re.S)
+    assert m, "could not locate _consentAndStart"
+    body = m.group(0)
+    assert "throw new ConsentRequiredError" not in body
+    assert "await startVoice()" in body
+
+    # the WS server-side auto-grants for an authenticated principal.
+    voice_py = (
+        _ROOT / "transports" / "api" / "voice.py"
+    ).read_text(encoding="utf-8")
+    assert "auto-grant" in voice_py.lower()
+    assert "_store.grant(" in voice_py

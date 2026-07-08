@@ -799,44 +799,9 @@ export function notifyVoiceMessageSent(voiceTurnId: string): void {
 }
 
 // ── Lane E: STT retry against the preserved audio blob ───────────────────────
-
-/** Decode → 16kHz mono PCM16 → stream over the voice WS → collect final. */
-async function _resampleToPcm16(blob: Blob): Promise<Int16Array[]> {
-  const AudioCtx = (window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
-  if (!AudioCtx) throw new Error('AUDIO_DECODE_UNAVAILABLE')
-  const arrayBuf = await blob.arrayBuffer()
-  const decodeCtx = new AudioCtx()
-  let decoded: AudioBuffer
-  try {
-    decoded = await decodeCtx.decodeAudioData(arrayBuf)
-  } finally {
-    if (decodeCtx.state !== 'closed') decodeCtx.close()
-  }
-
-  const targetRate = 16000
-  const src = decoded.getChannelData(0)
-  const ratio = decoded.sampleRate / targetRate
-  const outLen = Math.floor(src.length / ratio)
-  const mono = new Float32Array(outLen)
-  for (let i = 0; i < outLen; i++) {
-    // Nearest-neighbour downsample; adequate for whisper-class STT.
-    mono[i] = src[Math.floor(i * ratio)]
-  }
-
-  const chunkSize = 4096
-  const chunks: Int16Array[] = []
-  for (let off = 0; off < mono.length; off += chunkSize) {
-    const slice = mono.subarray(off, Math.min(off + chunkSize, mono.length))
-    const pcm16 = new Int16Array(slice.length)
-    for (let i = 0; i < slice.length; i++) {
-      const s = Math.max(-1, Math.min(1, slice[i]))
-      pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff
-    }
-    chunks.push(pcm16)
-  }
-  return chunks
-}
+// P4S31 DURABLE: client-side decode (_resampleToPcm16 via AudioContext) was
+// REMOVED — it's fragile (iOS Safari can't decode its own MediaRecorder mp4) and
+// unnecessary. All decoding is server-side ffmpeg now (see _transcribeBlob).
 
 /**
  * Outcome of transcribing a blob over the WS-STT path. Distinct from the store
@@ -897,52 +862,30 @@ async function _transcribeBlob(draftId: string, blob: Blob): Promise<BlobTranscr
     return { ok: false, code: 'CONSENT_DENIED' }
   }
 
-  // P4S31 mobile decode fix: try a CLIENT-side resample to raw PCM16 first (fast,
-  // no server ffmpeg) — this works on desktop + Android. On iOS Safari,
-  // AudioContext.decodeAudioData FAILS to decode the audio/mp4 (AAC) blob that
-  // Safari's OWN MediaRecorder produced (a WebKit round-trip bug) → we fall back
-  // to sending the RAW container blob and letting the server's robust ffmpeg
-  // decode (normalize_to_pcm_wav) handle it. Both paths use the same governed WS
-  // + GAP F protocol; only the content_type (and payload) differ.
-  let pcmChunks: Int16Array[] | null = null
-  try {
-    pcmChunks = await _resampleToPcm16(blob)
-  } catch (e) {
-    log('transcribe_blob_client_decode_failed_fallback_server', draftId, e)
-    pcmChunks = null
+  // P4S31 DURABLE: SERVER-DECODE PRIMARY — the way Apple / WhatsApp / Telegram /
+  // Instagram do it. Never client-decode the recording (AudioContext.decodeAudioData
+  // can't decode iOS Safari's OWN MediaRecorder mp4 — a WebKit round-trip bug — and
+  // it's fragile everywhere). Send the RAW container blob with its real content_type
+  // and let the server's robust ffmpeg (normalize_to_pcm_wav, CPU-gated) decode it.
+  // One path for every surface — no browser-specific decode divergence.
+  const contentType = blob.type || 'audio/mp4'
+  const raw = await blob.arrayBuffer()
+  if (raw.byteLength === 0) {
+    return { ok: false, code: VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB }
   }
-
-  let res: { ok: true; text: string } | { ok: false; code: string }
-  if (pcmChunks && pcmChunks.length > 0 && pcmChunks.some((ch) => ch.length > 0)) {
-    // Client PCM path (desktop / Android): stream raw PCM16.
-    res = await c.transcribeUtterance(
-      pcmChunks.map((ch) => ch.buffer),
-      {
-        source: consent.source,
-        deviceRegistryId: consent.deviceRegistryId,
-        consentGrantId: consent.consentGrantId,
-        activationMode: 'push_to_talk',
-      },
-    )
-  } else {
-    // Server-decode path (iOS Safari): send the original container blob bytes
-    // with its real content_type so the server ffmpeg-decodes it.
-    const contentType = blob.type || 'audio/mp4'
-    const raw = await blob.arrayBuffer()
-    log('transcribe_blob_server_decode', draftId, contentType, `${raw.byteLength}B`)
-    res = await c.transcribeUtterance(
-      [raw],
-      {
-        source: consent.source,
-        deviceRegistryId: consent.deviceRegistryId,
-        consentGrantId: consent.consentGrantId,
-        activationMode: 'push_to_talk',
-        contentType,
-      },
-      // Server ffmpeg-decode + whisper takes longer than raw PCM — give it room.
-      25_000,
-    )
-  }
+  log('transcribe_blob_server_decode', draftId, contentType, `${raw.byteLength}B`)
+  const res = await c.transcribeUtterance(
+    [raw],
+    {
+      source: consent.source,
+      deviceRegistryId: consent.deviceRegistryId,
+      consentGrantId: consent.consentGrantId,
+      activationMode: 'push_to_talk',
+      contentType,
+    },
+    // Server ffmpeg-decode + whisper takes longer than raw PCM — give it room.
+    25_000,
+  )
   if (res.ok) return { ok: true, text: res.text, confidence: null }
   return { ok: false, code: res.code }
 }
