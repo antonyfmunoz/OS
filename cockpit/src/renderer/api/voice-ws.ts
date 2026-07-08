@@ -8,20 +8,19 @@ import {
 function getVoiceUrl(): string {
   if (import.meta.env.VITE_VOICE_URL) return import.meta.env.VITE_VOICE_URL as string
 
-  const isLocalhost =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1'
-  const isElectron = Boolean((window as Record<string, unknown>).cockpit)
-
-  if (isElectron || isLocalhost) {
-    return 'ws://localhost:8096/voice'
-  }
-
+  // P4S31 Voice Convergence: every surface resolves to the ONE governed voice WS
+  // on the API backend (proxied by nginx). The standalone voice server is retired;
+  // localhost/Electron reach the same governed endpoint on the current host.
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   return `${protocol}//${window.location.host}/api/umh/voice/ws`
 }
 const VOICE_URL = getVoiceUrl()
 const TARGET_SAMPLE_RATE = 16000
+
+// Raw PCM16 mono@16kHz is the live-mic content type (no container decode server
+// side — the runtime takes the preflight_pcm16 lane). The client resamples the
+// captured blob to this before streaming.
+const RAW_PCM_CONTENT_TYPE = 'audio/pcm'
 
 const log = (stage: string, ...args: unknown[]) =>
   console.log(`[VoicePipeline] ${stage}`, ...args)
@@ -165,11 +164,10 @@ export class VoiceWsClient {
     // the raw mic MediaStream; the controller drives a MediaRecorder (the
     // playable blob → the sole transcription artifact) and a metering
     // AnalyserNode off this same stream. The deprecated ScriptProcessorNode
-    // (broken on iOS Safari) and the live `sendBinary`/`mic_start` streaming
-    // path are gone — one capture mechanism, one codec surface, nothing to
-    // diverge. The server stays streaming-capable for a future LiveVoiceSession;
-    // `_transcribeBlob` (retry/finalize) still opens its own short-lived
-    // mic_start → sendPcm → mic_stop burst to transcribe the decoded blob.
+    // (broken on iOS Safari) and the old live-streaming path are gone — one
+    // capture mechanism, one codec surface, nothing to diverge. On finalize,
+    // `_transcribeBlob` resamples the blob and streams it once via the governed
+    // GAP F protocol in `transcribeUtterance`.
     return {
       stream,
       trackState: track.readyState,
@@ -231,8 +229,8 @@ export class VoiceWsClient {
 
   stopMic(): void {
     log('mic_stop', `chunks_sent=${this._chunkCount}`)
-    this.ws.send('mic_stop')
-
+    // P4S31: no bare 'mic_stop' control frame — the governed WS uses the GAP F
+    // terminator inside transcribeUtterance(). stopMic only tears down capture.
     this.mediaStream?.getTracks().forEach(t => t.stop())
     this.mediaStream = null
     this._lastClientRms = 0
@@ -251,17 +249,69 @@ export class VoiceWsClient {
   }
 
   /**
-   * Send a bare control frame (e.g. 'mic_start' / 'mic_stop') without touching
-   * getUserMedia. Used by the Lane E retry path, which streams a stored blob's
-   * PCM rather than live mic audio.
+   * P4S31 Voice Convergence — GAP F wire protocol.
+   *
+   * Stream one utterance to the governed voice WS and resolve with the first
+   * final transcript (or an error frame). Protocol, in order:
+   *   1. a TEXT JSON control frame:
+   *      {source, device_registry_id, consent_grant_id, content_type, activation_mode}
+   *   2. the raw PCM16 audio as BINARY chunks
+   *   3. a text {"type":"end"} terminator
+   * The server relays a typed `transcript` frame or a canonical `error` frame
+   * ({type:"error", code:<VoiceErrorCode>}). This replaces the old bare
+   * per-frame control burst — one governed protocol for every surface.
    */
-  sendControl(type: string): void {
-    this.ws.send(type)
-  }
+  transcribeUtterance(
+    pcmChunks: ArrayBuffer[],
+    control: {
+      source: string
+      deviceRegistryId: string
+      consentGrantId: string
+      activationMode?: string
+    },
+    timeoutMs = 15_000,
+  ): Promise<{ ok: true; text: string } | { ok: false; code: string }> {
+    return new Promise((resolve) => {
+      let settled = false
+      const done = (r: { ok: true; text: string } | { ok: false; code: string }) => {
+        if (settled) return
+        settled = true
+        offTranscript()
+        offError()
+        clearTimeout(timer)
+        resolve(r)
+      }
+      const offTranscript = this.ws.on('transcript', (data) => {
+        const text = (data.text as string) ?? ''
+        const isFinal = data.final as boolean
+        if (isFinal && text.trim()) done({ ok: true, text })
+      })
+      // Canonical error frames carry an UPPERCASE VoiceErrorCode in `code`; relay
+      // it verbatim (no client remapping — that is the convergence contract).
+      const offError = this.ws.on('error', (data) => {
+        done({ ok: false, code: (data.code as string) || 'STT_FAILED' })
+      })
+      const timer = setTimeout(() => done({ ok: false, code: 'TIMEOUT' }), timeoutMs)
 
-  /** Stream one PCM16 chunk over the WS (retry path — no live mic). */
-  sendPcm(buf: ArrayBuffer): void {
-    this.ws.sendBinary(buf)
+      try {
+        // 1. control frame (TEXT JSON, MUST be first)
+        this.ws.sendRaw(
+          JSON.stringify({
+            source: control.source,
+            device_registry_id: control.deviceRegistryId,
+            consent_grant_id: control.consentGrantId,
+            content_type: RAW_PCM_CONTENT_TYPE,
+            activation_mode: control.activationMode ?? 'push_to_talk',
+          }),
+        )
+        // 2. binary audio chunks
+        for (const buf of pcmChunks) this.ws.sendBinary(buf)
+        // 3. terminator
+        this.ws.sendRaw(JSON.stringify({ type: 'end' }))
+      } catch {
+        done({ ok: false, code: 'RUNTIME_UNAVAILABLE' })
+      }
+    })
   }
 
   on(type: string, handler: (data: Record<string, unknown>) => void): () => void {
