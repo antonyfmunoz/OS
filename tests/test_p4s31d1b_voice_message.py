@@ -37,9 +37,7 @@ _VOICE_WS_PATH = _API / "voice-ws.ts"
 _ADAPTER_PATH = _API / "platform-voice-adapter.ts"
 _RIGHT_RAIL_PATH = _RENDERER / "components" / "RightRail.tsx"
 
-_CONTRACT_PATH = (
-    Path(_WORKTREE) / "data" / "umh" / "voice" / "voice_message_contract.json"
-)
+_CONTRACT_PATH = Path(_WORKTREE) / "data" / "umh" / "voice" / "voice_message_contract.json"
 
 _VOICE_FILES = [_STORE_PATH, _CONTROLLER_PATH, _VOICE_WS_PATH, _ADAPTER_PATH]
 
@@ -75,8 +73,7 @@ def test_partial_has_no_path_into_chat_messages_or_send():
     assert "addVoiceTranscript(draft.transcript" in store
     assert "addVoiceTranscript(draft.transcript_partial" not in store
     assert "sendMessage" not in store, (
-        "the draft store reaches chat only through addVoiceTranscript, never a "
-        "direct sendMessage"
+        "the draft store reaches chat only through addVoiceTranscript, never a direct sendMessage"
     )
 
 
@@ -148,13 +145,16 @@ def test_auto_send_is_false():
     assert re.search(r"auto_send:\s*false", store)
 
 
-def test_controller_uses_vad_config_for_finalization():
-    """Finalization decisions read VAD_CONFIG, not hardcoded magic numbers."""
+def test_controller_uses_vad_config_for_max_cap():
+    """P4S-31D1-F blob-only: the note rail stops on tap-to-stop + the 120s hard
+    cap. Silence-VAD auto-finalize is removed, so the only VAD_CONFIG the
+    controller still reads is the max-recording cap — from config, not a magic
+    number."""
     controller = _read(_CONTROLLER_PATH)
-    assert "VAD_CONFIG.min_silence_before_finalize_ms" in controller
-    assert "VAD_CONFIG.intra_utterance_pause_ms" in controller
-    assert "VAD_CONFIG.min_speech_ms" in controller
     assert "VAD_CONFIG.max_recording_ms" in controller
+    # Silence-VAD finalization is gone (no _onAudioLevel, no silence windows).
+    assert "min_silence_before_finalize_ms" not in controller
+    assert "_onAudioLevel" not in controller
 
 
 # ── 4. Audio preserved on failure (never discarded) ────────────────────────────
@@ -326,8 +326,12 @@ def test_right_rail_renders_voice_draft_cards():
     assert "<audio controls" in rail
     assert "DRAFT_STATUS_LABEL" in rail
     # Operator actions present.
-    for action in ("sendDraft(draft.draft_id)", "retryDraft(draft.draft_id)",
-                   "editTranscript(draft.draft_id", "deleteDraft(draft.draft_id)"):
+    for action in (
+        "sendDraft(draft.draft_id)",
+        "retryDraft(draft.draft_id)",
+        "editTranscript(draft.draft_id",
+        "deleteDraft(draft.draft_id)",
+    ):
         assert action in rail, f"missing operator action wiring: {action}"
 
 

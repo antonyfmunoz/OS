@@ -64,15 +64,18 @@ def _read(p: Path) -> str:
 
 
 def test_ws_exposes_client_rms_getter():
-    """voice-ws must expose a client-computed clientRms getter (0..1)."""
+    """voice-ws must expose a client-computed clientRms getter (0..1), fed by the
+    controller's metering AnalyserNode via setMeterRms (P4S-31D1-F blob-only)."""
     src = _read(_WS_PATH)
     assert re.search(r"\bget\s+clientRms\s*\(\s*\)", src), (
         "clientRms getter missing on VoiceWsClient"
     )
-    # RMS is computed from the capture buffer (sqrt of mean square), not faked.
-    # The accumulator is `sumSq` in the merged capture path (post-#241/#249).
-    assert "sumSq" in src and "Math.sqrt" in src, (
-        "clientRms must be a real RMS of the capture buffer"
+    # The client accepts the meter RMS from the AnalyserNode loop.
+    assert "setMeterRms" in src, "voice-ws must expose setMeterRms for the meter feed"
+    # RMS is a real sqrt-of-mean-square, computed in the controller's meter loop.
+    ctrl = _read(_CONTROLLER_PATH)
+    assert "sumSq" in ctrl and "Math.sqrt" in ctrl, (
+        "clientRms must be a real RMS of the capture buffer (meter AnalyserNode)"
     )
 
 

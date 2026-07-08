@@ -74,39 +74,37 @@ def _slice(src: str, start_marker: str, end_marker: str) -> str:
 # ── 1. Finalize has a blob-fallback (transcribe from blob when WS text absent) ─
 
 
-def test_finalize_uses_blob_fallback_when_ws_text_absent():
-    """_finalizeRecording: WS text is the fast path; a present blob is the
-    fallback source of truth — it calls the shared _transcribeBlob helper."""
+def test_finalize_always_transcribes_from_blob():
+    """P4S-31D1-F blob-only: _finalizeRecording has NO WS fast path — the captured
+    blob is the SOLE source of truth, always transcribed via _transcribeBlob."""
     src = _read(_CONTROLLER_PATH)
     block = _slice(src, "function _finalizeRecording", "log('recording_finalized'")
 
-    # Fast path: use the WS final transcript when present.
-    assert "if (finalTranscriptText)" in block, "finalize must keep the WS fast path"
-    assert "completeActiveTranscript(finalTranscriptText" in block, (
-        "fast path must complete from the WS transcript"
+    # The WS "fast path" is gone entirely.
+    assert "finalTranscriptText" not in block, (
+        "finalize must not reference the removed WS fast path"
     )
-
-    # Fallback: when no WS text, transcribe FROM the attached blob.
-    assert "_transcribeBlob(" in block, (
-        "finalize must fall back to _transcribeBlob when WS text is absent"
-    )
-    # The fallback is gated on a real, non-empty blob.
-    assert re.search(r"blob\s*&&\s*blob\.size\s*>\s*0", block), (
-        "finalize blob-fallback must gate on blob.size > 0"
-    )
-    # On a successful blob transcription, complete the active transcript.
+    # Always transcribe FROM the attached blob.
+    assert "_transcribeBlob(" in block, "finalize must transcribe from the blob"
+    # On success, complete the active transcript from the blob result.
     assert "completeActiveTranscript(res.text" in block, (
-        "blob-fallback success must complete the active transcript"
+        "blob transcription success must complete the active transcript"
     )
 
 
-def test_finalize_fast_path_precedes_fallback():
-    """The WS fast path is checked BEFORE the blob fallback runs."""
+def test_finalize_no_speech_guard_is_blob_size_based():
+    """The no-speech / empty guard is BLOB-SIZE based (not a client sawSpeech
+    estimate — that machinery is deleted). A blob-less/byte-empty capture yields
+    a precise artifact code; real "no speech" is the server's authority."""
     src = _read(_CONTROLLER_PATH)
     block = _slice(src, "function _finalizeRecording", "log('recording_finalized'")
-    fast = block.index("completeActiveTranscript(finalTranscriptText")
-    fallback = block.index("_transcribeBlob(")
-    assert fast < fallback, "WS fast path must be evaluated before the blob fallback"
+    assert "sawSpeech" not in block, "no-speech guard must not use the removed sawSpeech"
+    assert re.search(r"!blob\s*\|\|\s*blob\.size\s*<=\s*0", block), (
+        "guard must gate on missing/empty blob size"
+    )
+    assert "MISSING_AUDIO_FIELD" in block and "EMPTY_AUDIO_BLOB" in block, (
+        "guard must emit precise canonical artifact codes"
+    )
 
 
 # ── 2. The decode/stream logic is shared (single helper, not duplicated) ──────
@@ -320,12 +318,13 @@ def test_send_gate_preserved():
 # ── 7. D1-C resume fix + meter must not regress ───────────────────────────────
 
 
-def test_d1c_resume_fix_and_meter_intact():
-    """The capture-context resume fix and the RMS meter remain in place."""
+def test_meter_context_resume_and_meter_intact():
+    """P4S-31D1-F: the capture-context resume fix moved to the metering
+    AnalyserNode (controller), and the RMS meter wiring remains in place."""
     ws = _read(_API / "voice-ws.ts")
-    assert "this.audioContext.resume()" in ws, "D1-C capture-context resume fix regressed"
     assert re.search(r"\bget\s+clientRms\s*\(\s*\)", ws), "clientRms meter getter regressed"
     controller = _read(_CONTROLLER_PATH)
+    assert "meterAudioContext.resume()" in controller, "meter-context resume fix regressed"
     assert "client.clientRms" in controller and "setCaptureRms" in controller, (
         "meter poll wiring regressed"
     )
@@ -391,3 +390,41 @@ def test_client_server_audio_types_agree():
     )
     # The store maps iOS aliases to audio/mp4.
     assert "audio/x-m4a" in store_src and "'audio/mp4'" in store_src
+
+
+# ── P4S-31D1-F: blob-only rail — ONE capture path, no live PCM streaming ──────
+
+
+def test_startmic_creates_no_scriptprocessor_and_no_live_pcm():
+    """startMic acquires the RAW stream only — no capture ScriptProcessor, no
+    per-frame sendBinary, no live 'mic_start'. The deprecated ScriptProcessorNode
+    (broken on iOS) is gone; PCM reaches the server only via _transcribeBlob."""
+    ws = _read(_API / "voice-ws.ts")
+    assert "createScriptProcessor" not in ws
+    assert "onaudioprocess" not in ws
+    # sendBinary appears exactly once — inside sendPcm (the blob replay path).
+    assert ws.count("sendBinary(") == 1, "sendBinary must live only in sendPcm"
+    # No live 'mic_start' frame is sent during capture — the blob path opens its
+    # own via sendControl in _transcribeBlob. (voice-ws never calls ws.send('mic_start').)
+    assert "ws.send('mic_start')" not in ws, "startMic must not send a live mic_start frame"
+
+
+def test_meter_is_fed_by_analyser_node():
+    """The RMS meter is driven by a metering AnalyserNode (iOS-safe), created and
+    torn down on every capture path — never the removed ScriptProcessor."""
+    ctrl = _read(_CONTROLLER_PATH)
+    assert "createAnalyser()" in ctrl
+    assert "getFloatTimeDomainData" in ctrl
+    assert "function startMeterAnalyser" in ctrl and "function stopMeterAnalyser" in ctrl
+    # Torn down on all four capture-exit paths.
+    assert ctrl.count("stopMeterAnalyser()") >= 4, (
+        "meter AnalyserNode must be stopped on finalize/stop/abort/destroy"
+    )
+
+
+def test_live_vad_and_audio_level_handler_removed():
+    """The client-side VAD (_onAudioLevel) and the server audio_level handler are
+    gone — there is no second capture path to diverge from the blob."""
+    ctrl = _read(_CONTROLLER_PATH)
+    assert "_onAudioLevel" not in ctrl, "client-side VAD must be removed"
+    assert "client.on('audio_level'" not in ctrl, "audio_level handler must be removed"

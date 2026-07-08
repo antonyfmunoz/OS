@@ -70,17 +70,23 @@ let heldVoiceMessage: { id: string; content: string } | null = null
 let _pendingVoiceTurnId: string | null = null
 
 // ── Recording session (draft) state ──────────────────────────────────────────
+// P4S-31D1-F BLOB-ONLY: the note rail captures with ONE mechanism — MediaRecorder
+// (the playable blob = the sole transcription artifact). There is no live PCM
+// stream, so there is no client-side VAD (sawSpeech/silence windows) and no
+// live-WS "fast path" transcript. Recording stops on tap-to-stop + the 120s hard
+// cap; transcription is always _transcribeBlob on finalize.
 let recorder: MediaRecorder | null = null
 let recorderChunks: Blob[] = []
 let recordingStartedAt = 0
-let speechStartTs: number | null = null
-let sawSpeech = false
-let lastVoiceTs = 0
-let silenceWindowStart: number | null = null
 let finalizing = false
 let onRecorderStop: ((blob: Blob | null) => void) | null = null
-let finalTranscriptText = ''
-let finalConfidence: number | null = null
+
+// Metering AnalyserNode (meter-ONLY: RMS bar + silent-mic hint). No VAD, no
+// finalize — it can never re-introduce the two-path divergence bug class.
+let meterAudioContext: AudioContext | null = null
+let meterAnalyser: AnalyserNode | null = null
+let meterSource: MediaStreamAudioSourceNode | null = null
+let meterRafId: number | null = null
 
 const PENDING_RESPONSE_TIMEOUT_MS = 30_000
 const TTS_GENERATE_TIMEOUT_MS = 15_000
@@ -128,6 +134,57 @@ function stopCaptureMeter(): void {
   if (meterInterval) { clearInterval(meterInterval); meterInterval = null }
   meterStartedAt = 0
   useVoiceMessageStore.getState().resetCaptureMeter()
+}
+
+/**
+ * P4S-31D1-F: meter-ONLY AnalyserNode on the capture MediaStream. Computes RMS
+ * (0..1) at display cadence and pushes it into the WS client (setMeterRms), which
+ * the ~10Hz `startCaptureMeter` poll reads via `client.clientRms`. This replaces
+ * the removed capture ScriptProcessor as the "is the mic actually hearing me"
+ * source. NO VAD, NO finalize, and NOT connected to destination (no echo).
+ * iOS-safe: the AudioContext is created + resumed inside the recording gesture.
+ * `getFloatTimeDomainData` yields −1..1 samples so sqrt(meanSquare) is the same
+ * 0..1 metric MIC_SILENT_RMS_FLOOR / VAD_CONFIG thresholds are calibrated for.
+ */
+function startMeterAnalyser(stream: MediaStream): void {
+  stopMeterAnalyser()
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!AudioCtx) { log('meter_analyser_unavailable'); return }
+    meterAudioContext = new AudioCtx()
+    if (meterAudioContext.state === 'suspended') void meterAudioContext.resume()
+    log('meter_audio_context_state', meterAudioContext.state)
+    meterSource = meterAudioContext.createMediaStreamSource(stream)
+    meterAnalyser = meterAudioContext.createAnalyser()
+    meterAnalyser.fftSize = 1024
+    meterSource.connect(meterAnalyser) // NOT connected to destination — no echo
+    const buf = new Float32Array(meterAnalyser.fftSize)
+    const tick = (): void => {
+      if (!meterAnalyser) return
+      meterAnalyser.getFloatTimeDomainData(buf)
+      let sumSq = 0
+      for (let i = 0; i < buf.length; i++) sumSq += buf[i] * buf[i]
+      const rms = buf.length ? Math.sqrt(sumSq / buf.length) : 0
+      client?.setMeterRms(rms) // → client.clientRms → startCaptureMeter poll → CaptureMeter
+      meterRafId = requestAnimationFrame(tick)
+    }
+    meterRafId = requestAnimationFrame(tick)
+  } catch (e) {
+    log('meter_analyser_start_failed', e)
+  }
+}
+
+function stopMeterAnalyser(): void {
+  if (meterRafId !== null) { cancelAnimationFrame(meterRafId); meterRafId = null }
+  meterSource?.disconnect()
+  meterAnalyser?.disconnect()
+  meterSource = null
+  meterAnalyser = null
+  if (meterAudioContext && meterAudioContext.state !== 'closed') void meterAudioContext.close()
+  meterAudioContext = null
+  client?.setMeterRms(0)
 }
 
 // ── MediaRecorder lifecycle ──────────────────────────────────────────────────
@@ -212,55 +269,49 @@ function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): voi
   finalizing = true
   clearAllTimers()
   stopCaptureMeter()
+  stopMeterAnalyser()
 
-  const vms = useVoiceMessageStore.getState()
   const now = Date.now()
   const durationMs = recordingStartedAt ? now - recordingStartedAt : 0
 
-  // Under-threshold speech is a recoverable NO_SPEECH draft, never a message.
-  if (!sawSpeech || durationMs < VAD_CONFIG.min_speech_ms) {
-    if (client) client.stopMic()
-    _stopRecorder((blob) => { if (blob) vms.attachAudio(blob) })
-    vms.markNoSpeech()
-    useVoiceStore.getState().setMicState('idle')
-    log('recording_no_speech', `duration=${durationMs}`)
-    return
-  }
-
-  vms.finalizeActiveDraft(finalizedBy, durationMs, speechStartTs, now)
+  // BLOB-ONLY: the captured blob is the single source of truth. Mark the draft
+  // finalizing/transcribing up front; the real "no speech" authority is the
+  // server (SILENT_AUDIO / VAD_NO_SPEECH via _transcribeBlob), not a client
+  // silence estimate. The draft it binds to is fixed now, before
+  // completeActiveTranscript clears activeDraftId.
+  useVoiceMessageStore.getState().finalizeActiveDraft(finalizedBy, durationMs, null, now)
   useVoiceStore.getState().setMicState('transcribing')
-  // The blob is the source of truth for transcription; the draft it binds to is
-  // fixed now, before completeActiveTranscript clears activeDraftId.
   const finalizingDraftId = useVoiceMessageStore.getState().activeDraftId
 
   if (client) client.stopMic()
 
-  // Stop the recorder, then attach its blob (audio preserved regardless of STT).
+  // Stop the recorder, then decide from the BLOB (its size only known here).
   _stopRecorder((blob) => {
     if (blob) useVoiceMessageStore.getState().attachAudio(blob)
+    const draftId = finalizingDraftId
 
-    // FAST PATH: the live WS PCM stream already produced a final transcript —
-    // use it and we're done.
-    if (finalTranscriptText) {
-      useVoiceMessageStore.getState().completeActiveTranscript(finalTranscriptText, finalConfidence)
+    // No usable blob → recoverable missing/empty draft, NEVER a chat message.
+    // Precise artifact code (blob-size based, not a client speech estimate).
+    if (!blob || blob.size <= 0) {
+      if (draftId) {
+        const code = !blob
+          ? VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
+          : VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
+        useVoiceMessageStore.getState().markTranscriptFailed(code)
+      } else {
+        useVoiceMessageStore.getState().markNoSpeech()
+      }
       useVoiceStore.getState().setMicState('idle')
+      log('recording_no_usable_blob', `duration=${durationMs}`)
       return
     }
 
-    // BLOB SOURCE-OF-TRUTH FALLBACK (P4S-31D1-E): the WS PCM path delivered no
-    // transcript (Safari/AudioContext timing). The locally-captured blob played
-    // back fine, so it is the reliable artifact — transcribe FROM IT using the
-    // SAME shared machinery the retry uses. NEVER report "no audio" here while a
-    // size>0 blob exists.
-    const draftId = finalizingDraftId
-    if (blob && blob.size > 0 && draftId) {
+    // BLOB SOURCE-OF-TRUTH (the only transcription path): transcribe FROM the
+    // captured blob using the SAME shared machinery retry uses. _transcribeBlob
+    // → _assertTranscribableBlob + server VAD are the real empty/no-speech
+    // authority. NEVER report "no audio" here while a size>0 blob exists.
+    if (draftId) {
       void _transcribeBlob(draftId, blob).then((res) => {
-        // Guard against a late WS final that landed while the blob transcribed.
-        if (finalTranscriptText) {
-          useVoiceMessageStore.getState().completeActiveTranscript(finalTranscriptText, finalConfidence)
-          useVoiceStore.getState().setMicState('idle')
-          return
-        }
         if (res.ok) {
           useVoiceMessageStore.getState().completeActiveTranscript(res.text, res.confidence)
           useVoiceStore.getState().setMicState('idle')
@@ -278,71 +329,9 @@ function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): voi
         useVoiceMessageStore.getState().markTranscriptFailed(FINALIZE_CODE[res.code] ?? res.code)
         useVoiceStore.getState().setMicState('idle')
       })
-      return
-    }
-
-    // No usable blob AND no WS transcript — this is the ONLY branch that may
-    // report a missing/empty artifact, and it uses a precise code (never a bare
-    // missing-audio claim while a playable blob exists).
-    if (draftId) {
-      const code = !blob
-        ? VOICE_ARTIFACT_ERROR.MISSING_AUDIO_FIELD
-        : VOICE_ARTIFACT_ERROR.EMPTY_AUDIO_BLOB
-      useVoiceMessageStore.getState().markTranscriptFailed(code)
-      useVoiceStore.getState().setMicState('idle')
     }
   })
   log('recording_finalized', finalizedBy, `duration=${durationMs}`)
-}
-
-// ── VAD tracking off audio_level events (Lane D) ─────────────────────────────
-
-function _onAudioLevel(level: number): void {
-  const vms = useVoiceMessageStore.getState()
-  if (vms.recordingState !== 'recording' && vms.recordingState !== 'paused_speech_gap') return
-
-  const now = Date.now()
-  const isSpeech = level > VAD_CONFIG.silence_threshold_level
-
-  if (isSpeech) {
-    lastVoiceTs = now
-    if (silenceWindowStart !== null) {
-      // A silence window closed WITHOUT finalizing (sentence-internal pause).
-      vms.recordSilenceWindow({
-        start_ms: silenceWindowStart - recordingStartedAt,
-        end_ms: now - recordingStartedAt,
-        finalizing: false,
-      })
-      silenceWindowStart = null
-    }
-    if (!sawSpeech) {
-      sawSpeech = true
-      speechStartTs = now
-      vms.markSpeechStart(now)
-    }
-    if (vms.recordingState === 'paused_speech_gap') vms.transitionRecordingState('recording')
-    return
-  }
-
-  // Silence window
-  if (silenceWindowStart === null) silenceWindowStart = now
-  const silentFor = now - lastVoiceTs
-
-  if (silentFor >= VAD_CONFIG.intra_utterance_pause_ms && vms.recordingState === 'recording') {
-    // Past a sentence-internal pause — render the paused indicator only.
-    vms.transitionRecordingState('paused_speech_gap')
-  }
-
-  if (sawSpeech && silentFor >= VAD_CONFIG.min_silence_before_finalize_ms) {
-    vms.recordSilenceWindow({
-      start_ms: silenceWindowStart - recordingStartedAt,
-      end_ms: now - recordingStartedAt,
-      finalizing: true,
-    })
-    silenceWindowStart = null
-    log('vad_silence_finalize', `silent=${silentFor}ms`)
-    _finalizeRecording('silence_timeout')
-  }
 }
 
 async function ensureClient(): Promise<VoiceWsClient> {
@@ -425,46 +414,29 @@ function wireEvents(): void {
     })
   )
 
-  cleanups.push(
-    client.on('audio_level', (data) => {
-      const level = data.level as number
-      useVoiceStore.getState().setAudioLevel(level)
-      const vs = useVoiceStore.getState()
-      if (level > VAD_CONFIG.silence_threshold_level && vs.micState === 'listening') {
-        vs.setMicState('recording')
-        log('speech_detected', `level=${level}`)
-      }
-      _onAudioLevel(level)
-    })
-  )
+  // P4S-31D1-F: no `audio_level` handler — the note rail streams no live PCM, so
+  // the server emits no audio_level during a note. The RMS meter is driven by the
+  // controller's metering AnalyserNode (startMeterAnalyser), not server events.
 
   cleanups.push(
     client.on('transcript', (data) => {
       const text = data.text as string
       const isFinal = data.final as boolean
-      const confidence = typeof data.confidence === 'number' ? (data.confidence as number) : null
       log('transcript_received', `final=${isFinal}`)
 
       const vs = useVoiceStore.getState()
       vs.setLastTranscript(text)
       const vms = useVoiceMessageStore.getState()
 
+      // P4S-31D1-F: this top-level `transcript` handler is retained for any live
+      // WS transcript (e.g. a future LiveVoiceSession), but the note rail no
+      // longer relies on it — the blob is transcribed via _transcribeBlob, which
+      // uses its OWN scoped transcript listener. Partials are display-only and
+      // NEVER enter chat/input/draft text.
       if (!isFinal) {
-        // Provisional partial — display only. NEVER into chat, input, or draft text.
         updatePartial(text)
         vms.updateActivePartial(text)
         return
-      }
-
-      if (!text.trim()) return
-
-      // Final transcript for the active draft. If finalization already stopped
-      // the recorder, complete now; otherwise stash for _finalizeRecording.
-      finalTranscriptText = text
-      finalConfidence = confidence
-      if (finalizing && vms.recordingState === 'transcribing') {
-        vms.completeActiveTranscript(text, confidence)
-        useVoiceStore.getState().setMicState('idle')
       }
     })
   )
@@ -666,10 +638,11 @@ export async function startVoice(): Promise<void> {
     stream = started.stream
     captureDiagnostics = started.diagnostics
     log('mic_stream_live', `trackState=${started.trackState}`)
-    // P4S-31D1-C: if the capture context did not resume, chunks will never
-    // flow — surface it immediately rather than after a 40s dead recording.
-    if (captureDiagnostics.audio_context_state !== 'running') {
-      log('capture_context_not_running', String(captureDiagnostics.audio_context_state))
+    // P4S-31D1-F: startMic now returns the RAW validated stream (no capture
+    // AudioContext). If the track is not live, capture will be silent — surface
+    // it immediately rather than after a dead recording.
+    if (captureDiagnostics.track_ready_state !== 'live') {
+      log('capture_track_not_live', String(captureDiagnostics.track_ready_state))
     }
   } catch (err: unknown) {
     const error = err as Error & { name?: string }
@@ -693,15 +666,9 @@ export async function startVoice(): Promise<void> {
     return
   }
 
-  // Fresh recording-session accumulators.
+  // Fresh recording-session accumulators (blob-only: no VAD/live-transcript state).
   recordingStartedAt = Date.now()
-  speechStartTs = null
-  sawSpeech = false
-  lastVoiceTs = recordingStartedAt
-  silenceWindowStart = null
   finalizing = false
-  finalTranscriptText = ''
-  finalConfidence = null
 
   // Voice turn id threads capture → transcript → chat → loop.
   const turn = createTurn()
@@ -728,11 +695,12 @@ export async function startVoice(): Promise<void> {
     sessionId,
   })
 
-  // Parallel audio capture on the SAME MediaStream the PCM16 WS uses.
+  // BLOB-ONLY capture: MediaRecorder on the raw stream is the sole artifact.
   _startRecorder(stream)
 
-  // Live audio-level meter: mirror client-computed RMS into the store at ~10Hz
-  // so the recording card visibly moves while the user speaks.
+  // Metering AnalyserNode on the SAME stream feeds client.clientRms; the ~10Hz
+  // store poll mirrors it into the recording card so the bar visibly moves.
+  startMeterAnalyser(stream)
   startCaptureMeter()
 
   vs.setMicState('listening')
@@ -766,6 +734,7 @@ export function stopVoice(): void {
   cancelTurn()
   clearAllTimers()
   stopCaptureMeter()
+  stopMeterAnalyser()
   vs.setMicState('idle')
   vs.setAudioLevel(0)
   vs.setVadActive(false)
@@ -779,6 +748,7 @@ export function abortActiveRecording(): void {
   log('abort_active_recording')
   clearAllTimers()
   stopCaptureMeter()
+  stopMeterAnalyser()
   finalizing = true
   if (client) client.stopMic()
   _stopRecorder(() => { /* discard — deleteDraft revokes any attached blob */ })
@@ -1029,6 +999,7 @@ export function stopTts(): void {
 export function destroyVoice(): void {
   clearAllTimers()
   stopCaptureMeter()
+  stopMeterAnalyser()
   cancelTurn()
   _stopRecorder(() => { /* discard */ })
   cleanups.forEach(fn => fn())
