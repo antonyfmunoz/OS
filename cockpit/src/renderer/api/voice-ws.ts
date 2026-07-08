@@ -49,52 +49,92 @@ log('voice_ws_url_resolved', VOICE_URL)
  */
 const MIC_ACQUIRE_TIMEOUT_MS = 10000
 
-export async function ensureBrowserMicPermission(): Promise<void> {
-  log('browser_mic_permission_probe')
+/**
+ * P4S31 SINGLE-ACQUISITION MODEL (permanent mobile fix).
+ *
+ * The mic is opened with getUserMedia EXACTLY ONCE per capture, on the user
+ * gesture, and that ONE live MediaStream is reused for the whole turn. The old
+ * design called getUserMedia twice — a permission probe (then .stop()) followed
+ * by a second acquisition in startMic. On iOS Safari the second call contends
+ * with the OS audio session the first just released and HANGS forever ("Requesting
+ * mic…" that never loads). Acquiring once removes the contention at the root.
+ *
+ * The gesture-fresh stream is cached here so the permission layer (which fires on
+ * the tap) and startMic (which runs after the consent round-trip) share the SAME
+ * stream instead of each opening their own.
+ */
+let _gestureStream: MediaStream | null = null
+
+/** Open the mic once, on the gesture, bounded by a timeout so a stalled
+ *  getUserMedia degrades to a typed MicAcquireTimeout instead of a dead button. */
+async function _acquireMicOnce(constraints: MediaStreamConstraints): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw Object.assign(
       new Error('Browser does not support microphone capture'),
       { name: 'NotSupportedError' },
     )
   }
-  // P4S31 mobile fix: if the origin ALREADY holds mic permission, skip the probe
-  // getUserMedia entirely — re-acquiring the mic while iOS still holds the audio
-  // session from the initial grant is exactly what stalls. The real capture
-  // stream (startMic) will open it once, cleanly. Only probe when the state is
-  // 'prompt'/unknown (Permissions API is best-effort; absent on some browsers).
-  try {
-    const perm = await navigator.permissions?.query({
-      name: 'microphone' as PermissionName,
-    })
-    if (perm?.state === 'granted') {
-      log('browser_mic_permission_already_granted')
-      return
-    }
-  } catch {
-    // Permissions API unavailable (older Safari) — fall through to the probe.
-  }
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       reject(Object.assign(
-        new Error('Microphone did not open — release the mic and try again'),
+        new Error('Microphone did not open — close other mic apps/tabs and try again'),
         { name: 'MicAcquireTimeout' },
       ))
     }, MIC_ACQUIRE_TIMEOUT_MS)
   })
-  let probe: MediaStream
   try {
-    probe = await Promise.race([
-      navigator.mediaDevices.getUserMedia({ audio: true }),
+    return await Promise.race([
+      navigator.mediaDevices.getUserMedia(constraints),
       timeout,
     ])
   } finally {
     if (timer) clearTimeout(timer)
   }
-  // Permission is now granted for the origin; drop the probe tracks so the real
-  // capture stream (startMic) is the only live one — no double-open, no prompt.
-  probe.getTracks().forEach((t) => t.stop())
+}
+
+/**
+ * FIRST consent layer — the browser mic permission, surfaced up front so the
+ * single mic-tap handler can, on its success, request the UMH push_to_talk grant
+ * WITHOUT a second user tap (single-gesture consent). CRITICALLY: this acquires
+ * the ONE capture stream and KEEPS it live (cached in `_gestureStream`) — it does
+ * NOT stop it. startMic() then reuses this exact stream, so there is never a
+ * second getUserMedia to contend/hang on iOS.
+ *
+ * Rejects with the original getUserMedia error (name preserved: NotAllowedError /
+ * NotFoundError / NotSupportedError / MicAcquireTimeout) so callers can branch on
+ * a denied browser permission vs a failed server grant vs a stalled acquisition.
+ */
+export async function ensureBrowserMicPermission(): Promise<void> {
+  log('browser_mic_permission_acquire')
+  // If a live gesture stream is already open (e.g. a prior stage in the same
+  // tap), reuse it — never open a second one.
+  if (_gestureStream && _gestureStream.getAudioTracks().some((t) => t.readyState === 'live')) {
+    log('browser_mic_permission_stream_reused')
+    return
+  }
+  _gestureStream = await _acquireMicOnce({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      sampleRate: TARGET_SAMPLE_RATE,
+    },
+  })
   log('browser_mic_permission_granted')
+}
+
+/**
+ * Release the gesture-acquired mic stream WITHOUT starting capture. Called on any
+ * path that opened the mic (ensureBrowserMicPermission) but then aborts before
+ * startMic hands the stream to the recorder (e.g. the consent grant is refused) —
+ * so the mic indicator doesn't stay on and iOS doesn't hold a leaked session.
+ */
+export function releaseGestureStream(): void {
+  if (_gestureStream) {
+    _gestureStream.getTracks().forEach((t) => t.stop())
+    _gestureStream = null
+    log('gesture_stream_released')
+  }
 }
 
 export type VoiceEvent =
@@ -166,41 +206,26 @@ export class VoiceWsClient {
     trackState: string
     diagnostics: Record<string, unknown>
   }> {
-    log('mic_permission_request')
+    log('mic_reuse_gesture_stream')
 
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw Object.assign(new Error('Browser does not support microphone capture'), { name: 'NotSupportedError' })
-    }
-
-    // P4S31 mobile fix: this is the REAL capture getUserMedia. On iOS Safari it
-    // can HANG indefinitely (never resolves, never rejects) when the OS audio
-    // session is contended — the true "Requesting mic… forever" stall (the
-    // permission probe was already skipped/cleared upstream, so this call is the
-    // remaining unguarded acquisition). Race it against a timeout so the caller
-    // gets a fast, typed MicAcquireTimeout instead of a dead button.
-    let micTimer: ReturnType<typeof setTimeout> | undefined
-    const micTimeout = new Promise<never>((_, reject) => {
-      micTimer = setTimeout(() => {
-        reject(Object.assign(
-          new Error('Microphone did not open — close other mic apps/tabs and try again'),
-          { name: 'MicAcquireTimeout' },
-        ))
-      }, MIC_ACQUIRE_TIMEOUT_MS)
-    })
+    // P4S31 SINGLE-ACQUISITION: reuse the ONE stream opened on the gesture by
+    // ensureBrowserMicPermission — NEVER call getUserMedia a second time (that
+    // second call is what hangs on iOS Safari). If no gesture stream is live
+    // (returning device where the permission layer short-circuited, or a direct
+    // caller), acquire once here, bounded by the same timeout.
     let stream: MediaStream
-    try {
-      stream = await Promise.race([
-        navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            sampleRate: TARGET_SAMPLE_RATE,
-          },
-        }),
-        micTimeout,
-      ])
-    } finally {
-      if (micTimer) clearTimeout(micTimer)
+    if (_gestureStream && _gestureStream.getAudioTracks().some((t) => t.readyState === 'live')) {
+      stream = _gestureStream
+      log('mic_gesture_stream_live')
+    } else {
+      stream = await _acquireMicOnce({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: TARGET_SAMPLE_RATE,
+        },
+      })
+      _gestureStream = stream
     }
 
     const tracks = stream.getAudioTracks()
@@ -299,6 +324,9 @@ export class VoiceWsClient {
     // terminator inside transcribeUtterance(). stopMic only tears down capture.
     this.mediaStream?.getTracks().forEach(t => t.stop())
     this.mediaStream = null
+    // P4S31 SINGLE-ACQUISITION: the gesture stream IS this.mediaStream — clear the
+    // shared cache too so the NEXT tap opens a fresh stream, never reuses a dead one.
+    _gestureStream = null
     this._lastClientRms = 0
     this._maxClientRms = 0
     this._lastCaptureTs = 0

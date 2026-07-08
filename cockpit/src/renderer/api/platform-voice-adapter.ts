@@ -25,7 +25,7 @@
 
 import { fetchApi } from './client'
 import { startVoice, stopVoice, destroyVoice } from './voice-controller'
-import { ensureBrowserMicPermission } from './voice-ws'
+import { ensureBrowserMicPermission, releaseGestureStream } from './voice-ws'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useVoiceMessageStore } from '../stores/voiceMessageStore'
 
@@ -206,6 +206,9 @@ async function startCapture(): Promise<void> {
       // retry affordance already showing. Re-throw so handleMicToggle no-ops.
       throw err
     }
+    // Aborting before capture handed off the stream to the recorder — release
+    // the gesture mic so iOS doesn't hold a leaked session / lit mic indicator.
+    releaseGestureStream()
     const timedOut = err instanceof Error && err.name === 'VoiceStartTimeout'
     vs.setError(
       timedOut
@@ -260,6 +263,8 @@ async function _consentAndStart(): Promise<void> {
   if (!granted.active) {
     // (3) SERVER grant genuinely failed after retry → surface the explicit
     // enable RETRY affordance (governance is fail-closed: no grant, no capture).
+    // Release the gesture mic stream — we opened it but won't capture.
+    releaseGestureStream()
     vs.setLastOutcome('CONSENT_REQUIRED')
     vs.setMicState('idle')
     throw new ConsentRequiredError(

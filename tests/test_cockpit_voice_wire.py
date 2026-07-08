@@ -82,18 +82,26 @@ def test_ts_error_codes_are_subset_of_canonical() -> None:
         assert code in mirror, code
 
 
-def test_mic_acquire_does_not_hang_on_mobile() -> None:
-    # P4S31 mobile field-test fix: ensureBrowserMicPermission must NOT be able to
-    # hang forever on iOS Safari (getUserMedia stalling after an initial grant).
-    # Two guards: skip the probe when permission is already granted, AND time out
-    # a stalled acquisition to a typed MicAcquireTimeout.
+def test_mic_single_acquisition_no_double_getusermedia() -> None:
+    # P4S31 PERMANENT mobile fix: the mic is opened with getUserMedia EXACTLY ONCE
+    # per capture and reused. The old double-acquire (probe + startMic) is what
+    # hung iOS Safari. The regression guard: there is a single real getUserMedia
+    # call site (inside _acquireMicOnce), and startMic reuses the gesture stream.
     ws = _read("voice-ws.ts")
-    assert "permissions" in ws and "granted" in ws  # skip-when-already-granted
-    assert "MicAcquireTimeout" in ws  # bounded acquisition
-    assert "MIC_ACQUIRE_TIMEOUT_MS" in ws
+    # exactly ONE literal getUserMedia( invocation in the whole capture module
+    assert ws.count("navigator.mediaDevices.getUserMedia(") == 1, (
+        "voice-ws.ts must call getUserMedia exactly once (single-acquisition)"
+    )
+    assert "_gestureStream" in ws  # the reused single stream
+    assert "_acquireMicOnce" in ws  # the one bounded acquisition helper
+    assert "releaseGestureStream" in ws  # abort-path cleanup
+    # bounded so a stalled acquisition degrades instead of dead-hanging
+    assert "MicAcquireTimeout" in ws and "MIC_ACQUIRE_TIMEOUT_MS" in ws
 
-    # The adapter maps that timeout to a typed, fast outcome (not a dead button).
+    # The adapter releases the gesture stream on abort paths (no leaked mic) and
+    # maps the timeout to a typed, fast outcome (not a dead button).
     adapter = _read("platform-voice-adapter.ts")
+    assert "releaseGestureStream" in adapter
     assert "MicAcquireTimeout" in adapter
     assert "MIC_ACQUIRE_TIMEOUT" in adapter
 
