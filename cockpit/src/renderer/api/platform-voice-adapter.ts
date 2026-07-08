@@ -264,27 +264,20 @@ async function _consentAndStart(): Promise<void> {
     return
   }
 
-  // (2) Fresh device: the browser mic approval above IS the authorizing gesture.
-  // Auto-request the UMH push_to_talk grant in the SAME flow — the user never
-  // taps a second "Enable Push-to-Talk" button on the happy path. A transient
-  // grant failure (tunnel flap / 502) is retried ONCE automatically before we
-  // fall back to the manual affordance, so a hiccup doesn't force a second tap.
-  let granted = await grantPushToTalk()
-  if (!granted.active) {
-    granted = await grantPushToTalk()
+  // (2) Fresh device: try to record the grant up front (best-effort, one attempt)
+  // so the grant id is available to stamp on the draft. But DO NOT block capture
+  // on it — the governed voice WS AUTO-GRANTS for an authenticated principal on
+  // connect (durable-consent, matches how Apple/WhatsApp treat OS mic permission
+  // as the consent). The browser mic approval above already authorized capture, so
+  // a slow/flaky client grant POST must never strand the user at a "consent
+  // failed" button. The WS re-assert is the real, fail-closed gate.
+  try {
+    const granted = await grantPushToTalk()
+    if (granted.active) _rememberGrantId(granted)
+  } catch {
+    // ignore — the WS will auto-grant on connect for the authenticated principal.
   }
-  if (!granted.active) {
-    // (3) SERVER grant genuinely failed after retry → surface the explicit
-    // enable RETRY affordance (governance is fail-closed: no grant, no capture).
-    // Release the gesture mic stream — we opened it but won't capture.
-    releaseGestureStream()
-    vs.setLastOutcome('CONSENT_REQUIRED')
-    vs.setMicState('idle')
-    throw new ConsentRequiredError(
-      granted.error || 'no active VoiceConsentGrant(push_to_talk) for this device',
-    )
-  }
-
+  vs.setConsentState('active')
   await startVoice()
 }
 

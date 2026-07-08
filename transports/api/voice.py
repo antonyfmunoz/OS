@@ -258,12 +258,36 @@ async def voice_ws(ws: WebSocket) -> None:
         await _send_json(ws, error_payload(VoiceErrorCode.CONSENT_DENIED))
         await ws.close(code=1008)
         return
+    # P4S31 DURABLE consent (how Apple/WhatsApp treat it): the operator is already
+    # AUTHENTICATED on this WS (Clerk bearer validated above) and has already
+    # approved the browser/OS mic permission — those two ARE the authorization.
+    # A per-device grant is a GOVERNANCE record (auditable, revocable), not a
+    # second gate that should strand the user. So if no live grant exists for this
+    # authenticated principal+device+grantable-mode, AUTO-CREATE it (audited via
+    # the store) instead of refusing. This removes the volatile-device-id failure:
+    # a fresh session / cleared localStorage no longer means "consent not granted".
+    _store = VoiceConsentStore()
     try:
-        grant = VoiceConsentStore().active_grant(
+        grant = _store.active_grant(
             operator_principal, device_registry_id, activation_mode
         )
     except Exception:
         grant = None
+    if grant is None and operator_principal and device_registry_id:
+        try:
+            grant = _store.grant(
+                operator_principal, device_registry_id, activation_mode
+            )
+            logger.info(
+                "voice WS auto-granted consent for authenticated principal "
+                "(device=%s mode=%s grant=%s)",
+                device_registry_id,
+                activation_mode,
+                getattr(grant, "grant_id", "?"),
+            )
+        except Exception as e:
+            logger.debug("voice WS auto-grant failed: %s", e)
+            grant = None
     if grant is None:
         await _send_json(ws, error_payload(VoiceErrorCode.CONSENT_DENIED))
         await ws.close(code=1008)
