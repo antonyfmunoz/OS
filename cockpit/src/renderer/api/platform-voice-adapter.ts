@@ -80,14 +80,27 @@ async function getConsent(mode: VoiceActivationMode): Promise<VoiceConsentState>
 }
 
 async function requestConsent(mode: VoiceActivationMode): Promise<VoiceConsentState> {
-  try {
-    return await fetchApi<VoiceConsentState>('/voice/consent/grant', {
-      method: 'POST',
-      body: JSON.stringify({ device_registry_id: deviceRegistryId(), mode }),
-    })
-  } catch (e) {
-    return { active: false, error: e instanceof Error ? e.message : 'consent grant failed' }
+  // P4S31 mobile: the browser mic approval IS the authorizing gesture — the UMH
+  // grant must land reliably right after it, not fail into a button. Clerk's
+  // getToken() can transiently return null/stale on mobile Safari on the call
+  // right after the GET, so retry the POST a few times before giving up, and
+  // surface the REAL error (status + detail) instead of a generic message.
+  const device = deviceRegistryId()
+  let lastErr = ''
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const out = await fetchApi<VoiceConsentState>('/voice/consent/grant', {
+        method: 'POST',
+        body: JSON.stringify({ device_registry_id: device, mode }),
+      })
+      if (out.active) return out
+      lastErr = out.error || `grant returned active=false (${JSON.stringify(out).slice(0, 120)})`
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : 'consent grant failed'
+    }
+    await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
   }
+  return { active: false, error: lastErr || 'consent grant failed' }
 }
 
 async function revokeConsent(mode: VoiceActivationMode): Promise<VoiceConsentState> {
