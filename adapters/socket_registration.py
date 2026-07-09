@@ -49,10 +49,13 @@ def _register_intelligence() -> None:
             ollama_available=_ollama_available,
         )
 
-        from adapters.models.agent_runtime import AgentRuntime, get_agent_runtime
+        # agent_runtime.py exports only the AgentRuntime class (no module-level
+        # get_agent_runtime accessor); importing a non-existent name aborted the
+        # whole intelligence registration mid-way. register_agent_runtime's
+        # get_agent_runtime is optional, so pass the class alone.
+        from adapters.models.agent_runtime import AgentRuntime
         register_agent_runtime(
             agent_runtime_cls=AgentRuntime,
-            get_agent_runtime=get_agent_runtime,
         )
 
         try:

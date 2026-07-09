@@ -106,6 +106,24 @@ async def lifespan(application):
     asyncio.get_running_loop().set_default_executor(_api_executor)
     logger.info("thread pools: tick=1 (dedicated), api=16 (default)")
 
+    # ── Register adapter sockets (intelligence/model router, data, browser…) ──
+    # WITHOUT this, substrate.sockets.intelligence_port.call_with_fallback stays a
+    # no-op (returns None) → advisor_conversation falls back to "the conversational
+    # model is temporarily unavailable" and TTS speaks that canned line. The operator
+    # service is a real entry point and MUST wire the sockets like discord_bot does.
+    try:
+        from adapters.socket_registration import register_all_sockets
+
+        register_all_sockets()
+        from substrate.sockets.intelligence_port import _call_with_fallback_fn
+
+        logger.info(
+            "adapter sockets registered: intelligence_wired=%s",
+            _call_with_fallback_fn is not None,
+        )
+    except Exception as exc:
+        logger.error("adapter socket registration failed: %s", exc)
+
     # ── Register config store ─────────────────────────────────────────────
     try:
         from substrate.sockets.config_port import register_config_store

@@ -291,19 +291,41 @@ function teardownCapture(): void {
 
 // ── MediaRecorder lifecycle ──────────────────────────────────────────────────
 
+/** iOS ≥ 18 Safari REPORTS audio/webm as recordable (isTypeSupported → true) but
+ *  CANNOT PLAY WebM/Opus back in an <audio> element — the sent bubble records fine
+ *  and then silently fails to play (field test 2026-07-08: recorder_started/audio
+ *  /webm;codecs=opus, then dead player). Record support ≠ playback support on iOS.
+ *  So on Safari we MUST prefer mp4/AAC, which iOS both records and plays. Desktop
+ *  Chrome/Firefox don't record mp4, so they still fall through to webm/opus. */
+function _isSafari(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  // Safari (incl. iOS Safari/WKWebView); exclude Chrome/Chromium/Android which
+  // put "Safari" in their UA but DO play webm.
+  return /^((?!chrome|android|crios|fxios).)*safari/i.test(ua) || /iPad|iPhone|iPod/.test(ua)
+}
+
 function _pickRecorderMime(): string {
-  // Desktop Chrome/Firefox support webm/opus; iOS Safari supports NONE of those
-  // and only records audio/mp4 (AAC). Include the mp4 candidates so mobile picks
-  // an EXPLICIT supported type rather than falling to MediaRecorder's unlabeled
-  // default (which the content-type/extension logic would then mislabel).
-  const candidates = [
+  // Order candidates so the chosen type is PLAYABLE on the recording device, not
+  // just recordable. On Safari/iOS, mp4/AAC must come first (see _isSafari note);
+  // elsewhere webm/opus is best. audio/wav is the universal last resort.
+  const mp4First = [
+    'audio/mp4;codecs=mp4a.40.2', // AAC-LC in mp4 — iOS Safari records AND plays
+    'audio/mp4',
     'audio/webm;codecs=opus',
     'audio/webm',
     'audio/ogg;codecs=opus',
-    'audio/mp4;codecs=mp4a.40.2', // AAC-LC in mp4 — iOS Safari
+    'audio/wav',
+  ]
+  const webmFirst = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/mp4;codecs=mp4a.40.2',
     'audio/mp4',
     'audio/wav',
   ]
+  const candidates = _isSafari() ? mp4First : webmFirst
   if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
     return ''
   }

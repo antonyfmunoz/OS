@@ -271,8 +271,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       set((s) => {
         const serverIds = new Set(serverMsgs.map((m) => m.id))
+        // Reconcile optimistic local messages (op-*/ai-* with a client-generated id)
+        // against their persisted history twins (h-*). The server returns no
+        // correlation id, and op-<ts> can NEVER equal h-<serverid>, so id-only dedup
+        // let the SAME operator message render twice — once optimistic, once from the
+        // 30s history poll (field test 2026-07-08: duplicate voice bubble). Also match
+        // on a stable content key so the local twin drops once its history row arrives.
+        const contentKey = (m: ChatMessage) =>
+          `${m.sender}|${(m.content || '').trim()}|${m.media?.length ? 'm' + m.media.length : ''}`
+        const serverKeys = new Set(serverMsgs.map(contentKey))
         const local = s.messages.filter(
-          (m) => !m.id.startsWith('h-') && !serverIds.has(m.id),
+          (m) =>
+            !m.id.startsWith('h-') &&
+            !serverIds.has(m.id) &&
+            !serverKeys.has(contentKey(m)),
         )
         return { messages: [...serverMsgs, ...local] }
       })

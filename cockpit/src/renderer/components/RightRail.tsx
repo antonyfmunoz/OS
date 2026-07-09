@@ -262,27 +262,54 @@ function MediaGrid({ media }: { media: MediaAttachment[] }) {
   )
 }
 
+function OperatorBubble({ msg }: { msg: ChatMessage }) {
+  // A sent voice message shows the audio player, and keeps its transcript COLLAPSED
+  // behind a bottom chevron (revealed on click). Text messages render inline as before.
+  const isVoice = msg.source === 'voice'
+  const hasTranscript = !!(msg.content && msg.content.trim())
+  const [expanded, setExpanded] = useState(false)
+  const Chevron = expanded ? ChevronDown : ChevronRight
+
+  return (
+    <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-primary ml-4">
+      <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
+        <span>YOU</span>
+        {isVoice && (
+          <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary">
+            <Mic size={8} className="inline" /> voice
+          </span>
+        )}
+        {msg.media && msg.media.length > 0 && (
+          <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary">
+            {msg.media.length} media
+          </span>
+        )}
+      </div>
+      {msg.media && msg.media.length > 0 && <MediaGrid media={msg.media} />}
+      {/* Voice: transcript collapsed by default, shown only when the chevron reveals it.
+          Non-voice: transcript renders inline exactly as before. */}
+      {hasTranscript && !isVoice && <p className="whitespace-pre-wrap mt-1">{msg.content}</p>}
+      {hasTranscript && isVoice && expanded && (
+        <p className="whitespace-pre-wrap mt-1 text-text-secondary">{msg.content}</p>
+      )}
+      {hasTranscript && isVoice && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-1 flex items-center gap-0.5 text-[8px] font-mono text-text-tertiary hover:text-cyan transition-colors cursor-pointer"
+          title={expanded ? 'Hide transcript' : 'Show transcript'}
+        >
+          <Chevron size={10} />
+          {expanded ? 'hide transcript' : 'transcript'}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void }) {
   if (msg.sender === 'operator') {
-    return (
-      <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-primary ml-4">
-        <div className="flex items-center gap-1 font-mono text-[9px] text-text-tertiary mb-1">
-          <span>YOU</span>
-          {msg.source === 'voice' && (
-            <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary">
-              <Mic size={8} className="inline" /> voice
-            </span>
-          )}
-          {msg.media && msg.media.length > 0 && (
-            <span className="text-[8px] px-1 rounded bg-surface text-text-tertiary">
-              {msg.media.length} media
-            </span>
-          )}
-        </div>
-        {msg.content && <p className="whitespace-pre-wrap">{msg.content}</p>}
-        {msg.media && msg.media.length > 0 && <MediaGrid media={msg.media} />}
-      </div>
-    )
+    return <OperatorBubble msg={msg} />
   }
 
   const isReport = msg.intent === 'report'
