@@ -54,6 +54,18 @@ export type VoiceOutcome =
   | 'STT_FAILED'
   | 'TIMEOUT'
   | 'RECORDING_FORMAT_UNSUPPORTED'
+  // P4S-VOICE-WS-AUTH-PREFLIGHT-001: canonical typed voice-WS failure taxonomy.
+  // Each names a DISTINCT failing boundary so the UI never shows a generic
+  // "unreachable" that lies about which layer failed. Mirrored by the Python
+  // VoiceErrorCode enum (kept in sync by Gate 14).
+  | 'VOICE_WS_AUTH_TOKEN_MISSING'   // not signed in / Clerk returned no token
+  | 'VOICE_WS_AUTH_TOKEN_TIMEOUT'   // token fetch stalled past budget (mobile Safari)
+  | 'VOICE_WS_AUTH_FAILED'          // token sent but server rejected (4001/403)
+  | 'VOICE_WS_UPGRADE_FAILED'       // socket closed/errored before it ever opened
+  | 'VOICE_WS_PROXY_FAILED'         // proxy 502/504 / handshake never reached backend
+  | 'VOICE_RUNTIME_TIMEOUT'         // socket opened but runtime never became ready
+  | 'VOICE_RUNTIME_UNAVAILABLE'     // canonical runtime not serving
+  | 'VOICE_RUNTIME_NOT_MOUNTED'     // 404 on the canonical route
 
 export interface VoiceCommandEntry {
   transcript: string

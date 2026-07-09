@@ -17,7 +17,30 @@
  *  - retryDraftTranscription (Lane E): re-run STT over the preserved audio blob
  *  - abortActiveRecording: tear the mic/recorder down with no dispatch
  */
-import { VoiceWsClient, releaseGestureStream } from './voice-ws'
+import { VoiceWsClient, releaseGestureStream, VoiceWsError } from './voice-ws'
+import type { VoiceOutcome } from '../stores/voiceStore'
+
+/** Map a voice-WS connect failure to a canonical typed outcome + a precise,
+ *  non-generic banner string (P4S-VOICE-WS-AUTH-PREFLIGHT-001). A token/auth failure
+ *  must NEVER surface as "server unreachable" — the server is reachable; the client
+ *  couldn't authenticate. */
+function classifyVoiceWsError(err: unknown): { outcome: VoiceOutcome; message: string } {
+  if (err instanceof VoiceWsError) {
+    switch (err.code) {
+      case 'VOICE_WS_AUTH_TOKEN_TIMEOUT':
+        return { outcome: 'VOICE_WS_AUTH_TOKEN_TIMEOUT', message: 'Sign-in timed out — tap the mic to try again' }
+      case 'VOICE_WS_AUTH_TOKEN_MISSING':
+        return { outcome: 'VOICE_WS_AUTH_TOKEN_MISSING', message: 'Please sign in to use voice' }
+      case 'VOICE_WS_UPGRADE_FAILED':
+        // socket closed before opening WITH a valid token → server rejected auth
+        return { outcome: 'VOICE_WS_AUTH_FAILED', message: 'Voice sign-in was rejected — try again' }
+      case 'VOICE_RUNTIME_TIMEOUT':
+        return { outcome: 'VOICE_RUNTIME_TIMEOUT', message: 'Voice server did not respond — try again' }
+    }
+  }
+  // Unknown/unexpected — a genuine reach failure is the only honest generic here.
+  return { outcome: 'VOICE_WS_UNAVAILABLE', message: 'Voice server unavailable — check connection' }
+}
 import { voiceConsentForCapture } from './platform-voice-adapter'
 import { VOICE_ERROR_CODES } from './voiceErrorCodes'
 import { useVoiceStore } from '../stores/voiceStore'
@@ -542,9 +565,15 @@ async function ensureClient(): Promise<VoiceWsClient> {
   try {
     await client.connect()
   } catch (err) {
-    log('voice_ws_unavailable', err)
-    vs.setError('Voice server unavailable — check connection')
-    vs.setLastOutcome('VOICE_WS_UNAVAILABLE')
+    // P4S-VOICE-WS-AUTH-PREFLIGHT-001: carry the PRECISE typed code from connect()
+    // (token missing/timeout, upgrade failed, runtime timeout) instead of flattening
+    // every failure to a generic "unavailable" that lies about the boundary. The
+    // adapter renders the human string per code; here we just set the outcome + a
+    // matching message and re-throw the typed error unchanged.
+    const { outcome, message } = classifyVoiceWsError(err)
+    log('voice_ws_failed', outcome)
+    vs.setError(message)
+    vs.setLastOutcome(outcome)
     vs.setMicState('idle')
     client = null
     throw err

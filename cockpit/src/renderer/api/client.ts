@@ -46,6 +46,51 @@ async function freshToken(): Promise<string | null> {
   return null
 }
 
+/** Distinct outcomes of a bounded token acquisition, so callers can emit a PRECISE
+ *  typed failure instead of a generic one. `token` is set only on 'ok'. */
+export type TokenAcquireResult =
+  | { status: 'ok'; token: string }
+  | { status: 'missing' }   // Clerk answered, but there is no token (not signed in)
+  | { status: 'timeout' }   // Clerk's getToken() stalled past the budget (mobile Safari)
+
+/**
+ * Acquire a Clerk token under a HARD time budget, with one skipCache retry.
+ *
+ * WHY: on mobile Safari `window.Clerk.session.getToken()` can stall indefinitely
+ * (session rehydration / network). The voice-WS connect path used to `await
+ * getClerkToken()` with no bound, so a stalled getter consumed the entire
+ * voice-start budget and the outer 8s watchdog fired with a FALSE "server
+ * unreachable" (P4S-VOICE-WS-AUTH-PREFLIGHT-001). This bounds it: a stall becomes a
+ * fast, typed 'timeout' — never an unbounded hang, never a mislabeled failure.
+ *
+ * Budget split: race the (possibly cached) fetch for the first ~60% of `budgetMs`;
+ * if that stalls, race a skipCache `freshToken()` for the remainder. If BOTH stall,
+ * return 'timeout'. If either resolves to null, return 'missing'.
+ */
+export async function acquireClerkToken(budgetMs = 3000): Promise<TokenAcquireResult> {
+  const firstBudget = Math.max(500, Math.floor(budgetMs * 0.6))
+  const timedOut = Symbol('token_timeout')
+
+  const race = (p: Promise<string | null>, ms: number) =>
+    new Promise<string | null | typeof timedOut>((resolve) => {
+      const t = setTimeout(() => resolve(timedOut), ms)
+      p.then(
+        (v) => { clearTimeout(t); resolve(v) },
+        () => { clearTimeout(t); resolve(null) },
+      )
+    })
+
+  const first = await race(getClerkToken(), firstBudget)
+  if (typeof first === 'string' && first) return { status: 'ok', token: first }
+  if (first === null) return { status: 'missing' }
+
+  // first stalled — one bounded skipCache retry with the remaining budget.
+  const second = await race(freshToken(), Math.max(500, budgetMs - firstBudget))
+  if (typeof second === 'string' && second) return { status: 'ok', token: second }
+  if (second === null) return { status: 'missing' }
+  return { status: 'timeout' }
+}
+
 const _inflight = new Map<string, Promise<unknown>>()
 
 export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {

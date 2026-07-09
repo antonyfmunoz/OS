@@ -214,6 +214,110 @@ def check_ts_mirror_subset() -> list[str]:
     return errors
 
 
+# ── P4S-VOICE-WS-AUTH-PREFLIGHT-001 additions ──────────────────────────────────
+# Cockpit production source (renderer) — the client bundle. Excludes tests.
+_COCKPIT_SRC = ROOT / "cockpit" / "src" / "renderer"
+
+# Retired legacy voice execution surfaces that must never reappear in production.
+LEGACY_VOICE_RUNTIME_TOKENS = (":8096", "VOICE_WS_UPSTREAM", "umh-voice-server")
+
+# The voice WS connect module + the bounded-token accessor it must use.
+_VOICE_WS_TS = _COCKPIT_SRC / "api" / "voice-ws.ts"
+_CLIENT_TS = _COCKPIT_SRC / "api" / "client.ts"
+
+
+def _cockpit_src_files() -> list[Path]:
+    if not _COCKPIT_SRC.exists():
+        return []
+    out: list[Path] = []
+    for p in _COCKPIT_SRC.rglob("*.ts*"):
+        parts = p.relative_to(ROOT).parts
+        if any(x in ("__tests__", "node_modules") for x in parts):
+            continue
+        if p.name.endswith(".test.ts") or p.name.endswith(".test.tsx"):
+            continue
+        out.append(p)
+    return out
+
+
+def check_no_legacy_voice_runtime_refs() -> list[str]:
+    """No production cockpit source may reference a retired voice execution runtime
+    (:8096 / VOICE_WS_UPSTREAM / umh-voice-server). Convergence must stay converged."""
+    errors: list[str] = []
+    for path in _cockpit_src_files():
+        text = path.read_text(encoding="utf-8")
+        for tok in LEGACY_VOICE_RUNTIME_TOKENS:
+            if tok in text:
+                errors.append(
+                    f"  LEGACY VOICE RUNTIME REF: {_rel(path)} references '{tok}' — "
+                    f"the standalone voice server is retired; use /api/umh/voice/ws only."
+                )
+    return errors
+
+
+def check_voice_ws_url_canonical() -> list[str]:
+    """The voice WS module must target the ONE canonical path and no other."""
+    errors: list[str] = []
+    if not _VOICE_WS_TS.exists():
+        return errors
+    text = _VOICE_WS_TS.read_text(encoding="utf-8")
+    if "/api/umh/voice/ws" not in text:
+        errors.append(
+            f"  VOICE URL DRIFT: {_rel(_VOICE_WS_TS)} does not target /api/umh/voice/ws."
+        )
+    return errors
+
+
+def check_bounded_token_on_connect() -> list[str]:
+    """The voice WS connect path must acquire the Clerk token under a BOUNDED budget
+    (acquireClerkToken), never a raw unbounded ``await getClerkToken()`` /
+    ``getToken()`` that can stall the whole voice-start budget (the mobile-Safari
+    deadlock that surfaced a false 'unreachable')."""
+    errors: list[str] = []
+    if not _VOICE_WS_TS.exists():
+        return errors
+    text = _VOICE_WS_TS.read_text(encoding="utf-8")
+    if "acquireClerkToken" not in text:
+        errors.append(
+            f"  UNBOUNDED TOKEN: {_rel(_VOICE_WS_TS)} must use acquireClerkToken() "
+            f"(bounded+retried) on the connect path, not a raw token fetch."
+        )
+    # A bare `await getClerkToken()` or `.getToken(` on the connect module is the
+    # exact unbounded pattern we removed — block its reintroduction.
+    for bad in ("await getClerkToken(", ".getToken("):
+        if bad in text:
+            errors.append(
+                f"  UNBOUNDED TOKEN: {_rel(_VOICE_WS_TS)} contains '{bad}' — the voice "
+                f"connect path must go through the bounded acquireClerkToken()."
+            )
+    return errors
+
+
+def check_no_bare_unreachable_only() -> list[str]:
+    """The generic 'Voice server unreachable' string may not be the client's only
+    voice failure signal — a typed taxonomy must exist alongside it. We assert the
+    canonical typed codes are present in the renderer so no failure is unclassified."""
+    errors: list[str] = []
+    store = _COCKPIT_SRC / "stores" / "voiceStore.ts"
+    if not store.exists():
+        return errors
+    text = store.read_text(encoding="utf-8")
+    required = (
+        "VOICE_WS_AUTH_TOKEN_MISSING",
+        "VOICE_WS_AUTH_TOKEN_TIMEOUT",
+        "VOICE_WS_AUTH_FAILED",
+        "VOICE_WS_UPGRADE_FAILED",
+        "VOICE_RUNTIME_TIMEOUT",
+    )
+    missing = [c for c in required if c not in text]
+    if missing:
+        errors.append(
+            f"  TAXONOMY INCOMPLETE: {_rel(store)} missing typed voice codes "
+            f"{missing} — a generic 'unreachable' must never be the only signal."
+        )
+    return errors
+
+
 def check_exemption_integrity() -> list[str]:
     """Fail-closed audit of the two allowlists: no dead entries, valid metadata.
 
@@ -259,6 +363,11 @@ def main() -> int:
     all_errors += check_no_cloud_stt_default()
     all_errors += check_one_status_enum()
     all_errors += check_ts_mirror_subset()
+    # P4S-VOICE-WS-AUTH-PREFLIGHT-001: convergence + client-preflight invariants.
+    all_errors += check_no_legacy_voice_runtime_refs()
+    all_errors += check_voice_ws_url_canonical()
+    all_errors += check_bounded_token_on_connect()
+    all_errors += check_no_bare_unreachable_only()
     all_errors += check_exemption_integrity()
 
     if all_errors:
