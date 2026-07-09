@@ -26,6 +26,9 @@
 import { fetchApi } from './client'
 import { startVoice, stopVoice, destroyVoice } from './voice-controller'
 import { ensureBrowserMicPermission, releaseGestureStream, VoiceWsError } from './voice-ws'
+import { diagStartTap, diagStage, diagFlush } from './voice-diag'
+
+let _diagSeq = 0
 import { useVoiceStore } from '../stores/voiceStore'
 import { useVoiceMessageStore } from '../stores/voiceMessageStore'
 
@@ -184,6 +187,10 @@ async function startCapture(): Promise<void> {
 async function _startCaptureInner(): Promise<void> {
   const vs = useVoiceStore.getState()
 
+  // P4S-VOICE-CLIENT-DIAG: begin the per-tap stage timeline. Flushed on every
+  // terminal exit below so a client-side stall is observable in the server log.
+  diagStartTap(`tap-${_diagSeq++}`)
+
   // Instant feedback + concurrent-reentry guard: flip micState OUT of 'idle'
   // synchronously up front (the handleMicToggle guard is micState==='idle').
   vs.setError(null)
@@ -202,11 +209,14 @@ async function _startCaptureInner(): Promise<void> {
   // do ALL UMH server consent work AFTER the user has allowed the mic. Browser
   // permission is origin-cached, so a returning device sees no dialog and this
   // path stays instant either way.
+  diagStage('browser_mic_permission_await')
   try {
     await ensureBrowserMicPermission()
+    diagStage('browser_mic_permission_ok')
   } catch (err) {
     // Browser mic layer denied/unavailable — NOT a consent-grant failure.
     const error = err as Error & { name?: string }
+    diagFlush(`mic_permission_failed:${error.name ?? 'unknown'}`)
     if (error.name === 'NotAllowedError') {
       vs.setError('Microphone permission denied — check browser settings')
       vs.setLastOutcome('MIC_PERMISSION_DENIED')
@@ -254,6 +264,7 @@ async function _startCaptureInner(): Promise<void> {
     // set the precise outcome+message. Do NOT overwrite it with a generic string.
     if (err instanceof VoiceWsError) {
       vs.setMicState('idle')
+      diagFlush(`ws_error:${err.code}`)
       throw err
     }
     // A true OUTER-watchdog timeout now means the WHOLE chain (incl. mic acquisition)
@@ -267,6 +278,9 @@ async function _startCaptureInner(): Promise<void> {
     )
     vs.setLastOutcome(timedOut ? 'VOICE_RUNTIME_TIMEOUT' : 'VOICE_START_FAILED')
     vs.setMicState('idle')
+    // P4S-VOICE-CLIENT-DIAG: flush the stage timeline so we can see WHICH stage
+    // ate the 8s budget (the failure that never reaches the server otherwise).
+    diagFlush(timedOut ? 'outer_watchdog_timeout' : `start_failed:${(err as Error)?.name ?? 'unknown'}`)
     throw err
   }
 }
