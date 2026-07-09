@@ -582,9 +582,15 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
         return
       }
 
+      // Re-entrancy latch: flip status OUT of 'ready' SYNCHRONOUSLY before any await.
+      // The send gate above requires status==='ready', so a second (double-click) call
+      // now hits send_refused_status and no-ops. Previously status was flipped to
+      // 'transcribing' then IMMEDIATELY back to 'ready', so it stayed 'ready' across the
+      // whole upload await and a double-tap sent TWICE (field test 2026-07-08). We hold
+      // 'transcribing' (a valid non-'ready' DraftStatus) for the whole send; the failure
+      // paths below reset to 'failed' so a failed send can still be retried/deleted.
       get().transitionRecordingState('sending')
       _update(draftId, () => ({ status: 'transcribing' }))
-      _update(draftId, () => ({ status: 'ready' })) // keep status stable while uploading
       log('send_start', draftId)
 
       // 1. Upload the audio artifact through the EXISTING /chat/upload seam.

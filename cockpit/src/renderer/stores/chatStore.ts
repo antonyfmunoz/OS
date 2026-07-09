@@ -133,6 +133,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const preUploaded = opts?.media ?? []
     if (!content.trim() && pendingMedia.length === 0 && preUploaded.length === 0) return
 
+    // Synchronous re-entrancy guard: a second Enter/click before the first send
+    // resolves must no-op. `sending` was only set AFTER the media-upload await, so a
+    // rapid double-submit slipped two messages through (field test 2026-07-08). Claim
+    // the latch here, before any await, and release it in the catch/finally paths.
+    if (get().sending) return
+    set({ sending: true })
+
     let uploadedMedia: MediaAttachment[] = [...preUploaded]
     if (pendingMedia.length > 0) {
       try {
@@ -151,7 +158,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         )
         uploadedMedia = [...uploadedMedia, ...uploads.map((u, i) => ({ ...u, previewUrl: pendingMedia[i].previewUrl }))]
       } catch (e) {
-        set({ error: e instanceof Error ? e.message : 'Media upload failed' })
+        // Release the sending latch so the input isn't permanently frozen on an
+        // upload failure — the operator can correct and resend.
+        set({ error: e instanceof Error ? e.message : 'Media upload failed', sending: false })
         return
       }
     }
@@ -252,6 +261,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         provenance?: Provenance
         attachment?: Attachment
         media?: MediaAttachment[]
+        source?: 'text' | 'voice'
       }>>('/chat/history')
 
       const serverMsgs: ChatMessage[] = history.map((m) => ({
@@ -267,6 +277,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Voice messages persist their audio player across reload: history returns the
         // stored media so MediaGrid/VoiceMessagePlayer render just like the live message.
         ...(m.media ? { media: m.media } : {}),
+        // Keep source ("voice") so the reloaded h-* message still shows the voice badge
+        // + transcript chevron (OperatorBubble gates them on source === 'voice').
+        ...(m.source ? { source: m.source } : {}),
       }))
 
       set((s) => {
@@ -275,17 +288,28 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // against their persisted history twins (h-*). The server returns no
         // correlation id, and op-<ts> can NEVER equal h-<serverid>, so id-only dedup
         // let the SAME operator message render twice — once optimistic, once from the
-        // 30s history poll (field test 2026-07-08: duplicate voice bubble). Also match
-        // on a stable content key so the local twin drops once its history row arrives.
+        // 30s history poll (field test 2026-07-08: duplicate voice bubble). Match on a
+        // content key, but CONSUME each server key ONCE (a multiset, not a set): two
+        // distinct sends with the same transcript ("yes", "test") each have their own
+        // server twin, so dropping BOTH locals on one server row would make a real
+        // message vanish. One server occurrence dedups exactly one local twin.
         const contentKey = (m: ChatMessage) =>
           `${m.sender}|${(m.content || '').trim()}|${m.media?.length ? 'm' + m.media.length : ''}`
-        const serverKeys = new Set(serverMsgs.map(contentKey))
-        const local = s.messages.filter(
-          (m) =>
-            !m.id.startsWith('h-') &&
-            !serverIds.has(m.id) &&
-            !serverKeys.has(contentKey(m)),
-        )
+        const serverKeyCounts = new Map<string, number>()
+        for (const sm of serverMsgs) {
+          const k = contentKey(sm)
+          serverKeyCounts.set(k, (serverKeyCounts.get(k) ?? 0) + 1)
+        }
+        const local = s.messages.filter((m) => {
+          if (m.id.startsWith('h-') || serverIds.has(m.id)) return false
+          const k = contentKey(m)
+          const remaining = serverKeyCounts.get(k) ?? 0
+          if (remaining > 0) {
+            serverKeyCounts.set(k, remaining - 1) // consume one twin, keep the rest
+            return false
+          }
+          return true
+        })
         return { messages: [...serverMsgs, ...local] }
       })
     } catch {
