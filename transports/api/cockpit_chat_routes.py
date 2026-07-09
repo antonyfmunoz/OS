@@ -326,6 +326,10 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 source=source,
                 routing=routing,
                 voice_turn_id=voice_turn_id,
+                # Operator attachments — their CONTENT is understood (Gemini vision /
+                # local Whisper / link fetch) and folded into the prompt so DEX sees
+                # what was sent, not just the text.
+                media=payload.get("media"),
             )
 
             try:

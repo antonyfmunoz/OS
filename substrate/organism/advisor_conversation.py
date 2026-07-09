@@ -79,7 +79,14 @@ class AdvisorConversation:
         source: str = "text",
         routing: dict[str, Any] | None = None,
         voice_turn_id: str = "",
+        media: list[dict[str, Any]] | None = None,
     ) -> AdvisorResponse:
+        """``media`` is the operator's attachments (MediaAttachment dicts). Their
+        CONTENT — image/video/pdf via free Gemini vision, audio via local Whisper,
+        links in the text via fetch+summarize — is understood and folded into the
+        prompt so the assistant reasons over what was actually sent, not just the
+        words. This is the ONE seam every surface (cockpit/CLI/discord/voice)
+        shares, so wiring it here makes multi-modal understanding coherent everywhere."""
         # Idempotency guard: return cached response for duplicate voice turn IDs
         if voice_turn_id:
             self._clean_voice_turn_cache()
@@ -136,6 +143,25 @@ class AdvisorConversation:
                 if len(history) > self._MAX_TURNS * 2:
                     self._histories[conversation_id] = history[-self._MAX_TURNS * 2 :]
                 return response
+
+        # Multi-modal understanding: fold attachment content + link content into the
+        # prompt so the LLM reasons over what the operator actually sent. FREE (Gemini
+        # vision / local Whisper / fetch) and best-effort — a failure degrades to a
+        # factual stub and never breaks the turn. Applies to EVERY surface via this seam.
+        if media or (content and "http" in content.lower()):
+            try:
+                from substrate.understanding.perception.multimodal import understand_media
+
+                perception = understand_media(media, content)
+                extra = perception.as_prompt_context()
+                if extra:
+                    content = f"{content}{extra}"
+                    logger.info(
+                        "CONVERSE multimodal: understood %d attachment(s)/link(s)",
+                        len(perception.items),
+                    )
+            except Exception as exc:  # never let perception break the conversation
+                logger.warning("multimodal understanding skipped: %s", exc)
 
         intent = classify_intent(content)
         logger.info("CONVERSE classify_intent(%r) => %s", content[:80], intent.value)
