@@ -318,6 +318,69 @@ def check_no_bare_unreachable_only() -> list[str]:
     return errors
 
 
+def check_client_diag_beacon_present() -> list[str]:
+    """The permanent client-diagnostic beacon must exist and stay wired (Client-Failure
+    Observability Law). It is what makes a server-invisible client-side failure debuggable
+    in one tap — deleting it as 'scaffolding' reintroduces the day-long blind-debug class."""
+    errors: list[str] = []
+    collector = _COCKPIT_SRC / "api" / "voice-diag.ts"
+    if not collector.exists():
+        errors.append(
+            "  MISSING DIAG BEACON: cockpit/src/renderer/api/voice-diag.ts — the voice "
+            "client-diagnostic collector must exist (Client-Failure Observability Law)."
+        )
+    else:
+        ctext = collector.read_text(encoding="utf-8")
+        for fn in ("diagStartTap", "diagStage", "diagFlush"):
+            if f"export function {fn}" not in ctext:
+                errors.append(f"  DIAG BEACON INCOMPLETE: voice-diag.ts missing export {fn}")
+    # server ingest present
+    voice_py = (ROOT / "transports" / "api" / "voice.py").read_text(encoding="utf-8")
+    if "/diag" not in voice_py or "VoiceClientDiag" not in voice_py:
+        errors.append(
+            "  MISSING DIAG INGEST: transports/api/voice.py must expose POST /diag logging "
+            "[VoiceClientDiag] (the server side of the client beacon)."
+        )
+    # wired into the controller (mirrors [VoicePipeline] stages)
+    ctrl = (_COCKPIT_SRC / "api" / "voice-controller.ts")
+    if ctrl.exists() and "diagStage" not in ctrl.read_text(encoding="utf-8"):
+        errors.append(
+            "  DIAG BEACON UNWIRED: voice-controller.ts must mirror stages via diagStage()."
+        )
+    return errors
+
+
+def check_no_unbounded_unlock_on_start_path() -> list[str]:
+    """unlockAudioForIOS() (a TTS autoplay nicety) must NOT be awaited on the voice-start
+    critical path — it hung the mic for 8s on iOS 18.7 Safari (audio.play() never settled).
+    It must be fire-and-forget (void async IIFE). Enforces the 'never await a non-essential
+    call on a user-blocking path' clause of the Client-Failure Observability Law."""
+    errors: list[str] = []
+    ctrl = _COCKPIT_SRC / "api" / "voice-controller.ts"
+    if not ctrl.exists():
+        return errors
+    text = ctrl.read_text(encoding="utf-8")
+    if "async function startVoice" not in text:
+        return errors
+    start = text.index("async function startVoice")
+    # bound the window to before the first startMic call (the user-blocking mic step)
+    end = text.index("c.startMic()", start) if "c.startMic()" in text[start:] else len(text)
+    window = text[start:end]
+    # the unlock must be invoked inside a fire-and-forget void async IIFE, never as a
+    # bare `await unlockAudioForIOS()` outside such a wrapper.
+    if "unlockAudioForIOS()" in window:
+        void_idx = window.find("void (async")
+        bad = "await unlockAudioForIOS()"
+        # any await-unlock BEFORE the void wrapper (or with no wrapper) is a critical-path await
+        pre = window if void_idx < 0 else window[:void_idx]
+        if bad in pre:
+            errors.append(
+                "  UNBOUNDED UNLOCK: startVoice awaits unlockAudioForIOS() on the mic-start "
+                "path. It hung the chain on iOS 18.7 — make it fire-and-forget (void async)."
+            )
+    return errors
+
+
 def check_exemption_integrity() -> list[str]:
     """Fail-closed audit of the two allowlists: no dead entries, valid metadata.
 
@@ -368,6 +431,10 @@ def main() -> int:
     all_errors += check_voice_ws_url_canonical()
     all_errors += check_bounded_token_on_connect()
     all_errors += check_no_bare_unreachable_only()
+    # Client-Failure Observability Law: the diag beacon stays, and no non-essential
+    # awaited call may block the mic-start path.
+    all_errors += check_client_diag_beacon_present()
+    all_errors += check_no_unbounded_unlock_on_start_path()
     all_errors += check_exemption_integrity()
 
     if all_errors:

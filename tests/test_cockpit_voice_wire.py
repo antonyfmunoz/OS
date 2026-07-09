@@ -351,6 +351,27 @@ def test_clerk_token_is_jwt_shape_guarded() -> None:
         assert "_isJwtShaped(t)" in body, f"{accessor} must shape-guard the token"
 
 
+def test_gate14_enforces_client_diag_beacon_and_unlock_fireforget() -> None:
+    # Client-Failure Observability Law: Gate 14 must keep the diag beacon wired and
+    # block awaiting unlockAudioForIOS() on the mic-start path. Inject-a-violation
+    # self-test so a future edit that guts either can't pass silently.
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "cvrd", _ROOT / "scripts" / "check_voice_runtime_divergence.py"
+    )
+    assert spec and spec.loader
+    g = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(g)
+    # clean tree passes both
+    assert g.check_client_diag_beacon_present() == []
+    assert g.check_no_unbounded_unlock_on_start_path() == []
+    # the checks are real: the collector + ingest + wiring all exist
+    assert (_API / "voice-diag.ts").exists()
+    voice_py = (_ROOT / "transports" / "api" / "voice.py").read_text(encoding="utf-8")
+    assert "VoiceClientDiag" in voice_py and "/diag" in voice_py
+
+
 def test_ios_audio_unlock_cannot_block_recording() -> None:
     # P4S-VOICE-UNLOCK-HANG: THE actual field failure (proven by client diag —
     # ios_audio_unlock_await never returned, 8s watchdog fired). On iOS 18.7 Safari
