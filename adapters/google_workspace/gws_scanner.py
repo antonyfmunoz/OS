@@ -2,7 +2,7 @@
 GWSDocumentScanner — reads Google Docs the founder owns,
 extracts business context, and ingests it into EOS knowledge layers.
 
-DEX knows everything written about the businesses.
+The assistant knows everything written about the businesses.
 
 Features:
   - AI-based document understanding (not just keyword filtering)
@@ -214,7 +214,24 @@ class GWSDocumentScanner:
 
         try:
             from adapters.models.agent_runtime import AgentRuntime, TaskType
+            from substrate.state.business.business_instance import (
+                get_founder_name,
+                get_ventures,
+            )
             rt = AgentRuntime(self.ctx)
+
+            # Founder + venture roster come from the tenant's BIS at runtime.
+            _founder = get_founder_name(self.ctx, default='the owner')
+            _ventures = get_ventures(self.ctx)
+            if _ventures:
+                _owner_lines = '\n'.join(f'- {v["name"]}' for v in _ventures)
+                _venture_enum = '|'.join(
+                    f'"{v["id"]}"' for v in _ventures
+                ) + '|"general"|"irrelevant"'
+                _owns = f'This belongs to {_founder} who runs:\n{_owner_lines}\n\n'
+            else:
+                _venture_enum = '"general"|"irrelevant"'
+                _owns = f'This belongs to {_founder}.\n\n'
 
             result = rt.run(
                 task_type=TaskType.ANALYZE,
@@ -222,15 +239,11 @@ class GWSDocumentScanner:
                     f'Document: "{name}"\n\n'
                     f'Content (first 1500 chars):\n'
                     f'{content[:1500]}\n\n'
-                    f'This belongs to Antony Munoz who runs:\n'
-                    f'- Lyfe Institute (coaching, $750 Initiate Arena)\n'
-                    f'- Empyrean Creative (B2B AI services)\n'
-                    f'- Personal Brand (content business)\n'
-                    f'- EntrepreneurOS (AI OS platform)\n\n'
+                    f'{_owns}'
                     f'Return ONLY valid JSON:\n'
                     f'{{\n'
                     f'  "relevance_score": <1-10>,\n'
-                    f'  "venture_id": <"lyfe_institute"|"empyrean_creative"|"personal_brand"|"eos_platform"|"general"|"irrelevant">,\n'
+                    f'  "venture_id": <{_venture_enum}>,\n'
                     f'  "summary": <one sentence>,\n'
                     f'  "key_context": <most important 150 chars>,\n'
                     f'  "keep": <true|false>\n'
@@ -255,27 +268,36 @@ class GWSDocumentScanner:
     def _keyword_assess(self, name: str, content: str) -> dict:
         """Keyword-based fallback when AI is unavailable."""
         text = (name + ' ' + content).lower()
+        # Generic business-relevance vocabulary (projection-agnostic).
         keywords = [
-            'entrepreneur', 'eos', 'lyfe', 'empyrean', 'initiate', 'business',
-            'offer', 'strategy', 'plan', 'goal', 'revenue', 'client', 'sales',
-            'marketing', 'brand', 'content', 'coaching', 'product', 'service',
-            'personal', 'antony', 'afm', 'munoz', 'creator', 'audience',
+            'business', 'offer', 'strategy', 'plan', 'goal', 'revenue',
+            'client', 'sales', 'marketing', 'brand', 'content', 'coaching',
+            'product', 'service', 'personal', 'creator', 'audience',
             'outreach', 'mission', 'vision', 'system', 'process', 'workflow',
             'build', 'phase', 'roadmap', 'milestone', 'notes', 'ideas',
             'brainstorm', 'life', 'health', 'habits', 'growth', 'instagram',
             'linkedin', 'tiktok', 'launch', 'funnel', 'icp', 'kpi',
         ]
-        hits = sum(1 for k in keywords if k in text)
+        # Tenant identity keywords (founder name + venture names) from BIS.
+        from substrate.state.business.business_instance import (
+            get_founder_name,
+            get_ventures,
+        )
+        _ventures = get_ventures(self.ctx)
+        _founder = get_founder_name(self.ctx, default='')
+        identity_kw = [w for w in _founder.lower().split() if len(w) > 2]
+        for _v in _ventures:
+            identity_kw.extend(w for w in _v['name'].lower().split() if len(w) > 2)
+            identity_kw.append(_v['id'].replace('_', ' '))
+        hits = sum(1 for k in keywords + identity_kw if k in text)
 
+        # Assign the best-matching tenant venture by its name tokens, else general.
         venture_id = 'general'
-        if any(k in text for k in ['lyfe', 'initiate', 'coaching', 'arena']):
-            venture_id = 'lyfe_institute'
-        elif any(k in text for k in ['empyrean', 'b2b', 'agency', 'retainer']):
-            venture_id = 'empyrean_creative'
-        elif any(k in text for k in ['personal brand', 'creator', 'audience', 'content']):
-            venture_id = 'personal_brand'
-        elif any(k in text for k in ['eos', 'entrepreneur os', 'entrepreneuros', 'harness', 'operating system']):
-            venture_id = 'eos_platform'
+        for _v in _ventures:
+            _tokens = [w for w in _v['name'].lower().split() if len(w) > 2]
+            if _tokens and any(t in text for t in _tokens):
+                venture_id = _v['id']
+                break
 
         score = min(hits * 1.5, 10)
 
@@ -505,21 +527,27 @@ class GWSDocumentScanner:
         documents: list[GWSDocument],
     ) -> str:
         """
-        Generate a four-section profile of what EOS learned from all docs.
-        Sections: Lyfe Institute, Empyrean Creative, Other Projects, Founder Patterns.
+        Generate a per-venture profile of what was learned from all docs.
+        Sections: one per tenant venture, plus Other Projects and Founder Patterns.
         Saves to /opt/OS/data/founder_profile.md for cognitive loop injection.
         """
         if not documents:
             return 'No documents to profile.'
 
-        # Group high/medium docs by venture
-        by_venture: dict[str, list[str]] = {
-            'lyfe_institute':    [],
-            'empyrean_creative': [],
-            'eos_platform':      [],
-            'personal_brand':    [],
-            'general':           [],
-        }
+        from substrate.state.business.business_instance import (
+            get_ai_name,
+            get_founder_name,
+            get_ventures,
+        )
+
+        _founder = get_founder_name(self.ctx, default='the founder')
+        _ai = get_ai_name() or 'the assistant'
+
+        # Group high/medium docs by venture — buckets built from the tenant roster.
+        _roster = get_ventures(self.ctx)
+        by_venture: dict[str, list[str]] = {v['id']: [] for v in _roster}
+        for _extra in ('eos_platform', 'general'):
+            by_venture.setdefault(_extra, [])
         for doc in documents:
             if doc.relevance in ('high', 'medium'):
                 entry = (
@@ -534,21 +562,24 @@ class GWSDocumentScanner:
         rt = AgentRuntime(self.ctx)
         sections: list[str] = []
 
-        # ── Section 1: Lyfe Institute ─────────────────────────────────────────
-        lyfe_content = '\n'.join(by_venture.get('lyfe_institute', [])[:5])
-        if lyfe_content:
-            print('[GWS] Profiling: Lyfe Institute...')
+        # ── One profile section per tenant venture (roster-driven, no hardcoding) ─
+        for _v in _roster:
+            _vname = _v['name']
+            _vcontent = '\n'.join(by_venture.get(_v['id'], [])[:5])
+            if not _vcontent:
+                continue
+            print(f'[GWS] Profiling: {_vname}...')
             result = rt.run(
                 task_type=TaskType.ANALYZE,
                 prompt=(
-                    f'Based on these docs about Lyfe Institute:\n\n'
-                    f'{lyfe_content[:2500]}\n\n'
-                    f'What did EOS learn about this business? Cover:\n'
+                    f'Based on these docs about {_vname}:\n\n'
+                    f'{_vcontent[:2500]}\n\n'
+                    f'What was learned about this business? Cover:\n'
                     f'1. The exact offer and pricing\n'
                     f'2. Current stage and progress\n'
-                    f'3. ICP description\n'
+                    f'3. ICP / target client profile\n'
                     f'4. Current strategy\n'
-                    f'5. What has been tried\n'
+                    f'5. What has been tried or built vs planned\n'
                     f'6. Gaps or missing pieces\n'
                     f'Be specific. 200 words max.'
                 ),
@@ -556,35 +587,9 @@ class GWSDocumentScanner:
                 max_tokens=800,
             )
             output = self._complete_if_truncated(
-                result.output or '', rt, 'lyfe_institute'
+                result.output or '', rt, _v['id']
             )
-            sections.append(f'## Lyfe Institute\n{output or "No data"}')
-
-        # ── Section 2: Empyrean Creative ──────────────────────────────────────
-        emp_content = '\n'.join(by_venture.get('empyrean_creative', [])[:5])
-        if emp_content:
-            print('[GWS] Profiling: Empyrean Creative...')
-            result = rt.run(
-                task_type=TaskType.ANALYZE,
-                prompt=(
-                    f'Based on these docs about Empyrean Creative:\n\n'
-                    f'{emp_content[:2500]}\n\n'
-                    f'What did EOS learn about this business? Cover:\n'
-                    f'1. What services are offered\n'
-                    f'2. Target client profile\n'
-                    f'3. Current stage and progress\n'
-                    f'4. What has been built vs planned\n'
-                    f'5. Current strategy\n'
-                    f'6. Gaps or missing pieces\n'
-                    f'Be specific. 200 words max.'
-                ),
-                agent='executive_assistant',
-                max_tokens=800,
-            )
-            output = self._complete_if_truncated(
-                result.output or '', rt, 'empyrean_creative'
-            )
-            sections.append(f'## Empyrean Creative\n{output or "No data"}')
+            sections.append(f'## {_vname}\n{output or "No data"}')
 
         # ── Section 3: Other projects ─────────────────────────────────────────
         eos_content = '\n'.join(by_venture.get('eos_platform', [])[:3])
@@ -625,9 +630,9 @@ class GWSDocumentScanner:
             result = rt.run(
                 task_type=TaskType.ANALYZE,
                 prompt=(
-                    f'Based on all these docs from Antony Munoz:\n\n'
+                    f'Based on all these docs from {_founder}:\n\n'
                     f'{all_content[:2500]}\n\n'
-                    f'What patterns emerge about how he thinks and operates?\n'
+                    f'What patterns emerge about how they think and operate?\n'
                     f'1. Core philosophy and values\n'
                     f'2. Recurring frameworks he uses\n'
                     f'3. Strengths evident in the docs\n'
@@ -644,7 +649,7 @@ class GWSDocumentScanner:
             sections.append(f'## Founder Patterns\n{output or "No data"}')
 
         profile = (
-            f'# What EOS Learned from Your Docs\n'
+            f'# What the Assistant Learned from Your Docs\n'
             f'Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}\n'
             f'Based on: {len(documents)} documents\n\n'
             + '\n\n'.join(sections)
@@ -660,8 +665,8 @@ class GWSDocumentScanner:
             from transports.discord.discord_utils import post_to_webhook
             post_to_webhook(
                 profile,
-                title='📊 EOS LEARNING REPORT',
-                username='DEX',
+                title='📊 LEARNING REPORT',
+                username=_ai,
             )
             print('[GWS] Profile posted to Discord')
         except Exception as _e:

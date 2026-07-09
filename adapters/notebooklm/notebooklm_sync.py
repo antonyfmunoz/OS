@@ -3,10 +3,10 @@ NotebookLMSync — bidirectional sync between Neon and NotebookLM.
 
 Data flows:
   Neon → NotebookLM: pipeline data, world pulse reports, founder profile docs
-  NotebookLM → Neon: query results stored as notebooklm_insight events for DEX
+  NotebookLM → Neon: query results stored as notebooklm_insight events for the assistant
 
 Notebook IDs are stored in .env after manual creation:
-    nlm notebook create "Lyfe Institute"
+    nlm notebook create "<Venture Name>"
 
 Usage:
     from substrate.state.context.context import load_context_from_env
@@ -205,7 +205,7 @@ class NotebookLMSync:
     def query_for_context(self, venture_id: str, question: str) -> str:
         """
         Query a NotebookLM notebook via nlm CLI.
-        Stores the answer in Neon as a notebooklm_insight event for DEX.
+        Stores the answer in Neon as a notebooklm_insight event for the assistant.
         Returns the answer string.
         """
         notebook_id = self.notebooks.get(venture_id, '')
@@ -248,7 +248,7 @@ class NotebookLMSync:
         limit: int = 5,
     ) -> list[dict]:
         """
-        Retrieve recent NotebookLM insights from Neon for DEX context injection.
+        Retrieve recent NotebookLM insights from Neon for assistant context injection.
         """
         try:
             from substrate.state.storage.db import get_conn

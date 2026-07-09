@@ -412,7 +412,7 @@ class GWSConnector:
         """
         Detect likely timezone from email domain.
         Returns timezone string e.g. 'America/New_York'.
-        Falls back to 'America/Los_Angeles' (Antony's TZ).
+        Falls back to 'America/Los_Angeles' (the founder's TZ).
         """
         if not email or "@" not in email:
             return "America/Los_Angeles"
@@ -446,7 +446,7 @@ class GWSConnector:
         attendee_email: str,
     ) -> str:
         """
-        Format a datetime in both Antony's timezone and
+        Format a datetime in both the founder's timezone and
         the attendee's detected timezone.
         """
         try:
