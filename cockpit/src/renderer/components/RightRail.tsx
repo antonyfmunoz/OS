@@ -581,7 +581,6 @@ function TranscriptSection({
  */
 function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
   const sendDraft = useVoiceMessageStore((s) => s.sendDraft)
-  const retryDraft = useVoiceMessageStore((s) => s.retryDraft)
   const editTranscript = useVoiceMessageStore((s) => s.editTranscript)
   const deleteDraft = useVoiceMessageStore((s) => s.deleteDraft)
   const [editing, setEditing] = useState(false)
@@ -678,12 +677,6 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
                   <Send size={9} /> Send
                 </button>
               )}
-              <button
-                onClick={() => retryDraft(draft.draft_id)}
-                className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border text-text-secondary hover:text-cyan hover:border-cyan/40 transition-colors"
-              >
-                Retry
-              </button>
               {!isFailed && (
                 <button
                   onClick={() => { setEditText(draft.transcript); setEditing(true) }}
