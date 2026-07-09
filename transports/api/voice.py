@@ -252,23 +252,17 @@ async def voice_tts(req: TtsRequest):
         raise HTTPException(status_code=400, detail="text field required")
 
     try:
-        from substrate.execution.voice.warm_engine import get_warm_engine
+        # Tiered TTS: Kokoro (GPU, free, best) → OpenAI (if quota) → espeak (always).
+        from substrate.execution.voice.tts_chain import synthesize
 
-        engine = get_warm_engine()
-        wav_path = engine.speak(text)
-        if not wav_path:
+        result = synthesize(text)
+        if not result:
             raise RuntimeError("TTS produced no audio")
-        from pathlib import Path as _Path
-
-        data = _Path(wav_path).read_bytes()
-        try:
-            _Path(wav_path).unlink(missing_ok=True)  # temp file, not chat media
-        except Exception:
-            pass
+        data, tier = result
         return Response(
             content=data,
             media_type="audio/wav",
-            headers={"Cache-Control": "no-store"},
+            headers={"Cache-Control": "no-store", "X-TTS-Tier": tier},
         )
     except Exception as exc:
         logger.warning("voice tts synthesis failed: %s", exc)
