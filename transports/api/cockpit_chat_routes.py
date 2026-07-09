@@ -340,6 +340,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                     # Persist operator media (e.g. a voice message's audio) so the
                     # audio player survives reload via /chat/history.
                     media=payload.get("media") or None,
+                    # Persist source ("voice") so the voice badge + transcript
+                    # chevron survive reload (otherwise the h-* row loses source).
+                    source=source or None,
                 )
             except Exception as exc:
                 logger.debug("Failed to persist conversation to OrganismStore: %s", exc)
@@ -539,6 +542,10 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 # re-emit it so the cockpit re-renders the audio player after reload.
                 if payload.get("media"):
                     entry["media"] = payload["media"]
+                # Re-emit the input source ("voice") so the cockpit keeps the voice
+                # badge + transcript chevron after a history reload.
+                if payload.get("source"):
+                    entry["source"] = payload["source"]
                 result.append(entry)
             return result
         except Exception as e:

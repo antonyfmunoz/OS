@@ -553,10 +553,15 @@ function _resolveMicIdle(): void {
   sessionTimers.clear('micStateWatchdog')
   const vs = useVoiceStore.getState()
   const s = vs.micState
-  // Only force idle from the terminal-ish states this finalize owns. A concurrent
-  // fresh capture may already be 'listening'/'recording'/'requesting_permission' —
-  // never yank that back to idle.
-  if (s === 'transcribing' || s === 'processing') vs.setMicState('idle')
+  // Force idle from ANY non-live-capture state, not just transcribing/processing.
+  // A transcription FAILURE (markFailed/markNoSpeech) leaves the DRAFT 'failed' but
+  // never touches micState, and a WS/connect failure can strand micState at
+  // 'connecting_voice_ws' or 'interrupted' — states the old guard ignored, so the
+  // mic button (handleMicToggle acts only when micState==='idle') stayed dead and
+  // the user couldn't delete + retry (field test 2026-07-08). Only a genuinely-live
+  // fresh capture must be preserved: listening / recording / requesting_permission.
+  const liveCapture = s === 'listening' || s === 'recording' || s === 'requesting_permission'
+  if (!liveCapture && s !== 'idle') vs.setMicState('idle')
 }
 
 /** ROOT A: a hard watchdog so micState can NEVER hang at transcribing/processing.
@@ -564,8 +569,13 @@ function _resolveMicIdle(): void {
 function _armMicStateWatchdog(): void {
   sessionTimers.arm('micStateWatchdog', () => {
     const vs = useVoiceStore.getState()
-    if (vs.micState === 'transcribing' || vs.micState === 'processing') {
-      log('mic_state_watchdog_forced_idle', vs.micState)
+    const s = vs.micState
+    // Rescue the mic from ANY stuck non-live state (transcribing/processing/
+    // connecting_voice_ws/interrupted), not just transcribing/processing — a
+    // stranded connect/failure must never leave the button permanently dead.
+    const liveCapture = s === 'listening' || s === 'recording' || s === 'requesting_permission'
+    if (!liveCapture && s !== 'idle') {
+      log('mic_state_watchdog_forced_idle', s)
       vs.setMicState('idle')
       vs.setLastOutcome('TIMEOUT')
     }
@@ -1101,7 +1111,13 @@ export function abortActiveRecording(): void {
 export function notifyVoiceMessageSent(voiceTurnId: string): void {
   _pendingVoiceTurnId = voiceTurnId
   const vs = useVoiceStore.getState()
-  vs.setMicState('processing')
+  // Mic returns to 'idle' immediately on send — the operator can record the NEXT
+  // message while the reply is pending. Do NOT park micState at 'processing': that
+  // DISABLES the mic button (RightRail :1085) and its only reset was the cancellable
+  // 'pendingResponse' timer, so a disconnect/error clearAll() stranded the mic dead
+  // with no watchdog (field test 2026-07-08: mic broke after send, couldn't retry).
+  // The "thinking" REVEAL is tracked separately by voicePresentationStatus, not micState.
+  vs.setMicState('idle')
   vs.setPendingVoiceResponse(true)
   vs.setVoicePresentationStatus('thinking')
   vs.setError(null)

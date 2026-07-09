@@ -79,6 +79,7 @@ class OrganismStore:
         projection_id: str | None = None,
         responder: str = "system",
         media: list[dict[str, Any]] | None = None,
+        source: str | None = None,
     ) -> tuple[AgentMessage, AgentMessage]:
         """Persist both inbound user message and outbound response as a pair.
 
@@ -92,6 +93,10 @@ class OrganismStore:
         _inbound_payload: dict[str, Any] = {"content": content, "projection_id": projection_id}
         if media:
             _inbound_payload["media"] = media
+        if source:
+            # Persist the input source (e.g. "voice") so /chat/history can re-emit it —
+            # the cockpit needs it to keep the voice badge + transcript chevron after reload.
+            _inbound_payload["source"] = source
         inbound = AgentMessage(
             sender="operator",
             recipient=responder,
