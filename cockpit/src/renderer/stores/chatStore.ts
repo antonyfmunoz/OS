@@ -199,6 +199,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             ...(routing ? { routing } : {}),
             ...(voiceTurnId ? { voice_turn_id: voiceTurnId } : {}),
             ...(opts?.voiceMessage ? { voice_message: opts.voiceMessage } : {}),
+            // Persist the operator's media (e.g. a voice message's audio) on the turn
+            // so it survives reload — the server stores it and /chat/history returns it.
+            ...(uploadedMedia.length > 0 ? { media: uploadedMedia } : {}),
           }),
         })
 
@@ -247,6 +250,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         title?: string
         provenance?: Provenance
         attachment?: Attachment
+        media?: MediaAttachment[]
       }>>('/chat/history')
 
       const serverMsgs: ChatMessage[] = history.map((m) => ({
@@ -259,6 +263,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
         title: m.title,
         provenance: m.provenance,
         attachment: m.attachment,
+        // Voice messages persist their audio player across reload: history returns the
+        // stored media so MediaGrid/VoiceMessagePlayer render just like the live message.
+        ...(m.media ? { media: m.media } : {}),
       }))
 
       set((s) => {

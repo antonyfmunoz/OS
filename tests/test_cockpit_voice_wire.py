@@ -351,6 +351,37 @@ def test_clerk_token_is_jwt_shape_guarded() -> None:
         assert "_isJwtShaped(t)" in body, f"{accessor} must shape-guard the token"
 
 
+def test_voice_message_media_persists_round_trip() -> None:
+    # The voice message card (audio player) must persist like text: the operator's
+    # media round-trips through server storage + /chat/history. Previously media was
+    # dropped in the round-trip so the player vanished on reload/reconcile.
+    chat_store = (_ROOT / "cockpit" / "src" / "renderer" / "stores" / "chatStore.ts").read_text(encoding="utf-8")
+    # 1. client sends media in the converse body — the { media: uploadedMedia } spread
+    #    appears TWICE (operatorMsg + the /advisor/converse POST body). Both must exist;
+    #    the POST body is the one that makes it persist server-side.
+    assert chat_store.count("{ media: uploadedMedia }") >= 2
+    # 4. client maps media from history
+    hist = chat_store[chat_store.index("/chat/history"):]
+    assert "m.media" in hist
+    # server side: store accepts + persists media; converse passes it; history returns it
+    store_py = (_ROOT / "substrate" / "organism" / "store.py").read_text(encoding="utf-8")
+    assert "media: list[dict[str, Any]] | None" in store_py
+    assert '_inbound_payload["media"] = media' in store_py
+    routes = (_ROOT / "transports" / "api" / "cockpit_chat_routes.py").read_text(encoding="utf-8")
+    assert 'media=payload.get("media")' in routes
+    assert 'entry["media"] = payload["media"]' in routes
+
+
+def test_voice_player_button_is_compact() -> None:
+    # The play button must be small + match the UI (a bare cyan icon, not a big
+    # cyan-glow circle). Guard against regressing to the 28px glow button.
+    rr = (_ROOT / "cockpit" / "src" / "renderer" / "components" / "RightRail.tsx").read_text(encoding="utf-8")
+    player = rr[rr.index("function VoiceMessagePlayer"):]
+    player = player[: player.index("function MediaGrid")]
+    assert "w-7 h-7 rounded-full" not in player  # the old big glow circle is gone
+    assert "var(--color-cyan-glow)" not in player  # no glow background on the button
+
+
 def test_empty_transcript_is_typed_not_silent() -> None:
     # "Fix transcription": STT works, but an empty/too-short transcript was sent as a
     # silent empty "transcript" success → the client dropped it → 25s TIMEOUT →

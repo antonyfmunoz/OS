@@ -78,16 +78,25 @@ class OrganismStore:
         origin_channel: str,
         projection_id: str | None = None,
         responder: str = "system",
+        media: list[dict[str, Any]] | None = None,
     ) -> tuple[AgentMessage, AgentMessage]:
-        """Persist both inbound user message and outbound response as a pair."""
+        """Persist both inbound user message and outbound response as a pair.
+
+        ``media`` (optional) is a list of MediaAttachment dicts (e.g. a voice
+        message's audio) stored on the inbound operator turn so it survives reload —
+        /chat/history re-emits it and the cockpit renders the audio player.
+        """
         from uuid import uuid4 as _uuid4
 
         conv_id = _uuid4()
+        _inbound_payload: dict[str, Any] = {"content": content, "projection_id": projection_id}
+        if media:
+            _inbound_payload["media"] = media
         inbound = AgentMessage(
             sender="operator",
             recipient=responder,
             intent="converse",
-            payload={"content": content, "projection_id": projection_id},
+            payload=_inbound_payload,
             conversation_id=conv_id,
             origin_channel=origin_channel,
         )

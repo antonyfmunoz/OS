@@ -170,7 +170,7 @@ function VoiceMessagePlayer({ src }: { src: string }) {
 
   return (
     <div
-      className="flex items-center gap-2 mt-1.5 px-2 py-1.5 rounded w-full max-w-[240px]"
+      className="flex items-center gap-1.5 mt-1 px-1.5 py-1 rounded w-full max-w-[180px]"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
       <audio
@@ -187,16 +187,16 @@ function VoiceMessagePlayer({ src }: { src: string }) {
       <button
         type="button"
         onClick={toggle}
-        className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer transition-colors"
-        style={{ background: 'var(--color-cyan-glow)', color: 'var(--color-cyan)' }}
+        className="shrink-0 flex items-center justify-center cursor-pointer transition-colors"
+        style={{ color: 'var(--color-cyan)' }}
         title={playing ? 'Pause' : 'Play'}
       >
-        {playing ? <Pause size={13} /> : <Play size={13} className="ml-0.5" />}
+        {playing ? <Pause size={11} /> : <Play size={11} />}
       </button>
       <div className="flex-1 min-w-0">
         <div
           onClick={seek}
-          className="h-1.5 rounded-full cursor-pointer relative"
+          className="h-1 rounded-full cursor-pointer relative"
           style={{ background: 'var(--color-border)' }}
         >
           <div
@@ -205,7 +205,7 @@ function VoiceMessagePlayer({ src }: { src: string }) {
           />
         </div>
       </div>
-      <span className="shrink-0 text-[9px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
+      <span className="shrink-0 text-[8px] font-mono" style={{ color: 'var(--color-text-tertiary)' }}>
         {fmt(playing || current > 0 ? current : duration)}
       </span>
     </div>
