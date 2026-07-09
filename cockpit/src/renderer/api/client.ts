@@ -20,15 +20,30 @@ export function getWsToken(): string {
   return ''
 }
 
+/** A signed Clerk session token is a JWT: three non-empty base64url segments joined
+ *  by dots (header.payload.signature). Clerk's getToken() can transiently return a
+ *  NON-JWT truthy string on mobile Safari (a handshake/dev-browser/opaque value); if
+ *  that reaches a `bearer.<X>` WS subprotocol the server's JWT parse fails with
+ *  "Not enough segments" → 403 (P4S-VOICE-WS-FRAMELESS-SOCKET-002). Shape-guard here
+ *  so a non-JWT is treated as "no token" by EVERY caller (event/broadcast/voice WS),
+ *  never sent as a bogus credential. */
+function _isJwtShaped(t: string): boolean {
+  const parts = t.split('.')
+  return parts.length === 3 && parts.every((p) => p.length > 0)
+}
+
 export async function getClerkToken(): Promise<string | null> {
   if (_getToken) {
     try {
       const t = await _getToken()
-      if (t) return t
+      if (t && _isJwtShaped(t)) return t
     } catch { /* fall through */ }
   }
   if (window.Clerk?.session) {
-    try { return await window.Clerk.session.getToken() } catch { /* fall through */ }
+    try {
+      const t = await window.Clerk.session.getToken()
+      if (t && _isJwtShaped(t)) return t
+    } catch { /* fall through */ }
   }
   return null
 }
@@ -37,11 +52,14 @@ async function freshToken(): Promise<string | null> {
   if (window.Clerk?.session) {
     try {
       const t = await window.Clerk.session.getToken({ skipCache: true })
-      if (t) return t
+      if (t && _isJwtShaped(t)) return t
     } catch { /* fall through */ }
   }
   if (_getToken) {
-    try { return await _getToken() } catch { /* fall through */ }
+    try {
+      const t = await _getToken()
+      if (t && _isJwtShaped(t)) return t
+    } catch { /* fall through */ }
   }
   return null
 }

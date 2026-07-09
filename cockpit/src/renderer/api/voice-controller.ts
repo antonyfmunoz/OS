@@ -539,6 +539,19 @@ function _armMicStateWatchdog(): void {
   }, MIC_STATE_WATCHDOG_MS)
 }
 
+/** Return a wired VoiceWsClient WITHOUT connecting the socket. Used by startVoice so
+ *  mic acquisition + recording can proceed with the socket still CLOSED — the WS is
+ *  only opened at finalize (_transcribeBlob → ensureClient). This is what removes the
+ *  accepted-but-frameless idle-socket window (P4S-VOICE-WS-FRAMELESS-SOCKET-002). If a
+ *  live connected client already exists, reuse it; otherwise (re)build a fresh,
+ *  disconnected one. */
+function getOrCreateClient(): VoiceWsClient {
+  if (client) return client
+  client = new VoiceWsClient()
+  wireEvents()
+  return client
+}
+
 async function ensureClient(): Promise<VoiceWsClient> {
   if (client?.connected) return client
 
@@ -871,19 +884,16 @@ export async function startVoice(signal?: AbortSignal): Promise<void> {
 
   vs.setMicState('requesting_permission')
 
-  let c: VoiceWsClient
-  try {
-    c = await ensureClient()
-  } catch {
-    return
-  }
-  // P4: the watchdog may have aborted the chain while ensureClient awaited — bail
-  // BEFORE opening the mic so we don't install a recorder over a torn-down session.
-  if (signal?.aborted) {
-    log('start_aborted_after_ensure_client')
-    teardownCapture()
-    return
-  }
+  // P4S-VOICE-WS-FRAMELESS-SOCKET-002: do NOT open the voice WS here. The WS is
+  // REQUEST-SCOPED and only carries the buffered audio at FINALIZE — startMic() below
+  // never touches the socket (it only acquires/validates the MediaStream), and
+  // _transcribeBlob() opens/reuses the WS at finalize right before sending the control
+  // frame. Opening it now created an ACCEPTED-but-FRAMELESS idle socket that any
+  // mobile-Safari abort in the startMic/recorder window tore down in ~0.3s (server
+  // logs: open→close, no frame, no handler body) — the live failure the user saw.
+  // We still need a client instance for startMic()'s stream bookkeeping; get one
+  // WITHOUT connecting the socket.
+  const c = getOrCreateClient()
 
   log('permission_requesting')
 

@@ -97,7 +97,7 @@ function row(proposalId: string) {
 beforeEach(() => {
   useEOSActionQueueStore.setState({ ...INITIAL_STATE, busy: {}, results: {}, proposals: [] }, true)
   vi.stubGlobal('Clerk', undefined)
-  setTokenGetter(async () => 'test-token')
+  setTokenGetter(async () => 'hdr.pay.sig')
 })
 
 afterEach(() => {

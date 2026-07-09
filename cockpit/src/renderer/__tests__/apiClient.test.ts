@@ -4,7 +4,7 @@ import { fetchApi, ApiError, setTokenGetter } from '../api/client'
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
   vi.stubGlobal('Clerk', undefined)
-  setTokenGetter(async () => 'test-token')
+  setTokenGetter(async () => 'hdr.pay.sig')
 })
 
 afterEach(() => {
@@ -22,7 +22,7 @@ describe('fetchApi — auth headers', () => {
     await fetchApi('/organism/status')
 
     const [, opts] = mockFetch.mock.calls[0]
-    expect(opts.headers.Authorization).toBe('Bearer test-token')
+    expect(opts.headers.Authorization).toBe('Bearer hdr.pay.sig')
   })
 })
 
