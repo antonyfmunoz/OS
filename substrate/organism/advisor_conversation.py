@@ -416,7 +416,7 @@ class AdvisorConversation:
             from substrate.sockets.intelligence_port import call_with_fallback
 
             result = call_with_fallback(
-                prompt,
+                prompt=prompt,
                 task_type="conversation",
                 agent_type="ceo",
             )
@@ -881,7 +881,7 @@ class AdvisorConversation:
         try:
             from substrate.sockets.intelligence_port import call_with_fallback
 
-            result = call_with_fallback(prompt, task_type="conversation")
+            result = call_with_fallback(prompt=prompt, task_type="conversation")
             response_text = ""
             if result and hasattr(result, "output"):
                 response_text = result.output or ""

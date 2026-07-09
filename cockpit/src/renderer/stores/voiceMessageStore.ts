@@ -19,7 +19,7 @@
  */
 
 import { create } from 'zustand'
-import { API_BASE } from '../api/client'
+import { API_BASE, authHeader } from '../api/client'
 import { useChatStore, type MediaAttachment } from './chatStore'
 
 const log = (stage: string, ...args: unknown[]) =>
@@ -599,7 +599,11 @@ export const useVoiceMessageStore = create<VoiceMessageState>((set, get) => {
           })
           const form = new FormData()
           form.append('file', file)
-          const res = await fetch(`${API_BASE}/chat/upload`, { method: 'POST', body: form })
+          const res = await fetch(`${API_BASE}/chat/upload`, {
+            method: 'POST',
+            body: form,
+            headers: await authHeader(), // operator-gated route — send Clerk bearer or 403
+          })
           if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`)
           const uploaded = (await res.json()) as MediaAttachment
           media = uploaded
