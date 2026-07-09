@@ -1398,6 +1398,24 @@ def call_with_fallback(
     # ── PURPOSE-BASED ROUTING: resolve purpose → roles → providers ──
     # (purpose already resolved above for CLI gate decision)
     provider_keys = _providers_for_purpose(purpose)
+
+    # VISION LOCK: when images/video are present, the chain MUST stay vision-capable.
+    # The purpose chain contains text-only providers (cc_sdk, claude_cli, groq-llama)
+    # that silently ignore images and answer "I can't see the image". Restrict to the
+    # registered vision-capable configs (Gemini free tier first, Anthropic paid fallback)
+    # so an image request can never be handled — or quality-escalated — into a text model.
+    if images:
+        vision_keys = [
+            k for k, c in MODEL_REGISTRY.items()
+            if c.provider in (ModelProvider.GEMINI, ModelProvider.ANTHROPIC)
+        ]
+        # Preserve registry order but put Gemini (free) ahead of Anthropic (paid).
+        provider_keys = sorted(
+            vision_keys,
+            key=lambda k: 0 if MODEL_REGISTRY[k].provider == ModelProvider.GEMINI else 1,
+        )
+        logger.info("[Router] VISION LOCK: images present → vision providers only %s", provider_keys)
+
     logger.info("[Router] purpose=%s providers=%s", purpose, provider_keys)
 
     _tried_keys: set[str] = set()
@@ -1454,7 +1472,10 @@ def call_with_fallback(
         max_tok = 2000
         output = router.call(config, prompt, system or "", max_tok, images)
         if output:
-            if _should_escalate(output, pkey, purpose=purpose):
+            # Never quality-escalate a VISION answer: the escalation heuristic is a
+            # text-length/refusal check that would push a correct-but-terse vision
+            # reply ("it's a red square") onto a text-only provider that can't see.
+            if not images and _should_escalate(output, pkey, purpose=purpose):
                 logger.info("[Router] %s quality too low, trying next role", pkey)
                 _blockers[pkey] = "quality_too_low"
                 continue
