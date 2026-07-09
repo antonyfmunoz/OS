@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 import threading
 from contextlib import asynccontextmanager
@@ -461,14 +462,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS origins: localhost dev defaults + any host-specific origins from env
+# (UMH_CORS_ORIGINS, comma-separated) — no hardcoded instance IP.
+_cors_origins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+]
+_cors_origins += [
+    o.strip()
+    for o in os.environ.get("UMH_CORS_ORIGINS", "").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://100.77.233.50:5173",
-        "http://localhost:5174",
-        "http://100.77.233.50:5174",
-    ],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

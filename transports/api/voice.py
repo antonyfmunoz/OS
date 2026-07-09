@@ -55,7 +55,7 @@ def wire_organism(accessor: Any) -> None:
     ``accessor`` is a zero-arg callable returning the organism daemon (or None
     when not running). The WS uses ``daemon.advisor.converse`` as the single
     governed write path (persists the turn to the OrganismStore ledger + sets
-    spoken_text), matching the cockpit chat route's DEX conversation path.
+    spoken_text), matching the cockpit chat route's assistant conversation path.
     """
     global _organism_accessor
     _organism_accessor = accessor

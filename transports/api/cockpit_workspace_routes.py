@@ -488,7 +488,9 @@ def _trace_linkage(request: Request) -> dict[str, Any]:
 # Remote node file browsing (SSH proxy to mesh nodes)
 # ---------------------------------------------------------------------------
 
-_WINDOWS_SSH = "antonys beast pc@100.74.199.102"
+# SSH target for the Windows/executor node — from env, never a hardcoded
+# account/IP (see .claude/rules/device-naming.md). Empty disables SSH proxy.
+_WINDOWS_SSH = os.environ.get("UMH_WINDOWS_SSH", "")
 _MESH_SSH_KEY = "/run/secrets/mesh_key"
 _SSH_TIMEOUT = 8
 _WINDOWS_ALLOWED_ROOT = "C:\\"

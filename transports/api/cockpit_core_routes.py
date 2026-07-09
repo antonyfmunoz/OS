@@ -1240,12 +1240,34 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     @router.get("/profile")
     def profile():
+        # Founder / org / ventures are instance context — resolved from the
+        # tenant's BIS at runtime, never hardcoded. Neutral empties when unset.
+        name = org = stage = ""
+        ventures: list[str] = []
+        try:
+            from substrate.state.business.business_instance import (
+                get_business_stage,
+                get_founder_name,
+                get_ventures,
+            )
+            from substrate.state.context.context import try_load_context_from_env
+
+            ctx = try_load_context_from_env()
+            name = get_founder_name(ctx)
+            org = getattr(ctx, "org_id", "") if ctx else ""
+            ventures = [v["name"] for v in get_ventures(ctx)]
+            try:
+                stage = get_business_stage()
+            except Exception:
+                stage = ""
+        except Exception:
+            pass
         return {
             "identity_id": "umh-identity-001",
-            "name": "Antony F. Munoz",
-            "org": "Munoz Conglomerate",
-            "ventures": ["Lyfe Institute", "Empyrean Studio", "Lyfe Spectrum"],
-            "stage": "pre_revenue",
+            "name": name,
+            "org": org,
+            "ventures": ventures,
+            "stage": stage or "pre_revenue",
             "continuity_score": 0.92,
         }
 

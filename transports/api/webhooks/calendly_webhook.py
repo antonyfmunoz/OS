@@ -23,7 +23,8 @@ _mem = AgentMemory()
 def _log_calendly_outcome(username, outcome_type, score, notes=None):
     """Wire Calendly events to memory.db. Silent on failure."""
     try:
-        row = _mem.get_interaction_for_lead(username, venture_id="lyfe_institute")
+        from substrate.state.business.business_instance import get_active_venture_id
+        row = _mem.get_interaction_for_lead(username, venture_id=get_active_venture_id())
         if row:
             _mem.log_outcome(row["id"], outcome_type, score=score, notes=notes)
         else:
@@ -51,13 +52,31 @@ except Exception as _e:
 
 
 def _detect_venture_from_event(event_name: str) -> str:
-    """Detect venture from Calendly event name."""
-    name = event_name.lower()
-    if any(k in name for k in ['lyfe', 'initiate', 'arena', 'coaching']):
-        return 'Lyfe Institute'
-    if any(k in name for k in ['brand', 'content', 'antony']):
-        return 'Personal Brand'
-    return 'Empyrean Creative'  # default for B2B
+    """Detect venture from Calendly event name — matched against the tenant roster.
+
+    Matches the event name against this tenant's venture names/slugs (from BIS);
+    falls back to the active venture. No hardcoded venture names.
+    """
+    name = (event_name or '').lower()
+    try:
+        from substrate.state.business.business_instance import (
+            get_active_venture_id,
+            get_ventures,
+        )
+        ventures = get_ventures()
+        for v in ventures:
+            tokens = [t for t in v['name'].lower().split() if len(t) > 2]
+            tokens.append(v['id'].replace('_', ' '))
+            if any(t in name for t in tokens):
+                return v['name']
+        # Fall back to the active venture's display name, else its id.
+        active = get_active_venture_id()
+        for v in ventures:
+            if v['id'] == active:
+                return v['name']
+        return active or ''
+    except Exception:
+        return ''
 
 
 def verify_signature(payload, signature):
@@ -271,10 +290,11 @@ def _process_booked(name, email, event_time, payload, data):
     # Publish lead_booked event — triggers handler async (non-blocking)
     try:
         from substrate.control_plane.events.event_bus import EventBus
+        from substrate.state.business.business_instance import get_active_venture_id
         EventBus().publish_async("lead_booked", {
             "username":     username,
             "booking_time": event_time,
-            "venture_id":   "lyfe_institute",
+            "venture_id":   get_active_venture_id(),
         })
     except Exception as _eb_err:
         print(f"[EVENT BUS] lead_booked publish failed for {username}: {_eb_err}")
@@ -331,7 +351,8 @@ def _process_booked(name, email, event_time, payload, data):
         print(f'[Calendly] Meeting record failed: {_mr_err}')
         _record = {}
         _company = ''
-        _venture = 'Empyrean Creative'
+        from substrate.state.business.business_instance import get_active_venture_id as _gav
+        _venture = _gav()
         _meet_link = ''
 
     # Auto-create lead file if no existing one found
@@ -353,6 +374,8 @@ def _process_booked(name, email, event_time, payload, data):
         _discord_webhook = os.getenv('DISCORD_BRIEF_WEBHOOK') or os.getenv('DISCORD_WEBHOOK_URL')
         if _discord_webhook:
             import requests as _req
+            from substrate.state.business.business_instance import get_ai_name as _gan
+            _ai_username = _gan() or 'Assistant'
             _brief = build_prep_brief(
                 person=name,
                 email=email,
@@ -373,7 +396,7 @@ def _process_booked(name, email, event_time, payload, data):
             for i in range(0, len(_msg), 1900):
                 _req.post(
                     _discord_webhook,
-                    json={'content': _msg[i:i+1900], 'username': 'DEX'},
+                    json={'content': _msg[i:i+1900], 'username': _ai_username},
                     timeout=5,
                 )
     except Exception as _disc_err:
@@ -400,9 +423,15 @@ def _process_canceled(name, email, payload, data):
     # Cancellation recovery flow
     try:
         from adapters.models.model_router import get_router, TaskType
+        from substrate.state.business.business_instance import (
+            get_ai_name as _gan,
+            get_founder_name as _gfn,
+        )
         import os as _os
         _router = get_router()
         _model = _router.route(TaskType.FAST_RESPONSE)
+        _ai = _gan() or 'the assistant'
+        _founder = _gfn(default='the founder')
 
         _inv = data.get('payload', {}).get('invitee', {})
         _ev = data.get('payload', {}).get('event', {})
@@ -415,15 +444,15 @@ def _process_canceled(name, email, payload, data):
 Person: {_cname}
 Meeting: {_event_name}
 
-Antony's voice — direct, warm, no pressure.
+{_founder}'s voice — direct, warm, no pressure.
 Offer to reschedule, include Calendly link placeholder.
 Under 5 sentences.
 
 Format:
 Subject: [subject]
 [body]
-DEX
-On behalf of Antony Munoz""").strip()
+{_ai}
+On behalf of {_founder}""").strip()
 
         _mem.log_event(
             event_type='email_draft_pending',

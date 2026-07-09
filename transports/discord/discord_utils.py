@@ -88,7 +88,7 @@ def chunk_message(content: str, title: str = '') -> list[str]:
 def post_to_webhook(
     content: str,
     title: str = '',
-    username: str = 'DEX',
+    username: str = '',
     webhook_url: str = '',
 ) -> bool:
     """
@@ -98,6 +98,14 @@ def post_to_webhook(
     Returns True if all chunks posted successfully.
     """
     import requests
+
+    # Webhook display name is the instance AI name — resolved at runtime.
+    if not username:
+        try:
+            from substrate.state.business.business_instance import get_ai_name
+            username = get_ai_name() or 'Assistant'
+        except Exception:
+            username = 'Assistant'
 
     if not webhook_url:
         webhook_url = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
