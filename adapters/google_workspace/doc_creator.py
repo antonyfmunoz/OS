@@ -20,7 +20,7 @@ def create_briefing_doc(
     title: str,
     topic: str,
     context: str = '',
-    audience: str = 'Antony',
+    audience: str = '',
     doc_type: str = 'briefing',
     ctx=None,
 ) -> dict:
@@ -32,7 +32,20 @@ def create_briefing_doc(
     try:
         from adapters.models.model_router import get_router, TaskType
         from adapters.google_workspace.gws_connector import GWSConnector
+        from substrate.state.business.business_instance import (
+            get_ai_name,
+            get_founder_name,
+            get_ventures,
+        )
         router = get_router()
+
+        # Instance identity resolved per tenant — never hardcoded.
+        _ai = get_ai_name() or 'the assistant'
+        _founder = get_founder_name(ctx, default='the founder')
+        if not audience:
+            audience = _founder
+        _ventures = get_ventures(ctx)
+        _portfolio = ', '.join(v['name'] for v in _ventures) if _ventures else 'the portfolio'
 
         templates = {
             'briefing': f"""Create a concise executive briefing document.
@@ -45,7 +58,7 @@ Audience: {audience}
 Format:
 # {title}
 **Date:** {datetime.now(PDT).strftime('%B %d, %Y')}
-**Prepared by:** DEX
+**Prepared by:** {_ai}
 
 ## Executive Summary
 [2-3 sentence summary]
@@ -66,8 +79,7 @@ Keep it under 400 words. Direct. No fluff.""",
 
             'board_update': f"""Create a board update document.
 
-Company context: Munoz Conglomerate — Lyfe Institute,
-Empyrean Creative, Personal Brand
+Company context: {_portfolio}
 Topic: {topic}
 Context: {context}
 
@@ -320,7 +332,7 @@ Topic: {topic}
 Audience: {audience}
 Key message: {key_message}
 Context: {context}
-Author: Antony Munoz
+Author: {_founder}
 
 Voice: direct, warm, clear. No corporate speak.
 Include: what's happening, why it matters, what people need to do or know.
@@ -354,13 +366,13 @@ Guidelines:
 3. State what you know and what you don't know
 4. State concrete next steps with timeline
 5. Provide contact for questions
-6. Antony's voice — direct, accountable, calm
+6. {_founder}'s voice — direct, accountable, calm
 
 Format:
 Subject: [clear subject line]
 
 [Body — structured, under 200 words]
 
-[Antony Munoz]""").strip()
+[{_founder}]""").strip()
     except Exception as e:
         return f'Crisis communication unavailable: {e}'

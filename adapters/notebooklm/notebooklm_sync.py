@@ -45,13 +45,17 @@ class NotebookLMSync:
 
     def __init__(self, ctx: EntrepreneurOSContext):
         self.ctx = ctx
-        # Notebook IDs stored in .env after: nlm notebook create "Name"
+        # Notebook IDs stored in .env after: nlm notebook create "Name".
+        # Per-venture notebooks are built from the tenant's venture roster at
+        # runtime (NOTEBOOKLM_<SLUG_UPPER>_ID) — no venture list is hardcoded.
+        from substrate.state.business.business_instance import get_ventures
+
         self.notebooks: dict[str, str] = {
-            'lyfe_institute':    os.getenv('NOTEBOOKLM_LYFE_ID', ''),
-            'empyrean_creative': os.getenv('NOTEBOOKLM_EMPYREAN_ID', ''),
-            'personal_brand':    os.getenv('NOTEBOOKLM_BRAND_ID', ''),
-            'world_pulse':       os.getenv('NOTEBOOKLM_PULSE_ID', ''),
+            v['id']: os.getenv(f"NOTEBOOKLM_{v['id'].upper()}_ID", '')
+            for v in get_ventures(ctx)
         }
+        # world_pulse is a cross-venture notebook, not a tenant venture.
+        self.notebooks['world_pulse'] = os.getenv('NOTEBOOKLM_PULSE_ID', '')
 
     # ── helpers ───────────────────────────────────────────────────────────────
 
@@ -79,7 +83,7 @@ class NotebookLMSync:
 
     def sync_pipeline_to_notebook(
         self,
-        venture_id: str = 'lyfe_institute',
+        venture_id: str = '',
     ) -> bool:
         """
         Export pipeline data from Neon and upload to the venture's notebook.
@@ -299,7 +303,11 @@ class NotebookLMSync:
 
         results['founder_profile'] = self.sync_founder_profile()
 
-        for venture_id in ('lyfe_institute', 'empyrean_creative'):
+        # Iterate the tenant's actual ventures, never a hardcoded slug list.
+        from substrate.state.business.business_instance import get_ventures
+
+        for _v in get_ventures(self.ctx):
+            venture_id = _v['id']
             results[f'pipeline_{venture_id}'] = self.sync_pipeline_to_notebook(
                 venture_id
             )
