@@ -490,6 +490,12 @@ function _finalizeRecording(finalizedBy: 'manual_stop' | 'silence_timeout'): voi
           .then((res) => {
             if (res.ok) {
               useVoiceMessageStore.getState().completeTranscript(draftId, res.text, res.confidence)
+            } else if (res.code === 'VAD_NO_SPEECH' || res.code === 'NO_SPEECH_DETECTED') {
+              // No usable speech is RECOVERABLE, not a hard error — surface the
+              // "no speech, tap to retry" affordance instead of a red STT_FAILED.
+              // (Previously an empty transcript hung to a 25s TIMEOUT → STT_FAILED;
+              // now the server sends VAD_NO_SPEECH and we route it here.)
+              useVoiceMessageStore.getState().markNoSpeech()
             } else {
               const FINALIZE_CODE: Record<string, string> = {
                 WS_UNAVAILABLE: 'STT_FAILED',

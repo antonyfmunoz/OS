@@ -182,6 +182,15 @@
 
 /* ── Chat Markdown ── */
 
+.chat-markdown {
+  /* Never let chat content push the page into horizontal scroll: break long
+     unbroken strings (URLs, tokens, paths) and cap width to the bubble. */
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .chat-markdown p {
   margin-bottom: 0.5em;
 }

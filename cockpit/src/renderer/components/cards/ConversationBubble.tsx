@@ -32,8 +32,8 @@ export function ConversationBubble({ message, aiName }: ConversationBubbleProps)
     const w = bubbleWidth(message.content)
     return (
       <div className="flex justify-end">
-        <div className={`px-2.5 py-1.5 rounded-2xl rounded-br-sm text-[11px] bg-cyan-glow text-text-primary w-fit ${w}`}>
-          <p className="whitespace-pre-wrap">{message.content}</p>
+        <div className={`px-2.5 py-1.5 rounded-2xl rounded-br-sm text-[11px] bg-cyan-glow text-text-primary w-fit min-w-0 ${w}`}>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</p>
         </div>
       </div>
     )
@@ -42,7 +42,7 @@ export function ConversationBubble({ message, aiName }: ConversationBubbleProps)
   const w = bubbleWidth(message.content)
   return (
     <div className="flex justify-start">
-      <div className={`px-2.5 py-1.5 rounded-2xl rounded-bl-sm text-[11px] bg-surface-raised text-text-secondary w-fit ${w}`}>
+      <div className={`px-2.5 py-1.5 rounded-2xl rounded-bl-sm text-[11px] bg-surface-raised text-text-secondary w-fit min-w-0 ${w}`}>
         <div className="flex items-center gap-2 mb-0.5">
           <span className="font-mono text-[9px] text-text-tertiary">{aiName}</span>
           {message.intent && message.intent !== 'dex_response' && message.intent !== 'chat' && (

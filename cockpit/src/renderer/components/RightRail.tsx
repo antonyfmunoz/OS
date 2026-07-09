@@ -14,7 +14,6 @@ import { getApiKey, fetchApi, API_BASE } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
-import { VoiceRouteHud } from './VoiceRouteHud'
 
 
 // ROOT E: the ONLY VoiceOutcomes whose error text is shown to the operator. These
@@ -923,7 +922,6 @@ function ChatSection() {
           </>
         )}
       </div>
-      <VoiceRouteHud />
       {(viewContext.active_route || viewContext.selected_object_type) && (
         <div className="text-[9px] font-mono text-text-tertiary mb-1 px-1 py-0.5 bg-surface rounded border border-border truncate">
           Viewing: {viewContext.active_route}
@@ -948,7 +946,7 @@ function ChatSection() {
           <span>{voiceError}</span>
         </div>
       )}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-2 mb-2">
+      <div ref={scrollRef} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden space-y-2 mb-2">
         {messages.map((m) => (
           <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} />
         ))}
