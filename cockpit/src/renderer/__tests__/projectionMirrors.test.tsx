@@ -51,7 +51,7 @@ beforeEach(() => {
   useLyfeOSMirrorStore.setState({ ...LYFEOS_INITIAL }, true)
   useCreatorOSMirrorStore.setState({ ...CREATOROS_INITIAL }, true)
   vi.stubGlobal('Clerk', undefined)
-  setTokenGetter(async () => 'test-token')
+  setTokenGetter(async () => 'hdr.pay.sig')
 })
 
 afterEach(() => {

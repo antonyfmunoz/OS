@@ -310,6 +310,47 @@ def test_dev_bypass_present_is_classified_not_silent() -> None:
     assert "_is_private_ip(tcp_ip)" in auth
 
 
+def test_startvoice_does_not_open_ws_before_finalize() -> None:
+    # P4S-VOICE-WS-FRAMELESS-SOCKET-002: the DOMINANT live failure was an accepted-
+    # but-frameless voice socket. startVoice opened the WS at capture START, but the
+    # control frame is only sent at FINALIZE (transcribeUtterance) — leaving an idle
+    # accepted socket that any mobile-Safari abort in the startMic/recorder window
+    # tore down in ~0.3s (server: open→close, no frame). startVoice must NOT connect
+    # the socket; it uses getOrCreateClient() (no connect) for startMic bookkeeping,
+    # and only _transcribeBlob() opens the WS at finalize (via ensureClient).
+    ctrl = _read("voice-controller.ts")
+    assert "getOrCreateClient" in ctrl
+    # startVoice's mic path must use the non-connecting accessor, not ensureClient().
+    # Slice from the requesting_permission set (in startVoice) to the FIRST startMic
+    # call after it — that window is where the socket used to be opened early.
+    start = ctrl.index("vs.setMicState('requesting_permission')", ctrl.index("async function startVoice"))
+    startmic_call = ctrl.index("c.startMic()", start)
+    startvoice_body = ctrl[start:startmic_call]
+    assert "getOrCreateClient()" in startvoice_body
+    assert "await ensureClient()" not in startvoice_body  # no early connect
+    # startMic must NOT touch the socket (only the MediaStream) — so a disconnected
+    # client is fine for it.
+    ws = _read("voice-ws.ts")
+    startmic = ws[ws.index("async startMic("):ws.index("stopMic()")]
+    assert "this.ws" not in startmic and ".connect(" not in startmic
+
+
+def test_clerk_token_is_jwt_shape_guarded() -> None:
+    # P4S-VOICE-WS-FRAMELESS-SOCKET-002 (SIGNATURE 2): the event/broadcast WS sent
+    # bearer.<non-JWT> on mobile Safari → server "Not enough segments" 403. Clerk's
+    # getToken() can return a truthy non-JWT; getClerkToken()/freshToken() must
+    # SHAPE-GUARD (3 non-empty dot-segments) so a non-JWT is treated as no-token by
+    # every caller instead of being sent as a bogus credential.
+    client = _read("client.ts")
+    assert "_isJwtShaped" in client
+    assert "parts.length === 3" in client
+    # both accessors apply the guard
+    for accessor in ("export async function getClerkToken", "async function freshToken"):
+        body_start = client.index(accessor)
+        body = client[body_start:body_start + 500]
+        assert "_isJwtShaped(t)" in body, f"{accessor} must shape-guard the token"
+
+
 def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
     # P4S31 DEADLOCK FIX: startVoice()'s re-entrancy guard must only bail on a LIVE
     # recording ('listening'/'recording'), NOT on the startup states
