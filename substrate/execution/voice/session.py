@@ -171,9 +171,18 @@ class VoiceSession:
         self._state.last_activity = time.time()
 
         try:
+            from substrate.execution.voice.error_codes import VoiceErrorCode
+
             text = self._engine.intelligent.transcribe_fast(audio_path)
             if not text or len(text.strip()) < 2:
+                # Empty/too-short transcript. Audio DID arrive and decode (we got here
+                # past the blob-decode path) but STT found no usable speech. Mark it as
+                # a TYPED VAD_NO_SPEECH error so the WS relays a real error frame — NOT
+                # a silent empty "transcript" success. A silent empty success made the
+                # client's transcript resolver (which drops empty finals) wait out its
+                # 25s timeout → a mislabeled "STT_FAILED"/hang with no server error log.
                 exchange.classification = SpeechClassification.SILENCE
+                exchange.error_code = VoiceErrorCode.VAD_NO_SPEECH.value
                 self._state.status = VoiceSessionStatus.LISTENING
                 return exchange
 

@@ -460,7 +460,18 @@ export class VoiceWsClient {
       const offTranscript = this.ws.on('transcript', (data) => {
         const text = (data.text as string) ?? ''
         const isFinal = data.final as boolean
-        if (isFinal && text.trim()) done({ ok: true, text })
+        if (!isFinal) return
+        if (text.trim()) {
+          done({ ok: true, text })
+        } else {
+          // An empty FINAL transcript means STT found no usable speech. Resolve
+          // IMMEDIATELY as VAD_NO_SPEECH instead of waiting out the 25s timeout (the
+          // old behavior — the empty final failed the text.trim() guard and the
+          // promise hung until TIMEOUT → a mislabeled "STT_FAILED"). The server now
+          // also sends a typed VAD_NO_SPEECH error frame for this case; this is a
+          // belt-and-suspenders fast-fail for any stray empty final.
+          done({ ok: false, code: 'VAD_NO_SPEECH' })
+        }
       })
       // Canonical error frames carry an UPPERCASE VoiceErrorCode in `code`; relay
       // it verbatim (no client remapping — that is the convergence contract).

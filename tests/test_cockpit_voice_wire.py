@@ -351,6 +351,28 @@ def test_clerk_token_is_jwt_shape_guarded() -> None:
         assert "_isJwtShaped(t)" in body, f"{accessor} must shape-guard the token"
 
 
+def test_empty_transcript_is_typed_not_silent() -> None:
+    # "Fix transcription": STT works, but an empty/too-short transcript was sent as a
+    # silent empty "transcript" success → the client dropped it → 25s TIMEOUT →
+    # mislabeled STT_FAILED. The server must mark it VAD_NO_SPEECH so a typed error
+    # frame is relayed, and the client must fast-fail an empty final (not wait 25s)
+    # and route VAD_NO_SPEECH to the RECOVERABLE no-speech affordance.
+    session_py = (_ROOT / "substrate" / "execution" / "voice" / "session.py").read_text(encoding="utf-8")
+    # empty-transcript branch sets a VAD_NO_SPEECH error_code
+    branch = session_py[session_py.index("len(text.strip()) < 2"):]
+    branch = branch[: branch.index("return exchange")]
+    assert "VoiceErrorCode.VAD_NO_SPEECH.value" in branch
+    # client fast-fails an empty final as VAD_NO_SPEECH (no 25s wait)
+    ws = _read("voice-ws.ts")
+    tr = ws[ws.index("this.ws.on('transcript'"): ws.index("this.ws.on('error'")]
+    assert "VAD_NO_SPEECH" in tr
+    # controller routes VAD_NO_SPEECH to the recoverable markNoSpeech(), not markFailed
+    ctrl = _read("voice-controller.ts")
+    assert "res.code === 'VAD_NO_SPEECH'" in ctrl
+    vad_idx = ctrl.index("res.code === 'VAD_NO_SPEECH'")
+    assert "markNoSpeech()" in ctrl[vad_idx:vad_idx + 800]
+
+
 def test_gate14_enforces_client_diag_beacon_and_unlock_fireforget() -> None:
     # Client-Failure Observability Law: Gate 14 must keep the diag beacon wired and
     # block awaiting unlockAudioForIOS() on the mic-start path. Inject-a-violation
