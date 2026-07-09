@@ -632,7 +632,7 @@ function VoiceDraftCard({ draft }: { draft: VoiceMessageDraft }) {
       )}
 
       {!isRecording && draft.audioUrl && (
-        <audio controls playsInline src={draft.audioUrl} className="w-full mt-1 mb-1" style={{ height: 32 }} />
+        <VoiceMessagePlayer src={draft.audioUrl} />
       )}
 
       {!isRecording && (

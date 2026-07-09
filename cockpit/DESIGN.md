@@ -301,9 +301,12 @@ CommandPalette                   (fixed overlay, z-50, Ctrl+K)
 
 ### Voice Message Player (`VoiceMessagePlayer`)
 
-The playable audio bubble for operator voice messages. Rendered by MediaGrid for
-any `media_type === 'audio'`. Compact, matches the UI — a bare cyan glyph, NOT a
-filled circle or glow button.
+The playable audio bubble for operator voice messages. Compact, matches the UI —
+a bare cyan glyph, NOT a filled circle or glow button. Used in BOTH places audio
+appears: the sent message (MediaGrid, `media_type === 'audio'`) AND the pre-send
+voice draft review card (`VoiceDraftCard`). No native `<audio controls>` chrome
+appears anywhere in the chat — the draft card uses this same component so the play
+button looks identical before and after send.
 
 - **Card**: `flex items-center gap-1.5 mt-1 px-1.5 py-1 rounded w-full max-w-[180px]`,
   inline `background: var(--color-surface)`, `border: 1px solid var(--color-border)`
