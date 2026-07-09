@@ -109,6 +109,23 @@ export async function acquireClerkToken(budgetMs = 3000): Promise<TokenAcquireRe
   return { status: 'timeout' }
 }
 
+/**
+ * Auth header for raw `fetch()` calls that CANNOT use `fetchApi` — e.g. a
+ * multipart `FormData` upload, where fetchApi's `Content-Type: application/json`
+ * would clobber the browser-set multipart boundary.
+ *
+ * WHY THIS EXISTS: `/chat/upload` is operator-role gated (`require_operator`).
+ * The voice-draft send path and the chat-attachment path both POST there with a
+ * bare `fetch(..., { body: form })` and NO Authorization header → 403 Forbidden
+ * → voice message "fails to send" (server log: "Unauthorized operator access
+ * attempt: POST /api/umh/chat/upload"). Spread this into the fetch headers so the
+ * Clerk bearer token rides along and the browser still owns the multipart boundary.
+ */
+export async function authHeader(): Promise<Record<string, string>> {
+  const token = (await getClerkToken()) ?? (await freshToken())
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 const _inflight = new Map<string, Promise<unknown>>()
 
 export async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {

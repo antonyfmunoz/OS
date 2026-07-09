@@ -1,10 +1,15 @@
-<!-- LOCKED 2026-07-03 — Do not modify without explicit AFM request -->
+<!-- LOCKED 2026-07-08 — Do not modify without explicit AFM request -->
 
 # UMH Cockpit — Design Specification
 
 This document is the authoritative design lock for the cockpit UI.
-Every value here reflects the confirmed, deployed state as of 2026-07-03.
+Every value here reflects the confirmed, deployed state as of 2026-07-08.
 Changes to any value require explicit AFM approval.
+
+Re-locked 2026-07-08 to capture the voice-message player, chat overflow-wrap
+hardening, audio media type, and removal of the voice routing HUD. All layout
+values (LeftDrawer 160, RightDrawer 240, HudBar 30, TitleBar 36) are unchanged
+from the 2026-07-03 lock.
 
 Applies to: **Web app** (universalmetaharness.tech), **Desktop app** (Electron), **Mobile** (web at ≤640px).
 
@@ -96,11 +101,17 @@ Applies to: **Web app** (universalmetaharness.tech), **Desktop app** (Electron),
 
 ### Chat Markdown (`.chat-markdown`)
 
+Base rule (`min-width: 0; max-width: 100%; overflow-wrap: anywhere;
+word-break: break-word`) — the chat body must NEVER push horizontal scroll.
+Every child that could hold a long token is bounded to wrap in place.
+
+- base: `min-width 0`, `max-width 100%`, `overflow-wrap anywhere`, `word-break break-word`
 - `p`: margin-bottom 0.5em
 - `strong`: weight 700, text-primary
 - `code`: 0.9em, 0 3px padding, radius 3px, bg surface-raised
-- `pre`: 0.5em margin, 6px padding, radius 3px, bg surface-raised, 0.85em
-- `table`: full width, collapse, 0.85em
+- `pre`: 0.5em margin, 6px padding, radius 3px, bg surface-raised, 0.85em, **`overflow-x: hidden`**
+- `pre code`: **`word-break: break-all`, `white-space: pre-wrap`** (long code wraps, never scrolls)
+- `table`: full width, collapse, 0.85em, **`table-layout: fixed`, `word-break: break-word`**
 - `th`: bg surface-raised, text-secondary, weight 600, uppercase
 - `a`: color cyan, underline
 - `blockquote`: 2px left border, text-tertiary
@@ -279,13 +290,65 @@ CommandPalette                   (fixed overlay, z-50, Ctrl+K)
 
 ### Multimodal File Support
 
-- `PendingMedia.media_type`: `'image' | 'video' | 'file'`
-- `MediaAttachment.media_type`: `'image' | 'video' | 'file'`
+- `PendingMedia.media_type`: `'image' | 'video' | 'audio' | 'file'`
+- `MediaAttachment.media_type`: `'image' | 'video' | 'audio' | 'file'`
 - `addPendingMedia`: accepts ALL file types (no whitelist filter)
 - Image preview: 48×48 thumbnail
 - Video preview: 48×48 "VID" label
 - File preview: 48×minWidth48 with truncated filename
-- MediaGrid: file attachments render as download links
+- MediaGrid: image → linked `<img>` (maxHeight 200); video → native `<video controls>`
+  (maxHeight 200); **audio → `VoiceMessagePlayer`** (spec below); file → download link
+
+### Voice Message Player (`VoiceMessagePlayer`)
+
+The playable audio bubble for operator voice messages. Compact, matches the UI —
+a bare cyan glyph, NOT a filled circle or glow button. Used in BOTH places audio
+appears: the sent message (MediaGrid, `media_type === 'audio'`) AND the pre-send
+voice draft review card (`VoiceDraftCard`). No native `<audio controls>` chrome
+appears anywhere in the chat — the draft card uses this same component so the play
+button looks identical before and after send.
+
+- **Card**: `flex items-center gap-1.5 mt-1 px-1.5 py-1 rounded w-full max-w-[180px]`,
+  inline `background: var(--color-surface)`, `border: 1px solid var(--color-border)`
+- **Play/Pause**: BARE lucide icon, no bg/circle/glow — `Play`/`Pause` size **11**,
+  `color: var(--color-cyan)`, `shrink-0 cursor-pointer transition-colors`
+- **Progress track**: `flex-1 min-w-0` wrapper; track `h-1 rounded-full cursor-pointer`
+  on `var(--color-border)`; fill `h-full rounded-full` at `var(--color-cyan)`,
+  width = `${pct}%`; **click-to-seek** enabled
+- **Timestamp**: `shrink-0 text-[8px] font-mono`, `color: var(--color-text-tertiary)` —
+  shows current time while playing/scrubbed, otherwise total duration (`m:ss`)
+- `<audio preload="metadata" playsInline>` (no native controls chrome)
+- **Persistence**: voice messages survive reload — the audio artifact is stored on the
+  operator turn (`media` round-trips through `/advisor/converse` → `save_conversation_turn`
+  → `/chat/history` → `loadHistory`) and re-renders identically, exactly like text.
+
+### Overflow Containment (chat never scrolls horizontally)
+
+The chat column is bounded so no message — long URLs, code, tables, tokens — ever
+forces a horizontal scrollbar. This is a locked invariant.
+
+- Scroll container: `flex-1 min-w-0 overflow-y-auto overflow-x-hidden space-y-2 mb-2`
+- `ConversationBubble` (operator + AI): `w-fit min-w-0` on the bubble;
+  operator text `<p>` is `whitespace-pre-wrap break-words [overflow-wrap:anywhere]`
+- Markdown body: `.chat-markdown` base wrap rules (see §2 Chat Markdown)
+
+### Voice Routing HUD — REMOVED
+
+The `VoiceRouteHud` banner ("VOICE ROUTE / Resolving route…") is deleted. No
+component, import, or render exists. Voice failures surface only as the terminal
+error banner below — never a routing overlay.
+
+### Voice Error Banner
+
+- Shown only when `voiceError && VOICE_TERMINAL_OUTCOMES.has(voiceLastOutcome)` —
+  transient states (requesting/granting/connecting) stay silent
+- Style: `text-[9px] font-mono text-danger mb-1 px-1.5 py-1 bg-danger/10 rounded
+  border border-danger/40 flex items-center gap-1`, `Mic` icon size 9
+- Terminal codes include the typed voice-WS taxonomy: `VOICE_WS_AUTH_TOKEN_MISSING`,
+  `VOICE_WS_AUTH_TIMEOUT`, `VOICE_WS_AUTH_FAILED`, `VOICE_WS_UPGRADE_FAILED`,
+  `VOICE_WS_PROXY_FAILED`, `VOICE_RUNTIME_TIMEOUT`, `VOICE_RUNTIME_UNAVAILABLE`,
+  `VOICE_RUNTIME_NOT_MOUNTED` — each renders a precise reason, never a generic
+  "unreachable"
 
 ### Message Structure
 

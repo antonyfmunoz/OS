@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchApi, API_BASE } from '../api/client'
+import { fetchApi, API_BASE, authHeader } from '../api/client'
 
 export interface Provenance {
   node?: string
@@ -143,6 +143,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const res = await fetch(`${API_BASE}/chat/upload`, {
               method: 'POST',
               body: form,
+              headers: await authHeader(), // operator-gated route — send Clerk bearer or 403
             })
             if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`)
             return res.json() as Promise<MediaAttachment>
