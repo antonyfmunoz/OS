@@ -30,6 +30,16 @@ const VOICE_TERMINAL_OUTCOMES = new Set<string>([
   'VOICE_START_FAILED',
   'STT_FAILED',
   'TIMEOUT',
+  // P4S-VOICE-WS-AUTH-PREFLIGHT-001: canonical typed voice-WS failures are all
+  // terminal (the mic returned to idle with a real reason) → render their banner.
+  'VOICE_WS_AUTH_TOKEN_MISSING',
+  'VOICE_WS_AUTH_TOKEN_TIMEOUT',
+  'VOICE_WS_AUTH_FAILED',
+  'VOICE_WS_UPGRADE_FAILED',
+  'VOICE_WS_PROXY_FAILED',
+  'VOICE_RUNTIME_TIMEOUT',
+  'VOICE_RUNTIME_UNAVAILABLE',
+  'VOICE_RUNTIME_NOT_MOUNTED',
 ])
 
 function safeUrl(url: string): string {

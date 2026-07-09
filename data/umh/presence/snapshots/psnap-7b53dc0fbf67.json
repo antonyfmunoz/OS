@@ -1,0 +1,77 @@
+{
+  "snapshot_id": "psnap-7b53dc0fbf67",
+  "captured_at": 1783492566.9359748,
+  "operator_present": false,
+  "active_device": "",
+  "active_host": "",
+  "active_session": "",
+  "active_profile_mode": "",
+  "active_system_modes": [],
+  "attention_state": "offline",
+  "last_activity_timestamp": 0.0,
+  "interaction_surface": "none",
+  "interruption_budget": "defer",
+  "devices": [
+    {
+      "device_id": "vps",
+      "tailscale_name": "srv1500858",
+      "device_type": "vps",
+      "display_name": "srv1500858 (VPS)",
+      "os": "linux",
+      "role": "orchestrator",
+      "online": false,
+      "active": false,
+      "last_seen": 0.0,
+      "session_count": 0
+    },
+    {
+      "device_id": "beast",
+      "tailscale_name": "desktop-lvguiq9",
+      "device_type": "pc",
+      "display_name": "desktop-lvguiq9 (PC)",
+      "os": "windows",
+      "role": "executor",
+      "online": false,
+      "active": false,
+      "last_seen": 0.0,
+      "session_count": 0
+    },
+    {
+      "device_id": "ipad",
+      "tailscale_name": "ipad-pro-12-9-gen-5",
+      "device_type": "tablet",
+      "display_name": "ipad-pro-12-9-gen-5 (Tablet)",
+      "os": "ios",
+      "role": "controller",
+      "online": false,
+      "active": false,
+      "last_seen": 0.0,
+      "session_count": 0
+    },
+    {
+      "device_id": "iphone",
+      "tailscale_name": "iphone-15-pro-max",
+      "device_type": "mobile",
+      "display_name": "iphone-15-pro-max (Mobile)",
+      "os": "ios",
+      "role": "controller",
+      "online": false,
+      "active": false,
+      "last_seen": 0.0,
+      "session_count": 0
+    },
+    {
+      "device_id": "macbook",
+      "tailscale_name": "antonys-macbook-pro",
+      "device_type": "laptop",
+      "display_name": "antonys-macbook-pro (Laptop)",
+      "os": "macos",
+      "role": "controller",
+      "online": false,
+      "active": false,
+      "last_seen": 0.0,
+      "session_count": 0
+    }
+  ],
+  "sessions": []
+}

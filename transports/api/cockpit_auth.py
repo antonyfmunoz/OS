@@ -35,6 +35,19 @@ if not _ALLOWED_USER_IDS and not _ALLOWLIST_OPEN:
     logger.warning("ALLOWED_CLERK_USER_IDS not set — all Clerk auth will be rejected")
 
 _DEV_BYPASS = os.environ.get("UMH_DEV_BYPASS", "").lower() in ("1", "true", "yes")
+if _DEV_BYPASS:
+    # DEV_BYPASS_PRESENT_IN_RUNTIME (P4S-VOICE-WS-AUTH-PREFLIGHT-001 security note).
+    # This is a phase-appropriate, CREDENTIAL-FIRST, PRIVATE-IP-GATED fallback: it
+    # only fires when NO Clerk credential was presented AND the caller's real IP is
+    # private/trusted-proxy (Tailscale/localhost). Authenticated public traffic
+    # (browser bearer.<jwt>) always hits _validate_jwt first and never reaches it.
+    # It MUST be removed (or gated to a non-prod env) before public/multi-tenant use;
+    # this warning exists so it can never silently become production doctrine.
+    logger.warning(
+        "UMH_DEV_BYPASS=true — private-IP, no-credential dev bypass is ACTIVE. "
+        "Credential-first and private-IP-gated, but must be disabled before "
+        "public/multi-tenant use. See .claude/rules/ security notes."
+    )
 
 _jwks_client: PyJWKClient | None = None
 

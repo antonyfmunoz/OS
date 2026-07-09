@@ -1,10 +1,28 @@
 import { WsClient } from './websocket'
-import { getClerkToken } from './client'
+import { acquireClerkToken } from './client'
 import {
   playTtsAudio,
   cancelPlayback,
   setPlaybackCallbacks,
 } from './tts-playback-controller'
+
+/** Canonical typed voice-WS connect failure codes (P4S-VOICE-WS-AUTH-PREFLIGHT-001).
+ *  A subset of the voiceStore VoiceOutcome union — the ones connect() can produce. */
+export type VoiceWsErrorCode =
+  | 'VOICE_WS_AUTH_TOKEN_MISSING'
+  | 'VOICE_WS_AUTH_TOKEN_TIMEOUT'
+  | 'VOICE_WS_AUTH_FAILED'
+  | 'VOICE_WS_UPGRADE_FAILED'
+  | 'VOICE_RUNTIME_TIMEOUT'
+
+/** Error carrying a canonical code so the adapter labels the exact failing boundary
+ *  instead of a generic "unreachable". */
+export class VoiceWsError extends Error {
+  constructor(public code: VoiceWsErrorCode, message?: string) {
+    super(message ?? code)
+    this.name = 'VoiceWsError'
+  }
+}
 
 function getVoiceUrl(): string {
   if (import.meta.env.VITE_VOICE_URL) return import.meta.env.VITE_VOICE_URL as string
@@ -22,6 +40,14 @@ const TARGET_SAMPLE_RATE = 16000
 // side — the runtime takes the preflight_pcm16 lane). The client resamples the
 // captured blob to this before streaming.
 const RAW_PCM_CONTENT_TYPE = 'audio/pcm'
+
+// SEPARATE CLOCKS (P4S-VOICE-WS-AUTH-PREFLIGHT-001). The token fetch and the WS
+// connect each have their OWN budget, and BOTH must finish inside the adapter's
+// outer 8s voice-start watchdog (CONSENT_START_TIMEOUT_MS). 3 + 5 = 8 ceiling, but
+// the token timer fails FAST and TYPED so the WS timer + outer watchdog are never
+// the ones that surface a token stall.
+const TOKEN_ACQUIRE_BUDGET_MS = 3000
+const WS_CONNECT_TIMEOUT_MS = 5000
 
 const log = (stage: string, ...args: unknown[]) =>
   console.log(`[VoicePipeline] ${stage}`, ...args)
@@ -187,38 +213,61 @@ export class VoiceWsClient {
     // CRITICAL: the governed voice WS requires Clerk auth. A browser WebSocket can't
     // set an Authorization header, so — like the persistent event WS
     // (useOrganismRealtime) — the token rides as a `bearer.<jwt>` subprotocol
-    // (server: validate_ws_clerk_token option 2). WITHOUT it the server accepts the
-    // upgrade then immediately close(4001)s → the client's connect times out → the
-    // "voice server unreachable" banner. Rebuild the socket with the fresh token.
-    const token = await getClerkToken()
-    const protocols = token ? [`bearer.${token}`] : undefined
-    if (!token) log('ws_connect_no_clerk_token', 'connecting without auth — server will 4001')
+    // (server: validate_ws_clerk_token option 2).
+    //
+    // SEPARATE CLOCKS (P4S-VOICE-WS-AUTH-PREFLIGHT-001): the token fetch has its OWN
+    // hard budget (token_acquire_timer, ~3s) DISTINCT from the WS connect timer (5s).
+    // The previous code fetched the token UNBOUNDED and BEFORE the WS timer armed, so
+    // a mobile-Safari token stall consumed the whole voice-start budget and the outer
+    // 8s watchdog fired a FALSE "server unreachable". Now a token stall fails FAST and
+    // TYPED (VOICE_WS_AUTH_TOKEN_TIMEOUT) before either watchdog — via the bounded
+    // acquireClerkToken() accessor (Gate 14 blocks any raw unbounded fetch here).
+    const auth = await acquireClerkToken(TOKEN_ACQUIRE_BUDGET_MS)
+    if (auth.status === 'timeout') {
+      log('ws_token_timeout', 'clerk getToken stalled past budget')
+      throw new VoiceWsError('VOICE_WS_AUTH_TOKEN_TIMEOUT', 'Sign-in token timed out')
+    }
+    if (auth.status === 'missing') {
+      log('ws_token_missing', 'no clerk token — not signed in')
+      throw new VoiceWsError('VOICE_WS_AUTH_TOKEN_MISSING', 'Not signed in')
+    }
+    const protocols = [`bearer.${auth.token}`]
+
+    // Token is known-good; NOW build the socket and arm the WS connect timer.
     this.ws.disconnect()
     this.ws = this._buildClient(protocols)
     return new Promise<void>((resolve, reject) => {
       const onConnected = this.ws.on('connected', () => {
         log('ws_connected')
         onConnected()
+        onDisconnected()
         clearTimeout(timer)
         resolve()
       })
       const onDisconnected = this.ws.on('disconnected', () => {
         log('ws_connect_failed', 'disconnected during connect')
+        onConnected()
         onDisconnected()
         clearTimeout(timer)
-        reject(new Error('Voice server disconnected during connect'))
+        // The socket closed/errored BEFORE it ever opened. With a valid token this is
+        // the server rejecting the upgrade (auth 4001/403) — a distinct boundary from
+        // a stalled socket. Classify as UPGRADE_FAILED (adapter refines to AUTH_FAILED
+        // when it knows the token was sent).
+        reject(new VoiceWsError('VOICE_WS_UPGRADE_FAILED', 'Voice server closed the connection during connect'))
       })
       const timer = setTimeout(() => {
         onConnected()
         onDisconnected()
-        log('ws_connect_timeout', '5s elapsed')
+        log('ws_connect_timeout', 'ws_connect_timer elapsed')
         // ROOT B: close the underlying socket before rejecting. Otherwise the
         // WsClient keeps shouldReconnect=true and its heartbeat/visibility
-        // listeners, so a socket that opens AFTER the 5s timeout becomes an
+        // listeners, so a socket that opens AFTER the timeout becomes an
         // orphaned, forever-reconnecting zombie with no owning reference.
         this.ws.disconnect()
-        reject(new Error('Voice server connection timed out'))
-      }, 5000)
+        // Socket neither opened nor closed within the WS budget → the runtime never
+        // became ready. Distinct from a token stall (already handled above).
+        reject(new VoiceWsError('VOICE_RUNTIME_TIMEOUT', 'Voice server did not respond'))
+      }, WS_CONNECT_TIMEOUT_MS)
       this.ws.connect()
     })
   }

@@ -171,8 +171,10 @@ def test_voice_ws_sends_clerk_bearer_subprotocol() -> None:
     # server accept→close(4001)s and the client connect times out. The client MUST
     # fetch the Clerk token and pass it as the WS subprotocol in connect().
     ws = _read("voice-ws.ts")
-    assert "getClerkToken" in ws
-    assert "bearer.${token}" in ws or "`bearer.${token}`" in ws
+    # the token now flows through the BOUNDED accessor (P4S-VOICE-WS-AUTH-PREFLIGHT-001)
+    # and is still sent as the bearer.<jwt> subprotocol.
+    assert "acquireClerkToken" in ws
+    assert "bearer.${auth.token}" in ws or "`bearer.${auth.token}`" in ws
     # server side must ECHO the offered subprotocol on accept (WS spec), else the
     # browser fails the handshake and closes the socket.
     voice_py = (
@@ -195,6 +197,117 @@ def test_voice_ws_disables_autoreconnect() -> None:
     sock = (_API / "websocket.ts").read_text(encoding="utf-8")
     assert "autoReconnect" in sock
     assert "opts?.autoReconnect ?? true" in sock
+
+
+def test_voice_ws_bounds_token_fetch_separate_clocks() -> None:
+    # P4S-VOICE-WS-AUTH-PREFLIGHT-001: THE live cause of "voice server unreachable"
+    # was an UNBOUNDED `await getClerkToken()` on the connect path, run BEFORE the WS
+    # timer armed — a mobile-Safari token stall ate the whole voice-start budget and
+    # the outer 8s watchdog fired a false "unreachable". connect() must use the
+    # BOUNDED acquireClerkToken() (separate token clock) and NOT a raw unbounded fetch.
+    ws = _read("voice-ws.ts")
+    assert "acquireClerkToken" in ws
+    assert "await getClerkToken(" not in ws  # no unbounded fetch on the path
+    assert ".getToken(" not in ws
+    # separate clocks: distinct token-acquire and ws-connect budgets
+    assert "TOKEN_ACQUIRE_BUDGET_MS" in ws
+    assert "WS_CONNECT_TIMEOUT_MS" in ws
+    # the bounded accessor exists and retries via the skipCache freshToken path
+    client = _read("client.ts")
+    assert "export async function acquireClerkToken" in client
+    assert "freshToken(" in client
+    assert "'timeout'" in client and "'missing'" in client
+
+
+def test_voice_ws_connect_emits_typed_codes_not_generic() -> None:
+    # connect() must reject with a typed VoiceWsError carrying a canonical code, so a
+    # token/auth/upgrade failure is NEVER flattened into a generic "unreachable".
+    ws = _read("voice-ws.ts")
+    assert "class VoiceWsError" in ws
+    for code in (
+        "VOICE_WS_AUTH_TOKEN_TIMEOUT",
+        "VOICE_WS_AUTH_TOKEN_MISSING",
+        "VOICE_WS_UPGRADE_FAILED",
+        "VOICE_RUNTIME_TIMEOUT",
+    ):
+        assert code in ws, f"connect() must be able to emit {code}"
+    # the controller maps the typed error to an outcome+message and the adapter does
+    # NOT overwrite a VoiceWsError with the generic "unreachable" banner.
+    ctrl = _read("voice-controller.ts")
+    assert "classifyVoiceWsError" in ctrl
+    adapter = _read("platform-voice-adapter.ts")
+    assert "err instanceof VoiceWsError" in adapter
+    # the old lie must be gone: no path sets the bare "unreachable" banner text
+    assert "Voice server unreachable" not in adapter
+
+
+def test_voice_outcome_union_has_canonical_taxonomy() -> None:
+    # The store union must carry the full canonical typed taxonomy so no failure is
+    # TS-invisible (and so RightRail can render each as a terminal banner).
+    store = _read_store("voiceStore.ts")
+    for code in (
+        "VOICE_WS_AUTH_TOKEN_MISSING",
+        "VOICE_WS_AUTH_TOKEN_TIMEOUT",
+        "VOICE_WS_AUTH_FAILED",
+        "VOICE_WS_UPGRADE_FAILED",
+        "VOICE_WS_PROXY_FAILED",
+        "VOICE_RUNTIME_TIMEOUT",
+        "VOICE_RUNTIME_UNAVAILABLE",
+        "VOICE_RUNTIME_NOT_MOUNTED",
+    ):
+        assert code in store, f"VoiceOutcome union missing {code}"
+    # RightRail renders them as terminal outcomes (visible banner, not swallowed)
+    rr = (_ROOT / "cockpit" / "src" / "renderer" / "components" / "RightRail.tsx").read_text(encoding="utf-8")
+    assert "VOICE_RUNTIME_TIMEOUT" in rr and "VOICE_WS_AUTH_TOKEN_TIMEOUT" in rr
+
+
+def test_nginx_voice_ws_uses_literal_address_not_keepalive_upstream() -> None:
+    # P4S-VOICE-WS-AUTH-PREFLIGHT-001 (Lane A secondary): the voice WS block used the
+    # `api_backend` keepalive upstream + `Connection "upgrade"`, which produced
+    # transient cold-start 502s. It must use the LITERAL backend address like the
+    # proven-good event/broadcast WS blocks, while still forwarding the WS headers.
+    nginx = (_ROOT / "cockpit" / "nginx.conf.template").read_text(encoding="utf-8")
+    # extract the voice block
+    start = nginx.index("location /api/umh/voice/ws")
+    end = nginx.index("location ", start + 1)
+    block = nginx[start:end]
+    assert "proxy_pass http://127.0.0.1:8091/api/umh/voice/ws;" in block
+    # the proxy_pass LINE must not route through the keepalive `api_backend` upstream
+    proxy_line = next(ln for ln in block.splitlines() if ln.strip().startswith("proxy_pass"))
+    assert "api_backend" not in proxy_line
+    for hdr in ("Upgrade $http_upgrade", 'Connection "upgrade"', "Sec-WebSocket-Protocol"):
+        assert hdr in block
+
+
+def test_gate14_flags_unbounded_token_and_legacy_refs() -> None:
+    # Inject-a-violation self-test for the extended Gate 14 assertions.
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "check_voice_runtime_divergence",
+        _ROOT / "scripts" / "check_voice_runtime_divergence.py",
+    )
+    assert spec and spec.loader
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    # clean tree passes all four new checks
+    assert gate.check_no_legacy_voice_runtime_refs() == []
+    assert gate.check_voice_ws_url_canonical() == []
+    assert gate.check_bounded_token_on_connect() == []
+    assert gate.check_no_bare_unreachable_only() == []
+    # the checks are real: the legacy-token list is non-empty and includes :8096
+    assert ":8096" in gate.LEGACY_VOICE_RUNTIME_TOKENS
+    assert "VOICE_WS_UPSTREAM" in gate.LEGACY_VOICE_RUNTIME_TOKENS
+
+
+def test_dev_bypass_present_is_classified_not_silent() -> None:
+    # Security note: UMH_DEV_BYPASS active in runtime must WARN at import (never
+    # silent), and remain credential-first + private-IP-gated.
+    auth = (_ROOT / "transports" / "api" / "cockpit_auth.py").read_text(encoding="utf-8")
+    assert "DEV_BYPASS_PRESENT_IN_RUNTIME" in auth
+    assert 'logger.warning(\n        "UMH_DEV_BYPASS=true' in auth or "UMH_DEV_BYPASS=true —" in auth
+    # the bypass path is still gated by a private-IP check (not header-forgeable)
+    assert "_is_private_ip(tcp_ip)" in auth
 
 
 def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:

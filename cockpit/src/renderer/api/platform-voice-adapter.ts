@@ -25,7 +25,7 @@
 
 import { fetchApi } from './client'
 import { startVoice, stopVoice, destroyVoice } from './voice-controller'
-import { ensureBrowserMicPermission, releaseGestureStream } from './voice-ws'
+import { ensureBrowserMicPermission, releaseGestureStream, VoiceWsError } from './voice-ws'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useVoiceMessageStore } from '../stores/voiceMessageStore'
 
@@ -231,12 +231,12 @@ async function _startCaptureInner(): Promise<void> {
   // with backoff (up to ~60s) — pinning the button at 'requesting_permission'
   // the whole time (the "hangs forever on Requesting mic…" symptom). Race the
   // whole consent→capture chain against a short watchdog so a flaky/down tunnel
-  // degrades to a fast, typed "Voice server unreachable" instead of a dead
-  // button. Any throw here resets micState to 'idle' (no stuck window).
+  // degrades to a fast, TYPED runtime-timeout instead of a dead button. Any throw
+  // here resets micState to 'idle' (no stuck window).
   // P4: an AbortController lets the watchdog CANCEL the in-flight chain. Without it,
   // _withTimeout rejected but _consentAndStart→startVoice kept running and installed
-  // a recorder over the just-torn-down mic (the "resurrected zombie recording after
-  // Voice server unreachable" bug). startVoice checks signal.aborted after each await.
+  // a recorder over the just-torn-down mic (the "resurrected zombie recording after a
+  // failed start" bug). startVoice checks signal.aborted after each await.
   const abort = new AbortController()
   try {
     await _withTimeout(_consentAndStart(abort.signal), CONSENT_START_TIMEOUT_MS, abort)
@@ -249,13 +249,23 @@ async function _startCaptureInner(): Promise<void> {
     // Aborting before capture handed off the stream to the recorder — release
     // the gesture mic so iOS doesn't hold a leaked session / lit mic indicator.
     releaseGestureStream()
+    // P4S-VOICE-WS-AUTH-PREFLIGHT-001: the inner path now fails FAST and TYPED
+    // (token missing/timeout, auth rejected, runtime timeout) — ensureClient already
+    // set the precise outcome+message. Do NOT overwrite it with a generic string.
+    if (err instanceof VoiceWsError) {
+      vs.setMicState('idle')
+      throw err
+    }
+    // A true OUTER-watchdog timeout now means the WHOLE chain (incl. mic acquisition)
+    // stalled past 8s even though the token path was bounded — a genuine runtime
+    // timeout, NOT "unreachable" (the server was never shown to be unreachable).
     const timedOut = err instanceof Error && err.name === 'VoiceStartTimeout'
     vs.setError(
       timedOut
-        ? 'Voice server unreachable — check connection and try again'
+        ? 'Voice did not start in time — tap the mic to try again'
         : 'Could not start voice — try again',
     )
-    vs.setLastOutcome(timedOut ? 'VOICE_START_TIMEOUT' : 'VOICE_START_FAILED')
+    vs.setLastOutcome(timedOut ? 'VOICE_RUNTIME_TIMEOUT' : 'VOICE_START_FAILED')
     vs.setMicState('idle')
     throw err
   }
@@ -288,7 +298,7 @@ function _withTimeout<T>(p: Promise<T>, ms: number, abort?: AbortController): Pr
  * critical path — they run FIRE-AND-FORGET purely to (a) refresh the local
  * grant-id for draft stamping and (b) keep the "disable" affordance accurate. We
  * go straight to startVoice() so a slow/flaky consent round-trip through the SSH
- * tunnel can never (i) trip the 8s watchdog into a false "Voice server unreachable"
+ * tunnel can never (i) trip the 8s watchdog into a false runtime-timeout banner
  * nor (ii) flash "consent not granted". The WS is the real, fail-closed gate. */
 async function _consentAndStart(signal?: AbortSignal): Promise<void> {
   const vs = useVoiceStore.getState()
