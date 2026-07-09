@@ -48,6 +48,7 @@ import { useChatStore } from '../stores/chatStore'
 import { useVoiceMessageStore, VAD_CONFIG } from '../stores/voiceMessageStore'
 import { unlockAudioForIOS, setPlaybackCallbacks, cancelPlayback, resetPlayback } from './tts-playback-controller'
 import { createTurn, updatePartial, cancelTurn, getCurrentTurn } from './voice-turn-assembler'
+import { diagStage, diagFlush } from './voice-diag'
 
 /**
  * P4S-31D1-E artifact-binding error taxonomy. The locally-captured MediaRecorder
@@ -149,8 +150,12 @@ const MIC_SILENT_RMS_FLOOR = 0.005
 /** How long capture may stay flat-at-0 before we surface the silent-mic hint. */
 const MIC_SILENT_HINT_MS = 2_000
 
-const log = (stage: string, ...args: unknown[]) =>
+const log = (stage: string, ...args: unknown[]) => {
   console.log(`[VoicePipeline] ${stage}`, ...args)
+  // P4S-VOICE-CLIENT-DIAG: mirror every stage into the diag timeline so a
+  // client-side stall (which never reaches the server) is still observable server-side.
+  diagStage(stage, args.length ? String(args[0]) : '')
+}
 
 // P1 — session timer registry. A single owner for every capture/turn timeout.
 // `arm(key, …)` ALWAYS clears the prior handle for that key before setting the
@@ -857,6 +862,7 @@ export async function startVoice(signal?: AbortSignal): Promise<void> {
   // playback — firing it fire-and-forget let the gesture expire first, so TTS was
   // then blocked by the autoplay policy ("Tap to play audio"). Await it (bounded;
   // it self-resolves), early in the chain, before the ensureClient/startMic awaits.
+  log('ios_audio_unlock_await')
   try {
     const ok = await unlockAudioForIOS()
     log('ios_audio_unlock', ok ? 'success' : 'failed')
@@ -895,7 +901,7 @@ export async function startVoice(signal?: AbortSignal): Promise<void> {
   // WITHOUT connecting the socket.
   const c = getOrCreateClient()
 
-  log('permission_requesting')
+  log('start_mic_await')
 
   let stream: MediaStream
   let captureDiagnostics: Record<string, unknown> = {}
@@ -982,6 +988,10 @@ export async function startVoice(signal?: AbortSignal): Promise<void> {
 
   // BLOB-ONLY capture: MediaRecorder on the raw stream is the sole artifact.
   _startRecorder(stream)
+  // P4S-VOICE-CLIENT-DIAG: recording started — flush the SUCCESS timeline so we can
+  // compare a working tap's stage timings against a failing one.
+  log('recorder_started')
+  diagFlush('recording_started')
 
   // Metering AnalyserNode on the SAME stream feeds client.clientRms; the ~10Hz
   // store poll mirrors it into the recording card so the bar visibly moves.

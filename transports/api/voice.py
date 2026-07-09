@@ -193,6 +193,41 @@ async def session_status():
     return state
 
 
+class ClientDiagEvent(BaseModel):
+    """One client-side voice-pipeline stage marker (no audio/transcript content)."""
+
+    stage: str = Field(max_length=80)
+    t_ms: int = 0  # ms since capture start on the client
+    detail: str = Field(default="", max_length=200)
+
+
+class ClientDiagBatch(BaseModel):
+    tap_id: str = Field(max_length=64)
+    ua: str = Field(default="", max_length=200)
+    events: list[ClientDiagEvent] = Field(default_factory=list, max_length=100)
+
+
+@router.post("/diag")
+async def voice_client_diag(batch: ClientDiagBatch):
+    """Ingest the client's voice-pipeline STAGE TIMELINE for one mic tap.
+
+    Diagnostic-only (P4S-VOICE-CLIENT-DIAG): the server logs cannot see a
+    client-side stall that never opens a WS, so the client posts its ordered stage
+    markers here and we log them for correlation. NO audio, transcript, or token
+    content — stage labels + relative timings only. Best-effort; never raises.
+    """
+    try:
+        line = " → ".join(f"{e.stage}@{e.t_ms}ms{('/' + e.detail) if e.detail else ''}"
+                           for e in batch.events)
+        logger.info(
+            "[VoiceClientDiag] tap=%s ua=%s | %s",
+            batch.tap_id, batch.ua[:120], line[:1600],
+        )
+    except Exception as exc:  # never let diagnostics break the client
+        logger.debug("voice diag ingest error: %s", exc)
+    return {"ok": True}
+
+
 # ── Governed voice WebSocket — the ONE capture ingress for every surface ───────
 #
 # GAP F wire protocol (shared by cockpit edges + CLI + tests):
