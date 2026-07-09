@@ -337,6 +337,9 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                     response=response.text,
                     origin_channel="cockpit",
                     responder="dex",
+                    # Persist operator media (e.g. a voice message's audio) so the
+                    # audio player survives reload via /chat/history.
+                    media=payload.get("media") or None,
                 )
             except Exception as exc:
                 logger.debug("Failed to persist conversation to OrganismStore: %s", exc)
@@ -532,6 +535,10 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                         entry["provenance"] = {k: v for k, v in provenance.items() if v}
                     if attachment:
                         entry["attachment"] = attachment
+                # Voice-message audio (and any operator media) persisted on the turn:
+                # re-emit it so the cockpit re-renders the audio player after reload.
+                if payload.get("media"):
+                    entry["media"] = payload["media"]
                 result.append(entry)
             return result
         except Exception as e:
