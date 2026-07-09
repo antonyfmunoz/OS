@@ -287,10 +287,18 @@ function OperatorBubble({ msg }: { msg: ChatMessage }) {
       </div>
       {msg.media && msg.media.length > 0 && <MediaGrid media={msg.media} />}
       {/* Voice: transcript collapsed by default, shown only when the chevron reveals it.
-          Non-voice: transcript renders inline exactly as before. */}
-      {hasTranscript && !isVoice && <p className="whitespace-pre-wrap mt-1">{msg.content}</p>}
+          Non-voice: renders inline. Both go through ReactMarkdown so bare URLs the
+          operator types become clickable links (remark-gfm autolink), matching the AI
+          bubble — previously operator text was a plain <p> and links were dead. */}
+      {hasTranscript && !isVoice && (
+        <div className="chat-markdown mt-1">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
+        </div>
+      )}
       {hasTranscript && isVoice && expanded && (
-        <p className="whitespace-pre-wrap mt-1 text-text-secondary">{msg.content}</p>
+        <div className="chat-markdown mt-1 text-text-secondary">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
+        </div>
       )}
       {hasTranscript && isVoice && (
         <button

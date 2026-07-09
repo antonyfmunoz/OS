@@ -228,6 +228,53 @@ async def voice_client_diag(batch: ClientDiagBatch):
     return {"ok": True}
 
 
+class TtsRequest(BaseModel):
+    """Synthesize a short reply to speakable audio."""
+
+    text: str = Field(max_length=4000)
+
+
+@router.post("/tts")
+async def voice_tts(req: TtsRequest):
+    """Synthesize `text` to a WAV and return the audio bytes (audio/wav).
+
+    The AI reply after a voice message is spoken by fetching this over HTTP — NOT
+    over the request-scoped voice WS, which closes right after the transcript and
+    has no reply-TTS handler (that mismatch surfaced as "Voice unavailable —
+    showing text" on every voice reply). WAV is returned because iOS Safari plays
+    WAV natively. Best-effort: on failure return 503 so the client falls back to
+    the text bubble (never a hang).
+    """
+    from fastapi import Response
+
+    text = (req.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text field required")
+
+    try:
+        from substrate.execution.voice.warm_engine import get_warm_engine
+
+        engine = get_warm_engine()
+        wav_path = engine.speak(text)
+        if not wav_path:
+            raise RuntimeError("TTS produced no audio")
+        from pathlib import Path as _Path
+
+        data = _Path(wav_path).read_bytes()
+        try:
+            _Path(wav_path).unlink(missing_ok=True)  # temp file, not chat media
+        except Exception:
+            pass
+        return Response(
+            content=data,
+            media_type="audio/wav",
+            headers={"Cache-Control": "no-store"},
+        )
+    except Exception as exc:
+        logger.warning("voice tts synthesis failed: %s", exc)
+        raise HTTPException(status_code=503, detail="TTS unavailable")
+
+
 # ── Governed voice WebSocket — the ONE capture ingress for every surface ───────
 #
 # GAP F wire protocol (shared by cockpit edges + CLI + tests):

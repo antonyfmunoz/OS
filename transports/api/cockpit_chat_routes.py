@@ -688,13 +688,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         # Browsers append codec parameters (e.g. "audio/webm;codecs=opus").
         base_ct = (file.content_type or "").split(";")[0].strip().lower()
         is_audio = base_ct in ALLOWED_AUDIO_TYPES
-
-        if not is_audio and base_ct not in ALLOWED_MEDIA_TYPES:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported media type: {base_ct or 'unknown'}. "
-                f"Allowed: {', '.join(sorted(ALLOWED_MEDIA_TYPES | ALLOWED_AUDIO_TYPES))}",
-            )
+        is_known_media = base_ct in ALLOWED_MEDIA_TYPES
+        # Multi-modal chat accepts ANY application format (pdf, docx, zip, csv,
+        # code, etc.) as a generic file attachment — not just image/video/audio.
+        # Audio stays STRICT (contract storage law); everything else is allowed
+        # and rendered as a download chip client-side. Size cap still applies.
+        is_generic_file = not is_audio and not is_known_media
 
         repo_root = os.environ.get("UMH_ROOT", "/opt/OS")
         media_dir = Path(repo_root) / "data" / "chat_media"
@@ -708,7 +707,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             file_id = f"{uuid.uuid4().hex}{ext}"
             max_size = MAX_AUDIO_UPLOAD_SIZE
         else:
-            ext = Path(file.filename or "upload").suffix or _ext_from_content_type(base_ct)
+            # Sanitize any client-supplied extension: strip path separators, keep a
+            # short alnum suffix only. Falls back to the content-type map, else ".bin".
+            raw_ext = Path(file.filename or "upload").suffix
+            safe_ext = "".join(c for c in raw_ext if c.isalnum() or c == ".")[:12]
+            ext = safe_ext if safe_ext.startswith(".") and len(safe_ext) > 1 else _ext_from_content_type(base_ct)
             file_id = (
                 f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
                 f"_{uuid.uuid4().hex[:8]}{ext}"
@@ -734,8 +737,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             media_type = "audio"
         elif base_ct.startswith("image/"):
             media_type = "image"
-        else:
+        elif base_ct.startswith("video/"):
             media_type = "video"
+        else:
+            # Any other application format → generic file (client renders a
+            # download chip). Never mislabel a pdf/doc/zip as "video".
+            media_type = "file"
 
         return {
             "id": file_id,

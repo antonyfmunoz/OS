@@ -46,7 +46,8 @@ import { VOICE_ERROR_CODES } from './voiceErrorCodes'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useChatStore } from '../stores/chatStore'
 import { useVoiceMessageStore, VAD_CONFIG } from '../stores/voiceMessageStore'
-import { unlockAudioForIOS, setPlaybackCallbacks, cancelPlayback, resetPlayback } from './tts-playback-controller'
+import { unlockAudioForIOS, setPlaybackCallbacks, cancelPlayback, resetPlayback, playTtsAudio } from './tts-playback-controller'
+import { API_BASE, authHeader } from './client'
 import { createTurn, updatePartial, cancelTurn, getCurrentTurn } from './voice-turn-assembler'
 import { diagStage, diagFlush } from './voice-diag'
 
@@ -638,6 +639,44 @@ async function ensureClient(): Promise<VoiceWsClient> {
   return client
 }
 
+/**
+ * Fetch the reply's TTS audio over HTTP and play it. Replaces the dead
+ * WS-based client.requestTts() (the voice WS is request-scoped and already
+ * closed by reply time). On any failure the held text is released and the
+ * bubble shows as text — never a hang. WAV plays natively on iOS.
+ */
+async function _fetchAndPlayReplyTts(text: string): Promise<void> {
+  const vs = useVoiceStore.getState()
+  try {
+    const res = await fetch(`${API_BASE}/voice/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+      body: JSON.stringify({ text }),
+    })
+    if (!res.ok) throw new Error(`tts ${res.status}`)
+    const buf = await res.arrayBuffer()
+    if (!buf || buf.byteLength === 0) throw new Error('empty tts audio')
+    sessionTimers.clear('ttsGenerate') // audio arrived — cancel the timeout
+    // playTtsAudio drives ttsState via setPlaybackCallbacks (wired in wireEvents):
+    // on start it goes 'speaking' + reveals the held message; on done/reject → idle.
+    vs.setTtsState('speaking')
+    vs.setVoicePresentationStatus('speaking')
+    releaseHeldMessage()
+    playTtsAudio(buf)
+  } catch (exc) {
+    log('reply_tts_http_failed', String(exc))
+    sessionTimers.clear('ttsGenerate')
+    vs.setTtsState('tts_failed')
+    vs.setVoicePresentationStatus('complete')
+    releaseHeldMessage() // show the text bubble — never leave it held
+    setTimeout(() => {
+      const v = useVoiceStore.getState()
+      v.setTtsState('idle')
+      v.setVoicePresentationStatus('idle')
+    }, 2500)
+  }
+}
+
 function releaseHeldMessage(): void {
   if (!heldVoiceMessage) return
   log('[VoiceTurn] message_released', heldVoiceMessage.id)
@@ -851,7 +890,10 @@ function wireEvents(): void {
 
       // Use spoken_text if available (concise TTS-friendly version)
       const ttsText = (last.metadata?.spoken_text as string | undefined) || last.content
-      client.requestTts(ttsText)
+      // Fetch reply TTS over HTTP and play it — the voice WS is request-scoped and
+      // already closed after the transcript (it has no reply-TTS handler), so
+      // client.requestTts() on it went nowhere → 15s timeout → "Voice unavailable".
+      void _fetchAndPlayReplyTts(ttsText)
     } else {
       voiceState.setVoicePresentationStatus('complete')
       setTimeout(() => useVoiceStore.getState().setVoicePresentationStatus('idle'), 500)
