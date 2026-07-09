@@ -109,6 +109,10 @@ def main() -> None:
 
     session: PromptSession[str] = PromptSession(history=InMemoryHistory())
 
+    # Files queued via /attach, sent as `media` on the next message so the
+    # assistant understands them (same seam as browser/desktop/mobile).
+    _pending_media: list[dict] = []
+
     while True:
         try:
             user_input = session.prompt("  > ").strip()
@@ -132,6 +136,26 @@ def main() -> None:
             console.print(f"  [dim]heard:[/dim] {transcript}")
             user_input = transcript  # fall through to the converse path
 
+        # /attach <path> — upload a local file (image/video/audio/pdf/…) so the
+        # assistant understands it on the NEXT message. Same seam as browser/mobile.
+        elif user_input.startswith("/attach"):
+            parts = user_input.split(maxsplit=1)
+            if len(parts) < 2:
+                console.print("  [dim]usage: /attach <path-to-file>[/dim]")
+                console.print()
+                continue
+            uploaded = client.upload_media(parts[1].strip())
+            if uploaded:
+                _pending_media.append(uploaded)
+                console.print(
+                    f"  [dim]attached:[/dim] {uploaded.get('filename')} "
+                    f"({uploaded.get('media_type')}) — send a message to have it understood"
+                )
+            else:
+                console.print(f"  [danger]Could not attach:[/danger] {parts[1].strip()}")
+            console.print()
+            continue
+
         elif user_input.startswith("/"):
             should_exit = handle_command(user_input, console, client)
             if should_exit:
@@ -141,8 +165,10 @@ def main() -> None:
             continue
 
         try:
+            _media = _pending_media[:] if _pending_media else None
+            _pending_media.clear()
             with console.status("[dim]Thinking...[/dim]", spinner="dots"):
-                response = client.converse(user_input)
+                response = client.converse(user_input, media=_media)
 
             if "error" in response:
                 console.print(f"  [danger]Error:[/danger] {response['error']}")

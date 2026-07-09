@@ -12,7 +12,7 @@ Usage:
     result = runtime.run(
         task_type=TaskType.ANALYZE,
         prompt="Analyze this signal...",
-        venture_id="lyfe_institute",
+        venture_id="<venture_slug>",
         skill_name="analyze_icp_signal",
     )
     print(result.output)
@@ -239,8 +239,11 @@ class AgentRuntime:
                 from substrate.state.business.business_instance import BusinessInstanceManager
 
                 _bim = BusinessInstanceManager(ctx)
-                # Try primary venture — EA soul doc is stored on the first venture
-                _primary_vid = venture_id or "lyfe_institute"
+                # Try primary venture — EA soul doc is stored on the first venture.
+                # Never hardcode a tenant slug: resolve the active venture from ctx.
+                from substrate.state.business.business_instance import get_active_venture_id
+
+                _primary_vid = venture_id or get_active_venture_id(ctx)
                 _bis = _bim.get_bis(_primary_vid)
                 _user_soul_doc = getattr(_bis, "ai_soul_doc_path", "") if _bis else ""
                 if _user_soul_doc and Path(_user_soul_doc).exists():
@@ -249,7 +252,7 @@ class AgentRuntime:
                     soul_doc_loaded = True
             except Exception as _bis_err:
                 _record_error(
-                    "bis_soul_doc", _bis_err, {"venture_id": venture_id or "lyfe_institute"}
+                    "bis_soul_doc", _bis_err, {"venture_id": _primary_vid}
                 )
 
         # Fall back to hierarchy soul doc (agents/{agent}.md)
@@ -473,7 +476,7 @@ class AgentRuntime:
             team:       Domain team name — "sales", "research", or "content".
             sub_agent:  Named sub-agent within that team.
             prompt:     Task input — the signal, message, or question.
-            venture_id: Venture context to inject (e.g. "lyfe_institute").
+            venture_id: Venture context to inject (a tenant venture slug).
             username:   Instagram handle for human profile injection (optional).
 
         Returns:

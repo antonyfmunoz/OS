@@ -340,7 +340,9 @@ Return JSON only:
                 'Notion-Version': '2022-06-28',
                 'Content-Type': 'application/json',
             }
-            # Venture names loaded from instance config
+            # Venture names + per-venture Notion DB loaded from instance config.
+            # The env var for each venture's "your list" DB is derived from the
+            # venture slug (NOTION_YOUR_LIST_<SLUG_UPPER>) — no tenant literals.
             _inst_ventures = []
             try:
                 from substrate.self_model import self_model as _sm
@@ -348,12 +350,22 @@ Return JSON only:
                     _inst_ventures = _sm.instance.ventures
             except Exception:
                 pass
-            _venture_labels = {v.get("id", ""): v.get("name", v.get("id", "")) for v in _inst_ventures}
-            _dbs = {
-                _venture_labels.get('lyfe_institute', 'Venture 1'): _os.getenv('NOTION_YOUR_LIST_LYFE'),
-                _venture_labels.get('empyrean_creative', 'Venture 2'): _os.getenv('NOTION_YOUR_LIST_EMPYREAN'),
-                'Personal Brand': _os.getenv('NOTION_YOUR_LIST_BRAND'),
-            }
+            if not _inst_ventures:
+                try:
+                    from substrate.state.business.business_instance import get_ventures
+                    _inst_ventures = get_ventures(self.ctx)
+                except Exception:
+                    _inst_ventures = []
+            _dbs = {}
+            for _v in _inst_ventures:
+                _vid = _v.get("id", "")
+                if not _vid:
+                    continue
+                _label = _v.get("name", _vid)
+                _env_key = f'NOTION_YOUR_LIST_{_vid.upper()}'
+                _dbs[_label] = _os.getenv(_env_key)
+            # Cross-venture personal brand list (not tenant-specific).
+            _dbs['Personal Brand'] = _os.getenv('NOTION_YOUR_LIST_BRAND')
             agenda.project_updates = []
             for _venture, _db_id in _dbs.items():
                 if not _db_id:

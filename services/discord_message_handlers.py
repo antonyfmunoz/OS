@@ -1160,7 +1160,9 @@ async def _handle_dex_conversation(
 
     async with message.channel.typing():
         try:
-            response = await loop.run_in_executor(None, _call_dex_converse, text)
+            response = await loop.run_in_executor(
+                None, lambda: _call_dex_converse(text, channel_id=channel_id)
+            )
         except Exception as exc:
             _record_error("dex_conversation_discord", exc)
             logger.warning("[DexDiscord] converse failed: %s", exc)
@@ -1190,8 +1192,18 @@ async def _handle_dex_conversation(
     return True
 
 
-def _call_dex_converse(content: str) -> dict | None:
-    """Call DexConversation.converse() synchronously (run in executor)."""
+def _call_dex_converse(
+    content: str,
+    media: list[dict] | None = None,
+    channel_id: str = "",
+) -> dict | None:
+    """Call DexConversation.converse() synchronously (run in executor).
+
+    ``media`` is a list of MediaAttachment descriptors so a Discord attachment is
+    understood through the SAME converse seam as browser/CLI/mobile (image/video/pdf
+    via free Gemini, audio via local Whisper) — coherent everywhere, not a separate
+    describe-back path.
+    """
     try:
         from substrate.organism.dex_conversation import DexConversation
 
@@ -1214,10 +1226,14 @@ def _call_dex_converse(content: str) -> dict | None:
             return None
 
         conv = DexConversation(advisor=daemon.advisor, store=daemon.store)
+        # Conversation id is derived from the Discord channel, not a hardcoded
+        # instance/channel name — instance context stays out of code.
+        conversation_id = f"discord-{channel_id}" if channel_id else "discord"
         resp = conv.converse(
             content=content,
-            conversation_id="discord-founders-office",
+            conversation_id=conversation_id,
             source="discord",
+            media=media,
         )
         return {
             "text": resp.text,

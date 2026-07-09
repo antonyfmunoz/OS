@@ -172,8 +172,15 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
     return violations
 
 
+# Layers scanned for instance leaks. The seam must stay clear across the WHOLE
+# platform, not just substrate — a hardcoded tenant value anywhere breaks
+# multi-tenancy. UMH capability layers + the projection binding shell are all in
+# scope (the projection defines the SHAPE; BIS supplies the tenant VALUES).
+_SCANNED_LAYERS = ("substrate/", "adapters/", "transports/", "services/", "projections/")
+
+
 def _get_staged_files() -> list[Path]:
-    """Get Python files staged for commit under substrate/."""
+    """Get Python files staged for commit under any scanned layer."""
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
         capture_output=True,
@@ -182,7 +189,7 @@ def _get_staged_files() -> list[Path]:
     )
     files = []
     for name in result.stdout.strip().splitlines():
-        if name.startswith("substrate/") and name.endswith(".py"):
+        if name.endswith(".py") and any(name.startswith(layer) for layer in _SCANNED_LAYERS):
             p = _REPO_ROOT / name
             if p.exists() and not _should_skip(p):
                 files.append(p)
@@ -190,11 +197,15 @@ def _get_staged_files() -> list[Path]:
 
 
 def _get_all_substrate_files() -> list[Path]:
-    """Get all Python files under substrate/."""
+    """Get all Python files under every scanned layer."""
     files = []
-    for p in (_REPO_ROOT / "substrate").rglob("*.py"):
-        if not _should_skip(p):
-            files.append(p)
+    for layer in _SCANNED_LAYERS:
+        layer_dir = _REPO_ROOT / layer.rstrip("/")
+        if not layer_dir.exists():
+            continue
+        for p in layer_dir.rglob("*.py"):
+            if not _should_skip(p):
+                files.append(p)
     return files
 
 

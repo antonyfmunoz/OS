@@ -487,3 +487,89 @@ def get_ai_name(ctx=None, venture_id: str = '') -> str:
     except Exception:
         pass
     return ''
+
+
+def get_founder_name(ctx=None, venture_id: str = '', default: str = '') -> str:
+    """Resolve the founder/principal display name for this instance.
+
+    Priority: BIS.founder_name (per venture) → FOUNDER_NAME env → ``default``.
+    Never hardcode the founder name — it is instance context.
+    """
+    if ctx is not None and venture_id:
+        try:
+            bim = BusinessInstanceManager(ctx)
+            bis = bim.get_bis(venture_id)
+            if bis and getattr(bis, 'founder_name', ''):
+                return bis.founder_name
+        except Exception:
+            pass
+    try:
+        import os as _os
+        env_name = _os.getenv('FOUNDER_NAME')
+        if env_name:
+            return env_name
+    except Exception:
+        pass
+    return default
+
+
+def get_github_repo(default: str = '') -> str:
+    """Resolve the GitHub ``owner/repo`` slug from env — never hardcode it.
+
+    Priority: UMH_GITHUB_REPO → GITHUB_REPO env → ``default``.
+    """
+    try:
+        import os as _os
+        return _os.getenv('UMH_GITHUB_REPO') or _os.getenv('GITHUB_REPO') or default
+    except Exception:
+        return default
+
+
+def get_active_venture_id(ctx=None, default: str = '') -> str:
+    """Resolve the active venture id from context/env — never hardcode a slug.
+
+    Priority: ctx.active_venture_id → UMH_ACTIVE_VENTURE_ID env → ``default``.
+    """
+    if ctx is not None:
+        vid = getattr(ctx, 'active_venture_id', '')
+        if vid:
+            return vid
+    try:
+        import os as _os
+        env_vid = _os.getenv('UMH_ACTIVE_VENTURE_ID')
+        if env_vid:
+            return env_vid
+    except Exception:
+        pass
+    return default
+
+
+def get_ventures(ctx=None) -> list[dict]:
+    """Resolve this tenant's ventures from BIS — never hardcode a venture roster.
+
+    Returns ``[{'id': slug, 'name': display_name}, ...]`` scoped to the tenant's
+    org, or ``[]`` when context/DB is unavailable. This is the canonical surface
+    for any code that would otherwise embed a literal venture list (competitor
+    tables, world-pulse queries, agent hierarchies, folder maps). Multi-tenant:
+    each caller gets only its own org's ventures, never another tenant's.
+    """
+    org_id = getattr(ctx, 'org_id', '') if ctx is not None else ''
+    if not org_id:
+        try:
+            import os as _os
+            org_id = _os.getenv('UMH_ORG_ID') or _os.getenv('EOS_ORG_ID') or ''
+        except Exception:
+            org_id = ''
+    if not org_id:
+        return []
+    try:
+        from substrate.state.business.venture_knowledge import VentureKnowledgeBase
+
+        raw = VentureKnowledgeBase.get_ventures_from_db(org_id)
+        out: list[dict] = []
+        for slug, venture in (raw or {}).items():
+            name = getattr(venture, 'name', '') or slug.replace('_', ' ').title()
+            out.append({'id': slug, 'name': name})
+        return out
+    except Exception:
+        return []

@@ -129,10 +129,13 @@ class CEOAgent:
         # Fill stage from BIS manager if not in events
         if 'stage' not in primitives or 'current_revenue' not in primitives:
             try:
-                from substrate.state.business.business_instance import BusinessInstanceManager
+                from substrate.state.business.business_instance import (
+                    BusinessInstanceManager,
+                    get_active_venture_id,
+                )
                 from substrate.state.storage.db import get_conn, resolve_venture
                 with get_conn(self.ctx.org_id) as cur:
-                    venture_id = self.ctx.active_venture_id or 'lyfe_institute'
+                    venture_id = get_active_venture_id(self.ctx)
                     resolve_venture(venture_id)
                 bim = BusinessInstanceManager(self.ctx)
                 bis = bim.get_bis(venture_id)
@@ -283,9 +286,12 @@ class CEOAgent:
 
             # Write new stage to BIS
             try:
-                from substrate.state.business.business_instance import BusinessInstanceManager
+                from substrate.state.business.business_instance import (
+                    BusinessInstanceManager,
+                    get_active_venture_id,
+                )
                 from substrate.state.storage.db import get_conn, resolve_venture
-                venture_id = self.ctx.active_venture_id or 'lyfe_institute'
+                venture_id = get_active_venture_id(self.ctx)
                 with get_conn(self.ctx.org_id) as cur:
                     resolve_venture(venture_id)
                 bim = BusinessInstanceManager(self.ctx)
@@ -328,11 +334,10 @@ class CEOAgent:
             from substrate.control_plane.agents.ceo_intelligence import (
                 diagnose_constraint,
             )
-            vid = (
-                venture_id
-                or self.ctx.active_venture_id
-                or 'lyfe_institute'
+            from substrate.state.business.business_instance import (
+                get_active_venture_id,
             )
+            vid = venture_id or get_active_venture_id(self.ctx)
             return diagnose_constraint(
                 vid, self.ctx
             )
@@ -361,11 +366,10 @@ class CEOAgent:
             from substrate.control_plane.agents.ceo_intelligence import (
                 generate_ceo_brief,
             )
-            vid = (
-                venture_id
-                or self.ctx.active_venture_id
-                or 'lyfe_institute'
+            from substrate.state.business.business_instance import (
+                get_active_venture_id,
             )
+            vid = venture_id or get_active_venture_id(self.ctx)
             return generate_ceo_brief(
                 vid,
                 venture_name or vid,

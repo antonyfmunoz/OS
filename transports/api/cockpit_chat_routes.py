@@ -291,7 +291,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         _dex_conversation = DexConversation(advisor=daemon.advisor, store=daemon.store)
         return _dex_conversation
 
-    # ── Advisor / DEX conversation endpoints ─────────────────────────────────
+    # ── Advisor conversation endpoints ───────────────────────────────────────
 
     @r.post("/advisor/converse")
     def advisor_converse(payload: dict):

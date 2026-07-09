@@ -313,7 +313,7 @@ AI is a cognitive enhancement, not a dependency.
 
 ## Verification Rules
 - Every skill MUST have a Gotchas section
-- Developer Agent: run eos-code-reviewer and eos-verifier subagents after every change
+- Developer Agent: run umh-code-reviewer and umh-verifier subagents after every change
 - Never mark a task complete without verification
 
 ## Self-Improvement Loop

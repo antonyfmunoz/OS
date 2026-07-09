@@ -6,12 +6,15 @@ import { RoomDexPanel } from './RoomDexPanel'
 import { RoomChatPanel } from './RoomChatPanel'
 import { RoomAuditLog } from './RoomAuditLog'
 import { InvitePanel } from './InvitePanel'
+import { useConfigStore } from '../../stores/configStore'
 
 type Tab = 'members' | 'dex' | 'chat' | 'invites' | 'audit'
 
+// The 'dex' tab's label is the instance AI name (resolved at render from config),
+// never a hardcoded literal. Empty label here = "use aiName" in the render map.
 const TABS: { id: Tab; label: string; icon: typeof Users }[] = [
   { id: 'members', label: 'Members', icon: Users },
-  { id: 'dex', label: 'DEX', icon: Bot },
+  { id: 'dex', label: '', icon: Bot },
   { id: 'chat', label: 'Chat', icon: MessageSquare },
   { id: 'invites', label: 'Invites', icon: Link2 },
   { id: 'audit', label: 'Audit', icon: Shield },
@@ -26,6 +29,7 @@ interface Props {
 
 export function RoomRightRail({ collapsed, onToggleCollapse, chatRequested, onChatOpened }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('members')
+  const aiName = useConfigStore((s) => s.aiName)
 
   useEffect(() => {
     if (!chatRequested) return
@@ -73,6 +77,7 @@ export function RoomRightRail({ collapsed, onToggleCollapse, chatRequested, onCh
           {TABS.map((tab) => {
             const Icon = tab.icon
             const active = activeTab === tab.id
+            const label = tab.label || (tab.id === 'dex' ? aiName : tab.id)
             return (
               <button
                 key={tab.id}
@@ -81,10 +86,10 @@ export function RoomRightRail({ collapsed, onToggleCollapse, chatRequested, onCh
                 style={{
                   color: active ? 'var(--color-cyan)' : 'var(--color-text-tertiary)',
                 }}
-                title={tab.label}
+                title={label}
               >
                 <Icon size={11} />
-                <span className="hidden xl:inline">{tab.label}</span>
+                <span className="hidden xl:inline">{label}</span>
               </button>
             )
           })}
