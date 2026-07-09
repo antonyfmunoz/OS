@@ -351,6 +351,35 @@ def test_clerk_token_is_jwt_shape_guarded() -> None:
         assert "_isJwtShaped(t)" in body, f"{accessor} must shape-guard the token"
 
 
+def test_ios_audio_unlock_cannot_block_recording() -> None:
+    # P4S-VOICE-UNLOCK-HANG: THE actual field failure (proven by client diag —
+    # ios_audio_unlock_await never returned, 8s watchdog fired). On iOS 18.7 Safari
+    # HTMLAudioElement.play() on a blob URL can return a Promise that NEVER settles.
+    # unlockAudioForIOS() is a TTS-playback nicety and must NEVER block mic capture.
+    # Two guards: (1) startVoice runs it FIRE-AND-FORGET (not awaited before startMic),
+    # (2) the play() itself is bounded by a timeout.
+    ctrl = _read("voice-controller.ts")
+    # in startVoice, unlock must run FIRE-AND-FORGET (inside `void (async () => …)()`),
+    # never on the awaited critical path before startMic.
+    start = ctrl.index("export async function startVoice")
+    startmic = ctrl.index("c.startMic()", start)
+    pre_mic = ctrl[start:startmic]
+    # the ACTUAL invocation is `await unlockAudioForIOS()` inside a `void (async …)()`
+    # IIFE — the fire-and-forget wrapper must come before that call.
+    call_idx = pre_mic.index("await unlockAudioForIOS()")
+    assert "void (async" in pre_mic[:call_idx], (
+        "unlockAudioForIOS must be fire-and-forget (void async IIFE), not awaited on the path"
+    )
+    # and there must be NO await on it OUTSIDE the IIFE (before the void wrapper)
+    void_idx = pre_mic.index("void (async")
+    assert "await unlockAudioForIOS()" not in pre_mic[:void_idx]
+    # the unlock itself bounds audio.play()
+    tts = (_API / "tts-playback-controller.ts").read_text(encoding="utf-8")
+    assert "audio.play()" in tts
+    unlock = tts[tts.index("export async function unlockAudioForIOS"):]
+    assert "Promise.race" in unlock, "audio.play() must be bounded by a timeout"
+
+
 def test_startvoice_guard_does_not_deadlock_on_startup_states() -> None:
     # P4S31 DEADLOCK FIX: startVoice()'s re-entrancy guard must only bail on a LIVE
     # recording ('listening'/'recording'), NOT on the startup states

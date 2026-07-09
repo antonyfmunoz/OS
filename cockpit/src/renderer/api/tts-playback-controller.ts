@@ -75,7 +75,18 @@ export async function unlockAudioForIOS(): Promise<boolean> {
 
     const audio = new Audio(url)
     audio.volume = 0
-    await audio.play()
+    // P4S-VOICE-UNLOCK-HANG: on iOS 18.7 Safari, HTMLAudioElement.play() on a blob
+    // URL can return a Promise that NEVER settles — it hung the whole voice-start
+    // chain here (client diag: ios_audio_unlock_await never returned; the 8s watchdog
+    // fired → false "Voice did not start in time"). Bound play() so a hung unlock
+    // degrades to a fast failure instead of stalling recording. Unlock is a TTS-
+    // playback nicety; it must NEVER block mic capture.
+    await Promise.race([
+      audio.play(),
+      new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('audio.play() timed out (iOS unlock hang)')), 1200),
+      ),
+    ])
     audio.pause()
     URL.revokeObjectURL(url)
 

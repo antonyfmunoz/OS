@@ -862,13 +862,23 @@ export async function startVoice(signal?: AbortSignal): Promise<void> {
   // playback — firing it fire-and-forget let the gesture expire first, so TTS was
   // then blocked by the autoplay policy ("Tap to play audio"). Await it (bounded;
   // it self-resolves), early in the chain, before the ensureClient/startMic awaits.
-  log('ios_audio_unlock_await')
-  try {
-    const ok = await unlockAudioForIOS()
-    log('ios_audio_unlock', ok ? 'success' : 'failed')
-  } catch {
-    log('ios_audio_unlock', 'error')
-  }
+  // P4S-VOICE-UNLOCK-HANG: unlockAudioForIOS() enables autoplay for LATER TTS
+  // playback — it has NOTHING to do with recording. It was awaited here and, on iOS
+  // 18.7 Safari, its internal audio.play() never settled → it hung the entire
+  // voice-start chain until the 8s watchdog fired ("Voice did not start in time";
+  // client diag proved ios_audio_unlock_await never returned). Run it FIRE-AND-FORGET
+  // (and it's now internally bounded too) so a hung/failed unlock can never block the
+  // mic. Worst case: the FIRST TTS response needs a tap-to-play, which is far better
+  // than a dead mic button.
+  log('ios_audio_unlock_fire_and_forget')
+  void (async () => {
+    try {
+      const ok = await unlockAudioForIOS()
+      log('ios_audio_unlock', ok ? 'success' : 'failed')
+    } catch {
+      log('ios_audio_unlock', 'error')
+    }
+  })()
 
   // Wire playback callbacks for TTS state management
   setPlaybackCallbacks(
