@@ -2168,10 +2168,10 @@ def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
     return resp.to_http_dict()
 
 
-# ── DEX Settings ──
+# ── Advisor Settings ──
 
 @rooms_router.get("/channels/{channel_id}/dex")
-def get_dex_settings(channel_id: str, user=Depends(require_clerk_auth)):
+def get_advisor_settings(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
     dex = _load("dex_settings")
     settings = next((d for d in dex if d["channel_id"] == channel_id), None)
@@ -2194,7 +2194,7 @@ def get_dex_settings(channel_id: str, user=Depends(require_clerk_auth)):
 
 
 @rooms_router.patch("/channels/{channel_id}/dex")
-def update_dex_settings(channel_id: str, req: UpdateDexReq, user=Depends(require_clerk_auth)):
+def update_advisor_settings(channel_id: str, req: UpdateDexReq, user=Depends(require_clerk_auth)):
     server_id = _require_channel_access(user, channel_id)
     _require_server_perm(user, server_id, "manage_channels")
     updates = req.model_dump(exclude_none=True)
@@ -2222,11 +2222,11 @@ def update_dex_settings(channel_id: str, req: UpdateDexReq, user=Depends(require
         for k, v in updates.items():
             settings[k] = v
         _save("dex_settings", dex)
-        return f"updated dex settings for {channel_id}", True
+        return f"updated advisor settings for {channel_id}", True
 
     resp = governed_mutation(
         mutation_name="settings_update",
-        intent=f"update dex settings for channel {channel_id}",
+        intent=f"update advisor settings for channel {channel_id}",
         execute_fn=_do_update,
         source="cockpit",
     )
@@ -2234,7 +2234,7 @@ def update_dex_settings(channel_id: str, req: UpdateDexReq, user=Depends(require
 
 
 @rooms_router.post("/channels/{channel_id}/dex/summarize")
-def dex_summarize(channel_id: str, user=Depends(require_clerk_auth)):
+def advisor_summarize(channel_id: str, user=Depends(require_clerk_auth)):
     _require_channel_access(user, channel_id)
 
     def _do_summarize():
@@ -2254,7 +2254,7 @@ def dex_summarize(channel_id: str, user=Depends(require_clerk_auth)):
 
     resp = governed_mutation(
         mutation_name="state_mutate",
-        intent=f"dex summarize channel {channel_id}",
+        intent=f"advisor summarize channel {channel_id}",
         execute_fn=_do_summarize,
         source="cockpit",
     )

@@ -174,7 +174,7 @@ Keep it under 500 words. Client-facing quality.""",
                     'drive_id': drive_result.get('id', ''),
                     'created_at': datetime.now(PDT).isoformat(),
                 },
-                handled_by='dex_doc_creator',
+                handled_by='advisor_doc_creator',
             )
         except Exception:
             pass

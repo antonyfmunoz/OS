@@ -493,12 +493,12 @@ class TestMeeting:
         assert len(updated["agenda"]) == 3
 
 
-class TestDex:
+class TestAdvisorSettings:
     @pytest.mark.asyncio
-    async def test_room_dex_mode_set(self):
+    async def test_room_advisor_mode_set(self):
         server = await mod.create_server(mod.CreateServerReq(name="S"), _MOCK_USER)
         ch = await mod.create_channel(server["id"], mod.CreateChannelReq(name="sales"), _MOCK_USER)
-        settings = await mod.update_dex_settings(ch["id"], mod.UpdateDexReq(mode="sales_coach"), _MOCK_USER)
+        settings = await mod.update_advisor_settings(ch["id"], mod.UpdateDexReq(mode="sales_coach"), _MOCK_USER)
         assert settings["mode"] == "sales_coach"
 
     @pytest.mark.asyncio
@@ -507,8 +507,8 @@ class TestDex:
         ch1 = await mod.create_channel(server["id"], mod.CreateChannelReq(name="ch1"), _MOCK_USER)
         ch2 = await mod.create_channel(server["id"], mod.CreateChannelReq(name="ch2"), _MOCK_USER)
 
-        s1 = await mod.update_dex_settings(ch1["id"], mod.UpdateDexReq(memory_scope="room"), _MOCK_USER)
-        s2 = await mod.update_dex_settings(ch2["id"], mod.UpdateDexReq(memory_scope="room"), _MOCK_USER)
+        s1 = await mod.update_advisor_settings(ch1["id"], mod.UpdateDexReq(memory_scope="room"), _MOCK_USER)
+        s2 = await mod.update_advisor_settings(ch2["id"], mod.UpdateDexReq(memory_scope="room"), _MOCK_USER)
 
         assert s1["memory_scope"] == "room"
         assert s2["memory_scope"] == "room"

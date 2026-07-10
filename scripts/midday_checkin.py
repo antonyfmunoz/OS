@@ -57,7 +57,7 @@ async def midday_checkin():
             cur.execute('''
                 SELECT payload_json FROM events
                 WHERE org_id = %s
-                AND event_type IN ('email_draft_pending', 'dex_question')
+                AND event_type IN ('email_draft_pending', 'advisor_question')
                 AND (payload_json->>\'status\' = \'pending_approval\'
                      OR payload_json->>\'answered\' IS NULL)
                 AND created_at >= NOW() - INTERVAL '24 hours'

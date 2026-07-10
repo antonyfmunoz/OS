@@ -46,7 +46,7 @@ async def run_weekly_review():
                 AND created_at >= NOW() - INTERVAL '7 days'
                 AND event_type IN (
                     'meeting_scheduled', 'pipeline_entry',
-                    'dex_task', 'decision'
+                    'advisor_task', 'decision'
                 )
                 ORDER BY created_at DESC
                 LIMIT 30
@@ -63,7 +63,7 @@ async def run_weekly_review():
                 completed.append(f'📅 Met with {payload.get("person", "someone")}')
             elif et == 'pipeline_entry':
                 completed.append(f'📊 Pipeline: {payload.get("name", "lead")}')
-            elif et == 'dex_task':
+            elif et == 'advisor_task':
                 completed.append(f'✅ {payload.get("task", "task")[:60]}')
             elif et == 'decision':
                 completed.append(f'🎯 {payload.get("description", "decision")[:60]}')
@@ -84,7 +84,7 @@ async def run_weekly_review():
             cur.execute("""
                 SELECT payload_json FROM events
                 WHERE org_id = %s
-                AND event_type = 'dex_task'
+                AND event_type = 'advisor_task'
                 AND (payload_json->>'status' IS NULL
                      OR payload_json->>'status' != 'completed')
                 AND created_at >= NOW() - INTERVAL '14 days'

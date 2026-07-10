@@ -114,12 +114,13 @@ def _persist_decision_status_to_chat(record: Any, decision: str, decided_by: str
 
         def _persist() -> tuple[str, bool]:
             from substrate.organism.store import OrganismStore
+            from substrate.state.business.business_instance import get_ai_name
 
             OrganismStore().save_conversation_turn(
                 content=f"{decision} intent loop {record.loop_id}",
                 response=text,
                 origin_channel="cockpit",
-                responder="dex",
+                responder=get_ai_name().lower(),
             )
             return ("intent loop decision status saved to chat thread", True)
 

@@ -138,7 +138,7 @@ async def handle_nomeetings(message, text: str) -> bool:
                             "type": "no_meetings",
                         }
                     ),
-                    "dex_calendar",
+                    "advisor_calendar",
                 ),
             )
 
@@ -309,7 +309,7 @@ async def handle_audit(message, text: str) -> bool:
                 WHERE org_id = %s
                 AND created_at >= NOW() - INTERVAL '%s days'
                 AND event_type IN (
-                    'decision', 'dex_task', 'meeting_scheduled',
+                    'decision', 'advisor_task', 'meeting_scheduled',
                     'pipeline_entry', 'email_classified',
                     'approval_requested', 'approval_granted'
                 )
@@ -326,7 +326,7 @@ async def handle_audit(message, text: str) -> bool:
             )
             return True
 
-        _lines = [f"📋 **DEX Audit Log — last {_days} day(s):**"]
+        _lines = [f"📋 **Audit Log — last {_days} day(s):**"]
         for _r in _rows:
             _payload = _r["payload_json"]
             if isinstance(_payload, str):
@@ -336,7 +336,7 @@ async def handle_audit(message, text: str) -> bool:
             if _etype == "decision":
                 _desc = _payload.get("description", "Decision")[:60]
                 _lines.append(f"🎯 [{_created}] Decision: {_desc}")
-            elif _etype == "dex_task":
+            elif _etype == "advisor_task":
                 _task = _payload.get("task", "Task")[:60]
                 _lines.append(f"✅ [{_created}] Task captured: {_task}")
             elif _etype == "meeting_scheduled":

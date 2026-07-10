@@ -138,7 +138,7 @@ Subject line included.""").strip()
                             'type': 'noshow_recovery',
                             'status': 'pending_approval',
                         }),
-                        'dex_noshow',
+                        'advisor_noshow',
                     ))
             except Exception as e:
                 print(f'[NoShow] Neon queue failed: {e}')

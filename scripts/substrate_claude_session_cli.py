@@ -8,7 +8,7 @@ the VPS node or the local node.
 
 Subcommands:
   detect    Print tmux + claude CLI availability and default target (JSON).
-  list      List dex_* tmux sessions visible on this node.
+  list      List advisor tmux sessions visible on this node.
   status    Report status of a single named session.
   ensure    Create session (idempotent); optionally launch claude inside.
   send      Inject text into a session's pane.
@@ -19,11 +19,11 @@ Usage examples:
   python3 scripts/substrate_claude_session_cli.py detect
   python3 scripts/substrate_claude_session_cli.py list --target vps
   python3 scripts/substrate_claude_session_cli.py ensure \\
-      --target vps --session dex_main --working-dir /opt/OS
+      --target vps --session advisor_main --working-dir /opt/OS
   python3 scripts/substrate_claude_session_cli.py send \\
-      --target vps --session dex_main --text "hello"
+      --target vps --session advisor_main --text "hello"
   python3 scripts/substrate_claude_session_cli.py ask \\
-      --target vps --session dex_main --text "what is 2+2?"
+      --target vps --session advisor_main --text "what is 2+2?"
 """
 
 from __future__ import annotations
@@ -114,7 +114,7 @@ def _add_target(p: argparse.ArgumentParser) -> None:
 
 
 def _add_session(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--session", required=True, help="tmux session name (e.g. dex_main)")
+    p.add_argument("--session", required=True, help="tmux session name (e.g. advisor_main)")
 
 
 def main() -> int:
@@ -124,7 +124,7 @@ def main() -> int:
     p = sub.add_parser("detect", help="Print environment detection")
     p.set_defaults(func=cmd_detect)
 
-    p = sub.add_parser("list", help="List dex_* tmux sessions on this node")
+    p = sub.add_parser("list", help="List advisor tmux sessions on this node")
     _add_target(p)
     p.set_defaults(func=cmd_list)
 

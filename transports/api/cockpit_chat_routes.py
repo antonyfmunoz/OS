@@ -1,4 +1,4 @@
-"""Cockpit chat routes — advisor/dex conversation + operator chat.
+"""Cockpit chat routes — advisor conversation + operator chat.
 
 Extracted from cockpit_core_routes.py to bring it under the 3,000-line
 quality gate. UMH transport layer.
@@ -172,11 +172,13 @@ def try_chat_intent_rail(content: str, conversation_id: str = "") -> dict | None
     def _persist_turn() -> tuple[str, bool]:
         from substrate.organism.store import OrganismStore
 
+        from substrate.state.business.business_instance import get_ai_name
+
         OrganismStore().save_conversation_turn(
             content=content,
             response=text,
             origin_channel="cockpit",
-            responder="dex",
+            responder=get_ai_name().lower(),
         )
         return ("intent rail turn saved to chat thread", True)
 
@@ -332,11 +334,13 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 from substrate.organism.store import OrganismStore
 
                 store = OrganismStore()
+                from substrate.state.business.business_instance import get_ai_name
+
                 store.save_conversation_turn(
                     content=content,
                     response=response.text,
                     origin_channel="cockpit",
-                    responder="dex",
+                    responder=get_ai_name().lower(),
                 )
             except Exception as exc:
                 logger.debug("Failed to persist conversation to OrganismStore: %s", exc)
@@ -387,12 +391,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
         exchanges: list[dict[str, Any]] = []
 
-        dex_msgs = [
+        from substrate.state.business.business_instance import get_ai_name
+
+        _ai = get_ai_name().lower()
+        _ai_senders = {"dex", _ai} if _ai != "dex" else {"dex"}
+
+        advisor_msgs = [
             m for m in messages if m.get("payload", {}).get("source") == "cockpit_advisor_channel"
         ]
         i = 0
-        while i < len(dex_msgs):
-            msg = dex_msgs[i]
+        while i < len(advisor_msgs):
+            msg = advisor_msgs[i]
             exchange: dict[str, Any] = {
                 "id": msg.get("id", ""),
                 "timestamp": msg.get("created_at", ""),
@@ -402,18 +411,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             }
             if msg.get("sender") == "operator":
                 exchange["content"] = msg.get("payload", {}).get("content", "")
-                if i + 1 < len(dex_msgs) and dex_msgs[i + 1].get("sender") == "dex":
-                    exchange["response"] = dex_msgs[i + 1].get("payload", {}).get("response")
-                    exchange["timestamp"] = dex_msgs[i + 1].get("created_at", exchange["timestamp"])
+                if i + 1 < len(advisor_msgs) and advisor_msgs[i + 1].get("sender") in _ai_senders:
+                    exchange["response"] = advisor_msgs[i + 1].get("payload", {}).get("response")
+                    exchange["timestamp"] = advisor_msgs[i + 1].get("created_at", exchange["timestamp"])
                     i += 2
                     continue
-            elif msg.get("sender") == "dex":
+            elif msg.get("sender") in _ai_senders:
                 exchange["content"] = ""
                 exchange["response"] = msg.get("payload", {}).get("response")
             exchanges.append(exchange)
             i += 1
 
-        _REPORT_SENDERS = {"system", "dex"}
+        _REPORT_SENDERS = {"system"} | _ai_senders
         for m in messages:
             if m.get("intent") == "report" and m.get("sender", "") in _REPORT_SENDERS:
                 payload = m.get("payload", {})
@@ -467,7 +476,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         """Backward-compat shim — canonical route is /advisor/history."""
         return await advisor_history(limit)
 
-    # ── Chat endpoints (operator ↔ DEX right-rail conversation) ──────────────
+    # ── Chat endpoints (operator ↔ advisor right-rail conversation) ──────────
 
     @r.get("/chat/history")
     def chat_history():
@@ -483,7 +492,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 payload = m.get("payload", {})
                 raw_sender = m.get("sender", "system")
                 attachment = None
-                if intent == "report" and raw_sender in ("system", "dex", ""):
+                from substrate.state.business.business_instance import get_ai_name
+
+                _ai_name = get_ai_name().lower()
+                _report_senders = {"system", "", "dex", _ai_name}
+                if intent == "report" and raw_sender in _report_senders:
                     meta = payload.get("metadata", {})
                     title = str(payload.get("title", "Report"))[:200]
                     summary = payload.get("summary", "")
@@ -573,7 +586,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         )
         if not resp.success:
             return {
-                "message_id": f"dex-{int(time.time() * 1000)}",
+                "message_id": f"advisor-{int(time.time() * 1000)}",
                 "response": "Internal error — check server logs.",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }

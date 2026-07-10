@@ -132,7 +132,7 @@ def log_trip(
                 'end_date': end_date,
                 'logged_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_travel',
+            handled_by='advisor_travel',
         )
         return True
     except Exception as e:
@@ -312,7 +312,7 @@ def log_loyalty_program(
                 'tier': tier,
                 'updated_at': datetime.now(PDT).isoformat(),
             },
-            handled_by='dex_travel',
+            handled_by='advisor_travel',
         )
         return True
     except Exception as e:

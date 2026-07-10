@@ -114,7 +114,9 @@ async def _notify_discord(message: str) -> None:
     import aiohttp
 
     webhook_port = os.getenv("CC_WEBHOOK_PORT", "8765")
-    session_name = os.getenv("EOS_DISCORD_BUILDER_SESSION", "dex_builder_main")
+    from substrate.execution.bridge.claude_session_bridge import make_session_name
+
+    session_name = os.getenv("EOS_DISCORD_BUILDER_SESSION", make_session_name("builder", "main"))
 
     try:
         async with aiohttp.ClientSession() as session:

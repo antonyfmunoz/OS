@@ -39,7 +39,7 @@ CHANNEL_MAP: dict[str, str | None] = {
 
 # Intent → gateway request type mapping
 _INTENT_TO_TEAM: dict[str, tuple[str | None, str | None]] = {
-    "CONVERSATION": ("dex", None),
+    "CONVERSATION": ("advisor", None),
     "OUTREACH": ("sales", "outreach_writer"),
     "RESEARCH": ("research", "market_analyst"),
     "CONTENT": ("content", "content_writer"),
@@ -264,7 +264,7 @@ def run_gateway(
                 """
                 SELECT id, payload_json FROM events
                 WHERE org_id = %s
-                AND event_type = 'dex_question'
+                AND event_type = 'advisor_question'
                 AND (payload_json->>'answered' IS NULL
                      OR payload_json->>'answered' != 'true')
                 AND created_at >= NOW() - INTERVAL '48 hours'
@@ -326,7 +326,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
                     """,
                         (
                             str(_cl_ctx.org_id),
-                            "dex_learning",
+                            "advisor_learning",
                             json.dumps(
                                 {
                                     "question": _question,
@@ -335,7 +335,7 @@ Return JSON: {{"answers": true, "answer_summary": "brief summary"}}""",
                                     "learned_at": _cl_now,
                                 }
                             ),
-                            "dex_cloning_loop",
+                            "advisor_cloning_loop",
                         ),
                     )
     except Exception as _cl_err:

@@ -641,7 +641,7 @@ Return JSON only:
         sender: str,
         venture_id: str = None,
     ) -> int:
-        """Extract and store action items from email as dex_tasks."""
+        """Extract and store action items from email as advisor tasks."""
         tasks = self.extract_action_items(subject, body, sender)
         if not tasks:
             return 0
@@ -653,7 +653,7 @@ Return JSON only:
             for task in tasks:
                 mem.log_event(
                     org_id=str(self.ctx.org_id),
-                    event_type='dex_task',
+                    event_type='advisor_task',
                     payload={
                         'task': task,
                         'source': 'email',

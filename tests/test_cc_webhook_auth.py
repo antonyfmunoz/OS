@@ -18,6 +18,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from services import cc_webhook_receiver as rcv
 
 TOKEN = "test-cc-webhook-token-abc123"
+TEST_SESSION = "test_builder_main"
 BUILDER_CHANNEL = 111111111111111111
 
 
@@ -48,7 +49,7 @@ def fake_channel() -> _FakeChannel:
 @pytest.fixture(autouse=True)
 def _env(monkeypatch, fake_channel):
     """Configure a session→channel mapping and a known token by default."""
-    monkeypatch.setenv("EOS_DISCORD_BUILDER_SESSION", "dex_builder_main")
+    monkeypatch.setenv("EOS_DISCORD_BUILDER_SESSION", TEST_SESSION)
     monkeypatch.setenv("EOS_DISCORD_BUILDER_CHANNELS", str(BUILDER_CHANNEL))
     monkeypatch.setenv("EOS_DISCORD_GENERAL_CHANNEL", str(BUILDER_CHANNEL))
     monkeypatch.setenv("CC_WEBHOOK_TOKEN", TOKEN)
@@ -77,7 +78,7 @@ async def client(fake_channel) -> TestClient:
 
 @pytest.mark.asyncio
 async def test_unauthenticated_cc_reply_rejected_no_side_effect(client, fake_channel):
-    resp = await client.post("/cc-reply", json={"session_name": "dex_builder_main", "text": "hi"})
+    resp = await client.post("/cc-reply", json={"session_name": TEST_SESSION, "text": "hi"})
     assert resp.status == 401
     assert fake_channel.sends == [], "unauthenticated request must not send"
 
@@ -88,7 +89,7 @@ async def test_unauthenticated_cc_prompt_rejected_before_tmux(client, fake_chann
     rejected before the handler (and therefore any session control) runs."""
     resp = await client.post(
         "/cc-prompt",
-        json={"session_name": "dex_builder_main", "text": "approve?", "prompt_type": "permission"},
+        json={"session_name": TEST_SESSION, "text": "approve?", "prompt_type": "permission"},
     )
     assert resp.status == 401
     assert fake_channel.sends == [], "unauth /cc-prompt must not reach the session bridge"
@@ -111,7 +112,7 @@ async def test_missing_token_fails_closed(client, fake_channel, monkeypatch):
     monkeypatch.delenv("CC_WEBHOOK_TOKEN", raising=False)
     resp = await client.post(
         "/cc-reply",
-        json={"session_name": "dex_builder_main", "text": "hi"},
+        json={"session_name": TEST_SESSION, "text": "hi"},
         headers={"Authorization": "Bearer anything"},
     )
     assert resp.status == 503, "no configured token must fail closed (503)"
@@ -125,7 +126,7 @@ async def test_missing_token_fails_closed(client, fake_channel, monkeypatch):
 async def test_valid_token_cc_reply_passes(client, fake_channel):
     resp = await client.post(
         "/cc-reply",
-        json={"session_name": "dex_builder_main", "text": "hello world"},
+        json={"session_name": TEST_SESSION, "text": "hello world"},
         headers={"Authorization": f"Bearer {TOKEN}"},
     )
     assert resp.status == 200
@@ -139,7 +140,7 @@ async def test_valid_token_cc_reply_passes(client, fake_channel):
 async def test_token_in_url_not_accepted(client, fake_channel):
     resp = await client.post(
         f"/cc-reply?token={TOKEN}&access_token={TOKEN}",
-        json={"session_name": "dex_builder_main", "text": "hi"},
+        json={"session_name": TEST_SESSION, "text": "hi"},
     )
     assert resp.status == 401, "URL/query token must not authenticate"
     assert fake_channel.sends == []
@@ -152,7 +153,7 @@ async def test_token_in_url_not_accepted(client, fake_channel):
 async def test_invalid_token_zero_side_effect(client, fake_channel):
     resp = await client.post(
         "/cc-prompt",
-        json={"session_name": "dex_builder_main", "text": "approve?"},
+        json={"session_name": TEST_SESSION, "text": "approve?"},
         headers={"Authorization": "Bearer wrong-token"},
     )
     assert resp.status == 401

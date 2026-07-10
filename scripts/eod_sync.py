@@ -115,7 +115,7 @@ def _get_todays_project_updates(ctx) -> list[str]:
 
 
 def _get_todays_decisions(ctx) -> list[str]:
-    """Decisions = dex_question events answered today."""
+    """Decisions = advisor_question events answered today."""
     try:
         from substrate.state.storage.db import get_conn
         since = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
@@ -124,7 +124,7 @@ def _get_todays_decisions(ctx) -> list[str]:
                 SELECT payload_json
                 FROM events
                 WHERE org_id = %s
-                  AND event_type = 'dex_question'
+                  AND event_type = 'advisor_question'
                   AND payload_json->>'answered' = 'true'
                   AND created_at > %s
                 ORDER BY created_at DESC

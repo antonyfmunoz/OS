@@ -934,7 +934,7 @@ async def _warmup_cc_sdk():
         result = query_cc_sync(
             prompt="Ready.",
             task_type="fast_response",
-            agent_id="dex",
+            agent_id=get_ai_name().lower(),
             max_budget_usd=0.01,
         )
         if result:
@@ -1057,8 +1057,10 @@ async def on_ready():
         bridge = get_bridge()
         bridge.set_bot(bot)
 
-        start_watcher("vps", "dex_builder_main", on_event=bridge.on_watcher_event)
-        start_watcher("vps", "dex_product_main", on_event=bridge.on_watcher_event)
+        from substrate.execution.bridge.claude_session_bridge import make_session_name
+
+        start_watcher("vps", make_session_name("builder", "main"), on_event=bridge.on_watcher_event)
+        start_watcher("vps", make_session_name("product", "main"), on_event=bridge.on_watcher_event)
         print("[Discord] Session watchers + Discord bridge started")
     except Exception as e:
         _record_error("session_watcher_bridge", e)

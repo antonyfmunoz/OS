@@ -434,7 +434,7 @@ On behalf of Antony Munoz""").strip()
                 'type': 'cancellation_recovery',
                 'status': 'pending_approval',
             },
-            agent_name='dex_calendly',
+            agent_name='advisor_calendly',
         )
 
         import requests as _req

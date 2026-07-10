@@ -123,31 +123,31 @@ class TestGovernanceControls:
         assert len(result["applied"]) == 0
 
 
-class TestDexChannel:
-    """Test DEX channel endpoints."""
+class TestAdvisorChannel:
+    """Test advisor channel endpoints."""
 
-    def test_dex_converse_endpoint_imports(self):
-        from transports.api.cockpit import dex_converse
+    def test_advisor_converse_endpoint_imports(self):
+        from transports.api.cockpit import advisor_converse
 
-        assert dex_converse is not None
+        assert advisor_converse is not None
 
-    def test_dex_history_endpoint_imports(self):
-        from transports.api.cockpit import dex_history
+    def test_advisor_history_endpoint_imports(self):
+        from transports.api.cockpit import advisor_history
 
-        assert dex_history is not None
+        assert advisor_history is not None
 
-    def test_dex_converse_requires_organism_before_content_check(self):
+    def test_advisor_converse_requires_organism_before_content_check(self):
         import asyncio
 
-        from transports.api.cockpit import dex_converse
+        from transports.api.cockpit import advisor_converse
 
-        result = asyncio.run(dex_converse({"content": ""}))
+        result = asyncio.run(advisor_converse({"content": ""}))
         assert result.get("error") == "organism not running"
 
-    def test_dex_converse_requires_organism(self):
+    def test_advisor_converse_requires_organism(self):
         import asyncio
 
-        from transports.api.cockpit import dex_converse
+        from transports.api.cockpit import advisor_converse
 
-        result = asyncio.run(dex_converse({"content": "hello"}))
+        result = asyncio.run(advisor_converse({"content": "hello"}))
         assert result.get("error") == "organism not running"

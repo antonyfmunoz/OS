@@ -139,7 +139,7 @@ def write_to_neon(task: dict, venture_id: str) -> bool:
                 """
                 SELECT id FROM events
                 WHERE org_id = %s
-                  AND event_type = 'dex_task'
+                  AND event_type = 'advisor_task'
                   AND payload_json->>'notion_page_id' = %s
                 """,
                 (str(ctx.org_id), task['page_id']),
@@ -157,7 +157,7 @@ def write_to_neon(task: dict, venture_id: str) -> bool:
                     INSERT INTO events (org_id, event_type, payload_json, handled_by)
                     VALUES (%s, %s, %s, %s)
                     """,
-                    (str(ctx.org_id), 'dex_task', payload, json.dumps([])),
+                    (str(ctx.org_id), 'advisor_task', payload, json.dumps([])),
                 )
         return True
     except Exception as e:
@@ -189,7 +189,7 @@ def push_status_to_notion(notion_page_id: str, status: str, assigned_to: str = N
 def sync_neon_to_notion() -> int:
     """
     Push status changes from Neon back to Notion.
-    Finds dex_task events flagged with needs_notion_sync and syncs them back.
+    Finds advisor_task events flagged with needs_notion_sync and syncs them back.
     """
     try:
         from substrate.state.storage.db import get_conn
@@ -204,7 +204,7 @@ def sync_neon_to_notion() -> int:
                 SELECT id, payload_json
                 FROM events
                 WHERE org_id = %s
-                  AND event_type = 'dex_task'
+                  AND event_type = 'advisor_task'
                   AND payload_json ? 'notion_page_id'
                   AND payload_json ? 'needs_notion_sync'
                 """,

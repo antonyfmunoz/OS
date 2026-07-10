@@ -120,33 +120,35 @@ _SESSION_CHANNEL_MAP: dict[str, int] = {}
 
 def _build_session_channel_map() -> dict[str, int]:
     """Build session_name → channel_id map from env vars."""
+    from substrate.execution.bridge.claude_session_bridge import make_session_name
+
     mapping: dict[str, int] = {}
 
-    builder_session = os.getenv("EOS_DISCORD_BUILDER_SESSION", "dex_builder_main")
+    _default_builder = make_session_name("builder", "main")
+    builder_session = os.getenv("EOS_DISCORD_BUILDER_SESSION", _default_builder)
     builder_channels = os.getenv("EOS_DISCORD_BUILDER_CHANNELS", "")
     if builder_session and builder_channels:
-        # Use the first channel (primary)
         first = builder_channels.split(",")[0].strip()
         if first:
             mapping[builder_session] = int(first)
 
-    product_session = os.getenv("EOS_DISCORD_PRODUCT_SESSION", "dex_product_main")
+    _default_product = make_session_name("product", "main")
+    product_session = os.getenv("EOS_DISCORD_PRODUCT_SESSION", _default_product)
     product_channels = os.getenv("EOS_DISCORD_PRODUCT_CHANNELS", "")
     if product_session and product_channels:
         first = product_channels.split(",")[0].strip()
         if first:
             mapping[product_session] = int(first)
 
-    # Also map dex_main as fallback to the general channel
     general_id = os.getenv("EOS_DISCORD_GENERAL_CHANNEL", "")
     if general_id:
-        mapping["dex_main"] = int(general_id)
+        mapping[make_session_name("main")] = int(general_id)
 
-    # Local bridge sessions: dex_local maps to builder channel by default
-    if "dex_local" not in mapping and builder_channels:
+    _local_key = make_session_name("local")
+    if _local_key not in mapping and builder_channels:
         first = builder_channels.split(",")[0].strip()
         if first:
-            mapping["dex_local"] = int(first)
+            mapping[_local_key] = int(first)
 
     return mapping
 
@@ -323,9 +325,11 @@ async def start_webhook_server(
         url = data.get("url", "")
 
         # Find the builder channel (or general) for MFA notifications
+        from substrate.execution.bridge.claude_session_bridge import make_session_name
+
         channel_id = (
-            _SESSION_CHANNEL_MAP.get("dex_builder_main")
-            or _SESSION_CHANNEL_MAP.get("dex_main")
+            _SESSION_CHANNEL_MAP.get(make_session_name("builder", "main"))
+            or _SESSION_CHANNEL_MAP.get(make_session_name("main"))
             or next(iter(_SESSION_CHANNEL_MAP.values()), None)
         )
 

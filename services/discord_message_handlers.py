@@ -1234,7 +1234,7 @@ async def _handle_advisor_conversation(
             username,
         )
     except Exception as _pp_err:
-        _record_error("dex_discord_persist_push", _pp_err)
+        _record_error("advisor_discord_persist_push", _pp_err)
 
     return True
 

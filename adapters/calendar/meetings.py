@@ -58,7 +58,7 @@ def create_meeting_record(
                     'meet_link': meet_link,
                     'calendly_event_id': calendly_event_id,
                 },
-                handled_by='dex_meetings',
+                handled_by='advisor_meetings',
             )
         except Exception as e:
             logger.warning(f'[Meetings] Neon write failed: {e}')
@@ -211,7 +211,7 @@ On behalf of Antony Munoz"""
                             'status': 'pending_approval',
                             'source': 'post_meeting',
                         },
-                        handled_by='dex_meetings',
+                        handled_by='advisor_meetings',
                     )
 
                     try:
@@ -459,7 +459,7 @@ def queue_follow_up_tasks(
         for task in tasks:
             mem.log_event(
                 org_id=str(ctx.org_id),
-                event_type='dex_task',
+                event_type='advisor_task',
                 payload={
                     'task':    task,
                     'status':  'pending',
@@ -467,7 +467,7 @@ def queue_follow_up_tasks(
                     'person':  person,
                     'venture': venture,
                 },
-                handled_by='dex_meetings',
+                handled_by='advisor_meetings',
             )
         return True
     except Exception as e:
@@ -719,7 +719,7 @@ Keep it professional and concise.""").strip()
                     'attendee_emails': attendee_emails or [],
                     'created_at': now.isoformat(),
                 },
-                handled_by='dex_meetings',
+                handled_by='advisor_meetings',
             )
         except Exception:
             pass

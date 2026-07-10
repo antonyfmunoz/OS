@@ -57,11 +57,11 @@ PRODUCT_CHANNEL_NAME = "eos-product"
 
 BUILDER_TOPIC = (
     "EOS builder mode — internal/dev lane. Messages routed to "
-    "dex_builder_main tmux session via substrate+shared router."
+    "advisor builder_main tmux session via substrate+shared router."
 )
 PRODUCT_TOPIC = (
     "EOS product mode — user-facing/SaaS runtime lane. Messages routed "
-    "to dex_product_main tmux session via substrate+shared router."
+    "to advisor product_main tmux session via substrate+shared router."
 )
 
 

@@ -84,7 +84,7 @@ def register_commands(
 
     @bot.command(name="answer")
     async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
-        """Answer a CC session question: !answer dex_builder_main <your answer>"""
+        """Answer a CC session question: !answer <session_name> <your answer>"""
         if ctx.author.id != FOUNDER_ID:
             await ctx.reply("Founder only.")
             return
@@ -1786,7 +1786,7 @@ Subject: [subject]
                                 str(_local_ctx.org_id),
                                 "energy_checkin",
                                 _payload,
-                                "dex_energy",
+                                "advisor_energy",
                             ),
                         )
                     return ("energy checkin logged", True)

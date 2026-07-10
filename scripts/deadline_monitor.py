@@ -130,7 +130,7 @@ async def check_stale_tasks():
         cur.execute('''
             SELECT payload_json, created_at FROM events
             WHERE org_id = %s
-            AND event_type = 'dex_task'
+            AND event_type = 'advisor_task'
             AND (payload_json->>\'status\' IS NULL
                  OR payload_json->>\'status\' = \'pending\')
             AND created_at < NOW() - INTERVAL \'5 days\'
