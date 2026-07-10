@@ -473,6 +473,75 @@ def get_assistant_role_slug() -> str:
         return ASSISTANT_ROLE_SLUG
 
 
+# ─── Instance config (the ONE per-tenant data file) ───────────────────────────
+# All tenant data the CODE must not embed lives in data/umh/instance.json (or
+# env). Code reads it here at runtime. AFM is instance 0 — his instance.json is
+# the first instance, reached through the SAME path every future tenant uses.
+
+_INSTANCE_CONFIG_CACHE: Optional[dict] = None
+
+
+def get_instance_config() -> dict:
+    """Load and cache the per-tenant instance.json. Returns {} if absent.
+
+    Path: UMH_INSTANCE_CONFIG env override → <root>/data/umh/instance.json.
+    This is the canonical home for tenant identity + business + workspace-seed
+    data. Never hardcode any of these values in code — read them from here.
+    """
+    global _INSTANCE_CONFIG_CACHE
+    if _INSTANCE_CONFIG_CACHE is not None:
+        return _INSTANCE_CONFIG_CACHE
+    try:
+        import os as _os
+        from pathlib import Path as _Path
+        root = _os.environ.get('UMH_ROOT') or _os.environ.get('OS_ROOT') or '/opt/OS'
+        path = _os.environ.get('UMH_INSTANCE_CONFIG') or str(_Path(root) / 'data' / 'umh' / 'instance.json')
+        with open(path, 'r', encoding='utf-8') as fh:
+            _INSTANCE_CONFIG_CACHE = json.load(fh)
+    except Exception:
+        _INSTANCE_CONFIG_CACHE = {}
+    return _INSTANCE_CONFIG_CACHE
+
+
+def get_operator_email(service: str = '', default: str = '') -> str:
+    """Tenant operator email (or a per-service inbox). From instance.json/env.
+
+    Priority: env (UMH_OPERATOR_EMAIL / <SERVICE>_INBOX_EMAIL) →
+    instance.json (service_inboxes[service] → operator_email) → default.
+    """
+    import os as _os
+    if service:
+        env_key = f'{service.upper()}_INBOX_EMAIL'
+        if _os.getenv(env_key):
+            return _os.getenv(env_key)
+    if _os.getenv('UMH_OPERATOR_EMAIL'):
+        return _os.getenv('UMH_OPERATOR_EMAIL')
+    cfg = get_instance_config()
+    if service:
+        inbox = (cfg.get('service_inboxes') or {}).get(service)
+        if inbox:
+            return inbox
+    return cfg.get('operator_email') or default
+
+
+def get_op_vault(default: str = 'UMH-Production') -> str:
+    """The tenant's 1Password vault name. From env UMH_OP_VAULT → instance.json →
+    default (instance-0's vault). Credential templates read this — never hardcode."""
+    import os as _os
+    return _os.getenv('UMH_OP_VAULT') or (get_instance_config().get('op_vault') or default)
+
+
+def get_brand_archetype(default: str = '') -> str:
+    """Tenant brand archetype/worldview. From instance.json → default (neutral)."""
+    return get_instance_config().get('brand_archetype') or default
+
+
+def get_notion_seed() -> dict:
+    """Per-tenant Notion workspace seed content (portfolio/goals/entity/pillars).
+    From instance.json. Empty dict when unset — seeders degrade to a skeleton."""
+    return get_instance_config().get('notion_seed') or {}
+
+
 def get_ai_name(ctx=None, venture_id: str = '') -> str:
     """
     Resolve AI name for this user.
@@ -546,6 +615,21 @@ def get_github_repo(default: str = '') -> str:
         return _os.getenv('UMH_GITHUB_REPO') or _os.getenv('GITHUB_REPO') or default
     except Exception:
         return default
+
+
+def get_github_owner(default: str = '') -> str:
+    """Resolve the GitHub account/org owner — never hardcode it.
+
+    Priority: env (GITHUB_ORG / GITHUB_USER) → instance.json github_owner →
+    ``default``. Used where only the owner (not owner/repo) is needed.
+    """
+    import os as _os
+    return (
+        _os.getenv('GITHUB_ORG')
+        or _os.getenv('GITHUB_USER')
+        or get_instance_config().get('github_owner')
+        or default
+    )
 
 
 def get_active_venture_id(ctx=None, default: str = '') -> str:

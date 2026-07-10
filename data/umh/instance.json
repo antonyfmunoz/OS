@@ -3,11 +3,19 @@
   "founder_name": "Antony",
   "org_id": "",
   "org_name": "Munoz Conglomerate",
+  "brand_archetype": "The Vigilante Architect",
   "active_venture_id": "lyfe_institute",
   "active_venture_name": "Lyfe Institute",
   "business_stage": "pre_revenue",
   "node_id": "",
   "node_role": "",
+  "operator_email": "antonyfm@empyreanstudios.co",
+  "service_inboxes": {
+    "claude": "antonyfm@empyreanstudios.co",
+    "chatgpt": "antonyfm@theempyreancreative.com"
+  },
+  "op_vault": "UMH-Production",
+  "github_owner": "antonyfmunoz",
   "ventures": [
     {"id": "lyfe_institute", "name": "Lyfe Institute"},
     {"id": "empyrean_studio", "name": "Empyrean Studio"}
@@ -15,5 +23,12 @@
   "products": [
     {"id": "initiate_arena", "name": "Initiate Arena", "venture": "lyfe_institute"}
   ],
-  "nodes": []
+  "nodes": [],
+  "notion_seed": {
+    "note": "Per-tenant Notion workspace seed content. Scripts read this; never hardcode.",
+    "portfolio": [],
+    "goals_by_venture": {},
+    "entity_structure": [],
+    "content_pillars_by_venture": {}
+  }
 }

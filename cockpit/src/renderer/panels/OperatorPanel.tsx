@@ -606,7 +606,7 @@ function StatusDot({ status }: { status: string }) {
   return <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color}`} />
 }
 
-/* ─── Command Tab (original DEX surface) ──────────────────── */
+/* ─── Command Tab (original assistant surface) ──────────────────── */
 
 function CommandTab() {
   const {

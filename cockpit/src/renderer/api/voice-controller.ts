@@ -722,7 +722,7 @@ function wireEvents(): void {
       voiceStore.setVadActive(active)
 
       if (active && voiceStore.ttsState === 'speaking') {
-        // Barge-in: user speaks while DEX is talking — cancel TTS.
+        // Barge-in: user speaks while the assistant is talking — cancel TTS.
         log('[VoiceTurn] barge_in')
         client?.cancelTts()
         cancelPlayback()

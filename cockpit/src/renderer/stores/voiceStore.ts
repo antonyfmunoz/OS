@@ -27,7 +27,7 @@ export type PresentationStatus =
   | 'presenting'
   | 'complete'
 
-/** Envelope that holds a DEX response until text+audio are ready to commit together. */
+/** Envelope that holds an assistant response until text+audio are ready to commit together. */
 export interface OrganismResponseEnvelope {
   messageId: string
   content: string

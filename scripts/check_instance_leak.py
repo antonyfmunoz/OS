@@ -70,6 +70,17 @@ INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
     # Founder account email addresses (specific inboxes)
     (r"antonyfm@[A-Za-z0-9.\-]+", "account_id", "env var (e.g., UMH_OPERATOR_EMAIL)"),
     (r"\b\w+@(?:empyreanstudios\.co|theempyreancreative\.com)\b", "account_id", "env var (e.g., UMH_OPERATOR_EMAIL)"),
+    # 1Password vault name (instance-0's vault leaking into templates/scripts)
+    (r"op://UMH-Production\b", "op_vault", "op://${UMH_OP_VAULT}/... via get_op_vault()"),
+    (r"\bUMH-Production\b", "op_vault", "UMH_OP_VAULT env / get_op_vault()"),
+    (r"op://EntrepreneurOS\b", "op_vault", "op://${UMH_OP_VAULT}/... via get_op_vault()"),
+    # Instance-0 Discord channel IDs (specific literals — env vars per channel)
+    (r"\b1485765456739696714\b", "account_id", "DISCORD_FOUNDERS_OFFICE env"),
+    (r"\b1486289444830056540\b", "account_id", "DISCORD_*_CHANNEL_ID env"),
+    (r"\b1485765524766982234\b", "account_id", "DISCORD_*_CHANNEL_ID env"),
+    # Instance-0 Notion workspace UUID prefix (its DB/page ids all share it)
+    (r"32eda8b9-6e4f", "account_id", "Notion ids from env / instance.json"),
+    (r"333da8b9-6e4f", "account_id", "Notion ids from env / instance.json"),
     # Account identifiers
     (r"antonyfmunoz", "account_id", "env var (e.g., GITHUB_USER)"),
     (r"antonys beast pc", "account_id", "env var for SSH host identity"),
@@ -85,6 +96,12 @@ INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
     (r"\bempyrean_creative\b", "venture_slug", "BIS venture registry at runtime"),
     (r"\blyfe_institute\b", "venture_slug", "BIS venture registry at runtime"),
     (r"\bpersonal_brand\b", "venture_slug", "BIS venture registry at runtime"),
+    (r"\bempyrean_studio\b", "venture_slug", "BIS venture registry at runtime"),
+    (r"\binitiate_arena\b", "product_name", "BIS product registry at runtime"),
+    # Venture-specific CEO agent ids baked into the universal layer — build the
+    # CEO-agent set from {venture_id}_ceo at runtime, never hardcode the venture.
+    (r"\b(?:lyfe|empyrean|brand|lyfe_institute|personal_brand|empyrean_creative)_ceo\b",
+     "venture_slug", "build {venture_id}_ceo from BIS venture registry at runtime"),
 ]
 
 # Compile once
@@ -113,14 +130,20 @@ LEGACY_INSTANCE_LEAKS: dict[str, set[str]] = {
     # + machine-boundary decision, this EOS authoring content ultimately belongs
     # in the EOS projection body (on the Beast), not UMH substrate tooling; until
     # it is relocated it is frozen here. Shrink-only — new leaks are NOT added.
-    "scripts/notion_seed_all.py": {"company_name", "product_name", "venture_slug"},
-    "scripts/build_notion_workspace.py": {"company_name", "product_name", "venture_slug"},
+    # ── Sanctioned resolver defaults — the ONE legal home for a fallback ──────
+    # A resolver's documented default value IS the seam: get_op_vault() defaults
+    # to instance-0's vault when UMH_OP_VAULT/instance.json is unset. Same status
+    # as ASSISTANT_ROLE_SLUG='dex'. This is where the fallback is allowed to live.
+    "substrate/state/business/business_instance.py": {"op_vault"},
+    # ── Generated artifacts — regenerate from source, not source of truth ─────
+    "docs/system/module_inventory.json": {"ai_name", "founder_name", "company_name"},
     # ── Gate / de-brander tooling — the literals ARE the patterns they match ──
     # These scripts scan for or rewrite instance values, so they necessarily
     # contain the literal patterns as data. Not runtime tenant leaks. Fixtures.
     "scripts/check_instance_leak.py": {
         "ai_name", "founder_name", "company_name", "product_name",
         "venture_slug", "account_id", "node_id", "infra_ip", "session_prefix",
+        "op_vault",
     },
     "scripts/migrate_instance_leaks.py": {
         "ai_name", "founder_name", "company_name", "account_id", "venture_slug",
@@ -129,19 +152,47 @@ LEGACY_INSTANCE_LEAKS: dict[str, set[str]] = {
     "scripts/check_ontology_layers.py": {"venture_slug"},
 }
 
-# ── Directories to skip ──────────────────────────────────────────────────────
+# ── Paths to skip (whole-tree scan) ──────────────────────────────────────────
+# The gate scans EVERY shipping file type across the WHOLE repo — code carries
+# ZERO tenant data, so a leak in any .ts/.sh/.yaml/.json is as fatal as one in
+# .py. Only genuinely non-source paths are skipped.
 _EXCLUDES = {
     "__pycache__",
-    ".git",
+    ".git/",
     "node_modules",
     ".mypy_cache",
     ".ruff_cache",
     ".pytest_cache",
     ".claude/worktrees",
-    "data/",
+    "/out/",            # cockpit build artifacts (regenerate from src)
+    "/dist/",
+    "dist-web/",        # cockpit web build output (regenerate from src)
+    "/build/",
+    ".next/",
+    "coverage/",
+    "data/",            # runtime state (jsonl logs, projections) — not source
     "saas/",
-    "skills/",
-    "/tests/",
+    "skills/",          # skill bodies narrate the instance; separate surface
+    "tests/",           # tests assert on instance values as fixtures
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+}
+
+# INSTANCE-DATA FILES — the canonical per-tenant sources. Tenant data BELONGS
+# here (this IS the separation: data lives in these, code reads them). They are
+# the only files exempt from the leak scan by their very nature.
+_INSTANCE_DATA_FILES = {
+    "data/umh/instance.json",
+    "infra/device_registry.json",
+}
+
+# Shipping source file types the gate enforces on.
+_SCANNED_EXTENSIONS = {
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+    ".sh", ".bat", ".ps1",
+    ".yaml", ".yml", ".json", ".toml", ".tpl", ".ini", ".cfg",
+    ".html", ".css",
 }
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -149,6 +200,12 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def _should_skip(path: Path) -> bool:
     rel = str(path.relative_to(_REPO_ROOT))
+    if rel in _INSTANCE_DATA_FILES:
+        return True
+    # env files (.env, .env.local, …) are instance data / secrets, not source.
+    base = path.name
+    if base == ".env" or base.startswith(".env."):
+        return True
     return any(ex in rel for ex in _EXCLUDES)
 
 
@@ -188,15 +245,19 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
     return violations
 
 
-# Layers scanned for instance leaks. The seam must stay clear across the WHOLE
-# platform, not just substrate — a hardcoded tenant value anywhere breaks
-# multi-tenancy. UMH capability layers + the projection binding shell are all in
-# scope (the projection defines the SHAPE; BIS supplies the tenant VALUES).
-_SCANNED_LAYERS = ("substrate/", "adapters/", "transports/", "services/", "projections/", "scripts/")
+def _is_scanned(path: Path) -> bool:
+    """A shipping-source file of a scanned type that isn't skipped."""
+    if _should_skip(path):
+        return False
+    # .env.*.tpl templates are source (scan them); .env* handled by _should_skip.
+    if path.suffix in _SCANNED_EXTENSIONS:
+        return True
+    # dotfiles like `.env.beast.tpl` end in .tpl → caught above; nothing else.
+    return False
 
 
 def _get_staged_files() -> list[Path]:
-    """Get Python files staged for commit under any scanned layer."""
+    """Get all shipping-source files staged for commit (whole tree, all types)."""
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
         capture_output=True,
@@ -205,23 +266,18 @@ def _get_staged_files() -> list[Path]:
     )
     files = []
     for name in result.stdout.strip().splitlines():
-        if name.endswith(".py") and any(name.startswith(layer) for layer in _SCANNED_LAYERS):
-            p = _REPO_ROOT / name
-            if p.exists() and not _should_skip(p):
-                files.append(p)
+        p = _REPO_ROOT / name
+        if p.exists() and _is_scanned(p):
+            files.append(p)
     return files
 
 
 def _get_all_substrate_files() -> list[Path]:
-    """Get all Python files under every scanned layer."""
+    """Get every shipping-source file in the whole repo (all scanned types)."""
     files = []
-    for layer in _SCANNED_LAYERS:
-        layer_dir = _REPO_ROOT / layer.rstrip("/")
-        if not layer_dir.exists():
-            continue
-        for p in layer_dir.rglob("*.py"):
-            if not _should_skip(p):
-                files.append(p)
+    for p in _REPO_ROOT.rglob("*"):
+        if p.is_file() and _is_scanned(p):
+            files.append(p)
     return files
 
 
