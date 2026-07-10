@@ -54,6 +54,7 @@ machine-readable: `_manifest.json`
 | [audit-2026-07-10.md](audit-2026-07-10.md) | Consolidated audit report for this snapshot |
 | [vision-alignment.md](vision-alignment.md) | Master-doc vision ↔ codebase alignment: what UMH is (industry terms), maturity tiers, composition gap, bridge roadmap |
 | [canonical-registry.md](canonical-registry.md) | The essentialist master taxonomy: every law, layer, loop, registry, role, mode from the master doc — one entry, one home |
+| [build-doctrine.md](build-doctrine.md) | Build doctrine + six-lens verified gap map: 82 ranked gaps across security, data, ML-ops, distributed systems, product, org/legal |
 
 ## Directory pages
 

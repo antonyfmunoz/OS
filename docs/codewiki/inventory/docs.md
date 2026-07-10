@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: docs
-source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
+source_sha: 0312cc4e33802424a5a6a5c1807dcd0097e63208
 ---
 
 # `docs/` — File Inventory
 
-**Files:** 738 regular + 0 symlinks · **Bytes:** 7,383,636
+**Files:** 739 regular + 0 symlinks · **Bytes:** 7,402,818
 
 [Narrative page](../dirs/docs.md)
 
@@ -366,7 +366,7 @@ source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
 |---|---|---|
 | `docs/changes/gateway_cogloop_removal.md` | 38 | Gateway CognitiveLoop Fallback Removal |
 
-## docs/codewiki/ (80 files)
+## docs/codewiki/ (81 files)
 
 | Path | Lines | Purpose |
 |---|---|---|
@@ -374,6 +374,7 @@ source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
 | `docs/codewiki/_overrides.json` | 26 | — |
 | `docs/codewiki/architecture.md` | 301 | UMH Architecture — the definitive map |
 | `docs/codewiki/audit-2026-07-10.md` | 128 | Consolidated Codebase Audit — 2026-07-10 |
+| `docs/codewiki/canonical-registry.md` | 278 | The Canonical Registry — Every Element of UMH, One Home Each |
 | `docs/codewiki/conventions.md` | 116 | Conventions & Operating Laws |
 | `docs/codewiki/data-flow.md` | 238 | Data flow & storage topology |
 | `docs/codewiki/dirs/_root-files.md` | 113 | Repository root files — the constitution, the build/deploy surface, and the campaign archive |
@@ -412,7 +413,7 @@ source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
 | `docs/codewiki/dirs/umh.md` | 40 | `umh/` — thin relay entrypoints (media bridges + voice preflight) |
 | `docs/codewiki/dirs/vault.md` | 45 | `vault/` — long-term conversation memory: session logs and extracted summaries |
 | `docs/codewiki/health-findings.md` | 299 | Health Findings |
-| `docs/codewiki/index.md` | 142 | UMH CodeWiki — Complete Repository Map |
+| `docs/codewiki/index.md` | 143 | UMH CodeWiki — Complete Repository Map |
 | `docs/codewiki/inventory/_census.md` | 70 | Repository Census — Full Accounting |
 | `docs/codewiki/inventory/_root-files.md` | 49 | Repository root files — File Inventory |
 | `docs/codewiki/inventory/adapters.md` | 198 | `adapters/` — File Inventory |
@@ -421,7 +422,7 @@ source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
 | `docs/codewiki/inventory/config.md` | 18 | `config/` — File Inventory |
 | `docs/codewiki/inventory/data.md` | 75 | `data/` — Runtime Data Rollup |
 | `docs/codewiki/inventory/docker.md` | 20 | `docker/` — File Inventory |
-| `docs/codewiki/inventory/docs.md` | 824 | `docs/` — File Inventory |
+| `docs/codewiki/inventory/docs.md` | 825 | `docs/` — File Inventory |
 | `docs/codewiki/inventory/dot-agents.md` | 200 | `.agents/` — File Inventory |
 | `docs/codewiki/inventory/dot-claire.md` | 12 | `.claire/` — File Inventory |
 | `docs/codewiki/inventory/dot-claude.md` | 217 | `.claude/` — File Inventory |

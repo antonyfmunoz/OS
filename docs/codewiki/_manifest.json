@@ -1,12 +1,12 @@
 {
-  "raw_total_files": 719408,
-  "accounted_files": 719408,
+  "raw_total_files": 719572,
+  "accounted_files": 719571,
   "inventoried": {
-    "files": 4605,
+    "files": 4606,
     "links": 37
   },
   "rollup": {
-    "files": 258314,
+    "files": 258434,
     "links": 2
   },
   "excluded": {
@@ -21,14 +21,14 @@
       "bytes": 10774
     },
     ".claude/worktrees": {
-      "files": 439872,
+      "files": 439873,
       "links": 733,
-      "bytes": 10242273921
+      "bytes": 10242285601
     },
     ".git": {
-      "files": 3223,
+      "files": 3264,
       "links": 1,
-      "bytes": 201627619
+      "bytes": 201793460
     },
     ".mypy_cache": {
       "files": 18,
@@ -149,7 +149,7 @@
       "treatment": "rollup",
       "files": 42112,
       "links": 1,
-      "bytes": 38468993893
+      "bytes": 38473121846
     },
     "docker": {
       "treatment": "code",
@@ -159,9 +159,9 @@
     },
     "docs": {
       "treatment": "code",
-      "files": 738,
+      "files": 739,
       "links": 0,
-      "bytes": 7383636
+      "bytes": 7402818
     },
     "graphify-out": {
       "treatment": "rollup",
@@ -183,9 +183,9 @@
     },
     "logs": {
       "treatment": "rollup",
-      "files": 213108,
+      "files": 213228,
       "links": 1,
-      "bytes": 346952117
+      "bytes": 347173581
     },
     "media": {
       "treatment": "rollup",
@@ -209,7 +209,7 @@
       "treatment": "rollup",
       "files": 2,
       "links": 0,
-      "bytes": 48428136
+      "bytes": 48487048
     },
     "saas": {
       "treatment": "code",
@@ -221,7 +221,7 @@
       "treatment": "code",
       "files": 215,
       "links": 0,
-      "bytes": 9982132
+      "bytes": 9987420
     },
     "services": {
       "treatment": "code",
@@ -263,10 +263,10 @@
       "treatment": "rollup",
       "files": 2929,
       "links": 0,
-      "bytes": 15832279
+      "bytes": 15848955
     }
   },
-  "generated_at": "2026-07-10T22:19:17.181688+00:00",
-  "git_sha": "70deadbac8667755a38ac49595afd09afc209c2f",
+  "generated_at": "2026-07-10T22:48:09.396362+00:00",
+  "git_sha": "0312cc4e33802424a5a6a5c1807dcd0097e63208",
   "scan_root": "/opt/OS"
 }

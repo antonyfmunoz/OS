@@ -1,35 +1,35 @@
 ---
 type: codewiki-inventory
 dir: _census
-source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
+source_sha: 0312cc4e33802424a5a6a5c1807dcd0097e63208
 ---
 
 # Repository Census — Full Accounting
 
-Raw total (regular files, no excludes): **719,408**
+Raw total (regular files, no excludes): **719,572**
 
 | Category | Regular files | Symlinks |
 |---|---|---|
-| Inventoried per-file (code + skills) | 4,605 | 37 |
-| Rolled up (runtime data) | 258,314 | 2 |
-| Excluded categories (counted below) | 456,489 | 757 |
-| **Accounted total** | **719,408** | **796** |
+| Inventoried per-file (code + skills) | 4,606 | 37 |
+| Rolled up (runtime data) | 258,434 | 2 |
+| Excluded categories (counted below) | 456,531 | 757 |
+| **Accounted total** | **719,571** | **796** |
 
 ## Per-directory census
 
 | Directory | Treatment | Files | Symlinks | Bytes |
 |---|---|---|---|---|
-| [`logs`](logs.md) | rollup | 213,108 | 1 | 346,952,117 |
-| [`data`](data.md) | rollup | 42,112 | 1 | 38,468,993,893 |
-| [`vault`](vault.md) | rollup | 2,929 | 0 | 15,832,279 |
+| [`logs`](logs.md) | rollup | 213,228 | 1 | 347,173,581 |
+| [`data`](data.md) | rollup | 42,112 | 1 | 38,473,121,846 |
+| [`vault`](vault.md) | rollup | 2,929 | 0 | 15,848,955 |
 | [`substrate`](substrate.md) | code | 1,009 | 0 | 12,452,560 |
-| [`docs`](docs.md) | code | 738 | 0 | 7,383,636 |
+| [`docs`](docs.md) | code | 739 | 0 | 7,402,818 |
 | [`skills`](skills.md) | skill | 466 | 16 | 6,794,042 |
 | [`tests`](tests.md) | code | 449 | 0 | 6,622,193 |
 | [`cockpit`](cockpit.md) | code | 431 | 0 | 4,598,832 |
 | [`knowledge`](knowledge.md) | code | 344 | 3 | 522,787 |
 | [`transports`](transports.md) | code | 221 | 0 | 2,047,311 |
-| [`scripts`](scripts.md) | code | 215 | 0 | 9,982,132 |
+| [`scripts`](scripts.md) | code | 215 | 0 | 9,987,420 |
 | [`.agents`](dot-agents.md) | code | 183 | 0 | 3,024,145 |
 | [`.playwright-mcp`](dot-playwright-mcp.md) | rollup | 162 | 0 | 30,269,065 |
 | [`.claude`](dot-claude.md) | code | 157 | 18 | 2,237,329 |
@@ -44,7 +44,7 @@ Raw total (regular files, no excludes): **719,408**
 | [`.obsidian`](dot-obsidian.md) | code | 8 | 0 | 2,613 |
 | [`docker`](docker.md) | code | 3 | 0 | 1,832 |
 | [`umh`](umh.md) | code | 3 | 0 | 139,588 |
-| [`runtime`](runtime.md) | rollup | 2 | 0 | 48,428,136 |
+| [`runtime`](runtime.md) | rollup | 2 | 0 | 48,487,048 |
 | [`.github`](dot-github.md) | code | 1 | 0 | 2,680 |
 | [`.vscode`](dot-vscode.md) | code | 1 | 0 | 38 |
 | [`config`](config.md) | code | 1 | 0 | 7,862 |
@@ -58,8 +58,8 @@ Raw total (regular files, no excludes): **719,408**
 | Category | Files | Symlinks | Bytes |
 |---|---|---|---|
 | `.claire/worktrees` | 3 | 0 | 10,774 |
-| `.claude/worktrees` | 439,872 | 733 | 10,242,273,921 |
-| `.git` | 3,223 | 1 | 201,627,619 |
+| `.claude/worktrees` | 439,873 | 733 | 10,242,285,601 |
+| `.git` | 3,264 | 1 | 201,793,460 |
 | `.mypy_cache` | 18 | 0 | 23,539,936 |
 | `.pytest_cache` | 5 | 0 | 5,197,536 |
 | `.ruff_cache` | 82 | 0 | 143,333 |
