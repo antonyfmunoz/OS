@@ -100,7 +100,8 @@ INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
     (r"\binitiate_arena\b", "product_name", "BIS product registry at runtime"),
     # Venture-specific CEO agent ids baked into the universal layer — build the
     # CEO-agent set from {venture_id}_ceo at runtime, never hardcode the venture.
-    (r"\b(?:lyfe|empyrean|brand|lyfe_institute|personal_brand|empyrean_creative)_ceo\b",
+    # ('brand_ceo' is a GENERIC role key, not a venture — deliberately excluded.)
+    (r"\b(?:lyfe|empyrean|lyfe_institute|personal_brand|empyrean_creative|empyrean_studio)_ceo\b",
      "venture_slug", "build {venture_id}_ceo from BIS venture registry at runtime"),
 ]
 

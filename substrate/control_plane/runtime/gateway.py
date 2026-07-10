@@ -1031,15 +1031,21 @@ class Gateway:
             except Exception as _bridge_err:
                 print(f"[Gateway] Cognitive bridge wiring failed: {_bridge_err}")
 
+        # Per-venture CEO agent ids are built from the tenant's venture registry
+        # at runtime — NEVER hardcode a venture (multi-tenant leak). Each venture
+        # <vid> contributes a "<vid>_ceo" strategy agent.
+        try:
+            from substrate.state.business.business_instance import get_ventures as _get_ventures
+            _venture_ceo_ids = tuple(
+                f"{v.get('id')}_ceo" for v in _get_ventures() if v.get('id')
+            )
+        except Exception:
+            _venture_ceo_ids = ()
+
         # Named agent teams — direct agent routing with context injection
         _ai_team = os.environ.get("AI_NAME", "").lower() or "ai"
         _NAMED_AGENT_TEAMS = frozenset(
-            {
-                _ai_team,
-                "lyfe_ceo",
-                "brand_ceo",
-                "portfolio_advisor",
-            }
+            {_ai_team, "portfolio_advisor", *_venture_ceo_ids}
         )
 
         # ── Agent → principle domain mapping ─────────────────────────────
@@ -1054,27 +1060,15 @@ class Gateway:
             "finance_agent": "analyze",
             "marketing_agent": "content",
             "customer_success_agent": "ops",
-            "lyfe_ceo": "strategy",
-            "lyfe_institute_ceo": "strategy",
-            "empyrean_ceo": "strategy",
-            "brand_ceo": "content",
-            "personal_brand_ceo": "content",
             "ceo_agent": "strategy",
             "portfolio_agent": "analyze",
             "portfolio_advisor": "analyze",
+            # per-venture CEOs default to the strategy domain
+            **{cid: "strategy" for cid in _venture_ceo_ids},
         }
 
         # ── CEO task classifier — selects relevant deep standards section ─
-        _CEO_AGENTS = frozenset(
-            {
-                "lyfe_ceo",
-                "lyfe_institute_ceo",
-                "empyrean_ceo",
-                "brand_ceo",
-                "personal_brand_ceo",
-                "ceo_agent",
-            }
-        )
+        _CEO_AGENTS = frozenset({"ceo_agent", *_venture_ceo_ids})
 
         def _classify_ceo_task(prompt_text: str) -> str:
             p = prompt_text.lower()
@@ -1279,12 +1273,9 @@ class Gateway:
             return prompt_text
 
         if team and team in _NAMED_AGENT_TEAMS:
-            agent_id = {
-                _ai_team: "executive_assistant",
-                "lyfe_ceo": "lyfe_ceo",
-                "brand_ceo": "brand_ceo",
-                "portfolio_advisor": "portfolio_advisor",
-            }[team]
+            # EA team aliases to the executive_assistant agent; every other named
+            # team (portfolio_advisor + per-venture <vid>_ceo) maps to itself.
+            agent_id = "executive_assistant" if team == _ai_team else team
 
             if agent_id == "executive_assistant":
                 # AI EA — inject EA operational standards + leverage detection
