@@ -44,7 +44,7 @@ function classifyVoiceWsError(err: unknown): { outcome: VoiceOutcome; message: s
 import { voiceConsentForCapture } from './platform-voice-adapter'
 import { VOICE_ERROR_CODES } from './voiceErrorCodes'
 import { useVoiceStore } from '../stores/voiceStore'
-import { useChatStore } from '../stores/chatStore'
+import { useChatStore, type ChatMessage } from '../stores/chatStore'
 import { useVoiceMessageStore, VAD_CONFIG } from '../stores/voiceMessageStore'
 import { unlockAudioForIOS, setPlaybackCallbacks, cancelPlayback, resetPlayback, playTtsAudio } from './tts-playback-controller'
 import { API_BASE, authHeader } from './client'
@@ -97,6 +97,17 @@ let meterStartedAt = 0
 let heldVoiceMessage: { id: string; content: string } | null = null
 /** The voice turn ID for the currently pending voice response. */
 let _pendingVoiceTurnId: string | null = null
+// One-shot chat-watcher armed by notifyVoiceMessageSent when there is NO live
+// voice session (no chatUnsub). It speaks the reply to a cold voice MESSAGE and
+// tears itself down. Never coexists with the live-session watcher (guarded below).
+let _oneShotReplyUnsub: (() => void) | null = null
+
+function _clearOneShotReplyWatcher(): void {
+  if (_oneShotReplyUnsub) {
+    _oneShotReplyUnsub()
+    _oneShotReplyUnsub = null
+  }
+}
 
 // ── Recording session (draft) state ──────────────────────────────────────────
 // P4S-31D1-F BLOB-ONLY: the note rail captures with ONE mechanism — MediaRecorder
@@ -824,6 +835,9 @@ function wireEvents(): void {
     })
   )
 
+  // A live session owns reply-speaking now — drop any one-shot watcher a prior
+  // cold voice-message send installed, so the reply is never handled twice.
+  _clearOneShotReplyWatcher()
   let lastMsgCount = useChatStore.getState().messages.length
   chatUnsub = useChatStore.subscribe((state) => {
     const msgs = state.messages
@@ -838,68 +852,81 @@ function wireEvents(): void {
 
     const last = msgs[msgs.length - 1]
     if (last?.sender !== 'assistant') return
-
-    log('dex_response_received', last.content?.slice(0, 60))
-    sessionTimers.clear('pendingResponse')
-    voiceState.setPendingVoiceResponse(false)
-    voiceState.setMicState('idle')
-
-    // Update voice route in device session store if routing metadata is present
-    if (last.metadata?.routing) {
-      try {
-        const { useDeviceSessionStore } = require('../stores/deviceSessionStore')
-        const r = last.metadata.routing as Record<string, string>
-        useDeviceSessionStore.getState().setVoiceRoute({
-          inputDevice: r.input_device ?? '',
-          controlSurface: r.control_surface ?? '',
-          executionTarget: r.execution_target ?? '',
-          audioOutputDevice: r.audio_output_device ?? '',
-          audioOutputSession: r.audio_output_session ?? '',
-          handoffMode: r.handoff_mode ?? 'conversation',
-          routeReason: r.route_reason ?? '',
-        })
-      } catch {
-        // non-critical
-      }
-    }
-
-    if (client && last.content) {
-      // Hold the text message — remove from chat until TTS audio arrives.
-      // Text + audio reveal together (organism response commit).
-      heldVoiceMessage = { id: last.id, content: last.content }
-      useChatStore.getState().removeMessage(last.id)
-      log('[VoiceTurn] message_held', last.id)
-
-      voiceState.setTtsState('generating_tts')
-      voiceState.setVoicePresentationStatus('preparing_voice')
-
-      sessionTimers.arm('ttsGenerate', () => {
-        const v = useVoiceStore.getState()
-        if (v.ttsState === 'generating_tts') {
-          log('tts_generate_timeout')
-          v.setTtsState('tts_failed')
-          v.setVoicePresentationStatus('complete')
-          v.setError('Voice generation timed out — showing text')
-          releaseHeldMessage()
-          setTimeout(() => {
-            useVoiceStore.getState().setTtsState('idle')
-            useVoiceStore.getState().setVoicePresentationStatus('idle')
-          }, 3000)
-        }
-      }, TTS_GENERATE_TIMEOUT_MS)
-
-      // Use spoken_text if available (concise TTS-friendly version)
-      const ttsText = (last.metadata?.spoken_text as string | undefined) || last.content
-      // Fetch reply TTS over HTTP and play it — the voice WS is request-scoped and
-      // already closed after the transcript (it has no reply-TTS handler), so
-      // client.requestTts() on it went nowhere → 15s timeout → "Voice unavailable".
-      void _fetchAndPlayReplyTts(ttsText)
-    } else {
-      voiceState.setVoicePresentationStatus('complete')
-      setTimeout(() => useVoiceStore.getState().setVoicePresentationStatus('idle'), 500)
-    }
-    _pendingVoiceTurnId = null
+    _handleAssistantVoiceReply(last)
   })
+}
+
+/**
+ * Speak DEX's reply for a voice turn. Shared by the live-session chat-watcher
+ * AND the one-shot watcher armed by notifyVoiceMessageSent, so a voice MESSAGE
+ * gets an audible reply even with no live WS session open. The reply audio is
+ * fetched over HTTP (_fetchAndPlayReplyTts) — it does NOT need a live WS client;
+ * the earlier `client &&` gate was the reason a cold voice-message reply stayed
+ * silent. Caller guarantees pendingVoiceResponse is set and last.sender==='assistant'.
+ */
+function _handleAssistantVoiceReply(last: ChatMessage): void {
+  const voiceState = useVoiceStore.getState()
+
+  log('dex_response_received', last.content?.slice(0, 60))
+  sessionTimers.clear('pendingResponse')
+  voiceState.setPendingVoiceResponse(false)
+  voiceState.setMicState('idle')
+
+  // Update voice route in device session store if routing metadata is present
+  if (last.metadata?.routing) {
+    try {
+      const { useDeviceSessionStore } = require('../stores/deviceSessionStore')
+      const r = last.metadata.routing as Record<string, string>
+      useDeviceSessionStore.getState().setVoiceRoute({
+        inputDevice: r.input_device ?? '',
+        controlSurface: r.control_surface ?? '',
+        executionTarget: r.execution_target ?? '',
+        audioOutputDevice: r.audio_output_device ?? '',
+        audioOutputSession: r.audio_output_session ?? '',
+        handoffMode: r.handoff_mode ?? 'conversation',
+        routeReason: r.route_reason ?? '',
+      })
+    } catch {
+      // non-critical
+    }
+  }
+
+  if (last.content) {
+    // Hold the text message — remove from chat until TTS audio arrives.
+    // Text + audio reveal together (organism response commit).
+    heldVoiceMessage = { id: last.id, content: last.content }
+    useChatStore.getState().removeMessage(last.id)
+    log('[VoiceTurn] message_held', last.id)
+
+    voiceState.setTtsState('generating_tts')
+    voiceState.setVoicePresentationStatus('preparing_voice')
+
+    sessionTimers.arm('ttsGenerate', () => {
+      const v = useVoiceStore.getState()
+      if (v.ttsState === 'generating_tts') {
+        log('tts_generate_timeout')
+        v.setTtsState('tts_failed')
+        v.setVoicePresentationStatus('complete')
+        v.setError('Voice generation timed out — showing text')
+        releaseHeldMessage()
+        setTimeout(() => {
+          useVoiceStore.getState().setTtsState('idle')
+          useVoiceStore.getState().setVoicePresentationStatus('idle')
+        }, 3000)
+      }
+    }, TTS_GENERATE_TIMEOUT_MS)
+
+    // Use spoken_text if available (concise TTS-friendly version)
+    const ttsText = (last.metadata?.spoken_text as string | undefined) || last.content
+    // Fetch reply TTS over HTTP and play it — the voice WS is request-scoped and
+    // already closed after the transcript (it has no reply-TTS handler), so
+    // client.requestTts() on it went nowhere → 15s timeout → "Voice unavailable".
+    void _fetchAndPlayReplyTts(ttsText)
+  } else {
+    voiceState.setVoicePresentationStatus('complete')
+    setTimeout(() => useVoiceStore.getState().setVoicePresentationStatus('idle'), 500)
+  }
+  _pendingVoiceTurnId = null
 }
 
 export async function startVoice(signal?: AbortSignal): Promise<void> {
@@ -1166,6 +1193,28 @@ export function notifyVoiceMessageSent(voiceTurnId: string): void {
   vs.setLastOutcome('TRANSCRIPT_RECEIVED')
   log('[VoiceTurn] voice_message_sent', voiceTurnId)
 
+  // Speak DEX's reply even with NO live voice session open. The live-session
+  // chat-watcher (chatUnsub, wired in wireEvents) already handles the reply when
+  // a session exists; only arm a one-shot watcher when it does not, so the reply
+  // is never spoken twice. It self-tears-down after handling one assistant reply.
+  if (!chatUnsub) {
+    _clearOneShotReplyWatcher()
+    let lastMsgCount = useChatStore.getState().messages.length
+    _oneShotReplyUnsub = useChatStore.subscribe((state) => {
+      const msgs = state.messages
+      if (msgs.length <= lastMsgCount) {
+        lastMsgCount = msgs.length
+        return
+      }
+      lastMsgCount = msgs.length
+      if (!useVoiceStore.getState().pendingVoiceResponse) return
+      const last = msgs[msgs.length - 1]
+      if (last?.sender !== 'assistant') return
+      _clearOneShotReplyWatcher()
+      _handleAssistantVoiceReply(last)
+    })
+  }
+
   sessionTimers.arm('pendingResponse', () => {
     const v = useVoiceStore.getState()
     if (v.pendingVoiceResponse) {
@@ -1175,6 +1224,7 @@ export function notifyVoiceMessageSent(voiceTurnId: string): void {
       v.setError('Response timed out — try again')
       v.setLastOutcome('TIMEOUT')
       releaseHeldMessage()
+      _clearOneShotReplyWatcher()
       _pendingVoiceTurnId = null
       log('response_timeout')
     }
@@ -1336,6 +1386,7 @@ export function destroyVoice(): void {
     chatUnsub()
     chatUnsub = null
   }
+  _clearOneShotReplyWatcher()
   releaseHeldMessage()
   resetPlayback()
   _pendingVoiceTurnId = null
