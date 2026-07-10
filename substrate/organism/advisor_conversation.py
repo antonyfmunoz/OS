@@ -18,19 +18,13 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_CONVERSATIONS_DIR = os.path.join(
+_CONVERSATIONS_PATH = os.path.join(
     os.environ.get("UMH_ROOT", "/opt/OS"),
     "data",
     "umh",
     "operator_experience",
+    "advisor_conversations.jsonl",
 )
-_CONVERSATIONS_PATH = os.path.join(_CONVERSATIONS_DIR, "advisor_conversations.jsonl")
-_LEGACY_PATH = os.path.join(_CONVERSATIONS_DIR, "dex_conversations.jsonl")
-if not os.path.exists(_CONVERSATIONS_PATH) and os.path.exists(_LEGACY_PATH):
-    try:
-        os.rename(_LEGACY_PATH, _CONVERSATIONS_PATH)
-    except OSError:
-        _CONVERSATIONS_PATH = _LEGACY_PATH
 
 
 @dataclass
