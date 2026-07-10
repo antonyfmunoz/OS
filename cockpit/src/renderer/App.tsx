@@ -98,12 +98,22 @@ function LoginScreen() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      height: '100vh',
+      // 100dvh tracks the *visible* viewport on mobile Safari (100vh is taller
+      // than the screen because of the URL bar, which shoved the card off-center
+      // upward). Horizontal padding keeps the card off the screen edges on narrow
+      // phones and respects the notch/safe-area insets.
+      minHeight: '100dvh',
+      width: '100%',
+      padding: 'max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))',
+      boxSizing: 'border-box',
       background: '#0A0A0A',
     }}>
       <SignIn appearance={{
         elements: {
-          rootBox: { width: '100%', maxWidth: 420 },
+          // Center the Clerk card itself within the rootBox — otherwise it
+          // left-aligns inside the 420px box on wide screens and reads off-center.
+          rootBox: { width: '100%', maxWidth: 420, display: 'flex', justifyContent: 'center' },
+          cardBox: { width: '100%' },
         },
       }} />
     </div>
