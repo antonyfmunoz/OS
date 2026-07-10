@@ -7,7 +7,7 @@ import { useChatStore, type ChatMessage, type Provenance, type Attachment, type 
 import { usePolling } from '../hooks/usePolling'
 import { useAuthedMedia } from '../hooks/useAuthedMedia'
 import { useConfigStore } from '../stores/configStore'
-import { useViewContextStore, panelLabel } from '../stores/viewContextStore'
+import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useVoiceMessageStore, type VoiceMessageDraft } from '../stores/voiceMessageStore'
 import { desktopBrowserVoiceAdapter, ConsentRequiredError } from '../api/platform-voice-adapter'
@@ -985,13 +985,6 @@ function ChatSection() {
           </>
         )}
       </div>
-      {(viewContext.active_route || viewContext.selected_object_type) && (
-        <div className="text-[9px] font-mono text-text-tertiary mb-1 px-1 py-0.5 bg-surface rounded border border-border truncate">
-          Viewing: {panelLabel(viewContext.active_route)}
-          {viewContext.selected_object_type && ` > ${viewContext.selected_object_type}`}
-          {viewContext.selected_object_summary && `: ${viewContext.selected_object_summary}`}
-        </div>
-      )}
       {error && (
         <div className="text-[9px] font-mono text-danger mb-1 px-1.5 py-1 bg-danger/10 rounded border border-danger/30">
           {error}
