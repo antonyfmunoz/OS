@@ -375,8 +375,10 @@ def scan_codebase(target_module: str | None = None) -> CodebaseGraph:
         if not base.exists():
             continue
         for path in sorted(base.rglob("*.py")):
-            # Skip excluded dirs
-            if any(part in SKIP_DIRS for part in path.parts):
+            # Skip excluded dirs — check parts RELATIVE to ROOT, never absolute:
+            # an absolute check nukes the whole tree when ROOT is itself a
+            # worktree under .claude/worktrees/ (see gate-worktree-exclude bug)
+            if any(part in SKIP_DIRS for part in path.relative_to(ROOT).parts):
                 continue
             if path.name in SKIP_FILES:
                 continue
@@ -587,7 +589,7 @@ def scan_non_python(graph: CodebaseGraph, target_module: str | None = None) -> N
         for path in sorted(base.rglob("*")):
             if not path.is_file():
                 continue
-            if any(part in SKIP_DIRS for part in path.parts):
+            if any(part in SKIP_DIRS for part in path.relative_to(ROOT).parts):
                 continue
             if path.suffix.lower() not in NON_PYTHON_EXTENSIONS:
                 continue
