@@ -1550,9 +1550,11 @@ async def on_message(message: discord.Message):
     except Exception as _relay_err:
         _record_error("cross_channel_relay", _relay_err)
 
-    # ── Attachment handling (audio / image) ──────────────────────────────
+    # ── Attachment handling (audio / video / image) ──────────────────────
     if message.attachments:
         if await _handlers._handle_audio_attachment(message):
+            return
+        if await _handlers._handle_video_attachment(message):
             return
         if await _handlers._handle_image_attachment(message):
             return

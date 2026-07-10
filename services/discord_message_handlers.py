@@ -320,6 +320,55 @@ async def _handle_image_attachment(message: discord.Message) -> bool:
     return False
 
 
+async def _handle_video_attachment(message: discord.Message) -> bool:
+    """Analyze video file attachments via MediaProcessor.
+    Returns True if a video attachment was found and handled."""
+    _VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".3gp", ".flv"}
+    for att in message.attachments:
+        ext = Path(att.filename).suffix.lower()
+        is_video = ext in _VIDEO_EXTS or (
+            att.content_type and att.content_type.startswith("video/")
+        )
+        if is_video:
+            async with message.channel.typing():
+                tmp = tempfile.mktemp(suffix=ext or ".mp4")
+                try:
+                    await att.save(tmp)
+                    loop = asyncio.get_event_loop()
+
+                    from substrate.execution.media.media_processor import MediaProcessor
+
+                    user_prompt = message.content.strip() or ""
+                    result = await loop.run_in_executor(
+                        None,
+                        lambda: MediaProcessor().process(
+                            tmp,
+                            modality="video",
+                            user_prompt=user_prompt,
+                        ),
+                    )
+                    if result:
+                        await _send_reply(
+                            message.channel,
+                            f"\U0001f3ac {result}",
+                        )
+                    else:
+                        await message.reply(
+                            "I couldn't analyze that video right now.",
+                        )
+                except Exception as e:
+                    _record_error("video_analysis", e)
+                    logger.warning("Video analysis failed: %s", e)
+                    await message.reply("Video analysis failed — try again.")
+                finally:
+                    try:
+                        Path(tmp).unlink(missing_ok=True)
+                    except Exception as _tmp_err:
+                        _record_error("temp_video_cleanup", _tmp_err)
+            return True
+    return False
+
+
 # ── Buffer handlers ──────────────────────────────────────────────────────────
 
 
