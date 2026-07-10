@@ -58,12 +58,18 @@ INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
     (r"\bMunoz\b", "founder_name", "BIS founder profile at runtime"),
     # Company/venture names
     (r"\bLyfe Institute\b", "company_name", "BIS venture registry at runtime"),
-    (r"\bEmpyrean\s+(?:Studio|Creative)\b", "company_name", "BIS venture registry at runtime"),
+    (r"\bEmpyrean\s+(?:Studios?|Creative)\b", "company_name", "BIS venture registry at runtime"),
     (r"\bInitiate Arena\b", "product_name", "BIS product registry at runtime"),
     (r"\bMunoz (?:Conglomerate|Holdings)\b", "company_name", "BIS org profile at runtime"),
     # Infrastructure (Tailscale IPs for specific nodes)
     (r"\b100\.77\.233\.50\b", "infra_ip", "env var (e.g., UMH_VPS_IP)"),
     (r"\b100\.74\.199\.102\b", "infra_ip", "env var (e.g., UMH_BEAST_IP)"),
+    # Founder brand archetype / product-brand tokens (instance vocabulary)
+    (r"\bVigilante Architect\b", "founder_name", "brand worldview — neutral phrasing or BIS"),
+    (r"\bLyfe Spectrum\b", "company_name", "BIS venture registry at runtime"),
+    # Founder account email addresses (specific inboxes)
+    (r"antonyfm@[A-Za-z0-9.\-]+", "account_id", "env var (e.g., UMH_OPERATOR_EMAIL)"),
+    (r"\b\w+@(?:empyreanstudios\.co|theempyreancreative\.com)\b", "account_id", "env var (e.g., UMH_OPERATOR_EMAIL)"),
     # Account identifiers
     (r"antonyfmunoz", "account_id", "env var (e.g., GITHUB_USER)"),
     (r"antonys beast pc", "account_id", "env var for SSH host identity"),

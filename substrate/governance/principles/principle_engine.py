@@ -202,7 +202,7 @@ AGENT_STANDARDS: dict[str, list[str]] = {
     'brand_ceo': [
         'Every piece of content either serves the ICP '
         'or it does not ship.',
-        'The Vigilante Architect is not a persona — '
+        'The brand is not a persona — '
         'it is a worldview. Content either comes from '
         'that worldview or it is not on brand.',
         'The personal brand is the distribution layer '
@@ -241,7 +241,7 @@ AGENT_STANDARDS: dict[str, list[str]] = {
     ],
     'content_agent': [
         'The editorial test for every piece: does '
-        'this feel like the Vigilante Architect? '
+        'this feel like the brand worldview? '
         'If no — rework before shipping.',
         'The hook test: does the first line create '
         'curiosity, friction, or pattern interruption? '

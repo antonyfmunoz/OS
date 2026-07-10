@@ -64,9 +64,12 @@ _CODE_PATTERNS: dict[str, str] = {
     "chatgpt": r"\b(\d{6})\b",
 }
 
+# Service inbox addresses come from env per-tenant — never hardcode a founder's
+# email. CLAUDE_INBOX_EMAIL / CHATGPT_INBOX_EMAIL, falling back to a generic
+# UMH_OPERATOR_EMAIL, then empty (handler no-ops rather than poll a stranger's box).
 _SERVICE_INBOX: dict[str, str] = {
-    "claude": "antonyfm@empyreanstudios.co",
-    "chatgpt": "antonyfm@theempyreancreative.com",
+    "claude": os.getenv("CLAUDE_INBOX_EMAIL") or os.getenv("UMH_OPERATOR_EMAIL", ""),
+    "chatgpt": os.getenv("CHATGPT_INBOX_EMAIL") or os.getenv("UMH_OPERATOR_EMAIL", ""),
 }
 
 _POLL_INTERVAL_S = 5

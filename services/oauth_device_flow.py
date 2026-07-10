@@ -221,7 +221,7 @@ async def run_oauth_flow(
     logger.info("[OAuth] Callback listener on http://0.0.0.0:%d/oauth/callback", _CALLBACK_PORT)
     logger.info("[OAuth] Auth URL: %s", auth_url)
 
-    display_account = account_email or "antonyfm@empyreanstudios.co"
+    display_account = account_email or os.getenv("UMH_OPERATOR_EMAIL", "the operator account")
     if notify_discord:
         scope_names = ", ".join(s.split("/")[-1] if "/" in s else s for s in scopes)
         msg = (

@@ -90,7 +90,8 @@ async def main():
     print(f"[OAuth] Opening browser...")
     webbrowser.open(auth_url)
     print(f"[OAuth] Waiting for consent (600s timeout)...")
-    print(f"[OAuth] Sign in as antonyfm@empyreanstudios.co and approve Gmail access")
+    _op_email = os.getenv("UMH_OPERATOR_EMAIL", "your operator account")
+    print(f"[OAuth] Sign in as {_op_email} and approve Gmail access")
 
     try:
         code = await asyncio.wait_for(code_future, timeout=600)
