@@ -144,6 +144,43 @@ The live organism writes its state (`events.jsonl`, heartbeats, work packets, jo
 
 ---
 
+### M7 — Passwordless VNC in the computer-use container
+
+```
+$ grep nopw docker/computer-use/start.sh
+  x11vnc -display :1 -forever -nopw -rfbport ${VNC_PORT} -shared &
+```
+
+The computer-use container runs x11vnc with `-nopw` on ports 6080-6082 — anyone
+who can reach the port controls the desktop. Today this is only reachable over
+the Tailscale private mesh, which is the sole mitigation. **Recommendation:**
+add a VNC password from 1Password (`op run`) or bind to the tailnet interface
+explicitly, so a future port-forward or firewall change cannot expose it.
+
+### M8 — `UMH_DEV_BYPASS=true` committed in `config/nonsecret.env`
+
+```
+$ grep -n UMH_DEV_BYPASS config/nonsecret.env → 12:UMH_DEV_BYPASS=true
+$ git ls-files config/nonsecret.env → tracked
+```
+
+A development bypass flag ships enabled in the tracked config layer that every
+environment loads. Whatever gate it bypasses is bypassed in production by
+default. **Recommendation:** default it off in the tracked file; enable per-host
+via untracked env.
+
+### M9 — README service list is stale (3 documented vs 6 defined)
+
+```
+$ grep -c 'os-' README.md → 3        (os-discord, os-webhook, os-operator)
+$ docker-compose.yml defines 6: + os-livekit, os-browser, os-scraper
+```
+
+Onboarding doc undersells the runtime by half. **Recommendation:** sync README's
+service table with compose (or point it at [services-runtime.md](services-runtime.md)).
+
+---
+
 ## Low
 
 ### L1 — `knowledge/index.md` frontmatter date drifts from file reality
@@ -171,6 +208,29 @@ $ git ls-files data/codebase_pages | wc -l → 0
 ```
 
 35K generated codebase-page files, none tracked by git (correctly gitignored), but 145MB on disk on the lightweight node. Intermediate ingestion output that Node Role Discipline says shouldn't accumulate on the VPS. **Recommendation:** prune stale pages or keep them only on the Beast.
+
+### L5 — `install.sh` / `setup.sh` cannot fresh-install
+
+```
+$ grep -n 'github.com' install.sh → REPO_URL="https://github.com/[repo]/eos.git"
+```
+
+The onboarding scripts still carry a literal `[repo]` placeholder URL and
+EntrepreneurOS-era branding — a fresh install fails at clone. Irrelevant to the
+live VPS (already installed), broken for any new node. **Recommendation:** fix
+the URL or retire the scripts in favor of the documented setup path.
+
+### L6 — Staged systemd units are copies, not the live units
+
+```
+infra/systemd/umh-mesh.service + infra/umh-vision-relay.service (repo)
+/etc/systemd/system/…                                            (live)
+```
+
+Editing the repo copy is a silent no-op until `sudo cp` + `daemon-reload` +
+restart. Known footgun — documented here so nobody "fixes" a unit in git and
+wonders why nothing changed. **Recommendation:** add a deploy step or a
+freshness check comparing repo units to `/etc/systemd/system`.
 
 ### L4 — Large single-file JSON state blobs
 
@@ -213,11 +273,23 @@ The graph builder excluded `SKIP_DIRS` by checking **absolute** path parts. When
 | M4 | Medium | Mixed 3.11/3.12 `.pyc` in `umh/` | Clear `__pycache__` |
 | M5 | Medium | 2 files > 3,000-line limit | Split |
 | M6 | Medium | 20 tracked runtime files dirty on `main` | Gitignore runtime state |
+| M7 | Medium | Passwordless VNC (`-nopw`) in computer-use container | 1Password VNC password / tailnet bind |
+| M8 | Medium | `UMH_DEV_BYPASS=true` shipped in tracked config | Default off; per-host enable |
+| M9 | Medium | README documents 3 services; compose defines 6 | Sync README |
 | L1 | Low | `knowledge/index.md` date drift | Refresh index |
 | L2 | Low | `media/` empty scaffold | Remove |
 | L3 | Low | 35K untracked codebase pages, 145MB | Prune / Beast-only |
 | L4 | Low | 46MB + 42MB single-file JSON blobs | JSONL / build artifact |
+| L5 | Low | `install.sh` placeholder URL — fresh install broken | Fix URL or retire |
+| L6 | Low | Repo systemd units are staged copies (edit = no-op) | Deploy step / freshness check |
 | F1 | Fixed | Graph worktree self-exclusion bug | Fixed in this PR |
+
+## Verified-OK (checked, not a finding)
+
+- `infra/livekit.yaml` holds a plaintext LiveKit key **on disk only** — it is
+  gitignored (`git check-ignore` confirms) and materialized from 1Password via
+  `infra/livekit.yaml.tpl` (commit `b57a81223`). Working as designed; the
+  committed artifact is the template, not the secret.
 
 ## See also
 
