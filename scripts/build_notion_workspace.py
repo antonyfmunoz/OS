@@ -2,7 +2,13 @@
 Build EOS Notion Workspace
 Mirrors the end game UI structure exactly.
 Every section maps to a route in the SaaS UI.
+
+All business copy (portfolio tree, per-company hub content, org chart) lives
+in data/umh/instance.json under `notion_seed`. This script is a pure
+template: it reads that seed at runtime. No tenant literals are embedded.
+Degrades gracefully: if no notion_seed is configured, it seeds nothing.
 """
+import os
 import sys
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
@@ -10,14 +16,16 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 from notion_client import Client
-import os
+
+from substrate.state.business.business_instance import (
+    get_notion_seed, get_ai_name, get_founder_name,
+)
 
 client = Client(auth=os.getenv('NOTION_API_KEY'))
 
 
 def _ai_name() -> str:
     try:
-        from substrate.state.business.business_instance import get_ai_name
         return get_ai_name() or 'Assistant'
     except Exception:
         return 'Assistant'
@@ -26,7 +34,6 @@ def _ai_name() -> str:
 def _founder_name() -> str:
     try:
         from substrate.state.context.context import load_context_from_env
-        from substrate.state.business.business_instance import get_founder_name
         return get_founder_name(load_context_from_env(), default='the founder')
     except Exception:
         return 'the founder'
@@ -34,6 +41,24 @@ def _founder_name() -> str:
 
 AI_NAME = _ai_name()
 FOUNDER_NAME = _founder_name()
+
+# Per-tenant workspace seed content. Empty dict for a fresh tenant.
+SEED = get_notion_seed()
+
+# Token map for template placeholders stored in the seed.
+_FMT = {'founder_name': FOUNDER_NAME, 'ai_name': AI_NAME}
+
+
+def _fmt(value: str) -> str:
+    """Interpolate {founder_name}/{ai_name} tokens in a seed string.
+
+    Unknown tokens are left intact so an unrelated brace never crashes."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return value.format(**_FMT)
+    except (KeyError, IndexError, ValueError):
+        return value
 
 # ── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -128,11 +153,21 @@ if not eos_pages:
     print('EOS page not found. Share it with the integration first.')
     sys.exit(1)
 
+if not SEED:
+    print('No notion_seed configured — nothing to seed.')
+    sys.exit(0)
+
 ROOT_ID = eos_pages[0]['id']
 print(f'EOS root: {ROOT_ID}')
 print()
 
 page_ids = {'root': ROOT_ID}
+
+# Portfolio KPI copy + tree text pulled from the tenant seed.
+_PORTFOLIO = (SEED.get('portfolio') or [{}])[0]
+_EMPIRE_TREE = _fmt(SEED.get('empire_tree_text', ''))
+_ENTITY_TREE = _fmt(SEED.get('entity_structure_text', ''))
+_ORG_CHART = _fmt(SEED.get('org_chart_text', ''))
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -153,24 +188,10 @@ portfolio_id = create_page(
         ),
         divider_block(),
         heading_block('Empire Structure', 2),
-        text_block(
-            f'{FOUNDER_NAME} (Holding Company)\n'
-            '├── Empyrean Creative  [B2B AI Services]\n'
-            '│   └── Lyfe Institute  [Coaching — incubated under Empyrean]\n'
-            '│       Offer: Initiate Arena $750\n'
-            '│       Channel: Instagram DMs\n'
-            f'└── Personal Brand — {FOUNDER_NAME}  [Content Business]\n'
-            '    Revenue: Sponsors, Affiliates, Ads, Donations\n'
-            '    Goal: grow audience, promote Empyrean + Lyfe'
-        ),
+        text_block(_EMPIRE_TREE),
         divider_block(),
-        heading_block('Portfolio KPIs', 2),
-        text_block(
-            'Total Revenue: $0\n'
-            'Active Companies: 3\n'
-            'Stage: All Stage 1 — Validation\n'
-            'North Star: $10K/month net (Initiate Arena) → $100K/month'
-        ),
+        heading_block(_PORTFOLIO.get('heading', 'Portfolio KPIs'), 2),
+        text_block(_fmt(_PORTFOLIO.get('kpis_text', ''))),
         divider_block(),
         heading_block('Capital Allocation', 2),
         text_block(
@@ -222,47 +243,12 @@ page_ids['morning_brief'] = brief_id
 # One hub page per company, each with sub-pages mirroring UI routes
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-companies = [
-    {
-        'name': 'Empyrean Creative',
-        'icon': '⚡',
-        'type': 'B2B Agency',
-        'stage': '1 — Validation',
-        'offer': 'AI services for businesses',
-        'icp': 'Business owners who need AI',
-        'channel': 'TBD — outreach',
-        'goal': 'Land first retainer client',
-        'north_star': '$100K/month',
-        'venture_id': 'empyrean_creative',
-        'note': None,
-    },
-    {
-        'name': 'Lyfe Institute',
-        'icon': '🏢',
-        'type': 'Coaching Program',
-        'stage': '1 — Validation',
-        'offer': 'Initiate Arena $750',
-        'icp': 'Men 18-28 feeling directionless',
-        'channel': 'Instagram DMs',
-        'goal': 'First paying client',
-        'north_star': '$10K/month net → $100K/month',
-        'venture_id': 'lyfe_institute',
-        'note': 'Incubated under Empyrean Creative. Spins out once offer is proven.',
-    },
-    {
-        f'name': 'Personal Brand — {FOUNDER_NAME}',
-        'icon': '👤',
-        'type': 'Content Business',
-        'stage': '1 — Audience Building',
-        'offer': 'Sponsors, Affiliates, Ads, Donations',
-        'icp': 'Entrepreneurs and founders',
-        'channel': 'Instagram + Content',
-        'goal': 'Grow audience, promote Empyrean + Lyfe',
-        'north_star': 'Profitable content business',
-        'venture_id': 'personal_brand',
-        'note': None,
-    },
-]
+# Per-company hub content pulled from the tenant seed. Each string field is
+# token-interpolated ({founder_name}/{ai_name}) so no tenant literal is inline.
+companies = []
+for _entry in (SEED.get('entity_structure') or []):
+    companies.append({k: (_fmt(v) if isinstance(v, str) else v)
+                      for k, v in _entry.items()})
 
 for company in companies:
     print(f'\nBuilding {company["name"]}...')
@@ -573,38 +559,10 @@ empire_id = create_page(
         ),
         divider_block(),
         heading_block('Entity Structure', 2),
-        text_block(
-            f'{FOUNDER_NAME}\n'
-            '├── EMPYREAN CREATIVE\n'
-            '│   Type: B2B Agency\n'
-            '│   Stage: 1 — Validation\n'
-            '│   Focus: AI services for businesses\n'
-            '│   │\n'
-            '│   └── LYFE INSTITUTE (incubated)\n'
-            '│       Type: Coaching Program\n'
-            '│       Stage: 1 — Validation\n'
-            '│       Offer: Initiate Arena $750\n'
-            '│       Channel: Instagram DMs\n'
-            '│       Status: Spinning up\n'
-            '│\n'
-            f'└── PERSONAL BRAND — {FOUNDER_NAME}\n'
-            '    Type: Content Business\n'
-            '    Stage: 1 — Audience Building\n'
-            '    Revenue: Sponsors, Affiliates, Ads, Donations\n'
-            '    Goal: Promote Empyrean + Lyfe'
-        ),
+        text_block(_ENTITY_TREE),
         divider_block(),
         heading_block('Agent Hierarchy', 2),
-        text_block(
-            f'{FOUNDER_NAME} (Founder)\n'
-            f'├── {AI_NAME} (Executive Assistant — Discord)\n'
-            '│   ├── Portfolio Advisor\n'
-            '│   ├── Empyrean CEO\n'
-            '│   │   └── Empyrean Dev Agent\n'
-            '│   └── Lyfe Institute CEO\n'
-            '│       └── Lyfe Dev Agent\n'
-            '└── Claude Code (Platform Dev)'
-        ),
+        text_block(_ORG_CHART),
         divider_block(),
         heading_block('Holding Company Notes', 2),
         text_block(

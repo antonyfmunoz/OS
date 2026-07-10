@@ -101,7 +101,7 @@ if command -v op >/dev/null 2>&1; then
   pkill -9 -f "flyctl agent" 2>/dev/null || true
   rm -f "$HOME/.fly/fly-agent.sock" 2>/dev/null || true
 
-  ORG_TOKEN=$(op read "op://UMH-Production/Fly.io Org Token/credential" 2>/dev/null || true)
+  ORG_TOKEN=$(op read "op://${UMH_OP_VAULT:-UMH-Production}/Fly.io Org Token/credential" 2>/dev/null || true)
   if [ -n "$ORG_TOKEN" ]; then
     DEPLOY_TOKEN=$(FLY_API_TOKEN="$ORG_TOKEN" FLY_NO_UPDATE_CHECK=1 "$FLYCTL" tokens create deploy -a umh-cockpit 2>/dev/null || true)
     if [ -n "$DEPLOY_TOKEN" ]; then
@@ -115,7 +115,23 @@ if command -v op >/dev/null 2>&1; then
   fi
 fi
 
-FLY_NO_UPDATE_CHECK=1 "$FLYCTL" deploy --remote-only "$@"
+# ── Inject tenant build args (code/instance separation) ──
+# fly.toml carries only placeholders; the display name + tenant Clerk key are
+# resolved here from env / 1Password so no tenant identity is baked into source.
+VITE_AI_NAME_VALUE="${VITE_AI_NAME:-}"
+if [ -z "$VITE_AI_NAME_VALUE" ]; then
+  VITE_AI_NAME_VALUE=$(UMH_ROOT="$REPO_ROOT" python3 -c "import sys; sys.path.insert(0,'$REPO_ROOT'); from substrate.state.business.business_instance import get_ai_name; print(get_ai_name() or '')" 2>/dev/null || true)
+fi
+VITE_CLERK_PK_VALUE="${VITE_CLERK_PUBLISHABLE_KEY:-}"
+if [ -z "$VITE_CLERK_PK_VALUE" ] && command -v op >/dev/null 2>&1; then
+  VITE_CLERK_PK_VALUE=$(op read "op://${UMH_OP_VAULT:-UMH-Production}/Clerk/publishable_key" 2>/dev/null || true)
+fi
+
+BUILD_ARGS=()
+[ -n "$VITE_AI_NAME_VALUE" ] && BUILD_ARGS+=(--build-arg "VITE_AI_NAME=$VITE_AI_NAME_VALUE")
+[ -n "$VITE_CLERK_PK_VALUE" ] && BUILD_ARGS+=(--build-arg "VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PK_VALUE")
+
+FLY_NO_UPDATE_CHECK=1 "$FLYCTL" deploy --remote-only "${BUILD_ARGS[@]}" "$@"
 DEPLOY_EXIT=$?
 
 if [ $DEPLOY_EXIT -ne 0 ]; then

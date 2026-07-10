@@ -125,7 +125,7 @@ class RoleRegistry:
                 description=(
                     "Owns decisions and execution for a single company. "
                     "Generic slot; concrete instances are per-company "
-                    "(e.g. lyfe_institute_ceo, empyrean_ceo)."
+                    "(e.g. <venture_id>_ceo, built from the BIS venture registry)."
                 ),
                 scopes=[
                     RoleScope.DECIDE_COMPANY,

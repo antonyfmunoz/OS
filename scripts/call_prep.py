@@ -87,7 +87,10 @@ def build_prep_brief(event: dict, ctx) -> str:
         ctx=ctx,
     )
 
-    full_brief = header + brief_body + "\n\nAntony — you're prepped. I'll handle everything else."
+    from substrate.state.business.business_instance import get_founder_name
+    _founder = get_founder_name(default='')
+    _prep_lead = f"{_founder} — you're prepped" if _founder else "You're prepped"
+    full_brief = header + brief_body + f"\n\n{_prep_lead}. I'll handle everything else."
 
     # Write prep notes to Notion meeting record
     try:

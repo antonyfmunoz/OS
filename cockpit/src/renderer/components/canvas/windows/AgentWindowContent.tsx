@@ -24,7 +24,7 @@ export function AgentWindowContent({ agentId, paused }: Props) {
   useEffect(() => {
     if (tab !== 'terminal' || paused || !agent) return
     let active = true
-    const sessionName = agent.name?.toLowerCase().replace(/\s+/g, '_') ?? 'dex_main'
+    const sessionName = agent.name?.toLowerCase().replace(/\s+/g, '_') ?? 'assistant_main'
     const poll = async () => {
       try {
         const res = await fetchApi(`/tmux/capture/${sessionName}/0`)

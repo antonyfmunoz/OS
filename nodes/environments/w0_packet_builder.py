@@ -18,6 +18,7 @@ UMH substrate subsystem. EOS is one platform consumer.
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -39,7 +40,7 @@ from .work_packet import (
 
 W0_001_PACKET_ID = "WP-W0-001-CU-RERUN-001"
 W0_001_WORK_ORDER_ID = "WO-LOCAL-PILOT-GDRIVE-GDOCS-001"
-W0_001_TARGET_ACCOUNT = "antonyfm@empyreanstudios.co"
+W0_001_TARGET_ACCOUNT = os.getenv("UMH_OPERATOR_EMAIL", "")
 W0_001_WORKER_MODE = "auto"
 W0_001_APPROVAL_ROUTING = "advisor_relay"
 W0_001_PREFERRED_BACKEND = "GUI_COMPUTER_USE"

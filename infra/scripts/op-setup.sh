@@ -14,7 +14,7 @@
 set -euo pipefail
 
 UMH_ROOT="${UMH_ROOT:-/opt/OS}"
-VAULT="UMH-Production"
+VAULT="${UMH_OP_VAULT:-UMH-Production}"
 
 if ! command -v op &>/dev/null; then
     echo "ERROR: 1Password CLI not installed."

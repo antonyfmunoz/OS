@@ -80,7 +80,6 @@ class ReportDispatcher:
         self._discord_channel_id = (
             discord_channel_id
             or self._load_env("DISCORD_FOUNDERS_OFFICE")
-            or "1485765456739696714"
         )
 
     @staticmethod

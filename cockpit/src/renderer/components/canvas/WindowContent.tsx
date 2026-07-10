@@ -85,7 +85,7 @@ export function WindowContent({ type, config, paused, onResizeHint }: WindowCont
     case 'terminal':
       content = (
         <TerminalWindowContent
-          session={config.session ?? 'dex_main'}
+          session={config.session ?? 'assistant_main'}
           pane={config.pane ?? '0'}
           paused={paused}
           node={config.node}

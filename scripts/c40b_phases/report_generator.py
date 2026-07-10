@@ -21,7 +21,7 @@ logger = logging.getLogger("c40b.report")
 
 _REPO_ROOT = Path(os.environ.get("UMH_ROOT", "/opt/OS"))
 REPORT_DIR = _REPO_ROOT / "data" / "audits"
-CHANNEL_ID = "1485765456739696714"
+CHANNEL_ID = os.getenv("DISCORD_FOUNDERS_OFFICE", "")
 
 
 def generate_report(ctx: CampaignContext) -> str:
@@ -204,7 +204,7 @@ def dispatch_to_discord(report_path: str) -> str:
 
     try:
         result = subprocess.run(
-            ["op", "item", "get", "Discord-Bot", "--vault", "UMH-Production",
+            ["op", "item", "get", "Discord-Bot", "--vault", os.getenv("UMH_OP_VAULT", "UMH-Production"),
              "--fields", "token", "--reveal"],
             capture_output=True, text=True, timeout=15,
         )

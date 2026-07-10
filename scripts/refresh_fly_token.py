@@ -15,7 +15,8 @@ import subprocess
 import sys
 
 FLYCTL = "/root/.fly/bin/flyctl"
-OP_URI = "op://UMH-Production/Fly.io Org Token/credential"
+_V = os.getenv("UMH_OP_VAULT", "UMH-Production")
+OP_URI = f"op://{_V}/Fly.io Org Token/credential"
 AGENT_SOCK = os.path.expanduser("~/.fly/fly-agent.sock")
 
 # Kill stale fly-agent — it caches old tokens and causes auth failures

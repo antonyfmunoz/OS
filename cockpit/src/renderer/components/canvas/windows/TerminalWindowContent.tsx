@@ -73,7 +73,7 @@ export function TerminalWindowContent({ session, pane, paused, node, shell }: Pr
   const [error, setError] = useState<string | null>(null)
   const [failCount, setFailCount] = useState(0)
   const [alive, setAlive] = useState(true)
-  const [sessionName, setSessionName] = useState(session === '__create__' ? '' : (session ?? 'dex_main'))
+  const [sessionName, setSessionName] = useState(session === '__create__' ? '' : (session ?? 'assistant_main'))
   const [creating, setCreating] = useState(session === '__create__')
   const [restartKey, setRestartKey] = useState(0)
   const preRef = useRef<HTMLPreElement>(null)

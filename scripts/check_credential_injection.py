@@ -35,6 +35,12 @@ EXEMPT_FILES = {
     "substrate/execution/credential_gate.py",
     # Collector receives credentials via env vars (op run injects them)
     "scripts/browser_gate_collector.py",
+    # The instance-leak gate scans FOR op:// vault URIs — the literals are its
+    # detection patterns (data), not hardcoded credentials.
+    "scripts/check_instance_leak.py",
+    # 1Password launcher: builds an op:// URI and resolves it via `op read`.
+    # This IS the sanctioned credential-injection path, not a plaintext secret.
+    "scripts/refresh_fly_token.py",
 }
 
 EXEMPT_PATTERNS = [

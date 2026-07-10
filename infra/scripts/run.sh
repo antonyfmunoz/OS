@@ -9,7 +9,17 @@ set -euo pipefail
 
 UMH_ROOT="${UMH_ROOT:-/opt/OS}"
 
+# nonsecret.env holds this tenant's non-secret config and is gitignored
+# (code is separated from instance data). A fresh clone ships only the
+# .example — the operator copies it to nonsecret.env and fills it in.
+NONSECRET="$UMH_ROOT/config/nonsecret.env"
+if [[ ! -f "$NONSECRET" ]]; then
+    echo "run.sh: $NONSECRET not found." >&2
+    echo "  Copy config/nonsecret.env.example to config/nonsecret.env and fill in this tenant's values." >&2
+    exit 1
+fi
+
 exec op run \
     --env-file="$UMH_ROOT/services/.env.tpl" \
-    --env-file="$UMH_ROOT/config/nonsecret.env" \
+    --env-file="$NONSECRET" \
     -- "$@"

@@ -19,7 +19,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
-MORNING_BRIEF_CHANNEL_ID = 1485765524766982234
+MORNING_BRIEF_CHANNEL_ID = int(os.getenv("DISCORD_DAILY_CHANNEL") or 0)
 
 
 def _get_todays_meetings() -> list[str]:

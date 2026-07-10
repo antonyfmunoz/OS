@@ -15,8 +15,8 @@
 #
 # Fill in these values:
 TAILSCALE_IP="PLACEHOLDER_IP"  # e.g. 100.x.y.z
-REMOTE_USER="PLACEHOLDER_USER"  # e.g. antony
-REMOTE_VAULT_PATH="PLACEHOLDER_PATH"  # e.g. /c/Users/Antony/Documents/Obsidian/Vault/
+REMOTE_USER="PLACEHOLDER_USER"  # e.g. your-remote-user
+REMOTE_VAULT_PATH="PLACEHOLDER_PATH"  # e.g. /path/to/vault
 LOCAL_VAULT_PATH="/opt/OS/vault/"
 
 set -euo pipefail

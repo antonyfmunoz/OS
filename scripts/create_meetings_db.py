@@ -6,6 +6,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 token = os.getenv('NOTION_API_KEY')
+PARENT_PAGE_ID = os.getenv("NOTION_ROOT_ID", "")
 
 headers = {
     'Authorization': f'Bearer {token}',
@@ -30,7 +31,7 @@ def _venture_options() -> list:
         return []
 
 payload = {
-    "parent": {"type": "page_id", "page_id": "32eda8b9-6e4f-8071-b299-fef02dcb1b8c"},
+    "parent": {"type": "page_id", "page_id": PARENT_PAGE_ID},
     "title": [{"type": "text", "text": {"content": "Meetings"}}],
     "properties": {
         "Name": {"title": {}},
@@ -65,6 +66,9 @@ payload = {
         "Recording Link": {"url": {}},
     }
 }
+
+if not PARENT_PAGE_ID:
+    raise SystemExit('NOTION_ROOT_ID not set — cannot create Meetings DB')
 
 resp = requests.post(
     'https://api.notion.com/v1/databases',

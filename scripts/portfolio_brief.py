@@ -19,15 +19,18 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
-GENERAL_CHANNEL_ID = 1486289444830056540
+GENERAL_CHANNEL_ID = int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0)
 
 
 def post_to_notion(brief: str, ventures: list) -> str | None:
     """Create a Notion page with the weekly portfolio brief."""
     try:
         token = os.getenv('NOTION_API_KEY')
-        root_id = os.getenv('NOTION_ROOT_ID', '32eda8b9-6e4f-8071-b299-fef02dcb1b8c')
+        root_id = os.getenv('NOTION_ROOT_ID', '')
         if not token:
+            return None
+        if not root_id:
+            print('[PortfolioBrief] NOTION_ROOT_ID not set — skipping Notion post')
             return None
 
         headers = {

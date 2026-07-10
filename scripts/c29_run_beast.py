@@ -22,7 +22,7 @@ result = subprocess.run(
         "get",
         "Cockpit-Clerk-Login",
         "--vault",
-        "UMH-Production",
+        os.getenv("UMH_OP_VAULT", "UMH-Production"),
         "--reveal",
         "--fields",
         "password",

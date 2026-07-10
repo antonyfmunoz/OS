@@ -31,11 +31,17 @@ sleep 2
 # Persistent SSH tunnel replaces per-request socat+tailscale nc.
 # SSH multiplexes all TCP connections over a single tailscale nc pipe.
 # ProxyCommand routes through Tailscale's userspace network.
-VPS_IP="${UMH_VPS_IP:-100.77.233.50}"
+VPS_IP="${UMH_VPS_IP:-}"
 KEY_FILE="/tmp/mesh_key"
 
 if [ ! -f "$KEY_FILE" ]; then
   echo "[tunnel] MESH_KEY not set — no SSH tunnel, API will 502"
+  wait
+  exit 1
+fi
+
+if [ -z "$VPS_IP" ]; then
+  echo "[tunnel] UMH_VPS_IP not set — no SSH tunnel, API will 502"
   wait
   exit 1
 fi

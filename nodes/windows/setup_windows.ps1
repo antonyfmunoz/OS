@@ -11,7 +11,7 @@ New-Item -ItemType Directory -Force -Path $UMH_DIR | Out-Null
 New-Item -ItemType Directory -Force -Path "$UMH_DIR\logs" | Out-Null
 
 # Prompt for configuration
-$VPS_HOST = Read-Host "VPS Tailscale IP (e.g., 100.77.233.50)"
+$VPS_HOST = if ($env:UMH_VPS_IP) { $env:UMH_VPS_IP } else { Read-Host "VPS Tailscale IP (e.g., 100.x.y.z)" }
 $NODE_ID = Read-Host "Node ID (e.g., windows-desktop)"
 $TOKEN = Read-Host "Node token (from VPS config)"
 $HOSTNAME = $env:COMPUTERNAME

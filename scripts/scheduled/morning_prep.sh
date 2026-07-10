@@ -1,6 +1,6 @@
 #!/bin/bash
 # EOS Morning Prep — runs 5:30am via cron
-# Verifies system is ready before Antony's day starts
+# Verifies system is ready before the operator's day starts
 
 set -euo pipefail
 

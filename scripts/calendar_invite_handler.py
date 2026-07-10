@@ -19,7 +19,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 
 PDT = ZoneInfo('America/Los_Angeles')
 STATE_FILE = '/tmp/calendar_invite_state.json'
-GENERAL_CHANNEL_ID = 1486289444830056540
+GENERAL_CHANNEL_ID = int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0)
 
 
 def load_state():

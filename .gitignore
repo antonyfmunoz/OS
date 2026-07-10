@@ -17,7 +17,10 @@ infra/livekit.yaml
 !infra/livekit.yaml.tpl
 
 # Non-secret config — safe to commit
-!config/nonsecret.env
+# config/nonsecret.env is per-tenant instance data — NOT committed.
+# Ship config/nonsecret.env.example (placeholders) instead.
+config/nonsecret.env
+!config/nonsecret.env.example
 
 # IDE
 .vscode/

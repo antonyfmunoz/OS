@@ -51,7 +51,7 @@ def _ai_name() -> str:
 
 AI_NAME = _ai_name()
 
-PORTFOLIO_PAGE_ID = '32eda8b9-6e4f-81eb-b253-f2e50bbd298a'
+PORTFOLIO_PAGE_ID = os.getenv("NOTION_PORTFOLIO_PAGE_ID", "")
 
 def _load_ventures() -> list:
     """Tenant ventures for Notion setup, from BIS at runtime. Each venture's page
@@ -1026,10 +1026,14 @@ def main() -> None:
 
     # Portfolio Overview DB
     print('\n── Portfolio ──')
-    portfolio_db_id = _ensure_db(
-        PORTFOLIO_PAGE_ID, 'Portfolio Overview',
-        PORTFOLIO_SCHEMA, existing_dbs,
-    )
+    if PORTFOLIO_PAGE_ID:
+        portfolio_db_id = _ensure_db(
+            PORTFOLIO_PAGE_ID, 'Portfolio Overview',
+            PORTFOLIO_SCHEMA, existing_dbs,
+        )
+    else:
+        print('  ⏭️  NOTION_PORTFOLIO_PAGE_ID not set — skipping Portfolio Overview')
+        portfolio_db_id = ''
 
     # Write IDs to .env
     print('\n── Writing to .env ──')

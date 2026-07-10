@@ -13,7 +13,8 @@
 # Usage: scripts/probe_beast_projection_source.sh [OUTFILE]
 set -uo pipefail  # not -e: a missing field must not abort the per-projection loop
 
-BEAST="${BEAST_SSH:-antonys beast pc@100.74.199.102}"
+BEAST="${BEAST_SSH:-}"
+[ -z "$BEAST" ] && { echo "set BEAST_SSH"; exit 1; }
 ROOT='C:\dev\dev'
 OUT="${1:-/dev/stdout}"
 REPOS=("EntrepreneurOS:eos" "CreatorOS:cos" "LyfeOS:lyfeos")

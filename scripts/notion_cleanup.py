@@ -41,24 +41,26 @@ HEADERS = {
     'Content-Type': 'application/json',
 }
 
-# Known old scaffold DB IDs from .env audit.
-# These predate the new per-venture schema.
-OLD_SCAFFOLD_IDS: dict[str, str] = {
-    # Old ⚙️ Workflows (emoji-prefixed, pre-schema)
-    '7e5b58e2-0a5c-46a8-af73-a52539ef6d69': '⚙️ Workflows (Lyfe)',
-    '357d09b2-deb9-446a-acc7-a7975353fcca': '⚙️ Workflows (Empyrean)',
-    '94f5f7ee-083b-42b2-baa4-f61201356d07': '⚙️ Workflows (Brand)',
-    # Old ✅ Tasks — keep c6f06702 (Empyrean, has data)
-    '8990bb84-273f-4590-ac64-b7cf9321ce8c': '✅ Tasks / Your List (Lyfe)',
-    '4ef5362b-6062-4412-bb91-68457ffba5bf': '✅ Tasks / Your List (Brand)',
-    # Old standalone Tasks DBs
-    '9759dba9-544a-4653-9656-5de637cba081': 'Tasks DB (Lyfe old)',
-    'd5afbe6b-768f-4094-99ae-7a14f6f7dbdc': 'Tasks DB (Empyrean old)',
-    # Old 🎯 Pipeline — keep 7f090170 (Lyfe, has data)
-    '3381905e-50e0-4792-8bc2-1ce48bded8db': '🎯 Pipeline (Empyrean old)',
-    # Root-level Meetings DB (per-venture ones now exist)
-    '333da8b9-6e4f-81bc-ac06-ee87e7d13fa7': 'Meetings DB (root)',
-}
+# Old scaffold DB IDs to archive — tenant-specific instance data, never hardcoded.
+# Provide via NOTION_CLEANUP_IDS as a comma-separated list of `id=label` pairs, e.g.
+#   NOTION_CLEANUP_IDS="7e5b...=⚙️ Workflows (old),333d...=Meetings DB (root)"
+# The emoji-prefix sweep in run_cleanup() still catches stragglers even if empty.
+def _load_scaffold_ids() -> dict[str, str]:
+    raw = os.getenv('NOTION_CLEANUP_IDS', '')
+    out: dict[str, str] = {}
+    for entry in raw.split(','):
+        entry = entry.strip()
+        if not entry or '=' not in entry:
+            continue
+        page_id, label = entry.split('=', 1)
+        page_id = page_id.strip()
+        label = label.strip()
+        if page_id:
+            out[page_id] = label or page_id
+    return out
+
+
+OLD_SCAFFOLD_IDS: dict[str, str] = _load_scaffold_ids()
 
 # Venture page IDs — built from the tenant's ventures (BIS) at runtime; each page
 # id comes from NOTION_<SLUG_UPPER>_PAGE_ID. Never hardcode tenant venture data.
