@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: docs
-source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
+source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
 ---
 
 # `docs/` — File Inventory
 
-**Files:** 737 regular + 0 symlinks · **Bytes:** 7,368,142
+**Files:** 738 regular + 0 symlinks · **Bytes:** 7,383,636
 
 [Narrative page](../dirs/docs.md)
 
@@ -366,7 +366,7 @@ source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 |---|---|---|
 | `docs/changes/gateway_cogloop_removal.md` | 38 | Gateway CognitiveLoop Fallback Removal |
 
-## docs/codewiki/ (79 files)
+## docs/codewiki/ (80 files)
 
 | Path | Lines | Purpose |
 |---|---|---|
@@ -412,7 +412,7 @@ source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 | `docs/codewiki/dirs/umh.md` | 40 | `umh/` — thin relay entrypoints (media bridges + voice preflight) |
 | `docs/codewiki/dirs/vault.md` | 45 | `vault/` — long-term conversation memory: session logs and extracted summaries |
 | `docs/codewiki/health-findings.md` | 299 | Health Findings |
-| `docs/codewiki/index.md` | 141 | UMH CodeWiki — Complete Repository Map |
+| `docs/codewiki/index.md` | 142 | UMH CodeWiki — Complete Repository Map |
 | `docs/codewiki/inventory/_census.md` | 70 | Repository Census — Full Accounting |
 | `docs/codewiki/inventory/_root-files.md` | 49 | Repository root files — File Inventory |
 | `docs/codewiki/inventory/adapters.md` | 198 | `adapters/` — File Inventory |
@@ -421,7 +421,7 @@ source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 | `docs/codewiki/inventory/config.md` | 18 | `config/` — File Inventory |
 | `docs/codewiki/inventory/data.md` | 75 | `data/` — Runtime Data Rollup |
 | `docs/codewiki/inventory/docker.md` | 20 | `docker/` — File Inventory |
-| `docs/codewiki/inventory/docs.md` | 740 | `docs/` — File Inventory |
+| `docs/codewiki/inventory/docs.md` | 824 | `docs/` — File Inventory |
 | `docs/codewiki/inventory/dot-agents.md` | 200 | `.agents/` — File Inventory |
 | `docs/codewiki/inventory/dot-claire.md` | 12 | `.claire/` — File Inventory |
 | `docs/codewiki/inventory/dot-claude.md` | 217 | `.claude/` — File Inventory |
@@ -439,7 +439,7 @@ source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 | `docs/codewiki/inventory/projections.md` | 101 | `projections/` — File Inventory |
 | `docs/codewiki/inventory/runtime.md` | 19 | `runtime/` — Runtime Data Rollup |
 | `docs/codewiki/inventory/saas.md` | 12 | `saas/` — File Inventory |
-| `docs/codewiki/inventory/scripts.md` | 265 | `scripts/` — File Inventory |
+| `docs/codewiki/inventory/scripts.md` | 267 | `scripts/` — File Inventory |
 | `docs/codewiki/inventory/services.md` | 65 | `services/` — File Inventory |
 | `docs/codewiki/inventory/skills.md` | 669 | `skills/` — Skill Library Inventory |
 | `docs/codewiki/inventory/substrate.md` | 1,126 | `substrate/` — File Inventory |
@@ -449,6 +449,7 @@ source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 | `docs/codewiki/inventory/vault.md` | 18 | `vault/` — Runtime Data Rollup |
 | `docs/codewiki/services-runtime.md` | 140 | Services & Runtime — what is actually running |
 | `docs/codewiki/tech-stack.md` | 93 | Tech Stack |
+| `docs/codewiki/vision-alignment.md` | 129 | Vision ↔ Reality Alignment — What UMH Is and Where It Stands |
 
 ## docs/design-system/ (2 files)
 
