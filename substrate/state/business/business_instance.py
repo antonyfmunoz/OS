@@ -9,8 +9,8 @@ Usage:
     from substrate.state.business.business_instance import BusinessInstance, BusinessInstanceManager
     ctx = load_context_from_env()
     bim = BusinessInstanceManager(ctx)
-    bis = bim.get_bis('lyfe_institute')
-    context = bim.get_context_for_agents('lyfe_institute')
+    bis = bim.get_bis('<venture_id>')
+    context = bim.get_context_for_agents('<venture_id>')
 """
 
 from dataclasses import dataclass, field, asdict
@@ -128,7 +128,7 @@ STAGE_GUIDANCE: dict[int, dict] = {
 @dataclass
 class BusinessInstance:
     org_id: str
-    venture_id: str           # slug e.g. "lyfe_institute"
+    venture_id: str           # slug e.g. "<venture_id>"
     name: str
     industry: str
     business_model: str
@@ -449,6 +449,29 @@ class BusinessInstanceManager:
 
 
 # ─── Standalone resolver ──────────────────────────────────────────────────────
+
+# Canonical, projection-NEUTRAL role slug for "the assistant" on the wire.
+# This is NOT a display name and NOT tenant data — every tenant's assistant
+# shares this one slug as its stored `sender`/`responder` tag, API route segment,
+# and settings-store key. The display name is tenant-scoped via get_ai_name();
+# this slug is a stable protocol constant so a per-tenant rename never orphans
+# stored conversation rows. Defined once here; never spell a product name inline.
+ASSISTANT_ROLE_SLUG = 'dex'
+
+
+def get_assistant_role_slug() -> str:
+    """Return the canonical wire slug for the assistant role (projection-neutral).
+
+    Overridable per deployment via the ASSISTANT_ROLE_SLUG env var for a fleet
+    that wants a different stable wire identifier. Defaults to the historical
+    value so existing stored rows keep matching.
+    """
+    try:
+        import os as _os
+        return _os.getenv('ASSISTANT_ROLE_SLUG') or ASSISTANT_ROLE_SLUG
+    except Exception:
+        return ASSISTANT_ROLE_SLUG
+
 
 def get_ai_name(ctx=None, venture_id: str = '') -> str:
     """

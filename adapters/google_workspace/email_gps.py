@@ -4,7 +4,7 @@ EmailGPS — 7-folder email management system for the assistant.
 The founder never touches email until the assistant has processed it first. Ever.
 
 Folders:
-  ANTONY        → his eyes only, needs direct attention
+  FOUNDER       → founder's eyes only, needs direct attention
   TO_RESPOND    → assistant drafts response, founder approves
   REVIEW        → discussed in daily sync
   RESPONDED     → assistant handled completely
@@ -26,7 +26,7 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 class EmailFolder(Enum):
     # Value is the folder DISPLAY name — neutral, not a founder literal.
-    ANTONY      = 'Founder'
+    FOUNDER     = 'Founder'
     TO_RESPOND  = 'To Respond'
     REVIEW      = 'Review'
     RESPONDED   = 'Responded'
@@ -433,7 +433,7 @@ class EmailGPS:
             if result.get('known'):
                 print(
                     f'[EmailGPS] Known person ({result["confidence"]}): '
-                    f'{email.from_name or email.from_address} → ANTONY '
+                    f'{email.from_name or email.from_address} → FOUNDER '
                     f'[sources: {", ".join(set(result.get("sources", [])))}]'
                 )
                 return True
@@ -453,10 +453,10 @@ class EmailGPS:
         Cost: ~$0.0001/email × 200 emails = $0.02/pass.
         """
         # Person recognition — check before rules or AI.
-        # If this sender has been mentioned in recent conversations → ANTONY.
+        # If this sender has been mentioned in recent conversations → FOUNDER.
         if self._check_person_recognition(email):
             email._method = 'person_recognition'
-            return EmailFolder.ANTONY
+            return EmailFolder.FOUNDER
 
         rule_result = self._classify_by_rules(email)
         if rule_result is not None:
@@ -578,8 +578,7 @@ class EmailGPS:
 
             r = result.strip().upper()
             mapping = {
-                'FOUNDER':          EmailFolder.ANTONY,
-                'ANTONY':           EmailFolder.ANTONY,
+                'FOUNDER':          EmailFolder.FOUNDER,
                 'TO RESPOND':       EmailFolder.TO_RESPOND,
                 'TO_RESPOND':       EmailFolder.TO_RESPOND,
                 'REVIEW':           EmailFolder.REVIEW,
@@ -774,6 +773,7 @@ Return JSON only:
                     if email.draft_response:
                         try:
                             from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
+                            from substrate.state.business.business_instance import get_active_venture_id
                             gw = EntrepreneurOSGateway()
                             approval_id = gw.queue_for_approval({
                                 "type":       "email_draft",
@@ -782,7 +782,7 @@ Return JSON only:
                                 "subject":    f"Re: {email.subject}",
                                 "body":       email.draft_response,
                                 "email_id":   email.email_id,
-                                "venture_id": getattr(self.ctx, 'venture_id', 'lyfe_institute'),
+                                "venture_id": getattr(self.ctx, 'venture_id', '') or get_active_venture_id(self.ctx),
                                 "folder":     "To Respond",
                             })
                             print(f"[GPS] Draft queued for approval: {approval_id}")
@@ -999,14 +999,14 @@ Return JSON only:
 
         lines = [f'📬 **Email GPS** ({total} emails)']
 
-        antony     = processed.get(EmailFolder.ANTONY, [])
+        founder    = processed.get(EmailFolder.FOUNDER, [])
         review     = processed.get(EmailFolder.REVIEW, [])
         to_respond = processed.get(EmailFolder.TO_RESPOND, [])
         waiting    = processed.get(EmailFolder.WAITING_ON, [])
 
-        if antony:
-            lines.append(f'\n🔴 **For You** ({len(antony)}):')
-            for e in antony[:5]:
+        if founder:
+            lines.append(f'\n🔴 **For You** ({len(founder)}):')
+            for e in founder[:5]:
                 lines.append(
                     f'  • {e.from_name or e.from_address}'
                     f': {e.subject[:50]}'

@@ -907,6 +907,19 @@ def _graph_freshness_ok() -> bool:
 
 def build_default_jobs() -> list[Job]:
     """The three example workflows from the spec, wired into orchestration."""
+    # Content vocabulary is tenant-specific — resolve offer/ICP from BIS at build
+    # time, never hardcode a product/audience literal (multi-tenant leak).
+    _offer = "the offer"
+    _icp = "the target audience"
+    try:
+        from projections.eos import instance
+
+        _bis = instance.load_bis()
+        _offer = instance.offer_name(_bis)
+        _icp = instance.icp(_bis)
+    except Exception:
+        pass
+
     return [
         Job(
             id="continuous-research",
@@ -922,10 +935,10 @@ def build_default_jobs() -> list[Job]:
         ),
         Job(
             id="content-pipeline",
-            description="Daily at 09:00: generate + refine content for Initiate Arena.",
+            description=f"Daily at 09:00: generate + refine content for {_offer}.",
             workflow_builder=lambda: build_content_workflow(
-                "Write a tactical-luxury tweet positioning Initiate Arena "
-                "for the Life Maxing audience."
+                f"Write a tactical-luxury tweet positioning {_offer} "
+                f"for {_icp}."
             ),
             trigger_type=TriggerType.TIME,
             at_time="09:00",

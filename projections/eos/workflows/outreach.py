@@ -103,11 +103,16 @@ class OutreachWorkflow:
         return result
 
     def _qualify(self, lead: dict[str, Any]) -> str:
-        """Deterministic lead qualification."""
+        """Deterministic lead qualification. ICP age bands come from tenant BIS."""
+        from projections.eos import instance
+
         score = 0
         if lead.get("source") in ("instagram", "referral", "event"):
             score += 30
-        if lead.get("age_range") in ("18-25", "25-35"):
+        target_ages = instance.icp_age_ranges(
+            instance.load_bis(self._org_id, self._venture_id)
+        )
+        if target_ages and lead.get("age_range") in target_ages:
             score += 20
         if lead.get("engagement"):
             score += 15
@@ -136,14 +141,18 @@ class OutreachWorkflow:
 
         template = (
             f"Hey {name} — I noticed your interest in {hook}. "
-            f"I work with {lead.get('demographic', 'young men')} who want to "
+            f"I work with {lead.get('demographic', 'people')} who want to "
             f"build real structure in their lives. Would be down to chat about "
             f"what you're working on. No pressure — just a conversation."
         )
 
         try:
             from adapters.models.model_router import call_with_fallback
+            from projections.eos import instance
 
+            _offer = instance.offer_name(
+                instance.load_bis(self._org_id, self._venture_id)
+            )
             result = call_with_fallback(
                 prompt=(
                     f"Personalize this outreach DM based on research:\n"
@@ -151,7 +160,7 @@ class OutreachWorkflow:
                     f"Research: {research}\n"
                     f"Keep it under 3 sentences. Natural, not salesy."
                 ),
-                system="Write outreach DMs for Initiate Arena. Voice: direct, authentic, no hype.",
+                system=f"Write outreach DMs for {_offer}. Voice: direct, authentic, no hype.",
                 task_type="fast_response",
             )
             if result.output and len(result.output.strip()) > 20:

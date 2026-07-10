@@ -43,6 +43,27 @@ class DepartmentAgent:
         self._register_skills()
         self._register_browser_skills()
 
+    def _bis(self):
+        """Load this agent's tenant BIS (or None) via the projection instance seam."""
+        from projections.eos import instance
+
+        return instance.load_bis(self._org_id, self._venture_id)
+
+    def _offer_name(self, default: str = "the offer") -> str:
+        from projections.eos import instance
+
+        return instance.offer_name(self._bis(), default)
+
+    def _icp(self, default: str = "the target audience") -> str:
+        from projections.eos import instance
+
+        return instance.icp(self._bis(), default)
+
+    def _north_star(self, default: str = "the north-star goal") -> str:
+        from projections.eos import instance
+
+        return instance.north_star(self._bis(), default)
+
     def _register_skills(self) -> None:
         """Override in subclass to register skills via _add_skill()."""
 

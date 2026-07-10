@@ -122,14 +122,19 @@ class ContentCalendarWorkflow:
 
         try:
             from adapters.models.model_router import call_with_fallback
+            from projections.eos import instance
 
+            bis = instance.load_bis(self._org_id, self._venture_id)
+            _brand = instance.brand(bis)
+            _offer = instance.offer_name(bis)
+            _icp = instance.icp(bis)
             result = call_with_fallback(
                 prompt=(
                     f"Create a {channel} content idea about: {topic}\n"
-                    f"Brand: Lyfe Institute / Initiate Arena. Voice: bold, direct.\n"
+                    f"Brand: {_brand} / {_offer}. Voice: bold, direct.\n"
                     f"Return: title + 2-sentence hook."
                 ),
-                system="You create content for a personal development brand targeting men 18-25.",
+                system=f"You create content for {_brand} targeting {_icp}.",
                 task_type="fast_response",
             )
             if result.output:

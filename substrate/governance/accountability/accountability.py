@@ -12,7 +12,7 @@ it simply asks what happened.
 Usage:
     from substrate.governance.accountability.accountability import AccountabilityEngine
     ae = AccountabilityEngine(ctx)
-    commitment = ae.detect_commitment('I will send 20 DMs today', 'lyfe_institute')
+    commitment = ae.detect_commitment('I will send 20 DMs today', '<venture_id>')
     pending = ae.get_pending_follow_ups()
 """
 

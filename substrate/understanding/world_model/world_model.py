@@ -253,7 +253,7 @@ class WorldModel:
 
 
 if __name__ == "__main__":
-    wm = WorldModel(org_id="lyfe_institute")
+    wm = WorldModel(org_id="<org_id>")
     wm.update_from_interaction("test message about strategy", "test response about approach")
     entries = wm.canonical.get_entries()
     print(f"Canonical entries: {len(entries)}")

@@ -14,22 +14,22 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo('America/Los_Angeles')
 
-COMPETITORS = {
-    'lyfe_institute': [
-        'Alex Hormozi', 'Dan Koe', 'Andrew Tate', 'Hamza Ahmed',
-        'Modern Wisdom', 'improvement content', 'masculine development',
-        'discipline coaching', 'men self improvement',
-    ],
-    'empyrean_creative': [
-        'Agency AI', 'AI automation agency', 'Relevance AI',
-        'Make.com', 'Zapier AI', 'n8n', 'AI infrastructure',
-        'AI systems for business',
-    ],
-    'personal_brand': [
-        'Vigilante Architect archetype', 'dark luxury brand',
-        'tactical luxury content', 'cinematic personal brand',
-    ],
-}
+def _competitors_for(venture: str, ctx=None) -> list[str]:
+    """Competitor watch-list for a venture — from the tenant's BIS at runtime.
+
+    NEVER hardcode competitors: a fixed per-slug dict would leak one tenant's
+    competitive intel into every seat. Reads BIS.main_competitors; returns []
+    when unavailable so callers degrade to signals-only synthesis.
+    """
+    try:
+        from substrate.state.business.business_instance import BusinessInstanceManager
+        from substrate.state.context.context import load_context_from_env
+        ctx = ctx or load_context_from_env()
+        bis = BusinessInstanceManager(ctx).get_bis(venture)
+        comps = getattr(bis, 'main_competitors', None) if bis else None
+        return [str(c) for c in comps] if comps else []
+    except Exception:
+        return []
 
 
 def log_competitor_signal(
@@ -121,7 +121,7 @@ def synthesize_competitive_landscape(venture: str, ctx=None) -> str:
             for s in signals[:10]
         ) if signals else 'No recent signals logged.'
 
-        competitors = COMPETITORS.get(venture, [])
+        competitors = _competitors_for(venture, ctx=ctx)
 
         prompt = f"""Synthesize the competitive landscape for {venture}.
 

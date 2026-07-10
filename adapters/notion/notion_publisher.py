@@ -385,7 +385,7 @@ class NotionPublisher:
     ) -> str:
         """
         Write portfolio status to Notion.
-        Uses personal_brand DOCUMENTS DB.
+        Uses the active venture's DOCUMENTS DB.
         Returns page URL.
         """
         today = date.today()

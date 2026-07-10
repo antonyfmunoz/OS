@@ -23,7 +23,7 @@ Request schema:
 Usage:
     from substrate.control_plane.runtime.gateway import Gateway
     gw = Gateway()
-    result = gw.handle({"type": "brief", "prompt": "", "venture_id": "lyfe_institute"})
+    result = gw.handle({"type": "brief", "prompt": "", "venture_id": "<venture_id>"})
 """
 
 import json

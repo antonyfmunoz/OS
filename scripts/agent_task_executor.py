@@ -215,7 +215,8 @@ async def run_executor():
         # Write task result to Notion
         try:
             from adapters.notion.notion_sync import write_task
-            venture_id = task.get('venture_id') or 'lyfe_institute'
+            from substrate.state.business.business_instance import get_active_venture_id
+            venture_id = task.get('venture_id') or get_active_venture_id(ctx)
             needs_approval = requires_approval(task, exec_result)
             notion_status = 'In review' if needs_approval else 'Done'
             agent_cfg = AGENT_MAP.get(

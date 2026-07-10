@@ -17,7 +17,7 @@ Usage:
         input="Analyze this lead's signal",
         agent="sales_agent",
         task_type=TaskType.ANALYZE,
-        venture_id="lyfe_institute",
+        venture_id="<venture_id>",
     )
     print(result.output)
     print(result.iterations)

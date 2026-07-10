@@ -2433,7 +2433,7 @@ Subject: [subject]
             if not args or "|" not in args:
                 await ctx.reply(
                     "Usage: `!okr set [venture_id] | [objective] | [KR description], [target], [unit]`\n"
-                    "Example: `!okr set lyfe_institute | Hit first sale | Revenue, 750, $`"
+                    "Example: `!okr set <venture_id> | Hit first sale | Revenue, 750, $`"
                 )
                 return
             try:
@@ -2595,7 +2595,7 @@ Subject: [subject]
         """Generate board update brief. Usage: !board_update [venture_id]"""
         if not venture_id:
             await ctx.reply(
-                "Usage: `!board_update [venture_id]`\nExample: `!board_update lyfe_institute`"
+                "Usage: `!board_update [venture_id]`\nExample: `!board_update <venture_id>`"
             )
             return
         try:

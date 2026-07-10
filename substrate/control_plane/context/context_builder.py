@@ -542,7 +542,7 @@ if __name__ == "__main__":
     ctx = SubstrateContext(
         org_id=os.getenv("UMH_ORG_ID") or os.getenv("EOS_ORG_ID", "test"),
         user_id=os.getenv("UMH_USER_ID") or os.getenv("EOS_USER_ID", "test"),
-        active_venture_id="lyfe_institute",
+        active_venture_id="<venture_id>",
     )
     builder = ContextBuilder()
     result = builder.build(ctx, "test message", "test_session")

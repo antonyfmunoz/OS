@@ -44,8 +44,15 @@ from pathlib import Path
 # Patterns are case-insensitive word-boundary matches.
 
 INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
-    # AI persona name
-    (r"\bDEX\b", "ai_name", "get_ai_name() from substrate.control_plane.identity"),
+    # AI persona DISPLAY name (a specific tenant's assistant name). Case-sensitive:
+    # capitalized DEX / Dex is the display name and IS a cross-tenant leak. The
+    # lowercase `dex` token is the projection-NEUTRAL assistant ROLE SLUG — a stable
+    # wire/route/store protocol constant shared by every tenant (see
+    # ASSISTANT_ROLE_SLUG / get_assistant_role_slug in business_instance.py) — and
+    # is handled by the canonical-slug exemption below, not this pattern.
+    # (?-i:...) forces case-sensitivity for just this alternation so lowercase
+    # `dex` (the role slug) is NOT matched here.
+    (r"(?-i:\b(?:DEX|Dex)\b)", "ai_name", "get_ai_name() — display name is tenant-scoped"),
     # Founder/user identity
     (r"\bAntony\b", "founder_name", "BIS founder profile at runtime"),
     (r"\bMunoz\b", "founder_name", "BIS founder profile at runtime"),
@@ -86,31 +93,12 @@ _COMPILED_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
 # Format: relative path from repo root → set of categories allowed.
 
 LEGACY_INSTANCE_LEAKS: dict[str, set[str]] = {
-    # Benchmark defect seeder — intentionally contains instance values as test data
+    # Benchmark defect seeder — intentionally contains instance values as test data.
+    # This is a fixture (a leak-detector test corpus), not runtime tenant data.
     "substrate/organism/benchmarks/production_quality.py": {"ai_name", "infra_ip"},
-    # WP-P3-001: pre-existing snake_case venture-slug leaks frozen at main
-    # bb39b3abd. Adding the venture_slug patterns above would otherwise turn the
-    # gate red; these 19 files are tech debt to be migrated to BIS lookups in a
-    # later guarded packet. Shrink-only — the non-growth test enforces it.
-    "substrate/understanding/reality/reality_engine.py": {"venture_slug"},
-    "substrate/understanding/reality/reality_context.py": {"venture_slug"},
-    "substrate/understanding/world_pulse/world_pulse.py": {"venture_slug"},
-    "substrate/understanding/world_model/world_model.py": {"venture_slug"},
-    "substrate/understanding/intelligence/competitive_intel.py": {"venture_slug"},
-    "substrate/governance/accountability/accountability.py": {"venture_slug"},
-    "substrate/governance/principles/principle_engine.py": {"venture_slug"},
-    "substrate/control_plane/runtime/cognitive_loop.py": {"venture_slug"},
-    "substrate/control_plane/runtime/gateway.py": {"venture_slug"},
-    "substrate/control_plane/proactive/proactive_engine.py": {"venture_slug"},
-    "substrate/control_plane/events/event_bus.py": {"venture_slug"},
-    "substrate/control_plane/strategy/strategy_engine.py": {"venture_slug"},
-    "substrate/control_plane/context/context_builder.py": {"venture_slug"},
-    "substrate/control_plane/agents/ceo_agent.py": {"venture_slug"},
-    "substrate/control_plane/agents/agent_hierarchy.py": {"venture_slug"},
-    "substrate/control_plane/scheduling/daily_sync.py": {"venture_slug"},
-    "substrate/execution/bridge/roles.py": {"venture_slug"},
-    "substrate/state/business/business_instance.py": {"venture_slug"},
-    "substrate/state/lifecycle/stage_manager.py": {"venture_slug"},
+    # All prior venture-slug tech debt migrated to BIS runtime lookups in the
+    # multi-tenant instance-leak sweep. The allowlist is now empty of runtime
+    # code — kept only for the intentional benchmark fixture above. Shrink-only.
 }
 
 # ── Directories to skip ──────────────────────────────────────────────────────
