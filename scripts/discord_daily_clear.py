@@ -8,8 +8,8 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 DISCORD_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
 
 CLEAR_CHANNELS = {
-    'general':       1486289444830056540,
-    'morning-brief': 1485765524766982234,
+    'general':       int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0),
+    'morning-brief': int(os.getenv("DISCORD_DAILY_CHANNEL") or 0),
 }
 
 async def clear_channels():

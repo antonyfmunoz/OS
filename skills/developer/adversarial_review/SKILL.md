@@ -17,7 +17,7 @@ Boris Cherny's adversarial review pattern:
 Claude Code writes -> Codex reviews critically
 -> CC synthesizes -> stronger output.
 
-EOS implementation: eos-code-reviewer subagent
+EOS implementation: umh-code-reviewer subagent
 performs the adversarial pass.
 adversarial_code_review() in model_router.py
 handles the two-model orchestration.
@@ -61,7 +61,7 @@ if code:
 ## Gotchas
 
 - Codex must be authenticated (codex --version)
-- If Codex unavailable: eos-code-reviewer
+- If Codex unavailable: umh-code-reviewer
   subagent performs single-model adversarial pass
 - adversarial_code_review() currently returns input
   unchanged — Codex subprocess is unstable.

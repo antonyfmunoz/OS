@@ -43,8 +43,8 @@ load_dotenv(_REPO_ROOT / "runtime" / ".env")
 logger = logging.getLogger(__name__)
 
 # Windows machine — OpenSSH Server on Tailscale interface
-_WINDOWS_HOST = os.getenv("EOS_WINDOWS_TAILSCALE_HOST", "100.74.199.102")
-_WINDOWS_USER = os.getenv("EOS_WINDOWS_TAILSCALE_USER", "antonys beast pc")
+_WINDOWS_HOST = os.getenv("EOS_WINDOWS_TAILSCALE_HOST", "")
+_WINDOWS_USER = os.getenv("EOS_WINDOWS_TAILSCALE_USER", "")
 _BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767"))
 _BRIDGE_URL = f"http://{_WINDOWS_HOST}:{_BRIDGE_PORT}"
 
@@ -56,7 +56,7 @@ _MAX_WAIT_S = 30
 # Path to bridge server on Windows (native Windows path)
 _WINDOWS_REPO = os.getenv(
     "EOS_WINDOWS_REPO_PATH",
-    r"C:\Users\antonys beast pc\dev\OSv2",
+    os.path.join(os.getenv("EOS_WINDOWS_REPO_ROOT", ""), "dev", "OSv2") if os.getenv("EOS_WINDOWS_REPO_ROOT") else "",
 )
 _WINDOWS_BRIDGE_SCRIPT = os.getenv(
     "EOS_WINDOWS_BRIDGE_SCRIPT",
@@ -64,8 +64,18 @@ _WINDOWS_BRIDGE_SCRIPT = os.getenv(
 )
 _WINDOWS_BRIDGE_LOG = os.getenv(
     "EOS_WINDOWS_BRIDGE_LOG",
-    r"C:\Users\antonys beast pc\eos_bridge.log",
+    os.getenv("EOS_WINDOWS_BRIDGE_LOG_PATH", ""),
 )
+
+
+def _watchdog_username() -> str:
+    """Discord webhook display name for the watchdog — instance AI name at runtime."""
+    try:
+        from substrate.state.business.business_instance import get_ai_name
+        name = get_ai_name()
+        return f"{name}-watchdog" if name else "Watchdog"
+    except Exception:
+        return "Watchdog"
 
 
 def _ssh_cmd(remote_command: list[str]) -> list[str]:
@@ -181,7 +191,7 @@ def _surface_error(message: str) -> None:
         post_to_webhook(
             content=f"🚨 **Bridge Lifecycle Error**\n```\n{message}\n```",
             title="",
-            username="DEX-WATCHDOG",
+            username=_watchdog_username(),
         )
     except Exception:
         logger.warning("[BridgeHealth] Could not surface error to Discord")
@@ -203,7 +213,7 @@ def _surface_setup_gate() -> None:
         "Set-Service -Name sshd -StartupType Automatic\n"
         "\n"
         "# 3. Bind sshd to Tailscale interface (edit sshd_config):\n"
-        "#    ListenAddress 100.74.199.102\n"
+        "#    ListenAddress <this-node-tailscale-ip>\n"
         "\n"
         "# 4. Paste VPS pubkey into:\n"
         "#    C:\\ProgramData\\ssh\\administrators_authorized_keys\n"
@@ -221,7 +231,7 @@ def _surface_setup_gate() -> None:
     try:
         from transports.discord.discord_utils import post_to_webhook
 
-        post_to_webhook(content=msg, title="", username="DEX-WATCHDOG")
+        post_to_webhook(content=msg, title="", username=_watchdog_username())
     except Exception:
         pass
     logger.error("[BridgeHealth] %s", msg)

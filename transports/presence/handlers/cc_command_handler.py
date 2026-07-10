@@ -115,7 +115,7 @@ async def handle_nomeetings(message, text: str) -> bool:
             title="🚫 No Meetings Day — Deep Work",
             start_iso=_block_start.isoformat(),
             duration_minutes=9 * 60,
-            description="Focus day. No meetings. DEX will decline all invites.",
+            description="Focus day. No meetings. The assistant will decline all invites.",
         )
 
         from substrate.state.context.context import load_context_from_env
@@ -232,7 +232,11 @@ async def handle_competitive(message, text: str) -> bool:
         return False
 
     _parts = text.split()
-    _venture = _parts[1] if len(_parts) > 1 else "empyrean_creative"
+    if len(_parts) > 1:
+        _venture = _parts[1]
+    else:
+        from substrate.state.business.business_instance import get_active_venture_id
+        _venture = get_active_venture_id()
     try:
         from substrate.understanding.intelligence.competitive_intel import synthesize_competitive_landscape
 
@@ -290,7 +294,7 @@ async def handle_documents(message, text: str) -> bool:
 
 
 async def handle_audit(message, text: str) -> bool:
-    """!audit [days] — show DEX action trail."""
+    """!audit [days] — show the assistant's action trail."""
     if not text.startswith("!audit"):
         return False
 
@@ -326,7 +330,8 @@ async def handle_audit(message, text: str) -> bool:
             )
             return True
 
-        _lines = [f"📋 **DEX Audit Log — last {_days} day(s):**"]
+        from substrate.state.business.business_instance import get_ai_name as _gan
+        _lines = [f"📋 **{_gan() or 'Assistant'} Audit Log — last {_days} day(s):**"]
         for _r in _rows:
             _payload = _r["payload_json"]
             if isinstance(_payload, str):

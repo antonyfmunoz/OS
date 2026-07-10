@@ -29,7 +29,7 @@ Usage:
     ah = AgentHierarchy()
     print(ah.get_org_chart())
     print(ah.get_primary_interface())          # 'executive_assistant'
-    print(ah.format_for_prompt('lyfe_institute_ceo'))
+    print(ah.format_for_prompt('<venture_slug>_ceo'))
 """
 
 # ─── CORRECTED HIERARCHY AND COMMUNICATION FLOW ───────────────────────────────
@@ -60,93 +60,24 @@ Usage:
 #
 # ─── Hierarchy definition ─────────────────────────────────────────────────────
 
-HIERARCHY: dict[str, dict] = {
 
-    'executive_assistant': {
-        'level': 2,
-        'title': 'Executive Assistant',
-        'identity': '',
-        'reports_to': None,
-        'manages': [
-            'portfolio_advisor',
-            'lyfe_institute_ceo',
-            'empyrean_ceo',
-        ],
-        'is_primary_interface': True,
-        'owns': [
-            'founder_communication',
-            'meeting_facilitation',
-            'task_routing',
-            'morning_brief',
-            'follow_up',
-            'action_item_tracking',
-        ],
-        'handle_directly': [
-            'morning_brief',
-            'status_updates',
-            'routine_questions',
-            'meeting_scheduling',
-            'task_assignment',
-            'content_planning',
-            'outreach_session',
-            'stage_guidance',
-        ],
-        'escalate_to': {
-            'company_strategy':   'relevant_ceo',
-            'portfolio_strategy': 'portfolio_advisor',
-            'department_execution': 'relevant_manager',
-            'capital_allocation': 'portfolio_advisor',
-        },
-        'soul_doc': f'{_ROOT}/agents/executive_assistant.md',
-        'discord_bot_env': 'DISCORD_BOT_TOKEN',
-        'emoji': '👁️',
-    },
+def _venture_ceo_entry(venture_id: str, display_name: str) -> dict:
+    """Build a per-venture CEO hierarchy entry for a single tenant venture.
 
-    'portfolio_advisor': {
-        'level': 1,
-        'title': 'Portfolio Advisor',
-        'reports_to': 'executive_assistant',
-        'manages': [
-            'lyfe_institute_ceo',
-            'empyrean_ceo',
-        ],
-        'is_primary_interface': False,
-        'owns': [
-            'cross_company_strategy',
-            'capital_allocation',
-            'portfolio_performance',
-            'strategic_patterns',
-        ],
-        'handle_directly': [
-            'portfolio_performance',
-            'resource_allocation',
-            'cross_company_decisions',
-        ],
-        'escalate_to': {
-            'founder_decision': 'executive_assistant',
-        },
-        'soul_doc': f'{_ROOT}/agents/portfolio_advisor.md',
-        'discord_bot_env': 'DISCORD_BOT_TOKEN_PORTFOLIO',
-        'emoji': '📊',
-    },
-
-    'lyfe_institute_ceo': {
+    Multi-tenant: venture_id / display_name come from the tenant's BIS venture
+    roster at runtime — never a hardcoded slug. A managing developer agent is
+    added by build_hierarchy() alongside this entry.
+    """
+    return {
         'level': 3,
-        'title': f'{_venture_name("lyfe_institute")} CEO',
+        'title': f'{display_name} CEO',
         'reports_to': 'executive_assistant',
-        'manages': [
-            'lyfe_developer_agent',
-            'lyfe_sales_manager',
-            'lyfe_marketing_manager',
-            'lyfe_cs_manager',
-            'lyfe_operations_manager',
-            'lyfe_finance_manager',
-        ],
+        'manages': [f'{venture_id}_developer_agent'],
         'is_primary_interface': False,
         'owns': [
-            'lyfe_institute_strategy',
-            'lyfe_institute_performance',
-            'lyfe_institute_team',
+            f'{venture_id}_strategy',
+            f'{venture_id}_performance',
+            f'{venture_id}_team',
         ],
         'handle_directly': [
             'company_strategy',
@@ -158,57 +89,30 @@ HIERARCHY: dict[str, dict] = {
             'portfolio_decision': 'portfolio_advisor',
             'founder_decision':   'executive_assistant',
         },
-        'venture_id': 'lyfe_institute',
-        'soul_doc': f'{_ROOT}/agents/lyfe_institute_ceo.md',
-        'discord_bot_env': 'DISCORD_BOT_TOKEN_LYFE',
+        'venture_id': venture_id,
+        'soul_doc': f'{_ROOT}/agents/{venture_id}_ceo.md',
+        'discord_bot_env': f'DISCORD_BOT_TOKEN_{venture_id.upper()}',
         'emoji': '🏢',
         # CEO decides own org structure based on founder direction.
         # May appoint a Chief of Staff if complexity warrants it.
         'ceo_intelligence': True,
-    },
+    }
 
-    'empyrean_ceo': {
-        'level': 3,
-        'title': f'{_venture_name("empyrean_creative")} CEO',
-        'reports_to': 'executive_assistant',
-        'manages': [
-            'empyrean_developer_agent',
-            'empyrean_sales_manager',
-            'empyrean_operations_manager',
-        ],
-        'is_primary_interface': False,
-        'owns': [
-            'empyrean_strategy',
-            'empyrean_performance',
-        ],
-        'handle_directly': [
-            'company_strategy',
-            'client_relationships',
-            'service_delivery',
-        ],
-        'escalate_to': {
-            'portfolio_decision': 'portfolio_advisor',
-            'founder_decision':   'executive_assistant',
-        },
-        'venture_id': 'empyrean_creative',
-        'soul_doc': f'{_ROOT}/agents/empyrean_ceo.md',
-        'discord_bot_env': 'DISCORD_BOT_TOKEN_EMPYREAN',
-        'emoji': '⚡',
-        'ceo_intelligence': True,
-    },
 
-    'lyfe_developer_agent': {
+def _venture_developer_entry(venture_id: str, display_name: str) -> dict:
+    """Build a per-venture developer-agent hierarchy entry for a single tenant venture."""
+    return {
         'level': 4,
-        'title': f'{_venture_name("lyfe_institute")} Developer Agent',
+        'title': f'{display_name} Developer Agent',
         'identity': 'Claude Code',
-        'reports_to': 'lyfe_institute_ceo',
+        'reports_to': f'{venture_id}_ceo',
         'manages': [],
         'owns': [
-            'lyfe_codebase_integrity',
-            'lyfe_agent_creation',
-            'lyfe_skill_creation',
-            'lyfe_deployment',
-            'lyfe_debugging',
+            f'{venture_id}_codebase_integrity',
+            f'{venture_id}_agent_creation',
+            f'{venture_id}_skill_creation',
+            f'{venture_id}_deployment',
+            f'{venture_id}_debugging',
         ],
         'handle_directly': [
             'code_changes',
@@ -219,70 +123,134 @@ HIERARCHY: dict[str, dict] = {
             'testing',
         ],
         'escalate_to': {
-            'architecture_decision': 'lyfe_institute_ceo',
+            'architecture_decision': f'{venture_id}_ceo',
             'founder_direction':     'executive_assistant',
         },
         'human_partner': 'developer',
         'autonomy_level': 4,
         'operating_mode': 'hybrid',
         'domain': 'technical',
-        'venture_id': 'lyfe_institute',
+        'venture_id': venture_id,
         'soul_doc': f'{_ROOT}/.claude/CLAUDE.md',
         'emoji': '⚙️',
         'is_developer_agent': True,
-    },
+    }
 
-    'research_agent': {
-        'level': 3,
-        'title': 'Research Agent',
-        'reports_to': 'lyfe_institute_ceo',
-        'manages': [],
-        'owns': [
-            'icp_analysis',
-            'signal_processing',
-            'market_intelligence',
-            'pattern_detection',
-            'competitive_research',
-        ],
-        'handle_directly': ['RESEARCH', 'ANALYZE', 'INTEL'],
-        'escalate_to': {'strategy': 'lyfe_institute_ceo'},
-        'soul_doc': f'{_ROOT}/agents/research_agent.md',
-        'emoji': '🔬',
-    },
 
-    'empyrean_developer_agent': {
-        'level': 4,
-        'title': f'{_venture_name("empyrean_creative")} Developer Agent',
-        'identity': 'Claude Code',
-        'reports_to': 'empyrean_ceo',
-        'manages': [],
-        'owns': [
-            'empyrean_codebase_integrity',
-            'empyrean_agent_creation',
-            'empyrean_skill_creation',
-            'empyrean_deployment',
-        ],
-        'handle_directly': [
-            'code_changes',
-            'debugging',
-            'new_agent',
-            'new_skill',
-            'deployment',
-        ],
-        'escalate_to': {
-            'architecture_decision': 'empyrean_ceo',
-            'founder_direction':     'executive_assistant',
+def build_hierarchy(ctx=None) -> dict[str, dict]:
+    """Compose the agent hierarchy for the active tenant.
+
+    Static roles (EA, portfolio advisor, research agent) are tenant-agnostic.
+    Per-venture CEO + developer-agent entries are generated from this tenant's
+    BIS venture roster (``get_ventures(ctx)``) — never from literal slugs, so
+    each seat sees only its own org's ventures. When no roster is resolvable
+    (context/DB unset), only the static roles exist.
+    """
+    try:
+        from substrate.state.business.business_instance import get_ventures
+        ventures = get_ventures(ctx)
+    except Exception:
+        ventures = []
+
+    venture_ceo_ids = [f"{v['id']}_ceo" for v in ventures if v.get('id')]
+
+    hierarchy: dict[str, dict] = {
+
+        'executive_assistant': {
+            'level': 2,
+            'title': 'Executive Assistant',
+            'identity': '',
+            'reports_to': None,
+            'manages': ['portfolio_advisor', *venture_ceo_ids],
+            'is_primary_interface': True,
+            'owns': [
+                'founder_communication',
+                'meeting_facilitation',
+                'task_routing',
+                'morning_brief',
+                'follow_up',
+                'action_item_tracking',
+            ],
+            'handle_directly': [
+                'morning_brief',
+                'status_updates',
+                'routine_questions',
+                'meeting_scheduling',
+                'task_assignment',
+                'content_planning',
+                'outreach_session',
+                'stage_guidance',
+            ],
+            'escalate_to': {
+                'company_strategy':   'relevant_ceo',
+                'portfolio_strategy': 'portfolio_advisor',
+                'department_execution': 'relevant_manager',
+                'capital_allocation': 'portfolio_advisor',
+            },
+            'soul_doc': f'{_ROOT}/agents/executive_assistant.md',
+            'discord_bot_env': 'DISCORD_BOT_TOKEN',
+            'emoji': '👁️',
         },
-        'human_partner': 'developer',
-        'autonomy_level': 4,
-        'operating_mode': 'hybrid',
-        'domain': 'technical',
-        'venture_id': 'empyrean_creative',
-        'soul_doc': f'{_ROOT}/.claude/CLAUDE.md',
-        'emoji': '⚙️',
-        'is_developer_agent': True,
-    },
-}
+
+        'portfolio_advisor': {
+            'level': 1,
+            'title': 'Portfolio Advisor',
+            'reports_to': 'executive_assistant',
+            'manages': list(venture_ceo_ids),
+            'is_primary_interface': False,
+            'owns': [
+                'cross_company_strategy',
+                'capital_allocation',
+                'portfolio_performance',
+                'strategic_patterns',
+            ],
+            'handle_directly': [
+                'portfolio_performance',
+                'resource_allocation',
+                'cross_company_decisions',
+            ],
+            'escalate_to': {
+                'founder_decision': 'executive_assistant',
+            },
+            'soul_doc': f'{_ROOT}/agents/portfolio_advisor.md',
+            'discord_bot_env': 'DISCORD_BOT_TOKEN_PORTFOLIO',
+            'emoji': '📊',
+        },
+
+        'research_agent': {
+            'level': 3,
+            'title': 'Research Agent',
+            'reports_to': venture_ceo_ids[0] if venture_ceo_ids else 'executive_assistant',
+            'manages': [],
+            'owns': [
+                'icp_analysis',
+                'signal_processing',
+                'market_intelligence',
+                'pattern_detection',
+                'competitive_research',
+            ],
+            'handle_directly': ['RESEARCH', 'ANALYZE', 'INTEL'],
+            'escalate_to': {'strategy': venture_ceo_ids[0] if venture_ceo_ids else 'executive_assistant'},
+            'soul_doc': f'{_ROOT}/agents/research_agent.md',
+            'emoji': '🔬',
+        },
+    }
+
+    # Per-venture CEO + developer-agent entries, generated from the tenant roster.
+    for v in ventures:
+        vid = v.get('id')
+        if not vid:
+            continue
+        vname = v.get('name') or _venture_name(vid)
+        hierarchy[f'{vid}_ceo'] = _venture_ceo_entry(vid, vname)
+        hierarchy[f'{vid}_developer_agent'] = _venture_developer_entry(vid, vname)
+
+    return hierarchy
+
+
+# Module-level default hierarchy — env-based tenant resolution (empty roster when
+# UMH_ORG_ID is unset, so no named tenant leaks into the default build).
+HIERARCHY: dict[str, dict] = build_hierarchy()
 
 
 # ─── AgentHierarchy ───────────────────────────────────────────────────────────
@@ -297,8 +265,11 @@ class AgentHierarchy:
     - Org chart rendering: human-readable view of the hierarchy
     """
 
-    def __init__(self) -> None:
-        self.agents = HIERARCHY
+    def __init__(self, ctx=None) -> None:
+        # Build the hierarchy for the active tenant. When no ctx is passed the
+        # env-based build applies (UMH_ORG_ID); an empty roster yields only the
+        # static roles rather than any named tenant's ventures.
+        self.agents = build_hierarchy(ctx) if ctx is not None else HIERARCHY
 
     # ─── Routing ─────────────────────────────────────────────────────────────
 

@@ -41,31 +41,44 @@ HEADERS = {
 
 # ── Real page IDs (discovered 2026-03-31) ─────────
 
-PORTFOLIO_PAGE_ID = '32eda8b9-6e4f-81eb-b253-f2e50bbd298a'
+def _ai_name() -> str:
+    try:
+        from substrate.state.business.business_instance import get_ai_name
+        return get_ai_name() or 'Assistant'
+    except Exception:
+        return 'Assistant'
 
-VENTURES = [
-    {
-        'id': 'personal_brand',
-        'name': 'Personal Brand',
-        'page_id': '32eda8b9-6e4f-812b-888c-df30298aa856',
-        'stage': 1,
-        'env_prefix': 'NOTION_PERSONAL_BRAND',
-    },
-    {
-        'id': 'lyfe_institute',
-        'name': 'Lyfe Institute',
-        'page_id': '32eda8b9-6e4f-817f-a314-fc66aa831cc3',
-        'stage': 1,
-        'env_prefix': 'NOTION_LYFE_INSTITUTE',
-    },
-    {
-        'id': 'empyrean_creative',
-        'name': 'Empyrean Creative',
-        'page_id': '32eda8b9-6e4f-81c7-8872-e5a768ea9faf',
-        'stage': 1,
-        'env_prefix': 'NOTION_EMPYREAN_CREATIVE',
-    },
-]
+
+AI_NAME = _ai_name()
+
+PORTFOLIO_PAGE_ID = os.getenv("NOTION_PORTFOLIO_PAGE_ID", "")
+
+def _load_ventures() -> list:
+    """Tenant ventures for Notion setup, from BIS at runtime. Each venture's page
+    id comes from NOTION_<SLUG_UPPER>_PAGE_ID; env prefix is NOTION_<SLUG_UPPER>.
+    Never hardcode a tenant's venture ids/names/page-ids here."""
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ventures
+        out = []
+        for v in get_ventures(load_context_from_env()):
+            vid = v.get('id', '')
+            if not vid:
+                continue
+            up = vid.upper()
+            out.append({
+                'id': vid,
+                'name': v.get('name', vid),
+                'page_id': os.getenv(f'NOTION_{up}_PAGE_ID', ''),
+                'stage': 1,
+                'env_prefix': f'NOTION_{up}',
+            })
+        return out
+    except Exception:
+        return []
+
+
+VENTURES = _load_ventures()
 
 # ── Helpers ───────────────────────────────────────
 
@@ -312,7 +325,7 @@ STATUS_OPTIONS = [
 ]
 
 AGENT_OPTIONS = [
-    {'name': 'DEX', 'color': 'blue'},
+    {'name': AI_NAME, 'color': 'blue'},
     {'name': 'CEO Agent', 'color': 'purple'},
     {'name': 'Sales Agent', 'color': 'green'},
     {'name': 'Outreach Agent', 'color': 'pink'},
@@ -367,7 +380,7 @@ TASKS_SCHEMA = {
     'Assigned To': {'select': {'options': AGENT_OPTIONS}},
     'Source': {'select': {'options': [
         {'name': 'Founder', 'color': 'red'},
-        {'name': 'DEX', 'color': 'blue'},
+        {'name': AI_NAME, 'color': 'blue'},
         {'name': 'CEO Agent', 'color': 'purple'},
         {'name': 'Sales Agent', 'color': 'green'},
         {'name': 'Research Agent', 'color': 'yellow'},
@@ -832,7 +845,7 @@ ROLE_DASHBOARDS = [
         ],
     },
     {
-        'name': '🤖 DEX (Executive Assistant)',
+        'name': f'🤖 {AI_NAME} (Executive Assistant)',
         'dept': 'Leadership',
         'description': (
             'Cross-venture operational view. '
@@ -1013,10 +1026,14 @@ def main() -> None:
 
     # Portfolio Overview DB
     print('\n── Portfolio ──')
-    portfolio_db_id = _ensure_db(
-        PORTFOLIO_PAGE_ID, 'Portfolio Overview',
-        PORTFOLIO_SCHEMA, existing_dbs,
-    )
+    if PORTFOLIO_PAGE_ID:
+        portfolio_db_id = _ensure_db(
+            PORTFOLIO_PAGE_ID, 'Portfolio Overview',
+            PORTFOLIO_SCHEMA, existing_dbs,
+        )
+    else:
+        print('  ⏭️  NOTION_PORTFOLIO_PAGE_ID not set — skipping Portfolio Overview')
+        portfolio_db_id = ''
 
     # Write IDs to .env
     print('\n── Writing to .env ──')

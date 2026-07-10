@@ -1,7 +1,7 @@
 """
 Calendar Invite Handler — polls for pending invites every 15 mins.
-DEX reviews each one, decides accept/decline based on rules,
-notifies Antony in Discord, logs to Notion Meetings DB.
+The assistant reviews each one, decides accept/decline based on rules,
+notifies the founder in Discord, logs to Notion Meetings DB.
 """
 
 import os
@@ -19,7 +19,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 
 PDT = ZoneInfo('America/Los_Angeles')
 STATE_FILE = '/tmp/calendar_invite_state.json'
-GENERAL_CHANNEL_ID = 1486289444830056540
+GENERAL_CHANNEL_ID = int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0)
 
 
 def load_state():
@@ -36,7 +36,7 @@ def save_state(state):
 
 
 def get_pending_invites() -> list[dict]:
-    """Get calendar events where Antony hasn't responded yet."""
+    """Get calendar events where the founder hasn't responded yet."""
     try:
         from adapters.google_workspace.gws_connector import GWSConnector
         gws = GWSConnector()
@@ -135,18 +135,21 @@ def assess_invite(invite: dict) -> dict:
     try:
         from adapters.models.model_router import ModelRouter, TaskType
         from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ai_name, get_founder_name
         ctx = load_context_from_env()
+        _ai = get_ai_name() or 'the assistant'
+        _founder = get_founder_name(ctx, default='the founder')
         router = ModelRouter(ctx)
         model = router.route(TaskType.FAST_RESPONSE)
 
-        prompt = f"""You are DEX, EA to Antony Munoz, founder of Munoz Conglomerate.
+        prompt = f"""You are {_ai}, EA to {_founder}.
 
 Assess this calendar invite and recommend accept or decline.
 
 Rules:
 - Accept: known contacts, relevant business meetings, calls with leads/clients
 - Decline: spam, irrelevant, conflicts with deep work
-- Flag for Antony: anything with significant business or financial implications
+- Flag for {_founder}: anything with significant business or financial implications
 
 Deterministic pre-assessment: {deterministic['recommendation']} ({deterministic['reason']})
 
@@ -213,6 +216,9 @@ async def process_invites():
     if not new_invites:
         print('[InviteHandler] All invites already processed.')
         return
+
+    from substrate.state.business.business_instance import get_ai_name
+    ai_name = get_ai_name() or 'Assistant'
 
     intents = discord.Intents.default()
     client = discord.Client(intents=intents)
@@ -315,7 +321,7 @@ async def process_invites():
                     f"📬 **Invite needs your decision:** {invite['title']}\n"
                     f"📅 {invite['start'][:16]}\n"
                     f"👤 From: {invite['organizer_name']}\n"
-                    f"💬 DEX assessment: {reason}\n\n"
+                    f"💬 {ai_name} assessment: {reason}\n\n"
                     f"Reply `!accept {invite['id']}` or `!decline {invite['id']}`"
                 )
                 await channel.send(msg)

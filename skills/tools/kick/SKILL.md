@@ -118,7 +118,7 @@ curl -X POST https://id.kick.com/oauth/token \
 ### Read channel info
 
 ```bash
-curl https://api.kick.com/public/v1/channels?slug=antonyfmunoz \
+curl https://api.kick.com/public/v1/channels?slug=<your-username> \
   -H "Authorization: Bearer $TOKEN"
 ```
 

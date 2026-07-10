@@ -160,11 +160,14 @@ class DocumentWorkflow:
         try:
             from adapters.google_workspace.doc_creator import create_briefing_doc
 
+            from projections.eos import instance
+
             result = create_briefing_doc(
                 title=dc.title,
                 topic=dc.topic,
                 context=dc.context,
-                audience=dc.audience or "Antony",
+                audience=dc.audience
+                or instance.founder(instance.load_bis(self._org_id, self._venture_id)),
                 doc_type=dc.doc_type,
             )
             if result.get("content"):

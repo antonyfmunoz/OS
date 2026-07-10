@@ -968,7 +968,7 @@ class ReportBuilder:
         # Known services
         self.emit("<h3>Running Services</h3>")
         services = [
-            ("os-discord", "services/discord_bot.py", "Primary Discord bot — DEX conversational layer"),
+            ("os-discord", "services/discord_bot.py", "Primary Discord bot — assistant conversational layer"),
             ("os-operator", "services/operator_service.py", "Organism daemon — workcell scheduling, heartbeat, delegation"),
             ("os-webhook", "services/webhook_server.py", "Webhook receiver for external integrations"),
             ("os-scraper", "services/scraper_service.py", "Web intelligence scraper"),

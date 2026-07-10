@@ -18,7 +18,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
-GENERAL_CHANNEL_ID = 1486289444830056540
+GENERAL_CHANNEL_ID = int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0)
 
 
 async def detect_noshows():
@@ -26,6 +26,8 @@ async def detect_noshows():
     from adapters.models.model_router import get_router, TaskType
 
     ctx = load_context_from_env()
+    from substrate.state.business.business_instance import get_founder_name
+    founder_name = get_founder_name(ctx, default='')
 
     try:
         import requests as _req
@@ -103,12 +105,13 @@ async def detect_noshows():
             except Exception as e:
                 print(f'[NoShow] Notion update failed for {person}: {e}')
 
+            _signoff = f"\n\n— {founder_name}" if founder_name else ""
             draft = (
                 f"Subject: Missed you today\n\n"
                 f"Hey {person},\n\n"
                 f"Looks like we missed each other — no worries at all. "
-                f"If you'd like to reschedule, grab a time here: [Calendly link]\n\n"
-                f"— Antony"
+                f"If you'd like to reschedule, grab a time here: [Calendly link]"
+                f"{_signoff}"
             )
             try:
                 ai_draft = router.call(model, f"""Draft a brief no-show recovery email for {person}.

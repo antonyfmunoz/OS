@@ -84,8 +84,9 @@ _ENV_PRODUCT_SESSION = "EOS_DISCORD_PRODUCT_SESSION"
 _ENV_PER_CHANNEL = "EOS_DISCORD_MODE_PER_CHANNEL"
 
 from substrate.execution.bridge.claude_session_bridge import make_session_name as _msn
-_DEFAULT_BUILDER_SESSION = _msn("builder", "main")
-_DEFAULT_PRODUCT_SESSION = _msn("product", "main")
+# One instance → ONE session. Mode is kept as an OBSERVABILITY tag only; it no
+# longer forks the session name or persona (see project_one_session_convergence).
+_DEFAULT_MAIN_SESSION = _msn("main")
 _DEFAULT_TARGET = "vps"
 _VALID_TARGETS = frozenset({"vps", "local"})
 
@@ -206,15 +207,15 @@ def resolve_mode_session(
     else:
         source = "default"
 
-    # ── session name resolution ──────────────────────────────────────────
-    if mode == MODE_BUILDER:
-        base = (
-            os.getenv(_ENV_BUILDER_SESSION) or _DEFAULT_BUILDER_SESSION
-        ).strip() or _DEFAULT_BUILDER_SESSION
-    else:  # MODE_PRODUCT
-        base = (
-            os.getenv(_ENV_PRODUCT_SESSION) or _DEFAULT_PRODUCT_SESSION
-        ).strip() or _DEFAULT_PRODUCT_SESSION
+    # ── session name resolution (converged: one session for every mode) ───
+    # A single explicit override env may still name the session, but builder and
+    # product no longer resolve to different sessions — there is one instance.
+    base = (
+        os.getenv("EOS_DISCORD_MAIN_SESSION")
+        or os.getenv(_ENV_BUILDER_SESSION)
+        or os.getenv(_ENV_PRODUCT_SESSION)
+        or _DEFAULT_MAIN_SESSION
+    ).strip() or _DEFAULT_MAIN_SESSION
 
     per_channel = _flag_truthy(_ENV_PER_CHANNEL)
     if per_channel and channel_id is not None and str(channel_id).strip():

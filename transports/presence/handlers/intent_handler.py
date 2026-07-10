@@ -252,7 +252,7 @@ def run_gateway(
     except Exception as _pr_err:
         _record_error("person_recognition", _pr_err, {"text_preview": text[:100]})
 
-    # Cloning loop — detect when text answers an open DEX question
+    # Cloning loop — detect when text answers an open assistant question
     try:
         from substrate.state.context.context import load_context_from_env
         from substrate.state.storage.db import get_conn

@@ -103,6 +103,12 @@ SIGNALS_DIR = Path('${UMH_ROOT:-/opt/OS}/01_Inbox/processed_signals')
 KNOWLEDGE_DIR = Path('${UMH_ROOT:-/opt/OS}/07_Knowledge')
 today = datetime.now().strftime('%Y-%m-%d')
 
+# Active venture identity — sourced from env, never hardcoded per instance
+VENTURE_ID = os.getenv('UMH_ACTIVE_VENTURE_ID', '')
+VENTURE_NAME = os.getenv('UMH_ACTIVE_VENTURE_NAME', 'the active venture')
+VENTURE_OFFER = os.getenv('UMH_ACTIVE_VENTURE_OFFER', "the active venture's offer")
+VENTURE_AUDIENCE = os.getenv('UMH_ACTIVE_VENTURE_AUDIENCE', "the active venture's target audience")
+
 # Load recent processed signals — last 50 files by modification time
 signal_files = sorted(SIGNALS_DIR.glob('*.md'), key=lambda f: f.stat().st_mtime, reverse=True)[:50]
 signal_content = ''
@@ -121,14 +127,14 @@ print(f'[Research] Loaded {len(signal_files)} signals')
 tasks = [
     {
         'name': 'signal_intelligence',
-        'prompt': f"""Analyze these Instagram ICP signals from Lyfe Institute's target audience (men 18-25, ambitious but stuck):
+        'prompt': f"""Analyze these Instagram ICP signals from {VENTURE_NAME}'s target audience ({VENTURE_AUDIENCE}):
 
 {signal_content[:6000]}
 
 Extract:
 1. Top 3 recurring pain patterns with exact quotes where possible
 2. Strongest conversion signals (language that shows buying intent)
-3. Any new ICP archetypes emerging beyond Ambitious But Stuck and Frustrated Drifter
+3. Any new ICP archetypes emerging beyond the current known archetypes
 4. Recommended messaging adjustments based on what you see
 
 Be specific. Cite signal sources. End with 3 actionable implications.""",
@@ -136,7 +142,7 @@ Be specific. Cite signal sources. End with 3 actionable implications.""",
     },
     {
         'name': 'pattern_analysis',
-        'prompt': f"""Analyze these ICP signals for patterns that should update our understanding of the Lyfe Institute target customer:
+        'prompt': f"""Analyze these ICP signals for patterns that should update our understanding of the {VENTURE_NAME} target customer:
 
 {signal_content[:4000]}
 
@@ -151,7 +157,7 @@ Output a structured ICP pattern update that can be used to improve outreach mess
     },
     {
         'name': 'market_intelligence',
-        'prompt': f"""Generate a weekly market intelligence report for Lyfe Institute (Initiate Arena, $750, 90-day coaching, men 18-25).
+        'prompt': f"""Generate a weekly market intelligence report for {VENTURE_NAME} ({VENTURE_OFFER}, {VENTURE_AUDIENCE}).
 
 Based on these recent ICP signals:
 {signal_content[:3000]}
@@ -173,7 +179,7 @@ for task in tasks:
         result = gateway.handle({
             'type': 'agent_task',
             'prompt': task['prompt'],
-            'venture_id': 'lyfe_institute',
+            'venture_id': VENTURE_ID,
             'sub_agent': 'research_agent',
             'channel': 'nightly_maintenance',
             'session_id': f'nightly_{task["name"]}_{today}',

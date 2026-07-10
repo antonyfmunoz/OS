@@ -162,7 +162,12 @@ class DailyRhythmWorkflow:
                 f"{vel.get('in_progress', 0)} in progress"
             )
 
-        parts.append("\n**Focus today**: Check Initiate Arena pipeline. Execute highest-leverage task.")
+        from projections.eos import instance
+
+        _offer = instance.offer_name(instance.load_bis(self._org_id, self._venture_id))
+        parts.append(
+            f"\n**Focus today**: Check {_offer} pipeline. Execute highest-leverage task."
+        )
 
         self._brief = "\n".join(parts)
 

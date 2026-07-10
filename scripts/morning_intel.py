@@ -20,7 +20,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo("America/Los_Angeles")
-GENERAL_CHANNEL_ID = 1486289444830056540
+GENERAL_CHANNEL_ID = int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0)
 
 
 async def build_intel_brief():
@@ -28,6 +28,7 @@ async def build_intel_brief():
     from substrate.state.storage.db import get_conn
     from adapters.models.model_router import get_router, TaskType
     from substrate.control_plane.strategy.portfolio_advisor import PortfolioAdvisor as PortfolioAgent
+    from substrate.state.business.business_instance import get_ai_name, get_founder_name, get_ventures
     import json as _json
 
     ctx = load_context_from_env()
@@ -121,10 +122,12 @@ async def build_intel_brief():
     brief = "\n".join(det_parts)
 
     try:
-        prompt = f"""You are DEX, EA to Antony Munoz, founder of:
-- Lyfe Institute (coaching men 18-25, $750, Instagram DMs)
-- Empyrean Creative (B2B AI infrastructure)
-- Antony F. Munoz (personal brand, Twitch)
+        _ai = get_ai_name() or 'the assistant'
+        _founder = get_founder_name(ctx, default='the founder')
+        _ventures = get_ventures(ctx)
+        _roster = '\n'.join(f"- {v.get('name', v.get('id', ''))}" for v in _ventures) or "- (portfolio loaded at runtime)"
+        prompt = f"""You are {_ai}, EA to {_founder}, founder of:
+{_roster}
 
 Portfolio context: {portfolio_context}
 
@@ -152,7 +155,7 @@ No fluff. If there's nothing meaningful, say so briefly."""
 
     sections.append(brief)
     sections.append("")
-    sections.append("— DEX")
+    sections.append(f"— {get_ai_name() or 'Assistant'}")
 
     full_message = "\n".join(sections)
 

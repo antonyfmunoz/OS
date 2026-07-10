@@ -4,7 +4,7 @@
 #
 # Usage:
 #   scripts/substrate_operator_tick.sh                       # default node
-#   scripts/substrate_operator_tick.sh antony-workstation other-node
+#   scripts/substrate_operator_tick.sh node-a node-b
 #   SUBSTRATE_NODES="a b" scripts/substrate_operator_tick.sh
 #   scripts/substrate_operator_tick.sh --quiet               # suppress JSON
 #   scripts/substrate_operator_tick.sh --install-cron        # print cron line
@@ -35,7 +35,7 @@ Flags:
   --install-cron       Print a recommended crontab line and exit
   --help               This message
 
-Positional args: one or more node ids (default: antony-workstation)
+Positional args: one or more node ids (default: \$UMH_NODE_ID)
 Env:
   SUBSTRATE_NODES      Space-separated node ids (lower priority than argv)
   SUBSTRATE_TICK_LOG_DIR  Override log directory for --quiet mode
@@ -70,8 +70,12 @@ if [ "${#NODES[@]}" -eq 0 ] && [ -n "${SUBSTRATE_NODES:-}" ]; then
     # shellcheck disable=SC2206
     NODES=(${SUBSTRATE_NODES})
 fi
+if [ "${#NODES[@]}" -eq 0 ] && [ -n "${UMH_NODE_ID:-}" ]; then
+    NODES=("${UMH_NODE_ID}")
+fi
 if [ "${#NODES[@]}" -eq 0 ]; then
-    NODES=(antony-workstation)
+    echo "no node id: pass a node arg, set SUBSTRATE_NODES, or set UMH_NODE_ID" >&2
+    exit 2
 fi
 
 cd "$REPO_DIR"

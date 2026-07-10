@@ -1,5 +1,5 @@
 """
-Inbox Zero Initialization — run ONCE on first DEX setup.
+Inbox Zero Initialization — run ONCE on first assistant setup.
 
 Four-phase protocol:
   Phase 1 — AUDIT    Read-only. Map current inbox state.
@@ -30,6 +30,10 @@ ctx = load_context_from_env()
 gps = EmailGPS(ctx)
 gws = GWSConnector()
 
+from substrate.state.business.business_instance import get_founder_name
+_FOUNDER_NAME = get_founder_name(ctx, default='')
+_FOUNDER_LABEL = EmailFolder.FOUNDER.value  # neutral folder display name ('Founder')
+
 # Resolve relative to repo root so path works in container (/app) and on host
 AUDIT_PATH = str(Path(__file__).resolve().parent.parent / 'data' / 'gmail_audit.json')
 
@@ -42,9 +46,10 @@ print()
 
 audit = gws.audit_inbox(save_path=AUDIT_PATH)
 
-# GPS labels we manage — keep these, delete everything else
+# GPS labels we manage — keep these, delete everything else.
+# The founder folder label is the neutral EmailFolder.FOUNDER value, not a name.
 GPS_LABELS = [
-    'Antony', 'To Respond', 'Review',
+    _FOUNDER_LABEL, 'To Respond', 'Review',
     'Responded', 'Waiting On',
     'Receipts-Financials', 'Newsletters',
 ]
@@ -295,7 +300,8 @@ def verify_existing_labels() -> str:
 print('Step 1 — Migrating and deleting legacy labels...')
 
 OLD_TO_NEW_MAP = {
-    '! - Antony F Munoz': 'Antony',
+    # Legacy founder label (from the founder's prior Gmail setup) → neutral folder.
+    f'! - {_FOUNDER_NAME}': _FOUNDER_LABEL,
     '1 - To Respond':     'To Respond',
     '2 - To Review':      'Review',
     '3 - Responded':      'Responded',

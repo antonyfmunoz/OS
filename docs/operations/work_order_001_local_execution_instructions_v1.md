@@ -14,7 +14,7 @@ Work Order ID:       WO-LOCAL-PILOT-GDRIVE-GDOCS-001
 Created by:          vps_orchestrator
 Assigned to:         local_pc_worker
 Task type:           GOOGLE_DRIVE_DOCS_FULL_ARCHIVE_PILOT
-Google account:      antonyfm@empyreanstudios.co
+Google account:      ${UMH_OPERATOR_EMAIL}
 Account scope:       single_account_only
 Source class:        Google Drive / Google Docs only
 Authority mode:      READ_ONLY + APPROVAL_REQUIRED for deep actions
@@ -33,7 +33,7 @@ Before executing any action, confirm ALL of the following:
 - [ ] 2. The **founder is present and watching** the screen
 - [ ] 3. A **browser window is visible** and accessible
 - [ ] 4. The founder has **approved opening Google Drive**
-- [ ] 5. The active Google account is **antonyfm@empyreanstudios.co**
+- [ ] 5. The active Google account is **the operator**
 - [ ] 6. If wrong account → **PAUSE immediately** — do not continue
 
 ---
@@ -45,7 +45,7 @@ Before executing any action, confirm ALL of the following:
 After founder gives initial approval to begin:
 
 1. **Open Google Drive** at `https://drive.google.com`
-2. **Verify account** — confirm the logged-in account is `antonyfm@empyreanstudios.co`
+2. **Verify account** — confirm the logged-in account is the operator
    - If wrong account: STOP. Report to founder. Do not switch accounts.
 3. **Inventory the top-level Drive structure:**
    - List all visible folders in "My Drive"
@@ -135,7 +135,7 @@ When the pilot ends, write a result report containing:
 
 - `work_order_id`: WO-LOCAL-PILOT-GDRIVE-GDOCS-001
 - `executing_node`: local_pc_worker
-- `google_account`: antonyfm@empyreanstudios.co
+- `google_account`: `${UMH_OPERATOR_EMAIL}`
 - `execution_start`: ISO 8601 timestamp
 - `execution_end`: ISO 8601 timestamp
 - `status`: COMPLETE / PARTIAL / FAILED

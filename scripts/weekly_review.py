@@ -1,6 +1,6 @@
 """
 Weekly business review — Sunday 7pm PDT.
-Portfolio health, open items, DEX synthesis.
+Portfolio health, open items, assistant synthesis.
 Posts to #general.
 """
 
@@ -17,7 +17,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
-GENERAL_CHANNEL_ID = 1486289444830056540
+GENERAL_CHANNEL_ID = int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0)
 
 
 async def run_weekly_review():
@@ -28,6 +28,9 @@ async def run_weekly_review():
     import json as _json
 
     ctx = load_context_from_env()
+    from substrate.state.business.business_instance import get_ai_name, get_founder_name
+    ai_name = get_ai_name() or 'Assistant'
+    founder_name = get_founder_name(ctx, default='the founder')
     now = datetime.now(PDT)
 
     sections = []
@@ -195,13 +198,13 @@ async def run_weekly_review():
     except Exception:
         pass
 
-    # 4. DEX synthesis — deterministic summary first, AI enhancement when available
+    # 4. Assistant synthesis — deterministic summary first, AI enhancement when available
     context_block = '\n'.join(sections)
-    sections.append('**DEX assessment:**')
+    sections.append(f'**{ai_name} assessment:**')
     try:
         router = get_router()
         model = router.route(TaskType.ANALYSIS)
-        synthesis = router.call(model, f"""You are DEX, EA to Antony Munoz.
+        synthesis = router.call(model, f"""You are {ai_name}, EA to {founder_name}.
 Based on this week's activity:
 
 {context_block}
@@ -217,7 +220,7 @@ Be direct. No hedging. Focus on the binding constraint.""").strip()
     sections.append('')
 
     sections.append('**Next week starts tomorrow. What do you want to protect?**')
-    sections.append('— DEX')
+    sections.append(f'— {ai_name}')
 
     full_message = '\n'.join(sections)
 

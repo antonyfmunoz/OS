@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { fetchApi } from '../api/client'
+import { useConfigStore } from './configStore'
 import { DEFAULT_GUEST_PERMISSIONS } from '../types/rooms'
 import type {
   RoomServer,
@@ -138,7 +139,7 @@ interface RoomsState {
   joinVoice: (channelId: string) => Promise<void>
   leaveVoice: (channelId: string) => Promise<void>
 
-  // DEX actions
+  // assistant actions
   fetchDexSettings: (channelId: string) => Promise<void>
   updateDexSettings: (channelId: string, updates: Partial<DexRoomSettings>) => Promise<void>
   dexSummarize: (channelId: string) => Promise<string>
@@ -870,7 +871,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
     }
   },
 
-  // ── DEX actions ──
+  // ── assistant actions ──
 
   fetchDexSettings: async (channelId) => {
     try {
@@ -889,7 +890,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
       })
       set((s) => ({ dexSettings: { ...s.dexSettings, [channelId]: settings } }))
     } catch (e) {
-      set({ error: e instanceof Error ? e.message : 'Failed to update DEX settings' })
+      set({ error: e instanceof Error ? e.message : `Failed to update ${useConfigStore.getState().aiName} settings` })
     }
   },
 

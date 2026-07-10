@@ -44,10 +44,13 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="UMH Operator API", version="1.0.0")
 
-# CORS for dev (Vite on 5173)
+# CORS: localhost dev default + host-specific origins from env (no hardcoded IP)
+_operator_cors = ["http://localhost:5173"] + [
+    o.strip() for o in os.environ.get("UMH_CORS_ORIGINS", "").split(",") if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://100.77.233.50:5173"],
+    allow_origins=_operator_cors,
     allow_methods=["*"],
     allow_headers=["*"],
 )

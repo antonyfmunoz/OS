@@ -1,10 +1,14 @@
 # auth_mode values: magic_link, password_totp, password_email_code, verification_code, oauth_google, oauth_apple
+#
+# inbox_email is tenant instance data — left null here. Resolved at runtime from
+# <PREFIX>_INBOX_EMAIL / UMH_OPERATOR_EMAIL env, or instance.json service_inboxes
+# keyed by the service name (see business_instance.get_operator_email).
 
 claude:
   login_url: "https://claude.ai/login"
   export_url: "https://claude.ai/settings"
   auth_mode: "verification_code"
-  inbox_email: "antonyfm@empyreanstudios.co"
+  inbox_email: null
   sender_filter: "mail.anthropic.com"
   export_request_selector: 'button:has-text("Export"), button:has-text("Request")'
   success_indicator: "export requested"
@@ -15,7 +19,7 @@ chatgpt:
   login_url: "https://chatgpt.com/auth/login"
   export_url: "https://chatgpt.com/#settings/DataControls"
   auth_mode: "password_email_code"
-  inbox_email: "antonyfm@theempyreancreative.com"
+  inbox_email: null
   sender_filter: "noreply@tm.openai.com"
   export_request_selector: 'button[aria-label="Export"], button:has-text("Export data")'
   success_indicator: "export requested"

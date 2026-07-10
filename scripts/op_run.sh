@@ -10,7 +10,7 @@
 #   1Password vault  ->  committed op:// reference manifest  ->  op run injection
 #   ->  plaintext .env stays ignored / local-only / non-canonical.
 # The manifest FILENAME may vary per repo; the contract may not.
-#   - UMH (/opt/OS): services/.env.tpl          vault UMH-Production  (grandfathered)
+#   - UMH (/opt/OS): services/.env.tpl          vault $UMH_OP_VAULT  (grandfathered)
 #   - projections:   .env.op.tpl                vault <AppName>
 #
 # Usage:

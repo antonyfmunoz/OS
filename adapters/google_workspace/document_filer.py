@@ -37,7 +37,13 @@ def classify_document(
     """Classify a document and determine where to file it."""
     try:
         from adapters.models.model_router import get_router, TaskType
+        from substrate.state.business.business_instance import get_ventures
         router = get_router()
+
+        # Venture options for the classifier come from the tenant roster at
+        # runtime, never a hardcoded slug list.
+        _slugs = [v['id'] for v in get_ventures()] + ['general']
+        _venture_options = '|'.join(_slugs)
 
         import json as _json
         result = router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Classify this document for filing.
@@ -50,7 +56,7 @@ Document types: {', '.join(FILING_STRUCTURE.keys())}
 
 Return JSON only:
 {{"type": "document type from list",
-  "venture": "lyfe_institute|empyrean_creative|personal_brand|general",
+  "venture": "{_venture_options}",
   "priority": "high|medium|low",
   "requires_review": true,
   "confidence": "high|medium|low"}}""").strip()

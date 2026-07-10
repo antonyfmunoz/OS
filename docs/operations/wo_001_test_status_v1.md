@@ -36,7 +36,7 @@
 | Playwright | DISABLED |
 | Preferred backend | GUI_COMPUTER_USE |
 | GUI healthcheck required | YES |
-| Target account | antonyfm@empyreanstudios.co |
+| Target account | `${UMH_OPERATOR_EMAIL}` |
 | Source class | Google Drive / Google Docs |
 | Blocked actions | 15 (all governance-blocked) |
 | Blocked targets | gmail, account_switching, google_calendar, google_contacts, google_photos, youtube |

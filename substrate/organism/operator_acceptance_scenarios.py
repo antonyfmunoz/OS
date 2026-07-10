@@ -59,7 +59,7 @@ SCENARIO_A = AcceptanceScenario(
     scenario_id="oas-a",
     name="Primary EOS Dashboard Build Intent",
     input_text=(
-        "I want to build the first EOS operating dashboard for Empyrean Studios. "
+        "I want to build the first EOS operating dashboard for my company. "
         "Use what UMH knows, inspect the current state, and run a governed "
         "developer workcell to tell me the highest-leverage implementation plan."
     ),

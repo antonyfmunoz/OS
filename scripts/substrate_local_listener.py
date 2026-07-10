@@ -11,11 +11,11 @@ logic.
 Examples:
     # Manual activation of the local workstation
     python3 scripts/substrate_local_listener.py \\
-        --trigger manual_activate --node antony-workstation
+        --trigger manual_activate --node <node>
 
     # Hotkey activation requesting builder mode
     python3 scripts/substrate_local_listener.py \\
-        --trigger hotkey_activate --node antony-workstation --mode builder
+        --trigger hotkey_activate --node <node> --mode builder
 
     # Show recent triggers without firing one
     python3 scripts/substrate_local_listener.py --history --limit 10

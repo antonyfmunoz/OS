@@ -17,7 +17,8 @@
 #   Pass PROBE_AT=YYYY-MM-DD to stamp the record (scripts have no clock).
 set -uo pipefail  # not -e: a missing field must not abort the per-repo loop
 
-BEAST="${BEAST_SSH:-antonys beast pc@100.74.199.102}"
+BEAST="${BEAST_SSH:-}"
+[ -z "$BEAST" ] && { echo "set BEAST_SSH"; exit 1; }
 ROOT='C:\dev\dev'
 OUT="${1:-/dev/stdout}"
 PROBE_AT="${PROBE_AT:-unknown}"

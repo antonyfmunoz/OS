@@ -153,7 +153,7 @@ class ProductAgent(DepartmentAgent):
 
             result = call_with_fallback(
                 prompt=(
-                    f"Brief competitive analysis of {competitor} vs Initiate Arena. "
+                    f"Brief competitive analysis of {competitor} vs {self._offer_name()}. "
                     f"Cover: target audience, pricing, key features, differentiators. "
                     f"Be concise — bullet points."
                 ),

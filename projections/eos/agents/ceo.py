@@ -61,12 +61,14 @@ class CEOAgent(DepartmentAgent):
         try:
             from adapters.models.model_router import call_with_fallback
 
+            _offer = self._offer_name()
+            _icp = self._icp()
+            _ns = self._north_star()
             result = call_with_fallback(
                 prompt=(
-                    f"Strategic analysis for a pre-revenue personal development company "
-                    f"(Initiate Arena) targeting men 18-25. Focus: {focus_area}. "
-                    f"North star: $10K/month net profit. "
-                    f"Current stage: building infrastructure + outreach. "
+                    f"Strategic analysis for this company "
+                    f"({_offer}) targeting {_icp}. Focus: {focus_area}. "
+                    f"North star: {_ns}. "
                     f"Provide 3-5 actionable insights."
                 ),
                 system="CEO strategic advisor. Direct, actionable, reality-based.",
@@ -97,7 +99,7 @@ class CEOAgent(DepartmentAgent):
             "decision": decision,
             "options": options,
             "framework": [
-                "Impact on north star ($10K/month goal)",
+                "Impact on north star",
                 "Resource cost (time, money, attention)",
                 "Reversibility (can we undo this?)",
                 "Speed to result",

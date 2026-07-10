@@ -17,7 +17,7 @@ Usage:
         'username': 'johndoe',
         'score': 8,
         'state': 'Frustrated Drifter',
-        'venture_id': 'lyfe_institute',
+        'venture_id': 'venture_slug',
     })
 """
 
@@ -186,12 +186,13 @@ def _handle_new_lead(payload: dict) -> dict:
     """
     from substrate.contracts.agent_types import TaskType
     from substrate.sockets.intelligence_port import get_agent_runtime
+    from substrate.state.business.business_instance import get_active_venture_id
     AgentRuntime = get_agent_runtime
 
     username = payload.get("username", "unknown")
     score = payload.get("score", 0)
     state = payload.get("state", "unknown")
-    venture_id = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id") or get_active_venture_id()
 
     runtime = AgentRuntime()
     prompt = (
@@ -226,12 +227,13 @@ def _handle_lead_replied(payload: dict) -> dict:
     """
     from substrate.contracts.agent_types import TaskType
     from substrate.sockets.intelligence_port import get_agent_runtime
+    from substrate.state.business.business_instance import get_active_venture_id
     AgentRuntime = get_agent_runtime
 
     username = payload.get("username", "unknown")
     message = payload.get("message", "")
     interaction_id = payload.get("interaction_id")
-    venture_id = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id") or get_active_venture_id()
 
     runtime = AgentRuntime()
     prompt = (
@@ -264,10 +266,11 @@ def _handle_lead_booked(payload: dict) -> dict:
     lead_booked → log 'booked' outcome to memory.db + notify orchestrator.
     """
     from substrate.state.memory.memory import AgentMemory
+    from substrate.state.business.business_instance import get_active_venture_id
 
     username = payload.get("username", "unknown")
     booking_time = payload.get("booking_time", "")
-    venture_id = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id") or get_active_venture_id()
 
     mem = AgentMemory()
     row = mem.get_interaction_for_lead(username, venture_id=venture_id)
@@ -296,9 +299,10 @@ def _handle_lead_closed(payload: dict) -> dict:
     lead_closed → log 'closed' outcome + run human profile update.
     """
     from substrate.state.memory.memory import AgentMemory
+    from substrate.state.business.business_instance import get_active_venture_id
 
     username = payload.get("username", "unknown")
-    venture_id = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id") or get_active_venture_id()
 
     mem = AgentMemory()
     row = mem.get_interaction_for_lead(username, venture_id=venture_id)
@@ -339,10 +343,11 @@ def _handle_lead_lost(payload: dict) -> dict:
     lead_lost → log 'no_reply' outcome + store objection data for RLHF.
     """
     from substrate.state.memory.memory import AgentMemory
+    from substrate.state.business.business_instance import get_active_venture_id
 
     username = payload.get("username", "unknown")
     objection = payload.get("objection", "")
-    venture_id = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id") or get_active_venture_id()
 
     mem = AgentMemory()
     notes = f"event_bus:lead_lost"
@@ -376,9 +381,11 @@ def _handle_signal_captured(payload: dict) -> dict:
     from substrate.sockets.intelligence_port import get_agent_runtime
     AgentRuntime = get_agent_runtime
 
+    from substrate.state.business.business_instance import get_active_venture_id
+
     signal_text = payload.get("signal_text", "")
     source = payload.get("source", "unknown")
-    venture_id = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id") or get_active_venture_id()
 
     runtime = AgentRuntime()
     prompt = (
@@ -408,9 +415,11 @@ def _handle_content_needed(payload: dict) -> dict:
     from substrate.sockets.intelligence_port import get_agent_runtime
     AgentRuntime = get_agent_runtime
 
+    from substrate.state.business.business_instance import get_active_venture_id
+
     topic = payload.get("topic", "")
     platform = payload.get("platform", "instagram")
-    venture_id = payload.get("venture_id", "lyfe_institute")
+    venture_id = payload.get("venture_id") or get_active_venture_id()
 
     runtime = AgentRuntime()
     prompt = (
@@ -641,7 +650,7 @@ if __name__ == "__main__":
             "username": "test_lead_cli",
             "score": 9,
             "state": "Frustrated Drifter",
-            "venture_id": "lyfe_institute",
+            "venture_id": "venture_slug",
         },
     )
 

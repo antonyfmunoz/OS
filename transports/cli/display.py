@@ -132,6 +132,20 @@ def render_nodes(console: Console, nodes: list[dict]) -> None:
         console.print(f"  {dot} [cyan]{name}[/cyan]  [dim]{role}[/dim]")
 
 
+def _ai_label() -> str:
+    """Instance AI name for the assistant's history label — from BIS at runtime.
+
+    Never hardcode the AI name (instance context). Falls back to a neutral
+    "AI" label when BIS/env is unset (e.g. bare CLI with no context loaded).
+    """
+    try:
+        from substrate.state.business.business_instance import get_ai_name
+
+        return (get_ai_name() or "AI").upper()
+    except Exception:
+        return "AI"
+
+
 def render_history(console: Console, messages: list[dict]) -> None:
     """Render /history output."""
     console.print("[header]CHAT HISTORY[/header]")
@@ -139,6 +153,7 @@ def render_history(console: Console, messages: list[dict]) -> None:
     if not messages:
         console.print("  [dim]No messages[/dim]")
         return
+    ai_label = _ai_label()
     for m in messages:
         sender = m.get("sender", "?")
         content = m.get("content", "")[:120]
@@ -146,7 +161,7 @@ def render_history(console: Console, messages: list[dict]) -> None:
         if sender == "operator":
             console.print(f"  [dim]{ts}[/dim] [operator]YOU:[/operator] {content}")
         else:
-            console.print(f"  [dim]{ts}[/dim] [ai]DEX:[/ai] {content}")
+            console.print(f"  [dim]{ts}[/dim] [ai]{ai_label}:[/ai] {content}")
 
 
 def render_help(console: Console) -> None:
@@ -161,6 +176,7 @@ def render_help(console: Console) -> None:
         ("/nodes", "Mesh node list"),
         ("/history", "Recent chat messages"),
         ("/voice", "Push-to-talk: speak, then send the transcript"),
+        ("/attach <path>", "Attach an image/video/audio/pdf/file for the assistant to understand"),
         ("/clear", "Clear screen"),
         ("/help", "This help"),
         ("/exit", "Quit"),

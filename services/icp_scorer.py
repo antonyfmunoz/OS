@@ -237,7 +237,7 @@ def pick_opener(outreach_text, archetype, pain_signals, comment_text):
 
 
 _ICP_SCORE_PROMPT = """\
-Score this Instagram comment against the Initiate Arena ICP. \
+Score this Instagram comment against the %(offer)s ICP. \
 Respond ONLY with valid JSON, no other text.
 
 SCORING RUBRIC:
@@ -260,7 +260,7 @@ OUTPUT FORMAT (JSON only):
   "reason": "<one sentence explanation>"
 }
 
-Comment to score: %s"""
+Comment to score: %(comment)s"""
 
 
 def score_comment(runtime, comment_text, api_call_counter):
@@ -270,12 +270,27 @@ def score_comment(runtime, comment_text, api_call_counter):
     """
     claude_limiter.wait()
     try:
-        prompt = _ICP_SCORE_PROMPT % comment_text
+        # Offer name + venture resolved from the tenant's BIS at runtime.
+        from substrate.state.business.business_instance import (
+            BusinessInstanceManager,
+            get_active_venture_id,
+        )
+        from substrate.state.context.context import try_load_context_from_env
+        _ctx = try_load_context_from_env()
+        _vid = get_active_venture_id(_ctx)
+        _offer = "the offer"
+        try:
+            _bis = BusinessInstanceManager(_ctx).get_bis(_vid) if _ctx and _vid else None
+            if _bis and _bis.offer_name:
+                _offer = _bis.offer_name
+        except Exception:
+            pass
+        prompt = _ICP_SCORE_PROMPT % {"offer": _offer, "comment": comment_text}
         result = runtime.run_team_task(
             team="sales",
             sub_agent="icp_qualifier",
             prompt=prompt,
-            venture_id="lyfe_institute",
+            venture_id=_vid,
         )
         api_call_counter[0] += 1
         raw = result.output.strip()
@@ -388,12 +403,29 @@ def create_lead_file(username, comment_text, source, post_url, timestamp, result
     pain_signals_yaml = "\n".join(f"  - {s}" for s in result["pain_signals"])
     pain_signals_inline = ", ".join(result["pain_signals"])
 
+    # Offer name + venture from the tenant's BIS — never hardcoded literals.
+    _offer = "the offer"
+    _vid = ""
+    try:
+        from substrate.state.business.business_instance import (
+            BusinessInstanceManager,
+            get_active_venture_id,
+        )
+        from substrate.state.context.context import try_load_context_from_env
+        _ctx = try_load_context_from_env()
+        _vid = get_active_venture_id(_ctx)
+        _bis = BusinessInstanceManager(_ctx).get_bis(_vid) if _ctx and _vid else None
+        if _bis and _bis.offer_name:
+            _offer = _bis.offer_name
+    except Exception:
+        pass
+
     content = f"""---
 type: lead
 name: {username}
 platform: instagram
 status: new
-offer: Initiate Arena
+offer: {_offer}
 source: {source}
 icp_score: {result['score']}
 archetype: {result['archetype']}
@@ -441,7 +473,7 @@ kanban_stage: New
     try:
         _mem.log_lead_scored(
             username=username,
-            venture_id="lyfe_institute",
+            venture_id=_vid,
             comment_text=comment_text,
             score=result["score"],
             archetype=result["archetype"],
@@ -465,7 +497,7 @@ kanban_stage: New
             "username":   username,
             "score":      result["score"],
             "state":      result["archetype"],
-            "venture_id": "lyfe_institute",
+            "venture_id": _vid,
         })
     except Exception as e:
         print(f"  [EVENT BUS] new_lead publish failed for @{username}: {e}")

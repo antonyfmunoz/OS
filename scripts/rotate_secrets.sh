@@ -10,7 +10,7 @@
 set -euo pipefail
 
 UMH_ROOT="${UMH_ROOT:-/opt/OS}"
-VAULT="UMH-Production"
+VAULT="${UMH_OP_VAULT:-UMH-Production}"
 LOG="$UMH_ROOT/logs/secret_rotation.log"
 ROTATED=0
 FAILED=0

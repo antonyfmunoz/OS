@@ -72,7 +72,9 @@ async def midday_checkin():
 
     summary = f"Afternoon: {afternoon_text}. {pending_text}."
     try:
-        ai_summary = router.call(model, f"""You are DEX, EA to the founder.
+        from substrate.state.business.business_instance import get_ai_name
+        _ai = get_ai_name() or 'the assistant'
+        ai_summary = router.call(model, f"""You are {_ai}, EA to the founder.
 Mid-day check-in. Be brief — 3 sentences max.
 
 Afternoon schedule:

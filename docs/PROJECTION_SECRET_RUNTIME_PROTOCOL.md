@@ -45,7 +45,7 @@ local-only, and non-canonical — never required for normal development runtime.
 
 | System | Role | Vault | Manifest path | op:// refs |
 |---|---|---|---|---|
-| **UMH** (`/opt/OS`) | substrate | `UMH-Production` | `services/.env.tpl` | 27 |
+| **UMH** (`/opt/OS`) | substrate | `<substrate-vault>` | `services/.env.tpl` | 27 |
 | **EntrepreneurOS** | projection | `EntrepreneurOS` | `.env.op.tpl` | 11 |
 | **CreatorOS** | projection | `CreatorOS` | `.env.op.tpl` | 3 |
 | **LyfeOS** | projection | `LyfeOS` | `.env.op.tpl` | 6 |
@@ -62,7 +62,7 @@ local-only, and non-canonical — never required for normal development runtime.
 
 ## Vault / item / field convention
 
-- **Vault per system:** `UMH-Production` (substrate), `EntrepreneurOS` / `CreatorOS` / `LyfeOS` (projections).
+- **Vault per system:** `<substrate-vault>` (substrate), `EntrepreneurOS` / `CreatorOS` / `LyfeOS` (projections).
 - **Item per runtime environment:** `Development` (later: `Staging`, `Production`).
 - **Field names equal environment-variable keys exactly.**
 - **Reference form:** `op://<Vault>/<EnvironmentItem>/<ENV_KEY>`.

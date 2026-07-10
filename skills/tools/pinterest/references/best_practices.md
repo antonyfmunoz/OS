@@ -437,7 +437,7 @@ class PinterestClient:
             headers={
                 "Authorization": f"Bearer {self.token}",
                 "Content-Type": "application/json",
-                "User-Agent": "EOS/1.0 (+https://antonyfmunoz.com)",
+                "User-Agent": "EOS/1.0 (+https://<your-domain>)",
             },
             timeout=30,
         )
@@ -737,7 +737,7 @@ session-time-per-day.
 - Don't try to "engage with the audience" in comments. Focus on clicks and
   saves — they're what the algorithm cares about.
 - Use Pinterest as a top-of-funnel for owned channels (Lyfe Spectrum store,
-  antonyfmunoz.com). Don't try to monetize natively.
+  <your-domain>). Don't try to monetize natively.
 
 ## Problem-Solution Map and Hidden Capabilities
 
@@ -837,7 +837,7 @@ NOT a substitute for Instagram (community + culture) or TikTok (entertainment
 | **Canva**     | Pin design factory. Vertical 1000x1500 templates with brand fonts, generated in batch from blog post titles. |
 | **Notion**    | Pin pipeline tracking. One Notion DB row per pin idea, status: drafted → designed → posted → tracked. |
 | **Tailwind**  | Third-party Pinterest scheduler. Powerful but $15/mo and the API path is now mature enough that EOS can replicate it for $0. Mention but don't recommend. |
-| **antonyfmunoz.com (Astro/Next)** | Destination for personal-brand pins. Must have og: tags + fast LCP (<2.5s) for ranking. |
+| **<your-domain> (Astro/Next)** | Destination for personal-brand pins. Must have og: tags + fast LCP (<2.5s) for ranking. |
 | **Substrate** | EOS-internal — pins enter as durable jobs, drained by a Pinterest poster operator. Lets us batch and rate-limit cleanly. |
 | **Discord**   | Notification surface for catalog feed errors, rate-limit wall hits, and weekly top-pin reports. |
 | **Gemini / Claude** | Pin description drafter. Prompt: "Given this product page, write a Pinterest pin title (max 90 chars, keyword-loaded) and description (max 500 chars, natural-language SEO)." |
@@ -1079,7 +1079,7 @@ print(f"Pin created: {result['id']}")
 
 ### Pattern 2: Personal brand blog → pin variant generator
 
-For each new long-form post on antonyfmunoz.com, agent generates 8 pin
+For each new long-form post on <your-domain>, agent generates 8 pin
 variants and queues them in Notion for Antony to review. On approval, EOS
 posts them to staggered boards over 14 days.
 

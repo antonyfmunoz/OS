@@ -52,7 +52,7 @@ Expected: worker writes approval request to `~/eos_outbox/`:
   "work_order_id": "WO-LOCAL-PILOT-GDRIVE-GDOCS-001",
   "payload": {
     "action": "OPEN_GOOGLE_DRIVE",
-    "target": "antonyfm@empyreanstudios.co",
+    "target": "${UMH_OPERATOR_EMAIL}",
     "risk_level": "MEDIUM",
     "backend": "GUI_COMPUTER_USE",
     "blocked_until_approved": true

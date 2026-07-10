@@ -32,8 +32,8 @@ Last Researched: 2026-04-06
 - `gh auth refresh -s repo,read:org` -- add missing scopes
 
 ### EOS-specific auth context
-- VPS remote: `https://github.com/antonyfmunoz/OS.git` (HTTPS)
-- User: `antonyfmunoz`, email: `antonyfm@empyreanstudios.co`
+- VPS remote: `https://github.com/<your-org>/OS.git` (HTTPS)
+- User: `${GITHUB_USER}`, email: `${UMH_OPERATOR_EMAIL}`
 - Config is repo-local (`git config --list --local`)
 - Multiple devices (VPS, Windows, iPad, iPhone) all push to same remote
 - Tailscale connects devices but git goes through GitHub, not peer-to-peer
@@ -382,7 +382,7 @@ git add <specific-files>        # explicit staging
 ### Commit anatomy
 ```
 commit d0c6ffb
-Author: antonyfmunoz <antonyfm@empyreanstudios.co>
+Author: ${GITHUB_USER} <the operator>
 Date:   [timestamp]
 
     fix: cc_sdk concurrent call handling

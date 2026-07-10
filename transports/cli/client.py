@@ -75,17 +75,52 @@ class UMHClient:
         result = self._request("GET", "/pulse")
         return result if isinstance(result, dict) else {}
 
-    def converse(self, content: str) -> dict:
-        """POST /advisor/converse — chat with advisor."""
-        payload = {
+    def converse(self, content: str, media: list[dict] | None = None) -> dict:
+        """POST /advisor/converse — chat with advisor.
+
+        ``media`` is a list of MediaAttachment descriptors (from ``upload_media``)
+        whose CONTENT the assistant understands — image/video/pdf via free Gemini
+        vision, audio via local Whisper. Same seam as browser/desktop/mobile.
+        """
+        payload: dict = {
             "content": content,
             "conversation_id": self._conversation_id,
             "source": "cli",
         }
+        if media:
+            payload["media"] = media
         data = self._request("POST", "/advisor/converse", json=payload)
         if isinstance(data, dict) and data.get("conversation_id"):
             self._conversation_id = data["conversation_id"]
         return data if isinstance(data, dict) else {}
+
+    def upload_media(self, path: str) -> dict | None:
+        """Upload a local file to /chat/upload and return its MediaAttachment dict.
+
+        Reuses the SAME upload seam the cockpit uses, so a CLI attachment is
+        understood by the assistant identically to a browser one
+        (image/video/audio/pdf/file).
+        """
+        import mimetypes
+        import os as _os
+
+        if not _os.path.isfile(path):
+            return None
+        ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
+        fname = _os.path.basename(path)
+        try:
+            with open(path, "rb") as fh:
+                # multipart upload — do NOT send the JSON content-type header
+                r = self._client.post(
+                    "/chat/upload",
+                    files={"file": (fname, fh, ctype)},
+                    headers={k: v for k, v in self._build_headers().items() if k != "Content-Type"},
+                )
+            if r.status_code != 200:
+                return None
+            return r.json()
+        except Exception:
+            return None
 
     def history(self, limit: int = 20) -> list:
         """GET /advisor/history — recent messages."""

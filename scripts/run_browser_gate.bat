@@ -2,7 +2,7 @@
 REM Browser Gate Runner — credentials from 1Password via op run
 REM
 REM Requires: 1Password CLI (op) with OP_SERVICE_ACCOUNT_TOKEN set
-REM Template: scripts\.env.beast.tpl references op://UMH-Production/Cockpit Clerk
+REM Template: scripts\.env.beast.tpl references op://%UMH_OP_VAULT%/Cockpit Clerk
 REM
 REM Usage: run_browser_gate.bat [url] [passes]
 

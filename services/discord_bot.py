@@ -1,5 +1,5 @@
 """
-EntrepreneurOS Discord Bot — DEX conversational layer.
+Discord Bot — assistant conversational layer.
 
 Auto-joins founder's voice channel. Routes text through EOS gateway.
 Smart routing: simple → local Qwen (free) → Claude via EOS.
@@ -7,7 +7,7 @@ AI name is user-configurable via BIS or AI_NAME env var.
 
 Channel map:
   🎙️ Voice:
-    Founder's Office   — voice channel for DEX interaction
+    Founder's Office   — voice channel for assistant interaction
 
 Setup:
   1. discord.com/developers/applications → New Application
@@ -202,7 +202,7 @@ AI_NAME = get_ai_name(_ctx_eos)
 
 # Default venture for requests that don't specify one
 _DEFAULT_VENTURE_ID = _ctx_eos.active_venture_id or os.getenv(
-    "DEFAULT_VENTURE_ID", "lyfe_institute"
+    "DEFAULT_VENTURE_ID", ""
 )
 
 # Founder Discord user ID — bot auto-joins founder's voice channel
@@ -761,8 +761,17 @@ async def handle_meeting_voice(
             "investment",
         ]
     ):
+        try:
+            from substrate.state.business.business_instance import BusinessInstanceManager
+            _bis = BusinessInstanceManager(_ctx_eos).get_bis(_DEFAULT_VENTURE_ID)
+            _offer = (
+                f"{_bis.offer_name}: ${_bis.offer_price:.0f} {_bis.offer_type}. "
+                if _bis and _bis.offer_name else "The offer. "
+            )
+        except Exception:
+            _offer = "The offer. "
         return (
-            "Initiate Arena: $750 one-time. "
+            f"{_offer}"
             "Frame as investment not cost. "
             "Ask: what is staying stuck worth to you?"
         )
@@ -1032,7 +1041,7 @@ async def on_ready():
     for guild in bot.guilds:
         bot.loop.create_task(_setup_server_structure(guild))
 
-    # Warm up cc_sdk session (pre-load DEX agent, reduce cold start)
+    # Warm up cc_sdk session (pre-load the assistant agent, reduce cold start)
     asyncio.create_task(_warmup_cc_sdk())
 
     # ── Start CC reply webhook receiver ──────────────────────────────────
@@ -1057,9 +1066,11 @@ async def on_ready():
         bridge = get_bridge()
         bridge.set_bot(bot)
 
-        start_watcher("vps", "dex_builder_main", on_event=bridge.on_watcher_event)
-        start_watcher("vps", "dex_product_main", on_event=bridge.on_watcher_event)
-        print("[Discord] Session watchers + Discord bridge started")
+        # One instance → ONE session. All channels route to a single session;
+        # the builder/product split is retired (see project_one_session_convergence).
+        from substrate.execution.bridge.claude_session_bridge import make_session_name
+        start_watcher("vps", make_session_name("main"), on_event=bridge.on_watcher_event)
+        print("[Discord] Session watcher + Discord bridge started")
     except Exception as e:
         _record_error("session_watcher_bridge", e)
         print(f"[Discord] Session watcher/bridge setup failed: {e}")

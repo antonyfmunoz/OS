@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # VPS Tailscale IP — where the Discord webhook receiver runs
-VPS_WEBHOOK_URL="${EOS_VPS_WEBHOOK_URL:-http://100.77.233.50:8765/cc-reply}"
+VPS_WEBHOOK_URL="${EOS_VPS_WEBHOOK_URL:-http://${UMH_VPS_IP:-}:8765/cc-reply}"
 
 # Read stdin (hook input JSON)
 INPUT=$(cat)
@@ -39,7 +39,7 @@ import os
 
 transcript_path = os.environ.get("TRANSCRIPT_PATH", "")
 tmux_session = os.environ.get("TMUX_SESSION", "")
-vps_url = os.environ.get("VPS_WEBHOOK_URL", "http://100.77.233.50:8765/cc-reply")
+vps_url = os.environ.get("VPS_WEBHOOK_URL", "")
 
 if not transcript_path or not tmux_session:
     sys.exit(0)

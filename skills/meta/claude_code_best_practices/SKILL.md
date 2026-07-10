@@ -62,7 +62,7 @@ at Anthropic. His workflow is ground truth.
 Implementation in EOS:
 Every agent task needs verification before
 TaskCompleted fires.
-eos-verifier subagent: runs after every change.
+umh-verifier subagent: runs after every change.
 TaskCompleted hook: verify before marking done.
 
 ### #2: Opus With Thinking Always
@@ -105,8 +105,8 @@ EOS required: /morning-brief, /eod-sync,
 code-simplifier — after every implementation.
 verify-app — E2E before marking done.
 EOS equivalents in .claude/agents/:
-eos-simplifier, eos-verifier,
-eos-code-reviewer, eos-researcher.
+umh-simplifier, umh-verifier,
+umh-code-reviewer, umh-researcher.
 
 ### #7: /loop for Recurring Tasks
 

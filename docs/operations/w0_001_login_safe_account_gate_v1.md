@@ -15,8 +15,8 @@
   "payload": {
     "approval_request_id": "apr_next_gate_1777931863",
     "action": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
-    "target": "antonyfm@empyreanstudios.co",
-    "description": "Verify active Google account is antonyfm@empyreanstudios.co. Visual confirmation required — is the correct account active in Chrome? If login required, respond LOGIN_REQUIRED_MANUAL_INTERVENTION. If wrong account, respond WRONG_ACCOUNT_PAUSE.",
+    "target": "${UMH_OPERATOR_EMAIL}",
+    "description": "Verify active Google account is the operator. Visual confirmation required — is the correct account active in Chrome? If login required, respond LOGIN_REQUIRED_MANUAL_INTERVENTION. If wrong account, respond WRONG_ACCOUNT_PAUSE.",
     "risk_level": "LOW",
     "backend": "HUMAN_VISUAL_CONFIRMATION",
     "blocked_until_approved": true,
@@ -58,7 +58,7 @@ Rules:
 4. Do NOT access Drive content of the wrong account.
 
 ### CORRECT_ACCOUNT_CONFIRMED
-Chrome shows Google Drive logged into `antonyfm@empyreanstudios.co`.
+Chrome shows Google Drive logged into the operator.
 
 Rules:
 1. Emit CORRECT_ACCOUNT_CONFIRMED.

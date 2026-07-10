@@ -38,7 +38,7 @@ If SSH is unavailable:
 
 What you should see:
 - Chrome opens with Google Drive (drive.google.com)
-- Correct account visible: antonyfm@empyreanstudios.co
+- Correct account visible: `${UMH_OPERATOR_EMAIL}`
 - Correct profile: Antony (empyreanstudios.co)
 - My Drive view loads with your files
 - Accessibility tree reads 26 items

@@ -190,13 +190,17 @@ class ProactiveIntelligenceEngine:
         signals: list[ProactiveSignal] = []
 
         from substrate.state.memory.memory import ConversationMemory
-        from substrate.state.business.business_instance import BusinessInstanceManager
+        from substrate.state.business.business_instance import (
+            BusinessInstanceManager,
+            get_active_venture_id,
+        )
 
         cm  = ConversationMemory(self.ctx)
         bim = BusinessInstanceManager(self.ctx)
 
+        venture_id = get_active_venture_id(self.ctx)
         try:
-            bis = bim.get_bis('lyfe_institute')
+            bis = bim.get_bis(venture_id) if venture_id else None
         except Exception:
             bis = None
 
@@ -242,7 +246,7 @@ class ProactiveIntelligenceEngine:
                 urgency=3,
                 source='reality_scanner',
                 action_required='Shift focus: outreach before optimization',
-                venture_id='lyfe_institute',
+                venture_id=venture_id,
             ))
 
         return signals

@@ -3,11 +3,19 @@
   "founder_name": "Antony",
   "org_id": "",
   "org_name": "Munoz Conglomerate",
+  "brand_archetype": "The Vigilante Architect",
   "active_venture_id": "lyfe_institute",
   "active_venture_name": "Lyfe Institute",
   "business_stage": "pre_revenue",
   "node_id": "",
   "node_role": "",
+  "operator_email": "antonyfm@empyreanstudios.co",
+  "service_inboxes": {
+    "claude": "antonyfm@empyreanstudios.co",
+    "chatgpt": "antonyfm@theempyreancreative.com"
+  },
+  "op_vault": "UMH-Production",
+  "github_owner": "antonyfmunoz",
   "ventures": [
     {"id": "lyfe_institute", "name": "Lyfe Institute"},
     {"id": "empyrean_studio", "name": "Empyrean Studio"}
@@ -15,5 +23,422 @@
   "products": [
     {"id": "initiate_arena", "name": "Initiate Arena", "venture": "lyfe_institute"}
   ],
-  "nodes": []
+  "nodes": [],
+  "notion_seed": {
+    "note": "Per-tenant Notion workspace seed content. Scripts read this; never hardcode. Tree templates use {founder_name}/{ai_name} tokens filled via .format() at runtime.",
+    "empire_tree_text": "{founder_name} (Holding Company)\n├── Empyrean Creative  [B2B AI Services]\n│   └── Lyfe Institute  [Coaching — incubated under Empyrean]\n│       Offer: Initiate Arena $750\n│       Channel: Instagram DMs\n└── Personal Brand — {founder_name}  [Content Business]\n    Revenue: Sponsors, Affiliates, Ads, Donations\n    Goal: grow audience, promote Empyrean + Lyfe",
+    "entity_structure_text": "{founder_name}\n├── EMPYREAN CREATIVE\n│   Type: B2B Agency\n│   Stage: 1 — Validation\n│   Focus: AI services for businesses\n│   │\n│   └── LYFE INSTITUTE (incubated)\n│       Type: Coaching Program\n│       Stage: 1 — Validation\n│       Offer: Initiate Arena $750\n│       Channel: Instagram DMs\n│       Status: Spinning up\n│\n└── PERSONAL BRAND — {founder_name}\n    Type: Content Business\n    Stage: 1 — Audience Building\n    Revenue: Sponsors, Affiliates, Ads, Donations\n    Goal: Promote Empyrean + Lyfe",
+    "org_chart_text": "{founder_name} (Founder)\n├── {ai_name} (Executive Assistant — Discord)\n│   ├── Portfolio Advisor\n│   ├── Empyrean CEO\n│   │   └── Empyrean Dev Agent\n│   └── Lyfe Institute CEO\n│       └── Lyfe Dev Agent\n└── Claude Code (Platform Dev)",
+    "portfolio": [
+      {
+        "heading": "Portfolio KPIs",
+        "kpis_text": "Total Revenue: $0\nActive Companies: 3\nStage: All Stage 1 — Validation\nNorth Star: $10K/month net (Initiate Arena) → $100K/month"
+      }
+    ],
+    "entity_structure": [
+      {
+        "name": "Empyrean Creative",
+        "icon": "⚡",
+        "type": "B2B Agency",
+        "stage": "1 — Validation",
+        "offer": "AI services for businesses",
+        "icp": "Business owners who need AI",
+        "channel": "TBD — outreach",
+        "goal": "Land first retainer client",
+        "north_star": "$100K/month",
+        "venture_id": "empyrean_creative",
+        "note": null
+      },
+      {
+        "name": "Lyfe Institute",
+        "icon": "🏢",
+        "type": "Coaching Program",
+        "stage": "1 — Validation",
+        "offer": "Initiate Arena $750",
+        "icp": "Men 18-28 feeling directionless",
+        "channel": "Instagram DMs",
+        "goal": "First paying client",
+        "north_star": "$10K/month net → $100K/month",
+        "venture_id": "lyfe_institute",
+        "note": "Incubated under Empyrean Creative. Spins out once offer is proven."
+      },
+      {
+        "name": "Personal Brand — {founder_name}",
+        "icon": "👤",
+        "type": "Content Business",
+        "stage": "1 — Audience Building",
+        "offer": "Sponsors, Affiliates, Ads, Donations",
+        "icp": "Entrepreneurs and founders",
+        "channel": "Instagram + Content",
+        "goal": "Grow audience, promote Empyrean + Lyfe",
+        "north_star": "Profitable content business",
+        "venture_id": "personal_brand",
+        "note": null
+      }
+    ],
+    "venture_order": ["empyrean_creative", "personal_brand"],
+    "venture_labels": {
+      "empyrean_creative": {"emoji": "⚡", "name": "Empyrean Creative"},
+      "personal_brand": {"emoji": "🎭", "name": "Personal Brand"}
+    },
+    "goals_by_venture": {
+      "empyrean_creative": [
+        {
+          "name": "Close first B2B client",
+          "type": "North Star",
+          "status": "Behind",
+          "dept": "Sales",
+          "target": "1 client",
+          "current": "0 clients",
+          "due": "2026-09-30",
+          "progress": 0.0,
+          "notes": "Prove AI service externally after internal validation."
+        },
+        {
+          "name": "Hit $10K MRR",
+          "type": "Annual Goal",
+          "status": "Behind",
+          "dept": "Finance",
+          "target": "$10,000 MRR",
+          "current": "$0 MRR",
+          "due": "2026-12-31",
+          "progress": 0.0,
+          "notes": "Secondary north star. Triggered after Lyfe Institute hits $10K."
+        },
+        {
+          "name": "Prove EntrepreneurOS internally first",
+          "type": "Quarterly Goal",
+          "status": "At risk",
+          "dept": "Operations",
+          "target": "Full internal deployment — all 5 services stable + Notion synced",
+          "current": "Phase 1 complete — 4/5 services up",
+          "due": "2026-04-30",
+          "progress": 0.6,
+          "notes": "Must prove on own ops before selling externally."
+        },
+        {
+          "name": "Build 3 AI service productized offerings",
+          "type": "Quarterly Goal",
+          "status": "Not started",
+          "dept": "Product",
+          "target": "3 offerings defined, priced, and packaged",
+          "current": "0 defined",
+          "due": "2026-06-30",
+          "progress": 0.0,
+          "notes": "Phase 2 trigger. After internal EOS is fully proven."
+        }
+      ],
+      "personal_brand": [
+        {
+          "name": "Primary marketing vehicle for all offers",
+          "type": "North Star",
+          "status": "Behind",
+          "dept": "Marketing",
+          "target": "Content IS the advertising — no paid ads needed",
+          "current": "0 posts published",
+          "due": "2026-12-31",
+          "progress": 0.0,
+          "notes": "Content drives all leads for Lyfe Institute and Empyrean. Product placement, not pitching."
+        },
+        {
+          "name": "Consistent content output — 5 posts/week",
+          "type": "Quarterly Goal",
+          "status": "Behind",
+          "dept": "Marketing",
+          "target": "5 posts per week across all platforms",
+          "current": "0 posts/week",
+          "due": "2026-06-30",
+          "progress": 0.0,
+          "notes": "Instagram primary. Shock value with depth. Visceral. Polarizing."
+        },
+        {
+          "name": "Reach 10K followers on Instagram",
+          "type": "Key Result",
+          "status": "Not started",
+          "dept": "Marketing",
+          "target": "10,000 followers",
+          "current": "0",
+          "due": "2026-12-31",
+          "progress": 0.0,
+          "notes": "First milestone. Then 50K → 100K."
+        },
+        {
+          "name": "Establish brand aesthetic — Lyfe Spectrum wardrobe",
+          "type": "Quarterly Goal",
+          "status": "In progress",
+          "dept": "Brand",
+          "target": "Full uniform/wardrobe set designed and sewn",
+          "current": "Designing — 3D modeling in progress",
+          "due": "2026-06-30",
+          "progress": 0.2,
+          "notes": "Wear Lyfe Spectrum in all content. Product placement like a movie."
+        }
+      ]
+    },
+    "roles_by_venture": {
+      "empyrean_creative": [
+        {
+          "name": "CEO / Founder",
+          "dept": "Leadership",
+          "mode": "Human Only",
+          "authority": "Strategic",
+          "status": "Active",
+          "agent": "Founder",
+          "agent_status": "🟢 Active",
+          "kpi": "First client closed",
+          "kpi_value": "0 / 1",
+          "responsibilities": "Vision, strategy, product direction, client relationships.",
+          "soul_doc": ""
+        },
+        {
+          "name": "{ai_name} — Executive Assistant",
+          "dept": "Leadership",
+          "mode": "AI Only",
+          "authority": "Operational",
+          "status": "AI-Staffed",
+          "agent": "{ai_name}",
+          "agent_status": "⚪ Idle",
+          "kpi": "Tasks cleared / Ops running",
+          "kpi_value": "0 tasks",
+          "responsibilities": "Calendar, email, meetings, task coordination, daily ops.",
+          "soul_doc": "{root}/agents/executive_assistant.md"
+        },
+        {
+          "name": "CEO Agent",
+          "dept": "Leadership",
+          "mode": "AI Only",
+          "authority": "Strategic",
+          "status": "AI-Staffed",
+          "agent": "CEO Agent",
+          "agent_status": "⚪ Idle",
+          "kpi": "Product development progress",
+          "kpi_value": "0%",
+          "responsibilities": "Product strategy, org evolution, departmental delegation.",
+          "soul_doc": "{root}/agents/ceo_agent.md"
+        },
+        {
+          "name": "Operations Agent",
+          "dept": "Operations",
+          "mode": "AI Only",
+          "authority": "Execution",
+          "status": "AI-Staffed",
+          "agent": "Operations Agent",
+          "agent_status": "⚪ Idle",
+          "kpi": "Systems operational",
+          "kpi_value": "0 / 5 systems",
+          "responsibilities": "Internal systems, workflows, automation infrastructure.",
+          "soul_doc": ""
+        },
+        {
+          "name": "Research Agent",
+          "dept": "Research",
+          "mode": "AI Only",
+          "authority": "Execution",
+          "status": "AI-Staffed",
+          "agent": "Research Agent",
+          "agent_status": "⚪ Idle",
+          "kpi": "Market intelligence reports",
+          "kpi_value": "0 reports",
+          "responsibilities": "Market research, competitor analysis, client intelligence.",
+          "soul_doc": ""
+        },
+        {
+          "name": "Content Agent",
+          "dept": "Marketing",
+          "mode": "AI Only",
+          "authority": "Execution",
+          "status": "AI-Staffed",
+          "agent": "Content Agent",
+          "agent_status": "⚪ Idle",
+          "kpi": "Content pieces produced",
+          "kpi_value": "0 pieces",
+          "responsibilities": "Brand content, case studies, thought leadership, portfolio documentation.",
+          "soul_doc": ""
+        },
+        {
+          "name": "Finance Agent",
+          "dept": "Finance",
+          "mode": "AI Only",
+          "authority": "Execution",
+          "status": "AI-Staffed",
+          "agent": "Finance Agent",
+          "agent_status": "⚪ Idle",
+          "kpi": "Expenses tracked / Runway",
+          "kpi_value": "$0 tracked",
+          "responsibilities": "Expense tracking, invoice management, financial reporting.",
+          "soul_doc": ""
+        }
+      ],
+      "personal_brand": [
+        {
+          "name": "Founder — {founder_name}",
+          "dept": "Leadership",
+          "mode": "Human Only",
+          "authority": "Strategic",
+          "status": "Active",
+          "agent": "Founder",
+          "agent_status": "🟢 Active",
+          "kpi": "Content published / Followers",
+          "kpi_value": "0 / 0",
+          "responsibilities": "On-camera talent, brand identity, creative direction, aesthetic decisions, lifestyle embodiment.",
+          "soul_doc": ""
+        },
+        {
+          "name": "Content Agent",
+          "dept": "Marketing",
+          "mode": "AI Only",
+          "authority": "Execution",
+          "status": "AI-Staffed",
+          "agent": "Content Agent",
+          "agent_status": "⚪ Idle",
+          "kpi": "Content calendar filled / Captions drafted",
+          "kpi_value": "0 pieces",
+          "responsibilities": "Content calendar management, caption and hook drafting, campaign concept generation, posting schedule.",
+          "soul_doc": ""
+        },
+        {
+          "name": "Research Agent",
+          "dept": "Research",
+          "mode": "AI Only",
+          "authority": "Execution",
+          "status": "AI-Staffed",
+          "agent": "Research Agent",
+          "agent_status": "⚪ Idle",
+          "kpi": "Trend signals processed",
+          "kpi_value": "0",
+          "responsibilities": "Trend analysis, ICP audience research, competitor content monitoring, hook library maintenance.",
+          "soul_doc": ""
+        },
+        {
+          "name": "{ai_name} — Executive Assistant",
+          "dept": "Operations",
+          "mode": "AI Only",
+          "authority": "Operational",
+          "status": "AI-Staffed",
+          "agent": "{ai_name}",
+          "agent_status": "⚪ Idle",
+          "kpi": "Publishing schedule adherence",
+          "kpi_value": "0%",
+          "responsibilities": "Cross-venture coordination, publishing reminders, collaboration scheduling.",
+          "soul_doc": "{root}/agents/executive_assistant.md"
+        }
+      ]
+    },
+    "metrics_by_venture": {
+      "empyrean_creative": [
+        {"name": "Monthly Revenue (MRR)", "value": 0, "target": 10000, "unit": "$", "dept": "Finance", "cat": "Revenue", "period": "Monthly", "notes": "Primary financial north star."},
+        {"name": "Active Clients", "value": 0, "target": 3, "unit": "clients", "dept": "Sales", "cat": "Customer", "period": "Monthly", "notes": "Phase 2 target."},
+        {"name": "AI Service Products Defined", "value": 0, "target": 3, "unit": "products", "dept": "Product", "cat": "Product", "period": "Quarterly", "notes": "Productized AI service offerings."},
+        {"name": "Internal Systems Live", "value": 4, "target": 5, "unit": "systems", "dept": "Operations", "cat": "Efficiency", "period": "Quarterly", "notes": "4 containers + Notion sync = 5 systems."},
+        {"name": "AI Workflows Active", "value": 0, "target": 10, "unit": "workflows", "dept": "Operations", "cat": "Efficiency", "period": "Monthly", "notes": "Automated recurring workflows running without intervention."}
+      ],
+      "personal_brand": [
+        {"name": "Instagram Followers", "value": 0, "target": 10000, "unit": "followers", "dept": "Marketing", "cat": "Growth", "period": "Monthly", "notes": "First milestone → 50K → 100K."},
+        {"name": "Posts Published / Week", "value": 0, "target": 5, "unit": "posts", "dept": "Marketing", "cat": "Output", "period": "Weekly", "notes": "Consistency is the multiplier."},
+        {"name": "Avg Reel Views", "value": 0, "target": 10000, "unit": "views", "dept": "Marketing", "cat": "Reach", "period": "Monthly", "notes": "Top-of-funnel reach indicator."},
+        {"name": "Profile Link Clicks", "value": 0, "target": 500, "unit": "clicks", "dept": "Marketing", "cat": "Conversion", "period": "Monthly", "notes": "Content → offer intent."},
+        {"name": "Content Calendar Fill Rate", "value": 0, "target": 100, "unit": "%", "dept": "Marketing", "cat": "Efficiency", "period": "Weekly", "notes": "% of planned slots with content ready."}
+      ]
+    },
+    "tools_by_venture": {
+      "empyrean_creative": [
+        {"name": "EntrepreneurOS (Internal)", "dept": "All", "role": "Primary product — proven internally before selling", "agent": "None", "cat": "Native EOS", "integration": "Direct API", "ai_op": true, "desc": "AI business OS. Build → Test → Validate → Productize.", "access": "VPS + Discord + Notion", "cost": 0},
+        {"name": "Claude Code", "dept": "Engineering", "role": "Primary build tool for EOS development", "agent": "Operations Agent", "cat": "External SaaS", "integration": "Direct API", "ai_op": true, "desc": "AI-native coding assistant running 24/7 on VPS.", "access": "Claude Code CLI on VPS tmux", "cost": 100},
+        {"name": "Neon PostgreSQL", "dept": "All", "role": "Operational backend database", "agent": "None", "cat": "Native EOS", "integration": "Direct API", "ai_op": false, "desc": "All EOS data: orgs, ventures, agents, memory, primitives.", "access": "Internal via db.py. DATABASE_URL in .env", "cost": 0},
+        {"name": "GitHub", "dept": "Engineering", "role": "Version control and code repository", "agent": "Operations Agent", "cat": "External SaaS", "integration": "Direct API", "ai_op": true, "desc": "OS repo. Feature branch workflow. PR to dev → main.", "access": "GitHub API + SSH deploy key", "cost": 0},
+        {"name": "Hostinger VPS", "dept": "Operations", "role": "Server hosting all EOS containers", "agent": "Operations Agent", "cat": "External SaaS", "integration": "Direct API", "ai_op": false, "desc": "Ubuntu 24. 4 Docker containers. 24/7 uptime.", "access": "SSH via Tailscale. {vps_ip}", "cost": 30},
+        {"name": "Notion", "dept": "Operations", "role": "EOS UI layer — business operating system frontend", "agent": "{ai_name}", "cat": "External SaaS", "integration": "Direct API", "ai_op": true, "desc": "Primary UI for all EOS data. Synced from Neon via notion_sync.", "access": "NOTION_API_KEY in .env", "cost": 16},
+        {"name": "Telegram Bot", "dept": "Operations", "role": "Founder mobile control interface", "agent": "{ai_name}", "cat": "Native EOS", "integration": "Direct API", "ai_op": true, "desc": "Natural language commands → EOS from iPhone via Termius.", "access": "BOT_TOKEN in .env. services/discord_bot.py", "cost": 0}
+      ],
+      "personal_brand": [
+        {"name": "Instagram", "dept": "Marketing", "role": "Primary content distribution platform", "agent": "Content Agent", "cat": "External SaaS", "integration": "Browser Agent", "ai_op": true, "desc": "Reels, feed posts, stories. Primary platform.", "access": "IG_USERNAME/IG_PASSWORD in .env. Playwright monitor.", "cost": 0},
+        {"name": "Lyfe Spectrum (Shopify)", "dept": "Brand", "role": "Fashion / wardrobe for content", "agent": "None", "cat": "External SaaS", "integration": "Manual", "ai_op": false, "desc": "Tactical luxury fashion house. Worn in all content — product placement.", "access": "Shopify admin. lyfe-spectrum.myshopify.com", "cost": 30},
+        {"name": "CapCut / Premiere", "dept": "Marketing", "role": "Video editing for Reels", "agent": "None", "cat": "External SaaS", "integration": "Manual", "ai_op": false, "desc": "Primary video editing tools. Cinematic aesthetic.", "access": "Local desktop apps", "cost": 0},
+        {"name": "Apify", "dept": "Research", "role": "Competitor and trend analysis scraping", "agent": "Research Agent", "cat": "External SaaS", "integration": "Direct API", "ai_op": true, "desc": "Instagram data scraping for ICP and trend research.", "access": "APIFY_API_TOKEN in .env", "cost": 49},
+        {"name": "Claude (Anthropic)", "dept": "Marketing", "role": "Caption drafting and content ideation", "agent": "Content Agent", "cat": "API Integration", "integration": "Direct API", "ai_op": true, "desc": "Haiku for classification, Sonnet for generation.", "access": "ANTHROPIC_API_KEY in .env", "cost": 0}
+      ]
+    },
+    "venture_specs": {
+      "empyrean_creative": [
+        {
+          "title": "Empyrean Creative Business Spec",
+          "type": "Strategy",
+          "dept": "Leadership",
+          "cat": "General",
+          "content": "Creative studio. Design, brand systems, media production, AI infrastructure. Build AI infrastructure for own operations first, then productize as AI service business. Stage 1: Internal Validation. Stage 2: First external client.",
+          "source": "Founder",
+          "confidence": "High"
+        },
+        {
+          "title": "EntrepreneurOS Product Vision",
+          "type": "Strategy",
+          "dept": "Product",
+          "cat": "General",
+          "content": "AI-native business OS. Proves model on own companies first. Phase 1: Internal proof — all EOS services stable, Notion synced. Phase 2: Productize as AI service. Phase 3: SaaS. Three protocol layers: AI Identity (universal), EOS platform, OS module (subscription-based).",
+          "source": "Founder",
+          "confidence": "High"
+        },
+        {
+          "title": "AI Service Offer Framework",
+          "type": "Playbook",
+          "dept": "Product",
+          "cat": "General",
+          "content": "Three productized AI service offerings planned. Target: B2B founders and operators. Delivery: Done-for-you EOS deployment. Pricing model: TBD post internal validation. Go-to-market: Personal brand content → inbound.",
+          "source": "Founder",
+          "confidence": "Medium"
+        }
+      ],
+      "personal_brand": [
+        {
+          "title": "Personal Brand Identity Spec",
+          "type": "Strategy",
+          "dept": "Brand",
+          "content": "Archetypes: Bodhi (Point Break), Bruce Wayne/Batman, Tyler Durden, Deckard (Blade Runner). Persona: Cinematic, rebellious, luxury-driven. The Architect, not the hero. Invites reclaiming authorship of own life. Aesthetic: Tactical luxury. Dark, structured, intentional. Voice: Bold, direct, authoritative mentorship. Never breaks fourth wall.",
+          "source": "Founder",
+          "confidence": "High"
+        },
+        {
+          "title": "Content Strategy — Life Maxing Framework",
+          "type": "Playbook",
+          "dept": "Marketing",
+          "content": "Content IS the advertising. Product placement like a movie, not a pitch. Wear Lyfe Spectrum. Use EOS products naturally. Live the brand. Style: Shock value with depth. Visceral. Polarizing and emotionally resonant. Challenges societal norms. 5 posts/week target. Instagram primary.",
+          "source": "Founder",
+          "confidence": "High"
+        }
+      ]
+    },
+    "content_calendar_by_venture": {
+      "personal_brand": [
+        {
+          "title": "Content Calendar — April 2026",
+          "dept": "Marketing",
+          "content": "Platform: Instagram Reels + Feed.\nCadence: 5 posts/week.\nPillars: (1) Mindset / Life Maxing — philosophical, visceral. (2) Behind-the-build — EOS, systems, process. (3) Brand / aesthetic — Lyfe Spectrum wardrobe. (4) Proof / results — client wins, milestones. (5) Polarizing takes — challenge societal norms.\nHook formula: Shock value + depth. Lead with the wound.\nCTA: Soft. Link in bio. Never pitch directly."
+        },
+        {
+          "title": "Content Calendar — May 2026",
+          "dept": "Marketing",
+          "content": "Platform: Instagram Reels + Feed.\nCadence: 5 posts/week.\nPillars: Same as April. Introduce: first client proof content.\nNew angle: Game of Lyfe teaser (if Lyfe Institute $10K hit).\nLyfe Spectrum: Wear completed wardrobe set in all content."
+        }
+      ],
+      "lyfe_institute": [
+        {
+          "title": "Content Calendar — April 2026",
+          "dept": "Marketing",
+          "content": "Platform: Instagram (organic via Personal Brand).\nCadence: Tied to Personal Brand content — no separate channel yet.\nPillars: (1) Initiate Arena proof — transformation stories. (2) Discipline and execution hooks. (3) Men 18-25 identity — calling out mediocrity.\nCTA: DM \"Initiate\" or link to Calendly booking.\nPriority: Sales calls over content volume this month."
+        },
+        {
+          "title": "Content Calendar — May 2026",
+          "dept": "Marketing",
+          "content": "Platform: Instagram. Scale if first client closed in April.\nCadence: Increase to dedicated Lyfe Institute content if $1K+ MRR.\nPillars: Add student testimonials and case studies.\nNew: Begin Game of Lyfe waitlist content if north star hit."
+        }
+      ],
+      "empyrean_creative": [
+        {
+          "title": "Content Calendar — April 2026",
+          "dept": "Marketing",
+          "content": "Platform: None yet. Empyrean content is dormant until Phase 2.\nPhase 2 trigger: Lyfe Institute $10K MRR stable.\nPlanned platforms: LinkedIn (B2B), Instagram (brand).\nPillars (future): (1) AI infrastructure build logs. (2) EOS case studies — own companies. (3) Thought leadership — AI for founders.\nContent angle: Show the system working, not pitch it."
+        }
+      ]
+    }
+  }
 }

@@ -13,7 +13,7 @@
 ## Reason
 
 - Founder uses Chrome primarily
-- Likely relevant Google session (antonyfm@empyreanstudios.co) is in Chrome
+- Likely relevant Google session (the operator) is in Chrome
 - Watched local PC test requires visible browser behavior
 - Playwright does not satisfy this specific test intention unless explicitly approved
 - Explorer/default handler may open in Edge, IE, or other non-Chrome browser

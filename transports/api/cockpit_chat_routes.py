@@ -291,7 +291,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         _dex_conversation = DexConversation(advisor=daemon.advisor, store=daemon.store)
         return _dex_conversation
 
-    # ── Advisor / DEX conversation endpoints ─────────────────────────────────
+    # ── Advisor conversation endpoints ───────────────────────────────────────
 
     @r.post("/advisor/converse")
     def advisor_converse(payload: dict):
@@ -327,7 +327,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 routing=routing,
                 voice_turn_id=voice_turn_id,
                 # Operator attachments — their CONTENT is understood (Gemini vision /
-                # local Whisper / link fetch) and folded into the prompt so DEX sees
+                # local Whisper / link fetch) and folded into the prompt so the assistant sees
                 # what was sent, not just the text.
                 media=payload.get("media"),
             )
@@ -477,7 +477,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         """Backward-compat shim — canonical route is /advisor/history."""
         return await advisor_history(limit)
 
-    # ── Chat endpoints (operator ↔ DEX right-rail conversation) ──────────────
+    # ── Chat endpoints (operator ↔ assistant right-rail conversation) ────────
 
     @r.get("/chat/history")
     def chat_history():

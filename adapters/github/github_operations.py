@@ -32,7 +32,12 @@ _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 class GitHubOperations:
     """Governed GitHub write operations via gh CLI."""
 
-    def __init__(self, repo: str = "antonyfmunoz/OS") -> None:
+    def __init__(self, repo: str = "") -> None:
+        # Repo is instance context — resolve from env, never hardcode an owner/repo.
+        if not repo:
+            from substrate.state.business.business_instance import get_github_repo
+
+            repo = get_github_repo()
         self._repo = repo
         self._ops_count = 0
         self._last_pr: int | None = None

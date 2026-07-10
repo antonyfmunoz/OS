@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Bot, Sparkles } from 'lucide-react'
 import { useRoomsStore } from '../../stores/roomsStore'
+import { useConfigStore } from '../../stores/configStore'
 import type { DexRoomMode } from '../../types/rooms'
 
 const DEX_MODES: { value: DexRoomMode; label: string }[] = [
@@ -19,6 +20,7 @@ const DEX_MODES: { value: DexRoomMode; label: string }[] = [
 ]
 
 export function RoomDexPanel() {
+  const aiName = useConfigStore((s) => s.aiName)
   const activeChannelId = useRoomsStore((s) => s.activeChannelId)
   const dexSettings = useRoomsStore((s) => s.dexSettings)
   const updateDexSettings = useRoomsStore((s) => s.updateDexSettings)
@@ -43,7 +45,7 @@ export function RoomDexPanel() {
       <div className="flex items-center gap-2">
         <Bot size={12} style={{ color: 'var(--color-cyan)' }} />
         <span className="text-[10px] font-mono font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          Room DEX
+          Room {aiName}
         </span>
       </div>
 

@@ -21,7 +21,7 @@ Usage:
     analysis = de.evaluate(
         decision="Should I run paid ads?",
         context={"monthly_revenue": 0, "monthly_target": 10000},
-        venture_id="lyfe_institute",
+        venture_id="<venture_id>",
     )
     print(analysis['step6_recommendation'])
 """

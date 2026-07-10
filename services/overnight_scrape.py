@@ -193,13 +193,14 @@ def main():
         try:
             sys.path.insert(0, VAULT)
             from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
+            from substrate.state.business.business_instance import get_active_venture_id
             EntrepreneurOSGateway().handle({
                 "type":       "event",
                 "event_type": "signal_captured",
                 "payload": {
                     "batch_size": max(batch_size, 0),
                     "attempt":    attempt,
-                    "venture_id": "lyfe_institute",
+                    "venture_id": get_active_venture_id(),
                 },
             })
         except Exception as _gw_err:

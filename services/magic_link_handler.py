@@ -64,9 +64,25 @@ _CODE_PATTERNS: dict[str, str] = {
     "chatgpt": r"\b(\d{6})\b",
 }
 
+# Service inbox addresses come from env per-tenant — never hardcode a founder's
+# email. CLAUDE_INBOX_EMAIL / CHATGPT_INBOX_EMAIL, falling back to a generic
+# UMH_OPERATOR_EMAIL, then empty (handler no-ops rather than poll a stranger's box).
+def _resolve_service_inbox(service: str) -> str:
+    """Env (<SERVICE>_INBOX_EMAIL / UMH_OPERATOR_EMAIL) → instance.json
+    service_inboxes[service] → "". Never a hardcoded tenant address."""
+    val = os.getenv(f"{service.upper()}_INBOX_EMAIL") or os.getenv("UMH_OPERATOR_EMAIL", "")
+    if val:
+        return val
+    try:
+        from substrate.state.business.business_instance import get_operator_email
+        return get_operator_email(service=service, default="")
+    except Exception:
+        return ""
+
+
 _SERVICE_INBOX: dict[str, str] = {
-    "claude": "antonyfm@empyreanstudios.co",
-    "chatgpt": "antonyfm@theempyreancreative.com",
+    "claude": _resolve_service_inbox("claude"),
+    "chatgpt": _resolve_service_inbox("chatgpt"),
 }
 
 _POLL_INTERVAL_S = 5

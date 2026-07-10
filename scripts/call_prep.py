@@ -87,7 +87,10 @@ def build_prep_brief(event: dict, ctx) -> str:
         ctx=ctx,
     )
 
-    full_brief = header + brief_body + "\n\nAntony — you're prepped. I'll handle everything else."
+    from substrate.state.business.business_instance import get_founder_name
+    _founder = get_founder_name(default='')
+    _prep_lead = f"{_founder} — you're prepped" if _founder else "You're prepped"
+    full_brief = header + brief_body + f"\n\n{_prep_lead}. I'll handle everything else."
 
     # Write prep notes to Notion meeting record
     try:
@@ -109,9 +112,10 @@ def post_to_discord(message: str) -> bool:
             print("[CallPrep] No DISCORD_BRIEF_WEBHOOK set")
             return False
 
+        from substrate.state.business.business_instance import get_ai_name
         resp = requests.post(
             webhook,
-            json={'content': message, 'username': 'DEX'},
+            json={'content': message, 'username': get_ai_name() or 'Assistant'},
             timeout=10,
         )
         return resp.status_code in (200, 204)

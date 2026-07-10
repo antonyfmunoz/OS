@@ -387,9 +387,9 @@ Agent(
 # - general-purpose: multi-step tasks, code changes
 # - Explore: fast codebase search and exploration
 # - Plan: architecture and design planning
-# - eos-verifier: verification after implementation
-# - eos-code-reviewer: adversarial code review
-# - eos-simplifier: code simplification review
+# - umh-verifier: verification after implementation
+# - umh-code-reviewer: adversarial code review
+# - umh-simplifier: code simplification review
 ```
 
 ---
@@ -1074,9 +1074,9 @@ result = query_cc_sync(prompt="How does that affect our pricing?", agent_id="mar
 ### Subagent composition for complex analysis
 ```python
 # Dispatch multiple specialized agents in parallel
-Agent(prompt="Analyze code quality", subagent_type="eos-code-reviewer", run_in_background=True)
-Agent(prompt="Check for simplification", subagent_type="eos-simplifier", run_in_background=True)
-Agent(prompt="Verify correctness", subagent_type="eos-verifier", run_in_background=True)
+Agent(prompt="Analyze code quality", subagent_type="umh-code-reviewer", run_in_background=True)
+Agent(prompt="Check for simplification", subagent_type="umh-simplifier", run_in_background=True)
+Agent(prompt="Verify correctness", subagent_type="umh-verifier", run_in_background=True)
 # All three run concurrently, each with fresh context
 # Results collected and synthesized by the orchestrating session
 ```

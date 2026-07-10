@@ -1,7 +1,7 @@
 """Vault Google Workspace OAuth material into 1Password (WP-P4-PROVIDER-TOKEN-VAULTING-001).
 
 Reads ~/.config/gws/gmail_credentials.json and creates/updates the
-`Google-Workspace-OAuth` API_CREDENTIAL item in the UMH-Production vault.
+`Google-Workspace-OAuth` API_CREDENTIAL item in the tenant's 1Password vault.
 
 Secret-handling contract (Credential Injection Law):
 - Values flow file -> python -> `op item create` STDIN only.
@@ -22,11 +22,12 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import subprocess  # noqa: S404 — scripts/ is exempt from the CPU gate (see CLAUDE.md)
 import sys
 from pathlib import Path
 
-VAULT = "UMH-Production"
+VAULT = os.getenv("UMH_OP_VAULT", "UMH-Production")
 ITEM_TITLE = "Google-Workspace-OAuth"
 CREDENTIALS_PATH = Path.home() / ".config" / "gws" / "gmail_credentials.json"
 

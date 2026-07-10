@@ -14,7 +14,7 @@ Usage:
     from substrate.state.lifecycle.stage_manager import StageManager, detect_stage_transition
     ctx = load_context_from_env()
     sm = StageManager(ctx)
-    result = sm.advance_stage('lyfe_institute', 2)
+    result = sm.advance_stage('<venture_slug>', 2)
     print(result.message)
 """
 
@@ -191,11 +191,16 @@ class StageManager:
         client = Client(auth=os.getenv('NOTION_API_KEY'))
         date = datetime.now().strftime('%Y-%m-%d %H:%M')
 
-        # Direct stage page lookup — no child search needed
+        # Direct stage page lookup — no child search needed.
+        # Build the venture→Notion-page map from this tenant's venture roster,
+        # never a hardcoded slug list. Each venture's Notion Stage page id is
+        # read from a per-venture env var derived from its slug
+        # (NOTION_STAGE_ID_<SLUG_UPPER>), so no tenant slug is embedded here.
+        from substrate.state.business.business_instance import get_ventures
+
         stage_page_map = {
-            'lyfe_institute':    os.getenv('NOTION_LYFE_STAGE_ID', ''),
-            'empyrean_creative': os.getenv('NOTION_EMPYREAN_STAGE_ID', ''),
-            'personal_brand':    os.getenv('NOTION_BRAND_STAGE_ID', ''),
+            v['id']: os.getenv(f'NOTION_STAGE_ID_{v["id"].upper()}', '')
+            for v in get_ventures(self.ctx)
         }
         stage_page_id = stage_page_map.get(venture_id, '')
 

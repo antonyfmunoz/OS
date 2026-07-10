@@ -1,6 +1,6 @@
 """
 Travel Manager — full trip logistics management.
-When a trip is detected, DEX builds a complete
+When a trip is detected, the assistant builds a complete
 travel brief and manages logistics.
 """
 
@@ -60,6 +60,8 @@ def build_travel_brief(
             or 'the founder'
         )
         _home_base = getattr(_ctx, 'home_base', None) or 'their home base'
+        from substrate.state.business.business_instance import get_ai_name
+        _ai = get_ai_name() or 'the assistant'
 
         prompt = f"""You are the EA assistant for {_traveler}.
 Build a complete pre-trip brief for this travel event.
@@ -92,8 +94,8 @@ Create a comprehensive travel brief covering:
 - Rough daily structure
 
 **Pre-Trip Actions (48h before)**
-- What DEX will handle
-- What Antony needs to confirm
+- What {_ai} will handle
+- What {_traveler} needs to confirm
 
 **Local Intelligence**
 - Timezone and current time there
@@ -149,7 +151,9 @@ def research_flights(
     """Research flight options (informational — no booking)."""
     try:
         from adapters.models.model_router import get_router, TaskType
+        from substrate.state.business.business_instance import get_founder_name
         router = get_router()
+        _traveler = get_founder_name(default='the traveler')
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research flight options.
 
@@ -166,7 +170,7 @@ Provide:
 5. Tips for this specific route
 6. Recommended booking timeline
 
-Note: This is research to help Antony make the booking.
+Note: This is research to help {_traveler} make the booking.
 Be specific and practical.""").strip()
     except Exception as e:
         return f'Flight research unavailable: {e}'
@@ -182,7 +186,9 @@ def research_hotels(
     """Research hotel options (informational — no booking)."""
     try:
         from adapters.models.model_router import get_router, TaskType
+        from substrate.state.business.business_instance import get_founder_name
         router = get_router()
+        _traveler = get_founder_name(default='the traveler')
 
         return router.call_with_fallback(TaskType.FAST_RESPONSE, f"""Research hotel options.
 
@@ -199,7 +205,7 @@ Provide:
 4. Booking tips for this city
 5. Price range to expect
 
-Note: Research only — Antony makes the final booking.""").strip()
+Note: Research only — {_traveler} makes the final booking.""").strip()
     except Exception as e:
         return f'Hotel research unavailable: {e}'
 

@@ -44,19 +44,43 @@ from pathlib import Path
 # Patterns are case-insensitive word-boundary matches.
 
 INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
-    # AI persona name
-    (r"\bDEX\b", "ai_name", "get_ai_name() from substrate.control_plane.identity"),
+    # AI persona DISPLAY name (a specific tenant's assistant name). Case-sensitive:
+    # capitalized DEX / Dex is the display name and IS a cross-tenant leak. The
+    # lowercase `dex` token is the projection-NEUTRAL assistant ROLE SLUG — a stable
+    # wire/route/store protocol constant shared by every tenant (see
+    # ASSISTANT_ROLE_SLUG / get_assistant_role_slug in business_instance.py) — and
+    # is handled by the canonical-slug exemption below, not this pattern.
+    # (?-i:...) forces case-sensitivity for just this alternation so lowercase
+    # `dex` (the role slug) is NOT matched here.
+    (r"(?-i:\b(?:DEX|Dex)\b)", "ai_name", "get_ai_name() — display name is tenant-scoped"),
     # Founder/user identity
     (r"\bAntony\b", "founder_name", "BIS founder profile at runtime"),
     (r"\bMunoz\b", "founder_name", "BIS founder profile at runtime"),
     # Company/venture names
     (r"\bLyfe Institute\b", "company_name", "BIS venture registry at runtime"),
-    (r"\bEmpyrean\s+(?:Studio|Creative)\b", "company_name", "BIS venture registry at runtime"),
+    (r"\bEmpyrean\s+(?:Studios?|Creative)\b", "company_name", "BIS venture registry at runtime"),
     (r"\bInitiate Arena\b", "product_name", "BIS product registry at runtime"),
     (r"\bMunoz (?:Conglomerate|Holdings)\b", "company_name", "BIS org profile at runtime"),
     # Infrastructure (Tailscale IPs for specific nodes)
     (r"\b100\.77\.233\.50\b", "infra_ip", "env var (e.g., UMH_VPS_IP)"),
     (r"\b100\.74\.199\.102\b", "infra_ip", "env var (e.g., UMH_BEAST_IP)"),
+    # Founder brand archetype / product-brand tokens (instance vocabulary)
+    (r"\bVigilante Architect\b", "founder_name", "brand worldview — neutral phrasing or BIS"),
+    (r"\bLyfe Spectrum\b", "company_name", "BIS venture registry at runtime"),
+    # Founder account email addresses (specific inboxes)
+    (r"antonyfm@[A-Za-z0-9.\-]+", "account_id", "env var (e.g., UMH_OPERATOR_EMAIL)"),
+    (r"\b\w+@(?:empyreanstudios\.co|theempyreancreative\.com)\b", "account_id", "env var (e.g., UMH_OPERATOR_EMAIL)"),
+    # 1Password vault name (instance-0's vault leaking into templates/scripts)
+    (r"op://UMH-Production\b", "op_vault", "op://${UMH_OP_VAULT}/... via get_op_vault()"),
+    (r"\bUMH-Production\b", "op_vault", "UMH_OP_VAULT env / get_op_vault()"),
+    (r"op://EntrepreneurOS\b", "op_vault", "op://${UMH_OP_VAULT}/... via get_op_vault()"),
+    # Instance-0 Discord channel IDs (specific literals — env vars per channel)
+    (r"\b1485765456739696714\b", "account_id", "DISCORD_FOUNDERS_OFFICE env"),
+    (r"\b1486289444830056540\b", "account_id", "DISCORD_*_CHANNEL_ID env"),
+    (r"\b1485765524766982234\b", "account_id", "DISCORD_*_CHANNEL_ID env"),
+    # Instance-0 Notion workspace UUID prefix (its DB/page ids all share it)
+    (r"32eda8b9-6e4f", "account_id", "Notion ids from env / instance.json"),
+    (r"333da8b9-6e4f", "account_id", "Notion ids from env / instance.json"),
     # Account identifiers
     (r"antonyfmunoz", "account_id", "env var (e.g., GITHUB_USER)"),
     (r"antonys beast pc", "account_id", "env var for SSH host identity"),
@@ -72,6 +96,13 @@ INSTANCE_PATTERNS: list[tuple[str, str, str]] = [
     (r"\bempyrean_creative\b", "venture_slug", "BIS venture registry at runtime"),
     (r"\blyfe_institute\b", "venture_slug", "BIS venture registry at runtime"),
     (r"\bpersonal_brand\b", "venture_slug", "BIS venture registry at runtime"),
+    (r"\bempyrean_studio\b", "venture_slug", "BIS venture registry at runtime"),
+    (r"\binitiate_arena\b", "product_name", "BIS product registry at runtime"),
+    # Venture-specific CEO agent ids baked into the universal layer — build the
+    # CEO-agent set from {venture_id}_ceo at runtime, never hardcode the venture.
+    # ('brand_ceo' is a GENERIC role key, not a venture — deliberately excluded.)
+    (r"\b(?:lyfe|empyrean|lyfe_institute|personal_brand|empyrean_creative|empyrean_studio)_ceo\b",
+     "venture_slug", "build {venture_id}_ceo from BIS venture registry at runtime"),
 ]
 
 # Compile once
@@ -86,46 +117,163 @@ _COMPILED_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
 # Format: relative path from repo root → set of categories allowed.
 
 LEGACY_INSTANCE_LEAKS: dict[str, set[str]] = {
-    # Benchmark defect seeder — intentionally contains instance values as test data
+    # Benchmark defect seeder — intentionally contains instance values as test data.
+    # This is a fixture (a leak-detector test corpus), not runtime tenant data.
     "substrate/organism/benchmarks/production_quality.py": {"ai_name", "infra_ip"},
-    # WP-P3-001: pre-existing snake_case venture-slug leaks frozen at main
-    # bb39b3abd. Adding the venture_slug patterns above would otherwise turn the
-    # gate red; these 19 files are tech debt to be migrated to BIS lookups in a
-    # later guarded packet. Shrink-only — the non-growth test enforces it.
-    "substrate/understanding/reality/reality_engine.py": {"venture_slug"},
-    "substrate/understanding/reality/reality_context.py": {"venture_slug"},
-    "substrate/understanding/world_pulse/world_pulse.py": {"venture_slug"},
-    "substrate/understanding/world_model/world_model.py": {"venture_slug"},
-    "substrate/understanding/intelligence/competitive_intel.py": {"venture_slug"},
-    "substrate/governance/accountability/accountability.py": {"venture_slug"},
-    "substrate/governance/principles/principle_engine.py": {"venture_slug"},
-    "substrate/control_plane/runtime/cognitive_loop.py": {"venture_slug"},
-    "substrate/control_plane/runtime/gateway.py": {"venture_slug"},
-    "substrate/control_plane/proactive/proactive_engine.py": {"venture_slug"},
-    "substrate/control_plane/events/event_bus.py": {"venture_slug"},
-    "substrate/control_plane/strategy/strategy_engine.py": {"venture_slug"},
-    "substrate/control_plane/context/context_builder.py": {"venture_slug"},
-    "substrate/control_plane/agents/ceo_agent.py": {"venture_slug"},
-    "substrate/control_plane/agents/agent_hierarchy.py": {"venture_slug"},
-    "substrate/control_plane/scheduling/daily_sync.py": {"venture_slug"},
-    "substrate/execution/bridge/roles.py": {"venture_slug"},
-    "substrate/state/business/business_instance.py": {"venture_slug"},
-    "substrate/state/lifecycle/stage_manager.py": {"venture_slug"},
+    # ── Single-tenant workspace-authoring scripts ────────────────────────────
+    # notion_seed_all.py and build_notion_workspace.py are one-shot EOS Notion
+    # workspace AUTHORING artifacts — bespoke, hand-written portfolio copy (per-
+    # venture goal prose, org-chart ASCII art, content-pillar plans, incubation
+    # relationships) with no BIS field to source from. Their IDENTITY and INFRA
+    # leaks (assistant name, founder name, node IPs) and the tenant venture
+    # REGISTRY were migrated to runtime BIS/env lookups; what remains is authored
+    # domain COPY that names specific ventures/offers. Per the architecture-layer
+    # + machine-boundary decision, this EOS authoring content ultimately belongs
+    # in the EOS projection body (on the Beast), not UMH substrate tooling; until
+    # it is relocated it is frozen here. Shrink-only — new leaks are NOT added.
+    # ── Sanctioned resolver defaults — the ONE legal home for a fallback ──────
+    # A resolver's documented default value IS the seam: get_op_vault() defaults
+    # to instance-0's vault when UMH_OP_VAULT/instance.json is unset. Same status
+    # as ASSISTANT_ROLE_SLUG='dex'. This is where the fallback is allowed to live.
+    "substrate/state/business/business_instance.py": {"op_vault"},
+    # NOTE: env-driven vault defaults — os.getenv("UMH_OP_VAULT", "UMH-Production")
+    # and ${UMH_OP_VAULT:-UMH-Production} — need NO allowlist entry. They are
+    # exempted universally by _is_sanctioned_op_vault_default() as the one legal
+    # code/instance seam. Only a BARE UMH-Production literal is a leak.
+    # ── Generated artifacts — regenerate from source, not source of truth ─────
+    "docs/system/module_inventory.json": {"ai_name", "founder_name", "company_name"},
+    # ── Push-blocked CI leak — fix authored, cannot ship without token scope ───
+    # The one-line fix (VITE_AI_NAME: ${{ vars.VITE_AI_NAME || 'Assistant' }}) is
+    # ready but GitHub rejects pushes that edit .github/workflows/* without a
+    # `workflow`-scoped token. Apply via a workflow-scoped token or the GitHub UI,
+    # then remove this entry. Pre-existing on main; NOT introduced by this sweep.
+    ".github/workflows/mobile-build.yml": {"ai_name"},
+    # ── Gate / de-brander tooling — the literals ARE the patterns they match ──
+    # These scripts scan for or rewrite instance values, so they necessarily
+    # contain the literal patterns as data. Not runtime tenant leaks. Fixtures.
+    "scripts/check_instance_leak.py": {
+        "ai_name", "founder_name", "company_name", "product_name",
+        "venture_slug", "account_id", "node_id", "infra_ip", "session_prefix",
+        "op_vault",
+    },
+    "scripts/migrate_instance_leaks.py": {
+        "ai_name", "founder_name", "company_name", "account_id", "venture_slug",
+    },
+    "scripts/detemplatize_skills.py": {"product_name", "venture_slug", "company_name"},
+    "scripts/check_ontology_layers.py": {"venture_slug"},
 }
 
-# ── Directories to skip ──────────────────────────────────────────────────────
+# ── Paths to skip (whole-tree scan) ──────────────────────────────────────────
+# The gate scans EVERY shipping file type across the WHOLE repo — code carries
+# ZERO tenant data, so a leak in any .ts/.sh/.yaml/.json is as fatal as one in
+# .py. Only genuinely non-source paths are skipped.
 _EXCLUDES = {
     "__pycache__",
-    ".git",
+    ".git/",
     "node_modules",
     ".mypy_cache",
     ".ruff_cache",
     ".pytest_cache",
     ".claude/worktrees",
-    "data/",
-    "saas/",
-    "skills/",
-    "/tests/",
+    "/out/",            # cockpit build artifacts (regenerate from src)
+    "/dist/",
+    "dist-web/",        # cockpit web build output (regenerate from src)
+    "/build/",
+    ".next/",
+    "coverage/",
+    "data/",            # runtime state (jsonl logs, projections) — not source
+    "tests/",           # tests assert on instance values as fixtures
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+}
+
+# ── Layer-aware exemption (code vs instance/projection/history) ───────────────
+# "Instance language" is a LEAK only where the artifact is tenant-neutral shipping
+# PRODUCT. It is CORRECT where the artifact IS this instance's data/projection/
+# history. These prefixes name the latter — exempt from the SOFT/brand + infra
+# rules. PII (founder email) is scrubbed even here (see _PII_CATEGORIES below).
+_PROJECTION_EXEMPT_PREFIXES = (
+    # Projection skills — subject IS the business (outreach, content, playbooks).
+    # Tracked like projections/, not tenant-neutral capability templates.
+    "skills/Content/", "skills/CustomerSuccess/", "skills/Marketing/",
+    "skills/Ops/", "skills/Outreach/", "skills/Research/", "skills/Sales/",
+    "skills/content/",
+    # Operator instruction / setup docs describing THIS deployment (like a
+    # filled-in .env is for THIS tenant): CLAUDE.md, AGENTS.md, .claude/**, .planning/**.
+    ".claude/", ".agents/skills/",
+    ".planning/",
+    # Historical records — frozen like git log. Rewriting them destroys provenance.
+    "docs/audits/", "docs/operations/", "docs/system/", "docs/superpowers/specs/",
+)
+
+# Root-level single-file operator docs (not prefixes) that describe this instance.
+_INSTANCE_DOC_FILES = {"CLAUDE.md", "AGENTS.md", "CLAUDE.local.md", "README.md"}
+
+# HARD categories = secrets / infra / account identifiers. A leak of these is
+# fatal even in prose/docs. SOFT categories (brand/company/product/founder names,
+# ai_name, session/node ids) are acceptable in prose that DESCRIBES the example
+# instance, but never in code.
+_HARD_CATEGORIES = {"account_id", "infra_ip", "op_vault"}
+
+# PII that must be scrubbed EVERYWHERE, even in exempt instance/history docs:
+# the founder's email address. Enforced by the account_id email patterns; we
+# detect PII by matching the email-specific regexes on the line.
+_PII_EMAIL_RE = re.compile(
+    r"antonyfm@[A-Za-z0-9.\-]+|\b\w+@(?:empyreanstudios\.co|theempyreancreative\.com)\b",
+    re.IGNORECASE,
+)
+
+# Prose file types: instance NAMES are acceptable (they describe the example),
+# only HARD leaks fire. Code types fire on ALL categories.
+_PROSE_EXTENSIONS = {".md", ".mdx", ".txt", ".rst"}
+
+
+def _is_pii_email_match(pattern: "re.Pattern[str]") -> bool:
+    """True if this compiled pattern is one of the founder-email PII patterns —
+    the only thing that fires in exempt (instance/history) files."""
+    return "antonyfm@" in pattern.pattern or "empyreanstudios" in pattern.pattern
+
+
+# A date stamp (YYYY-MM-DD) in the filename marks a frozen historical/provenance
+# record (migration logs, dated governance records) — same class as docs/audits/,
+# exempt wherever it lives. Rewriting it destroys provenance.
+_DATED_RECORD_RE = re.compile(r"20\d{2}-\d{2}-\d{2}")
+
+
+def _scan_mode(rel: str, suffix: str) -> str:
+    """Classify a file → how strictly to scan it.
+    'code'   — all categories (tenant-neutral shipping code).
+    'prose'  — HARD categories only (docs/skills prose that may name the example).
+    'exempt' — PII only (this instance's own data/projection/history docs).
+    """
+    fname = rel.rsplit("/", 1)[-1]
+    is_exempt_path = (
+        rel in _INSTANCE_DOC_FILES
+        or any(rel.startswith(p) for p in _PROJECTION_EXEMPT_PREFIXES)
+        or (suffix in _PROSE_EXTENSIONS and _DATED_RECORD_RE.search(fname) is not None)
+    )
+    if is_exempt_path:
+        return "exempt"
+    if suffix in _PROSE_EXTENSIONS:
+        return "prose"
+    return "code"
+
+# INSTANCE-DATA FILES — the canonical per-tenant sources. Tenant data BELONGS
+# here (this IS the separation: data lives in these, code reads them). They are
+# the only files exempt from the leak scan by their very nature.
+_INSTANCE_DATA_FILES = {
+    "data/umh/instance.json",
+    "infra/device_registry.json",
+}
+
+# Shipping source file types the gate enforces on.
+_SCANNED_EXTENSIONS = {
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+    ".sh", ".bat", ".ps1",
+    ".yaml", ".yml", ".json", ".toml", ".tpl", ".ini", ".cfg",
+    ".html", ".css",
+    ".md", ".mdx", ".txt", ".rst",   # docs/skills prose — HARD leaks + PII fire here
 }
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -133,7 +281,34 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def _should_skip(path: Path) -> bool:
     rel = str(path.relative_to(_REPO_ROOT))
+    if rel in _INSTANCE_DATA_FILES:
+        return True
+    # env files (.env, .env.local, …) are instance data / secrets, not source.
+    base = path.name
+    if base == ".env" or base.startswith(".env."):
+        return True
     return any(ex in rel for ex in _EXCLUDES)
+
+
+# The ONE sanctioned home for a vault-name fallback is the env-default form:
+# an env lookup that names UMH_OP_VAULT and supplies instance-0's vault only as
+# the default when unset. This IS the code/instance seam, not a leak — so it is
+# allowed in ANY file, with no allowlist entry needed. Covers:
+#   bash:   ${UMH_OP_VAULT:-UMH-Production}
+#   python: os.getenv("UMH_OP_VAULT", "UMH-Production")  (single or double quote)
+_SANCTIONED_VAULT_DEFAULT = re.compile(
+    r"UMH_OP_VAULT(?:\s*:-\s*|[\"']\s*,\s*[\"'])UMH-Production"
+)
+
+
+def _is_sanctioned_op_vault_default(line: str) -> bool:
+    """True when every UMH-Production on the line is an env-default fallback."""
+    if "UMH-Production" not in line:
+        return False
+    # Strip the sanctioned env-default occurrences; if any bare UMH-Production
+    # remains, the line still leaks and must NOT be exempted.
+    residual = _SANCTIONED_VAULT_DEFAULT.sub("", line)
+    return "UMH-Production" not in residual
 
 
 def _scan_file(filepath: Path) -> list[dict[str, str]]:
@@ -141,6 +316,7 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
     violations: list[dict[str, str]] = []
     rel_path = str(filepath.relative_to(_REPO_ROOT))
     legacy_cats = LEGACY_INSTANCE_LEAKS.get(rel_path, None)
+    mode = _scan_mode(rel_path, filepath.suffix)
 
     try:
         lines = filepath.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -159,6 +335,20 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
             if pattern.search(line):
                 if legacy_cats is not None and category in legacy_cats:
                     continue
+                # Env-default vault fallback is the sanctioned seam, allowed anywhere.
+                if category == "op_vault" and _is_sanctioned_op_vault_default(line):
+                    continue
+                # Layer-aware strictness (PER-MATCHED-CATEGORY, not per-line — a
+                # line may hold both an exempt infra ref AND a PII email):
+                #  code   → every category is a leak.
+                #  prose  → only HARD (secret/infra/account) leaks; brand NAMES
+                #           are acceptable when describing the example instance.
+                #  exempt → this instance's own data/projection/history; ONLY the
+                #           founder-email PII is scrubbed, nothing else.
+                if mode == "exempt" and not _is_pii_email_match(pattern):
+                    continue
+                if mode == "prose" and category not in _HARD_CATEGORIES:
+                    continue
                 violations.append(
                     {
                         "file": rel_path,
@@ -172,8 +362,19 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
     return violations
 
 
+def _is_scanned(path: Path) -> bool:
+    """A shipping-source file of a scanned type that isn't skipped."""
+    if _should_skip(path):
+        return False
+    # .env.*.tpl templates are source (scan them); .env* handled by _should_skip.
+    if path.suffix in _SCANNED_EXTENSIONS:
+        return True
+    # dotfiles like `.env.beast.tpl` end in .tpl → caught above; nothing else.
+    return False
+
+
 def _get_staged_files() -> list[Path]:
-    """Get Python files staged for commit under substrate/."""
+    """Get all shipping-source files staged for commit (whole tree, all types)."""
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
         capture_output=True,
@@ -182,18 +383,17 @@ def _get_staged_files() -> list[Path]:
     )
     files = []
     for name in result.stdout.strip().splitlines():
-        if name.startswith("substrate/") and name.endswith(".py"):
-            p = _REPO_ROOT / name
-            if p.exists() and not _should_skip(p):
-                files.append(p)
+        p = _REPO_ROOT / name
+        if p.exists() and _is_scanned(p):
+            files.append(p)
     return files
 
 
 def _get_all_substrate_files() -> list[Path]:
-    """Get all Python files under substrate/."""
+    """Get every shipping-source file in the whole repo (all scanned types)."""
     files = []
-    for p in (_REPO_ROOT / "substrate").rglob("*.py"):
-        if not _should_skip(p):
+    for p in _REPO_ROOT.rglob("*"):
+        if p.is_file() and _is_scanned(p):
             files.append(p)
     return files
 

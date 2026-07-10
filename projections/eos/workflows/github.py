@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 class GitHubWorkflow:
     """GitHub operations through governed mutation."""
 
-    def __init__(self, repo: str = "antonyfmunoz/OS") -> None:
+    def __init__(self, repo: str = "") -> None:
+        # Empty repo → GitHubOperations resolves it from tenant BIS (get_github_repo).
         self._gh = GitHubOperations(repo=repo)
         self._pr_list: list[dict[str, Any]] = []
         self._pr_status: dict[str, Any] = {}

@@ -151,7 +151,7 @@ async def _wait_for_magic_link(email: str) -> str | None:
     """
     import aiohttp
 
-    vps_url = os.getenv("EOS_MAGIC_LINK_URL", "http://100.77.233.50:8769")
+    vps_url = os.getenv("EOS_MAGIC_LINK_URL", "")
     bridge_port = os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767")
     local_url = f"http://localhost:{bridge_port}"
 

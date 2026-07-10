@@ -329,11 +329,11 @@ async def _wait_for_verification_code(email: str) -> str | None:
     """Request verification code from the VPS Gmail poller."""
     import aiohttp
 
-    vps_url = os.getenv("EOS_MAGIC_LINK_URL", "http://100.77.233.50:8769")
+    vps_url = os.getenv("EOS_MAGIC_LINK_URL", "")
     bridge_port = os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767")
     local_url = f"http://localhost:{bridge_port}"
 
-    inbox_email = os.getenv("CHATGPT_INBOX_EMAIL", "antonyfm@theempyreancreative.com")
+    inbox_email = os.getenv("CHATGPT_INBOX_EMAIL") or os.getenv("UMH_OPERATOR_EMAIL", "")
 
     endpoints = [
         (vps_url, "VPS"),
@@ -380,11 +380,11 @@ async def _wait_for_magic_link(email: str) -> str | None:
     """Request magic link URL from the VPS Gmail poller."""
     import aiohttp
 
-    vps_url = os.getenv("EOS_MAGIC_LINK_URL", "http://100.77.233.50:8769")
+    vps_url = os.getenv("EOS_MAGIC_LINK_URL", "")
     bridge_port = os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767")
     local_url = f"http://localhost:{bridge_port}"
 
-    inbox_email = os.getenv("CHATGPT_INBOX_EMAIL", "antonyfm@theempyreancreative.com")
+    inbox_email = os.getenv("CHATGPT_INBOX_EMAIL") or os.getenv("UMH_OPERATOR_EMAIL", "")
 
     endpoints = [
         (vps_url, "VPS"),

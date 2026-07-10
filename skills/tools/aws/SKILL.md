@@ -42,7 +42,7 @@ Core capabilities covered here:
 
 ## EOS Integration
 
-EOS runs on a Tailscale-private VPS at 100.77.233.50 with Neon for Postgres,
+EOS runs on a Tailscale-private VPS at <your-vps-ip> with Neon for Postgres,
 Docker for services, and zero AWS dependency by default. AWS is intentionally
 peripheral. The decision criterion is:
 

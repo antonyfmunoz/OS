@@ -56,8 +56,8 @@ Write to `~/eos_outbox/advisor_request_{work_order_id}.json`:
   "work_order_id": "WO-LOCAL-PILOT-GDRIVE-GDOCS-001",
   "payload": {
     "action": "OPEN_GOOGLE_DRIVE",
-    "target": "antonyfm@empyreanstudios.co",
-    "description": "Approve opening Google Drive for antonyfm@empyreanstudios.co using visible GUI computer-use?",
+    "target": "${UMH_OPERATOR_EMAIL}",
+    "description": "Approve opening Google Drive for the operator using visible GUI computer-use?",
     "risk_level": "MEDIUM",
     "backend": "GUI_COMPUTER_USE",
     "blocked_until_approved": true
@@ -73,7 +73,7 @@ VPS writes response via SSH or bridge.
 ### 6. If Approved: Proceed Only with Opening Drive
 
 - Open Google Drive ONLY
-- Verify active account matches `antonyfm@empyreanstudios.co`
+- Verify active account matches the operator
 - If wrong account → STOP, send ERROR to advisor
 - Do NOT open any documents without separate approval
 

@@ -2,9 +2,12 @@ app = "umh-cockpit"
 primary_region = "sjc"
 
 [build]
+  # Tenant build args are injected at deploy time by cockpit/deploy.sh
+  # (--build-arg from env / 1Password). These placeholders keep local builds
+  # working without baking any tenant identity into source.
   [build.args]
-    VITE_CLERK_PUBLISHABLE_KEY = "pk_test_b2JsaWdpbmctZG9ua2V5LTMxLmNsZXJrLmFjY291bnRzLmRldiQ"
-    VITE_AI_NAME = "DEX"
+    VITE_CLERK_PUBLISHABLE_KEY = ""
+    VITE_AI_NAME = "Assistant"
 
 [http_service]
   internal_port = 8080

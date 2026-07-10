@@ -84,7 +84,7 @@ def register_commands(
 
     @bot.command(name="answer")
     async def cmd_answer(ctx: commands.Context, session_name: str, *, text: str):
-        """Answer a CC session question: !answer dex_builder_main <your answer>"""
+        """Answer a CC session question: !answer <session> <your answer>"""
         if ctx.author.id != FOUNDER_ID:
             await ctx.reply("Founder only.")
             return
@@ -699,7 +699,7 @@ def register_commands(
             from substrate.governance.policy.confidentiality import create_confidential_session
 
             topic = parts[0]
-            parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else ["Antony"]
+            parties = [p.strip() for p in parts[1].split(",")] if len(parts) > 1 else []
             level = parts[2] if len(parts) > 2 else "restricted"
             create_confidential_session(topic, parties, level)
             await ctx.reply(
@@ -802,11 +802,14 @@ def register_commands(
             notes = getattr(profile, "notes", None) or "No prior context available"
             last_contact = getattr(profile, "last_contact", None) or "unknown"
 
+            from substrate.state.business.business_instance import get_founder_name
+            _founder = get_founder_name(default="the founder")
+
             draft = (
                 f"Subject: Hey {name}\n\n"
                 f"Hey {name}, been a minute — hope you're doing well. "
                 f"Would love to catch up when you have time.\n\n"
-                f"— Antony"
+                f"— {_founder}"
             )
             try:
                 from adapters.models.model_router import get_router, TaskType
@@ -820,12 +823,12 @@ def register_commands(
 Context: {notes}
 Last contact: {last_contact}
 
-Antony's voice — casual, genuine, no agenda.
+{_founder}'s voice — casual, genuine, no agenda.
 2-3 sentences max. Not salesy.
 
 Subject: [subject]
 [body]
-[Antony]""",
+[{_founder}]""",
                 ).strip()
                 if ai_draft and len(ai_draft) > 20:
                     draft = ai_draft
@@ -1093,7 +1096,7 @@ Subject: [subject]
                         title="🔒 Deep Work — Do Not Disturb",
                         start_iso=now.isoformat(),
                         duration_minutes=h * 60,
-                        description="Focus block created by DEX. No meetings.",
+                        description="Focus block created by the assistant. No meetings.",
                     )
                     if event:
                         end_time = (now + timedelta(hours=h)).strftime("%I:%M %p")
@@ -1162,7 +1165,7 @@ Subject: [subject]
             await ctx.reply(
                 "Usage: `!folder-update <folder> <instruction>`\n"
                 "Example: `!folder-update Receipts-Financials Apple marketing emails should never go here`\n"
-                "Folders: Antony, To Respond, Review, Responded, Waiting On, Receipts-Financials, Newsletters"
+                "Folders: Founder, To Respond, Review, Responded, Waiting On, Receipts-Financials, Newsletters"
             )
             return
 
@@ -1299,7 +1302,7 @@ Subject: [subject]
             "",
             "Just type naturally in any channel — I route automatically.",
             "",
-            "**EA Commands (DEX Email + Calendar)**",
+            "**EA Commands (Email + Calendar)**",
             "`!sync` — run daily sync meeting now",
             "`!inbox` — Email GPS status",
             "`!draft` — drafts awaiting your approval",
@@ -1346,7 +1349,7 @@ Subject: [subject]
             "→ Whisper transcribes → smart routing (Qwen local or Claude) → speaks back",
             "",
             "**Channels**",
-            "Founder's Office — voice channel for DEX interaction",
+            "Founder's Office — voice channel for assistant interaction",
         ]
         await ctx.reply("\n".join(lines))
 
@@ -1687,7 +1690,7 @@ Subject: [subject]
 
     @bot.command(name="nolist")
     async def cmd_nolist(ctx: commands.Context):
-        """View Antony's No List."""
+        """View the founder's No List."""
 
         def _run():
             try:
@@ -1730,7 +1733,7 @@ Subject: [subject]
                 if ok:
                     return (
                         f"🚫 Added to No List: **{item}**\n"
-                        f"DEX will flag this if it appears in your tasks or calendar."
+                        f"The assistant will flag this if it appears in your tasks or calendar."
                     )
                 return "❌ Failed to add."
             except Exception as e:
@@ -2430,7 +2433,7 @@ Subject: [subject]
             if not args or "|" not in args:
                 await ctx.reply(
                     "Usage: `!okr set [venture_id] | [objective] | [KR description], [target], [unit]`\n"
-                    "Example: `!okr set lyfe_institute | Hit first sale | Revenue, 750, $`"
+                    "Example: `!okr set <venture_id> | Hit first sale | Revenue, 750, $`"
                 )
                 return
             try:
@@ -2592,7 +2595,7 @@ Subject: [subject]
         """Generate board update brief. Usage: !board_update [venture_id]"""
         if not venture_id:
             await ctx.reply(
-                "Usage: `!board_update [venture_id]`\nExample: `!board_update lyfe_institute`"
+                "Usage: `!board_update [venture_id]`\nExample: `!board_update <venture_id>`"
             )
             return
         try:

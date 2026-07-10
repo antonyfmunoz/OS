@@ -27,7 +27,7 @@ Core capabilities used by EOS:
   skills, and configuration is tracked with lowercase imperative messages
 - **Main-only workflow** -- solo founder phase commits directly to main;
   feature branches reserved for experimental or risky changes
-- **GitHub sync** -- origin at `https://github.com/antonyfmunoz/OS.git`,
+- **GitHub sync** -- origin at `https://github.com/<your-org>/OS.git`,
   pulled to VPS, pushed from VPS or local VSCode
 - **Claude Code integration** -- CC hooks run pre/post tool use, audit
   file changes, and auto-format Python on write via ruff
@@ -86,15 +86,15 @@ All git commands are pre-approved. No permission prompt needed.
 ## Authentication
 
 ### GitHub HTTPS (current)
-- Remote: `https://github.com/antonyfmunoz/OS.git`
+- Remote: `https://github.com/<your-org>/OS.git`
 - Auth: GitHub credential helper or personal access token (PAT)
 - PAT stored in git credential cache, not in `.env`
-- User: `antonyfmunoz` / email: `antonyfm@empyreanstudios.co`
+- User: `${GITHUB_USER}` / email: `${UMH_OPERATOR_EMAIL}`
 
 ### GitHub SSH (alternative)
-- Generate: `ssh-keygen -t ed25519 -C "antonyfm@empyreanstudios.co"`
+- Generate: `ssh-keygen -t ed25519 -C "${UMH_OPERATOR_EMAIL}"`
 - Add public key to GitHub Settings > SSH Keys
-- Switch remote: `git remote set-url origin git@github.com:antonyfmunoz/OS.git`
+- Switch remote: `git remote set-url origin git@github.com:<your-org>/OS.git`
 - Verify: `ssh -T git@github.com`
 
 ### GitHub CLI (gh)
@@ -125,7 +125,7 @@ git diff --cached --stat  # staged file summary
 git log --oneline -20            # recent commits
 git log --oneline --all --graph  # branch topology
 git log -p -1                    # full diff of last commit
-git log --author="antonyfmunoz" --since="2026-04-01"  # filtered
+git log --author="${GITHUB_USER}" --since="2026-04-01"  # filtered
 ```
 
 ### Branch operations (rare in EOS)

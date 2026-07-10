@@ -8,12 +8,12 @@ when you're at your desk. Falls back to VPS when you're away.
 ```
 Discord msg → VPS discord_bot.py
   → local_bridge_client.forward_to_local()
-    → GET http://100.74.199.102:8766/health (2s timeout)
+    → GET http://${UMH_BEAST_IP}:8766/health (2s timeout)
     → If healthy: POST /message → local tmux session
     → If unhealthy: inject into VPS tmux session (normal path)
 
 Local CC reply → Stop hook
-  → POST http://100.77.233.50:8765/cc-reply
+  → POST http://${UMH_VPS_IP}:8765/cc-reply
   → VPS webhook receiver → Discord channel
 ```
 
@@ -26,7 +26,7 @@ Files:
 
 Env vars (in both eos_ai/.env and services/.env):
 ```
-EOS_LOCAL_BRIDGE_IP=100.74.199.102
+EOS_LOCAL_BRIDGE_IP=${UMH_BEAST_IP}
 EOS_LOCAL_BRIDGE_PORT=8766
 EOS_LOCAL_BRIDGE_ENABLED=1
 ```
@@ -43,8 +43,8 @@ docker compose up -d os-discord
 From the Windows machine (Git Bash or PowerShell):
 ```bash
 # Clone or pull the OS repo, then copy the server file
-scp root@100.77.233.50:/opt/OS/services/local_bridge_server.py ~/local_bridge_server.py
-scp root@100.77.233.50:/opt/OS/services/local_bridge_send_to_discord.sh ~/send-to-discord.sh
+scp root@${UMH_VPS_IP}:/opt/OS/services/local_bridge_server.py ~/local_bridge_server.py
+scp root@${UMH_VPS_IP}:/opt/OS/services/local_bridge_send_to_discord.sh ~/send-to-discord.sh
 ```
 
 Or from WSL:
@@ -118,7 +118,7 @@ Add to `~/.claude/settings.json`:
 From VPS:
 ```bash
 # Test health check
-curl http://100.74.199.102:8766/health
+curl http://${UMH_BEAST_IP}:8766/health
 
 # Test message forwarding
 python3 -c "
@@ -147,11 +147,11 @@ All messages will route to VPS tmux sessions as normal.
 
 | Symptom | Check |
 |---------|-------|
-| Messages not forwarding to local | `curl http://100.74.199.102:8766/health` from VPS |
-| Replies not reaching Discord | `curl http://100.77.233.50:8765/health` from WSL |
+| Messages not forwarding to local | `curl http://${UMH_BEAST_IP}:8766/health` from VPS |
+| Replies not reaching Discord | `curl http://${UMH_VPS_IP}:8765/health` from WSL |
 | Wrong Discord channel | Ensure local tmux session name matches (dex_builder_main / dex_product_main) |
 | Bridge server crashes | Check `python3 ~/local_bridge_server.py` for errors |
-| Tailscale unreachable | `tailscale ping 100.77.233.50` from Windows |
+| Tailscale unreachable | `tailscale ping ${UMH_VPS_IP}` from Windows |
 
 ## Security
 

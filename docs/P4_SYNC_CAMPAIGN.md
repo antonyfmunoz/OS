@@ -34,7 +34,7 @@ proven loop across every projection.
 | **CreatorOS** | INTEGRATION_SHELL — source-current; 10 clusters; no UMH loop yet |
 | **Beast tenant node** | executor role; C:\dev\dev\ repos = source of truth; daemon under op run, verdict secret live, 7 capabilities |
 | **VPS runtime** | os-operator (1GiB, healthy, secrets injected), os-discord/webhook/browser/livekit; umh-mesh.service under op run |
-| **1Password runtime** | LIVE — 4 vaults (UMH-Production/EntrepreneurOS/CreatorOS/LyfeOS); op run injection; **LyfeOS .env.tpl plaintext = open violation, rotation pending** |
+| **1Password runtime** | LIVE — 4 vaults (substrate + per-projection); op run injection; **LyfeOS .env.tpl plaintext = open violation, rotation pending** |
 | **GitHub/source** | main green through #201; app-repo PRs #3/#4 draft; OS review queue #193/#195/#196/#199/#200/#201 |
 
 ## 2–6. Inventories

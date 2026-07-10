@@ -85,7 +85,7 @@ free, fast, definitive answer about token health.
 ```bash
 curl -H "Authorization: OAuth ${TOKEN}" \
   https://id.twitch.tv/oauth2/validate
-# {"client_id":"...", "login":"antonyfmunoz", "user_id":"...", "scopes":[...], "expires_in":13412}
+# {"client_id":"...", "login":"<your-username>", "user_id":"...", "scopes":[...], "expires_in":13412}
 ```
 
 Note the `OAuth` prefix here vs the `Bearer` prefix everywhere else. This is
@@ -406,7 +406,7 @@ class EOSBot(commands.Bot):
             token=os.environ["TWITCH_USER_ACCESS_TOKEN"],
             client_secret=os.environ["TWITCH_CLIENT_SECRET"],
             prefix="!",
-            initial_channels=["antonyfmunoz"],
+            initial_channels=["<your-username>"],
         )
 
     async def event_ready(self):
@@ -423,7 +423,7 @@ class EOSBot(commands.Bot):
 
     @commands.command()
     async def uptime(self, ctx: commands.Context):
-        stream = (await self.fetch_streams(user_logins=["antonyfmunoz"]))
+        stream = (await self.fetch_streams(user_logins=["<your-username>"]))
         if not stream:
             await ctx.send("offline")
             return
@@ -452,7 +452,7 @@ auth.onRefresh(async (userId, newToken) => persist(userId, newToken));
 await auth.addUserForToken(savedToken, ['chat']);
 const api = new ApiClient({ authProvider: auth });
 
-const stream = await api.streams.getStreamByUserName('antonyfmunoz');
+const stream = await api.streams.getStreamByUserName('<your-username>');
 console.log(stream?.title);
 ```
 
@@ -479,8 +479,8 @@ full SDK.
 const tmi = require('tmi.js');
 const client = new tmi.Client({
   options: { debug: false },
-  identity: { username: 'antonyfmunoz', password: `oauth:${process.env.TOKEN}` },
-  channels: ['antonyfmunoz']
+  identity: { username: '<your-username>', password: `oauth:${process.env.TOKEN}` },
+  channels: ['<your-username>']
 });
 client.connect();
 client.on('message', (channel, tags, message, self) => {

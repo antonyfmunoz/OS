@@ -1,5 +1,5 @@
 """Conference Rooms API — servers, categories, channels, messages, threads, forums,
-roles, members, invites, meetings, voice, DEX, artifacts, audit, search.
+roles, members, invites, meetings, voice, assistant, artifacts, audit, search.
 
 All endpoints prefixed /api/umh/rooms/ and registered via include_router.
 """
@@ -2168,7 +2168,7 @@ def get_voice_token(channel_id: str, user=Depends(require_clerk_auth)):
     return resp.to_http_dict()
 
 
-# ── DEX Settings ──
+# ── Assistant Settings ──
 
 @rooms_router.get("/channels/{channel_id}/dex")
 def get_dex_settings(channel_id: str, user=Depends(require_clerk_auth)):

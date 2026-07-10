@@ -18,9 +18,9 @@ Usage:
     ctx = load_context_from_env()
     rie = RealityIntelligenceEngine(ctx)
 
-    signals = rie.scan_market_signals('lyfe_institute')
+    signals = rie.scan_market_signals('<venture_id>')
     summary = rie.process_signal_queue()
-    report  = rie.generate_truth_report('lyfe_institute')
+    report  = rie.generate_truth_report('<venture_id>')
 """
 
 import datetime

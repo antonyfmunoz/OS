@@ -18,7 +18,7 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'services', '.env'))
 
 PDT = ZoneInfo('America/Los_Angeles')
-GENERAL_CHANNEL_ID = 1486289444830056540
+GENERAL_CHANNEL_ID = int(os.getenv("DISCORD_REPORTS_CHANNEL") or 0)
 
 
 async def check_deadlines():
@@ -30,11 +30,19 @@ async def check_deadlines():
     tomorrow = now + timedelta(days=1)
 
     token = os.getenv('NOTION_API_KEY')
-    dbs = {
-        'Lyfe Institute': os.getenv('NOTION_YOUR_LIST_LYFE'),
-        'Empyrean Creative': os.getenv('NOTION_YOUR_LIST_EMPYREAN'),
-        'Personal Brand': os.getenv('NOTION_YOUR_LIST_BRAND'),
-    }
+    # Per-tenant venture → Notion task-DB map, built at runtime. Each venture's DB
+    # id comes from NOTION_YOUR_LIST_<SLUG_UPPER> (or a legacy NOTION_YOUR_LIST_<id>).
+    # Never hardcode a tenant's venture names here.
+    from substrate.state.business.business_instance import get_ventures
+    dbs = {}
+    for v in get_ventures(ctx):
+        vid = v.get('id', '')
+        vname = v.get('name', vid)
+        if not vid:
+            continue
+        db_id = os.getenv(f'NOTION_YOUR_LIST_{vid.upper()}')
+        if db_id:
+            dbs[vname] = db_id
 
     headers = {
         'Authorization': f'Bearer {token}',

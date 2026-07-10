@@ -86,7 +86,7 @@ routing fields so manual patching is never needed:
 
 | Field | Value | Purpose |
 |-------|-------|---------|
-| `target_account` | antonyfm@empyreanstudios.co | Account identity |
+| `target_account` | `${UMH_OPERATOR_EMAIL}` | Account identity |
 | `worker_mode` | auto | Automatic execution mode |
 | `approval_routing` | advisor_relay | Approval goes through advisor |
 | `preferred_backend` | GUI_COMPUTER_USE | Direct Chrome, not explorer |

@@ -11,12 +11,16 @@ Layers:
 """
 
 import json
+import os
 import subprocess
 import sys
 import time
 
 COCKPIT_URL = "https://universalmetaharness.tech/"
-VPS_SSH = "root@100.77.233.50"
+# SSH host from env (never hardcode a node IP). Format: user@host or UMH_VPS_SSH.
+VPS_SSH = os.getenv("UMH_VPS_SSH") or (
+    f"{os.getenv('UMH_VPS_USER', 'root')}@{os.getenv('UMH_VPS_IP', '')}"
+)
 PASS_COUNT = 3
 
 

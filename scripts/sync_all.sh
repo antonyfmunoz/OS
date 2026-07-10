@@ -19,9 +19,9 @@ set -euo pipefail
 # --- Configuration -----------------------------------------------------------
 
 UMH_ROOT="${UMH_ROOT:-/opt/OS}"
-WINDOWS_IP="100.74.199.102"
-WINDOWS_USER="antonys beast pc"
-WINDOWS_DEV="C:\\Users\\antonys beast pc\\dev"
+WINDOWS_IP="${UMH_BEAST_IP}"
+WINDOWS_USER="${UMH_BEAST_SSH_USER}"
+WINDOWS_DEV="C:\\Users\\${UMH_BEAST_SSH_USER}\\dev"
 WINDOWS_GIT="C:\\Program Files\\Git\\cmd\\git.exe"
 LOG_DIR="${UMH_ROOT}/logs"
 LOG_FILE="${LOG_DIR}/sync_all.log"

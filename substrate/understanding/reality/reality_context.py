@@ -16,7 +16,7 @@ Usage:
     ctx     = load_context_from_env()
     rc      = RealityContext(ctx)
     reality = rc.get_current_reality()
-    # {'lyfe_institute': [{'content': '...', 'tier': 'HIGH', ...}, ...]}
+    # {'<venture_id>': [{'content': '...', 'tier': 'HIGH', ...}, ...]}
 """
 
 from substrate.state.context.context import SubstrateContext

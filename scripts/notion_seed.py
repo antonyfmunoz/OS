@@ -25,52 +25,75 @@ from adapters.notion.notion_sync import (
 
 TODAY = datetime.now().strftime('%Y-%m-%d')
 
-VENTURES = [
-    ('personal_brand', 'Personal Brand'),
-    ('lyfe_institute', 'Lyfe Institute'),
-    ('empyrean_creative', 'Empyrean Creative'),
-]
+def _ventures() -> list:
+    """(venture_id, name) tuples from the tenant registry (BIS) at runtime."""
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ventures
+        return [(v.get('id', ''), v.get('name', v.get('id', '')))
+                for v in get_ventures(load_context_from_env()) if v.get('id')]
+    except Exception:
+        return []
+
+
+VENTURES = _ventures()
+
+
+def _ai_name() -> str:
+    try:
+        from substrate.state.business.business_instance import get_ai_name
+        return get_ai_name() or 'Assistant'
+    except Exception:
+        return 'Assistant'
+
+
+AI_NAME = _ai_name()
 
 
 # ── Portfolio Overview ────────────────────────────
+
+def _portfolio_rows() -> list:
+    """Portfolio rows from the tenant's ventures + BIS at runtime. Never hardcode
+    a tenant's venture names / north-stars / models — that would seed one tenant's
+    portfolio into every seat."""
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import (
+            BusinessInstanceManager, get_ventures, STAGE_NAMES,
+        )
+        ctx = load_context_from_env()
+        bim = BusinessInstanceManager(ctx)
+        rows = []
+        for v in get_ventures(ctx):
+            vid = v.get('id', '')
+            if not vid:
+                continue
+            bis = None
+            try:
+                bis = bim.get_bis(vid)
+            except Exception:
+                bis = None
+            rows.append({
+                'name': (getattr(bis, 'name', '') if bis else '') or v.get('name', vid),
+                'stage': (STAGE_NAMES.get(getattr(bis, 'current_stage', 1), '') if bis else '') or 'Validation',
+                'model': (getattr(bis, 'business_model', '') if bis else '') or '',
+                'north_star': (getattr(bis, 'north_star', '') if bis else '') or '',
+                'binding': '',
+                'proof': (getattr(bis, 'stage_proof', {}) if bis else {}) and '' or '',
+                'focus': '',
+                'health': 0.0,
+            })
+        return rows
+    except Exception:
+        return []
+
 
 def seed_portfolio() -> None:
     db_id = os.getenv('NOTION_PORTFOLIO_OVERVIEW_DB', '')
     if not db_id:
         print('  ⚠️  NOTION_PORTFOLIO_OVERVIEW_DB not set')
         return
-    rows = [
-        {
-            'name': 'Lyfe Institute',
-            'stage': 'Pre-revenue',
-            'model': 'B2C Coaching',
-            'north_star': '$10K/month net from Initiate Arena',
-            'binding': 'Sales — no paying customers yet',
-            'proof': '1 customer → $1K MRR → $5K MRR → $10K MRR',
-            'focus': 'Initiate Arena outreach and sales calls',
-            'health': 0.3,
-        },
-        {
-            'name': 'Personal Brand',
-            'stage': 'Pre-revenue',
-            'model': 'Content',
-            'north_star': 'Primary marketing vehicle for all offers',
-            'binding': 'Content volume and consistency',
-            'proof': '10K followers → 50K → 100K',
-            'focus': 'Content production and distribution',
-            'health': 0.25,
-        },
-        {
-            'name': 'Empyrean Creative',
-            'stage': 'Pre-revenue',
-            'model': 'Agency',
-            'north_star': 'AI infrastructure proven internally → productize',
-            'binding': 'EOS must work internally before selling externally',
-            'proof': 'All EOS services stable + Notion synced',
-            'focus': 'Building EOS and AI infrastructure',
-            'health': 0.5,
-        },
-    ]
+    rows = _portfolio_rows()
     print('\n── Portfolio Overview ──')
     for r in rows:
         props = {
@@ -111,12 +134,12 @@ ROLES = [
         'soul_doc': '',
     },
     {
-        'name': 'DEX — Executive Assistant',
+        'name': f'{AI_NAME} — Executive Assistant',
         'dept': 'Leadership',
         'mode': 'AI Only',
         'authority': 'Operational',
         'status': 'AI-Staffed',
-        'agent': 'DEX',
+        'agent': AI_NAME,
         'agent_status': '⚪ Idle',
         'kpi': 'Tasks completed',
         'kpi_value': '0',
@@ -258,7 +281,7 @@ TOOLS = [
         'name': 'Telegram Bot',
         'dept': 'Operations',
         'role': 'Founder mobile control interface',
-        'agent': 'DEX',
+        'agent': AI_NAME,
         'category': 'Native EOS',
         'integration': 'Direct API',
         'status': 'Active',
@@ -323,7 +346,7 @@ TOOLS = [
         'name': 'Notion',
         'dept': 'Operations',
         'role': 'EOS UI layer — business operating system',
-        'agent': 'DEX',
+        'agent': AI_NAME,
         'category': 'External SaaS',
         'integration': 'Direct API',
         'status': 'Active',
@@ -362,7 +385,7 @@ TOOLS = [
         'name': 'Google Workspace (GWS)',
         'dept': 'Operations',
         'role': 'Email and calendar integration',
-        'agent': 'DEX',
+        'agent': AI_NAME,
         'category': 'External SaaS',
         'integration': 'Direct API',
         'status': 'Active',
@@ -400,69 +423,30 @@ def seed_tools(venture_id: str, venture_name: str) -> None:
 
 # ── Goals ─────────────────────────────────────────
 
-GOALS_BY_VENTURE: dict[str, list[dict]] = {
-    'lyfe_institute': [
-        {
-            'name': '$10K/month net profit from Initiate Arena',
+def _goals_for(venture_id: str) -> list[dict]:
+    """Seed the venture's North Star goal from BIS at runtime. A multi-tenant
+    seeder never ships one tenant's OKRs — it seeds the tenant's own north-star
+    (from BIS) as the starting goal; the operator authors the rest."""
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import BusinessInstanceManager
+        bis = BusinessInstanceManager(load_context_from_env()).get_bis(venture_id)
+        ns = (getattr(bis, 'north_star', '') if bis else '') or ''
+        if not ns:
+            return []
+        return [{
+            'name': ns,
             'type': 'North Star',
-            'status': 'Behind',
-            'dept': 'Sales',
-            'target': '$10,000 MRR net',
-            'current': '$0',
-            'due': '2026-06-30',
+            'status': 'Not Started',
+            'dept': 'Leadership',
+            'target': ns,
+            'current': '',
+            'due': '',
             'progress': 0.0,
             'notes': 'Primary north star. Every decision traces here.',
-        },
-        {
-            'name': 'First paying customer — Initiate Arena',
-            'type': 'Key Result',
-            'status': 'Behind',
-            'dept': 'Sales',
-            'target': '1 customer at $750',
-            'current': '0',
-            'due': '2026-04-30',
-            'progress': 0.0,
-            'notes': 'Proof of concept. Must happen before scaling.',
-        },
-        {
-            'name': 'Run 20 qualified sales calls',
-            'type': 'Key Result',
-            'status': 'Behind',
-            'dept': 'Sales',
-            'target': '20 calls',
-            'current': '0',
-            'due': '2026-04-15',
-            'progress': 0.0,
-            'notes': 'Volume needed to find product-market fit.',
-        },
-    ],
-    'personal_brand': [
-        {
-            'name': 'Establish consistent content output',
-            'type': 'Quarterly Goal',
-            'status': 'Behind',
-            'dept': 'Marketing',
-            'target': '5 posts/week across platforms',
-            'current': '0',
-            'due': '2026-06-30',
-            'progress': 0.0,
-            'notes': 'Content IS the advertising.',
-        },
-    ],
-    'empyrean_creative': [
-        {
-            'name': 'EOS fully operational internally',
-            'type': 'Quarterly Goal',
-            'status': 'At risk',
-            'dept': 'Operations',
-            'target': 'All 5 EOS services stable + Notion synced',
-            'current': '4/5 services up, Notion pending',
-            'due': '2026-04-30',
-            'progress': 0.6,
-            'notes': 'Must prove internally before productizing.',
-        },
-    ],
-}
+        }]
+    except Exception:
+        return []
 
 
 def seed_goals(venture_id: str, venture_name: str) -> None:
@@ -470,7 +454,7 @@ def seed_goals(venture_id: str, venture_name: str) -> None:
     if not db_id:
         print(f'  ⚠️  No Goals DB for {venture_id}')
         return
-    goals = GOALS_BY_VENTURE.get(venture_id, [])
+    goals = _goals_for(venture_id)
     print(f'\n── Goals: {venture_name} ──')
     for g in goals:
         props: dict = {

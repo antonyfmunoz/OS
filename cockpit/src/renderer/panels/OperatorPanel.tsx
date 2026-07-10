@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useCollapseStore } from '../stores/collapseStore'
+import { useConfigStore } from '../stores/configStore'
 import { useOperatorExperienceStore } from '../stores/operatorExperienceStore'
 import { useOperatorLoopStore } from '../stores/operatorLoopStore'
 import type { IntentContract, PacketSummary, PacketDetail, ValidationResult, AuditEntry, ExecuteResult } from '../stores/operatorLoopStore'
@@ -605,7 +606,7 @@ function StatusDot({ status }: { status: string }) {
   return <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color}`} />
 }
 
-/* ─── Command Tab (original DEX surface) ──────────────────── */
+/* ─── Command Tab (original assistant surface) ──────────────────── */
 
 function CommandTab() {
   const {
@@ -755,10 +756,11 @@ function LabeledTextarea({ label, value, onChange, placeholder }: {
 }
 
 function CommandHeader({ sessionId, turnCount }: { sessionId: string | null; turnCount: number }) {
+  const aiName = useConfigStore((s) => s.aiName)
   return (
     <div className="flex items-center gap-3">
       <div>
-        <span className="text-[10px] text-text-tertiary font-mono">DEX command surface</span>
+        <span className="text-[10px] text-text-tertiary font-mono">{aiName} command surface</span>
       </div>
       <div className="ml-auto flex items-center gap-3 text-[10px] font-mono">
         {sessionId && <span className="text-text-tertiary">{sessionId} · {turnCount} turns</span>}
@@ -800,9 +802,10 @@ function SessionHistory({ turns }: { turns: SessionTurn[] }) {
 }
 
 function DexResponseSection({ response }: { response: DexResponse }) {
+  const aiName = useConfigStore((s) => s.aiName)
   return (
     <section className="wv-card p-3 border border-cyan/20">
-      <h3 className="wv-label mb-2">DEX Response</h3>
+      <h3 className="wv-label mb-2">{aiName} Response</h3>
       <div className="space-y-2 text-xs">
         <Row label="Intent" value={response.intent} />
         <Row label="Summary" value={response.summary} multiline />

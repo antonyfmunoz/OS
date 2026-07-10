@@ -377,7 +377,7 @@ def _voice_health() -> dict[str, Any]:
     stt_provider = os.environ.get("UMH_STT_PROVIDER", "browser_native")
     tts_provider = os.environ.get("UMH_TTS_PROVIDER", "kokoro")
     tts_host = os.environ.get("KOKORO_TTS_HOST", "")
-    kokoro_url = os.environ.get("KOKORO_TTS_URL", "http://100.74.199.102:8880")
+    kokoro_url = os.environ.get("KOKORO_TTS_URL", "")
     ws_port = os.environ.get("UMH_VOICE_WS_PORT", "8096")
 
     tts_reachable = _check_tts_available()
@@ -432,7 +432,7 @@ def _check_tts_available() -> bool:
     """Check if Kokoro TTS on Beast is reachable."""
     try:
         import urllib.request
-        kokoro_url = os.environ.get("KOKORO_TTS_URL", "http://100.74.199.102:8880")
+        kokoro_url = os.environ.get("KOKORO_TTS_URL", "")
         req = urllib.request.Request(f"{kokoro_url}/health", method="GET")
         req.add_header("Connection", "close")
         urllib.request.urlopen(req, timeout=2)

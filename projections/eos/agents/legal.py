@@ -156,17 +156,11 @@ class LegalAgent(DepartmentAgent):
         )
 
     def _entity_status(self, **kwargs: Any) -> SkillResult:
-        entities = [
-            {
-                "name": "Munoz Conglomerate LLC",
-                "type": "LLC",
-                "state": "Oregon",
-                "status": "active",
-            },
-            {"name": "Lyfe Institute LLC", "type": "LLC", "state": "Oregon", "status": "active"},
-            {"name": "Empyrean Studio LLC", "type": "LLC", "state": "Oregon", "status": "active"},
-        ]
-        return SkillResult(success=True, output={"entities": entities})
+        """Legal entities for the tenant. Read from tenant records, never hardcoded —
+        a fixed corp registry would leak one tenant's entities into every seat."""
+        entities = kwargs.get("entities") or []
+        note = "" if entities else "No entity records on file for this tenant"
+        return SkillResult(success=True, output={"entities": entities, "note": note})
 
     def _terms_draft(self, **kwargs: Any) -> SkillResult:
         doc_type = kwargs.get("type", "tos")
@@ -225,17 +219,23 @@ class LegalAgent(DepartmentAgent):
         )
 
     def _ip_audit(self, **kwargs: Any) -> SkillResult:
+        """IP audit for the tenant. Recommendations reference the tenant's own
+        offer/brand from BIS — never a hardcoded product name."""
+        offer = self._offer_name()
+        brand_name = self._bis()
+        brand_name = getattr(brand_name, "name", "") if brand_name else ""
+        recommendations = ["Document trade secrets formally"]
+        if offer and offer != "the offer":
+            recommendations.insert(0, f"Register trademark for {offer}")
+        if brand_name:
+            recommendations.insert(1, f"Register trademark for {brand_name}")
         return SkillResult(
             success=True,
             output={
                 "trademarks": [],
                 "copyrights": [],
-                "trade_secrets": ["UMH substrate architecture", "Agent coordination protocols"],
-                "recommendations": [
-                    "Register trademark for Initiate Arena",
-                    "Register trademark for Lyfe Institute",
-                    "Document trade secrets formally",
-                ],
+                "trade_secrets": [],
+                "recommendations": recommendations,
             },
         )
 

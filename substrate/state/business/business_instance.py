@@ -9,8 +9,8 @@ Usage:
     from substrate.state.business.business_instance import BusinessInstance, BusinessInstanceManager
     ctx = load_context_from_env()
     bim = BusinessInstanceManager(ctx)
-    bis = bim.get_bis('lyfe_institute')
-    context = bim.get_context_for_agents('lyfe_institute')
+    bis = bim.get_bis('<venture_id>')
+    context = bim.get_context_for_agents('<venture_id>')
 """
 
 from dataclasses import dataclass, field, asdict
@@ -128,7 +128,7 @@ STAGE_GUIDANCE: dict[int, dict] = {
 @dataclass
 class BusinessInstance:
     org_id: str
-    venture_id: str           # slug e.g. "lyfe_institute"
+    venture_id: str           # slug e.g. "<venture_id>"
     name: str
     industry: str
     business_model: str
@@ -450,6 +450,98 @@ class BusinessInstanceManager:
 
 # ─── Standalone resolver ──────────────────────────────────────────────────────
 
+# Canonical, projection-NEUTRAL role slug for "the assistant" on the wire.
+# This is NOT a display name and NOT tenant data — every tenant's assistant
+# shares this one slug as its stored `sender`/`responder` tag, API route segment,
+# and settings-store key. The display name is tenant-scoped via get_ai_name();
+# this slug is a stable protocol constant so a per-tenant rename never orphans
+# stored conversation rows. Defined once here; never spell a product name inline.
+ASSISTANT_ROLE_SLUG = 'dex'
+
+
+def get_assistant_role_slug() -> str:
+    """Return the canonical wire slug for the assistant role (projection-neutral).
+
+    Overridable per deployment via the ASSISTANT_ROLE_SLUG env var for a fleet
+    that wants a different stable wire identifier. Defaults to the historical
+    value so existing stored rows keep matching.
+    """
+    try:
+        import os as _os
+        return _os.getenv('ASSISTANT_ROLE_SLUG') or ASSISTANT_ROLE_SLUG
+    except Exception:
+        return ASSISTANT_ROLE_SLUG
+
+
+# ─── Instance config (the ONE per-tenant data file) ───────────────────────────
+# All tenant data the CODE must not embed lives in data/umh/instance.json (or
+# env). Code reads it here at runtime. AFM is instance 0 — his instance.json is
+# the first instance, reached through the SAME path every future tenant uses.
+
+_INSTANCE_CONFIG_CACHE: Optional[dict] = None
+
+
+def get_instance_config() -> dict:
+    """Load and cache the per-tenant instance.json. Returns {} if absent.
+
+    Path: UMH_INSTANCE_CONFIG env override → <root>/data/umh/instance.json.
+    This is the canonical home for tenant identity + business + workspace-seed
+    data. Never hardcode any of these values in code — read them from here.
+    """
+    global _INSTANCE_CONFIG_CACHE
+    if _INSTANCE_CONFIG_CACHE is not None:
+        return _INSTANCE_CONFIG_CACHE
+    try:
+        import os as _os
+        from pathlib import Path as _Path
+        root = _os.environ.get('UMH_ROOT') or _os.environ.get('OS_ROOT') or '/opt/OS'
+        path = _os.environ.get('UMH_INSTANCE_CONFIG') or str(_Path(root) / 'data' / 'umh' / 'instance.json')
+        with open(path, 'r', encoding='utf-8') as fh:
+            _INSTANCE_CONFIG_CACHE = json.load(fh)
+    except Exception:
+        _INSTANCE_CONFIG_CACHE = {}
+    return _INSTANCE_CONFIG_CACHE
+
+
+def get_operator_email(service: str = '', default: str = '') -> str:
+    """Tenant operator email (or a per-service inbox). From instance.json/env.
+
+    Priority: env (UMH_OPERATOR_EMAIL / <SERVICE>_INBOX_EMAIL) →
+    instance.json (service_inboxes[service] → operator_email) → default.
+    """
+    import os as _os
+    if service:
+        env_key = f'{service.upper()}_INBOX_EMAIL'
+        if _os.getenv(env_key):
+            return _os.getenv(env_key)
+    if _os.getenv('UMH_OPERATOR_EMAIL'):
+        return _os.getenv('UMH_OPERATOR_EMAIL')
+    cfg = get_instance_config()
+    if service:
+        inbox = (cfg.get('service_inboxes') or {}).get(service)
+        if inbox:
+            return inbox
+    return cfg.get('operator_email') or default
+
+
+def get_op_vault(default: str = 'UMH-Production') -> str:
+    """The tenant's 1Password vault name. From env UMH_OP_VAULT → instance.json →
+    default (instance-0's vault). Credential templates read this — never hardcode."""
+    import os as _os
+    return _os.getenv('UMH_OP_VAULT') or (get_instance_config().get('op_vault') or default)
+
+
+def get_brand_archetype(default: str = '') -> str:
+    """Tenant brand archetype/worldview. From instance.json → default (neutral)."""
+    return get_instance_config().get('brand_archetype') or default
+
+
+def get_notion_seed() -> dict:
+    """Per-tenant Notion workspace seed content (portfolio/goals/entity/pillars).
+    From instance.json. Empty dict when unset — seeders degrade to a skeleton."""
+    return get_instance_config().get('notion_seed') or {}
+
+
 def get_ai_name(ctx=None, venture_id: str = '') -> str:
     """
     Resolve AI name for this user.
@@ -487,3 +579,104 @@ def get_ai_name(ctx=None, venture_id: str = '') -> str:
     except Exception:
         pass
     return ''
+
+
+def get_founder_name(ctx=None, venture_id: str = '', default: str = '') -> str:
+    """Resolve the founder/principal display name for this instance.
+
+    Priority: BIS.founder_name (per venture) → FOUNDER_NAME env → ``default``.
+    Never hardcode the founder name — it is instance context.
+    """
+    if ctx is not None and venture_id:
+        try:
+            bim = BusinessInstanceManager(ctx)
+            bis = bim.get_bis(venture_id)
+            if bis and getattr(bis, 'founder_name', ''):
+                return bis.founder_name
+        except Exception:
+            pass
+    try:
+        import os as _os
+        env_name = _os.getenv('FOUNDER_NAME')
+        if env_name:
+            return env_name
+    except Exception:
+        pass
+    return default
+
+
+def get_github_repo(default: str = '') -> str:
+    """Resolve the GitHub ``owner/repo`` slug from env — never hardcode it.
+
+    Priority: UMH_GITHUB_REPO → GITHUB_REPO env → ``default``.
+    """
+    try:
+        import os as _os
+        return _os.getenv('UMH_GITHUB_REPO') or _os.getenv('GITHUB_REPO') or default
+    except Exception:
+        return default
+
+
+def get_github_owner(default: str = '') -> str:
+    """Resolve the GitHub account/org owner — never hardcode it.
+
+    Priority: env (GITHUB_ORG / GITHUB_USER) → instance.json github_owner →
+    ``default``. Used where only the owner (not owner/repo) is needed.
+    """
+    import os as _os
+    return (
+        _os.getenv('GITHUB_ORG')
+        or _os.getenv('GITHUB_USER')
+        or get_instance_config().get('github_owner')
+        or default
+    )
+
+
+def get_active_venture_id(ctx=None, default: str = '') -> str:
+    """Resolve the active venture id from context/env — never hardcode a slug.
+
+    Priority: ctx.active_venture_id → UMH_ACTIVE_VENTURE_ID env → ``default``.
+    """
+    if ctx is not None:
+        vid = getattr(ctx, 'active_venture_id', '')
+        if vid:
+            return vid
+    try:
+        import os as _os
+        env_vid = _os.getenv('UMH_ACTIVE_VENTURE_ID')
+        if env_vid:
+            return env_vid
+    except Exception:
+        pass
+    return default
+
+
+def get_ventures(ctx=None) -> list[dict]:
+    """Resolve this tenant's ventures from BIS — never hardcode a venture roster.
+
+    Returns ``[{'id': slug, 'name': display_name}, ...]`` scoped to the tenant's
+    org, or ``[]`` when context/DB is unavailable. This is the canonical surface
+    for any code that would otherwise embed a literal venture list (competitor
+    tables, world-pulse queries, agent hierarchies, folder maps). Multi-tenant:
+    each caller gets only its own org's ventures, never another tenant's.
+    """
+    org_id = getattr(ctx, 'org_id', '') if ctx is not None else ''
+    if not org_id:
+        try:
+            import os as _os
+            org_id = _os.getenv('UMH_ORG_ID') or _os.getenv('EOS_ORG_ID') or ''
+        except Exception:
+            org_id = ''
+    if not org_id:
+        return []
+    try:
+        from substrate.state.business.venture_knowledge import VentureKnowledgeBase
+
+        raw = VentureKnowledgeBase.get_ventures_from_db(org_id)
+        out: list[dict] = []
+        for slug, venture in (raw or {}).items():
+            name = getattr(venture, 'name', '') or slug.replace('_', ' ').title()
+            out.append({'id': slug, 'name': name})
+        return out
+    except Exception:
+        return []

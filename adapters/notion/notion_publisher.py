@@ -1,5 +1,5 @@
 """
-EOS Notion Publisher — canonical pattern for writing EOS content to Notion.
+Notion Publisher — canonical pattern for writing content to Notion.
 
 Every brief, report, summary, and diagnosis uses this module.
 Never build a custom Notion writer from scratch.
@@ -33,12 +33,14 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 logger = logging.getLogger(__name__)
 PDT = ZoneInfo("America/Los_Angeles")
 
-# Reuse the same venture → env prefix map as notion_sync.py
-_VENTURE_PREFIXES = {
-    "personal_brand": "NOTION_PERSONAL_BRAND",
-    "lyfe_institute": "NOTION_LYFE_INSTITUTE",
-    "empyrean_creative": "NOTION_EMPYREAN_CREATIVE",
-}
+def _active_venture() -> str:
+    """The tenant's active venture slug from context/env — never a hardcoded slug."""
+    try:
+        from substrate.state.business.business_instance import get_active_venture_id
+
+        return get_active_venture_id()
+    except Exception:
+        return ""
 
 
 def _get_db_id(venture_id: str, db_type: str) -> str:
@@ -46,8 +48,11 @@ def _get_db_id(venture_id: str, db_type: str) -> str:
     Resolve Notion database ID from env vars.
     Pattern: NOTION_{VENTURE}_{TYPE}_DB
     Falls back to generic NOTION_{TYPE}_DB.
+
+    The venture prefix is derived from the tenant's venture slug at runtime
+    (NOTION_<SLUG_UPPER>) — no tenant venture list is hardcoded here.
     """
-    prefix = _VENTURE_PREFIXES.get(venture_id, "")
+    prefix = f"NOTION_{venture_id.upper()}" if venture_id else ""
     if prefix:
         db_id = os.getenv(f"{prefix}_{db_type.upper()}_DB", "")
         if db_id:
@@ -255,7 +260,7 @@ def _brief_blocks(content: dict, title: str) -> list:
 
 class NotionPublisher:
     """
-    Write EOS content to Notion. Return page URLs for Discord links.
+    Write content to Notion. Return page URLs for Discord links.
     Stateless — all config comes from env vars.
     """
 
@@ -279,7 +284,7 @@ class NotionPublisher:
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
         if not db_id:
-            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
+            db_id = _get_db_id(_active_venture(), "DOCUMENTS")
         if not db_id:
             logger.warning("[NotionPublisher] No brief DB found")
             return ""
@@ -294,8 +299,8 @@ class NotionPublisher:
         url = _create_page(db_id, title, blocks)
 
         # If primary DB failed, try Documents DB as fallback
-        if not url and db_id != _get_db_id("lyfe_institute", "DOCUMENTS"):
-            fallback_db = _get_db_id("lyfe_institute", "DOCUMENTS")
+        if not url and db_id != _get_db_id(_active_venture(), "DOCUMENTS"):
+            fallback_db = _get_db_id(_active_venture(), "DOCUMENTS")
             if fallback_db:
                 logger.info("[NotionPublisher] Primary DB failed, trying Documents DB")
                 url = _create_page(fallback_db, title, blocks)
@@ -316,7 +321,7 @@ class NotionPublisher:
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
         if not db_id:
-            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
+            db_id = _get_db_id(_active_venture(), "DOCUMENTS")
         if not db_id:
             return ""
 
@@ -380,13 +385,13 @@ class NotionPublisher:
     ) -> str:
         """
         Write portfolio status to Notion.
-        Uses personal_brand DOCUMENTS DB.
+        Uses the active venture's DOCUMENTS DB.
         Returns page URL.
         """
         today = date.today()
         title = f"Portfolio Status — {today}"
 
-        db_id = _get_db_id("personal_brand", "DOCUMENTS")
+        db_id = _get_db_id(_active_venture(), "DOCUMENTS")
         if not db_id:
             db_id = os.getenv("NOTION_PORTFOLIO_OVERVIEW_DB", "")
         if not db_id:
@@ -424,7 +429,7 @@ class NotionPublisher:
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
         if not db_id:
-            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
+            db_id = _get_db_id(_active_venture(), "DOCUMENTS")
         if not db_id:
             return ""
 
@@ -459,7 +464,7 @@ class NotionPublisher:
 
         db_id = os.getenv("NOTION_MORNING_BRIEF_ID", "")
         if not db_id:
-            db_id = _get_db_id("lyfe_institute", "DOCUMENTS")
+            db_id = _get_db_id(_active_venture(), "DOCUMENTS")
         if not db_id:
             return ""
 

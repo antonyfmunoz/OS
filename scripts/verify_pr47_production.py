@@ -78,7 +78,7 @@ def main() -> int:
             "scripts/verify_template_store.py",
         ],
         cleanup_policy=SandboxCleanupPolicy.ON_MERGE,
-        pr_url="https://github.com/antonyfmunoz/OS/pull/47",
+        pr_url=f"https://github.com/{os.getenv('GITHUB_REPO', os.getenv('GITHUB_ORG', '') + '/OS')}/pull/47",
         pr_number=47,
         completed_at=time.time() - 1800,
     )

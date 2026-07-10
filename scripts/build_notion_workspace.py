@@ -2,7 +2,13 @@
 Build EOS Notion Workspace
 Mirrors the end game UI structure exactly.
 Every section maps to a route in the SaaS UI.
+
+All business copy (portfolio tree, per-company hub content, org chart) lives
+in data/umh/instance.json under `notion_seed`. This script is a pure
+template: it reads that seed at runtime. No tenant literals are embedded.
+Degrades gracefully: if no notion_seed is configured, it seeds nothing.
 """
+import os
 import sys
 sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS")
 _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
@@ -10,9 +16,49 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 from notion_client import Client
-import os
+
+from substrate.state.business.business_instance import (
+    get_notion_seed, get_ai_name, get_founder_name,
+)
 
 client = Client(auth=os.getenv('NOTION_API_KEY'))
+
+
+def _ai_name() -> str:
+    try:
+        return get_ai_name() or 'Assistant'
+    except Exception:
+        return 'Assistant'
+
+
+def _founder_name() -> str:
+    try:
+        from substrate.state.context.context import load_context_from_env
+        return get_founder_name(load_context_from_env(), default='the founder')
+    except Exception:
+        return 'the founder'
+
+
+AI_NAME = _ai_name()
+FOUNDER_NAME = _founder_name()
+
+# Per-tenant workspace seed content. Empty dict for a fresh tenant.
+SEED = get_notion_seed()
+
+# Token map for template placeholders stored in the seed.
+_FMT = {'founder_name': FOUNDER_NAME, 'ai_name': AI_NAME}
+
+
+def _fmt(value: str) -> str:
+    """Interpolate {founder_name}/{ai_name} tokens in a seed string.
+
+    Unknown tokens are left intact so an unrelated brace never crashes."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return value.format(**_FMT)
+    except (KeyError, IndexError, ValueError):
+        return value
 
 # ── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -107,11 +153,21 @@ if not eos_pages:
     print('EOS page not found. Share it with the integration first.')
     sys.exit(1)
 
+if not SEED:
+    print('No notion_seed configured — nothing to seed.')
+    sys.exit(0)
+
 ROOT_ID = eos_pages[0]['id']
 print(f'EOS root: {ROOT_ID}')
 print()
 
 page_ids = {'root': ROOT_ID}
+
+# Portfolio KPI copy + tree text pulled from the tenant seed.
+_PORTFOLIO = (SEED.get('portfolio') or [{}])[0]
+_EMPIRE_TREE = _fmt(SEED.get('empire_tree_text', ''))
+_ENTITY_TREE = _fmt(SEED.get('entity_structure_text', ''))
+_ORG_CHART = _fmt(SEED.get('org_chart_text', ''))
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -122,34 +178,20 @@ page_ids = {'root': ROOT_ID}
 print('Building Portfolio View (/home)...')
 portfolio_id = create_page(
     ROOT_ID,
-    '📊 Portfolio — Munoz Holdings',
+    f'📊 Portfolio — {FOUNDER_NAME}',
     icon='📊',
     content_blocks=[
-        heading_block('Munoz Holdings', 1),
+        heading_block(f'{FOUNDER_NAME}', 1),
         callout_block(
             'Portfolio intelligence. Capital allocation. Cross-company patterns.',
             '👁️'
         ),
         divider_block(),
         heading_block('Empire Structure', 2),
-        text_block(
-            'Munoz Holdings (Holding Company)\n'
-            '├── Empyrean Creative  [B2B AI Services]\n'
-            '│   └── Lyfe Institute  [Coaching — incubated under Empyrean]\n'
-            '│       Offer: Initiate Arena $750\n'
-            '│       Channel: Instagram DMs\n'
-            '└── Personal Brand — Antony  [Content Business]\n'
-            '    Revenue: Sponsors, Affiliates, Ads, Donations\n'
-            '    Goal: grow audience, promote Empyrean + Lyfe'
-        ),
+        text_block(_EMPIRE_TREE),
         divider_block(),
-        heading_block('Portfolio KPIs', 2),
-        text_block(
-            'Total Revenue: $0\n'
-            'Active Companies: 3\n'
-            'Stage: All Stage 1 — Validation\n'
-            'North Star: $10K/month net (Initiate Arena) → $100K/month'
-        ),
+        heading_block(_PORTFOLIO.get('heading', 'Portfolio KPIs'), 2),
+        text_block(_fmt(_PORTFOLIO.get('kpis_text', ''))),
         divider_block(),
         heading_block('Capital Allocation', 2),
         text_block(
@@ -180,13 +222,13 @@ brief_id = create_page(
     content_blocks=[
         heading_block('Daily Intelligence', 1),
         callout_block(
-            'DEX generates this daily at 6am.\n'
+            f'{AI_NAME} generates this daily at 6am.\n'
             'One thing that matters. First action. Reality check.',
             '🧠'
         ),
         divider_block(),
         heading_block('Latest Brief', 2),
-        text_block('Awaiting first brief.\nDEX will write here automatically.'),
+        text_block(f'Awaiting first brief.\n{AI_NAME} will write here automatically.'),
         divider_block(),
         heading_block('Brief Archive', 2),
         text_block('Previous briefs stored below by date.'),
@@ -201,47 +243,12 @@ page_ids['morning_brief'] = brief_id
 # One hub page per company, each with sub-pages mirroring UI routes
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-companies = [
-    {
-        'name': 'Empyrean Creative',
-        'icon': '⚡',
-        'type': 'B2B Agency',
-        'stage': '1 — Validation',
-        'offer': 'AI services for businesses',
-        'icp': 'Business owners who need AI',
-        'channel': 'TBD — outreach',
-        'goal': 'Land first retainer client',
-        'north_star': '$100K/month',
-        'venture_id': 'empyrean_creative',
-        'note': None,
-    },
-    {
-        'name': 'Lyfe Institute',
-        'icon': '🏢',
-        'type': 'Coaching Program',
-        'stage': '1 — Validation',
-        'offer': 'Initiate Arena $750',
-        'icp': 'Men 18-28 feeling directionless',
-        'channel': 'Instagram DMs',
-        'goal': 'First paying client',
-        'north_star': '$10K/month net → $100K/month',
-        'venture_id': 'lyfe_institute',
-        'note': 'Incubated under Empyrean Creative. Spins out once offer is proven.',
-    },
-    {
-        'name': 'Personal Brand — Antony',
-        'icon': '👤',
-        'type': 'Content Business',
-        'stage': '1 — Audience Building',
-        'offer': 'Sponsors, Affiliates, Ads, Donations',
-        'icp': 'Entrepreneurs and founders',
-        'channel': 'Instagram + Content',
-        'goal': 'Grow audience, promote Empyrean + Lyfe',
-        'north_star': 'Profitable content business',
-        'venture_id': 'personal_brand',
-        'note': None,
-    },
-]
+# Per-company hub content pulled from the tenant seed. Each string field is
+# token-interpolated ({founder_name}/{ai_name}) so no tenant literal is inline.
+companies = []
+for _entry in (SEED.get('entity_structure') or []):
+    companies.append({k: (_fmt(v) if isinstance(v, str) else v)
+                      for k, v in _entry.items()})
 
 for company in companies:
     print(f'\nBuilding {company["name"]}...')
@@ -314,15 +321,15 @@ for company in companies:
             callout_block(
                 'Org structure for this company.\n'
                 'Roles define who does what.\n'
-                'DEX assigns AI or human to each.',
+                f'{AI_NAME} assigns AI or human to each.',
                 '👥'
             ),
             divider_block(),
             heading_block('Current Roles', 2),
             text_block(
-                'Founder — Antony (Human)\n'
-                'Executive Assistant — DEX (AI)\n'
-                'CEO — DEX (AI)\n'
+                f'Founder — {FOUNDER_NAME} (Human)\n'
+                f'Executive Assistant — {AI_NAME} (AI)\n'
+                f'CEO — {AI_NAME} (AI)\n'
                 'Developer — Claude Code (AI)'
             ),
         ]
@@ -412,7 +419,7 @@ for company in companies:
             heading_block('KPI Dashboard', 1),
             callout_block(
                 'Stage 1 KPIs — what gets measured gets managed.\n'
-                'DEX updates these from conversations.',
+                f'{AI_NAME} updates these from conversations.',
                 '📊'
             ),
             divider_block(),
@@ -427,11 +434,11 @@ for company in companies:
             divider_block(),
             heading_block('Weekly Tracking', 2),
             text_block(
-                'Tell DEX in Discord:\n'
+                f'Tell {AI_NAME} in Discord:\n'
                 '"Log 20 DMs sent today"\n'
                 '"Booked a call with [name]"\n'
                 '"Closed [name] for $750"\n\n'
-                'DEX tracks and updates here.'
+                f'{AI_NAME} tracks and updates here.'
             ),
         ]
     )
@@ -472,9 +479,9 @@ for company in companies:
             heading_block('To Advance to Stage 2', 2),
             text_block(
                 'First paying client acquired from consistent channel.\n\n'
-                'When confirmed: tell DEX in Discord\n'
+                f'When confirmed: tell {AI_NAME} in Discord\n'
                 '"I closed my first client"\n'
-                'DEX unlocks Stage 2 primitives.'
+                f'{AI_NAME} unlocks Stage 2 primitives.'
             ),
         ]
     )
@@ -486,7 +493,7 @@ for company in companies:
             heading_block('Docs & SOPs', 1),
             callout_block(
                 'Operating documents, SOPs, strategy notes, role notes.\n'
-                'DEX generates and maintains these.',
+                f'{AI_NAME} generates and maintains these.',
                 '📄'
             ),
             divider_block(),
@@ -509,7 +516,7 @@ for company in companies:
             heading_block('War Room', 1),
             callout_block(
                 'Weekly strategy session.\n'
-                'Every Monday. DEX facilitates.\n'
+                f'Every Monday. {AI_NAME} facilitates.\n'
                 '30 minutes. One outcome: clarity.',
                 '🏆'
             ),
@@ -527,7 +534,7 @@ for company in companies:
             ),
             divider_block(),
             heading_block('War Room Archive', 2),
-            text_block('DEX creates a new entry here each Monday morning.'),
+            text_block(f'{AI_NAME} creates a new entry here each Monday morning.'),
         ]
     )
 
@@ -543,7 +550,7 @@ empire_id = create_page(
     '🏛️ Empire Structure',
     icon='🏛️',
     content_blocks=[
-        heading_block('Munoz Holdings', 1),
+        heading_block(f'{FOUNDER_NAME}', 1),
         callout_block(
             'The holding company.\n'
             'All subsidiaries report here.\n'
@@ -552,38 +559,10 @@ empire_id = create_page(
         ),
         divider_block(),
         heading_block('Entity Structure', 2),
-        text_block(
-            'MUNOZ HOLDINGS\n'
-            '├── EMPYREAN CREATIVE\n'
-            '│   Type: B2B Agency\n'
-            '│   Stage: 1 — Validation\n'
-            '│   Focus: AI services for businesses\n'
-            '│   │\n'
-            '│   └── LYFE INSTITUTE (incubated)\n'
-            '│       Type: Coaching Program\n'
-            '│       Stage: 1 — Validation\n'
-            '│       Offer: Initiate Arena $750\n'
-            '│       Channel: Instagram DMs\n'
-            '│       Status: Spinning up\n'
-            '│\n'
-            '└── PERSONAL BRAND — ANTONY\n'
-            '    Type: Content Business\n'
-            '    Stage: 1 — Audience Building\n'
-            '    Revenue: Sponsors, Affiliates, Ads, Donations\n'
-            '    Goal: Promote Empyrean + Lyfe'
-        ),
+        text_block(_ENTITY_TREE),
         divider_block(),
         heading_block('Agent Hierarchy', 2),
-        text_block(
-            'ANTONY (Founder)\n'
-            '├── DEX (Executive Assistant — Discord)\n'
-            '│   ├── Portfolio Advisor\n'
-            '│   ├── Empyrean CEO\n'
-            '│   │   └── Empyrean Dev Agent\n'
-            '│   └── Lyfe Institute CEO\n'
-            '│       └── Lyfe Dev Agent\n'
-            '└── Claude Code (Platform Dev)'
-        ),
+        text_block(_ORG_CHART),
         divider_block(),
         heading_block('Holding Company Notes', 2),
         text_block(
@@ -604,41 +583,41 @@ page_ids['empire'] = empire_id
 print('\nBuilding AI Copilot (/ai)...')
 ai_id = create_page(
     ROOT_ID,
-    '🤖 AI Copilot — DEX',
+    f'🤖 AI Copilot — {AI_NAME}',
     icon='🤖',
     content_blocks=[
-        heading_block('AI Copilot — DEX', 1),
+        heading_block(f'AI Copilot — {AI_NAME}', 1),
         callout_block(
-            'Interact with DEX through Discord.\n'
+            f'Interact with {AI_NAME} through Discord.\n'
             'This page stores AI insights, memory summaries, and decisions.',
             '👁️'
         ),
         divider_block(),
-        heading_block('How to Talk to DEX', 2),
+        heading_block(f'How to Talk to {AI_NAME}', 2),
         text_block(
             'Open Discord → #general\n'
             'Type anything naturally.\n'
-            'DEX responds in text and voice.\n\n'
-            'DEX is always in your voice channel when you join.\n'
-            'Type → DEX speaks.'
+            f'{AI_NAME} responds in text and voice.\n\n'
+            f'{AI_NAME} is always in your voice channel when you join.\n'
+            f'Type → {AI_NAME} speaks.'
         ),
         divider_block(),
         heading_block('Memory Summary', 2),
         text_block(
-            'DEX memory updated here by agents.\n'
-            'What DEX knows. What it has learned.\n'
+            f'{AI_NAME} memory updated here by agents.\n'
+            f'What {AI_NAME} knows. What it has learned.\n'
             'Decisions made. Patterns noticed.'
         ),
         divider_block(),
         heading_block('Pinned Insights', 2),
         text_block(
-            'Important insights pinned here by DEX automatically.\n'
+            f'Important insights pinned here by {AI_NAME} automatically.\n'
             'Awaiting first insight.'
         ),
         divider_block(),
         heading_block('Quick Prompts', 2),
         text_block(
-            'Ask DEX in Discord:\n'
+            f'Ask {AI_NAME} in Discord:\n'
             '"What should I focus on today?"\n'
             '"Summarize my pipeline"\n'
             '"What is my next best action?"\n'

@@ -6,15 +6,15 @@ founder and their businesses.
 
 Schedule:
   Daily (6am, via orchestrator): run_market_intel_scan()
-    — scans MONITORED_SOURCES + checks skills for updates
+    — scans tenant-derived monitored sources + checks skills for updates
     — fast, no GWS document rescan
   Saturdays (6am, via orchestrator): run_pulse_scan()
     — full scan: market intel + GWS incremental doc rescan
   On demand: /pulse Telegram command → run_pulse_scan()
 
 Monitors:
-  - Key creators for new content
-  - Market signals (self-improvement market, Instagram algorithm, Whop)
+  - Competitor creators (from each venture's BIS) for new content
+  - Generic market signals (platform algorithms, delivery platforms)
   - Sales tactics and outreach best practices
 
 All findings are permanently integrated into the knowledge base via
@@ -41,118 +41,128 @@ from substrate.understanding.knowledge.knowledge_integrator import KnowledgeInte
 
 
 # ─── Perplexity market intel queries ──────────────────────────────────────────
-# Runs daily alongside scrapling. Synthesized real-time intel per venture.
+# Queries are GENERATED PER VENTURE from the tenant's BIS at runtime
+# (build_perplexity_queries) — never a hardcoded per-slug table. A fixed table
+# would leak one tenant's ventures, ICP, and competitors into every seat.
 
-PERPLEXITY_QUERIES: list[dict] = [
+
+def build_perplexity_queries(ctx=None) -> list[dict]:
+    """Build market-intel queries per venture from the tenant registry + BIS.
+
+    For each venture the tenant runs, derive an intel query from its industry,
+    ICP, and known competitors (all from BIS). Returns [] when no ventures are
+    loaded, so the pulse scan simply skips real-time synthesis rather than
+    querying about some other tenant's market.
+    """
+    queries: list[dict] = []
+    try:
+        from substrate.state.business.business_instance import BusinessInstanceManager
+        from substrate.state.context.context import load_context_from_env
+
+        ctx = ctx or load_context_from_env()
+        ventures = list(getattr(ctx, 'ventures', []) or [])
+        bim = BusinessInstanceManager(ctx)
+        for v in ventures:
+            vid = v.get('id') or v.get('venture_id') or ''
+            vname = v.get('name') or vid or 'this venture'
+            if not vid:
+                continue
+            bis = None
+            try:
+                bis = bim.get_bis(vid)
+            except Exception:
+                bis = None
+            industry = (getattr(bis, 'industry', '') or '') if bis else ''
+            icp = (getattr(bis, 'icp_description', '') or '') if bis else ''
+            competitors = (getattr(bis, 'main_competitors', None) or []) if bis else []
+            comp_str = ', '.join(str(c) for c in competitors[:5])
+            focus = industry or vname
+            prompt = (
+                f'What is trending in the {focus} market this week? '
+                'What offers are gaining traction, and what pain points is the '
+                f'target audience{f" ({icp})" if icp else ""} expressing online '
+                'right now?'
+            )
+            if comp_str:
+                prompt += (
+                    f' Also: what are these competitors doing lately — {comp_str}? '
+                    'Any new offers, campaigns, or messaging shifts in the last 7 days?'
+                )
+            queries.append({
+                'category': f'{vname} market',
+                'venture':  vid,
+                'prompt':   prompt,
+            })
+    except Exception:
+        return []
+    return queries
+
+
+# ─── Monitored sources ────────────────────────────────────────────────────────
+# Sources are BUILT PER TENANT at runtime (build_monitored_sources): the
+# creators to watch come from each venture's competitor list in BIS, and only
+# the venture-agnostic distribution/outreach signals are generic. A hardcoded
+# creator/market table would leak one tenant's competitive watch-list into
+# every seat.
+
+# Generic, tenant-agnostic signals — apply to any founder-operator regardless
+# of niche (platform algorithms, general outreach craft). No tenant identity.
+_GENERIC_SIGNAL_SOURCES: list[dict] = [
     {
-        'category': 'AI services market',
-        'venture':  'empyrean_creative',
-        'prompt': (
-            'What are the latest developments in AI automation services for '
-            'small businesses this week? What are agencies charging? '
-            'What are the most in-demand AI services right now?'
-        ),
+        'name':          'social_algorithms',
+        'search_query':  'Instagram TikTok YouTube algorithm changes this year',
+        'relevance':     'content distribution',
     },
     {
-        'category': "Men's coaching market",
-        'venture':  'lyfe_institute',
-        'prompt': (
-            "What is trending in men's self-improvement and coaching right now? "
-            'What offers are gaining traction? What pain points are men 18-28 '
-            'expressing online this week?'
-        ),
-    },
-    {
-        'category': 'Creator economy',
-        'venture':  'personal_brand',
-        'prompt': (
-            'What are the latest changes to Instagram, TikTok, and YouTube '
-            'algorithms this week? What content formats are performing best '
-            'for personal brand builders?'
-        ),
-    },
-    {
-        'category': 'Competitor intelligence',
-        'venture':  'lyfe_institute',
-        'prompt': (
-            'What are Iman Gadzhi, Alex Hormozi, and other men\'s coaching '
-            'brands doing right now? Any new offers, campaigns, or messaging '
-            'shifts in the last 7 days?'
-        ),
-    },
-    {
-        'category': 'AI tools and models',
-        'venture':  'empyrean_creative',
-        'prompt': (
-            'What are the latest AI model releases, AI agent frameworks, '
-            'and AI tools launched or updated this week? '
-            'What new capabilities are available? '
-            'What are developers and founders talking about in AI right now? '
-            'Include: new models, agent frameworks, automation tools, '
-            'pricing changes, API updates, breakthrough capabilities.'
-        ),
-    },
-    {
-        'category': 'AI agency and automation',
-        'venture':  'empyrean_creative',
-        'prompt': (
-            'What is happening in the AI agency and AI automation space this week? '
-            'What are AI agencies charging? '
-            'What services are most in demand? '
-            'What tools are agencies using? '
-            'What are founders saying about replacing human labor with AI? '
-            'What new agent use cases are emerging? '
-            'Include: pricing, services, tools, case studies, market shifts.'
-        ),
+        'name':          'outreach_tactics_current',
+        'search_query':  'best DM outreach and sales tactics this year',
+        'relevance':     'outreach optimization',
     },
 ]
 
 
-# ─── Monitored sources ────────────────────────────────────────────────────────
+def build_monitored_sources(ctx=None) -> dict[str, list[dict]]:
+    """Build the monitored-source map for THIS tenant.
 
-MONITORED_SOURCES: dict[str, list[dict]] = {
-    'creators': [
-        {
-            'name':          'Alex Hormozi',
-            'search_query':  'Alex Hormozi new content 2026',
-            'relevance':     'offers, sales, business building',
-        },
-        {
-            'name':          'Charlie Morgan',
-            'search_query':  'Charlie Morgan outreach sales 2026',
-            'relevance':     'outreach, closing, DM strategy',
-        },
-        {
-            'name':          'Andrew Tate',
-            'search_query':  'Andrew Tate business 2026',
-            'relevance':     'masculine self-improvement market',
-        },
-    ],
-    'market_signals': [
-        {
-            'name':          'self_improvement_market',
-            'search_query':  'men self improvement coaching 2026 trends',
-            'relevance':     'ICP market awareness',
-        },
-        {
-            'name':          'instagram_algorithm',
-            'search_query':  'Instagram algorithm changes 2026',
-            'relevance':     'content distribution',
-        },
-        {
-            'name':          'whop_platform',
-            'search_query':  'Whop platform creators 2026',
-            'relevance':     'delivery platform awareness',
-        },
-    ],
-    'business_knowledge': [
-        {
-            'name':          'sales_tactics_current',
-            'search_query':  'best DM outreach sales tactics 2026',
-            'relevance':     'outreach optimization',
-        },
-    ],
-}
+    Creators to watch are derived from each venture's `main_competitors` (BIS);
+    generic distribution/outreach signals are always included. Returns just the
+    generic signals when no tenant ventures/competitors are configured — never a
+    hardcoded per-niche creator list.
+    """
+    creators: list[dict] = []
+    try:
+        from substrate.state.business.business_instance import BusinessInstanceManager
+        from substrate.state.context.context import load_context_from_env
+
+        ctx = ctx or load_context_from_env()
+        ventures = list(getattr(ctx, 'ventures', []) or [])
+        bim = BusinessInstanceManager(ctx)
+        seen: set[str] = set()
+        for v in ventures:
+            vid = v.get('id') or v.get('venture_id') or ''
+            if not vid:
+                continue
+            try:
+                bis = bim.get_bis(vid)
+            except Exception:
+                bis = None
+            for comp in (getattr(bis, 'main_competitors', None) or []) if bis else []:
+                name = str(comp).strip()
+                if not name or name.lower() in seen:
+                    continue
+                seen.add(name.lower())
+                creators.append({
+                    'name':         name,
+                    'search_query': f'{name} new content this year',
+                    'relevance':    'competitor / market awareness',
+                })
+    except Exception:
+        creators = []
+
+    sources: dict[str, list[dict]] = {'market_signals': list(_GENERIC_SIGNAL_SOURCES)}
+    if creators:
+        sources['creators'] = creators
+    return sources
 
 
 class WorldPulse:
@@ -228,7 +238,7 @@ class WorldPulse:
         """
         Daily market intelligence scan — runs every morning at 6am.
 
-        Scans MONITORED_SOURCES (creators, market signals, business knowledge)
+        Scans tenant-derived monitored sources (competitor creators + generic signals)
         and checks Claude skills for updates. Does NOT rescan GWS documents —
         that runs weekly on Saturdays via run_pulse_scan().
 
@@ -245,7 +255,7 @@ class WorldPulse:
         results_summary: list[str] = []
         total_integrated = 0
 
-        for category, sources in MONITORED_SOURCES.items():
+        for category, sources in build_monitored_sources(self.ctx).items():
             for source in sources:
                 try:
                     pages = sc.search_and_fetch(
@@ -283,7 +293,7 @@ class WorldPulse:
                     print(f'[WorldPulse] Source {source["name"]} failed: {e}')
 
         # Perplexity market intel — real-time synthesis per venture
-        perplexity_signals = self._scan_with_perplexity(PERPLEXITY_QUERIES)
+        perplexity_signals = self._scan_with_perplexity(build_perplexity_queries(self.ctx))
         for sig in perplexity_signals:
             ok = self.ki.integrate(
                 content=sig['content'],
@@ -378,7 +388,7 @@ class WorldPulse:
         results_summary: list[str] = []
         total_integrated = 0
 
-        for category, sources in MONITORED_SOURCES.items():
+        for category, sources in build_monitored_sources(self.ctx).items():
             for source in sources:
                 try:
                     pages = sc.search_and_fetch(
@@ -416,7 +426,7 @@ class WorldPulse:
                     print(f'[WorldPulse] Source {source["name"]} failed: {e}')
 
         # Perplexity market intel — real-time synthesis per venture
-        perplexity_signals = self._scan_with_perplexity(PERPLEXITY_QUERIES)
+        perplexity_signals = self._scan_with_perplexity(build_perplexity_queries(self.ctx))
         for sig in perplexity_signals:
             ok = self.ki.integrate(
                 content=sig['content'],

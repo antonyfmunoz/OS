@@ -1,3 +1,3 @@
-UMH_COCKPIT_EMAIL=op://UMH-Production/Cockpit-Clerk-Login/username
-UMH_COCKPIT_PASSWORD=op://UMH-Production/Cockpit-Clerk-Login/password
-UMH_VPS_SSH=root@100.77.233.50
+UMH_COCKPIT_EMAIL=op://${UMH_OP_VAULT}/Cockpit-Clerk-Login/username
+UMH_COCKPIT_PASSWORD=op://${UMH_OP_VAULT}/Cockpit-Clerk-Login/password
+UMH_VPS_SSH=root@${UMH_VPS_IP}

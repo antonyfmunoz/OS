@@ -19,11 +19,11 @@ Usage examples:
   python3 scripts/substrate_claude_session_cli.py detect
   python3 scripts/substrate_claude_session_cli.py list --target vps
   python3 scripts/substrate_claude_session_cli.py ensure \\
-      --target vps --session dex_main --working-dir /opt/OS
+      --target vps --session <ai>_main --working-dir /opt/OS
   python3 scripts/substrate_claude_session_cli.py send \\
-      --target vps --session dex_main --text "hello"
+      --target vps --session <ai>_main --text "hello"
   python3 scripts/substrate_claude_session_cli.py ask \\
-      --target vps --session dex_main --text "what is 2+2?"
+      --target vps --session <ai>_main --text "what is 2+2?"
 """
 
 from __future__ import annotations
@@ -114,7 +114,7 @@ def _add_target(p: argparse.ArgumentParser) -> None:
 
 
 def _add_session(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--session", required=True, help="tmux session name (e.g. dex_main)")
+    p.add_argument("--session", required=True, help="tmux session name (e.g. <ai>_main)")
 
 
 def main() -> int:

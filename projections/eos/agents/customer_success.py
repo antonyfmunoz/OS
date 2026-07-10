@@ -163,7 +163,7 @@ class CustomerSuccessAgent(DepartmentAgent):
             return SkillResult(success=True, output={"at_risk_count": 0, "at_risk_customers": []})
 
     def _onboarding_guide(self, **kwargs: Any) -> SkillResult:
-        product = kwargs.get("product", "Initiate Arena")
+        product = kwargs.get("product") or self._offer_name()
         user_type = kwargs.get("user_type", "new_member")
 
         steps = {
@@ -231,7 +231,7 @@ class CustomerSuccessAgent(DepartmentAgent):
                 prompt=(
                     f"Draft a customer support response to: {inquiry[:500]}\n"
                     f"Customer name: {customer}\n"
-                    f"Brand: Initiate Arena. Voice: supportive, direct, solution-oriented."
+                    f"Brand: {self._offer_name()}. Voice: supportive, direct, solution-oriented."
                 ),
                 system="Customer success agent. Helpful, empathetic, solution-focused.",
                 task_type="fast_response",

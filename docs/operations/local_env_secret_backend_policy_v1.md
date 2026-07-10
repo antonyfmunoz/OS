@@ -97,6 +97,6 @@ status, value = get_secret_value_for_local_action(path, key)
 - If login is required AND founder enables secret-assisted login:
   - secret_ref: `GOOGLE_ANTONYFM_PASSWORD`
   - scope: `google_workspace`
-  - account: `antonyfm@empyreanstudios.co`
+  - account: `${UMH_OPERATOR_EMAIL}`
 - Do NOT automate 2FA unless separately approved
 - If 2FA appears, PAUSE for human intervention

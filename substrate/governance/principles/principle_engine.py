@@ -157,7 +157,11 @@ AGENT_STANDARDS: dict[str, list[str]] = {
         'Report bad news directly. Name what is '
         'failing and what changes. No softening.',
     ],
-    'lyfe_institute_ceo': [
+    # Generic venture-stage/role CEO principle blocks — keyed by ROLE/STAGE, not
+    # by any specific venture. A per-venture CEO agent (<vid>_ceo) resolves to the
+    # matching generic block by its stage/type; venture-specific principles come
+    # from BIS, never hardcoded here.
+    'stage1_venture_ceo': [
         'Stage 1. Every recommendation connects to '
         'first sale or it does not get made.',
         'The constraint is almost always volume. '
@@ -169,25 +173,10 @@ AGENT_STANDARDS: dict[str, list[str]] = {
         'the offer converts organically.',
         'Every DM conversation is both a sale attempt '
         'and market research. Both outcomes are valuable.',
-        'The primary venture first sale enables the secondary venture '
-        'to sell externally. That dependency is real.',
+        'A portfolio venture\'s first sale can enable another venture '
+        'to sell externally. Honor real cross-venture dependencies.',
     ],
-    'lyfe_ceo': [
-        'Stage 1. Every recommendation connects to '
-        'first sale or it does not get made.',
-        'The constraint is almost always volume. '
-        'Ask if there is enough outreach going out '
-        'before diagnosing anything else.',
-        'Do not fix the offer before proving '
-        'volume does not work.',
-        'Do not recommend paid acquisition before '
-        'the offer converts organically.',
-        'Every DM conversation is both a sale attempt '
-        'and market research. Both outcomes are valuable.',
-        'The primary venture first sale enables the secondary venture '
-        'to sell externally. That dependency is real.',
-    ],
-    'empyrean_ceo': [
+    'internal_build_ceo': [
         'Every decision runs through one filter: '
         'does this slow the internal build?',
         'Proven internally means the system has run '
@@ -202,7 +191,7 @@ AGENT_STANDARDS: dict[str, list[str]] = {
     'brand_ceo': [
         'Every piece of content either serves the ICP '
         'or it does not ship.',
-        'The Vigilante Architect is not a persona — '
+        'The brand is not a persona — '
         'it is a worldview. Content either comes from '
         'that worldview or it is not on brand.',
         'The personal brand is the distribution layer '
@@ -241,7 +230,7 @@ AGENT_STANDARDS: dict[str, list[str]] = {
     ],
     'content_agent': [
         'The editorial test for every piece: does '
-        'this feel like the Vigilante Architect? '
+        'this feel like the brand worldview? '
         'If no — rework before shipping.',
         'The hook test: does the first line create '
         'curiosity, friction, or pattern interruption? '

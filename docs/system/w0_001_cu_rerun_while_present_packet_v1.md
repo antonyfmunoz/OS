@@ -28,7 +28,7 @@ W0-001-CU-RERUN-WHILE-PRESENT-001
 - Open Chrome with Google Drive
 - Run accessibility tree inventory
 - Confirm 26 My Drive files
-- Confirm account: antonyfm@empyreanstudios.co
+- Confirm account: `${UMH_OPERATOR_EMAIL}`
 - Confirm profile: Antony (empyreanstudios.co)
 
 ### Task 2: DOCS-CU-RERUN-001 (W-GDOCS-CU-001)

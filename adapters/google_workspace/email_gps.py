@@ -1,13 +1,13 @@
 """
-EmailGPS — 7-folder email management system for DEX.
+EmailGPS — 7-folder email management system for the assistant.
 
-Antony never touches email until DEX has processed it first. Ever.
+The founder never touches email until the assistant has processed it first. Ever.
 
 Folders:
-  ANTONY        → his eyes only, needs direct attention
-  TO_RESPOND    → DEX drafts response, Antony approves
+  FOUNDER       → founder's eyes only, needs direct attention
+  TO_RESPOND    → assistant drafts response, founder approves
   REVIEW        → discussed in daily sync
-  RESPONDED     → DEX handled completely
+  RESPONDED     → assistant handled completely
   WAITING_ON    → replied, waiting on someone
   RECEIPTS      → all financial emails
   NEWSLETTERS   → anything with unsubscribe link
@@ -25,7 +25,8 @@ _ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.ge
 
 
 class EmailFolder(Enum):
-    ANTONY      = 'Antony'
+    # Value is the folder DISPLAY name — neutral, not a founder literal.
+    FOUNDER     = 'Founder'
     TO_RESPOND  = 'To Respond'
     REVIEW      = 'Review'
     RESPONDED   = 'Responded'
@@ -51,17 +52,25 @@ class ProcessedEmail:
 
 class EmailGPS:
 
-    DEX_TEMPLATE = (
-        'Hi {name},\n\n'
-        'This is DEX, Antony\'s assistant. '
-        'I got to this email before him '
-        'and thought you\'d appreciate '
-        'a speedy reply.\n\n'
-        '{response}\n\n'
-        'Best,\n'
-        'DEX\n'
-        'On behalf of Antony Munoz'
-    )
+    def _reply_template(self, name: str, response: str) -> str:
+        """Signed reply template with instance AI + founder names (runtime)."""
+        from substrate.state.business.business_instance import (
+            get_ai_name,
+            get_founder_name,
+        )
+        ai = get_ai_name() or 'the assistant'
+        founder = get_founder_name(getattr(self, 'ctx', None), default='the founder')
+        return (
+            f'Hi {name},\n\n'
+            f'This is {ai}, {founder}\'s assistant. '
+            f'I got to this email before them '
+            f'and thought you\'d appreciate '
+            f'a speedy reply.\n\n'
+            f'{response}\n\n'
+            f'Best,\n'
+            f'{ai}\n'
+            f'On behalf of {founder}'
+        )
 
     # Hard rule: financial keywords in subject → RECEIPTS (no reasoning needed)
     _FINANCIAL_SIGNALS = [
@@ -101,13 +110,13 @@ class EmailGPS:
 
             defaults = [
                 {
-                    'name': 'Antony',
+                    'name': 'Founder',
                     'purpose': (
                         'Personal emails and important '
-                        'contacts that need Antony\'s '
+                        'contacts that need the founder\'s '
                         'direct attention. People he knows '
                         'personally. Opportunities requiring '
-                        'his judgment. Anything DEX cannot '
+                        'their judgment. Anything the assistant cannot '
                         'handle without his input.'),
                     'examples': [
                         'Personal message from a contact',
@@ -120,11 +129,11 @@ class EmailGPS:
                     'name': 'To Respond',
                     'purpose': (
                         'Emails where someone is waiting '
-                        'for a reply from Antony\'s team. '
+                        'for a reply from the founder\'s team. '
                         'Business inquiries, client questions, '
                         'collaboration requests, partnership '
-                        'proposals. DEX drafts a response '
-                        'using the DEX template.'),
+                        'proposals. The assistant drafts a response '
+                        'using the reply template.'),
                     'examples': [
                         'Business inquiry from unknown person',
                         'Question about coaching services',
@@ -135,12 +144,12 @@ class EmailGPS:
                 {
                     'name': 'Review',
                     'purpose': (
-                        'Emails needing Antony\'s input '
+                        'Emails needing the founder\'s input '
                         'or decision. Action required from '
                         'platforms, policy issues, account '
                         'restrictions, contracts, legal notices, '
                         'investment opportunities, anything '
-                        'DEX cannot decide without him.'),
+                        'the assistant cannot decide without them.'),
                     'examples': [
                         'Meta ad account restricted',
                         'GitHub security alert',
@@ -167,10 +176,10 @@ class EmailGPS:
                 {
                     'name': 'Waiting On',
                     'purpose': (
-                        'Emails where DEX has replied '
-                        'on Antony\'s behalf and is waiting '
+                        'Emails where the assistant has replied '
+                        'on the founder\'s behalf and is waiting '
                         'for a response from the other person. '
-                        'DEX will follow up if no reply '
+                        'The assistant will follow up if no reply '
                         'after 5 days.'),
                     'examples': [
                         'Sent proposal, awaiting reply',
@@ -315,7 +324,7 @@ class EmailGPS:
             return ''
 
     # Hard rule: action-required phrases in subject → REVIEW
-    # These always require Antony's decision — no ambiguity
+    # These always require the founder's decision — no ambiguity
     _ACTION_REQUIRED_SIGNALS = [
         'action required', 'action needed',
         'urgent:', '[urgent]',
@@ -360,7 +369,7 @@ class EmailGPS:
         'security@', 'account@', 'automated@', 'system@',
     )
 
-    # Domains that are platform senders — never a real person in Antony's network
+    # Domains that are platform senders — never a real person in the founder's network
     _PLATFORM_DOMAINS = frozenset({
         'github.com', 'google.com', 'apple.com', 'microsoft.com',
         'facebook.com', 'facebookmail.com', 'instagram.com',
@@ -386,7 +395,7 @@ class EmailGPS:
         self, email: ProcessedEmail,
     ) -> bool:
         """
-        Check if this sender is a known person from Antony's pipeline or network.
+        Check if this sender is a known person from the founder's pipeline or network.
 
         Only returns True for real humans with a tracked relationship.
 
@@ -424,7 +433,7 @@ class EmailGPS:
             if result.get('known'):
                 print(
                     f'[EmailGPS] Known person ({result["confidence"]}): '
-                    f'{email.from_name or email.from_address} → ANTONY '
+                    f'{email.from_name or email.from_address} → FOUNDER '
                     f'[sources: {", ".join(set(result.get("sources", [])))}]'
                 )
                 return True
@@ -444,10 +453,10 @@ class EmailGPS:
         Cost: ~$0.0001/email × 200 emails = $0.02/pass.
         """
         # Person recognition — check before rules or AI.
-        # If this sender has been mentioned in recent conversations → ANTONY.
+        # If this sender has been mentioned in recent conversations → FOUNDER.
         if self._check_person_recognition(email):
             email._method = 'person_recognition'
-            return EmailFolder.ANTONY
+            return EmailFolder.FOUNDER
 
         rule_result = self._classify_by_rules(email)
         if rule_result is not None:
@@ -472,22 +481,34 @@ class EmailGPS:
                 return '\n'.join(context_parts)
         except Exception:
             pass
-        return (
-            'Antony Munoz — entrepreneur. '
-            'Running Lyfe Institute (Initiate Arena coaching program, $750) '
-            'and Empyrean Creative (AI agency). Portland, Oregon. '
-            'Stage 1 — pre-revenue, building and running outreach.'
+        # Deterministic founder/venture context from the tenant's BIS — never
+        # a hardcoded founder or venture roster.
+        from substrate.state.business.business_instance import (
+            get_founder_name,
+            get_ventures,
         )
+        founder = get_founder_name(self.ctx, default='the founder')
+        ventures = get_ventures(self.ctx)
+        if ventures:
+            roster = ', '.join(v['name'] for v in ventures)
+            return f'{founder} — entrepreneur. Running {roster}.'
+        return f'{founder} — entrepreneur.'
 
     def _default_folders(self) -> str:
+        from substrate.state.business.business_instance import (
+            get_ai_name,
+            get_founder_name,
+        )
+        ai = get_ai_name() or 'the assistant'
+        founder = get_founder_name(self.ctx, default='the founder')
         return (
-            'Antony: Personal emails from real people Antony knows personally\n'
-            'To Respond: Someone needs a reply from Antony or DEX\n'
-            'Review: Antony needs to make a decision — action required\n'
-            'Responded: DEX has already sent a reply on Antony\'s behalf\n'
-            'Waiting On: Waiting for the other person\'s reply\n'
-            'Receipts-Financials: Financial and billing emails only\n'
-            'Newsletters: Everything else — marketing, updates, notifications, onboarding'
+            f'Founder: Personal emails from real people {founder} knows personally\n'
+            f'To Respond: Someone needs a reply from {founder} or {ai}\n'
+            f'Review: {founder} needs to make a decision — action required\n'
+            f'Responded: {ai} has already sent a reply on {founder}\'s behalf\n'
+            f'Waiting On: Waiting for the other person\'s reply\n'
+            f'Receipts-Financials: Financial and billing emails only\n'
+            f'Newsletters: Everything else — marketing, updates, notifications, onboarding'
         )
 
     def _classify_with_ai(
@@ -509,21 +530,27 @@ class EmailGPS:
             )
 
             founder_context = self._load_founder_context()
+            from substrate.state.business.business_instance import (
+                get_ai_name,
+                get_founder_name,
+            )
+            _ai = get_ai_name() or 'the assistant'
+            _founder = get_founder_name(self.ctx, default='the founder')
 
             result = router.call_with_fallback(
                 TaskType.FAST_RESPONSE,
                 prompt=(
-                    f'You are DEX, world class EA to Antony Munoz.\n\n'
-                    f'ABOUT ANTONY:\n'
+                    f'You are {_ai}, world class EA to {_founder}.\n\n'
+                    f'ABOUT {_founder}:\n'
                     f'{founder_context}\n\n'
                     f'YOUR JOB:\n'
                     f'Classify this email into exactly one folder. '
                     f'Use judgment like a seasoned EA — not rules.\n\n'
                     f'Ask yourself:\n'
-                    f'1. Is this from a real person Antony knows? → Antony\n'
+                    f'1. Is this from a real person {_founder} knows? → Founder\n'
                     f'2. Does someone need a reply? → To Respond\n'
-                    f'3. Does Antony need to make a decision? → Review\n'
-                    f'4. Did DEX already respond? → Responded\n'
+                    f'3. Does {_founder} need to make a decision? → Review\n'
+                    f'4. Did {_ai} already respond? → Responded\n'
                     f'5. Is it financial/billing? → Receipts-Financials\n'
                     f'6. Is it anything else — marketing, updates, '
                     f'notifications, onboarding, product emails, '
@@ -541,7 +568,7 @@ class EmailGPS:
                     f'Termius "Welcome to Termius" → Newsletters\n'
                     f'Canny "Daily Report" → Newsletters\n'
                     f'Google AI Studio "Billing Update" → Receipts-Financials\n'
-                    f'Friend: "Hey can we talk?" → Antony\n'
+                    f'Friend: "Hey can we talk?" → Founder\n'
                     f'Stripe "Invoice #1234" → Receipts-Financials\n'
                     f'GitHub "New SSH key added" → Newsletters\n\n'
                     f'Reply with ONE folder name only.'
@@ -551,7 +578,7 @@ class EmailGPS:
 
             r = result.strip().upper()
             mapping = {
-                'ANTONY':           EmailFolder.ANTONY,
+                'FOUNDER':          EmailFolder.FOUNDER,
                 'TO RESPOND':       EmailFolder.TO_RESPOND,
                 'TO_RESPOND':       EmailFolder.TO_RESPOND,
                 'REVIEW':           EmailFolder.REVIEW,
@@ -573,21 +600,27 @@ class EmailGPS:
             return EmailFolder.NEWSLETTERS
 
     def draft_response(self, email: ProcessedEmail) -> str:
-        """Generate DEX response draft for TO_RESPOND emails."""
+        """Generate a response draft for TO_RESPOND emails."""
         try:
             from adapters.models.model_router import get_router, TaskType
+            from substrate.state.business.business_instance import (
+                get_ai_name,
+                get_founder_name,
+            )
             router = get_router(self.ctx)
+            _ai = get_ai_name() or 'the assistant'
+            _founder = get_founder_name(self.ctx, default='the founder')
 
             body = router.call_with_fallback(
                 TaskType.CONVERSATION,
                 prompt=(
                     f'Draft a brief response to this '
-                    f'email for DEX to send on behalf '
-                    f'of Antony Munoz.\n\n'
+                    f'email for {_ai} to send on behalf '
+                    f'of {_founder}.\n\n'
                     f'From: {email.from_name}\n'
                     f'Subject: {email.subject}\n'
                     f'Email: {email.preview}\n\n'
-                    f'Antony\'s tone: direct, '
+                    f'{_founder}\'s tone: direct, '
                     f'professional, brief.\n'
                     f'Write ONLY the response body.\n'
                     f'No greeting, no signature.'
@@ -596,7 +629,7 @@ class EmailGPS:
             )
 
             name = (email.from_name or 'there').split()[0]
-            return self.DEX_TEMPLATE.format(name=name, response=body)
+            return self._reply_template(name=name, response=body)
 
         except Exception as e:
             print(f'[EmailGPS] Draft error: {e}')
@@ -740,6 +773,7 @@ Return JSON only:
                     if email.draft_response:
                         try:
                             from substrate.control_plane.runtime.gateway import EntrepreneurOSGateway
+                            from substrate.state.business.business_instance import get_active_venture_id
                             gw = EntrepreneurOSGateway()
                             approval_id = gw.queue_for_approval({
                                 "type":       "email_draft",
@@ -748,7 +782,7 @@ Return JSON only:
                                 "subject":    f"Re: {email.subject}",
                                 "body":       email.draft_response,
                                 "email_id":   email.email_id,
-                                "venture_id": getattr(self.ctx, 'venture_id', 'lyfe_institute'),
+                                "venture_id": getattr(self.ctx, 'venture_id', '') or get_active_venture_id(self.ctx),
                                 "folder":     "To Respond",
                             })
                             print(f"[GPS] Draft queued for approval: {approval_id}")
@@ -955,7 +989,9 @@ Return JSON only:
             print(f'[EmailGPS] Delete error: {e}')
 
     def generate_inbox_report(self, processed: dict) -> str:
-        """Format GPS results into a Discord-ready report for Antony."""
+        """Format GPS results into a Discord-ready report for the founder."""
+        from substrate.state.business.business_instance import get_ai_name
+        _ai = get_ai_name() or 'the assistant'
         total = sum(len(v) for v in processed.values())
 
         if total == 0:
@@ -963,14 +999,14 @@ Return JSON only:
 
         lines = [f'📬 **Email GPS** ({total} emails)']
 
-        antony     = processed.get(EmailFolder.ANTONY, [])
+        founder    = processed.get(EmailFolder.FOUNDER, [])
         review     = processed.get(EmailFolder.REVIEW, [])
         to_respond = processed.get(EmailFolder.TO_RESPOND, [])
         waiting    = processed.get(EmailFolder.WAITING_ON, [])
 
-        if antony:
-            lines.append(f'\n🔴 **For You** ({len(antony)}):')
-            for e in antony[:5]:
+        if founder:
+            lines.append(f'\n🔴 **For You** ({len(founder)}):')
+            for e in founder[:5]:
                 lines.append(
                     f'  • {e.from_name or e.from_address}'
                     f': {e.subject[:50]}'
@@ -985,7 +1021,7 @@ Return JSON only:
                 )
 
         if to_respond:
-            lines.append(f'\n🟢 **DEX Handling** ({len(to_respond)}):')
+            lines.append(f'\n🟢 **{_ai} Handling** ({len(to_respond)}):')
             drafts = sum(1 for e in to_respond if e.draft_response)
             if drafts:
                 lines.append(f'  ↳ {drafts} drafts ready for your approval')
@@ -1366,7 +1402,7 @@ Return JSON only:
     def verify_existing_labels(self, sample: int = 5) -> str:
         """
         Sample emails from each GPS label already in Gmail.
-        Used for spot-checking DEX's historical classifications.
+        Used for spot-checking the assistant's historical classifications.
         Triggered via !verify-inbox in Discord.
         """
         try:

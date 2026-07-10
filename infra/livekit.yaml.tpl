@@ -8,7 +8,7 @@ rtc:
   use_external_ip: true
 
 keys:
-  UMHKey1: op://UMH-Production/LiveKit/api_secret
+  UMHKey1: op://${UMH_OP_VAULT}/LiveKit/api_secret
 
 turn:
   enabled: true

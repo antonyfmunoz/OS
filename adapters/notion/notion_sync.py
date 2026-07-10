@@ -1,10 +1,10 @@
 """
-Notion Sync — EOS runtime write layer.
-Pushes EOS primitives to Notion databases.
+Notion Sync — runtime write layer.
+Pushes primitives to Notion databases.
 Called by cognitive_loop, orchestrator, and agent_runtime.
 
 All write functions return Notion page ID (str) or '' on failure.
-Failures are logged but never raise — EOS continues without Notion.
+Failures are logged but never raise — callers continue without Notion.
 """
 
 import os
@@ -24,12 +24,10 @@ HEADERS = {
     'Content-Type': 'application/json',
 }
 
-# venture_id → env prefix
-_PREFIXES = {
-    'personal_brand': 'NOTION_PERSONAL_BRAND',
-    'lyfe_institute': 'NOTION_LYFE_INSTITUTE',
-    'empyrean_creative': 'NOTION_EMPYREAN_CREATIVE',
-}
+# venture_id → env prefix. Derived from the tenant's venture slug at runtime
+# (NOTION_<SLUG_UPPER>) so no tenant venture list is hardcoded here.
+def _venture_env_prefix(venture_id: str) -> str:
+    return f"NOTION_{venture_id.upper()}" if venture_id else ""
 
 # human-readable DB key → env suffix
 _DB_SUFFIXES = {
@@ -51,7 +49,7 @@ _DB_SUFFIXES = {
 
 def get_db_id(venture_id: str, db_key: str) -> str:
     """Return Notion DB ID for a venture+primitive. '' if not found."""
-    prefix = _PREFIXES.get(venture_id, '')
+    prefix = _venture_env_prefix(venture_id)
     if not prefix:
         return ''
     suffix = _DB_SUFFIXES.get(db_key, db_key.upper())
@@ -272,7 +270,7 @@ def write_meeting(
     """Create a meeting row. Returns page ID or ''."""
     db_id = get_db_id(venture_id, 'meetings')
     if not db_id:
-        # Fall back to EOS-root Meetings DB
+        # Fall back to root Meetings DB
         db_id = os.getenv('NOTION_MEETINGS_ID', '')
     if not db_id:
         print(f'[NotionSync] No Meetings DB for {venture_id}')

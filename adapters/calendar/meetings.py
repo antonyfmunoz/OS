@@ -179,15 +179,21 @@ def update_meeting_outcome(
                     _ctx = ctx or load_context_from_env()
                     _router = get_router()
                     _model = _router.route(TaskType.FAST_RESPONSE)
+                    from substrate.state.business.business_instance import (
+                        get_ai_name as _gan,
+                        get_founder_name as _gfn,
+                    )
+                    _ai = _gan() or 'the assistant'
+                    _founder = _gfn(_ctx, default='the founder')
 
-                    _prompt = f"""You are DEX, EA to Antony Munoz.
+                    _prompt = f"""You are {_ai}, EA to {_founder}.
 Draft a follow-up email after a meeting.
 
 Person: the person you just met with
 Outcomes: {outcomes}
 Open loops / next steps: {open_loops}
 
-Write in Antony's voice — direct, warm, short.
+Write in {_founder}'s voice — direct, warm, short.
 No corporate speak. Clear next step at the end.
 Include subject line.
 
@@ -196,8 +202,8 @@ Subject: [subject]
 
 [body]
 
-DEX
-On behalf of Antony Munoz"""
+{_ai}
+On behalf of {_founder}"""
 
                     _draft = _router.call(_model, _prompt).strip()
 
@@ -536,12 +542,17 @@ def build_prep_brief(
             lines.append('• Understand their situation before pitching anything')
             lines.append('• Qualify: timeline, budget, decision authority')
             lines.append('• Close or define a clear next step — no open endings')
-            if venture == 'Lyfe Institute':
-                lines.append("• Ask: what does structure look like for you right now?")
-                lines.append("• Ask: what have you tried that hasn't worked?")
-            elif venture == 'Empyrean Creative':
-                lines.append("• Ask: what's the one operational bottleneck costing you most?")
-                lines.append("• Ask: have you tried building AI systems before?")
+            # Venture-specific discovery questions come from the tenant's venture
+            # knowledge (BIS), never hardcoded per venture name.
+            try:
+                from substrate.state.business.venture_knowledge import VentureKnowledgeBase
+
+                _slug = (venture or '').lower().replace(' ', '_')
+                _v = VentureKnowledgeBase._ventures.get(_slug) if _slug else None
+                for _obj in (getattr(_v, 'common_objections', []) or [])[:2]:
+                    lines.append(f"• Ask about: {_obj}")
+            except Exception:
+                pass
         elif meeting_type == 'Follow-up':
             lines.append('• Reference what was agreed last time')
             lines.append('• Address any open loops')
@@ -600,6 +611,12 @@ def draft_meeting_agenda(
         ctx = ctx or load_context_from_env()
         router = get_router()
         model = router.route(TaskType.FAST_RESPONSE)
+        from substrate.state.business.business_instance import (
+            get_ai_name as _gan,
+            get_founder_name as _gfn,
+        )
+        _ai = _gan() or 'the assistant'
+        _founder = _gfn(ctx, default='the founder')
 
         profile = build_intelligence_profile(
             name=person, email=email, ctx=ctx
@@ -629,7 +646,7 @@ For our call:
 [one sentence on what they should bring/prepare if relevant]
 
 Looking forward to it.
-[Antony/DEX]
+[{_founder}/{_ai}]
 
 Keep it under 150 words. No corporate speak."""
 
@@ -664,11 +681,14 @@ def draft_meeting_minutes(
         model = router.route(TaskType.FAST_RESPONSE)
         _PDT = ZoneInfo('America/Los_Angeles')
         now = datetime.now(_PDT)
+        _ctx = ctx or load_context_from_env()
+        from substrate.state.business.business_instance import get_founder_name as _gfn
+        _founder = _gfn(_ctx, default='the founder')
 
         minutes = router.call(model, f"""Draft formal meeting minutes.
 
 Meeting: {title}
-Attendees: Antony Munoz, {person}
+Attendees: {_founder}, {person}
 Date: {now.strftime('%B %d, %Y')}
 Duration: {duration_minutes} minutes
 
@@ -678,7 +698,7 @@ Open loops/action items: {open_loops}
 Format:
 # Meeting Minutes — {title}
 **Date:** {now.strftime('%B %d, %Y')}
-**Attendees:** Antony Munoz, {person}
+**Attendees:** {_founder}, {person}
 **Duration:** {duration_minutes} min
 
 ## Summary

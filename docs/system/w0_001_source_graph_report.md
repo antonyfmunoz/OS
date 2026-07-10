@@ -1,7 +1,7 @@
 # W0-001 Source Graph Report
 
 **Date**: 2026-05-04
-**Source**: Google Drive (antonyfm@empyreanstudios.co)
+**Source**: Google Drive (the operator)
 **Documents analyzed**: 28 (24 non-empty, 4 empty placeholders)
 **Total words**: 22,474
 **Gate**: READY_FOR_TARGETED_DOCUMENT_REVIEW_APPROVAL → COMPLETE

@@ -22,11 +22,22 @@ load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT')
 NOTION_TOKEN = os.getenv('NOTION_API_KEY')
 STATE_FILE = Path(_ROOT) / "scripts" / "notion_tasks_sync_state.json"
 
-DATABASES = {
-    'lyfe_institute':    os.getenv('NOTION_YOUR_LIST_LYFE'),
-    'empyrean_creative': os.getenv('NOTION_YOUR_LIST_EMPYREAN'),
-    'personal_brand':    os.getenv('NOTION_YOUR_LIST_BRAND'),
-}
+def _venture_databases() -> dict:
+    """Per-tenant venture → Notion task-DB map, built from BIS at runtime.
+    Each venture's DB id comes from NOTION_YOUR_LIST_<SLUG_UPPER>. Never hardcode
+    a tenant's venture slugs here."""
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ventures
+        ctx = load_context_from_env()
+        out = {}
+        for v in get_ventures(ctx):
+            vid = v.get('id', '')
+            if vid:
+                out[vid] = os.getenv(f'NOTION_YOUR_LIST_{vid.upper()}')
+        return out
+    except Exception:
+        return {}
 
 HEADERS = {
     'Authorization': f'Bearer {NOTION_TOKEN}',
@@ -84,7 +95,16 @@ def extract_task(page: dict) -> dict:
     venture = venture_prop.get('name') if venture_prop else ''
 
     assigned_prop = props.get('Assigned To', {}).get('select')
-    assigned_to = assigned_prop.get('name') if assigned_prop else 'Antony'
+    # Default assignee is the tenant founder (BIS), not a hardcoded name.
+    if assigned_prop:
+        assigned_to = assigned_prop.get('name')
+    else:
+        try:
+            from substrate.state.context.context import load_context_from_env
+            from substrate.state.business.business_instance import get_founder_name
+            assigned_to = get_founder_name(load_context_from_env(), default='')
+        except Exception:
+            assigned_to = ''
 
     source_prop = props.get('Source', {}).get('select')
     source = source_prop.get('name') if source_prop else 'Notion'
@@ -247,7 +267,7 @@ def run_sync():
     synced = state.get('synced', {})
     new_count = 0
 
-    for venture_id, db_id in DATABASES.items():
+    for venture_id, db_id in _venture_databases().items():
         if not db_id:
             continue
 

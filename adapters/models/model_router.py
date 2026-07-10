@@ -460,7 +460,7 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
             TaskType.FAST_RESPONSE,
         ],
         cost_per_1k=0.0,
-        base_url=os.getenv("BEAST_OLLAMA_URL", "http://100.74.199.102:11434"),
+        base_url=os.getenv("BEAST_OLLAMA_URL", ""),
     ),
     # VPS OLLAMA: Emergency last-resort fallback.
     # Hardware reality: 2 vCPU / 8 GB VPS with no GPU.
@@ -924,7 +924,9 @@ class ModelRouter:
         try:
             import requests
 
-            is_beast = "100.74.199.102" in (config.base_url or "")
+            # Identify the Beast Ollama node by its configured URL, not a hardcoded IP.
+            _beast_url = os.getenv("BEAST_OLLAMA_URL", "")
+            is_beast = bool(_beast_url) and (config.base_url or "") == _beast_url
             if is_beast:
                 _sys = system[:8000] if system else ""
                 _max_tokens = min(max_tokens, 4096)

@@ -1,7 +1,7 @@
 """
-Local Bridge Client — forwards Discord messages to Antony's local machine.
+Local Bridge Client — forwards Discord messages to the founder's local machine.
 
-When Antony is at his PC (Windows/WSL via Tailscale), Discord messages route
+When the founder is at their PC (Windows/WSL via Tailscale), Discord messages route
 to a Claude Code session running locally instead of the VPS tmux sessions.
 
 Architecture:
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-_BRIDGE_IP = os.getenv("EOS_LOCAL_BRIDGE_IP", "100.74.199.102")
+_BRIDGE_IP = os.getenv("EOS_LOCAL_BRIDGE_IP", "")
 _BRIDGE_PORT = int(os.getenv("EOS_LOCAL_BRIDGE_PORT", "8767"))
 _BRIDGE_ENABLED = os.getenv("EOS_LOCAL_BRIDGE_ENABLED", "0").strip().lower() in (
     "1",
