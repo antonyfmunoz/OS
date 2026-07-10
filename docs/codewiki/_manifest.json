@@ -1,19 +1,19 @@
 {
-  "raw_total_files": 716891,
-  "accounted_files": 716891,
+  "raw_total_files": 718906,
+  "accounted_files": 718905,
   "inventoried": {
-    "files": 4523,
+    "files": 4604,
     "links": 37
   },
   "rollup": {
-    "files": 256113,
+    "files": 257870,
     "links": 2
   },
   "excluded": {
     "__pycache__": {
-      "files": 2981,
+      "files": 2982,
       "links": 0,
-      "bytes": 60981610
+      "bytes": 61023980
     },
     ".claire/worktrees": {
       "files": 3,
@@ -21,14 +21,14 @@
       "bytes": 10774
     },
     ".claude/worktrees": {
-      "files": 439792,
+      "files": 439870,
       "links": 733,
-      "bytes": 10241297277
+      "bytes": 10242239358
     },
     ".git": {
-      "files": 3070,
+      "files": 3167,
       "links": 1,
-      "bytes": 201028627
+      "bytes": 201414416
     },
     ".mypy_cache": {
       "files": 18,
@@ -147,9 +147,9 @@
     },
     "data": {
       "treatment": "rollup",
-      "files": 40487,
+      "files": 42112,
       "links": 1,
-      "bytes": 38456019041
+      "bytes": 38465167533
     },
     "docker": {
       "treatment": "code",
@@ -159,9 +159,9 @@
     },
     "docs": {
       "treatment": "code",
-      "files": 658,
+      "files": 737,
       "links": 0,
-      "bytes": 6488078
+      "bytes": 7368142
     },
     "graphify-out": {
       "treatment": "rollup",
@@ -179,13 +179,13 @@
       "treatment": "code",
       "files": 344,
       "links": 3,
-      "bytes": 522771
+      "bytes": 522787
     },
     "logs": {
       "treatment": "rollup",
-      "files": 212532,
+      "files": 212664,
       "links": 1,
-      "bytes": 346066362
+      "bytes": 346295993
     },
     "media": {
       "treatment": "rollup",
@@ -209,7 +209,7 @@
       "treatment": "rollup",
       "files": 2,
       "links": 0,
-      "bytes": 48181968
+      "bytes": 48240354
     },
     "saas": {
       "treatment": "code",
@@ -219,9 +219,9 @@
     },
     "scripts": {
       "treatment": "code",
-      "files": 213,
+      "files": 215,
       "links": 0,
-      "bytes": 9917683
+      "bytes": 9963340
     },
     "services": {
       "treatment": "code",
@@ -263,10 +263,10 @@
       "treatment": "rollup",
       "files": 2929,
       "links": 0,
-      "bytes": 15799755
+      "bytes": 15804463
     }
   },
-  "generated_at": "2026-07-10T20:18:00.181774+00:00",
-  "git_sha": "a5f09e48e253dafdfcecee94a8e54f16224bae43",
+  "generated_at": "2026-07-10T20:46:46.099253+00:00",
+  "git_sha": "c806e75e29acfc82d1428de2ccc17924403407ab",
   "scan_root": "/opt/OS"
 }

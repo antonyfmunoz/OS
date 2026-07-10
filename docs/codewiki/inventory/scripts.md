@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: scripts
-source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
+source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 ---
 
 # `scripts/` — File Inventory
 
-**Files:** 213 regular + 0 symlinks · **Bytes:** 9,917,683
+**Files:** 215 regular + 0 symlinks · **Bytes:** 9,963,340
 
 [Narrative page](../dirs/scripts.md)
 
@@ -53,7 +53,7 @@ source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
 | `scripts/check_ungoverned_mutations.py` | 228 | Pre-commit gate: blocks commits introducing ungoverned mutation endpoints. |
 | `scripts/check_voice_runtime_divergence.py` | 455 | Gate 14 — Voice Runtime Divergence (P4S31 Voice Convergence). |
 | `scripts/claude-cpu-limited` | 6 | cpulimit wrapper for running Claude CLI under a CPU ceiling |
-| `scripts/codebase_graph.py` | 1,234 | codebase_graph.py — Persistent codebase knowledge graph for EOS. |
+| `scripts/codebase_graph.py` | 1,236 | codebase_graph.py — Persistent codebase knowledge graph for EOS. |
 | `scripts/control_plane_run.py` | 105 | control_plane_run.py — run a shell command or script through the Control Plane. |
 | `scripts/cpu-watchdog.sh` | 103 | UMH CPU Watchdog — last-resort defense against Hostinger throttling. |
 | `scripts/create_meetings_db.py` | 67 | — |
@@ -76,6 +76,7 @@ source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
 | `scripts/fire_exports_windows.ps1` | 69 | fire_exports_windows.ps1 — Run browser exports from Windows workstation |
 | `scripts/gen_voice_error_codes_ts.py` | 91 | Codegen: generate the TS mirror of the canonical VoiceErrorCode enum. |
 | `scripts/generate_codebase_report.py` | 1,119 | generate_codebase_report.py — Exhaustive visual codebase report. |
+| `scripts/generate_codewiki.py` | 855 | CodeWiki inventory generator — deterministic backbone of docs/codewiki/. |
 | `scripts/generate_vapid_keys.py` | 35 | Generate VAPID key pair for Web Push notifications. |
 | `scripts/github_trinity_ingest.py` | 229 | github_trinity_ingest.py — Clone and ingest the three core repos via canonical pipeline. |
 | `scripts/goals.py` | 109 | CLI entry points for goal management. Wraps runtime/goal_selector.py. |
@@ -183,6 +184,7 @@ source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
 | `scripts/userscript_meet_captions.example.js` | 82 | userscript_meet_captions.example.js |
 | `scripts/validate_w0_coherence_dry.py` | 239 | W0 Dry Validation with Coherence Envelope. |
 | `scripts/vault_gws_credentials.py` | 144 | Vault Google Workspace OAuth material into 1Password (WP-P4-PROVIDER-TOKEN-VAULTING-001). |
+| `scripts/verify_codewiki.py` | 206 | CodeWiki verifier — the single acceptance check for docs/codewiki/. |
 | `scripts/verify_completion_claim.py` | 88 | Completion Claim Verifier — runs at Stop hook. |
 | `scripts/verify_deploy.py` | 91 | Standalone post-deploy verification script. |
 | `scripts/verify_knowledge_system.py` | 353 | verify_knowledge_system.py — Acceptance check for the EOS cognition stack. |

@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: docs
-source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
+source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 ---
 
 # `docs/` — File Inventory
 
-**Files:** 658 regular + 0 symlinks · **Bytes:** 6,488,078
+**Files:** 737 regular + 0 symlinks · **Bytes:** 7,368,142
 
 [Narrative page](../dirs/docs.md)
 
@@ -365,6 +365,90 @@ source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
 | Path | Lines | Purpose |
 |---|---|---|
 | `docs/changes/gateway_cogloop_removal.md` | 38 | Gateway CognitiveLoop Fallback Removal |
+
+## docs/codewiki/ (79 files)
+
+| Path | Lines | Purpose |
+|---|---|---|
+| `docs/codewiki/_manifest.json` | 272 | — |
+| `docs/codewiki/_overrides.json` | 26 | — |
+| `docs/codewiki/architecture.md` | 301 | UMH Architecture — the definitive map |
+| `docs/codewiki/audit-2026-07-10.md` | 128 | Consolidated Codebase Audit — 2026-07-10 |
+| `docs/codewiki/conventions.md` | 116 | Conventions & Operating Laws |
+| `docs/codewiki/data-flow.md` | 238 | Data flow & storage topology |
+| `docs/codewiki/dirs/_root-files.md` | 113 | Repository root files — the constitution, the build/deploy surface, and the campaign archive |
+| `docs/codewiki/dirs/adapters.md` | 117 | `adapters/` — external-system adapters and the intelligence router |
+| `docs/codewiki/dirs/agents.md` | 103 | `agents/` — agent SOUL documents (character, not mechanics) |
+| `docs/codewiki/dirs/cockpit-renderer.md` | 189 | `cockpit/src/renderer/` — the React cockpit app (the operator's window into the organism) |
+| `docs/codewiki/dirs/cockpit.md` | 194 | `cockpit/` — the UMH Desktop Cockpit frontend (Electron / web / mobile operator surface) |
+| `docs/codewiki/dirs/config.md` | 58 | `config/` — committed non-secret environment configuration |
+| `docs/codewiki/dirs/data.md` | 59 | `data/` — runtime state, generated knowledge artifacts, and organism memory |
+| `docs/codewiki/dirs/docker.md` | 65 | `docker/` — the standalone computer-use container (VNC-accessible desktop for the Beast) |
+| `docs/codewiki/dirs/docs.md` | 104 | `docs/` — the human-readable documentation store (audits, doctrine, contracts, session logs) |
+| `docs/codewiki/dirs/dot-agents.md` | 113 | `.agents/` — canonical home of the design/frontend skill packages |
+| `docs/codewiki/dirs/dot-claire.md` | 35 | `.claire/` — dead worktree remnant (cleanup candidate) |
+| `docs/codewiki/dirs/dot-claude.md` | 73 | `.claude/` — Claude Code project configuration, laws, agents, and skills |
+| `docs/codewiki/dirs/dot-github.md` | 56 | `.github/` — the sole CI workflow: mobile cockpit build (web → iOS → Android) |
+| `docs/codewiki/dirs/dot-obsidian.md` | 79 | `.obsidian/` — Obsidian vault config that makes `knowledge/` + `docs/` browsable |
+| `docs/codewiki/dirs/dot-planning.md` | 47 | `.planning/` — GSD planning workspace (phases, plans, summaries) |
+| `docs/codewiki/dirs/dot-playwright-mcp.md` | 37 | `.playwright-mcp/` — Playwright MCP browser debug artifacts (gitignored) |
+| `docs/codewiki/dirs/dot-vscode.md` | 39 | `.vscode/` — VS Code / code-server editor settings |
+| `docs/codewiki/dirs/graphify-out.md` | 50 | `graphify-out/` — the `/graphify` tree-sitter AST index (multi-language structural graph) |
+| `docs/codewiki/dirs/infra.md` | 105 | `infra/` — declarative infrastructure: device/service registries, cron, systemd, LiveKit, 1Password secret injection |
+| `docs/codewiki/dirs/knowledge.md` | 133 | `knowledge/` — the LLM-maintained CANON wiki + precomputed retrieval layer (palace, rules, concepts) |
+| `docs/codewiki/dirs/logs.md` | 55 | `logs/` — operational log tree: signals, decisions, execution traces, cron output |
+| `docs/codewiki/dirs/media.md` | 40 | `media/` — output sink for generated media (Higgsfield images/video) |
+| `docs/codewiki/dirs/nodes.md` | 48 | `nodes/` — distributed node runtime (work distribution + Windows daemon + execution bridges) |
+| `docs/codewiki/dirs/projections.md` | 138 | `projections/` — applications built ON the UMH substrate |
+| `docs/codewiki/dirs/runtime.md` | 43 | `runtime/` — gitignored live substrate state (station bus + voice sessions) |
+| `docs/codewiki/dirs/saas.md` | 101 | `saas/` — DELETED code (orphaned artifacts only) |
+| `docs/codewiki/dirs/scripts.md` | 192 | `scripts/` — operational tooling, enforcement gates, and the knowledge stack |
+| `docs/codewiki/dirs/services.md` | 115 | `services/` — deployment entrypoints (process `main()`s, no business logic) |
+| `docs/codewiki/dirs/skills.md` | 141 | `skills/` — the runtime skill library (agent playbooks + Tool Mastery Engine) |
+| `docs/codewiki/dirs/substrate-organism.md` | 99 | `substrate/organism/` — the self-operating agent core |
+| `docs/codewiki/dirs/substrate.md` | 154 | `substrate/` — the universal UMH platform core |
+| `docs/codewiki/dirs/tests.md` | 155 | `tests/` — the pytest suite: campaign regressions, gate enforcement, and law tests |
+| `docs/codewiki/dirs/transports.md` | 122 | `transports/` — I/O surfaces (Discord, HTTP API, CLI, node mesh) |
+| `docs/codewiki/dirs/umh.md` | 40 | `umh/` — thin relay entrypoints (media bridges + voice preflight) |
+| `docs/codewiki/dirs/vault.md` | 45 | `vault/` — long-term conversation memory: session logs and extracted summaries |
+| `docs/codewiki/health-findings.md` | 299 | Health Findings |
+| `docs/codewiki/index.md` | 141 | UMH CodeWiki — Complete Repository Map |
+| `docs/codewiki/inventory/_census.md` | 70 | Repository Census — Full Accounting |
+| `docs/codewiki/inventory/_root-files.md` | 49 | Repository root files — File Inventory |
+| `docs/codewiki/inventory/adapters.md` | 198 | `adapters/` — File Inventory |
+| `docs/codewiki/inventory/agents.md` | 28 | `agents/` — File Inventory |
+| `docs/codewiki/inventory/cockpit.md` | 478 | `cockpit/` — File Inventory |
+| `docs/codewiki/inventory/config.md` | 18 | `config/` — File Inventory |
+| `docs/codewiki/inventory/data.md` | 75 | `data/` — Runtime Data Rollup |
+| `docs/codewiki/inventory/docker.md` | 20 | `docker/` — File Inventory |
+| `docs/codewiki/inventory/docs.md` | 740 | `docs/` — File Inventory |
+| `docs/codewiki/inventory/dot-agents.md` | 200 | `.agents/` — File Inventory |
+| `docs/codewiki/inventory/dot-claire.md` | 12 | `.claire/` — File Inventory |
+| `docs/codewiki/inventory/dot-claude.md` | 217 | `.claude/` — File Inventory |
+| `docs/codewiki/inventory/dot-github.md` | 18 | `.github/` — File Inventory |
+| `docs/codewiki/inventory/dot-obsidian.md` | 25 | `.obsidian/` — File Inventory |
+| `docs/codewiki/inventory/dot-planning.md` | 71 | `.planning/` — File Inventory |
+| `docs/codewiki/inventory/dot-playwright-mcp.md` | 179 | `.playwright-mcp/` — Runtime Data Rollup |
+| `docs/codewiki/inventory/dot-vscode.md` | 18 | `.vscode/` — File Inventory |
+| `docs/codewiki/inventory/graphify-out.md` | 18 | `graphify-out/` — Runtime Data Rollup |
+| `docs/codewiki/inventory/infra.md` | 51 | `infra/` — File Inventory |
+| `docs/codewiki/inventory/knowledge.md` | 404 | `knowledge/` — File Inventory |
+| `docs/codewiki/inventory/logs.md` | 156 | `logs/` — Runtime Data Rollup |
+| `docs/codewiki/inventory/media.md` | 17 | `media/` — Runtime Data Rollup |
+| `docs/codewiki/inventory/nodes.md` | 90 | `nodes/` — File Inventory |
+| `docs/codewiki/inventory/projections.md` | 101 | `projections/` — File Inventory |
+| `docs/codewiki/inventory/runtime.md` | 19 | `runtime/` — Runtime Data Rollup |
+| `docs/codewiki/inventory/saas.md` | 12 | `saas/` — File Inventory |
+| `docs/codewiki/inventory/scripts.md` | 265 | `scripts/` — File Inventory |
+| `docs/codewiki/inventory/services.md` | 65 | `services/` — File Inventory |
+| `docs/codewiki/inventory/skills.md` | 669 | `skills/` — Skill Library Inventory |
+| `docs/codewiki/inventory/substrate.md` | 1,126 | `substrate/` — File Inventory |
+| `docs/codewiki/inventory/tests.md` | 486 | `tests/` — File Inventory |
+| `docs/codewiki/inventory/transports.md` | 268 | `transports/` — File Inventory |
+| `docs/codewiki/inventory/umh.md` | 20 | `umh/` — File Inventory |
+| `docs/codewiki/inventory/vault.md` | 18 | `vault/` — Runtime Data Rollup |
+| `docs/codewiki/services-runtime.md` | 140 | Services & Runtime — what is actually running |
+| `docs/codewiki/tech-stack.md` | 93 | Tech Stack |
 
 ## docs/design-system/ (2 files)
 

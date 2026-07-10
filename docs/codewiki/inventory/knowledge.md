@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: knowledge
-source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
+source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 ---
 
 # `knowledge/` — File Inventory
 
-**Files:** 344 regular + 3 symlinks · **Bytes:** 522,771
+**Files:** 344 regular + 3 symlinks · **Bytes:** 522,787
 
 [Narrative page](../dirs/knowledge.md)
 

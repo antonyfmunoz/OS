@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: logs
-source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
+source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 ---
 
 # `logs/` — Runtime Data Rollup
 
-**Files:** 212,532 regular + 1 symlinks · **Bytes:** 346,066,362
+**Files:** 212,664 regular + 1 symlinks · **Bytes:** 346,295,993
 
 [Narrative page](../dirs/logs.md)
 
@@ -16,19 +16,19 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 |---|---|---|---|---|
 | `logs/1password_audit.log` | 1 | 0 | 14,070 | 2026-07-05 |
 | `logs/archive` | 4 | 0 | 5,725,126 | 2026-06-17 |
-| `logs/audit.log` | 1 | 0 | 1,778,859 | 2026-07-10 |
-| `logs/bash_commands.log` | 1 | 0 | 16,020,871 | 2026-07-10 |
-| `logs/calendar_invites.log` | 1 | 0 | 1,080,727 | 2026-07-10 |
-| `logs/call_prep.log` | 1 | 0 | 1,294,120 | 2026-07-10 |
-| `logs/cc_auth_health.log` | 1 | 0 | 15,035,429 | 2026-07-10 |
+| `logs/audit.log` | 1 | 0 | 1,782,958 | 2026-07-10 |
+| `logs/bash_commands.log` | 1 | 0 | 16,062,022 | 2026-07-10 |
+| `logs/calendar_invites.log` | 1 | 0 | 1,081,005 | 2026-07-10 |
+| `logs/call_prep.log` | 1 | 0 | 1,294,474 | 2026-07-10 |
+| `logs/cc_auth_health.log` | 1 | 0 | 15,040,907 | 2026-07-10 |
 | `logs/cc_keepalive.log` | 1 | 0 | 39,052 | 2026-07-10 |
-| `logs/cc_session_health.log` | 1 | 0 | 3,324,537 | 2026-07-10 |
+| `logs/cc_session_health.log` | 1 | 0 | 3,325,509 | 2026-07-10 |
 | `logs/cpu_watchdog.log` | 1 | 0 | 51,377 | 2026-07-10 |
 | `logs/cron_emit.log` | 1 | 0 | 27,006 | 2026-07-10 |
-| `logs/day_reminder.log` | 1 | 0 | 2,641,954 | 2026-07-10 |
+| `logs/day_reminder.log` | 1 | 0 | 2,642,572 | 2026-07-10 |
 | `logs/deadlines.log` | 1 | 0 | 7,480 | 2026-06-04 |
-| `logs/decisions` | 77 | 0 | 153,933,500 | 2026-07-10 |
-| `logs/deferred` | 13 | 0 | 19,998,429 | 2026-07-10 |
+| `logs/decisions` | 77 | 0 | 154,035,724 | 2026-07-10 |
+| `logs/deferred` | 13 | 0 | 20,012,704 | 2026-07-10 |
 | `logs/device_sync.log` | 1 | 0 | 934 | 2026-06-28 |
 | `logs/discord_bot_errors.jsonl` | 1 | 0 | 259 | 2026-05-22 |
 | `logs/discord_clear.log` | 1 | 0 | 8,697 | 2026-07-10 |
@@ -126,26 +126,26 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 | `logs/nightly_20260710.log` | 1 | 0 | 140 | 2026-07-10 |
 | `logs/nightly_consolidation.log` | 1 | 0 | 1,239,187 | 2026-07-10 |
 | `logs/node_mesh.log` | 1 | 0 | 2,458 | 2026-05-22 |
-| `logs/noshow.log` | 1 | 0 | 2,537,834 | 2026-07-10 |
-| `logs/notion_sync.log` | 1 | 0 | 1,991,379 | 2026-07-10 |
-| `logs/notion_tasks_sync.log` | 1 | 0 | 971,171 | 2026-07-10 |
+| `logs/noshow.log` | 1 | 0 | 2,539,816 | 2026-07-10 |
+| `logs/notion_sync.log` | 1 | 0 | 1,992,459 | 2026-07-10 |
+| `logs/notion_tasks_sync.log` | 1 | 0 | 971,316 | 2026-07-10 |
 | `logs/nurture.log` | 1 | 0 | 198 | 2026-06-01 |
 | `logs/orchestrator.log` | 1 | 0 | 1,135,234 | 2026-06-04 |
-| `logs/orchestrator_heartbeat.json` | 1 | 0 | 365 | 2026-07-10 |
-| `logs/orchestrator_loop.log` | 1 | 0 | 35,683,792 | 2026-07-10 |
+| `logs/orchestrator_heartbeat.json` | 1 | 0 | 364 | 2026-07-10 |
+| `logs/orchestrator_loop.log` | 1 | 0 | 35,706,712 | 2026-07-10 |
 | `logs/orchestrator_state.json` | 1 | 0 | 1,321 | 2026-07-10 |
 | `logs/permissions.log` | 1 | 0 | 176,624 | 2026-07-10 |
 | `logs/pipeline_trace.jsonl` | 1 | 0 | 10,738,405 | 2026-04-29 |
 | `logs/portfolio_brief.log` | 1 | 0 | 40,175 | 2026-05-31 |
-| `logs/post_meeting.log` | 1 | 0 | 1,101,262 | 2026-07-10 |
+| `logs/post_meeting.log` | 1 | 0 | 1,101,542 | 2026-07-10 |
 | `logs/relay_queue` | 1 | 0 | 104,775 | 2026-04-28 |
 | `logs/scraper.log` | 1 | 0 | 3,276 | 2026-07-10 |
 | `logs/secret_rotation.log` | 1 | 0 | 849 | 2026-07-01 |
 | `logs/shim_monitor.log` | 1 | 0 | 1,575 | 2026-05-26 |
-| `logs/signals` | 211,114 | 0 | 49,675,794 | 2026-07-10 |
-| `logs/sync_all.log` | 1 | 0 | 5,134,456 | 2026-07-10 |
+| `logs/signals` | 211,246 | 0 | 49,706,011 | 2026-07-10 |
+| `logs/sync_all.log` | 1 | 0 | 5,137,640 | 2026-07-10 |
 | `logs/tool_mastery_research` | 1,045 | 0 | 2,300,936 | 2026-06-29 |
-| `logs/vision_relay.log` | 1 | 0 | 1,015,107 | 2026-07-10 |
+| `logs/vision_relay.log` | 1 | 0 | 1,015,482 | 2026-07-10 |
 | `logs/waiting_on.log` | 1 | 0 | 4,366 | 2026-06-04 |
 | `logs/week_architect.log` | 1 | 0 | 44,149 | 2026-06-01 |
 | `logs/weekly_20260517.log` | 1 | 0 | 128 | 2026-05-17 |
@@ -153,4 +153,4 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 | `logs/weekly_review.log` | 1 | 0 | 42,254 | 2026-06-01 |
 | `logs/workstation.jsonl` | 1 | 0 | 179,637 | 2026-05-09 |
 | `logs/workstation.jsonl.1` | 1 | 0 | 5,242,997 | 2026-04-28 |
-| **Total** | **212,532** | **1** | **346,066,362** | |
+| **Total** | **212,664** | **1** | **346,295,993** | |

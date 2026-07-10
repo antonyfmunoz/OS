@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: data
-source_sha: a5f09e48e253dafdfcecee94a8e54f16224bae43
+source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
 ---
 
 # `data/` — Runtime Data Rollup
 
-**Files:** 40,487 regular + 1 symlinks · **Bytes:** 38,456,019,041
+**Files:** 42,112 regular + 1 symlinks · **Bytes:** 38,465,167,533
 
 [Narrative page](../dirs/data.md)
 
@@ -26,9 +26,9 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 | `data/canonical_source_records` | 32 | 0 | 190,503 | 2026-05-05 |
 | `data/certification` | 6 | 0 | 1,122,622 | 2026-06-24 |
 | `data/chat_media` | 10 | 0 | 2,100,643 | 2026-07-10 |
-| `data/codebase_graph.json` | 1 | 0 | 63,042,239 | 2026-07-02 |
+| `data/codebase_graph.json` | 1 | 0 | 65,876,114 | 2026-07-10 |
 | `data/codebase_graph_merged.json` | 1 | 0 | 63,495,444 | 2026-07-02 |
-| `data/codebase_pages` | 35,582 | 0 | 24,379,626 | 2026-07-02 |
+| `data/codebase_pages` | 37,207 | 0 | 25,357,423 | 2026-07-10 |
 | `data/config` | 2 | 0 | 899 | 2026-05-26 |
 | `data/cu_rerun_packets` | 1 | 0 | 2,680 | 2026-05-05 |
 | `data/drive_cu_inventory` | 2 | 0 | 19,002 | 2026-05-05 |
@@ -45,11 +45,11 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 | `data/logs` | 0 | 1 | 0 | — |
 | `data/merged_graph.json` | 1 | 0 | 63,495,444 | 2026-07-02 |
 | `data/migration` | 30 | 0 | 1,524,086 | 2026-05-12 |
-| `data/node_summaries.json` | 1 | 0 | 17,278,913 | 2026-07-02 |
+| `data/node_summaries.json` | 1 | 0 | 18,121,476 | 2026-07-10 |
 | `data/notion_datasource_ids.sh` | 1 | 0 | 2,577 | 2026-05-19 |
 | `data/optimizer_state.json` | 1 | 0 | 99 | 2026-05-05 |
 | `data/orchestrator_state.json` | 1 | 0 | 1,920 | 2026-05-05 |
-| `data/palace.json` | 1 | 0 | 21,848 | 2026-07-02 |
+| `data/palace.json` | 1 | 0 | 11,353 | 2026-07-10 |
 | `data/platform_baseline.json` | 1 | 0 | 2,896 | 2026-07-01 |
 | `data/platform_fingerprint.json` | 1 | 0 | 2,782 | 2026-07-01 |
 | `data/playgrounds` | 9 | 0 | 5,128 | 2026-05-05 |
@@ -59,17 +59,17 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 | `data/registries` | 1 | 0 | 19,220 | 2026-05-09 |
 | `data/reports` | 20 | 0 | 19,128,142 | 2026-07-02 |
 | `data/repos` | 191 | 0 | 3,999,112 | 2026-05-22 |
-| `data/runtime` | 1,827 | 0 | 48,110,455 | 2026-07-10 |
+| `data/runtime` | 1,827 | 0 | 48,110,458 | 2026-07-10 |
 | `data/runtime_proofs` | 1 | 0 | 453 | 2026-05-07 |
 | `data/sandbox_smoke_report.json` | 1 | 0 | 1,214 | 2026-05-05 |
 | `data/sandboxes` | 3 | 0 | 489 | 2026-05-05 |
 | `data/sessions` | 1 | 0 | 310 | 2026-05-24 |
 | `data/snapshots` | 6 | 0 | 14,554 | 2026-05-25 |
 | `data/system` | 4 | 0 | 86,570 | 2026-05-12 |
-| `data/umh` | 2,416 | 0 | 3,690,889,216 | 2026-07-10 |
+| `data/umh` | 2,416 | 0 | 3,695,393,965 | 2026-07-10 |
 | `data/vault` | 104 | 0 | 376,221 | 2026-04-27 |
 | `data/voice_acks` | 6 | 0 | 251,288 | 2026-05-22 |
 | `data/work_queue` | 1 | 0 | 3,022 | 2026-05-06 |
 | `data/workbook_framework.md` | 1 | 0 | 1,355 | 2026-05-05 |
 | `data/workflow_state` | 4 | 0 | 6,520 | 2026-05-05 |
-| **Total** | **40,487** | **1** | **38,456,019,041** | |
+| **Total** | **42,112** | **1** | **38,465,167,533** | |
