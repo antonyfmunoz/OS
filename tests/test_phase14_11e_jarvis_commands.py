@@ -1,4 +1,4 @@
-"""Phase 14.11E — Jarvis command integration tests for agent/task/work-packet commands."""
+"""Phase 14.11E — Command router integration tests for agent/task/work-packet commands."""
 
 from __future__ import annotations
 
@@ -29,63 +29,63 @@ class FakeReq:
 
 class TestNewIntentClassification:
     def test_show_active_agents(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("show active agents") == CommandIntent.AGENT_QUERY
 
     def test_what_are_agents_doing(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("what are the agents doing") == CommandIntent.AGENT_QUERY
 
     def test_fleet_status(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("fleet status") == CommandIntent.AGENT_QUERY
 
     def test_agent_list(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("agent list") == CommandIntent.AGENT_QUERY
 
     def test_what_is_blocked(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("what is blocked") == CommandIntent.BLOCKED_QUERY
 
     def test_show_blockers(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("show blockers") == CommandIntent.BLOCKED_QUERY
 
     def test_whats_stuck(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("what's stuck") == CommandIntent.BLOCKED_QUERY
 
     def test_pause_work_packet(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("pause this work packet") == CommandIntent.PACKET_CONTROL
 
     def test_resume_work_packet(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("resume this work packet") == CommandIntent.PACKET_CONTROL
 
     def test_stop_work_packet(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("stop this work packet") == CommandIntent.PACKET_CONTROL
 
     def test_route_to_agent(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("route this to the right agent") == CommandIntent.PACKET_CONTROL
 
     def test_command_center(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("command center") == CommandIntent.COMMAND_CENTER_QUERY
 
     def test_full_status(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("full status") == CommandIntent.COMMAND_CENTER_QUERY
 
     def test_system_overview(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("system overview") == CommandIntent.COMMAND_CENTER_QUERY
 
     def test_existing_intents_preserved(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("what is happening") == CommandIntent.STATUS_QUERY
         assert classify_intent("catch me up") == CommandIntent.RESUME_QUERY
         assert classify_intent("what needs approval") == CommandIntent.APPROVAL_QUERY
@@ -93,48 +93,48 @@ class TestNewIntentClassification:
         assert classify_intent("show dashboard") == CommandIntent.COCKPIT_NAVIGATION
 
     def test_case_insensitive(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("SHOW ACTIVE AGENTS") == CommandIntent.AGENT_QUERY
         assert classify_intent("WHAT IS BLOCKED") == CommandIntent.BLOCKED_QUERY
 
 
 class TestPacketControlActions:
     def test_pause_action(self) -> None:
-        from substrate.workstation.jarvis_command import resolve_packet_control_action
+        from substrate.workstation.command_router import resolve_packet_control_action
         assert resolve_packet_control_action("pause this work packet") == "pause"
 
     def test_resume_action(self) -> None:
-        from substrate.workstation.jarvis_command import resolve_packet_control_action
+        from substrate.workstation.command_router import resolve_packet_control_action
         assert resolve_packet_control_action("resume the work packet") == "resume"
 
     def test_stop_action(self) -> None:
-        from substrate.workstation.jarvis_command import resolve_packet_control_action
+        from substrate.workstation.command_router import resolve_packet_control_action
         assert resolve_packet_control_action("stop work packet") == "stop"
 
     def test_route_action(self) -> None:
-        from substrate.workstation.jarvis_command import resolve_packet_control_action
+        from substrate.workstation.command_router import resolve_packet_control_action
         assert resolve_packet_control_action("route this to executor") == "route"
 
     def test_unknown_action(self) -> None:
-        from substrate.workstation.jarvis_command import resolve_packet_control_action
+        from substrate.workstation.command_router import resolve_packet_control_action
         assert resolve_packet_control_action("foobar") == ""
 
 
 class TestGovernanceNewIntents:
     def test_agent_query_informational(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, GovernanceRequirement, governance_requirement
+        from substrate.workstation.command_router import CommandIntent, GovernanceRequirement, governance_requirement
         assert governance_requirement(CommandIntent.AGENT_QUERY) == GovernanceRequirement.INFORMATIONAL
 
     def test_blocked_query_informational(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, GovernanceRequirement, governance_requirement
+        from substrate.workstation.command_router import CommandIntent, GovernanceRequirement, governance_requirement
         assert governance_requirement(CommandIntent.BLOCKED_QUERY) == GovernanceRequirement.INFORMATIONAL
 
     def test_command_center_informational(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, GovernanceRequirement, governance_requirement
+        from substrate.workstation.command_router import CommandIntent, GovernanceRequirement, governance_requirement
         assert governance_requirement(CommandIntent.COMMAND_CENTER_QUERY) == GovernanceRequirement.INFORMATIONAL
 
     def test_packet_control_requires_governance(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, GovernanceRequirement, governance_requirement
+        from substrate.workstation.command_router import CommandIntent, GovernanceRequirement, governance_requirement
         assert governance_requirement(CommandIntent.PACKET_CONTROL) == GovernanceRequirement.REQUIRES_GOVERNANCE
 
 

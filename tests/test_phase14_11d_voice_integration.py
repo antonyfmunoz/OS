@@ -35,22 +35,22 @@ class FakeReq:
 
 
 class TestVoiceCommandRouting:
-    """Voice transcript → same Jarvis command path."""
+    """Voice transcript → same command router path."""
 
     def test_voice_transcript_routes_to_status(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("what is happening") == CommandIntent.STATUS_QUERY
 
     def test_voice_transcript_routes_to_resume(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("catch me up") == CommandIntent.RESUME_QUERY
 
     def test_voice_transcript_routes_to_approval(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("what needs approval") == CommandIntent.APPROVAL_QUERY
 
     def test_voice_transcript_routes_to_mode(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("start night cycle") == CommandIntent.MODE_SWITCH
 
     def test_voice_source_creates_activation(self) -> None:
@@ -135,7 +135,7 @@ class TestDiscordCommandAlignment:
         assert sig.source == "discord_remote_command"
 
     def test_discord_text_routes_to_same_intent(self) -> None:
-        from substrate.workstation.jarvis_command import CommandIntent, classify_intent
+        from substrate.workstation.command_router import CommandIntent, classify_intent
         assert classify_intent("what is happening") == CommandIntent.STATUS_QUERY
         assert classify_intent("what needs approval") == CommandIntent.APPROVAL_QUERY
 

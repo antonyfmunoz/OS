@@ -51,7 +51,7 @@ from substrate.control_plane.router.control_plane_router_v1 import (
     load_config as load_router_config,
 )
 from adapters.adapter_engine.adapter_registry_contracts import AdapterRegistry
-from transports.presence.handlers.report_handlers import (
+from transports.presence.handlers.reports import (
     _handle_adapter_report,
     _handle_capability_report,
     _handle_orchestration_report,

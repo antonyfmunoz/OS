@@ -629,7 +629,7 @@ def _summary(request: Request) -> dict[str, Any]:
 # ── Mutation routes (governance-gated, operator-authenticated) ─────────
 
 _VALID_SOURCE_TYPES = frozenset({
-    "jarvis_command", "cockpit_ui", "operator_manual", "cadence_auto",
+    "voice_command", "cockpit_ui", "operator_manual", "cadence_auto",
 })
 
 _MAX_INTENT_LEN = 2000
@@ -708,9 +708,9 @@ async def _work_packet_create(request: Request) -> dict[str, Any]:
     if not isinstance(constraints, list):
         constraints = []
     constraints = constraints[:_MAX_CONSTRAINTS]
-    source_type = body.get("source_type", "jarvis_command")
+    source_type = body.get("source_type", "voice_command")
     if source_type not in _VALID_SOURCE_TYPES:
-        source_type = "jarvis_command"
+        source_type = "voice_command"
     source_id = _sanitize_text(str(body.get("source_id", "")), 200)
 
     def _do_create():

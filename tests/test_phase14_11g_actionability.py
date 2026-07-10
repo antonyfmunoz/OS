@@ -48,7 +48,7 @@ class TestWorkspacePanelTarget:
         assert result["panel_target"] == "commandcenter"
 
     def test_nav_map_command_center(self) -> None:
-        from substrate.workstation.jarvis_command import _NAV_MAP
+        from substrate.workstation.command_router import _NAV_MAP
         assert _NAV_MAP["command center"] == "commandcenter"
 
 
@@ -196,7 +196,7 @@ class TestWorkPacketCreate:
         from transports.api.cockpit_command_center_routes import _work_packet_create
         result = _run(_work_packet_create(FakeReq(body={
             "user_intent": "Fix the auth middleware timeout bug",
-            "source_type": "jarvis_command",
+            "source_type": "voice_command",
         })))
         assert result["ok"] is True
         pkt = result["packet"]
@@ -235,11 +235,11 @@ class TestWorkPacketCreate:
         assert result["source_env"] in ("vps", "container", "macos", "windows", "unknown")
 
 
-# ── E2E: Jarvis command → work packet ──
+# ── E2E: Voice command → work packet ──
 
 
-class TestJarvisToWorkPacketE2E:
-    def test_jarvis_command_creates_packet(self) -> None:
+class TestCommandToWorkPacketE2E:
+    def test_voice_command_creates_packet(self) -> None:
         from transports.api.cockpit_presence_routes import _command
         from transports.api.cockpit_command_center_routes import _work_packet_create
         from substrate.organism.work_packet import load_packets
@@ -249,7 +249,7 @@ class TestJarvisToWorkPacketE2E:
         draft_text = cmd["data"]["draft_text"]
         create = _run(_work_packet_create(FakeReq(body={
             "user_intent": draft_text,
-            "source_type": "jarvis_command",
+            "source_type": "voice_command",
         })))
         assert create["ok"]
         all_packets = load_packets()
