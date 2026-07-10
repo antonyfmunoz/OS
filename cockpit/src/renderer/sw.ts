@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 declare const self: ServiceWorkerGlobalScope
 
-const CACHE_NAME = 'umh-shell-v1'
+const CACHE_NAME = 'umh-shell-v2'
 const SHELL_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/offline.html']
 
 interface PushPayload {
@@ -87,10 +87,23 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     return
   }
 
-  // Navigation requests — network-first, offline fallback
+  // Navigation requests (the HTML shell) — ALWAYS network-first with an explicit
+  // no-cache reload so a new deploy is picked up immediately on the next visit,
+  // even on iOS Safari which otherwise serves a stale shell from its own HTTP
+  // cache. Refresh the cached copy on success; fall back to cache then offline.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('/offline.html').then((r) => r || new Response('Offline')))
+      fetch(new Request(request, { cache: 'reload' }))
+        .then((response) => {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put('/', clone))
+          return response
+        })
+        .catch(() =>
+          caches
+            .match(request)
+            .then((r) => r || caches.match('/offline.html').then((o) => o || new Response('Offline')))
+        )
     )
     return
   }
