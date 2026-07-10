@@ -53,6 +53,7 @@ machine-readable: `_manifest.json`
 | [health-findings.md](health-findings.md) | Audit findings: dead code, broken symlinks, doc-reality gaps, risks |
 | [audit-2026-07-10.md](audit-2026-07-10.md) | Consolidated audit report for this snapshot |
 | [vision-alignment.md](vision-alignment.md) | Master-doc vision ↔ codebase alignment: what UMH is (industry terms), maturity tiers, composition gap, bridge roadmap |
+| [canonical-registry.md](canonical-registry.md) | The essentialist master taxonomy: every law, layer, loop, registry, role, mode from the master doc — one entry, one home |
 
 ## Directory pages
 
