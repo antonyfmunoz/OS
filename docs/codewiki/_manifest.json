@@ -1,0 +1,272 @@
+{
+  "raw_total_files": 716891,
+  "accounted_files": 716891,
+  "inventoried": {
+    "files": 4523,
+    "links": 37
+  },
+  "rollup": {
+    "files": 256113,
+    "links": 2
+  },
+  "excluded": {
+    "__pycache__": {
+      "files": 2981,
+      "links": 0,
+      "bytes": 60981610
+    },
+    ".claire/worktrees": {
+      "files": 3,
+      "links": 0,
+      "bytes": 10774
+    },
+    ".claude/worktrees": {
+      "files": 439792,
+      "links": 733,
+      "bytes": 10241297277
+    },
+    ".git": {
+      "files": 3070,
+      "links": 1,
+      "bytes": 201028627
+    },
+    ".mypy_cache": {
+      "files": 18,
+      "links": 0,
+      "bytes": 23539936
+    },
+    ".pytest_cache": {
+      "files": 5,
+      "links": 0,
+      "bytes": 5197536
+    },
+    ".ruff_cache": {
+      "files": 82,
+      "links": 0,
+      "bytes": 143333
+    },
+    "cockpit/out": {
+      "files": 6,
+      "links": 0,
+      "bytes": 2031232
+    },
+    "cockpit/dist-web": {
+      "files": 875,
+      "links": 0,
+      "bytes": 23305957
+    },
+    "cockpit/dist": {
+      "files": 12,
+      "links": 0,
+      "bytes": 3592173
+    },
+    "node_modules": {
+      "files": 9411,
+      "links": 23,
+      "bytes": 228797798
+    }
+  },
+  "dirs": {
+    ".agents": {
+      "treatment": "code",
+      "files": 183,
+      "links": 0,
+      "bytes": 3024145
+    },
+    ".claire": {
+      "treatment": "code",
+      "files": 0,
+      "links": 0,
+      "bytes": 0
+    },
+    ".claude": {
+      "treatment": "code",
+      "files": 157,
+      "links": 18,
+      "bytes": 2237329
+    },
+    "_root-files": {
+      "treatment": "code",
+      "files": 35,
+      "links": 0,
+      "bytes": 250428
+    },
+    ".github": {
+      "treatment": "code",
+      "files": 1,
+      "links": 0,
+      "bytes": 2680
+    },
+    ".obsidian": {
+      "treatment": "code",
+      "files": 8,
+      "links": 0,
+      "bytes": 2613
+    },
+    ".planning": {
+      "treatment": "code",
+      "files": 39,
+      "links": 0,
+      "bytes": 348539
+    },
+    ".playwright-mcp": {
+      "treatment": "rollup",
+      "files": 162,
+      "links": 0,
+      "bytes": 30269065
+    },
+    ".vscode": {
+      "treatment": "code",
+      "files": 1,
+      "links": 0,
+      "bytes": 38
+    },
+    "adapters": {
+      "treatment": "code",
+      "files": 101,
+      "links": 0,
+      "bytes": 780940
+    },
+    "agents": {
+      "treatment": "code",
+      "files": 11,
+      "links": 0,
+      "bytes": 50436
+    },
+    "cockpit": {
+      "treatment": "code",
+      "files": 431,
+      "links": 0,
+      "bytes": 4598832
+    },
+    "config": {
+      "treatment": "code",
+      "files": 1,
+      "links": 0,
+      "bytes": 7862
+    },
+    "data": {
+      "treatment": "rollup",
+      "files": 40487,
+      "links": 1,
+      "bytes": 38456019041
+    },
+    "docker": {
+      "treatment": "code",
+      "files": 3,
+      "links": 0,
+      "bytes": 1832
+    },
+    "docs": {
+      "treatment": "code",
+      "files": 658,
+      "links": 0,
+      "bytes": 6488078
+    },
+    "graphify-out": {
+      "treatment": "rollup",
+      "files": 1,
+      "links": 0,
+      "bytes": 43661207
+    },
+    "infra": {
+      "treatment": "code",
+      "files": 19,
+      "links": 0,
+      "bytes": 60510
+    },
+    "knowledge": {
+      "treatment": "code",
+      "files": 344,
+      "links": 3,
+      "bytes": 522771
+    },
+    "logs": {
+      "treatment": "rollup",
+      "files": 212532,
+      "links": 1,
+      "bytes": 346066362
+    },
+    "media": {
+      "treatment": "rollup",
+      "files": 0,
+      "links": 0,
+      "bytes": 0
+    },
+    "nodes": {
+      "treatment": "code",
+      "files": 58,
+      "links": 0,
+      "bytes": 393902
+    },
+    "projections": {
+      "treatment": "code",
+      "files": 69,
+      "links": 0,
+      "bytes": 529495
+    },
+    "runtime": {
+      "treatment": "rollup",
+      "files": 2,
+      "links": 0,
+      "bytes": 48181968
+    },
+    "saas": {
+      "treatment": "code",
+      "files": 0,
+      "links": 0,
+      "bytes": 0
+    },
+    "scripts": {
+      "treatment": "code",
+      "files": 213,
+      "links": 0,
+      "bytes": 9917683
+    },
+    "services": {
+      "treatment": "code",
+      "files": 43,
+      "links": 0,
+      "bytes": 726549
+    },
+    "skills": {
+      "treatment": "skill",
+      "files": 466,
+      "links": 16,
+      "bytes": 6794042
+    },
+    "substrate": {
+      "treatment": "code",
+      "files": 1009,
+      "links": 0,
+      "bytes": 12452560
+    },
+    "tests": {
+      "treatment": "code",
+      "files": 449,
+      "links": 0,
+      "bytes": 6622193
+    },
+    "transports": {
+      "treatment": "code",
+      "files": 221,
+      "links": 0,
+      "bytes": 2047311
+    },
+    "umh": {
+      "treatment": "code",
+      "files": 3,
+      "links": 0,
+      "bytes": 139588
+    },
+    "vault": {
+      "treatment": "rollup",
+      "files": 2929,
+      "links": 0,
+      "bytes": 15799755
+    }
+  },
+  "generated_at": "2026-07-10T20:18:00.181774+00:00",
+  "git_sha": "a5f09e48e253dafdfcecee94a8e54f16224bae43",
+  "scan_root": "/opt/OS"
+}
