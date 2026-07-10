@@ -52,6 +52,7 @@ machine-readable: `_manifest.json`
 | [conventions.md](conventions.md) | The operating laws and where each is enforced |
 | [health-findings.md](health-findings.md) | Audit findings: dead code, broken symlinks, doc-reality gaps, risks |
 | [audit-2026-07-10.md](audit-2026-07-10.md) | Consolidated audit report for this snapshot |
+| [vision-alignment.md](vision-alignment.md) | Master-doc vision ↔ codebase alignment: what UMH is (industry terms), maturity tiers, composition gap, bridge roadmap |
 
 ## Directory pages
 
