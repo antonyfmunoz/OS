@@ -388,7 +388,7 @@ tailnet
     "group:founders": ["antony@munoz.example"]
   },
   "hosts": {
-    "vps-prod": "100.77.233.50"
+    "vps-prod": "<your-vps-ip>"
   },
   "acls": [
     { "action": "accept", "src": ["group:founders"], "dst": ["*:*"] },
@@ -991,7 +991,7 @@ No exposed ports. No bastion host. The tailnet *is* the bastion.
 
 ## EOS Usage Patterns
 
-**Devices on tailnet:** VPS (`os-vps`, 100.77.233.50), Windows dev box,
+**Devices on tailnet:** VPS (`os-vps`, <your-vps-ip>), Windows dev box,
 iPhone (Termius), iPad (Safari code-server), laptop.
 
 **Tags:** `tag:server` for VPS, `tag:agent` for ephemeral containers

@@ -48,7 +48,7 @@ your tailnet and what tag they carry*. Everything else follows from policy.
 ## EOS Integration
 
 Tailscale is the private network layer for every EOS device. The VPS
-(`100.77.233.50`) is the hub, and every dev surface reaches it over the tailnet:
+(`<your-vps-ip>`) is the hub, and every dev surface reaches it over the tailnet:
 
 - **VPS (`os-vps`)** — primary node, tagged `tag:server`, key expiry
   **disabled** in admin console, Tailscale SSH enabled, services bound to

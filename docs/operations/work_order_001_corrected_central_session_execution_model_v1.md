@@ -60,7 +60,7 @@ Local worker → Message Bus → Advisor → Founder's active interface:
   APPROVAL_NEEDED {
     action: "open_google_drive",
     target: "https://drive.google.com",
-    context: "Phase 1 Discovery — opening Google Drive for account antonyfm@empyreanstudios.co using GUI computer-use (visible screen)",
+    context: "Phase 1 Discovery — opening Google Drive for the operator using GUI computer-use (visible screen)",
     risk_level: "LOW"
   }
 
@@ -92,7 +92,7 @@ If wrong account:
   Local worker → Advisor:
     ERROR {
       error_type: "AUTH",
-      description: "Wrong Google account active. Expected antonyfm@empyreanstudios.co, found [other]",
+      description: "Wrong Google account active. Expected the operator, found [other]",
       recoverable: false
     }
   → Worker PAUSES

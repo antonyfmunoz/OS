@@ -543,7 +543,7 @@ bash cockpit/deploy.sh        # ALWAYS this
 
 ### Devices
 - **VPS** (`srv1500858`) — Hostinger, lightweight orchestrator only. Runs all Docker services. No heavy compute.
-- **Beast** (`antonys beast pc`) — Windows workstation, GPU. Heavy compute, media processing, browser verification.
+- **Beast** (Windows workstation, see `infra/device_registry.json`) — GPU. Heavy compute, media processing, browser verification.
 - Connected via Tailscale private network. SSH between devices.
 
 Device names come from `infra/device_registry.json`. Never hardcode raw strings like "VPS" or "Beast" — use the registry.

@@ -20,7 +20,7 @@
 | **Aesthetic** | Tactical luxury | `CLAUDE.md` |
 | **Voice** | Bold, direct, authoritative | `CLAUDE.md` |
 | **Working style** | Real code, step by step, no assumptions, no hedging | `CLAUDE.md` |
-| **Email** | antonyfm@empyreanstudios.co | `memory/MEMORY.md` |
+| **Email** | `${UMH_OPERATOR_EMAIL}` | `memory/MEMORY.md` |
 
 ### Current North Stars
 

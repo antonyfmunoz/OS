@@ -46,7 +46,7 @@ If Chrome is not visible, do not proceed with observation.
 | # | Question | Expected | Actual |
 |---|----------|----------|--------|
 | 1 | Did Chrome open Google Drive? | YES | _____ |
-| 2 | Was the correct Google account/profile visible? | YES (antonyfm@empyreanstudios.co or personal) | _____ |
+| 2 | Was the correct Google account/profile visible? | YES (the operator or personal) | _____ |
 | 3 | How many My Drive files were shown? | 26 | _____ |
 | 4 | Did Gmail open or account switching occur? | NO | _____ |
 | 5 | Were any files modified, deleted, moved, or shared? | NO | _____ |

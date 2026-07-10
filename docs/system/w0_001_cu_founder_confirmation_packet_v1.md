@@ -20,7 +20,7 @@ Confirm the following about W-GDRIVE-CU-001:
 
 - [ ] Chrome opened on your local Windows desktop
 - [ ] Google Drive (drive.google.com) loaded in Chrome
-- [ ] Correct account visible: antonyfm@empyreanstudios.co
+- [ ] Correct account visible: `${UMH_OPERATOR_EMAIL}`
 - [ ] Correct profile: "Antony (empyreanstudios.co)"
 - [ ] My Drive view loaded with your files
 - [ ] No Gmail opened

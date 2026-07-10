@@ -2,7 +2,7 @@
 
 **Phase**: 94D.9S
 **Work Order**: WO-LOCAL-PILOT-GDRIVE-GDOCS-001
-**Target Account**: antonyfm@empyreanstudios.co
+**Target Account**: ${UMH_OPERATOR_EMAIL}
 **Date**: 2026-05-04
 
 ---
@@ -57,7 +57,7 @@ START
 ```
 secret_ref: GOOGLE_ANTONYFM_PASSWORD
 scope: google_workspace
-account: antonyfm@empyreanstudios.co
+account: ${UMH_OPERATOR_EMAIL}
 backend: local_env
 path: ~/.umh/secrets/.env
 ```
@@ -82,7 +82,7 @@ path: ~/.umh/secrets/.env
 ## 5. Approval Flow
 
 ```
-Worker → "LOGIN_REQUIRED for antonyfm@empyreanstudios.co. Use secret-assisted login?"
+Worker → "LOGIN_REQUIRED for the operator. Use secret-assisted login?"
 Founder → "APPROVE" or "MANUAL_LOGIN" or "CANCEL"
 
 If APPROVE:

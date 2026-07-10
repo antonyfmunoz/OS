@@ -820,7 +820,7 @@ classifies it, drafts responses, and presents only what needs attention.
 ### Recipe: Re-authenticate GWS CLI
 ```bash
 # 1. SSH to VPS
-ssh root@100.77.233.50
+ssh root@${UMH_VPS_IP}
 
 # 2. Run interactive login
 npx @googleworkspace/cli auth login

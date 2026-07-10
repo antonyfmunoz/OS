@@ -182,13 +182,82 @@ _EXCLUDES = {
     ".next/",
     "coverage/",
     "data/",            # runtime state (jsonl logs, projections) — not source
-    "saas/",
-    "skills/",          # skill bodies narrate the instance; separate surface
     "tests/",           # tests assert on instance values as fixtures
     "package-lock.json",
     "yarn.lock",
     "pnpm-lock.yaml",
 }
+
+# ── Layer-aware exemption (code vs instance/projection/history) ───────────────
+# "Instance language" is a LEAK only where the artifact is tenant-neutral shipping
+# PRODUCT. It is CORRECT where the artifact IS this instance's data/projection/
+# history. These prefixes name the latter — exempt from the SOFT/brand + infra
+# rules. PII (founder email) is scrubbed even here (see _PII_CATEGORIES below).
+_PROJECTION_EXEMPT_PREFIXES = (
+    # Projection skills — subject IS the business (outreach, content, playbooks).
+    # Tracked like projections/, not tenant-neutral capability templates.
+    "skills/Content/", "skills/CustomerSuccess/", "skills/Marketing/",
+    "skills/Ops/", "skills/Outreach/", "skills/Research/", "skills/Sales/",
+    "skills/content/",
+    # Operator instruction / setup docs describing THIS deployment (like a
+    # filled-in .env is for THIS tenant): CLAUDE.md, AGENTS.md, .claude/**, .planning/**.
+    ".claude/", ".agents/skills/",
+    ".planning/",
+    # Historical records — frozen like git log. Rewriting them destroys provenance.
+    "docs/audits/", "docs/operations/", "docs/system/", "docs/superpowers/specs/",
+)
+
+# Root-level single-file operator docs (not prefixes) that describe this instance.
+_INSTANCE_DOC_FILES = {"CLAUDE.md", "AGENTS.md", "CLAUDE.local.md", "README.md"}
+
+# HARD categories = secrets / infra / account identifiers. A leak of these is
+# fatal even in prose/docs. SOFT categories (brand/company/product/founder names,
+# ai_name, session/node ids) are acceptable in prose that DESCRIBES the example
+# instance, but never in code.
+_HARD_CATEGORIES = {"account_id", "infra_ip", "op_vault"}
+
+# PII that must be scrubbed EVERYWHERE, even in exempt instance/history docs:
+# the founder's email address. Enforced by the account_id email patterns; we
+# detect PII by matching the email-specific regexes on the line.
+_PII_EMAIL_RE = re.compile(
+    r"antonyfm@[A-Za-z0-9.\-]+|\b\w+@(?:empyreanstudios\.co|theempyreancreative\.com)\b",
+    re.IGNORECASE,
+)
+
+# Prose file types: instance NAMES are acceptable (they describe the example),
+# only HARD leaks fire. Code types fire on ALL categories.
+_PROSE_EXTENSIONS = {".md", ".mdx", ".txt", ".rst"}
+
+
+def _is_pii_email_match(pattern: "re.Pattern[str]") -> bool:
+    """True if this compiled pattern is one of the founder-email PII patterns —
+    the only thing that fires in exempt (instance/history) files."""
+    return "antonyfm@" in pattern.pattern or "empyreanstudios" in pattern.pattern
+
+
+# A date stamp (YYYY-MM-DD) in the filename marks a frozen historical/provenance
+# record (migration logs, dated governance records) — same class as docs/audits/,
+# exempt wherever it lives. Rewriting it destroys provenance.
+_DATED_RECORD_RE = re.compile(r"20\d{2}-\d{2}-\d{2}")
+
+
+def _scan_mode(rel: str, suffix: str) -> str:
+    """Classify a file → how strictly to scan it.
+    'code'   — all categories (tenant-neutral shipping code).
+    'prose'  — HARD categories only (docs/skills prose that may name the example).
+    'exempt' — PII only (this instance's own data/projection/history docs).
+    """
+    fname = rel.rsplit("/", 1)[-1]
+    is_exempt_path = (
+        rel in _INSTANCE_DOC_FILES
+        or any(rel.startswith(p) for p in _PROJECTION_EXEMPT_PREFIXES)
+        or (suffix in _PROSE_EXTENSIONS and _DATED_RECORD_RE.search(fname) is not None)
+    )
+    if is_exempt_path:
+        return "exempt"
+    if suffix in _PROSE_EXTENSIONS:
+        return "prose"
+    return "code"
 
 # INSTANCE-DATA FILES — the canonical per-tenant sources. Tenant data BELONGS
 # here (this IS the separation: data lives in these, code reads them). They are
@@ -204,6 +273,7 @@ _SCANNED_EXTENSIONS = {
     ".sh", ".bat", ".ps1",
     ".yaml", ".yml", ".json", ".toml", ".tpl", ".ini", ".cfg",
     ".html", ".css",
+    ".md", ".mdx", ".txt", ".rst",   # docs/skills prose — HARD leaks + PII fire here
 }
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -246,6 +316,7 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
     violations: list[dict[str, str]] = []
     rel_path = str(filepath.relative_to(_REPO_ROOT))
     legacy_cats = LEGACY_INSTANCE_LEAKS.get(rel_path, None)
+    mode = _scan_mode(rel_path, filepath.suffix)
 
     try:
         lines = filepath.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -266,6 +337,17 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
                     continue
                 # Env-default vault fallback is the sanctioned seam, allowed anywhere.
                 if category == "op_vault" and _is_sanctioned_op_vault_default(line):
+                    continue
+                # Layer-aware strictness (PER-MATCHED-CATEGORY, not per-line — a
+                # line may hold both an exempt infra ref AND a PII email):
+                #  code   → every category is a leak.
+                #  prose  → only HARD (secret/infra/account) leaks; brand NAMES
+                #           are acceptable when describing the example instance.
+                #  exempt → this instance's own data/projection/history; ONLY the
+                #           founder-email PII is scrubbed, nothing else.
+                if mode == "exempt" and not _is_pii_email_match(pattern):
+                    continue
+                if mode == "prose" and category not in _HARD_CATEGORIES:
                     continue
                 violations.append(
                     {

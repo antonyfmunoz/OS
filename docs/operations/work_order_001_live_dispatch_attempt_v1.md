@@ -90,7 +90,7 @@ The local CC session will ask for approval at each gate:
 | # | Approval prompt | When |
 |---|----------------|------|
 | 1 | "Open Google Drive?" | Before navigating to drive.google.com |
-| 2 | "Verify account is antonyfm@empyreanstudios.co?" | After Drive loads |
+| 2 | "Verify account is the operator?" | After Drive loads |
 | 3 | "Open folder '[name]'?" | For each folder browse |
 | 4 | "Open and read '[title]'?" | For each document read |
 | 5 | "Summarize content of '[title]'?" | For deep reads |

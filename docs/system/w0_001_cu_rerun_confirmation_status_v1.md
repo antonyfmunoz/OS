@@ -19,7 +19,7 @@ Purpose: Track confirmation status of CU rerun results
 A successful rerun requires ALL of:
 1. Founder physically present at Windows desktop
 2. Chrome opens with Google Drive
-3. Correct account (antonyfm@empyreanstudios.co) visible
+3. Correct account (the operator) visible
 4. 26 My Drive files detected via accessibility tree
 5. API parity confirmed (26/26)
 6. Governance clean (no Playwright/CDP/screenshots/Gmail/mutation)

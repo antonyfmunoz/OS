@@ -8,7 +8,7 @@ Declared truth is not source truth. `docs/SYSTEM_ARCHITECTURE.md`, `data/repos/*
 and partial *copies* of it. They are not the body. The actual projection
 application code (frontend, backend, product schema, product workflows) lives on
 the **Beast** — the Windows development node (`beast` / `desktop-lvguiq9` /
-`100.74.199.102`, repos root `C:\dev\dev\`).
+`<beast-ip>`, repos root `C:\dev\dev\`).
 
 Therefore:
 
@@ -24,7 +24,7 @@ forbids.
 
 | Tier | What it is | Where | Authority |
 |---|---|---|---|
-| 1. Canonical GitHub source | the shared hub of record | `github.com/antonyfmunoz/<Repo>.git` | canonical, but a *push target* — can lag the Beast |
+| 1. Canonical GitHub source | the shared hub of record | `github.com/<your-org>/<Repo>.git` | canonical, but a *push target* — can lag the Beast |
 | 2. **Beast Windows working tree** | the **actual live source body** | `C:\dev\dev\<Repo>\` on the Beast | **the source of truth** — may hold unpushed/uncommitted work |
 | 3. VPS `/opt/OS` mirror / snapshot | read-only reference copy | `data/repos/<repo>/` | mirror only — NEVER the app body; may be schema-only |
 | 4. Deployed runtime / health surface | the running product | `public_url` + `health_url` in `projection_registry.json` | runtime truth, not source truth |
@@ -62,9 +62,9 @@ active). Observed working trees at `C:\dev\dev\`:
 
 | Projection | Beast path | git remote | branch | HEAD | dirty | upstream | client/server |
 |---|---|---|---|---|---|---|---|
-| EntrepreneurOS (EOS) | `C:\dev\dev\EntrepreneurOS` | `antonyfmunoz/EntrepreneurOS.git` | `feature/company-system` | `17ceaab` | 0 (clean) | tracks `origin/feature/company-system` | both present |
-| CreatorOS | `C:\dev\dev\CreatorOS` | `antonyfmunoz/CreatorOS.git` | `main` | `ca4e161` | 1 | tracks `origin/main` | both present |
-| LyfeOS | `C:\dev\dev\LyfeOS` | `antonyfmunoz/LYFEOS.git` | `main` | `536b8888` | 29 | `origin/main` **[ahead 19]** | both present |
+| EntrepreneurOS (EOS) | `C:\dev\dev\EntrepreneurOS` | `<your-org>/EntrepreneurOS.git` | `feature/company-system` | `17ceaab` | 0 (clean) | tracks `origin/feature/company-system` | both present |
+| CreatorOS | `C:\dev\dev\CreatorOS` | `<your-org>/CreatorOS.git` | `main` | `ca4e161` | 1 | tracks `origin/main` | both present |
+| LyfeOS | `C:\dev\dev\LyfeOS` | `<your-org>/LYFEOS.git` | `main` | `536b8888` | 29 | `origin/main` **[ahead 19]** | both present |
 
 ### Drift the probe exposed (declaration/mirror vs Beast truth)
 

@@ -432,7 +432,7 @@ Key files: `transports/cli/main.py`, `commands.py`, `client.py`, `theme.py`, `di
 | Transport | `transports/discord/signal_factory.py` |
 | Capabilities | Full system control, NLP routing, text/voice/images/documents |
 | Features | Morning brief, proactive alerts, approval queue, file attachments |
-| Primary channel | Founders Office (1485765456739696714) |
+| Primary channel | Founders Office (`$DISCORD_FOUNDERS_OFFICE`) |
 
 ### 9.6 Voice Interface (BUILT, secondary)
 
@@ -514,7 +514,7 @@ Architectural decisions not yet made that will affect future builds.
 - Decision needed before public launch
 
 **5. Hosting for public product**
-- Current: single VPS (100.77.233.50) — sufficient for founder-only validation
+- Current: single VPS (`<vps-ip>`, see `infra/device_registry.json`) — sufficient for founder-only validation
 - Public scale requires: cloud infra, CDN, geographic distribution, autoscaling
 - Decision needed 60-90 days before public launch
 

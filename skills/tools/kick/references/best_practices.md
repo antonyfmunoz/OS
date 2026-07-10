@@ -137,7 +137,7 @@ GET /users?id=<id1>&id=<id2>       # batch by id
 ### Channels
 
 ```
-GET /channels?slug=<slug>          # by slug, e.g. ?slug=antonyfmunoz
+GET /channels?slug=<slug>          # by slug, e.g. ?slug=<your-username>
 GET /channels?broadcaster_user_id=<id>
 PATCH /channels                    # update — channel:write
   body: { "stream_title": "...", "category_id": 12345 }

@@ -66,7 +66,7 @@ outfit men" are actively planning a purchase. The EOS pattern:
 **Personal brand — long-form content distribution.**
 Pinterest is a blog traffic engine. Long-form essays, video transcripts, and
 "life maxing" frameworks get repackaged as vertical 1000x1500 pins with text
-overlay that drive saves and outbound clicks back to antonyfmunoz.com. A single
+overlay that drive saves and outbound clicks back to <your-domain>. A single
 viral pin can drive traffic for two years. The EOS pattern:
 
 - Each long-form post → 5-10 pin variants (different hooks, different visuals)

@@ -15,8 +15,8 @@
   "payload": {
     "approval_request_id": "apr_next_gate_1777929390",
     "action": "VERIFY_ACTIVE_GOOGLE_ACCOUNT",
-    "target": "antonyfm@empyreanstudios.co",
-    "description": "Verify active Google account is antonyfm@empyreanstudios.co. Visual confirmation required.",
+    "target": "${UMH_OPERATOR_EMAIL}",
+    "description": "Verify active Google account is the operator. Visual confirmation required.",
     "risk_level": "LOW",
     "backend": "HUMAN_VISUAL_CONFIRMATION",
     "blocked_until_approved": true
@@ -27,7 +27,7 @@
 ## What This Gate Requires
 
 A human or advisor must visually confirm that the Google Drive page
-opened in the browser shows `antonyfm@empyreanstudios.co` as the
+opened in the browser shows the operator as the
 active account.
 
 ## Why This Gate Exists

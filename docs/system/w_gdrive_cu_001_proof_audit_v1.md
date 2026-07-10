@@ -38,7 +38,7 @@ remotely via SSH + Task Scheduler.
 
 ### 6. Did it verify correct account/profile?
 
-YES. Evidence file contains: account: antonyfm@empyreanstudios.co
+YES. Evidence file contains: account: ${UMH_OPERATOR_EMAIL}
 Chrome window title confirmed: "Antony (empyreanstudios.co)"
 
 ### 7. Did it verify Drive visible inventory?

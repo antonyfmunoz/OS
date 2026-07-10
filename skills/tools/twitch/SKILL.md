@@ -134,7 +134,7 @@ Client-Id: <client_id>
 
 ```bash
 curl -H "Authorization: Bearer $APP_TOKEN" -H "Client-Id: $CLIENT_ID" \
-  "https://api.twitch.tv/helix/streams?user_login=antonyfmunoz"
+  "https://api.twitch.tv/helix/streams?user_login=<your-username>"
 ```
 
 ### Update channel title and category before going live
@@ -187,10 +187,10 @@ import socket, ssl
 s = ssl.wrap_socket(socket.socket())
 s.connect(("irc.chat.twitch.tv", 6697))
 s.send(f"PASS oauth:{USER_TOKEN}\r\n".encode())
-s.send(f"NICK antonyfmunoz\r\n".encode())
+s.send(f"NICK <your-username>\r\n".encode())
 s.send(b"CAP REQ :twitch.tv/tags twitch.tv/commands\r\n")
-s.send(b"JOIN #antonyfmunoz\r\n")
-s.send(b"PRIVMSG #antonyfmunoz :hello from EOS\r\n")
+s.send(b"JOIN #<your-username>\r\n")
+s.send(b"PRIVMSG #<your-username> :hello from EOS\r\n")
 ```
 
 ### twitchio (Python) — minimal bot
@@ -199,7 +199,7 @@ s.send(b"PRIVMSG #antonyfmunoz :hello from EOS\r\n")
 from twitchio.ext import commands
 class Bot(commands.Bot):
     def __init__(self):
-        super().__init__(token=USER_TOKEN, prefix="!", initial_channels=["antonyfmunoz"])
+        super().__init__(token=USER_TOKEN, prefix="!", initial_channels=["<your-username>"])
     @commands.command()
     async def arena(self, ctx):
         await ctx.send("Initiate Arena: lyfeinstitute.com")
@@ -227,7 +227,7 @@ is no "give me everything" scope. Plan the full scope list before first OAuth
 or you'll re-prompt the user every feature.
 
 **Identity is broadcaster_user_id everywhere.** The numeric `user_id` from
-`GET /helix/users` is the canonical key. The login name (`antonyfmunoz`) is a
+`GET /helix/users` is the canonical key. The login name (`<your-username>`) is a
 mutable display string. Never key your DB on login.
 
 **Chat is two protocols pretending to be one.** IRC is the read/write firehose

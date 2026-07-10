@@ -39,7 +39,7 @@ npm install -g @keygraph/shannon
 - Requires: Node.js 18+, Docker
 - Runs as non-root user (ubuntu) — refuses to run as root
 - Config at: /home/ubuntu/.shannon/config.toml
-- API key injected from 1Password: `op://UMH-Production/AI-Anthropic/api_key`
+- API key injected from 1Password: `op://${UMH_OP_VAULT}/AI-Anthropic/api_key`
 
 ## UMH Integration
 

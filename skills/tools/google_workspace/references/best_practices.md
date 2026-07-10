@@ -43,7 +43,7 @@ The CLI handles the full OAuth2 authorization code flow:
 | Tasks | `tasks` | Full read/write to task lists and tasks |
 | Docs (read only) | `documents.readonly` | Read document content |
 
-**EOS auth location:** System keyring on VPS (100.77.233.50). No env vars for Google tokens.
+**EOS auth location:** System keyring on VPS (<your-vps-ip>). No env vars for Google tokens.
 No `credentials.json` or `token.json` files on disk -- all managed by CLI keyring backend.
 
 **Service accounts vs user consent:**

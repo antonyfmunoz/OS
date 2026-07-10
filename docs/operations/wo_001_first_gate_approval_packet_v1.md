@@ -20,8 +20,8 @@
     "work_order_id": "WO-LOCAL-PILOT-GDRIVE-GDOCS-001",
     "node_id": "local_pc_worker",
     "action": "OPEN_GOOGLE_DRIVE",
-    "target": "antonyfm@empyreanstudios.co",
-    "description": "Approve opening Google Drive for antonyfm@empyreanstudios.co using visible GUI computer-use?",
+    "target": "${UMH_OPERATOR_EMAIL}",
+    "description": "Approve opening Google Drive for the operator using visible GUI computer-use?",
     "risk_level": "MEDIUM",
     "backend": "GUI_COMPUTER_USE",
     "blocked_until_approved": true
@@ -35,7 +35,7 @@
 ## Allowed If Approved
 
 - Open Google Drive ONLY (drive.google.com)
-- Verify active account matches `antonyfm@empyreanstudios.co`
+- Verify active account matches the operator
 - Stop if wrong account (send ERROR to advisor, do not continue)
 - Take screenshot of Drive homepage for evidence (separate approval)
 

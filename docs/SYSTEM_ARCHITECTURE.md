@@ -15,8 +15,8 @@
 
 | Device | Tailscale IP | Role | Always-on | Primary Use |
 |--------|-------------|------|-----------|-------------|
-| **VPS** (Hostinger Ubuntu 24.04, srv1500858) | `100.77.233.50` | Runtime host, canonical code | Yes | UMH FastAPI (8093), Docker services, agent execution, CC sessions |
-| **Windows workstation** (desktop-lvguiq9) | `100.74.199.102` | Development environment | No | Local editing (VS Code), Obsidian vault, heavy compute, Windows-only ops |
+| **VPS** (Hostinger Ubuntu 24.04, srv1500858) | `<vps-ip>` | Runtime host, canonical code | Yes | UMH FastAPI (8093), Docker services, agent execution, CC sessions |
+| **Windows workstation** (desktop-lvguiq9) | `<beast-ip>` | Development environment | No | Local editing (VS Code), Obsidian vault, heavy compute, Windows-only ops |
 | **iPhone** (Termius) | Tailscale mesh | Mobile CLI | No | SSH into VPS for commands, logs, quick orchestration |
 | **iPad** (Safari + code-server) | Tailscale mesh | Medium-mobility editing | No | code-server on VPS port 8888, full VS Code in browser |
 
@@ -24,10 +24,10 @@
 exposed publicly. VPS is the hub — all other devices connect to it.
 
 **SSH to Windows:**
-- User: `"antonys beast pc"` (quotes required — space in username)
+- User: `"${UMH_BEAST_SSH_USER}"` (quotes required — space in username)
 - Auth: ed25519 key, no password
 - Git binary: `"C:\Program Files\Git\cmd\git.exe"`
-- Dev repos: `C:\Users\antonys beast pc\dev\`
+- Dev repos: `C:\Users\${UMH_BEAST_SSH_USER}\dev\`
 - Shell: PowerShell (default via OpenSSH). For `$_` variables in
   scriptblocks, use `-EncodedCommand` with Base64 UTF-16LE encoding
   to avoid SSH escaping issues.
@@ -44,9 +44,9 @@ The primary development repo. Contains everything.
 
 | Surface | Path | Remote | Role |
 |---------|------|--------|------|
-| VPS | `/opt/OS` | `origin` → `github.com/antonyfmunoz/OS.git` | **Canonical checkout** |
-| GitHub | `antonyfmunoz/OS.git` | — | Sync hub |
-| Windows | `dev\OS` | SSH → `git@github.com:antonyfmunoz/OS.git` | Local development |
+| VPS | `/opt/OS` | `origin` → `github.com/<your-org>/OS.git` | **Canonical checkout** |
+| GitHub | `<your-org>/OS.git` | — | Sync hub |
+| Windows | `dev\OS` | SSH → `git@github.com:<your-org>/OS.git` | Local development |
 
 **Key subdirectories:**
 - `saas/` — EOS v2 backend (Hono + Drizzle + Postgres RLS, TypeScript). Not a separate repo. Never deployed standalone.
@@ -63,7 +63,7 @@ for phase boundaries.
 
 | Surface | Path | Remote | Role |
 |---------|------|--------|------|
-| GitHub | `antonyfmunoz/EntrepreneurOS.git` | — | **Canonical** |
+| GitHub | `<your-org>/EntrepreneurOS.git` | — | **Canonical** |
 | Windows | `dev\EntrepreneurOS` | SSH → `git@github.com:...` | Active development |
 | VPS | `data/repos/entrepreneuros/` | HTTPS clone | Read-only reference |
 
@@ -78,7 +78,7 @@ Drizzle ORM.
 
 | Surface | Path | Remote | Role |
 |---------|------|--------|------|
-| GitHub | `antonyfmunoz/CreatorOS.git` | — | **Canonical** |
+| GitHub | `<your-org>/CreatorOS.git` | — | **Canonical** |
 | Windows | `dev\CreatorOS` | SSH → `git@github.com:...` | Local clone |
 | VPS | `data/repos/creatoros/` | HTTPS clone | Read-only reference |
 
@@ -88,7 +88,7 @@ Drizzle ORM.
 
 | Surface | Path | Remote | Role |
 |---------|------|--------|------|
-| GitHub | `antonyfmunoz/LYFEOS.git` | — | **Canonical** |
+| GitHub | `<your-org>/LYFEOS.git` | — | **Canonical** |
 | Windows | `dev\LyfeOS` | SSH → `git@github.com:...` | Local clone |
 | VPS | `data/repos/lyfeos/` | HTTPS clone | Read-only reference |
 
@@ -324,8 +324,8 @@ sync ritual capability gap until automated. Current gaps:
 
 | Device | IP | Hostname |
 |--------|-----|----------|
-| VPS | `100.77.233.50` | srv1500858 |
-| Windows | `100.74.199.102` | desktop-lvguiq9 |
+| VPS | `<vps-ip>` | srv1500858 |
+| Windows | `<beast-ip>` | desktop-lvguiq9 |
 | iPhone | Mesh-assigned | — |
 | iPad | Mesh-assigned | — |
 

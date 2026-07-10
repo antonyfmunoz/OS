@@ -13,7 +13,7 @@ local computer/browser UI when APIs/connectors are unavailable.
 
 ## 2. Prerequisites
 
-- Chrome Profile 5 active with antonyfm@empyreanstudios.co
+- Chrome Profile 5 active with the operator
 - Chrome launched with `--force-renderer-accessibility`
 - Windows UI Automation available on local PC
 - Task Scheduler /IT path working

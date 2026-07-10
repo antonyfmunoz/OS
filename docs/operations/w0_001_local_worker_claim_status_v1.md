@@ -18,7 +18,7 @@
   "payload": {
     "worker_mode": "auto",
     "preferred_backend": "GUI_COMPUTER_USE",
-    "target_account": "antonyfm@empyreanstudios.co",
+    "target_account": "${UMH_OPERATOR_EMAIL}",
     "source_class": "Google Drive / Google Docs",
     "packet_id": "2a81c7b21894"
   }
@@ -39,7 +39,7 @@
 | Check | Passed | Detail |
 |-------|--------|--------|
 | work_order_id | YES | WO-LOCAL-PILOT-GDRIVE-GDOCS-001 |
-| target_account | YES | antonyfm@empyreanstudios.co |
+| target_account | YES | `${UMH_OPERATOR_EMAIL}` |
 | worker_mode | YES | auto |
 | playwright_disabled | YES | False |
 | approval_routing | YES | advisor_relay |

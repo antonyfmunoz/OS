@@ -946,7 +946,7 @@ def scrape(session, window='0', pane='0', lines=500):
 ## EOS Usage Patterns
 
 tmux is the substrate that makes 24/7 agent operation possible on a single
-VPS (100.77.233.50, /opt/OS) without inventing a new supervisor. It is not a
+VPS (<your-vps-ip>, /opt/OS) without inventing a new supervisor. It is not a
 convenience — it is load-bearing infrastructure.
 
 Canonical EOS conventions:

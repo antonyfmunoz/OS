@@ -724,7 +724,7 @@ top = pick_top_post_by_engagement_rate(days=14)
 # top = { "video_id": "7349...", "engagement_rate": 0.087, ... }
 
 # 2. Resolve the BC identity for the founder's TT account
-identity_id = get_bc_identity("@antonyfmunoz")
+identity_id = get_bc_identity("@your-username")
 
 # 3. authority_engine approval gate
 budget_request = {"daily_budget": 20.00, "duration_days": 7,

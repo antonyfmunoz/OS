@@ -20,7 +20,7 @@ The system audited existing Phase 95.0-95.1 proof artifacts:
 | Evidence file exists | YES (visible_drive_inventory.json, 9,274 bytes) |
 | Method: COMPUTER_USE_ONLY | YES |
 | Backend: task_scheduler_it + ui_automation | YES |
-| Account: antonyfm@empyreanstudios.co | YES |
+| Account: `${UMH_OPERATOR_EMAIL}` | YES |
 | Inventory: 26 items | YES |
 | API parity: 26/26 My Drive files | YES |
 | Governance: no API/Playwright/CDP/screenshots | YES |

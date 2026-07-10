@@ -134,8 +134,8 @@ field-by-field breakdown and the known `license_type` values.
 ### Channel feed via OpenRSS (free, no token)
 
 ```bash
-# Antony's hypothetical channel slug = "antonyfmunoz"
-curl -s "https://openrss.org/rumble.com/c/antonyfmunoz" | head -100
+# Antony's hypothetical channel slug = "<your-username>"
+curl -s "https://openrss.org/rumble.com/c/<your-username>" | head -100
 ```
 
 Returns standard RSS 2.0 with `<item>` per video, `<pubDate>`, `<link>`,

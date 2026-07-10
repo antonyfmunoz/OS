@@ -2,7 +2,7 @@
 
 **Date**: 2026-05-04
 **Work Order**: WO-LOCAL-PILOT-GDRIVE-GDOCS-001
-**Account**: antonyfm@empyreanstudios.co
+**Account**: ${UMH_OPERATOR_EMAIL}
 **Gate**: READY_FOR_TARGETED_DOCUMENT_REVIEW_APPROVAL → COMPLETE
 
 ---
