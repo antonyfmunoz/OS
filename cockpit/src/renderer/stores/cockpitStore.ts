@@ -167,7 +167,16 @@ export const useCockpitStore = create<CockpitState>()(
             useUnifiedCanvasStore.getState().setMode(modeMap[panel] as 'agents' | 'workflows')
           })
         }
-        set({ activePanel: redirects[panel] ?? panel })
+        const resolved = redirects[panel] ?? panel
+        set({ activePanel: resolved })
+        // Keep the assistant's view-context in sync with the ACTUAL active panel.
+        // Previously only ~3 panels set active_route themselves, so the chat rail's
+        // "Viewing:" label (and the context the assistant receives) was stale on
+        // every other panel. Sync it centrally here — one source of truth — and
+        // clear any stale per-panel object selection on navigation.
+        import('./viewContextStore').then(({ useViewContextStore }) => {
+          useViewContextStore.getState().setRoute(resolved)
+        })
       },
       toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
       setChatOpen: (open) => set({ chatOpen: open }),
