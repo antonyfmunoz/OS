@@ -36,7 +36,7 @@ logger = logging.getLogger("oauth_flow")
 _CLIENT_SECRET_PATH = Path("/root/.config/gws/client_secret.json")
 _CREDENTIALS_PATH = Path("/root/.config/gws/gmail_credentials.json")
 _CALLBACK_PORT = int(os.getenv("OAUTH_CALLBACK_PORT", "8090"))
-_TAILSCALE_IP = os.getenv("TAILSCALE_VPS_IP", "100.77.233.50")
+_TAILSCALE_IP = os.getenv("TAILSCALE_VPS_IP", "")
 _USE_LOCALHOST_REDIRECT = True  # Google enforces localhost-only for Installed App clients
 
 _SCOPE_ALIASES: dict[str, str] = {
@@ -114,7 +114,9 @@ async def _notify_discord(message: str) -> None:
     import aiohttp
 
     webhook_port = os.getenv("CC_WEBHOOK_PORT", "8765")
-    session_name = os.getenv("EOS_DISCORD_BUILDER_SESSION", "dex_builder_main")
+    # One instance → one session ({ai}_main), resolved at runtime.
+    from substrate.execution.bridge.claude_session_bridge import make_session_name
+    session_name = os.getenv("EOS_DISCORD_MAIN_SESSION") or make_session_name("main")
 
     try:
         async with aiohttp.ClientSession() as session:

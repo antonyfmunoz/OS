@@ -1,5 +1,5 @@
 """
-Local Bridge Server — runs on Antony's Windows machine (WSL2).
+Local Bridge Server — runs on the founder's Windows machine (WSL2).
 
 Receives Discord messages forwarded from the VPS and injects them into
 a local Claude Code tmux session.

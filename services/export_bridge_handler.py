@@ -31,7 +31,7 @@ from aiohttp import web
 logger = logging.getLogger("export_bridge")
 
 _REPO_ROOT = Path(os.getenv("EOS_REPO_ROOT", str(Path.home() / "dev" / "OSv2")))
-_VPS_WEBHOOK_URL = os.getenv("EOS_VPS_WEBHOOK_URL", "http://100.77.233.50:8765")
+_VPS_WEBHOOK_URL = os.getenv("EOS_VPS_WEBHOOK_URL", "")
 _PROFILE_DIR = Path(os.getenv("CAMOUFOX_PROFILES_DIR", str(Path.home() / ".camoufox-profiles")))
 
 _pending_mfa: dict[str, asyncio.Future] = {}

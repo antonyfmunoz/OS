@@ -74,21 +74,18 @@ _MAX_POLL_INTERVAL_S = 5.0
 
 # ─── Session → persona soul-doc mapping ──────────────────────────────────────
 # When claude is launched inside a session, an optional soul-doc path can be
-# appended to the default system prompt via --append-system-prompt. This is
-# how {ai}_product_main gets EA persona instead of the developer CLAUDE.md.
+# appended to the default system prompt via --append-system-prompt.
 #
-# Builder sessions ({ai}_builder_main) deliberately have NO entry here — they
-# run bare `claude` and pick up /opt/OS/CLAUDE.md as the full developer
-# context. That is the correct behavior for the developer lane.
-#
-# Per-channel session names ({ai}_product_main_<channel_id>) are handled by
-# _resolve_soul_doc() via prefix match, so the EOS_DISCORD_MODE_PER_CHANNEL
-# feature keeps working.
+# CONVERGED: one instance → one session ({ai}_main) → one persona. The single
+# session runs the EA persona (Founder's Office). The former builder/product
+# split (dev CLAUDE.md vs EA persona in separate sessions) is retired — see
+# project_one_session_convergence. Per-channel session names ({ai}_main_<id>)
+# are still handled by _resolve_soul_doc() via prefix match.
 #
 # Override at runtime with the env var:
 #   EOS_SESSION_SOUL_DOC__<session_name> = /absolute/path/to/doc.md
 _SESSION_SOUL_DOCS: dict[str, str] = {
-    "product_main": f"{_ROOT}/agents/executive_assistant.md",
+    "main": f"{_ROOT}/agents/executive_assistant.md",
 }
 
 _SOUL_DOC_ENV_PREFIX = "EOS_SESSION_SOUL_DOC__"
@@ -288,7 +285,7 @@ def _resolve_soul_doc(session_name: str) -> str | None:
       1. Env override EOS_SESSION_SOUL_DOC__<session_name> (exact match)
       2. Exact match in _SESSION_SOUL_DOCS
       3. Prefix match against _SESSION_SOUL_DOCS keys (handles per-channel
-         suffixes like {ai}_product_main_1234567890)
+         suffixes like {ai}_main_1234567890)
 
     Returns an absolute path that is verified to exist, or None.
     Never raises.
@@ -301,7 +298,7 @@ def _resolve_soul_doc(session_name: str) -> str | None:
             return env_val
         return None
 
-    # 2. Strip AI name prefix for lookup (e.g., "<ai>_product_main" → "product_main")
+    # 2. Strip AI name prefix for lookup (e.g., "<ai>_main" → "main")
     prefix = _get_session_prefix()
     stripped = session_name
     if prefix and session_name.startswith(prefix):
@@ -313,7 +310,7 @@ def _resolve_soul_doc(session_name: str) -> str | None:
             path = _SESSION_SOUL_DOCS[candidate]
             return path if os.path.isfile(path) else None
 
-    # 4. Prefix match (per-channel variants: <ai>_product_main_<channel_id>)
+    # 4. Prefix match (per-channel variants: <ai>_main_<channel_id>)
     for base_name, path in _SESSION_SOUL_DOCS.items():
         if stripped.startswith(base_name + "_") or session_name.startswith(base_name + "_"):
             return path if os.path.isfile(path) else None
@@ -576,7 +573,7 @@ def ensure_session(
         cli = detect_claude_cli_available()
         if cli.get("available"):
             # Build the launch command. For sessions with a persona mapping
-            # (e.g. {ai}_product_main → executive_assistant.md) this appends
+            # (e.g. {ai}_main → executive_assistant.md) this appends
             # the soul doc via --append-system-prompt. Builder sessions get
             # a bare `claude` and pick up /opt/OS/CLAUDE.md as usual.
             launch_cmd, soul_doc_used = _build_claude_launch_cmd(session_name)

@@ -899,34 +899,18 @@ async def _handle_founder_capture(
         _should, _ctype = should_capture(text)
         if _should:
             _text_lower = text.lower()
-            if any(
-                w in _text_lower
-                for w in [
-                    "empyrean",
-                    "b2b",
-                    "ai infrastructure",
-                    "entrepreneuros",
-                    "saas",
-                ]
-            ):
-                _venture_id = "empyrean_creative"
-            elif any(
-                w in _text_lower
-                for w in ["brand", "twitch", "content", "vigilante", "personal brand"]
-            ):
-                _venture_id = "personal_brand"
-            elif any(
-                w in _text_lower
-                for w in [
-                    "lyfe",
-                    "initiate",
-                    "arena",
-                    "coaching",
-                    "instagram dm",
-                    "men 18",
-                ]
-            ):
-                _venture_id = "lyfe_institute"
+            # Match the message against the tenant's ventures (name tokens + slug)
+            # from BIS — never hardcoded venture slugs/keywords. Unmatched → ask.
+            from substrate.state.business.business_instance import get_ventures as _gv
+            _venture_id = None
+            for _v in _gv():
+                _kw = [t for t in _v["name"].lower().split() if len(t) > 2]
+                _kw.append(_v["id"].replace("_", " "))
+                if any(k in _text_lower for k in _kw):
+                    _venture_id = _v["id"]
+                    break
+            if _venture_id is not None:
+                pass
             else:
                 # Ambiguous — ask before capturing
                 import json as _json

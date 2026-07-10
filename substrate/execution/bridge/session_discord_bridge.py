@@ -48,11 +48,15 @@ LAYER_VERSION = "v2"
 # Fallback channel (used when no per-session channel matches)
 _NOTIFY_CHANNEL_NAME = os.getenv("EOS_WATCHER_CHANNEL", "agent-activity")
 
-# Per-session channel routing (session_name → channel ID)
-_BUILDER_CHANNEL_ID = os.getenv("EOS_DISCORD_BUILDER_CHANNELS", "")
-_PRODUCT_CHANNEL_ID = os.getenv("EOS_DISCORD_PRODUCT_CHANNELS", "")
-_BUILDER_SESSION = os.getenv("EOS_DISCORD_BUILDER_SESSION") or _msn("builder", "main")
-_PRODUCT_SESSION = os.getenv("EOS_DISCORD_PRODUCT_SESSION") or _msn("product", "main")
+# One instance → one session. The single session maps to the primary Discord
+# channel. Legacy BUILDER/PRODUCT channel env vars are still honored as sources
+# for that one channel (back-compat) but there is no second session.
+_MAIN_SESSION = _msn("main")
+_MAIN_CHANNEL_ID = (
+    os.getenv("EOS_DISCORD_MAIN_CHANNEL", "")
+    or os.getenv("EOS_DISCORD_BUILDER_CHANNELS", "")
+    or os.getenv("EOS_DISCORD_PRODUCT_CHANNELS", "")
+)
 
 # Max chars for plan/question text in Discord messages
 _MAX_DISPLAY_CHARS = 1500
@@ -317,17 +321,14 @@ def format_event(event: WatcherEvent) -> dict[str, Any]:
 
 
 def _resolve_channel_id(session_name: str) -> int | None:
-    """Resolve session name to the correct Discord channel ID."""
-    if session_name == _BUILDER_SESSION and _BUILDER_CHANNEL_ID:
+    """Resolve the (single) session name to the primary Discord channel ID."""
+    if _MAIN_CHANNEL_ID:
+        # Honor the first channel id if a comma-separated list was provided.
+        first = _MAIN_CHANNEL_ID.split(",")[0].strip()
         try:
-            return int(_BUILDER_CHANNEL_ID)
+            return int(first)
         except ValueError:
-            logger.debug("invalid BUILDER_CHANNEL_ID: %s", _BUILDER_CHANNEL_ID)
-    if session_name == _PRODUCT_SESSION and _PRODUCT_CHANNEL_ID:
-        try:
-            return int(_PRODUCT_CHANNEL_ID)
-        except ValueError:
-            logger.debug("invalid PRODUCT_CHANNEL_ID: %s", _PRODUCT_CHANNEL_ID)
+            logger.debug("invalid MAIN_CHANNEL_ID: %s", _MAIN_CHANNEL_ID)
     return None
 
 
