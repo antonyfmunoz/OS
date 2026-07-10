@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: scripts
-source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
+source_sha: 0312cc4e33802424a5a6a5c1807dcd0097e63208
 ---
 
 # `scripts/` — File Inventory
 
-**Files:** 215 regular + 0 symlinks · **Bytes:** 9,982,132
+**Files:** 215 regular + 0 symlinks · **Bytes:** 9,987,420
 
 [Narrative page](../dirs/scripts.md)
 

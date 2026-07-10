@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: data
-source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
+source_sha: 0312cc4e33802424a5a6a5c1807dcd0097e63208
 ---
 
 # `data/` — Runtime Data Rollup
 
-**Files:** 42,112 regular + 1 symlinks · **Bytes:** 38,468,993,893
+**Files:** 42,112 regular + 1 symlinks · **Bytes:** 38,473,121,846
 
 [Narrative page](../dirs/data.md)
 
@@ -59,17 +59,17 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 | `data/registries` | 1 | 0 | 19,220 | 2026-05-09 |
 | `data/reports` | 20 | 0 | 19,128,142 | 2026-07-02 |
 | `data/repos` | 191 | 0 | 3,999,112 | 2026-05-22 |
-| `data/runtime` | 1,827 | 0 | 48,110,458 | 2026-07-10 |
+| `data/runtime` | 1,827 | 0 | 48,110,459 | 2026-07-10 |
 | `data/runtime_proofs` | 1 | 0 | 453 | 2026-05-07 |
 | `data/sandbox_smoke_report.json` | 1 | 0 | 1,214 | 2026-05-05 |
 | `data/sandboxes` | 3 | 0 | 489 | 2026-05-05 |
 | `data/sessions` | 1 | 0 | 310 | 2026-05-24 |
 | `data/snapshots` | 6 | 0 | 14,554 | 2026-05-25 |
 | `data/system` | 4 | 0 | 86,570 | 2026-05-12 |
-| `data/umh` | 2,416 | 0 | 3,699,220,325 | 2026-07-10 |
+| `data/umh` | 2,416 | 0 | 3,703,348,277 | 2026-07-10 |
 | `data/vault` | 104 | 0 | 376,221 | 2026-04-27 |
 | `data/voice_acks` | 6 | 0 | 251,288 | 2026-05-22 |
 | `data/work_queue` | 1 | 0 | 3,022 | 2026-05-06 |
 | `data/workbook_framework.md` | 1 | 0 | 1,355 | 2026-05-05 |
 | `data/workflow_state` | 4 | 0 | 6,520 | 2026-05-05 |
-| **Total** | **42,112** | **1** | **38,468,993,893** | |
+| **Total** | **42,112** | **1** | **38,473,121,846** | |
