@@ -327,10 +327,10 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                 })
             return {"mesh": {"node_count": len(nm)}, "mesh_nodes": _mesh_list}
 
-        def _fetch_dex() -> dict[str, Any]:
+        def _fetch_advisor() -> dict[str, Any]:
             try:
-                from transports.api.cockpit_chat_routes import get_dex_conversation
-                conv = get_dex_conversation()
+                from transports.api.cockpit_chat_routes import get_advisor_conversation
+                conv = get_advisor_conversation()
             except (ImportError, AttributeError):
                 conv = None
             avail = conv is not None
@@ -345,7 +345,7 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
             "command_center": _fetch_command_center,
             "overnight": _fetch_overnight,
             "mesh_nodes": _fetch_mesh_nodes,
-            "dex": _fetch_dex,
+            "dex": _fetch_advisor,
         }
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:

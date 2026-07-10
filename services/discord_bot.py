@@ -1689,8 +1689,8 @@ async def on_message(message: discord.Message):
     if await _handlers._handle_inline_commands(message, text, channel_name, username):
         return
 
-    # ── DexConversation (Founder's Office = cockpit right rail parity) ───
-    if await _handlers._handle_dex_conversation(message, text, channel_name, username):
+    # ── AdvisorConversation (Founder's Office = cockpit right rail parity) ──
+    if await _handlers._handle_advisor_conversation(message, text, channel_name, username):
         return
 
     # ── Full EOS gateway dispatch (terminal) ────────────────────────────

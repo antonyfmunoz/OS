@@ -236,7 +236,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r = APIRouter()
     auth = [Depends(require_operator_dep)]
 
-    _dex_conversation = None
+    _advisor_conversation = None
 
     def _mirror_to_discord_founders_office(text: str) -> None:
         import threading
@@ -279,17 +279,17 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
         threading.Thread(target=_send, daemon=True).start()
 
-    def _get_dex_conversation():
-        nonlocal _dex_conversation
-        if _dex_conversation is not None:
-            return _dex_conversation
+    def _get_advisor_conversation():
+        nonlocal _advisor_conversation
+        if _advisor_conversation is not None:
+            return _advisor_conversation
         daemon = _get_organism_fn()
         if daemon is None:
             return None
-        from substrate.organism.dex_conversation import DexConversation
+        from substrate.organism.advisor_conversation import AdvisorConversation
 
-        _dex_conversation = DexConversation(advisor=daemon.advisor, store=daemon.store)
-        return _dex_conversation
+        _advisor_conversation = AdvisorConversation(advisor=daemon.advisor, store=daemon.store)
+        return _advisor_conversation
 
     # ── Advisor / DEX conversation endpoints ─────────────────────────────────
 
@@ -309,7 +309,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if rail is not None:
             return rail
 
-        conv = _get_dex_conversation()
+        conv = _get_advisor_conversation()
         if conv is None:
             return {"error": "organism not running"}
 

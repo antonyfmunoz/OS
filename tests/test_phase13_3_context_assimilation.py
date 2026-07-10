@@ -555,56 +555,56 @@ class TestReconciliationEngine:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestDexReconciliation:
+class TestAdvisorReconciliation:
     def test_classify_exploration(self):
-        from substrate.organism.dex_reconciliation import classify_reconciliation_intent
+        from substrate.organism.advisor_reconciliation import classify_reconciliation_intent
 
         assert classify_reconciliation_intent("I'm just thinking out loud") == "exploration"
         assert classify_reconciliation_intent("Maybe we could try this") == "exploration"
 
     def test_classify_reconciliation(self):
-        from substrate.organism.dex_reconciliation import classify_reconciliation_intent
+        from substrate.organism.advisor_reconciliation import classify_reconciliation_intent
 
         assert classify_reconciliation_intent("Actually EOS also handles portfolios") == "reconciliation"
         assert classify_reconciliation_intent("This doc is outdated") == "reconciliation"
 
     def test_classify_decision(self):
-        from substrate.organism.dex_reconciliation import classify_reconciliation_intent
+        from substrate.organism.advisor_reconciliation import classify_reconciliation_intent
 
         assert classify_reconciliation_intent("Canonize this change") == "decision"
         assert classify_reconciliation_intent("Approve this update") == "decision"
 
     def test_classify_query(self):
-        from substrate.organism.dex_reconciliation import classify_reconciliation_intent
+        from substrate.organism.advisor_reconciliation import classify_reconciliation_intent
 
         assert classify_reconciliation_intent("What do you understand about my empire?") == "query"
 
     def test_classify_none(self):
-        from substrate.organism.dex_reconciliation import classify_reconciliation_intent
+        from substrate.organism.advisor_reconciliation import classify_reconciliation_intent
 
         assert classify_reconciliation_intent("Hello there") == "none"
 
     def test_exploration_vs_canonization(self):
-        from substrate.organism.dex_reconciliation import DexReconciliation
+        from substrate.organism.advisor_reconciliation import AdvisorReconciliation
 
-        dex = DexReconciliation()
-        result = dex.process_operator_input("Just exploring: maybe EOS also manages portfolios")
+        recon = AdvisorReconciliation()
+        result = recon.process_operator_input("Just exploring: maybe EOS also manages portfolios")
         assert result["intent"] == "exploration"
         assert result.get("canon_safe", False) is True
 
     def test_reconciliation_creates_proposals(self):
-        from substrate.organism.dex_reconciliation import DexReconciliation
+        from substrate.organism.advisor_reconciliation import AdvisorReconciliation
 
-        dex = DexReconciliation()
-        result = dex.process_operator_input("Actually EOS handles multiple portfolios")
+        recon = AdvisorReconciliation()
+        result = recon.process_operator_input("Actually EOS handles multiple portfolios")
         assert result["intent"] == "reconciliation"
         assert "session_id" in result
 
     def test_decision_requires_approval(self):
-        from substrate.organism.dex_reconciliation import DexReconciliation
+        from substrate.organism.advisor_reconciliation import AdvisorReconciliation
 
-        dex = DexReconciliation()
-        result = dex.process_operator_input("Canonize that EOS includes portfolios")
+        recon = AdvisorReconciliation()
+        result = recon.process_operator_input("Canonize that EOS includes portfolios")
         assert result["intent"] == "decision"
         assert result.get("approval_required", False) is True
 
@@ -1094,10 +1094,10 @@ class TestInvariants:
         assert not pol.evaluate_operation("write_anything")["allowed"]
 
     def test_exploration_does_not_create_proposals(self):
-        from substrate.organism.dex_reconciliation import DexReconciliation
+        from substrate.organism.advisor_reconciliation import AdvisorReconciliation
 
-        dex = DexReconciliation()
-        result = dex.process_operator_input("Just thinking about maybe trying something new")
+        recon = AdvisorReconciliation()
+        result = recon.process_operator_input("Just thinking about maybe trying something new")
         assert result["intent"] == "exploration"
         assert result.get("proposals_count", 0) == 0
 

@@ -84,9 +84,9 @@ def _build_converse_fn() -> Any:
         captured: dict[str, Any] = {}
 
         def _do_converse():
-            from substrate.organism.dex_conversation import DexConversation
+            from substrate.organism.advisor_conversation import AdvisorConversation
 
-            conv = DexConversation(advisor=daemon.advisor, store=daemon.store)
+            conv = AdvisorConversation(advisor=daemon.advisor, store=daemon.store)
             response = conv.converse(
                 content=content,
                 conversation_id=conversation_id,

@@ -1185,18 +1185,18 @@ async def _handle_organism_command(
         return True
 
 
-# ── DexConversation handler (Founder's Office parity with cockpit) ───────────
+# ── AdvisorConversation handler (Founder's Office parity with cockpit) ────────
 
 _FOUNDERS_OFFICE_ID = os.environ.get("DISCORD_FOUNDERS_OFFICE", "")
 
 
-async def _handle_dex_conversation(
+async def _handle_advisor_conversation(
     message: discord.Message,
     text: str,
     channel_name: str,
     username: str,
 ) -> bool:
-    """Route message through DexConversation — same pipeline as cockpit right rail.
+    """Route message through AdvisorConversation — same pipeline as cockpit right rail.
 
     Returns True if handled (Founder's Office channel), False otherwise.
     """
@@ -1209,10 +1209,10 @@ async def _handle_dex_conversation(
 
     async with message.channel.typing():
         try:
-            response = await loop.run_in_executor(None, _call_dex_converse, text)
+            response = await loop.run_in_executor(None, _call_advisor_converse, text)
         except Exception as exc:
-            _record_error("dex_conversation_discord", exc)
-            logger.warning("[DexDiscord] converse failed: %s", exc)
+            _record_error("advisor_conversation_discord", exc)
+            logger.warning("[AdvisorDiscord] converse failed: %s", exc)
             return False
 
     if not response:
@@ -1239,10 +1239,10 @@ async def _handle_dex_conversation(
     return True
 
 
-def _call_dex_converse(content: str) -> dict | None:
-    """Call DexConversation.converse() synchronously (run in executor)."""
+def _call_advisor_converse(content: str) -> dict | None:
+    """Call AdvisorConversation.converse() synchronously (run in executor)."""
     try:
-        from substrate.organism.dex_conversation import DexConversation
+        from substrate.organism.advisor_conversation import AdvisorConversation
 
         daemon = None
         try:
@@ -1262,7 +1262,7 @@ def _call_dex_converse(content: str) -> dict | None:
         if daemon is None:
             return None
 
-        conv = DexConversation(advisor=daemon.advisor, store=daemon.store)
+        conv = AdvisorConversation(advisor=daemon.advisor, store=daemon.store)
         resp = conv.converse(
             content=content,
             conversation_id="discord-founders-office",
@@ -1274,7 +1274,7 @@ def _call_dex_converse(content: str) -> dict | None:
             "metadata": resp.metadata,
         }
     except Exception as exc:
-        logger.warning("[DexDiscord] _call_dex_converse error: %s", exc)
+        logger.warning("[AdvisorDiscord] _call_advisor_converse error: %s", exc)
         return None
 
 

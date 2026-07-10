@@ -53,9 +53,9 @@ def _get_reconciliation_engine():
     return ReconciliationEngine()
 
 
-def _get_dex_reconciliation():
-    from substrate.organism.dex_reconciliation import DexReconciliation
-    return DexReconciliation()
+def _get_advisor_reconciliation():
+    from substrate.organism.advisor_reconciliation import AdvisorReconciliation
+    return AdvisorReconciliation()
 
 
 def _get_permission_engine():

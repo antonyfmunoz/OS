@@ -168,7 +168,7 @@ class MediaProcessor:
         if not self.available:
             return (
                 "GEMINI_API_KEY not set. "
-                "Add to /opt/OS/.env to enable "
+                "Add to .env to enable "
                 "image, video, and document processing."
             )
 
