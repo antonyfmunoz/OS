@@ -5,12 +5,13 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useChatStore, type ChatMessage, type Provenance, type Attachment, type MediaAttachment } from '../stores/chatStore'
 import { usePolling } from '../hooks/usePolling'
+import { useAuthedMedia } from '../hooks/useAuthedMedia'
 import { useConfigStore } from '../stores/configStore'
 import { useViewContextStore } from '../stores/viewContextStore'
 import { useVoiceStore } from '../stores/voiceStore'
 import { useVoiceMessageStore, type VoiceMessageDraft } from '../stores/voiceMessageStore'
 import { desktopBrowserVoiceAdapter, ConsentRequiredError } from '../api/platform-voice-adapter'
-import { getApiKey, fetchApi, API_BASE } from '../api/client'
+import { authHeader, fetchApi, API_BASE } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore } from '../stores/cockpitStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
@@ -99,10 +100,9 @@ function AttachmentLink({ attachment }: { attachment: Attachment }) {
   const handleDownload = useCallback(async (e: React.MouseEvent) => {
     e.preventDefault()
     const url = `${API_BASE}/chat/attachment?path=${encodeURIComponent(attachment.path)}`
-    const headers: Record<string, string> = {}
-    const key = getApiKey()
-    if (key) headers['X-API-Key'] = key
-    const res = await fetch(url, { headers })
+    // /chat/attachment is Clerk-bearer-gated (header-only). getApiKey() returns ''
+    // so the old X-API-Key path sent no credential → 401. Use the Clerk bearer.
+    const res = await fetch(url, { headers: await authHeader() })
     if (!res.ok) return
     const blob = await res.blob()
     const a = document.createElement('a')
@@ -212,52 +212,87 @@ function VoiceMessagePlayer({ src }: { src: string }) {
   )
 }
 
+function MediaItem({ m }: { m: MediaAttachment }) {
+  // The media endpoint is Clerk-bearer-gated (header-only auth). A plain
+  // <img/video/a> element GET cannot send the bearer and 401s, so we fetch the
+  // media WITH auth into a blob object URL (useAuthedMedia). A client-side
+  // previewUrl (blob:) is used as-is and shown instantly while the authed fetch
+  // resolves for the persistent/reload case.
+  const { url: authedUrl, loading, error } = useAuthedMedia(m.url)
+  // previewUrl is the just-captured client blob (live send only); prefer it for
+  // the initial paint, fall back to the authed blob once it arrives.
+  const displaySrc = m.previewUrl || authedUrl
+
+  if (m.media_type === 'video') {
+    if (!displaySrc) {
+      return <MediaPlaceholder loading={loading} error={error} label={m.filename} />
+    }
+    return (
+      <video
+        src={displaySrc}
+        controls
+        className="rounded max-w-full"
+        style={{ maxHeight: 200 }}
+      />
+    )
+  }
+
+  if (m.media_type === 'audio') {
+    // Audio player fetches its own bytes; hand it the authed blob URL.
+    return <VoiceMessagePlayer src={displaySrc} />
+  }
+
+  if (m.media_type === 'file') {
+    // A generic file "view/download": open the authed blob in a new tab. The
+    // element href must be the blob URL (not the gated path) so no bearer is needed.
+    return (
+      <a
+        href={authedUrl || undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-disabled={!authedUrl}
+        className="flex items-center gap-1 px-2 py-1.5 rounded bg-surface-raised border border-border text-[10px] font-mono text-text-secondary hover:border-cyan transition-colors"
+        onClick={(e) => { if (!authedUrl) e.preventDefault() }}
+      >
+        <Download size={10} />
+        <span className="truncate">{error ? `${m.filename} (unavailable)` : m.filename}</span>
+      </a>
+    )
+  }
+
+  // image (default)
+  if (!displaySrc) {
+    return <MediaPlaceholder loading={loading} error={error} label={m.filename} />
+  }
+  return (
+    <a href={displaySrc} target="_blank" rel="noopener noreferrer">
+      <img
+        src={displaySrc}
+        alt={m.filename}
+        className="rounded cursor-pointer hover:opacity-80 transition-opacity"
+        style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'cover' }}
+      />
+    </a>
+  )
+}
+
+function MediaPlaceholder({ loading, error, label }: { loading: boolean; error: string | null; label: string }) {
+  return (
+    <div
+      className="flex items-center gap-1 px-2 py-1.5 rounded bg-surface-raised border border-border text-[10px] font-mono text-text-tertiary"
+      style={{ minWidth: 80 }}
+      title={error ? `Failed to load: ${error}` : undefined}
+    >
+      {loading ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
+      <span className="truncate">{loading ? 'loading…' : `${label} unavailable`}</span>
+    </div>
+  )
+}
+
 function MediaGrid({ media }: { media: MediaAttachment[] }) {
-  const apiUrl = API_BASE
   return (
     <div className="flex flex-wrap gap-1 mt-1.5">
-      {media.map((m) => {
-        const src = m.url.startsWith('/') ? `${apiUrl.replace(/\/api\/umh$/, '')}${m.url}` : m.url
-        const previewSrc = m.previewUrl || src
-        if (m.media_type === 'video') {
-          return (
-            <video
-              key={m.id}
-              src={src}
-              controls
-              className="rounded max-w-full"
-              style={{ maxHeight: 200 }}
-            />
-          )
-        }
-        if (m.media_type === 'audio') {
-          return <VoiceMessagePlayer key={m.id} src={src} />
-        }
-        if (m.media_type === 'file') {
-          return (
-            <a
-              key={m.id}
-              href={src}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1.5 rounded bg-surface-raised border border-border text-[10px] font-mono text-text-secondary hover:border-cyan transition-colors"
-            >
-              <Download size={10} />
-              <span className="truncate">{m.filename}</span>
-            </a>
-          )
-        }
-        return (
-          <a key={m.id} href={src} target="_blank" rel="noopener noreferrer">
-            <img
-              src={previewSrc}
-              alt={m.filename}
-              className="rounded cursor-pointer hover:opacity-80 transition-opacity"
-              style={{ maxHeight: 200, maxWidth: '100%', objectFit: 'cover' }}
-            />
-          </a>
-        )
-      })}
+      {media.map((m) => <MediaItem key={m.id} m={m} />)}
     </div>
   )
 }
