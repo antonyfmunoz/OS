@@ -1,12 +1,12 @@
 ---
 type: codewiki-inventory
 dir: data
-source_sha: c806e75e29acfc82d1428de2ccc17924403407ab
+source_sha: 70deadbac8667755a38ac49595afd09afc209c2f
 ---
 
 # `data/` — Runtime Data Rollup
 
-**Files:** 42,112 regular + 1 symlinks · **Bytes:** 38,465,167,533
+**Files:** 42,112 regular + 1 symlinks · **Bytes:** 38,468,993,893
 
 [Narrative page](../dirs/data.md)
 
@@ -66,10 +66,10 @@ Runtime/artifact directory — inventoried at subdirectory level. Counts reconci
 | `data/sessions` | 1 | 0 | 310 | 2026-05-24 |
 | `data/snapshots` | 6 | 0 | 14,554 | 2026-05-25 |
 | `data/system` | 4 | 0 | 86,570 | 2026-05-12 |
-| `data/umh` | 2,416 | 0 | 3,695,393,965 | 2026-07-10 |
+| `data/umh` | 2,416 | 0 | 3,699,220,325 | 2026-07-10 |
 | `data/vault` | 104 | 0 | 376,221 | 2026-04-27 |
 | `data/voice_acks` | 6 | 0 | 251,288 | 2026-05-22 |
 | `data/work_queue` | 1 | 0 | 3,022 | 2026-05-06 |
 | `data/workbook_framework.md` | 1 | 0 | 1,355 | 2026-05-05 |
 | `data/workflow_state` | 4 | 0 | 6,520 | 2026-05-05 |
-| **Total** | **42,112** | **1** | **38,465,167,533** | |
+| **Total** | **42,112** | **1** | **38,468,993,893** | |
