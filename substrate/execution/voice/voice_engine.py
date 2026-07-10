@@ -149,7 +149,19 @@ class IntelligentVoiceProcessor:
     def transcribe_fast(self, audio_path: str) -> str:
         """
         faster-whisper transcription with built-in VAD filter.
-        Falls back to regular Whisper via VoiceEngine reference.
+
+        faster-whisper (CTranslate2 + built-in Silero VAD) is the CANONICAL local
+        STT: loaded once, ~3–4 s per clip. An empty result means "no usable speech"
+        — the caller (``VoiceSession``) types that as ``VAD_NO_SPEECH`` and relays a
+        real error frame. We deliberately do NOT fall through to the openai-whisper
+        engine here: that path cold-loads ``whisper.load_model('base')`` (hundreds of
+        MB, ~28–31 s) on essentially every empty-result clip, which blows past the
+        client's 25 s transcribe timeout and surfaces as a bogus "Transcription
+        failed" while the server was merely loading a second, redundant model to also
+        return empty. faster-whisper already has VAD and is the single local STT — a
+        second engine adds latency, not accuracy. (Live evidence 2026-07-10: fallback
+        path 31.19 s vs 25 s client timeout; 37 cold loads vs 7 fast loads across 14
+        real iOS sessions.)
         """
         if self._faster_whisper is None:
             self.load_faster_whisper()
@@ -163,15 +175,12 @@ class IntelligentVoiceProcessor:
                     vad_filter=True,   # built-in silence removal
                     vad_parameters=dict(min_silence_duration_ms=500),
                 )
-                text = ' '.join(seg.text for seg in segments).strip()
-                if text:
-                    return text
+                return ' '.join(seg.text for seg in segments).strip()
             except Exception as e:
                 print(f'[Voice] faster-whisper error: {e}')
 
-        # Fallback to regular whisper via VoiceEngine
-        if self._ve:
-            return self._ve.transcribe(audio_path)
+        # faster-whisper unavailable (load failed) — return empty so the caller
+        # emits a typed error rather than blocking on a cold openai-whisper load.
         return ''
 
     # ─── Speech classification ────────────────────────────────────────────────

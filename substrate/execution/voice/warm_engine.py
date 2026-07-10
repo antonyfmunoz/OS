@@ -45,23 +45,25 @@ def get_warm_engine() -> VoiceEngine:
 def preload_warm_engine() -> None:
     """Eagerly construct the warm engine and load its STT model.
 
-    Called at operator_api startup so the WhisperModel is resident before the
-    first voice turn. Best-effort: a load failure logs and leaves the singleton
-    to lazy-construct on first use (the runtime still works, just cold on turn 1).
+    Called at operator_api startup so the STT model is resident before the first
+    voice turn. Best-effort: a load failure logs and leaves the singleton to
+    lazy-construct on first use (the runtime still works, just cold on turn 1).
+
+    We preload **faster-whisper** — the model ``transcribe_fast`` actually uses on
+    the hot path — NOT openai-whisper via ``load_whisper()``. Preloading the wrong
+    model left faster-whisper to cold-load on turn 1 (and, before the fallback was
+    removed, made every empty-result clip pay a ~28 s openai-whisper cold load).
     """
     try:
         engine = get_warm_engine()
-        # Touch the STT model so faster-whisper actually loads now, not on turn 1.
-        # VoiceEngine.load_whisper() → IntelligentVoiceProcessor.load_faster_whisper().
-        loader = getattr(engine, "load_whisper", None)
-        if callable(loader):
-            loader()
-        else:  # fall back to the intelligent processor's loader
-            proc = getattr(engine, "intelligent", None)
-            fw = getattr(proc, "load_faster_whisper", None)
-            if callable(fw):
-                fw()
-        logger.info("warm VoiceEngine preloaded")
+        # Load the canonical hot-path STT (faster-whisper) now, not on turn 1.
+        proc = getattr(engine, "intelligent", None)
+        fw = getattr(proc, "load_faster_whisper", None)
+        if callable(fw):
+            fw()
+            logger.info("warm VoiceEngine preloaded (faster-whisper resident)")
+        else:  # pragma: no cover — engine shape changed
+            logger.warning("warm VoiceEngine: no faster-whisper loader found")
     except Exception as e:  # best-effort — never block startup
         logger.warning("warm VoiceEngine preload failed (will lazy-load): %s", e)
 
