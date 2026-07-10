@@ -78,7 +78,7 @@ AGENT_MAP = {
 
 MAX_TASKS_PER_RUN = 5
 
-# Signals that indicate the output requires DEX approval before action
+# Signals that indicate the output requires operator approval before action
 APPROVAL_SIGNALS = [
     'send', 'post', 'publish', 'dm', 'email', 'message',
     'outreach', 'pay', 'invoice', 'charge', 'transfer',
@@ -129,7 +129,7 @@ def execute_agent_task(task: dict, ctx) -> dict:
         f'TASK ASSIGNED BY CEO AGENT:\n'
         f'{description}\n\n'
         f'Execute this task completely. Be specific and actionable. '
-        f'If this requires sending something externally, draft it and flag for DEX approval. '
+        f'If this requires sending something externally, draft it and flag for operator approval. '
         f'If this is research or analysis, provide the complete output.\n\n'
         f'Venture context: {venture_id}'
     )
@@ -164,7 +164,7 @@ def execute_agent_task(task: dict, ctx) -> dict:
 def requires_approval(task: dict, result: dict) -> bool:
     """
     Check whether the task description or result output contains signals
-    that indicate an external action requiring DEX approval before execution.
+    that indicate an external action requiring operator approval before execution.
     """
     combined = (
         (task.get('description') or '') + ' ' + (result.get('output') or '')
@@ -316,7 +316,7 @@ async def run_executor():
 
             if r['needs_approval']:
                 message += (
-                    f"\n\n⚠️ **Requires DEX approval before action.**\n"
+                    f"\n\n⚠️ **Requires operator approval before action.**\n"
                     f"Reply `!approve_task {r['task_id'][:8]}` to approve."
                 )
 

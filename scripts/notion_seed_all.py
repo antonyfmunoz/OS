@@ -28,11 +28,39 @@ from adapters.notion.notion_sync import (
 
 TODAY = datetime.now().strftime('%Y-%m-%d')
 
-VENTURES = [
-    ('personal_brand',     'Personal Brand'),
-    ('lyfe_institute',     'Lyfe Institute'),
-    ('empyrean_creative',  'Empyrean Creative'),
-]
+def _ventures() -> list:
+    """(venture_id, name) tuples from the tenant registry (BIS) at runtime."""
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ventures
+        return [(v.get('id', ''), v.get('name', v.get('id', '')))
+                for v in get_ventures(load_context_from_env()) if v.get('id')]
+    except Exception:
+        return []
+
+
+VENTURES = _ventures()
+
+
+def _ai_name() -> str:
+    try:
+        from substrate.state.business.business_instance import get_ai_name
+        return get_ai_name() or 'Assistant'
+    except Exception:
+        return 'Assistant'
+
+
+def _founder_name() -> str:
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_founder_name
+        return get_founder_name(load_context_from_env(), default='the founder')
+    except Exception:
+        return 'the founder'
+
+
+AI_NAME = _ai_name()
+FOUNDER_NAME = _founder_name()
 
 
 # ── Empyrean Creative ─────────────────────────────
@@ -129,12 +157,12 @@ def seed_empyrean() -> None:
             'soul_doc': '',
         },
         {
-            'name': 'DEX — Executive Assistant',
+            'name': f'{AI_NAME} — Executive Assistant',
             'dept': 'Leadership',
             'mode': 'AI Only',
             'authority': 'Operational',
             'status': 'AI-Staffed',
-            'agent': 'DEX',
+            'agent': AI_NAME,
             'agent_status': '⚪ Idle',
             'kpi': 'Tasks cleared / Ops running',
             'kpi_value': '0 tasks',
@@ -356,14 +384,14 @@ def seed_empyrean() -> None:
             'integration': 'Direct API',
             'ai_op': False,
             'desc': 'Ubuntu 24. 4 Docker containers. 24/7 uptime.',
-            'access': 'SSH via Tailscale. 100.77.233.50',
+            'access': f'SSH via Tailscale. {os.getenv("UMH_VPS_IP", "<vps-host>")}',
             'cost': 30,
         },
         {
             'name': 'Notion',
             'dept': 'Operations',
             'role': 'EOS UI layer — business operating system frontend',
-            'agent': 'DEX',
+            'agent': AI_NAME,
             'cat': 'External SaaS',
             'integration': 'Direct API',
             'ai_op': True,
@@ -375,7 +403,7 @@ def seed_empyrean() -> None:
             'name': 'Telegram Bot',
             'dept': 'Operations',
             'role': 'Founder mobile control interface',
-            'agent': 'DEX',
+            'agent': AI_NAME,
             'cat': 'Native EOS',
             'integration': 'Direct API',
             'ai_op': True,
@@ -549,7 +577,7 @@ def seed_personal_brand() -> None:
     print(f'\n👥 Roles (DB: {roles_db[:8] if roles_db else "MISSING"})...')
     roles = [
         {
-            'name': 'Founder — Antony F. Munoz',
+            'name': f'Founder — {FOUNDER_NAME}',
             'dept': 'Leadership',
             'mode': 'Human Only',
             'authority': 'Strategic',
@@ -597,12 +625,12 @@ def seed_personal_brand() -> None:
             'soul_doc': '',
         },
         {
-            'name': 'DEX — Executive Assistant',
+            'name': f'{AI_NAME} — Executive Assistant',
             'dept': 'Operations',
             'mode': 'AI Only',
             'authority': 'Operational',
             'status': 'AI-Staffed',
-            'agent': 'DEX',
+            'agent': AI_NAME,
             'agent_status': '⚪ Idle',
             'kpi': 'Publishing schedule adherence',
             'kpi_value': '0%',

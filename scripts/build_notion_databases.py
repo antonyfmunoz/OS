@@ -9,11 +9,23 @@ import os
 
 client = Client(auth=os.getenv('NOTION_API_KEY'))
 
-company_ids = {
-    'Empyrean Creative': os.getenv('NOTION_EMPYREAN_CREATIVE_ID'),
-    'Lyfe Institute':    os.getenv('NOTION_LYFE_INSTITUTE_ID'),
-    'Personal Brand':    os.getenv('NOTION_PERSONAL_BRAND_ID'),
-}
+# Per-tenant venture → Notion page-id map, built from BIS at runtime. Each id
+# comes from NOTION_<SLUG_UPPER>_ID. Never hardcode a tenant's venture names.
+def _company_ids() -> dict:
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ventures
+        out = {}
+        for v in get_ventures(load_context_from_env()):
+            vid, vname = v.get('id', ''), v.get('name', '')
+            if vid:
+                out[vname or vid] = os.getenv(f'NOTION_{vid.upper()}_ID')
+        return out
+    except Exception:
+        return {}
+
+
+company_ids = _company_ids()
 
 
 def create_database(parent_id, title, icon='', properties=None):

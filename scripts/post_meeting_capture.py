@@ -1,6 +1,6 @@
 """
 Post-meeting capture — polls for recently ended calendar events
-and prompts DEX to capture outcomes in Discord.
+and prompts the assistant to capture outcomes in Discord.
 
 Runs every 15 minutes via cron. Deduplicates via /tmp/post_meeting_state.json.
 """

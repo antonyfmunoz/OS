@@ -13,6 +13,22 @@ headers = {
     'Content-Type': 'application/json',
 }
 
+# Venture select options are built from the tenant's ventures (BIS) at runtime,
+# never hardcoded — a fixed list would seed one tenant's ventures into every seat.
+_VENTURE_COLORS = ['green', 'orange', 'purple', 'blue', 'yellow', 'pink', 'red']
+def _venture_options() -> list:
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ventures
+        opts = []
+        for i, v in enumerate(get_ventures(load_context_from_env())):
+            name = v.get('name') or v.get('id', '')
+            if name:
+                opts.append({"name": name, "color": _VENTURE_COLORS[i % len(_VENTURE_COLORS)]})
+        return opts
+    except Exception:
+        return []
+
 payload = {
     "parent": {"type": "page_id", "page_id": "32eda8b9-6e4f-8071-b299-fef02dcb1b8c"},
     "title": [{"type": "text", "text": {"content": "Meetings"}}],
@@ -35,11 +51,7 @@ payload = {
             {"name": "Internal", "color": "blue"},
             {"name": "Other", "color": "gray"},
         ]}},
-        "Venture": {"select": {"options": [
-            {"name": "Lyfe Institute", "color": "green"},
-            {"name": "Empyrean Creative", "color": "orange"},
-            {"name": "Personal Brand", "color": "purple"},
-        ]}},
+        "Venture": {"select": {"options": _venture_options()}},
         "Prep Notes": {"rich_text": {}},
         "Outcomes": {"rich_text": {}},
         "Open Loops": {"rich_text": {}},

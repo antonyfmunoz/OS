@@ -23,6 +23,18 @@ sys.path.insert(0, os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os
 load_dotenv(os.path.join(os.environ.get('UMH_ROOT') or os.environ.get('OS_ROOT') or os.environ.get('EOS_ROOT') or '/opt/OS', 'runtime', '.env'))
 
 TOKEN = os.getenv('NOTION_API_KEY', '')
+
+
+def _ai_name() -> str:
+    try:
+        from substrate.state.business.business_instance import get_ai_name
+        return get_ai_name() or 'Assistant'
+    except Exception:
+        return 'Assistant'
+
+
+AI_NAME = _ai_name()
+
 HEADERS = {
     'Authorization': f'Bearer {TOKEN}',
     'Notion-Version': '2022-06-28',
@@ -48,30 +60,33 @@ OLD_SCAFFOLD_IDS: dict[str, str] = {
     '333da8b9-6e4f-81bc-ac06-ee87e7d13fa7': 'Meetings DB (root)',
 }
 
-# Venture page IDs
-VENTURES = [
-    {
-        'id': 'personal_brand',
-        'name': 'Personal Brand',
-        'page_id': '32eda8b9-6e4f-812b-888c-df30298aa856',
-    },
-    {
-        'id': 'lyfe_institute',
-        'name': 'Lyfe Institute',
-        'page_id': '32eda8b9-6e4f-817f-a314-fc66aa831cc3',
-    },
-    {
-        'id': 'empyrean_creative',
-        'name': 'Empyrean Creative',
-        'page_id': '32eda8b9-6e4f-81c7-8872-e5a768ea9faf',
-    },
-]
+# Venture page IDs — built from the tenant's ventures (BIS) at runtime; each page
+# id comes from NOTION_<SLUG_UPPER>_PAGE_ID. Never hardcode tenant venture data.
+def _load_ventures() -> list:
+    try:
+        from substrate.state.context.context import load_context_from_env
+        from substrate.state.business.business_instance import get_ventures
+        out = []
+        for v in get_ventures(load_context_from_env()):
+            vid = v.get('id', '')
+            if vid:
+                out.append({
+                    'id': vid,
+                    'name': v.get('name', vid),
+                    'page_id': os.getenv(f'NOTION_{vid.upper()}_PAGE_ID', ''),
+                })
+        return out
+    except Exception:
+        return []
+
+
+VENTURES = _load_ventures()
 
 ROLE_CONFIGS = [
     {
         'name': '👤 Founder',
         'dept': 'Leadership',
-        'agent': 'CEO Agent + DEX',
+        'agent': f'CEO Agent + {AI_NAME}',
         'kpi': 'First sale closed / Portfolio health',
         'description': (
             'Full portfolio view. '
@@ -92,9 +107,9 @@ ROLE_CONFIGS = [
         ],
     },
     {
-        'name': '🤖 DEX — Executive Assistant',
+        'name': f'🤖 {AI_NAME} — Executive Assistant',
         'dept': 'Leadership',
-        'agent': 'DEX',
+        'agent': AI_NAME,
         'kpi': 'Tasks cleared / Inbox zero',
         'description': (
             'Cross-venture operational surface. '

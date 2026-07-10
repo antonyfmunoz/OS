@@ -26,4 +26,5 @@ print(report)
 webhook = os.getenv('DISCORD_BRIEF_WEBHOOK', '')
 has_content = any(len(v) > 0 for v in processed.values())
 if webhook and has_content:
-    post_to_webhook(report, username='DEX', webhook_url=webhook)
+    from substrate.state.business.business_instance import get_ai_name
+    post_to_webhook(report, username=get_ai_name() or 'Assistant', webhook_url=webhook)

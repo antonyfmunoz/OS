@@ -37,8 +37,9 @@ SCOPES = [
 
 def _load_client_config() -> dict:
     if not _CLIENT_SECRET_PATH.exists():
+        _vps = os.getenv("UMH_VPS_SSH") or f"{os.getenv('UMH_VPS_USER', 'root')}@{os.getenv('UMH_VPS_IP', '<vps-host>')}"
         print(f"ERROR: {_CLIENT_SECRET_PATH} not found")
-        print("Copy from VPS: scp root@100.77.233.50:/root/.config/gws/client_secret.json ~/.config/gws/")
+        print(f"Copy from VPS: scp {_vps}:/root/.config/gws/client_secret.json ~/.config/gws/")
         sys.exit(1)
     data = json.loads(_CLIENT_SECRET_PATH.read_text())
     return data.get("installed", data.get("web", {}))
@@ -141,10 +142,13 @@ async def main():
 
     print(f"\n[OAuth] Now copy to VPS:")
     creds_path_str = str(_CREDENTIALS_PATH).replace("\\", "/")
+    _vps = os.getenv("UMH_VPS_SSH") or f"{os.getenv('UMH_VPS_USER', 'root')}@{os.getenv('UMH_VPS_IP', '<vps-host>')}"
+    _beast_user = os.getenv("UMH_BEAST_SSH_USER", "<beast-user>")
+    _beast_ip = os.getenv("UMH_BEAST_IP", "<beast-host>")
     print(f'  Type in VPS terminal:')
-    print(f'  ssh -l "antonys beast pc" 100.74.199.102 "type \\"{_CREDENTIALS_PATH}\\"" > /root/.config/gws/gmail_credentials.json')
+    print(f'  ssh -l "{_beast_user}" {_beast_ip} "type \\"{_CREDENTIALS_PATH}\\"" > /root/.config/gws/gmail_credentials.json')
     print(f"\n  Or from this machine:")
-    print(f'  scp "{_CREDENTIALS_PATH}" root@100.77.233.50:/root/.config/gws/gmail_credentials.json')
+    print(f'  scp "{_CREDENTIALS_PATH}" {_vps}:/root/.config/gws/gmail_credentials.json')
 
 
 if __name__ == "__main__":

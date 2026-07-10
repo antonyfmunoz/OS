@@ -96,9 +96,31 @@ LEGACY_INSTANCE_LEAKS: dict[str, set[str]] = {
     # Benchmark defect seeder — intentionally contains instance values as test data.
     # This is a fixture (a leak-detector test corpus), not runtime tenant data.
     "substrate/organism/benchmarks/production_quality.py": {"ai_name", "infra_ip"},
-    # All prior venture-slug tech debt migrated to BIS runtime lookups in the
-    # multi-tenant instance-leak sweep. The allowlist is now empty of runtime
-    # code — kept only for the intentional benchmark fixture above. Shrink-only.
+    # ── Single-tenant workspace-authoring scripts ────────────────────────────
+    # notion_seed_all.py and build_notion_workspace.py are one-shot EOS Notion
+    # workspace AUTHORING artifacts — bespoke, hand-written portfolio copy (per-
+    # venture goal prose, org-chart ASCII art, content-pillar plans, incubation
+    # relationships) with no BIS field to source from. Their IDENTITY and INFRA
+    # leaks (assistant name, founder name, node IPs) and the tenant venture
+    # REGISTRY were migrated to runtime BIS/env lookups; what remains is authored
+    # domain COPY that names specific ventures/offers. Per the architecture-layer
+    # + machine-boundary decision, this EOS authoring content ultimately belongs
+    # in the EOS projection body (on the Beast), not UMH substrate tooling; until
+    # it is relocated it is frozen here. Shrink-only — new leaks are NOT added.
+    "scripts/notion_seed_all.py": {"company_name", "product_name", "venture_slug"},
+    "scripts/build_notion_workspace.py": {"company_name", "product_name", "venture_slug"},
+    # ── Gate / de-brander tooling — the literals ARE the patterns they match ──
+    # These scripts scan for or rewrite instance values, so they necessarily
+    # contain the literal patterns as data. Not runtime tenant leaks. Fixtures.
+    "scripts/check_instance_leak.py": {
+        "ai_name", "founder_name", "company_name", "product_name",
+        "venture_slug", "account_id", "node_id", "infra_ip", "session_prefix",
+    },
+    "scripts/migrate_instance_leaks.py": {
+        "ai_name", "founder_name", "company_name", "account_id", "venture_slug",
+    },
+    "scripts/detemplatize_skills.py": {"product_name", "venture_slug", "company_name"},
+    "scripts/check_ontology_layers.py": {"venture_slug"},
 }
 
 # ── Directories to skip ──────────────────────────────────────────────────────
@@ -164,7 +186,7 @@ def _scan_file(filepath: Path) -> list[dict[str, str]]:
 # platform, not just substrate — a hardcoded tenant value anywhere breaks
 # multi-tenancy. UMH capability layers + the projection binding shell are all in
 # scope (the projection defines the SHAPE; BIS supplies the tenant VALUES).
-_SCANNED_LAYERS = ("substrate/", "adapters/", "transports/", "services/", "projections/")
+_SCANNED_LAYERS = ("substrate/", "adapters/", "transports/", "services/", "projections/", "scripts/")
 
 
 def _get_staged_files() -> list[Path]:

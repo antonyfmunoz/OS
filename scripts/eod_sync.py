@@ -149,7 +149,9 @@ def _get_todays_decisions(ctx) -> list[str]:
 
 def build_eod_message() -> str:
     from substrate.state.context.context import load_context_from_env
+    from substrate.state.business.business_instance import get_ai_name
     ctx = load_context_from_env()
+    ai_name = get_ai_name() or 'Assistant'
 
     now = datetime.now(PDT)
     today_str = now.strftime('%A, %B %d')
@@ -199,7 +201,7 @@ def build_eod_message() -> str:
     sections.append(
         '**⚡ Energy Check-in:**\n'
         '`!energy [1-10] | [what drained you] | [what energized you]`\n'
-        '_Feeds your Task Yield Matrix and helps DEX protect your energy._'
+        f'_Feeds your Task Yield Matrix and helps {ai_name} protect your energy._'
     )
 
     body = '\n\n'.join(sections) if sections else 'No activity logged today.'
@@ -213,7 +215,7 @@ def build_eod_message() -> str:
         f'\n'
         f'_Reply with anything that needs to carry forward to tomorrow._\n'
         f'━━━━━━━━━━━━━━━━━━━━━━━━\n'
-        f'— DEX'
+        f'— {ai_name}'
     )
 
 

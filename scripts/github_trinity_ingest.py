@@ -37,11 +37,14 @@ _CLONE_BASE = Path("/opt/OS/data/repos")
 _MEMORY_STORE = Path("/opt/OS/data/runtime/canonical_memory_store")
 _PROOF_DIR = _MEMORY_STORE / "proofs" / "github_trinity"
 
+# GitHub owner comes from env (GITHUB_ORG / GITHUB_USER) — never hardcode a
+# specific account, so a different tenant's projections ingest from their org.
+_GH_OWNER = os.getenv("GITHUB_ORG") or os.getenv("GITHUB_USER") or ""
 TRINITY_REPOS: dict[str, str] = {
-    "entrepreneuros": "https://github.com/antonyfmunoz/EntrepreneurOS.git",
-    "creatoros": "https://github.com/antonyfmunoz/CreatorOS.git",
-    "LYFEOS": "https://github.com/antonyfmunoz/LYFEOS.git",
-}
+    "entrepreneuros": f"https://github.com/{_GH_OWNER}/EntrepreneurOS.git",
+    "creatoros": f"https://github.com/{_GH_OWNER}/CreatorOS.git",
+    "LYFEOS": f"https://github.com/{_GH_OWNER}/LYFEOS.git",
+} if _GH_OWNER else {}
 
 # File extensions worth ingesting (source code + docs)
 _INGEST_EXTENSIONS: set[str] = {

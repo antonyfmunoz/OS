@@ -28,6 +28,9 @@ async def architect_week():
     from adapters.models.model_router import get_router, TaskType
 
     ctx = load_context_from_env()
+    from substrate.state.business.business_instance import get_ai_name, get_founder_name
+    ai_name = get_ai_name() or 'Assistant'
+    founder_name = get_founder_name(ctx, default='the founder')
     gws = GWSConnector()
     now = datetime.now(PDT)
 
@@ -60,7 +63,7 @@ async def architect_week():
     else:
         events_text = 'No events scheduled'
 
-    prompt = f"""You are DEX, EA to Antony Munoz.
+    prompt = f"""You are {ai_name}, EA to {founder_name}.
 
 Today is Sunday {now.strftime('%B %d')}.
 Portfolio binding constraint: {constraint_name} — {constraint}
@@ -68,7 +71,7 @@ Portfolio binding constraint: {constraint_name} — {constraint}
 Coming week calendar:
 {events_text}
 
-Design the optimal week for Antony. Consider:
+Design the optimal week for {founder_name}. Consider:
 - Monday: planning and deep work (no calls before noon ideally)
 - Tuesday/Thursday: best days for sales calls
 - Wednesday: operations and follow-ups
@@ -108,7 +111,7 @@ Be direct. Under 300 words."""
     message = (
         f'## Week Architecture — {now.strftime("%B %d")}\n\n'
         f'{week_design}\n\n'
-        f'— DEX'
+        f'— {ai_name}'
     )
 
     intents = discord.Intents.default()
