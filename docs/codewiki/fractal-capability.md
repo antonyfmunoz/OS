@@ -142,28 +142,56 @@ it. Term for term:
 | Agent: intent, in a body, in an environment, among other agents | Cell/agent: intent, in a runtime, in a device-environment, among other agents |
 | We arrive **not remembering what we are** | The dormant organism (identity unbound until instantiated) |
 | We are **not taught how reality works** | The un-onboarded system (no world model of *its* reality yet) |
-| Drift toward incoherence without raised awareness | Projection drift, canon-rot, staleness — decays without governance |
-| Raised awareness → coherence | Governance + reconciliation + correspondence-completeness → coherence |
+| The natural unity (coherence + incoherence + their paradox) | Reality-in-general the canon models |
+| Artificial, agent-manufactured incoherence | The distortion UMH exists to counter |
 
-**The human is the default-incoherent node.** We come into the world not
-remembering what we are, placed among other agents, untaught in how reality works —
-so *without deliberately raising conscious awareness we drift increasingly
-incoherent, not coherent.* Coherence is not the natural state; it is an achievement
-that takes **intent at the scale of the human being.** This refines the previous
-point: field coherence is the general law, but in the human case it *almost always*
-routes through the human's own coherence — not because the self is the only
-variable, but because **the self is the node most reliably out of correspondence**,
-since consciousness of how reality works is the one thing we are never given and
-must earn.
+**Coherence and incoherence — and the paradox their co-existence creates — are
+*all* the natural state.** This is the Law of Unity / Oneness (PHILOSOPHY.md §II,
+"Reality is one; there is no separation"): reality holds both, and the tension
+between them, *as a unity*. Incoherence is not a fall from a coherent ideal, and
+coherence is not "the default"; **the one contains both and their paradox.** So the
+earlier claim — "the human drifts toward incoherence by default (natural)" — was
+wrong.
+
+**The harmful incoherence is not natural — it is artificially created by agents.**
+The kind UMH exists to counter is a *second-order, agent-manufactured* incoherence
+layered on top of the natural unity: our collective societal matrix manufactures it
+through **ignorant agents** (untaught, unaware of how reality works), **malicious
+agents** (acting against coherence deliberately), and **structures designed to
+produce incoherence.** The human is not incoherent because reality tends that way —
+the human is *distorted by a matrix engineered to keep agents ignorant and to serve
+malicious ones,* and never taught how reality actually works. Natural reality is
+unity; the *artificial* structure is the incoherence-factory.
+
+**So UMH is a counter-structure to the artificial incoherence-matrix** — and this
+sharpens the whole mission and shows why governance is load-bearing at the root:
+- **Against induced ignorance** → the **canon** ships reality-knowledge and mastery
+  (the antidote to being untaught) and the organism is a **consciousness
+  instrument** (teaches how reality works).
+- **Against malicious agents** → **governance** — the conscience, non-sovereign
+  autonomy, human-directs, nothing-unintended — is the *structural defense against
+  agent-manufactured malice*, not merely safety. The threat model is not "reality
+  is chaotic"; it is "*agents* manufacture incoherence."
+- **Against the artificial matrix itself** → UMH mirrors *reality's* unity (the
+  microcosm), not the matrix's distortion — a **legible clean-room instance of the
+  natural unified field** where correspondence is visible, uncontaminated by the
+  incoherence-factory.
+
+So the "coherence work" is not correcting a *natural* defect in the human — it is
+**undoing what an artificial structure did to them.** Flourishing is not achieving
+an unnatural coherence; it is **returning the agent to the natural unity the
+artificial matrix obscured** — remembering what you are by escaping the structure
+built to make you forget.
 
 **Therefore UMH is, at root, a consciousness instrument.** Because the microcosm is
 *legible* where raw reality is not, directing it *teaches the user how reality
 works* — correspondence, coherence, intent→manifestation made observable at a scale
 a human can hold. Flourishing at its root is not more output or even more
 capability: it is **remembering what you are and learning how reality works, so you
-stop drifting and start cohering.** Governance toward flourishing → because
-flourishing is coherence → coherence requires raised awareness → and UMH is a
-legible microcosm of reality that cultivates it.
+escape the artificial matrix's distortion and return to the natural unity.**
+Governance toward flourishing → because flourishing is participation in the natural
+unity (against agent-manufactured ignorance and malice) → which requires raised
+awareness → and UMH is a legible microcosm of reality that cultivates it.
 
 *Not-yet-hardcoded is a staged decision, not an oversight.* The flourishing telos
 is deliberately **not hardcoded yet** because what flourishing means *at scale*
