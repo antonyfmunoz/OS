@@ -16,7 +16,9 @@ synchronizing every governed capability into one harmonious organism, that the
 user is continuously promoted up the work ladder, from *doing* to *directing*.
 **Governance is not (only) a cage — it is the system's conscience:** every
 capability, at every scale, is kept oriented toward the human's good, not merely
-kept from going wrong. This page states the nine principles, each as **principle →
+kept from going wrong. And it grows not just the user's *resources* but the *user
+themselves* — because manifestation requires resonance, and resonance requires
+becoming: to hold a reality, you must become someone it belongs to. This page states the nine principles, each as **principle →
 mechanism → verified gap**, and the lifecycle (install → onboard → ambient life)
 that is their spine.
 Companions: [role-composition.md](role-composition.md) — how the living organism
@@ -70,31 +72,46 @@ human flourishing, that grows its user.**
        AI → code: adapts / controls the living software
        code → AI: invariants / guardrails bound what it may do
   ```
-- **It closes the reality gap — support + assist + execute + expand.** Not only
-  *support* (fills weakness — passive backing). It **assists** (alongside the user),
-  **executes** (actively materializes intent — does the work), and **expands the
-  user's resources** (grows their means — capability, reach, leverage, capital), to
-  **close the gap** between current and intended reality. Closing the gap is active
-  manifestation, not just propping up weakness.
+- **It infers intent and extrapolates at scale.** The user often cannot fully
+  articulate their own intent (they lack the expertise, the language, or the
+  vantage). So UMH must **infer the true intent** behind the imperfect expression
+  — the reality they are actually reaching for — and **extrapolate it at scale**:
+  project where that intent leads, what it will require, *who the user must become*
+  for it. Serving the literal ask keeps the user where they are; inferring and
+  extrapolating works *ahead* of their current self toward the self their intent
+  implies.
+- **It closes TWO gaps in lockstep — the reality gap and the becoming gap.** Not
+  only *support* (fills weakness) — it **assists** (alongside), **executes**
+  (materializes intent), and **expands** — but *expansion is of resources **and of
+  the user themselves***. The deeper law: **manifestation requires resonance, and
+  resonance requires becoming.** You cannot durably hold a reality you don't
+  resonate with — it won't stabilize (the lottery-winner-reverts pattern: got the
+  resource, never became the person, reality slipped). So closing the **reality
+  gap** (materialize the intended reality) demands closing the **becoming gap** (the
+  distance between who the user is now and who they must *become* for that reality
+  to be theirs). This is why "improve their nature" is not a side-effect but a
+  *requirement* of manifestation — and the deepest anti-replacement guarantee: UMH
+  *cannot* replace the user, because the mechanism **is** the user becoming; remove
+  the user's becoming and the manifestation doesn't resonate and doesn't hold.
+  Growing the person is the deeper expansion — it is what makes the manifested
+  reality stay. *Doc:* PHILOSOPHY/EPISTEMOLOGY already frame "recursive human
+  capability compounding" and "maximize human capability" — *capability* is what
+  the user can do; **becoming** is who they are, and manifestation requires the
+  latter. The becoming/resonance layer is the deeper extension the docs imply but
+  do not yet state.
 - **To serve the user, it must model the user.** You cannot support someone where
-  they are weak, assist them well, or expand the *right* resources without having
-  modeled *who they are* — strengths, weaknesses, intent, nature. The **user model
-  is the prerequisite for correct assistance**; no model → generic → wrong help.
-  *Code:* user/agent modeling exists (`profile_runtime.py`, capability profiles in
-  `role_contracts.py`); a unified user model is partial.
+  they are weak, assist them well, expand the *right* resources, or grow them toward
+  the *right* becoming without having modeled *who they are* — strengths,
+  weaknesses, intent, nature. The **user model is the prerequisite for correct
+  assistance**; no model → generic → wrong help. *Code:* user/agent modeling exists
+  (`profile_runtime.py`, capability profiles in `role_contracts.py`); a unified user
+  model is partial.
 - **It does nothing the user doesn't intend — the human always directs.** Every
-  transformation traces to the user's intent; the AI executes *directed* intent,
-  it never *invents* intent. This is the sovereignty guarantee made operational.
-  *Code:* **built and canonical** — `canonical_runtime.py` declares "the one
-  canonical path from **operator intent**"; `CompositionEngine` is "intent → plan"
-  with `CompositionIntent.source = "operator"` by default. The governed path is
-  architecturally rooted in operator intent.
-- **It grows the user — support, focus, nature.** It frees the user's **focus**
-  (removes friction/noise so attention goes up the work ladder) and helps them
-  **improve their own nature** (developmental, not just productive — the human
-  becomes better, not merely more output). The symbiosis has a direction: the user
-  grows *as a person*, and the organism is the scaffold for that becoming —
-  flourishing, not replacement.
+  transformation traces to the user's intent; the AI executes *directed* intent, it
+  never *invents* intent. *Code:* **built and canonical** — `canonical_runtime.py`
+  declares "the one canonical path from **operator intent**"; `CompositionEngine` is
+  "intent → plan" with `CompositionIntent.source = "operator"` by default; and
+  PHILOSOPHY.md: "the human is **sovereign in decision**."
 
 *Not-yet-hardcoded is a staged decision, not an oversight.* The flourishing telos
 is deliberately **not hardcoded yet** because what flourishing means *at scale*
@@ -454,7 +471,7 @@ the last artifact (P6), acting proportional to how corresponded it currently is
 [role-composition.md](role-composition.md), [terminal-fabric.md](terminal-fabric.md)
 — is a consequence of this theory made mechanical.
 
-## The frontier (the seven gaps in the theory, not just the code)
+## The frontier (the eight gaps in the theory, not just the code)
 
 Beyond the per-principle gaps above, six items are the *theoretical* frontier —
 name them or the system cannot become what it intends: **(1)** the objective
@@ -468,8 +485,11 @@ reality it currently is; **(6)** the **nested Variable Decision-Making Template*
 variable optimally from the user's full context, making the objective function of
 (1) *computable at the variable level*; **(7)** the **template↔world-model wiring**
 — making a template genuinely a *unit of the world model* (memory that runs), the
-prerequisite for living/adaptive software and the canon corpus. These are found
-*by the theory* and must be verified against reality as they are built.
+prerequisite for living/adaptive software and the canon corpus; **(8)** the
+**becoming gap** — infer-intent + extrapolate-at-scale + model and grow the *user's
+being* (not just resources) so manifestation resonates and holds; the docs frame
+*capability* compounding but not *becoming*. These are found *by the theory* and
+must be verified against reality as they are built.
 
 ## See also
 
