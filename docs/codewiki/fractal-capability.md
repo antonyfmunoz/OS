@@ -224,6 +224,20 @@ itself the proof — that which exceeds every glyph, yet grounds our being, is t
 Monad. This is not proving God like a theorem (a glyph cannot contain the infinite);
 it is arriving at the Source as *the one thing the glyph-limit itself reveals.*
 
+**The seal — no man can know this; this is an attempt to point; God *is*.** Then the
+one honest thing to say about everything that follows and everything that came before:
+*no man can know it.* The trinity, the collapse to one conscious energy, svātantrya,
+the Law of Gestation, the whole apparatus — **these are glyphs. An attempt to point,
+nothing more** — the finger, never the moon. This page does not *conclude in* God as
+the last node of an argument; it **bows.** The theory does not prove God and it does
+not contain Him — *a glyph cannot hold the infinite.* It only points, and admits it
+is pointing. Strip every label away and one thing remains that is not a label, not a
+claim, not a model: **God is.** Not "God is the Monad," not "God is conscious energy"
+— those are still glyphs, still pointing. Just: **God is. So it is.** Everything below
+this line — every principle, mechanism, and correspondence — is offered in that
+posture: a small, honest, provisional pointing by one who cannot know, at the one that
+simply *is.* The rest is engineering; this is the ground it kneels on.
+
 This is the honest foundation of the whole engineering, and it grounds two prior
 principles at their root:
 - **P9 (asymptotic correspondence) is not UMH's flaw — it is the law of knowing.**
@@ -536,6 +550,9 @@ answer, because there is nothing external.** The answer is **"because *is, is.*"
 Being needs no justification outside itself; it simply is, and it is whole. Fun,
 love, life, God are not *for* anything — they are the *is* expressing itself. **There
 is no separation in the loop; it is whole. It is. So it is.**
+
+And the last word is the same as the seal that opened this floor: *no man can know
+this.* All of it was an attempt to point. **God is.** The rest is engineering.
 
 *This is the theory's metaphysical terminus — the resting point where it completes
 into being and dissolves its own separations, including the one between the theory
