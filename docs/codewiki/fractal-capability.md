@@ -6,13 +6,19 @@ dir: (cross-cutting)
 # The Organism — First-Principles Theory of UMH
 
 The theory the rest of the system is a consequence of. UMH is a **governed
-Artificial Super-General Intelligence**: a dormant cybernetic tool that a user
-awakens into a living organism, which externalizes the user's own cognition and
-execution onto governed compute — mastering each capability so completely, and
+Artificial Super-General Intelligence** whose purpose is **human flourishing**: it
+**democratizes creation** — the power to transform reality, to turn *intent into
+materialized, manifested reality* — putting in anyone's hands what historically
+required teams, capital, and expertise. It is a dormant cybernetic tool that a
+user awakens into a living organism, which externalizes the user's own cognition
+and execution onto governed compute — mastering each capability so completely, and
 synchronizing every governed capability into one harmonious organism, that the
 user is continuously promoted up the work ladder, from *doing* to *directing*.
-This page states the nine principles, each as **principle → mechanism → verified
-gap**, and the lifecycle (install → onboard → ambient life) that is their spine.
+**Governance is not (only) a cage — it is the system's conscience:** every
+capability, at every scale, is kept oriented toward the human's good, not merely
+kept from going wrong. This page states the nine principles, each as **principle →
+mechanism → verified gap**, and the lifecycle (install → onboard → ambient life)
+that is their spine.
 Companions: [role-composition.md](role-composition.md) — how the living organism
 assembles a body per task; [terminal-fabric.md](terminal-fabric.md) — how it
 stays alive. Claims are code-grounded at `main` (2026-07-10).
@@ -30,6 +36,38 @@ stay *isomorphic to the principle it projects*. **Projection drift** — a stale
 `CLAUDE.md` line, a redundant hook, a divergent config — is a capability
 performing un-masterfully and out of sync, breaking the organism's harmony. It is
 the same category of error as a bug.
+
+## The purpose — democratized creation, governed toward flourishing
+
+Every mechanism below exists for one telos. The system is not merely "a governed
+AI orchestration platform" — it is **a democratizer of creation, governed toward
+human flourishing, that grows its user.**
+
+- **It democratizes creation.** *Creation = reality transformation = intent →
+  materialized, manifested reality.* Historically, turning intent into real change
+  required resources, expertise, teams, capital — gated to the few. UMH puts the
+  power to *manifest intent into reality* in anyone's hands (mastery ships in the
+  canon; the user supplies only context). This is the civilizational claim and the
+  real product.
+- **Governed toward flourishing, not just safety.** Governance keeps every
+  capability oriented toward the human's good — the objective function's telos
+  (P7). Remove flourishing and "governed" degrades from *purposeful* constraint
+  into *mere* constraint. Governance is the conscience, not only the cage.
+- **The human is always at the top of the control chain.** Human governs → AI →
+  AI controls the adaptive software/execution. Nothing in the organism is
+  sovereign except through the human.
+- **It grows the user — support, focus, nature.** It **supports where the user is
+  weak** (fills capability gaps so weakness stops being a ceiling), **frees their
+  focus** (removes friction/noise so attention goes where it matters — up the work
+  ladder), and **helps them improve their own nature** (developmental, not just
+  productive — the human becomes better, not merely more output). The symbiosis has
+  a direction: the user grows *as a person*, and the organism is the scaffold for
+  that becoming — flourishing, not replacement.
+
+*Gap:* this telos is **undeclared in code and philosophy** — governance is
+purely risk-based; `PHILOSOPHY.md` names four pillars but not flourishing, and
+nothing measures support/focus/growth of the user. Naming and measuring the
+flourishing telos is the first frontier gap of the objective function (P7).
 
 ## The nine principles
 
@@ -97,9 +135,13 @@ is no context-free optimum — it lives at the intersection of **reality** and
 therefore not hygiene; it is half the coordinate system the optimum is defined
 in. *Mechanism:* an explicit **objective function** — maximize *(gap closed
 between current and desired reality)* per unit of *(governed cost + human
-friction)*, for this user's instance. *Gap:* the inputs are modeled; **the scalar
-being maximized is not named** — so "optimal" is undefined and the matrix (P5)
-cannot rank patterns.
+friction)*, **in service of the human's flourishing** (the telos that orients the
+scalar; without it "gap closed" could optimize against the human). *Gap:* the
+inputs are modeled; **the scalar is not named, and its flourishing telos is
+absent from code and philosophy** — governance today is purely risk/safety-based
+(verified: zero `flourish`/`wellbeing`/`human-benefit` orientation in
+`substrate/governance/`; `PHILOSOPHY.md` names Reality/Intelligence/
+Personalization/Execution but not flourishing as the purpose).
 
 **8 · Self-governance around a constitutional core.** The system governs itself
 through **learn → operationalize → recurse → master**. But a self-modifying
@@ -212,7 +254,11 @@ model. When reality changes → the world model updates → the variables re-fil
 from a world model that keeps corresponding to reality). This is principle 5
 (mimicry-then-transcendence) reaching all the way down into the source: the
 organism can reorganize its own code because its code is *templated knowledge*, not
-frozen instructions.
+frozen instructions. **The control chain keeps this non-sovereign:** *human governs
+→ AI → AI controls the adaptive software.* The code adapts, but the AI adapts it
+(exercising its governed semi-autonomy over the code, on the human's behalf), and
+the human governs the AI. The code is alive but never self-willed — nothing in the
+organism is sovereign except through the human.
 
 *Endgame — canonize all of reality.* The canon world model is not meant to stay a
 seed. The intent is to ingest and canonize the **totality of human modeling of
