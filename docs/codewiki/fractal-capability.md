@@ -16,9 +16,10 @@ synchronizing every governed capability into one harmonious organism, that the
 user is continuously promoted up the work ladder, from *doing* to *directing*.
 **Governance is not (only) a cage — it is the system's conscience:** every
 capability, at every scale, is kept oriented toward the human's good, not merely
-kept from going wrong. And it grows not just the user's *resources* but the *user
-themselves* — because manifestation requires resonance, and resonance requires
-becoming: to hold a reality, you must become someone it belongs to. This page states the nine principles, each as **principle →
+kept from going wrong. And a manifested change *holds* only
+if it is coherent with the field of reality around it — so UMH transforms a whole
+region into coherence, expanding resources, systems, and (when the incoherence is
+in the self) the user themselves. This page states the nine principles, each as **principle →
 mechanism → verified gap**, and the lifecycle (install → onboard → ambient life)
 that is their spine.
 Companions: [role-composition.md](role-composition.md) — how the living organism
@@ -80,25 +81,31 @@ human flourishing, that grows its user.**
   for it. Serving the literal ask keeps the user where they are; inferring and
   extrapolating works *ahead* of their current self toward the self their intent
   implies.
-- **It closes TWO gaps in lockstep — the reality gap and the becoming gap.** Not
-  only *support* (fills weakness) — it **assists** (alongside), **executes**
-  (materializes intent), and **expands** — but *expansion is of resources **and of
-  the user themselves***. The deeper law: **manifestation requires resonance, and
-  resonance requires becoming.** You cannot durably hold a reality you don't
-  resonate with — it won't stabilize (the lottery-winner-reverts pattern: got the
-  resource, never became the person, reality slipped). So closing the **reality
-  gap** (materialize the intended reality) demands closing the **becoming gap** (the
-  distance between who the user is now and who they must *become* for that reality
-  to be theirs). This is why "improve their nature" is not a side-effect but a
-  *requirement* of manifestation — and the deepest anti-replacement guarantee: UMH
-  *cannot* replace the user, because the mechanism **is** the user becoming; remove
-  the user's becoming and the manifestation doesn't resonate and doesn't hold.
-  Growing the person is the deeper expansion — it is what makes the manifested
-  reality stay. *Doc:* PHILOSOPHY/EPISTEMOLOGY already frame "recursive human
-  capability compounding" and "maximize human capability" — *capability* is what
-  the user can do; **becoming** is who they are, and manifestation requires the
-  latter. The becoming/resonance layer is the deeper extension the docs imply but
-  do not yet state.
+- **A manifestation persists only through FIELD COHERENCE — of which becoming is
+  one special case.** Not only *support* (fills weakness) — it **assists**
+  (alongside), **executes** (materializes intent), and **expands** — resources
+  *and*, when needed, the user. But the deeper law is not "you must become
+  somebody" (too simple a layer): **reality is a coherent field, and a manifested
+  change persists only if it is coherent with the surrounding region it lands in;
+  a local change incoherent with its field is transient — the field reconverges
+  and erases it.** The lottery-winner reverts not for lack of *becoming* but for
+  **coherence failure across the instance**: the money was a local change dropped
+  into a field (habits, relationships, systems, models, conditions) that didn't
+  support it, so the field relaxed back to equilibrium. Growing the *person* is
+  only the special case where the incoherent node **is** the self; the general law
+  is field-wide (the incoherence may live in relationships, systems, resource
+  preconditions, or unaccounted second-order effects). This is **P4
+  (correspondence) and P9 (moving field) applied to *persistence of change***:
+  a manifested reality is a new pattern that must correspond with its field, or the
+  field's own correspondence-seeking dynamics undo it. So UMH must **model the
+  field, not the variable; compute the *coherent configuration*, not the isolated
+  change; and transform the region into coherence** — pulling whichever levers
+  (resources, systems, *and sometimes the self*) make the intended reality hold.
+  The anti-replacement guarantee survives in its true form: when the incoherent
+  node is the user, growing them is *required*, so UMH cannot simply replace them.
+  *Doc:* PHILOSOPHY/EPISTEMOLOGY frame "recursive human capability compounding" —
+  the self-coherence case; field-coherence is the general law the docs do not yet
+  state.
 - **To serve the user, it must model the user.** You cannot support someone where
   they are weak, assist them well, expand the *right* resources, or grow them toward
   the *right* becoming without having modeled *who they are* — strengths,
@@ -485,10 +492,12 @@ reality it currently is; **(6)** the **nested Variable Decision-Making Template*
 variable optimally from the user's full context, making the objective function of
 (1) *computable at the variable level*; **(7)** the **template↔world-model wiring**
 — making a template genuinely a *unit of the world model* (memory that runs), the
-prerequisite for living/adaptive software and the canon corpus; **(8)** the
-**becoming gap** — infer-intent + extrapolate-at-scale + model and grow the *user's
-being* (not just resources) so manifestation resonates and holds; the docs frame
-*capability* compounding but not *becoming*. These are found *by the theory* and
+prerequisite for living/adaptive software and the canon corpus; **(8)** **field-coherence
+persistence** — model the *field* not the variable, compute the coherent
+configuration, and transform the region (resources, systems, and — as a special
+case — the self) so a manifested change *holds* rather than reverts; infer-intent
++ extrapolate-at-scale feed it. The docs frame self-capability compounding but not
+field-coherence. These are found *by the theory* and
 must be verified against reality as they are built.
 
 ## See also
