@@ -53,21 +53,60 @@ human flourishing, that grows its user.**
   capability oriented toward the human's good — the objective function's telos
   (P7). Remove flourishing and "governed" degrades from *purposeful* constraint
   into *mere* constraint. Governance is the conscience, not only the cage.
-- **The human is always at the top of the control chain.** Human governs → AI →
-  AI controls the adaptive software/execution. Nothing in the organism is
-  sovereign except through the human.
-- **It grows the user — support, focus, nature.** It **supports where the user is
-  weak** (fills capability gaps so weakness stops being a ceiling), **frees their
-  focus** (removes friction/noise so attention goes where it matters — up the work
-  ladder), and **helps them improve their own nature** (developmental, not just
-  productive — the human becomes better, not merely more output). The symbiosis has
-  a direction: the user grows *as a person*, and the organism is the scaffold for
-  that becoming — flourishing, not replacement.
+- **The human is always at the top; the AI↔code link is a mutual loop.** The human
+  governs the AI (one-way, human atop everything). But the AI and the deterministic
+  template code **govern each other**: the AI governs the code (adapts/controls the
+  living software), *and is simultaneously governed by* that same code (its
+  invariants/guardrails bound what the AI may do). Neither is sovereign over the
+  other — each bounds the other, under the human. This closed loop is what makes it
+  safe *and* adaptive at once; nothing in the organism is sovereign except through
+  the human.
 
-*Gap:* this telos is **undeclared in code and philosophy** — governance is
-purely risk-based; `PHILOSOPHY.md` names four pillars but not flourishing, and
-nothing measures support/focus/growth of the user. Naming and measuring the
-flourishing telos is the first frontier gap of the objective function (P7).
+  ```
+        HUMAN  (directs — always, top of everything)
+          │ governs
+          ▼
+         AI  ⇄  deterministic template code
+       AI → code: adapts / controls the living software
+       code → AI: invariants / guardrails bound what it may do
+  ```
+- **It closes the reality gap — support + assist + execute + expand.** Not only
+  *support* (fills weakness — passive backing). It **assists** (alongside the user),
+  **executes** (actively materializes intent — does the work), and **expands the
+  user's resources** (grows their means — capability, reach, leverage, capital), to
+  **close the gap** between current and intended reality. Closing the gap is active
+  manifestation, not just propping up weakness.
+- **To serve the user, it must model the user.** You cannot support someone where
+  they are weak, assist them well, or expand the *right* resources without having
+  modeled *who they are* — strengths, weaknesses, intent, nature. The **user model
+  is the prerequisite for correct assistance**; no model → generic → wrong help.
+  *Code:* user/agent modeling exists (`profile_runtime.py`, capability profiles in
+  `role_contracts.py`); a unified user model is partial.
+- **It does nothing the user doesn't intend — the human always directs.** Every
+  transformation traces to the user's intent; the AI executes *directed* intent,
+  it never *invents* intent. This is the sovereignty guarantee made operational.
+  *Code:* **built and canonical** — `canonical_runtime.py` declares "the one
+  canonical path from **operator intent**"; `CompositionEngine` is "intent → plan"
+  with `CompositionIntent.source = "operator"` by default. The governed path is
+  architecturally rooted in operator intent.
+- **It grows the user — support, focus, nature.** It frees the user's **focus**
+  (removes friction/noise so attention goes up the work ladder) and helps them
+  **improve their own nature** (developmental, not just productive — the human
+  becomes better, not merely more output). The symbiosis has a direction: the user
+  grows *as a person*, and the organism is the scaffold for that becoming —
+  flourishing, not replacement.
+
+*Not-yet-hardcoded is a staged decision, not an oversight.* The flourishing telos
+is deliberately **not hardcoded yet** because what flourishing means *at scale*
+must be **scoped for the masses** before it is fixed — which is precisely why UMH
+is **proprietary before public**: the proprietary phase (founder first, then design
+partners) is where the flourishing telos is scoped and proven; the public phase
+ships it governed toward flourishing *correctly for everyone*, not prematurely
+hardcoded to one person's guess. *Status:* the telos is **undeclared in code and
+philosophy** (governance is purely risk-based; `PHILOSOPHY.md` names four pillars,
+not flourishing; nothing yet measures support/focus/growth of the user) — this is
+the scoping work of the proprietary phase, and naming+measuring it is the first
+frontier task of the objective function (P7).
 
 ## The nine principles
 
@@ -254,11 +293,12 @@ model. When reality changes → the world model updates → the variables re-fil
 from a world model that keeps corresponding to reality). This is principle 5
 (mimicry-then-transcendence) reaching all the way down into the source: the
 organism can reorganize its own code because its code is *templated knowledge*, not
-frozen instructions. **The control chain keeps this non-sovereign:** *human governs
-→ AI → AI controls the adaptive software.* The code adapts, but the AI adapts it
-(exercising its governed semi-autonomy over the code, on the human's behalf), and
-the human governs the AI. The code is alive but never self-willed — nothing in the
-organism is sovereign except through the human.
+frozen instructions. **This stays non-sovereign via a mutual loop under the human:**
+the AI governs the code (adapts the living software) *and is simultaneously governed
+by* that same deterministic template code (its invariants bound what the AI may do);
+the human governs the AI. Neither AI nor code is sovereign over the other — each
+bounds the other, under the human (full diagram in *The purpose* above). The code
+is alive but never self-willed.
 
 *Endgame — canonize all of reality.* The canon world model is not meant to stay a
 seed. The intent is to ingest and canonize the **totality of human modeling of
