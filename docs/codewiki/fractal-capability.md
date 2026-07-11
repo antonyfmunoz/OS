@@ -121,6 +121,68 @@ achievable state; it is an asymptote — **freshness-proportional action and
 inter-instance resolution are unbuilt** (instance *isolation* exists; instance
 *interaction* does not).
 
+## Atom, engine, state, growth — the organism's mechanism
+
+The nine principles reduce to four mechanical facts, each already present in code:
+
+**The atom is the template — the system is deterministic recursive mastery.**
+Everything at every scale — the world model, agents, workflows, **and the code
+itself** — is a *template*. A template is the world model *operationalized*: made
+runnable. Templating is how mastery is **canonized into guardrails**: when a
+competence is mastered it is captured as a template; the template's fixed
+structure *is* the guardrail (it constrains execution to what is known-masterful);
+the LLM breathes life by filling the typed slots within it. So the deterministic
+skeleton is a **recursive tree of templates, each a guardrail around canonized
+mastery** — *deterministic* (fixed structure), *recursive* (templates within
+templates = the fractal), *mastery* (each a proven competence). This unifies
+Deterministic-First + the Operationalization Principle + the fractal into one
+statement. *Code:* two deliberately-separated homes — `RealityTemplateRegistry`
+(`substrate/templates/registry.py`) governs the **metamodel** of provable
+patterns (append-only revisions, DAG-enforced — the world model templated) and
+`substrate/organism/template_registry.py` `TemplateRegistry` is the **runtime
+executable-action-pattern** store (what UMH does, templated). A Capability Cell
+(below) *is* a template; a workflow is a template of a sequence; the code is a
+template of an execution.
+
+**The engine is signal orchestration — three doors, one hallway.** From the
+outside, everything crossing into the organism is one of three things — an
+**adapter** (connection to an external system), a **user** (the entity served),
+or **reality data** (to model, ingest, reconcile). But to the system, at the
+deepest level, **all three are the same thing: signal to be orchestrated.** The
+three-way taxonomy is ingress *classification*; signal is ingress *unification*.
+One governed path (signal → govern → execute → learn) processes all three
+identically; adapter/user/reality are just signal *sources*. *Code:*
+`SignalEnvelope` (`substrate/types.py:48`) is the canonical ingress type — this is
+already the architecture.
+
+**The state is a dual world model — canon separated from instance.** The organism
+runs **two world models at once**: the **canon** world model (shipped, universal,
+masterful — the isomorphic approximation of reality-*in-general*) and the
+**user-instance** world model (this user's specific reality). The reconciler runs
+*between* them. This is the mechanical form of democratization-plus-
+personalization: canon is shared (mastery for all), instance is per-user
+(personalized), kept separate by construction (Instance Context Law elevated to
+the product's two halves). *Code:* **already built** — `substrate/reality_model/`
+has `canonical.py` **and** `instance.py`, and `reality_intelligence.py:61-66`
+takes an `instance_model` and merges canon + instance evidence chains
+(`source_type="instance_observation"`, line 594).
+
+**Growth is maturation, not configuration.** The organism ships preloaded with
+**canon** — existing agents, workflows, a knowledge base, and a reality model: a
+working approximation that already isomorphically mirrors reality. It ships
+*already masterful*, and **that is how it democratizes: the mastery is in the box,
+not in the user's head.** The user supplies *context*, not *expertise* — governed
+always, but **no user expertise required.** Adding a capability is a **maturation
+event**, not a config screen: adapter integration is one click / one vocal
+approval for the user (like authorizing any app), but behind the surface the
+organism **matures toward that capability until completion — integration and
+mastery of execution.** Effortless on the surface (democratization), a real
+grow-a-new-organ-and-master-it process underneath. *Acceptance test for the whole
+product:* can a user with zero technical expertise, right after onboarding, have
+the organism close a real reality gap on their behalf — governed — **without
+assembling agents, writing workflows, or configuring capability?** Yes → canon +
+instantiation works; no → it is a framework, not a democratized organism.
+
 ## The Capability Cell (the fractal made concrete)
 
 Role and Skill are the **same recursive primitive at two levels of granted
@@ -154,21 +216,31 @@ each morning is a tool, not an organism — so *"nothing closes my reality gap
 overnight"* **is the same failure as "it isn't actually alive."** Three distinct
 events:
 
-1. **Installation → the body is alive.** The substrate, heartbeat, and workforce
-   loop exist and can run — but unbound, purposeless. *Code:* `install.sh` is
-   **broken** (literal `[repo]` URL; `setup.sh` imports a nonexistent
-   `runtime.setup_wizard`) — **birth itself fails today**.
-2. **Onboarding → instantiation (the organism binds to its user).** Onboarding
-   performs **personalization** (loads the user's identity + instance-of-reality:
-   current + desired) and **adapter integration** (connects the organism's
-   *perception and actuation* to the user's real systems — GWS, Discord, GitHub,
-   devices). Together these populate the **user model** and let the **reconciler
-   begin closing this user's gap** — and that reconciliation *starting* **is**
-   instantiation. Without adapters the reconciler is blind: no perceived current
-   reality → no computable gap → no metabolism (a second reason nothing works
-   overnight). *Code:* Instance Context storage + adapters **exist**; the
-   onboarding flow that *binds* them — personalization → integration → user model
-   → reconciler start — is **absent as an event**.
+1. **Installation → the canon organism arrives, alive.** The substrate,
+   heartbeat, and workforce loop exist and can run — and it ships **preloaded with
+   canon**: existing agents, workflows, a knowledge base, and a reality model
+   (mastery in the box). Alive and masterful, but *generic* — mirroring
+   reality-in-general, not yet *this* user's reality; unbound, purposeless. *Code:*
+   `install.sh` is **broken** (literal `[repo]` URL; `setup.sh` imports a
+   nonexistent `runtime.setup_wizard`) — **birth itself fails today**.
+2. **Onboarding → instantiation (canon specialized onto the user).** Not a cold
+   start — the organism already ships with a canon world model, so instantiation
+   is the **canon becoming *this user's* organism** by receiving their context.
+   Onboarding performs **personalization** (loads the user's identity +
+   instance-of-reality: current + desired) and **adapter integration** (connects
+   the organism's *perception and actuation* to the user's real systems — GWS,
+   Discord, GitHub, devices). Together these populate the **user-instance world
+   model**, and the **reconciler begins closing the delta between the canon
+   (generic) model and this user's actual reality** read through the newly-
+   integrated adapters. The user model is the **specialization function** that
+   maps canon-mastery onto this reality; the reconciler's first job is reconciling
+   canon-reality against this-user's-reality. Without adapters the reconciler is
+   blind: no perceived current reality → no computable delta → no metabolism (a
+   second reason nothing works overnight). *Code:* the dual world model
+   (`reality_model/canonical.py` + `instance.py`), Instance Context storage, and
+   adapters **exist**; the onboarding flow that *binds* them — personalization →
+   integration → user-instance model → reconciler on the delta — is **absent as an
+   event**.
 3. **Ambient life → automatic continuity forever after.** Once instantiated the
    organism is **always-on, always-present, always metabolizing** toward the gap,
    with continuity across sessions/devices/time. The user never restarts it, never
