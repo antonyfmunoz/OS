@@ -125,24 +125,64 @@ inter-instance resolution are unbuilt** (instance *isolation* exists; instance
 
 The nine principles reduce to four mechanical facts, each already present in code:
 
-**The atom is the template — the system is deterministic recursive mastery.**
-Everything at every scale — the world model, agents, workflows, **and the code
-itself** — is a *template*. A template is the world model *operationalized*: made
-runnable. Templating is how mastery is **canonized into guardrails**: when a
-competence is mastered it is captured as a template; the template's fixed
-structure *is* the guardrail (it constrains execution to what is known-masterful);
-the LLM breathes life by filling the typed slots within it. So the deterministic
+**The operational atom is the template — the system is deterministic recursive
+mastery.** The template is the atom of *operation* (how work gets done), not of
+the whole organism (which also has the world model, the signal engine, the dual
+state below). Everything the organism *does* — agents, workflows, **and the code
+itself** — is a *template*: the world model *operationalized*, made runnable.
+Templating is how mastery is **canonized into guardrails** (see below), and the
+LLM breathes life by filling the typed slots. So the deterministic operational
 skeleton is a **recursive tree of templates, each a guardrail around canonized
 mastery** — *deterministic* (fixed structure), *recursive* (templates within
 templates = the fractal), *mastery* (each a proven competence). This unifies
-Deterministic-First + the Operationalization Principle + the fractal into one
-statement. *Code:* two deliberately-separated homes — `RealityTemplateRegistry`
-(`substrate/templates/registry.py`) governs the **metamodel** of provable
-patterns (append-only revisions, DAG-enforced — the world model templated) and
-`substrate/organism/template_registry.py` `TemplateRegistry` is the **runtime
-executable-action-pattern** store (what UMH does, templated). A Capability Cell
-(below) *is* a template; a workflow is a template of a sequence; the code is a
-template of an execution.
+Deterministic-First + the Operationalization Principle + the fractal.
+
+*A template is an **Instantiate-able Plug & Play** unit, decomposed by first
+principles into two parts:*
+- **Invariants** — what is *always true* for this pattern, at every instance: the
+  fixed structure, the guardrail, the canonized mastery. (Starting a business:
+  *there must be* a business model, customers, a value exchange, capital flow.)
+- **Variables** — the typed slots decided *per instance* from the user's context.
+  (Starting a business: *which* business model.)
+
+First principles is the **mapping tool** (invariant = never varies; variable =
+always decided). This is `template = f(invariants, variables, context)`.
+
+*Each variable is filled by its own **nested Variable Decision-Making Template**
+— not an LLM guess.* The decision template **stacks every factor bearing on that
+decision into a matrix**, weighs them against the user's full context, and
+computes the optimal value. It is the Reality-Mimicry matrix (P5) and objective
+function (P7) applied at the variable level, and it nests (a decision template may
+contain variables with their own decision templates — the fractal, inside the
+template). Worked example:
+
+```
+Template "Starting a business"  (plug & play operational atom)
+├─ Invariants: business model · customers · value exchange · capital flow …
+└─ Variable: Business Model
+   └─ Variable Decision-Making Template  (nested; fills the slot)
+      └─ Matrix of stacked factors: personality SWOT · career timing ·
+         current competitive advantage · capital available · … every factor
+         that bears on the decision
+      → stack + weight against full user context → OPTIMAL business model
+```
+
+This is what makes *"the optimal decision at the intersection of reality and the
+user's instance"* **computable** rather than aspirational — and it is
+democratization at the decision level: the mastery of *how to decide* ships in
+the template; the user supplies only context. *Code:* the invariant/variable split
+is **built** — `RealityTemplate` (`substrate/templates/reality_template.py:203`) is
+literally `f(invariants, variables, context)`, with `TemplateInvariant` (line 135,
+*"an invariant without a testable assertion is a wish"*, carrying a pointer to the
+test that pins it to reality) and `TemplateVariable` (line 153, a typed
+instance-free slot). Two homes: `RealityTemplateRegistry`
+(`substrate/templates/registry.py`, the metamodel of provable patterns) and
+`substrate/organism/template_registry.py` `TemplateRegistry` (runtime executable
+actions). *Gap:* the **nested Variable Decision-Making Template is unbuilt** —
+weighted rankers exist (`reliability_weighted_ranker.py`) but rank
+capabilities/reliability, not *fill a template variable by stacking all bearing
+factors into a context-matrix and computing the optimal value*. This is the
+missing organ that turns a declared variable into an optimally-decided one.
 
 **The engine is signal orchestration — three doors, one hallway.** From the
 outside, everything crossing into the organism is one of three things — an
@@ -271,17 +311,20 @@ the last artifact (P6), acting proportional to how corresponded it currently is
 [role-composition.md](role-composition.md), [terminal-fabric.md](terminal-fabric.md)
 — is a consequence of this theory made mechanical.
 
-## The frontier (the five gaps in the theory, not just the code)
+## The frontier (the six gaps in the theory, not just the code)
 
-Beyond the per-principle gaps above, five items are the *theoretical* frontier —
+Beyond the per-principle gaps above, six items are the *theoretical* frontier —
 name them or the system cannot become what it intends: **(1)** the objective
 function (P7) — what "optimal" maximizes; **(2)** the principle registry (P6) —
 one source per principle, artifacts derived from it; **(3)** the constitutional
 core (P8) — the immutable fixed point of self-recursion; **(4)** inter-instance
 conflict resolution (P9) — whose optimum when instances compete; **(5)** the
 correspondence/freshness metric (P1, P9) — how the organism knows how alive-to-
-reality it currently is. These are found *by the theory* and must be verified
-against reality as they are built.
+reality it currently is; **(6)** the **nested Variable Decision-Making Template**
+(the operational atom) — the factor-matrix mechanism that fills each template
+variable optimally from the user's full context, making the objective function of
+(1) *computable at the variable level*. These are found *by the theory* and must
+be verified against reality as they are built.
 
 ## See also
 
