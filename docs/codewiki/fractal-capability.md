@@ -184,6 +184,63 @@ capabilities/reliability, not *fill a template variable by stacking all bearing
 factors into a context-matrix and computing the optimal value*. This is the
 missing organ that turns a declared variable into an optimally-decided one.
 
+*One object, three phases (memory → capability → infrastructure).* The template is
+the same object in three states of being, depending on when you look at it — this
+is the software isomorph of how a learned skill lives in a mind:
+- **At rest → knowledge / memory.** A dormant template *is* a unit of the
+  organism's **world model** — its understanding of how that piece of reality
+  works (a "starting a business" template *is* the organism's knowledge of
+  business-starting, held where its model of reality is held). This is why the
+  template is the *operational* atom specifically: it is the **executable face of a
+  world-model unit** — knowledge and operation are the same object from two sides.
+- **On instantiation → operational capability.** The trigger wakes the dormant
+  knowledge into a runnable capability: invariants fixed, variables filled by the
+  user's context via the nested decision-matrix. Memory *activates into* capability.
+- **After execution → infrastructure.** What ran lays down as structure the
+  organism now stands on and reuses. Capability *settles into* infrastructure.
+
+(Reality-mimicry check: a learned skill — riding a bike — is *memory* when idle,
+*capability* the moment you mount *this* bike on *this* hill, *infrastructure* once
+mastered and built upon. The template mimics exactly this.)
+
+*Templated code = living / adaptive software.* Because the code itself is templated
+(invariants + variables + decision-matrix), its decisions are **not frozen at
+author-time** — they are live variables filled by the organism's *current* world
+model. When reality changes → the world model updates → the variables re-fill →
+**the software re-decides itself without being rewritten.** Static code is dead
+(decided once by a programmer); templated code is living (re-decided continuously
+from a world model that keeps corresponding to reality). This is principle 5
+(mimicry-then-transcendence) reaching all the way down into the source: the
+organism can reorganize its own code because its code is *templated knowledge*, not
+frozen instructions.
+
+*Endgame — canonize all of reality.* The canon world model is not meant to stay a
+seed. The intent is to ingest and canonize the **totality of human modeling of
+reality** — books, the internet, all of history to the present, everything the
+organism can be trained on — into the reality model *as templated, provable
+knowledge*. Every book is human-modeled reality; every field is a set of
+invariant/variable patterns humans discovered. Because templates *run*, the
+organism would not merely *know* what humanity knows — it could *do* it, governed
+and instantiated to any user's context. That is the "super-general" in governed
+ASGI made concrete: **generality = the breadth of canonized reality; the ceiling
+rises as ingestion approaches the totality of human knowledge.**
+
+*Code — what is built vs intended.* The invariant/variable split is **built**
+(`RealityTemplate`, `substrate/templates/reality_template.py:203`). The governed
+write-and-promote pipeline the endgame needs is **built**: two converging paths —
+`CanonicalRealityWritePath` (`substrate/reality_model/canonical_reality_write.py`,
+validates shape/source/confidence for non-execution observations) and
+`substrate/memory/canonical_write.py` (execution-domain writes with **candidate
+generation + promotion**), both converging at `InstanceRealityModel.record()`.
+**Gaps (specific, not general):** (1) the template subsystem
+(`substrate/templates/`) and the world model (`substrate/reality_model/`) are
+**separate — the template↔world-model wiring that makes a template a world-model
+unit is not built** (only the invariant's "pointer to the test that pins it to
+reality" seeds the link); (2) the write pipeline targets `InstanceRealityModel`
+(per-user) — the **canon corpus that ingests books/internet/history is
+stated-future** built on that pipeline; (3) living/adaptive software follows from
+(1) and is therefore also **conceptual** until the wiring lands.
+
 **The engine is signal orchestration — three doors, one hallway.** From the
 outside, everything crossing into the organism is one of three things — an
 **adapter** (connection to an external system), a **user** (the entity served),
@@ -311,7 +368,7 @@ the last artifact (P6), acting proportional to how corresponded it currently is
 [role-composition.md](role-composition.md), [terminal-fabric.md](terminal-fabric.md)
 — is a consequence of this theory made mechanical.
 
-## The frontier (the six gaps in the theory, not just the code)
+## The frontier (the seven gaps in the theory, not just the code)
 
 Beyond the per-principle gaps above, six items are the *theoretical* frontier —
 name them or the system cannot become what it intends: **(1)** the objective
@@ -323,8 +380,10 @@ correspondence/freshness metric (P1, P9) — how the organism knows how alive-to
 reality it currently is; **(6)** the **nested Variable Decision-Making Template**
 (the operational atom) — the factor-matrix mechanism that fills each template
 variable optimally from the user's full context, making the objective function of
-(1) *computable at the variable level*. These are found *by the theory* and must
-be verified against reality as they are built.
+(1) *computable at the variable level*; **(7)** the **template↔world-model wiring**
+— making a template genuinely a *unit of the world model* (memory that runs), the
+prerequisite for living/adaptive software and the canon corpus. These are found
+*by the theory* and must be verified against reality as they are built.
 
 ## See also
 
