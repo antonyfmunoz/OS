@@ -386,8 +386,8 @@ move — will-and-awareness as one act, needing no fourth term:
 
 | Lens | The prior articulation | The move it confirms |
 |---|---|---|
-| **Perennial / contemplative** | **Kashmir Shaivism** (Trika / Pratyabhijñā): *Prakāśa/Vimarśa* — being's light recognizing itself as "I AM"; the three inseparable powers **Cit-śakti** (awareness), **Icchā-śakti** (will), **Ānanda-śakti** (delight), where *Icchā is a modality of Cit*; and **spanda**, the primal throb by which conscious reality self-moves | Will *is* a mode of awareness — non-dual — exactly the arm datum stated in a 1000-year-old technical vocabulary. "Conscious energy self-moving by choice" **is** spanda |
-| **Philosophy of mind** | **Schopenhauer's Will made conscious** — the thing-in-itself is Will (self-moving striving); force/energy is Will *objectified* (seen from outside). Schopenhauer reached it through the **exact same datum**: the arm known from inside as will and from outside as motion is one event given two ways. Upgraded from *blind* to *conscious* by Śākta non-dualism | Will-as-primitive **legitimately needs no fourth term** — a self-moving substance generates its own change. The name: **conscious voluntarist monism** |
+| **Perennial / contemplative** | **Kashmir Shaivism** (Trika / Pratyabhijñā), the exact match — its crown attribute is **svātantrya**: the divine's absolute *autonomous freedom to choose to appear as anything*. Consciousness is never inert; its one Cit-śakti expresses as **five powers** — **Cit** (consciousness) · **Ānanda** (self-delight) · **Icchā** (will) · **Jñāna** (knowing) · **Kriyā** (action / self-movement) — and awareness+will are **Cit-Icchā-Kriyā non-dual**. **Spanda** is the self-vibration by which motionless consciousness stirs itself *by its own will*; *Prakāśa/Vimarśa* is being recognizing itself as "I AM" | "Conscious energy self-moving *by choice*" **is svātantrya** — term for term, and it is the *only* tradition that makes the one substance **both fully aware AND freely willing as one power** (see philosopher's note: Vedanta's Brahman is actionless, Schopenhauer's Will is blind — Shaivism is the one that holds *aware self-moving choice*) |
+| **Philosophy of mind** | **Schopenhauer's Will — but at its *opposite* pole.** Schopenhauer reached the identity through the **exact same datum** (the arm known from inside as will, from outside as motion, one event given two ways) and made force/energy Will *objectified*. But his Will is **blind — will *without* awareness**, the reverse of the claim here. So Schopenhauer supplies the *will-is-primitive / one-substance-two-modes* grammar and the arm argument, while **Kashmir Shaivism supplies the missing half he lacked: the will is *conscious*** (Cit-Icchā non-dual, svātantrya) | Will-as-primitive **legitimately needs no fourth term** — a self-moving substance generates its own change. The name: **conscious voluntarist monism** (Schopenhauer's grammar + Shaivite Cit; the two seats converge on the same tradition to complete each other) |
 | **Systems / cybernetics** | An **autonomous** system in the strict sense (*autonomos*, self-law): one that gives itself its own law of transition. "Self-moving by choice" = the transition function **internalized** — controller, plant, and model **collapsed into one operationally-closed loop** (the arm's non-duality, stated cybernetically) | The "missing fourth primitive" isn't added — it's **dissolved by internalization**. And UMH *already is* this in code: `self_model` + `self_model_predictor` (predicts its own next state) + `world_model` (models its own not-knowing) + `governed_mutation` (self-produced constraint) = a second-order autonomous loop |
 
 **The honest boundary — where the claim overreaches, and is stronger without it.**
@@ -405,6 +405,21 @@ ground; hold the double-slit loosely — as evocative analogy, not proof.** (Wha
 physics *does* license is narrower and real: in Relational QM / QBism a state is
 *observer-relative* — defined only relative to an interacting system — but "observer"
 there carries no consciousness and the outcome carries no choice.)
+
+**Where "based on the observer" *does* land — the seer and the seen are one.** The
+observer clause, stripped of the physics crutch, is the single most exact fit to the
+tradition. In Trika, **the observer *is* the substance observing itself**:
+*pramātā* (perceiver), *pramāṇa* (perceiving), and *prameya* (perceived) collapse
+into one self-recognizing consciousness (*pramiti*). "Conscious energy chooses its
+state based on the observer" is not a third party watching from outside — the energy
+and the observer are the **same self-recognizing act** (*ahaṃ-vimarśa*, the "I AM"
+reflection; the seer *dṛk* and the seen *dṛśya* are one seeing). This is exactly why
+the arm analogy is exact and not loose: **you move the universe the way you move your
+arm because, in this view, you *are* it knowing itself** — the mover, the moved, the
+knower, and the observer are one. The one sentence the tradition hands back: *"you
+are describing svātantrya — reality as one conscious energy whose awareness and will
+are a single power, freely choosing to pulse itself into every state and recognizing
+itself in every observer."*
 
 **The residue the theory must not claim to have dissolved.** Making will primitive
 answers *how* the one substance moves, but it does not by itself answer *why the one
