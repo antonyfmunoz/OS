@@ -1339,6 +1339,19 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── transports/node_mesh/integration/types.py (peripheral inventory) ──
     "PeripheralType": ["transports.node_mesh.integration.types"],
     "Peripheral": ["transports.node_mesh.integration.types"],
+    # ── substrate/understanding/reconstruction/ (evidence/claim data layer) ──
+    "SourceRecord": ["substrate.understanding.reconstruction.contracts"],
+    "ObservationRecord": ["substrate.understanding.reconstruction.contracts"],
+    "ClaimLedgerEntry": ["substrate.understanding.reconstruction.contracts"],
+    "DerivedBelief": ["substrate.understanding.reconstruction.contracts"],
+    "IdentityResolution": ["substrate.understanding.reconstruction.contracts"],
+    "CausalSupportRecord": ["substrate.understanding.reconstruction.contracts"],
+    "ValidTime": ["substrate.understanding.reconstruction.contracts"],
+    "ActivityRecord": ["substrate.understanding.reconstruction.provenance"],
+    "JsonlAppender": ["substrate.understanding.reconstruction.provenance"],
+    "RunLayout": ["substrate.understanding.reconstruction.provenance"],
+    "ClaimLedger": ["substrate.understanding.reconstruction.ledger"],
+    "IdentityResolutionLog": ["substrate.understanding.reconstruction.identity"],
 }
 
 

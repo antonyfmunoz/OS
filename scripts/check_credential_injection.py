@@ -35,6 +35,9 @@ EXEMPT_FILES = {
     "substrate/execution/credential_gate.py",
     # Collector receives credentials via env vars (op run injects them)
     "scripts/browser_gate_collector.py",
+    # Redaction module: names the op:// pattern precisely so it can STRIP it
+    # from captured probe output — no credential is ever stored or passed
+    "substrate/understanding/reconstruction/runtime_probes.py",
 }
 
 EXEMPT_PATTERNS = [
