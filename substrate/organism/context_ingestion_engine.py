@@ -9,46 +9,69 @@ Phase 13.3. UMH substrate subsystem. Instance-agnostic.
 
 from __future__ import annotations
 
-import glob
 import json
 import logging
 import os
 import re
 import time
 from typing import Any
-from uuid import uuid4
 
+from substrate.organism.ingestion_job import (
+    IngestedItem,
+    IngestionJob,
+    IngestionJobStore,
+    JobStatus,
+    JobType,
+)
 from substrate.organism.source_registry import (
+    Canonicality,
     ContextSource,
     SourceRegistry,
     SourceType,
-    SourceStatus,
     SyncPolicy,
-    Canonicality,
-)
-from substrate.organism.ingestion_job import (
-    IngestionJob,
-    IngestionJobStore,
-    IngestedItem,
-    JobType,
-    JobStatus,
 )
 
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
+
+def _organism_state_ref() -> str:
+    from substrate.state.runtime_paths import runtime_state_dir
+
+    return str(runtime_state_dir("organism", create=False))
+
+
 _MAX_FILE_SIZE = 512 * 1024  # 512 KB
-_ALLOWED_EXTENSIONS = frozenset({
-    ".md", ".json", ".jsonl", ".txt", ".yaml", ".yml", ".toml",
-})
-_BLOCKED_PATTERNS = frozenset({
-    ".env", "credentials", "secret", "token", "password", "private_key",
-})
+_ALLOWED_EXTENSIONS = frozenset(
+    {
+        ".md",
+        ".json",
+        ".jsonl",
+        ".txt",
+        ".yaml",
+        ".yml",
+        ".toml",
+    }
+)
+_BLOCKED_PATTERNS = frozenset(
+    {
+        ".env",
+        "credentials",
+        "secret",
+        "token",
+        "password",
+        "private_key",
+    }
+)
 
 _CLAIM_PATTERNS = [
-    re.compile(r"(?:is|are|was|were|has|have|will|shall)\s+(?:a|an|the)?\s*(\w[\w\s]{5,80})", re.IGNORECASE),
-    re.compile(r"(?:handles?|manages?|provides?|supports?|includes?)\s+([\w\s]{5,80})", re.IGNORECASE),
+    re.compile(
+        r"(?:is|are|was|were|has|have|will|shall)\s+(?:a|an|the)?\s*(\w[\w\s]{5,80})", re.IGNORECASE
+    ),
+    re.compile(
+        r"(?:handles?|manages?|provides?|supports?|includes?)\s+([\w\s]{5,80})", re.IGNORECASE
+    ),
 ]
 
 _ENTITY_KNOWLEDGE_PATH = os.path.join(
@@ -70,8 +93,11 @@ def _load_entity_patterns() -> tuple[list[re.Pattern[str]], list[re.Pattern[str]
         pass
     return claim_extra, entity_pats
 
+
 _DECISION_PATTERNS = [
-    re.compile(r"(?:decided|decision|canonical|approved|confirmed)[:.]?\s+([\w\s]{5,120})", re.IGNORECASE),
+    re.compile(
+        r"(?:decided|decision|canonical|approved|confirmed)[:.]?\s+([\w\s]{5,120})", re.IGNORECASE
+    ),
     re.compile(r"(?:we\s+(?:chose|picked|selected|adopted))\s+([\w\s]{5,80})", re.IGNORECASE),
 ]
 
@@ -97,8 +123,13 @@ def _is_within_size_limit(path: str) -> bool:
 
 
 def _redact_secrets(text: str) -> str:
-    text = re.sub(r'(?:api[_-]?key|token|secret|password)\s*[=:]\s*\S+', '[REDACTED]', text, flags=re.IGNORECASE)
-    text = re.sub(r'[A-Za-z0-9+/]{40,}={0,2}', '[REDACTED_BASE64]', text)
+    text = re.sub(
+        r"(?:api[_-]?key|token|secret|password)\s*[=:]\s*\S+",
+        "[REDACTED]",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"[A-Za-z0-9+/]{40,}={0,2}", "[REDACTED_BASE64]", text)
     return text
 
 
@@ -249,7 +280,11 @@ class ContextIngestionEngine:
         self._job_store.update_job_status(job.job_id, JobStatus.RUNNING.value)
         location = source.location_ref
         files = self._scan_directory(location) if os.path.isdir(location) else [location]
-        files = [f for f in files if _is_allowed_extension(f) and _is_safe_path(f) and _is_within_size_limit(f)]
+        files = [
+            f
+            for f in files
+            if _is_allowed_extension(f) and _is_safe_path(f) and _is_within_size_limit(f)
+        ]
         job.item_count = len(files)
 
         for fpath in files:
@@ -277,9 +312,13 @@ class ContextIngestionEngine:
                 )
                 self._job_store.add_item(item)
                 job.ingested_items += 1
-                job.extracted_entities.extend(e for e in entities if e not in job.extracted_entities)
+                job.extracted_entities.extend(
+                    e for e in entities if e not in job.extracted_entities
+                )
                 job.extracted_claims.extend(c for c in claims if c not in job.extracted_claims)
-                job.extracted_decisions.extend(d for d in decisions if d not in job.extracted_decisions)
+                job.extracted_decisions.extend(
+                    d for d in decisions if d not in job.extracted_decisions
+                )
             except (OSError, UnicodeDecodeError) as exc:
                 logger.warning("Failed to ingest %s: %s", fpath, exc)
                 job.failed_items += 1
@@ -301,10 +340,9 @@ class ContextIngestionEngine:
         location = source.location_ref
         files = self._scan_directory(location) if os.path.isdir(location) else [location]
         files = [
-            f for f in files
-            if f.endswith((".json", ".jsonl"))
-            and _is_safe_path(f)
-            and _is_within_size_limit(f)
+            f
+            for f in files
+            if f.endswith((".json", ".jsonl")) and _is_safe_path(f) and _is_within_size_limit(f)
         ]
         job.item_count = len(files)
 
@@ -328,7 +366,9 @@ class ContextIngestionEngine:
                 )
                 self._job_store.add_item(item)
                 job.ingested_items += 1
-                job.extracted_entities.extend(e for e in entities if e not in job.extracted_entities)
+                job.extracted_entities.extend(
+                    e for e in entities if e not in job.extracted_entities
+                )
             except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
                 logger.warning("Failed to ingest artifact %s: %s", fpath, exc)
                 job.failed_items += 1
@@ -375,7 +415,7 @@ class ContextIngestionEngine:
                 source_type=SourceType.WORK_PACKET.value,
                 title="Universal Work Queue",
                 description="Work packets in substrate/organism/",
-                location_ref=os.path.join(_REPO_ROOT, "data", "umh", "organism"),
+                location_ref=_organism_state_ref(),
                 sync_policy=SyncPolicy.READ_ONLY.value,
                 canonicality=Canonicality.CANONICAL.value,
                 trust_level=0.85,

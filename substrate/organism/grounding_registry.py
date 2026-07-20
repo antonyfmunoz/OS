@@ -16,7 +16,6 @@ import os
 import socket
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -92,6 +91,7 @@ def _collect_docker() -> tuple[dict[str, Any], str]:
 
 def _collect_providers() -> tuple[dict[str, Any], str]:
     from substrate.sockets.intelligence_port import get_model_registry
+
     MODEL_REGISTRY = get_model_registry()
 
     providers = []
@@ -172,7 +172,7 @@ def _collect_vision() -> tuple[dict[str, Any], str]:
 
 
 def _collect_work_packets() -> tuple[dict[str, Any], str]:
-    wp_path = Path(_REPO) / "data" / "umh" / "universal_work" / "work_packets.jsonl"
+    wp_path = _work_packets_path()
     if not wp_path.exists():
         raise FileNotFoundError("work_packets.jsonl not found")
 
@@ -196,7 +196,7 @@ def _collect_work_packets() -> tuple[dict[str, Any], str]:
 
 
 def _collect_blocked_packets() -> tuple[dict[str, Any], str]:
-    wp_path = Path(_REPO) / "data" / "umh" / "universal_work" / "work_packets.jsonl"
+    wp_path = _work_packets_path()
     if not wp_path.exists():
         raise FileNotFoundError("work_packets.jsonl not found")
 
@@ -229,8 +229,44 @@ def _collect_blocked_packets() -> tuple[dict[str, Any], str]:
     return data, summary
 
 
+def _state_root() -> Path:
+    """Runtime-state root for THIS module's reads.
+
+    Resolves through the canonical runtime-state boundary, but anchored on the
+    module-level ``_REPO`` so tests that patch ``_REPO`` (the established
+    injection point for grounding isolation) still redirect these reads to a
+    temp tree. Without this anchor the resolver would read live runtime state
+    during "missing data" tests and fabricate grounded answers — exactly what
+    this firewall exists to prevent.
+    """
+    import os as _os
+
+    from substrate.state.runtime_paths import runtime_state_root
+
+    prev = _os.environ.get("UMH_ROOT")
+    override = _os.environ.get("UMH_STATE_DIR")
+    if override and prev == _REPO:
+        # explicit deployment override, module not redirected — honor it
+        return runtime_state_root()
+    try:
+        _os.environ["UMH_ROOT"] = _REPO
+        _os.environ.pop("UMH_STATE_DIR", None)
+        return runtime_state_root()
+    finally:
+        if prev is None:
+            _os.environ.pop("UMH_ROOT", None)
+        else:
+            _os.environ["UMH_ROOT"] = prev
+        if override is not None:
+            _os.environ["UMH_STATE_DIR"] = override
+
+
+def _work_packets_path() -> Path:
+    return _state_root() / "universal_work" / "work_packets.jsonl"
+
+
 def _collect_workcell_heartbeats() -> tuple[dict[str, Any], str]:
-    wc_dir = Path(_REPO) / "data" / "umh" / "organism" / "workcells"
+    wc_dir = _state_root() / "organism" / "workcells"
     if not wc_dir.exists():
         raise FileNotFoundError("workcells directory not found")
 
@@ -283,7 +319,7 @@ def _collect_beast_health() -> tuple[dict[str, Any], str]:
 
 
 def _collect_recent_reports() -> tuple[dict[str, Any], str]:
-    rpt_path = Path(_REPO) / "data" / "umh" / "organism" / "reports.jsonl"
+    rpt_path = _state_root() / "organism" / "reports.jsonl"
     if not rpt_path.exists():
         raise FileNotFoundError("reports.jsonl not found")
 
@@ -308,7 +344,7 @@ def _collect_recent_reports() -> tuple[dict[str, Any], str]:
 
 
 def _collect_approvals() -> tuple[dict[str, Any], str]:
-    wp_path = Path(_REPO) / "data" / "umh" / "universal_work" / "work_packets.jsonl"
+    wp_path = _work_packets_path()
     if not wp_path.exists():
         raise FileNotFoundError("work_packets.jsonl not found")
 
@@ -318,14 +354,20 @@ def _collect_approvals() -> tuple[dict[str, Any], str]:
             line = line.strip()
             if not line:
                 continue
-            if '"needs_approval"' in line or '"pending_approval"' in line or '"awaiting_approval"' in line:
+            if (
+                '"needs_approval"' in line
+                or '"pending_approval"' in line
+                or '"awaiting_approval"' in line
+            ):
                 try:
                     pkt = json.loads(line)
-                    pending.append({
-                        "id": pkt.get("id", "?"),
-                        "title": pkt.get("title", pkt.get("description", ""))[:80],
-                        "risk": pkt.get("risk", "unknown"),
-                    })
+                    pending.append(
+                        {
+                            "id": pkt.get("id", "?"),
+                            "title": pkt.get("title", pkt.get("description", ""))[:80],
+                            "risk": pkt.get("risk", "unknown"),
+                        }
+                    )
                 except json.JSONDecodeError:
                     pass
 
@@ -405,7 +447,11 @@ def _collect_webhook_health() -> tuple[dict[str, Any], str]:
     for c in containers:
         name = c["Names"][0].lstrip("/")
         if "webhook" in name.lower():
-            webhook = {"name": name, "status": c.get("Status", c.get("State", "")), "state": c.get("State", "")}
+            webhook = {
+                "name": name,
+                "status": c.get("Status", c.get("State", "")),
+                "state": c.get("State", ""),
+            }
             break
 
     if webhook is None:

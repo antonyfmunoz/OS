@@ -146,7 +146,7 @@ class TestRealDataGrounded:
     def test_work_packet_counts_match_file(self, tmp_path):
         from substrate.organism.grounding_registry import collect_grounding
 
-        wp_dir = tmp_path / "data" / "umh" / "universal_work"
+        wp_dir = tmp_path / "data" / "runtime" / "umh" / "universal_work"
         wp_dir.mkdir(parents=True)
         wp_file = wp_dir / "work_packets.jsonl"
         wp_file.write_text(
@@ -167,7 +167,7 @@ class TestRealDataGrounded:
     def test_blocked_packets_filters_correctly(self, tmp_path):
         from substrate.organism.grounding_registry import collect_grounding
 
-        wp_dir = tmp_path / "data" / "umh" / "universal_work"
+        wp_dir = tmp_path / "data" / "runtime" / "umh" / "universal_work"
         wp_dir.mkdir(parents=True)
         wp_file = wp_dir / "work_packets.jsonl"
         wp_file.write_text(
@@ -185,7 +185,7 @@ class TestRealDataGrounded:
     def test_workcell_heartbeats_reads_real_files(self, tmp_path):
         from substrate.organism.grounding_registry import collect_grounding
 
-        wc_dir = tmp_path / "data" / "umh" / "organism" / "workcells" / "researcher"
+        wc_dir = tmp_path / "data" / "runtime" / "umh" / "organism" / "workcells" / "researcher"
         wc_dir.mkdir(parents=True)
         hb = wc_dir / "heartbeat.json"
         hb.write_text('{"status": "active", "timestamp": "2026-06-09T10:00:00Z"}')
@@ -384,7 +384,7 @@ class TestReportGrounding:
     def test_report_created_only_if_file_exists(self, tmp_path):
         from substrate.organism.grounding_registry import collect_grounding
 
-        rpt_dir = tmp_path / "data" / "umh" / "organism"
+        rpt_dir = tmp_path / "data" / "runtime" / "umh" / "organism"
         rpt_dir.mkdir(parents=True)
         rpt_file = rpt_dir / "reports.jsonl"
         rpt_file.write_text(
@@ -489,7 +489,7 @@ class TestCompositeBlockers:
         from substrate.organism.grounding_registry import collect_grounding
 
         # Create blocked work packet
-        wp_dir = tmp_path / "data" / "umh" / "universal_work"
+        wp_dir = tmp_path / "data" / "runtime" / "umh" / "universal_work"
         wp_dir.mkdir(parents=True)
         wp_file = wp_dir / "work_packets.jsonl"
         wp_file.write_text('{"id": "wp-1", "status": "blocked", "title": "Test blocker"}\n')

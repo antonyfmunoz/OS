@@ -18,13 +18,15 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_CONVERSATIONS_PATH = os.path.join(
-    os.environ.get("UMH_ROOT", "/opt/OS"),
-    "data",
-    "umh",
-    "operator_experience",
-    "dex_conversations.jsonl",
-)
+
+def _conversations_path() -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(
+        runtime_state_path(
+            "operator_experience", "advisor_conversations.jsonl", create_parent=False
+        )
+    )
 
 
 @dataclass
@@ -69,7 +71,7 @@ class AdvisorConversation:
         self._histories: dict[str, list[dict[str, Any]]] = {}
         # voice_turn_id → (AdvisorResponse, timestamp) for idempotency
         self._voice_turn_cache: dict[str, tuple[AdvisorResponse, float]] = {}
-        os.makedirs(os.path.dirname(_CONVERSATIONS_PATH), exist_ok=True)
+        os.makedirs(os.path.dirname(_conversations_path()), exist_ok=True)
 
     def converse(
         self,
@@ -106,15 +108,14 @@ class AdvisorConversation:
 
         history = self._histories[conversation_id]
 
-        from substrate.workstation.command_router import (
-            CommandIntent,
-            classify_intent,
-        )
-
         # Deterministic identity handler — never let the LLM hallucinate system name
         from substrate.organism.system_identity import (
             get_identity_answer,
             is_identity_question,
+        )
+        from substrate.workstation.command_router import (
+            CommandIntent,
+            classify_intent,
         )
 
         if is_identity_question(content):
@@ -774,10 +775,7 @@ class AdvisorConversation:
 
     def _deterministic_status(self) -> str:
         """Read organism state directly without LLM — always works."""
-        import json
-        from pathlib import Path
 
-        repo = os.environ.get("UMH_ROOT", "/opt/OS")
         lines = []
 
         # Provider health
@@ -794,7 +792,11 @@ class AdvisorConversation:
 
         # Work packets
         try:
-            wp_path = Path(repo) / "data" / "umh" / "universal_work" / "work_packets.jsonl"
+            from substrate.state.runtime_paths import runtime_state_path
+
+            wp_path = runtime_state_path(
+                "universal_work", "work_packets.jsonl", create_parent=False
+            )
             if wp_path.exists():
                 active = 0
                 with open(wp_path) as f:
@@ -807,7 +809,9 @@ class AdvisorConversation:
 
         # Workcell heartbeats
         try:
-            wc_dir = Path(repo) / "data" / "umh" / "organism" / "workcells"
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            wc_dir = runtime_state_dir("organism", create=False) / "workcells"
             if wc_dir.exists():
                 alive = []
                 for hb in wc_dir.glob("*/heartbeat.json"):
@@ -1545,7 +1549,7 @@ class AdvisorConversation:
                 task_lines.append(f"  {i + 1}. {desc}")
 
             lines = [
-                f"**Engineering Plan Created**\n",
+                "**Engineering Plan Created**\n",
                 f"**Goal:** {plan.intent.goal}",
                 f"**Type:** {plan.intent.intent_type.value if hasattr(plan.intent.intent_type, 'value') else plan.intent.intent_type}",
                 f"**Tasks ({len(plan.tasks)}):**",
@@ -1606,7 +1610,7 @@ class AdvisorConversation:
             mgr.save(contract)
 
             lines = [
-                f"**Intent captured.**\n",
+                "**Intent captured.**\n",
                 f"**Intent:** {contract.operator_intent}",
                 f"**End state:** {contract.desired_end_state}",
                 f"**Risk:** {contract.risk_level}",
@@ -1712,7 +1716,6 @@ class AdvisorConversation:
         """Send a command to the workstation node via the mesh server."""
         import json as _json
         from pathlib import Path
-        from uuid import uuid4
 
         desktop_node_id = None
         mesh_file = Path(
@@ -2037,7 +2040,7 @@ class AdvisorConversation:
             entry["execution_target"] = routing.get("execution_target", "")
             entry["audio_output_session"] = routing.get("audio_output_session", "")
         try:
-            with open(_CONVERSATIONS_PATH, "a") as f:
+            with open(_conversations_path(), "a") as f:
                 f.write(json.dumps(entry, default=str, separators=(",", ":")) + "\n")
         except Exception as exc:
             logger.debug("Failed to persist conversation turn: %s", exc)
@@ -2045,9 +2048,9 @@ class AdvisorConversation:
     def _load_history(self, conversation_id: str) -> list[dict[str, Any]]:
         turns: list[dict[str, Any]] = []
         try:
-            if not os.path.exists(_CONVERSATIONS_PATH):
+            if not os.path.exists(_conversations_path()):
                 return turns
-            with open(_CONVERSATIONS_PATH) as f:
+            with open(_conversations_path()) as f:
                 for line in f:
                     line = line.strip()
                     if not line:

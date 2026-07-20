@@ -11,7 +11,6 @@ import sys
 
 sys.path.insert(0, "/opt/OS")
 
-import pytest
 
 
 class TestSerializationChain:
@@ -36,17 +35,19 @@ class TestSerializationChain:
         relay_capability = decoded.get("capability", "")
 
         # Step 4: Relay wraps in JSON-RPC (server.py:1000-1012)
-        rpc_msg = json.dumps({
-            "jsonrpc": "2.0",
-            "method": "capability.execute",
-            "params": {
-                "request_id": "test-id",
-                "capability_name": relay_capability,
-                "params": relay_params,
-                "timeout_seconds": 30,
-            },
-            "id": "test-id",
-        })
+        rpc_msg = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": "capability.execute",
+                "params": {
+                    "request_id": "test-id",
+                    "capability_name": relay_capability,
+                    "params": relay_params,
+                    "timeout_seconds": 30,
+                },
+                "id": "test-id",
+            }
+        )
         rpc_decoded = json.loads(rpc_msg)
 
         # Step 5: Client extracts (client.py:454-457)
@@ -72,7 +73,7 @@ class TestSerializationChain:
         assert result["cap_params"]["argv"] == ["echo", "test"]
 
     def test_complex_command_preserves_quotes(self):
-        cmd = 'python3 -c "import json; print(json.dumps({\'ok\': True}))"'
+        cmd = "python3 -c \"import json; print(json.dumps({'ok': True}))\""
         result = self._simulate_chain({"command": cmd, "timeout": 60})
         assert result["has_command"]
         assert result["cap_params"]["command"] == cmd
@@ -87,7 +88,7 @@ class TestSerializationChain:
         assert result["cap_name"] == "shell"
 
     def test_nested_json_in_command(self):
-        cmd = "echo '{\"key\": \"value\"}'"
+        cmd = 'echo \'{"key": "value"}\''
         result = self._simulate_chain({"command": cmd, "timeout": 30})
         assert result["has_command"]
         assert result["cap_params"]["command"] == cmd
@@ -98,6 +99,7 @@ class TestShellAdapterContract:
 
     def setup_method(self):
         from nodes.windows.umh_node.adapters.shell import ShellAdapter
+
         self.adapter = ShellAdapter()
 
     def test_command_path_succeeds(self):
@@ -121,7 +123,9 @@ class TestShellAdapterContract:
         assert "no command or argv provided" in result["error"]
 
     def test_command_with_cwd(self):
-        result = self.adapter.execute("shell", {"command": "echo cwd_test", "timeout": 5, "cwd": "/tmp"})
+        result = self.adapter.execute(
+            "shell", {"command": "echo cwd_test", "timeout": 5, "cwd": "/tmp"}
+        )
         assert result["success"]
 
     def test_timeout_respected(self):
@@ -138,34 +142,133 @@ class TestGovernanceCapabilityName:
     """Verify governance handles dotted capability names correctly."""
 
     def test_shell_passes_governance(self):
-        from nodes.windows.umh_node.governance import validate_request
         from nodes.windows.umh_node.config import CapabilityConfig
+        from nodes.windows.umh_node.governance import validate_request
 
         config = CapabilityConfig()
-        allowed, reason = validate_request("shell", {"command": "echo test"}, "REVERSIBLE_WRITE", config)
+        allowed, reason = validate_request(
+            "shell", {"command": "echo test"}, "REVERSIBLE_WRITE", config
+        )
         assert allowed
 
     def test_shell_execute_passes_governance(self):
-        from nodes.windows.umh_node.governance import validate_request
         from nodes.windows.umh_node.config import CapabilityConfig
+        from nodes.windows.umh_node.governance import validate_request
 
         config = CapabilityConfig()
-        allowed, reason = validate_request("shell.execute", {"command": "echo test"}, "REVERSIBLE_WRITE", config)
+        allowed, reason = validate_request(
+            "shell.execute", {"command": "echo test"}, "REVERSIBLE_WRITE", config
+        )
         assert allowed
 
     def test_no_config_denies(self):
         from nodes.windows.umh_node.governance import validate_request
 
-        allowed, reason = validate_request("shell", {"command": "echo test"}, "REVERSIBLE_WRITE", None)
+        allowed, reason = validate_request(
+            "shell", {"command": "echo test"}, "REVERSIBLE_WRITE", None
+        )
         assert not allowed
 
     def test_disabled_capability_denies(self):
-        from nodes.windows.umh_node.governance import validate_request
         from nodes.windows.umh_node.config import CapabilityConfig
+        from nodes.windows.umh_node.governance import validate_request
 
         config = CapabilityConfig(enabled=False)
-        allowed, reason = validate_request("shell", {"command": "echo test"}, "REVERSIBLE_WRITE", config)
+        allowed, reason = validate_request(
+            "shell", {"command": "echo test"}, "REVERSIBLE_WRITE", config
+        )
         assert not allowed
+
+    # ── Wave 0 Amendment G: full-path allowed_commands regression ──────────
+    # C40A adjudication: the retired TestRuntimeBoundaryAudit governance test
+    # is replaced by these live full-path assertions. The latent hazard was a
+    # DIRECT call to validate_request("shell.execute", ...) skipping the node
+    # client's adapter-key normalization — the exact-match check then let
+    # allowed_commands go unenforced. The hardened validate_request now binds
+    # base-adapter policy to the dotted form and denies unknown operations.
+
+    def test_shell_execute_inherits_allowed_commands_restriction(self):
+        """A disallowed command carried under shell.execute must be DENIED —
+        the dotted operation never loosens the base-adapter restriction."""
+        from nodes.windows.umh_node.config import CapabilityConfig
+        from nodes.windows.umh_node.governance import validate_request
+
+        config = CapabilityConfig(allowed_commands=["echo", "dir"])
+        allowed, reason = validate_request(
+            "shell.execute", {"command": "del C:\\important"}, "REVERSIBLE_WRITE", config
+        )
+        assert not allowed
+        assert "allowed_commands" in reason
+        # and an allowed command under the same dotted name passes
+        allowed, _ = validate_request(
+            "shell.execute", {"command": "echo hi"}, "REVERSIBLE_WRITE", config
+        )
+        assert allowed
+
+    def test_unknown_dotted_operation_denied_never_stripped(self):
+        """Only the canonical .execute operation is recognized; arbitrary
+        suffixes are denied, never silently normalized."""
+        from nodes.windows.umh_node.config import CapabilityConfig
+        from nodes.windows.umh_node.governance import validate_request
+
+        config = CapabilityConfig(allowed_commands=["echo"])
+        for bogus in ("shell.rm", "shell.execute.now", "shell.bypass"):
+            allowed, reason = validate_request(
+                bogus, {"command": "echo hi"}, "REVERSIBLE_WRITE", config
+            )
+            assert not allowed, bogus
+            assert "unknown capability operation" in reason
+
+    def test_full_path_adapter_emitted_name_through_client_policy(self):
+        """Full-path contract: the exact capability string the VPS runtime
+        adapter emits ("<adapter>.execute"), pushed through the node client's
+        adapter-key derivation and into the hardened validate_request, still
+        enforces allowed_commands. Verdict binding stays on the dotted name."""
+        import inspect
+
+        from nodes.windows.umh_node.config import CapabilityConfig
+        from nodes.windows.umh_node.governance import validate_request
+        from substrate.organism.runtime_adapters import MeshNodeRuntimeAdapter
+
+        # 1. the adapter emits the dotted form — the contract this test pins
+        src = inspect.getsource(MeshNodeRuntimeAdapter)
+        assert 'f"{cap_name}.execute"' in src, (
+            "MeshNodeRuntimeAdapter no longer emits '<adapter>.execute' — "
+            "update the capability-name contract and this test together"
+        )
+        cap_name = "shell.execute"
+
+        # 2. node client derivation (nodes/windows/umh_node/client.py) — the
+        #    adapter key is for config/adapter lookup only
+        adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
+        assert adapter_key == "shell"
+        capabilities = {"shell": CapabilityConfig(allowed_commands=["echo"])}
+        cap_config = capabilities.get(adapter_key)
+
+        # 3. policy receives the ORIGINAL dotted name (client passes cap_name)
+        allowed, reason = validate_request(
+            cap_name, {"command": "powershell -c evil"}, "REVERSIBLE_WRITE", cap_config
+        )
+        assert not allowed
+        assert "allowed_commands" in reason
+        allowed, _ = validate_request(
+            cap_name, {"command": "echo ok"}, "REVERSIBLE_WRITE", cap_config
+        )
+        assert allowed
+
+    def test_client_passes_original_dotted_name_to_policy(self):
+        """The node client must hand validate_request the original dotted
+        capability, not the pre-normalized adapter key — otherwise the
+        unknown-operation deny can never fire."""
+        import inspect
+
+        from nodes.windows.umh_node import client as node_client
+
+        src = inspect.getsource(node_client)
+        assert "validate_request(cap_name, cap_params, risk_class, cap_config)" in src, (
+            "node client no longer passes the original capability name into "
+            "validate_request — unknown-operation denial is dead code"
+        )
 
 
 class TestRelayPassthrough:

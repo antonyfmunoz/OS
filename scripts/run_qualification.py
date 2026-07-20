@@ -17,8 +17,8 @@ import json
 import logging
 import os
 import sys
-import time
 import threading
+import time
 from collections import defaultdict
 from typing import Any
 
@@ -26,16 +26,18 @@ _repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _repo)
 os.environ.setdefault("UMH_ROOT", _repo)
 
+from substrate.state.runtime_paths import runtime_state_dir
+
+_organism_state = str(runtime_state_dir("organism", create=False))
+
 from substrate.organism.qualification_harness import (
-    ConfidenceEstimate,
-    MutationRecord,
     ORL,
+    MutationRecord,
     PropertyResult,
     PropertyStatus,
     QualificationConfig,
     QualificationHarness,
     QualificationOrchestrator,
-    SelfModel,
 )
 
 logging.basicConfig(
@@ -50,17 +52,17 @@ logger = logging.getLogger("qualification_runner")
 
 def _bootstrap_organism() -> dict[str, Any]:
     """Create real organism components for qualification."""
-    from substrate.organism.governed_spine import (
-        GovernedExecutionSpine,
-        ExecutionModeManager,
-        ExecutionMode,
-    )
-    from substrate.organism.mutation_registry import MutationRegistry
+    from substrate.organism.compounding_engine import CompoundingEngine
     from substrate.organism.event_spine import EventSpine
     from substrate.organism.execution_journal import ExecutionJournal
+    from substrate.organism.governed_spine import (
+        ExecutionMode,
+        ExecutionModeManager,
+        GovernedExecutionSpine,
+        LeverageMetrics,
+    )
+    from substrate.organism.mutation_registry import MutationRegistry
     from substrate.organism.outcome_learning import OutcomeLearningLoop
-    from substrate.organism.compounding_engine import CompoundingEngine
-    from substrate.organism.governed_spine import LeverageMetrics
 
     registry = MutationRegistry()
     event_spine = EventSpine()
@@ -84,6 +86,7 @@ def _bootstrap_organism() -> dict[str, Any]:
     )
 
     from substrate.organism.proof_store import ProofStore
+
     proof_store = ProofStore()
     spine.set_proof_store(proof_store)
 
@@ -127,20 +130,25 @@ def _init_real_ops() -> None:
 
     def _log_rotation():
         rotated = 0
-        for p in Path(os.path.join(_repo, "data/umh/organism")).glob("*.jsonl"):
+        for p in Path(_organism_state).glob("*.jsonl"):
             if p.stat().st_size > 10 * 1024 * 1024:
                 rotated += 1
         return (f"checked {rotated} files over threshold", True)
 
     def _repo_health():
-        r = _sp.run(["git", "status", "--porcelain"], capture_output=True,
-                     text=True, cwd=_repo, timeout=10)
+        r = _sp.run(
+            ["git", "status", "--porcelain"], capture_output=True, text=True, cwd=_repo, timeout=10
+        )
         lines = len(r.stdout.strip().splitlines()) if r.stdout.strip() else 0
         return (f"repo health: {lines} dirty files", True)
 
     def _docker_health():
-        r = _sp.run(["docker", "ps", "--format", "{{.Names}}: {{.Status}}"],
-                     capture_output=True, text=True, timeout=10)
+        r = _sp.run(
+            ["docker", "ps", "--format", "{{.Names}}: {{.Status}}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         containers = r.stdout.strip().splitlines()
         return (f"{len(containers)} containers running", True)
 
@@ -155,42 +163,61 @@ def _init_real_ops() -> None:
         return (f"deferred_stale sample: {len(stale)} files checked", True)
 
     def _runtime_refresh():
-        ctx_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        ctx_path = os.path.join(_organism_state, "daemon_state.json")
         exists = os.path.isfile(ctx_path)
         return (f"daemon_state {'present' if exists else 'missing'}", True)
 
     def _test_suite():
         r = _sp.run(
-            ["python3", "-m", "pytest", "tests/test_p0_smoke.py", "-x", "-q",
-             "--tb=no", "--no-header"],
-            capture_output=True, text=True, cwd=_repo, timeout=60,
+            [
+                "python3",
+                "-m",
+                "pytest",
+                "tests/test_p0_smoke.py",
+                "-x",
+                "-q",
+                "--tb=no",
+                "--no-header",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=_repo,
+            timeout=60,
         )
         passed = "passed" in r.stdout
         return (f"smoke tests: {'pass' if passed else 'FAIL'}", passed)
 
     def _branch_cleanup():
-        r = _sp.run(["git", "branch", "--merged", "main"],
-                     capture_output=True, text=True, cwd=_repo, timeout=10)
-        merged = [b.strip() for b in r.stdout.splitlines()
-                  if b.strip() and b.strip() != "main" and not b.startswith("*")]
+        r = _sp.run(
+            ["git", "branch", "--merged", "main"],
+            capture_output=True,
+            text=True,
+            cwd=_repo,
+            timeout=10,
+        )
+        merged = [
+            b.strip()
+            for b in r.stdout.splitlines()
+            if b.strip() and b.strip() != "main" and not b.startswith("*")
+        ]
         return (f"{len(merged)} merged branches found", True)
 
     # ── 21 new safe real ops ─────────────────────────────────────────────
 
     def _settings_update():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
             state["last_qual_settings_check"] = time.time()
             with open(state_path, "w") as f:
                 json.dump(state, f, indent=2)
-            return (f"settings_update: wrote timestamp to daemon_state", True)
+            return ("settings_update: wrote timestamp to daemon_state", True)
         except Exception as exc:
             return (f"settings_update failed: {exc}", False)
 
     def _config_set():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
@@ -202,13 +229,15 @@ def _init_real_ops() -> None:
             return (f"config_set failed: {exc}", False)
 
     def _state_mutate():
-        events_path = os.path.join(_repo, "data/umh/organism/events.jsonl")
+        events_path = os.path.join(_organism_state, "events.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_state_mutate",
-                "ts": time.time(),
-                "source": "qualification",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_state_mutate",
+                    "ts": time.time(),
+                    "source": "qualification",
+                }
+            )
             with open(events_path, "a") as f:
                 f.write(entry + "\n")
             return ("state_mutate: appended qualification event", True)
@@ -216,7 +245,7 @@ def _init_real_ops() -> None:
             return (f"state_mutate failed: {exc}", False)
 
     def _presence_update():
-        hb_dir = os.path.join(_repo, "data/umh/organism/workcells")
+        hb_dir = os.path.join(_organism_state, "workcells")
         try:
             cells = [d for d in os.listdir(hb_dir) if os.path.isdir(os.path.join(hb_dir, d))]
             for cell in cells:
@@ -232,13 +261,15 @@ def _init_real_ops() -> None:
             return (f"presence_update failed: {exc}", False)
 
     def _session_mutate():
-        sessions_path = os.path.join(_repo, "data/umh/organism/dev_sessions.jsonl")
+        sessions_path = os.path.join(_organism_state, "dev_sessions.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_session",
-                "ts": time.time(),
-                "status": "active",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_session",
+                    "ts": time.time(),
+                    "status": "active",
+                }
+            )
             with open(sessions_path, "a") as f:
                 f.write(entry + "\n")
             return ("session_mutate: appended qualification session entry", True)
@@ -246,7 +277,7 @@ def _init_real_ops() -> None:
             return (f"session_mutate failed: {exc}", False)
 
     def _profile_mutate():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
@@ -258,13 +289,15 @@ def _init_real_ops() -> None:
             return (f"profile_mutate failed: {exc}", False)
 
     def _continuity_mutate():
-        brief_path = os.path.join(_repo, "data/umh/organism/deliverables.jsonl")
+        brief_path = os.path.join(_organism_state, "deliverables.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_continuity",
-                "ts": time.time(),
-                "brief": "qualification continuity check",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_continuity",
+                    "ts": time.time(),
+                    "brief": "qualification continuity check",
+                }
+            )
             with open(brief_path, "a") as f:
                 f.write(entry + "\n")
             return ("continuity_mutate: appended continuity brief", True)
@@ -272,7 +305,7 @@ def _init_real_ops() -> None:
             return (f"continuity_mutate failed: {exc}", False)
 
     def _tick_candidate_decide():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
@@ -282,14 +315,16 @@ def _init_real_ops() -> None:
             return (f"tick_candidate_decide failed: {exc}", False)
 
     def _outcome_record():
-        learning_path = os.path.join(_repo, "data/umh/organism/learning_signals.jsonl")
+        learning_path = os.path.join(_organism_state, "learning_signals.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_outcome",
-                "ts": time.time(),
-                "action_type": "qualification",
-                "status": "success",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_outcome",
+                    "ts": time.time(),
+                    "action_type": "qualification",
+                    "status": "success",
+                }
+            )
             with open(learning_path, "a") as f:
                 f.write(entry + "\n")
             return ("outcome_record: appended learning signal", True)
@@ -297,14 +332,16 @@ def _init_real_ops() -> None:
             return (f"outcome_record failed: {exc}", False)
 
     def _projection_event():
-        events_path = os.path.join(_repo, "data/umh/organism/events.jsonl")
+        events_path = os.path.join(_organism_state, "events.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_projection_event",
-                "ts": time.time(),
-                "domain": "projection",
-                "source": "qualification",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_projection_event",
+                    "ts": time.time(),
+                    "domain": "projection",
+                    "source": "qualification",
+                }
+            )
             with open(events_path, "a") as f:
                 f.write(entry + "\n")
             return ("projection_event: emitted projection event", True)
@@ -312,14 +349,16 @@ def _init_real_ops() -> None:
             return (f"projection_event failed: {exc}", False)
 
     def _work_packet_create():
-        reports_path = os.path.join(_repo, "data/umh/organism/reports.jsonl")
+        reports_path = os.path.join(_organism_state, "reports.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_work_packet",
-                "ts": time.time(),
-                "status": "created",
-                "description": "qualification work packet",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_work_packet",
+                    "ts": time.time(),
+                    "status": "created",
+                    "description": "qualification work packet",
+                }
+            )
             with open(reports_path, "a") as f:
                 f.write(entry + "\n")
             return ("work_packet_create: created qualification work packet", True)
@@ -327,13 +366,15 @@ def _init_real_ops() -> None:
             return (f"work_packet_create failed: {exc}", False)
 
     def _work_packet_update():
-        reports_path = os.path.join(_repo, "data/umh/organism/reports.jsonl")
+        reports_path = os.path.join(_organism_state, "reports.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_work_packet_update",
-                "ts": time.time(),
-                "status": "updated",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_work_packet_update",
+                    "ts": time.time(),
+                    "status": "updated",
+                }
+            )
             with open(reports_path, "a") as f:
                 f.write(entry + "\n")
             return ("work_packet_update: updated qualification work packet", True)
@@ -341,13 +382,15 @@ def _init_real_ops() -> None:
             return (f"work_packet_update failed: {exc}", False)
 
     def _work_packet_execute():
-        journal_path = os.path.join(_repo, "data/umh/organism/execution_journal.jsonl")
+        journal_path = os.path.join(_organism_state, "execution_journal.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_work_packet_execute",
-                "ts": time.time(),
-                "status": "executed",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_work_packet_execute",
+                    "ts": time.time(),
+                    "status": "executed",
+                }
+            )
             with open(journal_path, "a") as f:
                 f.write(entry + "\n")
             return ("work_packet_execute: executed qualification work packet", True)
@@ -355,14 +398,16 @@ def _init_real_ops() -> None:
             return (f"work_packet_execute failed: {exc}", False)
 
     def _conversation_send():
-        msg_path = os.path.join(_repo, "data/umh/organism/messages.jsonl")
+        msg_path = os.path.join(_organism_state, "messages.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_message",
-                "ts": time.time(),
-                "sender": "qualification",
-                "content": "qualification conversation check",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_message",
+                    "ts": time.time(),
+                    "sender": "qualification",
+                    "content": "qualification conversation check",
+                }
+            )
             with open(msg_path, "a") as f:
                 f.write(entry + "\n")
             return ("conversation_send: appended qualification message", True)
@@ -370,7 +415,7 @@ def _init_real_ops() -> None:
             return (f"conversation_send failed: {exc}", False)
 
     def _memory_promote():
-        mem_dir = os.path.join(_repo, "data/umh/organism/memory")
+        mem_dir = os.path.join(_organism_state, "memory")
         try:
             files = os.listdir(mem_dir) if os.path.isdir(mem_dir) else []
             return (f"memory_promote: scanned {len(files)} memory entries", True)
@@ -378,7 +423,7 @@ def _init_real_ops() -> None:
             return (f"memory_promote failed: {exc}", False)
 
     def _adapter_update():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
@@ -390,14 +435,18 @@ def _init_real_ops() -> None:
             return (f"adapter_update failed: {exc}", False)
 
     def _approval_decide():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
             state.setdefault("approval_log", [])
-            state["approval_log"] = state["approval_log"][-9:] + [{
-                "ts": time.time(), "decision": "auto_approve", "source": "qualification",
-            }]
+            state["approval_log"] = state["approval_log"][-9:] + [
+                {
+                    "ts": time.time(),
+                    "decision": "auto_approve",
+                    "source": "qualification",
+                }
+            ]
             with open(state_path, "w") as f:
                 json.dump(state, f, indent=2)
             return ("approval_decide: logged qualification approval decision", True)
@@ -405,7 +454,7 @@ def _init_real_ops() -> None:
             return (f"approval_decide failed: {exc}", False)
 
     def _operator_loop_control():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
@@ -415,13 +464,15 @@ def _init_real_ops() -> None:
             return (f"operator_loop_control failed: {exc}", False)
 
     def _strategy_mutate():
-        events_path = os.path.join(_repo, "data/umh/organism/events.jsonl")
+        events_path = os.path.join(_organism_state, "events.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_strategy",
-                "ts": time.time(),
-                "source": "qualification",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_strategy",
+                    "ts": time.time(),
+                    "source": "qualification",
+                }
+            )
             with open(events_path, "a") as f:
                 f.write(entry + "\n")
             return ("strategy_mutate: appended strategy event", True)
@@ -429,7 +480,7 @@ def _init_real_ops() -> None:
             return (f"strategy_mutate failed: {exc}", False)
 
     def _workstation_mutate():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
@@ -441,7 +492,7 @@ def _init_real_ops() -> None:
             return (f"workstation_mutate failed: {exc}", False)
 
     def _governance_update():
-        state_path = os.path.join(_repo, "data/umh/organism/daemon_state.json")
+        state_path = os.path.join(_organism_state, "daemon_state.json")
         try:
             with open(state_path) as f:
                 state = json.load(f)
@@ -478,48 +529,62 @@ def _init_real_ops() -> None:
         try:
             with open(scratch_file, "w") as f:
                 f.write(f"# Qualification Soul Doc\nTimestamp: {time.time()}\n")
-            return (f"soul_doc_write: wrote scratch soul doc", True)
+            return ("soul_doc_write: wrote scratch soul doc", True)
         except Exception as exc:
             return (f"soul_doc_write failed: {exc}", False)
 
     def _git_mutate():
-        r = _sp.run(["git", "log", "--oneline", "-3"],
-                     capture_output=True, text=True, cwd=_repo, timeout=10)
+        r = _sp.run(
+            ["git", "log", "--oneline", "-3"], capture_output=True, text=True, cwd=_repo, timeout=10
+        )
         commits = r.stdout.strip().splitlines()
         return (f"git_mutate: read-only, {len(commits)} recent commits", True)
 
     def _docker_exec():
-        r = _sp.run(["docker", "ps", "-q", "--filter", "status=running"],
-                     capture_output=True, text=True, timeout=10)
+        r = _sp.run(
+            ["docker", "ps", "-q", "--filter", "status=running"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         container_ids = r.stdout.strip().splitlines()
         if container_ids:
-            r2 = _sp.run(["docker", "exec", container_ids[0], "date"],
-                          capture_output=True, text=True, timeout=10)
+            r2 = _sp.run(
+                ["docker", "exec", container_ids[0], "date"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
             output = r2.stdout.strip() if r2.returncode == 0 else "exec failed"
             return (f"docker_exec: ran date in {container_ids[0][:12]}: {output}", True)
         return ("docker_exec: no running containers to exec into", True)
 
     def _container_restart():
-        r = _sp.run(["docker", "ps", "--format", "{{.Names}}: {{.Status}}"],
-                     capture_output=True, text=True, timeout=10)
+        r = _sp.run(
+            ["docker", "ps", "--format", "{{.Names}}: {{.Status}}"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
         containers = r.stdout.strip().splitlines()
         return (f"container_restart: inspected {len(containers)} containers (read-only)", True)
 
     def _tmux_send():
-        r = _sp.run(["tmux", "list-sessions"],
-                     capture_output=True, text=True, timeout=5)
+        r = _sp.run(["tmux", "list-sessions"], capture_output=True, text=True, timeout=5)
         sessions = r.stdout.strip().splitlines() if r.returncode == 0 else []
         return (f"tmux_send: listed {len(sessions)} tmux sessions (read-only)", True)
 
     def _channel_message_send():
         scratch_file = os.path.join(_SCRATCH_DIR, "qual_channel_messages.jsonl")
         try:
-            entry = json.dumps({
-                "type": "qualification_channel_message",
-                "ts": time.time(),
-                "channel": "dry-run",
-                "content": "qualification message (not sent)",
-            })
+            entry = json.dumps(
+                {
+                    "type": "qualification_channel_message",
+                    "ts": time.time(),
+                    "channel": "dry-run",
+                    "content": "qualification message (not sent)",
+                }
+            )
             with open(scratch_file, "a") as f:
                 f.write(entry + "\n")
             return ("channel_message_send: dry-run logged to scratch", True)
@@ -528,54 +593,58 @@ def _init_real_ops() -> None:
 
     # ── Register all ops ─────────────────────────────────────────────────
 
-    _REAL_OPS.update({
-        # Original 8
-        "log_rotation": _log_rotation,
-        "repo_health": _repo_health,
-        "docker_health": _docker_health,
-        "graph_rebuild": _graph_rebuild,
-        "disk_cleanup": _disk_cleanup,
-        "runtime_refresh": _runtime_refresh,
-        "test_suite": _test_suite,
-        "branch_cleanup": _branch_cleanup,
-        # 21 new safe ops
-        "settings_update": _settings_update,
-        "config_set": _config_set,
-        "state_mutate": _state_mutate,
-        "presence_update": _presence_update,
-        "session_mutate": _session_mutate,
-        "profile_mutate": _profile_mutate,
-        "continuity_mutate": _continuity_mutate,
-        "tick_candidate_decide": _tick_candidate_decide,
-        "outcome_record": _outcome_record,
-        "projection_event": _projection_event,
-        "work_packet_create": _work_packet_create,
-        "work_packet_update": _work_packet_update,
-        "work_packet_execute": _work_packet_execute,
-        "conversation_send": _conversation_send,
-        "memory_promote": _memory_promote,
-        "adapter_update": _adapter_update,
-        "approval_decide": _approval_decide,
-        "operator_loop_control": _operator_loop_control,
-        "strategy_mutate": _strategy_mutate,
-        "workstation_mutate": _workstation_mutate,
-        "governance_update": _governance_update,
-        # 8 guarded ops (sandbox)
-        "file_write": _file_write,
-        "file_delete": _file_delete,
-        "soul_doc_write": _soul_doc_write,
-        "git_mutate": _git_mutate,
-        "docker_exec": _docker_exec,
-        "container_restart": _container_restart,
-        "tmux_send": _tmux_send,
-        "channel_message_send": _channel_message_send,
-    })
+    _REAL_OPS.update(
+        {
+            # Original 8
+            "log_rotation": _log_rotation,
+            "repo_health": _repo_health,
+            "docker_health": _docker_health,
+            "graph_rebuild": _graph_rebuild,
+            "disk_cleanup": _disk_cleanup,
+            "runtime_refresh": _runtime_refresh,
+            "test_suite": _test_suite,
+            "branch_cleanup": _branch_cleanup,
+            # 21 new safe ops
+            "settings_update": _settings_update,
+            "config_set": _config_set,
+            "state_mutate": _state_mutate,
+            "presence_update": _presence_update,
+            "session_mutate": _session_mutate,
+            "profile_mutate": _profile_mutate,
+            "continuity_mutate": _continuity_mutate,
+            "tick_candidate_decide": _tick_candidate_decide,
+            "outcome_record": _outcome_record,
+            "projection_event": _projection_event,
+            "work_packet_create": _work_packet_create,
+            "work_packet_update": _work_packet_update,
+            "work_packet_execute": _work_packet_execute,
+            "conversation_send": _conversation_send,
+            "memory_promote": _memory_promote,
+            "adapter_update": _adapter_update,
+            "approval_decide": _approval_decide,
+            "operator_loop_control": _operator_loop_control,
+            "strategy_mutate": _strategy_mutate,
+            "workstation_mutate": _workstation_mutate,
+            "governance_update": _governance_update,
+            # 8 guarded ops (sandbox)
+            "file_write": _file_write,
+            "file_delete": _file_delete,
+            "soul_doc_write": _soul_doc_write,
+            "git_mutate": _git_mutate,
+            "docker_exec": _docker_exec,
+            "container_restart": _container_restart,
+            "tmux_send": _tmux_send,
+            "channel_message_send": _channel_message_send,
+        }
+    )
 
 
 def _make_execute_fn(spec_name: str, fail: bool = False):
     if fail:
+
         def execute_fn() -> tuple[str, bool]:
             return (f"Injected failure for {spec_name}", False)
+
         return execute_fn
 
     real_fn = _REAL_OPS.get(spec_name)
@@ -584,6 +653,7 @@ def _make_execute_fn(spec_name: str, fail: bool = False):
 
     def execute_fn() -> tuple[str, bool]:
         return (f"Synthetic qualification: {spec_name}", True)
+
     return execute_fn
 
 

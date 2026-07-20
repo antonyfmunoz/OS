@@ -22,7 +22,13 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_STORE_PATH = Path("/opt/OS/data/umh/reality_model/instance.jsonl")
+
+def _default_store_path() -> Path:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return runtime_state_path("reality_model", "instance.jsonl", create_parent=False)
+
+
 _HALF_LIFE_DAYS = 14
 _MAX_OBSERVATIONS = 5000
 
@@ -64,7 +70,7 @@ class InstanceRealityModel:
     ) -> None:
         self.user_id = user_id
         self.org_id = org_id
-        self._store_path = store_path or _DEFAULT_STORE_PATH
+        self._store_path = store_path or _default_store_path()
         self._max = max_observations
         self._observations: list[InstanceObservation] = []
         self._load()
@@ -79,9 +85,7 @@ class InstanceRealityModel:
                     if not line:
                         continue
                     try:
-                        self._observations.append(
-                            InstanceObservation(**json.loads(line))
-                        )
+                        self._observations.append(InstanceObservation(**json.loads(line)))
                     except Exception:
                         pass
         except Exception as e:
@@ -158,8 +162,7 @@ class InstanceRealityModel:
         now = datetime.now(timezone.utc)
         before = len(self._observations)
         self._observations = [
-            obs for obs in self._observations
-            if obs.effective_confidence(now) >= min_confidence
+            obs for obs in self._observations if obs.effective_confidence(now) >= min_confidence
         ]
         pruned = before - len(self._observations)
         if pruned > 0:
@@ -174,14 +177,13 @@ class InstanceRealityModel:
             "avg_effective_confidence": (
                 sum(obs.effective_confidence(now) for obs in self._observations)
                 / len(self._observations)
-                if self._observations else 0.0
+                if self._observations
+                else 0.0
             ),
             "oldest": (
-                self._observations[0].observed_at.isoformat()
-                if self._observations else None
+                self._observations[0].observed_at.isoformat() if self._observations else None
             ),
             "newest": (
-                self._observations[-1].observed_at.isoformat()
-                if self._observations else None
+                self._observations[-1].observed_at.isoformat() if self._observations else None
             ),
         }

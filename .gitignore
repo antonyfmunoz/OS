@@ -112,9 +112,39 @@ data/umh/memory_candidates/
 
 # Organism runtime state (append-only JSONL, daemon state, heartbeats)
 data/umh/organism/*.jsonl
+data/umh/organism/*.jsonl.old
 data/umh/organism/*.json
-data/umh/organism/workcells/*/heartbeat.json
+data/umh/organism/workcells/
 data/umh/organism/supervisor/supervisor_state.json
+
+# Wave 0 runtime-state boundary — retired legacy runtime homes (state now
+# lives under data/runtime/umh via substrate/state/runtime_paths.py). These
+# rules keep stray writes from old code paths out of tracking; the canonical
+# home is already covered by the data/runtime/ rule below.
+data/umh/c35/
+data/umh/qualification/
+data/umh/fleet/
+data/umh/execution_coordinator/
+data/umh/projections/registrations.jsonl
+data/umh/reality_model/
+data/umh/universal_work/*.jsonl
+data/umh/work_portfolio/
+data/umh/operator_experience/*.jsonl
+data/umh/operator/intent_loop/
+data/umh/workcell_daemon/
+infra/device_registry.json.lock
+
+# Runtime subsystems that still write under data/umh/ (writers not yet migrated
+# to substrate/state/runtime_paths.py — tracked in the Gate 15 shrink-only
+# ledger and migrated in a follow-on packet). Ignored so live/test runs cannot
+# dirty the source tree in the meantime.
+data/umh/continuity/
+data/umh/presence/
+data/umh/execution/
+data/umh/workstation_state/
+data/umh/profile/
+data/umh/tick_loop/
+data/umh/audit/
 
 # Derivable graph data (rebuilt by scripts/update-graph)
 data/codebase_graph.json

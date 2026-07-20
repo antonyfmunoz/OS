@@ -22,7 +22,13 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_STORE_PATH = Path("/opt/OS/data/umh/reality_model/canonical.json")
+
+def _default_store_path() -> Path:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return runtime_state_path("reality_model", "canonical.json", create_parent=False)
+
+
 _HALF_LIFE_DAYS = 180
 
 
@@ -63,7 +69,7 @@ class CanonicalRealityModel:
     """
 
     def __init__(self, store_path: Path | None = None) -> None:
-        self._store_path = store_path or _DEFAULT_STORE_PATH
+        self._store_path = store_path or _default_store_path()
         self._patterns: dict[str, CanonicalPattern] = {}
         self._relationships: list[CanonicalRelationship] = []
         self._load()
@@ -85,12 +91,8 @@ class CanonicalRealityModel:
         try:
             self._store_path.parent.mkdir(parents=True, exist_ok=True)
             data = {
-                "patterns": [
-                    json.loads(p.model_dump_json()) for p in self._patterns.values()
-                ],
-                "relationships": [
-                    json.loads(r.model_dump_json()) for r in self._relationships
-                ],
+                "patterns": [json.loads(p.model_dump_json()) for p in self._patterns.values()],
+                "relationships": [json.loads(r.model_dump_json()) for r in self._relationships],
             }
             self._store_path.write_text(json.dumps(data, indent=2, default=str))
         except Exception as e:
@@ -144,7 +146,11 @@ class CanonicalRealityModel:
         if source_name not in self._patterns or target_name not in self._patterns:
             return
         for r in self._relationships:
-            if r.source_name == source_name and r.target_name == target_name and r.relation_type == relation_type:
+            if (
+                r.source_name == source_name
+                and r.target_name == target_name
+                and r.relation_type == relation_type
+            ):
                 r.strength = min(1.0, r.strength + 0.1)
                 self._save()
                 return
@@ -189,14 +195,14 @@ class CanonicalRealityModel:
         """Remove patterns whose effective confidence has decayed below threshold."""
         now = datetime.now(timezone.utc)
         to_remove = [
-            name for name, p in self._patterns.items()
+            name
+            for name, p in self._patterns.items()
             if p.effective_confidence(now) < min_confidence
         ]
         for name in to_remove:
             del self._patterns[name]
             self._relationships = [
-                r for r in self._relationships
-                if r.source_name != name and r.target_name != name
+                r for r in self._relationships if r.source_name != name and r.target_name != name
             ]
         if to_remove:
             self._save()
@@ -211,10 +217,10 @@ class CanonicalRealityModel:
             "domains": list(set(p.domain for p in patterns)),
             "avg_confidence": (
                 sum(p.effective_confidence(now) for p in patterns) / len(patterns)
-                if patterns else 0.0
+                if patterns
+                else 0.0
             ),
             "avg_evidence_count": (
-                sum(p.evidence_count for p in patterns) / len(patterns)
-                if patterns else 0.0
+                sum(p.evidence_count for p in patterns) / len(patterns) if patterns else 0.0
             ),
         }

@@ -500,7 +500,7 @@ class TestRecommendationEngine(unittest.TestCase):
 
     def test_blocked_work_packet_recommendation(self) -> None:
         tmpdir = tempfile.mkdtemp()
-        wp_dir = os.path.join(tmpdir, "data", "umh", "universal_work")
+        wp_dir = os.path.join(tmpdir, "data", "runtime", "umh", "universal_work")
         os.makedirs(wp_dir)
         wp_path = os.path.join(wp_dir, "work_packets.jsonl")
         with open(wp_path, "w") as f:
@@ -528,7 +528,7 @@ class TestRecommendationEngine(unittest.TestCase):
 
     def test_pending_approval_recommendation(self) -> None:
         tmpdir = tempfile.mkdtemp()
-        wp_dir = os.path.join(tmpdir, "data", "umh", "universal_work")
+        wp_dir = os.path.join(tmpdir, "data", "runtime", "umh", "universal_work")
         os.makedirs(wp_dir)
         wp_path = os.path.join(wp_dir, "work_packets.jsonl")
         with open(wp_path, "w") as f:

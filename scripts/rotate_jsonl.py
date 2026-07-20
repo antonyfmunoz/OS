@@ -6,6 +6,12 @@ Runs nightly via cron. For each target file:
   - Create a fresh empty file in its place
 
 This prevents unbounded append-only stores from consuming disk.
+
+Wave 0: runtime journals live under the runtime-state root (data/runtime/umh
+by default, UMH_STATE_DIR override) — resolved through
+substrate.state.runtime_paths, never hardcoded checkout paths. The one
+non-migrated legacy target (learning/signal_feed.jsonl) still resolves under
+UMH_ROOT until its subsystem migrates.
 """
 
 from __future__ import annotations
@@ -14,22 +20,32 @@ import os
 import shutil
 import sys
 
+sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
+
+from substrate.state.runtime_paths import runtime_state_path  # noqa: E402
+
 MAX_BYTES = 10 * 1024 * 1024  # 10 MB
 
 UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
-TARGETS = [
-    "data/umh/organism/outcome_learning.jsonl",
-    "data/umh/organism/events.jsonl",
-    "data/umh/organism/execution_journal.jsonl",
-    "data/umh/organism/messages.jsonl",
-    "data/umh/organism/reports.jsonl",
-    "data/umh/organism/deliverables.jsonl",
-    "data/umh/organism/proof_packages.jsonl",
-    "data/umh/organism/learning_signals.jsonl",
+# (subsystem, filename) pairs under the runtime-state root.
+STATE_TARGETS = [
+    ("organism", "outcome_learning.jsonl"),
+    ("organism", "events.jsonl"),
+    ("organism", "execution_journal.jsonl"),
+    ("organism", "messages.jsonl"),
+    ("organism", "reports.jsonl"),
+    ("organism", "deliverables.jsonl"),
+    ("organism", "proof_packages.jsonl"),
+    ("organism", "learning_signals.jsonl"),
+    ("qualification", "predictions.jsonl"),
+    ("work_portfolio", "velocity.jsonl"),
+]
+
+# Legacy checkout-relative targets whose subsystems have not migrated yet
+# (shrink-only — remove entries as their writers move to runtime_paths).
+LEGACY_TARGETS = [
     "data/umh/learning/signal_feed.jsonl",
-    "data/umh/qualification/predictions.jsonl",
-    "data/umh/work_portfolio/velocity.jsonl",
 ]
 
 
@@ -49,7 +65,11 @@ def rotate(path: str) -> bool:
 
 def main() -> None:
     rotated = 0
-    for rel in TARGETS:
+    for subsystem, filename in STATE_TARGETS:
+        full = str(runtime_state_path(subsystem, filename, create_parent=False))
+        if rotate(full):
+            rotated += 1
+    for rel in LEGACY_TARGETS:
         full = os.path.join(UMH_ROOT, rel)
         if rotate(full):
             rotated += 1

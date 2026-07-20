@@ -9,11 +9,8 @@ UMH transport layer. Instance-agnostic.
 
 from __future__ import annotations
 
-import json
 import logging
-import os
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -35,6 +32,7 @@ def configure(require_operator_dep: Any) -> None:
 def _get_proof_store() -> Any:
     try:
         from substrate.organism.proof_store import get_proof_store
+
         return get_proof_store()
     except Exception:
         return None
@@ -47,9 +45,12 @@ def _get_obs_proof_store() -> Any:
 def _get_journal() -> Any:
     try:
         from substrate.organism.execution_journal import ExecutionJournal
-        repo = os.environ.get("UMH_ROOT", "/opt/OS")
-        j_path = Path(repo) / "data" / "umh" / "organism" / "execution_journal.jsonl"
-        return ExecutionJournal(path=j_path)
+        from substrate.state.runtime_paths import runtime_state_path
+
+        j_path = runtime_state_path("organism", "execution_journal.jsonl", create_parent=False)
+        journal = ExecutionJournal(persist_path=str(j_path))
+        journal.recover()
+        return journal
     except Exception:
         return None
 
@@ -61,12 +62,23 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     r.add_api_route("/proof-inspector/summary", _summary, methods=["GET"])
     r.add_api_route("/proof-inspector/packages", _packages, methods=["GET"])
     r.add_api_route("/proof-inspector/packages/{proof_id}", _package_detail, methods=["GET"])
-    r.add_api_route("/proof-inspector/packages/{proof_id}/timeline", _package_timeline, methods=["GET"])
-    r.add_api_route("/proof-inspector/packages/{proof_id}/evidence", _package_evidence, methods=["GET"])
+    r.add_api_route(
+        "/proof-inspector/packages/{proof_id}/timeline", _package_timeline, methods=["GET"]
+    )
+    r.add_api_route(
+        "/proof-inspector/packages/{proof_id}/evidence", _package_evidence, methods=["GET"]
+    )
     r.add_api_route("/proof-inspector/packages/{proof_id}/raw", _package_raw, methods=["GET"])
     r.add_api_route("/proof-inspector/artifacts", _artifacts, methods=["GET"])
-    r.add_api_route("/proof-inspector/packages/{proof_id}/approve", _approve, methods=["POST"], dependencies=auth)
-    r.add_api_route("/proof-inspector/packages/{proof_id}/reject", _reject, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/proof-inspector/packages/{proof_id}/approve",
+        _approve,
+        methods=["POST"],
+        dependencies=auth,
+    )
+    r.add_api_route(
+        "/proof-inspector/packages/{proof_id}/reject", _reject, methods=["POST"], dependencies=auth
+    )
 
     return r
 
@@ -254,12 +266,14 @@ def _list_evidence_files(pkg: Any) -> list[dict[str, Any]]:
     try:
         for f in sorted(evidence_dir.iterdir()):
             if f.is_file():
-                files.append({
-                    "name": f.name,
-                    "size": f.stat().st_size,
-                    "modified": f.stat().st_mtime,
-                    "type": _guess_type(f.name),
-                })
+                files.append(
+                    {
+                        "name": f.name,
+                        "size": f.stat().st_size,
+                        "modified": f.stat().st_mtime,
+                        "type": _guess_type(f.name),
+                    }
+                )
     except Exception as exc:
         logger.debug("Failed to list evidence dir: %s", exc)
     return files

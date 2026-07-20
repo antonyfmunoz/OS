@@ -19,18 +19,21 @@ Read-only. No mutation. No execution. Deterministic. Zero LLM calls.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
-import json
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from substrate.state.runtime_paths import runtime_state_dir
+
 logger = logging.getLogger(__name__)
 
-_ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
-_PORTFOLIO_DIR = os.path.join(_ROOT, "data", "umh", "work_portfolio")
+
+def _portfolio_dir() -> str:
+    return str(runtime_state_dir("work_portfolio", create=False))
 
 
 # ── Types ─────────────────────────────────────────────────────────────────
@@ -109,7 +112,9 @@ class WorkPortfolioSnapshot:
             "execution_velocity": round(self.execution_velocity, 4),
             "completion_rate": round(self.completion_rate, 4),
             "block_rate": round(self.block_rate, 4),
-            "health": self.health.value if isinstance(self.health, WorkPortfolioHealth) else self.health,
+            "health": self.health.value
+            if isinstance(self.health, WorkPortfolioHealth)
+            else self.health,
             "drift_warnings": [w.to_dict() for w in self.drift_warnings],
             "drift_warning_count": len(self.drift_warnings),
             "capability_health": self.capability_health,
@@ -125,7 +130,7 @@ class _VelocityTracker:
     """Tracks completion events to compute rolling velocity."""
 
     def __init__(self, store_path: str = "") -> None:
-        self._store_path = store_path or os.path.join(_PORTFOLIO_DIR, "velocity.jsonl")
+        self._store_path = store_path or os.path.join(_portfolio_dir(), "velocity.jsonl")
         self._events: list[dict[str, Any]] | None = None
 
     def _load(self) -> list[dict[str, Any]]:
@@ -239,6 +244,7 @@ class WorkPortfolioRuntime:
         if self._readiness is None:
             try:
                 from substrate.organism.work_readiness_runtime import WorkReadinessRuntime
+
                 self._readiness = WorkReadinessRuntime()
             except Exception:
                 logger.debug("WorkReadinessRuntime unavailable")
@@ -248,7 +254,10 @@ class WorkPortfolioRuntime:
     def delegation(self) -> Any | None:
         if self._delegation is None:
             try:
-                from substrate.organism.delegation_readiness_runtime import DelegationReadinessRuntime
+                from substrate.organism.delegation_readiness_runtime import (
+                    DelegationReadinessRuntime,
+                )
+
                 self._delegation = DelegationReadinessRuntime()
             except Exception:
                 logger.debug("DelegationReadinessRuntime unavailable")
@@ -259,6 +268,7 @@ class WorkPortfolioRuntime:
         if self._work_graph is None:
             try:
                 from substrate.organism.work_graph import WorkGraph
+
                 self._work_graph = WorkGraph()
             except Exception:
                 logger.debug("WorkGraph unavailable")
@@ -269,6 +279,7 @@ class WorkPortfolioRuntime:
         if self._outcome is None:
             try:
                 from substrate.organism.outcome_tracking_runtime import OutcomeTrackingRuntime
+
                 self._outcome = OutcomeTrackingRuntime()
             except Exception:
                 logger.debug("OutcomeTrackingRuntime unavailable")
@@ -278,7 +289,10 @@ class WorkPortfolioRuntime:
     def cap_portfolio(self) -> Any | None:
         if self._cap_portfolio is None:
             try:
-                from substrate.organism.capability_portfolio_runtime import CapabilityPortfolioRuntime
+                from substrate.organism.capability_portfolio_runtime import (
+                    CapabilityPortfolioRuntime,
+                )
+
                 self._cap_portfolio = CapabilityPortfolioRuntime()
             except Exception:
                 logger.debug("CapabilityPortfolioRuntime unavailable")
@@ -289,6 +303,7 @@ class WorkPortfolioRuntime:
         if self._drift_engine is None:
             try:
                 from substrate.organism.drift_detection_engine import DriftDetectionEngine
+
                 self._drift_engine = DriftDetectionEngine()
             except Exception:
                 logger.debug("DriftDetectionEngine unavailable")
@@ -299,6 +314,7 @@ class WorkPortfolioRuntime:
         if self._goal_drift is None:
             try:
                 from substrate.organism.goal_drift_engine import GoalDriftEngine
+
                 self._goal_drift = GoalDriftEngine()
             except Exception:
                 logger.debug("GoalDriftEngine unavailable")
@@ -371,14 +387,14 @@ class WorkPortfolioRuntime:
         warnings: list[WorkDriftWarning] = []
         block_change = self._velocity.block_rate_change()
         if block_change > 0.1:
-            warnings.append(WorkDriftWarning(
-                drift_type=WorkDriftType.READINESS_DRIFT.value,
-                severity=min(1.0, block_change * 2),
-                description=(
-                    f"block rate increasing by {block_change:.1%} over 7 days"
-                ),
-                evidence={"block_rate_change": round(block_change, 4)},
-            ))
+            warnings.append(
+                WorkDriftWarning(
+                    drift_type=WorkDriftType.READINESS_DRIFT.value,
+                    severity=min(1.0, block_change * 2),
+                    description=(f"block rate increasing by {block_change:.1%} over 7 days"),
+                    evidence={"block_rate_change": round(block_change, 4)},
+                )
+            )
         return warnings
 
     def _detect_delegation_drift(
@@ -392,20 +408,18 @@ class WorkPortfolioRuntime:
         total = getattr(delegation_snap, "total_assessed", 0)
         not_del = getattr(delegation_snap, "not_delegatable", 0)
         if total > 0 and not_del / total > 0.5:
-            warnings.append(WorkDriftWarning(
-                drift_type=WorkDriftType.DELEGATION_DRIFT.value,
-                severity=not_del / total,
-                description=(
-                    f"{not_del}/{total} work items not delegatable"
-                ),
-                evidence={
-                    "not_delegatable": not_del,
-                    "total": total,
-                    "top_missing": getattr(
-                        delegation_snap, "top_missing_capabilities", []
-                    ),
-                },
-            ))
+            warnings.append(
+                WorkDriftWarning(
+                    drift_type=WorkDriftType.DELEGATION_DRIFT.value,
+                    severity=not_del / total,
+                    description=(f"{not_del}/{total} work items not delegatable"),
+                    evidence={
+                        "not_delegatable": not_del,
+                        "total": total,
+                        "top_missing": getattr(delegation_snap, "top_missing_capabilities", []),
+                    },
+                )
+            )
         return warnings
 
     def _detect_execution_drift(self) -> list[WorkDriftWarning]:
@@ -415,12 +429,14 @@ class WorkPortfolioRuntime:
         if vel == 0.0:
             events = self._velocity._load()
             if len(events) >= 2:
-                warnings.append(WorkDriftWarning(
-                    drift_type=WorkDriftType.EXECUTION_DRIFT.value,
-                    severity=0.8,
-                    description="execution velocity is zero — no completions in window",
-                    evidence={"completions_per_day": 0.0},
-                ))
+                warnings.append(
+                    WorkDriftWarning(
+                        drift_type=WorkDriftType.EXECUTION_DRIFT.value,
+                        severity=0.8,
+                        description="execution velocity is zero — no completions in window",
+                        evidence={"completions_per_day": 0.0},
+                    )
+                )
         return warnings
 
     def _detect_outcome_drift(self) -> list[WorkDriftWarning]:
@@ -428,13 +444,15 @@ class WorkPortfolioRuntime:
         warnings: list[WorkDriftWarning] = []
         at_risk = self._get_goals_at_risk()
         if len(at_risk) > 0:
-            warnings.append(WorkDriftWarning(
-                drift_type=WorkDriftType.OUTCOME_DRIFT.value,
-                severity=min(1.0, len(at_risk) * 0.2),
-                description=f"{len(at_risk)} goals at risk",
-                evidence={"goals_at_risk": at_risk[:5]},
-                work_ids=[],
-            ))
+            warnings.append(
+                WorkDriftWarning(
+                    drift_type=WorkDriftType.OUTCOME_DRIFT.value,
+                    severity=min(1.0, len(at_risk) * 0.2),
+                    description=f"{len(at_risk)} goals at risk",
+                    evidence={"goals_at_risk": at_risk[:5]},
+                    work_ids=[],
+                )
+            )
         return warnings
 
     def _collect_upstream_drift(self) -> list[WorkDriftWarning]:
@@ -450,11 +468,13 @@ class WorkPortfolioRuntime:
                             dtype = dtype.value
                         sev = getattr(w, "severity", 0.5)
                         if isinstance(sev, (int, float)) and sev >= 0.5:
-                            warnings.append(WorkDriftWarning(
-                                drift_type=f"upstream:{dtype}",
-                                severity=float(sev),
-                                description=getattr(w, "description", ""),
-                            ))
+                            warnings.append(
+                                WorkDriftWarning(
+                                    drift_type=f"upstream:{dtype}",
+                                    severity=float(sev),
+                                    description=getattr(w, "description", ""),
+                                )
+                            )
             except Exception:
                 logger.debug("Upstream drift detection failed")
 
@@ -468,11 +488,13 @@ class WorkPortfolioRuntime:
                             dtype = dtype.value
                         sev = getattr(w, "severity", 0.5)
                         if isinstance(sev, (int, float)) and sev >= 0.5:
-                            warnings.append(WorkDriftWarning(
-                                drift_type=f"goal:{dtype}",
-                                severity=float(sev),
-                                description=getattr(w, "description", ""),
-                            ))
+                            warnings.append(
+                                WorkDriftWarning(
+                                    drift_type=f"goal:{dtype}",
+                                    severity=float(sev),
+                                    description=getattr(w, "description", ""),
+                                )
+                            )
             except Exception:
                 logger.debug("Goal drift detection failed")
 
@@ -622,7 +644,9 @@ class WorkPortfolioRuntime:
             "execution_velocity": round(snap.execution_velocity, 4),
             "completion_rate": round(snap.completion_rate, 4),
             "block_rate": round(snap.block_rate, 4),
-            "health": snap.health.value if isinstance(snap.health, WorkPortfolioHealth) else snap.health,
+            "health": snap.health.value
+            if isinstance(snap.health, WorkPortfolioHealth)
+            else snap.health,
             "drift_warning_count": len(snap.drift_warnings),
             "capability_health": snap.capability_health,
             "goals_at_risk_count": len(snap.goals_at_risk),

@@ -1,10 +1,10 @@
 {
   "overall": "NOT READY",
   "verdicts": {
-    "organism": "FAIL",
+    "organism": "UNTESTED",
     "runtime": "UNTESTED",
-    "projection": "PASS",
-    "operator": "PASS"
+    "projection": "UNTESTED",
+    "operator": "UNTESTED"
   },
   "slo_scorecard": {
     "mesh_reliability": 0.0,
@@ -20,6 +20,6 @@
     "proof_completeness": 0.0
   },
   "total_mutations": 0,
-  "phase_count": 5,
-  "timestamp": 1782880620.9120317
+  "phase_count": 0,
+  "timestamp": 1784586755.9315162
 }

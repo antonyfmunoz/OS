@@ -21,10 +21,13 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
+from substrate.state.runtime_paths import runtime_state_dir
+
 logger = logging.getLogger(__name__)
 
-_REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_FLEET_DIR = os.path.join(_REPO_ROOT, "data", "umh", "fleet")
+
+def _fleet_dir() -> str:
+    return str(runtime_state_dir("fleet", create=False))
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -249,7 +252,7 @@ class AgentFleetRuntime:
         self._assignments: dict[str, FleetAssignment] = {}
         self._dispatches: dict[str, FleetDispatch] = {}
         self._results: dict[str, FleetDispatchResult] = {}
-        self._dispatch_log_path = os.path.join(_FLEET_DIR, "dispatches.jsonl")
+        self._dispatch_log_path = os.path.join(_fleet_dir(), "dispatches.jsonl")
 
     # ── Core: "Who should do this work?" ──────────────────────────
 
@@ -270,13 +273,13 @@ class AgentFleetRuntime:
         """
         registry = self._agent_registry
         if registry is None:
-            return self._empty_assignment(capabilities_required, risk_class,
-                                          "No agent registry configured")
+            return self._empty_assignment(
+                capabilities_required, risk_class, "No agent registry configured"
+            )
 
         all_agents = registry.all_agents()
         if not all_agents:
-            return self._empty_assignment(capabilities_required, risk_class,
-                                          "No agents registered")
+            return self._empty_assignment(capabilities_required, risk_class, "No agents registered")
 
         scored: list[tuple[Any, float, list[str], float]] = []
         for agent in all_agents:
@@ -301,7 +304,8 @@ class AgentFleetRuntime:
 
         if not scored:
             return self._empty_assignment(
-                capabilities_required, risk_class,
+                capabilities_required,
+                risk_class,
                 f"No agent can handle capabilities={capabilities_required}, "
                 f"risk={risk_class}, domain={domain}",
             )
@@ -320,7 +324,9 @@ class AgentFleetRuntime:
             reliability_score=best_reliability,
             risk_clearance=True,
             domain_match=not domain or best_agent.can_handle_domain(domain),
-            compute_health=compute_decision.target_node_type if compute_decision.target_node_id else "unknown",
+            compute_health=compute_decision.target_node_type
+            if compute_decision.target_node_id
+            else "unknown",
             compute_headroom=0,
             summary=(
                 f"Selected {best_agent.label} ({best_agent.agent_type_id}) "
@@ -345,7 +351,10 @@ class AgentFleetRuntime:
         return assignment
 
     def _empty_assignment(
-        self, caps: list[str], risk: str, reason: str,
+        self,
+        caps: list[str],
+        risk: str,
+        reason: str,
     ) -> FleetAssignment:
         return FleetAssignment(
             agent_type="",
@@ -513,7 +522,8 @@ class AgentFleetRuntime:
     def active_dispatches(self) -> list[FleetDispatch]:
         """All currently executing dispatches."""
         return [
-            d for d in self._dispatches.values()
+            d
+            for d in self._dispatches.values()
             if d.status in (FleetDispatchStatus.DISPATCHED, FleetDispatchStatus.EXECUTING)
         ]
 

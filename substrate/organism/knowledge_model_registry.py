@@ -91,9 +91,13 @@ class KnowledgeModelRegistry:
     """Registry for knowledge models with domain-tag-based lookup."""
 
     def __init__(self, store_path: str | None = None) -> None:
-        self._store_path = store_path or os.path.join(
-            _REPO_ROOT, "data", "umh", "universal_work", "knowledge_models.jsonl",
-        )
+        if store_path is None:
+            from substrate.state.runtime_paths import runtime_state_path
+
+            store_path = str(
+                runtime_state_path("universal_work", "knowledge_models.jsonl", create_parent=False)
+            )
+        self._store_path = store_path
         self._models: dict[str, KnowledgeModel] = {}
         self._load()
 
@@ -111,9 +115,7 @@ class KnowledgeModelRegistry:
                     km = KnowledgeModel.from_dict(d)
                     parsed[km.knowledge_model_id] = km
                 except (json.JSONDecodeError, KeyError, TypeError) as exc:
-                    raise ValueError(
-                        f"Corrupt knowledge model at line {line_num}: {exc}"
-                    ) from exc
+                    raise ValueError(f"Corrupt knowledge model at line {line_num}: {exc}") from exc
         self._models = parsed
 
     def _save(self) -> None:

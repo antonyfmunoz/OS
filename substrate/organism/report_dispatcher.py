@@ -70,7 +70,12 @@ class ReportDispatcher:
         discord_token: str | None = None,
         discord_channel_id: str | None = None,
     ) -> None:
-        self._store_dir = Path(store_dir) if store_dir else Path(_REPO_ROOT) / "data" / "umh" / "organism"
+        if store_dir:
+            self._store_dir = Path(store_dir)
+        else:
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            self._store_dir = runtime_state_dir("organism")
         self._store_dir.mkdir(parents=True, exist_ok=True)
         self._messages_path = self._store_dir / "messages.jsonl"
         self._reports_path = self._store_dir / "reports.jsonl"
@@ -78,9 +83,7 @@ class ReportDispatcher:
 
         self._discord_token = discord_token or self._load_env("DISCORD_BOT_TOKEN")
         self._discord_channel_id = (
-            discord_channel_id
-            or self._load_env("DISCORD_FOUNDERS_OFFICE")
-            or "1485765456739696714"
+            discord_channel_id or self._load_env("DISCORD_FOUNDERS_OFFICE") or "1485765456739696714"
         )
 
     @staticmethod
@@ -140,7 +143,10 @@ class ReportDispatcher:
         logger.log(
             level,
             "Report dispatched: discord=%s cockpit=%s store=%s title='%s'",
-            result.discord_sent, result.cockpit_sent, result.store_saved, report.title,
+            result.discord_sent,
+            result.cockpit_sent,
+            result.store_saved,
+            report.title,
         )
         return result
 
@@ -200,6 +206,7 @@ class ReportDispatcher:
 
         try:
             import requests
+
             url = f"https://discord.com/api/v10/channels/{self._discord_channel_id}/messages"
             headers = {"Authorization": f"Bot {self._discord_token}"}
 
@@ -220,10 +227,16 @@ class ReportDispatcher:
             elif report.body:
                 safe_title = report.title.replace(" ", "_").replace("/", "_")[:50]
                 filename = f"{safe_title}.md"
-                files_dict["files[0]"] = (filename, io.BytesIO(report.body.encode()), "text/markdown")
+                files_dict["files[0]"] = (
+                    filename,
+                    io.BytesIO(report.body.encode()),
+                    "text/markdown",
+                )
 
             content = report.summary[:2000]
-            resp = requests.post(url, headers=headers, data={"content": content}, files=files_dict, timeout=10)
+            resp = requests.post(
+                url, headers=headers, data={"content": content}, files=files_dict, timeout=10
+            )
 
             if resp.status_code in (200, 201):
                 return True, ""

@@ -1,0 +1,289 @@
+"""Wave 0 — runtime-state boundary tests.
+
+Covers the three mechanisms of the runtime/source separation:
+  1. substrate/state/runtime_paths.py — resolution + Amendment B containment
+  2. scripts/migrate_runtime_state.py — Amendment E migration semantics
+  3. scripts/check_runtime_state_boundary.py — Gate 15 self-test
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+import pytest
+
+# the repo under test is the one THIS file lives in (worktree-safe — never
+# the UMH_ROOT deployment checkout; review finding C5)
+REPO_ROOT = str(Path(__file__).resolve().parents[1])
+sys.path.insert(0, REPO_ROOT)
+
+from substrate.state.runtime_paths import (  # noqa: E402
+    runtime_state_dir,
+    runtime_state_path,
+    runtime_state_root,
+)
+
+
+class TestRuntimePathResolver:
+    def test_default_root_under_umh_root(self, monkeypatch):
+        monkeypatch.delenv("UMH_STATE_DIR", raising=False)
+        monkeypatch.setenv("UMH_ROOT", "/some/repo")
+        assert runtime_state_root() == Path("/some/repo/data/runtime/umh")
+
+    def test_state_dir_env_override(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+        assert runtime_state_root() == tmp_path / "state"
+
+    def test_empty_state_dir_rejected(self, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", "   ")
+        with pytest.raises(ValueError):
+            runtime_state_root()
+
+    def test_relative_state_dir_rejected(self, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", "relative/state")
+        with pytest.raises(ValueError):
+            runtime_state_root()
+
+    def test_nested_subsystem_allowed(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path))
+        d = runtime_state_dir("operator/intent_loop")
+        assert d == tmp_path / "operator" / "intent_loop"
+        assert d.is_dir()
+
+    @pytest.mark.parametrize("bad", ["../x", "/abs", "a//b", ".", "..", "a/./b", "", "  "])
+    def test_traversal_subsystems_rejected(self, monkeypatch, tmp_path, bad):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path))
+        with pytest.raises(ValueError):
+            runtime_state_dir(bad, create=False)
+
+    @pytest.mark.parametrize("bad", ["../../etc/passwd", "/abs.jsonl", "a/../../b"])
+    def test_traversal_filenames_rejected(self, monkeypatch, tmp_path, bad):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path))
+        with pytest.raises(ValueError):
+            runtime_state_path("organism", bad, create_parent=False)
+
+    def test_no_mkdir_without_request(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path))
+        d = runtime_state_dir("neversee", create=False)
+        assert not d.exists()
+
+    def test_returns_path_objects(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path))
+        assert isinstance(runtime_state_dir("organism"), Path)
+        assert isinstance(runtime_state_path("organism", "x.jsonl"), Path)
+
+    def test_caller_injected_paths_still_win(self, monkeypatch, tmp_path):
+        """Constructors must preserve explicitly passed store paths."""
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path))
+        from substrate.organism.store import OrganismStore
+
+        custom = tmp_path / "custom"
+        store = OrganismStore(store_dir=custom)
+        assert store._dir == custom
+
+
+def _run_migrate(args: list[str], repo: Path, backup: Path) -> subprocess.CompletedProcess:
+    env = dict(os.environ)
+    env["UMH_ROOT"] = str(repo)
+    env.pop("UMH_STATE_DIR", None)
+    return subprocess.run(
+        [
+            sys.executable,
+            os.path.join(REPO_ROOT, "scripts", "migrate_runtime_state.py"),
+            "--repo",
+            str(repo),
+            "--backup-dir",
+            str(backup),
+            *args,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
+
+
+def _build_legacy_tree(repo: Path) -> None:
+    org = repo / "data" / "umh" / "organism"
+    org.mkdir(parents=True)
+    (org / "events.jsonl").write_text('{"e":1}\n{"e":2}\n')
+    (org / "daemon_state.json").write_text('{"tick_count": 7}')
+    wc = org / "workcells" / "advisor"
+    wc.mkdir(parents=True)
+    (wc / "heartbeat.json").write_text('{"status":"idle"}')
+    uw = repo / "data" / "umh" / "universal_work"
+    uw.mkdir(parents=True)
+    (uw / "work_packets.jsonl").write_text('{"id":"wp1"}\n')
+    (uw / "phase11_1_preflight.json").write_text('{"static":"proof"}')
+    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True, timeout=60)
+
+
+class TestMigrationScript:
+    def test_plan_mode_no_mutation(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as b:
+            repo = Path(d)
+            _build_legacy_tree(repo)
+            before = sorted(p.as_posix() for p in repo.rglob("*") if ".git" not in p.parts)
+            res = _run_migrate(["--plan"], repo, Path(b) / "cut")
+            assert res.returncode == 0, res.stderr
+            after = sorted(p.as_posix() for p in repo.rglob("*") if ".git" not in p.parts)
+            assert before == after
+            plan = json.loads(res.stdout)
+            modes = {e["old_rel"]: e["mode"] for e in plan["entries"]}
+            assert modes["data/umh/organism/events.jsonl"] == "append_jsonl"
+            assert modes["data/umh/organism/daemon_state.json"] == "snapshot_json"
+            assert modes["data/umh/organism/workcells/advisor/heartbeat.json"] == "ephemeral"
+            assert (
+                modes["data/umh/universal_work/phase11_1_preflight.json"] == "keep_tracked_static"
+            )
+
+    def test_snapshot_finalize_append_delta_byte_identical(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as b:
+            repo = Path(d)
+            backup = Path(b) / "cut"
+            _build_legacy_tree(repo)
+            res = _run_migrate(["--snapshot"], repo, backup)
+            assert res.returncode == 0, res.stdout + res.stderr
+            # a late write lands between snapshot and quiescence
+            src = repo / "data" / "umh" / "organism" / "events.jsonl"
+            with open(src, "a") as f:
+                f.write('{"e":3,"late":true}\n')
+            res = _run_migrate(["--finalize"], repo, backup)
+            assert res.returncode == 0, res.stdout + res.stderr
+            new = repo / "data" / "runtime" / "umh" / "organism" / "events.jsonl"
+            assert new.read_bytes() == src.read_bytes()
+            manifest = json.loads((backup / "manifest_finalize.json").read_text())
+            ev = next(
+                e for e in manifest["entries"] if e["old_rel"] == "data/umh/organism/events.jsonl"
+            )
+            assert ev["finalize_status"] == "verified"
+            assert ev["delta_bytes"] == len('{"e":3,"late":true}\n')
+            # verify passes read-only
+            res = _run_migrate(["--verify"], repo, backup)
+            assert res.returncode == 0, res.stdout
+
+    def test_write_landing_during_snapshot_copy_never_lost(self):
+        """C3 regression: the append offset is the byte count captured in DST.
+        A record appended to src after the copy must arrive via the finalize
+        delta — verified by corrupting-free byte identity at the end."""
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as b:
+            repo = Path(d)
+            backup = Path(b) / "cut"
+            _build_legacy_tree(repo)
+            src = repo / "data" / "umh" / "organism" / "events.jsonl"
+            _run_migrate(["--snapshot"], repo, backup)
+            manifest = json.loads((backup / "manifest_snapshot.json").read_text())
+            ev = next(
+                e for e in manifest["entries"] if e["old_rel"] == "data/umh/organism/events.jsonl"
+            )
+            dst = Path(ev["new_abs"])
+            # the recorded offset equals bytes actually captured in dst
+            assert ev["snapshot_offset"] == dst.stat().st_size
+            # simulate two post-snapshot appends, then finalize
+            with open(src, "a") as f:
+                f.write('{"e":"during"}\n{"e":"after"}\n')
+            res = _run_migrate(["--finalize"], repo, backup)
+            assert res.returncode == 0, res.stdout
+            assert dst.read_bytes() == src.read_bytes()
+
+    def test_rename_map_carries_history_to_new_name(self):
+        """C4 regression: dex_conversations.jsonl must land as
+        advisor_conversations.jsonl at the new home."""
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as b:
+            repo = Path(d)
+            backup = Path(b) / "cut"
+            _build_legacy_tree(repo)
+            oe = repo / "data" / "umh" / "operator_experience"
+            oe.mkdir(parents=True)
+            (oe / "dex_conversations.jsonl").write_text('{"turn":"history"}\n')
+            _run_migrate(["--snapshot"], repo, backup)
+            _run_migrate(["--finalize"], repo, backup)
+            new = (
+                repo
+                / "data"
+                / "runtime"
+                / "umh"
+                / "operator_experience"
+                / "advisor_conversations.jsonl"
+            )
+            assert new.exists()
+            assert new.read_text() == '{"turn":"history"}\n'
+            assert not (
+                repo
+                / "data"
+                / "runtime"
+                / "umh"
+                / "operator_experience"
+                / "dex_conversations.jsonl"
+            ).exists()
+
+    def test_ephemeral_not_migrated(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as b:
+            repo = Path(d)
+            backup = Path(b) / "cut"
+            _build_legacy_tree(repo)
+            _run_migrate(["--snapshot"], repo, backup)
+            _run_migrate(["--finalize"], repo, backup)
+            hb_new = (
+                repo
+                / "data"
+                / "runtime"
+                / "umh"
+                / "organism"
+                / "workcells"
+                / "advisor"
+                / "heartbeat.json"
+            )
+            assert not hb_new.exists()
+
+    def test_static_proofs_kept_in_place(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as b:
+            repo = Path(d)
+            backup = Path(b) / "cut"
+            _build_legacy_tree(repo)
+            _run_migrate(["--snapshot"], repo, backup)
+            _run_migrate(["--finalize"], repo, backup)
+            assert (repo / "data" / "umh" / "universal_work" / "phase11_1_preflight.json").exists()
+            assert not (
+                repo / "data" / "runtime" / "umh" / "universal_work" / "phase11_1_preflight.json"
+            ).exists()
+
+    def test_unknown_mode_stops_snapshot(self):
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as b:
+            repo = Path(d)
+            backup = Path(b) / "cut"
+            _build_legacy_tree(repo)
+            (repo / "data" / "umh" / "organism" / "mystery.bin").write_bytes(b"\x00")
+            res = _run_migrate(["--snapshot"], repo, backup)
+            assert res.returncode == 2
+            assert "unknown" in res.stdout.lower()
+            # nothing was copied
+            assert not (repo / "data" / "runtime").exists()
+
+    def test_backup_dir_inside_repo_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            repo = Path(d)
+            _build_legacy_tree(repo)
+            res = _run_migrate(["--plan"], repo, repo / "backups")
+            assert res.returncode == 2
+            assert "OUTSIDE" in res.stdout
+
+
+class TestBoundaryGate:
+    def test_gate_self_test_passes(self):
+        res = subprocess.run(
+            [
+                sys.executable,
+                os.path.join(REPO_ROOT, "scripts", "check_runtime_state_boundary.py"),
+                "--self-test",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert res.returncode == 0, res.stdout + res.stderr

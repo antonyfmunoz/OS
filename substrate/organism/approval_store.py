@@ -12,13 +12,14 @@ from typing import Any
 from uuid import uuid4
 
 from substrate.sockets.notification import alert_approval
+from substrate.state.runtime_paths import runtime_state_dir
 
 logger = logging.getLogger(__name__)
 
 
 class ApprovalStore:
-    def __init__(self, store_dir: str | Path = "data/umh/organism") -> None:
-        self._dir = Path(store_dir)
+    def __init__(self, store_dir: str | Path | None = None) -> None:
+        self._dir = Path(store_dir) if store_dir else runtime_state_dir("organism")
         self._dir.mkdir(parents=True, exist_ok=True)
         self._approvals = self._dir / "approvals.jsonl"
 

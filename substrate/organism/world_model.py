@@ -16,9 +16,8 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -231,8 +230,7 @@ class WorldModel:
             d = e.to_dict()
             d.pop("module_path", None)
             d["evidence"] = [
-                {k: v for k, v in ev.items() if k != "source"}
-                for ev in d.get("evidence", [])
+                {k: v for k, v in ev.items() if k != "source"} for ev in d.get("evidence", [])
             ]
             safe_entities[eid] = d
         safe_gaps = []
@@ -240,8 +238,7 @@ class WorldModel:
             d = g.to_dict()
             d.pop("recommendation", None)
             d["evidence"] = [
-                {k: v for k, v in ev.items() if k != "source"}
-                for ev in d.get("evidence", [])
+                {k: v for k, v in ev.items() if k != "source"} for ev in d.get("evidence", [])
             ]
             safe_gaps.append(d)
         return {
@@ -256,6 +253,7 @@ class WorldModel:
 # ---------------------------------------------------------------------------
 # Deterministic extractors — each examines a slice of observed reality
 # ---------------------------------------------------------------------------
+
 
 def _check_file(path: str) -> bool:
     return os.path.isfile(path)
@@ -284,75 +282,184 @@ def _extract_subsystems(model: WorldModel) -> None:
     """Extract core UMH subsystems from observed files."""
     root = model.repo_root
     subsystems = [
-        ("event_spine", "EventSpine", "substrate.organism.event_spine",
-         "substrate/organism/event_spine.py", "Canonical organism event transport"),
-        ("execution_journal", "ExecutionJournal", "substrate.organism.execution_journal",
-         "substrate/organism/execution_journal.py", "Append-only execution ledger"),
-        ("mutation_registry", "MutationRegistry", "substrate.organism.mutation_registry",
-         "substrate/organism/mutation_registry.py", "Canonical mutation type registry"),
-        ("autonomous_gateway", "AutonomousActionGateway", "substrate.organism.autonomous_action_gateway",
-         "substrate/organism/autonomous_action_gateway.py", "Single funnel for autonomous actions"),
-        ("readiness_model", "ReadinessModel", "substrate.organism.readiness_model",
-         "substrate/organism/readiness_model.py", "6-dimension system readiness assessment"),
-        ("bottleneck_engine", "BottleneckEngine", "substrate.organism.bottleneck_engine",
-         "substrate/organism/bottleneck_engine.py", "Operational self-optimization engine"),
-        ("organism_daemon", "OrganismDaemon", "substrate.organism.daemon",
-         "substrate/organism/daemon.py", "Persistent organism daemon with subsystem wiring"),
-        ("advisor", "Advisor", "substrate.organism.advisor",
-         "substrate/organism/advisor.py", "Unified orchestration hub"),
-        ("coordinator", "OrganismCoordinator", "substrate.organism.coordinator",
-         "substrate/organism/coordinator.py", "DAG decomposition and execution"),
-        ("governed_spine", "GovernedExecutionSpine", "substrate.organism.governed_spine",
-         "substrate/organism/governed_spine.py", "Governance enforcement for mutations"),
-        ("homeostasis", "HomeostasisEngine", "substrate.organism.homeostasis",
-         "substrate/organism/homeostasis.py", "8-dimension self-regulation"),
-        ("execution_economy", "ExecutionEconomy", "substrate.organism.execution_economy",
-         "substrate/organism/execution_economy.py", "Execution cost/value tracking"),
-        ("leverage_engine", "LeverageEngine", "substrate.organism.leverage_engine",
-         "substrate/organism/leverage_engine.py", "Leverage metric aggregation"),
-        ("next_action_engine", "NextActionEngine", "substrate.organism.next_action_engine",
-         "substrate/organism/next_action_engine.py", "Next-action recommendation"),
-        ("workload_runner", "WorkloadRunner", "substrate.organism.workload_runner",
-         "substrate/organism/workload_runner.py", "Real operational job execution"),
-        ("maintenance_loop", "MaintenanceLoop", "substrate.organism.maintenance_loop",
-         "substrate/organism/maintenance_loop.py", "OBSERVE-mode autonomous maintenance"),
-        ("assisted_executor", "AssistedExecutor", "substrate.organism.assisted_executor",
-         "substrate/organism/assisted_executor.py", "Governed execution of approved actions"),
-        ("leverage_assimilation", "LeverageAssimilator", "substrate.organism.leverage_assimilation",
-         "substrate/organism/leverage_assimilation.py", "External framework ingestion"),
-        ("recursion_governance", "RecursionGovernor", "substrate.organism.recursion_governance",
-         "substrate/organism/recursion_governance.py", "Recursion depth governance"),
-        ("advisor_hierarchy", "AdvisorHierarchy", "substrate.organism.advisor_hierarchy",
-         "substrate/organism/advisor_hierarchy.py", "Multi-level advisory structure"),
+        (
+            "event_spine",
+            "EventSpine",
+            "substrate.organism.event_spine",
+            "substrate/organism/event_spine.py",
+            "Canonical organism event transport",
+        ),
+        (
+            "execution_journal",
+            "ExecutionJournal",
+            "substrate.organism.execution_journal",
+            "substrate/organism/execution_journal.py",
+            "Append-only execution ledger",
+        ),
+        (
+            "mutation_registry",
+            "MutationRegistry",
+            "substrate.organism.mutation_registry",
+            "substrate/organism/mutation_registry.py",
+            "Canonical mutation type registry",
+        ),
+        (
+            "autonomous_gateway",
+            "AutonomousActionGateway",
+            "substrate.organism.autonomous_action_gateway",
+            "substrate/organism/autonomous_action_gateway.py",
+            "Single funnel for autonomous actions",
+        ),
+        (
+            "readiness_model",
+            "ReadinessModel",
+            "substrate.organism.readiness_model",
+            "substrate/organism/readiness_model.py",
+            "6-dimension system readiness assessment",
+        ),
+        (
+            "bottleneck_engine",
+            "BottleneckEngine",
+            "substrate.organism.bottleneck_engine",
+            "substrate/organism/bottleneck_engine.py",
+            "Operational self-optimization engine",
+        ),
+        (
+            "organism_daemon",
+            "OrganismDaemon",
+            "substrate.organism.daemon",
+            "substrate/organism/daemon.py",
+            "Persistent organism daemon with subsystem wiring",
+        ),
+        (
+            "advisor",
+            "Advisor",
+            "substrate.organism.advisor",
+            "substrate/organism/advisor.py",
+            "Unified orchestration hub",
+        ),
+        (
+            "coordinator",
+            "OrganismCoordinator",
+            "substrate.organism.coordinator",
+            "substrate/organism/coordinator.py",
+            "DAG decomposition and execution",
+        ),
+        (
+            "governed_spine",
+            "GovernedExecutionSpine",
+            "substrate.organism.governed_spine",
+            "substrate/organism/governed_spine.py",
+            "Governance enforcement for mutations",
+        ),
+        (
+            "homeostasis",
+            "HomeostasisEngine",
+            "substrate.organism.homeostasis",
+            "substrate/organism/homeostasis.py",
+            "8-dimension self-regulation",
+        ),
+        (
+            "execution_economy",
+            "ExecutionEconomy",
+            "substrate.organism.execution_economy",
+            "substrate/organism/execution_economy.py",
+            "Execution cost/value tracking",
+        ),
+        (
+            "leverage_engine",
+            "LeverageEngine",
+            "substrate.organism.leverage_engine",
+            "substrate/organism/leverage_engine.py",
+            "Leverage metric aggregation",
+        ),
+        (
+            "next_action_engine",
+            "NextActionEngine",
+            "substrate.organism.next_action_engine",
+            "substrate/organism/next_action_engine.py",
+            "Next-action recommendation",
+        ),
+        (
+            "workload_runner",
+            "WorkloadRunner",
+            "substrate.organism.workload_runner",
+            "substrate/organism/workload_runner.py",
+            "Real operational job execution",
+        ),
+        (
+            "maintenance_loop",
+            "MaintenanceLoop",
+            "substrate.organism.maintenance_loop",
+            "substrate/organism/maintenance_loop.py",
+            "OBSERVE-mode autonomous maintenance",
+        ),
+        (
+            "assisted_executor",
+            "AssistedExecutor",
+            "substrate.organism.assisted_executor",
+            "substrate/organism/assisted_executor.py",
+            "Governed execution of approved actions",
+        ),
+        (
+            "leverage_assimilation",
+            "LeverageAssimilator",
+            "substrate.organism.leverage_assimilation",
+            "substrate/organism/leverage_assimilation.py",
+            "External framework ingestion",
+        ),
+        (
+            "recursion_governance",
+            "RecursionGovernor",
+            "substrate.organism.recursion_governance",
+            "substrate/organism/recursion_governance.py",
+            "Recursion depth governance",
+        ),
+        (
+            "advisor_hierarchy",
+            "AdvisorHierarchy",
+            "substrate.organism.advisor_hierarchy",
+            "substrate/organism/advisor_hierarchy.py",
+            "Multi-level advisory structure",
+        ),
     ]
     for sid, name, mod, fpath, desc in subsystems:
         entity = WorldEntity(
-            id=sid, name=name,
+            id=sid,
+            name=name,
             category=EntityCategory.SUBSYSTEM,
             description=desc,
             module_path=mod,
         )
         full_path = os.path.join(root, fpath)
         if _check_file(full_path):
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.FILE_EXISTS,
-                source=fpath, detail=f"File exists at {fpath}",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.FILE_EXISTS,
+                    source=fpath,
+                    detail=f"File exists at {fpath}",
+                )
+            )
             entity.status = EntityStatus.PARTIAL
         else:
             entity.status = EntityStatus.MISSING
-            model.add_gap(WorldGap(
-                description=f"Subsystem file missing: {fpath}",
-                severity=GapSeverity.HIGH, entity_id=sid,
-            ))
+            model.add_gap(
+                WorldGap(
+                    description=f"Subsystem file missing: {fpath}",
+                    severity=GapSeverity.HIGH,
+                    entity_id=sid,
+                )
+            )
 
         test_path = os.path.join(root, f"substrate/organism/tests/test_{sid}.py")
         if _check_file(test_path):
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.TEST_EXISTS,
-                source=f"substrate/organism/tests/test_{sid}.py",
-                detail="Test file exists",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.TEST_EXISTS,
+                    source=f"substrate/organism/tests/test_{sid}.py",
+                    detail="Test file exists",
+                )
+            )
 
         model.add_entity(entity)
 
@@ -361,25 +468,41 @@ def _extract_adapters(model: WorldModel) -> None:
     """Extract adapter subsystems."""
     root = model.repo_root
     adapters = [
-        ("model_router", "ModelRouter", "adapters/models/model_router.py",
-         "Intelligence routing — call_with_fallback"),
-        ("llm_adapter", "LLMAdapter", "adapters/models/llm_adapter.py",
-         "LLM adapter wrapping model_router"),
-        ("cc_sdk", "CC_SDK", "adapters/models/cc_sdk.py",
-         "Claude Code CLI SDK — option 0 in routing chain"),
+        (
+            "model_router",
+            "ModelRouter",
+            "adapters/models/model_router.py",
+            "Intelligence routing — call_with_fallback",
+        ),
+        (
+            "llm_adapter",
+            "LLMAdapter",
+            "adapters/models/llm_adapter.py",
+            "LLM adapter wrapping model_router",
+        ),
+        (
+            "cc_sdk",
+            "CC_SDK",
+            "adapters/models/cc_sdk.py",
+            "Claude Code CLI SDK — option 0 in routing chain",
+        ),
     ]
     for aid, name, fpath, desc in adapters:
         entity = WorldEntity(
-            id=f"adapter_{aid}", name=name,
+            id=f"adapter_{aid}",
+            name=name,
             category=EntityCategory.SUBSYSTEM,
             description=desc,
             module_path=fpath.replace("/", ".").replace(".py", ""),
         )
         if _check_file(os.path.join(root, fpath)):
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.FILE_EXISTS,
-                source=fpath, detail=f"File exists",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.FILE_EXISTS,
+                    source=fpath,
+                    detail="File exists",
+                )
+            )
             entity.status = EntityStatus.PARTIAL
         else:
             entity.status = EntityStatus.MISSING
@@ -396,16 +519,20 @@ def _extract_transports(model: WorldModel) -> None:
     ]
     for tid, name, fpath, desc in transports:
         entity = WorldEntity(
-            id=f"transport_{tid}", name=name,
+            id=f"transport_{tid}",
+            name=name,
             category=EntityCategory.TRANSPORT,
             description=desc,
             module_path=fpath,
         )
         if _check_file(os.path.join(root, fpath)):
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.FILE_EXISTS,
-                source=fpath, detail="File exists",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.FILE_EXISTS,
+                    source=fpath,
+                    detail="File exists",
+                )
+            )
             entity.status = EntityStatus.PARTIAL
         else:
             entity.status = EntityStatus.MISSING
@@ -419,11 +546,13 @@ def _extract_cockpit_surfaces(model: WorldModel) -> None:
     if not _check_dir(panels_dir):
         panels_dir = os.path.join(root, "saas", "client", "src", "panels")
     if not _check_dir(panels_dir):
-        model.add_uncertainty(WorldUncertainty(
-            description="Cannot locate cockpit panels directory",
-            reason="Neither cockpit/src/renderer/panels nor saas/client/src/panels found",
-            confidence=0.3,
-        ))
+        model.add_uncertainty(
+            WorldUncertainty(
+                description="Cannot locate cockpit panels directory",
+                reason="Neither cockpit/src/renderer/panels nor saas/client/src/panels found",
+                confidence=0.3,
+            )
+        )
         return
 
     try:
@@ -437,11 +566,13 @@ def _extract_cockpit_surfaces(model: WorldModel) -> None:
                     description=f"Cockpit panel: {fname}",
                     module_path=os.path.join(panels_dir, fname),
                 )
-                entity.evidence.append(WorldEvidence(
-                    evidence_type=EvidenceType.FILE_EXISTS,
-                    source=f"panels/{fname}",
-                    detail="Panel component file exists",
-                ))
+                entity.evidence.append(
+                    WorldEvidence(
+                        evidence_type=EvidenceType.FILE_EXISTS,
+                        source=f"panels/{fname}",
+                        detail="Panel component file exists",
+                    )
+                )
                 entity.status = EntityStatus.PARTIAL
                 model.add_entity(entity)
     except OSError as exc:
@@ -449,49 +580,77 @@ def _extract_cockpit_surfaces(model: WorldModel) -> None:
 
 
 def _extract_data_stores(model: WorldModel) -> None:
-    """Extract persistent data stores."""
+    """Extract persistent data stores.
+
+    Organism journals live under the runtime-state root (Wave 0 boundary),
+    not the source checkout; the two intelligence stores are legacy
+    checkout-relative until their subsystem migrates.
+    """
+    from substrate.state.runtime_paths import runtime_state_dir
+
     root = model.repo_root
+    state_root = str(runtime_state_dir("organism", create=False))
     stores = [
-        ("events_jsonl", "data/umh/organism/events.jsonl", "Organism event stream"),
-        ("execution_journal_jsonl", "data/umh/organism/execution_journal.jsonl", "Execution journal"),
-        ("learning_signals_jsonl", "data/umh/organism/learning_signals.jsonl", "Learning signals"),
-        ("deliverables_jsonl", "data/umh/organism/deliverables.jsonl", "Agent deliverables"),
-        ("messages_jsonl", "data/umh/organism/messages.jsonl", "Organism messages"),
-        ("daemon_state_json", "data/umh/organism/daemon_state.json", "Daemon state snapshot"),
-        ("intelligence_decisions", "data/umh/intelligence/decisions.jsonl", "Intelligence decisions"),
-        ("intelligence_patterns", "data/umh/intelligence/patterns.json", "Intelligence patterns"),
+        ("events_jsonl", state_root, "events.jsonl", "Organism event stream"),
+        ("execution_journal_jsonl", state_root, "execution_journal.jsonl", "Execution journal"),
+        ("learning_signals_jsonl", state_root, "learning_signals.jsonl", "Learning signals"),
+        ("deliverables_jsonl", state_root, "deliverables.jsonl", "Agent deliverables"),
+        ("messages_jsonl", state_root, "messages.jsonl", "Organism messages"),
+        ("daemon_state_json", state_root, "daemon_state.json", "Daemon state snapshot"),
+        (
+            "intelligence_decisions",
+            os.path.join(root, "data/umh/intelligence"),
+            "decisions.jsonl",
+            "Intelligence decisions",
+        ),
+        (
+            "intelligence_patterns",
+            os.path.join(root, "data/umh/intelligence"),
+            "patterns.json",
+            "Intelligence patterns",
+        ),
     ]
-    for sid, fpath, desc in stores:
+    for sid, base, fname, desc in stores:
+        fpath = os.path.join(base, fname)
         entity = WorldEntity(
-            id=f"store_{sid}", name=sid,
+            id=f"store_{sid}",
+            name=sid,
             category=EntityCategory.DATA_STORE,
             description=desc,
             module_path=fpath,
         )
-        full = os.path.join(root, fpath)
+        full = fpath
         if _file_nonempty(full):
             try:
                 size = os.path.getsize(full)
             except OSError:
                 size = 0
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.DATA_FILE_NONEMPTY,
-                source=fpath,
-                detail=f"File exists with {size} bytes",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.DATA_FILE_NONEMPTY,
+                    source=fpath,
+                    detail=f"File exists with {size} bytes",
+                )
+            )
             entity.status = EntityStatus.OPERATIONAL
         elif _check_file(full):
             entity.status = EntityStatus.DEGRADED
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.FILE_EXISTS,
-                source=fpath, detail="File exists but empty",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.FILE_EXISTS,
+                    source=fpath,
+                    detail="File exists but empty",
+                )
+            )
         else:
             entity.status = EntityStatus.MISSING
-            model.add_gap(WorldGap(
-                description=f"Data store missing: {fpath}",
-                severity=GapSeverity.MEDIUM, entity_id=f"store_{sid}",
-            ))
+            model.add_gap(
+                WorldGap(
+                    description=f"Data store missing: {fpath}",
+                    severity=GapSeverity.MEDIUM,
+                    entity_id=f"store_{sid}",
+                )
+            )
         model.add_entity(entity)
 
 
@@ -499,25 +658,34 @@ def _extract_governance(model: WorldModel) -> None:
     """Extract governance subsystems."""
     root = model.repo_root
     gov_files = [
-        ("governance_control_plane", "substrate/control_plane/governance.py",
-         "Deterministic risk classification"),
-        ("governance_router", "substrate/control_plane/router/__init__.py",
-         "Signal lifecycle orchestration"),
-        ("governance_spine", "substrate/execution/spine.py",
-         "8-stage execution pipeline"),
+        (
+            "governance_control_plane",
+            "substrate/control_plane/governance.py",
+            "Deterministic risk classification",
+        ),
+        (
+            "governance_router",
+            "substrate/control_plane/router/__init__.py",
+            "Signal lifecycle orchestration",
+        ),
+        ("governance_spine", "substrate/execution/spine.py", "8-stage execution pipeline"),
     ]
     for gid, fpath, desc in gov_files:
         entity = WorldEntity(
-            id=gid, name=gid,
+            id=gid,
+            name=gid,
             category=EntityCategory.GOVERNANCE,
             description=desc,
             module_path=fpath.replace("/", ".").replace(".py", ""),
         )
         if _check_file(os.path.join(root, fpath)):
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.FILE_EXISTS,
-                source=fpath, detail="File exists",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.FILE_EXISTS,
+                    source=fpath,
+                    detail="File exists",
+                )
+            )
             entity.status = EntityStatus.PARTIAL
         else:
             entity.status = EntityStatus.MISSING
@@ -534,16 +702,20 @@ def _extract_deployment(model: WorldModel) -> None:
     ]
     for did, fpath, desc in deployments:
         entity = WorldEntity(
-            id=f"deploy_{did}", name=did,
+            id=f"deploy_{did}",
+            name=did,
             category=EntityCategory.DEPLOYMENT,
             description=desc,
             module_path=fpath,
         )
         if _check_file(os.path.join(root, fpath)):
-            entity.evidence.append(WorldEvidence(
-                evidence_type=EvidenceType.FILE_EXISTS,
-                source=fpath, detail="File exists",
-            ))
+            entity.evidence.append(
+                WorldEvidence(
+                    evidence_type=EvidenceType.FILE_EXISTS,
+                    source=fpath,
+                    detail="File exists",
+                )
+            )
             entity.status = EntityStatus.OPERATIONAL
         else:
             entity.status = EntityStatus.MISSING
@@ -571,11 +743,13 @@ def _extract_api_routes(model: WorldModel) -> None:
                     description=f"Cockpit API route group: /api/{route_name}",
                     module_path=route_path,
                 )
-                entity.evidence.append(WorldEvidence(
-                    evidence_type=EvidenceType.ROUTE_REGISTERED,
-                    source=route_path,
-                    detail="Route file exists",
-                ))
+                entity.evidence.append(
+                    WorldEvidence(
+                        evidence_type=EvidenceType.ROUTE_REGISTERED,
+                        source=route_path,
+                        detail="Route file exists",
+                    )
+                )
                 entity.status = EntityStatus.OPERATIONAL
                 model.add_entity(entity)
     except OSError as exc:
@@ -593,18 +767,24 @@ def _detect_wiring_gaps(model: WorldModel) -> None:
     for eid, entity in model.entities.items():
         if entity.category == EntityCategory.SUBSYSTEM and entity.status != EntityStatus.MISSING:
             short_name = eid.replace("adapter_", "")
-            if short_name not in subsystems_with_routes and "organism" not in subsystems_with_routes:
-                model.add_uncertainty(WorldUncertainty(
-                    description=f"Subsystem '{entity.name}' may lack dedicated API route",
-                    entity_id=eid,
-                    reason="No matching route file found (may be exposed via organism routes)",
-                    confidence=0.4,
-                ))
+            if (
+                short_name not in subsystems_with_routes
+                and "organism" not in subsystems_with_routes
+            ):
+                model.add_uncertainty(
+                    WorldUncertainty(
+                        description=f"Subsystem '{entity.name}' may lack dedicated API route",
+                        entity_id=eid,
+                        reason="No matching route file found (may be exposed via organism routes)",
+                        confidence=0.4,
+                    )
+                )
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def extract_world_model(repo_root: str | None = None) -> WorldModel:
     """Build a complete world model from observed reality. No LLM required."""
@@ -624,7 +804,9 @@ def extract_world_model(repo_root: str | None = None) -> WorldModel:
 def persist_world_model(model: WorldModel, path: str | None = None) -> str:
     """Persist world model snapshot to JSONL."""
     if path is None:
-        path = os.path.join(model.repo_root, "data", "umh", "organism", "world_model.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(runtime_state_path("organism", "world_model.jsonl", create_parent=False))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a") as f:
         f.write(json.dumps(model.to_dict(), default=str) + "\n")
@@ -633,6 +815,7 @@ def persist_world_model(model: WorldModel, path: str | None = None) -> str:
 
 if __name__ == "__main__":
     import sys
+
     sys.path.insert(0, _REPO_ROOT)
     wm = extract_world_model()
     print(json.dumps(wm.summary(), indent=2))

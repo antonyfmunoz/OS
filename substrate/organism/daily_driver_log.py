@@ -21,7 +21,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_LOG_PATH = Path(_REPO_ROOT) / "data" / "umh" / "organism" / "daily_driver_log.jsonl"
+
+
+def _log_path() -> Path:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return runtime_state_path("organism", "daily_driver_log.jsonl", create_parent=False)
 
 
 @dataclass
@@ -56,7 +61,7 @@ class DailyDriverLog:
     """Append-only log of operator-facing failures."""
 
     def __init__(self, path: Path | None = None) -> None:
-        self._path = path or _LOG_PATH
+        self._path = path or _log_path()
         self._entries: list[DriverFailure] = []
         self._load()
 
@@ -69,10 +74,9 @@ class DailyDriverLog:
                     continue
                 try:
                     row = json.loads(line)
-                    entry = DriverFailure(**{
-                        k: v for k, v in row.items()
-                        if k in DriverFailure.__dataclass_fields__
-                    })
+                    entry = DriverFailure(
+                        **{k: v for k, v in row.items() if k in DriverFailure.__dataclass_fields__}
+                    )
                     self._entries.append(entry)
                 except (json.JSONDecodeError, TypeError):
                     continue

@@ -28,8 +28,13 @@ from uuid import uuid4
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_PORT_DIR = os.path.join(_REPO_ROOT, "data", "umh", "projections")
-_PORT_PATH = os.path.join(_PORT_DIR, "registrations.jsonl")
+
+
+def _port_path() -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path("projections", "registrations.jsonl", create_parent=False))
+
 
 # ── Legacy module-level API (WP-P3-004: thin delegation, NOT a second registry) ──
 # These four functions predate the ProjectionPort class. They now delegate to the
@@ -169,8 +174,8 @@ def scan_projection_imports(projection_dir: str) -> list[str]:
 class ProjectionPort:
     """Registry and drift detection for projections consuming UMH."""
 
-    def __init__(self, store_path: str = _PORT_PATH) -> None:
-        self._path = store_path
+    def __init__(self, store_path: str | None = None) -> None:
+        self._path = store_path or _port_path()
         self._lock = threading.Lock()
         self._registrations: dict[str, ProjectionRegistration] = {}
         self._load()
@@ -292,7 +297,10 @@ class ProjectionPort:
         seed_from_umh_registry() instead.
         """
         if not config_path:
-            config_path = os.path.join(_REPO_ROOT, "data", "runtime", "projection_seed.json")
+            config_path = os.path.join(_REPO_ROOT, "data", "umh", "projection_seed.json")
+            if not os.path.exists(config_path):
+                # pre-Wave-0 location (seed misfiled in the runtime-state dir)
+                config_path = os.path.join(_REPO_ROOT, "data", "runtime", "projection_seed.json")
         if not os.path.exists(config_path):
             return 0
         try:
@@ -467,6 +475,9 @@ def get_beast_source_row(projection_id: str, sync_path: str = "") -> dict[str, A
     if doc.get("beast_status") != "REACHABLE":
         return {}
     for row in doc.get("projections", []):
-        if row.get("projection_id") == projection_id and row.get("beast_verification") == "VERIFIED":
+        if (
+            row.get("projection_id") == projection_id
+            and row.get("beast_verification") == "VERIFIED"
+        ):
             return dict(row)
     return {}

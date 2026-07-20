@@ -465,6 +465,7 @@ class TestNoProjectionLeaks:
             assert "Jarvis" not in content, f"Hardcoded 'Jarvis' in {f.name}"
             assert "jarvis" not in content.lower().replace("jarvis", "").lower() or True
 
+    @pytest.mark.skip(reason="branch-diff assertion, not a behavioral test: it runs `git diff --name-only main` and asserts an EMPTY diff, so it fails on any branch that touches these dirs. It froze the blast radius of its own docs-only campaign (now complete) and is red-by-construction for all later work. Adjudicated in MVP Wave 0 — retired, not deleted; the real invariants are enforced by the pre-commit gates (dependency-direction, projection-leak, ontology-layers, runtime-state boundary).")
     def test_no_substrate_mutations(self):
         """Phase 14.3 should not modify any substrate/ files."""
         import subprocess
@@ -476,6 +477,7 @@ class TestNoProjectionLeaks:
         substrate_changes = [f for f in changed if f.startswith("substrate/")]
         assert len(substrate_changes) == 0, f"Substrate files modified: {substrate_changes}"
 
+    @pytest.mark.skip(reason="branch-diff assertion, not a behavioral test: it runs `git diff --name-only main` and asserts an EMPTY diff, so it fails on any branch that touches these dirs. It froze the blast radius of its own docs-only campaign (now complete) and is red-by-construction for all later work. Adjudicated in MVP Wave 0 — retired, not deleted; the real invariants are enforced by the pre-commit gates (dependency-direction, projection-leak, ontology-layers, runtime-state boundary).")
     def test_no_source_code_mutations(self):
         """Phase 14.3 should only create data/ and docs/ and tests/ files."""
         import subprocess

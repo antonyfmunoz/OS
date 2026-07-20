@@ -21,6 +21,14 @@ from projections.eos.workflows.types import WorkflowStep
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+
+
+def _runtime_state_file(subsystem: str, filename: str) -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path(subsystem, filename, create_parent=False))
+
+
 _PLANS_DIR = os.path.join(_REPO_ROOT, "data", "umh", "plans")
 
 
@@ -85,9 +93,7 @@ class PlanningWorkflow:
         self._goal = goal
         self._assessment = StateAssessment()
 
-        velocity_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "work_portfolio", "velocity.jsonl"
-        )
+        velocity_path = _runtime_state_file("work_portfolio", "velocity.jsonl")
         if os.path.exists(velocity_path):
             try:
                 with open(velocity_path) as f:
@@ -98,9 +104,7 @@ class PlanningWorkflow:
             except (json.JSONDecodeError, OSError):
                 pass
 
-        outcomes_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "outcome_learning.jsonl"
-        )
+        outcomes_path = _runtime_state_file("organism", "outcome_learning.jsonl")
         if os.path.exists(outcomes_path):
             try:
                 with open(outcomes_path) as f:
@@ -114,16 +118,13 @@ class PlanningWorkflow:
             except OSError:
                 pass
 
-        journal_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "execution_journal.jsonl"
-        )
+        journal_path = _runtime_state_file("organism", "execution_journal.jsonl")
         if os.path.exists(journal_path):
             try:
                 with open(journal_path) as f:
                     lines = f.readlines()
                 active = sum(
-                    1 for line in lines[-50:]
-                    if '"PROPOSED"' in line or '"IN_PROGRESS"' in line
+                    1 for line in lines[-50:] if '"PROPOSED"' in line or '"IN_PROGRESS"' in line
                 )
                 self._assessment.active_tasks = active
             except OSError:
@@ -204,13 +205,15 @@ class PlanningWorkflow:
                 task_type="fast_response",
             )
             if result.output and len(result.output.strip()) > 20:
-                self._options.append(PlanOption(
-                    name="ai_suggested",
-                    description=result.output.strip()[:300],
-                    effort="medium",
-                    impact="high",
-                    tradeoffs="AI-generated — validate before committing.",
-                ))
+                self._options.append(
+                    PlanOption(
+                        name="ai_suggested",
+                        description=result.output.strip()[:300],
+                        effort="medium",
+                        impact="high",
+                        tradeoffs="AI-generated — validate before committing.",
+                    )
+                )
         except Exception:
             pass
 
@@ -229,7 +232,7 @@ class PlanningWorkflow:
         lines = [
             f"# Plan: {self._goal}",
             f"\n**Created**: {date_str}",
-            f"**Status**: DRAFT",
+            "**Status**: DRAFT",
             "",
             "## Current State",
         ]

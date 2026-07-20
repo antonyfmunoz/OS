@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -31,8 +30,6 @@ from uuid import uuid4
 
 from substrate.organism.runtime_graph import (
     RuntimeAdapter,
-    RuntimeCapability,
-    RuntimeResult,
 )
 
 logger = logging.getLogger(__name__)
@@ -144,8 +141,12 @@ class Workcell:
         workcell_id: str,
         role: WorkcellRole,
         adapter: RuntimeAdapter | None = None,
-        base_dir: str | Path = "data/umh/workcells",
+        base_dir: str | Path | None = None,
     ) -> None:
+        if base_dir is None:
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            base_dir = runtime_state_dir("workcells")
         self.workcell_id = workcell_id
         self.role = role
         self._adapter = adapter

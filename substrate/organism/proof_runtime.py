@@ -106,7 +106,7 @@ class ProofRuntime:
       3. capture_after(work_id, snapshot_id, action, outcome) — builds ProofPackage
       4. package_for(work_id) — retrieve proof for a given work item
 
-    Persistence: JSONL file at data/umh/organism/proof_packages.jsonl.
+    Persistence: JSONL file at <runtime-state>/organism/proof_packages.jsonl.
     """
 
     _MAX_HISTORY = 200
@@ -117,10 +117,11 @@ class ProofRuntime:
         self._history: deque[str] = deque(maxlen=self._MAX_HISTORY)
         self._by_work_id: dict[str, str] = {}
 
-        _root = os.environ.get("UMH_ROOT", "/opt/OS")
-        self._store_path = store_path or os.path.join(
-            _root, "data", "umh", "organism", "proof_packages.jsonl"
-        )
+        if store_path is None:
+            from substrate.state.runtime_paths import runtime_state_path
+
+            store_path = str(runtime_state_path("organism", "proof_packages.jsonl"))
+        self._store_path = store_path
         self._load_from_disk()
 
     def capture_before(self, work_id: str, state: dict[str, Any] | None = None) -> str:
@@ -248,9 +249,7 @@ class ProofRuntime:
                             before_state=d.get("before_state", {}),
                             action=d.get("action", {}),
                             after_state=d.get("after_state", {}),
-                            evidence=[
-                                ProofEvidence(**e) for e in d.get("evidence", [])
-                            ],
+                            evidence=[ProofEvidence(**e) for e in d.get("evidence", [])],
                             timestamp=d.get("timestamp", 0.0),
                             operator=d.get("operator", "operator"),
                             governance_proofs=d.get("governance_proofs", []),
@@ -280,6 +279,7 @@ class ProofRuntime:
         state: dict[str, Any] = {"captured_at": time.time()}
         try:
             from substrate.organism.work_graph import WorkGraph
+
             graph = WorkGraph()
             snap = graph.snapshot()
             state["work_graph"] = {

@@ -20,7 +20,7 @@ import json
 import logging
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
@@ -83,10 +83,14 @@ class WorkcellDaemon:
     def __init__(
         self,
         max_concurrency: int = 4,
-        state_dir: str | Path = "data/umh/workcell_daemon",
+        state_dir: str | Path | None = None,
         clock: Callable[[], float] | None = None,
         sleep_fn: Callable[[float], None] | None = None,
     ) -> None:
+        if state_dir is None:
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            state_dir = runtime_state_dir("workcell_daemon")
         self._workcells: dict[str, Workcell] = {}
         self._max_concurrency = max_concurrency
         self._state_dir = Path(state_dir)
@@ -238,9 +242,7 @@ class WorkcellDaemon:
         state = {
             "status": self._status.value,
             "stats": self._stats.to_dict(),
-            "workcells": {
-                wid: wc.to_dict() for wid, wc in self._workcells.items()
-            },
+            "workcells": {wid: wc.to_dict() for wid, wc in self._workcells.items()},
             "timestamp": self._clock(),
         }
         path = self._state_dir / "daemon_state.json"
@@ -263,7 +265,6 @@ class WorkcellDaemon:
 
         Returns the schedule ID.
         """
-        from substrate.organism.workcell_protocol import WorkcellMessage
 
         schedule_id = f"sched-{uuid4().hex[:8]}"
         schedule = {
@@ -339,7 +340,5 @@ class WorkcellDaemon:
             "poll_interval": round(self._poll_interval, 3),
             "stats": self._stats.to_dict(),
             "schedules": len(self._schedules),
-            "workcells": {
-                wid: wc.to_dict() for wid, wc in self._workcells.items()
-            },
+            "workcells": {wid: wc.to_dict() for wid, wc in self._workcells.items()},
         }

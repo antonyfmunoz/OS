@@ -45,69 +45,115 @@ class PacketLifecycleStatus(str, Enum):
     ARCHIVED = "archived"
 
 
-_TERMINAL_STATUSES = frozenset({
-    PacketLifecycleStatus.COMPLETED,
-    PacketLifecycleStatus.REJECTED,
-    PacketLifecycleStatus.FAILED,
-    PacketLifecycleStatus.SUPERSEDED,
-    PacketLifecycleStatus.ARCHIVED,
-})
+_TERMINAL_STATUSES = frozenset(
+    {
+        PacketLifecycleStatus.COMPLETED,
+        PacketLifecycleStatus.REJECTED,
+        PacketLifecycleStatus.FAILED,
+        PacketLifecycleStatus.SUPERSEDED,
+        PacketLifecycleStatus.ARCHIVED,
+    }
+)
 
 _VALID_TRANSITIONS: dict[PacketLifecycleStatus, frozenset[PacketLifecycleStatus]] = {
-    PacketLifecycleStatus.DRAFTED: frozenset({
-        PacketLifecycleStatus.CLASSIFIED, PacketLifecycleStatus.BLOCKED,
-        PacketLifecycleStatus.SUPERSEDED, PacketLifecycleStatus.ARCHIVED,
-    }),
-    PacketLifecycleStatus.CLASSIFIED: frozenset({
-        PacketLifecycleStatus.PLANNED, PacketLifecycleStatus.BLOCKED,
-        PacketLifecycleStatus.SUPERSEDED,
-    }),
-    PacketLifecycleStatus.PLANNED: frozenset({
-        PacketLifecycleStatus.READY_FOR_REVIEW, PacketLifecycleStatus.BLOCKED,
-        PacketLifecycleStatus.SUPERSEDED,
-    }),
-    PacketLifecycleStatus.READY_FOR_REVIEW: frozenset({
-        PacketLifecycleStatus.APPROVAL_PENDING, PacketLifecycleStatus.BLOCKED,
-        PacketLifecycleStatus.SUPERSEDED,
-    }),
-    PacketLifecycleStatus.APPROVAL_PENDING: frozenset({
-        PacketLifecycleStatus.APPROVED, PacketLifecycleStatus.REJECTED,
-        PacketLifecycleStatus.BLOCKED,
-    }),
-    PacketLifecycleStatus.APPROVED: frozenset({
-        PacketLifecycleStatus.DELEGATED, PacketLifecycleStatus.BLOCKED,
-    }),
-    PacketLifecycleStatus.DELEGATED: frozenset({
-        PacketLifecycleStatus.EXECUTING, PacketLifecycleStatus.BLOCKED,
-        PacketLifecycleStatus.FAILED,
-    }),
-    PacketLifecycleStatus.EXECUTING: frozenset({
-        PacketLifecycleStatus.PAUSED, PacketLifecycleStatus.RECONVERGING,
-        PacketLifecycleStatus.VALIDATING, PacketLifecycleStatus.FAILED,
-        PacketLifecycleStatus.BLOCKED,
-    }),
-    PacketLifecycleStatus.PAUSED: frozenset({
-        PacketLifecycleStatus.EXECUTING, PacketLifecycleStatus.BLOCKED,
-        PacketLifecycleStatus.FAILED, PacketLifecycleStatus.ARCHIVED,
-    }),
-    PacketLifecycleStatus.RECONVERGING: frozenset({
-        PacketLifecycleStatus.VALIDATING, PacketLifecycleStatus.FAILED,
-        PacketLifecycleStatus.BLOCKED,
-    }),
-    PacketLifecycleStatus.VALIDATING: frozenset({
-        PacketLifecycleStatus.COMPLETED, PacketLifecycleStatus.FAILED,
-        PacketLifecycleStatus.BLOCKED,
-    }),
+    PacketLifecycleStatus.DRAFTED: frozenset(
+        {
+            PacketLifecycleStatus.CLASSIFIED,
+            PacketLifecycleStatus.BLOCKED,
+            PacketLifecycleStatus.SUPERSEDED,
+            PacketLifecycleStatus.ARCHIVED,
+        }
+    ),
+    PacketLifecycleStatus.CLASSIFIED: frozenset(
+        {
+            PacketLifecycleStatus.PLANNED,
+            PacketLifecycleStatus.BLOCKED,
+            PacketLifecycleStatus.SUPERSEDED,
+        }
+    ),
+    PacketLifecycleStatus.PLANNED: frozenset(
+        {
+            PacketLifecycleStatus.READY_FOR_REVIEW,
+            PacketLifecycleStatus.BLOCKED,
+            PacketLifecycleStatus.SUPERSEDED,
+        }
+    ),
+    PacketLifecycleStatus.READY_FOR_REVIEW: frozenset(
+        {
+            PacketLifecycleStatus.APPROVAL_PENDING,
+            PacketLifecycleStatus.BLOCKED,
+            PacketLifecycleStatus.SUPERSEDED,
+        }
+    ),
+    PacketLifecycleStatus.APPROVAL_PENDING: frozenset(
+        {
+            PacketLifecycleStatus.APPROVED,
+            PacketLifecycleStatus.REJECTED,
+            PacketLifecycleStatus.BLOCKED,
+        }
+    ),
+    PacketLifecycleStatus.APPROVED: frozenset(
+        {
+            PacketLifecycleStatus.DELEGATED,
+            PacketLifecycleStatus.BLOCKED,
+        }
+    ),
+    PacketLifecycleStatus.DELEGATED: frozenset(
+        {
+            PacketLifecycleStatus.EXECUTING,
+            PacketLifecycleStatus.BLOCKED,
+            PacketLifecycleStatus.FAILED,
+        }
+    ),
+    PacketLifecycleStatus.EXECUTING: frozenset(
+        {
+            PacketLifecycleStatus.PAUSED,
+            PacketLifecycleStatus.RECONVERGING,
+            PacketLifecycleStatus.VALIDATING,
+            PacketLifecycleStatus.FAILED,
+            PacketLifecycleStatus.BLOCKED,
+        }
+    ),
+    PacketLifecycleStatus.PAUSED: frozenset(
+        {
+            PacketLifecycleStatus.EXECUTING,
+            PacketLifecycleStatus.BLOCKED,
+            PacketLifecycleStatus.FAILED,
+            PacketLifecycleStatus.ARCHIVED,
+        }
+    ),
+    PacketLifecycleStatus.RECONVERGING: frozenset(
+        {
+            PacketLifecycleStatus.VALIDATING,
+            PacketLifecycleStatus.FAILED,
+            PacketLifecycleStatus.BLOCKED,
+        }
+    ),
+    PacketLifecycleStatus.VALIDATING: frozenset(
+        {
+            PacketLifecycleStatus.COMPLETED,
+            PacketLifecycleStatus.FAILED,
+            PacketLifecycleStatus.BLOCKED,
+        }
+    ),
     PacketLifecycleStatus.COMPLETED: frozenset({PacketLifecycleStatus.ARCHIVED}),
-    PacketLifecycleStatus.BLOCKED: frozenset({
-        PacketLifecycleStatus.DRAFTED, PacketLifecycleStatus.CLASSIFIED,
-        PacketLifecycleStatus.PLANNED, PacketLifecycleStatus.READY_FOR_REVIEW,
-        PacketLifecycleStatus.SUPERSEDED, PacketLifecycleStatus.ARCHIVED,
-    }),
+    PacketLifecycleStatus.BLOCKED: frozenset(
+        {
+            PacketLifecycleStatus.DRAFTED,
+            PacketLifecycleStatus.CLASSIFIED,
+            PacketLifecycleStatus.PLANNED,
+            PacketLifecycleStatus.READY_FOR_REVIEW,
+            PacketLifecycleStatus.SUPERSEDED,
+            PacketLifecycleStatus.ARCHIVED,
+        }
+    ),
     PacketLifecycleStatus.REJECTED: frozenset({PacketLifecycleStatus.ARCHIVED}),
-    PacketLifecycleStatus.FAILED: frozenset({
-        PacketLifecycleStatus.DRAFTED, PacketLifecycleStatus.ARCHIVED,
-    }),
+    PacketLifecycleStatus.FAILED: frozenset(
+        {
+            PacketLifecycleStatus.DRAFTED,
+            PacketLifecycleStatus.ARCHIVED,
+        }
+    ),
     PacketLifecycleStatus.SUPERSEDED: frozenset({PacketLifecycleStatus.ARCHIVED}),
     PacketLifecycleStatus.ARCHIVED: frozenset(),
 }
@@ -412,9 +458,13 @@ def persist_packets(
     packets: list[WorkPacket],
     store_path: str | None = None,
 ) -> None:
-    path = store_path or os.path.join(
-        _REPO_ROOT, "data", "umh", "universal_work", "work_packets.jsonl",
-    )
+    if store_path is None:
+        from substrate.state.runtime_paths import runtime_state_path
+
+        store_path = str(
+            runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
+        )
+    path = store_path
     dir_path = os.path.dirname(path)
     os.makedirs(dir_path, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
@@ -430,9 +480,13 @@ def persist_packets(
 
 
 def load_packets(store_path: str | None = None) -> list[WorkPacket]:
-    path = store_path or os.path.join(
-        _REPO_ROOT, "data", "umh", "universal_work", "work_packets.jsonl",
-    )
+    if store_path is None:
+        from substrate.state.runtime_paths import runtime_state_path
+
+        store_path = str(
+            runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
+        )
+    path = store_path
     if not os.path.exists(path):
         return []
     packets: list[WorkPacket] = []
@@ -445,7 +499,5 @@ def load_packets(store_path: str | None = None) -> list[WorkPacket]:
                 d = json.loads(line)
                 packets.append(WorkPacket.from_dict(d))
             except (json.JSONDecodeError, KeyError, TypeError) as exc:
-                raise ValueError(
-                    f"Corrupt work packet at line {line_num}: {exc}"
-                ) from exc
+                raise ValueError(f"Corrupt work packet at line {line_num}: {exc}") from exc
     return packets

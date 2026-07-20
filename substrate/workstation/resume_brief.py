@@ -151,7 +151,9 @@ class ReturnBriefGenerator:
 
     def _read_completed(self) -> list[str]:
         """Read work packets that completed during absence."""
-        path = self._dir.parent / "universal_work" / "work_packets.jsonl"
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
         if not path.exists():
             return []
         completed: list[str] = []
@@ -170,7 +172,9 @@ class ReturnBriefGenerator:
 
     def _read_failures(self) -> list[str]:
         """Read work packets that failed during absence."""
-        path = self._dir.parent / "universal_work" / "work_packets.jsonl"
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
         if not path.exists():
             return []
         failed: list[str] = []
@@ -189,7 +193,9 @@ class ReturnBriefGenerator:
 
     def _read_blocked(self) -> list[str]:
         """Read work packets that are blocked."""
-        path = self._dir.parent / "universal_work" / "work_packets.jsonl"
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
         if not path.exists():
             return []
         blocked: list[str] = []
@@ -219,11 +225,13 @@ class ReturnBriefGenerator:
                     if stripped:
                         data = json.loads(stripped)
                         if data.get("status") in ("pending", "awaiting_review"):
-                            pending.append({
-                                "artifact_id": data.get("artifact_id", ""),
-                                "title": data.get("title", ""),
-                                "type": data.get("type", ""),
-                            })
+                            pending.append(
+                                {
+                                    "artifact_id": data.get("artifact_id", ""),
+                                    "title": data.get("title", ""),
+                                    "type": data.get("type", ""),
+                                }
+                            )
         except Exception as exc:
             logger.debug("Approvals read failed: %s", exc)
         return pending[-10:]
@@ -237,11 +245,13 @@ class ReturnBriefGenerator:
         try:
             for hb_file in heartbeat_dir.glob("*/heartbeat.json"):
                 data = json.loads(hb_file.read_text(encoding="utf-8"))
-                agents.append({
-                    "name": hb_file.parent.name,
-                    "status": data.get("status", "unknown"),
-                    "last_beat": data.get("timestamp", ""),
-                })
+                agents.append(
+                    {
+                        "name": hb_file.parent.name,
+                        "status": data.get("status", "unknown"),
+                        "last_beat": data.get("timestamp", ""),
+                    }
+                )
         except Exception as exc:
             logger.debug("Agent heartbeat read failed: %s", exc)
         return agents
@@ -259,11 +269,13 @@ class ReturnBriefGenerator:
                     if stripped:
                         data = json.loads(stripped)
                         if data.get("status") in ("active", "running"):
-                            sessions.append({
-                                "session_id": data.get("session_id", ""),
-                                "type": data.get("type", ""),
-                                "status": data.get("status", ""),
-                            })
+                            sessions.append(
+                                {
+                                    "session_id": data.get("session_id", ""),
+                                    "type": data.get("type", ""),
+                                    "status": data.get("status", ""),
+                                }
+                            )
         except Exception as exc:
             logger.debug("Sessions read failed: %s", exc)
         return sessions[-10:]
@@ -284,5 +296,6 @@ class ReturnBriefGenerator:
         self._dir.mkdir(parents=True, exist_ok=True)
         path = self._dir / "latest_return_brief.json"
         path.write_text(
-            json.dumps(brief.to_dict(), indent=2, default=str), encoding="utf-8",
+            json.dumps(brief.to_dict(), indent=2, default=str),
+            encoding="utf-8",
         )

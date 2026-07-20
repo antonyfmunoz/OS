@@ -91,9 +91,18 @@ _WORKTREE_PARENTS: frozenset[str] = frozenset({".claude", ".claire"})
 
 # Self-ingestion guard: `data/world_models/` is the self-model's OWN output.
 # Walking it would re-hash prior runs' artifacts as fresh repository evidence —
-# a recursive evidence loop compounding with every build.
+# a recursive evidence loop compounding with every run.
 _SELF_MODEL_OUTPUT_PARENT = "data"
 _SELF_MODEL_OUTPUT_SEGMENT = "world_models"
+
+# Runtime-state boundary (Wave 0): `data/runtime/` is the live organism's
+# mutable state root — journals, queues, heartbeats. It is operational state,
+# not repository content: hashing it would make repository evidence
+# nondeterministic between runs and could ingest operational metadata. Counted
+# in exclusion accounting, never hashed/parsed/emitted as a SourceRecord.
+# Positional (data/runtime) so ordinary `runtime` package dirs are unaffected.
+_RUNTIME_STATE_PARENT = "data"
+_RUNTIME_STATE_SEGMENT = "runtime"
 
 # Sensitive-path classification — checked BEFORE any stat/hash so no
 # fingerprint (size, mtime, hash) of secret material is ever recorded.
@@ -247,6 +256,9 @@ def _excluded_category(rel_parts: tuple[str, ...]) -> Optional[str]:
             and rel_parts[i - 1] == _SELF_MODEL_OUTPUT_PARENT
         ):
             return "self_model_output"
+        # runtime-state boundary: live mutable organism state, never evidence
+        if part == _RUNTIME_STATE_SEGMENT and i > 0 and rel_parts[i - 1] == _RUNTIME_STATE_PARENT:
+            return "runtime_state"
         cat = _EXCLUDED_DIR_CATEGORY.get(part)
         if cat is not None:
             # 'worktrees' only counts as an exclusion under a .claude/.claire parent

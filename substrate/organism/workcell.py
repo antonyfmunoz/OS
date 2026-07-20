@@ -169,7 +169,9 @@ class Workcell:
             "required_tools": self.required_tools,
             "output_contract": self.output_contract,
             "reconvergence_target": self.reconvergence_target,
-            "reconvergence_result": self.reconvergence_result.to_dict() if self.reconvergence_result else None,
+            "reconvergence_result": self.reconvergence_result.to_dict()
+            if self.reconvergence_result
+            else None,
             "validation_plan": self.validation_plan,
             "status": self.status.value,
             "depth": self.depth,
@@ -239,9 +241,13 @@ def persist_workcells(
     workcells: list[Workcell],
     store_path: str | None = None,
 ) -> None:
-    path = store_path or os.path.join(
-        _REPO_ROOT, "data", "umh", "universal_work", "workcells.jsonl",
-    )
+    if store_path is None:
+        from substrate.state.runtime_paths import runtime_state_path
+
+        store_path = str(
+            runtime_state_path("universal_work", "workcells.jsonl", create_parent=False)
+        )
+    path = store_path
     dir_path = os.path.dirname(path)
     os.makedirs(dir_path, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
@@ -257,9 +263,13 @@ def persist_workcells(
 
 
 def load_workcells(store_path: str | None = None) -> list[Workcell]:
-    path = store_path or os.path.join(
-        _REPO_ROOT, "data", "umh", "universal_work", "workcells.jsonl",
-    )
+    if store_path is None:
+        from substrate.state.runtime_paths import runtime_state_path
+
+        store_path = str(
+            runtime_state_path("universal_work", "workcells.jsonl", create_parent=False)
+        )
+    path = store_path
     if not os.path.exists(path):
         return []
     workcells: list[Workcell] = []
@@ -272,7 +282,5 @@ def load_workcells(store_path: str | None = None) -> list[Workcell]:
                 d = json.loads(line)
                 workcells.append(Workcell.from_dict(d))
             except (json.JSONDecodeError, KeyError, TypeError) as exc:
-                raise ValueError(
-                    f"Corrupt workcell at line {line_num}: {exc}"
-                ) from exc
+                raise ValueError(f"Corrupt workcell at line {line_num}: {exc}") from exc
     return workcells

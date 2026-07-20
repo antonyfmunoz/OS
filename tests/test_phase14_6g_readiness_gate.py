@@ -433,6 +433,7 @@ class TestImplementationSafety:
             f"Gate directory should contain only .md files, found: {non_md}"
         )
 
+    @pytest.mark.skip(reason="branch-diff assertion, not a behavioral test: it runs `git diff --name-only main` and asserts an EMPTY diff, so it fails on any branch that touches these dirs. It froze the blast radius of its own docs-only campaign (now complete) and is red-by-construction for all later work. Adjudicated in MVP Wave 0 — retired, not deleted; the real invariants are enforced by the pre-commit gates (dependency-direction, projection-leak, ontology-layers, runtime-state boundary).")
     def test_no_python_files_modified_in_phase(self) -> None:
         result = subprocess.run(
             ["git", "diff", "--name-only", "main", "--", "*.py"],
@@ -469,6 +470,7 @@ class TestImplementationSafety:
             f"saas/ directory was modified: {saas_files}"
         )
 
+    @pytest.mark.skip(reason="branch-diff assertion, not a behavioral test: it runs `git diff --name-only main` and asserts an EMPTY diff, so it fails on any branch that touches these dirs. It froze the blast radius of its own docs-only campaign (now complete) and is red-by-construction for all later work. Adjudicated in MVP Wave 0 — retired, not deleted; the real invariants are enforced by the pre-commit gates (dependency-direction, projection-leak, ontology-layers, runtime-state boundary).")
     def test_no_projections_modifications(self) -> None:
         result = subprocess.run(
             ["git", "diff", "--name-only", "main", "--", "projections/"],
@@ -481,6 +483,7 @@ class TestImplementationSafety:
             f"projections/ directory was modified: {proj_files}"
         )
 
+    @pytest.mark.skip(reason="branch-diff assertion, not a behavioral test: it runs `git diff --name-only main` and asserts an EMPTY diff, so it fails on any branch that touches these dirs. It froze the blast radius of its own docs-only campaign (now complete) and is red-by-construction for all later work. Adjudicated in MVP Wave 0 — retired, not deleted; the real invariants are enforced by the pre-commit gates (dependency-direction, projection-leak, ontology-layers, runtime-state boundary).")
     def test_no_substrate_modifications(self) -> None:
         result = subprocess.run(
             ["git", "diff", "--name-only", "main", "--", "substrate/"],

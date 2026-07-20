@@ -22,11 +22,19 @@ from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
+
+def _oe_response_path() -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path("operator_experience", "responses.jsonl", create_parent=False))
+
+
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 
 class OutputMode(str, Enum):
     """Output mode for response rendering."""
+
     FULL = "full"
     SUMMARY = "summary"
     PREVIEW = "preview"
@@ -37,6 +45,7 @@ class OutputMode(str, Enum):
 @dataclass
 class Option:
     """A single option presented to the operator for decision."""
+
     option_id: str = field(default_factory=lambda: "opt-" + uuid4().hex[:8])
     label: str = ""
     description: str = ""
@@ -72,6 +81,7 @@ class Option:
 @dataclass
 class OperatorResponse:
     """Structured response from orchestrator kernel to operator."""
+
     response_id: str = field(default_factory=lambda: "or-" + uuid4().hex[:12])
     session_id: str = ""
     turn_id: str = ""
@@ -173,10 +183,9 @@ class OperatorResponse:
 
 # ── Persistence ──────────────────────────────────────────────────────────
 
+
 def _default_responses_path() -> str:
-    return os.path.join(
-        _REPO_ROOT, "data", "umh", "operator_experience", "responses.jsonl",
-    )
+    return _oe_response_path()
 
 
 def persist_responses(
@@ -187,7 +196,8 @@ def persist_responses(
     target = path or _default_responses_path()
     os.makedirs(os.path.dirname(target), exist_ok=True)
     fd, tmp = tempfile.mkstemp(
-        dir=os.path.dirname(target), suffix=".tmp",
+        dir=os.path.dirname(target),
+        suffix=".tmp",
     )
     try:
         with os.fdopen(fd, "w") as f:

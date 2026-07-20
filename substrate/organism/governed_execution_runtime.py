@@ -7,13 +7,13 @@ TradeoffIntelligence, and UnifiedApproval into one governed view.
 This runtime NEVER executes. It coordinates.
 Execution remains in existing subsystems.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import os
 import time
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -103,9 +103,15 @@ class GovernedExecutionSnapshot:
         }
         # Hoist assessment fields to root for flat reads (RightRail, ControlPanel)
         if self.assessment:
-            for k in ("ready_count", "blocked_count", "pending_approval_count",
-                       "top_blockers", "resource_health", "delegation_coverage",
-                       "active_tradeoffs"):
+            for k in (
+                "ready_count",
+                "blocked_count",
+                "pending_approval_count",
+                "top_blockers",
+                "resource_health",
+                "delegation_coverage",
+                "active_tradeoffs",
+            ):
                 if k not in d:
                     d[k] = self.assessment.get(k)
         return d
@@ -168,9 +174,7 @@ class GovernedExecutionRuntime:
 
             self._delegation_readiness_dep = DelegationReadinessRuntime()
         except Exception as exc:
-            logger.debug(
-                "governed_execution: delegation_readiness init failed: %s", exc
-            )
+            logger.debug("governed_execution: delegation_readiness init failed: %s", exc)
         return self._delegation_readiness_dep
 
     @property
@@ -184,9 +188,7 @@ class GovernedExecutionRuntime:
 
             self._resource_allocation_dep = ResourceAllocationRuntime()
         except Exception as exc:
-            logger.debug(
-                "governed_execution: resource_allocation init failed: %s", exc
-            )
+            logger.debug("governed_execution: resource_allocation init failed: %s", exc)
         return self._resource_allocation_dep
 
     @property
@@ -262,9 +264,7 @@ class GovernedExecutionRuntime:
                     if total > 0:
                         return delegatable / total
                 elif hasattr(snap, "total_assessed") and snap.total_assessed > 0:
-                    return (
-                        getattr(snap, "delegatable_count", 0) / snap.total_assessed
-                    )
+                    return getattr(snap, "delegatable_count", 0) / snap.total_assessed
         except Exception as exc:
             logger.debug("governed_execution: delegation_coverage failed: %s", exc)
         return 0.0
@@ -282,9 +282,7 @@ class GovernedExecutionRuntime:
         try:
             if self._tradeoff_engine is not None:
                 cmap = self._tradeoff_engine.contention_map()
-                return sum(
-                    1 for targets in cmap.values() if len(targets) >= 2
-                )
+                return sum(1 for targets in cmap.values() if len(targets) >= 2)
         except Exception as exc:
             logger.debug("governed_execution: active_tradeoffs failed: %s", exc)
         return 0
@@ -315,10 +313,12 @@ class GovernedExecutionRuntime:
             else:
                 desc = str(item)[:100]
 
-            blockers.append({
-                "type": blocker_type,
-                "description": desc,
-            })
+            blockers.append(
+                {
+                    "type": blocker_type,
+                    "description": desc,
+                }
+            )
 
         for approval in pending_approvals[:5]:
             desc = ""
@@ -330,22 +330,28 @@ class GovernedExecutionRuntime:
             else:
                 desc = str(approval)[:100]
 
-            blockers.append({
-                "type": ExecutionBlocker.PENDING_APPROVAL.value,
-                "description": desc,
-            })
+            blockers.append(
+                {
+                    "type": ExecutionBlocker.PENDING_APPROVAL.value,
+                    "description": desc,
+                }
+            )
 
         if self._get_active_tradeoffs() >= 3:
-            blockers.append({
-                "type": ExecutionBlocker.RESOURCE_CONTENTION.value,
-                "description": f"{self._get_active_tradeoffs()} active resource contentions",
-            })
+            blockers.append(
+                {
+                    "type": ExecutionBlocker.RESOURCE_CONTENTION.value,
+                    "description": f"{self._get_active_tradeoffs()} active resource contentions",
+                }
+            )
 
         if self._get_delegation_coverage() < 0.2 and len(self._get_all_work()) > 0:
-            blockers.append({
-                "type": ExecutionBlocker.NO_EXECUTOR.value,
-                "description": f"Delegation coverage at {self._get_delegation_coverage():.0%}",
-            })
+            blockers.append(
+                {
+                    "type": ExecutionBlocker.NO_EXECUTOR.value,
+                    "description": f"Delegation coverage at {self._get_delegation_coverage():.0%}",
+                }
+            )
 
         return blockers[:15]
 
@@ -513,14 +519,18 @@ class GovernedExecutionRuntime:
 
         packets = self._load_work_packets(limit=100)
         executing = [p for p in packets if p.get("status") in ("executing", "delegated")]
-        blocked_packets = [p for p in packets if p.get("status") == "blocked" or bool(p.get("blockers"))]
+        blocked_packets = [
+            p for p in packets if p.get("status") == "blocked" or bool(p.get("blockers"))
+        ]
 
         by_status: dict[str, int] = {}
         for p in packets:
             s = p.get("status", "unknown")
             by_status[s] = by_status.get(s, 0) + 1
 
-        ready = [p for p in packets if p.get("status") in ("approved", "ready_for_review", "planned")]
+        ready = [
+            p for p in packets if p.get("status") in ("approved", "ready_for_review", "planned")
+        ]
         ready.sort(key=lambda p: p.get("leverage_score", 0), reverse=True)
         next_packet = None
         if ready:
@@ -533,7 +543,9 @@ class GovernedExecutionRuntime:
 
         journal = self._load_journal_recent(50)
         completed = [j for j in journal if j.get("phase") == "EXECUTION_COMPLETED"]
-        failed = [j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED")]
+        failed = [
+            j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED")
+        ]
 
         checkpoint = self._load_checkpoint()
         continuity_state = checkpoint.get(
@@ -562,13 +574,21 @@ class GovernedExecutionRuntime:
                 "executing_packets": len(executing),
             },
             "who_is_working": [
-                {"agent_id": h.get("workcell_id", ""), "role": h.get("role", ""), "status": h.get("status", "")}
+                {
+                    "agent_id": h.get("workcell_id", ""),
+                    "role": h.get("role", ""),
+                    "status": h.get("status", ""),
+                }
                 for h in heartbeats
             ],
             "what_is_blocked": {
                 "count": len(blocked_packets),
                 "items": [
-                    {"id": b.get("packet_id", ""), "title": b.get("title", ""), "blockers": b.get("blockers", [])}
+                    {
+                        "id": b.get("packet_id", ""),
+                        "title": b.get("title", ""),
+                        "blockers": b.get("blockers", []),
+                    }
                     for b in blocked_packets[:5]
                 ],
             },
@@ -581,7 +601,9 @@ class GovernedExecutionRuntime:
             },
             "what_failed": {
                 "recent_failed": len(failed),
-                "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", "")) if failed else "",
+                "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", ""))
+                if failed
+                else "",
             },
             "what_should_resume_next": next_packet,
             "packets_by_status": by_status,
@@ -592,8 +614,9 @@ class GovernedExecutionRuntime:
 
     @staticmethod
     def _load_workcell_heartbeats() -> list[dict[str, Any]]:
-        umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
-        wc_dir = os.path.join(umh_root, "data", "umh", "organism", "workcells")
+        from substrate.state.runtime_paths import runtime_state_dir
+
+        wc_dir = str(runtime_state_dir("organism", create=False) / "workcells")
         heartbeats: list[dict[str, Any]] = []
         if not os.path.isdir(wc_dir):
             return heartbeats
@@ -611,8 +634,9 @@ class GovernedExecutionRuntime:
 
     @staticmethod
     def _load_work_packets(limit: int = 50) -> list[dict[str, Any]]:
-        umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
-        path = os.path.join(umh_root, "data", "umh", "universal_work", "work_packets.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False))
         packets: list[dict[str, Any]] = []
         if not os.path.exists(path):
             return packets
@@ -633,8 +657,9 @@ class GovernedExecutionRuntime:
 
     @staticmethod
     def _load_journal_recent(limit: int = 20) -> list[dict[str, Any]]:
-        umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
-        path = os.path.join(umh_root, "data", "umh", "organism", "execution_journal.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(runtime_state_path("organism", "execution_journal.jsonl", create_parent=False))
         entries: list[dict[str, Any]] = []
         if not os.path.exists(path):
             return entries

@@ -10,3 +10,4 @@
 {"template_id": "cap-3868c44a", "task_shape": "bug_fix", "file_patterns": [], "code_skeleton": "", "test_skeleton": "", "times_extracted": 1, "times_reused": 0, "success_rate": 0.2, "created_at": 1782770603.4082327}
 {"template_id": "cap-a557421a", "task_shape": "bug_fix", "file_patterns": [], "code_skeleton": "", "test_skeleton": "", "times_extracted": 1, "times_reused": 0, "success_rate": 0.2, "created_at": 1782770972.9149148}
 {"template_id": "cap-a654f9d3", "task_shape": "bug_fix", "file_patterns": [], "code_skeleton": "", "test_skeleton": "", "times_extracted": 1, "times_reused": 0, "success_rate": 0.2, "created_at": 1782775731.9860358}
+{"template_id": "cap-28b7aa1d", "task_shape": "bug_fix", "file_patterns": [], "code_skeleton": "", "test_skeleton": "", "times_extracted": 1, "times_reused": 0, "success_rate": 0.2, "created_at": 1784570397.7635987}

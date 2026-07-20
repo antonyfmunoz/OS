@@ -310,7 +310,8 @@ class TestProofRuntime:
         assert pkg is not None
         assert pkg.work_id == "wp-3"
 
-    def test_create_direct(self):
+    def test_create_direct(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.proof_runtime import ProofRuntime
         rt = ProofRuntime()
         pkg = rt.create_direct("wp-4", action={"op": "test"}, outcome="ok")
@@ -403,17 +404,23 @@ class TestWorkRecoveryRuntime:
         rt = WorkRecoveryRuntime()
         assert rt.resumable_work() == []
 
-    def test_failed_work_empty(self):
+    def test_failed_work_empty(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.work_recovery_runtime import WorkRecoveryRuntime
         rt = WorkRecoveryRuntime()
         assert rt.failed_work() == []
 
-    def test_blocked_work_empty(self):
+    def test_blocked_work_empty(self, tmp_path, monkeypatch):
+        """Empty-state assertion needs an ISOLATED state root — without one it
+        reads whatever the live runtime happens to hold (Wave 0: state lives
+        under the runtime-state boundary, so point it at a temp dir)."""
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.work_recovery_runtime import WorkRecoveryRuntime
         rt = WorkRecoveryRuntime()
         assert rt.blocked_work() == []
 
-    def test_recoverable_work_empty(self):
+    def test_recoverable_work_empty(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.work_recovery_runtime import WorkRecoveryRuntime
         rt = WorkRecoveryRuntime()
         assert rt.recoverable_work() == []
@@ -515,12 +522,14 @@ class TestGovernedWorkRuntime:
         status = rt.status("nonexistent")
         assert status.phase == "unknown"
 
-    def test_queue_empty(self):
+    def test_queue_empty(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.governed_work_runtime import GovernedWorkRuntime
         rt = GovernedWorkRuntime()
         assert rt.queue() == []
 
-    def test_blocked_empty(self):
+    def test_blocked_empty(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.governed_work_runtime import GovernedWorkRuntime
         rt = GovernedWorkRuntime()
         assert rt.blocked() == []
@@ -536,12 +545,14 @@ class TestGovernedWorkRuntime:
         rt = GovernedWorkRuntime()
         assert rt.proof("nonexistent") is None
 
-    def test_history_empty(self):
+    def test_history_empty(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.governed_work_runtime import GovernedWorkRuntime
         rt = GovernedWorkRuntime()
         assert rt.history() == []
 
-    def test_recovery_empty(self):
+    def test_recovery_empty(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         from substrate.organism.governed_work_runtime import GovernedWorkRuntime
         rt = GovernedWorkRuntime()
         assert rt.recovery() == []

@@ -20,6 +20,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _oe_sessions_path() -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path("operator_experience", "sessions.jsonl", create_parent=False))
+
+
 def resolve_composite_mode(
     continuity_state: str = "",
     lifecycle_mode: str = "",
@@ -51,10 +57,9 @@ def _read_operator_day_mode() -> dict[str, Any]:
     try:
         import json as _json
 
-        path = os.path.join(
-            os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "umh", "operator_experience", "sessions.jsonl",
-        )
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(runtime_state_path("operator_experience", "sessions.jsonl", create_parent=False))
         if not os.path.exists(path):
             return {"mode": "unknown", "source": "no session file"}
 
@@ -81,6 +86,7 @@ def _read_operational_mode() -> dict[str, Any]:
         from substrate.execution.workers.workstation.workstation_contracts_v1 import (
             OperationalMode,
         )
+
         return {
             "mode": OperationalMode.DEVELOPER.value,
             "source": "default",
@@ -94,6 +100,7 @@ def _read_operational_mode() -> dict[str, Any]:
 def _read_station_presence_mode() -> dict[str, Any]:
     try:
         from substrate.execution.bridge.station_presence import StationPresenceMode
+
         return {
             "mode": StationPresenceMode.LOCAL.value,
             "source": "default",
@@ -107,6 +114,7 @@ def _read_station_presence_mode() -> dict[str, Any]:
 def _read_operator_mode() -> dict[str, Any]:
     try:
         from substrate.execution.bridge.operator_state import OperatorMode
+
         return {
             "mode": OperatorMode.IDLE.value,
             "source": "default",
@@ -122,7 +130,10 @@ def _read_continuity_state() -> str:
     try:
         path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "umh", "workstation_state", "continuity.json",
+            "data",
+            "umh",
+            "workstation_state",
+            "continuity.json",
         )
         if os.path.exists(path):
             data = json.loads(open(path, encoding="utf-8").read())
@@ -137,7 +148,10 @@ def _read_profile_modes() -> list[str]:
     try:
         path = os.path.join(
             os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data", "umh", "workstation_state", "profile_modes.json",
+            "data",
+            "umh",
+            "workstation_state",
+            "profile_modes.json",
         )
         if os.path.exists(path):
             data = json.loads(open(path, encoding="utf-8").read())

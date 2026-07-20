@@ -31,9 +31,15 @@ from transports.api.governed import governed_mutation
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_JOURNAL_PATH = os.path.join(
-    _REPO_ROOT, "data", "umh", "organism", "execution_journal.jsonl"
-)
+
+
+def _runtime_state_file(subsystem: str, filename: str) -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path(subsystem, filename, create_parent=False))
+
+
+_JOURNAL_PATH = _runtime_state_file("organism", "execution_journal.jsonl")
 
 
 def _journal_append(entry: dict[str, Any]) -> None:
@@ -71,23 +77,27 @@ class WorkflowRunner:
         step_results: list[StepResult] = []
         failed = False
 
-        _journal_append({
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "event": "workflow_start",
-            "workflow": workflow_name,
-            "steps": len(steps),
-            "source": source,
-            "org_id": self._org_id,
-        })
+        _journal_append(
+            {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "event": "workflow_start",
+                "workflow": workflow_name,
+                "steps": len(steps),
+                "source": source,
+                "org_id": self._org_id,
+            }
+        )
 
         for step in steps:
             if failed and not step.skip_on_failure:
-                step_results.append(StepResult(
-                    step_name=step.name,
-                    success=False,
-                    skipped=True,
-                    output="skipped — prior step failed",
-                ))
+                step_results.append(
+                    StepResult(
+                        step_name=step.name,
+                        success=False,
+                        skipped=True,
+                        output="skipped — prior step failed",
+                    )
+                )
                 continue
 
             result = self._execute_step(step, workflow_name, source)
@@ -110,15 +120,17 @@ class WorkflowRunner:
             metadata=meta,
         )
 
-        _journal_append({
-            "ts": datetime.now(timezone.utc).isoformat(),
-            "event": "workflow_complete",
-            "workflow": workflow_name,
-            "success": wf_result.success,
-            "steps_completed": completed,
-            "steps_total": len(steps),
-            "duration_seconds": wf_result.duration_seconds,
-        })
+        _journal_append(
+            {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "event": "workflow_complete",
+                "workflow": workflow_name,
+                "success": wf_result.success,
+                "steps_completed": completed,
+                "steps_total": len(steps),
+                "duration_seconds": wf_result.duration_seconds,
+            }
+        )
 
         self._dispatch_report(wf_result)
 
@@ -153,7 +165,9 @@ class WorkflowRunner:
         except Exception as exc:
             logger.error(
                 "workflow %s step %s failed: %s",
-                workflow_name, step.name, exc,
+                workflow_name,
+                step.name,
+                exc,
             )
             return StepResult(
                 step_name=step.name,
@@ -184,8 +198,7 @@ class WorkflowRunner:
             f"**Steps**: {result.steps_completed}/{result.steps_total}\n"
             f"**Duration**: {result.duration_seconds:.1f}s\n"
             f"**Source**: {result.source}\n\n"
-            f"## Step Results\n\n"
-            + "\n".join(step_lines)
+            f"## Step Results\n\n" + "\n".join(step_lines)
         )
 
         report = Report(
