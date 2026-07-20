@@ -495,6 +495,7 @@ class TestSharedTrinitiArchitecture:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestNoSourceMutation:
+    @pytest.mark.skip(reason="branch-diff assertion, not a behavioral test: it runs `git diff --name-only main` and asserts an EMPTY diff, so it fails on any branch that touches these dirs. It froze the blast radius of its own docs-only campaign (now complete) and is red-by-construction for all later work. Adjudicated in MVP Wave 0 — retired, not deleted; the real invariants are enforced by the pre-commit gates (dependency-direction, projection-leak, ontology-layers, runtime-state boundary).")
     def test_no_python_files_modified(self):
         import subprocess
         result = subprocess.run(
@@ -506,6 +507,7 @@ class TestNoSourceMutation:
         non_test_py = [f for f in py_files if not f.startswith("tests/")]
         assert len(non_test_py) == 0, f"Non-test Python files modified: {non_test_py}"
 
+    @pytest.mark.skip(reason="branch-diff assertion, not a behavioral test: it runs `git diff --name-only main` and asserts an EMPTY diff, so it fails on any branch that touches these dirs. It froze the blast radius of its own docs-only campaign (now complete) and is red-by-construction for all later work. Adjudicated in MVP Wave 0 — retired, not deleted; the real invariants are enforced by the pre-commit gates (dependency-direction, projection-leak, ontology-layers, runtime-state boundary).")
     def test_no_substrate_modified(self):
         import subprocess
         result = subprocess.run(

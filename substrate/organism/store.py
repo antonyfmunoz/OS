@@ -12,11 +12,12 @@ from substrate.organism.protocols import (
     Deliverable,
     LearningSignal,
 )
+from substrate.state.runtime_paths import runtime_state_dir
 
 
 class OrganismStore:
-    def __init__(self, store_dir: str | Path = "data/umh/organism") -> None:
-        self._dir = Path(store_dir)
+    def __init__(self, store_dir: str | Path | None = None) -> None:
+        self._dir = Path(store_dir) if store_dir else runtime_state_dir("organism")
         self._dir.mkdir(parents=True, exist_ok=True)
         self._deliverables = self._dir / "deliverables.jsonl"
         self._messages = self._dir / "messages.jsonl"

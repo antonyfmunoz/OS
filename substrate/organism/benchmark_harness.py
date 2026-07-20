@@ -13,14 +13,20 @@ import json
 import logging
 import os
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_DEFAULT_STORE = os.path.join(_REPO_ROOT, "data", "umh", "organism", "c33_benchmarks.jsonl")
+
+
+def _default_store() -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path("organism", "c33_benchmarks.jsonl", create_parent=False))
+
 
 VALID_BENCHMARK_TYPES = {"A", "B", "C", "D", "E", "F", "G", "H"}
 
@@ -99,7 +105,7 @@ class BenchmarkHarness:
     """Records and compares benchmark metrics across C32 cycles."""
 
     def __init__(self, store_path: str | None = None) -> None:
-        self._path = store_path or _DEFAULT_STORE
+        self._path = store_path or _default_store()
         self._records: list[CycleMetrics] = []
         self._active: dict[str, CycleMetrics] = {}
         self._load()
@@ -123,11 +129,12 @@ class BenchmarkHarness:
     def _persist(self, metrics: CycleMetrics) -> None:
         if metrics.idempotency_key:
             existing_keys = {
-                r.idempotency_key for r in self._records
-                if r.idempotency_key and r is not metrics
+                r.idempotency_key for r in self._records if r.idempotency_key and r is not metrics
             }
             if metrics.idempotency_key in existing_keys:
-                logger.debug("duplicate idempotency_key, skipping persist: %s", metrics.idempotency_key)
+                logger.debug(
+                    "duplicate idempotency_key, skipping persist: %s", metrics.idempotency_key
+                )
                 return
         os.makedirs(os.path.dirname(self._path), exist_ok=True)
         try:
@@ -153,7 +160,9 @@ class BenchmarkHarness:
             idempotency_key=f"{cycle_id}:{pipeline}:{uuid4().hex[:8]}",
         )
         self._active[f"{cycle_id}:{pipeline}"] = metrics
-        logger.info("benchmark started: cycle=%s pipeline=%s type=%s", cycle_id, pipeline, benchmark_type)
+        logger.info(
+            "benchmark started: cycle=%s pipeline=%s type=%s", cycle_id, pipeline, benchmark_type
+        )
         return metrics
 
     def end_cycle(self, cycle_id: str, pipeline: str, **overrides: Any) -> CycleMetrics:
@@ -173,7 +182,9 @@ class BenchmarkHarness:
         self._persist(metrics)
         logger.info(
             "benchmark ended: cycle=%s pipeline=%s elapsed=%.1fs",
-            cycle_id, pipeline, metrics.elapsed_seconds,
+            cycle_id,
+            pipeline,
+            metrics.elapsed_seconds,
         )
         return metrics
 
@@ -181,12 +192,20 @@ class BenchmarkHarness:
         """Auto-collect files changed, lines added/removed, commits from git."""
         from substrate.execution.cpu_gate import gated_subprocess_run
 
-        result: dict[str, int] = {"files_changed": 0, "lines_added": 0, "lines_removed": 0, "commits": 0}
+        result: dict[str, int] = {
+            "files_changed": 0,
+            "lines_added": 0,
+            "lines_removed": 0,
+            "commits": 0,
+        }
         try:
             diff = gated_subprocess_run(
                 ["git", "diff", "--stat", "HEAD~1"],
                 caller="benchmark_harness.collect_git_metrics",
-                capture_output=True, text=True, cwd=worktree_path, timeout=10,
+                capture_output=True,
+                text=True,
+                cwd=worktree_path,
+                timeout=10,
             )
             if diff is not None and diff.returncode == 0:
                 lines = diff.stdout.strip().split("\n")
@@ -205,7 +224,10 @@ class BenchmarkHarness:
             log = gated_subprocess_run(
                 ["git", "rev-list", "--count", "HEAD"],
                 caller="benchmark_harness.collect_git_metrics",
-                capture_output=True, text=True, cwd=worktree_path, timeout=10,
+                capture_output=True,
+                text=True,
+                cwd=worktree_path,
+                timeout=10,
             )
             if log is not None and log.returncode == 0:
                 result["commits"] = int(log.stdout.strip())
@@ -234,7 +256,9 @@ class BenchmarkHarness:
             if isinstance(va, float) and isinstance(vb, float):
                 delta = vb - va
                 return f"| {label} | {va:.1f} | {vb:.1f} | {delta:+.1f} |"
-            delta = vb - va if isinstance(va, (int, float)) and isinstance(vb, (int, float)) else "—"
+            delta = (
+                vb - va if isinstance(va, (int, float)) and isinstance(vb, (int, float)) else "—"
+            )
             return f"| {label} | {va} | {vb} | {delta} |"
 
         lines.append(_row("Elapsed (s)", a.elapsed_seconds, b.elapsed_seconds))
@@ -245,7 +269,13 @@ class BenchmarkHarness:
         lines.append(_row("Tests written", a.tests_written, b.tests_written))
         lines.append(_row("Tests passed", a.tests_passed, b.tests_passed))
         lines.append(_row("Tests failed", a.tests_failed, b.tests_failed))
-        lines.append(_row("Pre-commit violations", a.precommit_violations_caught, b.precommit_violations_caught))
+        lines.append(
+            _row(
+                "Pre-commit violations",
+                a.precommit_violations_caught,
+                b.precommit_violations_caught,
+            )
+        )
         lines.append(_row("Bugs found post", a.bugs_found_post, b.bugs_found_post))
         lines.append("")
         lines.append("### Governance (Pipeline B only)")
@@ -276,8 +306,12 @@ class BenchmarkHarness:
             "|-------|-----------|-------------|-----------|-------------|------------|-------------------|",
         ]
         for cid in cycles:
-            a = next((r for r in self._records if r.cycle_id == cid and r.pipeline == "legacy"), None)
-            b = next((r for r in self._records if r.cycle_id == cid and r.pipeline == "governed"), None)
+            a = next(
+                (r for r in self._records if r.cycle_id == cid and r.pipeline == "legacy"), None
+            )
+            b = next(
+                (r for r in self._records if r.cycle_id == cid and r.pipeline == "governed"), None
+            )
             at = f"{a.elapsed_seconds:.1f}" if a else "—"
             bt = f"{b.elapsed_seconds:.1f}" if b else "—"
             delta = f"{b.elapsed_seconds - a.elapsed_seconds:+.1f}" if a and b else "—"
@@ -302,12 +336,24 @@ class BenchmarkHarness:
             return {"improvements": [], "error": "need at least 2 cycle IDs"}
 
         _NUMERIC_FIELDS = [
-            "elapsed_seconds", "files_changed", "lines_added", "lines_removed",
-            "commits", "tests_written", "tests_passed", "tests_failed",
-            "capabilities_extracted", "capabilities_reused", "templates_matched",
-            "learning_signals_generated", "learning_signals_consumed",
-            "proof_packages_created", "reusable_assets_created",
-            "total_overhead_ms", "spine_submit_ms", "governance_check_ms",
+            "elapsed_seconds",
+            "files_changed",
+            "lines_added",
+            "lines_removed",
+            "commits",
+            "tests_written",
+            "tests_passed",
+            "tests_failed",
+            "capabilities_extracted",
+            "capabilities_reused",
+            "templates_matched",
+            "learning_signals_generated",
+            "learning_signals_consumed",
+            "proof_packages_created",
+            "reusable_assets_created",
+            "total_overhead_ms",
+            "spine_submit_ms",
+            "governance_check_ms",
         ]
 
         improvements: list[dict[str, Any]] = []
@@ -324,21 +370,45 @@ class BenchmarkHarness:
                 delta = new_val - old_val
                 if abs(delta) < 0.001:
                     continue
-                direction = "improved" if (
-                    (fld in ("elapsed_seconds", "total_overhead_ms", "tests_failed",
-                             "spine_submit_ms", "governance_check_ms") and delta < 0)
-                    or (fld not in ("elapsed_seconds", "total_overhead_ms", "tests_failed",
-                                    "spine_submit_ms", "governance_check_ms") and delta > 0)
-                ) else "regressed"
-                improvements.append({
-                    "from_cycle": prev_id,
-                    "to_cycle": curr_id,
-                    "metric": fld,
-                    "old": round(old_val, 3) if isinstance(old_val, float) else old_val,
-                    "new": round(new_val, 3) if isinstance(new_val, float) else new_val,
-                    "delta": round(delta, 3) if isinstance(delta, float) else delta,
-                    "direction": direction,
-                })
+                direction = (
+                    "improved"
+                    if (
+                        (
+                            fld
+                            in (
+                                "elapsed_seconds",
+                                "total_overhead_ms",
+                                "tests_failed",
+                                "spine_submit_ms",
+                                "governance_check_ms",
+                            )
+                            and delta < 0
+                        )
+                        or (
+                            fld
+                            not in (
+                                "elapsed_seconds",
+                                "total_overhead_ms",
+                                "tests_failed",
+                                "spine_submit_ms",
+                                "governance_check_ms",
+                            )
+                            and delta > 0
+                        )
+                    )
+                    else "regressed"
+                )
+                improvements.append(
+                    {
+                        "from_cycle": prev_id,
+                        "to_cycle": curr_id,
+                        "metric": fld,
+                        "old": round(old_val, 3) if isinstance(old_val, float) else old_val,
+                        "new": round(new_val, 3) if isinstance(new_val, float) else new_val,
+                        "delta": round(delta, 3) if isinstance(delta, float) else delta,
+                        "direction": direction,
+                    }
+                )
 
         return {"improvements": improvements, "cycle_count": len(cycle_ids)}
 
@@ -356,7 +426,11 @@ class BenchmarkHarness:
 
         total_gov_time = sum(r.elapsed_seconds for r in governed)
         total_leg_time = sum(r.elapsed_seconds for r in legacy)
-        overhead_pct = ((total_gov_time - total_leg_time) / total_leg_time * 100) if total_leg_time > 0 else 0.0
+        overhead_pct = (
+            ((total_gov_time - total_leg_time) / total_leg_time * 100)
+            if total_leg_time > 0
+            else 0.0
+        )
 
         total_caps_extracted = sum(r.capabilities_extracted for r in governed)
         total_caps_reused = sum(r.capabilities_reused for r in governed)
@@ -367,8 +441,8 @@ class BenchmarkHarness:
         total_proofs = sum(r.proof_packages_created for r in governed)
 
         avg_overhead_ms = (
-            sum(r.total_overhead_ms for r in governed) / len(governed)
-        ) if governed else 0.0
+            (sum(r.total_overhead_ms for r in governed) / len(governed)) if governed else 0.0
+        )
 
         has_capability_reuse = total_caps_reused > 0
         has_fast_path = fast_path_count > 0
@@ -378,14 +452,16 @@ class BenchmarkHarness:
         if benchmark_type == "A":
             passes = overhead_below_10 and has_capability_reuse and has_fast_path
         elif benchmark_type == "E":
-            compound_signals = sum([
-                total_caps_extracted > 0,
-                total_caps_reused > 0,
-                total_templates > 0,
-                total_signals_consumed > 0,
-                has_fast_path,
-                total_proofs > 0,
-            ])
+            compound_signals = sum(
+                [
+                    total_caps_extracted > 0,
+                    total_caps_reused > 0,
+                    total_templates > 0,
+                    total_signals_consumed > 0,
+                    has_fast_path,
+                    total_proofs > 0,
+                ]
+            )
             passes = compound_signals >= 4
         else:
             passes = True

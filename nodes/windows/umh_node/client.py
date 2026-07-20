@@ -480,7 +480,6 @@ class NodeClient:
         try:
             from substrate.execution.mesh_verdict import (
                 get_verdict_secret,
-                is_write_class,
                 verify_verdict,
             )
         except Exception as exc:  # pragma: no cover - defensive import guard
@@ -571,7 +570,9 @@ class NodeClient:
             cap_config = self._config.capabilities.get(adapter_key)
             if cap_config is None and adapter_key in self._adapters:
                 cap_config = CapabilityConfig()
-            allowed, reason = validate_request(adapter_key, cap_params, risk_class, cap_config)
+            # pass the ORIGINAL dotted name — governance normalizes it and
+            # denies unknown operations (adapter_key stays for lookup only)
+            allowed, reason = validate_request(cap_name, cap_params, risk_class, cap_config)
 
             if not allowed:
                 logger.warning("capability %s denied: %s", cap_name, reason)

@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
@@ -22,6 +22,14 @@ from projections.eos.workflows.types import WorkflowStep
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+
+
+def _runtime_state_file(subsystem: str, filename: str) -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path(subsystem, filename, create_parent=False))
+
+
 _DOCS_DIR = os.path.join(_REPO_ROOT, "data", "umh", "documents")
 
 VALID_DOC_TYPES = {
@@ -242,7 +250,7 @@ class DocumentWorkflow:
             logger.debug("crisis generation failed: %s", exc)
 
         self._content = self._deterministic_crisis(dc)
-        return (f"Generated crisis communication (template fallback)", True)
+        return ("Generated crisis communication (template fallback)", True)
 
     def _store_document(self) -> tuple[str, bool]:
         if not self._content or not self._doc_ctx:
@@ -268,9 +276,7 @@ class DocumentWorkflow:
             "filename": filename,
             "content_length": len(self._content),
         }
-        journal_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "execution_journal.jsonl"
-        )
+        journal_path = _runtime_state_file("organism", "execution_journal.jsonl")
         try:
             with open(journal_path, "a") as f:
                 f.write(json.dumps(meta) + "\n")

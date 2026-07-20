@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 
+def _oe_path(filename: str) -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path("operator_experience", filename, create_parent=False))
+
+
 class OperatorSessionStatus(str, Enum):
     ACTIVE = "active"
     WAITING_FOR_OPERATOR = "waiting_for_operator"
@@ -36,60 +42,77 @@ class OperatorSessionStatus(str, Enum):
     ARCHIVED = "archived"
 
 
-_TERMINAL_SESSION_STATUSES = frozenset({
-    OperatorSessionStatus.COMPLETED,
-    OperatorSessionStatus.ARCHIVED,
-})
+_TERMINAL_SESSION_STATUSES = frozenset(
+    {
+        OperatorSessionStatus.COMPLETED,
+        OperatorSessionStatus.ARCHIVED,
+    }
+)
 
 _VALID_SESSION_TRANSITIONS: dict[OperatorSessionStatus, frozenset[OperatorSessionStatus]] = {
-    OperatorSessionStatus.ACTIVE: frozenset({
-        OperatorSessionStatus.WAITING_FOR_OPERATOR,
-        OperatorSessionStatus.WAITING_FOR_APPROVAL,
-        OperatorSessionStatus.PACKET_DRAFTED,
-        OperatorSessionStatus.BLOCKED,
-        OperatorSessionStatus.COMPLETED,
-        OperatorSessionStatus.ARCHIVED,
-    }),
-    OperatorSessionStatus.WAITING_FOR_OPERATOR: frozenset({
-        OperatorSessionStatus.ACTIVE,
-        OperatorSessionStatus.BLOCKED,
-        OperatorSessionStatus.COMPLETED,
-        OperatorSessionStatus.ARCHIVED,
-    }),
-    OperatorSessionStatus.WAITING_FOR_APPROVAL: frozenset({
-        OperatorSessionStatus.ACTIVE,
-        OperatorSessionStatus.PACKET_RELEASED,
-        OperatorSessionStatus.BLOCKED,
-        OperatorSessionStatus.COMPLETED,
-        OperatorSessionStatus.ARCHIVED,
-    }),
-    OperatorSessionStatus.PACKET_DRAFTED: frozenset({
-        OperatorSessionStatus.ACTIVE,
-        OperatorSessionStatus.WAITING_FOR_APPROVAL,
-        OperatorSessionStatus.PACKET_RELEASED,
-        OperatorSessionStatus.BLOCKED,
-        OperatorSessionStatus.COMPLETED,
-        OperatorSessionStatus.ARCHIVED,
-    }),
-    OperatorSessionStatus.PACKET_RELEASED: frozenset({
-        OperatorSessionStatus.ACTIVE,
-        OperatorSessionStatus.COMPLETED,
-        OperatorSessionStatus.ARCHIVED,
-    }),
-    OperatorSessionStatus.BLOCKED: frozenset({
-        OperatorSessionStatus.ACTIVE,
-        OperatorSessionStatus.COMPLETED,
-        OperatorSessionStatus.ARCHIVED,
-    }),
-    OperatorSessionStatus.COMPLETED: frozenset({
-        OperatorSessionStatus.ARCHIVED,
-    }),
+    OperatorSessionStatus.ACTIVE: frozenset(
+        {
+            OperatorSessionStatus.WAITING_FOR_OPERATOR,
+            OperatorSessionStatus.WAITING_FOR_APPROVAL,
+            OperatorSessionStatus.PACKET_DRAFTED,
+            OperatorSessionStatus.BLOCKED,
+            OperatorSessionStatus.COMPLETED,
+            OperatorSessionStatus.ARCHIVED,
+        }
+    ),
+    OperatorSessionStatus.WAITING_FOR_OPERATOR: frozenset(
+        {
+            OperatorSessionStatus.ACTIVE,
+            OperatorSessionStatus.BLOCKED,
+            OperatorSessionStatus.COMPLETED,
+            OperatorSessionStatus.ARCHIVED,
+        }
+    ),
+    OperatorSessionStatus.WAITING_FOR_APPROVAL: frozenset(
+        {
+            OperatorSessionStatus.ACTIVE,
+            OperatorSessionStatus.PACKET_RELEASED,
+            OperatorSessionStatus.BLOCKED,
+            OperatorSessionStatus.COMPLETED,
+            OperatorSessionStatus.ARCHIVED,
+        }
+    ),
+    OperatorSessionStatus.PACKET_DRAFTED: frozenset(
+        {
+            OperatorSessionStatus.ACTIVE,
+            OperatorSessionStatus.WAITING_FOR_APPROVAL,
+            OperatorSessionStatus.PACKET_RELEASED,
+            OperatorSessionStatus.BLOCKED,
+            OperatorSessionStatus.COMPLETED,
+            OperatorSessionStatus.ARCHIVED,
+        }
+    ),
+    OperatorSessionStatus.PACKET_RELEASED: frozenset(
+        {
+            OperatorSessionStatus.ACTIVE,
+            OperatorSessionStatus.COMPLETED,
+            OperatorSessionStatus.ARCHIVED,
+        }
+    ),
+    OperatorSessionStatus.BLOCKED: frozenset(
+        {
+            OperatorSessionStatus.ACTIVE,
+            OperatorSessionStatus.COMPLETED,
+            OperatorSessionStatus.ARCHIVED,
+        }
+    ),
+    OperatorSessionStatus.COMPLETED: frozenset(
+        {
+            OperatorSessionStatus.ARCHIVED,
+        }
+    ),
     OperatorSessionStatus.ARCHIVED: frozenset(),
 }
 
 
 class IntentType(str, Enum):
     """High-level intent categories for operator input."""
+
     CREATE_WORK = "create_work"
     QUERY_STATUS = "query_status"
     QUERY_APPROVALS = "query_approvals"
@@ -105,6 +128,7 @@ class IntentType(str, Enum):
 @dataclass
 class OperatorIntent:
     """Extracted intent from a single operator input."""
+
     intent_id: str = field(default_factory=lambda: "oi-" + uuid4().hex[:12])
     intent_type: str = IntentType.GENERAL_QUERY.value
     raw_input: str = ""
@@ -157,6 +181,7 @@ class OperatorIntent:
 @dataclass
 class OperatorTurn:
     """A single turn in the operator-orchestrator conversation."""
+
     turn_id: str = field(default_factory=lambda: "ot-" + uuid4().hex[:12])
     session_id: str = ""
     turn_number: int = 0
@@ -201,6 +226,7 @@ class OperatorTurn:
 @dataclass
 class OperatorSession:
     """Multi-turn operator session with lifecycle tracking."""
+
     session_id: str = field(default_factory=lambda: "os-" + uuid4().hex[:12])
     status: str = OperatorSessionStatus.ACTIVE.value
     turns: list[OperatorTurn] = field(default_factory=list)
@@ -277,10 +303,9 @@ class OperatorSession:
 
 # ── Persistence ──────────────────────────────────────────────────────────
 
+
 def _default_sessions_path() -> str:
-    return os.path.join(
-        _REPO_ROOT, "data", "umh", "operator_experience", "sessions.jsonl",
-    )
+    return _oe_path("sessions.jsonl")
 
 
 def persist_sessions(
@@ -291,7 +316,8 @@ def persist_sessions(
     target = path or _default_sessions_path()
     os.makedirs(os.path.dirname(target), exist_ok=True)
     fd, tmp = tempfile.mkstemp(
-        dir=os.path.dirname(target), suffix=".tmp",
+        dir=os.path.dirname(target),
+        suffix=".tmp",
     )
     try:
         with os.fdopen(fd, "w") as f:
@@ -326,9 +352,7 @@ def persist_turns(
     path: str | None = None,
 ) -> None:
     """Append-only JSONL write for operator turns."""
-    target = path or os.path.join(
-        _REPO_ROOT, "data", "umh", "operator_experience", "turns.jsonl",
-    )
+    target = path or _oe_path("turns.jsonl")
     os.makedirs(os.path.dirname(target), exist_ok=True)
     with open(target, "a") as f:
         for t in turns:
@@ -340,9 +364,7 @@ def persist_intents(
     path: str | None = None,
 ) -> None:
     """Append-only JSONL write for operator intents."""
-    target = path or os.path.join(
-        _REPO_ROOT, "data", "umh", "operator_experience", "intents.jsonl",
-    )
+    target = path or _oe_path("intents.jsonl")
     os.makedirs(os.path.dirname(target), exist_ok=True)
     with open(target, "a") as f:
         for i in intents:

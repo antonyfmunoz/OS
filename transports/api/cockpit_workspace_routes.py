@@ -5,7 +5,6 @@ Phase 14.11C. UMH transport layer. Instance-agnostic.
 """
 
 from __future__ import annotations
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -14,11 +13,11 @@ import platform
 import re
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, Request
 
+from substrate.execution.cpu_gate import gated_subprocess_run
 from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
@@ -61,7 +60,9 @@ def _build_router(
     r.add_api_route("/workspace/write-file", _write_file, methods=["POST"], dependencies=auth)
     r.add_api_route("/workspace/remote-browse", _remote_browse, methods=["GET"])
     r.add_api_route("/workspace/remote-read-file", _remote_read_file, methods=["GET"])
-    r.add_api_route("/workspace/remote-write-file", _remote_write_file, methods=["POST"], dependencies=auth)
+    r.add_api_route(
+        "/workspace/remote-write-file", _remote_write_file, methods=["POST"], dependencies=auth
+    )
     r.add_api_route("/workspace/mesh-nodes", _mesh_nodes_status, methods=["GET"])
 
     return r
@@ -71,8 +72,10 @@ def _build_router(
 # File browser
 # ---------------------------------------------------------------------------
 
+
 async def _browse_dir(request: Request) -> dict[str, Any]:
     from substrate.workstation.file_browser import browse_directory
+
     path = request.query_params.get("path", "/")
     result = browse_directory(path)
     return result.to_dict()
@@ -80,6 +83,7 @@ async def _browse_dir(request: Request) -> dict[str, Any]:
 
 def _read_file(request: Request) -> dict[str, Any]:
     from substrate.workstation.file_browser import read_file
+
     path = request.query_params.get("path", "")
     if not path:
         return {"ok": False, "error": "path parameter required"}
@@ -94,6 +98,7 @@ async def _write_file(request: Request) -> dict[str, Any]:
     if not path:
         return {"ok": False, "error": "path required"}
     from substrate.workstation.file_browser import _is_path_allowed
+
     if not _is_path_allowed(path):
         return {"ok": False, "error": "path not in allowlist"}
 
@@ -117,6 +122,7 @@ async def _write_file(request: Request) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Git diff / status
 # ---------------------------------------------------------------------------
+
 
 def _run_git(args: list[str], cwd: str | None = None) -> tuple[bool, str]:
     try:
@@ -227,6 +233,7 @@ def _test_results(request: Request) -> dict[str, Any]:
 # Execution logs
 # ---------------------------------------------------------------------------
 
+
 def _execution_logs(request: Request) -> dict[str, Any]:
     limit = int(request.query_params.get("limit", "50"))
     limit = min(limit, 200)
@@ -291,13 +298,17 @@ def _proof_artifacts(request: Request) -> dict[str, Any]:
                 fpath = os.path.join(_PROOF_DIR, name)
                 if os.path.isfile(fpath):
                     stat = os.stat(fpath)
-                    artifacts.append({
-                        "name": name,
-                        "path": fpath,
-                        "size": stat.st_size,
-                        "modified": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
-                        "type": _classify_proof(name),
-                    })
+                    artifacts.append(
+                        {
+                            "name": name,
+                            "path": fpath,
+                            "size": stat.st_size,
+                            "modified": datetime.fromtimestamp(
+                                stat.st_mtime, tz=timezone.utc
+                            ).isoformat(),
+                            "type": _classify_proof(name),
+                        }
+                    )
         except OSError:
             pass
 
@@ -332,47 +343,59 @@ def _classify_proof(name: str) -> str:
 # Health check
 # ---------------------------------------------------------------------------
 
+
 def _health_check(request: Request) -> dict[str, Any]:
     checks: list[dict[str, Any]] = []
 
     ok_api, _ = _run_git(["rev-parse", "HEAD"])
-    checks.append({
-        "name": "git_repo",
-        "status": "reachable" if ok_api else "unreachable",
-        "last_check": datetime.now(tz=timezone.utc).isoformat(),
-    })
+    checks.append(
+        {
+            "name": "git_repo",
+            "status": "reachable" if ok_api else "unreachable",
+            "last_check": datetime.now(tz=timezone.utc).isoformat(),
+        }
+    )
 
     cockpit_url = os.environ.get("COCKPIT_HEALTH_URL", "")
     if cockpit_url:
         try:
             import urllib.request
+
             with urllib.request.urlopen(cockpit_url, timeout=5) as resp:
-                checks.append({
-                    "name": "cockpit_app",
-                    "status": "reachable" if resp.status == 200 else "error",
-                    "last_check": datetime.now(tz=timezone.utc).isoformat(),
-                    "http_status": resp.status,
-                })
+                checks.append(
+                    {
+                        "name": "cockpit_app",
+                        "status": "reachable" if resp.status == 200 else "error",
+                        "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                        "http_status": resp.status,
+                    }
+                )
         except Exception as e:
-            checks.append({
-                "name": "cockpit_app",
-                "status": "unreachable",
-                "last_check": datetime.now(tz=timezone.utc).isoformat(),
-                "error": str(e),
-            })
+            checks.append(
+                {
+                    "name": "cockpit_app",
+                    "status": "unreachable",
+                    "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                    "error": str(e),
+                }
+            )
     else:
-        checks.append({
-            "name": "cockpit_app",
-            "status": "unconfigured",
-            "last_check": datetime.now(tz=timezone.utc).isoformat(),
-            "message": "Set COCKPIT_HEALTH_URL env var to enable",
-        })
+        checks.append(
+            {
+                "name": "cockpit_app",
+                "status": "unconfigured",
+                "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                "message": "Set COCKPIT_HEALTH_URL env var to enable",
+            }
+        )
 
     docker_ok = False
     try:
         result = gated_subprocess_run(
             ["docker", "ps", "--format", "{{.Names}}\t{{.Status}}"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             docker_ok = True
@@ -381,39 +404,55 @@ def _health_check(request: Request) -> dict[str, Any]:
                 parts = line.split("\t", 1)
                 if len(parts) == 2:
                     containers.append({"name": parts[0], "status": parts[1]})
-            checks.append({
-                "name": "docker",
-                "status": "reachable",
-                "last_check": datetime.now(tz=timezone.utc).isoformat(),
-                "containers": containers,
-            })
+            checks.append(
+                {
+                    "name": "docker",
+                    "status": "reachable",
+                    "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                    "containers": containers,
+                }
+            )
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         pass
 
     if not docker_ok:
-        checks.append({
-            "name": "docker",
-            "status": "unreachable",
-            "last_check": datetime.now(tz=timezone.utc).isoformat(),
-        })
+        checks.append(
+            {
+                "name": "docker",
+                "status": "unreachable",
+                "last_check": datetime.now(tz=timezone.utc).isoformat(),
+            }
+        )
 
     mesh_path = os.path.join(_DATA_ROOT, "runtime", "mesh_nodes.json")
     if os.path.exists(mesh_path):
         try:
             with open(mesh_path) as f:
                 nodes = json.load(f)
-            checks.append({
-                "name": "mesh_nodes",
-                "status": "reachable",
-                "node_count": len(nodes) if isinstance(nodes, list) else 0,
-                "last_check": datetime.now(tz=timezone.utc).isoformat(),
-            })
+            checks.append(
+                {
+                    "name": "mesh_nodes",
+                    "status": "reachable",
+                    "node_count": len(nodes) if isinstance(nodes, list) else 0,
+                    "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                }
+            )
         except (json.JSONDecodeError, OSError):
-            checks.append({"name": "mesh_nodes", "status": "unavailable",
-                           "last_check": datetime.now(tz=timezone.utc).isoformat()})
+            checks.append(
+                {
+                    "name": "mesh_nodes",
+                    "status": "unavailable",
+                    "last_check": datetime.now(tz=timezone.utc).isoformat(),
+                }
+            )
     else:
-        checks.append({"name": "mesh_nodes", "status": "unavailable",
-                       "last_check": datetime.now(tz=timezone.utc).isoformat()})
+        checks.append(
+            {
+                "name": "mesh_nodes",
+                "status": "unavailable",
+                "last_check": datetime.now(tz=timezone.utc).isoformat(),
+            }
+        )
 
     all_reachable = all(c.get("status") in ("reachable", "unconfigured") for c in checks)
 
@@ -428,6 +467,7 @@ def _health_check(request: Request) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Trace linkage
 # ---------------------------------------------------------------------------
+
 
 def _trace_linkage(request: Request) -> dict[str, Any]:
     trace_id = request.query_params.get("trace_id", "")
@@ -460,7 +500,11 @@ def _trace_linkage(request: Request) -> dict[str, Any]:
                 pass
 
     if work_packet_id:
-        wp_path = os.path.join(_UMH_DATA, "universal_work", "work_packets.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        wp_path = str(
+            runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
+        )
         if os.path.exists(wp_path):
             try:
                 with open(wp_path) as f:
@@ -476,6 +520,7 @@ def _trace_linkage(request: Request) -> dict[str, Any]:
                 pass
 
     from substrate.workstation.checkpoint import CheckpointManager
+
     mgr = CheckpointManager()
     latest = mgr.latest()
     if latest:
@@ -516,7 +561,10 @@ def _ssh_cmd(cmd: str) -> tuple[bool, str]:
     ssh_args += [_WINDOWS_SSH, cmd]
     try:
         result = gated_subprocess_run(
-            ssh_args, capture_output=True, text=True, timeout=_SSH_TIMEOUT,
+            ssh_args,
+            capture_output=True,
+            text=True,
+            timeout=_SSH_TIMEOUT,
         )
         return result.returncode == 0, result.stdout
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
@@ -555,7 +603,15 @@ async def _remote_browse(request: Request) -> dict[str, Any]:
             etype = parts[1]
             size = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
             child_path = path.rstrip("\\") + "\\" + name
-            entries.append({"name": name, "path": child_path, "type": etype, "size": size, "source_env": "windows"})
+            entries.append(
+                {
+                    "name": name,
+                    "path": child_path,
+                    "type": etype,
+                    "size": size,
+                    "source_env": "windows",
+                }
+            )
     return {"ok": True, "path": path, "source_env": "windows", "entries": entries, "error": ""}
 
 
@@ -570,7 +626,9 @@ def _remote_read_file(request: Request) -> dict[str, Any]:
     if err:
         return {"ok": False, "error": err, "path": path}
     safe_path = path.replace("'", "''")
-    ok, output = _ssh_cmd(f"powershell -Command \"Get-Content -LiteralPath '{safe_path}' -Raw -ErrorAction Stop\"")
+    ok, output = _ssh_cmd(
+        f"powershell -Command \"Get-Content -LiteralPath '{safe_path}' -Raw -ErrorAction Stop\""
+    )
     if not ok:
         return {"ok": False, "error": output[:500], "path": path}
     return {"ok": True, "path": path, "content": output, "source_env": "windows"}
@@ -591,10 +649,11 @@ async def _remote_write_file(request: Request) -> dict[str, Any]:
 
     def _do_remote_write():
         import base64
+
         encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
         safe_path = path.replace("'", "''")
         ok, output = _ssh_cmd(
-            f"powershell -Command \"[System.IO.File]::WriteAllBytes("
+            f'powershell -Command "[System.IO.File]::WriteAllBytes('
             f"'{safe_path}', [Convert]::FromBase64String('{encoded}'))\""
         )
         if not ok:
@@ -631,21 +690,24 @@ def _mesh_nodes_status(request: Request) -> dict[str, Any]:
         mesh_id = dev.get("mesh_node_id", "")
         hb = heartbeats.get(mesh_id, {})
         status = "online" if dev.get("always_online") else hb.get("status", "offline")
-        nodes.append({
-            "id": dev["id"],
-            "name": dev.get("display_name", dev.get("tailscale_name", dev["id"])),
-            "os": dev.get("os", ""),
-            "status": status,
-            "ip": dev.get("tailscale_ip", ""),
-            "device_type": dev.get("device_type", ""),
-            "last_heartbeat": hb.get("last_heartbeat", ""),
-        })
+        nodes.append(
+            {
+                "id": dev["id"],
+                "name": dev.get("display_name", dev.get("tailscale_name", dev["id"])),
+                "os": dev.get("os", ""),
+                "status": status,
+                "ip": dev.get("tailscale_ip", ""),
+                "device_type": dev.get("device_type", ""),
+                "last_heartbeat": hb.get("last_heartbeat", ""),
+            }
+        )
     return {"ok": True, "nodes": nodes}
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _detect_env() -> str:
     system = platform.system().lower()

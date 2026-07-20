@@ -24,6 +24,12 @@ logger = logging.getLogger(__name__)
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
 
+def _runtime_state_file(subsystem: str, filename: str) -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path(subsystem, filename, create_parent=False))
+
+
 @dataclass
 class DayState:
     date: str = ""
@@ -81,9 +87,7 @@ class DailyRhythmWorkflow:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         self._state = DayState(date=today)
 
-        outcomes_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "outcome_learning.jsonl"
-        )
+        outcomes_path = _runtime_state_file("organism", "outcome_learning.jsonl")
         if os.path.exists(outcomes_path):
             try:
                 with open(outcomes_path) as f:
@@ -98,9 +102,7 @@ class DailyRhythmWorkflow:
             except OSError:
                 pass
 
-        journal_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "execution_journal.jsonl"
-        )
+        journal_path = _runtime_state_file("organism", "execution_journal.jsonl")
         if os.path.exists(journal_path):
             try:
                 with open(journal_path) as f:
@@ -120,9 +122,7 @@ class DailyRhythmWorkflow:
             except OSError:
                 pass
 
-        velocity_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "work_portfolio", "velocity.jsonl"
-        )
+        velocity_path = _runtime_state_file("work_portfolio", "velocity.jsonl")
         if os.path.exists(velocity_path):
             try:
                 with open(velocity_path) as f:
@@ -162,7 +162,9 @@ class DailyRhythmWorkflow:
                 f"{vel.get('in_progress', 0)} in progress"
             )
 
-        parts.append("\n**Focus today**: Check Initiate Arena pipeline. Execute highest-leverage task.")
+        parts.append(
+            "\n**Focus today**: Check Initiate Arena pipeline. Execute highest-leverage task."
+        )
 
         self._brief = "\n".join(parts)
 
@@ -187,9 +189,7 @@ class DailyRhythmWorkflow:
     def _summarize_day(self) -> tuple[str, bool]:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-        journal_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "execution_journal.jsonl"
-        )
+        journal_path = _runtime_state_file("organism", "execution_journal.jsonl")
         workflows_today: list[dict[str, Any]] = []
         if os.path.exists(journal_path):
             try:
@@ -197,8 +197,10 @@ class DailyRhythmWorkflow:
                     for line in f:
                         try:
                             entry = json.loads(line)
-                            if (entry.get("ts", "").startswith(today)
-                                    and entry.get("event") == "workflow_complete"):
+                            if (
+                                entry.get("ts", "").startswith(today)
+                                and entry.get("event") == "workflow_complete"
+                            ):
                                 workflows_today.append(entry)
                         except json.JSONDecodeError:
                             continue
@@ -220,9 +222,7 @@ class DailyRhythmWorkflow:
         if not self._eod_summary:
             return ("no day summary", False)
 
-        outcome_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "outcome_learning.jsonl"
-        )
+        outcome_path = _runtime_state_file("organism", "outcome_learning.jsonl")
         os.makedirs(os.path.dirname(outcome_path), exist_ok=True)
 
         entry = {

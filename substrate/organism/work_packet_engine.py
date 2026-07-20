@@ -9,29 +9,36 @@ Phase 11.1. UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
-import json
 import logging
 import os
 import time
 from typing import Any
-from uuid import uuid4
 
-from substrate.organism.intent_classifier import IntentClassifier, IntentClassification
-from substrate.organism.delegation_topology import DelegationTopologyPlanner, DelegationTopology
-from substrate.organism.work_packet import (
-    WorkPacket, PacketLifecycleStatus, persist_packets, load_packets,
-    _VALID_TRANSITIONS,
-)
-from substrate.organism.workcell import (
-    Workcell, AdvisorBranch, PlanningWorkcellStatus, persist_workcells,
+from substrate.execution.cpu_gate import gated_subprocess_run
+from substrate.organism.delegation_topology import DelegationTopology, DelegationTopologyPlanner
+from substrate.organism.intent_classifier import IntentClassification, IntentClassifier
+from substrate.organism.knowledge_model_registry import (
+    KnowledgeModel,
+    KnowledgeModelRegistry,
 )
 from substrate.organism.role_contracts import (
-    RoleContract, load_role_contracts, SEED_ROLE_CONTRACTS,
+    SEED_ROLE_CONTRACTS,
+    RoleContract,
+    load_role_contracts,
 )
-from substrate.organism.knowledge_model_registry import (
-    KnowledgeModelRegistry, KnowledgeModel,
+from substrate.organism.work_packet import (
+    _VALID_TRANSITIONS,
+    PacketLifecycleStatus,
+    WorkPacket,
+    load_packets,
+    persist_packets,
+)
+from substrate.organism.workcell import (
+    AdvisorBranch,
+    PlanningWorkcellStatus,
+    Workcell,
+    persist_workcells,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,11 +56,13 @@ class WorkPacketEngine:
         roles_path: str | None = None,
         knowledge_path: str | None = None,
     ) -> None:
-        self._packets_path = packets_path or os.path.join(
-            _REPO_ROOT, "data", "umh", "universal_work", "work_packets.jsonl",
+        from substrate.state.runtime_paths import runtime_state_path
+
+        self._packets_path = packets_path or str(
+            runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
         )
-        self._workcells_path = workcells_path or os.path.join(
-            _REPO_ROOT, "data", "umh", "universal_work", "workcells.jsonl",
+        self._workcells_path = workcells_path or str(
+            runtime_state_path("universal_work", "workcells.jsonl", create_parent=False)
         )
         self._classifier = IntentClassifier()
         self._topo_planner = DelegationTopologyPlanner()
@@ -149,9 +158,13 @@ class WorkPacketEngine:
         Idempotent: same idempotency_key returns existing batch.
         """
         import hashlib
+
         from substrate.organism.dependency_graph import (
-            DependencyGraph, DependencyNode, DependencyEdge,
-            DependencyType, DependencyStrength,
+            DependencyEdge,
+            DependencyGraph,
+            DependencyNode,
+            DependencyStrength,
+            DependencyType,
         )
 
         if not idempotency_key:
@@ -162,10 +175,7 @@ class WorkPacketEngine:
         # Check idempotency — return existing batch if found
         for pkt in self._packets:
             if pkt.source_id == idempotency_key and pkt.child_packet_ids:
-                children = [
-                    p for p in self._packets
-                    if p.packet_id in pkt.child_packet_ids
-                ]
+                children = [p for p in self._packets if p.packet_id in pkt.child_packet_ids]
                 return {
                     "batch_id": pkt.packet_id,
                     "idempotency_key": idempotency_key,
@@ -173,8 +183,7 @@ class WorkPacketEngine:
                     "child_packets": [c.to_safe_dict() for c in children],
                     "dependency_edges": [],
                     "overnight_classification": {
-                        c.packet_id: self._classify_overnight_safety(c)
-                        for c in children
+                        c.packet_id: self._classify_overnight_safety(c) for c in children
                     },
                     "created_count": len(children),
                     "already_existed": True,
@@ -186,9 +195,17 @@ class WorkPacketEngine:
         # Detect multi-step intent even when classifier says "simple"
         # Multiple work-type keywords indicate batch-worthy work
         _multi_step_signals = [
-            "and deploy", "and test", "with tests", "with documentation",
-            "then deploy", "then test", "then verify", "build and",
-            "implement and", "create and", "and monitor",
+            "and deploy",
+            "and test",
+            "with tests",
+            "with documentation",
+            "then deploy",
+            "then test",
+            "then verify",
+            "build and",
+            "implement and",
+            "create and",
+            "and monitor",
         ]
         intent_lower = user_intent.lower()
         multi_step_count = sum(1 for s in _multi_step_signals if s in intent_lower)
@@ -264,7 +281,9 @@ class WorkPacketEngine:
                 created_ids.append(child.packet_id)
                 self.persist_packet()
         except Exception as exc:
-            logger.warning("batch decomposition partial failure at child %d: %s", len(created_ids), exc)
+            logger.warning(
+                "batch decomposition partial failure at child %d: %s", len(created_ids), exc
+            )
             parent.child_packet_ids = created_ids
             self.persist_packet()
             return {
@@ -274,8 +293,7 @@ class WorkPacketEngine:
                 "child_packets": [c.to_safe_dict() for c in children],
                 "dependency_edges": [],
                 "overnight_classification": {
-                    c.packet_id: self._classify_overnight_safety(c)
-                    for c in children
+                    c.packet_id: self._classify_overnight_safety(c) for c in children
                 },
                 "created_count": len(created_ids),
                 "ok": False,
@@ -290,11 +308,13 @@ class WorkPacketEngine:
         # 5. Build dependency graph (sequential edges)
         dep_graph = DependencyGraph()
         for child in children:
-            dep_graph.add_node(DependencyNode(
-                id=child.packet_id,
-                name=child.title,
-                category=child.domain,
-            ))
+            dep_graph.add_node(
+                DependencyNode(
+                    id=child.packet_id,
+                    name=child.title,
+                    category=child.domain,
+                )
+            )
         edges_serialized: list[dict[str, Any]] = []
         for i in range(len(children) - 1):
             edge = DependencyEdge(
@@ -312,10 +332,7 @@ class WorkPacketEngine:
         self.persist_packet()
 
         # 6. Overnight classification
-        overnight = {
-            c.packet_id: self._classify_overnight_safety(c)
-            for c in children
-        }
+        overnight = {c.packet_id: self._classify_overnight_safety(c) for c in children}
 
         return {
             "batch_id": parent.packet_id,
@@ -359,11 +376,14 @@ class WorkPacketEngine:
                 ("deployment", "Publish"),
             ],
         }
-        return templates.get(work_type, [
-            ("planning", "Plan"),
-            ("implementation", "Execute"),
-            ("verification", "Verify"),
-        ])
+        return templates.get(
+            work_type,
+            [
+                ("planning", "Plan"),
+                ("implementation", "Execute"),
+                ("verification", "Verify"),
+            ],
+        )
 
     @staticmethod
     def _child_risk_class(step_type: str, classification: IntentClassification) -> str:
@@ -478,7 +498,9 @@ class WorkPacketEngine:
             packet_id=packet.packet_id,
         )
         topo = self._topo_planner.assign_roles(
-            topo, classification.work_type, classification.domain,
+            topo,
+            classification.work_type,
+            classification.domain,
         )
         return topo
 
@@ -519,7 +541,7 @@ class WorkPacketEngine:
                 parent_packet_id=packet.packet_id,
                 parent_workcell_id=primary.workcell_id,
                 title=f"Verification: {packet.title}",
-                objective=f"Verify outputs of primary workcell",
+                objective="Verify outputs of primary workcell",
                 scope="verification",
                 assigned_role_contracts=topo.supporting_role_contracts,
                 validation_plan=packet.validation_plan,
@@ -646,10 +668,13 @@ class WorkPacketEngine:
         """Record an outcome observation to InstanceRealityModel on terminal transition."""
         try:
             from substrate.reality_model.instance import (
-                InstanceRealityModel,
                 InstanceObservation,
+                InstanceRealityModel,
             )
-            outcome_type = "success" if terminal_status == PacketLifecycleStatus.COMPLETED else "failure"
+
+            outcome_type = (
+                "success" if terminal_status == PacketLifecycleStatus.COMPLETED else "failure"
+            )
             content = (
                 f"Work packet {pkt.packet_id} ({pkt.title}) "
                 f"reached {terminal_status.value}: {reason or 'no reason given'}"
@@ -750,6 +775,7 @@ class WorkPacketEngine:
                 continue
             try:
                 import subprocess
+
                 proc = gated_subprocess_run(
                     ["python3", script_path, "--all"],
                     capture_output=True,
@@ -791,18 +817,34 @@ class WorkPacketEngine:
         # Order matters: check specific projections before generic ones
         # ("lyfeos" contains "eos", "creatoros" contains "creator")
         projection_signals: list[tuple[str, list[str]]] = [
-            ("lyfeos", [
-                "lyfeos", "lyfe os", "life operating",
-                "personal system",
-            ]),
-            ("creatoros", [
-                "creatoros", "creator ",
-                "content creation", "media production",
-            ]),
-            ("eos", [
-                "entrepreneur", "entrepreneuros", "eos ",
-                "venture", "client pipeline",
-            ]),
+            (
+                "lyfeos",
+                [
+                    "lyfeos",
+                    "lyfe os",
+                    "life operating",
+                    "personal system",
+                ],
+            ),
+            (
+                "creatoros",
+                [
+                    "creatoros",
+                    "creator ",
+                    "content creation",
+                    "media production",
+                ],
+            ),
+            (
+                "eos",
+                [
+                    "entrepreneur",
+                    "entrepreneuros",
+                    "eos ",
+                    "venture",
+                    "client pipeline",
+                ],
+            ),
         ]
         for proj_name, signals in projection_signals:
             for signal in signals:

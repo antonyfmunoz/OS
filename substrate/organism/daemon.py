@@ -83,6 +83,7 @@ from substrate.sockets.projection_port import (
     ProjectionPort,
     ProjectionRegistration,
 )
+from substrate.state.runtime_paths import runtime_state_dir
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +111,15 @@ class OrganismDaemon:
     def __init__(
         self,
         pipeline: ExecutionPipeline | None = None,
-        store_dir: str = "data/umh/organism",
+        store_dir: str | None = None,
         view_socket: Any = None,
         graph: RuntimeGraph | None = None,
         supervisor: RuntimeSupervisor | None = None,
         homeostasis: HomeostasisEngine | None = None,
         tick_config: TickConfig | None = None,
     ) -> None:
+        if store_dir is None:
+            store_dir = str(runtime_state_dir("organism"))
         self._store = OrganismStore(store_dir=store_dir)
         self._approval_store = ApprovalStore(store_dir=store_dir)
         self._pipeline = pipeline

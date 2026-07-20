@@ -10,26 +10,24 @@ from __future__ import annotations
 import json
 import os
 import sys
-import tempfile
 
 import pytest
 
 sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
 
 from substrate.organism.development_session_bridge import (
-    CoherenceObservation,
-    DevelopmentEvent,
     DevelopmentSessionBridge,
 )
-from substrate.organism.event_spine import EventDomain, EventSpine
+from substrate.organism.event_spine import EventSpine
 
 
 @pytest.fixture()
 def tmp_umh(tmp_path, monkeypatch):
     monkeypatch.setenv("UMH_ROOT", str(tmp_path))
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
     import substrate.organism.development_session_bridge as mod
+
     monkeypatch.setattr(mod, "_SESSIONS_DIR", tmp_path / "data" / "umh" / "sessions")
-    monkeypatch.setattr(mod, "_LEARNING_DIR", tmp_path / "data" / "umh" / "organism")
     return tmp_path
 
 
@@ -121,7 +119,7 @@ class TestDecisionRecording:
         bridge = DevelopmentSessionBridge(session_id="test-ls", harness="codex")
         bridge.record_decision("Test decision", "Test rationale", confidence=0.7)
 
-        learning = tmp_umh / "data" / "umh" / "organism" / "learning_signals.jsonl"
+        learning = tmp_umh / "state" / "organism" / "learning_signals.jsonl"
         assert learning.exists()
         record = json.loads(learning.read_text().strip())
         assert record["agent_id"] == "developer:codex"
@@ -147,7 +145,9 @@ class TestCoherenceObservations:
         bridge = DevelopmentSessionBridge(session_id="test-coh2", harness="claude_code")
         bridge.register_session()
         bridge.record_coherence_observation("type_divergence", "Shadow enum", severity="error")
-        bridge.record_coherence_observation("naming", "Projection name in substrate", severity="info")
+        bridge.record_coherence_observation(
+            "naming", "Projection name in substrate", severity="info"
+        )
         result = bridge.close_session()
 
         assert result["total_coherence_observations"] == 2
@@ -178,7 +178,9 @@ class TestEventSpineIntegration:
         spine.subscribe("test", lambda e: received.append(e.to_dict()))
 
         bridge = DevelopmentSessionBridge(
-            session_id="test-spine", harness="claude_code", event_spine=spine,
+            session_id="test-spine",
+            harness="claude_code",
+            event_spine=spine,
         )
         bridge.register_session(intent="spine test")
         bridge.record_mutation("edit file", ["a.py"], "substrate")
@@ -209,12 +211,21 @@ class TestEventSpineIntegration:
 class TestHarnessAgnostic:
     """The bridge must work identically for any harness."""
 
-    @pytest.mark.parametrize("harness", [
-        "claude_code", "codex", "opencode", "hermes", "aider", "cursor",
-    ])
+    @pytest.mark.parametrize(
+        "harness",
+        [
+            "claude_code",
+            "codex",
+            "opencode",
+            "hermes",
+            "aider",
+            "cursor",
+        ],
+    )
     def test_any_harness_can_register(self, tmp_umh, harness):
         bridge = DevelopmentSessionBridge(
-            session_id=f"test-{harness}", harness=harness,
+            session_id=f"test-{harness}",
+            harness=harness,
         )
         bridge.register_session(intent=f"{harness} test")
         bridge.record_mutation("edit", ["a.py"], "substrate")

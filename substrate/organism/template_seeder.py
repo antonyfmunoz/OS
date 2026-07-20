@@ -1,7 +1,7 @@
 """Template Seeder — seeds evidence-backed execution templates to the runtime store.
 
 Reads Phase 9.x autonomous lane artifacts as evidence sources and writes
-TemplateCandidate records directly to data/umh/organism/templates/templates.jsonl
+TemplateCandidate records directly to <runtime-state>/organism/templates/templates.jsonl
 as promoted templates. Idempotent — skips templates already in the file.
 
 UMH substrate subsystem. Instance-agnostic.
@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -23,16 +22,21 @@ from substrate.organism.template_registry import (
     TemplateCandidate,
     TemplateEvidence,
     TemplateRollback,
-    TemplateStep,
     TemplateStatus,
+    TemplateStep,
     TemplateType,
     TemplateValidation,
 )
 
 logger = logging.getLogger(__name__)
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_RUNTIME_TEMPLATE_DIR = os.path.join(_REPO_ROOT, "data", "umh", "organism", "templates")
-_TEMPLATES_PATH = os.path.join(_RUNTIME_TEMPLATE_DIR, "templates.jsonl")
+
+
+def _runtime_template_dir() -> str:
+    from substrate.state.runtime_paths import runtime_state_dir
+
+    return str(runtime_state_dir("organism", create=False) / "templates")
+
 
 _EVIDENCE_PHASE9_6 = "data/umh/autonomous_lane/phase9_6_first_execution.json"
 _EVIDENCE_PHASE9_7 = "data/umh/autonomous_lane/phase9_7_first_sandboxed_pr.json"
@@ -63,7 +67,7 @@ class TemplateSeeder:
     """Builds and writes evidence-backed TemplateCandidate objects to templates.jsonl."""
 
     def __init__(self, store_dir: str | None = None) -> None:
-        self._store_dir = store_dir or _RUNTIME_TEMPLATE_DIR
+        self._store_dir = store_dir or _runtime_template_dir()
         self._templates_path = os.path.join(self._store_dir, "templates.jsonl")
         self._existing_ids: set[str] = self._load_existing_ids()
 
@@ -100,7 +104,9 @@ class TemplateSeeder:
                 self._existing_ids.add(tpl.template_id)
                 result.seeded_count += 1
                 result.template_ids.append(tpl.template_id)
-                logger.info("Seeded template %s (type=%s)", tpl.template_id, tpl.template_type.value)
+                logger.info(
+                    "Seeded template %s (type=%s)", tpl.template_id, tpl.template_type.value
+                )
             except OSError as e:
                 result.error_count += 1
                 result.errors.append(f"{tpl.template_id}: {e}")
@@ -131,8 +137,16 @@ class TemplateSeeder:
                 "ContradictionEngine.scan() returns severity=medium or severity=high for a file entity",
                 "world model declares a file entity that does not match filesystem observation",
             ],
-            required_context=["world model entity metadata", "contradiction engine scan result", "filesystem observation"],
-            required_capabilities=[CapabilityName.CONTRADICTION_DETECTION.value, CapabilityName.FILE_EDIT.value, CapabilityName.WORLD_MODEL_UPDATE.value],
+            required_context=[
+                "world model entity metadata",
+                "contradiction engine scan result",
+                "filesystem observation",
+            ],
+            required_capabilities=[
+                CapabilityName.CONTRADICTION_DETECTION.value,
+                CapabilityName.FILE_EDIT.value,
+                CapabilityName.WORLD_MODEL_UPDATE.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -181,7 +195,10 @@ class TemplateSeeder:
                 method="revert",
                 timeout_seconds=30.0,
             ),
-            evidence_requirements=["contradiction engine scan result", "file or entity observation"],
+            evidence_requirements=[
+                "contradiction engine scan result",
+                "file or entity observation",
+            ],
             known_failure_modes=[
                 "entity has multiple contradictions — resolving one reveals another",
                 "world model re-scan not triggered after edit",
@@ -209,7 +226,10 @@ class TemplateSeeder:
             ],
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=AgentType.DEVELOPER_AGENT,
-                capabilities=[CapabilityName.CONTRADICTION_DETECTION.value, CapabilityName.FILE_EDIT.value],
+                capabilities=[
+                    CapabilityName.CONTRADICTION_DETECTION.value,
+                    CapabilityName.FILE_EDIT.value,
+                ],
                 confidence=0.89,
             ),
             created_at=_SEEDING_EPOCH,
@@ -225,8 +245,16 @@ class TemplateSeeder:
                 "dimension score has been below threshold for 2+ consecutive cadence cycles",
                 "improvement action for the dimension is classified as low risk",
             ],
-            required_context=["readiness model snapshot", "dimension name and current score", "improvement plan for dimension"],
-            required_capabilities=[CapabilityName.CODE_SEARCH.value, CapabilityName.FILE_EDIT.value, CapabilityName.EVIDENCE_VERIFICATION.value],
+            required_context=[
+                "readiness model snapshot",
+                "dimension name and current score",
+                "improvement plan for dimension",
+            ],
+            required_capabilities=[
+                CapabilityName.CODE_SEARCH.value,
+                CapabilityName.FILE_EDIT.value,
+                CapabilityName.EVIDENCE_VERIFICATION.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -275,7 +303,10 @@ class TemplateSeeder:
                 method="revert",
                 timeout_seconds=30.0,
             ),
-            evidence_requirements=["readiness model snapshot before improvement", "dimension name and target score"],
+            evidence_requirements=[
+                "readiness model snapshot before improvement",
+                "dimension name and target score",
+            ],
             known_failure_modes=[
                 "improvement raises one dimension but lowers another",
                 "dimension score requires multiple steps to reach threshold",
@@ -313,8 +344,16 @@ class TemplateSeeder:
                 "observation accuracy check returns path_exists=false for a declared entity",
                 "declared path is a configuration path or data store path, not generated output",
             ],
-            required_context=["world model entity declaration", "declared file path", "filesystem state"],
-            required_capabilities=[CapabilityName.CODE_SEARCH.value, CapabilityName.WORLD_MODEL_UPDATE.value, CapabilityName.EVIDENCE_VERIFICATION.value],
+            required_context=[
+                "world model entity declaration",
+                "declared file path",
+                "filesystem state",
+            ],
+            required_capabilities=[
+                CapabilityName.CODE_SEARCH.value,
+                CapabilityName.WORLD_MODEL_UPDATE.value,
+                CapabilityName.EVIDENCE_VERIFICATION.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -385,7 +424,10 @@ class TemplateSeeder:
             ],
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=AgentType.DEVELOPER_AGENT,
-                capabilities=[CapabilityName.CODE_SEARCH.value, CapabilityName.WORLD_MODEL_UPDATE.value],
+                capabilities=[
+                    CapabilityName.CODE_SEARCH.value,
+                    CapabilityName.WORLD_MODEL_UPDATE.value,
+                ],
                 confidence=0.75,
             ),
             created_at=_SEEDING_EPOCH,
@@ -401,8 +443,16 @@ class TemplateSeeder:
                 "filesystem state has changed but world model has not been re-scanned",
                 "readiness model signals a freshness gap for a specific entity type",
             ],
-            required_context=["world model entity metadata", "last_observed timestamp", "current filesystem state"],
-            required_capabilities=[CapabilityName.WORLD_MODEL_UPDATE.value, CapabilityName.CODE_SEARCH.value, CapabilityName.EVIDENCE_VERIFICATION.value],
+            required_context=[
+                "world model entity metadata",
+                "last_observed timestamp",
+                "current filesystem state",
+            ],
+            required_capabilities=[
+                CapabilityName.WORLD_MODEL_UPDATE.value,
+                CapabilityName.CODE_SEARCH.value,
+                CapabilityName.EVIDENCE_VERIFICATION.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -473,7 +523,10 @@ class TemplateSeeder:
             ],
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=AgentType.DEVELOPER_AGENT,
-                capabilities=[CapabilityName.WORLD_MODEL_UPDATE.value, CapabilityName.CODE_SEARCH.value],
+                capabilities=[
+                    CapabilityName.WORLD_MODEL_UPDATE.value,
+                    CapabilityName.CODE_SEARCH.value,
+                ],
                 confidence=0.80,
             ),
             created_at=_SEEDING_EPOCH,
@@ -489,8 +542,16 @@ class TemplateSeeder:
                 "cockpit truth matrix reports a field present in contract but missing from actual response",
                 "production truth verification shows file_divergence=true for an api module",
             ],
-            required_context=["api endpoint path", "declared response contract", "actual response sample"],
-            required_capabilities=[CapabilityName.API_CONTRACT_VALIDATION.value, CapabilityName.FILE_EDIT.value, CapabilityName.ENDPOINT_VERIFY.value],
+            required_context=[
+                "api endpoint path",
+                "declared response contract",
+                "actual response sample",
+            ],
+            required_capabilities=[
+                CapabilityName.API_CONTRACT_VALIDATION.value,
+                CapabilityName.FILE_EDIT.value,
+                CapabilityName.ENDPOINT_VERIFY.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -540,7 +601,11 @@ class TemplateSeeder:
                 method="revert",
                 timeout_seconds=60.0,
             ),
-            evidence_requirements=["api endpoint path", "declared contract", "pre-fix response sample showing drift"],
+            evidence_requirements=[
+                "api endpoint path",
+                "declared contract",
+                "pre-fix response sample showing drift",
+            ],
             known_failure_modes=[
                 "response shape change breaks a frontend component",
                 "rollback requires service restart",
@@ -568,7 +633,11 @@ class TemplateSeeder:
             ],
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=AgentType.DEVELOPER_AGENT,
-                capabilities=[CapabilityName.API_CONTRACT_VALIDATION.value, CapabilityName.FILE_EDIT.value, CapabilityName.ENDPOINT_VERIFY.value],
+                capabilities=[
+                    CapabilityName.API_CONTRACT_VALIDATION.value,
+                    CapabilityName.FILE_EDIT.value,
+                    CapabilityName.ENDPOINT_VERIFY.value,
+                ],
                 confidence=0.85,
             ),
             created_at=_SEEDING_EPOCH,
@@ -584,8 +653,16 @@ class TemplateSeeder:
                 "test failure is an assertion mismatch — expected vs actual value divergence",
                 "test file imports compile cleanly but the assertion fails at runtime",
             ],
-            required_context=["failing test file path", "test function name", "assertion error message"],
-            required_capabilities=[CapabilityName.TEST_RUN.value, CapabilityName.CODE_SEARCH.value, CapabilityName.FILE_EDIT.value],
+            required_context=[
+                "failing test file path",
+                "test function name",
+                "assertion error message",
+            ],
+            required_capabilities=[
+                CapabilityName.TEST_RUN.value,
+                CapabilityName.CODE_SEARCH.value,
+                CapabilityName.FILE_EDIT.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -644,7 +721,10 @@ class TemplateSeeder:
                 method="revert",
                 timeout_seconds=30.0,
             ),
-            evidence_requirements=["failing pytest output with assertion error", "test file path and function name"],
+            evidence_requirements=[
+                "failing pytest output with assertion error",
+                "test file path and function name",
+            ],
             known_failure_modes=[
                 "test repair reveals a real production bug (assertion was correct)",
                 "fixing one test breaks another in same file",
@@ -688,8 +768,16 @@ class TemplateSeeder:
                 "substrate module is production_ready but has no cockpit surface (no /api/umh/ route)",
                 "cockpit truth matrix reports missing_endpoint=true for a feature",
             ],
-            required_context=["substrate feature module path", "missing endpoint path", "response contract for the endpoint"],
-            required_capabilities=[CapabilityName.ROUTE_DISCOVERY.value, CapabilityName.FILE_EDIT.value, CapabilityName.ENDPOINT_VERIFY.value],
+            required_context=[
+                "substrate feature module path",
+                "missing endpoint path",
+                "response contract for the endpoint",
+            ],
+            required_capabilities=[
+                CapabilityName.ROUTE_DISCOVERY.value,
+                CapabilityName.FILE_EDIT.value,
+                CapabilityName.ENDPOINT_VERIFY.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -739,7 +827,10 @@ class TemplateSeeder:
                 method="revert",
                 timeout_seconds=60.0,
             ),
-            evidence_requirements=["cockpit truth matrix showing missing endpoint", "substrate module that needs exposure"],
+            evidence_requirements=[
+                "cockpit truth matrix showing missing endpoint",
+                "substrate module that needs exposure",
+            ],
             known_failure_modes=[
                 "new route conflicts with existing route pattern",
                 "service restart required to pick up route change",
@@ -767,7 +858,11 @@ class TemplateSeeder:
             ],
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=AgentType.DEVELOPER_AGENT,
-                capabilities=[CapabilityName.ROUTE_DISCOVERY.value, CapabilityName.FILE_EDIT.value, CapabilityName.ENDPOINT_VERIFY.value],
+                capabilities=[
+                    CapabilityName.ROUTE_DISCOVERY.value,
+                    CapabilityName.FILE_EDIT.value,
+                    CapabilityName.ENDPOINT_VERIFY.value,
+                ],
                 confidence=0.80,
             ),
             created_at=_SEEDING_EPOCH,
@@ -783,8 +878,16 @@ class TemplateSeeder:
                 "module contains multiple route groups that can be split into dedicated router modules",
                 "each route group has a common URL prefix or concern that groups naturally",
             ],
-            required_context=["over-limit python file path", "current line count", "route group identification"],
-            required_capabilities=[CapabilityName.CODE_SEARCH.value, CapabilityName.FILE_EDIT.value, CapabilityName.ENDPOINT_VERIFY.value],
+            required_context=[
+                "over-limit python file path",
+                "current line count",
+                "route group identification",
+            ],
+            required_capabilities=[
+                CapabilityName.CODE_SEARCH.value,
+                CapabilityName.FILE_EDIT.value,
+                CapabilityName.ENDPOINT_VERIFY.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -834,7 +937,10 @@ class TemplateSeeder:
                 method="revert",
                 timeout_seconds=60.0,
             ),
-            evidence_requirements=["line count before extraction", "list of routes being extracted with their URL prefixes"],
+            evidence_requirements=[
+                "line count before extraction",
+                "list of routes being extracted with their URL prefixes",
+            ],
             known_failure_modes=[
                 "extracted routes import symbols from original file that create circular imports",
                 "router mounting order matters and extraction changes evaluation order",
@@ -878,8 +984,15 @@ class TemplateSeeder:
                 "query_graph.py search returns missing results for a recently-added module",
                 "graph node summary does not include a file added in the last commit",
             ],
-            required_context=["graph freshness check result", "list of files added or modified since last graph build"],
-            required_capabilities=[CapabilityName.DEPENDENCY_ANALYSIS.value, CapabilityName.CODE_SEARCH.value, CapabilityName.EVIDENCE_VERIFICATION.value],
+            required_context=[
+                "graph freshness check result",
+                "list of files added or modified since last graph build",
+            ],
+            required_capabilities=[
+                CapabilityName.DEPENDENCY_ANALYSIS.value,
+                CapabilityName.CODE_SEARCH.value,
+                CapabilityName.EVIDENCE_VERIFICATION.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -950,7 +1063,10 @@ class TemplateSeeder:
             ],
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=AgentType.DEVELOPER_AGENT,
-                capabilities=[CapabilityName.DEPENDENCY_ANALYSIS.value, CapabilityName.CODE_SEARCH.value],
+                capabilities=[
+                    CapabilityName.DEPENDENCY_ANALYSIS.value,
+                    CapabilityName.CODE_SEARCH.value,
+                ],
                 confidence=0.85,
             ),
             created_at=_SEEDING_EPOCH,
@@ -967,7 +1083,10 @@ class TemplateSeeder:
                 "log file for a service shows repeated recoverable errors over last hour",
             ],
             required_context=["affected service name", "health probe output", "error log sample"],
-            required_capabilities=[CapabilityName.CODE_SEARCH.value, CapabilityName.EVIDENCE_VERIFICATION.value],
+            required_capabilities=[
+                CapabilityName.CODE_SEARCH.value,
+                CapabilityName.EVIDENCE_VERIFICATION.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -1016,7 +1135,10 @@ class TemplateSeeder:
                 method="revert",
                 timeout_seconds=60.0,
             ),
-            evidence_requirements=["health probe output showing degraded state before action", "service name and error pattern"],
+            evidence_requirements=[
+                "health probe output showing degraded state before action",
+                "service name and error pattern",
+            ],
             known_failure_modes=[
                 "maintenance action resolves symptom but not root cause — issue recurs",
                 "service restart causes brief downtime for dependent components",
@@ -1044,13 +1166,15 @@ class TemplateSeeder:
             ],
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=AgentType.DEVELOPER_AGENT,
-                capabilities=[CapabilityName.CODE_SEARCH.value, CapabilityName.EVIDENCE_VERIFICATION.value],
+                capabilities=[
+                    CapabilityName.CODE_SEARCH.value,
+                    CapabilityName.EVIDENCE_VERIFICATION.value,
+                ],
                 confidence=0.70,
             ),
             created_at=_SEEDING_EPOCH,
             status=TemplateStatus.PROMOTED,
         )
-
 
     def _build_documentation_alignment(self) -> TemplateCandidate:
         return TemplateCandidate(
@@ -1062,7 +1186,10 @@ class TemplateSeeder:
                 "documentation file has factual inaccuracies relative to current code state",
             ],
             required_context=["file path with stale reference", "current correct terminology"],
-            required_capabilities=[CapabilityName.FILE_EDIT.value, CapabilityName.CODE_SEARCH.value],
+            required_capabilities=[
+                CapabilityName.FILE_EDIT.value,
+                CapabilityName.CODE_SEARCH.value,
+            ],
             required_agent_type=AgentType.DEVELOPER_AGENT,
             reusable_steps=[
                 TemplateStep(
@@ -1106,13 +1233,16 @@ class TemplateSeeder:
             ),
             rollback=TemplateRollback(
                 description=(
-                    "git checkout -- <file_path>. "
-                    "Non-destructive: only docstring text was changed."
+                    "git checkout -- <file_path>. Non-destructive: only docstring text was changed."
                 ),
                 method="revert",
                 timeout_seconds=15.0,
             ),
-            evidence_requirements=["stale reference text", "current correct terminology", "file path"],
+            evidence_requirements=[
+                "stale reference text",
+                "current correct terminology",
+                "file path",
+            ],
             known_failure_modes=[
                 "stale name appears in a string literal that is used programmatically, not just documentation",
             ],
@@ -1159,7 +1289,9 @@ def main() -> None:
         return
 
     result = seeder.seed()
-    print(f"Seeded: {result.seeded_count}, Skipped: {result.skipped_count}, Errors: {result.error_count}")
+    print(
+        f"Seeded: {result.seeded_count}, Skipped: {result.skipped_count}, Errors: {result.error_count}"
+    )
     for tid in result.template_ids:
         print(f"  + {tid}")
     if result.errors:

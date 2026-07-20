@@ -221,7 +221,9 @@ class TemplateCandidate:
             "source_trial_ids": self.source_trial_ids,
             "source_action_envelope_ids": self.source_action_envelope_ids,
             "evidence": [e.to_dict() for e in self.evidence],
-            "agent_capability_binding": self.agent_capability_binding.to_dict() if self.agent_capability_binding else None,
+            "agent_capability_binding": self.agent_capability_binding.to_dict()
+            if self.agent_capability_binding
+            else None,
             "created_at": self.created_at,
             "status": self.status.value,
         }
@@ -321,7 +323,11 @@ class TemplateRegistry:
     """Registry of reusable execution templates extracted from governed outcomes."""
 
     def __init__(self, store_dir: str | None = None):
-        self._store_dir = store_dir or os.path.join(_REPO_ROOT, "data", "umh", "organism", "templates")
+        if store_dir is None:
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            store_dir = str(runtime_state_dir("organism", create=False) / "templates")
+        self._store_dir = store_dir
         self._candidates_path = os.path.join(self._store_dir, "template_candidates.jsonl")
         self._templates_path = os.path.join(self._store_dir, "templates.jsonl")
         self._decisions_path = os.path.join(self._store_dir, "template_decisions.jsonl")
@@ -409,24 +415,41 @@ class TemplateRegistry:
         steps = []
         for i, s in enumerate(steps_data):
             if isinstance(s, dict):
-                steps.append(TemplateStep(
-                    order=i,
-                    description=s.get("description", s.get("desc", "")),
-                    action=s.get("action", ""),
-                    requires_capability=s.get("requires_capability", ""),
-                    risk_class=s.get("risk_class", s.get("risk", "low")),
-                    governance_mode=s.get("governance_mode", s.get("gov", "autonomous")),
-                    verification=s.get("verification", s.get("verify", "")),
-                ))
+                steps.append(
+                    TemplateStep(
+                        order=i,
+                        description=s.get("description", s.get("desc", "")),
+                        action=s.get("action", ""),
+                        requires_capability=s.get("requires_capability", ""),
+                        risk_class=s.get("risk_class", s.get("risk", "low")),
+                        governance_mode=s.get("governance_mode", s.get("gov", "autonomous")),
+                        verification=s.get("verification", s.get("verify", "")),
+                    )
+                )
 
         if not steps:
             steps = [
-                TemplateStep(order=0, description="Verify precondition", action="verify_precondition",
-                             requires_capability="code_search", verification="Precondition holds"),
-                TemplateStep(order=1, description=description or f"Execute {action_type}", action=action_type,
-                             requires_capability="file_edit", verification="Action completed"),
-                TemplateStep(order=2, description="Validate result", action="validate_result",
-                             requires_capability="evidence_verification", verification="Result verified"),
+                TemplateStep(
+                    order=0,
+                    description="Verify precondition",
+                    action="verify_precondition",
+                    requires_capability="code_search",
+                    verification="Precondition holds",
+                ),
+                TemplateStep(
+                    order=1,
+                    description=description or f"Execute {action_type}",
+                    action=action_type,
+                    requires_capability="file_edit",
+                    verification="Action completed",
+                ),
+                TemplateStep(
+                    order=2,
+                    description="Validate result",
+                    action="validate_result",
+                    requires_capability="evidence_verification",
+                    verification="Result verified",
+                ),
             ]
 
         validation_desc = outcome.get("validation_strategy", "Re-run verification after action")
@@ -434,17 +457,25 @@ class TemplateRegistry:
 
         evidence_items = []
         if outcome.get("evidence"):
-            for ev in (outcome["evidence"] if isinstance(outcome["evidence"], list) else [outcome["evidence"]]):
-                evidence_items.append(TemplateEvidence(
-                    source="outcome",
-                    detail=str(ev),
-                    confidence=0.8,
-                ))
+            for ev in (
+                outcome["evidence"]
+                if isinstance(outcome["evidence"], list)
+                else [outcome["evidence"]]
+            ):
+                evidence_items.append(
+                    TemplateEvidence(
+                        source="outcome",
+                        detail=str(ev),
+                        confidence=0.8,
+                    )
+                )
 
         candidate = TemplateCandidate(
             template_type=tpl_type,
             trigger_conditions=trigger_conditions,
-            required_context=outcome.get("required_context", ["world model entity metadata", "contradiction report"]),
+            required_context=outcome.get(
+                "required_context", ["world model entity metadata", "contradiction report"]
+            ),
             required_capabilities=capabilities_used,
             required_agent_type=agent_type,
             reusable_steps=steps,
@@ -452,7 +483,9 @@ class TemplateRegistry:
             governance_mode=outcome.get("governance_mode", "autonomous"),
             validation=TemplateValidation(description=validation_desc),
             rollback=TemplateRollback(description=rollback_desc),
-            evidence_requirements=outcome.get("evidence_requirements", ["contradiction report", "world model snapshot"]),
+            evidence_requirements=outcome.get(
+                "evidence_requirements", ["contradiction report", "world model snapshot"]
+            ),
             known_failure_modes=outcome.get("known_failure_modes", []),
             expected_outcome=outcome.get("expected_outcome", description),
             observed_success_count=1 if outcome.get("success", True) else 0,
@@ -460,7 +493,9 @@ class TemplateRegistry:
             confidence=0.6 if outcome.get("success", True) else 0.2,
             source_outcome_ids=[outcome.get("outcome_id", "")] if outcome.get("outcome_id") else [],
             source_trial_ids=[outcome.get("trial_id", "")] if outcome.get("trial_id") else [],
-            source_action_envelope_ids=[outcome.get("envelope_id", "")] if outcome.get("envelope_id") else [],
+            source_action_envelope_ids=[outcome.get("envelope_id", "")]
+            if outcome.get("envelope_id")
+            else [],
             evidence=evidence_items,
             agent_capability_binding=AgentCapabilityBinding(
                 agent_type=agent_type,
@@ -472,8 +507,11 @@ class TemplateRegistry:
 
         self._candidates[candidate.template_id] = candidate
         self._persist(self._candidates_path, candidate.to_dict())
-        logger.info("Generated template candidate %s from outcome (type=%s)",
-                     candidate.template_id, tpl_type.value)
+        logger.info(
+            "Generated template candidate %s from outcome (type=%s)",
+            candidate.template_id,
+            tpl_type.value,
+        )
         return candidate
 
     def submit_candidate(self, candidate: TemplateCandidate) -> TemplateCandidate:
@@ -519,7 +557,11 @@ class TemplateRegistry:
         tpl = self._candidates.get(template_id)
         if not tpl:
             return False
-        if tpl.status not in (TemplateStatus.APPROVED, TemplateStatus.CANDIDATE, TemplateStatus.RAW):
+        if tpl.status not in (
+            TemplateStatus.APPROVED,
+            TemplateStatus.CANDIDATE,
+            TemplateStatus.RAW,
+        ):
             return False
         tpl.status = TemplateStatus.PROMOTED
         self._promoted[template_id] = tpl
@@ -589,11 +631,15 @@ class TemplateRegistry:
             if tpl.template_type == tpl_type and tpl.status == TemplateStatus.PROMOTED:
                 matches.append(tpl)
         for tpl in self._candidates.values():
-            if (tpl.template_type == tpl_type
-                    and tpl.status in (TemplateStatus.APPROVED, TemplateStatus.CANDIDATE)
-                    and tpl.confidence >= 0.5):
+            if (
+                tpl.template_type == tpl_type
+                and tpl.status in (TemplateStatus.APPROVED, TemplateStatus.CANDIDATE)
+                and tpl.confidence >= 0.5
+            ):
                 matches.append(tpl)
-        matches.sort(key=lambda t: (t.status == TemplateStatus.PROMOTED, t.confidence), reverse=True)
+        matches.sort(
+            key=lambda t: (t.status == TemplateStatus.PROMOTED, t.confidence), reverse=True
+        )
         return matches
 
     def get_candidate(self, template_id: str) -> TemplateCandidate | None:
@@ -611,8 +657,11 @@ class TemplateRegistry:
         return [t for t in self._promoted.values() if t.status == TemplateStatus.PROMOTED]
 
     def pending_approvals(self) -> list[TemplateCandidate]:
-        return [t for t in self._candidates.values()
-                if t.status in (TemplateStatus.RAW, TemplateStatus.CANDIDATE)]
+        return [
+            t
+            for t in self._candidates.values()
+            if t.status in (TemplateStatus.RAW, TemplateStatus.CANDIDATE)
+        ]
 
     def summary(self) -> dict[str, Any]:
         status_counts: dict[str, int] = {}
@@ -638,23 +687,27 @@ class TemplateRegistry:
         """HTTP-safe serialization."""
         candidates = []
         for t in list(self._candidates.values())[-20:]:
-            candidates.append({
-                "template_id": t.template_id,
-                "template_type": t.template_type.value,
-                "status": t.status.value,
-                "confidence": round(t.confidence, 3),
-                "observed_success_count": t.observed_success_count,
-                "observed_failure_count": t.observed_failure_count,
-                "created_at": t.created_at,
-            })
+            candidates.append(
+                {
+                    "template_id": t.template_id,
+                    "template_type": t.template_type.value,
+                    "status": t.status.value,
+                    "confidence": round(t.confidence, 3),
+                    "observed_success_count": t.observed_success_count,
+                    "observed_failure_count": t.observed_failure_count,
+                    "created_at": t.created_at,
+                }
+            )
         promoted = []
         for t in self.list_promoted():
-            promoted.append({
-                "template_id": t.template_id,
-                "template_type": t.template_type.value,
-                "confidence": round(t.confidence, 3),
-                "observed_success_count": t.observed_success_count,
-            })
+            promoted.append(
+                {
+                    "template_id": t.template_id,
+                    "template_type": t.template_type.value,
+                    "confidence": round(t.confidence, 3),
+                    "observed_success_count": t.observed_success_count,
+                }
+            )
         return {
             "summary": self.summary(),
             "candidates": candidates,
@@ -842,7 +895,10 @@ class TemplateExtractor:
                 self._rewrite()
                 logger.info(
                     "Cycle %s matched existing template %s (hash=%s, matched=%d)",
-                    cycle_id, tpl.template_id, struct_hash, tpl.times_matched,
+                    cycle_id,
+                    tpl.template_id,
+                    struct_hash,
+                    tpl.times_matched,
                 )
                 return tpl
 
@@ -862,7 +918,10 @@ class TemplateExtractor:
             self._rewrite()
             logger.info(
                 "Cycle %s similar to template %s (sim=%.2f, matched=%d)",
-                cycle_id, best_match.template_id, best_sim, best_match.times_matched,
+                cycle_id,
+                best_match.template_id,
+                best_sim,
+                best_match.times_matched,
             )
             return best_match
 
@@ -880,7 +939,10 @@ class TemplateExtractor:
         self._persist(new_tpl)
         logger.info(
             "Extracted new template %s from cycle %s (shape=%s, hash=%s)",
-            new_tpl.template_id, cycle_id, task_shape, struct_hash,
+            new_tpl.template_id,
+            cycle_id,
+            task_shape,
+            struct_hash,
         )
         return new_tpl
 

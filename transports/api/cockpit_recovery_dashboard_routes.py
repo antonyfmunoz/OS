@@ -8,12 +8,9 @@ UMH transport layer. Instance-agnostic.
 
 from __future__ import annotations
 
-import json
 import logging
-import os
 import time
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -35,6 +32,7 @@ def configure(require_operator_dep: Any) -> None:
 def _get_recovery_runtime() -> Any:
     try:
         from substrate.organism.work_recovery_runtime import WorkRecoveryRuntime
+
         return WorkRecoveryRuntime()
     except Exception:
         return None
@@ -43,6 +41,7 @@ def _get_recovery_runtime() -> Any:
 def _get_failure_engine() -> Any:
     try:
         from substrate.execution.runtime.runtime_recovery_v1 import RuntimeRecoveryManager
+
         return RuntimeRecoveryManager()
     except Exception:
         return None
@@ -51,9 +50,12 @@ def _get_failure_engine() -> Any:
 def _get_journal() -> Any:
     try:
         from substrate.organism.execution_journal import ExecutionJournal
-        repo = os.environ.get("UMH_ROOT", "/opt/OS")
-        j_path = Path(repo) / "data" / "umh" / "organism" / "execution_journal.jsonl"
-        return ExecutionJournal(path=j_path)
+        from substrate.state.runtime_paths import runtime_state_path
+
+        j_path = runtime_state_path("organism", "execution_journal.jsonl", create_parent=False)
+        journal = ExecutionJournal(persist_path=str(j_path))
+        journal.recover()
+        return journal
     except Exception:
         return None
 
@@ -148,13 +150,15 @@ async def _failures(request: Request) -> dict[str, Any]:
     failed = runtime.failed_work()
     items = []
     for node in failed:
-        items.append({
-            "work_id": getattr(node, "node_id", str(node)),
-            "status": getattr(node, "status", "failed"),
-            "description": getattr(node, "description", ""),
-            "risk_class": getattr(node, "risk_class", "unknown"),
-            "created_at": getattr(node, "created_at", 0),
-        })
+        items.append(
+            {
+                "work_id": getattr(node, "node_id", str(node)),
+                "status": getattr(node, "status", "failed"),
+                "description": getattr(node, "description", ""),
+                "risk_class": getattr(node, "risk_class", "unknown"),
+                "created_at": getattr(node, "created_at", 0),
+            }
+        )
     return {"failures": items, "total": len(items), "runtime_available": True}
 
 
@@ -168,12 +172,14 @@ async def _failure_history(request: Request) -> dict[str, Any]:
         history = engine.get_failure_history(work_id)
         records = []
         for rec in history:
-            records.append({
-                "failure_type": getattr(rec, "failure_type", "unknown"),
-                "message": getattr(rec, "message", ""),
-                "timestamp": getattr(rec, "timestamp", 0),
-                "recovery_attempted": getattr(rec, "recovery_attempted", False),
-            })
+            records.append(
+                {
+                    "failure_type": getattr(rec, "failure_type", "unknown"),
+                    "message": getattr(rec, "message", ""),
+                    "timestamp": getattr(rec, "timestamp", 0),
+                    "recovery_attempted": getattr(rec, "recovery_attempted", False),
+                }
+            )
         return {"work_id": work_id, "history": records, "engine_available": True}
     except Exception as exc:
         logger.debug("Failure history lookup failed for %s: %s", work_id, exc)
@@ -204,7 +210,9 @@ async def _execute(request: Request) -> dict[str, Any]:
 
     valid_actions = {"retry", "resume", "unblock", "escalate", "abandon"}
     if action_type not in valid_actions:
-        raise HTTPException(status_code=400, detail=f"Invalid action_type. Must be one of: {valid_actions}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid action_type. Must be one of: {valid_actions}"
+        )
 
     def _do_recovery() -> tuple[str, bool]:
         runtime = _get_recovery_runtime()
@@ -212,18 +220,27 @@ async def _execute(request: Request) -> dict[str, Any]:
             return "Recovery runtime unavailable", False
 
         assessment = runtime.assess(work_id)
-        available = {a.action.value if hasattr(a.action, "value") else a.action for a in assessment.actions}
+        available = {
+            a.action.value if hasattr(a.action, "value") else a.action for a in assessment.actions
+        }
 
         if action_type not in available:
-            return f"Action {action_type} not available for work {work_id}. Available: {available}", False
+            return (
+                f"Action {action_type} not available for work {work_id}. Available: {available}",
+                False,
+            )
 
-        _recovery_history.append({
-            "work_id": work_id,
-            "action_type": action_type,
-            "reason": reason,
-            "timestamp": time.time(),
-            "state_before": assessment.state.value if hasattr(assessment.state, "value") else str(assessment.state),
-        })
+        _recovery_history.append(
+            {
+                "work_id": work_id,
+                "action_type": action_type,
+                "reason": reason,
+                "timestamp": time.time(),
+                "state_before": assessment.state.value
+                if hasattr(assessment.state, "value")
+                else str(assessment.state),
+            }
+        )
 
         return f"Recovery action {action_type} queued for {work_id}", True
 

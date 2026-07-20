@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -18,6 +17,13 @@ from typing import Any
 from substrate.execution.cpu_gate import gated_subprocess_run
 
 logger = logging.getLogger(__name__)
+
+
+def _org_state():
+    from substrate.state.runtime_paths import runtime_state_dir
+
+    return runtime_state_dir("organism", create=False)
+
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 
@@ -95,11 +101,16 @@ class RealityRecoveryResult:
 # Ground truth collectors
 # ---------------------------------------------------------------------------
 
+
 def _run_cmd(cmd: str, timeout: int = 15) -> str:
     """Run a shell command and return stdout, or empty string on failure."""
     result = gated_subprocess_run(
-        cmd, caller="reality_recovery", shell=True,
-        capture_output=True, text=True, timeout=timeout,
+        cmd,
+        caller="reality_recovery",
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
     )
     if result is None:
         return ""
@@ -136,6 +147,7 @@ def _count_files(directory: str, pattern: str = "*.py") -> int:
 # Question bank generator
 # ---------------------------------------------------------------------------
 
+
 class RealityRecoveryBenchmark:
     """Generates 50 objective questions with runtime-computed ground truth."""
 
@@ -158,47 +170,63 @@ class RealityRecoveryBenchmark:
 
         # Container names
         container_output = _run_cmd("docker ps --format '{{.Names}}' 2>/dev/null | sort")
-        containers = [c.strip() for c in container_output.split("\n") if c.strip()] if container_output else []
+        containers = (
+            [c.strip() for c in container_output.split("\n") if c.strip()]
+            if container_output
+            else []
+        )
 
-        qs.append(Question(
-            question_id="container_count",
-            category="containers",
-            question="How many Docker containers are currently running?",
-            ground_truth=str(len(containers)),
-            source="docker ps",
-        ))
+        qs.append(
+            Question(
+                question_id="container_count",
+                category="containers",
+                question="How many Docker containers are currently running?",
+                ground_truth=str(len(containers)),
+                source="docker ps",
+            )
+        )
 
-        qs.append(Question(
-            question_id="container_names",
-            category="containers",
-            question="What are the names of all running Docker containers (comma-separated, alphabetical)?",
-            ground_truth=",".join(sorted(containers)),
-            source="docker ps --format '{{.Names}}'",
-        ))
+        qs.append(
+            Question(
+                question_id="container_names",
+                category="containers",
+                question="What are the names of all running Docker containers (comma-separated, alphabetical)?",
+                ground_truth=",".join(sorted(containers)),
+                source="docker ps --format '{{.Names}}'",
+            )
+        )
 
         # Health status per container
         for name in containers[:4]:
-            health = _run_cmd(f"docker inspect --format='{{{{.State.Health.Status}}}}' {name} 2>/dev/null")
+            health = _run_cmd(
+                f"docker inspect --format='{{{{.State.Health.Status}}}}' {name} 2>/dev/null"
+            )
             if not health or health == "<no value>":
                 health = "no-healthcheck"
-            qs.append(Question(
-                question_id=f"container_health_{name}",
-                category="containers",
-                question=f"What is the health status of container '{name}'?",
-                ground_truth=health,
-                source=f"docker inspect {name}",
-            ))
+            qs.append(
+                Question(
+                    question_id=f"container_health_{name}",
+                    category="containers",
+                    question=f"What is the health status of container '{name}'?",
+                    ground_truth=health,
+                    source=f"docker inspect {name}",
+                )
+            )
 
         # Container uptime
         for name in containers[:2]:
-            status = _run_cmd(f"docker ps --filter 'name={name}' --format '{{{{.Status}}}}' 2>/dev/null")
-            qs.append(Question(
-                question_id=f"container_status_{name}",
-                category="containers",
-                question=f"What is the status of container '{name}'?",
-                ground_truth=status,
-                source=f"docker ps --filter 'name={name}'",
-            ))
+            status = _run_cmd(
+                f"docker ps --filter 'name={name}' --format '{{{{.Status}}}}' 2>/dev/null"
+            )
+            qs.append(
+                Question(
+                    question_id=f"container_status_{name}",
+                    category="containers",
+                    question=f"What is the status of container '{name}'?",
+                    ground_truth=status,
+                    source=f"docker ps --filter 'name={name}'",
+                )
+            )
 
         return qs
 
@@ -207,93 +235,113 @@ class RealityRecoveryBenchmark:
         qs: list[Question] = []
 
         substrate_count = _count_files(os.path.join(self._root, "substrate"))
-        qs.append(Question(
-            question_id="substrate_py_count",
-            category="architecture",
-            question="How many .py files are in the substrate/ directory (recursive)?",
-            ground_truth=str(substrate_count),
-            source="find substrate/ -name '*.py' | wc -l",
-        ))
+        qs.append(
+            Question(
+                question_id="substrate_py_count",
+                category="architecture",
+                question="How many .py files are in the substrate/ directory (recursive)?",
+                ground_truth=str(substrate_count),
+                source="find substrate/ -name '*.py' | wc -l",
+            )
+        )
 
         organism_count = _count_files(os.path.join(self._root, "substrate", "organism"))
-        qs.append(Question(
-            question_id="organism_py_count",
-            category="architecture",
-            question="How many .py files are in substrate/organism/ (recursive)?",
-            ground_truth=str(organism_count),
-            source="find substrate/organism/ -name '*.py' | wc -l",
-        ))
+        qs.append(
+            Question(
+                question_id="organism_py_count",
+                category="architecture",
+                question="How many .py files are in substrate/organism/ (recursive)?",
+                ground_truth=str(organism_count),
+                source="find substrate/organism/ -name '*.py' | wc -l",
+            )
+        )
 
         test_count = _count_files(os.path.join(self._root, "tests"))
-        qs.append(Question(
-            question_id="test_file_count",
-            category="architecture",
-            question="How many .py test files are in the tests/ directory?",
-            ground_truth=str(test_count),
-            source="find tests/ -name '*.py' | wc -l",
-        ))
+        qs.append(
+            Question(
+                question_id="test_file_count",
+                category="architecture",
+                question="How many .py test files are in the tests/ directory?",
+                ground_truth=str(test_count),
+                source="find tests/ -name '*.py' | wc -l",
+            )
+        )
 
         adapters_count = _count_files(os.path.join(self._root, "adapters"))
-        qs.append(Question(
-            question_id="adapters_py_count",
-            category="architecture",
-            question="How many .py files are in the adapters/ directory (recursive)?",
-            ground_truth=str(adapters_count),
-            source="find adapters/ -name '*.py' | wc -l",
-        ))
+        qs.append(
+            Question(
+                question_id="adapters_py_count",
+                category="architecture",
+                question="How many .py files are in the adapters/ directory (recursive)?",
+                ground_truth=str(adapters_count),
+                source="find adapters/ -name '*.py' | wc -l",
+            )
+        )
 
         transports_count = _count_files(os.path.join(self._root, "transports"))
-        qs.append(Question(
-            question_id="transports_py_count",
-            category="architecture",
-            question="How many .py files are in the transports/ directory (recursive)?",
-            ground_truth=str(transports_count),
-            source="find transports/ -name '*.py' | wc -l",
-        ))
+        qs.append(
+            Question(
+                question_id="transports_py_count",
+                category="architecture",
+                question="How many .py files are in the transports/ directory (recursive)?",
+                ground_truth=str(transports_count),
+                source="find transports/ -name '*.py' | wc -l",
+            )
+        )
 
         # Route files
-        cockpit_routes = _count_files(os.path.join(self._root, "transports", "api"), "cockpit_*_routes.py")
-        qs.append(Question(
-            question_id="cockpit_route_files",
-            category="architecture",
-            question="How many cockpit_*_routes.py files exist in transports/api/?",
-            ground_truth=str(cockpit_routes),
-            source="find transports/api/ -name 'cockpit_*_routes.py' | wc -l",
-        ))
+        cockpit_routes = _count_files(
+            os.path.join(self._root, "transports", "api"), "cockpit_*_routes.py"
+        )
+        qs.append(
+            Question(
+                question_id="cockpit_route_files",
+                category="architecture",
+                question="How many cockpit_*_routes.py files exist in transports/api/?",
+                ground_truth=str(cockpit_routes),
+                source="find transports/api/ -name 'cockpit_*_routes.py' | wc -l",
+            )
+        )
 
         # Pre-commit hooks
         hooks = _count_files(os.path.join(self._root, "scripts"), "check_*.py")
-        qs.append(Question(
-            question_id="gate_script_count",
-            category="architecture",
-            question="How many check_*.py gate scripts exist in scripts/?",
-            ground_truth=str(hooks),
-            source="find scripts/ -name 'check_*.py' | wc -l",
-        ))
+        qs.append(
+            Question(
+                question_id="gate_script_count",
+                category="architecture",
+                question="How many check_*.py gate scripts exist in scripts/?",
+                ground_truth=str(hooks),
+                source="find scripts/ -name 'check_*.py' | wc -l",
+            )
+        )
 
         # Canonical types
         types_path = os.path.join(self._root, "substrate", "canonical_types.py")
         if os.path.exists(types_path):
             with open(types_path) as f:
                 content = f.read()
-            type_count = content.count("\":")  # rough count of registered types
-            qs.append(Question(
-                question_id="canonical_type_count_approx",
-                category="architecture",
-                question="Approximately how many types are registered in substrate/canonical_types.py (within 10)?",
-                ground_truth=str(type_count),
-                source="canonical_types.py entry count",
-            ))
+            type_count = content.count('":')  # rough count of registered types
+            qs.append(
+                Question(
+                    question_id="canonical_type_count_approx",
+                    category="architecture",
+                    question="Approximately how many types are registered in substrate/canonical_types.py (within 10)?",
+                    ground_truth=str(type_count),
+                    source="canonical_types.py entry count",
+                )
+            )
 
         # Meta IDE files
         meta_ide_count = _count_files(os.path.join(self._root, "substrate", "meta_ide"))
-        qs.append(Question(
-            question_id="meta_ide_py_count",
-            category="architecture",
-            question="How many .py files are in substrate/meta_ide/?",
-            ground_truth=str(meta_ide_count),
-            source="find substrate/meta_ide/ -name '*.py' | wc -l",
-        ))
+        qs.append(
+            Question(
+                question_id="meta_ide_py_count",
+                category="architecture",
+                question="How many .py files are in substrate/meta_ide/?",
+                ground_truth=str(meta_ide_count),
+                source="find substrate/meta_ide/ -name '*.py' | wc -l",
+            )
+        )
 
         return qs
 
@@ -301,76 +349,90 @@ class RealityRecoveryBenchmark:
         """Questions about organism runtime state."""
         qs: list[Question] = []
 
-        daemon_path = os.path.join(self._root, "data", "umh", "organism", "daemon_state.json")
+        daemon_path = str(_org_state() / "daemon_state.json")
         daemon_state = _read_json_file(daemon_path)
 
-        qs.append(Question(
-            question_id="daemon_started",
-            category="organism",
-            question="Is the organism daemon started (true/false)?",
-            ground_truth=str(daemon_state.get("started", False)).lower(),
-            source="daemon_state.json",
-        ))
+        qs.append(
+            Question(
+                question_id="daemon_started",
+                category="organism",
+                question="Is the organism daemon started (true/false)?",
+                ground_truth=str(daemon_state.get("started", False)).lower(),
+                source="daemon_state.json",
+            )
+        )
 
-        qs.append(Question(
-            question_id="daemon_tick_count",
-            category="organism",
-            question="How many ticks has the organism daemon completed?",
-            ground_truth=str(daemon_state.get("tick_count", 0)),
-            source="daemon_state.json",
-        ))
+        qs.append(
+            Question(
+                question_id="daemon_tick_count",
+                category="organism",
+                question="How many ticks has the organism daemon completed?",
+                ground_truth=str(daemon_state.get("tick_count", 0)),
+                source="daemon_state.json",
+            )
+        )
 
-        qs.append(Question(
-            question_id="daemon_mode",
-            category="organism",
-            question="What mode is the organism daemon running in?",
-            ground_truth=str(daemon_state.get("mode", "unknown")),
-            source="daemon_state.json",
-        ))
+        qs.append(
+            Question(
+                question_id="daemon_mode",
+                category="organism",
+                question="What mode is the organism daemon running in?",
+                ground_truth=str(daemon_state.get("mode", "unknown")),
+                source="daemon_state.json",
+            )
+        )
 
         # Workcell states
-        workcells_dir = os.path.join(self._root, "data", "umh", "organism", "workcells")
+        workcells_dir = str(_org_state() / "workcells")
         if os.path.isdir(workcells_dir):
             for wc_name in sorted(os.listdir(workcells_dir)):
                 hb_path = os.path.join(workcells_dir, wc_name, "heartbeat.json")
                 if os.path.exists(hb_path):
                     hb = _read_json_file(hb_path)
-                    qs.append(Question(
-                        question_id=f"workcell_{wc_name}_status",
-                        category="organism",
-                        question=f"What is the status of the '{wc_name}' workcell?",
-                        ground_truth=str(hb.get("status", "unknown")),
-                        source=f"workcells/{wc_name}/heartbeat.json",
-                    ))
-                    qs.append(Question(
-                        question_id=f"workcell_{wc_name}_messages",
-                        category="organism",
-                        question=f"How many messages has the '{wc_name}' workcell processed?",
-                        ground_truth=str(hb.get("messages_processed", 0)),
-                        source=f"workcells/{wc_name}/heartbeat.json",
-                    ))
+                    qs.append(
+                        Question(
+                            question_id=f"workcell_{wc_name}_status",
+                            category="organism",
+                            question=f"What is the status of the '{wc_name}' workcell?",
+                            ground_truth=str(hb.get("status", "unknown")),
+                            source=f"workcells/{wc_name}/heartbeat.json",
+                        )
+                    )
+                    qs.append(
+                        Question(
+                            question_id=f"workcell_{wc_name}_messages",
+                            category="organism",
+                            question=f"How many messages has the '{wc_name}' workcell processed?",
+                            ground_truth=str(hb.get("messages_processed", 0)),
+                            source=f"workcells/{wc_name}/heartbeat.json",
+                        )
+                    )
 
         # Execution journal
-        journal_path = os.path.join(self._root, "data", "umh", "organism", "execution_journal.jsonl")
+        journal_path = str(_org_state() / "execution_journal.jsonl")
         journal_lines = _count_lines(journal_path)
-        qs.append(Question(
-            question_id="execution_journal_entries",
-            category="organism",
-            question="How many entries are in the execution journal?",
-            ground_truth=str(journal_lines),
-            source="execution_journal.jsonl line count",
-        ))
+        qs.append(
+            Question(
+                question_id="execution_journal_entries",
+                category="organism",
+                question="How many entries are in the execution journal?",
+                ground_truth=str(journal_lines),
+                source="execution_journal.jsonl line count",
+            )
+        )
 
         # Events
-        events_path = os.path.join(self._root, "data", "umh", "organism", "events.jsonl")
+        events_path = str(_org_state() / "events.jsonl")
         events_lines = _count_lines(events_path)
-        qs.append(Question(
-            question_id="organism_event_count",
-            category="organism",
-            question="How many events are in the organism event log?",
-            ground_truth=str(events_lines),
-            source="events.jsonl line count",
-        ))
+        qs.append(
+            Question(
+                question_id="organism_event_count",
+                category="organism",
+                question="How many events are in the organism event log?",
+                ground_truth=str(events_lines),
+                source="events.jsonl line count",
+            )
+        )
 
         return qs
 
@@ -382,33 +444,41 @@ class RealityRecoveryBenchmark:
         latest_commit = _run_cmd(f"git -C {self._root} log --oneline -1 2>/dev/null")
         if latest_commit:
             commit_hash = latest_commit.split()[0] if latest_commit else ""
-            qs.append(Question(
-                question_id="latest_commit_hash",
-                category="deployment",
-                question="What is the short hash of the latest commit on the current branch?",
-                ground_truth=commit_hash,
-                source="git log --oneline -1",
-            ))
+            qs.append(
+                Question(
+                    question_id="latest_commit_hash",
+                    category="deployment",
+                    question="What is the short hash of the latest commit on the current branch?",
+                    ground_truth=commit_hash,
+                    source="git log --oneline -1",
+                )
+            )
 
         # Current branch
         branch = _run_cmd(f"git -C {self._root} branch --show-current 2>/dev/null")
-        qs.append(Question(
-            question_id="current_branch",
-            category="deployment",
-            question="What is the current git branch?",
-            ground_truth=branch or "unknown",
-            source="git branch --show-current",
-        ))
+        qs.append(
+            Question(
+                question_id="current_branch",
+                category="deployment",
+                question="What is the current git branch?",
+                ground_truth=branch or "unknown",
+                source="git branch --show-current",
+            )
+        )
 
         # Commits today
-        commits_today = _run_cmd(f"git -C {self._root} log --oneline --since='midnight' 2>/dev/null | wc -l")
-        qs.append(Question(
-            question_id="commits_today",
-            category="deployment",
-            question="How many commits were made today?",
-            ground_truth=commits_today.strip() if commits_today else "0",
-            source="git log --since='midnight' | wc -l",
-        ))
+        commits_today = _run_cmd(
+            f"git -C {self._root} log --oneline --since='midnight' 2>/dev/null | wc -l"
+        )
+        qs.append(
+            Question(
+                question_id="commits_today",
+                category="deployment",
+                question="How many commits were made today?",
+                ground_truth=commits_today.strip() if commits_today else "0",
+                source="git log --since='midnight' | wc -l",
+            )
+        )
 
         # Flyctl status (may not be available)
         fly_status = _run_cmd("flyctl status -a umh-cockpit --json 2>/dev/null", timeout=10)
@@ -416,13 +486,15 @@ class RealityRecoveryBenchmark:
             try:
                 fly_data = json.loads(fly_status)
                 version = str(fly_data.get("Version", "unknown"))
-                qs.append(Question(
-                    question_id="cockpit_fly_version",
-                    category="deployment",
-                    question="What version is the cockpit deployed at on Fly.io?",
-                    ground_truth=version,
-                    source="flyctl status -a umh-cockpit",
-                ))
+                qs.append(
+                    Question(
+                        question_id="cockpit_fly_version",
+                        category="deployment",
+                        question="What version is the cockpit deployed at on Fly.io?",
+                        ground_truth=version,
+                        source="flyctl status -a umh-cockpit",
+                    )
+                )
             except json.JSONDecodeError:
                 pass
 
@@ -438,49 +510,59 @@ class RealityRecoveryBenchmark:
             try:
                 with open(registry_path) as f:
                     devices = json.load(f)
-                device_count = len(devices) if isinstance(devices, list) else len(devices.get("devices", []))
-                qs.append(Question(
-                    question_id="device_count",
-                    category="configuration",
-                    question="How many devices are registered in the device registry?",
-                    ground_truth=str(device_count),
-                    source="infra/device_registry.json",
-                ))
+                device_count = (
+                    len(devices) if isinstance(devices, list) else len(devices.get("devices", []))
+                )
+                qs.append(
+                    Question(
+                        question_id="device_count",
+                        category="configuration",
+                        question="How many devices are registered in the device registry?",
+                        ground_truth=str(device_count),
+                        source="infra/device_registry.json",
+                    )
+                )
             except Exception:
                 pass
 
         # Templates
-        templates_path = os.path.join(self._root, "data", "umh", "organism", "templates", "templates.jsonl")
+        templates_path = str(_org_state() / "templates" / "templates.jsonl")
         template_count = _count_lines(templates_path)
-        qs.append(Question(
-            question_id="template_count",
-            category="configuration",
-            question="How many templates are in the organism template store?",
-            ground_truth=str(template_count),
-            source="templates/templates.jsonl line count",
-        ))
+        qs.append(
+            Question(
+                question_id="template_count",
+                category="configuration",
+                question="How many templates are in the organism template store?",
+                ground_truth=str(template_count),
+                source="templates/templates.jsonl line count",
+            )
+        )
 
         # Messages
-        messages_path = os.path.join(self._root, "data", "umh", "organism", "messages.jsonl")
+        messages_path = str(_org_state() / "messages.jsonl")
         message_count = _count_lines(messages_path)
-        qs.append(Question(
-            question_id="organism_message_count",
-            category="configuration",
-            question="How many messages are in the organism message store?",
-            ground_truth=str(message_count),
-            source="messages.jsonl line count",
-        ))
+        qs.append(
+            Question(
+                question_id="organism_message_count",
+                category="configuration",
+                question="How many messages are in the organism message store?",
+                ground_truth=str(message_count),
+                source="messages.jsonl line count",
+            )
+        )
 
         # Reports
-        reports_path = os.path.join(self._root, "data", "umh", "organism", "reports.jsonl")
+        reports_path = str(_org_state() / "reports.jsonl")
         report_count = _count_lines(reports_path)
-        qs.append(Question(
-            question_id="organism_report_count",
-            category="configuration",
-            question="How many reports are in the organism report store?",
-            ground_truth=str(report_count),
-            source="reports.jsonl line count",
-        ))
+        qs.append(
+            Question(
+                question_id="organism_report_count",
+                category="configuration",
+                question="How many reports are in the organism report store?",
+                ground_truth=str(report_count),
+                source="reports.jsonl line count",
+            )
+        )
 
         return qs
 
@@ -543,7 +625,9 @@ class RealityRecoveryBenchmark:
         for sa in scored:
             score_val = 1.0 if sa.score == "correct" else (0.5 if sa.score == "partial" else 0.0)
             by_cat.setdefault(sa.category, []).append(score_val)
-        accuracy_by_category = {cat: round(sum(vals) / len(vals), 4) for cat, vals in by_cat.items()}
+        accuracy_by_category = {
+            cat: round(sum(vals) / len(vals), 4) for cat, vals in by_cat.items()
+        }
 
         return RealityRecoveryResult(
             total_questions=total,

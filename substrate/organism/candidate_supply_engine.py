@@ -24,7 +24,6 @@ from substrate.organism.template_governance import (
     TemplateGovernance,
 )
 from substrate.organism.template_registry import (
-    TemplateCandidate,
     TemplateRegistry,
 )
 
@@ -122,10 +121,12 @@ class CandidateSupplyEngine:
         governance: TemplateGovernance | None = None,
         state_dir: str | None = None,
     ) -> None:
-        template_store = state_dir or os.path.join(_REPO_ROOT, "data", "umh", "organism", "templates")
+        from substrate.state.runtime_paths import runtime_state_dir
+
+        template_store = state_dir or str(runtime_state_dir("organism", create=False) / "templates")
         self._registry = template_registry or TemplateRegistry(store_dir=template_store)
         self._governance = governance or TemplateGovernance()
-        self._state_dir = state_dir or os.path.join(_REPO_ROOT, "data", "umh", "organism")
+        self._state_dir = state_dir or str(runtime_state_dir("organism", create=False))
         self._sources: dict[str, bool] = {}
         self._resolved_descriptions: set[str] = set()
 
@@ -255,24 +256,29 @@ class CandidateSupplyEngine:
         candidates: list[SupplyCandidate] = []
         try:
             from substrate.organism.contradiction_engine import ContradictionEngine
+
             engine = ContradictionEngine(state_dir=self._state_dir)
             report = engine.scan()
             for c in report.contradictions:
                 if c.severity.value in ("medium", "high"):
-                    candidates.append(SupplyCandidate(
-                        source="contradiction_engine",
-                        title=f"Contradiction: {c.entity_id}",
-                        description=c.description,
-                        evidence=[{
-                            "source": "contradiction_engine",
-                            "detail": f"severity={c.severity.value}, type={c.contradiction_type.value}, entity={c.entity_id}",
-                            "confidence": 0.8,
-                        }],
-                        affected_files=[c.entity_id] if c.entity_id else [],
-                        risk_class="low",
-                        expected_delta=f"Resolve {c.severity.value} contradiction for {c.entity_id}",
-                        recommended_next_step="Run contradiction fix template",
-                    ))
+                    candidates.append(
+                        SupplyCandidate(
+                            source="contradiction_engine",
+                            title=f"Contradiction: {c.entity_id}",
+                            description=c.description,
+                            evidence=[
+                                {
+                                    "source": "contradiction_engine",
+                                    "detail": f"severity={c.severity.value}, type={c.contradiction_type.value}, entity={c.entity_id}",
+                                    "confidence": 0.8,
+                                }
+                            ],
+                            affected_files=[c.entity_id] if c.entity_id else [],
+                            risk_class="low",
+                            expected_delta=f"Resolve {c.severity.value} contradiction for {c.entity_id}",
+                            recommended_next_step="Run contradiction fix template",
+                        )
+                    )
         except Exception as e:
             logger.debug("ContradictionEngine scan: %s", e)
         return candidates
@@ -281,6 +287,7 @@ class CandidateSupplyEngine:
         candidates: list[SupplyCandidate] = []
         try:
             from substrate.organism.world_model import WorldModel
+
             wm = WorldModel(state_dir=self._state_dir)
             entities = wm.list_entities() if hasattr(wm, "list_entities") else []
             for entity in entities[:50]:
@@ -290,36 +297,44 @@ class CandidateSupplyEngine:
                     last_obs = entity.get("last_observed", 0)
                     age_hours = (time.time() - last_obs) / 3600 if last_obs else 999
                     if path and not os.path.exists(os.path.join(_REPO_ROOT, path)):
-                        candidates.append(SupplyCandidate(
-                            source="world_model",
-                            title=f"Missing path: {path}",
-                            description=f"World model declares {entity_id} at path {path} but file does not exist",
-                            evidence=[{
-                                "source": "world_model",
-                                "detail": f"entity_id={entity_id}, declared_path={path}, path_exists=false",
-                                "confidence": 0.9,
-                            }],
-                            affected_files=[path],
-                            risk_class="low",
-                            expected_delta=f"Create missing path or correct declaration for {entity_id}",
-                            recommended_next_step="Run observation accuracy fix template",
-                        ))
+                        candidates.append(
+                            SupplyCandidate(
+                                source="world_model",
+                                title=f"Missing path: {path}",
+                                description=f"World model declares {entity_id} at path {path} but file does not exist",
+                                evidence=[
+                                    {
+                                        "source": "world_model",
+                                        "detail": f"entity_id={entity_id}, declared_path={path}, path_exists=false",
+                                        "confidence": 0.9,
+                                    }
+                                ],
+                                affected_files=[path],
+                                risk_class="low",
+                                expected_delta=f"Create missing path or correct declaration for {entity_id}",
+                                recommended_next_step="Run observation accuracy fix template",
+                            )
+                        )
                     elif age_hours > 24:
-                        candidates.append(SupplyCandidate(
-                            source="world_model",
-                            title=f"Stale entity: {entity_id}",
-                            description=f"World model entity {entity_id} last observed {age_hours:.0f}h ago",
-                            evidence=[{
-                                "source": "world_model",
-                                "detail": f"entity_id={entity_id}, last_observed={last_obs}, age_hours={age_hours:.0f}",
-                                "confidence": 0.7,
-                            }],
-                            affected_files=[path] if path else [],
-                            risk_class="low",
-                            non_mutating=True,
-                            expected_delta=f"Refresh world model observation for {entity_id}",
-                            recommended_next_step="Run world model accuracy fix template",
-                        ))
+                        candidates.append(
+                            SupplyCandidate(
+                                source="world_model",
+                                title=f"Stale entity: {entity_id}",
+                                description=f"World model entity {entity_id} last observed {age_hours:.0f}h ago",
+                                evidence=[
+                                    {
+                                        "source": "world_model",
+                                        "detail": f"entity_id={entity_id}, last_observed={last_obs}, age_hours={age_hours:.0f}",
+                                        "confidence": 0.7,
+                                    }
+                                ],
+                                affected_files=[path] if path else [],
+                                risk_class="low",
+                                non_mutating=True,
+                                expected_delta=f"Refresh world model observation for {entity_id}",
+                                recommended_next_step="Run world model accuracy fix template",
+                            )
+                        )
         except Exception as e:
             logger.debug("WorldModel scan: %s", e)
         return candidates
@@ -328,41 +343,50 @@ class CandidateSupplyEngine:
         candidates: list[SupplyCandidate] = []
         try:
             from substrate.organism.dependency_graph import DependencyGraph
+
             dg = DependencyGraph(state_dir=self._state_dir)
             if hasattr(dg, "staleness_check"):
                 staleness = dg.staleness_check()
                 if isinstance(staleness, dict) and staleness.get("stale"):
-                    candidates.append(SupplyCandidate(
-                        source="dependency_graph",
-                        title="Dependency graph stale",
-                        description=f"Graph last built {staleness.get('age_hours', '?')}h ago",
-                        evidence=[{
-                            "source": "dependency_graph",
-                            "detail": f"stale={staleness.get('stale')}, age_hours={staleness.get('age_hours', '?')}",
-                            "confidence": 0.8,
-                        }],
-                        risk_class="low",
-                        non_mutating=True,
-                        expected_delta="Rebuild dependency graph to include recent files",
-                        recommended_next_step="Run dependency graph fix template",
-                    ))
+                    candidates.append(
+                        SupplyCandidate(
+                            source="dependency_graph",
+                            title="Dependency graph stale",
+                            description=f"Graph last built {staleness.get('age_hours', '?')}h ago",
+                            evidence=[
+                                {
+                                    "source": "dependency_graph",
+                                    "detail": f"stale={staleness.get('stale')}, age_hours={staleness.get('age_hours', '?')}",
+                                    "confidence": 0.8,
+                                }
+                            ],
+                            risk_class="low",
+                            non_mutating=True,
+                            expected_delta="Rebuild dependency graph to include recent files",
+                            recommended_next_step="Run dependency graph fix template",
+                        )
+                    )
             if hasattr(dg, "find_missing_edges"):
                 missing = dg.find_missing_edges()
                 if isinstance(missing, list):
                     for edge in missing[:5]:
-                        candidates.append(SupplyCandidate(
-                            source="dependency_graph",
-                            title=f"Missing edge: {edge.get('from', '?')} -> {edge.get('to', '?')}",
-                            description=f"Dependency graph missing edge from {edge.get('from', '?')} to {edge.get('to', '?')}",
-                            evidence=[{
-                                "source": "dependency_graph",
-                                "detail": str(edge),
-                                "confidence": 0.7,
-                            }],
-                            risk_class="low",
-                            expected_delta="Add missing dependency edge",
-                            recommended_next_step="Run dependency graph fix template",
-                        ))
+                        candidates.append(
+                            SupplyCandidate(
+                                source="dependency_graph",
+                                title=f"Missing edge: {edge.get('from', '?')} -> {edge.get('to', '?')}",
+                                description=f"Dependency graph missing edge from {edge.get('from', '?')} to {edge.get('to', '?')}",
+                                evidence=[
+                                    {
+                                        "source": "dependency_graph",
+                                        "detail": str(edge),
+                                        "confidence": 0.7,
+                                    }
+                                ],
+                                risk_class="low",
+                                expected_delta="Add missing dependency edge",
+                                recommended_next_step="Run dependency graph fix template",
+                            )
+                        )
         except Exception as e:
             logger.debug("DependencyGraph scan: %s", e)
         return candidates
@@ -371,6 +395,7 @@ class CandidateSupplyEngine:
         candidates: list[SupplyCandidate] = []
         try:
             from substrate.organism.readiness_model import ReadinessModel
+
             rm = ReadinessModel(state_dir=self._state_dir)
             snapshot = rm.snapshot() if hasattr(rm, "snapshot") else {}
             dimensions = snapshot.get("dimensions", {}) if isinstance(snapshot, dict) else {}
@@ -378,19 +403,23 @@ class CandidateSupplyEngine:
                 if isinstance(dim_data, dict):
                     score = dim_data.get("score", 1.0)
                     if score < 0.70:
-                        candidates.append(SupplyCandidate(
-                            source="readiness_model",
-                            title=f"Low readiness: {dim_name} ({score:.2f})",
-                            description=f"Readiness dimension {dim_name} is at {score:.2f}, below 0.70 threshold",
-                            evidence=[{
-                                "source": "readiness_model",
-                                "detail": f"dimension={dim_name}, score={score:.2f}, threshold=0.70",
-                                "confidence": 0.85,
-                            }],
-                            risk_class="low",
-                            expected_delta=f"Improve {dim_name} readiness score to >= 0.70",
-                            recommended_next_step="Run readiness improvement template",
-                        ))
+                        candidates.append(
+                            SupplyCandidate(
+                                source="readiness_model",
+                                title=f"Low readiness: {dim_name} ({score:.2f})",
+                                description=f"Readiness dimension {dim_name} is at {score:.2f}, below 0.70 threshold",
+                                evidence=[
+                                    {
+                                        "source": "readiness_model",
+                                        "detail": f"dimension={dim_name}, score={score:.2f}, threshold=0.70",
+                                        "confidence": 0.85,
+                                    }
+                                ],
+                                risk_class="low",
+                                expected_delta=f"Improve {dim_name} readiness score to >= 0.70",
+                                recommended_next_step="Run readiness improvement template",
+                            )
+                        )
         except Exception as e:
             logger.debug("ReadinessModel scan: %s", e)
         return candidates
@@ -399,6 +428,7 @@ class CandidateSupplyEngine:
         candidates: list[SupplyCandidate] = []
         try:
             from substrate.organism.bottleneck_engine import BottleneckEngine
+
             be = BottleneckEngine(state_dir=self._state_dir)
             report = be.analyze() if hasattr(be, "analyze") else None
             if report and hasattr(report, "bottlenecks"):
@@ -406,30 +436,37 @@ class CandidateSupplyEngine:
                     if isinstance(b, dict):
                         severity = b.get("severity", "low")
                         if severity in ("medium", "high"):
-                            candidates.append(SupplyCandidate(
-                                source="bottleneck_engine",
-                                title=f"Bottleneck: {b.get('component', '?')}",
-                                description=b.get("description", ""),
-                                evidence=[{
-                                    "source": "bottleneck_engine",
-                                    "detail": str(b),
-                                    "confidence": 0.75,
-                                }],
-                                risk_class="low",
-                                expected_delta=f"Resolve bottleneck in {b.get('component', '?')}",
-                                recommended_next_step="Run maintenance action template",
-                            ))
+                            candidates.append(
+                                SupplyCandidate(
+                                    source="bottleneck_engine",
+                                    title=f"Bottleneck: {b.get('component', '?')}",
+                                    description=b.get("description", ""),
+                                    evidence=[
+                                        {
+                                            "source": "bottleneck_engine",
+                                            "detail": str(b),
+                                            "confidence": 0.75,
+                                        }
+                                    ],
+                                    risk_class="low",
+                                    expected_delta=f"Resolve bottleneck in {b.get('component', '?')}",
+                                    recommended_next_step="Run maintenance action template",
+                                )
+                            )
         except Exception as e:
             logger.debug("BottleneckEngine scan: %s", e)
         return candidates
 
     def _scan_template_audit_gaps(self) -> list[SupplyCandidate]:
         candidates: list[SupplyCandidate] = []
-        audit_path = os.path.join(_REPO_ROOT, "data", "umh", "templates", "phase10_0_template_audit.json")
+        audit_path = os.path.join(
+            _REPO_ROOT, "data", "umh", "templates", "phase10_0_template_audit.json"
+        )
         if not os.path.isfile(audit_path):
             return candidates
         try:
             import json
+
             with open(audit_path) as f:
                 audit = json.load(f)
             gaps = audit.get("candidate_discovery_gaps", audit.get("discovery_gaps", []))
@@ -439,19 +476,25 @@ class CandidateSupplyEngine:
                     gap_desc = gap.get("description", gap.get("impact", ""))
                     gap_severity = gap.get("severity", "medium")
                     if gap_severity in ("critical", "high"):
-                        candidates.append(SupplyCandidate(
-                            source="template_audit_gaps",
-                            title=f"Audit gap: {gap_title}",
-                            description=f"Template audit identified gap: {gap_title}. {gap_desc}",
-                            evidence=[{
-                                "source": "template_audit",
-                                "detail": f"gap_id={gap.get('gap_id', '?')}, severity={gap_severity}, title={gap_title}",
-                                "confidence": 0.7,
-                            }],
-                            risk_class="low",
-                            expected_delta=f"Close audit gap: {gap_title}",
-                            recommended_next_step=gap.get("fix_in_phase", "Review template audit"),
-                        ))
+                        candidates.append(
+                            SupplyCandidate(
+                                source="template_audit_gaps",
+                                title=f"Audit gap: {gap_title}",
+                                description=f"Template audit identified gap: {gap_title}. {gap_desc}",
+                                evidence=[
+                                    {
+                                        "source": "template_audit",
+                                        "detail": f"gap_id={gap.get('gap_id', '?')}, severity={gap_severity}, title={gap_title}",
+                                        "confidence": 0.7,
+                                    }
+                                ],
+                                risk_class="low",
+                                expected_delta=f"Close audit gap: {gap_title}",
+                                recommended_next_step=gap.get(
+                                    "fix_in_phase", "Review template audit"
+                                ),
+                            )
+                        )
         except Exception as e:
             logger.debug("Template audit gap scan: %s", e)
         return candidates
@@ -484,24 +527,26 @@ class CandidateSupplyEngine:
                     )
                     break
         if affected:
-            candidates.append(SupplyCandidate(
-                source="stale_test_paths",
-                title=f"Stale worktree sys.path in {len(affected)} test files",
-                description=(
-                    f"{len(affected)} test files contain sys.path.insert pointing "
-                    f"to non-existent worktree directories. These are dead code "
-                    f"paths that silently fail."
-                ),
-                evidence=[
-                    {"source": "filesystem_scan", "detail": d, "confidence": 0.95}
-                    for d in evidence_details
-                ],
-                affected_files=affected,
-                risk_class="low",
-                non_mutating=False,
-                expected_delta="Remove stale worktree sys.path.insert lines from test files",
-                recommended_next_step="Replace stale paths with os.environ.get pattern",
-            ))
+            candidates.append(
+                SupplyCandidate(
+                    source="stale_test_paths",
+                    title=f"Stale worktree sys.path in {len(affected)} test files",
+                    description=(
+                        f"{len(affected)} test files contain sys.path.insert pointing "
+                        f"to non-existent worktree directories. These are dead code "
+                        f"paths that silently fail."
+                    ),
+                    evidence=[
+                        {"source": "filesystem_scan", "detail": d, "confidence": 0.95}
+                        for d in evidence_details
+                    ],
+                    affected_files=affected,
+                    risk_class="low",
+                    non_mutating=False,
+                    expected_delta="Remove stale worktree sys.path.insert lines from test files",
+                    recommended_next_step="Replace stale paths with os.environ.get pattern",
+                )
+            )
         return candidates
 
     def _scan_missing_package_init(self) -> list[SupplyCandidate]:
@@ -517,28 +562,32 @@ class CandidateSupplyEngine:
                 if rel_dir == "tests":
                     continue
                 init_path = os.path.join(rel_dir, "__init__.py")
-                candidates.append(SupplyCandidate(
-                    source="missing_package_init",
-                    title=f"Missing __init__.py in {rel_dir}",
-                    description=(
-                        f"Directory {rel_dir} contains {len(py_files)} Python "
-                        f"test files but no __init__.py, making it an implicit "
-                        f"namespace rather than a proper package."
-                    ),
-                    evidence=[{
-                        "source": "filesystem_scan",
-                        "detail": (
-                            f"{rel_dir} has {len(py_files)} .py files "
-                            f"({', '.join(py_files[:3])}) but no __init__.py"
+                candidates.append(
+                    SupplyCandidate(
+                        source="missing_package_init",
+                        title=f"Missing __init__.py in {rel_dir}",
+                        description=(
+                            f"Directory {rel_dir} contains {len(py_files)} Python "
+                            f"test files but no __init__.py, making it an implicit "
+                            f"namespace rather than a proper package."
                         ),
-                        "confidence": 0.9,
-                    }],
-                    affected_files=[init_path],
-                    risk_class="low",
-                    non_mutating=True,
-                    expected_delta=f"Create empty __init__.py in {rel_dir}",
-                    recommended_next_step="Create empty __init__.py file",
-                ))
+                        evidence=[
+                            {
+                                "source": "filesystem_scan",
+                                "detail": (
+                                    f"{rel_dir} has {len(py_files)} .py files "
+                                    f"({', '.join(py_files[:3])}) but no __init__.py"
+                                ),
+                                "confidence": 0.9,
+                            }
+                        ],
+                        affected_files=[init_path],
+                        risk_class="low",
+                        non_mutating=True,
+                        expected_delta=f"Create empty __init__.py in {rel_dir}",
+                        recommended_next_step="Create empty __init__.py file",
+                    )
+                )
         return candidates
 
     def _scan_stale_docstrings(self) -> list[SupplyCandidate]:
@@ -563,46 +612,54 @@ class CandidateSupplyEngine:
                         in_docstring = not in_docstring
                     found = stale_re.search(line)
                     if found:
-                        candidates.append(SupplyCandidate(
-                            source="stale_docstrings",
-                            title=f"Stale project name in {rel} docstring",
-                            description=(
-                                f"Script {rel} line {i+1} contains stale project "
-                                f"name '{found.group()}' in module docstring"
-                            ),
-                            evidence=[{
-                                "source": "docstring_scan",
-                                "detail": f"line {i+1}: {line.rstrip()}",
-                                "confidence": 0.9,
-                            }],
-                            affected_files=[rel],
-                            risk_class="low",
-                            non_mutating=True,
-                            expected_delta=f"Update stale project name in {rel} docstring",
-                            recommended_next_step="Replace stale name with current terminology",
-                        ))
+                        candidates.append(
+                            SupplyCandidate(
+                                source="stale_docstrings",
+                                title=f"Stale project name in {rel} docstring",
+                                description=(
+                                    f"Script {rel} line {i + 1} contains stale project "
+                                    f"name '{found.group()}' in module docstring"
+                                ),
+                                evidence=[
+                                    {
+                                        "source": "docstring_scan",
+                                        "detail": f"line {i + 1}: {line.rstrip()}",
+                                        "confidence": 0.9,
+                                    }
+                                ],
+                                affected_files=[rel],
+                                risk_class="low",
+                                non_mutating=True,
+                                expected_delta=f"Update stale project name in {rel} docstring",
+                                recommended_next_step="Replace stale name with current terminology",
+                            )
+                        )
                         break
                 elif in_docstring:
                     found = stale_re.search(line)
                     if found:
-                        candidates.append(SupplyCandidate(
-                            source="stale_docstrings",
-                            title=f"Stale project name in {rel} docstring",
-                            description=(
-                                f"Script {rel} line {i+1} contains stale project "
-                                f"name '{found.group()}' in module docstring"
-                            ),
-                            evidence=[{
-                                "source": "docstring_scan",
-                                "detail": f"line {i+1}: {line.rstrip()}",
-                                "confidence": 0.9,
-                            }],
-                            affected_files=[rel],
-                            risk_class="low",
-                            non_mutating=True,
-                            expected_delta=f"Update stale project name in {rel} docstring",
-                            recommended_next_step="Replace stale name with current terminology",
-                        ))
+                        candidates.append(
+                            SupplyCandidate(
+                                source="stale_docstrings",
+                                title=f"Stale project name in {rel} docstring",
+                                description=(
+                                    f"Script {rel} line {i + 1} contains stale project "
+                                    f"name '{found.group()}' in module docstring"
+                                ),
+                                evidence=[
+                                    {
+                                        "source": "docstring_scan",
+                                        "detail": f"line {i + 1}: {line.rstrip()}",
+                                        "confidence": 0.9,
+                                    }
+                                ],
+                                affected_files=[rel],
+                                risk_class="low",
+                                non_mutating=True,
+                                expected_delta=f"Update stale project name in {rel} docstring",
+                                recommended_next_step="Replace stale name with current terminology",
+                            )
+                        )
                         break
         return candidates
 

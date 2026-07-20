@@ -21,10 +21,13 @@ logger = logging.getLogger(__name__)
 
 _UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 _DATA_ROOT = os.path.join(_UMH_ROOT, "data", "umh")
-_WORKCELL_DIR = os.path.join(_DATA_ROOT, "organism", "workcells")
-_WORK_PACKETS_PATH = os.path.join(_DATA_ROOT, "universal_work", "work_packets.jsonl")
-_JOURNAL_PATH = os.path.join(_DATA_ROOT, "organism", "execution_journal.jsonl")
-_APPROVALS_PATH = os.path.join(_DATA_ROOT, "organism", "approvals.jsonl")
+from substrate.state.runtime_paths import runtime_state_dir as _rt_dir  # noqa: E402
+from substrate.state.runtime_paths import runtime_state_path as _rt_path  # noqa: E402
+
+_WORKCELL_DIR = str(_rt_dir("organism", create=False) / "workcells")
+_WORK_PACKETS_PATH = str(_rt_path("universal_work", "work_packets.jsonl", create_parent=False))
+_JOURNAL_PATH = str(_rt_path("organism", "execution_journal.jsonl", create_parent=False))
+_APPROVALS_PATH = str(_rt_path("organism", "approvals.jsonl", create_parent=False))
 _TRACES_PATH = os.path.join(_DATA_ROOT, "traces", "traces.jsonl")
 
 command_center_router = APIRouter(prefix="/command-center", tags=["command-center"])
@@ -38,6 +41,7 @@ def configure(require_operator_dep: Callable) -> None:
 
 def _detect_env() -> str:
     import platform
+
     system = platform.system().lower()
     if os.path.exists("/.dockerenv"):
         return "container"
@@ -64,13 +68,15 @@ def _load_workcell_heartbeats() -> list[dict[str, Any]]:
                 data["workcell_dir"] = entry
                 heartbeats.append(data)
             except (json.JSONDecodeError, OSError):
-                heartbeats.append({
-                    "workcell_id": entry,
-                    "workcell_dir": entry,
-                    "role": "unknown",
-                    "status": "unavailable",
-                    "error": "heartbeat unreadable",
-                })
+                heartbeats.append(
+                    {
+                        "workcell_id": entry,
+                        "workcell_dir": entry,
+                        "role": "unknown",
+                        "status": "unavailable",
+                        "error": "heartbeat unreadable",
+                    }
+                )
     return heartbeats
 
 
@@ -114,10 +120,7 @@ def _load_blocked_packets() -> list[dict[str, Any]]:
                     continue
                 try:
                     pkt = json.loads(line)
-                    is_blocked = (
-                        pkt.get("status") == "blocked"
-                        or bool(pkt.get("blockers"))
-                    )
+                    is_blocked = pkt.get("status") == "blocked" or bool(pkt.get("blockers"))
                     if is_blocked:
                         packets.append(pkt)
                 except json.JSONDecodeError:
@@ -207,6 +210,7 @@ def _get_snapshot_runtime() -> Any:
     if not hasattr(_get_snapshot_runtime, "_instance"):
         try:
             from substrate.operator.operator_snapshot_runtime import OperatorSnapshotRuntime
+
             _get_snapshot_runtime._instance = OperatorSnapshotRuntime()
         except Exception:
             logger.debug("OperatorSnapshotRuntime unavailable")
@@ -230,7 +234,7 @@ def _attention(request: Request) -> dict[str, Any]:
     if rt is None:
         return {"ok": True, "attention": []}
     items = rt.attention()
-    return {"ok": True, "attention": [i.to_dict() if hasattr(i, 'to_dict') else i for i in items]}
+    return {"ok": True, "attention": [i.to_dict() if hasattr(i, "to_dict") else i for i in items]}
 
 
 @command_center_router.get("/changes")
@@ -302,7 +306,9 @@ def _agents(request: Request) -> dict[str, Any]:
             "runtime": "organism_daemon",
             "authority_level": "workcell",
             "last_heartbeat": ts,
-            "last_heartbeat_iso": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat() if ts else "",
+            "last_heartbeat_iso": datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+            if ts
+            else "",
             "messages_processed": hb.get("messages_processed", 0),
             "inbox_depth": hb.get("inbox_depth", 0),
             "generation": hb.get("generation", 0),
@@ -344,8 +350,14 @@ def _work_packets(request: Request) -> dict[str, Any]:
     for pkt in packets:
         pid = pkt.get("packet_id", "")
 
-        related_traces = [t for t in traces if t.get("packet_id") == pid or pid in str(t.get("correlation_id", ""))]
-        related_approvals = [a for a in approvals if a.get("trace_id", "") == pid or pid in a.get("description", "")]
+        related_traces = [
+            t
+            for t in traces
+            if t.get("packet_id") == pid or pid in str(t.get("correlation_id", ""))
+        ]
+        related_approvals = [
+            a for a in approvals if a.get("trace_id", "") == pid or pid in a.get("description", "")
+        ]
 
         item = {
             "packet_id": pid,
@@ -361,7 +373,9 @@ def _work_packets(request: Request) -> dict[str, Any]:
             "blockers": pkt.get("blockers", []),
             "dependencies": pkt.get("dependencies", []),
             "approval_gates": pkt.get("approval_gates", []),
-            "approval_state": "pending" if related_approvals and any(a.get("status") == "pending" for a in related_approvals) else "none",
+            "approval_state": "pending"
+            if related_approvals and any(a.get("status") == "pending" for a in related_approvals)
+            else "none",
             "latest_trace": related_traces[-1].get("entry_id", "") if related_traces else "",
             "latest_proof": pkt.get("linked_pr_url", ""),
             "next_action": pkt.get("status_reason", ""),
@@ -395,7 +409,11 @@ def _blocked(request: Request) -> dict[str, Any]:
     """Blocked work — packets and tasks that are stuck."""
     blocked_packets = _load_blocked_packets()
     journal = _load_journal_recent(50)
-    failed_entries = [j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED", "REJECTED")]
+    failed_entries = [
+        j
+        for j in journal
+        if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED", "REJECTED")
+    ]
 
     items: list[dict[str, Any]] = []
     for pkt in blocked_packets:
@@ -441,7 +459,12 @@ def _approvals_view(request: Request) -> dict[str, Any]:
     """Approval/blocked-work integration — pending approvals with context."""
     pending = _load_approvals(status_filter="pending")
     journal = _load_journal_recent(50)
-    pending_journal = [j for j in journal if j.get("phase") in ("PROPOSED", "GOVERNANCE_CHECK") and j.get("details", {}).get("status") != "approved"]
+    pending_journal = [
+        j
+        for j in journal
+        if j.get("phase") in ("PROPOSED", "GOVERNANCE_CHECK")
+        and j.get("details", {}).get("status") != "approved"
+    ]
 
     items: list[dict[str, Any]] = []
     for a in pending:
@@ -598,16 +621,34 @@ def _summary(request: Request) -> dict[str, Any]:
             "executing_packets": len(executing),
         },
         "who_is_working": [
-            {"agent_id": h.get("workcell_id", ""), "role": h.get("role", ""), "status": h.get("status", "")}
+            {
+                "agent_id": h.get("workcell_id", ""),
+                "role": h.get("role", ""),
+                "status": h.get("status", ""),
+            }
             for h in heartbeats
         ],
         "what_is_blocked": {
             "count": len(blocked),
-            "items": [{"id": b.get("packet_id", ""), "title": b.get("title", ""), "blockers": b.get("blockers", [])} for b in blocked[:5]],
+            "items": [
+                {
+                    "id": b.get("packet_id", ""),
+                    "title": b.get("title", ""),
+                    "blockers": b.get("blockers", []),
+                }
+                for b in blocked[:5]
+            ],
         },
         "what_needs_approval": {
             "count": len(pending_approvals),
-            "items": [{"id": a.get("id", ""), "title": a.get("title", ""), "risk_level": a.get("risk_level", "")} for a in pending_approvals[:5]],
+            "items": [
+                {
+                    "id": a.get("id", ""),
+                    "title": a.get("title", ""),
+                    "risk_level": a.get("risk_level", ""),
+                }
+                for a in pending_approvals[:5]
+            ],
         },
         "what_finished": {
             "recent_completed": len(completed),
@@ -615,7 +656,9 @@ def _summary(request: Request) -> dict[str, Any]:
         },
         "what_failed": {
             "recent_failed": len(failed),
-            "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", "")) if failed else "",
+            "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", ""))
+            if failed
+            else "",
         },
         "what_should_resume_next": next_packet,
         "packets_by_status": by_status,
@@ -628,9 +671,14 @@ def _summary(request: Request) -> dict[str, Any]:
 
 # ── Mutation routes (governance-gated, operator-authenticated) ─────────
 
-_VALID_SOURCE_TYPES = frozenset({
-    "jarvis_command", "cockpit_ui", "operator_manual", "cadence_auto",
-})
+_VALID_SOURCE_TYPES = frozenset(
+    {
+        "jarvis_command",
+        "cockpit_ui",
+        "operator_manual",
+        "cadence_auto",
+    }
+)
 
 _MAX_INTENT_LEN = 2000
 _MAX_END_STATE_LEN = 2000
@@ -646,6 +694,7 @@ def _get_operator_dep():
 def _sanitize_text(text: str, max_len: int = 500) -> str:
     """Strip control characters and cap length for journal safety."""
     import re
+
     cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
     return cleaned[:max_len]
 
@@ -664,6 +713,7 @@ async def _approval_decide(request: Request, approval_id: str) -> dict[str, Any]
     def _do_decide():
         try:
             from substrate.organism.approval_store import ApprovalStore
+
             store = ApprovalStore()
             result = store.decide(approval_id, decision, decided_by=decided_by)
         except Exception as exc:
@@ -673,12 +723,14 @@ async def _approval_decide(request: Request, approval_id: str) -> dict[str, Any]
         if result is None:
             return f"approval {approval_id} not found", False
 
-        _log_journal_entry({
-            "event": "approval_decided",
-            "approval_id": _sanitize_text(approval_id, 100),
-            "decision": decision,
-            "decided_by": decided_by,
-        })
+        _log_journal_entry(
+            {
+                "event": "approval_decided",
+                "approval_id": _sanitize_text(approval_id, 100),
+                "decision": decision,
+                "decided_by": decided_by,
+            }
+        )
         return decision, True
 
     resp = governed_mutation(
@@ -715,8 +767,9 @@ async def _work_packet_create(request: Request) -> dict[str, Any]:
 
     def _do_create():
         try:
+            from substrate.organism.work_packet import load_packets, persist_packets
             from substrate.organism.work_packet_engine import WorkPacketEngine
-            from substrate.organism.work_packet import persist_packets, load_packets
+
             engine = WorkPacketEngine()
             packet = engine.create_packet_from_intent(
                 user_intent=user_intent,
@@ -732,14 +785,16 @@ async def _work_packet_create(request: Request) -> dict[str, Any]:
             logger.warning("work packet create failed: %s", exc)
             return str(exc), False
 
-        _log_journal_entry({
-            "event": "work_packet_created",
-            "packet_id": packet.packet_id,
-            "title": _sanitize_text(packet.title, 200),
-            "risk_class": packet.risk_class,
-            "source_type": source_type,
-            "user_intent": _sanitize_text(user_intent, 200),
-        })
+        _log_journal_entry(
+            {
+                "event": "work_packet_created",
+                "packet_id": packet.packet_id,
+                "title": _sanitize_text(packet.title, 200),
+                "risk_class": packet.risk_class,
+                "source_type": source_type,
+                "user_intent": _sanitize_text(user_intent, 200),
+            }
+        )
         return f"created packet {packet.packet_id}", True
 
     resp = governed_mutation(
@@ -774,6 +829,7 @@ async def _work_packet_decompose(request: Request) -> dict[str, Any]:
     def _do_decompose():
         try:
             from substrate.organism.work_packet_engine import WorkPacketEngine
+
             engine = WorkPacketEngine()
             result = engine.decompose_intent_to_batch(
                 user_intent=user_intent,
@@ -785,12 +841,14 @@ async def _work_packet_decompose(request: Request) -> dict[str, Any]:
             logger.warning("work packet decompose failed: %s", exc)
             return str(exc), False
 
-        _log_journal_entry({
-            "event": "work_packet_decomposed",
-            "batch_id": result.get("batch_id", ""),
-            "created_count": result.get("created_count", 0),
-            "user_intent": _sanitize_text(user_intent, 200),
-        })
+        _log_journal_entry(
+            {
+                "event": "work_packet_decomposed",
+                "batch_id": result.get("batch_id", ""),
+                "created_count": result.get("created_count", 0),
+                "user_intent": _sanitize_text(user_intent, 200),
+            }
+        )
         return f"decomposed into {result.get('created_count', 0)} packets", True
 
     resp = governed_mutation(

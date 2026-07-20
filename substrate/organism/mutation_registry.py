@@ -13,7 +13,7 @@ UMH substrate subsystem. Instance-agnostic.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from substrate.organism.action_envelope import (
@@ -482,7 +482,7 @@ INTENT_LOOP_SUBMIT = MutationSpec(
     verification_required=False,
     # LOW risk + LOCAL_FILE + degraded opt-in: the P4S-31B operator-submit gate
     # captures one bounded operator intent as substrate-owned JSON state
-    # (data/umh/operator/intent_loop/) at AWAITING_APPROVAL. The write is
+    # (<runtime-state>/operator/intent_loop/) at AWAITING_APPROVAL. The write is
     # governed (never an ungoverned append); the gate HOLDS — submission never
     # auto-advances past AWAITING_APPROVAL. Degraded opt-in keeps the capture
     # REAL-governed even when the organism daemon is down (mandatory degraded
@@ -508,7 +508,7 @@ INTENT_LOOP_APPROVAL_DECISION = MutationSpec(
     verification_required=False,
     # LOW risk + LOCAL_FILE + degraded opt-in: the P4S-31 MVP operating-loop
     # approval gate writes ONLY substrate-owned JSON state
-    # (data/umh/operator/intent_loop/). Opting into degraded mode lets the
+    # (<runtime-state>/operator/intent_loop/). Opting into degraded mode lets the
     # gate stay REAL-governed even when the organism daemon is down — the
     # fail-closed router still emits a mandatory degraded audit record. It is
     # never a provider action, projection-DB write, or non-local mutation.

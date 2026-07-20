@@ -17,7 +17,7 @@ This is the MVP operating-loop SKELETON, not autonomy. It:
 
 It NEVER dispatches an agent, executes a provider action, or writes a projection
 DB. The only state it writes is substrate-owned JSON under
-``data/umh/operator/intent_loop/`` — the same class of local state
+``<runtime-state>/operator/intent_loop/`` — the same class of local state
 ``IntentReceiptStore`` and ``IntentContractManager`` already persist.
 
 Governance is REAL, not simulated: the approval decision is submitted through
@@ -54,9 +54,26 @@ from substrate.execution.intent.intent_spec import (
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_DEFAULT_STORE_PATH = os.path.join(
-    _REPO_ROOT, "data", "umh", "operator", "intent_loop", "intent_loops.jsonl"
-)
+
+
+def _resolve_default_store_path() -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(
+        runtime_state_path("operator/intent_loop", "intent_loops.jsonl", create_parent=False)
+    )
+
+
+# Module-level constant computed through the canonical runtime-state boundary.
+# It stays a CONSTANT (not a function) because it is the established
+# test-isolation seam — the intent-rail and voice suites monkeypatch this
+# attribute to redirect the store to a tmp path.
+_DEFAULT_STORE_PATH = _resolve_default_store_path()
+
+
+def _default_store_path() -> str:
+    return _DEFAULT_STORE_PATH
+
 
 # The registered mutation name for the approval decision. Registered in
 # substrate.organism.mutation_registry as INTENT_LOOP_APPROVAL_DECISION.

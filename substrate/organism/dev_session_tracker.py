@@ -57,7 +57,11 @@ class DevSession:
 class DevSessionTracker:
     """Tracks development sessions and produces ActionEnvelopes on completion."""
 
-    def __init__(self, store_dir: str = "data/umh/organism") -> None:
+    def __init__(self, store_dir: str | None = None) -> None:
+        if store_dir is None:
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            store_dir = str(runtime_state_dir("organism"))
         self._store_dir = store_dir
         self._path = os.path.join(store_dir, "dev_sessions.jsonl")
         self._sessions: dict[str, DevSession] = {}

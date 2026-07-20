@@ -21,7 +21,7 @@ import math
 import os
 import statistics
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -180,12 +180,9 @@ class PredictiveSelfModel:
         self._calibration_hits: int = 0
         self._calibration_total: int = 0
         self._registry = mutation_registry
-        self._store_dir = os.path.join(
-            os.environ.get("UMH_ROOT", "/opt/OS"),
-            "data",
-            "umh",
-            "qualification",
-        )
+        from substrate.state.runtime_paths import runtime_state_dir
+
+        self._store_dir = str(runtime_state_dir("qualification", create=False))
 
     # ── Feature key hierarchy ────────────────────────────────────────
 

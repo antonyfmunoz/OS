@@ -88,7 +88,9 @@ class RoleContract:
             "description": self.description,
             "owned_work_types": self.owned_work_types,
             "owned_domains": self.owned_domains,
-            "capability_profile": self.capability_profile.to_dict() if self.capability_profile else None,
+            "capability_profile": self.capability_profile.to_dict()
+            if self.capability_profile
+            else None,
             "allowed_tools": self.allowed_tools,
             "knowledge_access_policy": self.knowledge_access_policy,
             "spawn_permissions": self.spawn_permissions,
@@ -204,9 +206,13 @@ def persist_role_contracts(
     contracts: list[RoleContract],
     store_path: str | None = None,
 ) -> None:
-    path = store_path or os.path.join(
-        _REPO_ROOT, "data", "umh", "universal_work", "role_contracts.jsonl",
-    )
+    if store_path is None:
+        from substrate.state.runtime_paths import runtime_state_path
+
+        store_path = str(
+            runtime_state_path("universal_work", "role_contracts.jsonl", create_parent=False)
+        )
+    path = store_path
     dir_path = os.path.dirname(path)
     os.makedirs(dir_path, exist_ok=True)
     fd, tmp_path = tempfile.mkstemp(dir=dir_path, suffix=".tmp")
@@ -222,9 +228,13 @@ def persist_role_contracts(
 
 
 def load_role_contracts(store_path: str | None = None) -> list[RoleContract]:
-    path = store_path or os.path.join(
-        _REPO_ROOT, "data", "umh", "universal_work", "role_contracts.jsonl",
-    )
+    if store_path is None:
+        from substrate.state.runtime_paths import runtime_state_path
+
+        store_path = str(
+            runtime_state_path("universal_work", "role_contracts.jsonl", create_parent=False)
+        )
+    path = store_path
     if not os.path.exists(path):
         return []
     contracts: list[RoleContract] = []
@@ -237,7 +247,5 @@ def load_role_contracts(store_path: str | None = None) -> list[RoleContract]:
                 d = json.loads(line)
                 contracts.append(RoleContract.from_dict(d))
             except (json.JSONDecodeError, KeyError, TypeError) as exc:
-                raise ValueError(
-                    f"Corrupt role contract at line {line_num}: {exc}"
-                ) from exc
+                raise ValueError(f"Corrupt role contract at line {line_num}: {exc}") from exc
     return contracts

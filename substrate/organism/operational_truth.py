@@ -10,13 +10,11 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
 import os
 import shutil
-import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -24,6 +22,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+
+from substrate.execution.cpu_gate import gated_subprocess_run
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +74,7 @@ class OperationalIssue:
     status: IssueStatus = IssueStatus.OPEN
     evidence: str = ""
     recommended_fix: str = ""
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -152,9 +150,7 @@ class LLMProviderState:
 @dataclass
 class OperationalTruthSnapshot:
     snapshot_id: str = field(default_factory=lambda: f"ots-{uuid4().hex[:8]}")
-    created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     repo_file_count: int = 0
     active_python_files: int = 0
     active_ts_files: int = 0
@@ -206,7 +202,14 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
     root = Path(repo_root or os.environ.get("UMH_ROOT", "/opt/OS"))
     snap = OperationalTruthSnapshot()
 
-    _SKIP_DIRS = {".git", "node_modules", "__pycache__", ".mypy_cache", ".ruff_cache", ".pytest_cache"}
+    _SKIP_DIRS = {
+        ".git",
+        "node_modules",
+        "__pycache__",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+    }
     _MAX_DEPTH = 3
 
     try:
@@ -250,7 +253,9 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
     try:
         result = gated_subprocess_run(
             ["docker", "ps", "--format", "{{.Names}}|{{.Status}}|{{.Ports}}"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         for line in result.stdout.strip().split("\n"):
             if not line.strip():
@@ -259,14 +264,20 @@ def collect_snapshot(repo_root: str | None = None) -> OperationalTruthSnapshot:
             name = parts[0] if len(parts) > 0 else ""
             status = parts[1] if len(parts) > 1 else ""
             port = parts[2] if len(parts) > 2 else ""
-            snap.containers.append(ContainerState(
-                name=name, status=status, port=port,
-                healthy="Up" in status,
-            ))
+            snap.containers.append(
+                ContainerState(
+                    name=name,
+                    status=status,
+                    port=port,
+                    healthy="Up" in status,
+                )
+            )
     except Exception:
         pass
 
-    journal_path = root / "data" / "umh" / "organism" / "execution_journal.jsonl"
+    from substrate.state.runtime_paths import runtime_state_path
+
+    journal_path = runtime_state_path("organism", "execution_journal.jsonl", create_parent=False)
     if journal_path.exists():
         try:
             lines = sum(1 for _ in open(journal_path))
@@ -324,10 +335,15 @@ def persist_snapshot(
     persist_dir: str | None = None,
 ) -> Path:
     """Append snapshot to snapshots.jsonl and return the path."""
-    base = Path(persist_dir or os.path.join(
-        os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "operational_truth",
-    ))
+    base = Path(
+        persist_dir
+        or os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data",
+            "umh",
+            "operational_truth",
+        )
+    )
     base.mkdir(parents=True, exist_ok=True)
     path = base / "snapshots.jsonl"
     with open(path, "a") as f:
@@ -340,10 +356,15 @@ def persist_issues(
     persist_dir: str | None = None,
 ) -> Path:
     """Append issues to issues.jsonl and return the path."""
-    base = Path(persist_dir or os.path.join(
-        os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "operational_truth",
-    ))
+    base = Path(
+        persist_dir
+        or os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data",
+            "umh",
+            "operational_truth",
+        )
+    )
     base.mkdir(parents=True, exist_ok=True)
     path = base / "issues.jsonl"
     with open(path, "a") as f:

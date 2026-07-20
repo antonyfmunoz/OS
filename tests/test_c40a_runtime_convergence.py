@@ -1,19 +1,35 @@
 """C40A — Surface Runtime Convergence Tests.
 
-Tests the C40A campaign components: runtime boundary audit,
-mesh dispatch convergence, projection equivalence measurement,
-and 4-dimensional qualification.
+Tests the C40A campaign components: mesh dispatch convergence, projection
+equivalence measurement, and 4-dimensional qualification.
+
+Wave 0 adjudication (2026-07-20): the former TestRuntimeBoundaryAudit class
+imported scripts/run_c40a_runtime_audit.py, deleted with the retired campaign
+tooling in e171df789 — the class was orphaned, its 4 tests failing on
+ModuleNotFoundError ever since. Adjudicated invariant-by-invariant, never
+deleted for green:
+  1. serialization chain  → RETIRED: covered better by
+     tests/test_mesh_dispatch_contract.py::TestSerializationChain (+
+     TestShellAdapterContract, TestRelayPassthrough).
+  2. surfaces documented  → RETIRED with recorded gap: no live operator-
+     surface registry exists to assert against; rebuilding one as live code
+     is a Wave 5 (Cockpit daily-driver) requirement.
+  3. governance bypass    → REPLACED by live full-path tests in
+     tests/test_mesh_dispatch_contract.py::TestGovernanceCapabilityName
+     alongside the validate_request hardening (dotted-operation
+     normalization; unknown operations denied; allowed_commands binds to
+     shell.execute). The hazard was latent (direct-call only) — the
+     production node client already normalized before policy evaluation.
+  4. runtime adapter name → REPLACED by the emitted-capability contract test
+     in the same class.
 """
 
 from __future__ import annotations
 
-import json
 import sys
 
 sys.path.insert(0, "/opt/OS")
 
-import pytest
-import time
 
 from substrate.organism.daemon import OrganismDaemon
 from substrate.organism.mutation_registry import MutationRegistry
@@ -21,41 +37,6 @@ from substrate.organism.mutation_router import (
     MutationRequest,
     MutationRouter,
 )
-
-
-class TestRuntimeBoundaryAudit:
-    """Verify the audit script produces valid output."""
-
-    def test_serialization_chain_passes(self):
-        from scripts.run_c40a_runtime_audit import _test_serialization_chain
-
-        results = _test_serialization_chain()
-        assert len(results) == 2
-        for test in results:
-            assert test["final_status"] == "pass"
-
-    def test_surfaces_documented(self):
-        from scripts.run_c40a_runtime_audit import _build_surfaces
-
-        surfaces = _build_surfaces()
-        surface_ids = {s["surface_id"] for s in surfaces}
-        assert "cockpit" in surface_ids
-        assert "cli" in surface_ids
-        assert "discord" in surface_ids
-        assert "mesh_dispatch" in surface_ids
-        assert "event_spine" in surface_ids
-
-    def test_governance_bypass_check(self):
-        from scripts.run_c40a_runtime_audit import _test_governance_bypass
-
-        result = _test_governance_bypass()
-        assert result["status"] in ("tested", "skipped")
-
-    def test_runtime_adapter_check(self):
-        from scripts.run_c40a_runtime_audit import _test_runtime_adapter_capability_name
-
-        result = _test_runtime_adapter_capability_name()
-        assert result["status"] in ("tested", "error")
 
 
 class TestMeshDispatchContract:
@@ -224,16 +205,16 @@ class TestFourDimensionalQualification:
     """Verify the 4-dimensional verdict structure."""
 
     def test_organism_dimension(self):
-        from substrate.organism.qualification_harness import (
-            QualificationConfig,
-            QualificationHarness,
-            QualificationOrchestrator,
-            ORL,
-        )
         from scripts.run_qualification import (
             _bootstrap_organism,
             _submit_batch,
             _validate_all_properties,
+        )
+        from substrate.organism.qualification_harness import (
+            ORL,
+            QualificationConfig,
+            QualificationHarness,
+            QualificationOrchestrator,
         )
 
         org = _bootstrap_organism()
@@ -244,9 +225,7 @@ class TestFourDimensionalQualification:
             batch_size=25,
             target_confidence=0.95,
         )
-        orchestrator = QualificationOrchestrator(
-            harness, config, mutation_registry=org["registry"]
-        )
+        orchestrator = QualificationOrchestrator(harness, config, mutation_registry=org["registry"])
 
         report = orchestrator.run_until_converged(
             lambda bs: _submit_batch(org, harness, bs),
@@ -326,9 +305,14 @@ class TestMutationRegistryStability:
     def test_key_mutations_exist(self):
         registry = MutationRegistry()
         required = [
-            "settings_update", "container_restart", "docker_exec",
-            "shell_execute", "deployment", "file_write",
-            "state_mutate", "presence_update",
+            "settings_update",
+            "container_restart",
+            "docker_exec",
+            "shell_execute",
+            "deployment",
+            "file_write",
+            "state_mutate",
+            "presence_update",
         ]
         for name in required:
             assert registry.is_registered(name), f"{name} not registered"

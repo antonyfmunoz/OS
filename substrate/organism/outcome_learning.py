@@ -95,7 +95,9 @@ class LearningSignal:
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "signal_type": self.signal_type.value if isinstance(self.signal_type, SignalType) else self.signal_type,
+            "signal_type": self.signal_type.value
+            if isinstance(self.signal_type, SignalType)
+            else self.signal_type,
             "action_type": self.action_type,
             "description": self.description,
             "old_value": self.old_value,
@@ -182,9 +184,11 @@ class OutcomeLearningLoop:
     """Tracks execution outcomes and derives learning signals."""
 
     def __init__(self, store_path: str | None = None):
-        self._store_path = store_path or os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "outcome_learning.jsonl"
-        )
+        if store_path is None:
+            from substrate.state.runtime_paths import runtime_state_path
+
+            store_path = str(runtime_state_path("organism", "outcome_learning.jsonl"))
+        self._store_path = store_path
         self._outcomes: list[OutcomeRecord] = []
         self._signals: list[LearningSignal] = []
         self._reliability: dict[str, float] = defaultdict(lambda: 0.5)
@@ -211,7 +215,10 @@ class OutcomeLearningLoop:
                             try:
                                 fields["status"] = OutcomeStatus(fields["status"])
                             except ValueError:
-                                logger.warning("Skipping outcome record with unknown status: %s", fields.get("status"))
+                                logger.warning(
+                                    "Skipping outcome record with unknown status: %s",
+                                    fields.get("status"),
+                                )
                                 continue
                         rec = OutcomeRecord(**fields)
                         self._outcomes.append(rec)
@@ -219,11 +226,16 @@ class OutcomeLearningLoop:
                         self._seen_action_types.add(rec.action_type)
                     elif data.get("record_type") == "signal":
                         sig_fields = {k: v for k, v in data.items() if k != "record_type"}
-                        if "signal_type" in sig_fields and isinstance(sig_fields["signal_type"], str):
+                        if "signal_type" in sig_fields and isinstance(
+                            sig_fields["signal_type"], str
+                        ):
                             try:
                                 sig_fields["signal_type"] = SignalType(sig_fields["signal_type"])
                             except ValueError:
-                                logger.warning("Skipping signal with unknown type: %s", sig_fields.get("signal_type"))
+                                logger.warning(
+                                    "Skipping signal with unknown type: %s",
+                                    sig_fields.get("signal_type"),
+                                )
                                 continue
                         sig = LearningSignal(**sig_fields)
                         self._signals.append(sig)
@@ -247,8 +259,10 @@ class OutcomeLearningLoop:
         self._persist_record(data)
 
         success = outcome.status in (OutcomeStatus.SUCCESS, OutcomeStatus.PARTIAL)
-        quality = 1.0 if outcome.status == OutcomeStatus.SUCCESS else (
-            0.6 if outcome.status == OutcomeStatus.PARTIAL else 0.0
+        quality = (
+            1.0
+            if outcome.status == OutcomeStatus.SUCCESS
+            else (0.6 if outcome.status == OutcomeStatus.PARTIAL else 0.0)
         )
 
         eval_result = OutcomeEvaluation(
@@ -289,11 +303,13 @@ class OutcomeLearningLoop:
             self._persist_record(sig_data)
 
         self._reliability[action_type] = new
-        self._persist_record({
-            "record_type": "reliability",
-            "action_type": action_type,
-            "value": new,
-        })
+        self._persist_record(
+            {
+                "record_type": "reliability",
+                "action_type": action_type,
+                "value": new,
+            }
+        )
 
     def register_degradation_callback(
         self,
@@ -334,9 +350,9 @@ class OutcomeLearningLoop:
             ):
                 self._degradation_fired.add(action_type)
                 failure_signals = [
-                    s for s in self._signals[-20:]
-                    if s.signal_type == SignalType.REPEATED_FAILURE
-                    and s.action_type == action_type
+                    s
+                    for s in self._signals[-20:]
+                    if s.signal_type == SignalType.REPEATED_FAILURE and s.action_type == action_type
                 ]
                 try:
                     self._degradation_callback(action_type, reliability, failure_signals)
@@ -361,7 +377,9 @@ class OutcomeLearningLoop:
 
     def _check_efficiency(self, action_type: str, duration: float) -> None:
         """Emit signal when execution duration is trending down (or up)."""
-        recent = [o for o in self._outcomes if o.action_type == action_type and o.duration_seconds > 0]
+        recent = [
+            o for o in self._outcomes if o.action_type == action_type and o.duration_seconds > 0
+        ]
         if len(recent) < 6:
             return
         prev_avg = sum(o.duration_seconds for o in recent[-6:-3]) / 3
@@ -387,11 +405,15 @@ class OutcomeLearningLoop:
         if len(recent) < 6:
             return
         prev_q = [
-            1.0 if o.status == OutcomeStatus.SUCCESS else (0.6 if o.status == OutcomeStatus.PARTIAL else 0.0)
+            1.0
+            if o.status == OutcomeStatus.SUCCESS
+            else (0.6 if o.status == OutcomeStatus.PARTIAL else 0.0)
             for o in recent[-6:-3]
         ]
         curr_q = [
-            1.0 if o.status == OutcomeStatus.SUCCESS else (0.6 if o.status == OutcomeStatus.PARTIAL else 0.0)
+            1.0
+            if o.status == OutcomeStatus.SUCCESS
+            else (0.6 if o.status == OutcomeStatus.PARTIAL else 0.0)
             for o in recent[-3:]
         ]
         prev_avg = sum(prev_q) / 3
@@ -405,7 +427,7 @@ class OutcomeLearningLoop:
             f"Quality {'improving' if delta > 0 else 'degrading'}: {prev_avg:.2f} → {curr_avg:.2f}",
             old_value=prev_avg,
             new_value=curr_avg,
-            evidence=f"trend over last 6 outcomes",
+            evidence="trend over last 6 outcomes",
         )
 
     def _check_diversity(self, action_type: str) -> None:
@@ -465,8 +487,7 @@ class OutcomeLearningLoop:
             for s in active
         )
         has_quality_degradation = any(
-            s.signal_type == SignalType.QUALITY_SIGNAL and s.new_value < s.old_value
-            for s in active
+            s.signal_type == SignalType.QUALITY_SIGNAL and s.new_value < s.old_value for s in active
         )
 
         feed = LearningSignalFeed(
@@ -508,11 +529,13 @@ class OutcomeLearningLoop:
             successes = running_counts[at].get("success", 0) + running_counts[at].get("partial", 0)
             cumulative = successes / total if total > 0 else 0.5
 
-            history[at].append({
-                "timestamp": outcome.recorded_at,
-                "status": outcome.status.value,
-                "cumulative_reliability": round(cumulative, 4),
-            })
+            history[at].append(
+                {
+                    "timestamp": outcome.recorded_at,
+                    "status": outcome.status.value,
+                    "cumulative_reliability": round(cumulative, 4),
+                }
+            )
 
         result: dict[str, Any] = {}
         for at, timeline in history.items():
@@ -529,19 +552,23 @@ class OutcomeLearningLoop:
         adjustments = []
         for action_type, reliability in self._reliability.items():
             if reliability < 0.3:
-                adjustments.append(RecommendationAdjustment(
-                    action_type=action_type,
-                    current_reliability=reliability,
-                    adjustment=-0.1,
-                    reason=f"Low reliability ({reliability:.2f}) — consider demoting or fixing",
-                ))
+                adjustments.append(
+                    RecommendationAdjustment(
+                        action_type=action_type,
+                        current_reliability=reliability,
+                        adjustment=-0.1,
+                        reason=f"Low reliability ({reliability:.2f}) — consider demoting or fixing",
+                    )
+                )
             elif reliability > 0.9:
-                adjustments.append(RecommendationAdjustment(
-                    action_type=action_type,
-                    current_reliability=reliability,
-                    adjustment=0.05,
-                    reason=f"High reliability ({reliability:.2f}) — eligible for promotion",
-                ))
+                adjustments.append(
+                    RecommendationAdjustment(
+                        action_type=action_type,
+                        current_reliability=reliability,
+                        adjustment=0.05,
+                        reason=f"High reliability ({reliability:.2f}) — eligible for promotion",
+                    )
+                )
         return adjustments
 
     def recent_outcomes(self, limit: int = 20) -> list[OutcomeRecord]:
@@ -555,9 +582,7 @@ class OutcomeLearningLoop:
             "total_outcomes": len(self._outcomes),
             "total_signals": len(self._signals),
             "reliability_scores": {k: round(v, 3) for k, v in self._reliability.items()},
-            "outcome_counts": {
-                at: dict(counts) for at, counts in self._outcome_counts.items()
-            },
+            "outcome_counts": {at: dict(counts) for at, counts in self._outcome_counts.items()},
             "pending_adjustments": len(self.get_adjustments()),
         }
 
@@ -573,22 +598,28 @@ class OutcomeLearningLoop:
         """HTTP-safe serialization — strips internal evidence and error details."""
         safe_outcomes = []
         for o in self.recent_outcomes(10):
-            safe_outcomes.append({
-                "id": o.id,
-                "action_type": o.action_type,
-                "status": o.status.value if isinstance(o.status, OutcomeStatus) else o.status,
-                "duration_seconds": o.duration_seconds,
-                "recorded_at": o.recorded_at,
-            })
+            safe_outcomes.append(
+                {
+                    "id": o.id,
+                    "action_type": o.action_type,
+                    "status": o.status.value if isinstance(o.status, OutcomeStatus) else o.status,
+                    "duration_seconds": o.duration_seconds,
+                    "recorded_at": o.recorded_at,
+                }
+            )
         safe_signals = []
         for s in self.recent_signals(10):
-            safe_signals.append({
-                "id": s.id,
-                "signal_type": s.signal_type.value if isinstance(s.signal_type, SignalType) else s.signal_type,
-                "action_type": s.action_type,
-                "description": s.description,
-                "generated_at": s.generated_at,
-            })
+            safe_signals.append(
+                {
+                    "id": s.id,
+                    "signal_type": s.signal_type.value
+                    if isinstance(s.signal_type, SignalType)
+                    else s.signal_type,
+                    "action_type": s.action_type,
+                    "description": s.description,
+                    "generated_at": s.generated_at,
+                }
+            )
         return {
             "summary": self.summary(),
             "recent_outcomes": safe_outcomes,
@@ -599,6 +630,7 @@ class OutcomeLearningLoop:
 
 if __name__ == "__main__":
     import sys
+
     sys.path.insert(0, _REPO_ROOT)
     import tempfile
 

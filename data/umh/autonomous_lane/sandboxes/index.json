@@ -115,8 +115,67 @@
       "pr_number": 53,
       "error": "",
       "completed_at": 1780128725.713898
+    },
+    {
+      "sandbox_id": "sb-val-test",
+      "branch_name": "test-branch",
+      "worktree_path": "/tmp/fake-worktree",
+      "base_commit": "",
+      "head_commit": "",
+      "candidate_id": "test-pkt-002",
+      "template_id": "",
+      "agent_type": "operator_loop",
+      "created_at": 1784570641.618927,
+      "status": "created",
+      "affected_files": [],
+      "locks": [],
+      "validation_results": [
+        {
+          "passed": true,
+          "command": "python3 -c 'print(1)'",
+          "stdout": "1\n",
+          "stderr": "",
+          "exit_code": 0,
+          "duration_seconds": 0.1,
+          "validated_at": 1784570641.6189356
+        },
+        {
+          "passed": false,
+          "command": "python3 -c 'raise'",
+          "stdout": "",
+          "stderr": "error",
+          "exit_code": 1,
+          "duration_seconds": 0.2,
+          "validated_at": 1784570641.6193953
+        }
+      ],
+      "cleanup_policy": "on_merge",
+      "pr_url": "",
+      "pr_number": 0,
+      "error": "",
+      "completed_at": 0.0
+    },
+    {
+      "sandbox_id": "sb-0cecbcd9",
+      "branch_name": "auto/low-risk/implementation--fix-a-typescri-0cecbcd9",
+      "worktree_path": "/opt/OS/.claude/worktrees/OS-mvp-wave0-truth-stabilization/.claude/worktrees/auto-0cecbcd9",
+      "base_commit": "778f2b9d0248d48f254011da8e15553bf6ddca98",
+      "head_commit": "",
+      "candidate_id": "wp-d8b99adecb0c",
+      "template_id": "",
+      "agent_type": "operator_loop",
+      "created_at": 1784568611.7925053,
+      "status": "validated",
+      "affected_files": [],
+      "locks": [],
+      "validation_results": [],
+      "cleanup_policy": "on_merge",
+      "pr_url": "",
+      "pr_number": 0,
+      "error": "",
+      "completed_at": 0.0
     }
   ],
   "file_locks": {},
-  "updated_at": 1780128725.714
+  "updated_at": 1784570641.6194565
 }

@@ -4,10 +4,10 @@
 
 | Dimension | Status | Evidence |
 |-----------|--------|----------|
-| Organism | FAIL | ORL=3 (need 8), confidence=0.000 (need 0.95) |
-| Runtime | UNTESTED | No dispatch attempts recorded (browser skipped?) |
-| Projection | PASS | 0 event loss, proof=0%, equivalence=100% |
-| Operator | PASS | 250/250 success (100%), 25 scenarios, 0 synthetic |
+| Organism | UNTESTED |  |
+| Runtime | UNTESTED |  |
+| Projection | UNTESTED |  |
+| Operator | UNTESTED |  |
 
 **Overall: NOT READY**
 
@@ -44,11 +44,6 @@
 
 | Phase | Name | Total | Success | Failed | Gate | Time |
 |-------|------|-------|---------|--------|------|------|
-| 1 | Runtime Boundary Audit | 8 | 8 | 0 | PASS | 0.0s |
-| 2 | Runtime Defect Resolution | 0 | 0 | 0 | PASS | 0.0s |
-| 3 | Operator Runtime Qualification | 0 | 0 | 0 | FAIL | 0.0s |
-| 4 | Embodied Stress | 0 | 0 | 0 | FAIL | 0.0s |
-| 5 | Runtime Certification | 4 | 2 | 1 | FAIL | 0.5s |
 
 ## Campaign Progression
 
@@ -60,7 +55,7 @@
 | C38 | 8 | 95.8% | 83.8% | 250 | Qualification-driven opt |
 | C39 | 8 | 95.0% | 64.3% | 120 | Live gap-closure sim |
 | C40A | 8 | 95.3% | 65.6% | 550 | Runtime convergence |
-| C40B | 3 | 0.0% | 0.0% | 0 | Runtime embodiment |
+| C40B | ? | ? | ? | 0 | Runtime embodiment |
 
 ## Hard Success Gates
 

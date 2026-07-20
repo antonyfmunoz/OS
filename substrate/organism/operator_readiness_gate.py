@@ -15,14 +15,12 @@ import json
 import logging
 import os
 import shutil
-import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from substrate.organism.operational_truth import (
-    OperationalReadinessStatus,
     OperationalTruthSnapshot,
     collect_snapshot,
 )
@@ -69,51 +67,61 @@ def _detect_runtime_fleet(root: Path) -> list[dict[str, Any]]:
     runtimes: list[dict[str, Any]] = []
 
     cc = _detect_cli_runtime("claude")
-    runtimes.append({
-        "provider": "claude_code",
-        "installed": cc["installed"],
-        "capable": cc["installed"],
-        "cost_model": "subscription",
-        "evidence": cc,
-    })
+    runtimes.append(
+        {
+            "provider": "claude_code",
+            "installed": cc["installed"],
+            "capable": cc["installed"],
+            "cost_model": "subscription",
+            "evidence": cc,
+        }
+    )
 
     try:
         import importlib
+
         mod = importlib.import_module("substrate.organism.shell_runtime_adapter")
         adapter = mod.ShellRuntimeAdapter()
         shell_ok = adapter.is_available()
     except Exception:
         shell_ok = False
-    runtimes.append({
-        "provider": "shell",
-        "installed": True,
-        "capable": shell_ok,
-        "cost_model": "free",
-        "evidence": {"available": shell_ok},
-    })
+    runtimes.append(
+        {
+            "provider": "shell",
+            "installed": True,
+            "capable": shell_ok,
+            "cost_model": "free",
+            "evidence": {"available": shell_ok},
+        }
+    )
 
     for tool in ("codex", "opencode", "hermes"):
         info = _detect_cli_runtime(tool)
-        runtimes.append({
-            "provider": tool,
-            "installed": info["installed"],
-            "capable": info["installed"],
-            "cost_model": "subscription" if tool == "codex" else "unknown",
-            "evidence": info,
-        })
+        runtimes.append(
+            {
+                "provider": tool,
+                "installed": info["installed"],
+                "capable": info["installed"],
+                "cost_model": "subscription" if tool == "codex" else "unknown",
+                "evidence": info,
+            }
+        )
 
     ollama = _detect_cli_runtime("ollama")
-    runtimes.append({
-        "provider": "ollama",
-        "installed": ollama["installed"],
-        "capable": ollama["installed"],
-        "cost_model": "free",
-        "evidence": ollama,
-    })
+    runtimes.append(
+        {
+            "provider": "ollama",
+            "installed": ollama["installed"],
+            "capable": ollama["installed"],
+            "cost_model": "free",
+            "evidence": ollama,
+        }
+    )
 
     has_cloud_llm = False
     try:
         from substrate.organism.operational_truth import collect_snapshot as _cs
+
         snap = _cs(str(root))
         for p in snap.llm_provider_state:
             if p.available:
@@ -121,13 +129,15 @@ def _detect_runtime_fleet(root: Path) -> list[dict[str, Any]]:
                 break
     except Exception:
         pass
-    runtimes.append({
-        "provider": "cloud_api",
-        "installed": True,
-        "capable": has_cloud_llm,
-        "cost_model": "per_token",
-        "evidence": {"any_cloud_llm_available": has_cloud_llm},
-    })
+    runtimes.append(
+        {
+            "provider": "cloud_api",
+            "installed": True,
+            "capable": has_cloud_llm,
+            "cost_model": "per_token",
+            "evidence": {"any_cloud_llm_available": has_cloud_llm},
+        }
+    )
 
     return runtimes
 
@@ -160,9 +170,7 @@ def assess_readiness(
     report.evidence["capable_runtime_count"] = len(capable)
     report.evidence["capable_runtime_providers"] = report.capable_runtimes
 
-    has_cloud_llm = any(
-        r["provider"] == "cloud_api" and r["capable"] for r in fleet
-    )
+    has_cloud_llm = any(r["provider"] == "cloud_api" and r["capable"] for r in fleet)
     report.evidence["llm_cloud_available"] = has_cloud_llm
 
     if not has_cloud_llm:
@@ -181,13 +189,13 @@ def assess_readiness(
             "Claude Code, Codex, OpenCode, Hermes, or restore a cloud provider."
         )
     elif not has_capable_runtime and deterministic_only:
-        report.degraded_modes.append(
-            "Deterministic-only mode — no governed runtime path available"
-        )
+        report.degraded_modes.append("Deterministic-only mode — no governed runtime path available")
 
     report.evidence["deterministic_only"] = deterministic_only
 
-    journal_path = root / "data" / "umh" / "organism" / "execution_journal.jsonl"
+    from substrate.state.runtime_paths import runtime_state_path
+
+    journal_path = runtime_state_path("organism", "execution_journal.jsonl", create_parent=False)
     journal_has_entries = False
     if journal_path.exists():
         try:
@@ -221,17 +229,17 @@ def assess_readiness(
         try:
             content = hook_path.read_text()
             for gate in [
-                "check_type_divergence", "check_instance_leak",
-                "check_projection_leak", "check_dependency_direction",
+                "check_type_divergence",
+                "check_instance_leak",
+                "check_projection_leak",
+                "check_dependency_direction",
             ]:
                 if gate in content:
                     gates_wired += 1
         except OSError:
             pass
     if gates_wired < 4:
-        report.blocking_issues.append(
-            f"Only {gates_wired}/4 pre-commit gates wired"
-        )
+        report.blocking_issues.append(f"Only {gates_wired}/4 pre-commit gates wired")
     report.evidence["precommit_gates_wired"] = gates_wired
 
     eventbus_resolved = (
@@ -251,9 +259,7 @@ def assess_readiness(
             age_hours = (time.time() - graph_path.stat().st_mtime) / 3600
             graph_fresh = age_hours < 48
             if not graph_fresh:
-                report.warnings.append(
-                    f"Knowledge graph is {age_hours:.0f}h stale"
-                )
+                report.warnings.append(f"Knowledge graph is {age_hours:.0f}h stale")
         except OSError:
             pass
     else:
@@ -265,9 +271,7 @@ def assess_readiness(
             f"Disk usage at {snapshot.disk_usage_percent}% — critical threshold"
         )
     elif snapshot.disk_usage_percent > 85:
-        report.warnings.append(
-            f"Disk usage at {snapshot.disk_usage_percent}% — approaching danger"
-        )
+        report.warnings.append(f"Disk usage at {snapshot.disk_usage_percent}% — approaching danger")
     report.evidence["disk_usage_percent"] = snapshot.disk_usage_percent
 
     cockpit_ok = (
@@ -280,13 +284,9 @@ def assess_readiness(
 
     report.evidence["readiness_verdict"] = snapshot.readiness_verdict.value
 
-    report.standard_ready = (
-        len(report.blocking_issues) == 0 and has_capable_runtime
-    )
+    report.standard_ready = len(report.blocking_issues) == 0 and has_capable_runtime
     report.deterministic_only_ready = len(report.blocking_issues) == 0
-    report.ready = report.standard_ready or (
-        report.deterministic_only_ready and deterministic_only
-    )
+    report.ready = report.standard_ready or (report.deterministic_only_ready and deterministic_only)
     return report
 
 
@@ -295,10 +295,15 @@ def persist_readiness_report(
     persist_dir: str | None = None,
 ) -> Path:
     """Write readiness report to JSON file."""
-    base = Path(persist_dir or os.path.join(
-        os.environ.get("UMH_ROOT", "/opt/OS"),
-        "data", "umh", "operational_truth",
-    ))
+    base = Path(
+        persist_dir
+        or os.path.join(
+            os.environ.get("UMH_ROOT", "/opt/OS"),
+            "data",
+            "umh",
+            "operational_truth",
+        )
+    )
     base.mkdir(parents=True, exist_ok=True)
     path = base / "operator_readiness_report.json"
     with open(path, "w") as f:

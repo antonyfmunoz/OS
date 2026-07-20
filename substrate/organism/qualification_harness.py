@@ -27,12 +27,22 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any, Callable
 
+from substrate.state.runtime_paths import runtime_state_dir
+
 logger = logging.getLogger(__name__)
 
-_REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_STORE_DIR = os.path.join(_REPO_ROOT, "data", "umh", "c35")
-_RESULTS_PATH = os.path.join(_STORE_DIR, "qualification_results.jsonl")
-_MUTATIONS_PATH = os.path.join(_STORE_DIR, "mutation_log.jsonl")
+
+def _store_dir() -> str:
+    return str(runtime_state_dir("c35", create=False))
+
+
+def _results_path() -> str:
+    return os.path.join(_store_dir(), "qualification_results.jsonl")
+
+
+def _mutations_path() -> str:
+    return os.path.join(_store_dir(), "mutation_log.jsonl")
+
 
 ROLLING_WINDOW_SIZE = 50
 CONVERGENCE_THRESHOLD = 0.10
@@ -359,7 +369,7 @@ class QualificationHarness:
     """Runs system properties and computes ORL with confidence."""
 
     def __init__(self, load_existing: bool = True) -> None:
-        os.makedirs(_STORE_DIR, exist_ok=True)
+        os.makedirs(_store_dir(), exist_ok=True)
         self._mutations: list[MutationRecord] = []
         self._property_results: list[PropertyResult] = []
         self._convergence: dict[str, ConvergenceWindow] = {}
@@ -368,9 +378,9 @@ class QualificationHarness:
             self._load_existing()
 
     def _load_existing(self) -> None:
-        if os.path.isfile(_MUTATIONS_PATH):
+        if os.path.isfile(_mutations_path()):
             try:
-                with open(_MUTATIONS_PATH) as f:
+                with open(_mutations_path()) as f:
                     for line in f:
                         line = line.strip()
                         if not line:
@@ -389,13 +399,13 @@ class QualificationHarness:
                         except (json.JSONDecodeError, TypeError) as exc:
                             logger.debug("Skip malformed mutation record: %s", exc)
             except OSError as exc:
-                logger.debug("Cannot read %s: %s", _MUTATIONS_PATH, exc)
+                logger.debug("Cannot read %s: %s", _mutations_path(), exc)
 
     def record_mutation(self, record: MutationRecord) -> None:
         """Record a governed mutation execution."""
         self._mutations.append(record)
         try:
-            with open(_MUTATIONS_PATH, "a") as f:
+            with open(_mutations_path(), "a") as f:
                 f.write(json.dumps(record.to_dict(), default=str) + "\n")
         except OSError as exc:
             logger.debug("Cannot write mutation record: %s", exc)
@@ -1188,7 +1198,7 @@ class QualificationHarness:
 
     def _persist_report(self, report: QualificationReport) -> None:
         try:
-            with open(_RESULTS_PATH, "a") as f:
+            with open(_results_path(), "a") as f:
                 f.write(json.dumps(report.to_dict(), default=str) + "\n")
         except OSError as exc:
             logger.debug("Cannot write qualification report: %s", exc)
@@ -1296,8 +1306,8 @@ class QualificationHarness:
             "",
             "## Qualification Summary",
             "",
-            f"| Dimension | Value |",
-            f"|-----------|-------|",
+            "| Dimension | Value |",
+            "|-----------|-------|",
             f"| Operational Readiness Level | ORL-{orl_val} ({orl_name}) |",
             f"| Confidence | {report.orl_confidence:.1%} |",
             f"| Predictive Accuracy | {report.predictive_accuracy:.1%} |",

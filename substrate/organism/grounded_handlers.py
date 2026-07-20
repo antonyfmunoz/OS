@@ -179,11 +179,9 @@ def handle_grounded_resume(content: str = "") -> Any:
 
     # Recent events from event log
     try:
-        import os
-        from pathlib import Path
+        from substrate.state.runtime_paths import runtime_state_path
 
-        repo = os.environ.get("UMH_ROOT", "/opt/OS")
-        events_path = Path(repo) / "data" / "umh" / "organism" / "events.jsonl"
+        events_path = runtime_state_path("organism", "events.jsonl", create_parent=False)
         if events_path.exists():
             import json
 
@@ -269,9 +267,7 @@ def _fetch_latest_frame() -> dict[str, Any] | None:
     relay_port = int(os.environ.get("VISION_RELAY_PORT", "8097"))
     health_port = relay_port + 1
     try:
-        req = urllib.request.Request(
-            f"http://127.0.0.1:{health_port}/latest-frame", method="GET"
-        )
+        req = urllib.request.Request(f"http://127.0.0.1:{health_port}/latest-frame", method="GET")
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
             if data.get("image_base64"):
@@ -490,7 +486,10 @@ def handle_grounded_composite_blockers(content: str) -> Any:
     bp_data = result.data.get("blocked_packets", {})
     blocked_items = bp_data.get("blocked", [])
     if blocked_items:
-        lines = [f"- **{b.get('title', b.get('id', '?'))}**: {b.get('reason', 'no reason given')}" for b in blocked_items[:10]]
+        lines = [
+            f"- **{b.get('title', b.get('id', '?'))}**: {b.get('reason', 'no reason given')}"
+            for b in blocked_items[:10]
+        ]
         sections.append("**Blocked Work Packets:**\n" + "\n".join(lines))
     elif "blocked_packets" not in result.missing:
         sections.append("**Work Packets:** No blocked packets")
@@ -515,7 +514,11 @@ def handle_grounded_composite_blockers(content: str) -> Any:
     # Docker blocker
     docker_data = result.data.get("docker", {})
     containers = docker_data.get("containers", [])
-    unhealthy = [c for c in containers if "unhealthy" in c.get("status", "").lower() or "exited" in c.get("status", "").lower()]
+    unhealthy = [
+        c
+        for c in containers
+        if "unhealthy" in c.get("status", "").lower() or "exited" in c.get("status", "").lower()
+    ]
     if unhealthy:
         lines = [f"- {c['name']}: {c['status']}" for c in unhealthy]
         sections.append("**Unhealthy Containers:**\n" + "\n".join(lines))

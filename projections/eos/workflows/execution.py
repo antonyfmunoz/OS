@@ -11,16 +11,22 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
 
 from projections.eos.workflows.types import WorkflowStep
 
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
+
+
+def _runtime_state_file(subsystem: str, filename: str) -> str:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path(subsystem, filename, create_parent=False))
+
+
 _TASKS_DIR = os.path.join(_REPO_ROOT, "data", "umh", "tasks")
 
 
@@ -89,14 +95,18 @@ class ExecutionWorkflow:
         os.makedirs(_TASKS_DIR, exist_ok=True)
         task_path = os.path.join(_TASKS_DIR, f"{task_id}.json")
         with open(task_path, "w") as f:
-            json.dump({
-                "task_id": task_id,
-                "description": description,
-                "status": "defined",
-                "created_at": now.isoformat(),
-                "org_id": self._org_id,
-                "venture_id": self._venture_id,
-            }, f, indent=2)
+            json.dump(
+                {
+                    "task_id": task_id,
+                    "description": description,
+                    "status": "defined",
+                    "created_at": now.isoformat(),
+                    "org_id": self._org_id,
+                    "venture_id": self._venture_id,
+                },
+                f,
+                indent=2,
+            )
 
         return (f"Task defined: {task_id} — {description[:100]}", True)
 
@@ -148,9 +158,7 @@ class ExecutionWorkflow:
         if not self._task:
             return ("no task to record outcome for", False)
 
-        outcome_path = os.path.join(
-            _REPO_ROOT, "data", "umh", "organism", "outcome_learning.jsonl"
-        )
+        outcome_path = _runtime_state_file("organism", "outcome_learning.jsonl")
         os.makedirs(os.path.dirname(outcome_path), exist_ok=True)
 
         entry = {

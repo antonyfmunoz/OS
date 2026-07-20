@@ -9,15 +9,18 @@ Phase 11.1. UMH substrate subsystem. Instance-agnostic.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
 from typing import Any
 
 from substrate.organism.work_packet import (
-    WorkPacket, PacketLifecycleStatus, _TERMINAL_STATUSES,
-    _VALID_TRANSITIONS, persist_packets, load_packets,
+    _TERMINAL_STATUSES,
+    _VALID_TRANSITIONS,
+    PacketLifecycleStatus,
+    WorkPacket,
+    load_packets,
+    persist_packets,
 )
 from substrate.organism.work_packet_engine import WorkPacketEngine
 
@@ -46,9 +49,13 @@ class UniversalWorkQueue:
         store_path: str | None = None,
         engine: WorkPacketEngine | None = None,
     ) -> None:
-        self._store_path = store_path or os.path.join(
-            _REPO_ROOT, "data", "umh", "universal_work", "work_packets.jsonl",
-        )
+        if store_path is None:
+            from substrate.state.runtime_paths import runtime_state_path
+
+            store_path = str(
+                runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
+            )
+        self._store_path = store_path
         self._engine = engine or WorkPacketEngine(packets_path=self._store_path)
         self._packets: dict[str, WorkPacket] = {}
         self._load()
@@ -63,8 +70,10 @@ class UniversalWorkQueue:
     def ingest_work_packet(self, packet: WorkPacket) -> WorkPacket:
         if self._is_duplicate(packet):
             for existing in self._packets.values():
-                if (existing.user_intent == packet.user_intent
-                        and existing.status not in _TERMINAL_STATUSES):
+                if (
+                    existing.user_intent == packet.user_intent
+                    and existing.status not in _TERMINAL_STATUSES
+                ):
                     return existing
         self._packets[packet.packet_id] = packet
         self._save()
@@ -84,7 +93,8 @@ class UniversalWorkQueue:
         return self.ingest_work_packet(packet)
 
     def ingest_self_build_items(
-        self, items: list[dict[str, Any]],
+        self,
+        items: list[dict[str, Any]],
     ) -> list[WorkPacket]:
         packets = []
         for item in items:
@@ -107,7 +117,8 @@ class UniversalWorkQueue:
         return packets
 
     def ingest_cadence_candidates(
-        self, candidates: list[dict[str, Any]],
+        self,
+        candidates: list[dict[str, Any]],
     ) -> list[WorkPacket]:
         packets = []
         for cand in candidates:
@@ -127,7 +138,8 @@ class UniversalWorkQueue:
         return packets
 
     def ingest_roadmap_requirements(
-        self, requirements: list[dict[str, Any]],
+        self,
+        requirements: list[dict[str, Any]],
     ) -> list[WorkPacket]:
         packets = []
         for req in requirements:
@@ -148,7 +160,8 @@ class UniversalWorkQueue:
         return packets
 
     def ingest_audit_findings(
-        self, findings: list[dict[str, Any]],
+        self,
+        findings: list[dict[str, Any]],
     ) -> list[WorkPacket]:
         packets = []
         for finding in findings:
@@ -167,10 +180,7 @@ class UniversalWorkQueue:
         return packets
 
     def rank_packets(self) -> list[WorkPacket]:
-        active = [
-            p for p in self._packets.values()
-            if p.status not in _TERMINAL_STATUSES
-        ]
+        active = [p for p in self._packets.values() if p.status not in _TERMINAL_STATUSES]
         for p in active:
             p._ranking_score = self._compute_ranking_score(p)
         active.sort(key=lambda x: x._ranking_score, reverse=True)
@@ -200,10 +210,9 @@ class UniversalWorkQueue:
     def get_next_best_packet(self) -> WorkPacket | None:
         ranked = self.rank_packets()
         eligible = [
-            p for p in ranked
-            if p.status not in _TERMINAL_STATUSES
-            and p.risk_class != "medium"
-            and not p.blockers
+            p
+            for p in ranked
+            if p.status not in _TERMINAL_STATUSES and p.risk_class != "medium" and not p.blockers
         ]
         return eligible[0] if eligible else None
 
@@ -218,24 +227,26 @@ class UniversalWorkQueue:
 
     def get_packets_requiring_human(self) -> list[WorkPacket]:
         return [
-            p for p in self._packets.values()
+            p
+            for p in self._packets.values()
             if p.human_required_actions and p.status not in _TERMINAL_STATUSES
         ]
 
     def get_packets_requiring_approval(self) -> list[WorkPacket]:
         return [
-            p for p in self._packets.values()
+            p
+            for p in self._packets.values()
             if p.approval_gates and p.status not in _TERMINAL_STATUSES
         ]
 
     def get_blocked_packets(self) -> list[WorkPacket]:
-        return [
-            p for p in self._packets.values()
-            if p.status == PacketLifecycleStatus.BLOCKED
-        ]
+        return [p for p in self._packets.values() if p.status == PacketLifecycleStatus.BLOCKED]
 
     def update_packet_status(
-        self, packet_id: str, new_status: PacketLifecycleStatus, reason: str = "",
+        self,
+        packet_id: str,
+        new_status: PacketLifecycleStatus,
+        reason: str = "",
     ) -> bool:
         pkt = self._packets.get(packet_id)
         if not pkt:
@@ -250,7 +261,9 @@ class UniversalWorkQueue:
         return True
 
     def link_execution_artifacts(
-        self, packet_id: str, artifacts: dict[str, str],
+        self,
+        packet_id: str,
+        artifacts: dict[str, str],
     ) -> bool:
         pkt = self._packets.get(packet_id)
         if not pkt:
@@ -267,7 +280,9 @@ class UniversalWorkQueue:
 
     def mark_resolved(self, packet_id: str, reason: str = "") -> bool:
         return self.update_packet_status(
-            packet_id, PacketLifecycleStatus.COMPLETED, reason,
+            packet_id,
+            PacketLifecycleStatus.COMPLETED,
+            reason,
         )
 
     def suppress_duplicates(self) -> int:
@@ -300,14 +315,10 @@ class UniversalWorkQueue:
         human_required = len(self.get_packets_requiring_human())
         approval_required = len(self.get_packets_requiring_approval())
         blocked = len(self.get_blocked_packets())
-        active = len([
-            p for p in self._packets.values()
-            if p.status not in _TERMINAL_STATUSES
-        ])
-        completed = len([
-            p for p in self._packets.values()
-            if p.status == PacketLifecycleStatus.COMPLETED
-        ])
+        active = len([p for p in self._packets.values() if p.status not in _TERMINAL_STATUSES])
+        completed = len(
+            [p for p in self._packets.values() if p.status == PacketLifecycleStatus.COMPLETED]
+        )
 
         next_best = self.get_next_best_packet()
 
@@ -333,10 +344,16 @@ class UniversalWorkQueue:
         for existing in self._packets.values():
             if existing.status in _TERMINAL_STATUSES:
                 continue
-            if (existing.source_id and existing.source_id == packet.source_id
-                    and existing.source_type == packet.source_type):
+            if (
+                existing.source_id
+                and existing.source_id == packet.source_id
+                and existing.source_type == packet.source_type
+            ):
                 return True
-            if (existing.user_intent and packet.user_intent
-                    and existing.user_intent.strip().lower() == packet.user_intent.strip().lower()):
+            if (
+                existing.user_intent
+                and packet.user_intent
+                and existing.user_intent.strip().lower() == packet.user_intent.strip().lower()
+            ):
                 return True
         return False

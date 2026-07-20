@@ -1373,6 +1373,47 @@ CANONICAL_TYPES: dict[str, list[str]] = {
 # Shape: {module_path: {type_name: {"owner", "sunset" (YYYY-MM-DD), "rationale"}}}
 
 LEGACY_DUPLICATES_META: dict[str, dict[str, dict[str, str]]] = {
+    # ── MVP Wave 0 (2026-07-20) ────────────────────────────────────────────
+    # Pre-existing homonyms surfaced (not introduced) when the runtime-state
+    # boundary packet touched these modules: Gate 1 blocks any STAGED file
+    # carrying a divergence, even a long-standing one. Each name below predates
+    # this packet and is verifiably unchanged on main. Registered here rather
+    # than weakening the gate; they must SHRINK, never grow.
+    "substrate.organism.dependency_graph": {
+        "DependencyStrength": {
+            "owner": "organism",
+            "sunset": "2026-12-31",
+            "rationale": "graph-local strength enum predates type centralization",
+        },
+    },
+    "substrate.organism.operator_session": {
+        "IntentType": {
+            "owner": "organism",
+            "sunset": "2026-12-31",
+            "rationale": "operator-session intent taxonomy predates canonical IntentType",
+        },
+    },
+    "substrate.organism.qualification_harness": {
+        "GapType": {
+            "owner": "organism",
+            "sunset": "2026-12-31",
+            "rationale": "qualification gap taxonomy predates type centralization",
+        },
+    },
+    "substrate.organism.template_registry": {
+        "AgentType": {
+            "owner": "organism",
+            "sunset": "2026-12-31",
+            "rationale": "template-registry agent taxonomy predates canonical AgentType",
+        },
+    },
+    "substrate.organism.world_model": {
+        "GapSeverity": {
+            "owner": "organism",
+            "sunset": "2026-12-31",
+            "rationale": "organism self-model gap severity predates type centralization",
+        },
+    },
     "substrate.execution.runtime.worker_runtime_contracts": {
         "ProofStatus": {
             "owner": "execution-runtime",

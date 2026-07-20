@@ -41,6 +41,7 @@ def _get_dep():
 
 def _detect_env() -> str:
     import platform
+
     system = platform.system().lower()
     if os.path.exists("/.dockerenv"):
         return "container"
@@ -89,12 +90,16 @@ def _load_pending_approvals() -> list[dict[str, Any]]:
                     try:
                         entry = json.loads(line)
                         if entry.get("status") in ("pending_approval", "needs_approval"):
-                            approvals.append({
-                                "id": entry.get("id", ""),
-                                "description": entry.get("description", entry.get("input_signal_preview", "")),
-                                "status": entry.get("status", ""),
-                                "risk_class": entry.get("risk_class", ""),
-                            })
+                            approvals.append(
+                                {
+                                    "id": entry.get("id", ""),
+                                    "description": entry.get(
+                                        "description", entry.get("input_signal_preview", "")
+                                    ),
+                                    "status": entry.get("status", ""),
+                                    "risk_class": entry.get("risk_class", ""),
+                                }
+                            )
                     except json.JSONDecodeError:
                         continue
         except OSError:
@@ -136,7 +141,9 @@ async def _activate(request: Request) -> dict[str, Any]:
     )
 
     checkpoint = _load_continuity_state()
-    continuity = checkpoint.get("continuity_state", checkpoint.get("new_continuity_state", "active"))
+    continuity = checkpoint.get(
+        "continuity_state", checkpoint.get("new_continuity_state", "active")
+    )
     lifecycle = checkpoint.get("lifecycle_mode", "default")
     profile_modes = checkpoint.get("active_profile_modes", [])
 
@@ -149,7 +156,9 @@ async def _activate(request: Request) -> dict[str, Any]:
         user_id=profile.user_id,
         session_id=profile.session_id,
         lifecycle_mode=lifecycle,
-        profile_mode=",".join(profile_modes) if isinstance(profile_modes, list) else str(profile_modes),
+        profile_mode=",".join(profile_modes)
+        if isinstance(profile_modes, list)
+        else str(profile_modes),
         continuity_state=continuity,
         raw_payload=raw_payload,
     )
@@ -171,14 +180,16 @@ async def _activate(request: Request) -> dict[str, Any]:
     session_dict = session.to_dict()
 
     def _do_activate():
-        _log_presence_event({
-            "event": "activation",
-            "activation_id": signal.activation_id,
-            "source": source,
-            "session_id": session.session_id,
-            "continuity_state": continuity,
-            "timestamp": signal.timestamp,
-        })
+        _log_presence_event(
+            {
+                "event": "activation",
+                "activation_id": signal.activation_id,
+                "source": source,
+                "session_id": session.session_id,
+                "continuity_state": continuity,
+                "timestamp": signal.timestamp,
+            }
+        )
         return f"presence activated: {session.session_id}", True
 
     resp = governed_mutation(
@@ -200,7 +211,9 @@ def _current(request: Request) -> dict[str, Any]:
 
     profile = WorkstationProfile.detect()
     checkpoint = _load_continuity_state()
-    continuity = checkpoint.get("continuity_state", checkpoint.get("new_continuity_state", "active"))
+    continuity = checkpoint.get(
+        "continuity_state", checkpoint.get("new_continuity_state", "active")
+    )
     lifecycle = checkpoint.get("lifecycle_mode", "default")
     profile_modes = checkpoint.get("active_profile_modes", [])
     resume = _load_resume_summary()
@@ -280,7 +293,9 @@ async def _command(request: Request) -> dict[str, Any]:
     elif intent == CommandIntent.MODE_SWITCH:
         target = resolve_mode_target(text)
         result["mode_target"] = target
-        result["response_text"] = f"Mode target: {target}" if target else "Could not determine target mode."
+        result["response_text"] = (
+            f"Mode target: {target}" if target else "Could not determine target mode."
+        )
 
     elif intent == CommandIntent.COCKPIT_NAVIGATION:
         panel = resolve_navigation_target(text)
@@ -306,6 +321,7 @@ async def _command(request: Request) -> dict[str, Any]:
 
     elif intent == CommandIntent.PACKET_CONTROL:
         from substrate.workstation.command_router import resolve_packet_control_action
+
         action = resolve_packet_control_action(text)
         result["response_text"] = f"Packet {action} requires governance approval."
         result["governance"] = GovernanceRequirement.REQUIRES_GOVERNANCE.value
@@ -318,18 +334,22 @@ async def _command(request: Request) -> dict[str, Any]:
         result["panel_target"] = "commandcenter"
 
     else:
-        result["response_text"] = "Command not recognized. Try: status, agents, blocked, approvals, mode switch, or navigation."
+        result["response_text"] = (
+            "Command not recognized. Try: status, agents, blocked, approvals, mode switch, or navigation."
+        )
 
     def _do_command():
-        _log_presence_event({
-            "event": "command",
-            "command_id": result["command_id"],
-            "intent": intent.value,
-            "governance": gov.value,
-            "source": source,
-            "text": text,
-            "timestamp": result["timestamp"],
-        })
+        _log_presence_event(
+            {
+                "event": "command",
+                "command_id": result["command_id"],
+                "intent": intent.value,
+                "governance": gov.value,
+                "source": source,
+                "text": text,
+                "timestamp": result["timestamp"],
+            }
+        )
         return f"command processed: {intent.value}", True
 
     gm_resp = governed_mutation(
@@ -363,8 +383,7 @@ def _capabilities(request: Request) -> dict[str, Any]:
             "total": len(caps),
         },
         "stt_available": any(
-            c.source == "push_to_talk_voice" and c.status in ("available", "degraded")
-            for c in caps
+            c.source == "push_to_talk_voice" and c.status in ("available", "degraded") for c in caps
         ),
         "tts_available": _check_tts_available(),
         "source_env": _detect_env(),
@@ -413,6 +432,7 @@ def _voice_health() -> dict[str, Any]:
 def _check_voice_ws_reachable(port: int) -> bool:
     """Check if the voice WebSocket server is listening."""
     import socket
+
     upstream = os.environ.get("VOICE_WS_UPSTREAM", "")
     if "host.docker.internal" in upstream:
         host = "host.docker.internal"
@@ -432,6 +452,7 @@ def _check_tts_available() -> bool:
     """Check if Kokoro TTS on Beast is reachable."""
     try:
         import urllib.request
+
         kokoro_url = os.environ.get("KOKORO_TTS_URL", "http://100.74.199.102:8880")
         req = urllib.request.Request(f"{kokoro_url}/health", method="GET")
         req.add_header("Connection", "close")
@@ -481,7 +502,9 @@ def _build_approval_response(approvals: list[dict[str, Any]]) -> str:
 
 def _load_agent_summary() -> dict[str, Any]:
     """Load workcell heartbeats as agent summary."""
-    workcell_dir = os.path.join(_DATA_ROOT, "organism", "workcells")
+    from substrate.state.runtime_paths import runtime_state_dir
+
+    workcell_dir = str(runtime_state_dir("organism", create=False) / "workcells")
     agents: list[dict[str, Any]] = []
     if os.path.isdir(workcell_dir):
         for entry in sorted(os.listdir(workcell_dir)):
@@ -490,13 +513,15 @@ def _load_agent_summary() -> dict[str, Any]:
                 try:
                     with open(hb_path) as f:
                         data = json.load(f)
-                    agents.append({
-                        "agent_id": data.get("workcell_id", entry),
-                        "role": data.get("role", "unknown"),
-                        "status": data.get("status", "unknown"),
-                        "messages": data.get("messages_processed", 0),
-                        "inbox": data.get("inbox_depth", 0),
-                    })
+                    agents.append(
+                        {
+                            "agent_id": data.get("workcell_id", entry),
+                            "role": data.get("role", "unknown"),
+                            "status": data.get("status", "unknown"),
+                            "messages": data.get("messages_processed", 0),
+                            "inbox": data.get("inbox_depth", 0),
+                        }
+                    )
                 except (json.JSONDecodeError, OSError):
                     agents.append({"agent_id": entry, "role": "unknown", "status": "unavailable"})
     return {
@@ -519,7 +544,9 @@ def _build_agent_response(data: dict[str, Any]) -> str:
 
 def _load_blocked_summary() -> dict[str, Any]:
     """Load blocked work packets."""
-    wp_path = os.path.join(_DATA_ROOT, "universal_work", "work_packets.jsonl")
+    from substrate.state.runtime_paths import runtime_state_path
+
+    wp_path = str(runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False))
     blocked: list[dict[str, Any]] = []
     if os.path.exists(wp_path):
         try:
@@ -531,12 +558,14 @@ def _load_blocked_summary() -> dict[str, Any]:
                     try:
                         pkt = json.loads(line)
                         if pkt.get("status") == "blocked" or pkt.get("blockers"):
-                            blocked.append({
-                                "id": pkt.get("packet_id", ""),
-                                "title": pkt.get("title", ""),
-                                "blockers": pkt.get("blockers", []),
-                                "status": pkt.get("status", ""),
-                            })
+                            blocked.append(
+                                {
+                                    "id": pkt.get("packet_id", ""),
+                                    "title": pkt.get("title", ""),
+                                    "blockers": pkt.get("blockers", []),
+                                    "status": pkt.get("status", ""),
+                                }
+                            )
                     except json.JSONDecodeError:
                         continue
         except OSError:
@@ -576,7 +605,9 @@ def _load_command_center_summary() -> dict[str, Any]:
 def _build_command_center_response(data: dict[str, Any]) -> str:
     parts: list[str] = []
     agents = data.get("agents", {})
-    parts.append(f"Agents: {agents.get('active', 0)} active, {agents.get('idle', 0)} idle of {agents.get('total', 0)}.")
+    parts.append(
+        f"Agents: {agents.get('active', 0)} active, {agents.get('idle', 0)} idle of {agents.get('total', 0)}."
+    )
     blocked = data.get("blocked", {})
     if blocked.get("count", 0):
         parts.append(f"Blocked: {blocked['count']} item(s).")

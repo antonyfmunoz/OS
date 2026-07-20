@@ -42,6 +42,15 @@ def _build_synthetic_repo(root: Path) -> None:
     (root / "data" / "world_models" / "self" / "runs" / "old" / "claims.jsonl").write_text(
         '{"id": "claimentry:prior"}\n'
     )
+    # runtime-state boundary (Wave 0): live organism state — excluded as
+    # runtime_state, never hashed/parsed/emitted as a SourceRecord
+    (root / "data" / "runtime" / "umh" / "organism").mkdir(parents=True)
+    (root / "data" / "runtime" / "umh" / "organism" / "events.jsonl").write_text(
+        '{"event": "tick", "detail": "operational metadata"}\n'
+    )
+    # decoy: an ordinary `runtime` package dir must stay inventoried
+    (root / "substrate" / "runtime").mkdir()
+    (root / "substrate" / "runtime" / "adapter.py").write_text("r = 4\n")
 
 
 class TestInventoryAccounting:
@@ -124,6 +133,47 @@ class TestInventoryAccounting:
             paths = {s.subject_path for s in res.sources}
             assert not any("world_models" in p for p in paths)
             assert res.accounting["counts_reconcile"] is True
+
+    def test_runtime_state_excluded_never_evidence(self):
+        """Wave 0 runtime-state boundary: data/runtime/** is live organism
+        state — excluded as `runtime_state`, counted in accounting, never
+        hashed/parsed/emitted as a repository-backed SourceRecord."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _build_synthetic_repo(root)
+            res = inventory_repository(root, run_id="R", activity_id="A", now="N")
+            cats = res.accounting["excluded_by_category"]
+            assert cats.get("runtime_state", 0) >= 1
+            paths = {s.subject_path for s in res.sources}
+            assert not any(p.startswith("data/runtime") for p in paths)
+            assert res.accounting["counts_reconcile"] is True
+
+    def test_runtime_state_contents_do_not_alter_evidence_ids(self):
+        """Mutating runtime state between runs must not change repository
+        evidence: same sources, same hashes, same record identity inputs."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _build_synthetic_repo(root)
+            res1 = inventory_repository(root, run_id="R", activity_id="A", now="N")
+            journal = root / "data" / "runtime" / "umh" / "organism" / "events.jsonl"
+            journal.write_text('{"event": "different-now"}\n' * 50)
+            (root / "data" / "runtime" / "umh" / "queue").mkdir(parents=True)
+            (root / "data" / "runtime" / "umh" / "queue" / "queue.json").write_text("{}")
+            res2 = inventory_repository(root, run_id="R", activity_id="A", now="N")
+            ids1 = sorted((s.subject_path, s.source_content_hash) for s in res1.sources)
+            ids2 = sorted((s.subject_path, s.source_content_hash) for s in res2.sources)
+            assert ids1 == ids2
+            assert res2.accounting["counts_reconcile"] is True
+
+    def test_ordinary_runtime_package_dir_still_inventoried(self):
+        """The exclusion is positional (data/runtime) — a normal `runtime`
+        code package must remain inventoried."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _build_synthetic_repo(root)
+            res = inventory_repository(root, run_id="R", activity_id="A", now="N")
+            paths = {s.subject_path for s in res.sources}
+            assert "substrate/runtime/adapter.py" in paths
 
     def test_oversized_file_gets_no_fake_hash(self):
         with tempfile.TemporaryDirectory() as d:
@@ -212,7 +262,8 @@ class TestInventoryAccounting:
             # aggregate package observation present for substrate
             agg = [o for o in res.observations if o.predicate == "python_files_present"]
             agg_subjects = {o.subject: o.value for o in agg}
-            assert agg_subjects.get("package:substrate") == 3
+            # mod.py, helper.py, secrets_manager.py + runtime/adapter.py decoy
+            assert agg_subjects.get("package:substrate") == 4
             assert all(o.observation_kind == "aggregate_count" for o in agg)
 
     def test_all_observations_are_source_present_never_overasserted(self):

@@ -60,7 +60,9 @@ _DISCUSSION_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 _QUESTION_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^(what|how|why|when|where|which|who|can|could|should|would|is|are|do|does)\b", re.I),
+    re.compile(
+        r"^(what|how|why|when|where|which|who|can|could|should|would|is|are|do|does)\b", re.I
+    ),
     re.compile(r"\bpros and cons\b", re.I),
     re.compile(r"\bwhat are the\b", re.I),
     re.compile(r"\bhow does\b", re.I),
@@ -101,7 +103,10 @@ _EXECUTION_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 _WORK_INTENT_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^(use|add|build|create|implement|migrate|set up|install|configure|remove|delete|update|upgrade|replace|integrate|connect|wire|extract|refactor)\b", re.I),
+    re.compile(
+        r"^(use|add|build|create|implement|migrate|set up|install|configure|remove|delete|update|upgrade|replace|integrate|connect|wire|extract|refactor)\b",
+        re.I,
+    ),
     re.compile(r"\buse\s+\w+\s+(for|in|on|with)\b", re.I),
     re.compile(r"\badd\s+\w+\s+to\b", re.I),
     re.compile(r"\bbuild\s+(a|the|an)\b", re.I),
@@ -161,14 +166,40 @@ class DelegationMissionStatus(str, Enum):
 
 
 _VALID_TRANSITIONS: dict[DelegationMissionStatus, list[DelegationMissionStatus]] = {
-    DelegationMissionStatus.PROPOSED: [DelegationMissionStatus.APPROVED, DelegationMissionStatus.CANCELLED],
-    DelegationMissionStatus.APPROVED: [DelegationMissionStatus.QUEUED, DelegationMissionStatus.CANCELLED],
-    DelegationMissionStatus.QUEUED: [DelegationMissionStatus.CLAIMED, DelegationMissionStatus.CANCELLED],
-    DelegationMissionStatus.CLAIMED: [DelegationMissionStatus.PLANNING, DelegationMissionStatus.FAILED, DelegationMissionStatus.CANCELLED],
-    DelegationMissionStatus.PLANNING: [DelegationMissionStatus.WORK_PACKET_DRAFTED, DelegationMissionStatus.FAILED, DelegationMissionStatus.CANCELLED],
-    DelegationMissionStatus.WORK_PACKET_DRAFTED: [DelegationMissionStatus.WORK_PACKET_APPROVED, DelegationMissionStatus.CANCELLED],
-    DelegationMissionStatus.WORK_PACKET_APPROVED: [DelegationMissionStatus.EXECUTING, DelegationMissionStatus.CANCELLED],
-    DelegationMissionStatus.EXECUTING: [DelegationMissionStatus.COMPLETED, DelegationMissionStatus.FAILED],
+    DelegationMissionStatus.PROPOSED: [
+        DelegationMissionStatus.APPROVED,
+        DelegationMissionStatus.CANCELLED,
+    ],
+    DelegationMissionStatus.APPROVED: [
+        DelegationMissionStatus.QUEUED,
+        DelegationMissionStatus.CANCELLED,
+    ],
+    DelegationMissionStatus.QUEUED: [
+        DelegationMissionStatus.CLAIMED,
+        DelegationMissionStatus.CANCELLED,
+    ],
+    DelegationMissionStatus.CLAIMED: [
+        DelegationMissionStatus.PLANNING,
+        DelegationMissionStatus.FAILED,
+        DelegationMissionStatus.CANCELLED,
+    ],
+    DelegationMissionStatus.PLANNING: [
+        DelegationMissionStatus.WORK_PACKET_DRAFTED,
+        DelegationMissionStatus.FAILED,
+        DelegationMissionStatus.CANCELLED,
+    ],
+    DelegationMissionStatus.WORK_PACKET_DRAFTED: [
+        DelegationMissionStatus.WORK_PACKET_APPROVED,
+        DelegationMissionStatus.CANCELLED,
+    ],
+    DelegationMissionStatus.WORK_PACKET_APPROVED: [
+        DelegationMissionStatus.EXECUTING,
+        DelegationMissionStatus.CANCELLED,
+    ],
+    DelegationMissionStatus.EXECUTING: [
+        DelegationMissionStatus.COMPLETED,
+        DelegationMissionStatus.FAILED,
+    ],
     DelegationMissionStatus.COMPLETED: [],
     DelegationMissionStatus.FAILED: [],
     DelegationMissionStatus.CANCELLED: [],
@@ -403,9 +434,9 @@ class DelegationRuntime:
     """
 
     def __init__(self, store_dir: str | None = None) -> None:
-        import os
-        root = os.environ.get("UMH_ROOT", "/opt/OS")
-        self._store_dir = Path(store_dir) if store_dir else Path(root) / "data" / "umh" / "organism"
+        from substrate.state.runtime_paths import runtime_state_dir
+
+        self._store_dir = Path(store_dir) if store_dir else runtime_state_dir("organism")
         self._store_dir.mkdir(parents=True, exist_ok=True)
         self._missions_path = self._store_dir / "delegation_missions.jsonl"
         self._proposals_path = self._store_dir / "delegation_proposals.jsonl"
@@ -423,7 +454,9 @@ class DelegationRuntime:
         return classify_intent(message)
 
     def explain_understanding(
-        self, message: str, intent_type: OperatorIntentType,
+        self,
+        message: str,
+        intent_type: OperatorIntentType,
     ) -> dict[str, Any]:
         """When WORK_INTENT or EXECUTION, explain what the orchestrator thinks
         the work affects. Presented to operator BEFORE offering delegation."""
@@ -431,6 +464,7 @@ class DelegationRuntime:
             return {}
 
         from substrate.organism.intent_classifier import IntentClassifier
+
         classifier = IntentClassifier()
         classification = classifier.classify(message)
 
@@ -461,8 +495,8 @@ class DelegationRuntime:
         understanding: dict[str, Any] | None = None,
     ) -> DelegationProposal:
         """Create a delegation proposal. Deterministic — no LLM."""
-        from substrate.organism.intent_classifier import IntentClassifier
         from substrate.organism.delegation_topology import DelegationTopologyPlanner
+        from substrate.organism.intent_classifier import IntentClassifier
 
         classifier = IntentClassifier()
         classification = classifier.classify(clarified_intent or operator_intent)
@@ -489,7 +523,9 @@ class DelegationRuntime:
             proposed_scope=scope,
             estimated_complexity=classification.complexity,
             estimated_risk=classification.risk_class,
-            required_capabilities=[classification.required_executor_type] if classification.required_executor_type else [],
+            required_capabilities=[classification.required_executor_type]
+            if classification.required_executor_type
+            else [],
             topology_preview=topology.to_dict(),
             understanding=understanding or {},
             why_delegate=why,
@@ -546,18 +582,31 @@ class DelegationRuntime:
 
     def queue_status(self) -> dict[str, Any]:
         queued = [m for m in self._missions.values() if m.status == DelegationMissionStatus.QUEUED]
-        active = [m for m in self._missions.values() if m.status in (
-            DelegationMissionStatus.CLAIMED, DelegationMissionStatus.PLANNING,
-            DelegationMissionStatus.WORK_PACKET_DRAFTED, DelegationMissionStatus.EXECUTING,
-        )]
+        active = [
+            m
+            for m in self._missions.values()
+            if m.status
+            in (
+                DelegationMissionStatus.CLAIMED,
+                DelegationMissionStatus.PLANNING,
+                DelegationMissionStatus.WORK_PACKET_DRAFTED,
+                DelegationMissionStatus.EXECUTING,
+            )
+        ]
         return {
             "queue_depth": len(queued),
             "active_count": len(active),
             "max_concurrent": self._max_concurrent,
-            "queued_missions": [m.to_dict() for m in sorted(queued, key=lambda m: (
-                {"critical": 0, "high": 1, "normal": 2, "low": 3}.get(m.priority, 2),
-                m.created_at,
-            ))],
+            "queued_missions": [
+                m.to_dict()
+                for m in sorted(
+                    queued,
+                    key=lambda m: (
+                        {"critical": 0, "high": 1, "normal": 2, "low": 3}.get(m.priority, 2),
+                        m.created_at,
+                    ),
+                )
+            ],
             "active_missions": [m.to_dict() for m in active],
             "nested_orchestrators": {k: v.to_dict() for k, v in self._nested_orchestrators.items()},
         }
@@ -569,9 +618,14 @@ class DelegationRuntime:
             return None
 
         active_count = sum(
-            1 for m in self._missions.values()
-            if m.status in (DelegationMissionStatus.CLAIMED, DelegationMissionStatus.PLANNING,
-                            DelegationMissionStatus.WORK_PACKET_DRAFTED)
+            1
+            for m in self._missions.values()
+            if m.status
+            in (
+                DelegationMissionStatus.CLAIMED,
+                DelegationMissionStatus.PLANNING,
+                DelegationMissionStatus.WORK_PACKET_DRAFTED,
+            )
         )
         if active_count >= self._max_concurrent:
             logger.info("Delegation queue at capacity (%d/%d)", active_count, self._max_concurrent)
@@ -591,7 +645,10 @@ class DelegationRuntime:
         claimed: list[str] = []
         queued = sorted(
             [m for m in self._missions.values() if m.status == DelegationMissionStatus.QUEUED],
-            key=lambda m: ({"critical": 0, "high": 1, "normal": 2, "low": 3}.get(m.priority, 2), m.created_at),
+            key=lambda m: (
+                {"critical": 0, "high": 1, "normal": 2, "low": 3}.get(m.priority, 2),
+                m.created_at,
+            ),
         )
         for mission in queued:
             result = self.claim_mission(mission.mission_id)
@@ -604,12 +661,15 @@ class DelegationRuntime:
     # ── Nested orchestrator lifecycle ────────────────────────────────
 
     def submit_work_packet_draft(
-        self, mission_id: str, draft: dict[str, Any],
+        self,
+        mission_id: str,
+        draft: dict[str, Any],
     ) -> dict[str, Any] | None:
         """Nested orchestrator submits WP draft. Does NOT execute."""
         mission = self._missions.get(mission_id)
         if not mission or mission.status not in (
-            DelegationMissionStatus.CLAIMED, DelegationMissionStatus.PLANNING,
+            DelegationMissionStatus.CLAIMED,
+            DelegationMissionStatus.PLANNING,
         ):
             return None
 
@@ -655,7 +715,9 @@ class DelegationRuntime:
         return {"mission_id": mission_id, "status": "executing"}
 
     def complete_mission(
-        self, mission_id: str, result: dict[str, Any] | None = None,
+        self,
+        mission_id: str,
+        result: dict[str, Any] | None = None,
     ) -> DelegationMission | None:
         mission = self._missions.get(mission_id)
         if not mission or not mission.can_transition(DelegationMissionStatus.COMPLETED):
@@ -706,7 +768,9 @@ class DelegationRuntime:
     # ── Execution intent resolution ──────────────────────────────────
 
     def resolve_execution_intent(
-        self, message: str, understanding: dict[str, Any] | None = None,
+        self,
+        message: str,
+        understanding: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """EXECUTION intents resolve to governed WP state. Never direct execution.
 
@@ -714,7 +778,8 @@ class DelegationRuntime:
         proposal path to create one.
         """
         approved = [
-            m for m in self._missions.values()
+            m
+            for m in self._missions.values()
             if m.status == DelegationMissionStatus.WORK_PACKET_APPROVED
         ]
         if approved:
@@ -766,9 +831,12 @@ class DelegationRuntime:
 
     def active_missions(self) -> list[dict[str, Any]]:
         active_states = {
-            DelegationMissionStatus.QUEUED, DelegationMissionStatus.CLAIMED,
-            DelegationMissionStatus.PLANNING, DelegationMissionStatus.WORK_PACKET_DRAFTED,
-            DelegationMissionStatus.WORK_PACKET_APPROVED, DelegationMissionStatus.EXECUTING,
+            DelegationMissionStatus.QUEUED,
+            DelegationMissionStatus.CLAIMED,
+            DelegationMissionStatus.PLANNING,
+            DelegationMissionStatus.WORK_PACKET_DRAFTED,
+            DelegationMissionStatus.WORK_PACKET_APPROVED,
+            DelegationMissionStatus.EXECUTING,
         }
         return [m.to_dict() for m in self._missions.values() if m.status in active_states]
 
@@ -823,7 +891,9 @@ class DelegationRuntime:
         if classification.parallel_workcells_needed:
             reasons.append("parallel execution benefits from dedicated coordination")
         if not reasons:
-            reasons.append("work packet construction delegated to maintain orchestrator availability")
+            reasons.append(
+                "work packet construction delegated to maintain orchestrator availability"
+            )
         return "; ".join(reasons)
 
     @staticmethod

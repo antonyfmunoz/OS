@@ -2,6 +2,7 @@
 
 Phase 0.3 route split. UMH transport layer.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +12,6 @@ import logging
 import os
 import re
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 _ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
 TRACE_STORE = _ROOT / "data" / "umh" / "traces" / "traces.jsonl"
-_SAFE_PATH_RE = re.compile(r'^[A-Za-z]:\\[A-Za-z0-9_\\\-. ]*$')
+_SAFE_PATH_RE = re.compile(r"^[A-Za-z]:\\[A-Za-z0-9_\\\-. ]*$")
 
 
 def register_bootstrap_routes(router, _require_operator_role, helpers):
@@ -45,7 +45,8 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
         """
         try:
             return await asyncio.wait_for(
-                asyncio.to_thread(_bootstrap_sync), timeout=15,
+                asyncio.to_thread(_bootstrap_sync),
+                timeout=15,
             )
         except asyncio.TimeoutError:
             return {"ok": False, "ts": "", "_errors": ["bootstrap timed out after 15s"]}
@@ -53,28 +54,31 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
     def _fetch_windows_files() -> dict[str, Any]:
         """SSH to Beast for filesystem root listing — isolated so it can be deadline-capped."""
         from transports.api.cockpit_workspace_routes import _ssh_cmd
+
         _win_root = "C:\\"
         if not _SAFE_PATH_RE.match(_win_root):
             logger.warning("Rejected unsafe Windows path from device registry: %s", _win_root)
             return {"ok": False, "entries": []}
         _win_root_escaped = _win_root.replace("'", "''")
         _win_ok, _win_out = _ssh_cmd(
-            f'powershell -Command "Get-ChildItem -LiteralPath \'{_win_root_escaped}\''
-            ' | ForEach-Object { $_.Name + \'|\''
-            ' + $(if($_.PSIsContainer){\'directory\'}else{\'file\'})'
-            ' + \'|\' + $_.Length }"'
+            f"powershell -Command \"Get-ChildItem -LiteralPath '{_win_root_escaped}'"
+            " | ForEach-Object { $_.Name + '|'"
+            " + $(if($_.PSIsContainer){'directory'}else{'file'})"
+            " + '|' + $_.Length }\""
         )
         _win_entries: list[dict[str, Any]] = []
         if _win_ok:
             for _line in _win_out.strip().splitlines():
                 _parts = _line.strip().split("|")
                 if len(_parts) >= 2:
-                    _win_entries.append({
-                        "name": _parts[0],
-                        "path": _win_root + "\\" + _parts[0],
-                        "type": _parts[1],
-                        "source_env": "windows",
-                    })
+                    _win_entries.append(
+                        {
+                            "name": _parts[0],
+                            "path": _win_root + "\\" + _parts[0],
+                            "type": _parts[1],
+                            "source_env": "windows",
+                        }
+                    )
         return {"ok": _win_ok, "entries": _win_entries}
 
     def _bootstrap_sync() -> dict[str, Any]:
@@ -93,6 +97,7 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
 
         def _fetch_config() -> dict[str, Any]:
             from substrate.sockets.config_port import get_all_config
+
             return get_all_config()
 
         def _fetch_pulse() -> dict[str, Any]:
@@ -133,11 +138,13 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
 
         def _fetch_mode_composite() -> dict[str, Any]:
             from substrate.workstation.mode_resolver import resolve_composite_mode
+
             return resolve_composite_mode()
 
         def _fetch_continuity() -> dict[str, Any]:
             try:
                 from substrate.workstation.continuity_engine import ContinuityEngine
+
                 engine = ContinuityEngine()
                 composite = engine.get_composite_state()
                 return composite.to_dict()
@@ -145,6 +152,7 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                 from transports.api.cockpit_workstation_control_routes import (
                     _get_continuity_machine,
                 )
+
                 machine = _get_continuity_machine()
                 return {
                     "current_state": machine.current_state.value,
@@ -153,12 +161,13 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
 
         def _fetch_command_center() -> dict[str, Any]:
             from transports.api.cockpit_command_center_routes import (
-                _load_workcell_heartbeats,
                 _load_approvals,
-                _load_work_packets,
                 _load_blocked_packets,
                 _load_journal_recent,
+                _load_work_packets,
+                _load_workcell_heartbeats,
             )
+
             heartbeats = _load_workcell_heartbeats()
             pending = _load_approvals(status_filter="pending")
             packets = _load_work_packets(limit=100)
@@ -168,14 +177,18 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
             active_agents = [h for h in heartbeats if h.get("status") == "active"]
             idle_agents = [h for h in heartbeats if h.get("status") == "idle"]
             completed = [j for j in journal if j.get("phase") == "EXECUTION_COMPLETED"]
-            failed = [j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED")]
+            failed = [
+                j for j in journal if j.get("phase") in ("EXECUTION_FAILED", "VERIFICATION_FAILED")
+            ]
             by_status: dict[str, int] = {}
             for p in packets:
                 s = p.get("status", "unknown")
                 by_status[s] = by_status.get(s, 0) + 1
             executing = [p for p in packets if p.get("status") in ("executing", "delegated")]
             next_packet = None
-            ready = [p for p in packets if p.get("status") in ("approved", "ready_for_review", "planned")]
+            ready = [
+                p for p in packets if p.get("status") in ("approved", "ready_for_review", "planned")
+            ]
             if ready:
                 ready.sort(key=lambda p: p.get("leverage_score", 0), reverse=True)
                 next_packet = {
@@ -185,9 +198,12 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                     "leverage_score": ready[0].get("leverage_score", 0),
                 }
 
-            checkpoint_path = os.path.join(
-                os.environ.get("UMH_ROOT", "/opt/OS"),
-                "data", "umh", "organism", "workstation_state", "latest_checkpoint.json",
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            checkpoint_path = str(
+                runtime_state_dir("organism", create=False)
+                / "workstation_state"
+                / "latest_checkpoint.json"
             )
             checkpoint_detail: dict[str, Any] = {}
             cc_continuity = "active"
@@ -217,7 +233,9 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                         "active_node": checkpoint_detail.get("active_node", ""),
                         "active_environment": checkpoint_detail.get("active_environment", ""),
                         "open_loops": checkpoint_detail.get("open_loops", []),
-                        "recommended_next_action": checkpoint_detail.get("recommended_next_action", ""),
+                        "recommended_next_action": checkpoint_detail.get(
+                            "recommended_next_action", ""
+                        ),
                         "transition_reason": checkpoint_detail.get("transition_reason", ""),
                     },
                     "what_is_happening": {
@@ -228,24 +246,48 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                         "executing_packets": len(executing),
                     },
                     "who_is_working": [
-                        {"agent_id": h.get("workcell_id", ""), "role": h.get("role", ""), "status": h.get("status", "")}
+                        {
+                            "agent_id": h.get("workcell_id", ""),
+                            "role": h.get("role", ""),
+                            "status": h.get("status", ""),
+                        }
                         for h in heartbeats
                     ],
                     "what_is_blocked": {
                         "count": len(blocked),
-                        "items": [{"id": b.get("packet_id", ""), "title": b.get("title", ""), "blockers": b.get("blockers", [])} for b in blocked[:5]],
+                        "items": [
+                            {
+                                "id": b.get("packet_id", ""),
+                                "title": b.get("title", ""),
+                                "blockers": b.get("blockers", []),
+                            }
+                            for b in blocked[:5]
+                        ],
                     },
                     "what_needs_approval": {
                         "count": len(pending),
-                        "items": [{"id": a.get("id", ""), "title": a.get("title", ""), "risk_level": a.get("risk_level", "")} for a in pending[:5]],
+                        "items": [
+                            {
+                                "id": a.get("id", ""),
+                                "title": a.get("title", ""),
+                                "risk_level": a.get("risk_level", ""),
+                            }
+                            for a in pending[:5]
+                        ],
                     },
                     "what_finished": {
                         "recent_completed": len(completed),
-                        "latest": completed[-1].get("details", {}).get("intent", "") if completed else "",
+                        "latest": completed[-1].get("details", {}).get("intent", "")
+                        if completed
+                        else "",
                     },
                     "what_failed": {
                         "recent_failed": len(failed),
-                        "latest": failed[-1].get("details", {}).get("error", failed[-1].get("source", "")) if failed else "",
+                        "latest": failed[-1]
+                        .get("details", {})
+                        .get("error", failed[-1].get("source", ""))
+                        if failed
+                        else "",
                     },
                     "what_should_resume_next": next_packet,
                     "packets_by_status": by_status,
@@ -254,13 +296,19 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                     "node": os.uname().nodename,
                 },
                 "approvals": [
-                    {"id": a.get("id", ""), "title": a.get("title", ""), "risk_level": a.get("risk_level", ""), "status": a.get("status", "")}
+                    {
+                        "id": a.get("id", ""),
+                        "title": a.get("title", ""),
+                        "risk_level": a.get("risk_level", ""),
+                        "status": a.get("status", ""),
+                    }
                     for a in pending[:10]
                 ],
             }
 
         def _fetch_overnight() -> dict[str, Any]:
             from substrate.workstation.overnight_queue import OvernightQueue
+
             queue = OvernightQueue()
             return queue.morning_summary()
 
@@ -269,8 +317,10 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
             _repo = os.environ.get("UMH_ROOT", "/opt/OS")
             _registry_path = os.path.join(_repo, "infra", "device_registry.json")
             _mesh_hb_path = os.path.join(_repo, "data", "runtime", "mesh_nodes.json")
-            _mesh_metrics_path = os.path.join(
-                _repo, "data", "umh", "organism", "mesh_metrics.json",
+            from substrate.state.runtime_paths import runtime_state_path
+
+            _mesh_metrics_path = str(
+                runtime_state_path("organism", "mesh_metrics.json", create_parent=False)
             )
             _registry: list[dict[str, Any]] = []
             _hb_map: dict[str, dict[str, Any]] = {}
@@ -316,20 +366,23 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
                 _mid = _dev.get("mesh_node_id", "")
                 _hb = _hb_map.get(_mid, {})
                 _st = "online" if _dev.get("always_online") else _hb.get("status", "offline")
-                _mesh_list.append({
-                    "id": _dev["id"],
-                    "name": _dev.get("display_name", _dev.get("tailscale_name", _dev["id"])),
-                    "os": _dev.get("os", ""),
-                    "status": _st,
-                    "ip": _dev.get("tailscale_ip", ""),
-                    "device_type": _dev.get("device_type", ""),
-                    "last_heartbeat": _hb.get("last_heartbeat", ""),
-                })
+                _mesh_list.append(
+                    {
+                        "id": _dev["id"],
+                        "name": _dev.get("display_name", _dev.get("tailscale_name", _dev["id"])),
+                        "os": _dev.get("os", ""),
+                        "status": _st,
+                        "ip": _dev.get("tailscale_ip", ""),
+                        "device_type": _dev.get("device_type", ""),
+                        "last_heartbeat": _hb.get("last_heartbeat", ""),
+                    }
+                )
             return {"mesh": {"node_count": len(nm)}, "mesh_nodes": _mesh_list}
 
         def _fetch_dex() -> dict[str, Any]:
             try:
                 from transports.api.cockpit_chat_routes import get_dex_conversation
+
                 conv = get_dex_conversation()
             except (ImportError, AttributeError):
                 conv = None
@@ -392,7 +445,8 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
         """Slow-tier bootstrap — file trees and workstation nodes (SSH, browse)."""
         try:
             return await asyncio.wait_for(
-                asyncio.to_thread(_bootstrap_slow_sync), timeout=15,
+                asyncio.to_thread(_bootstrap_slow_sync),
+                timeout=15,
             )
         except asyncio.TimeoutError:
             return {"ok": False, "_errors": ["slow bootstrap timed out"]}
@@ -407,14 +461,18 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
 
         try:
             from transports.api.cockpit_workstation_control_routes import (
-                _read_vps_node, _read_mesh_snapshot,
+                _read_mesh_snapshot,
+                _read_vps_node,
             )
+
             vps_node = _read_vps_node()
             mesh_snapshot = _read_mesh_snapshot()
             result["workstation_nodes"] = {
-                "ok": True, "nodes": [vps_node] + mesh_snapshot,
+                "ok": True,
+                "nodes": [vps_node] + mesh_snapshot,
                 "count": 1 + len(mesh_snapshot),
-                "vps": vps_node, "remote_nodes": mesh_snapshot,
+                "vps": vps_node,
+                "remote_nodes": mesh_snapshot,
             }
         except Exception as e:
             errors.append(f"workstation_nodes: {e}")
@@ -422,6 +480,7 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
 
         try:
             from substrate.workstation.file_browser import browse_directory
+
             result["vps_files"] = browse_directory("/").to_dict()
         except Exception as e:
             errors.append(f"vps_files: {e}")
@@ -467,12 +526,14 @@ def register_bootstrap_routes(router, _require_operator_role, helpers):
             return JSONResponse({"error": "value is required"}, status_code=400)
 
         from substrate.state.config.config_store import VALID_KEYS
+
         if key not in VALID_KEYS:
             return JSONResponse({"error": f"invalid config key: {key}"}, status_code=400)
 
         def _do_config_patch():
             try:
-                from substrate.sockets.config_port import set_config, get_config
+                from substrate.sockets.config_port import set_config
+
                 set_config(key, value, layer=layer)
                 return f"config {key} updated", True
             except Exception as e:

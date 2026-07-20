@@ -45,6 +45,7 @@ def _ensure_dirs() -> None:
 
 class WorkstationMode(str, Enum):
     """What the operator is doing — drives template selection."""
+
     ENGINEERING = "engineering"
     CONTENT = "content"
     MUSIC = "music"
@@ -55,6 +56,7 @@ class WorkstationMode(str, Enum):
 
 class WorkspaceStatus(str, Enum):
     """Lifecycle of a workspace preparation plan."""
+
     PLANNED = "planned"
     READY = "ready"
     ACTIVE = "active"
@@ -68,6 +70,7 @@ class WorkspaceStatus(str, Enum):
 
 class PreparationStepType(str, Enum):
     """Categories of preparation actions."""
+
     APPLICATION = "application"
     REPOSITORY = "repository"
     BROWSER_TAB = "browser_tab"
@@ -78,6 +81,7 @@ class PreparationStepType(str, Enum):
 
 class SnapshotTrigger(str, Enum):
     """What caused a snapshot to be taken."""
+
     MANUAL = "manual"
     PROFILE_SWITCH = "profile_switch"
     SESSION_END = "session_end"
@@ -87,6 +91,7 @@ class SnapshotTrigger(str, Enum):
 
 class RecommendationType(str, Enum):
     """Categories of workstation recommendations."""
+
     RESUME_WORK = "resume_work"
     REVIEW_BLOCKED = "review_blocked"
     APPROVE_PROPOSAL = "approve_proposal"
@@ -104,6 +109,7 @@ class RecommendationType(str, Enum):
 @dataclass
 class WorkspaceTemplate:
     """Data-driven workspace template — loaded from JSON, never hardcoded."""
+
     template_id: str = ""
     mode: str = ""
     label: str = ""
@@ -135,6 +141,7 @@ class WorkspaceTemplate:
 @dataclass
 class PreparationStep:
     """One step in a workspace preparation plan."""
+
     step_type: str = ""
     target: str = ""
     reason: str = ""
@@ -158,6 +165,7 @@ class PreparationStep:
 @dataclass
 class WorkspacePreparationPlan:
     """Complete plan for preparing a workspace — never executes, only plans."""
+
     plan_id: str = ""
     mode: str = ""
     template_id: str = ""
@@ -202,8 +210,7 @@ class WorkspacePreparationPlan:
         raw = {k: v for k, v in d.items() if k in cls.__dataclass_fields__}
         if "steps" in raw and isinstance(raw["steps"], list):
             raw["steps"] = [
-                PreparationStep.from_dict(s) if isinstance(s, dict) else s
-                for s in raw["steps"]
+                PreparationStep.from_dict(s) if isinstance(s, dict) else s for s in raw["steps"]
             ]
         return cls(**raw)
 
@@ -211,6 +218,7 @@ class WorkspacePreparationPlan:
 @dataclass
 class ApplicationState:
     """State of a single application in a workspace."""
+
     name: str = ""
     running: bool = False
     window_title: str = ""
@@ -232,6 +240,7 @@ class ApplicationState:
 @dataclass
 class WorkspaceState:
     """Current state of a workspace — what's open and active."""
+
     mode: str = ""
     active_template_id: str = ""
     applications: list[ApplicationState] = field(default_factory=list)
@@ -269,6 +278,7 @@ class WorkspaceState:
 @dataclass
 class WorkspaceSnapshot:
     """Point-in-time snapshot of workspace — restorable."""
+
     snapshot_id: str = ""
     trigger: str = SnapshotTrigger.MANUAL.value
     workspace_state: dict[str, Any] = field(default_factory=dict)
@@ -312,6 +322,7 @@ class WorkspaceSnapshot:
 @dataclass
 class RestorationPlan:
     """Plan for restoring a workspace from a snapshot — planning only."""
+
     restoration_id: str = ""
     source_snapshot_id: str = ""
     target_mode: str = ""
@@ -353,6 +364,7 @@ class RestorationPlan:
 @dataclass
 class WorkspaceSequence:
     """Ordered sequence of preparation steps for a workspace mode."""
+
     sequence_id: str = ""
     mode: str = ""
     steps: list[PreparationStep] = field(default_factory=list)
@@ -378,6 +390,7 @@ class WorkspaceSequence:
 @dataclass
 class WorkstationProfile:
     """Operator profile within the workstation context."""
+
     profile_mode: str = ""
     preferred_template: str = ""
     preferred_panels: list[str] = field(default_factory=list)
@@ -401,6 +414,7 @@ class WorkstationProfile:
 @dataclass
 class Workstation:
     """Top-level workstation entity."""
+
     workstation_id: str = ""
     operator_id: str = ""
     current_mode: str = ""
@@ -440,6 +454,7 @@ class Workstation:
 @dataclass
 class WorkstationRecommendation:
     """A deterministic recommendation for the operator."""
+
     recommendation_id: str = ""
     recommendation_type: str = RecommendationType.RESUME_WORK.value
     title: str = ""
@@ -473,36 +488,65 @@ class WorkstationRecommendation:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 _MODE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    ("engineering", re.compile(
-        r"\b(code|develop|engineer|debug|deploy|build|implement|refactor|"
-        r"test|ci|cd|pipeline|merge|commit|branch|pull.?request|pr|"
-        r"fix.?bug|api|endpoint|service|container|docker|kubernetes|"
-        r"database|migration|schema|operator|runtime|substrate|cockpit|"
-        r"repository|repo|vscode|ide|terminal|ssh)\b", re.IGNORECASE)),
-    ("content", re.compile(
-        r"\b(content|write|article|blog|post|video|script|edit|publish|"
-        r"social.?media|twitter|instagram|linkedin|youtube|thumbnail|"
-        r"newsletter|copy|brand|marketing|outreach|campaign|seo|"
-        r"audience|creator|podcast|stream)\b", re.IGNORECASE)),
-    ("music", re.compile(
-        r"\b(music|produce|mix|master|beat|track|song|album|daw|"
-        r"ableton|fl.?studio|logic|midi|audio|vocal|synth|sample|"
-        r"instrument|record|studio|sound)\b", re.IGNORECASE)),
-    ("business", re.compile(
-        r"\b(business|revenue|profit|sales|client|customer|invoice|"
-        r"proposal|contract|pricing|strategy|forecast|budget|finance|"
-        r"accounting|tax|legal|meeting|call|pitch|deal|lead|funnel|"
-        r"crm|pipeline|prospect|close)\b", re.IGNORECASE)),
-    ("research", re.compile(
-        r"\b(research|investigate|analyze|study|paper|report|data|"
-        r"survey|benchmark|compare|evaluate|explore|discover|learn|"
-        r"understand|literature|review|source|reference|academic|"
-        r"experiment|hypothesis|finding)\b", re.IGNORECASE)),
-    ("admin", re.compile(
-        r"\b(admin|manage|organize|schedule|calendar|email|inbox|"
-        r"todo|task|ticket|issue|setup|configure|install|update|"
-        r"backup|restore|clean|maintain|monitor|log|alert|notify)\b",
-        re.IGNORECASE)),
+    (
+        "engineering",
+        re.compile(
+            r"\b(code|develop|engineer|debug|deploy|build|implement|refactor|"
+            r"test|ci|cd|pipeline|merge|commit|branch|pull.?request|pr|"
+            r"fix.?bug|api|endpoint|service|container|docker|kubernetes|"
+            r"database|migration|schema|operator|runtime|substrate|cockpit|"
+            r"repository|repo|vscode|ide|terminal|ssh)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "content",
+        re.compile(
+            r"\b(content|write|article|blog|post|video|script|edit|publish|"
+            r"social.?media|twitter|instagram|linkedin|youtube|thumbnail|"
+            r"newsletter|copy|brand|marketing|outreach|campaign|seo|"
+            r"audience|creator|podcast|stream)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "music",
+        re.compile(
+            r"\b(music|produce|mix|master|beat|track|song|album|daw|"
+            r"ableton|fl.?studio|logic|midi|audio|vocal|synth|sample|"
+            r"instrument|record|studio|sound)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "business",
+        re.compile(
+            r"\b(business|revenue|profit|sales|client|customer|invoice|"
+            r"proposal|contract|pricing|strategy|forecast|budget|finance|"
+            r"accounting|tax|legal|meeting|call|pitch|deal|lead|funnel|"
+            r"crm|pipeline|prospect|close)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "research",
+        re.compile(
+            r"\b(research|investigate|analyze|study|paper|report|data|"
+            r"survey|benchmark|compare|evaluate|explore|discover|learn|"
+            r"understand|literature|review|source|reference|academic|"
+            r"experiment|hypothesis|finding)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "admin",
+        re.compile(
+            r"\b(admin|manage|organize|schedule|calendar|email|inbox|"
+            r"todo|task|ticket|issue|setup|configure|install|update|"
+            r"backup|restore|clean|maintain|monitor|log|alert|notify)\b",
+            re.IGNORECASE,
+        ),
+    ),
 ]
 
 
@@ -539,9 +583,7 @@ class WorkspaceTemplateRegistry:
     """Data-driven template registry backed by JSON files."""
 
     def __init__(self, templates_dir: str = "") -> None:
-        self._dir = templates_dir or os.path.join(
-            _workstation_data_dir(), "templates"
-        )
+        self._dir = templates_dir or os.path.join(_workstation_data_dir(), "templates")
         os.makedirs(self._dir, exist_ok=True)
         self._templates: dict[str, WorkspaceTemplate] = {}
         self._load()
@@ -571,10 +613,7 @@ class WorkspaceTemplateRegistry:
         templates_file = os.path.join(self._dir, "workspace_templates.json")
         try:
             with open(templates_file, "w") as f:
-                json.dump(
-                    [t.to_dict() for t in self._templates.values()],
-                    f, indent=2
-                )
+                json.dump([t.to_dict() for t in self._templates.values()], f, indent=2)
         except Exception as e:
             logger.warning("Failed to save workspace templates: %s", e)
 
@@ -612,13 +651,9 @@ def _default_templates() -> list[WorkspaceTemplate]:
             label="Engineering",
             required_applications=["vscode", "claude_code", "terminal"],
             required_repositories=["OS"],
-            recommended_cockpit_panels=[
-                "commandcenter", "work", "execution", "workspace"
-            ],
+            recommended_cockpit_panels=["commandcenter", "work", "execution", "workspace"],
             recommended_browser_tabs=["github"],
-            required_context_sources=[
-                "continuity", "work_packets", "gap_engine"
-            ],
+            required_context_sources=["continuity", "work_packets", "gap_engine"],
             description="Full development environment with IDE, CLI, and work tracking",
         ),
         WorkspaceTemplate(
@@ -627,15 +662,9 @@ def _default_templates() -> list[WorkspaceTemplate]:
             label="Content",
             required_applications=["browser", "editor"],
             required_repositories=[],
-            recommended_cockpit_panels=[
-                "commandcenter", "comms", "knowledge"
-            ],
-            recommended_browser_tabs=[
-                "social_dashboard", "content_calendar"
-            ],
-            required_context_sources=[
-                "continuity", "projections", "reality_model"
-            ],
+            recommended_cockpit_panels=["commandcenter", "comms", "knowledge"],
+            recommended_browser_tabs=["social_dashboard", "content_calendar"],
+            required_context_sources=["continuity", "projections", "reality_model"],
             description="Content creation and publishing workflow",
         ),
         WorkspaceTemplate(
@@ -655,13 +684,9 @@ def _default_templates() -> list[WorkspaceTemplate]:
             label="Business",
             required_applications=["browser", "email", "calendar"],
             required_repositories=[],
-            recommended_cockpit_panels=[
-                "commandcenter", "strategy", "projections", "work"
-            ],
+            recommended_cockpit_panels=["commandcenter", "strategy", "projections", "work"],
             recommended_browser_tabs=["crm", "analytics"],
-            required_context_sources=[
-                "continuity", "projections", "gap_engine", "reality_model"
-            ],
+            required_context_sources=["continuity", "projections", "gap_engine", "reality_model"],
             description="Business operations, sales, and strategy",
         ),
         WorkspaceTemplate(
@@ -670,13 +695,9 @@ def _default_templates() -> list[WorkspaceTemplate]:
             label="Research",
             required_applications=["browser", "editor"],
             required_repositories=[],
-            recommended_cockpit_panels=[
-                "commandcenter", "knowledge", "projections"
-            ],
+            recommended_cockpit_panels=["commandcenter", "knowledge", "projections"],
             recommended_browser_tabs=["search", "references"],
-            required_context_sources=[
-                "continuity", "projections", "reality_model"
-            ],
+            required_context_sources=["continuity", "projections", "reality_model"],
             description="Research, analysis, and investigation workflow",
         ),
         WorkspaceTemplate(
@@ -685,9 +706,7 @@ def _default_templates() -> list[WorkspaceTemplate]:
             label="Admin",
             required_applications=["browser", "terminal", "email"],
             required_repositories=[],
-            recommended_cockpit_panels=[
-                "commandcenter", "infrastructure", "settings"
-            ],
+            recommended_cockpit_panels=["commandcenter", "infrastructure", "settings"],
             recommended_browser_tabs=["admin_dashboard"],
             required_context_sources=["continuity", "presence"],
             description="System administration and maintenance",
@@ -730,6 +749,7 @@ class WorkspaceContextAssembler:
     def _assemble_continuity(self, ctx: dict[str, Any]) -> None:
         try:
             from substrate.organism.continuity_runtime import ContinuityRuntime
+
             rt = ContinuityRuntime()
             brief = rt.generate_brief()
             if hasattr(brief, "to_dict"):
@@ -744,6 +764,7 @@ class WorkspaceContextAssembler:
     def _assemble_presence(self, ctx: dict[str, Any]) -> None:
         try:
             from substrate.organism.presence_runtime import PresenceRuntime
+
             rt = PresenceRuntime()
             snap = rt.snapshot()
             if hasattr(snap, "to_dict"):
@@ -760,12 +781,12 @@ class WorkspaceContextAssembler:
             from substrate.organism.strategic_gap_engine import (
                 StrategicGapEngine,
             )
+
             engine = StrategicGapEngine()
             gaps = engine.get_all_gaps()
             ctx["strategy"] = {
                 "total_gaps": len(gaps),
-                "gaps": [g.to_dict() if hasattr(g, "to_dict") else g
-                         for g in gaps[:10]],
+                "gaps": [g.to_dict() if hasattr(g, "to_dict") else g for g in gaps[:10]],
             }
         except Exception as e:
             logger.debug("strategy assembly: %s", e)
@@ -775,12 +796,12 @@ class WorkspaceContextAssembler:
             from substrate.organism.strategic_tick_loop import (
                 CandidateWorkQueue,
             )
+
             queue = CandidateWorkQueue()
             pending = queue.pending()
             ctx["tick_loop"] = {
                 "pending_candidates": len(pending),
-                "candidates": [c.to_dict() if hasattr(c, "to_dict") else c
-                               for c in pending[:10]],
+                "candidates": [c.to_dict() if hasattr(c, "to_dict") else c for c in pending[:10]],
             }
         except Exception as e:
             logger.debug("tick_loop assembly: %s", e)
@@ -788,13 +809,13 @@ class WorkspaceContextAssembler:
     def _assemble_projections(self, ctx: dict[str, Any]) -> None:
         try:
             from substrate.organism.projection_engine import ProjectionEngine
+
             engine = ProjectionEngine()
             projections = engine.get_active_projections()
             ctx["projections"] = {
                 "active_count": len(projections),
                 "projections": [
-                    p.to_dict() if hasattr(p, "to_dict") else p
-                    for p in projections[:10]
+                    p.to_dict() if hasattr(p, "to_dict") else p for p in projections[:10]
                 ],
             }
         except Exception as e:
@@ -803,6 +824,7 @@ class WorkspaceContextAssembler:
     def _assemble_reality_model(self, ctx: dict[str, Any]) -> None:
         try:
             from substrate.reality_model.canonical import CanonicalRealityModel
+
             canonical = CanonicalRealityModel()
             all_patterns = canonical.all()
             domains = sorted(set(p.domain for p in all_patterns if p.domain))
@@ -830,9 +852,10 @@ class WorkspaceContextAssembler:
 
     def _assemble_work_packets(self, ctx: dict[str, Any]) -> None:
         try:
-            wp_path = os.path.join(
-                _repo_root(), "data", "umh", "universal_work",
-                "work_packets.jsonl"
+            from substrate.state.runtime_paths import runtime_state_path
+
+            wp_path = str(
+                runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
             )
             if os.path.exists(wp_path):
                 packets = []
@@ -862,9 +885,7 @@ class SnapshotStore:
     """JSONL-backed workspace snapshot persistence."""
 
     def __init__(self, data_dir: str = "") -> None:
-        self._dir = data_dir or os.path.join(
-            _workstation_data_dir(), "snapshots"
-        )
+        self._dir = data_dir or os.path.join(_workstation_data_dir(), "snapshots")
         os.makedirs(self._dir, exist_ok=True)
         self._path = os.path.join(self._dir, "snapshots.jsonl")
 
@@ -944,80 +965,80 @@ class RecommendationEngine:
             from substrate.organism.strategic_gap_engine import (
                 StrategicGapEngine,
             )
+
             engine = StrategicGapEngine()
             gaps = engine.get_all_gaps()
             for gap in gaps[:5]:
                 gap_dict = gap.to_dict() if hasattr(gap, "to_dict") else {}
                 severity = gap_dict.get("severity", "low")
-                priority = {"critical": 90, "high": 70, "medium": 50, "low": 30}.get(
-                    severity, 30
+                priority = {"critical": 90, "high": 70, "medium": 50, "low": 30}.get(severity, 30)
+                recs.append(
+                    WorkstationRecommendation(
+                        recommendation_type=RecommendationType.ADDRESS_GAP.value,
+                        title=f"Address gap: {gap_dict.get('label', 'unknown')}",
+                        description=gap_dict.get("description", ""),
+                        source_system="strategic_gap_engine",
+                        source_data={"gap_id": gap_dict.get("gap_id", "")},
+                        priority=priority,
+                    )
                 )
-                recs.append(WorkstationRecommendation(
-                    recommendation_type=RecommendationType.ADDRESS_GAP.value,
-                    title=f"Address gap: {gap_dict.get('label', 'unknown')}",
-                    description=gap_dict.get("description", ""),
-                    source_system="strategic_gap_engine",
-                    source_data={"gap_id": gap_dict.get("gap_id", "")},
-                    priority=priority,
-                ))
         except Exception as e:
             logger.debug("gap engine recommendations: %s", e)
 
-    def _from_projection_engine(
-        self, recs: list[WorkstationRecommendation]
-    ) -> None:
+    def _from_projection_engine(self, recs: list[WorkstationRecommendation]) -> None:
         try:
             from substrate.organism.projection_engine import ProjectionEngine
+
             engine = ProjectionEngine()
             risks = engine.get_active_risks()
             for risk in risks[:3]:
                 risk_dict = risk.to_dict() if hasattr(risk, "to_dict") else {}
                 severity = risk_dict.get("severity", "low")
-                priority = {"critical": 85, "high": 65, "medium": 45, "low": 25}.get(
-                    severity, 25
+                priority = {"critical": 85, "high": 65, "medium": 45, "low": 25}.get(severity, 25)
+                recs.append(
+                    WorkstationRecommendation(
+                        recommendation_type=RecommendationType.INVESTIGATE_RISK.value,
+                        title=f"Investigate risk: {risk_dict.get('title', 'unknown')}",
+                        description=risk_dict.get("description", ""),
+                        source_system="projection_engine",
+                        source_data={"risk_id": risk_dict.get("risk_id", "")},
+                        priority=priority,
+                    )
                 )
-                recs.append(WorkstationRecommendation(
-                    recommendation_type=RecommendationType.INVESTIGATE_RISK.value,
-                    title=f"Investigate risk: {risk_dict.get('title', 'unknown')}",
-                    description=risk_dict.get("description", ""),
-                    source_system="projection_engine",
-                    source_data={"risk_id": risk_dict.get("risk_id", "")},
-                    priority=priority,
-                ))
         except Exception as e:
             logger.debug("projection engine recommendations: %s", e)
 
-    def _from_tick_loop(
-        self, recs: list[WorkstationRecommendation]
-    ) -> None:
+    def _from_tick_loop(self, recs: list[WorkstationRecommendation]) -> None:
         try:
             from substrate.organism.strategic_tick_loop import (
                 CandidateWorkQueue,
             )
+
             queue = CandidateWorkQueue()
             pending = queue.pending()
             for candidate in pending[:3]:
                 c_dict = candidate.to_dict() if hasattr(candidate, "to_dict") else {}
-                recs.append(WorkstationRecommendation(
-                    recommendation_type=RecommendationType.FOLLOW_UP.value,
-                    title=f"Review candidate: {c_dict.get('title', 'unknown')}",
-                    description=c_dict.get("description", ""),
-                    source_system="tick_loop",
-                    source_data={
-                        "candidate_id": c_dict.get("candidate_id", ""),
-                    },
-                    priority=40,
-                ))
+                recs.append(
+                    WorkstationRecommendation(
+                        recommendation_type=RecommendationType.FOLLOW_UP.value,
+                        title=f"Review candidate: {c_dict.get('title', 'unknown')}",
+                        description=c_dict.get("description", ""),
+                        source_system="tick_loop",
+                        source_data={
+                            "candidate_id": c_dict.get("candidate_id", ""),
+                        },
+                        priority=40,
+                    )
+                )
         except Exception as e:
             logger.debug("tick loop recommendations: %s", e)
 
-    def _from_work_packets(
-        self, recs: list[WorkstationRecommendation]
-    ) -> None:
+    def _from_work_packets(self, recs: list[WorkstationRecommendation]) -> None:
         try:
-            wp_path = os.path.join(
-                _repo_root(), "data", "umh", "universal_work",
-                "work_packets.jsonl"
+            from substrate.state.runtime_paths import runtime_state_path
+
+            wp_path = str(
+                runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False)
             )
             if not os.path.exists(wp_path):
                 return
@@ -1030,27 +1051,31 @@ class RecommendationEngine:
                         pkt = json.loads(line)
                         status = pkt.get("status", "")
                         if status == "blocked":
-                            recs.append(WorkstationRecommendation(
-                                recommendation_type=RecommendationType.REVIEW_BLOCKED.value,
-                                title=f"Review blocked: {pkt.get('title', pkt.get('packet_id', 'unknown'))}",
-                                description=pkt.get("description", ""),
-                                source_system="work_packets",
-                                source_data={
-                                    "packet_id": pkt.get("packet_id", ""),
-                                },
-                                priority=75,
-                            ))
+                            recs.append(
+                                WorkstationRecommendation(
+                                    recommendation_type=RecommendationType.REVIEW_BLOCKED.value,
+                                    title=f"Review blocked: {pkt.get('title', pkt.get('packet_id', 'unknown'))}",
+                                    description=pkt.get("description", ""),
+                                    source_system="work_packets",
+                                    source_data={
+                                        "packet_id": pkt.get("packet_id", ""),
+                                    },
+                                    priority=75,
+                                )
+                            )
                         elif status == "pending_approval":
-                            recs.append(WorkstationRecommendation(
-                                recommendation_type=RecommendationType.APPROVE_PROPOSAL.value,
-                                title=f"Approve: {pkt.get('title', pkt.get('packet_id', 'unknown'))}",
-                                description=pkt.get("description", ""),
-                                source_system="work_packets",
-                                source_data={
-                                    "packet_id": pkt.get("packet_id", ""),
-                                },
-                                priority=80,
-                            ))
+                            recs.append(
+                                WorkstationRecommendation(
+                                    recommendation_type=RecommendationType.APPROVE_PROPOSAL.value,
+                                    title=f"Approve: {pkt.get('title', pkt.get('packet_id', 'unknown'))}",
+                                    description=pkt.get("description", ""),
+                                    source_system="work_packets",
+                                    source_data={
+                                        "packet_id": pkt.get("packet_id", ""),
+                                    },
+                                    priority=80,
+                                )
+                            )
                     except json.JSONDecodeError:
                         continue
         except Exception as e:
@@ -1077,60 +1102,72 @@ class PreparationSequencer:
         priority = 100
 
         for app in template.required_applications:
-            steps.append(PreparationStep(
-                step_type=PreparationStepType.APPLICATION.value,
-                target=app,
-                reason=f"Required by {template.label} template",
-                priority=priority,
-            ))
+            steps.append(
+                PreparationStep(
+                    step_type=PreparationStepType.APPLICATION.value,
+                    target=app,
+                    reason=f"Required by {template.label} template",
+                    priority=priority,
+                )
+            )
             priority -= 1
 
         for repo in template.required_repositories:
-            steps.append(PreparationStep(
-                step_type=PreparationStepType.REPOSITORY.value,
-                target=repo,
-                reason=f"Required repository for {template.label}",
-                priority=priority,
-            ))
+            steps.append(
+                PreparationStep(
+                    step_type=PreparationStepType.REPOSITORY.value,
+                    target=repo,
+                    reason=f"Required repository for {template.label}",
+                    priority=priority,
+                )
+            )
             priority -= 1
 
         for panel in template.recommended_cockpit_panels:
-            steps.append(PreparationStep(
-                step_type=PreparationStepType.COCKPIT_PANEL.value,
-                target=panel,
-                reason=f"Recommended panel for {template.label}",
-                priority=priority,
-            ))
+            steps.append(
+                PreparationStep(
+                    step_type=PreparationStepType.COCKPIT_PANEL.value,
+                    target=panel,
+                    reason=f"Recommended panel for {template.label}",
+                    priority=priority,
+                )
+            )
             priority -= 1
 
         for tab in template.recommended_browser_tabs:
-            steps.append(PreparationStep(
-                step_type=PreparationStepType.BROWSER_TAB.value,
-                target=tab,
-                reason=f"Recommended tab for {template.label}",
-                priority=priority,
-            ))
+            steps.append(
+                PreparationStep(
+                    step_type=PreparationStepType.BROWSER_TAB.value,
+                    target=tab,
+                    reason=f"Recommended tab for {template.label}",
+                    priority=priority,
+                )
+            )
             priority -= 1
 
         for source in template.required_context_sources:
-            steps.append(PreparationStep(
-                step_type=PreparationStepType.CONTEXT_SOURCE.value,
-                target=source,
-                reason=f"Required context for {template.label}",
-                priority=priority,
-            ))
+            steps.append(
+                PreparationStep(
+                    step_type=PreparationStepType.CONTEXT_SOURCE.value,
+                    target=source,
+                    reason=f"Required context for {template.label}",
+                    priority=priority,
+                )
+            )
             priority -= 1
 
         if work_packets:
             for pkt in work_packets[:10]:
                 pkt_id = pkt.get("packet_id", pkt.get("id", "unknown"))
-                steps.append(PreparationStep(
-                    step_type=PreparationStepType.WORK_PACKET.value,
-                    target=pkt_id,
-                    reason="Active work packet",
-                    priority=priority,
-                    metadata={"title": pkt.get("title", "")},
-                ))
+                steps.append(
+                    PreparationStep(
+                        step_type=PreparationStepType.WORK_PACKET.value,
+                        target=pkt_id,
+                        reason="Active work packet",
+                        priority=priority,
+                        metadata={"title": pkt.get("title", "")},
+                    )
+                )
                 priority -= 1
 
         seq = WorkspaceSequence(
@@ -1160,12 +1197,8 @@ class WorkstationRuntime:
         self._sequencer = PreparationSequencer()
         self._snapshots = SnapshotStore()
         self._recommendations = RecommendationEngine()
-        self._plans_path = os.path.join(
-            _workstation_data_dir(), "preparation_plans.jsonl"
-        )
-        self._state_path = os.path.join(
-            _workstation_data_dir(), "workstation_state.json"
-        )
+        self._plans_path = os.path.join(_workstation_data_dir(), "preparation_plans.jsonl")
+        self._state_path = os.path.join(_workstation_data_dir(), "workstation_state.json")
 
     # ── Primary API ────────────────────────────────────────────────
 
@@ -1221,9 +1254,7 @@ class WorkstationRuntime:
 
         return plan
 
-    def restore_workspace(
-        self, snapshot_id: str = ""
-    ) -> RestorationPlan:
+    def restore_workspace(self, snapshot_id: str = "") -> RestorationPlan:
         """Generate a restoration plan from a snapshot.
 
         Reconstructs last active objectives, work packets, loops,
@@ -1247,7 +1278,9 @@ class WorkstationRuntime:
         snapshot = WorkspaceSnapshot.from_dict(snap_data)
 
         ws_state = snapshot.workspace_state
-        target_mode = ws_state.get("mode", "engineering") if isinstance(ws_state, dict) else "engineering"
+        target_mode = (
+            ws_state.get("mode", "engineering") if isinstance(ws_state, dict) else "engineering"
+        )
         template = self._templates.get_by_mode(target_mode)
 
         prep_plan: dict[str, Any] = {}
@@ -1266,7 +1299,8 @@ class WorkstationRuntime:
             source_snapshot_id=snapshot.snapshot_id,
             target_mode=target_mode,
             objectives_to_restore=snapshot.open_objectives,
-            work_packets_to_load=snapshot.active_work_packets or context.get("work_packets", [])[:10],
+            work_packets_to_load=snapshot.active_work_packets
+            or context.get("work_packets", [])[:10],
             loops_to_restore=snapshot.active_loops,
             continuity_state=context.get("continuity", {}),
             projection_state=context.get("projections", {}),
@@ -1295,6 +1329,7 @@ class WorkstationRuntime:
             from substrate.organism.strategic_gap_engine import (
                 StrategicGapEngine,
             )
+
             engine = StrategicGapEngine()
             goals = engine.get_all_goals()
             objectives = [
@@ -1309,10 +1344,9 @@ class WorkstationRuntime:
         tick_data = context.get("tick_loop", {})
         if isinstance(tick_data, dict):
             candidates = tick_data.get("candidates", [])
-            active_loops = [
-                c.get("candidate_id", "") for c in candidates
-                if isinstance(c, dict)
-            ][:5]
+            active_loops = [c.get("candidate_id", "") for c in candidates if isinstance(c, dict)][
+                :5
+            ]
 
         snapshot = WorkspaceSnapshot(
             trigger=trigger,
@@ -1322,9 +1356,7 @@ class WorkstationRuntime:
             active_session_id=active_session,
             active_loops=active_loops,
             active_work_packets=context.get("work_packets", [])[:10],
-            active_recommendations=[
-                r.to_dict() for r in self._recommendations.generate()[:5]
-            ],
+            active_recommendations=[r.to_dict() for r in self._recommendations.generate()[:5]],
             attention_state=attention,
             operator_notes=operator_notes,
         )

@@ -38,7 +38,12 @@ from uuid import uuid4
 logger = logging.getLogger(__name__)
 
 _SESSIONS_DIR = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "sessions"
-_LEARNING_DIR = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "organism"
+
+
+def _learning_dir() -> Path:
+    from substrate.state.runtime_paths import runtime_state_dir
+
+    return runtime_state_dir("organism", create=False)
 
 
 @dataclass
@@ -109,7 +114,7 @@ class DevelopmentSessionBridge:
         self._files_touched: set[str] = set()
 
         _SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-        _LEARNING_DIR.mkdir(parents=True, exist_ok=True)
+        _learning_dir().mkdir(parents=True, exist_ok=True)
 
     def register_session(self, intent: str = "", context: dict[str, Any] | None = None) -> None:
         """Register this session as an active organism execution context."""
@@ -124,13 +129,19 @@ class DevelopmentSessionBridge:
         self._append_jsonl(_SESSIONS_DIR / "active_sessions.jsonl", record)
 
         if self._event_spine is not None:
-            self._emit_event("session_started", f"{self.harness} session registered", {
-                "intent": intent,
-            })
+            self._emit_event(
+                "session_started",
+                f"{self.harness} session registered",
+                {
+                    "intent": intent,
+                },
+            )
 
         logger.info(
             "development session registered: %s (harness=%s, intent=%s)",
-            self.session_id, self.harness, intent[:80],
+            self.session_id,
+            self.harness,
+            intent[:80],
         )
 
     def record_mutation(
@@ -154,11 +165,15 @@ class DevelopmentSessionBridge:
         self._files_touched.update(files)
 
         if self._event_spine is not None:
-            self._emit_event("development_mutation", description, {
-                "files": files,
-                "layer": layer,
-                "risk_level": risk_level,
-            })
+            self._emit_event(
+                "development_mutation",
+                description,
+                {
+                    "files": files,
+                    "layer": layer,
+                    "risk_level": risk_level,
+                },
+            )
 
         return event
 
@@ -181,7 +196,7 @@ class DevelopmentSessionBridge:
         self._decisions.append(record)
 
         self._append_jsonl(
-            _LEARNING_DIR / "learning_signals.jsonl",
+            _learning_dir() / "learning_signals.jsonl",
             {
                 "id": str(uuid4()),
                 "agent_id": f"developer:{self.harness}",
@@ -194,10 +209,14 @@ class DevelopmentSessionBridge:
         )
 
         if self._event_spine is not None:
-            self._emit_event("development_decision", decision, {
-                "rationale": rationale,
-                "confidence": confidence,
-            })
+            self._emit_event(
+                "development_decision",
+                decision,
+                {
+                    "rationale": rationale,
+                    "confidence": confidence,
+                },
+            )
 
         return record
 
@@ -221,11 +240,16 @@ class DevelopmentSessionBridge:
 
         if severity in ("warning", "error"):
             if self._event_spine is not None:
-                self._emit_event("coherence_violation", description, {
-                    "category": category,
-                    "severity": severity,
-                    "affected_files": affected_files or [],
-                }, priority="high")
+                self._emit_event(
+                    "coherence_violation",
+                    description,
+                    {
+                        "category": category,
+                        "severity": severity,
+                        "affected_files": affected_files or [],
+                    },
+                    priority="high",
+                )
 
         return obs
 
@@ -275,31 +299,41 @@ class DevelopmentSessionBridge:
         session_file = _SESSIONS_DIR / f"{self.session_id}.json"
         session_file.write_text(json.dumps(record, indent=2, default=str))
 
-        self._append_jsonl(_SESSIONS_DIR / "completed_sessions.jsonl", {
-            "session_id": self.session_id,
-            "harness": self.harness,
-            "outcome": outcome,
-            "duration_seconds": round(duration, 1),
-            "events": len(self._events),
-            "decisions": len(self._decisions),
-            "coherence_issues": sum(
-                1 for o in self._coherence_observations
-                if o.severity in ("warning", "error")
-            ),
-            "files_touched": len(self._files_touched),
-            "ended_at": time.time(),
-        })
-
-        if self._event_spine is not None:
-            self._emit_event("session_completed", summary or f"session {outcome}", {
+        self._append_jsonl(
+            _SESSIONS_DIR / "completed_sessions.jsonl",
+            {
+                "session_id": self.session_id,
+                "harness": self.harness,
                 "outcome": outcome,
                 "duration_seconds": round(duration, 1),
-                "total_events": len(self._events),
-            })
+                "events": len(self._events),
+                "decisions": len(self._decisions),
+                "coherence_issues": sum(
+                    1 for o in self._coherence_observations if o.severity in ("warning", "error")
+                ),
+                "files_touched": len(self._files_touched),
+                "ended_at": time.time(),
+            },
+        )
+
+        if self._event_spine is not None:
+            self._emit_event(
+                "session_completed",
+                summary or f"session {outcome}",
+                {
+                    "outcome": outcome,
+                    "duration_seconds": round(duration, 1),
+                    "total_events": len(self._events),
+                },
+            )
 
         logger.info(
             "development session closed: %s — %s (%d events, %d decisions, %.0fs)",
-            self.session_id, outcome, len(self._events), len(self._decisions), duration,
+            self.session_id,
+            outcome,
+            len(self._events),
+            len(self._decisions),
+            duration,
         )
 
         return record

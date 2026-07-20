@@ -18,13 +18,24 @@ import random
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_QUAL_LIVE_PATH = Path(_REPO_ROOT) / "data" / "umh" / "organism" / "qualification_live.jsonl"
-_DAEMON_STATE_PATH = Path(_REPO_ROOT) / "data" / "umh" / "organism" / "daemon_state.json"
+
+
+def _qual_live_path() -> Path:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return runtime_state_path("organism", "qualification_live.jsonl", create_parent=False)
+
+
+def _daemon_state_path() -> Path:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return runtime_state_path("organism", "daemon_state.json", create_parent=False)
+
 
 SPOT_CHECK_INTERVAL_S = 300
 FULL_RUN_INTERVAL_S = 3600
@@ -138,9 +149,7 @@ class ContinuousQualificationStage:
         self._persist(snapshot)
         return snapshot
 
-    def _evaluate_properties(
-        self, properties: list[str], snapshot: QualificationSnapshot
-    ) -> bool:
+    def _evaluate_properties(self, properties: list[str], snapshot: QualificationSnapshot) -> bool:
         all_pass = True
         confidences = []
 
@@ -186,7 +195,9 @@ class ContinuousQualificationStage:
             return (coverage > 0.5, coverage)
 
         if name == "Distributed State Consistency":
-            journal_count = len(self._journal.entries_for("")) if hasattr(self._journal, "entries_for") else 0
+            journal_count = (
+                len(self._journal.entries_for("")) if hasattr(self._journal, "entries_for") else 0
+            )
             event_count = len(self._event_spine.recent(limit=100))
             has_data = journal_count > 0 or event_count > 0
             return (has_data, 0.75 if has_data else 0.0)
@@ -202,8 +213,8 @@ class ContinuousQualificationStage:
 
     def _persist(self, snapshot: QualificationSnapshot) -> None:
         try:
-            _QUAL_LIVE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            with open(_QUAL_LIVE_PATH, "a") as f:
+            _qual_live_path().parent.mkdir(parents=True, exist_ok=True)
+            with open(_qual_live_path(), "a") as f:
                 f.write(json.dumps(snapshot.to_dict(), default=str) + "\n")
         except Exception as exc:
             logger.debug("failed to persist qualification snapshot: %s", exc)
@@ -211,13 +222,13 @@ class ContinuousQualificationStage:
     def _update_daemon_state(self, snapshot: QualificationSnapshot) -> None:
         try:
             state = {}
-            if _DAEMON_STATE_PATH.exists():
-                with open(_DAEMON_STATE_PATH) as f:
+            if _daemon_state_path().exists():
+                with open(_daemon_state_path()) as f:
                     state = json.load(f)
             state["live_orl"] = snapshot.orl
             state["live_confidence"] = round(snapshot.confidence, 4)
             state["last_full_qualification"] = snapshot.timestamp
-            with open(_DAEMON_STATE_PATH, "w") as f:
+            with open(_daemon_state_path(), "w") as f:
                 json.dump(state, f, indent=2)
         except Exception as exc:
             logger.debug("failed to update daemon state with ORL: %s", exc)

@@ -19,25 +19,22 @@ import os
 import re
 import time
 from typing import Any
-from uuid import uuid4
 
-from substrate.organism.operator_session import (
-    OperatorSession,
-    OperatorTurn,
-    OperatorIntent,
-    IntentType,
-    SessionStatus,
-    persist_sessions,
-    load_sessions,
-    persist_turns,
-    persist_intents,
-)
 from substrate.organism.operator_response import (
     OperatorResponse,
     Option,
     OutputMode,
-    persist_responses,
-    load_responses,
+)
+from substrate.organism.operator_session import (
+    IntentType,
+    OperatorIntent,
+    OperatorSession,
+    OperatorTurn,
+    SessionStatus,
+    load_sessions,
+    persist_intents,
+    persist_sessions,
+    persist_turns,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,38 +44,96 @@ _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 # ── Intent classification patterns ─────────────────────────────────────
 
 _INTENT_PATTERNS: list[tuple[str, list[str]]] = [
-    (IntentType.CREATE_WORK.value, [
-        r"\bbuild\b", r"\bcreate\b", r"\bimplement\b", r"\bdevelop\b",
-        r"\bdesign\b", r"\blaunch\b", r"\bship\b", r"\bdeploy\b",
-        r"\bi want to\b", r"\blet'?s\b", r"\bwe need\b", r"\badd\b",
-        r"\bset up\b", r"\binstall\b", r"\bconfigure\b",
-    ]),
-    (IntentType.QUERY_STATUS.value, [
-        r"\bwhere are we\b", r"\bstatus\b", r"\bprogress\b", r"\bhow far\b",
-        r"\bcurrent state\b", r"\bwhat'?s happening\b", r"\boverview\b",
-        r"\bshow me\b.*\bstatus\b", r"\breport\b",
-    ]),
-    (IntentType.QUERY_APPROVALS.value, [
-        r"\bapproval\b", r"\bpending\b", r"\bneeds? my\b", r"\bwaiting for\b",
-        r"\bapprove\b", r"\breview\b.*\bpending\b",
-    ]),
-    (IntentType.PREVIEW_PROPAGATION.value, [
-        r"\bpropagate\b", r"\bimpact\b", r"\bwhat else changes\b",
-        r"\bripple\b", r"\baffect\b", r"\bdownstream\b", r"\bif .+ updates?\b",
-        r"\bwhat happens if\b",
-    ]),
-    (IntentType.PREVIEW_TOPOLOGY.value, [
-        r"\btopology\b", r"\bdelegation\b", r"\bworkcell\b", r"\bwho handles\b",
-        r"\bhow would .+ be structured\b",
-    ]),
-    (IntentType.ROADMAP_QUERY.value, [
-        r"\broadmap\b", r"\bphase\b", r"\bmilestone\b", r"\bwhat'?s next\b",
-        r"\bpriority\b", r"\bpipeline\b", r"\bbacklog\b",
-    ]),
-    (IntentType.RECOMMEND_NEXT.value, [
-        r"\brecommend\b", r"\bsuggest\b", r"\bwhat should\b",
-        r"\bnext action\b", r"\bnext step\b",
-    ]),
+    (
+        IntentType.CREATE_WORK.value,
+        [
+            r"\bbuild\b",
+            r"\bcreate\b",
+            r"\bimplement\b",
+            r"\bdevelop\b",
+            r"\bdesign\b",
+            r"\blaunch\b",
+            r"\bship\b",
+            r"\bdeploy\b",
+            r"\bi want to\b",
+            r"\blet'?s\b",
+            r"\bwe need\b",
+            r"\badd\b",
+            r"\bset up\b",
+            r"\binstall\b",
+            r"\bconfigure\b",
+        ],
+    ),
+    (
+        IntentType.QUERY_STATUS.value,
+        [
+            r"\bwhere are we\b",
+            r"\bstatus\b",
+            r"\bprogress\b",
+            r"\bhow far\b",
+            r"\bcurrent state\b",
+            r"\bwhat'?s happening\b",
+            r"\boverview\b",
+            r"\bshow me\b.*\bstatus\b",
+            r"\breport\b",
+        ],
+    ),
+    (
+        IntentType.QUERY_APPROVALS.value,
+        [
+            r"\bapproval\b",
+            r"\bpending\b",
+            r"\bneeds? my\b",
+            r"\bwaiting for\b",
+            r"\bapprove\b",
+            r"\breview\b.*\bpending\b",
+        ],
+    ),
+    (
+        IntentType.PREVIEW_PROPAGATION.value,
+        [
+            r"\bpropagate\b",
+            r"\bimpact\b",
+            r"\bwhat else changes\b",
+            r"\bripple\b",
+            r"\baffect\b",
+            r"\bdownstream\b",
+            r"\bif .+ updates?\b",
+            r"\bwhat happens if\b",
+        ],
+    ),
+    (
+        IntentType.PREVIEW_TOPOLOGY.value,
+        [
+            r"\btopology\b",
+            r"\bdelegation\b",
+            r"\bworkcell\b",
+            r"\bwho handles\b",
+            r"\bhow would .+ be structured\b",
+        ],
+    ),
+    (
+        IntentType.ROADMAP_QUERY.value,
+        [
+            r"\broadmap\b",
+            r"\bphase\b",
+            r"\bmilestone\b",
+            r"\bwhat'?s next\b",
+            r"\bpriority\b",
+            r"\bpipeline\b",
+            r"\bbacklog\b",
+        ],
+    ),
+    (
+        IntentType.RECOMMEND_NEXT.value,
+        [
+            r"\brecommend\b",
+            r"\bsuggest\b",
+            r"\bwhat should\b",
+            r"\bnext action\b",
+            r"\bnext step\b",
+        ],
+    ),
 ]
 
 _ENTITY_PATTERNS: list[tuple[str, str]] = [
@@ -115,10 +170,18 @@ class OrchestratorKernel:
         approval_store_dir: str | None = None,
     ) -> None:
         self._sessions_path = sessions_path or os.path.join(
-            _REPO_ROOT, "data", "umh", "operator_experience", "sessions.jsonl",
+            _REPO_ROOT,
+            "data",
+            "umh",
+            "operator_experience",
+            "sessions.jsonl",
         )
         self._responses_path = responses_path or os.path.join(
-            _REPO_ROOT, "data", "umh", "operator_experience", "responses.jsonl",
+            _REPO_ROOT,
+            "data",
+            "umh",
+            "operator_experience",
+            "responses.jsonl",
         )
         self._work_packets_path = work_packets_path
         self._propagation_graph_path = propagation_graph_path
@@ -242,13 +305,15 @@ class OrchestratorKernel:
         return context
 
     def determine_if_work_packet_required(
-        self, intent: OperatorIntent,
+        self,
+        intent: OperatorIntent,
     ) -> bool:
         """Determine if the intent requires a work packet."""
         return intent.requires_work_packet
 
     def generate_work_packet(
-        self, intent: OperatorIntent,
+        self,
+        intent: OperatorIntent,
     ) -> dict[str, Any]:
         """Generate a work packet from operator intent (preview only)."""
         engine = self._get_work_packet_engine()
@@ -262,7 +327,8 @@ class OrchestratorKernel:
         return packet.to_dict()
 
     def preview_delegation_topology(
-        self, intent: OperatorIntent,
+        self,
+        intent: OperatorIntent,
     ) -> dict[str, Any]:
         """Preview delegation topology for an intent."""
         engine = self._get_work_packet_engine()
@@ -291,43 +357,54 @@ class OrchestratorKernel:
         }
 
     def preview_human_actions(
-        self, intent: OperatorIntent, context: dict[str, Any],
+        self,
+        intent: OperatorIntent,
+        context: dict[str, Any],
     ) -> list[dict[str, Any]]:
         """Identify human actions required for an intent."""
         actions: list[dict[str, Any]] = []
         classification = self._get_intent_classifier().classify(intent.raw_input)
         if classification.human_action_required:
-            actions.append({
-                "type": "human_action",
-                "description": "Operator action required for high-risk or external dependency",
-                "risk_class": classification.risk_class,
-                "domain": classification.domain,
-            })
+            actions.append(
+                {
+                    "type": "human_action",
+                    "description": "Operator action required for high-risk or external dependency",
+                    "risk_class": classification.risk_class,
+                    "domain": classification.domain,
+                }
+            )
         if classification.approval_required:
-            actions.append({
-                "type": "approval_gate",
-                "description": "Governance approval required before execution",
-                "risk_class": classification.risk_class,
-            })
+            actions.append(
+                {
+                    "type": "approval_gate",
+                    "description": "Governance approval required before execution",
+                    "risk_class": classification.risk_class,
+                }
+            )
         return actions
 
     def preview_approval_gates(
-        self, intent: OperatorIntent,
+        self,
+        intent: OperatorIntent,
     ) -> list[dict[str, Any]]:
         """Preview approval gates for an intent."""
         classification = self._get_intent_classifier().classify(intent.raw_input)
         gates: list[dict[str, Any]] = []
         if classification.risk_class in ("medium", "high"):
-            gates.append({
-                "gate_type": "risk_gate",
-                "risk_class": classification.risk_class,
-                "reason": "Work packet risk class requires operator approval",
-            })
+            gates.append(
+                {
+                    "gate_type": "risk_gate",
+                    "risk_class": classification.risk_class,
+                    "reason": "Work packet risk class requires operator approval",
+                }
+            )
         if classification.human_action_required:
-            gates.append({
-                "gate_type": "human_gate",
-                "reason": "External human action required",
-            })
+            gates.append(
+                {
+                    "gate_type": "human_gate",
+                    "reason": "External human action required",
+                }
+            )
         return gates
 
     def preview_propagation_impact(
@@ -337,6 +414,7 @@ class OrchestratorKernel:
     ) -> dict[str, Any]:
         """Preview propagation impact of a change."""
         from substrate.organism.change_event import ChangeEvent, ChangeType
+
         graph = self._get_propagation_graph()
         analyzer = self._get_impact_analyzer(graph)
 
@@ -385,46 +463,54 @@ class OrchestratorKernel:
         # Check pending approvals
         approvals = self.query_pending_approvals()
         if approvals["pending_count"] > 0:
-            recommendations.append({
-                "priority": 1,
-                "action": "review_approvals",
-                "description": "Review {} pending approval(s)".format(
-                    approvals["pending_count"]
-                ),
-                "details": approvals,
-            })
+            recommendations.append(
+                {
+                    "priority": 1,
+                    "action": "review_approvals",
+                    "description": "Review {} pending approval(s)".format(
+                        approvals["pending_count"]
+                    ),
+                    "details": approvals,
+                }
+            )
 
         # Check roadmap
         roadmap = self.query_roadmap_status()
         phase_list = roadmap.get("phases", [])
         in_progress = [p for p in phase_list if p.get("status") == "in_progress"]
         if in_progress:
-            recommendations.append({
-                "priority": 2,
-                "action": "continue_phase",
-                "description": "Continue in-progress phase: {}".format(
-                    in_progress[0].get("title", "unknown")
-                ),
-                "details": {"phases_in_progress": in_progress},
-            })
+            recommendations.append(
+                {
+                    "priority": 2,
+                    "action": "continue_phase",
+                    "description": "Continue in-progress phase: {}".format(
+                        in_progress[0].get("title", "unknown")
+                    ),
+                    "details": {"phases_in_progress": in_progress},
+                }
+            )
 
         # Check work queue
         queue_summary = self._get_work_queue_summary()
         active_packets = queue_summary.get("active_count", 0)
         if active_packets > 0:
-            recommendations.append({
-                "priority": 3,
-                "action": "review_work_queue",
-                "description": "Review {} active work packet(s)".format(active_packets),
-                "details": queue_summary,
-            })
+            recommendations.append(
+                {
+                    "priority": 3,
+                    "action": "review_work_queue",
+                    "description": "Review {} active work packet(s)".format(active_packets),
+                    "details": queue_summary,
+                }
+            )
 
         if not recommendations:
-            recommendations.append({
-                "priority": 1,
-                "action": "create_work",
-                "description": "No pending items. Ready for new work.",
-            })
+            recommendations.append(
+                {
+                    "priority": 1,
+                    "action": "create_work",
+                    "description": "No pending items. Ready for new work.",
+                }
+            )
 
         return {
             "recommendations": sorted(recommendations, key=lambda r: r["priority"]),
@@ -494,9 +580,10 @@ class OrchestratorKernel:
     # ── Delegation ────────────────────────────────────────────────────
 
     def _get_delegation_runtime(self) -> Any:
-        if not hasattr(self, '_delegation_runtime') or self._delegation_runtime is None:
+        if not hasattr(self, "_delegation_runtime") or self._delegation_runtime is None:
             try:
                 from substrate.organism.delegation_runtime import DelegationRuntime
+
                 self._delegation_runtime = DelegationRuntime()
             except Exception as e:
                 logger.debug("Delegation runtime unavailable: %s", e)
@@ -507,6 +594,7 @@ class OrchestratorKernel:
         """Classify operator message intent. Returns OperatorIntentType value."""
         try:
             from substrate.organism.delegation_runtime import classify_intent
+
             return classify_intent(message).value
         except Exception:
             return "discussion"
@@ -517,6 +605,7 @@ class OrchestratorKernel:
         if not dr:
             return {"error": "Delegation runtime unavailable"}
         from substrate.organism.delegation_runtime import classify_intent
+
         intent_type = classify_intent(message)
         understanding = dr.explain_understanding(message, intent_type)
         proposal = dr.propose_delegation(message, understanding=understanding)
@@ -529,6 +618,7 @@ class OrchestratorKernel:
         if not dr:
             return {"error": "Delegation runtime unavailable"}
         from substrate.organism.delegation_runtime import OperatorIntentType
+
         understanding = dr.explain_understanding(message, OperatorIntentType.EXECUTION)
         resolution = dr.resolve_execution_intent(message, understanding)
         return resolution
@@ -790,59 +880,71 @@ class OrchestratorKernel:
 
     def _get_work_packet_engine(self):
         from substrate.organism.work_packet_engine import WorkPacketEngine
+
         return WorkPacketEngine(packets_path=self._work_packets_path)
 
     def _get_universal_work_queue(self):
         from substrate.organism.universal_work_queue import UniversalWorkQueue
+
         return UniversalWorkQueue(store_path=self._work_packets_path)
 
     def _get_intent_classifier(self):
         from substrate.organism.intent_classifier import IntentClassifier
+
         return IntentClassifier()
 
     def _get_delegation_topology_planner(self):
         from substrate.organism.delegation_topology import DelegationTopologyPlanner
+
         return DelegationTopologyPlanner()
 
     def _get_propagation_graph(self):
         from substrate.organism.propagation_graph import PropagationGraph
+
         return PropagationGraph.load(path=self._propagation_graph_path)
 
     def _get_impact_analyzer(self, graph):
         from substrate.organism.impact_analyzer import ImpactAnalyzer
+
         return ImpactAnalyzer(graph)
 
     def _get_propagation_planner(self, graph):
         from substrate.organism.propagation_planner import PropagationPlanner
+
         return PropagationPlanner(graph)
 
     def _get_roadmap_engine(self):
         from substrate.organism.roadmap_engine import RoadmapEngine
+
         return RoadmapEngine(store_path=self._roadmap_path)
 
     def _get_self_build_queue(self):
         from substrate.organism.self_build_queue import SelfBuildQueue
+
         return SelfBuildQueue(store_path=self._self_build_path)
 
     def _get_template_registry(self):
         from substrate.organism.template_registry import TemplateRegistry
+
         return TemplateRegistry(store_dir=self._templates_path)
 
     def _get_agent_capability_model(self):
         from substrate.organism.agent_capability_model import AgentCapabilityModel
+
         return AgentCapabilityModel(store_dir=self._agent_cap_path)
 
     def _get_approval_store(self):
         from substrate.organism.approval_store import ApprovalStore
-        store_dir = self._approval_store_dir or os.path.join(
-            _REPO_ROOT, "data", "umh", "organism",
-        )
-        return ApprovalStore(store_dir=store_dir)
+
+        if self._approval_store_dir:
+            return ApprovalStore(store_dir=self._approval_store_dir)
+        return ApprovalStore()
 
     # ── Internal helpers ──────────────────────────────────────────────
 
     def _get_or_create_session(
-        self, session_id: str | None = None,
+        self,
+        session_id: str | None = None,
     ) -> OperatorSession:
         """Get existing session or create new one."""
         if session_id:
@@ -857,7 +959,8 @@ class OrchestratorKernel:
         try:
             queue = self._get_universal_work_queue()
             active = [
-                p for p in queue._packets.values()
+                p
+                for p in queue._packets.values()
                 if p.status not in ("completed", "rejected", "failed", "superseded", "archived")
             ]
             return {
@@ -895,17 +998,19 @@ class OrchestratorKernel:
             return {"error": str(e)}
 
     def _find_duplicate_packet(
-        self, intent: OperatorIntent,
+        self,
+        intent: OperatorIntent,
     ) -> dict[str, Any] | None:
         """Check for duplicate work packets with same intent."""
         try:
             queue = self._get_universal_work_queue()
             for packet in queue._packets.values():
-                if (
-                    packet.user_intent == intent.raw_input
-                    and packet.status not in (
-                        "completed", "rejected", "failed", "superseded", "archived",
-                    )
+                if packet.user_intent == intent.raw_input and packet.status not in (
+                    "completed",
+                    "rejected",
+                    "failed",
+                    "superseded",
+                    "archived",
                 ):
                     return packet.to_dict()
         except Exception as e:
@@ -917,15 +1022,19 @@ class OrchestratorKernel:
         classification = self._get_intent_classifier().classify(intent.raw_input)
         risks: list[dict[str, Any]] = []
         if classification.risk_class == "high":
-            risks.append({
-                "level": "high",
-                "description": "High-risk operation detected. Requires manual review.",
-            })
+            risks.append(
+                {
+                    "level": "high",
+                    "description": "High-risk operation detected. Requires manual review.",
+                }
+            )
         if classification.risk_class == "medium":
-            risks.append({
-                "level": "medium",
-                "description": "Medium-risk operation. Approval gate required.",
-            })
+            risks.append(
+                {
+                    "level": "medium",
+                    "description": "Medium-risk operation. Approval gate required.",
+                }
+            )
         return risks
 
     @staticmethod

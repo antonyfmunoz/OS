@@ -1,5 +1,5 @@
 {
-  "audit_timestamp": "2026-07-01T04:37:00Z",
+  "audit_timestamp": "2026-07-20T22:32:35Z",
   "boundaries": [
     {
       "boundary_id": "governed_mutation_to_router",
@@ -201,9 +201,8 @@
     }
   ],
   "mesh_health": {
-    "status": "healthy",
-    "connected_nodes": 0,
-    "node_ids": []
+    "status": "unreachable",
+    "error": "HTTP Error 401: Unauthorized"
   },
   "browser_prerequisite": {
     "beast_connected": false,

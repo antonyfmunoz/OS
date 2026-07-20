@@ -50,7 +50,9 @@ def _repo_root() -> str:
 
 
 def _coord_data_dir() -> str:
-    return os.path.join(_repo_root(), "data", "umh", "execution_coordinator")
+    from substrate.state.runtime_paths import runtime_state_dir
+
+    return str(runtime_state_dir("execution_coordinator", create=False))
 
 
 def _ensure_dirs() -> None:

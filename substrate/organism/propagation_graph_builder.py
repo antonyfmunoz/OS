@@ -13,17 +13,15 @@ import json
 import logging
 import os
 import time
-from typing import Any
-from uuid import uuid4
 
 from substrate.organism.propagation_graph import (
-    PropagationGraph,
-    PropagationNode,
-    PropagationEdge,
-    PropagationNodeType,
-    PropagationEdgeType,
-    PropagationMode,
     EdgeStrength,
+    PropagationEdge,
+    PropagationEdgeType,
+    PropagationGraph,
+    PropagationMode,
+    PropagationNode,
+    PropagationNodeType,
 )
 
 logger = logging.getLogger(__name__)
@@ -76,13 +74,16 @@ class PropagationGraphBuilder:
         if key in self._node_id_map:
             return self._node_id_map[key]
         import hashlib
+
         short_hash = hashlib.sha256(source_id.encode()).hexdigest()[:10]
         node_id = f"pgn-{prefix}-{short_hash}"
         self._node_id_map[key] = node_id
         return node_id
 
     def _extract_work_packets(self) -> None:
-        path = os.path.join(self._root, "data", "umh", "universal_work", "work_packets.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(runtime_state_path("universal_work", "work_packets.jsonl", create_parent=False))
         if not os.path.exists(path):
             return
         with open(path) as f:
@@ -113,7 +114,9 @@ class PropagationGraphBuilder:
                 self._graph.add_node(node)
 
     def _extract_workcells(self) -> None:
-        path = os.path.join(self._root, "data", "umh", "universal_work", "workcells.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(runtime_state_path("universal_work", "workcells.jsonl", create_parent=False))
         if not os.path.exists(path):
             return
         with open(path) as f:
@@ -152,14 +155,16 @@ class PropagationGraphBuilder:
                         evidence=[{"type": "workcell_store", "path": path}],
                     )
                     self._graph.add_node(adv_node)
-                    self._graph.add_edge(PropagationEdge(
-                        from_node_id=node_id,
-                        to_node_id=adv_node_id,
-                        edge_type=PropagationEdgeType.OWNS,
-                        propagation_mode=PropagationMode.RECOMPUTE,
-                        strength=EdgeStrength.HARD,
-                        reason="workcell owns advisor branch",
-                    ))
+                    self._graph.add_edge(
+                        PropagationEdge(
+                            from_node_id=node_id,
+                            to_node_id=adv_node_id,
+                            edge_type=PropagationEdgeType.OWNS,
+                            propagation_mode=PropagationMode.RECOMPUTE,
+                            strength=EdgeStrength.HARD,
+                            reason="workcell owns advisor branch",
+                        )
+                    )
 
     def _extract_self_build_items(self) -> None:
         path = os.path.join(self._root, "data", "umh", "self_build", "work_items.jsonl")
@@ -244,7 +249,11 @@ class PropagationGraphBuilder:
                 self._graph.add_node(node)
 
     def _extract_knowledge_models(self) -> None:
-        path = os.path.join(self._root, "data", "umh", "universal_work", "knowledge_models.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(
+            runtime_state_path("universal_work", "knowledge_models.jsonl", create_parent=False)
+        )
         if not os.path.exists(path):
             path2 = os.path.join(self._root, "data", "umh", "knowledge_models.jsonl")
             if not os.path.exists(path2):
@@ -272,7 +281,11 @@ class PropagationGraphBuilder:
                 self._graph.add_node(node)
 
     def _extract_role_contracts(self) -> None:
-        path = os.path.join(self._root, "data", "umh", "universal_work", "role_contracts.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(
+            runtime_state_path("universal_work", "role_contracts.jsonl", create_parent=False)
+        )
         if not os.path.exists(path):
             return
         with open(path) as f:
@@ -297,7 +310,11 @@ class PropagationGraphBuilder:
 
     def _extract_production_truth_deltas(self) -> None:
         verification_path = os.path.join(
-            self._root, "data", "umh", "universal_work", "phase11_1r_production_verification.json",
+            self._root,
+            "data",
+            "umh",
+            "universal_work",
+            "phase11_1r_production_verification.json",
         )
         if os.path.exists(verification_path):
             with open(verification_path) as f:
@@ -338,18 +355,23 @@ class PropagationGraphBuilder:
                 evidence=[{"type": "production_verification", "path": verification_path}],
             )
             self._graph.add_node(poc_node)
-            self._graph.add_edge(PropagationEdge(
-                from_node_id=node_id,
-                to_node_id=poc_node_id,
-                edge_type=PropagationEdgeType.CREATES,
-                propagation_mode=PropagationMode.NOTIFY_ONLY,
-                strength=EdgeStrength.HARD,
-                reason="PTD creates ProductionOutcomeCommitted",
-            ))
+            self._graph.add_edge(
+                PropagationEdge(
+                    from_node_id=node_id,
+                    to_node_id=poc_node_id,
+                    edge_type=PropagationEdgeType.CREATES,
+                    propagation_mode=PropagationMode.NOTIFY_ONLY,
+                    strength=EdgeStrength.HARD,
+                    reason="PTD creates ProductionOutcomeCommitted",
+                )
+            )
 
     def _extract_api_routes(self) -> None:
         routes_file = os.path.join(
-            self._root, "transports", "api", "cockpit_universal_work_routes.py",
+            self._root,
+            "transports",
+            "api",
+            "cockpit_universal_work_routes.py",
         )
         if not os.path.exists(routes_file):
             return
@@ -446,36 +468,40 @@ class PropagationGraphBuilder:
                     wp_key = f"wp:{packet_id}"
                     if wp_key in self._node_id_map:
                         wp_node_id = self._node_id_map[wp_key]
-                        self._graph.add_edge(PropagationEdge(
-                            from_node_id=wp_node_id,
-                            to_node_id=node.node_id,
-                            edge_type=PropagationEdgeType.OWNS,
-                            propagation_mode=PropagationMode.RECOMPUTE,
-                            strength=EdgeStrength.HARD,
-                            reason="work packet owns workcell",
-                        ))
+                        self._graph.add_edge(
+                            PropagationEdge(
+                                from_node_id=wp_node_id,
+                                to_node_id=node.node_id,
+                                edge_type=PropagationEdgeType.OWNS,
+                                propagation_mode=PropagationMode.RECOMPUTE,
+                                strength=EdgeStrength.HARD,
+                                reason="work packet owns workcell",
+                            )
+                        )
 
     def _link_packets_to_roadmap(self) -> None:
         roadmap_nodes = [
-            n for n in self._graph.nodes.values()
+            n
+            for n in self._graph.nodes.values()
             if n.node_type == PropagationNodeType.ROADMAP_PHASE
         ]
         wp_nodes = [
-            n for n in self._graph.nodes.values()
-            if n.node_type == PropagationNodeType.WORK_PACKET
+            n for n in self._graph.nodes.values() if n.node_type == PropagationNodeType.WORK_PACKET
         ]
         for rp in roadmap_nodes:
             linked = rp.metadata.get("linked_work_items", [])
             for wp in wp_nodes:
                 if wp.source_id in linked:
-                    self._graph.add_edge(PropagationEdge(
-                        from_node_id=rp.node_id,
-                        to_node_id=wp.node_id,
-                        edge_type=PropagationEdgeType.FEEDS,
-                        propagation_mode=PropagationMode.RECOMPUTE,
-                        strength=EdgeStrength.HARD,
-                        reason="roadmap phase feeds work packet",
-                    ))
+                    self._graph.add_edge(
+                        PropagationEdge(
+                            from_node_id=rp.node_id,
+                            to_node_id=wp.node_id,
+                            edge_type=PropagationEdgeType.FEEDS,
+                            propagation_mode=PropagationMode.RECOMPUTE,
+                            strength=EdgeStrength.HARD,
+                            reason="roadmap phase feeds work packet",
+                        )
+                    )
 
     def _link_packets_to_self_build(self) -> None:
         for node in list(self._graph.nodes.values()):
@@ -484,49 +510,56 @@ class PropagationGraphBuilder:
                     sb_key = f"sb:{node.metadata['source_id']}"
                     if sb_key in self._node_id_map:
                         sb_node_id = self._node_id_map[sb_key]
-                        self._graph.add_edge(PropagationEdge(
-                            from_node_id=sb_node_id,
-                            to_node_id=node.node_id,
-                            edge_type=PropagationEdgeType.DERIVES_FROM,
-                            propagation_mode=PropagationMode.RECOMPUTE,
-                            strength=EdgeStrength.HARD,
-                            reason="work packet derives from self-build item",
-                        ))
+                        self._graph.add_edge(
+                            PropagationEdge(
+                                from_node_id=sb_node_id,
+                                to_node_id=node.node_id,
+                                edge_type=PropagationEdgeType.DERIVES_FROM,
+                                propagation_mode=PropagationMode.RECOMPUTE,
+                                strength=EdgeStrength.HARD,
+                                reason="work packet derives from self-build item",
+                            )
+                        )
 
     def _link_roadmap_phases(self) -> None:
         roadmap_nodes = {
-            n.source_id: n for n in self._graph.nodes.values()
+            n.source_id: n
+            for n in self._graph.nodes.values()
             if n.node_type == PropagationNodeType.ROADMAP_PHASE
         }
         for rp in roadmap_nodes.values():
             prereqs = rp.metadata.get("prerequisites", [])
             for prereq_id in prereqs:
                 if prereq_id in roadmap_nodes:
-                    self._graph.add_edge(PropagationEdge(
-                        from_node_id=roadmap_nodes[prereq_id].node_id,
-                        to_node_id=rp.node_id,
-                        edge_type=PropagationEdgeType.UNLOCKS,
-                        propagation_mode=PropagationMode.NOTIFY_ONLY,
-                        strength=EdgeStrength.HARD,
-                        reason="prerequisite phase unlocks this phase",
-                    ))
+                    self._graph.add_edge(
+                        PropagationEdge(
+                            from_node_id=roadmap_nodes[prereq_id].node_id,
+                            to_node_id=rp.node_id,
+                            edge_type=PropagationEdgeType.UNLOCKS,
+                            propagation_mode=PropagationMode.NOTIFY_ONLY,
+                            strength=EdgeStrength.HARD,
+                            reason="prerequisite phase unlocks this phase",
+                        )
+                    )
 
     def _link_production_truth(self) -> None:
         ptd_nodes = [
-            n for n in self._graph.nodes.values()
+            n
+            for n in self._graph.nodes.values()
             if n.node_type == PropagationNodeType.PRODUCTION_TRUTH_DELTA
         ]
         api_nodes = [
-            n for n in self._graph.nodes.values()
-            if n.node_type == PropagationNodeType.API_ROUTE
+            n for n in self._graph.nodes.values() if n.node_type == PropagationNodeType.API_ROUTE
         ]
         for ptd in ptd_nodes:
             for api in api_nodes:
-                self._graph.add_edge(PropagationEdge(
-                    from_node_id=ptd.node_id,
-                    to_node_id=api.node_id,
-                    edge_type=PropagationEdgeType.VALIDATES,
-                    propagation_mode=PropagationMode.REVALIDATE,
-                    strength=EdgeStrength.SOFT,
-                    reason="production truth validates API routes",
-                ))
+                self._graph.add_edge(
+                    PropagationEdge(
+                        from_node_id=ptd.node_id,
+                        to_node_id=api.node_id,
+                        edge_type=PropagationEdgeType.VALIDATES,
+                        propagation_mode=PropagationMode.REVALIDATE,
+                        strength=EdgeStrength.SOFT,
+                        reason="production truth validates API routes",
+                    )
+                )

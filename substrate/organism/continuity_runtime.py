@@ -241,7 +241,13 @@ class ResumeReport:
 
     @property
     def total_changes(self) -> int:
-        return len(self.completed) + len(self.failed) + len(self.blocked) + len(self.became_available) + len(self.needs_review)
+        return (
+            len(self.completed)
+            + len(self.failed)
+            + len(self.blocked)
+            + len(self.became_available)
+            + len(self.needs_review)
+        )
 
     @property
     def has_critical_changes(self) -> bool:
@@ -329,9 +335,17 @@ class WorkLineage:
 
     @property
     def depth(self) -> int:
-        return sum(1 for lst in [self.work_packet_ids, self.outcome_ids,
-                                 self.projection_ids, self.recommendation_ids,
-                                 self.next_work_packet_ids] if lst)
+        return sum(
+            1
+            for lst in [
+                self.work_packet_ids,
+                self.outcome_ids,
+                self.projection_ids,
+                self.recommendation_ids,
+                self.next_work_packet_ids,
+            ]
+            if lst
+        )
 
 
 @dataclass
@@ -438,6 +452,7 @@ class AttentionModel:
     def _check_active_sessions(self) -> bool:
         try:
             from substrate.workstation.device_presence import DevicePresenceRegistry
+
             registry = DevicePresenceRegistry()
             sessions = registry.get_active_sessions()
             return len(sessions) > 0
@@ -473,7 +488,7 @@ class TimelineEngine:
     def record(self, event: TimelineEvent) -> None:
         self._events.append(event)
         if len(self._events) > self._max_memory_events:
-            self._events = self._events[-self._max_memory_events:]
+            self._events = self._events[-self._max_memory_events :]
         self._persist_event(event)
 
     def record_event(
@@ -567,7 +582,9 @@ class ResumeStateEngine:
     def _find_completed(
         self, before: ContinuitySnapshot, after: ContinuitySnapshot
     ) -> list[dict[str, Any]]:
-        before_active_ids = {p.get("packet_id", p.get("id", "")) for p in before.active_work_packets}
+        before_active_ids = {
+            p.get("packet_id", p.get("id", "")) for p in before.active_work_packets
+        }
         after_active_ids = {p.get("packet_id", p.get("id", "")) for p in after.active_work_packets}
         completed_ids = before_active_ids - after_active_ids
 
@@ -575,12 +592,14 @@ class ResumeStateEngine:
         for p in before.active_work_packets:
             pid = p.get("packet_id", p.get("id", ""))
             if pid in completed_ids:
-                completed.append({
-                    "category": ChangeCategory.COMPLETED.value,
-                    "id": pid,
-                    "title": p.get("title", ""),
-                    "domain": p.get("domain", ""),
-                })
+                completed.append(
+                    {
+                        "category": ChangeCategory.COMPLETED.value,
+                        "id": pid,
+                        "title": p.get("title", ""),
+                        "domain": p.get("domain", ""),
+                    }
+                )
         return completed
 
     def _find_failed(
@@ -596,12 +615,14 @@ class ResumeStateEngine:
                     for bp in before.active_work_packets
                 )
                 if was_active or pid:
-                    failed.append({
-                        "category": ChangeCategory.FAILED.value,
-                        "id": pid,
-                        "title": p.get("title", ""),
-                        "status": status,
-                    })
+                    failed.append(
+                        {
+                            "category": ChangeCategory.FAILED.value,
+                            "id": pid,
+                            "title": p.get("title", ""),
+                            "status": status,
+                        }
+                    )
         return failed
 
     def _find_newly_blocked(
@@ -612,12 +633,14 @@ class ResumeStateEngine:
         for b in after.blocked_items:
             bid = b.get("id", b.get("packet_id", ""))
             if bid not in before_blocked_ids:
-                newly_blocked.append({
-                    "category": ChangeCategory.BLOCKED.value,
-                    "id": bid,
-                    "title": b.get("title", ""),
-                    "reason": b.get("reason", b.get("blocker", "")),
-                })
+                newly_blocked.append(
+                    {
+                        "category": ChangeCategory.BLOCKED.value,
+                        "id": bid,
+                        "title": b.get("title", ""),
+                        "reason": b.get("reason", b.get("blocker", "")),
+                    }
+                )
         return newly_blocked
 
     def _find_became_available(
@@ -634,11 +657,13 @@ class ResumeStateEngine:
                 None,
             )
             if item:
-                available.append({
-                    "category": ChangeCategory.AVAILABLE.value,
-                    "id": bid,
-                    "title": item.get("title", ""),
-                })
+                available.append(
+                    {
+                        "category": ChangeCategory.AVAILABLE.value,
+                        "id": bid,
+                        "title": item.get("title", ""),
+                    }
+                )
         return available
 
     def _find_needs_review(
@@ -650,12 +675,14 @@ class ResumeStateEngine:
         for a in after.approvals_waiting:
             aid = a.get("id", "")
             if aid not in before_approval_ids:
-                needs_review.append({
-                    "category": ChangeCategory.NEEDS_REVIEW.value,
-                    "id": aid,
-                    "title": a.get("title", ""),
-                    "risk_level": a.get("risk_level", ""),
-                })
+                needs_review.append(
+                    {
+                        "category": ChangeCategory.NEEDS_REVIEW.value,
+                        "id": aid,
+                        "title": a.get("title", ""),
+                        "risk_level": a.get("risk_level", ""),
+                    }
+                )
 
         for r in after.active_risks:
             rid = r.get("risk_id", r.get("id", ""))
@@ -663,12 +690,14 @@ class ResumeStateEngine:
                 br.get("risk_id", br.get("id", "")) == rid for br in before.active_risks
             )
             if not was_known:
-                needs_review.append({
-                    "category": ChangeCategory.NEW_RISK.value,
-                    "id": rid,
-                    "title": r.get("title", r.get("type", "")),
-                    "severity": r.get("severity", ""),
-                })
+                needs_review.append(
+                    {
+                        "category": ChangeCategory.NEW_RISK.value,
+                        "id": rid,
+                        "title": r.get("title", r.get("type", "")),
+                        "severity": r.get("severity", ""),
+                    }
+                )
         return needs_review
 
     def _aggregate_changes(
@@ -677,29 +706,35 @@ class ResumeStateEngine:
         changes: list[dict[str, Any]] = []
 
         if before.active_profile_mode != after.active_profile_mode:
-            changes.append({
-                "type": "profile_change",
-                "from": before.active_profile_mode,
-                "to": after.active_profile_mode,
-            })
+            changes.append(
+                {
+                    "type": "profile_change",
+                    "from": before.active_profile_mode,
+                    "to": after.active_profile_mode,
+                }
+            )
 
         before_obj_count = len(before.active_objectives)
         after_obj_count = len(after.active_objectives)
         if before_obj_count != after_obj_count:
-            changes.append({
-                "type": "objective_count_change",
-                "from": before_obj_count,
-                "to": after_obj_count,
-            })
+            changes.append(
+                {
+                    "type": "objective_count_change",
+                    "from": before_obj_count,
+                    "to": after_obj_count,
+                }
+            )
 
         before_risk_count = len(before.active_risks)
         after_risk_count = len(after.active_risks)
         if before_risk_count != after_risk_count:
-            changes.append({
-                "type": "risk_count_change",
-                "from": before_risk_count,
-                "to": after_risk_count,
-            })
+            changes.append(
+                {
+                    "type": "risk_count_change",
+                    "from": before_risk_count,
+                    "to": after_risk_count,
+                }
+            )
 
         for opp in after.active_opportunities:
             oid = opp.get("opportunity_id", opp.get("id", ""))
@@ -708,11 +743,13 @@ class ResumeStateEngine:
                 for bo in before.active_opportunities
             )
             if not was_known:
-                changes.append({
-                    "type": "new_opportunity",
-                    "id": oid,
-                    "title": opp.get("type", opp.get("title", "")),
-                })
+                changes.append(
+                    {
+                        "type": "new_opportunity",
+                        "id": oid,
+                        "title": opp.get("type", opp.get("title", "")),
+                    }
+                )
 
         return changes
 
@@ -734,7 +771,9 @@ class ResumeStateEngine:
             actions.append(f"Process {len(current.approvals_waiting)} pending approval(s)")
 
         if current.active_risks:
-            high_risks = [r for r in current.active_risks if r.get("severity") in ("critical", "high")]
+            high_risks = [
+                r for r in current.active_risks if r.get("severity") in ("critical", "high")
+            ]
             if high_risks:
                 actions.append(f"Address {len(high_risks)} high/critical risk(s)")
 
@@ -805,8 +844,10 @@ class WorkContinuityGraph:
             next_wp_ids = [
                 p.get("packet_id", p.get("id", ""))
                 for p in work_packets
-                if (p.get("status", "") in ("draft", "pending", "ready")
-                    and (p.get("domain", "") == obj_domain or p.get("goal_id", "") == obj_id))
+                if (
+                    p.get("status", "") in ("draft", "pending", "ready")
+                    and (p.get("domain", "") == obj_domain or p.get("goal_id", "") == obj_id)
+                )
             ]
 
             lineage = WorkLineage(
@@ -977,8 +1018,11 @@ class SnapshotCollector:
 
     def _get_profile_mode(self) -> str:
         try:
-            from substrate.workstation.profile_modes import ProfileMode
-            state_path = os.path.join(_repo_root(), "data", "umh", "organism", "daemon_state.json")
+            from substrate.state.runtime_paths import runtime_state_path
+
+            state_path = str(
+                runtime_state_path("organism", "daemon_state.json", create_parent=False)
+            )
             if os.path.exists(state_path):
                 with open(state_path) as f:
                     state = json.load(f)
@@ -990,13 +1034,20 @@ class SnapshotCollector:
     def _get_active_objectives(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.strategic_gap_engine import GoalRegistry
+
             registry = GoalRegistry()
             goals = registry.list_goals()
             return [
-                {"goal_id": g.goal_id, "title": g.title, "domain": g.domain,
-                 "status": g.status.value, "progress": g.progress,
-                 "priority": g.priority.value if hasattr(g.priority, 'value') else g.priority}
-                for g in goals if g.status.value == "active"
+                {
+                    "goal_id": g.goal_id,
+                    "title": g.title,
+                    "domain": g.domain,
+                    "status": g.status.value,
+                    "progress": g.progress,
+                    "priority": g.priority.value if hasattr(g.priority, "value") else g.priority,
+                }
+                for g in goals
+                if g.status.value == "active"
             ]
         except Exception as e:
             logger.debug("continuity: objectives unavailable: %s", e)
@@ -1005,14 +1056,17 @@ class SnapshotCollector:
     def _get_active_loops(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.strategic_tick_loop import get_tick_loop
+
             loop = get_tick_loop()
             status = loop.status()
-            return [{
-                "type": "strategic_tick_loop",
-                "state": status.get("state", ""),
-                "frequency": status.get("frequency", ""),
-                "tick_count": status.get("tick_count", 0),
-            }]
+            return [
+                {
+                    "type": "strategic_tick_loop",
+                    "state": status.get("state", ""),
+                    "frequency": status.get("frequency", ""),
+                    "tick_count": status.get("tick_count", 0),
+                }
+            ]
         except Exception as e:
             logger.debug("continuity: loops unavailable: %s", e)
             return []
@@ -1030,13 +1084,22 @@ class SnapshotCollector:
                     with open(os.path.join(packets_dir, fname)) as f:
                         p = json.load(f)
                     status = p.get("status", "")
-                    if status in ("active", "executing", "pending", "approved", "ready", "in_progress"):
-                        active.append({
-                            "packet_id": p.get("packet_id", fname.replace(".json", "")),
-                            "title": p.get("title", ""),
-                            "domain": p.get("domain", ""),
-                            "status": status,
-                        })
+                    if status in (
+                        "active",
+                        "executing",
+                        "pending",
+                        "approved",
+                        "ready",
+                        "in_progress",
+                    ):
+                        active.append(
+                            {
+                                "packet_id": p.get("packet_id", fname.replace(".json", "")),
+                                "title": p.get("title", ""),
+                                "domain": p.get("domain", ""),
+                                "status": status,
+                            }
+                        )
                 except (json.JSONDecodeError, OSError):
                     continue
             return active
@@ -1057,11 +1120,13 @@ class SnapshotCollector:
                     with open(os.path.join(packets_dir, fname)) as f:
                         p = json.load(f)
                     if p.get("status") == "blocked":
-                        blocked.append({
-                            "id": p.get("packet_id", fname.replace(".json", "")),
-                            "title": p.get("title", ""),
-                            "reason": p.get("blocker", ""),
-                        })
+                        blocked.append(
+                            {
+                                "id": p.get("packet_id", fname.replace(".json", "")),
+                                "title": p.get("title", ""),
+                                "reason": p.get("blocker", ""),
+                            }
+                        )
                 except (json.JSONDecodeError, OSError):
                     continue
             return blocked
@@ -1072,6 +1137,7 @@ class SnapshotCollector:
     def _get_pending_approvals(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.approval_store import ApprovalStore
+
             store = ApprovalStore()
             all_approvals = store._read_all()
             return [a for a in all_approvals if a.get("status") == "pending"]
@@ -1082,6 +1148,7 @@ class SnapshotCollector:
     def _get_active_projections(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.projection_engine import get_projection_engine
+
             engine = get_projection_engine()
             if not engine.last_projections:
                 return []
@@ -1093,6 +1160,7 @@ class SnapshotCollector:
     def _get_active_risks(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.projection_engine import get_projection_engine
+
             engine = get_projection_engine()
             if not engine.last_risks:
                 return []
@@ -1104,6 +1172,7 @@ class SnapshotCollector:
     def _get_active_opportunities(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.projection_engine import get_projection_engine
+
             engine = get_projection_engine()
             if not engine.last_opportunities:
                 return []
@@ -1115,6 +1184,7 @@ class SnapshotCollector:
     def _get_current_recommendations(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.strategic_tick_loop import get_tick_loop
+
             loop = get_tick_loop()
             state = loop.strategic_state()
             candidates = state.get("candidates", {}).get("pending", [])
@@ -1141,9 +1211,7 @@ class ContinuityRuntime:
         _ensure_dirs()
 
         self.attention = AttentionModel()
-        self.timeline = TimelineEngine(
-            data_dir=os.path.join(self._data_dir, "timeline")
-        )
+        self.timeline = TimelineEngine(data_dir=os.path.join(self._data_dir, "timeline"))
         self._collector = SnapshotCollector()
         self._resume_engine = ResumeStateEngine()
         self._graph = WorkContinuityGraph()
@@ -1193,8 +1261,10 @@ class ContinuityRuntime:
         self.timeline.record_event(
             TimelineEventType.SESSION_START.value,
             f"Operator resumed — {report.total_changes} change(s)",
-            {"absence_seconds": report.absence_duration_seconds,
-             "total_changes": report.total_changes},
+            {
+                "absence_seconds": report.absence_duration_seconds,
+                "total_changes": report.total_changes,
+            },
         )
 
         self._persist_resume(report)

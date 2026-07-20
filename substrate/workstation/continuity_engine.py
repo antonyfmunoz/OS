@@ -102,10 +102,6 @@ class ContinuityEngine:
         self._state_path = self._dir / "continuity_composite.json"
 
         from substrate.workstation.checkpoint import CheckpointManager
-        from substrate.workstation.continuity import (
-            ContinuityState,
-            ContinuityStateMachine,
-        )
         from substrate.workstation.intent_contract import IntentContractManager
         from substrate.workstation.resume_brief import ReturnBriefGenerator
 
@@ -117,7 +113,6 @@ class ContinuityEngine:
     def _load_state_machine(self) -> Any:
         """Load or create continuity state machine."""
         from substrate.workstation.continuity import (
-            ContinuityState,
             ContinuityStateMachine,
         )
 
@@ -247,9 +242,7 @@ class ContinuityEngine:
 
         # Collect current state before transitioning
         active_intents = self._intent_mgr.get_active()
-        result.open_loops = [
-            f"{c.operator_intent} ({c.status})" for c in active_intents
-        ]
+        result.open_loops = [f"{c.operator_intent} ({c.status})" for c in active_intents]
         blocked = self._intent_mgr.get_blocked()
         result.open_blockers = [c.blocker for c in blocked if c.blocker]
         result.pending_approvals = self._collect_pending_approvals()
@@ -391,6 +384,7 @@ class ContinuityEngine:
         """Collect real provider health — never fabricated."""
         try:
             from substrate.sockets.intelligence_port import get_model_registry
+
             MODEL_REGISTRY = get_model_registry()
 
             healthy = []
@@ -410,7 +404,9 @@ class ContinuityEngine:
 
     def _collect_node_status(self) -> dict[str, Any]:
         """Collect real mesh node health."""
-        mesh_path = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "runtime" / "mesh_nodes.json"
+        mesh_path = (
+            Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "runtime" / "mesh_nodes.json"
+        )
         if not mesh_path.exists():
             return {"vps": "running", "beast": "no_mesh_data"}
         try:
@@ -430,7 +426,10 @@ class ContinuityEngine:
         """Collect real pending approvals from governance."""
         approvals_path = (
             Path(os.environ.get("UMH_ROOT", "/opt/OS"))
-            / "data" / "umh" / "operator_acceptance" / "artifacts.jsonl"
+            / "data"
+            / "umh"
+            / "operator_acceptance"
+            / "artifacts.jsonl"
         )
         if not approvals_path.exists():
             return []
@@ -443,21 +442,22 @@ class ContinuityEngine:
                         continue
                     data = json.loads(stripped)
                     if data.get("status") in ("pending", "awaiting_review"):
-                        pending.append({
-                            "artifact_id": data.get("artifact_id", ""),
-                            "title": data.get("title", ""),
-                            "type": data.get("type", ""),
-                        })
+                        pending.append(
+                            {
+                                "artifact_id": data.get("artifact_id", ""),
+                                "title": data.get("title", ""),
+                                "type": data.get("type", ""),
+                            }
+                        )
         except Exception:
             pass
         return pending[-10:]
 
     def _read_recent_completions(self) -> list[str]:
         """Read recently completed work from events."""
-        events_path = (
-            Path(os.environ.get("UMH_ROOT", "/opt/OS"))
-            / "data" / "umh" / "organism" / "events.jsonl"
-        )
+        from substrate.state.runtime_paths import runtime_state_path
+
+        events_path = runtime_state_path("organism", "events.jsonl", create_parent=False)
         if not events_path.exists():
             return []
         completed: list[str] = []
@@ -524,7 +524,9 @@ class ContinuityEngine:
         if result.pending_approvals:
             return f"Review {len(result.pending_approvals)} pending approval(s)"
         if result.active_loops:
-            active = [l for l in result.active_loops if l["status"] not in ("verified_done", "sealed")]
+            active = [
+                l for l in result.active_loops if l["status"] not in ("verified_done", "sealed")
+            ]
             if active:
                 return f"Continue: {active[0]['intent']}"
         return "Ready for new work"
@@ -563,7 +565,9 @@ class ContinuityEngine:
 
     def _write_session_report(self, result: ShutdownResult) -> Path:
         """Write an end-of-day session report."""
-        report_dir = Path(os.environ.get("UMH_ROOT", "/opt/OS")) / "data" / "umh" / "organism" / "reports"
+        from substrate.state.runtime_paths import runtime_state_dir
+
+        report_dir = runtime_state_dir("organism", create=False) / "reports"
         report_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         report_path = report_dir / f"session_report_{ts}.json"
