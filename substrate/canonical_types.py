@@ -1352,6 +1352,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "RunLayout": ["substrate.understanding.reconstruction.provenance"],
     "ClaimLedger": ["substrate.understanding.reconstruction.ledger"],
     "IdentityResolutionLog": ["substrate.understanding.reconstruction.identity"],
+    "ImportEvidenceResult": ["substrate.understanding.reconstruction.import_evidence"],
 }
 
 

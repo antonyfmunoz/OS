@@ -218,6 +218,7 @@ class _BuildState:
     sources: dict[str, SourceRecord] = field(default_factory=dict)
     observations: dict[str, ObservationRecord] = field(default_factory=dict)
     activities: list[ActivityRecord] = field(default_factory=list)
+    causal: list[Any] = field(default_factory=list)
     omissions: list[dict[str, Any]] = field(default_factory=list)
     thin_areas: list[str] = field(default_factory=list)
 
@@ -671,28 +672,181 @@ def _mine_duplicate_basenames(inv: Any) -> list[tuple[str, ...]]:
     return pairs
 
 
-def _step_identity(state: _BuildState, repo_root: Path, inv: Any) -> None:
+def _default_import_evidence_fn(
+    repo_root: Path, candidate_paths: list[str], run_id: str, activity_id: str
+) -> Any:
+    from substrate.understanding.reconstruction.import_evidence import (
+        scan_import_evidence,
+    )
+
+    return scan_import_evidence(repo_root, candidate_paths, run_id, activity_id)
+
+
+def _verdict_from_evidence(
+    path_a: str,
+    path_b: str,
+    ev_by_path: dict[str, dict[str, Any]],
+    hash_by_path: dict[str, str],
+) -> tuple[str, tuple[str, ...], str, dict[str, Any]]:
+    """Council verdict rules over formal-dependency evidence.
+
+    Returns (verdict, evidence_observation_ids, rationale, metadata).
+    - link            — proven dependency (cross-import) or identical content
+                        (coordinated duplicate copies);
+    - remain_separate — both live with provably different dependency positions
+                        (distinct non-identical importer sets, no cross-import,
+                        different content);
+    - unresolved      — everything else, evidence attached. `merge` is NEVER
+                        emitted in v1.1: it requires shared-identity evidence
+                        this packet does not collect. A removal CANDIDATE flag
+                        (never a deletion) requires zero static references +
+                        zero registry ownership + zero literal dynamic-import
+                        evidence + zero doc references + zero test/tooling
+                        references — and still carries explicit limitations
+                        (opaque dynamic imports, runtime paths unassessed).
+    """
+    ea = ev_by_path.get(path_a, {})
+    eb = ev_by_path.get(path_b, {})
+    obs_ids = tuple(
+        sorted(
+            set(ea.get("observation_ids", {}).values())
+            | set(eb.get("observation_ids", {}).values())
+        )
+    )
+    imp_a = set(ea.get("static_importers", []))
+    imp_b = set(eb.get("static_importers", []))
+    meta: dict[str, Any] = {
+        "importer_count_a": len(imp_a),
+        "importer_count_b": len(imp_b),
+    }
+
+    ha, hb = hash_by_path.get(path_a, ""), hash_by_path.get(path_b, "")
+    if ha and ha == hb:
+        return (
+            "link",
+            obs_ids,
+            "identical source content — coordinated duplicate copies "
+            "(convergence decision needed, not asserted here)",
+            meta,
+        )
+    cross = path_a in imp_b or path_b in imp_a
+    if cross:
+        return (
+            "link",
+            obs_ids,
+            "proven formal dependency — one candidate statically imports the other",
+            meta,
+        )
+    if imp_a and imp_b and imp_a != imp_b:
+        return (
+            "remain_separate",
+            obs_ids,
+            f"both modules are live with distinct dependency positions "
+            f"({len(imp_a)} vs {len(imp_b)} static importers, no cross-import, "
+            f"different content)",
+            meta,
+        )
+
+    def _no_evidence(e: dict[str, Any]) -> bool:
+        return (
+            not e.get("static_importers")
+            and not e.get("registries")
+            and e.get("dynamic_import_count", 0) == 0
+            and not e.get("doc_references")
+            and e.get("qualified_reference_count", 0) == 0
+            and e.get("test_reference_count", 0) == 0
+        )
+
+    removal_candidates = [p for p, e in ((path_a, ea), (path_b, eb)) if e and _no_evidence(e)]
+    if removal_candidates:
+        meta["removal_candidate"] = removal_candidates
+        meta["removal_candidate_limitations"] = [
+            "static/textual absence only — opaque dynamic imports exist repo-wide",
+            "runtime execution paths not assessed in v1.1",
+            "removal is a human decision, never performed by this subsystem",
+        ]
+        return (
+            "unresolved",
+            obs_ids,
+            f"no static/registry/dynamic/doc/test references found for "
+            f"{', '.join(removal_candidates)} — REMOVAL CANDIDATE (flag only; "
+            f"absence is not proof, see limitations)",
+            meta,
+        )
+    if imp_a and imp_b:
+        return (
+            "unresolved",
+            obs_ids,
+            "both imported by identical importer sets — dependency positions "
+            "indistinguishable from static evidence",
+            meta,
+        )
+    return (
+        "unresolved",
+        obs_ids,
+        "one-sided or ambiguous dependency evidence — insufficient to resolve",
+        meta,
+    )
+
+
+def _step_identity(
+    state: _BuildState, repo_root: Path, inv: Any, import_evidence_fn: Callable
+) -> Any:
     act = _ActivityScope(state, "evaluation", "script:builder/identity")
-    seeded: set[tuple[str, ...]] = set()
+    seeded_ruled: dict[tuple[str, ...], tuple[str, str]] = {}
+    seeded_unruled: dict[tuple[str, ...], str] = {}
 
     for path_a, path_b, evidence_rule, rationale in _KNOWN_SAME_NAME_PAIRS:
         pair = candidate_pair(path_a, path_b)
-        seeded.add(pair)
         if evidence_rule is not None:
-            # remain_separate is itself an evidence-backed verdict citing the
-            # documenting rule file (acquired with its real content hash).
-            acquired = _read_file_source(state, act, evidence_rule, repo_root, "document")
-            if acquired is not None:
-                eid, _ = acquired
-                verdict = "remain_separate"
-                evidence_ids: tuple[str, ...] = (eid,)
-            else:
-                verdict = "unresolved"
-                evidence_ids = ()
-                rationale += " (documenting rule file not found at build time)"
+            seeded_ruled[pair] = (evidence_rule, rationale)
+        else:
+            seeded_unruled[pair] = rationale
+
+    # Candidate mining generates CANDIDATES only — verdicts come from evidence.
+    mined = [
+        p
+        for p in _mine_duplicate_basenames(inv)
+        if p not in seeded_ruled and p not in seeded_unruled
+    ]
+    all_pairs = list(seeded_ruled) + list(seeded_unruled) + mined
+    candidate_paths = sorted({p for pair in all_pairs for p in pair})
+
+    # Formal-dependency evidence pass (injectable seam).
+    ev = import_evidence_fn(repo_root, candidate_paths, state.run_id, act.id)
+    for src in getattr(ev, "sources", ()) or ():
+        act.generated.append(state.record_source(src))
+    for obs in getattr(ev, "observations", ()) or ():
+        act.generated.append(state.record_observation(obs))
+    for cr in getattr(ev, "causal_records", ()) or ():
+        state.causal.append(cr)
+    ev_by_path = getattr(ev, "evidence_by_path", {}) or {}
+
+    hash_by_path: dict[str, str] = {}
+    for src in getattr(inv, "sources", ()) or ():
+        h = getattr(src, "source_content_hash", "")
+        if h:
+            hash_by_path[getattr(src, "subject_path", "")] = h
+
+    # Rule-documented seeds: keep the documented verdict, enriched with the
+    # formal-dependency observations.
+    for pair, (evidence_rule, rationale) in sorted(seeded_ruled.items()):
+        acquired = _read_file_source(state, act, evidence_rule, repo_root, "document")
+        import_obs = tuple(
+            sorted(
+                oid
+                for p in pair
+                for oid in ev_by_path.get(p, {}).get("observation_ids", {}).values()
+            )
+        )
+        if acquired is not None:
+            eid, _ = acquired
+            verdict = "remain_separate"
+            evidence_ids: tuple[str, ...] = (eid,) + import_obs
         else:
             verdict = "unresolved"
-            evidence_ids = ()
+            evidence_ids = import_obs
+            rationale += " (documenting rule file not found at build time)"
         res = state.record_identity(
             IdentityResolution(
                 candidate_entity_ids=pair,
@@ -706,26 +860,34 @@ def _step_identity(state: _BuildState, repo_root: Path, inv: Any) -> None:
         )
         act.generated.append(res.id)
 
-    # Deterministic mining — candidates with no documented evidence stay
-    # unresolved; never auto-merged on names alone.
-    for pair in _mine_duplicate_basenames(inv):
-        if pair in seeded:
-            continue
+    # Evidence-rule verdicts for the unruled seed + every mined candidate.
+    for pair, basis in sorted(
+        [(p, "seed_fixture") for p in seeded_unruled]
+        + [(p, "mined:duplicate_basename") for p in mined]
+    ):
+        verdict, evidence_ids, rationale, meta = _verdict_from_evidence(
+            pair[0], pair[1], ev_by_path, hash_by_path
+        )
         res = state.record_identity(
             IdentityResolution(
                 candidate_entity_ids=pair,
-                verdict="unresolved",
+                verdict=verdict,  # type: ignore[arg-type]
                 run_id=state.run_id,
-                candidate_basis="mined:duplicate_basename",
-                rationale=(
-                    "repeated module basename in substrate/ — candidate only; "
-                    "no evidence gathered, verdict unresolved"
+                candidate_basis=basis,
+                supporting_evidence_ids=evidence_ids,
+                support_score=None,
+                rationale=rationale
+                + (
+                    f" [removal_candidate: {', '.join(meta['removal_candidate'])}]"
+                    if meta.get("removal_candidate")
+                    else ""
                 ),
                 recorded_at=state.now,
             )
         )
         act.generated.append(res.id)
     act.finish()
+    return ev
 
 
 # ── step 5: divergence classes ──────────────────────────────────────────────
@@ -1184,6 +1346,7 @@ def build_self_model(
     probes_fn: Callable = _default_probes_fn,
     preflight_fn: Callable = _default_preflight_fn,
     world_model_fn: Callable = _default_world_model_fn,
+    import_evidence_fn: Callable = _default_import_evidence_fn,
     resume: bool = False,
 ) -> SelfModelBuildResult:
     """Build a run-scoped grounded self-model.
@@ -1223,7 +1386,7 @@ def build_self_model(
     _step_declared(state, repo_root)
     inv = _step_implemented(state, repo_root, inventory_fn, world_model_fn)
     _step_runtime(state, repo_root, probes_fn)
-    _step_identity(state, repo_root, inv)
+    _step_identity(state, repo_root, inv, import_evidence_fn)
     divergence = _step_divergence(state)
     competency = _step_competency(state, divergence)
 
@@ -1384,6 +1547,7 @@ def _build_model_json(
         "ledger_artifact": {"path": "claims.jsonl", "sha256": ledger_hash},
         "beliefs": beliefs,
         "identities": identities,
+        "causal": [c.to_dict() for c in state.causal],
         "competency_questions": competency,
         "omissions": state.omissions,
     }

@@ -37,6 +37,11 @@ from substrate.understanding.reconstruction.contracts import (
     ValidTime,
     stable_id,
 )
+from substrate.understanding.reconstruction.import_evidence import (
+    ImportEvidenceResult,
+    module_dotted_name,
+    scan_import_evidence,
+)
 from substrate.understanding.reconstruction.identity import (
     IdentityResolutionLog,
     candidate_pair,
@@ -85,6 +90,9 @@ __all__ = [
     "ValidTime",
     "stable_id",
     "IdentityResolutionLog",
+    "ImportEvidenceResult",
+    "module_dotted_name",
+    "scan_import_evidence",
     "candidate_pair",
     "ALLOWED_TRANSITIONS",
     "CONTRADICTED_SCORE_CAP",

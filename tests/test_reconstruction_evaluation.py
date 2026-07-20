@@ -44,6 +44,7 @@ from tests.test_reconstruction_builder import (  # noqa: E402
     _fake_inventory,
     _fake_preflight,
     _fake_probes_empty,
+    _fake_import_evidence,
     _fake_probes_running,
     _fake_world_model,
     _synthetic_repo,
@@ -62,6 +63,7 @@ def _built_run(probes_fn=_fake_probes_running) -> Path:
         probes_fn=probes_fn,
         preflight_fn=_fake_preflight,
         world_model_fn=_fake_world_model,
+        import_evidence_fn=_fake_import_evidence,
     )
     return Path(result.run_dir)
 
