@@ -93,6 +93,9 @@ CLAUDE.local.md
 data/action_log.jsonl
 data/action_snapshots/
 
+# Grounded self-model run artifacts (run-scoped instance data, never committed)
+data/world_models/
+
 # Runtime JSONL logs (operational, not source code)
 data/orchestrator_log.jsonl
 data/control_plane_log.jsonl

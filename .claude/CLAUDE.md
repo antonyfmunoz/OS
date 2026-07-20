@@ -70,7 +70,7 @@ Status taxonomy:
 - substrate/types.py                     — CONFIRMED_RUNTIME (single type system, 30+ Pydantic models)
 - substrate/__init__.py                  — CONFIRMED_RUNTIME (Substrate public API)
 - substrate/control_plane/governance.py  — CONFIRMED_RUNTIME (deterministic risk classification)
-- substrate/control_plane/router.py      — CONFIRMED_RUNTIME (signal lifecycle orchestration)
+- substrate/control_plane/router/__init__.py — CONFIRMED_RUNTIME (signal lifecycle orchestration; router.py became the router/ package — stale path caught by grounded self-model run-20260719T230853Z)
 - substrate/execution/spine.py           — CONFIRMED_RUNTIME (LLM/cognitive 8-stage pipeline — NOT the canonical mutation runtime; see substrate/organism/canonical_runtime.py)
 - substrate/organism/canonical_runtime.py — CONFIRMED_RUNTIME (WP-P1-001: declares the one canonical operation runtime: governed_mutation → MutationRouter → GovernedExecutionSpine)
 - substrate/execution/trace.py           — CONFIRMED_RUNTIME (trace recording + Neon persistence)
