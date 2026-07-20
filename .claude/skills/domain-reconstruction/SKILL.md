@@ -49,6 +49,30 @@ python3 scripts/verify_grounded_self_model.py --build
   If a build tries to call `governed_mutation()` or `CanonicalRealityWritePath`, stop
   — that is out of the v1 slice.
 
+## Test evidence (v1.2)
+
+```
+python3 scripts/verify_grounded_self_model.py --run-tests reconstruction-spine-v1
+```
+
+Runs the bounded pytest selection with the evidence plugin and builds a run
+ingesting the artifact (run copy: `test_report.json`). Truth hierarchy is never
+collapsed: executed != passed != component-exercised != correct. Two outcome
+dimensions per test (semantic_outcome + session_effect) with setup/call/
+teardown phases preserved; classification comes from REGISTERED markers only
+(`integration` — everything else is `unknown`). With no coverage tooling
+installed, ZERO components gain a tested facet and CQ5 reports
+PARTIALLY_ANSWERED with `component_mapping_status:
+coverage_tooling_not_installed` — that is the honest result, not a defect. A
+stale/dirty/plugin-error artifact is REJECTED, never ingested as valid.
+
+Gotcha: the spine selection exercises the REAL canonical mutation path, so the
+tests append to tracked `data/umh/**` runtime journals during the run. The CLI
+detects post-run drift: non-`data/` drift FAILS acquisition (implementation
+changed under the artifact); `data/`-only drift on a clean preflight is
+restored automatically (side effects, not code change). `unit_tested` is
+structurally unreachable here — no `unit` marker is registered.
+
 ## Inspect a run
 
 Read the artifacts in this order (cheapest, highest-signal first):

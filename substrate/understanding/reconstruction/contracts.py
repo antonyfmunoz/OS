@@ -118,7 +118,9 @@ CausalBasis = Literal[
     "formal",
 ]
 ActivityKind = Literal["acquisition", "extraction", "transformation", "evaluation"]
-AnswerStatus = Literal["ANSWERED", "UNKNOWN"]
+# PARTIALLY_ANSWERED (v1.2): evidence exists but does not close the question —
+# e.g. CQ5 with execution evidence and zero qualifying component mappings.
+AnswerStatus = Literal["ANSWERED", "PARTIALLY_ANSWERED", "UNKNOWN"]
 
 
 def _stable_dict(obj: Any) -> Any:

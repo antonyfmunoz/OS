@@ -31,8 +31,8 @@ from substrate.understanding.reconstruction.competency_questions import (  # noq
     COMPETENCY_IDS,
 )
 from substrate.understanding.reconstruction.contracts import (  # noqa: E402
-    ObservationRecord,
     RUNTIME_FACETS,
+    ObservationRecord,
     SourceRecord,
 )
 
@@ -411,7 +411,7 @@ class TestBuildEndToEnd:
         qids = {q["question_id"] for q in qs}
         assert qids == set(COMPETENCY_IDS)
         for q in qs:
-            assert q["answer_status"] in ("ANSWERED", "UNKNOWN")
+            assert q["answer_status"] in ("ANSWERED", "PARTIALLY_ANSWERED", "UNKNOWN")
             if q["answer_status"] == "UNKNOWN":
                 assert q["unknown_reason"]
         # CQ1 items carry subjects + record ids, not counts
@@ -420,10 +420,11 @@ class TestBuildEndToEnd:
         assert any(
             i["subject"] == "file:substrate/types.py" and i["claim_id"] for i in cq1["items"]
         )
-        # CQ5 (tested) is an explicit evidence gap in v1
+        # CQ5 (tested): with no execution artifact ingested it stays an
+        # explicit evidence gap (the v1.2 seam is opt-in via the CLI)
         cq5 = next(q for q in qs if q["question_id"] == "CQ5")
         assert cq5["answer_status"] == "UNKNOWN"
-        assert "contract-only" in cq5["unknown_reason"]
+        assert "no test-execution evidence" in cq5["unknown_reason"]
 
     def test_canonical_owner_claim_mined_narrowly(self):
         """V4.1 correction 16: canonical ownership is an explicit claim type,

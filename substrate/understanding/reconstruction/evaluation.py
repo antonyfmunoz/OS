@@ -216,7 +216,8 @@ def check_structural(run: dict[str, Any]) -> dict[str, Any]:
                 note(f"claim {c['id']} references unresolved obs {oid}")
 
     # all 10 competency questions present in model.json, each with a valid
-    # answer_status and either items or an explicit unknown_reason
+    # answer_status; UNKNOWN needs unknown_reason, PARTIALLY_ANSWERED needs
+    # partial_reason (a partial closure must say exactly what is missing).
     model_q = run["model"].get("competency_questions", [])
     q_by_id = {q.get("question_id"): q for q in model_q}
     for qid in COMPETENCY_IDS:
@@ -225,10 +226,12 @@ def check_structural(run: dict[str, Any]) -> dict[str, Any]:
             note(f"competency question {qid} absent from model.json")
             continue
         status = q.get("answer_status")
-        if status not in ("ANSWERED", "UNKNOWN"):
+        if status not in ("ANSWERED", "PARTIALLY_ANSWERED", "UNKNOWN"):
             note(f"competency question {qid} has invalid answer_status {status!r}")
         elif status == "UNKNOWN" and not q.get("unknown_reason"):
             note(f"competency question {qid} UNKNOWN without unknown_reason")
+        elif status == "PARTIALLY_ANSWERED" and not q.get("partial_reason"):
+            note(f"competency question {qid} PARTIALLY_ANSWERED without partial_reason")
 
     return {"passed": ok, "findings": findings}
 
@@ -457,6 +460,167 @@ def check_decision_usefulness(run: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ── test-evidence integrity (v1.2) ──────────────────────────────────────────
+
+_TEST_EVIDENCE_OBS_KINDS: frozenset[str] = frozenset(
+    {"test_execution", "test_collection", "test_report_status", "tested_facet"}
+)
+_ALLOWED_SEMANTIC: frozenset[str] = frozenset(
+    {"passed", "failed", "skipped", "xfailed", "xpassed", "error"}
+)
+_ALLOWED_EFFECT: frozenset[str] = frozenset({"pass", "fail", "neutral"})
+_QUALIFYING_MAPPING_BASES: frozenset[str] = frozenset(
+    {"coverage_context", "explicit_target_metadata"}
+)
+_TESTED_FACETS: frozenset[str] = frozenset({"unit_tested", "integration_tested"})
+
+
+def check_test_evidence(run: dict[str, Any]) -> dict[str, Any]:
+    """Deterministic v1.2 test-evidence integrity (amendment F/G/H/L).
+
+    Applicability (backward compatible): a run is checked only when it DECLARES
+    test evidence (manifest.test_evidence) or CONTAINS test-evidence
+    observations (execution/collection/report-status/tested-facet kinds).
+    Pre-v1.2 runs — and inventory-only runs (candidate links carry
+    observation_kind="test_reference", excluded here) — return applicable=False
+    and score N_A.
+
+    When applicable, verifies: the run copy exists and matches the recorded
+    hash; the report parses, carries the supported schema, and has no
+    plugin_error; the artifact commit equals the build commit; every
+    test_execution observation resolves to a report execution with legal
+    two-dimension outcomes; skip/xfail/fail evidence is never converted to
+    pass; and NO tested facet exists without a qualifying mapping basis, an
+    evidence-backed class, and a passing execution at the build commit.
+    """
+    manifest = run["manifest"]
+    declared = manifest.get("test_evidence")
+    obs = run["observations"]
+    test_obs = [o for o in obs if o.get("observation_kind") in _TEST_EVIDENCE_OBS_KINDS]
+    facet_obs = [
+        o
+        for o in obs
+        if o.get("maturity_facet") in _TESTED_FACETS
+        or (o.get("observation_kind") == "tested_facet")
+    ]
+    exec_obs = [o for o in test_obs if o.get("observation_kind") == "test_execution"]
+
+    if not declared and not test_obs and not facet_obs:
+        return {"applicable": False, "passed": True, "findings": []}
+
+    findings: list[str] = []
+    ok = True
+
+    def note(msg: str) -> None:
+        nonlocal ok
+        ok = False
+        findings.append(msg)
+
+    report_path = run["run_dir"] / "test_report.json"
+    report: Any = None
+    executions_in_report: dict[str, Any] = {}
+
+    if declared:
+        run_copy_sha = declared.get("run_copy_sha256", "")
+        if not report_path.is_file():
+            note("test evidence declared but test_report.json missing")
+        else:
+            actual = file_sha256(report_path)
+            if run_copy_sha and actual != run_copy_sha:
+                note("test_report.json hash mismatch vs manifest run_copy_sha256")
+            try:
+                report = json.loads(report_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError, OSError):
+                note("test_report.json is not parseable JSON")
+            if isinstance(report, dict):
+                if report.get("schema_version") != "test-evidence-v1":
+                    note(f"unsupported report schema {report.get('schema_version')!r}")
+                if report.get("plugin_error"):
+                    note("report carries plugin_error — evidence unqualifiable")
+                executions_in_report = report.get("executions", {}) or {}
+        # A VALID declaration must bind to the build commit (stale is inert —
+        # the builder must have rejected it, never ingested it as valid).
+        if declared.get("valid"):
+            if declared.get("artifact_commit") != manifest.get("repository_commit"):
+                note("valid test evidence bound to a different commit than the build")
+    elif exec_obs or facet_obs:
+        note("test execution/facet observations exist with no manifest test_evidence block")
+
+    # Execution observations: legal outcomes, resolve to the report, never
+    # coexist with a rejected report.
+    rejected = any(
+        o.get("observation_kind") == "test_report_status"
+        and o.get("predicate") == "report_rejected"
+        for o in test_obs
+    )
+    if rejected and exec_obs:
+        note("report_rejected recorded alongside test_execution observations")
+    for o in exec_obs:
+        v = o.get("value") or {}
+        nodeid = v.get("nodeid", "")
+        if v.get("semantic_outcome") not in _ALLOWED_SEMANTIC:
+            note(f"execution {nodeid}: illegal semantic_outcome {v.get('semantic_outcome')!r}")
+        if v.get("session_effect") not in _ALLOWED_EFFECT:
+            note(f"execution {nodeid}: illegal session_effect {v.get('session_effect')!r}")
+        phases = v.get("phase_outcomes") or {}
+        for phase in ("setup", "call", "teardown"):
+            if phase not in phases:
+                note(f"execution {nodeid}: missing phase outcome {phase!r}")
+        # outcome semantics never converted: a non-pass phase can never yield
+        # semantic passed
+        if v.get("semantic_outcome") == "passed" and (
+            phases.get("call") != "passed" or phases.get("teardown") == "failed"
+        ):
+            note(f"execution {nodeid}: semantic passed contradicts phase outcomes")
+        if executions_in_report and nodeid and nodeid not in executions_in_report:
+            note(f"execution {nodeid}: not present in test_report.json")
+        if declared and v.get("commit") != declared.get("artifact_commit"):
+            note(f"execution {nodeid}: commit differs from artifact commit")
+
+    # Facet inflation: every tested facet must be fully justified.
+    exec_by_nodeid = {(o.get("value") or {}).get("nodeid"): o for o in exec_obs}
+    for o in facet_obs:
+        oid = o.get("id")
+        if o.get("observation_kind") != "tested_facet":
+            note(f"facet obs {oid}: tested facet outside observation_kind tested_facet")
+            continue
+        sup = o.get("support") or {}
+        basis = sup.get("mapping_basis")
+        if basis not in _QUALIFYING_MAPPING_BASES:
+            note(f"facet obs {oid}: mapping_basis {basis!r} does not qualify")
+        cls = sup.get("classification")
+        facet = o.get("maturity_facet", "")
+        if not str(facet).startswith(str(cls)):
+            note(f"facet obs {oid}: classification {cls!r} mismatches facet {facet!r}")
+        if not str(sup.get("classification_basis", "")).startswith("registered_marker:"):
+            note(f"facet obs {oid}: classification not evidence-backed")
+        origin = exec_by_nodeid.get(sup.get("derived_from_execution"))
+        if origin is None:
+            note(f"facet obs {oid}: derived_from_execution does not resolve")
+        else:
+            ov = origin.get("value") or {}
+            if ov.get("semantic_outcome") != "passed" or ov.get("session_effect") != "pass":
+                note(f"facet obs {oid}: derived from a non-passing execution")
+            if manifest.get("repository_commit") and ov.get("commit") != manifest.get(
+                "repository_commit"
+            ):
+                note(f"facet obs {oid}: derived from an execution at a stale commit")
+
+    # Candidate links must stay facetless (static reference never a facet).
+    for o in obs:
+        if o.get("observation_kind") == "test_reference" and o.get("maturity_facet"):
+            note(f"candidate link {o.get('id')} carries a maturity facet")
+
+    return {
+        "applicable": True,
+        "passed": ok,
+        "findings": findings,
+        "execution_observations": len(exec_obs),
+        "facet_observations": len(facet_obs),
+        "report_present": report_path.is_file(),
+    }
+
+
 # ── artifact-hash integrity ─────────────────────────────────────────────────
 
 
@@ -524,6 +688,7 @@ def acceptance_vector(run_dir: str | Path) -> dict[str, Any]:
     usefulness = check_decision_usefulness(run)
     citations = check_convergence_citations(run)
     artifact_hashes = verify_artifact_hashes(rd)
+    test_evidence = check_test_evidence(run)
 
     obs_ids = {o["id"] for o in run["observations"]}
     source_ids = {s["id"] for s in run["sources"]}
@@ -560,7 +725,7 @@ def acceptance_vector(run_dir: str | Path) -> dict[str, Any]:
     model_q = run["model"].get("competency_questions", [])
     q_by_id = {q.get("question_id"): q for q in model_q}
     ten_ok = all(
-        q_by_id.get(qid, {}).get("answer_status") in ("ANSWERED", "UNKNOWN")
+        q_by_id.get(qid, {}).get("answer_status") in ("ANSWERED", "PARTIALLY_ANSWERED", "UNKNOWN")
         for qid in COMPETENCY_IDS
     )
 
@@ -597,14 +762,24 @@ def acceptance_vector(run_dir: str | Path) -> dict[str, Any]:
         "decision_usefulness": "PARTIAL"
         if 0 < usefulness["answered"] < usefulness["total"]
         else verdict(usefulness["passed"]),
+        # v1.2: DYNAMICALLY CRITICAL — N_A on pre-v1.2 / inventory-only runs
+        # (excluded from the critical set below, so it never blocks
+        # OPERATIONAL retroactively); critical the moment evidence exists.
+        "test_evidence_integrity": (
+            "N_A" if not test_evidence["applicable"] else verdict(test_evidence["passed"])
+        ),
     }
+
+    critical = list(CRITICAL_CRITERIA)
+    if test_evidence["applicable"]:
+        critical.append("test_evidence_integrity")
 
     scored = [v for v in criteria.values() if v != "N_A"]
     passes = sum(1 for v in scored if v == "PASS")
     return {
         "schema_version": SCHEMA_VERSION,
         "criteria": criteria,
-        "critical_criteria": list(CRITICAL_CRITERIA),
+        "critical_criteria": critical,
         "denominator": len(scored),
         "passes": passes,
         "not_applicable": [k for k, v in criteria.items() if v == "N_A"],
@@ -617,6 +792,7 @@ def acceptance_vector(run_dir: str | Path) -> dict[str, Any]:
             "decision_usefulness": usefulness,
             "convergence_citations": citations,
             "artifact_hashes": artifact_hashes,
+            "test_evidence": test_evidence,
             "secrets": secrets,
             "unevidenced_supported_claims": unevidenced,
         },
@@ -635,13 +811,17 @@ def final_status(vector: dict[str, Any]) -> FinalStatus:
     """
     criteria: dict[str, str] = vector.get("criteria", {})
 
-    # FAILED: integrity/safety violation.
-    for name in _INTEGRITY_SAFETY_CRITERIA:
+    # FAILED: integrity/safety violation. test_evidence_integrity joins the
+    # integrity class whenever it was scored (N_A never fails).
+    for name in list(_INTEGRITY_SAFETY_CRITERIA) + ["test_evidence_integrity"]:
         if criteria.get(name) == "FAIL":
             return "FAILED"
 
-    # OPERATIONAL: every critical criterion is explicitly PASS.
-    if all(criteria.get(name) == "PASS" for name in CRITICAL_CRITERIA):
+    # OPERATIONAL: every critical criterion is explicitly PASS. The vector's
+    # own critical set governs (it includes dynamically-critical criteria);
+    # the static constant is the fallback for hand-built vectors.
+    critical = vector.get("critical_criteria") or list(CRITICAL_CRITERIA)
+    if all(criteria.get(name) == "PASS" for name in critical):
         return "OPERATIONAL"
 
     # INSUFFICIENT_EVIDENCE: sound structure but declared decisions unsupported —
@@ -666,8 +846,9 @@ def agent_eval_packet(run_dir: str | Path) -> str:
         f"Final status: **{status}**",
         "",
     ]
+    critical = set(vector.get("critical_criteria") or CRITICAL_CRITERIA)
     for k, v in sorted(vector["criteria"].items()):
-        crit = " (critical)" if k in CRITICAL_CRITERIA else ""
+        crit = " (critical)" if k in critical else ""
         lines.append(f"- {k}: {v}{crit}")
     lines.append("")
     lines.append(f"Passes {vector['passes']}/{vector['denominator']} scored criteria.")

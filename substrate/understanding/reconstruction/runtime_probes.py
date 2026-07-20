@@ -31,13 +31,13 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from substrate.execution.cpu_gate import gated_subprocess_run
-from substrate.understanding.reconstruction.provenance import content_hash
 from substrate.understanding.reconstruction.contracts import (
     ObservationRecord,
     SourceRecord,
     ValidTime,
     stable_id,
 )
+from substrate.understanding.reconstruction.provenance import content_hash
 
 # ── Redaction ───────────────────────────────────────────────────────────────
 # Secret-ish env var keys whose VALUE must never be stored.

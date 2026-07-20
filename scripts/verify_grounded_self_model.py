@@ -20,8 +20,17 @@ Exit codes:
   1  — critical integrity/safety failure (final status FAILED).
   2  — setup error (no run to verify, bad paths).
 
+Test evidence (v1.2): --run-tests <template-id> executes the bounded pytest
+selection with the evidence plugin (repository state INJECTED via env — the
+plugin never shells out to git), qualifies the artifact (missing report /
+plugin_error / schema / session-field failures are acquisition failures even
+when the tests themselves passed), then builds a run ingesting it.
+--test-artifact ingests a pre-produced artifact instead. scripts/ is CPU-gate
+exempt (precedent: check_pytest_collection.py).
+
 Usage:
     UMH_ROOT=/opt/OS python3 scripts/verify_grounded_self_model.py --build
+    python3 scripts/verify_grounded_self_model.py --run-tests reconstruction-spine-v1
     python3 scripts/verify_grounded_self_model.py --verify
     python3 scripts/verify_grounded_self_model.py --record-gates true --record-tests true
 """
@@ -127,10 +136,11 @@ def _print_competency(model: dict) -> None:
 
 
 def _print_acceptance(vector: dict) -> None:
+    critical = set(vector.get("critical_criteria") or CRITICAL_CRITERIA)
     print("  acceptance vector:")
     for k in sorted(vector.get("criteria", {})):
         v = vector["criteria"][k]
-        crit = " *critical*" if k in CRITICAL_CRITERIA else ""
+        crit = " *critical*" if k in critical else ""
         print(f"    {k:<34}{v}{crit}")
     print(
         f"    -> passes {vector.get('passes')}/{vector.get('denominator')} "
@@ -138,12 +148,197 @@ def _print_acceptance(vector: dict) -> None:
     )
 
 
-def _do_build(repo_root: Path, output: Path, run_id: str) -> Path:
+def _do_build(
+    repo_root: Path, output: Path, run_id: str, test_artifact: Path | None = None
+) -> Path:
     from substrate.understanding.reconstruction.builder import build_self_model
 
     now = datetime.now(timezone.utc).isoformat()
-    result = build_self_model(repo_root=repo_root, output_root=output, run_id=run_id, now=now)
+    result = build_self_model(
+        repo_root=repo_root,
+        output_root=output,
+        run_id=run_id,
+        now=now,
+        test_artifact_path=test_artifact,
+    )
     return Path(result.run_dir)
+
+
+def _repo_state(repo_root: Path) -> tuple[str, str, str, list[str]]:
+    """Bounded preflight: (commit, dirty, fingerprint, tracked_changed_paths).
+
+    ONE git status call (review finding 3: no split dirty-signal source).
+    dirty means TRACKED-file modifications — untracked files do not change the
+    identity of committed code and never dirty a qualification. The
+    fingerprint distinguishes a clean commit from a dirty tree WITHOUT storing
+    diff contents: sha256 over commit + dirty flag + changed path NAMES only.
+    """
+    import hashlib
+    import subprocess
+
+    commit = ""
+    tracked_changed: list[str] = []
+    dirty_str = "unknown"
+    try:
+        head_proc = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if head_proc.returncode == 0:
+            commit = head_proc.stdout.strip()
+        status_proc = subprocess.run(
+            ["git", "-C", str(repo_root), "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if status_proc.returncode == 0:
+            for line in status_proc.stdout.splitlines():
+                if not line.strip():
+                    continue
+                if line[:2] != "??":  # untracked files are not tracked changes
+                    tracked_changed.append(line[3:].strip())
+            tracked_changed.sort()
+            dirty_str = "true" if tracked_changed else "false"
+    except Exception as exc:
+        print(f"  repo-state preflight degraded ({exc})")
+    fingerprint = hashlib.sha256(
+        f"{commit}|dirty={dirty_str}|{'|'.join(tracked_changed)}".encode("utf-8")
+    ).hexdigest()
+    return commit, dirty_str, fingerprint, tracked_changed
+
+
+def _run_test_selection(repo_root: Path, output: Path, template_id: str) -> Path | None:
+    """Run the bounded pytest selection with the evidence plugin.
+
+    Returns the artifact path, or None when EVIDENCE ACQUISITION failed
+    (missing/unqualifiable report). Test failures are NOT acquisition
+    failures — a valid artifact recording failed tests is valid evidence.
+    """
+    import subprocess
+
+    from substrate.understanding.reconstruction.pytest_evidence_plugin import (
+        ENV_COMMIT,
+        ENV_DIRTY,
+        ENV_FINGERPRINT,
+        ENV_OUT,
+        ENV_SCHEMA,
+        ENV_TEMPLATE,
+        TEST_EVIDENCE_SCHEMA_VERSION,
+    )
+    from substrate.understanding.reconstruction.test_evidence import (
+        PLUGIN_MODULE,
+        SELECTION_TEMPLATES,
+    )
+
+    template = SELECTION_TEMPLATES.get(template_id)
+    if template is None:
+        print(f"unknown selection template {template_id!r}; known: {sorted(SELECTION_TEMPLATES)}")
+        return None
+
+    commit, dirty, fingerprint, pre_changed = _repo_state(repo_root)
+    artifacts_dir = output / "test_artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    artifact_path = artifacts_dir / f"{template_id}-{stamp}.json"
+
+    env = os.environ.copy()
+    env[ENV_OUT] = str(artifact_path)
+    env[ENV_COMMIT] = commit
+    env[ENV_DIRTY] = dirty
+    env[ENV_FINGERPRINT] = fingerprint
+    env[ENV_TEMPLATE] = template_id
+    env[ENV_SCHEMA] = TEST_EVIDENCE_SCHEMA_VERSION
+    env.setdefault("UMH_ROOT", str(repo_root))
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        *template["paths"],
+        "-p",
+        PLUGIN_MODULE,
+        "-q",
+        "-p",
+        "no:cacheprovider",
+    ]
+    print(
+        f"[run-tests] template={template_id} files={len(template['paths'])} commit={commit[:12]} dirty={dirty}"
+    )
+    proc = subprocess.run(cmd, cwd=repo_root, env=env, capture_output=True, text=True, timeout=2400)
+    tail = "\n".join((proc.stdout or "").splitlines()[-6:])
+    print(f"  pytest exit={proc.returncode}\n{tail}")
+
+    # Evidence QUALIFICATION (separate from test outcomes — amendment F).
+    if not artifact_path.is_file():
+        print("  evidence acquisition FAILED: report missing")
+        return None
+    try:
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+        print(f"  evidence acquisition FAILED: report unparseable ({exc})")
+        return None
+    problems: list[str] = []
+    if artifact.get("schema_version") != TEST_EVIDENCE_SCHEMA_VERSION:
+        problems.append(f"schema {artifact.get('schema_version')!r}")
+    if artifact.get("plugin_error"):
+        problems.append(f"plugin_error {artifact['plugin_error']}")
+    session = artifact.get("session") or {}
+    for field_name in ("started_at", "finished_at", "exit_status", "injected"):
+        if session.get(field_name) in (None, ""):
+            problems.append(f"missing session field {field_name}")
+    if problems:
+        print(f"  evidence acquisition FAILED: {'; '.join(problems)}")
+        return None
+
+    # Post-run repository drift (review finding 1): some selection tests
+    # exercise the REAL canonical mutation path and append to tracked
+    # data/umh/** runtime journals. Classify the drift:
+    #   - drift outside data/  → implementation changed during the evidence
+    #     run → acquisition FAILED (the artifact no longer describes HEAD);
+    #   - drift limited to data/ (runtime journals) → test side effects, not
+    #     code change; when the preflight was CLEAN, restore exactly those
+    #     paths so the subsequent build sees the same clean state the
+    #     artifact was stamped with.
+    post_commit, _post_dirty, _post_fp, post_changed = _repo_state(repo_root)
+    if post_commit != commit:
+        print("  evidence acquisition FAILED: HEAD changed during the evidence run")
+        return None
+    drift = sorted(set(post_changed) - set(pre_changed))
+    non_data_drift = [p for p in drift if not p.startswith("data/")]
+    if non_data_drift:
+        print(
+            "  evidence acquisition FAILED: tracked non-data files changed during "
+            f"the evidence run: {non_data_drift[:10]}"
+        )
+        return None
+    if drift:
+        if dirty == "false":
+            restore = subprocess.run(
+                ["git", "-C", str(repo_root), "restore", "--", *drift],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if restore.returncode == 0:
+                print(
+                    f"  restored {len(drift)} tracked data/ runtime-journal paths "
+                    "mutated by the selection tests (side effects, not code change)"
+                )
+            else:
+                print(
+                    f"  WARNING: could not restore {len(drift)} test-side-effect "
+                    f"paths: {restore.stderr.strip()[:200]}"
+                )
+        else:
+            print(
+                f"  note: {len(drift)} tracked data/ paths mutated by the selection "
+                "tests (tree was already dirty — dev mode, artifact self-rejects)"
+            )
+    print(f"  evidence artifact qualified: {artifact_path}")
+    return artifact_path
 
 
 def main() -> int:
@@ -172,10 +367,30 @@ def main() -> int:
         metavar="true|false",
         help="record the targeted-test outcome in the run manifest",
     )
+    ap.add_argument(
+        "--test-artifact",
+        type=Path,
+        default=None,
+        help="pytest evidence artifact to ingest into the build (v1.2)",
+    )
+    ap.add_argument(
+        "--run-tests",
+        type=str,
+        default=None,
+        metavar="TEMPLATE_ID",
+        help="run a bounded pytest selection with the evidence plugin, then build",
+    )
     args = ap.parse_args()
 
     repo_root = args.repo_root or _default_repo_root()
     output = args.output or _default_output(repo_root)
+
+    test_artifact: Path | None = args.test_artifact
+    if args.run_tests:
+        test_artifact = _run_test_selection(repo_root, output, args.run_tests)
+        if test_artifact is None:
+            return 2  # evidence acquisition failed (independent of test outcomes)
+        args.build = True  # a fresh evidence artifact implies a fresh build
 
     if not args.build and not args.verify:
         args.verify = True  # default action
@@ -185,7 +400,7 @@ def main() -> int:
         run_id = args.run_id or datetime.now(timezone.utc).strftime("run-%Y%m%dT%H%M%SZ")
         print(f"[build] repo_root={repo_root} output={output} run_id={run_id}")
         try:
-            run_dir = _do_build(repo_root, output, run_id)
+            run_dir = _do_build(repo_root, output, run_id, test_artifact=test_artifact)
         except Exception as exc:  # setup / environment failure
             print(f"  setup error: {exc}")
             return 2
@@ -230,6 +445,23 @@ def main() -> int:
     )
     print(f"\n  unknown competency answers: {unknown}")
     _print_competency(run["model"])
+
+    te = manifest.get("test_evidence")
+    if te:
+        acc = te.get("accounting", {})
+        print("\n  test evidence (v1.2):")
+        print(
+            f"    valid={te.get('valid')} template={te.get('selection_template_id') or '-'} "
+            f"artifact_commit={str(te.get('artifact_commit'))[:12] or '-'}"
+        )
+        print(f"    by semantic outcome: {acc.get('executions_by_semantic_outcome', {})}")
+        print(f"    by classification:   {acc.get('executions_by_classification', {})}")
+        print(
+            f"    tested facets derived: {acc.get('facets_derived', 0)} "
+            f"| component mapping: {acc.get('component_mapping_status', '?')}"
+        )
+        if te.get("rejection_reasons"):
+            print(f"    rejection reasons: {te['rejection_reasons']}")
     print()
 
     vector = acceptance_vector(run_dir)
