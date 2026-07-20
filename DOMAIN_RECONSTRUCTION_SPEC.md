@@ -489,6 +489,7 @@ already realized as code.
 | Evaluation subset (structural + temporal + mechanism-safety; retrieval and decision-usefulness partial) | **implemented (subset)** |
 | Verification script for the self-model slice | **implemented** |
 | Formal-dependency import evidence + evidence-backed identity verdicts (§4.8/§4.9) | **implemented (v1.1)** |
+| Execution-backed test evidence (pytest evidence plugin + two-dimension outcome ingestion + evidence-gated tested-facet derivation, CQ5 partial closure; `unit_tested` unreachable until a `unit` marker is registered — only `integration` is a registered class marker) | **implemented (v1.2)** |
 
 **Normative — what is contract-only in v1** (declared here, RFC'd separately
 before any code path):
@@ -501,7 +502,7 @@ before any code path):
 | Governed future-improvement engine | contract-only |
 | External-domain reconstruction | contract-only |
 | ContradictionEngine integration (lexical candidate adapter — engine outputs are candidates, never adjudicated contradictions) | contract-only |
-| Test-evidence acquisition (`unit_tested`/`integration_tested` facets, CQ5) — a test file referencing a module is never proof of correctness | contract-only |
+| Component-exercise mapping ingestion (coverage dynamic contexts → test-to-component evidence) — without it tested facets derive for NO component, and v1.2 says so (`component_mapping_status`); a test file referencing a module is never proof of correctness | contract-only |
 | Canonical-reality write-back from reconstruction | contract-only |
 | Agent-runtime projection (Context/Event/Effect, §4.15) | contract-only |
 | Durable-execution runtime (§4.15.2) | contract-only |

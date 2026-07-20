@@ -18,14 +18,22 @@ divergence, convergence, report, initial manifest) is written BEFORE the
 acceptance vector is computed; acceptance.json (including final_status) is
 written next; the manifest is then finalized with per-artifact SHA-256 hashes.
 
-Contract-only in v1 (declared, not silently skipped):
-  - test-evidence acquisition (unit_tested/integration_tested facets, CQ5) —
-    a test file referencing a module is NEVER proof of component correctness,
-    and v1 does not run tests inside a build, so the tested facet is recorded
-    as an explicit evidence gap;
+Test evidence (v1.2): execution-backed test evidence is INGESTED, never
+generated here — the controlling CLI runs pytest with the evidence plugin and
+passes the artifact in via test_artifact_path; the builder atomically copies
+the artifact bytes into the run (test_report.json), ingests the RUN COPY, and
+records executions/collection/candidate links. A test file referencing a
+module is NEVER proof of component correctness; tested facets derive only
+through derive_tested_facets() (qualifying component-exercise mapping — with
+no coverage tooling installed, real runs derive ZERO facets and say so).
+
+Contract-only (declared, not silently skipped):
+  - component-exercise mapping ingestion (coverage dynamic contexts) — the
+    adapter is fixture-tested; no mapping source is installed, so
+    component_mapping_status records the gap;
   - ContradictionEngine integration — the engine is negation-pair lexical and
-    its outputs would be candidates, never adjudicated contradictions; v1 does
-    not call it and does not claim to.
+    its outputs would be candidates, never adjudicated contradictions; the
+    builder does not call it and does not claim to.
 
 Deterministic: given the same repo state + the same injected inventory/probe
 results, every produced record hashes identically (record ids are content
@@ -48,11 +56,11 @@ from substrate.understanding.reconstruction.competency_questions import (
     COMPETENCY_QUESTIONS,
 )
 from substrate.understanding.reconstruction.contracts import (
+    RUNTIME_FACETS,
+    SCHEMA_VERSION,
     ClaimLedgerEntry,
     IdentityResolution,
     ObservationRecord,
-    RUNTIME_FACETS,
-    SCHEMA_VERSION,
     SourceRecord,
     ValidTime,
 )
@@ -62,8 +70,8 @@ from substrate.understanding.reconstruction.identity import (
 )
 from substrate.understanding.reconstruction.ledger import ClaimLedger
 from substrate.understanding.reconstruction.provenance import (
-    ActivityRecord,
     RUN_ARTIFACTS,
+    ActivityRecord,
     RunLayout,
     atomic_write_json,
     content_hash,
@@ -153,9 +161,22 @@ DIVERGENCE_CLASSES: tuple[str, ...] = (
     "status_unknown",
 )
 _NOT_COMPUTABLE_V1: dict[str, str] = {
-    "source_present_but_untested": "tested-facet acquisition is contract-only in v1",
-    "tested_but_not_known_deployed": "tested-facet acquisition is contract-only in v1",
+    "source_present_but_untested": (
+        "component-level tested facets unavailable — execution evidence exists "
+        "(v1.2) but no qualifying component-exercise mapping source is installed"
+    ),
+    "tested_but_not_known_deployed": (
+        "component-level tested facets unavailable — execution evidence exists "
+        "(v1.2) but no qualifying component-exercise mapping source is installed"
+    ),
 }
+
+# CQ5 partial-closure language (council amendment C, verbatim requirement).
+_CQ5_PARTIAL_REASON = (
+    "Test execution and outcome evidence are available. No component receives "
+    "a unit_tested or integration_tested facet because no qualifying "
+    "component-exercise mapping source is installed or canonically declared."
+)
 
 
 @dataclass(frozen=True)
@@ -202,6 +223,30 @@ def _default_world_model_fn(repo_root: Path) -> Any:
     return extract_world_model(str(repo_root))
 
 
+def _default_test_evidence_fn(
+    repo_root: Path,
+    run_id: str,
+    activity_id: str,
+    artifact_path: Optional[Path],
+    build_commit: Optional[str],
+    build_commit_status: str,
+    now: Optional[str],
+) -> Any:
+    from substrate.understanding.reconstruction.test_evidence import (
+        collect_test_evidence,
+    )
+
+    return collect_test_evidence(
+        repo_root,
+        run_id,
+        activity_id,
+        artifact_path=artifact_path,
+        build_commit=build_commit,
+        build_commit_status=build_commit_status,
+        now=now,
+    )
+
+
 # ── internal build accumulator ──────────────────────────────────────────────
 
 
@@ -221,6 +266,9 @@ class _BuildState:
     causal: list[Any] = field(default_factory=list)
     omissions: list[dict[str, Any]] = field(default_factory=list)
     thin_areas: list[str] = field(default_factory=list)
+    # v1.2 test-evidence summary (manifest block + CQ5 inputs); None when the
+    # run ingested no test evidence at all.
+    test_evidence: Optional[dict[str, Any]] = None
 
     # appenders (bound in build_self_model)
     src_app: Any = None
@@ -645,6 +693,119 @@ def _step_runtime(state: _BuildState, repo_root: Path, probes_fn: Callable) -> A
     if unavailable:
         state.thin_areas.append("runtime: unavailable probes → " + ", ".join(sorted(unavailable)))
     return probes
+
+
+# ── step 3.5: test evidence (v1.2) ──────────────────────────────────────────
+
+
+def _step_tests(
+    state: _BuildState,
+    repo_root: Path,
+    test_evidence_fn: Callable,
+    test_artifact_path: Optional[Path],
+) -> None:
+    """Ingest test evidence: inventory always; execution artifact when given.
+
+    Artifact handling (amendment G): the ORIGINAL plugin artifact bytes are
+    hashed, then copied atomically as bytes into the run as test_report.json,
+    and ingestion reads the RUN COPY — both hashes land in the manifest block
+    so tampering with either file fails verification.
+    """
+    import os as _os
+
+    from substrate.understanding.reconstruction.test_evidence import file_bytes_sha256
+
+    act = _ActivityScope(state, "acquisition", "script:builder/test_evidence")
+
+    original_sha = ""
+    run_copy_path: Optional[Path] = None
+    if test_artifact_path is not None:
+        src_path = Path(test_artifact_path)
+        if src_path.is_file():
+            original_sha = file_bytes_sha256(src_path)
+            run_copy_path = state.layout.path("test_report.json")
+            tmp = run_copy_path.with_name(f".{run_copy_path.name}.tmp.{_os.getpid()}")
+            tmp.write_bytes(src_path.read_bytes())
+            _os.replace(tmp, run_copy_path)
+        else:
+            state.omissions.append(
+                {
+                    "omission": "test_artifact_missing",
+                    "detail": f"test artifact path does not exist: {src_path}",
+                }
+            )
+
+    result = test_evidence_fn(
+        repo_root,
+        state.run_id,
+        act.id,
+        run_copy_path,
+        state.repo_commit,
+        state.repo_commit_status,
+        state.now,
+    )
+
+    for src in getattr(result, "sources", ()):
+        act.generated.append(state.record_source(src))
+    execution_obs_ids: list[str] = []
+    for obs in getattr(result, "observations", ()):
+        oid = state.record_observation(obs)
+        act.generated.append(oid)
+        if getattr(obs, "observation_kind", "") == "test_execution":
+            execution_obs_ids.append(oid)
+    facet_obs_ids: list[str] = []
+    for obs in getattr(result, "facet_observations", ()):
+        oid = state.record_observation(obs)
+        act.generated.append(oid)
+        facet_obs_ids.append(oid)
+    act.finish()
+
+    accounting = dict(getattr(result, "accounting", {}) or {})
+    qualification = dict(getattr(result, "qualification", {}) or {})
+    artifact = getattr(result, "artifact", None)
+
+    if run_copy_path is not None or execution_obs_ids or qualification:
+        run_copy_sha = file_bytes_sha256(run_copy_path) if run_copy_path else ""
+        parsed_hash = ""
+        if qualification.get("valid") and artifact is not None:
+            parsed_hash = content_hash(
+                [
+                    o.value
+                    for o in getattr(result, "observations", ())
+                    if o.observation_kind == "test_execution"
+                ]
+            )
+        state.test_evidence = {
+            "original_plugin_artifact_sha256": original_sha,
+            "run_copy_sha256": run_copy_sha,
+            "parsed_semantic_record_hash": parsed_hash,
+            "evidence_schema_version": (artifact or {}).get("schema_version", ""),
+            "plugin_version": qualification.get("plugin_version", ""),
+            "artifact_commit": qualification.get("artifact_commit", ""),
+            "valid": bool(qualification.get("valid")),
+            "rejection_reasons": qualification.get("reasons", []),
+            "selection_template_id": qualification.get("selection_template_id", ""),
+            "accounting": accounting,
+            "execution_observation_ids": sorted(execution_obs_ids),
+            "facet_observation_ids": sorted(facet_obs_ids),
+        }
+        if not qualification.get("valid"):
+            state.thin_areas.append(
+                "tests: execution artifact rejected → "
+                + ",".join(qualification.get("reasons", []) or ["no_artifact"])
+            )
+    else:
+        # Inventory-only pass: candidate links exist, no execution evidence.
+        state.test_evidence = None
+        state.thin_areas.append(
+            "tests: no execution artifact ingested (inventory candidate links only)"
+        )
+    state.omissions.append(
+        {
+            "omission": "component_exercise_mapping_unavailable",
+            "detail": accounting.get("component_mapping_status", "unknown"),
+        }
+    )
 
 
 # ── step 4: identity — deterministic mining + seed fixtures ─────────────────
@@ -1190,7 +1351,11 @@ def _step_competency(state: _BuildState, divergence: dict[str, Any]) -> list[dic
         },
     )
 
-    # CQ5 — tested: contract-only in v1, an explicit evidence gap.
+    # CQ5 — tested (v1.2): structured three-way disposition.
+    #   ANSWERED           — evidence-backed tested facets exist;
+    #   PARTIALLY_ANSWERED — execution evidence exists but no component gained
+    #                        a facet (no qualifying mapping source);
+    #   UNKNOWN            — no execution evidence ingested in this run.
     tested_items = []
     for o in obs:
         if o.maturity_facet in ("unit_tested", "integration_tested"):
@@ -1202,17 +1367,69 @@ def _step_competency(state: _BuildState, divergence: dict[str, Any]) -> list[dic
                     "observation_id": o.id,
                 }
             )
-    ans(
-        "CQ5",
-        tested_items,
-        [i["observation_id"] for i in tested_items],
-        unknown_reason=(
-            "test-evidence acquisition is contract-only in v1; no "
-            "unit_tested/integration_tested observations were recorded — a test "
-            "file referencing a module is never proof of component correctness"
-        ),
-        unknown_regions=["tested_facet"],
+    execution_items = []
+    for o in obs:
+        if o.observation_kind == "test_execution":
+            v = o.value if isinstance(o.value, dict) else {}
+            execution_items.append(
+                {
+                    "nodeid": v.get("nodeid", o.subject),
+                    "semantic_outcome": v.get("semantic_outcome"),
+                    "session_effect": v.get("session_effect"),
+                    "classification": v.get("classification"),
+                    "commit": v.get("commit"),
+                    "observation_id": o.id,
+                }
+            )
+    execution_items.sort(key=lambda x: str(x["nodeid"]))
+    te = state.test_evidence or {}
+    te_accounting = te.get("accounting", {})
+    cq5_summary = {
+        "tested_component_count": len(tested_items),
+        "executions": len(execution_items),
+        "executions_by_semantic_outcome": te_accounting.get("executions_by_semantic_outcome", {}),
+        "executions_by_classification": te_accounting.get("executions_by_classification", {}),
+        "component_mapping_status": te_accounting.get("component_mapping_status", ""),
+        "artifact_commit": te.get("artifact_commit", ""),
+    }
+    cq5_cites = sorted(
+        {i["observation_id"] for i in tested_items} | {i["observation_id"] for i in execution_items}
     )
+    if tested_items:
+        answers["CQ5"] = {
+            "question_id": "CQ5",
+            "answer_status": "ANSWERED",
+            "items": tested_items + execution_items,
+            "summary": cq5_summary,
+            "cited_record_ids": cq5_cites,
+            "unknown_reason": "",
+            "unknown_regions": [],
+        }
+    elif execution_items:
+        answers["CQ5"] = {
+            "question_id": "CQ5",
+            "answer_status": "PARTIALLY_ANSWERED",
+            "items": execution_items,
+            "summary": cq5_summary,
+            "cited_record_ids": cq5_cites,
+            "partial_reason": _CQ5_PARTIAL_REASON,
+            "unknown_reason": "",
+            "unknown_regions": ["component_exercise_mapping"],
+        }
+    else:
+        answers["CQ5"] = {
+            "question_id": "CQ5",
+            "answer_status": "UNKNOWN",
+            "items": [],
+            "summary": cq5_summary,
+            "cited_record_ids": [],
+            "unknown_reason": (
+                "no test-execution evidence ingested in this run — the v1.2 seam "
+                "is available via the CLI (--run-tests/--test-artifact); a test "
+                "file referencing a module is never proof of component correctness"
+            ),
+            "unknown_regions": ["tested_facet"],
+        }
 
     # CQ6 — canonical ownership: EXPLICIT canonical_owner claims only.
     cq6_items = []
@@ -1347,6 +1564,8 @@ def build_self_model(
     preflight_fn: Callable = _default_preflight_fn,
     world_model_fn: Callable = _default_world_model_fn,
     import_evidence_fn: Callable = _default_import_evidence_fn,
+    test_evidence_fn: Callable = _default_test_evidence_fn,
+    test_artifact_path: Optional[Path] = None,
     resume: bool = False,
 ) -> SelfModelBuildResult:
     """Build a run-scoped grounded self-model.
@@ -1354,9 +1573,13 @@ def build_self_model(
     output_root is the self-model root (canonically
     <repo>/data/world_models/self); the run lands at output_root/runs/<run_id>.
 
+    test_artifact_path (v1.2) points at a pytest-evidence-plugin artifact; the
+    builder copies its bytes into the run (test_report.json) and ingests the
+    run copy. Without it the run carries test-inventory candidate links only.
+
     Deterministic given the same repo state + the same inventory/probe results.
-    inventory_fn/probes_fn/preflight_fn/world_model_fn are injectable (tests
-    pass fakes); they default to the real seam functions.
+    inventory_fn/probes_fn/preflight_fn/world_model_fn/test_evidence_fn are
+    injectable (tests pass fakes); they default to the real seam functions.
     """
     repo_root = Path(repo_root)
     now = now or ""  # caller-supplied for determinism; empty = unknown-time seed
@@ -1386,6 +1609,7 @@ def build_self_model(
     _step_declared(state, repo_root)
     inv = _step_implemented(state, repo_root, inventory_fn, world_model_fn)
     _step_runtime(state, repo_root, probes_fn)
+    _step_tests(state, repo_root, test_evidence_fn, test_artifact_path)
     _step_identity(state, repo_root, inv, import_evidence_fn)
     divergence = _step_divergence(state)
     competency = _step_competency(state, divergence)
@@ -1398,6 +1622,8 @@ def build_self_model(
         "identities": len(state.identity_log.entries),
         "divergences": len(divergence["divergences"]),
         "omissions": len(state.omissions),
+        "test_executions": len((state.test_evidence or {}).get("execution_observation_ids", [])),
+        "tested_facets": len((state.test_evidence or {}).get("facet_observation_ids", [])),
     }
 
     # ORDERING: every artifact acceptance evaluates exists BEFORE evaluation.
@@ -1411,6 +1637,8 @@ def build_self_model(
         "generated_at": now,
         "counts": counts,
     }
+    if state.test_evidence is not None:
+        manifest["test_evidence"] = state.test_evidence
     atomic_write_json(layout.path("manifest.json"), manifest)
     atomic_write_json(
         layout.path("model.json"), _build_model_json(state, competency, run_id, layout)

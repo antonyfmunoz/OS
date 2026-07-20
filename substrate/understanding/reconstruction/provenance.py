@@ -204,6 +204,7 @@ RUN_ARTIFACTS: tuple[str, ...] = (
     "model.json",
     "coverage.json",
     "divergence.json",
+    "test_report.json",  # v1.2: run copy of the pytest evidence artifact (optional)
     "acceptance.json",
     "convergence.md",
     "report.md",
