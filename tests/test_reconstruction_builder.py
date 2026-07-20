@@ -103,6 +103,78 @@ def _fake_world_model(repo_root):
     return _FakeWorldModel()
 
 
+def _fake_import_evidence(repo_root, candidate_paths, run_id, activity_id):
+    """Deterministic import-evidence fake (v1.1 seam): the mined gateway pair
+    gets DISTINCT live importers (→ remain_separate); every other candidate
+    gets no evidence entry (→ ambiguous unresolved)."""
+    from substrate.understanding.reconstruction.contracts import ObservationRecord
+    from substrate.understanding.reconstruction.import_evidence import (
+        ImportEvidenceResult,
+    )
+
+    src = SourceRecord(
+        subject_path="derived:import_evidence_scan",
+        source_kind="derived_artifact",
+        modality="derived",
+        extraction_hash="fakeevidencehash",
+        derivation_key="fakeevidencehash",
+        derivation_activity_id=activity_id,
+        activity_id=activity_id,
+        run_id=run_id,
+        metadata={"content_recorded": False},
+    )
+    observations = []
+    evidence_by_path = {}
+    fixtures = {
+        "substrate/organism/gateway.py": ["substrate/organism/consumer_a.py"],
+        "substrate/understanding/gateway.py": ["substrate/understanding/consumer_b.py"],
+    }
+    for path in candidate_paths:
+        if path not in fixtures:
+            continue
+        importers = fixtures[path]
+        o = ObservationRecord(
+            subject=f"file:{path}",
+            predicate="imported_by",
+            value={
+                "importers": [
+                    {
+                        "path": p,
+                        "re_export": False,
+                        "reference_class": "code",
+                        "line_sites": [1],
+                        "site_count": 1,
+                    }
+                    for p in importers
+                ],
+                "count": len(importers),
+            },
+            observation_kind="import_reference",
+            maturity_facet=None,
+            source_id=src.id,
+            run_id=run_id,
+        )
+        observations.append(o)
+        evidence_by_path[path] = {
+            "path": path,
+            "static_importers": importers,
+            "code_importer_count": len(importers),
+            "test_reference_count": 0,
+            "dynamic_import_count": 0,
+            "qualified_reference_count": 0,
+            "registries": [],
+            "doc_references": [],
+            "observation_ids": {"imported_by": o.id},
+        }
+    return ImportEvidenceResult(
+        sources=(src,),
+        observations=tuple(observations),
+        causal_records=(),
+        evidence_by_path=evidence_by_path,
+        accounting={"candidates": len(candidate_paths), "py_files_scanned": 0},
+    )
+
+
 def _fake_inventory(repo_root, run_id, activity_id):
     class InventoryResult:
         pass
@@ -245,6 +317,7 @@ class TestBuildEndToEnd:
             probes_fn=probes_fn,
             preflight_fn=_fake_preflight,
             world_model_fn=_fake_world_model,
+            import_evidence_fn=_fake_import_evidence,
         )
         return result, Path(result.run_dir), out
 
@@ -449,7 +522,9 @@ class TestBuildEndToEnd:
         assert by_pair[council]["verdict"] == "unresolved"
         assert by_pair[council]["supporting_evidence_ids"] == []
         assert by_pair[council]["candidate_basis"] == "seed_fixture"
-        # mined pair from the fake inventory (gateway.py duplicated)
+        # mined pair from the fake inventory (gateway.py duplicated): the fake
+        # import evidence gives each side a DISTINCT live importer → v1.1
+        # upgrades the verdict to remain_separate, citing the observations
         mined = tuple(
             sorted(
                 {
@@ -458,8 +533,9 @@ class TestBuildEndToEnd:
                 }
             )
         )
-        assert by_pair[mined]["verdict"] == "unresolved"
+        assert by_pair[mined]["verdict"] == "remain_separate"
         assert by_pair[mined]["candidate_basis"] == "mined:duplicate_basename"
+        assert by_pair[mined]["supporting_evidence_ids"], "verdict must cite evidence"
         # synthetic repo has no rule files → seeds with missing rule downgrade
         wm = tuple(
             sorted(
@@ -492,6 +568,7 @@ class TestBuildEndToEnd:
             probes_fn=_fake_probes_empty,
             preflight_fn=_fake_preflight,
             world_model_fn=_fake_world_model,
+            import_evidence_fn=_fake_import_evidence,
         )
         r1 = build_self_model(repo_root=repo, output_root=out1, **kwargs)
         r2 = build_self_model(repo_root=repo, output_root=out2, **kwargs)
@@ -555,3 +632,96 @@ class TestBuildEndToEnd:
         acceptance = json.loads((run_dir / "acceptance.json").read_text())
         assert acceptance["criteria"]["gates_clean_flag"] == "PASS"
         assert "final_status" in acceptance
+
+
+class TestVerdictRules:
+    """Council verdict semantics over formal-dependency evidence (v1.1)."""
+
+    @staticmethod
+    def _ev(path, importers=(), registries=(), dynamic=0, docs=(), qualified=0, tests=0):
+        return {
+            "path": path,
+            "static_importers": list(importers),
+            "code_importer_count": len(importers),
+            "test_reference_count": tests,
+            "dynamic_import_count": dynamic,
+            "qualified_reference_count": qualified,
+            "registries": list(registries),
+            "doc_references": list(docs),
+            "observation_ids": {"imported_by": f"obs:{path}"},
+        }
+
+    def _verdict(self, ev_a, ev_b, hashes=None):
+        from substrate.understanding.reconstruction.builder import (
+            _verdict_from_evidence,
+        )
+
+        ev = {ev_a["path"]: ev_a, ev_b["path"]: ev_b}
+        return _verdict_from_evidence(ev_a["path"], ev_b["path"], ev, hashes or {})
+
+    def test_identical_content_is_link(self):
+        v, ids, rationale, _ = self._verdict(
+            self._ev("a.py", ["x.py"]),
+            self._ev("b.py", ["y.py"]),
+            hashes={"a.py": "h1", "b.py": "h1"},
+        )
+        assert v == "link" and "identical" in rationale and ids
+
+    def test_cross_import_is_link(self):
+        v, ids, rationale, _ = self._verdict(
+            self._ev("a.py", ["b.py"]),  # b imports a
+            self._ev("b.py", []),
+        )
+        assert v == "link" and "dependency" in rationale
+
+    def test_distinct_importers_remain_separate(self):
+        v, ids, rationale, _ = self._verdict(
+            self._ev("a.py", ["x.py"]),
+            self._ev("b.py", ["y.py"]),
+        )
+        assert v == "remain_separate" and ids
+
+    def test_identical_importer_sets_stay_unresolved(self):
+        v, _, rationale, _ = self._verdict(
+            self._ev("a.py", ["x.py"]),
+            self._ev("b.py", ["x.py"]),
+        )
+        assert v == "unresolved" and "indistinguishable" in rationale
+
+    def test_zero_evidence_side_is_removal_candidate_with_limitations(self):
+        """The 6-absence rule flags a removal CANDIDATE — never a deletion,
+        never a dead-code claim — with explicit limitations."""
+        v, _, rationale, meta = self._verdict(
+            self._ev("a.py", ["x.py"]),
+            self._ev("b.py"),  # zero references of any kind
+        )
+        assert v == "unresolved"
+        assert meta.get("removal_candidate") == ["b.py"]
+        assert any("opaque" in lim for lim in meta["removal_candidate_limitations"])
+        assert "REMOVAL CANDIDATE" in rationale
+
+    def test_test_reference_blocks_removal_candidate(self):
+        v, _, _, meta = self._verdict(
+            self._ev("a.py", ["x.py"]),
+            self._ev("b.py", tests=1),  # a test references it — tooling dependency
+        )
+        assert v == "unresolved"
+        assert "removal_candidate" not in meta
+
+    def test_merge_is_never_emitted(self):
+        """v1.1 collects no shared-identity evidence — merge cannot appear."""
+        import inspect
+
+        from substrate.understanding.reconstruction.builder import (
+            _verdict_from_evidence,
+        )
+
+        src = inspect.getsource(_verdict_from_evidence)
+        assert '"merge"' not in src.replace("NEVER emitted", "")
+        for hashes in ({}, {"a.py": "h", "b.py": "h"}):
+            v, _, _, _ = self._verdict(
+                self._ev("a.py", ["x.py", "b.py"]),
+                self._ev("b.py", ["x.py"]),
+                hashes=hashes,
+            )
+            assert v != "merge"

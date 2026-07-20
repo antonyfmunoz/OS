@@ -488,6 +488,7 @@ already realized as code.
 | **Grounded Self-Model builder** (v1 slice: reconstructs UMH's own runtime self-model) | **implemented** |
 | Evaluation subset (structural + temporal + mechanism-safety; retrieval and decision-usefulness partial) | **implemented (subset)** |
 | Verification script for the self-model slice | **implemented** |
+| Formal-dependency import evidence + evidence-backed identity verdicts (§4.8/§4.9) | **implemented (v1.1)** |
 
 **Normative — what is contract-only in v1** (declared here, RFC'd separately
 before any code path):
