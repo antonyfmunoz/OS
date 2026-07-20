@@ -31,6 +31,7 @@ UMH substrate subsystem. Instance-agnostic.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -45,6 +46,8 @@ from substrate.understanding.reconstruction.contracts import (
 from substrate.understanding.reconstruction.provenance import content_hash
 
 # Files larger than this are NOT hashed — size+mtime metadata + a note instead.
+logger = logging.getLogger(__name__)
+
 MAX_HASH_BYTES = 2 * 1024 * 1024  # 2 MB
 
 # Top-level directories whose per-file .py observations are decision-relevant.
@@ -86,11 +89,24 @@ _EXCLUDED_DIR_CATEGORY: dict[str, str] = {
 # worktree even though `.claude` itself is not globally excluded.
 _WORKTREE_PARENTS: frozenset[str] = frozenset({".claude", ".claire"})
 
+# Self-ingestion guard: `data/world_models/` is the self-model's OWN output.
+# Walking it would re-hash prior runs' artifacts as fresh repository evidence —
+# a recursive evidence loop compounding with every build.
+_SELF_MODEL_OUTPUT_PARENT = "data"
+_SELF_MODEL_OUTPUT_SEGMENT = "world_models"
+
 # Sensitive-path classification — checked BEFORE any stat/hash so no
 # fingerprint (size, mtime, hash) of secret material is ever recorded.
 _SENSITIVE_DIR_SEGMENTS: frozenset[str] = frozenset({"vault", ".vault", ".op"})
 _SENSITIVE_SUFFIXES: frozenset[str] = frozenset({".pem", ".key"})
 _SENSITIVE_NAME_PREFIXES: tuple[str, ...] = ("credentials", "secrets", ".env")
+# Code/doc suffixes are exempt from the NAME-PREFIX rule only: a module named
+# secrets_manager.py is source code, not secret material, and silently dropping
+# it from source_present would blind the self-model to its own inventory. The
+# .pem/.key suffix rule and the vault-directory rule still always apply.
+_PREFIX_RULE_EXEMPT_SUFFIXES: frozenset[str] = frozenset(
+    {".py", ".pyi", ".ts", ".tsx", ".js", ".mjs", ".md", ".rst", ".sh"}
+)
 
 
 def _is_sensitive(rel_parts: tuple[str, ...], fname: str) -> bool:
@@ -98,9 +114,14 @@ def _is_sensitive(rel_parts: tuple[str, ...], fname: str) -> bool:
     lower = fname.lower()
     if lower == ".env" or lower.startswith(".env."):
         return True
-    for prefix in _SENSITIVE_NAME_PREFIXES:
-        if lower.startswith(prefix):
-            return True
+    suffix = ""
+    dot = lower.rfind(".")
+    if dot > 0:
+        suffix = lower[dot:]
+    if suffix not in _PREFIX_RULE_EXEMPT_SUFFIXES:
+        for prefix in _SENSITIVE_NAME_PREFIXES:
+            if lower.startswith(prefix):
+                return True
     if any(lower.endswith(sfx) for sfx in _SENSITIVE_SUFFIXES):
         return True
     return any(part.lower() in _SENSITIVE_DIR_SEGMENTS for part in rel_parts[:-1])
@@ -215,9 +236,17 @@ def _classify_suffix(suffix: str) -> tuple[str, str]:
 
 def _excluded_category(rel_parts: tuple[str, ...]) -> Optional[str]:
     """Return the exclusion category if any path segment marks an excluded
-    subtree, else None. Also handles the ``.claude/worktrees`` special case.
+    subtree, else None. Also handles the ``.claude/worktrees`` and
+    ``data/world_models`` (self-model output — self-ingestion guard) cases.
     """
     for i, part in enumerate(rel_parts):
+        # self-model output: never re-ingest prior runs' artifacts as evidence
+        if (
+            part == _SELF_MODEL_OUTPUT_SEGMENT
+            and i > 0
+            and rel_parts[i - 1] == _SELF_MODEL_OUTPUT_PARENT
+        ):
+            return "self_model_output"
         cat = _EXCLUDED_DIR_CATEGORY.get(part)
         if cat is not None:
             # 'worktrees' only counts as an exclusion under a .claude/.claire parent
@@ -317,7 +346,8 @@ def _artifact_freshness(repo_root: Path, head: Optional[str]) -> dict[str, Any]:
             with open(p, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
             return data if isinstance(data, dict) else None
-        except Exception:
+        except Exception as exc:
+            logger.debug("artifact freshness read failed for %s: %s", p, exc)
             return None
 
     graph = _load(graph_path)

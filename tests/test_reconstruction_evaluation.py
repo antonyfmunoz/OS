@@ -45,6 +45,7 @@ from tests.test_reconstruction_builder import (  # noqa: E402
     _fake_preflight,
     _fake_probes_empty,
     _fake_probes_running,
+    _fake_world_model,
     _synthetic_repo,
 )
 
@@ -60,6 +61,7 @@ def _built_run(probes_fn=_fake_probes_running) -> Path:
         inventory_fn=_fake_inventory,
         probes_fn=probes_fn,
         preflight_fn=_fake_preflight,
+        world_model_fn=_fake_world_model,
     )
     return Path(result.run_dir)
 
@@ -175,6 +177,18 @@ class TestConvergenceCitations:
         run = load_run(rd)
         assert not check_convergence_citations(run)["passed"]
 
+    def test_pure_intent_citations_never_pass(self):
+        """Resolution alone is not enough: a convergence that cites only
+        declaration-facet records is a pure-intent model (review finding 6)."""
+        rd = _built_run()
+        run = load_run(rd)
+        declared_obs = next(o for o in run["observations"] if o.get("maturity_facet") == "declared")
+        (rd / "convergence.md").write_text(f"# conv\n\n- finding [{declared_obs['id']}]\n")
+        res = check_convergence_citations(load_run(rd))
+        assert res["resolved"] == res["cited"] == 1  # it RESOLVES...
+        assert res["grounded"] == 0  # ...but nothing is grounded
+        assert not res["passed"]
+
     def test_unresolvable_citation_fails(self):
         rd = _built_run()
         text = (rd / "convergence.md").read_text()
@@ -187,6 +201,39 @@ class TestConvergenceCitations:
 
 
 class TestDecisionUsefulness:
+    def test_dq4_seeds_alone_never_pass(self):
+        """Seed fixtures are always emitted — DQ4 must require a mined or
+        evidence-backed finding (review finding 2)."""
+        run = load_run(_built_run(_fake_probes_running))
+        seeds_only = [
+            r
+            for r in run["identities"]
+            if r.get("candidate_basis") == "seed_fixture" and not r.get("supporting_evidence_ids")
+        ]
+        assert seeds_only, "fixture sanity: evidence-less seeds exist"
+        stripped = dict(run)
+        stripped["identities"] = seeds_only
+        res = check_decision_usefulness(stripped)
+        assert any("DQ4" in f for f in res["findings"])
+
+    def test_dq3_requires_real_comparison_inputs(self):
+        """A model with ZERO configured subjects cannot claim it distinguished
+        configured from running (review finding 2)."""
+        run = load_run(_built_run(_fake_probes_running))
+        stripped = dict(run)
+        stripped["divergence"] = {
+            "divergences": [],
+            "checks_performed": [
+                {
+                    "check": "deployment_configured_vs_running",
+                    "status": "performed",
+                    "compared_subjects": 0,
+                }
+            ],
+        }
+        res = check_decision_usefulness(stripped)
+        assert any("DQ3" in f for f in res["findings"])
+
     def test_dq3_rewards_distinction_not_defect(self):
         """DQ3 passes because the configured-vs-running CHECK was performed —
         whether or not a mismatch exists (V4.1 correction 15)."""

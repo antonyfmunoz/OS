@@ -371,7 +371,8 @@ def collect_runtime_observations(
             continue
 
         # ── Available: map each probe to conservative facet observations ──────
-        assert source_id is not None
+        if source_id is None:  # structurally impossible for an available probe
+            raise RuntimeError(f"available probe {spec.name} produced no source")
         if spec.name == "docker_services":
             for svc_name, status in _parse_docker(clean_out):
                 running = status.lower().startswith("up")

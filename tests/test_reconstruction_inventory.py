@@ -35,6 +35,13 @@ def _build_synthetic_repo(root: Path) -> None:
     # sensitive files — presence-only, never fingerprinted
     (root / ".env").write_text("SECRET_TOKEN=supersecretvalue123456789012345\n")
     (root / "server.key").write_text("-----BEGIN PRIVATE KEY-----\nfake\n")
+    # code file whose NAME matches a sensitive prefix — must stay inventoried
+    (root / "substrate" / "secrets_manager.py").write_text("z = 3\n")
+    # the self-model's own output — must NEVER be re-ingested as evidence
+    (root / "data" / "world_models" / "self" / "runs" / "old").mkdir(parents=True)
+    (root / "data" / "world_models" / "self" / "runs" / "old" / "claims.jsonl").write_text(
+        '{"id": "claimentry:prior"}\n'
+    )
 
 
 class TestInventoryAccounting:
@@ -92,6 +99,31 @@ class TestInventoryAccounting:
                 assert "size_bytes" not in s.metadata
                 assert "mtime" not in s.metadata
             assert res.accounting["sensitive_presence_only"] == len(sensitive)
+
+    def test_sensitive_prefix_exempts_code_files(self):
+        """secrets_manager.py is source code, not secret material — it must be
+        inventoried and hashed normally (review finding 7)."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _build_synthetic_repo(root)
+            res = inventory_repository(root, run_id="R", activity_id="A", now="N")
+            sm = [s for s in res.sources if s.subject_path == "substrate/secrets_manager.py"]
+            assert len(sm) == 1
+            assert sm[0].metadata.get("path_class") != "sensitive_configuration"
+            assert len(sm[0].source_content_hash) == 64
+
+    def test_self_model_output_never_reingested(self):
+        """data/world_models/ is the self-model's OWN output — re-hashing prior
+        runs' artifacts would be a recursive evidence loop (review finding 1)."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            _build_synthetic_repo(root)
+            res = inventory_repository(root, run_id="R", activity_id="A", now="N")
+            cats = res.accounting["excluded_by_category"]
+            assert cats.get("self_model_output", 0) >= 1
+            paths = {s.subject_path for s in res.sources}
+            assert not any("world_models" in p for p in paths)
+            assert res.accounting["counts_reconcile"] is True
 
     def test_oversized_file_gets_no_fake_hash(self):
         with tempfile.TemporaryDirectory() as d:
@@ -180,7 +212,7 @@ class TestInventoryAccounting:
             # aggregate package observation present for substrate
             agg = [o for o in res.observations if o.predicate == "python_files_present"]
             agg_subjects = {o.subject: o.value for o in agg}
-            assert agg_subjects.get("package:substrate") == 2
+            assert agg_subjects.get("package:substrate") == 3
             assert all(o.observation_kind == "aggregate_count" for o in agg)
 
     def test_all_observations_are_source_present_never_overasserted(self):

@@ -28,7 +28,7 @@ class CompetencyQuestion:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "id": self.id,
+            "question_id": self.id,
             "question": self.question,
             "derivation": self.derivation,
         }

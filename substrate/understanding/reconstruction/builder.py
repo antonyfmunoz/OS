@@ -38,6 +38,7 @@ UMH substrate subsystem. Instance-agnostic.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -68,6 +69,8 @@ from substrate.understanding.reconstruction.provenance import (
     content_hash,
     file_sha256,
 )
+
+logger = logging.getLogger(__name__)
 
 CODE_VERSION = "adl-builder-v1"
 
@@ -193,6 +196,12 @@ def _default_preflight_fn(repo_root: Path) -> tuple[Optional[str], str, Optional
     return resolve_repository_commit(repo_root)
 
 
+def _default_world_model_fn(repo_root: Path) -> Any:
+    from substrate.organism.world_model import extract_world_model
+
+    return extract_world_model(str(repo_root))
+
+
 # ── internal build accumulator ──────────────────────────────────────────────
 
 
@@ -273,7 +282,11 @@ class _ActivityScope:
             used_source_ids=tuple(sorted(set(self.used))),
             generated_record_ids=tuple(sorted(set(self.generated))),
         )
-        assert done.id == self._proto.id  # lineage is not identity
+        if done.id != self._proto.id:  # lineage must never change identity
+            raise RuntimeError(
+                "activity id changed when lineage was added — identity_fields "
+                "must exclude used/generated"
+            )
         self._state.activities.append(done)
         self._state.act_app.append(done.to_dict())
         return done
@@ -466,7 +479,9 @@ def _step_declared(state: _BuildState, repo_root: Path) -> None:
 # ── step 2: implemented evidence ────────────────────────────────────────────
 
 
-def _step_implemented(state: _BuildState, repo_root: Path, inventory_fn: Callable) -> Any:
+def _step_implemented(
+    state: _BuildState, repo_root: Path, inventory_fn: Callable, world_model_fn: Callable
+) -> Any:
     act = _ActivityScope(state, "acquisition", "script:builder/inventory")
     inv = inventory_fn(repo_root, state.run_id, act.id)
     for src in getattr(inv, "sources", ()):  # type: ignore[union-attr]
@@ -494,9 +509,7 @@ def _step_implemented(state: _BuildState, repo_root: Path, inventory_fn: Callabl
     # organism world-model extraction — entities, capabilities, gaps.
     wact = _ActivityScope(state, "extraction", "organism_world_model_extractor")
     try:
-        from substrate.organism.world_model import extract_world_model
-
-        wm = extract_world_model(str(repo_root))
+        wm = world_model_fn(repo_root)
     except Exception as exc:  # extractor unavailable → recorded omission, not fatal
         state.omissions.append({"omission": "world_model_extraction_failed", "detail": str(exc)})
         wm = None
@@ -865,11 +878,31 @@ def _step_divergence(state: _BuildState) -> dict[str, Any]:
             )
 
     checks_performed = [
-        {"check": "specified_vs_source_present", "status": "performed"},
-        {"check": "deployment_configured_vs_running", "status": "performed"},
-        {"check": "running_vs_declared", "status": "performed"},
-        {"check": "canonical_owner_multiplicity", "status": "performed"},
-        {"check": "status_unknown_sweep", "status": "performed"},
+        {
+            "check": "specified_vs_source_present",
+            "status": "performed",
+            "compared_subjects": len(declared),
+        },
+        {
+            "check": "deployment_configured_vs_running",
+            "status": "performed",
+            "compared_subjects": len(configured),
+        },
+        {
+            "check": "running_vs_declared",
+            "status": "performed",
+            "compared_subjects": len(running),
+        },
+        {
+            "check": "canonical_owner_multiplicity",
+            "status": "performed",
+            "compared_subjects": len(owners_by_concern),
+        },
+        {
+            "check": "status_unknown_sweep",
+            "status": "performed",
+            "compared_subjects": len(claims),
+        },
     ] + [
         {"check": name, "status": f"not_computable:{reason}"}
         for name, reason in sorted(_NOT_COMPUTABLE_V1.items())
@@ -1150,6 +1183,7 @@ def build_self_model(
     inventory_fn: Callable = _default_inventory_fn,
     probes_fn: Callable = _default_probes_fn,
     preflight_fn: Callable = _default_preflight_fn,
+    world_model_fn: Callable = _default_world_model_fn,
     resume: bool = False,
 ) -> SelfModelBuildResult:
     """Build a run-scoped grounded self-model.
@@ -1158,8 +1192,8 @@ def build_self_model(
     <repo>/data/world_models/self); the run lands at output_root/runs/<run_id>.
 
     Deterministic given the same repo state + the same inventory/probe results.
-    inventory_fn/probes_fn/preflight_fn are injectable (tests pass fakes); they
-    default to the real seam functions.
+    inventory_fn/probes_fn/preflight_fn/world_model_fn are injectable (tests
+    pass fakes); they default to the real seam functions.
     """
     repo_root = Path(repo_root)
     now = now or ""  # caller-supplied for determinism; empty = unknown-time seed
@@ -1187,7 +1221,7 @@ def build_self_model(
 
     # Pipeline.
     _step_declared(state, repo_root)
-    inv = _step_implemented(state, repo_root, inventory_fn)
+    inv = _step_implemented(state, repo_root, inventory_fn, world_model_fn)
     _step_runtime(state, repo_root, probes_fn)
     _step_identity(state, repo_root, inv)
     divergence = _step_divergence(state)
@@ -1223,6 +1257,12 @@ def build_self_model(
     _write_convergence(layout.path("convergence.md"), state, divergence, competency)
     _write_report(layout.path("report.md"), run_id, counts)
 
+    # Finalize manifest hashes BEFORE acceptance so the stored vector actually
+    # verifies them (referential integrity, not cryptographic tamper proof).
+    # acceptance.json is excluded from the hash set — it is the evaluation OF
+    # the artifacts, and covering it would need a fixpoint.
+    _finalize_manifest(layout)
+
     # Acceptance runs over the complete artifact set; final_status is stored in
     # acceptance.json itself.
     from substrate.understanding.reconstruction.evaluation import (
@@ -1234,10 +1274,6 @@ def build_self_model(
     status = final_status(vector)
     vector["final_status"] = status
     atomic_write_json(layout.path("acceptance.json"), vector)
-
-    # Finalize manifest with artifact hashes (referential integrity, not
-    # cryptographic tamper proof) + previous-run chaining.
-    _finalize_manifest(layout)
     layout.update_latest_pointer()
 
     return SelfModelBuildResult(
@@ -1255,7 +1291,9 @@ def _finalize_manifest(layout: RunLayout) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     hashes: dict[str, str] = {}
     for name in RUN_ARTIFACTS:
-        if name == "manifest.json":
+        # manifest can't hash itself; acceptance is the evaluation OF the
+        # artifacts and is written after the hashes it verifies.
+        if name in ("manifest.json", "acceptance.json"):
             continue
         p = layout.run_dir / name
         if p.is_file():
@@ -1270,7 +1308,8 @@ def _finalize_manifest(layout: RunLayout) -> None:
             prev_manifest = Path(info.get("run_dir", "")) / "manifest.json"
             if prev_manifest.is_file() and prev_manifest != manifest_path:
                 prev_hash = file_sha256(prev_manifest)
-        except Exception:
+        except Exception as exc:
+            logger.debug("previous-run manifest hash unavailable: %s", exc)
             prev_hash = None
     manifest["previous_run_manifest_hash"] = prev_hash
     atomic_write_json(manifest_path, manifest)
@@ -1296,6 +1335,10 @@ def record_run_outcomes(
         manifest["targeted_tests_passed"] = bool(targeted_tests_passed)
     atomic_write_json(manifest_path, manifest)
 
+    # Re-finalize hashes first so the recomputed acceptance verifies them.
+    layout = RunLayout(rd.name, self_model_root=rd.parent.parent)
+    _finalize_manifest(layout)
+
     from substrate.understanding.reconstruction.evaluation import (
         acceptance_vector,
         final_status,
@@ -1305,10 +1348,6 @@ def record_run_outcomes(
     status = final_status(vector)
     vector["final_status"] = status
     atomic_write_json(rd / "acceptance.json", vector)
-
-    # Re-finalize hashes over the updated artifacts.
-    layout = RunLayout(rd.name, self_model_root=rd.parent.parent)
-    _finalize_manifest(layout)
     return vector
 
 

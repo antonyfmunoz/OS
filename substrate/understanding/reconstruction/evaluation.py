@@ -29,6 +29,7 @@ UMH substrate subsystem. Instance-agnostic.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any, Literal
@@ -39,6 +40,8 @@ from substrate.understanding.reconstruction.contracts import (
     SCHEMA_VERSION,
 )
 from substrate.understanding.reconstruction.provenance import file_sha256
+
+logger = logging.getLogger(__name__)
 
 FinalStatus = Literal["OPERATIONAL", "PARTIALLY_OPERATIONAL", "INSUFFICIENT_EVIDENCE", "FAILED"]
 
@@ -325,29 +328,49 @@ def check_no_design_as_implementation(run: dict[str, Any]) -> dict[str, Any]:
 
 def check_convergence_citations(run: dict[str, Any]) -> dict[str, Any]:
     """Parse [namespace:hash] tokens from convergence.md and RESOLVE each
-    against the actual ledgers. A syntactic heading never satisfies this."""
+    against the actual ledgers. A syntactic heading never satisfies this, and
+    neither does a pure-intent model: at least one cited record must be
+    GROUNDED beyond declaration — an observation with an implementation or
+    runtime maturity facet, or a mined (evidence-era) identity candidate."""
     conv_path = run["run_dir"] / "convergence.md"
     if not conv_path.is_file():
         return {
             "passed": False,
             "cited": 0,
             "resolved": 0,
+            "grounded": 0,
             "unresolved": ["<missing convergence.md>"],
         }
     text = conv_path.read_text(encoding="utf-8")
     cited = _CITATION_RE.findall(text)
     known: set[str] = set()
-    for coll in ("sources", "observations", "claims", "activities", "identities"):
+    grounded_ids: set[str] = set()
+    for o in run["observations"]:
+        rid = o.get("id")
+        if rid:
+            known.add(rid)
+            facet = o.get("maturity_facet")
+            if facet and facet not in DECLARATION_FACETS:
+                grounded_ids.add(rid)
+    for r in run["identities"]:
+        rid = r.get("id")
+        if rid:
+            known.add(rid)
+            if str(r.get("candidate_basis", "")).startswith("mined:"):
+                grounded_ids.add(rid)
+    for coll in ("sources", "claims", "activities"):
         for rec in run[coll]:
             rid = rec.get("id")
             if rid:
                 known.add(rid)
     unresolved = sorted({c for c in cited if c not in known})
-    passed = bool(cited) and not unresolved
+    grounded = sum(1 for c in set(cited) if c in grounded_ids)
+    passed = bool(cited) and not unresolved and grounded > 0
     return {
         "passed": passed,
         "cited": len(cited),
         "resolved": len(cited) - len(unresolved),
+        "grounded": grounded,
         "unresolved": unresolved,
     }
 
@@ -369,13 +392,17 @@ DECISION_QUESTIONS: tuple[dict[str, Any], ...] = (
         "id": "DQ3",
         "question": ("Can the model DISTINGUISH documented/configured state from runtime state?"),
         # Valid answers: mismatch found and evidenced, OR no mismatch found
-        # within observed coverage — the CHECK being performed is the test.
+        # within observed coverage — but the comparison must have had REAL
+        # inputs: a model with zero configured subjects cannot answer this.
         "expect_check_performed": "deployment_configured_vs_running",
+        "expect_min_compared": 1,
     },
     {
         "id": "DQ4",
         "question": "Is there a duplication/overlap finding?",
-        "expect_identity_present": True,
+        # Seed fixtures are ALWAYS emitted, so their presence proves nothing.
+        # A real finding is a mined candidate or an evidence-backed verdict.
+        "expect_identity_grounded": True,
     },
     {
         "id": "DQ5",
@@ -403,11 +430,19 @@ def check_decision_usefulness(run: dict[str, Any]) -> dict[str, Any]:
             ok_q = any(o.get("predicate") == q["expect_observation_predicate"] for o in obs)
         elif "expect_check_performed" in q:
             ok_q = any(
-                c.get("check") == q["expect_check_performed"] and c.get("status") == "performed"
+                c.get("check") == q["expect_check_performed"]
+                and c.get("status") == "performed"
+                and c.get("compared_subjects", 0) >= q.get("expect_min_compared", 0)
                 for c in checks
             )
-        elif "expect_identity_present" in q:
-            ok_q = bool(idents)
+        elif "expect_identity_grounded" in q:
+            # Seed fixtures are always emitted — a real duplication finding is
+            # a mined candidate or an evidence-backed verdict.
+            ok_q = any(
+                str(r.get("candidate_basis", "")).startswith("mined:")
+                or r.get("supporting_evidence_ids")
+                for r in idents
+            )
         elif "expect_convergence_marker" in q:
             ok_q = q["expect_convergence_marker"] in conv_text
         if ok_q:
@@ -464,7 +499,8 @@ def _scan_secrets(run_dir: Path) -> list[str]:
             continue
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
-        except Exception:
+        except Exception as exc:
+            logger.debug("secret scan could not read %s: %s", p, exc)
             continue
         for pat in _SECRET_PATTERNS:
             if pat.search(text):

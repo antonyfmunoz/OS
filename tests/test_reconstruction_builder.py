@@ -79,6 +79,30 @@ def _fake_preflight(repo_root):
     return "abc123def456", "resolved", False
 
 
+class _FakeCap:
+    provided_by = "file:substrate/types.py"
+    name = "type_system"
+
+
+class _FakeEntity:
+    module_path = "file:substrate/types.py"
+    name = "types"
+    category = "module"
+    status = "active"
+    capabilities = [_FakeCap()]
+
+
+class _FakeWorldModel:
+    entities = {"e1": _FakeEntity()}
+    gaps = []
+
+
+def _fake_world_model(repo_root):
+    """Deterministic world-model fake (review finding 4: the extractor is now
+    an injectable seam, so tests never touch the live extractor)."""
+    return _FakeWorldModel()
+
+
 def _fake_inventory(repo_root, run_id, activity_id):
     class InventoryResult:
         pass
@@ -220,6 +244,7 @@ class TestBuildEndToEnd:
             inventory_fn=_fake_inventory,
             probes_fn=probes_fn,
             preflight_fn=_fake_preflight,
+            world_model_fn=_fake_world_model,
         )
         return result, Path(result.run_dir), out
 
@@ -272,7 +297,10 @@ class TestBuildEndToEnd:
         _, run_dir, _ = self._build(_fake_probes_empty)
         manifest = json.loads((run_dir / "manifest.json").read_text())
         hashes = manifest.get("artifact_hashes", {})
-        assert "claims.jsonl" in hashes and "acceptance.json" in hashes
+        assert "claims.jsonl" in hashes and "convergence.md" in hashes
+        # acceptance.json is the evaluation OF the artifacts — excluded from
+        # the hash set so the stored vector can verify the hashes (finding 3)
+        assert "acceptance.json" not in hashes
         assert "manifest.json" not in hashes
         assert "previous_run_manifest_hash" in manifest
 
@@ -281,6 +309,9 @@ class TestBuildEndToEnd:
         result, run_dir, _ = self._build(_fake_probes_empty)
         acceptance = json.loads((run_dir / "acceptance.json").read_text())
         assert acceptance.get("final_status") == result.status
+        # finding 3: hashes are finalized BEFORE acceptance, so the STORED
+        # vector verifies them — never a permanent N_A disagreement
+        assert acceptance["criteria"]["artifact_hashes"] == "PASS"
         assert result.status in (
             "OPERATIONAL",
             "PARTIALLY_OPERATIONAL",
@@ -460,6 +491,7 @@ class TestBuildEndToEnd:
             inventory_fn=_fake_inventory,
             probes_fn=_fake_probes_empty,
             preflight_fn=_fake_preflight,
+            world_model_fn=_fake_world_model,
         )
         r1 = build_self_model(repo_root=repo, output_root=out1, **kwargs)
         r2 = build_self_model(repo_root=repo, output_root=out2, **kwargs)
