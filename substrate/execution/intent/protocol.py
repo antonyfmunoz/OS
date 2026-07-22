@@ -368,6 +368,32 @@ class OperatorIntentProtocol:
         intent_class = self._classify(text, spec, frame, references)
         resolution.intent_class = intent_class.value
 
+        # CROSS-CONVERSATION scope discipline: pending-decision plans enter a
+        # fresh conversation's frame for DECISION resolution (§5 "pending
+        # Decisions"), but a deictic reference ("cancel it") from another
+        # thread must NEVER bind to them for any other lifecycle op without
+        # an EXPLICIT id — field run 20260722T213321Z: the pending plan made
+        # "Cancel it." resolvable and s11's guaranteed clarification vanished.
+        if intent_class != IntentClass.PROVIDE_DECISION:
+            demoted = [
+                c
+                for c in references.candidates
+                if c.get("cross_conversation") and c.get("match") != "explicit_id"
+            ]
+            if demoted:
+                references.candidates = [c for c in references.candidates if c not in demoted]
+                if references.selected in demoted:
+                    references.selected = {}
+                    references.confidence = 0.0
+                references.rejected.extend(
+                    {
+                        "plan_record_id": c.get("plan_record_id", ""),
+                        "reason": "cross-conversation deictic binding refused (non-decision op)",
+                    }
+                    for c in demoted
+                )
+                resolution.reference_resolution = references.to_dict()
+
         existing = self._resolve_existing_work(text, intent_class, frame, references)
         resolution.existing_work_resolution = existing.to_dict()
         if existing.relationship == "restatement_of_existing":
@@ -493,6 +519,10 @@ class OperatorIntentProtocol:
                 "objective_id": plan.get("objective_id", ""),
                 "title": plan.get("objective_text", "")[:120],
                 "status": plan.get("status", ""),
+                # Cross-conversation pending-decision entries are deictic-
+                # bindable ONLY for PROVIDE_DECISION (resolve() demotes them
+                # for every other lifecycle op unless explicitly addressed).
+                "cross_conversation": bool(plan.get("cross_conversation")),
             }
             if (
                 plan.get("plan_record_id") in explicit_plan_ids
@@ -554,6 +584,7 @@ class OperatorIntentProtocol:
                         "title": live[0].get("objective_text", "")[:120],
                         "status": live[0].get("status", ""),
                         "match": "sole_live_plan",
+                        "cross_conversation": bool(live[0].get("cross_conversation")),
                     }
                 )
 

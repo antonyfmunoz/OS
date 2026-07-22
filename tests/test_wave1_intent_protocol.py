@@ -205,6 +205,35 @@ class TestClassification:
         assert not r.clarification_required, "single pending decision must not re-ask"
         assert r.reference_resolution["selected"]["plan_record_id"] == "opr-pending1"
 
+    def test_cancel_never_binds_cross_conversation_deictically(self, env):
+        """A pending-decision plan is decision-resolvable from any thread, but
+        a deictic destructive op ("Cancel it.") from a FRESH conversation must
+        STILL clarify — never bind cross-conversation without an explicit id
+        (field run 20260722T213321Z regression)."""
+        from substrate.execution.intent.context_frame import build_context_frame
+        from substrate.execution.planning.records import ObjectivePlanRecord
+
+        env.store.append_plan(
+            ObjectivePlanRecord(
+                plan_record_id="opr-pending2",
+                objective_id="goal-p2",
+                objective_text="Consolidate the runtime subsystems",
+                status="awaiting_approval",
+                graph_version=1,
+                conversation_id="conv-OTHER",
+                work_scope={"tenant_id": "tenant-a"},
+            )
+        )
+        frame = build_context_frame("tenant-a", "user-1", "conv-FRESH2", planning_store=env.store)
+        r = _resolve(env, "Cancel it.", frame, cmid="m-fresh-cancel")
+        assert r.intent_class == IntentClass.CANCEL_WORK.value
+        assert r.clarification_required, "deictic cancel must ask, never bind cross-conversation"
+        assert not r.reference_resolution["selected"]
+        assert any(
+            "cross-conversation" in str(rej.get("reason", ""))
+            for rej in r.reference_resolution["rejected"]
+        )
+
     def test_request_execution(self, env):
         r = _resolve(env, "Run the plan now please")
         assert r.intent_class == IntentClass.REQUEST_EXECUTION.value

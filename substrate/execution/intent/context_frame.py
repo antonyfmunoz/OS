@@ -102,6 +102,7 @@ def build_context_frame(
         scoped = []
         for plan in reversed(plans):
             d = plan.to_dict() if hasattr(plan, "to_dict") else dict(plan)
+            cross_conversation = False
             if conversation_id and d.get("conversation_id") not in ("", conversation_id):
                 # PENDING-DECISION plans are tenant-visible frame context
                 # regardless of conversation — §5 lists "pending Decisions"
@@ -109,9 +110,13 @@ def build_context_frame(
                 # "Approve that plan." in a NEW thread had zero candidates
                 # and the rail asked "which plan?" while exactly one
                 # decidable plan existed (field run 20260722T205034Z).
-                # Everything else stays conversation-scoped.
+                # Everything else stays conversation-scoped. Entries are
+                # TAGGED so reference resolution refuses deictic binding for
+                # non-decision lifecycle ops (protocol.resolve demotion —
+                # field run 20260722T213321Z: "Cancel it." must still ask).
                 if d.get("status") != "awaiting_approval":
                     continue
+                cross_conversation = True
             # Tenant isolation (adversarial-review MAJOR): a plan from another
             # tenant must never enter this frame — reference/existing-work
             # resolution would otherwise match it by similarity.
@@ -127,6 +132,7 @@ def build_context_frame(
                     "graph_version": d.get("graph_version", 1),
                     "conversation_id": d.get("conversation_id", ""),
                     "workpacket_ids": list(d.get("workpacket_ids", [])),
+                    "cross_conversation": cross_conversation,
                 }
             )
             if len(scoped) >= _MAX_PLANS:
