@@ -23,7 +23,15 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_TRACE_PATH = Path("data/umh/traces/traces.jsonl")
+
+def _default_trace_path() -> Path:
+    """Traces live under the runtime-state root (see TraceStore) — resolved
+    lazily so import never touches the filesystem or env."""
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return runtime_state_path("observability/traces", "traces.jsonl", create_parent=False)
+
+
 DEFAULT_OUTPUT_PATH = Path("data/umh/training/training_data.jsonl")
 
 MIN_INPUT_LENGTH = 10
@@ -66,7 +74,7 @@ class TrainingExtractor:
         output_path: Path | None = None,
         min_quality: float = 0.5,
     ) -> None:
-        self._trace_path = trace_path or DEFAULT_TRACE_PATH
+        self._trace_path = trace_path or _default_trace_path()
         self._output_path = output_path or DEFAULT_OUTPUT_PATH
         self._min_quality = min_quality
 

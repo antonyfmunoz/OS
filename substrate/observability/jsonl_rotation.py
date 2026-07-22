@@ -7,7 +7,7 @@ is truncated.
 
 Usage:
     from substrate.observability.jsonl_rotation import rotate_if_needed
-    rotate_if_needed(Path("data/umh/traces/traces.jsonl"), max_lines=5000)
+    rotate_if_needed(runtime_state_path("observability/traces", "traces.jsonl"), max_lines=5000)
 """
 
 from __future__ import annotations
