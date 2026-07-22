@@ -914,7 +914,13 @@ class FieldCollector:
         # exercises the real input handler rather than a bulk fill().
         import random
 
-        chat.first.press_sequentially(text, delay=random.randint(40, 90))
+        delay = random.randint(40, 90)
+        # The action timeout must scale with the text: the ~540-char dogfood
+        # objective at >=56ms/key exceeds playwright's 30s default MID-TYPING
+        # (observed run 20260722T163403Z — pass/fail depended on the jitter
+        # roll). Budget = worst-case keystroke time + 15s actionability slack.
+        budget_ms = len(text) * (delay + 30) + 15000
+        chat.first.press_sequentially(text, delay=delay, timeout=budget_ms)
         chat.first.press("Enter")
 
     def _send_and_wait(self, page: Any, text: str, timeout_ms: int = 180000) -> None:
@@ -1105,9 +1111,16 @@ class FieldCollector:
             raise RuntimeError("chat input not found — not authenticated or UI changed")
         self.stage("chat_input_found", True, CHAT_INPUT_SELECTOR)
 
-        if self.scenario == "smoke":
-            return self._scenario_smoke(page, chat)
-        return self._scenario_full(page, context, browser, state_path, chat)
+        try:
+            if self.scenario == "smoke":
+                return self._scenario_smoke(page, chat)
+            return self._scenario_full(page, context, browser, state_path, chat)
+        except Exception:
+            # Evidence-first: capture what the page looked like at the moment
+            # of failure (shot() never raises). Diagnosing the 163403 typing
+            # stall took a source-dive that one screenshot would have shortcut.
+            self.shot(page, "99_failure")
+            raise
 
     # ── smoke: login + fresh state + one objective + plan render ────────────
     def _scenario_smoke(self, page: Any, chat: Any) -> Any:
