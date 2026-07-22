@@ -462,6 +462,7 @@ def compose_plan_for_session(
     Idempotent: a session that already committed a plan version returns it
     unchanged (no duplicate plans/Tasks/events on retry).
     """
+    resumed_plan = None
     if session.active_plan_record_id:
         existing = store.get_plan(session.active_plan_record_id)
         if existing is not None and session.operation_stage in (
@@ -469,6 +470,13 @@ def compose_plan_for_session(
             PlanningStageMarker.DECISION_EVALUATED.value,
         ):
             return existing
+        if existing is not None:
+            # Partial-failure recovery (adversarial-review MAJOR): the plan
+            # record was already appended before the failure — RESUME it.
+            # Re-compiling would mint a second v1 plan for the same objective
+            # (a phantom on the surface). Skip compile/append and continue
+            # from materialization with the persisted record.
+            resumed_plan = existing
 
     def _emit(event_type: str, data: dict[str, Any]) -> None:
         if event_emit is not None:
@@ -482,18 +490,22 @@ def compose_plan_for_session(
             session.objective_text, snapshot, tenant_id=scope.tenant_id, scope=scope
         )
         archetype = resolve_archetype(session.objective_text, scope)
-        plan = compile_plan(
-            session,
-            scope,
-            planning_scale,
-            current,
-            desired,
-            gap_snapshot,
-            snapshot.grounding_snapshot_id,
-            archetype,
-        )
-        if dev_profile_enabled or (
-            dev_profile_enabled is None and archetype.archetype_id == "development"
+        if resumed_plan is not None:
+            plan = resumed_plan
+        else:
+            plan = compile_plan(
+                session,
+                scope,
+                planning_scale,
+                current,
+                desired,
+                gap_snapshot,
+                snapshot.grounding_snapshot_id,
+                archetype,
+            )
+        if resumed_plan is None and (
+            dev_profile_enabled
+            or (dev_profile_enabled is None and archetype.archetype_id == "development")
         ):
             profile = build_development_profile(
                 session.objective_text,
@@ -505,29 +517,31 @@ def compose_plan_for_session(
                 raise PlanCompilationError(f"development profile incomplete: {completeness[:3]}")
             plan.development_profile = profile.to_dict()
 
-        def _write_plan() -> tuple[str, bool]:
-            store.append_grounding(snapshot)
-            store.append_current_state(current)
-            store.append_desired_state(desired)
-            store.append_gap_model(gap_snapshot)
-            store.append_plan(plan)
-            return (f"plan compiled: {plan.plan_record_id} v{plan.graph_version}", True)
+        if resumed_plan is None:
 
-        response = mutation_runner(
-            mutation_name=COMPILE_MUTATION_NAME,
-            intent=f"compile objective plan for: {session.objective_text[:80]}",
-            execute_fn=_write_plan,
-            source="plan_compiler",
-            metadata={
-                "session_id": session.session_id,
-                "objective_id": session.objective_id,
-                "tenant_id": scope.tenant_id,
-            },
-        )
-        if not bool(getattr(response, "success", False)):
-            raise PlanCompilationError(
-                f"governed compile rejected: {getattr(response, 'output', '')}"
+            def _write_plan() -> tuple[str, bool]:
+                store.append_grounding(snapshot)
+                store.append_current_state(current)
+                store.append_desired_state(desired)
+                store.append_gap_model(gap_snapshot)
+                store.append_plan(plan)
+                return (f"plan compiled: {plan.plan_record_id} v{plan.graph_version}", True)
+
+            response = mutation_runner(
+                mutation_name=COMPILE_MUTATION_NAME,
+                intent=f"compile objective plan for: {session.objective_text[:80]}",
+                execute_fn=_write_plan,
+                source="plan_compiler",
+                metadata={
+                    "session_id": session.session_id,
+                    "objective_id": session.objective_id,
+                    "tenant_id": scope.tenant_id,
+                },
             )
+            if not bool(getattr(response, "success", False)):
+                raise PlanCompilationError(
+                    f"governed compile rejected: {getattr(response, 'output', '')}"
+                )
 
         session.active_plan_record_id = plan.plan_record_id
         session.operation_stage = PlanningStageMarker.PLAN_COMPILED.value
@@ -656,14 +670,22 @@ def compile_revision(
     new_plan.updated_at = time.time()
 
     by_id = {n["node_id"]: n for n in new_plan.nodes}
+
+    def _target_id(edit: dict[str, Any]) -> str:
+        """Node reference of one edit. classify_revision emits
+        ``target_node_id``; direct/API edit sets use ``node_id`` — accept
+        both (adversarial-review BLOCKER: the mismatch made remove/retitle/
+        move_lane silent no-ops while the rail claimed 'Plan revised')."""
+        return str(edit.get("target_node_id") or edit.get("node_id") or "")
+
+    unapplied: list[str] = []
     for edit in edit_set.edits:
         op = edit.get("op")
-        if op == "remove_node" and edit.get("node_id") in by_id:
-            by_id[edit["node_id"]]["status"] = "removed"
+        target = _target_id(edit)
+        if op == "remove_node" and target in by_id:
+            by_id[target]["status"] = "removed"
             new_plan.edges = [
-                e
-                for e in new_plan.edges
-                if e.get("from") != edit["node_id"] and e.get("to") != edit["node_id"]
+                e for e in new_plan.edges if e.get("from") != target and e.get("to") != target
             ]
         elif op == "add_node":
             node = ObjectivePlanNode(
@@ -698,10 +720,18 @@ def compile_revision(
                 for e in new_plan.edges
                 if not (e.get("from") == edit.get("from") and e.get("to") == edit.get("to"))
             ]
-        elif op == "retitle" and edit.get("node_id") in by_id:
-            by_id[edit["node_id"]]["title"] = edit.get("title", "")
-        elif op == "move_lane" and edit.get("node_id") in by_id:
-            by_id[edit["node_id"]]["lane"] = edit.get("lane", "")
+        elif op == "retitle" and target in by_id:
+            by_id[target]["title"] = edit.get("title", "")
+        elif op == "move_lane" and target in by_id:
+            by_id[target]["lane"] = edit.get("lane", "")
+        else:
+            # A targeted op whose node could not be resolved is a FAILED
+            # revision, never a silent no-op version bump.
+            if op in ("remove_node", "retitle", "move_lane"):
+                unapplied.append(f"{op}: unresolved node {target!r}")
+
+    if unapplied:
+        raise PlanCompilationError(f"revision edits did not apply: {unapplied}")
 
     active_nodes = [n for n in new_plan.nodes if n.get("status") == "active"]
     _kahn_validate(

@@ -504,6 +504,152 @@ class TestAO_MountedStateDeterministic:
         assert _tree_hash(source) == source_hash_before  # source byte-identical
 
 
+# ── Adversarial-review regressions (substrate segment, 2026-07-22) ──────────
+
+
+class TestAdversarialReviewRegressions:
+    def test_blocker_conversational_remove_and_retitle_actually_apply(self, env):
+        """END-TO-END: classify_revision output (target_node_id keys) must be
+        APPLIED by compile_revision — remove/retitle were silent no-ops."""
+        from substrate.execution.planning.objective_classifier import classify_revision
+
+        _, plan = _plan_objective(env, cmid="rr-1")
+        target = next(n for n in plan.nodes if n["kind"] == "packet")
+
+        removal = classify_revision(f"remove {target['title']} from the plan", plan)
+        assert removal is not None and removal.edits, "classifier produced no edits"
+        new_plan = compile_revision(plan, removal, env.store, Runner())
+        revised_node = next(n for n in new_plan.nodes if n["node_id"] == target["node_id"])
+        assert revised_node["status"] == "removed"  # applied, not a no-op bump
+        assert new_plan.graph_version == plan.graph_version + 1
+
+    def test_blocker_unresolved_target_fails_never_silently_bumps(self, env):
+        _, plan = _plan_objective(env, cmid="rr-2")
+        bogus = RevisionEditSet(edits=[{"op": "remove_node", "target_node_id": "node-nope"}])
+        with pytest.raises(Exception, match="did not apply"):
+            compile_revision(plan, bogus, env.store, Runner())
+        assert len(env.store.versions_of(plan.objective_id)) == 1  # no phantom v2
+
+    def test_major_retry_after_partial_failure_no_duplicate_plan(self, env):
+        """A failure AFTER the plan append must not mint a second v1 plan on
+        retry — the persisted record is resumed."""
+        from substrate.execution.planning.records import PlanningStageMarker
+
+        resolution = env.protocol.resolve(
+            DOGFOOD, env.principal, _scope(), _frame(), client_message_id="pf-1"
+        )
+        session = env.protocol.begin_planning_operation(
+            resolution, DOGFOOD, "conv-1", client_message_id="pf-1"
+        )
+
+        from substrate.execution.intent.intent_spec import IntentSpec
+        from substrate.execution.planning.compiler import compose_plan_for_session
+        from substrate.execution.planning.grounding import build_grounding_snapshot
+
+        spec = IntentSpec.from_dict(resolution.compat_spec)
+        snapshot = build_grounding_snapshot(spec, "conv-1", "pf-1", objective_text=DOGFOOD)
+
+        calls = {"n": 0}
+
+        def failing_runner(mutation_name, intent, execute_fn, source="", metadata=None):
+            output, ok = execute_fn()
+            calls["n"] += 1
+            if calls["n"] == 2:  # fail AFTER the plan append (first compile call)
+                return SimpleNamespace(success=False, output="injected", envelope_id="e")
+            return SimpleNamespace(success=ok, output=output, envelope_id="e")
+
+        with pytest.raises(Exception):
+            compose_plan_for_session(
+                session=session,
+                scope=_scope(),
+                planning_scale="project_objective",
+                snapshot=snapshot,
+                store=env.store,
+                work_queue=env.queue,
+                mutation_runner=failing_runner,
+            )
+        assert session.operation_stage == PlanningStageMarker.FAILED.value
+        plans_after_failure = env.store.versions_of(session.objective_id)
+        assert len(plans_after_failure) == 1  # appended once
+
+        plan = compose_plan_for_session(
+            session=session,
+            scope=_scope(),
+            planning_scale="project_objective",
+            snapshot=snapshot,
+            store=env.store,
+            work_queue=env.queue,
+            mutation_runner=Runner(),
+        )
+        all_versions = env.store.versions_of(session.objective_id)
+        assert len(all_versions) == 1  # RESUMED, not duplicated
+        assert plan.plan_record_id == plans_after_failure[0].plan_record_id
+        assert session.operation_stage == PlanningStageMarker.COMMITTED.value
+
+    def test_major_context_frame_filters_foreign_tenant_plans(self, env, tmp_path):
+        from substrate.execution.intent.context_frame import build_context_frame
+        from substrate.execution.planning.records import ObjectivePlanRecord
+
+        env.store.append_plan(
+            ObjectivePlanRecord(
+                conversation_id="",
+                objective_text="Foreign tenant plan",
+                work_scope={"tenant_id": "tenant-b"},
+            )
+        )
+        env.store.append_plan(
+            ObjectivePlanRecord(
+                conversation_id="conv-1",
+                objective_text="Our plan",
+                work_scope={"tenant_id": "tenant-a"},
+            )
+        )
+        frame = build_context_frame("tenant-a", "user-1", "conv-1", planning_store=env.store)
+        texts = {p["objective_text"] for p in frame.current_plans}
+        assert "Our plan" in texts
+        assert "Foreign tenant plan" not in texts  # never enters the frame
+
+    def test_major_empty_client_message_id_distinct_tasks_not_collapsed(self, env):
+        task_a = "Fix the failing import in transports/api/voice.py"
+        task_b = "Restart the failing scraper container os-scraper"
+        ra = env.protocol.resolve(task_a, env.principal, _scope(), _frame(), client_message_id="")
+        rb = env.protocol.resolve(task_b, env.principal, _scope(), _frame(), client_message_id="")
+        pa = env.protocol.capture_task(
+            ra, task_a, "conv-1", client_message_id="", work_queue=env.queue
+        )
+        pb = env.protocol.capture_task(
+            rb, task_b, "conv-1", client_message_id="", work_queue=env.queue
+        )
+        assert pa.packet_id != pb.packet_id  # distinct tasks never collapse
+        # Identical retry still dedupes.
+        pa2 = env.protocol.capture_task(
+            ra, task_a, "conv-1", client_message_id="", work_queue=env.queue
+        )
+        assert pa2.packet_id == pa.packet_id
+
+    def test_minor_clarification_session_persists_and_resumes(self, env):
+        resolution = env.protocol.resolve(
+            "Cancel it", env.principal, _scope(), _frame(), client_message_id="cl-1"
+        )
+        assert resolution.clarification_required
+        session = env.protocol.record_clarification(
+            resolution,
+            "Cancel it",
+            "conv-1",
+            client_message_id="cl-1",
+            question="Which plan?",
+        )
+        assert session.stage == "awaiting_clarification"
+        held = env.store.find_active_session("conv-1")
+        assert held is not None and held.stage == "awaiting_clarification"
+
+        merged = env.protocol.resume_clarification(held, "the migration plan")
+        assert "the migration plan" in merged
+        released = env.store.get_session(held.session_id)
+        assert released.stage == "assessed"
+        assert released.clarification_history[-1]["answer"] == "the migration plan"
+
+
 # ── Test Z addendum: legacy objective machinery receives ZERO new writes ────
 
 

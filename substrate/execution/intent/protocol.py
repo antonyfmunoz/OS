@@ -862,6 +862,70 @@ class OperatorIntentProtocol:
         )
         return session
 
+    def record_clarification(
+        self,
+        resolution: IntentResolution,
+        objective_text: str,
+        conversation_id: str,
+        client_message_id: str = "",
+        question: str = "",
+    ) -> PlanningSession:
+        """Persist the awaiting-clarification session so the operator's NEXT
+        message resumes it (§5 CLARIFICATION_RESPONSE — previously a dead
+        branch, adversarial-review finding). Idempotent per operation key."""
+        fingerprint = message_fingerprint(objective_text)
+        existing = self._store.find_session_by_idempotency(
+            conversation_id, client_message_id, fingerprint
+        )
+        if existing is not None:
+            return existing
+        scope = WorkScope.from_dict(resolution.work_scope)
+        session = PlanningSession(
+            conversation_id=conversation_id,
+            client_message_id=client_message_id,
+            message_fingerprint=fingerprint,
+            tenant_id=scope.tenant_id,
+            intent_id=resolution.intent_id,
+            objective_text=objective_text,
+            assessment={"state": resolution.assessment_state, "question": question},
+            stage="awaiting_clarification",
+        )
+
+        def _open() -> tuple[str, bool]:
+            self._store.append_session(session)
+            return (f"clarification session opened: {session.session_id}", True)
+
+        self._governed(
+            ASSESS_MUTATION_NAME,
+            f"hold for clarification: {question[:80]}",
+            _open,
+            {"session_id": session.session_id, "tenant_id": scope.tenant_id},
+        )
+        return session
+
+    def resume_clarification(self, session: PlanningSession, answer: str) -> str:
+        """Fold the operator's answer into the held objective and release the
+        session. Returns the merged objective text for re-resolution."""
+        merged = f"{session.objective_text}\n{answer.strip()}"
+        session.clarification_history.append(
+            {"question": str((session.assessment or {}).get("question", "")), "answer": answer}
+        )
+        session.stage = "assessed"
+        session.objective_text = merged
+        session.updated_at = time.time()
+
+        def _release() -> tuple[str, bool]:
+            self._store.update_session(session)
+            return (f"clarification resolved: {session.session_id}", True)
+
+        self._governed(
+            ASSESS_MUTATION_NAME,
+            f"clarification answered: {answer[:80]}",
+            _release,
+            {"session_id": session.session_id, "tenant_id": session.tenant_id},
+        )
+        return merged
+
     def capture_task(
         self,
         resolution: IntentResolution,
@@ -891,7 +955,15 @@ class OperatorIntentProtocol:
 
             work_queue = UniversalWorkQueue()
 
-        operation_key = planning_operation_key(scope.tenant_id, conversation_id, client_message_id)
+        # An EMPTY client_message_id would collapse this key to a
+        # per-conversation constant — the second distinct task in the same
+        # conversation would silently return the first packet (adversarial-
+        # review MAJOR). Fall back to the task-text fingerprint: identical
+        # retries still dedupe, distinct tasks never collide.
+        effective_message_id = client_message_id or message_fingerprint(task_text)
+        operation_key = planning_operation_key(
+            scope.tenant_id, conversation_id, effective_message_id
+        )
         for existing in work_queue.all_packets():
             if existing.source_type == "operator_task" and existing.source_id == operation_key:
                 return existing

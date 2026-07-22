@@ -76,6 +76,7 @@ def try_chat_planning_rail(
     conversation_id: str = "",
     client_message_id: str = "",
     user_id: str = "",
+    _depth: int = 0,
 ) -> dict | None:
     """Route one Cockpit chat/voice message through the canonical protocol.
 
@@ -143,11 +144,34 @@ def try_chat_planning_rail(
         }
 
     try:
+        if intent_class == IntentClass.CLARIFICATION_RESPONSE.value and _depth == 0:
+            # Resume the held session: fold the answer into the objective and
+            # re-enter the rail once with the merged text (§5).
+            session = protocol._store.find_active_session(conv_id)
+            if session is not None and session.stage == "awaiting_clarification":
+                merged = protocol.resume_clarification(session, content)
+                return try_chat_planning_rail(
+                    merged,
+                    conv_id,
+                    client_message_id=client_message_id or session.client_message_id,
+                    user_id=user_id,
+                    _depth=1,
+                )
+            return None  # nothing held — let the conversation answer
+
         if resolution.clarification_required:
             question = (
                 resolution.clarification_questions[0]["question"]
                 if resolution.clarification_questions
                 else "Can you narrow that down?"
+            )
+            # Persist the held session so the NEXT message resumes it.
+            protocol.record_clarification(
+                resolution,
+                content,
+                conv_id,
+                client_message_id=client_message_id,
+                question=question,
             )
             metadata["state"] = "clarification_required"
             metadata["clarification_question"] = question

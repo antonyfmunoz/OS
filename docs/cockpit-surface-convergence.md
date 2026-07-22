@@ -25,6 +25,7 @@ Status values: `ACTIVE_DEBT` (bounded compatibility, retirement scheduled) |
 | 8 | SelfBuild / BuildLoop / Actions stores hold build work outside canonical packets | WorkPacket + WorkGraph | ACTIVE_DEBT | Verified read adapters only (visually distinct on Work board); store migration scheduled post-Wave-1 |
 | 9 | Seat/session-derived identity in legacy auth paths | PrincipalContext (principal ≠ tenant ≠ membership ≠ seat) | ACTIVE_DEBT | `substrate/contracts/principal_resolution.py` derives legacy_derived ids deterministically; membership NEVER from a browser session; native issuance in tenancy wave |
 | 10 | Per-route/per-module `EventSpine()` constructions (cockpit routes, operator engines) split event truth | `get_shared_event_spine()` (event_spine.py — persisted, recovered) | ACTIVE_DEBT | Planning path uses ONLY the shared spine (§22.6, enforced by test AC); per-route instances migrate in the observability convergence wave |
+| 11 | `instruction_compilation.compile_instruction_package` has no production caller yet (Wave 1 planning is deterministic-only) | the §9 seam itself | ADJUDICATED | Deliberate: §9 mandates the seam BEFORE the first planning model call exists; contract is deterministically tested (test V); the first LLM enhancement on the planning path MUST call it — never a raw prompt string |
 
 ## Surface-level entries (Cockpit)
 

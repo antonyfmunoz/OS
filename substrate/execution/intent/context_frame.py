@@ -104,6 +104,12 @@ def build_context_frame(
             d = plan.to_dict() if hasattr(plan, "to_dict") else dict(plan)
             if conversation_id and d.get("conversation_id") not in ("", conversation_id):
                 continue
+            # Tenant isolation (adversarial-review MAJOR): a plan from another
+            # tenant must never enter this frame — reference/existing-work
+            # resolution would otherwise match it by similarity.
+            plan_tenant = (d.get("work_scope") or {}).get("tenant_id", "")
+            if tenant_id and plan_tenant and plan_tenant != tenant_id:
+                continue
             scoped.append(
                 {
                     "plan_record_id": d.get("plan_record_id", ""),
