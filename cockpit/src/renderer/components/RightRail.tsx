@@ -965,10 +965,25 @@ function ChatSection() {
   }, [sendMessage, viewContext, setPanel])
 
   const handleOpenPlan = useCallback((planRecordId: string) => {
-    // Select the plan for the panel, warm its detail cache, then navigate.
+    // Select the plan for the panel, warm its detail cache, then open it.
     selectObjectivePlan(planRecordId)
     fetchObjectivePlan(planRecordId)
-    setPanel('objectiveplan')
+    // Panels only render as CANVAS WINDOWS (canvasStore.addWindow) —
+    // cockpitStore.activePanel does not render in the canvas cockpit (see
+    // App.tsx deep-link bridge). setPanel alone made Open Plan a silent
+    // no-op (field run 20260722T181248Z, s08). Open the Work Detail window
+    // through the same registry-resolved path the ?panel= deep link uses.
+    Promise.all([import('../stores/canvasStore'), import('../panels/registry')]).then(
+      ([{ useCanvasStore }, { resolvePanelId }]) => {
+        const resolved = resolvePanelId('objectiveplan')
+        const store = useCanvasStore.getState()
+        const alreadyOpen = store.windows.some(
+          (w) => w.type === 'panel' && w.config?.panelId === resolved,
+        )
+        if (!alreadyOpen) store.addWindow('panel', { panelId: resolved })
+      },
+    )
+    setPanel('objectiveplan') // view-context sync (registry-resolved)
   }, [selectObjectivePlan, fetchObjectivePlan, setPanel])
 
   const commitName = () => {

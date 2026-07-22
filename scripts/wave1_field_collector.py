@@ -770,7 +770,10 @@ class FieldCollector:
         try:
             if card.count() == 0:
                 return ""
-            state = card.first.get_attribute("data-state") or ""
+            # .last = the NEWEST card in the thread — a revision renders a
+            # NEW card for v(n+1); .first kept reading the stale v1 card
+            # (run 20260722T181248Z: server had v2, card said v1).
+            state = card.last.get_attribute("data-state") or ""
             # A data-state outside the published contract is a UI drift signal —
             # surface it in the console log rather than silently trusting it.
             if state and state not in PLAN_STATES:
@@ -916,7 +919,7 @@ class FieldCollector:
         """
         card = self._plan_card(page)
         opener = (
-            card.first.locator(WG_OPEN_PLAN_BTN) if card.count() else page.locator(WG_OPEN_PLAN_BTN)
+            card.last.locator(WG_OPEN_PLAN_BTN) if card.count() else page.locator(WG_OPEN_PLAN_BTN)
         )
         if opener.count() == 0:
             opener = page.get_by_role("button", name="Open Plan")
@@ -1252,7 +1255,40 @@ class FieldCollector:
         self.stage("smoke_plan_rendered", state in {"rendered", "awaiting_approval"}, state)
         self.shot(page, "smoke_plan")
         self.dom(page, "smoke_plan")
+        # Leave no pending decision behind: undecided plans accumulate in the
+        # unified-approval pool (equal urgency → stable sort puts the NEWEST
+        # plan LAST), pushing later passes' rows out of the ControlPanel's
+        # top-3 window. Every scenario decides what it creates.
+        self._reject_plan_cleanup(page, "smoke")
         return page
+
+    def _reject_plan_cleanup(self, page: Any, label: str) -> None:
+        """Reject the newest card's plan via the HUD (governed, non-fatal)."""
+        try:
+            card = self._plan_card(page)
+            pid = card.last.get_attribute("data-plan-record-id") or "" if card.count() else ""
+            if not pid:
+                return
+            keep = self._last_plan_id
+            self._last_plan_id = pid
+            rejected = self._decide_via_control_panel(page, "reject")
+            self._last_plan_id = keep
+            self.console.append(
+                {
+                    "type": "cleanup",
+                    "text": f"{label}: rejected pending plan {pid[:16]} = {rejected} "
+                    f"({self._decision_response[:80]})",
+                    "ms": int((time.time() - self._start) * 1000),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 — cleanup never fails the pass
+            self.console.append(
+                {
+                    "type": "cleanup",
+                    "text": f"{label}: cleanup failed: {str(exc)[:100]}",
+                    "ms": int((time.time() - self._start) * 1000),
+                }
+            )
 
     # ── full scenario (a→j) ──────────────────────────────────────────────────
     def _scenario_full(
@@ -1468,7 +1504,7 @@ class FieldCollector:
         plan_id = ""
         try:
             if card.count():
-                plan_id = card.first.get_attribute("data-plan-record-id") or ""
+                plan_id = card.last.get_attribute("data-plan-record-id") or ""
         except Exception:  # noqa: BLE001
             plan_id = ""
         ctx["objective_plan_id"] = plan_id
@@ -1539,7 +1575,7 @@ class FieldCollector:
         card = self._plan_card(page)
         revision_attr = ""
         try:
-            revision_attr = card.first.get_attribute("data-revision") or "" if card.count() else ""
+            revision_attr = card.last.get_attribute("data-revision") or "" if card.count() else ""
         except Exception:  # noqa: BLE001
             revision_attr = ""
         # Server truth: versions history shows v1 preserved AND a v2 present.
@@ -1559,10 +1595,45 @@ class FieldCollector:
                     v_max = max(gvs)
                     versions_ok = 1 in gvs and v_max >= 2
         card_v2 = rstate == "revised" or revision_attr == "2"
+        # RE-ANCHOR to the live plan: compile_revision mints a NEW plan record
+        # (v2 SUPERSEDES v1). Every downstream step (HUD row, status reads,
+        # approve) must target v2 — keeping the v1 id produced
+        # status=superseded + row-never-appeared across s12–s16 (run
+        # 20260722T181248Z). Primary source: the versions history's
+        # max-graph_version row; fallback: the newest card's attribute.
+        new_id = ""
+        if ctx.get("objective_plan_id"):
+            versions2 = self._authed_get(
+                page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}/versions"
+            )
+            rows2 = versions2.get("__body") if isinstance(versions2, dict) else None
+            if isinstance(rows2, list) and rows2:
+                best = max(
+                    (
+                        r
+                        for r in rows2
+                        if isinstance(r, dict) and isinstance(r.get("graph_version"), int)
+                    ),
+                    key=lambda r: r["graph_version"],
+                    default=None,
+                )
+                if best:
+                    new_id = str(best.get("plan_record_id") or "")
+        if not new_id:
+            try:
+                new_id = (
+                    card.last.get_attribute("data-plan-record-id") or "" if card.count() else ""
+                )
+            except Exception:  # noqa: BLE001
+                new_id = ""
+        if new_id:
+            ctx["objective_plan_id"] = new_id
+            self._last_plan_id = new_id
         self.stage(
             "s10_conversational_revision",
             card_v2 and (versions_ok or revision_attr == "2"),
-            f"state={rstate} data-revision={revision_attr} versions_ok={versions_ok} v_max={v_max}",
+            f"state={rstate} data-revision={revision_attr} versions_ok={versions_ok} "
+            f"v_max={v_max} reanchored_plan_id={new_id[:16]}",
         )
         self.shot(page, "s10_revision")
         self.dom(page, "s10_revision")
@@ -1639,7 +1710,16 @@ class FieldCollector:
 
     # ── s13 — chat "Approve that plan." explains HUD-only ────────────────────
     def _s13_chat_approve_reply(self, page: Any, ctx: dict[str, Any]) -> None:
-        """Chat approve → reply explains decisions happen in the control panel."""
+        """Chat approve → reply explains decisions happen in the control panel.
+
+        FRESH CONVERSATION: s11 deliberately leaves a clarification pending —
+        the rail's §5 resume path folds the NEXT message in the same
+        conversation into that session ("Cancel it.\\nApprove that plan."
+        merged server-side, runs 172506/181248). PROVIDE_DECISION resolves the
+        plan cross-conversation by design (tests H/L), so escaping the pending
+        session is the correct journey semantics.
+        """
+        self._new_conversation(page, "s13_approve")
         self._send_and_wait(page, f"{CHAT_APPROVE_MESSAGE} {self.run_tag}")
         page.wait_for_timeout(2000)
         explains_hud = self._body_contains(page, "Decisions are made in the control panel") or (
@@ -1908,6 +1988,7 @@ class FieldCollector:
         except Exception as exc:  # noqa: BLE001 — bonus step never breaks the pass
             self.stage("s22a_self_build", False, f"exception={str(exc)[:120]}")
         self.shot(page, "s22a_self_build")
+        self._reject_plan_cleanup(page, "s22a")
 
     def _s22b_projection_build(self, page: Any, ctx: dict[str, Any]) -> None:
         """Projection-build planning message → plan compiles, projection governance,
@@ -1932,6 +2013,7 @@ class FieldCollector:
         except Exception as exc:  # noqa: BLE001 — bonus step never breaks the pass
             self.stage("s22b_projection_build", False, f"exception={str(exc)[:120]}")
         self.shot(page, "s22b_projection_build")
+        self._reject_plan_cleanup(page, "s22b")
 
     # ── finalize + ship ──────────────────────────────────────────────────────
     # Bonus steps that must NOT gate the pass (plan v5.1 §23: gate on s01–s21).
