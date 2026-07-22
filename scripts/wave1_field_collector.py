@@ -1020,12 +1020,32 @@ class FieldCollector:
         return self._finalize(page=None)
 
     def _new_context(self, browser: Any, state_path: str) -> Any:
-        """Fresh context carrying ONLY Clerk auth + our correlation header."""
-        return browser.new_context(
+        """Fresh context carrying ONLY Clerk auth + our correlation header.
+
+        The correlation header is injected ONLY on same-origin (candidate)
+        requests via route interception — NEVER context-wide. A context-wide
+        extra_http_headers made every cross-origin request non-simple, forcing
+        CORS preflights on the clerk-js script fetch, which Clerk's CDN
+        rejects (`x-correlation-id` not in Access-Control-Allow-Headers) —
+        the auth UI never rendered (field passes 20260722T055406Z/155848Z).
+        The header exists to correlate collector requests with CANDIDATE logs,
+        so scoping it to the candidate origin is also semantically correct.
+        """
+        context = browser.new_context(
             storage_state=state_path,
             viewport={"width": 1920, "height": 1080},
-            extra_http_headers={"X-Correlation-ID": self.correlation_id},
         )
+        origin = self.url.rstrip("/")
+
+        def _inject_correlation(route: Any, request: Any) -> None:
+            headers = {**request.headers, "X-Correlation-ID": self.correlation_id}
+            route.continue_(headers=headers)
+
+        context.route(
+            lambda u: u.startswith(origin),
+            _inject_correlation,
+        )
+        return context
 
     def _drive(self, pw: Any, browser: Any, state_path: str) -> Any:
         context = self._new_context(browser, state_path)
