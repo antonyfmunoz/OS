@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--out", required=True, help="Output candidate.env path")
     parser.add_argument("--audit-out", default="", help="Optional audit JSON path")
-    parser.add_argument("--state-dir", default="/candidate-state")
+    parser.add_argument("--state-dir", default="/state/umh")
     parser.add_argument("--build-commit", default="")
     parser.add_argument(
         "--dry-run", action="store_true", help="Print audit + would-write path, write nothing"
