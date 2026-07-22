@@ -455,11 +455,13 @@ class OperatorIntentProtocol:
             return IntentClass.CREATE_OBJECTIVE
         if spec.is_directive:
             # Breadth signals make a directive an Objective even without the
-            # detector's concreteness signal (portfolio/program/explicit word).
+            # detector's concreteness signal: portfolio/program/explicit word,
+            # or a multi-part scope (enumerated list + non-atomic length).
             if (
                 _PORTFOLIO_SIGNALS.search(text)
                 or _PROGRAM_SIGNALS.search(text)
                 or _OBJECTIVE_WORD_RE.search(text)
+                or (_LIST_SIGNAL_RE.search(text) and not _looks_atomic(text))
             ):
                 return IntentClass.CREATE_OBJECTIVE
             return IntentClass.CREATE_TASK
