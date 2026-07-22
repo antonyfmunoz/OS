@@ -85,12 +85,22 @@ _EOS_NETWORK = _operator_network()
 _CANDIDATE_API_PORT = 8091  # inside the container
 _CANDIDATE_API_HOST_PORT = 8191  # 127.0.0.1:8191 -> candidate api (recon reads)
 _CANDIDATE_NGINX_HOST_PORT = 8190  # 127.0.0.1:8190 -> candidate nginx
-# CANDIDATE origin — the VPS's own tailnet HTTPS name, which `tailscale
-# serve --https=443 → 127.0.0.1:8190` actually fronts. The public domain
-# (universalmetaharness.tech) resolves to Fly PRODUCTION and is untouched by
-# tailscale serve — using it here would have "qualified" production instead
-# of the candidate (adversarial finding, 2026-07-22). Resolved at runtime;
-# override with UMH_CANDIDATE_ORIGIN only for explicit lab setups.
+# Tailscale-serve TLS port for the candidate. NOT 443: the host's Caddy binds
+# *:443 (wildcard — it fronts the vestigial local universalmetaharness.tech
+# vhost), which shadows the tailscale IP and makes tailscaled's :443 listener
+# fail with EADDRINUSE — every handshake then hits Caddy, which has no cert
+# for the tailnet SNI (observed 2026-07-21: TLSV1_ALERT_INTERNAL_ERROR).
+# tailscale serve officially supports HTTPS on 443/8443/10000; 8443 is free on
+# this host, keeps tailscale serve as the ONLY fronting mechanism for the
+# candidate, and touches zero production host config.
+_CANDIDATE_TLS_PORT = 8443
+# CANDIDATE origin — the VPS's own tailnet HTTPS name (+ TLS port), which
+# `tailscale serve --https=8443 → 127.0.0.1:8190` actually fronts. The public
+# domain (universalmetaharness.tech) resolves to Fly PRODUCTION and is
+# untouched by tailscale serve — using it here would have "qualified"
+# production instead of the candidate (adversarial finding, 2026-07-22).
+# Resolved at runtime; override with UMH_CANDIDATE_ORIGIN only for explicit
+# lab setups.
 
 
 def _candidate_origin() -> str:
@@ -103,10 +113,15 @@ def _candidate_origin() -> str:
         )
         dns_name = json.loads(out.stdout)["Self"]["DNSName"].rstrip(".")
         if dns_name:
-            return f"https://{dns_name}"
+            return f"https://{dns_name}:{_CANDIDATE_TLS_PORT}"
     except Exception as exc:  # noqa: BLE001 — preflight will fail loudly anyway
         print(f"[warn] candidate origin resolution failed: {exc}")
     raise SystemExit("cannot resolve the candidate tailnet origin — set UMH_CANDIDATE_ORIGIN")
+
+
+def _origin_host() -> str:
+    """Bare hostname of the candidate origin (no scheme, no port) — for `tailscale cert`."""
+    return _ORIGIN.removeprefix("https://").removeprefix("http://").split(":", 1)[0]
 
 
 _ORIGIN = _candidate_origin()
@@ -466,15 +481,35 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     # Clerk requires HTTPS.
     _snapshot_tailscale_serve(runner, run_dir)
     _install_crash_handlers(runner)
-    cert_probe = subprocess.run(
-        ["tailscale", "cert", _candidate_origin().removeprefix("https://")],
-        capture_output=True,
-        text=True,
-        timeout=25,
-    )
-    https_available = cert_probe.returncode == 0 and "does not support" not in (
-        cert_probe.stdout + cert_probe.stderr
-    )
+    # Probe cert issuance WITHOUT dropping key material into the source tree:
+    # `tailscale cert` writes <host>.crt/<host>.key to CWD by default (a
+    # freshly-minted private key landed in the worktree on 2026-07-21 —
+    # removed, never committed). Direct both files to the candidate's state
+    # root, which lives outside the repo and outside the proof package.
+    tls_probe_dir = state_dir.parent / "tls"
+    if runner.dry_run:
+        print(f"[dry-run] would probe `tailscale cert {_origin_host()}` → {tls_probe_dir}")
+        https_available = True
+        cert_probe = None
+    else:
+        tls_probe_dir.mkdir(parents=True, exist_ok=True)
+        cert_probe = subprocess.run(
+            [
+                "tailscale",
+                "cert",
+                "--cert-file",
+                str(tls_probe_dir / "probe.crt"),
+                "--key-file",
+                str(tls_probe_dir / "probe.key"),
+                _origin_host(),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        https_available = cert_probe.returncode == 0 and "does not support" not in (
+            cert_probe.stdout + cert_probe.stderr
+        )
     if not https_available:
         steps["serve"] = {
             "wired": False,
@@ -493,7 +528,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
             "tailscale",
             "serve",
             "--bg",
-            "--https=443",
+            f"--https={_CANDIDATE_TLS_PORT}",
             f"http://127.0.0.1:{_CANDIDATE_NGINX_HOST_PORT}",
         ],
         timeout=45,
