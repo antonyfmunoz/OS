@@ -1804,7 +1804,22 @@ class FieldCollector:
         the server decision_log's last entry carrying the same status message
         (authorization_effect=plan_acceptance_only).
         """
+        # The banner's LIVE surface is the Work-Detail panel (it fetches
+        # current plan state); the chat card is static message metadata frozen
+        # at send time and can never flip post-decision (run 20260722T221430Z:
+        # server approved + decision log correct, banner only missing because
+        # no live surface was open). Open the plan panel — the operator's
+        # actual verification surface — then look for the banner.
+        self._open_plan_panel(page)
+        page.wait_for_timeout(1500)
         banner_ok = self._body_contains(page, APPROVED_BANNER)
+        try:  # close the panel again so later steps' nav stays unobstructed
+            closer = page.locator('button[title="Close"]')
+            if closer.count() > 0:
+                closer.last.click()
+                page.wait_for_timeout(400)
+        except Exception:  # noqa: BLE001 — best-effort
+            pass
         # SERVER TRUTH BY ID: page-derived reads picked up whichever history
         # card the thread happened to show (run 20260722T205034Z read a stale
         # REJECTED smoke card while OUR plan sat approved server-side). The
@@ -1914,13 +1929,29 @@ class FieldCollector:
     def _s20_continuity(self, page: Any, ctx: dict[str, Any]) -> None:
         """Conversation, Task cards, approved v2 Objective/Plan, scope, decision,
         assistant name all persist after the s19 close/reopen."""
-        after = self._read_plan_by_conversation(page)
+        # The freshly reopened page needs a beat before history/cards render —
+        # a single immediate read returned empty and failed no_dupe while every
+        # other continuity signal was TRUE (run 20260722T221430Z). Bounded poll,
+        # then identity also accepts the ctx plan id (API server truth).
+        after: dict[str, Any] = {}
+        poll_deadline = time.time() + 30
+        while time.time() < poll_deadline:
+            after = self._read_plan_by_conversation(page)
+            if isinstance(after, dict) and after.get("plan_record_id"):
+                break
+            page.wait_for_timeout(2000)
         before = ctx.get("s18_after", {})
         # Plan identity + version + approved state persist (no duplicate graph).
-        no_dupe = (
-            isinstance(after, dict)
-            and isinstance(before, dict)
-            and after.get("plan_record_id") == before.get("plan_record_id")
+        no_dupe = isinstance(after, dict) and (
+            (
+                isinstance(before, dict)
+                and after.get("plan_record_id")
+                and after.get("plan_record_id") == before.get("plan_record_id")
+            )
+            or (
+                after.get("plan_record_id")
+                and after.get("plan_record_id") == ctx.get("objective_plan_id")
+            )
         )
         # Server truth by re-anchored id (same rationale as s16).
         plan_json: Any = {}
