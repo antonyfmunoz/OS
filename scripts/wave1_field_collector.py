@@ -688,9 +688,56 @@ class FieldCollector:
             return -1
 
     # ── plan-card locator anchored to THIS pass's run tag ───────────────────
+    def _capture_conversation_id(self, resp: Any) -> None:
+        """Remember the conversation id from a /advisor/converse response.
+
+        The plan card is anchored by data-conversation-id (published testid
+        contract), and the converse response carries the id — capture it at
+        send time so _plan_card can address the card precisely."""
+        try:
+            body = resp.json()
+        except Exception:  # noqa: BLE001 — non-JSON response; keep prior id
+            return
+
+        def find(obj: Any) -> str | None:
+            if isinstance(obj, dict):
+                v = obj.get("conversation_id")
+                if isinstance(v, str) and v:
+                    return v
+                for x in obj.values():
+                    r = find(x)
+                    if r:
+                        return r
+            elif isinstance(obj, list):
+                for x in obj:
+                    r = find(x)
+                    if r:
+                        return r
+            return None
+
+        cid = find(body)
+        if cid:
+            self._conversation_id = cid
+
     def _plan_card(self, page: Any) -> Any:
-        """The wg-plan-root whose subtree contains this pass's run tag."""
-        return page.locator(WG_PLAN_ROOT).filter(has_text=self.run_tag)
+        """This pass's plan card, anchored by conversation id.
+
+        The run tag lives in the USER message, never inside the wg-plan-root
+        subtree — `filter(has_text=run_tag)` matched NOTHING while the card sat
+        fully rendered with data-state=awaiting_approval (run 20260722T170831Z,
+        proven by the shipped DOM snapshot). Anchor order: exact
+        data-conversation-id (captured from the converse response) → run-tag
+        text filter (kept for any future card that embeds the tag) → all roots
+        (fresh conversations render exactly one)."""
+        conv = getattr(self, "_conversation_id", "")
+        if conv:
+            scoped = page.locator(f'{WG_PLAN_ROOT}[data-conversation-id="{conv}"]')
+            if scoped.count() > 0:
+                return scoped
+        tagged = page.locator(WG_PLAN_ROOT).filter(has_text=self.run_tag)
+        if tagged.count() > 0:
+            return tagged
+        return page.locator(WG_PLAN_ROOT)
 
     def _wg_state(self, page: Any) -> str:
         card = self._plan_card(page)
@@ -932,8 +979,9 @@ class FieldCollector:
         chat = self._find_chat_input(page)
         with page.expect_response(
             lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=timeout_ms
-        ):
+        ) as resp_info:
             self._type_objective(page, chat, text)
+        self._capture_conversation_id(resp_info.value)
 
     @staticmethod
     def _body_contains(page: Any, needle: str) -> bool:
@@ -991,6 +1039,9 @@ class FieldCollector:
         conversation. Records what was cleared as a stage.
         """
         cleared = self._clear_app_state(page)
+        # The next send starts a NEW conversation — drop the captured id so
+        # _plan_card can't anchor to the previous conversation's card.
+        self._conversation_id = ""
         page.reload(wait_until="load")
         page.wait_for_timeout(1500)
         # Fresh-state proof: no plan card should be visible before submission.
@@ -1127,8 +1178,9 @@ class FieldCollector:
         obj = f"{DOGFOOD_OBJECTIVE} {self.run_tag}"
         with page.expect_response(
             lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=180000
-        ):
+        ) as resp_info:
             self._type_objective(page, chat, obj)
+        self._capture_conversation_id(resp_info.value)
         state = self._wait_wg_state(page, {"rendered", "awaiting_approval"})
         self.stage("smoke_plan_rendered", state in {"rendered", "awaiting_approval"}, state)
         self.shot(page, "smoke_plan")
