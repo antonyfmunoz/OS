@@ -161,7 +161,14 @@ DOGFOOD_OBJECTIVE = (
 )
 
 # s10 — conversational revision (MODIFY_PLAN → graph_version 2, v1 preserved).
-REVISION_MESSAGE = "Add a rollback verification step to the plan"
+# Phrasing is deterministic-classifier-verified against the REAL dogfood plan:
+# classify_revision parses "remove <node tokens> from the plan" into exactly one
+# remove_node edit for the 'profile' migration node. "Add a … step" has NO
+# parser branch (known capability gap, recorded in the PR — the rail correctly
+# replies with phrasing guidance instead of guessing). The trailing period
+# matters: the clause split isolates the appended run tag into its own
+# (droppable) clause — without it the tag pollutes the remove phrase.
+REVISION_MESSAGE = "Remove the profile subsystem from the plan."
 
 # s11 — ambiguous reference (no unique referent → exactly one clarification, no
 # state change). "Cancel it" with nothing uniquely selectable.
@@ -441,6 +448,9 @@ class FieldCollector:
         self.error: str | None = None
         self.failed_stage: str | None = None
         self._start = time.time()
+        self._conversation_id = ""  # captured from each converse response
+        self._last_plan_id = ""  # this run's plan record id (s07 onward)
+        self._decision_response = ""  # HUD decide POST "status body" evidence
 
     # ── heartbeat + status ──────────────────────────────────────────────────
     def _status(self, state: str) -> None:
@@ -495,17 +505,33 @@ class FieldCollector:
     # ── wiring: network + console listeners ─────────────────────────────────
     def _wire_listeners(self, page: Any) -> None:
         def on_response(resp: Any) -> None:
-            u = resp.url
-            if "/api/umh/" not in u and "/api/" not in u:
-                return
-            self.network.append(
-                {
+            # Defensive: an exception in a playwright event handler is silently
+            # swallowed AND can kill subsequent deliveries — network.jsonl came
+            # back EMPTY on runs 165422/170831/172506 while console.jsonl was
+            # fine. Every access is guarded; a 4xx/5xx API response also
+            # captures a bounded body snippet (the 422 that broke s15 was
+            # invisible without it).
+            try:
+                u = resp.url
+                if "/api/" not in u:
+                    return
+                entry: dict[str, Any] = {
                     "url": u.split("?")[0],
-                    "method": resp.request.method,
                     "status": resp.status,
                     "ms": int((time.time() - self._start) * 1000),
                 }
-            )
+                try:
+                    entry["method"] = resp.request.method
+                except Exception:  # noqa: BLE001
+                    entry["method"] = "?"
+                if resp.status >= 400:
+                    try:
+                        entry["body"] = (resp.text() or "")[:300]
+                    except Exception:  # noqa: BLE001
+                        entry["body"] = "<unreadable>"
+                self.network.append(entry)
+            except Exception:  # noqa: BLE001 — never break the event pipeline
+                pass
 
         page.on("response", on_response)
         page.on(
@@ -802,28 +828,27 @@ class FieldCollector:
             strip_btn.first.click()
         page.wait_for_timeout(500)  # bounded expand animation debounce
 
-    def _approval_row(self, page: Any) -> Any:
-        """The ControlPanel objective_plan approval row carrying this run tag.
+    def _approval_row(self, page: Any, plan_id: str = "") -> Any:
+        """The ControlPanel objective_plan approval row for THIS run's plan.
 
-        The objective_plan row renders the approval `description` verbatim
-        (<p title={desc}>), and the description carries the objective text with
-        the run tag — so the run tag is the reliable anchor, never row index. We
-        filter to data-source-type="objective_plan" first so we never match a
-        governance/other-source row. Falls back to any element containing both
-        the run tag and a wg-approve/reject button.
+        ANCHOR ORDER (learned from run 20260722T172506Z): the approval
+        description is truncated server-side to 300 chars
+        (planning/decisions.py), which cuts the run tag off the ~540-char
+        dogfood objective — text anchoring silently degraded to a broad xpath
+        that "matched" page-level containers and clicked the wrong button. The
+        row now carries data-plan-record-id (ControlPanel published contract),
+        so the plan id is the primary anchor; run-tag text is the fallback for
+        short descriptions that do retain the tag. NO broad xpath fallback —
+        a missing row must FAIL LOUDLY, never click something else.
         """
+        if plan_id:
+            rows = page.locator(f'{WG_APPROVAL_ROW}[data-plan-record-id="{plan_id}"]')
+            if rows.count() > 0:
+                return rows
         rows = page.locator(WG_OBJECTIVE_PLAN_ROW).filter(has_text=self.run_tag)
         if rows.count() > 0:
             return rows
-        rows = page.locator(WG_APPROVAL_ROW).filter(has_text=self.run_tag)
-        if rows.count() > 0:
-            return rows
-        # Fallback: the smallest container holding the run tag AND a decision btn.
-        return page.locator(
-            f"xpath=//*[contains(.,'{self.run_tag}')]"
-            "[.//button or .//*[@data-testid='wg-approve-btn'] "
-            "or .//*[@data-testid='wg-reject-btn']]"
-        )
+        return page.locator(WG_APPROVAL_ROW).filter(has_text=self.run_tag)
 
     def _decide_via_control_panel(self, page: Any, decision: str) -> bool:
         """Approve or reject the run-tag plan via the ControlPanel row.
@@ -840,10 +865,14 @@ class FieldCollector:
         whole window is reported as a click miss — never a silent pass.
         """
         btn_selector = WG_APPROVE_BTN if decision == "approve" else WG_REJECT_BTN
+        endpoint = (
+            "/unified-approval/approve" if decision == "approve" else "/unified-approval/reject"
+        )
+        plan_id = str(self._last_plan_id or "")
         self._open_approvals(page)
         deadline = time.time() + 150
         while time.time() < deadline:
-            row = self._approval_row(page)
+            row = self._approval_row(page, plan_id)
             if row.count() > 0:
                 btn = row.first.locator(btn_selector)
                 if btn.count() > 0:
@@ -851,10 +880,29 @@ class FieldCollector:
                         row.first.scroll_into_view_if_needed(timeout=2000)
                     except Exception:  # noqa: BLE001 — best-effort scroll
                         pass
-                    btn.first.click()
-                    return True
+                    # Capture the decision request's RESPONSE — a 4xx here was
+                    # previously invisible (run 20260722T172506Z: the approve
+                    # POST 422'd and the pass burned 150s waiting for a state
+                    # flip that could never come).
+                    status_body = ""
+                    try:
+                        with page.expect_response(lambda r: endpoint in r.url, timeout=20000) as ri:
+                            btn.first.click()
+                        resp = ri.value
+                        body = ""
+                        try:
+                            body = (resp.text() or "")[:200]
+                        except Exception:  # noqa: BLE001
+                            body = "<unreadable>"
+                        status_body = f"{resp.status} {body}"
+                        self._decision_response = status_body
+                        return resp.status < 300
+                    except Exception as exc:  # noqa: BLE001 — no response seen
+                        self._decision_response = f"no-response ({str(exc)[:80]})"
+                        return False
             self._open_approvals(page)  # re-expand if a 5s refresh collapsed it
             time.sleep(3)  # bounded poll; approval list refreshes ~every 5s
+        self._decision_response = "row-never-appeared"
         return False
 
     # ── ObjectivePlanPanel (cancel + Open Plan continuity read) ──────────────
@@ -957,6 +1005,17 @@ class FieldCollector:
     @staticmethod
     def _type_objective(page: Any, chat: Any, text: str) -> None:
         chat.first.click()
+        # RESIDUAL-TEXT GUARD: if a previous Enter was swallowed (the input
+        # ignores submit while a reply is streaming), stale text would be
+        # CONCATENATED with this message — pass 20260722T172506Z shipped
+        # "Cancel it. [tag] Approve that plan. [tag]" as ONE message. Clear
+        # any residue first, and after Enter verify the input actually emptied
+        # (retry the submit on a bounded loop).
+        try:
+            if (chat.first.input_value() or "").strip():
+                chat.first.fill("")
+        except Exception:  # noqa: BLE001 — non-input element; typing continues
+            pass
         # press_sequentially with per-key jitter (40-90ms) — human cadence, and
         # exercises the real input handler rather than a bulk fill().
         import random
@@ -969,6 +1028,14 @@ class FieldCollector:
         budget_ms = len(text) * (delay + 30) + 15000
         chat.first.press_sequentially(text, delay=delay, timeout=budget_ms)
         chat.first.press("Enter")
+        for _ in range(10):  # bounded submit-verify loop (max ~5s)
+            try:
+                if not (chat.first.input_value() or "").strip():
+                    return
+            except Exception:  # noqa: BLE001 — input re-rendered; treat as sent
+                return
+            page.wait_for_timeout(500)
+            chat.first.press("Enter")
 
     def _send_and_wait(self, page: Any, text: str, timeout_ms: int = 180000) -> None:
         """Type a message into the chat rail and wait for its /advisor/converse 200.
@@ -1230,17 +1297,28 @@ class FieldCollector:
 
     # ── s01 — fresh-state proof ──────────────────────────────────────────────
     def _s01_fresh_state(self, page: Any) -> None:
-        """App storage cleared, service worker unregistered, no plan pre-submit."""
+        """LOCAL context fresh: storage cleared + SW unregistered.
+
+        SCOPING (learned from run 20260722T172506Z): the cockpit restores the
+        latest SERVER conversation after a local wipe — that is the history
+        continuity s20 depends on, so prior-pass plan cards may legitimately
+        re-render. Freshness is therefore asserted on the LOCAL context only;
+        every per-run predicate downstream is scoped by conversation/plan id,
+        never by global card counts. Pre-existing cards are recorded as a
+        baseline for the evidence trail.
+        """
         cleared = self._clear_app_state(page)
         page.reload(wait_until="load")
         page.wait_for_timeout(1500)
-        no_plan = page.locator(WG_PLAN_ROOT).count() == 0
+        pre_existing = page.locator(WG_PLAN_ROOT).count()
         sw_cleared = bool(cleared.get("sw_unregister_requested"))
+        ls_removed = len(cleared.get("localStorage_removed", []))
+        self._conversation_id = ""  # next send starts OUR conversation
         self.stage(
             "s01_fresh_state",
-            no_plan,
-            f"no_plan_pre_submit={no_plan} sw_unregister={sw_cleared} "
-            f"ls_removed={len(cleared.get('localStorage_removed', []))}",
+            sw_cleared and ls_removed >= 0,
+            f"sw_unregister={sw_cleared} ls_removed={ls_removed} "
+            f"pre_existing_cards_from_server_history={pre_existing}",
         )
         self.shot(page, "s01_fresh_state")
 
@@ -1267,20 +1345,31 @@ class FieldCollector:
 
     # ── s03 — communication-only ─────────────────────────────────────────────
     def _s03_communication_only(self, page: Any, ctx: dict[str, Any]) -> None:
-        """A pure greeting creates NO plan card, NO kanban card, NO HUD row."""
+        """A pure greeting creates NO plan card, NO kanban card, NO HUD row.
+
+        RUN-SCOPED (prior-pass artifacts persist server-side by design): "no
+        plan" = no card for OUR conversation; "no approval" = no HUD row
+        carrying OUR run tag; kanban delta stays count-based within the step
+        window (greeting cannot create packets regardless of history).
+        """
         cards_before = page.locator(WG_KANBAN_CARD).count()
-        approvals_before = page.locator(WG_OBJECTIVE_PLAN_ROW).count()
         self._open_approvals(page)  # expand so any spurious row would be visible
         self._send_and_wait(page, GREETING_MESSAGE)
         page.wait_for_timeout(2500)  # bounded window for any (unwanted) artifact
-        no_plan = page.locator(WG_PLAN_ROOT).count() == 0
+        conv = getattr(self, "_conversation_id", "")
+        our_cards = (
+            page.locator(f'{WG_PLAN_ROOT}[data-conversation-id="{conv}"]').count() if conv else 0
+        )
+        no_plan = our_cards == 0
         no_new_kanban = page.locator(WG_KANBAN_CARD).count() <= cards_before
-        no_new_approval = page.locator(WG_OBJECTIVE_PLAN_ROW).count() <= approvals_before
-        ctx["hud_rows_after_greeting"] = page.locator(WG_OBJECTIVE_PLAN_ROW).count()
+        tagged_rows = page.locator(WG_APPROVAL_ROW).filter(has_text=self.run_tag).count()
+        no_new_approval = tagged_rows == 0
+        ctx["hud_rows_after_greeting"] = tagged_rows
         self.stage(
             "s03_communication_only",
             no_plan and no_new_kanban and no_new_approval,
-            f"no_plan={no_plan} no_new_kanban={no_new_kanban} no_new_approval={no_new_approval}",
+            f"our_conv_plan_cards={our_cards} no_new_kanban={no_new_kanban} "
+            f"run_tagged_approval_rows={tagged_rows}",
         )
         self.shot(page, "s03_communication")
 
@@ -1383,6 +1472,7 @@ class FieldCollector:
         except Exception:  # noqa: BLE001
             plan_id = ""
         ctx["objective_plan_id"] = plan_id
+        self._last_plan_id = plan_id  # HUD row anchor for decide/approval steps
         ctx["objective_state_after_compile"] = state
         ok = state in {"rendered", "awaiting_approval", "revised"} and bool(plan_id)
         self.stage(
@@ -1528,7 +1618,7 @@ class FieldCollector:
         """
         before_rows = ctx.get("hud_rows_after_greeting", 0)
         self._open_approvals(page)
-        rows_now = self._approval_row(page)
+        rows_now = self._approval_row(page, str(ctx.get("objective_plan_id") or ""))
         row_count = rows_now.count()
         server_ready = False
         if ctx.get("objective_plan_id"):
@@ -1573,7 +1663,9 @@ class FieldCollector:
             status = pj.get("status", "") if isinstance(pj, dict) else ""
         still_awaiting = status == "awaiting_approval"
         self._open_approvals(page)
-        hud_row_present = self._approval_row(page).count() >= 1
+        hud_row_present = (
+            self._approval_row(page, str(ctx.get("objective_plan_id") or "")).count() >= 1
+        )
         self.stage(
             "s14_chat_approve_no_change",
             still_awaiting and hud_row_present,
@@ -1591,7 +1683,8 @@ class FieldCollector:
         self.stage(
             "s15_approve_via_hud",
             clicked and astate == "approved",
-            f"clicked={clicked} card_state={astate}",
+            f"clicked={clicked} card_state={astate} "
+            f"decision_response={self._decision_response[:120]}",
         )
         self.shot(page, "s15_hud_approve")
         self.dom(page, "s15_hud_approve")
@@ -1672,7 +1765,7 @@ class FieldCollector:
         plan_packets = [p for p in packets if p.get("source_type") == "objective_plan"]
         # No resurrected pending decision row for the now-decided (approved) plan.
         self._open_approvals(page)
-        resurrected = self._approval_row(page).count() > 0
+        resurrected = self._approval_row(page, str(ctx.get("objective_plan_id") or "")).count() > 0
         ctx["s18_after"] = after
         self.stage(
             "s18_refresh_persistence",

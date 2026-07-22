@@ -294,7 +294,20 @@ export function ControlPanel() {
                 const graphVersion = typeof details.graph_version === 'number' ? details.graph_version : undefined
                 const packetCount = typeof details.packet_count === 'number' ? details.packet_count : undefined
                 return (
-                  <div key={id} data-testid="wg-approval-row" data-source-type={source} className="mb-2">
+                  <div
+                    key={id}
+                    data-testid="wg-approval-row"
+                    data-source-type={source}
+                    // Deterministic row anchor: the description is truncated
+                    // server-side (300 chars), so text can NOT identify which
+                    // plan a row belongs to when descriptions collide — the
+                    // field harness (and any operator tooling) anchors by
+                    // plan record id instead.
+                    {...(isPlan && typeof details.plan_record_id === 'string'
+                      ? { 'data-plan-record-id': details.plan_record_id }
+                      : {})}
+                    className="mb-2"
+                  >
                     <div className="flex items-center gap-1 flex-wrap">
                       {source && <span className="text-[9px] px-1 py-0.5 rounded bg-cyan/10 text-cyan font-mono">{source}</span>}
                       {isPlan && graphVersion !== undefined && (
