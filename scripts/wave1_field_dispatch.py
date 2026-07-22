@@ -354,6 +354,31 @@ def _read_clerk_publishable_key() -> str:
     return ""
 
 
+def _remove_container_and_wait(runner: Runner, name: str, timeout_s: int = 20) -> None:
+    """`docker rm -f` + wait until the NAME is actually free.
+
+    `docker rm -f` returns before the daemon releases the container name; an
+    immediately-following `docker run --name <same>` intermittently 125s with
+    a name Conflict (observed twice on 2026-07-22 — the second time only
+    because _must made it loud; the first time it silently left NO container
+    and produced misleading connection-refused symptoms downstream)."""
+    runner.run(["docker", "rm", "-f", name], timeout=60, check=False)
+    if runner.dry_run:
+        return
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        probe = subprocess.run(
+            ["docker", "inspect", name],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if probe.returncode != 0:  # name no longer resolves — free
+            return
+        time.sleep(0.5)
+    raise SystemExit(f"container name {name!r} still in use {timeout_s}s after rm -f")
+
+
 def _must(runner: Runner, step: str, result: subprocess.CompletedProcess | None) -> None:
     """Fail the deploy LOUDLY when a critical step fails.
 
@@ -414,7 +439,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
 
     # (3) candidate operator container — SAME image, worktree mounted read-only,
     # candidate state dir mounted rw, allowlisted env only.
-    runner.run(["docker", "rm", "-f", _CANDIDATE_CONTAINER], timeout=60, check=False)
+    _remove_container_and_wait(runner, _CANDIDATE_CONTAINER)
     _must(
         runner,
         "docker_run_operator",
@@ -493,7 +518,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         print(f"[dry-run] render {template} → {conf_out} (upstream os-operator-candidate:8091)")
     else:
         conf_out.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
-    runner.run(["docker", "rm", "-f", _CANDIDATE_NGINX_CONTAINER], timeout=60, check=False)
+    _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
     _must(
         runner,
         "docker_run_nginx",
@@ -1174,8 +1199,8 @@ def _path_in_logs(url: str, logs: str) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 def teardown(runner: Runner) -> dict[str, Any]:
     """Stop/rm candidate containers, restore Tailscale serve. State dir kept."""
-    runner.run(["docker", "rm", "-f", _CANDIDATE_NGINX_CONTAINER], timeout=60, check=False)
-    runner.run(["docker", "rm", "-f", _CANDIDATE_CONTAINER], timeout=60, check=False)
+    _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
+    _remove_container_and_wait(runner, _CANDIDATE_CONTAINER)
     _restore_tailscale_serve(runner)
     return {"torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER], "serve_restored": True}
 
