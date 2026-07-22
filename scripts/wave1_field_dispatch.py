@@ -46,9 +46,22 @@ _WORKTREE = Path(__file__).resolve().parent.parent  # the candidate source workt
 
 # Executor-side paths (Windows Beast). Kept in one place so the start-command
 # shape is auditable.
+#
+# The collector runs from a DETACHED git worktree pinned to the exact
+# candidate commit (exact-commit binding for the collector code itself), NOT
+# from the Beast's main checkout: C:\dev\dev\OS stays on main because the
+# node daemon runs from it, and main predates this branch — the collector
+# doesn't even exist there (observed 2026-07-22: smoke dispatch silently
+# no-opped on a missing script). Worktree lifecycle, per new candidate head:
+#   git -C C:\dev\dev\OS fetch origin <branch>
+#   git -C C:\dev\dev\OS worktree add --detach C:\dev\wave1_wt <sha>   (first)
+#   git -C C:\dev\wave1_wt checkout --detach <sha>                     (update)
+# smoke/run preflight the worktree HEAD against the candidate sha and refuse
+# to dispatch on mismatch.
 _BEAST_OS_ROOT = r"C:\dev\dev\OS"
-_BEAST_ENV_TPL = r"C:\dev\dev\OS\scripts\.env.beast.tpl"
-_BEAST_COLLECTOR = r"C:\dev\dev\OS\scripts\wave1_field_collector.py"
+_BEAST_WT = r"C:\dev\wave1_wt"
+_BEAST_ENV_TPL = _BEAST_WT + r"\scripts\.env.beast.tpl"
+_BEAST_COLLECTOR = _BEAST_WT + r"\scripts\wave1_field_collector.py"
 _BEAST_EVIDENCE_DIR = r"C:\dev\wave1_evidence"
 
 _MESH_NODE_ID = "windows-desktop"  # from infra/device_registry.json (executor)
@@ -740,8 +753,29 @@ def dispatch_pass(
     return {"ok": terminal.get("state") == "passed", "terminal": terminal, "run_id": run_id}
 
 
+def _verify_beast_collector_commit(runner: Runner, sha: str) -> dict[str, Any]:
+    """Exact-commit binding for the collector CODE: the Beast worktree the
+    collector runs from must be checked out at the candidate sha. Refuse to
+    dispatch otherwise — a stale collector would qualify the wrong journey."""
+    if runner.dry_run:
+        print(f"[dry-run] would verify {_BEAST_WT} HEAD == {sha}")
+        return {"ok": True, "dry_run": True}
+    probe = _mesh_read(runner, rf"git -C {_BEAST_WT} rev-parse --short=12 HEAD")
+    beast_head = (probe.get("stdout") or "").strip()
+    ok = probe.get("ok", False) and beast_head.startswith(sha[:12])
+    return {"ok": ok, "beast_worktree_head": beast_head, "candidate_sha": sha}
+
+
 def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[str, Any]:
     """Run N collector passes with fresh run-ids; restart candidate before pass 1."""
+    binding = _verify_beast_collector_commit(runner, sha)
+    if not binding.get("ok"):
+        return {
+            "scenario": scenario,
+            "passes": 0,
+            "refused": "beast collector worktree is not at the candidate commit",
+            "binding": binding,
+        }
     results = []
     for i in range(1, passes + 1):
         run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-p{i}"
