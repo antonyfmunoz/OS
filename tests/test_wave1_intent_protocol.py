@@ -13,12 +13,10 @@ grounding adjudication, and EvidenceRef grounding projection.
 
 from __future__ import annotations
 
-import os
 from types import SimpleNamespace
 
 import pytest
 
-from substrate.contracts.principal_resolution import resolve_principal_context
 from substrate.contracts.work_context import (
     EpistemicStatus,
     EvidenceRef,
@@ -42,7 +40,6 @@ from substrate.execution.planning.records import PlanningStageMarker
 from substrate.execution.planning.store import PlanningStore
 from substrate.organism.event_spine import EventSpine
 from substrate.organism.strategic_gap_engine import GoalRegistry, GoalStatus
-
 
 DOGFOOD_OBJECTIVE = (
     "Migrate the remaining nine legacy runtime subsystems under data/umh "
