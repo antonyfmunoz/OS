@@ -55,7 +55,32 @@ _BEAST_EVIDENCE_DIR = r"C:\dev\wave1_evidence"
 _MESH_NODE_ID = "windows-desktop"  # from infra/device_registry.json (executor)
 _CANDIDATE_CONTAINER = "os-operator-candidate"
 _CANDIDATE_NGINX_CONTAINER = "os-nginx-candidate"
-_EOS_NETWORK = "eos_network"
+# The compose project prefixes the network name (docker-compose → project_name
+# + "_" + network). Resolve it at runtime from the LIVE os-operator container
+# so the candidate shares the exact same network (container-DNS upstream works).
+def _operator_network() -> str:
+    try:
+        out = subprocess.run(
+            [
+                "docker",
+                "inspect",
+                "os-operator",
+                "--format",
+                "{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        nets = out.stdout.split()
+        if nets:
+            return nets[0]
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] operator network resolution failed: {exc}")
+    return "os_eos_network"
+
+
+_EOS_NETWORK = _operator_network()
 _CANDIDATE_API_PORT = 8091  # inside the container
 _CANDIDATE_API_HOST_PORT = 8191  # 127.0.0.1:8191 -> candidate api (recon reads)
 _CANDIDATE_NGINX_HOST_PORT = 8190  # 127.0.0.1:8190 -> candidate nginx
@@ -341,7 +366,12 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
             "VITE_CLERK_PUBLISHABLE_KEY=<from fly.toml> npm run build:web"
         )
     else:
-        subprocess.run(["npm", "ci"], cwd=str(cockpit), timeout=600, check=False)
+        # --legacy-peer-deps: the repo has a known capacitor peer-dep conflict
+        # (@capacitor/android@8 vs core@7) that only affects the native mobile
+        # target, never the web build. dist-web builds cleanly regardless.
+        subprocess.run(
+            ["npm", "ci", "--legacy-peer-deps"], cwd=str(cockpit), timeout=600, check=False
+        )
         subprocess.run(
             ["npm", "run", "build:web"],
             cwd=str(cockpit),
@@ -381,10 +411,36 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     )
 
     # (6) Tailscale serve: snapshot FIRST, register restore handlers, then swing
-    # the origin to the candidate nginx.
+    # the origin to the candidate nginx. HTTPS serve requires tailnet TLS certs
+    # (owner-gated Tailscale account setting). If cert issuance is unavailable
+    # the --https serve HANGS on cert provisioning; probe first and record a
+    # clear owner-action verdict rather than blocking. There is no automatic
+    # plaintext fallback for the Session-1 run because Clerk requires HTTPS.
     _snapshot_tailscale_serve(runner, run_dir)
     _install_exit_handlers(runner)
-    runner.run(
+    cert_probe = subprocess.run(
+        ["tailscale", "cert", _candidate_origin().removeprefix("https://")],
+        capture_output=True,
+        text=True,
+        timeout=25,
+    )
+    https_available = cert_probe.returncode == 0 and "does not support" not in (
+        cert_probe.stdout + cert_probe.stderr
+    )
+    if not https_available:
+        steps["serve"] = {
+            "wired": False,
+            "https_available": False,
+            "owner_action_required": (
+                "Enable HTTPS certificates for this tailnet "
+                "(Tailscale admin console → DNS → HTTPS Certificates), then re-run "
+                "deploy-candidate. Clerk auth requires an HTTPS origin, so the "
+                "Session-1 field run cannot proceed over plaintext."
+            ),
+            "cert_probe": (cert_probe.stdout + cert_probe.stderr).strip()[:200],
+        }
+        return steps
+    serve = runner.run(
         [
             "tailscale",
             "serve",
@@ -392,8 +448,13 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
             "--https=443",
             f"http://127.0.0.1:{_CANDIDATE_NGINX_HOST_PORT}",
         ],
-        timeout=30,
+        timeout=45,
+        check=False,
     )
+    steps["serve"] = {
+        "wired": bool(serve is None or serve.returncode == 0),
+        "https_available": True,
+    }
 
     # (7) health checks
     checks = {
