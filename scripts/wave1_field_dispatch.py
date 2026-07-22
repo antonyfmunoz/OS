@@ -445,7 +445,13 @@ def preflight(runner: Runner) -> dict[str, Any]:
 
     # Read-only mesh dispatch: schtasks + query session on the executor.
     out["schtasks_query"] = _mesh_read(runner, 'schtasks /query /tn "UMH Node Daemon" /v /fo LIST')
-    out["query_session"] = _mesh_read(runner, "query session")
+    # query.exe/qwinsta are absent from the daemon shell's (WOW64) PATH —
+    # probe the session id directly; the collector does the full
+    # WTSGetActiveConsoleSessionId proof itself.
+    out["query_session"] = _mesh_read(
+        runner,
+        'powershell -NoProfile -Command "[System.Diagnostics.Process]::GetCurrentProcess().SessionId"',
+    )
 
     # Beast → origin reachability (read-only curl from the executor).
     out["beast_to_origin"] = _mesh_read(runner, f"curl -sS -o NUL -w %{{http_code}} {_ORIGIN}")
@@ -467,9 +473,14 @@ def _shell_summary(runner: Runner, r: subprocess.CompletedProcess | None) -> dic
 
 
 def _mesh_read(runner: Runner, command: str) -> dict[str, Any]:
-    """Read-only mesh dispatch (risk_class read-only, no verdict needed)."""
+    """Read-only shell command over the governed mesh.
+
+    The NODE treats the shell capability as write-class regardless of the
+    caller's claimed risk_class (fail-closed — a client claim is not
+    trustworthy), so every shell dispatch carries a SIGNED verdict even for
+    read-only commands."""
     if runner.dry_run:
-        print(f"[dry-run] mesh_dispatch(read-only) node={_MESH_NODE_ID} cmd={command!r}")
+        print(f"[dry-run] mesh_dispatch(shell, signed verdict) node={_MESH_NODE_ID} cmd={command!r}")
         return {"dry_run": True, "command": command}
     sys.path.insert(0, str(_ROOT))
     from substrate.sockets.mesh_dispatch_port import mesh_dispatch
@@ -478,7 +489,7 @@ def _mesh_read(runner: Runner, command: str) -> dict[str, Any]:
         node_id=_MESH_NODE_ID,
         capability="shell",
         params={"command": command, "timeout": 60},
-        risk_class="read_only",
+        risk_class="reversible_write",  # mints the signed verdict the node validates
         timeout=90,
     )
     rd = result.get("result_data", {}) if isinstance(result, dict) else {}
