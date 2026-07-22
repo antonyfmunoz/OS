@@ -696,6 +696,38 @@ def _shell_summary(runner: Runner, r: subprocess.CompletedProcess | None) -> dic
     return {"returncode": r.returncode, "stdout": (r.stdout or "")[:400]}
 
 
+def _ensure_mesh_secrets() -> None:
+    """Resolve mesh relay/verdict secrets from the LIVE mesh server process.
+
+    The two secrets exist only in the mesh server's process environment
+    (injected at its launch); they are not in services/.env. Caller-side
+    shell `export $(tr ... /proc/<pid>/environ ...)` plumbing proved fragile —
+    one transient empty extraction made the commit-binding gate refuse a
+    dispatch (run 20260722: beast_worktree_head=""). If the env vars are
+    unset, locate the :8094 listener and read its /proc environ directly
+    (root-only, host-local; values are never printed, logged, or transited).
+    """
+    needed = ("UMH_MESH_RELAY_SECRET", "UMH_MESH_VERDICT_SECRET")
+    if all(os.environ.get(k) for k in needed):
+        return
+    try:
+        out = subprocess.run(["ss", "-ltnp"], capture_output=True, text=True, timeout=15)
+        m = re.search(r":8094\b.*?pid=(\d+)", out.stdout or "")
+        if not m:
+            print("[warn] mesh secret resolution: no listener found on :8094")
+            return
+        environ = Path(f"/proc/{m.group(1)}/environ").read_bytes()
+        for entry in environ.split(b"\0"):
+            try:
+                key, _, value = entry.decode().partition("=")
+            except UnicodeDecodeError:
+                continue
+            if key in needed and value:
+                os.environ.setdefault(key, value)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] mesh secret resolution failed: {exc}")
+
+
 def _mesh_read(runner: Runner, command: str) -> dict[str, Any]:
     """Read-only shell command over the governed mesh.
 
@@ -1292,15 +1324,18 @@ def main(argv: list[str] | None = None) -> int:
     sha = _candidate_sha(args.sha)
 
     if args.cmd == "preflight":
+        _ensure_mesh_secrets()
         out = preflight(runner)
     elif args.cmd == "deploy-candidate":
         out = deploy_candidate(runner, sha)
         write_manifest(runner, sha)
     elif args.cmd == "smoke":
+        _ensure_mesh_secrets()
         _load_serve_snapshot_path()
         _install_crash_handlers(runner)
         out = run_passes(runner, sha=sha, scenario="smoke", passes=1)
     elif args.cmd == "run":
+        _ensure_mesh_secrets()
         _load_serve_snapshot_path()
         _install_crash_handlers(runner)
         out = run_passes(runner, sha=sha, scenario=args.scenario, passes=args.passes)
