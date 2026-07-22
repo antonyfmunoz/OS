@@ -344,6 +344,21 @@ def _read_clerk_publishable_key() -> str:
     return ""
 
 
+def _must(runner: Runner, step: str, result: subprocess.CompletedProcess | None) -> None:
+    """Fail the deploy LOUDLY when a critical step fails.
+
+    Three separate field-deploy failures (missing collector script, missing
+    candidate.env, phantom health route) were each invisible because runner
+    results were captured and dropped. A critical step that fails now aborts
+    with the step name + redacted stderr instead of letting later steps
+    produce misleading downstream symptoms."""
+    if runner.dry_run or result is None:
+        return
+    if result.returncode != 0:
+        err = _SECRET_REDACT_RE.sub("<redacted>", (result.stderr or result.stdout or "")[-800:])
+        raise SystemExit(f"deploy step '{step}' failed (rc={result.returncode}):\n{err}")
+
+
 def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     """Build + start the candidate stack and wire Tailscale serve."""
     run_dir = _proof_root()
@@ -365,65 +380,73 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     # with the run's proof artifacts.
     env_out = state_dir.parent / "candidate.env"
     audit_out = run_dir / "candidate_env_audit.json"
-    runner.run(
-        [
-            sys.executable,
-            str(_WORKTREE / "infra" / "candidate" / "make_candidate_env.py"),
-            "--source",
-            str(_ROOT / "services" / ".env"),
-            "--out",
-            str(env_out),
-            "--audit-out",
-            str(audit_out),
-            "--state-dir",
-            "/state/umh",
-            "--build-commit",
-            sha,
-        ],
-        timeout=30,
+    _must(
+        runner,
+        "make_candidate_env",
+        runner.run(
+            [
+                sys.executable,
+                str(_WORKTREE / "infra" / "candidate" / "make_candidate_env.py"),
+                "--source",
+                str(_ROOT / "services" / ".env"),
+                "--out",
+                str(env_out),
+                "--audit-out",
+                str(audit_out),
+                "--state-dir",
+                "/state/umh",
+                "--build-commit",
+                sha,
+            ],
+            timeout=30,
+        ),
     )
 
     # (3) candidate operator container — SAME image, worktree mounted read-only,
     # candidate state dir mounted rw, allowlisted env only.
     runner.run(["docker", "rm", "-f", _CANDIDATE_CONTAINER], timeout=60, check=False)
-    runner.run(
-        [
-            "docker",
-            "run",
-            "-d",
-            "--name",
-            _CANDIDATE_CONTAINER,
-            "--network",
-            _EOS_NETWORK,
-            "-v",
-            f"{_WORKTREE}:/app:ro",
-            "-v",
-            f"{state_dir}:/state/umh",
-            "-e",
-            "UMH_STATE_DIR=/state/umh",
-            "-e",
-            "PYTHONDONTWRITEBYTECODE=1",
-            "-e",
-            "PYTHONPATH=/app",
-            "-e",
-            "UMH_ROOT=/app",
-            "-e",
-            f"UMH_BUILD_COMMIT={sha}",
-            "--env-file",
-            str(env_out),
-            "-p",
-            f"127.0.0.1:{_CANDIDATE_API_HOST_PORT}:{_CANDIDATE_API_PORT}",
-            image_id,
-            "python3",
-            "-m",
-            "uvicorn",
-            "services.operator_api:app",
-            "--host",
-            "0.0.0.0",
-            "--port",
-            str(_CANDIDATE_API_PORT),
-        ],
-        timeout=120,
+    _must(
+        runner,
+        "docker_run_operator",
+        runner.run(
+            [
+                "docker",
+                "run",
+                "-d",
+                "--name",
+                _CANDIDATE_CONTAINER,
+                "--network",
+                _EOS_NETWORK,
+                "-v",
+                f"{_WORKTREE}:/app:ro",
+                "-v",
+                f"{state_dir}:/state/umh",
+                "-e",
+                "UMH_STATE_DIR=/state/umh",
+                "-e",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "-e",
+                "PYTHONPATH=/app",
+                "-e",
+                "UMH_ROOT=/app",
+                "-e",
+                f"UMH_BUILD_COMMIT={sha}",
+                "--env-file",
+                str(env_out),
+                "-p",
+                f"127.0.0.1:{_CANDIDATE_API_HOST_PORT}:{_CANDIDATE_API_PORT}",
+                image_id,
+                "python3",
+                "-m",
+                "uvicorn",
+                "services.operator_api:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                str(_CANDIDATE_API_PORT),
+            ],
+            timeout=120,
+        ),
     )
 
     # (4) build the candidate frontend in the worktree cockpit dir, injecting
@@ -461,24 +484,28 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     else:
         conf_out.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
     runner.run(["docker", "rm", "-f", _CANDIDATE_NGINX_CONTAINER], timeout=60, check=False)
-    runner.run(
-        [
-            "docker",
-            "run",
-            "-d",
-            "--name",
-            _CANDIDATE_NGINX_CONTAINER,
-            "--network",
-            _EOS_NETWORK,
-            "-v",
-            f"{dist_web}:/usr/share/nginx/html:ro",
-            "-v",
-            f"{conf_out}:/etc/nginx/conf.d/default.conf:ro",
-            "-p",
-            f"127.0.0.1:{_CANDIDATE_NGINX_HOST_PORT}:8080",
-            "nginx:alpine",
-        ],
-        timeout=90,
+    _must(
+        runner,
+        "docker_run_nginx",
+        runner.run(
+            [
+                "docker",
+                "run",
+                "-d",
+                "--name",
+                _CANDIDATE_NGINX_CONTAINER,
+                "--network",
+                _EOS_NETWORK,
+                "-v",
+                f"{dist_web}:/usr/share/nginx/html:ro",
+                "-v",
+                f"{conf_out}:/etc/nginx/conf.d/default.conf:ro",
+                "-p",
+                f"127.0.0.1:{_CANDIDATE_NGINX_HOST_PORT}:8080",
+                "nginx:alpine",
+            ],
+            timeout=90,
+        ),
     )
 
     # (6) Tailscale serve: snapshot FIRST (stable path, first-write-wins so a
