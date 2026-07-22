@@ -27,7 +27,6 @@ the live host.
 from __future__ import annotations
 
 import argparse
-import atexit
 import hashlib
 import json
 import os
@@ -55,6 +54,8 @@ _BEAST_EVIDENCE_DIR = r"C:\dev\wave1_evidence"
 _MESH_NODE_ID = "windows-desktop"  # from infra/device_registry.json (executor)
 _CANDIDATE_CONTAINER = "os-operator-candidate"
 _CANDIDATE_NGINX_CONTAINER = "os-nginx-candidate"
+
+
 # The compose project prefixes the network name (docker-compose → project_name
 # + "_" + network). Resolve it at runtime from the LIVE os-operator container
 # so the candidate shares the exact same network (container-DNS upstream works).
@@ -188,18 +189,52 @@ _serve_snapshot_path: Path | None = None
 _serve_restored = False
 
 
+def _serve_snapshot_stable_path() -> Path:
+    """Deterministic snapshot location, recoverable across CLI invocations.
+
+    deploy-candidate, smoke, run, and teardown are SEPARATE process
+    invocations. The production-serve snapshot deploy-candidate takes must be
+    found again by a later teardown (or a crash handler) so production serve is
+    restored exactly once, at the end. A per-process global cannot survive a
+    process boundary, so the canonical snapshot lives at a fixed path.
+    """
+    return _proof_root() / "tailscale_serve_snapshot.json"
+
+
 def _snapshot_tailscale_serve(runner: Runner, run_dir: Path) -> Path:
-    """Snapshot current `tailscale serve status --json` to a run-scoped file."""
+    """Snapshot current `tailscale serve status --json` to the stable path.
+
+    Only writes a NEW snapshot when one does not already exist for this run —
+    so re-running deploy-candidate (which by then sees the CANDIDATE serve, not
+    production) never clobbers the original production snapshot.
+    """
     global _serve_snapshot_path
-    snap = run_dir / "tailscale_serve_snapshot.json"
+    snap = _serve_snapshot_stable_path()
     _serve_snapshot_path = snap
-    result = runner.run(["tailscale", "serve", "status", "--json"], timeout=30, capture=True)
     if runner.dry_run:
         print(f"[dry-run] would snapshot tailscale serve → {snap}")
         return snap
+    if snap.exists():
+        # Preserve the first (production) snapshot; a redeploy would otherwise
+        # capture the candidate mapping and lose the real restore target.
+        return snap
+    result = runner.run(["tailscale", "serve", "status", "--json"], timeout=30, capture=True)
     content = result.stdout if result and result.returncode == 0 else "{}"
+    snap.parent.mkdir(parents=True, exist_ok=True)
     snap.write_text(content, encoding="utf-8")
     return snap
+
+
+def _load_serve_snapshot_path() -> None:
+    """Point the module global at the on-disk snapshot from a prior deploy.
+
+    Called by consuming commands (smoke/run/teardown) so their crash handlers
+    and teardown restore have a real production snapshot to restore, even though
+    THIS process never took it.
+    """
+    global _serve_snapshot_path
+    if _serve_snapshot_path is None and _serve_snapshot_stable_path().exists():
+        _serve_snapshot_path = _serve_snapshot_stable_path()
 
 
 def _restore_tailscale_serve(runner: Runner) -> None:
@@ -231,9 +266,17 @@ def _restore_tailscale_serve(runner: Runner) -> None:
         )
 
 
-def _install_exit_handlers(runner: Runner) -> None:
-    """atexit + SIGINT/SIGTERM → restore serve on EVERY exit path."""
-    atexit.register(lambda: _restore_tailscale_serve(runner))
+def _install_crash_handlers(runner: Runner) -> None:
+    """SIGINT/SIGTERM → restore production serve. NO normal-exit restore.
+
+    deploy-candidate, smoke, and run are separate CLI invocations that must
+    LEAVE the candidate serve live on normal exit for the next command — an
+    atexit restore here is exactly the bug that tore the origin down the moment
+    deploy-candidate finished (observed 2026-07-21: `wired: true` then
+    "No serve config"). Production serve is restored on the happy path in ONE
+    place only: teardown. These handlers exist solely so an interrupted/killed
+    command never strands the tailnet origin pointed at a dead candidate.
+    """
 
     def _handler(signum: int, _frame: Any) -> None:
         _restore_tailscale_serve(runner)
@@ -243,7 +286,7 @@ def _install_exit_handlers(runner: Runner) -> None:
         try:
             signal.signal(sig, _handler)
         except (ValueError, OSError):
-            pass  # not in main thread / unsupported — atexit still covers us
+            pass  # not in main thread / unsupported — teardown still restores
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -410,14 +453,19 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         timeout=90,
     )
 
-    # (6) Tailscale serve: snapshot FIRST, register restore handlers, then swing
-    # the origin to the candidate nginx. HTTPS serve requires tailnet TLS certs
-    # (owner-gated Tailscale account setting). If cert issuance is unavailable
-    # the --https serve HANGS on cert provisioning; probe first and record a
-    # clear owner-action verdict rather than blocking. There is no automatic
-    # plaintext fallback for the Session-1 run because Clerk requires HTTPS.
+    # (6) Tailscale serve: snapshot FIRST (stable path, first-write-wins so a
+    # redeploy never clobbers the production snapshot), register CRASH-ONLY
+    # restore handlers, then swing the origin to the candidate nginx with
+    # `serve --bg` (persists in tailscaled beyond this process — required,
+    # because smoke/run are separate invocations). Happy-path restore of
+    # production serve happens exactly once, in teardown. HTTPS serve requires
+    # tailnet TLS certs (owner-gated Tailscale account setting). If cert
+    # issuance is unavailable the --https serve HANGS on cert provisioning;
+    # probe first and record a clear owner-action verdict rather than blocking.
+    # There is no automatic plaintext fallback for the Session-1 run because
+    # Clerk requires HTTPS.
     _snapshot_tailscale_serve(runner, run_dir)
-    _install_exit_handlers(runner)
+    _install_crash_handlers(runner)
     cert_probe = subprocess.run(
         ["tailscale", "cert", _candidate_origin().removeprefix("https://")],
         capture_output=True,
@@ -541,7 +589,9 @@ def _mesh_read(runner: Runner, command: str) -> dict[str, Any]:
     trustworthy), so every shell dispatch carries a SIGNED verdict even for
     read-only commands."""
     if runner.dry_run:
-        print(f"[dry-run] mesh_dispatch(shell, signed verdict) node={_MESH_NODE_ID} cmd={command!r}")
+        print(
+            f"[dry-run] mesh_dispatch(shell, signed verdict) node={_MESH_NODE_ID} cmd={command!r}"
+        )
         return {"dry_run": True, "command": command}
     sys.path.insert(0, str(_ROOT))
     from substrate.sockets.mesh_dispatch_port import mesh_dispatch
@@ -1099,12 +1149,17 @@ def main(argv: list[str] | None = None) -> int:
         out = deploy_candidate(runner, sha)
         write_manifest(runner, sha)
     elif args.cmd == "smoke":
+        _load_serve_snapshot_path()
+        _install_crash_handlers(runner)
         out = run_passes(runner, sha=sha, scenario="smoke", passes=1)
     elif args.cmd == "run":
+        _load_serve_snapshot_path()
+        _install_crash_handlers(runner)
         out = run_passes(runner, sha=sha, scenario=args.scenario, passes=args.passes)
     elif args.cmd == "reconcile":
         out = reconcile(runner, sha)
     elif args.cmd == "teardown":
+        _load_serve_snapshot_path()
         out = teardown(runner)
     else:  # pragma: no cover — argparse enforces
         parser.error(f"unknown command {args.cmd}")
