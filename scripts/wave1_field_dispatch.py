@@ -72,7 +72,14 @@ _CANDIDATE_NGINX_CONTAINER = "os-nginx-candidate"
 # The compose project prefixes the network name (docker-compose → project_name
 # + "_" + network). Resolve it at runtime from the LIVE os-operator container
 # so the candidate shares the exact same network (container-DNS upstream works).
+# NO literal fallback: the compose network name carries the instance's compose
+# project name (projection/instance vocabulary — never hardcoded in platform
+# harness code). If resolution fails, fail closed with the override escape
+# hatch rather than guess.
 def _operator_network() -> str:
+    override = os.environ.get("UMH_CANDIDATE_NETWORK", "").strip()
+    if override:
+        return override
     try:
         out = subprocess.run(
             [
@@ -91,10 +98,13 @@ def _operator_network() -> str:
             return nets[0]
     except Exception as exc:  # noqa: BLE001
         print(f"[warn] operator network resolution failed: {exc}")
-    return "os_eos_network"
+    raise SystemExit(
+        "cannot resolve the operator docker network from the live os-operator "
+        "container — set UMH_CANDIDATE_NETWORK explicitly"
+    )
 
 
-_EOS_NETWORK = _operator_network()
+_OPERATOR_DOCKER_NETWORK = _operator_network()
 _CANDIDATE_API_PORT = 8091  # inside the container
 _CANDIDATE_API_HOST_PORT = 8191  # 127.0.0.1:8191 -> candidate api (recon reads)
 _CANDIDATE_NGINX_HOST_PORT = 8190  # 127.0.0.1:8190 -> candidate nginx
@@ -416,7 +426,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 "--name",
                 _CANDIDATE_CONTAINER,
                 "--network",
-                _EOS_NETWORK,
+                _OPERATOR_DOCKER_NETWORK,
                 "-v",
                 f"{_WORKTREE}:/app:ro",
                 "-v",
@@ -495,7 +505,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 "--name",
                 _CANDIDATE_NGINX_CONTAINER,
                 "--network",
-                _EOS_NETWORK,
+                _OPERATOR_DOCKER_NETWORK,
                 "-v",
                 f"{dist_web}:/usr/share/nginx/html:ro",
                 "-v",

@@ -1,12 +1,12 @@
 # Wave-1 candidate nginx config — derived from cockpit/nginx.conf.template.
 #
 # Scope: serve the freshly-built candidate dist-web and proxy the API surface
-# the Work-Graph field trial actually exercises. It runs on the eos_network so
+# the Work-Graph field trial actually exercises. It runs on the operator compose network so
 # it reaches the candidate operator container by its Docker DNS name.
 #
 # CHANGES vs the production template (and WHY):
 #   * upstream retargeted 127.0.0.1:8091 -> os-operator-candidate:8091 (container
-#     DNS on eos_network — the candidate api backend, NOT the live os-operator).
+#     DNS on the operator compose network — the candidate api backend, NOT the live os-operator).
 #   * listen stays 8080 (nginx:alpine container); host publishes 127.0.0.1:8190.
 #   * KEPT: /api/umh/ws (chat/plan live updates), /api/ (converse + workgraph
 #     reads/writes), /sw.js, /assets/, / SPA fallback — the surfaces the
