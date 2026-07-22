@@ -25,6 +25,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from pydantic import BaseModel
+
 logger = logging.getLogger(__name__)
 
 _protocol_singleton: Any | None = None
@@ -351,9 +353,22 @@ def _persist_rail_turn(
 # ── Read + decision routes ───────────────────────────────────────────────────
 
 
+class DecisionRequest(BaseModel):
+    # MODULE scope: with PEP 563 string annotations FastAPI resolves body-param
+    # models against module globals — nested inside _build_router() this model
+    # was invisible and the /decision body param degraded to a required QUERY
+    # param (422 loc ["query","req"]; same defect family as the
+    # unified-approval routes, Wave-1 field run 20260722T185410Z).
+    decision: str
+    decided_by: str = "operator"
+    reason: str = ""
+    # Optimistic-concurrency token: the graph_version the CLIENT saw.
+    # When provided, a decision against a stale view is rejected.
+    expected_current_version: int | None = None
+
+
 def _build_router() -> Any:
     from fastapi import APIRouter
-    from pydantic import BaseModel
 
     router = APIRouter(prefix="/objective-plan", tags=["objective-plan"])
 
@@ -432,14 +447,6 @@ def _build_router() -> Any:
         except Exception as exc:
             logger.error("objective-plan detail failed: %s", exc)
             return {"error": "unavailable", "plan_record_id": plan_record_id}
-
-    class DecisionRequest(BaseModel):
-        decision: str
-        decided_by: str = "operator"
-        reason: str = ""
-        # Optimistic-concurrency token: the graph_version the CLIENT saw.
-        # When provided, a decision against a stale view is rejected.
-        expected_current_version: int | None = None
 
     @router.post("/{plan_record_id}/decision")
     def decide(plan_record_id: str, req: DecisionRequest) -> dict[str, Any]:

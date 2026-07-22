@@ -9,9 +9,20 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pydantic import BaseModel
+
 from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
+
+
+class ResolveRequest(BaseModel):
+    # MODULE scope: PEP 563 string annotations resolve against module globals;
+    # nested inside _build_router() this model was invisible to FastAPI and
+    # the body param degraded to a required query param (422 loc
+    # ["query","req"] — same defect family as the unified-approval routes).
+    text: str
+
 
 _engine: Any = None
 
@@ -39,12 +50,8 @@ def configure(engine: Any) -> None:
 
 def _build_router() -> Any:
     from fastapi import APIRouter
-    from pydantic import BaseModel
 
     router = APIRouter(prefix="/context-resolution", tags=["context-resolution"])
-
-    class ResolveRequest(BaseModel):
-        text: str
 
     @router.post("/resolve")
     def resolve_context(req: ResolveRequest) -> dict[str, Any]:
