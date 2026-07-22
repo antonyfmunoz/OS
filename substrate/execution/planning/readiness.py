@@ -58,28 +58,37 @@ class DecisionReadinessAssessment:
 
 def evaluate_decision_readiness(
     plan: ObjectivePlanRecord,
-    session: PlanningSession,
+    session: PlanningSession | None,
     gap_snapshot: GapAssessmentSnapshot | None = None,
     requirement_gaps: list[str] | None = None,
 ) -> DecisionReadinessAssessment:
-    """Deterministically evaluate whether the Plan may request acceptance."""
+    """Deterministically evaluate whether the Plan may request acceptance.
+
+    ``session`` may be None on the REVISION path: by the time a v(n+1) is
+    compiled, the originating session is already COMMITTED — its transient
+    states (prohibited/failed/awaiting_clarification) cannot apply, and the
+    plan-shape checks below carry the readiness truth. Without this, revised
+    plans were stranded in ``draft`` with no decidable HUD decision (field
+    run 20260722T202203Z: v2 existed, superseded v1, and was undecidable).
+    """
     assessment = DecisionReadinessAssessment()
     blocking = assessment.blocking_items
     notes = assessment.non_blocking_notes
 
-    state = (session.assessment or {}).get("state", "")
-    if state == "prohibited":
-        assessment.state = DecisionReadiness.PROHIBITED.value
-        blocking.append("objective assessed PROHIBITED")
-        return assessment
-    if state == "failed" or session.operation_stage == "failed":
-        assessment.state = DecisionReadiness.FAILED.value
-        blocking.append("planning operation failed — recover before deciding")
-        return assessment
-    if session.stage == "awaiting_clarification":
-        assessment.state = DecisionReadiness.CLARIFICATION_REQUIRED.value
-        blocking.append("material clarification outstanding")
-        return assessment
+    if session is not None:
+        state = (session.assessment or {}).get("state", "")
+        if state == "prohibited":
+            assessment.state = DecisionReadiness.PROHIBITED.value
+            blocking.append("objective assessed PROHIBITED")
+            return assessment
+        if state == "failed" or session.operation_stage == "failed":
+            assessment.state = DecisionReadiness.FAILED.value
+            blocking.append("planning operation failed — recover before deciding")
+            return assessment
+        if session.stage == "awaiting_clarification":
+            assessment.state = DecisionReadiness.CLARIFICATION_REQUIRED.value
+            blocking.append("material clarification outstanding")
+            return assessment
 
     # Evidence needed TO JUDGE the plan (blocks readiness).
     if not plan.objective_id:
@@ -117,7 +126,17 @@ def evaluate_decision_readiness(
         f"{plan.plan_record_id} v{plan.graph_version} for objective {plan.objective_id}",
         "objective_id": plan.objective_id,
         "objective_text": plan.objective_text[:300],
-        "scope": {"tenant_id": session.tenant_id, "conversation_id": plan.conversation_id},
+        "scope": {
+            # tenant comes from the session when present, else from the plan's
+            # own first-class WorkScope (identical by construction — Task
+            # scope ⊆ Plan scope; the revision path has no session).
+            "tenant_id": (
+                session.tenant_id
+                if session is not None
+                else (plan.work_scope or {}).get("tenant_id", "")
+            ),
+            "conversation_id": plan.conversation_id,
+        },
         "recommendation": "accept",
         "alternatives": ["reject the plan", "request a revision in chat"],
         "expected_effect": (

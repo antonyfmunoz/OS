@@ -744,6 +744,18 @@ def compile_revision(
         ],
     )
 
+    # A revision must be DECIDABLE: re-evaluate readiness for v(n+1) exactly
+    # like the compose path, and transition to AWAITING_APPROVAL when ready —
+    # inside the SAME governed write. Without this, v2 stayed in DRAFT with
+    # no HUD decision while v1's decision was superseded: the revised plan
+    # was permanently undecidable (field run 20260722T202203Z). The session
+    # is None here — it is already COMMITTED by revision time (readiness.py
+    # documents the None contract).
+    assessment = evaluate_decision_readiness(new_plan, None)
+    new_plan.readiness_assessment = assessment.to_dict()
+    if assessment.state == DecisionReadiness.DECISION_READY.value:
+        new_plan.status = ObjectivePlanStatus.AWAITING_APPROVAL.value
+
     def _write() -> tuple[str, bool]:
         store.append_revision_cas(new_plan, plan, plan.graph_version)
         return (f"plan revised: v{new_plan.graph_version}", True)
