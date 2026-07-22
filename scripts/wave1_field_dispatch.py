@@ -545,8 +545,13 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
             runner, f"http://127.0.0.1:{_CANDIDATE_API_HOST_PORT}/health"
         ),
         "origin_root": _http_ok(runner, _ORIGIN, expect_status={200, 401}),
-        "origin_api_health": _http_ok(
-            runner, f"{_ORIGIN}/api/umh/health", expect_status={200, 401}
+        # /api/umh/health does NOT exist on the operator API (production 502s
+        # on it too — verified 2026-07-22). Probe a REAL route the trial
+        # drives: /api/umh/objective-plan behind Clerk auth. An unauthenticated
+        # 401 is the PROOF the whole chain (tailscale serve → candidate nginx →
+        # candidate API → auth middleware) is wired; 200 never happens here.
+        "origin_api_reachable": _http_ok(
+            runner, f"{_ORIGIN}/api/umh/objective-plan", expect_status={200, 401}
         ),
     }
     steps["health"] = checks
