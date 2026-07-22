@@ -686,12 +686,24 @@ def _build_start_command(
         f"--scenario {scenario} "
         f"--ship-to {ship_to}"
     )
-    op_wrapped = f'op run --env-file="{_BEAST_ENV_TPL}" -- {collector}'
+    # QUOTING LAW (this exact line silently no-opped smoke twice, 2026-07-22):
+    # the whole command below rides inside powershell -Command "..." — any
+    # embedded double quote (e.g. --env-file="...") TERMINATES that outer
+    # string and Start-Process swallows the parse error invisibly. No executor
+    # path contains spaces, so nothing inside needs quoting. Keep it that way:
+    # never add a quoted path here; if a path needs spaces, change the path.
+    op_wrapped = f"op run --env-file={_BEAST_ENV_TPL} -- {collector}"
+    # Launch log: Start-Process detaches and hides all failure output, so the
+    # detached cmd redirects its own stdout+stderr to a per-run log we can
+    # read over the mesh when status.json never appears (client-failure
+    # observability law — instrument, don't guess).
+    launch_log = rf"{_BEAST_EVIDENCE_DIR}\launch_{run_id}_p{pass_num}.log"
+    inner = f"/c md {_BEAST_EVIDENCE_DIR} 2>nul & {op_wrapped} 1> {launch_log} 2>&1"
     # Start-Process detaches; -WindowStyle Hidden keeps Session 1 clean.
     return (
         "powershell -NoProfile -Command "
         f"\"Start-Process -WindowStyle Hidden -FilePath 'cmd.exe' "
-        f"-ArgumentList '/c {op_wrapped}'\""
+        f"-ArgumentList '{inner}'\""
     )
 
 
