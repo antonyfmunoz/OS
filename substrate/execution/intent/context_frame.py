@@ -103,7 +103,15 @@ def build_context_frame(
         for plan in reversed(plans):
             d = plan.to_dict() if hasattr(plan, "to_dict") else dict(plan)
             if conversation_id and d.get("conversation_id") not in ("", conversation_id):
-                continue
+                # PENDING-DECISION plans are tenant-visible frame context
+                # regardless of conversation — §5 lists "pending Decisions"
+                # as a frame section in their own right. Without this,
+                # "Approve that plan." in a NEW thread had zero candidates
+                # and the rail asked "which plan?" while exactly one
+                # decidable plan existed (field run 20260722T205034Z).
+                # Everything else stays conversation-scoped.
+                if d.get("status") != "awaiting_approval":
+                    continue
             # Tenant isolation (adversarial-review MAJOR): a plan from another
             # tenant must never enter this frame — reference/existing-work
             # resolution would otherwise match it by similarity.

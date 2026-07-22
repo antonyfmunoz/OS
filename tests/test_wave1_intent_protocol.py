@@ -180,6 +180,34 @@ class TestClassification:
         r = _resolve(env, "Approve that plan.", _frame(plans=[plan]))
         assert r.intent_class == IntentClass.PROVIDE_DECISION.value
 
+    def test_provide_decision_resolves_pending_plan_from_fresh_conversation(self, env):
+        """A pending-decision (awaiting_approval) plan is tenant-visible frame
+        context regardless of conversation (§5 "pending Decisions"): "Approve
+        that plan." in a NEW thread resolves the single decidable plan instead
+        of asking which one (field run 20260722T205034Z regression)."""
+        from substrate.execution.intent.context_frame import build_context_frame
+        from substrate.execution.planning.records import ObjectivePlanRecord
+
+        env.store.append_plan(
+            ObjectivePlanRecord(
+                plan_record_id="opr-pending1",
+                objective_id="goal-p1",
+                objective_text="Migrate the nine legacy subsystems",
+                status="awaiting_approval",
+                graph_version=2,
+                conversation_id="conv-ORIGINAL",
+                work_scope={"tenant_id": "tenant-a"},
+            )
+        )
+        frame = build_context_frame("tenant-a", "user-1", "conv-FRESH", planning_store=env.store)
+        assert any(p.get("plan_record_id") == "opr-pending1" for p in frame.current_plans), (
+            "pending-decision plan must enter a fresh conversation's frame"
+        )
+        r = _resolve(env, "Approve that plan.", frame, cmid="m-fresh-approve")
+        assert r.intent_class == IntentClass.PROVIDE_DECISION.value
+        assert not r.clarification_required, "single pending decision must not re-ask"
+        assert r.reference_resolution["selected"]["plan_record_id"] == "opr-pending1"
+
     def test_request_execution(self, env):
         r = _resolve(env, "Run the plan now please")
         assert r.intent_class == IntentClass.REQUEST_EXECUTION.value

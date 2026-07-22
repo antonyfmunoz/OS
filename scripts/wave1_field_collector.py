@@ -1773,13 +1773,24 @@ class FieldCollector:
     def _s15_approve_via_hud(self, page: Any, ctx: dict[str, Any]) -> None:
         """Expand ControlPanel, click wg-approve-btn on the run-tag objective row."""
         clicked = self._decide_via_control_panel(page, "approve")
-        astate = self._wait_wg_state(page, {"approved"})
+        astate = self._wait_wg_state(page, {"approved"}, timeout_s=60)
+        # Server truth is the PASS authority (the card is a projection and can
+        # lag or belong to a different thread view); the card state stays in
+        # the evidence.
+        server_status = ""
+        deadline = time.time() + 60
+        while time.time() < deadline and ctx.get("objective_plan_id"):
+            pj = self._authed_get(page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}")
+            server_status = pj.get("status", "") if isinstance(pj, dict) else ""
+            if server_status == "approved":
+                break
+            time.sleep(2)
         ctx["approved_via_hud"] = clicked
         ctx["card_state_after_approve"] = astate
         self.stage(
             "s15_approve_via_hud",
-            clicked and astate == "approved",
-            f"clicked={clicked} card_state={astate} "
+            clicked and (server_status == "approved"),
+            f"clicked={clicked} card_state={astate} server_status={server_status} "
             f"decision_response={self._decision_response[:120]}",
         )
         self.shot(page, "s15_hud_approve")
@@ -1794,7 +1805,17 @@ class FieldCollector:
         (authorization_effect=plan_acceptance_only).
         """
         banner_ok = self._body_contains(page, APPROVED_BANNER)
-        plan_json = self._read_plan_json(page)
+        # SERVER TRUTH BY ID: page-derived reads picked up whichever history
+        # card the thread happened to show (run 20260722T205034Z read a stale
+        # REJECTED smoke card while OUR plan sat approved server-side). The
+        # authoritative subject is ctx's re-anchored plan id.
+        plan_json: Any = {}
+        if ctx.get("objective_plan_id"):
+            plan_json = self._authed_get(
+                page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}"
+            )
+        if not (isinstance(plan_json, dict) and plan_json.get("plan_record_id")):
+            plan_json = self._read_plan_json(page)
         status = plan_json.get("status", "") if isinstance(plan_json, dict) else ""
         decision_log = plan_json.get("decision_log") if isinstance(plan_json, dict) else None
         log_ok = False
@@ -1901,7 +1922,14 @@ class FieldCollector:
             and isinstance(before, dict)
             and after.get("plan_record_id") == before.get("plan_record_id")
         )
-        plan_json = self._read_plan_json(page)
+        # Server truth by re-anchored id (same rationale as s16).
+        plan_json: Any = {}
+        if ctx.get("objective_plan_id"):
+            plan_json = self._authed_get(
+                page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}"
+            )
+        if not (isinstance(plan_json, dict) and plan_json.get("plan_record_id")):
+            plan_json = self._read_plan_json(page)
         approved_persisted = isinstance(plan_json, dict) and plan_json.get("status") == "approved"
         v2_persisted = (
             isinstance(plan_json, dict)
