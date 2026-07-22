@@ -33,13 +33,18 @@ function AuthenticatedApp() {
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('panel')
     if (requested) {
-      import('./stores/canvasStore').then(({ useCanvasStore }) => {
-        const store = useCanvasStore.getState()
-        const alreadyOpen = store.windows.some(
-          (w) => w.type === 'panel' && w.config?.panelId === requested,
-        )
-        if (!alreadyOpen) store.addWindow('panel', { panelId: requested })
-      })
+      Promise.all([import('./stores/canvasStore'), import('./panels/registry')]).then(
+        ([{ useCanvasStore }, { resolvePanelId }]) => {
+          // Retired ids resolve to their canonical surface — a deep link to
+          // ?panel=intentloop must open Work Detail, never a dead stub.
+          const resolved = resolvePanelId(requested)
+          const store = useCanvasStore.getState()
+          const alreadyOpen = store.windows.some(
+            (w) => w.type === 'panel' && w.config?.panelId === resolved,
+          )
+          if (!alreadyOpen) store.addWindow('panel', { panelId: resolved })
+        },
+      )
     }
   }, [])
 

@@ -419,7 +419,11 @@ class GoalRegistry:
         self._thread_lock = threading.RLock()
         self._goals: dict[str, Goal] = {}
         if not store_path:
-            self._migrate_legacy_once()
+            # Under the interprocess lock: two processes cold-starting on a
+            # fresh install would otherwise both pass the existence guard and
+            # interleave their os.replace of the migrated store.
+            with self._file_lock():
+                self._migrate_legacy_once()
         self._load()
 
     # ── Locking / durability primitives ───────────────────────────────

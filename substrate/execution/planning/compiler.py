@@ -544,13 +544,34 @@ def compose_plan_for_session(
             },
         )
 
-        materialize_packets(plan, scope, archetype, session, work_queue)
+        # Task materialization writes (packet store + plan CAS) run INSIDE the
+        # governed mutation, same as every other planning write — the packet
+        # ingest is never an ungoverned side effect of a returned compile.
+        def _materialize() -> tuple[str, bool]:
+            materialize_packets(plan, scope, archetype, session, work_queue)
+            store.update_plan_cas(plan, expected_current_version=plan.graph_version)
+            return (f"{len(plan.workpacket_ids)} task(s) materialized (max PLANNED)", True)
+
+        response = mutation_runner(
+            mutation_name=COMPILE_MUTATION_NAME,
+            intent=f"materialize tasks for plan {plan.plan_record_id}",
+            execute_fn=_materialize,
+            source="plan_compiler",
+            metadata={
+                "session_id": session.session_id,
+                "plan_record_id": plan.plan_record_id,
+                "tenant_id": scope.tenant_id,
+            },
+        )
+        if not bool(getattr(response, "success", False)):
+            raise PlanCompilationError(
+                f"governed materialization rejected: {getattr(response, 'output', '')}"
+            )
         requirement_gaps = validate_skill_requirements(
             archetype.required_skill_refs,
             _load_role(archetype.default_role_contract_id),
             archetype.verification_role_contract_id,
         )
-        store.update_plan_cas(plan, expected_current_version=plan.graph_version)
         session.operation_stage = PlanningStageMarker.TASKS_MATERIALIZED.value
         session.updated_at = time.time()
         store.update_session(session)
@@ -568,7 +589,22 @@ def compose_plan_for_session(
         plan.readiness_assessment = assessment.to_dict()
         if assessment.state == DecisionReadiness.DECISION_READY.value:
             plan.status = ObjectivePlanStatus.AWAITING_APPROVAL.value
-        store.update_plan_cas(plan, expected_current_version=plan.graph_version)
+
+        def _record_readiness() -> tuple[str, bool]:
+            store.update_plan_cas(plan, expected_current_version=plan.graph_version)
+            return (f"readiness recorded: {assessment.state}", True)
+
+        response = mutation_runner(
+            mutation_name=COMPILE_MUTATION_NAME,
+            intent=f"record decision readiness for plan {plan.plan_record_id}",
+            execute_fn=_record_readiness,
+            source="plan_compiler",
+            metadata={"plan_record_id": plan.plan_record_id, "tenant_id": scope.tenant_id},
+        )
+        if not bool(getattr(response, "success", False)):
+            raise PlanCompilationError(
+                f"governed readiness write rejected: {getattr(response, 'output', '')}"
+            )
         session.operation_stage = PlanningStageMarker.DECISION_EVALUATED.value
         session.updated_at = time.time()
         store.update_session(session)

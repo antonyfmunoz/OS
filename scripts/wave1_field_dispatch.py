@@ -238,8 +238,12 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     # (1) candidate state dir
     runner.run(["mkdir", "-p", str(state_dir)], timeout=30)
 
-    # (2) generate candidate.env by allowlist (names-only audit alongside)
-    env_out = run_dir / "candidate.env"
+    # (2) generate candidate.env by allowlist. The env file (REAL secret
+    # values) lives under the candidate state root OUTSIDE the repo tree —
+    # never under data/audits/proof/ where a tarball/`git add -f` could leak
+    # it (adversarial-review finding). The names-only audit (no values) stays
+    # with the run's proof artifacts.
+    env_out = state_dir.parent / "candidate.env"
     audit_out = run_dir / "candidate_env_audit.json"
     runner.run(
         [
@@ -568,27 +572,181 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
 # ─────────────────────────────────────────────────────────────────────────────
 # Gating UI transitions → the state-record token each must correspond to. Every
 # one of these, when asserted OK by the collector, must have a matching runtime
-# state record carrying the run tag, or reconciliation fails the pass. Approve
-# and reject now flow through the ControlPanel; cancel through the
-# ObjectivePlanPanel; kanban_materialized proves compile produced packets.
-_GATING_TRANSITIONS = {
-    "plan_rendered": "rendered",
-    "plan_revised": "revised",
-    "plan_approved": "approved",
-    "kanban_materialized": "packet",
-    "clarification_resolved": "clarified",
-    "plan_rejected": "rejected",
-    "plan_cancelled": "cancelled",
+# state record carrying the run tag, or reconciliation fails the pass.
+#
+# 21-step journey (plan v5.1 §23). The collector emits s## stage ids; each entry
+# below maps a gating step to a substring that MUST appear in the candidate's own
+# runtime-state JSONLs / logs for the pass's run tag. Server-side lifecycle the
+# journey must produce (recorded here for auditability):
+#   session stages: RESOLVING_OBJECTIVE → OBJECTIVE_RESOLVED → PLAN_COMPILED →
+#                   TASKS_MATERIALIZED → DECISION_EVALUATED → COMMITTED
+#   plan status:    draft → awaiting_approval → approved
+#   decision_log:   entry with authorization_effect=plan_acceptance_only
+#   JSONLs under operator/objective_planning/: objective_plans.jsonl and
+#                   strategic_gaps/goals.jsonl (the canonical Goal)
+#
+# Only the load-bearing state-producing steps are gated for reconciliation. Pure
+# negative/read-only steps (s01/s02/s03/s05/s08/s11/s12/s13/s14/s17/s18/s20/s21)
+# assert absence or read-only invariants and produce no NEW state record, so they
+# are not reconciled against a state token here (they still gate the collector's
+# own pass verdict).
+#
+# CRITICAL (CodeRabbit MAJOR fix): a transition matches ONLY when a SINGLE state
+# record carries the run tag AND independently satisfies that transition's token
+# predicate. A blanket `run_tag in state_blob` check is a false-positive class:
+# a pass that merely rendered a plan would otherwise "match" approved/rejected.
+# Each predicate below receives one parsed JSONL record (dict) plus the run_tag
+# and returns True only if THAT record proves the transition.
+#
+# `token` is the human-readable expected state token (surfaced in evidence);
+# `match` is the predicate applied per-record.
+_GATING_TRANSITIONS: dict[str, dict[str, Any]] = {
+    # A task packet materialized: a packet record with a non-plan source whose
+    # text carries the run tag and whose status is a captured (non-executable) one.
+    "s04_simple_task": {
+        "token": "packet",
+        "match": lambda rec, tag: (
+            _record_has_tag(rec, tag)
+            and _is_packet_record(rec)
+            and _record_status(rec) in _CAPTURED_STATUSES
+        ),
+    },
+    # Plan compiled + awaiting approval: a plan record with the run tag whose
+    # status is awaiting_approval (v1) — the compile→awaiting transition.
+    "s07_complex_objective": {
+        "token": "awaiting_approval|PLAN_COMPILED",
+        # A plan whose compare-and-swap status has already advanced past awaiting
+        # (approved/revised) still proves compile happened — accept any post-draft
+        # plan status, OR a session record whose operation_stage reached compile.
+        "match": lambda rec, tag: (
+            _record_has_tag(rec, tag)
+            and (
+                (_is_plan_record(rec) and _record_status(rec) in _COMPILED_PLAN_STATUSES)
+                or _session_stage_reached_compile(rec)
+            )
+        ),
+    },
+    # Plan packets materialized: a packet record sourced from an objective_plan
+    # carrying the run tag (the plan decomposed into ≥1 packet).
+    "s09_tasks_on_kanban": {
+        "token": "packet",
+        "match": lambda rec, tag: (
+            _record_has_tag(rec, tag)
+            and _is_packet_record(rec)
+            and str(rec.get("source_type", "")) == "objective_plan"
+        ),
+    },
+    # Revision: a plan record with the run tag whose graph_version >= 2 (v1 was
+    # preserved via supersede; this is the v2 revised record).
+    "s10_conversational_revision": {
+        "token": "graph_version>=2",
+        "match": lambda rec, tag: (
+            _record_has_tag(rec, tag)
+            and _is_plan_record(rec)
+            and isinstance(rec.get("graph_version"), int)
+            and rec.get("graph_version", 0) >= 2
+        ),
+    },
+    # Decision committed: a plan record with the run tag whose status is approved.
+    "s15_approve_via_hud": {
+        "token": "approved",
+        "match": lambda rec, tag: (
+            _record_has_tag(rec, tag) and _is_plan_record(rec) and _record_status(rec) == "approved"
+        ),
+    },
+    # Decision-log proof: a plan record with the run tag whose decision_log has an
+    # entry with authorization_effect == plan_acceptance_only (approval accepted
+    # the plan only — no execution authority).
+    "s16_approved_banner": {
+        "token": "plan_acceptance_only",
+        "match": lambda rec, tag: (
+            _record_has_tag(rec, tag)
+            and _is_plan_record(rec)
+            and _decision_log_has_effect(rec, "plan_acceptance_only")
+        ),
+    },
 }
+
+# Packet statuses that are "captured / non-executable" (a task on the board that
+# has NOT been authorized to run). Mirrors the collector's non-exec set.
+_CAPTURED_STATUSES = frozenset({"drafted", "classified", "planned", "ready_for_review"})
+
+# Plan statuses that all prove a compile already happened (draft would NOT, but
+# any of these is post-compile). A compare-and-swap store advances the SAME plan
+# record's status, so a fully-approved pass's plan is 'approved', not 'awaiting'.
+_COMPILED_PLAN_STATUSES = frozenset(
+    {"awaiting_approval", "revised", "approved", "rejected", "cancelled", "superseded"}
+)
+
+# PlanningStageMarker values (substrate/execution/planning/records.py) that mean
+# compile has been reached on a session record.
+_COMPILE_STAGE_VALUES = frozenset(
+    {"plan_compiled", "tasks_materialized", "decision_evaluated", "committed"}
+)
+
+
+def _session_stage_reached_compile(rec: dict[str, Any]) -> bool:
+    """Whether a session record's operation_stage has reached compile-or-later."""
+    return str(rec.get("operation_stage", "")).lower() in _COMPILE_STAGE_VALUES
+
+
+def _record_has_tag(rec: dict[str, Any], run_tag: str) -> bool:
+    """Whether this ONE record carries the run tag anywhere in its own text.
+
+    Serializes just this record and substring-checks — so co-occurrence is proven
+    within a single record, never across the whole state blob.
+    """
+    if not run_tag:
+        return False
+    try:
+        return run_tag in json.dumps(rec, default=str)
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_plan_record(rec: dict[str, Any]) -> bool:
+    """A plan record has a plan_record_id and an objective_text/status pair."""
+    return bool(rec.get("plan_record_id")) or (
+        "graph_version" in rec and "objective_text" in rec and "workpacket_ids" in rec
+    )
+
+
+def _is_packet_record(rec: dict[str, Any]) -> bool:
+    """A packet record carries a packet_id (and is not a plan record)."""
+    return bool(rec.get("packet_id")) and not rec.get("plan_record_id")
+
+
+def _record_status(rec: dict[str, Any]) -> str:
+    """Lower-cased status token of a plan/packet/session record ('' if absent)."""
+    return str(rec.get("status") or rec.get("operation_stage") or "").lower()
+
+
+def _decision_log_has_effect(rec: dict[str, Any], effect: str) -> bool:
+    """Whether the record's decision_log has an entry with the given auth effect."""
+    log = rec.get("decision_log")
+    if not isinstance(log, list):
+        return False
+    return any(
+        isinstance(e, dict) and str(e.get("authorization_effect", "")) == effect for e in log
+    )
+
+
+def _safe_match(predicate: Any, rec: dict[str, Any], run_tag: str) -> bool:
+    """Apply a transition predicate to one record, never raising on a bad record."""
+    try:
+        return bool(predicate(rec, run_tag))
+    except Exception:  # noqa: BLE001 — a malformed record is a non-match, not a crash
+        return False
 
 
 def _candidate_state_jsonls(sha: str) -> list[Path]:
     """All runtime-state JSONLs the candidate may have written (glob broadly).
 
-    The work-graph's plan-record subsystem is being built in parallel, so rather
-    than hard-code its filename we glob every JSONL under the candidate state dir
-    and match run tags. Known subsystems (organism/messages, universal_work,
-    operator_experience) are included by the glob.
+    We glob every JSONL under the candidate state dir and match run tags rather
+    than hard-code filenames. The load-bearing planning records live under
+    operator/objective_planning/ (objective_plans.jsonl and the canonical Goal in
+    strategic_gaps/goals.jsonl); packet + conversation records (universal_work,
+    organism/messages, operator_experience) are picked up by the same glob.
     """
     root = _state_dir(sha).parent  # .../state/umh
     if not root.exists():
@@ -606,7 +764,7 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         print(f"[dry-run]   glob candidate state JSONLs under {_state_dir(sha).parent}")
         return {"dry_run": True, "raw_root": str(raw_root)}
 
-    state_blob = _read_state_blob(sha)
+    state_records = _read_state_records(sha)
     logs = _candidate_logs(runner)
 
     for pass_dir in sorted(raw_root.glob("*/pass*")):
@@ -623,8 +781,11 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         total_requests = len(network)
         matched_requests = sum(1 for n in network if _path_in_logs(n.get("url", ""), logs))
 
-        # Transition reconciliation: every gating UI transition should have a
-        # matching state record carrying the run tag.
+        # Transition reconciliation: every gating UI transition must have a state
+        # record that carries the run tag AND independently satisfies that
+        # transition's own token predicate — proven within a SINGLE record. This
+        # is the CodeRabbit MAJOR fix: a plan that was only rendered scores ONLY
+        # the transitions whose records actually exist (e.g. never "approved").
         asserted = [
             s["stage"]
             for s in result.get("stages", [])
@@ -633,15 +794,24 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         matched_transitions = 0
         transition_detail = {}
         for stage_name in asserted:
-            has_record = run_tag in state_blob
-            transition_detail[stage_name] = has_record
+            spec = _GATING_TRANSITIONS[stage_name]
+            predicate = spec["match"]
+            matching = [rec for rec in state_records if _safe_match(predicate, rec, run_tag)]
+            has_record = bool(matching)
+            transition_detail[stage_name] = {
+                "matched": has_record,
+                "expected_token": spec["token"],
+                "matching_records": len(matching),
+            }
             if has_record:
                 matched_transitions += 1
 
         orphan_5xx = [n for n in network if isinstance(n.get("status"), int) and n["status"] >= 500]
         denom = total_requests + len(asserted)
         score = (matched_requests + matched_transitions) / denom if denom else 0.0
-        all_gating_matched = all(transition_detail.get(s, False) for s in asserted)
+        all_gating_matched = all(
+            transition_detail.get(s, {}).get("matched", False) for s in asserted
+        )
         passed = score >= 0.90 and not orphan_5xx and all_gating_matched
 
         pass_result = {
@@ -669,15 +839,30 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
     return summary
 
 
-def _read_state_blob(sha: str) -> str:
-    """Concatenate all candidate state JSONLs into one searchable blob."""
-    parts: list[str] = []
+def _read_state_records(sha: str) -> list[dict[str, Any]]:
+    """Parse EVERY candidate state JSONL line into an individual record dict.
+
+    Per-record parsing is what lets transition reconciliation prove that the run
+    tag and the expected state token co-occur in the SAME record — a concatenated
+    blob cannot make that distinction. Non-dict / unparseable lines are skipped.
+    """
+    records: list[dict[str, Any]] = []
     for p in _candidate_state_jsonls(sha):
         try:
-            parts.append(p.read_text(encoding="utf-8", errors="replace"))
+            text = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-    return "\n".join(parts)
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(obj, dict):
+                records.append(obj)
+    return records
 
 
 def _candidate_logs(runner: Runner) -> str:

@@ -288,7 +288,9 @@ export function ControlPanel() {
                 // decision buttons the wg-* testids ONLY for this source, so the
                 // field harness anchors to the row whose desc holds its run tag.
                 const isPlan = source === 'objective_plan'
-                const details = (ua.details ?? {}) as Record<string, unknown>
+                // UnifiedApproval.to_dict() nests plan context under `context.details`.
+                const uaContext = (ua.context ?? {}) as Record<string, unknown>
+                const details = ((uaContext.details ?? ua.details) ?? {}) as Record<string, unknown>
                 const graphVersion = typeof details.graph_version === 'number' ? details.graph_version : undefined
                 const packetCount = typeof details.packet_count === 'number' ? details.packet_count : undefined
                 return (

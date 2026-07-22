@@ -265,18 +265,6 @@ MATRIX: dict[str, tuple[str, list[str] | str, str]] = {
 }
 
 
-def _run_pytest(nodes: list[str]) -> tuple[set[str], set[str]]:
-    """Run all pytest nodes once; return (passed_node_prefixes, failed_node_ids)."""
-    cmd = [sys.executable, "-m", "pytest", "-q", "--tb=no", *nodes]
-    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=1800)
-    failed: set[str] = set()
-    for line in proc.stdout.splitlines():
-        m = re.match(r"FAILED (\S+?)(?: |$)", line.strip())
-        if m:
-            failed.add(m.group(1).split("[")[0])
-    return failed, proc.stdout.splitlines()[-1:] and set()
-
-
 def _run_vitest() -> bool:
     proc = subprocess.run(
         ["npx", "vitest", "run", "src/renderer/__tests__/surfaceAuthority.test.tsx"],
@@ -326,16 +314,11 @@ def main() -> int:
         if isinstance(nodes, str):
             base = "PASS" if vitest_ok else "FAIL"
         else:
+            # Exact node or a ::-delimited child of it — a plain string-prefix
+            # match would let TestA's failure flag an unrelated TestA2 row.
             base = (
                 "FAIL"
-                if any(
-                    f.startswith(n.split("::")[0])
-                    and f.startswith(n)
-                    or f == n
-                    or f.startswith(n + "::")
-                    for n in nodes
-                    for f in failed_nodes
-                )
+                if any(f == n or f.startswith(n + "::") for n in nodes for f in failed_nodes)
                 else "PASS"
             )
         if note.startswith("FIELD_PENDING"):

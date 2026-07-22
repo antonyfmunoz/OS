@@ -21,9 +21,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class InstructionCompilationError(RuntimeError):
@@ -94,8 +97,8 @@ def _resolve_assistant_identity() -> str:
         name = get_ai_name()
         if name:
             return name
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("assistant identity resolution failed, using default: %s", exc)
     return "Assistant"
 
 

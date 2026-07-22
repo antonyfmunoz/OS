@@ -895,6 +895,16 @@ function ChatSection() {
       case 'navigate':
         // Honor both the legacy { panel } payload and the flat `target` (the
         // objective-plan rail sends { action: 'navigate', target: 'objectiveplan' }).
+        // A plan_record_id in the payload selects + loads that plan first so
+        // Work Detail opens ON the referenced plan, not the bare list.
+        if (payload.plan_record_id) {
+          const planId = String(payload.plan_record_id)
+          import('../stores/objectivePlanStore').then(({ useObjectivePlanStore }) => {
+            const planStore = useObjectivePlanStore.getState()
+            planStore.selectPlan(planId)
+            void planStore.fetchPlan(planId)
+          })
+        }
         if (payload.panel) setPanel(payload.panel as Panel)
         else if (action.target) setPanel(action.target as Panel)
         break

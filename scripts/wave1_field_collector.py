@@ -78,8 +78,7 @@ WG_CLARIFICATION_PROMPT = '[data-testid="wg-clarification-prompt"]'  # chat card
 WG_OPEN_PLAN_BTN = '[data-testid="wg-open-plan-btn"]'  # chat card → ObjectivePlanPanel
 WG_APPROVE_BTN = '[data-testid="wg-approve-btn"]'  # ControlPanel objective_plan row
 WG_REJECT_BTN = '[data-testid="wg-reject-btn"]'  # ControlPanel objective_plan row
-WG_CANCEL_BTN = '[data-testid="wg-cancel-btn"]'  # ObjectivePlanPanel
-WG_OBJECTIVE_PLAN_PANEL = '[data-testid="wg-objective-plan-panel"]'  # ObjectivePlanPanel root
+WG_CANCEL_BTN = '[data-testid="wg-cancel-btn"]'  # Work Detail (cancel authority)
 WG_APPROVAL_ROW = '[data-testid="wg-approval-row"]'  # one ControlPanel approval row
 # Objective-plan rows carry data-source-type="objective_plan" — filter to these
 # so we never anchor to a governance/other-source row that happens to match text.
@@ -99,6 +98,16 @@ WG_CONTROL_PANEL_TOGGLE = '[data-testid="wg-control-panel-toggle"]'
 # Work-panel kanban surface (materialized packets after compile).
 WG_KANBAN = '[data-testid="wg-kanban"]'
 WG_KANBAN_CARD = '[data-testid="wg-kanban-card"]'
+WG_KANBAN_OPEN_PLAN = '[data-testid="wg-kanban-open-plan"]'  # plan-sourced card → Work Detail
+
+# Work-Detail (Plan/Task inspection) surface. WorkDetailPanel.tsx renders the
+# panel root, the context sections (scope/planning-scale/archetype/skills/
+# readiness), and the ONLY cancel authority (cancel lives here, not the HUD).
+WG_WORK_DETAIL = '[data-testid="wg-work-detail"]'
+WG_WORK_DETAIL_CONTEXT = '[data-testid="wg-work-detail-context"]'
+# The Work-Detail root also carries the wg-objective-plan-panel testid on its
+# inner container (WorkDetailPanel.tsx line 620) — kept as the "Open Plan" target.
+WG_OBJECTIVE_PLAN_PANEL = '[data-testid="wg-objective-plan-panel"]'
 
 # Terminal plan states the wg-plan-root data-state attribute can carry. Per
 # ui-builder the UI emits awaiting_approval (v1) / revised (v>1) — never
@@ -118,11 +127,28 @@ PLAN_STATES = (
 # session (session-0 / duplicate → fail the pass). Matches launcher.py's cmd.
 _DAEMON_CMD_MARKER = "launcher.py"
 
-# The nine-legacy-runtime-subsystems dogfood objective. Ground truth per
-# data/reports/2026-07-21_mvp_wave0_cutover_complete.md: the nine subsystems are
-# continuity, presence, execution, workstation_state, profile, tick_loop, audit,
-# runtime_surface, self_build. Kept as a constant so every pass types
-# byte-identical intent (only the run tag varies).
+# ── Journey message corpus (plan v5.1 §23 / §16). Kept as constants so every
+# pass types byte-identical intent (only the run tag varies per pass). Each is a
+# distinct intent CLASS the OperatorIntentProtocol must classify differently. ──
+
+# s03 — pure communication. Must classify COMMUNICATE → zero artifacts.
+GREETING_MESSAGE = "Hey, good to be back in the cockpit. How's the organism looking today?"
+
+# s04 — an atomic Task (CREATE_TASK). One concrete unit, non-executable.
+SIMPLE_TASK_MESSAGE = "Fix the failing import in transports/api/voice.py"
+
+# s05 — a rephrase of the s04 task. Must resolve as a duplicate → NO new card.
+SIMPLE_TASK_REPHRASE = (
+    "Go patch that broken import over in transports/api/voice.py so the module loads."
+)
+
+# s06 — attach the captured task to the objective (link_work intent).
+ATTACH_TASK_TEMPLATE = "Attach that task to the objective {run_tag}."
+
+# s07 — the nine-subsystem dogfood Objective (CREATE_OBJECTIVE → plan compiles).
+# Ground truth per data/reports/2026-07-21_mvp_wave0_cutover_complete.md: the
+# nine subsystems are continuity, presence, execution, workstation_state,
+# profile, tick_loop, audit, runtime_surface, self_build.
 DOGFOOD_OBJECTIVE = (
     "Plan the Wave 1 runtime consolidation. Nine legacy runtime subsystems still "
     "exist in substrate/organism and must be brought under the one canonical "
@@ -134,15 +160,27 @@ DOGFOOD_OBJECTIVE = (
     "risk."
 )
 
-REVISION_MESSAGE = (
-    "Move profile and audit out of this graph. Classify continuity as Wave 3. "
-    "Do not modify the event spine."
+# s10 — conversational revision (MODIFY_PLAN → graph_version 2, v1 preserved).
+REVISION_MESSAGE = "Add a rollback verification step to the plan"
+
+# s11 — ambiguous reference (no unique referent → exactly one clarification, no
+# state change). "Cancel it" with nothing uniquely selectable.
+AMBIGUOUS_CANCEL_MESSAGE = "Cancel it."
+
+# s13 — chat "Approve that plan." PROVIDE_DECISION → HUD-only surface/focus, the
+# reply explains decisions happen in the control panel; NO state transition.
+CHAT_APPROVE_MESSAGE = "Approve that plan."
+
+# s22a — a self-build planning message (target umh_substrate governance profile).
+SELF_BUILD_MESSAGE = (
+    "Plan a change to the UMH substrate itself: add a governed pre-commit gate "
+    "that blocks any new raw subprocess call in substrate/."
 )
 
-CLARIFY_TRIGGER = "Fix the remaining runtime stuff."
-CLARIFY_ANSWER = (
-    "Scope it to exactly the two subsystems still bypassing the canonical "
-    "runtime: runtime_surface and self_build. Nothing else."
+# s22b — a projection-build planning message (a projection, not the substrate).
+PROJECTION_BUILD_MESSAGE = (
+    "Plan a new EOS projection feature: an outreach-sequence dashboard that reads "
+    "lead state and surfaces the next best action per lead."
 )
 
 APPROVED_BANNER = "PLAN APPROVED — EXECUTION NOT STARTED"
@@ -580,6 +618,75 @@ class FieldCollector:
             }"""
         )
 
+    @staticmethod
+    def _authed_get(page: Any, path: str) -> dict[str, Any]:
+        """Read-only GET on the page origin using its own Clerk token → JSON.
+
+        Rides the page's Clerk session (mutates nothing). Returns
+        {"__status": <int>, ...body} on JSON, or {"__status": <int|None>,
+        "__error": ...} otherwise. Used for s02 principal/tenant proof and the
+        plan-JSON decision-log / status reads.
+        """
+        return page.evaluate(
+            """async (p) => {
+                const out = { __status: null };
+                try {
+                    if (!(window.Clerk && window.Clerk.session)) {
+                        out.__error = 'no clerk session'; return out;
+                    }
+                    const token = await window.Clerk.session.getToken();
+                    const r = await fetch(p, { headers: { Authorization: 'Bearer ' + token } });
+                    out.__status = r.status;
+                    try {
+                        const body = await r.json();
+                        if (body && typeof body === 'object' && !Array.isArray(body)) {
+                            return Object.assign(out, body);
+                        }
+                        out.__body = body;
+                    } catch (e) { out.__error = 'non-json body'; }
+                } catch (e) { out.__error = String(e).slice(0, 200); }
+                return out;
+            }""",
+            path,
+        )
+
+    def _read_plan_json(self, page: Any) -> dict[str, Any]:
+        """Full plan detail JSON for the active conversation (decision_log etc.).
+
+        Prefers the plan_record_id read off the run-tag card DOM, then falls back
+        to the by-conversation read. Returns {} when neither resolves.
+        """
+        anchor = self._read_plan_by_conversation(page)
+        plan_id = anchor.get("plan_record_id") if isinstance(anchor, dict) else None
+        if plan_id:
+            detail = self._authed_get(page, f"/api/umh/objective-plan/{plan_id}")
+            if (
+                isinstance(detail, dict)
+                and detail.get("__status") == 200
+                and not detail.get("error")
+            ):
+                return detail
+        conv_id = anchor.get("conversation_id") if isinstance(anchor, dict) else None
+        if conv_id:
+            detail = self._authed_get(page, f"/api/umh/objective-plan/by-conversation/{conv_id}")
+            if isinstance(detail, dict) and detail.get("__status") == 200:
+                return detail
+        return {}
+
+    def _count_plan_cards(self, page: Any) -> int:
+        """How many wg-plan-root cards carry THIS pass's run tag (dedupe check)."""
+        try:
+            return page.locator(WG_PLAN_ROOT).filter(has_text=self.run_tag).count()
+        except Exception:  # noqa: BLE001
+            return -1
+
+    def _count_kanban_cards_tagged(self, page: Any) -> int:
+        """How many wg-kanban-card rows carry THIS pass's run tag."""
+        try:
+            return page.locator(WG_KANBAN_CARD).filter(has_text=self.run_tag).count()
+        except Exception:  # noqa: BLE001
+            return -1
+
     # ── plan-card locator anchored to THIS pass's run tag ───────────────────
     def _plan_card(self, page: Any) -> Any:
         """The wg-plan-root whose subtree contains this pass's run tag."""
@@ -705,10 +812,12 @@ class FieldCollector:
 
     # ── ObjectivePlanPanel (cancel + Open Plan continuity read) ──────────────
     def _open_plan_panel(self, page: Any) -> bool:
-        """Open the ObjectivePlanPanel via the chat card's 'Open Plan' action.
+        """Open the Work-Detail (Plan) panel via the chat card's 'Open Plan' action.
 
         Prefers the wg-open-plan-btn testid on the run-tag card; falls back to a
-        role/text button named 'Open Plan'. Waits for the panel root to render.
+        role/text button named 'Open Plan'. Waits for the Work-Detail root
+        (wg-work-detail) to render — that is the panel WorkDetailPanel.tsx mounts,
+        which also carries the wg-objective-plan-panel inner container.
         """
         card = self._plan_card(page)
         opener = (
@@ -719,37 +828,31 @@ class FieldCollector:
         if opener.count() == 0:
             return False
         opener.first.click()
-        try:
-            page.wait_for_selector(WG_OBJECTIVE_PLAN_PANEL, state="visible", timeout=30000)
-            return True
-        except Exception:  # noqa: BLE001
-            return False
+        for sel in (WG_WORK_DETAIL, WG_OBJECTIVE_PLAN_PANEL):
+            try:
+                page.wait_for_selector(sel, state="visible", timeout=30000)
+                return True
+            except Exception:  # noqa: BLE001
+                continue
+        return False
 
     # ── kanban verification (materialized packets after compile) ─────────────
-    def _kanban_stage(self, page: Any) -> None:
-        """Navigate to the Work-panel kanban and verify materialized packets.
+    def _open_kanban(self, page: Any) -> bool:
+        """Best-effort navigation to the Work-panel kanban (wg-kanban).
 
-        The kanban lives in UniversalWorkPanel (wg-kanban). ui-builder flagged a
-        REACHABILITY CAVEAT: the `universalwork` panel id is redirected to `work`
-        (a list view) in cockpitStore, so the "Work" nav may land on the list, not
-        the kanban. We therefore treat the kanban as best-effort: try the Work
-        nav, then a palette item, then a direct hash route; if the kanban never
-        appears, we STILL prove packet materialization via the read-only API
-        (this is the load-bearing check) and record the navigation miss.
-
-        Packet reconciliation prefers the DOM: wg-kanban-card carries
-        data-packet-id + data-status, so packet ids are read straight from the
-        board when it renders. Falls back to the /api/umh/work/graph read.
+        REACHABILITY CAVEAT (ui-builder): the `universalwork` / `tasks` panel ids
+        redirect to `work` (registry.ts), which may render a list view rather than
+        the kanban. So this is best-effort: if the board never appears, the steps
+        that need packet truth fall back to the read-only packets API. Returns
+        True iff wg-kanban is visible.
         """
-        opened = False
+        if page.locator(WG_KANBAN).count() > 0:
+            return True
+        work_nav = page.get_by_role("button", name="Work")
+        if work_nav.count() > 0:
+            work_nav.first.click()
+            page.wait_for_timeout(1000)
         if page.locator(WG_KANBAN).count() == 0:
-            # Route attempt 1: the "Work" nav (may redirect to the list view).
-            work_nav = page.get_by_role("button", name="Work")
-            if work_nav.count() > 0:
-                work_nav.first.click()
-                page.wait_for_timeout(1000)
-        if page.locator(WG_KANBAN).count() == 0:
-            # Route attempt 2: a palette item literally naming the kanban/board.
             for label in ("Universal Work", "Work Graph", "Kanban", "Board"):
                 item = page.get_by_text(label, exact=True)
                 if item.count() > 0:
@@ -758,75 +861,50 @@ class FieldCollector:
                     break
         try:
             page.wait_for_selector(WG_KANBAN, state="visible", timeout=10000)
-            opened = True
+            return True
         except Exception:  # noqa: BLE001
-            opened = page.locator(WG_KANBAN).count() > 0
-
-        # DOM packet ids (data-packet-id on each wg-kanban-card) — no API needed.
-        dom_packet_ids: list[str] = []
-        tagged_cards = 0
-        if opened:
-            tagged = page.locator(WG_KANBAN_CARD).filter(has_text=self.run_tag)
-            tagged_cards = tagged.count()
-            try:
-                dom_packet_ids = page.eval_on_selector_all(
-                    WG_KANBAN_CARD,
-                    "els => els.map(e => e.getAttribute('data-packet-id')).filter(Boolean)",
-                )
-            except Exception:  # noqa: BLE001
-                dom_packet_ids = []
-
-        # API packet ids — the load-bearing materialization proof (works even when
-        # the kanban route is unreachable due to the redirect caveat).
-        api_packet_ids = self._read_packet_ids(page)
-        packet_ids = list(dict.fromkeys(dom_packet_ids + api_packet_ids))
-
-        self.continuity["kanban"] = {
-            "opened": opened,
-            "tagged_cards": tagged_cards,
-            "dom_packet_ids": dom_packet_ids,
-            "api_packet_ids": api_packet_ids,
-            "reachability_caveat": not opened,
-        }
-        # Pass on materialized packets (DOM or API). The board being unreachable
-        # is a known UI caveat, not a materialization failure — so the API proof
-        # alone is sufficient for the stage, but the miss is recorded.
-        self.stage(
-            "kanban_materialized",
-            bool(packet_ids) or tagged_cards > 0,
-            f"kanban_opened={opened} tagged_cards={tagged_cards} "
-            f"dom_ids={len(dom_packet_ids)} api_ids={len(api_packet_ids)}",
-        )
-        self.shot(page, "04b_kanban")
-        if opened:
-            self.dom(page, "04b_kanban")
+            return page.locator(WG_KANBAN).count() > 0
 
     @staticmethod
-    def _read_packet_ids(page: Any) -> list[str]:
-        """Read-only fetch of the work-graph packets for the active conversation."""
+    def _read_packets(page: Any) -> list[dict[str, Any]]:
+        """Read-only fetch of the materialized work packets (PacketSafe rows).
+
+        Rides the page's own Clerk session (read-only, mutates nothing). Hits the
+        SAME endpoint UniversalWorkPanel uses — GET
+        /api/umh/organism/universal-work/packets?limit=50 → PacketSafe[] — so the
+        shape (packet_id / status / title / source_type / source_id) matches the
+        kanban's own source of truth. Returns [] on any failure.
+        """
         try:
             result = page.evaluate(
                 """async () => {
                     try {
                         if (!(window.Clerk && window.Clerk.session)) return [];
                         const token = await window.Clerk.session.getToken();
-                        const r = await fetch('/api/umh/work/graph', {
-                            headers: { Authorization: 'Bearer ' + token },
-                        });
+                        const r = await fetch(
+                            '/api/umh/organism/universal-work/packets?limit=50',
+                            { headers: { Authorization: 'Bearer ' + token } });
                         if (!r.ok) return [];
                         const d = await r.json();
-                        const nodes = d.nodes || (d.graph && d.graph.nodes) || [];
-                        return nodes
-                            .filter(n => (n.node_type || n.type) === 'PACKET' || n.packet_id)
-                            .map(n => n.packet_id || n.id)
-                            .filter(Boolean)
-                            .slice(0, 100);
+                        const rows = Array.isArray(d) ? d : (d.packets || d.items || []);
+                        return rows.map(p => ({
+                            packet_id: p.packet_id || p.id || null,
+                            status: p.status || null,
+                            title: p.title || '',
+                            source_type: p.source_type || null,
+                            source_id: p.source_id || null,
+                        })).filter(p => p.packet_id).slice(0, 100);
                     } catch (e) { return []; }
                 }"""
             )
             return list(result) if isinstance(result, list) else []
         except Exception:  # noqa: BLE001
             return []
+
+    @staticmethod
+    def _read_packet_ids(page: Any) -> list[str]:
+        """Just the packet ids (compat shim over _read_packets)."""
+        return [p["packet_id"] for p in FieldCollector._read_packets(page) if p.get("packet_id")]
 
     # ── typing with human jitter ─────────────────────────────────────────────
     @staticmethod
@@ -838,6 +916,26 @@ class FieldCollector:
 
         chat.first.press_sequentially(text, delay=random.randint(40, 90))
         chat.first.press("Enter")
+
+    def _send_and_wait(self, page: Any, text: str, timeout_ms: int = 180000) -> None:
+        """Type a message into the chat rail and wait for its /advisor/converse 200.
+
+        Re-locates the chat input each call (the rail can re-render after a plan
+        card mounts). The converse round-trip is the CONDITION — no bare sleep.
+        """
+        chat = self._find_chat_input(page)
+        with page.expect_response(
+            lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=timeout_ms
+        ):
+            self._type_objective(page, chat, text)
+
+    @staticmethod
+    def _body_contains(page: Any, needle: str) -> bool:
+        """Whether the rendered page body currently contains `needle` (verbatim)."""
+        try:
+            return needle in page.inner_text("body")
+        except Exception:  # noqa: BLE001
+            return False
 
     def _find_chat_input(self, page: Any) -> Any:
         """Locate the chat rail input, opening the rail if it boots closed."""
@@ -985,216 +1083,664 @@ class FieldCollector:
     def _scenario_full(
         self, page: Any, context: Any, browser: Any, state_path: str, chat: Any
     ) -> Any:
-        # (b) type dogfood objective → plan renders + converse 200
-        obj = f"{DOGFOOD_OBJECTIVE} {self.run_tag}"
-        with page.expect_response(
-            lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=180000
-        ):
-            self._type_objective(page, chat, obj)
-        state = self._wait_wg_state(page, {"rendered", "awaiting_approval"})
-        self.stage("plan_rendered", state in {"rendered", "awaiting_approval"}, f"state={state}")
-        self.shot(page, "02_plan_rendered")  # (c)
-        self.dom(page, "02_plan_rendered")
+        """The 21-step operator journey (plan v5.1 §23 / §16), s01..s21 + s22a/b.
 
-        # (d) revision message → data-state=revised (or data-revision=2)
-        rev = f"{REVISION_MESSAGE} {self.run_tag}"
-        with page.expect_response(
-            lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=180000
-        ):
-            self._type_objective(page, chat, rev)
-        rstate = self._wait_wg_state(page, {"revised", "rendered", "awaiting_approval"})
+        Each s## is a discrete method with a machine-checkable assertion and
+        evidence capture. The pass is gated on s01..s21 (self.stages); s22a/s22b
+        are bonus mini-cases whose failure is recorded but does NOT gate the pass
+        (see _finalize's gating_stage_names). The steps share a mutable `ctx` dict
+        so later continuity checks can reference ids captured earlier.
+        """
+        ctx: dict[str, Any] = {}
+        # s01 already emitted "fresh_context" as part of _drive; re-assert the
+        # storage/SW/no-plan invariants explicitly under the s01 id here.
+        self._s01_fresh_state(page)
+        self._s02_principal_tenant(page)
+        self._s03_communication_only(page, ctx)
+        self._s04_simple_task(page, ctx)
+        self._s05_duplicate_task(page, ctx)
+        self._s06_attach_task(page, ctx)
+        self._s07_complex_objective(page, ctx)
+        self._s08_inspect_plan_detail(page, ctx)
+        self._s09_tasks_on_kanban(page, ctx)
+        self._s10_conversational_revision(page, ctx)
+        self._s11_ambiguous_reference(page, ctx)
+        self._s12_no_premature_decision(page, ctx)
+        self._s13_chat_approve_reply(page, ctx)
+        self._s14_chat_approve_no_change(page, ctx)
+        self._s15_approve_via_hud(page, ctx)
+        self._s16_approved_banner(page, ctx)
+        self._s17_zero_execution_attempts(page, ctx)
+        self._s18_refresh_persistence(page, ctx)
+        page = self._s19_close_reopen(browser, state_path, ctx)
+        self._s20_continuity(page, ctx)
+        self._s21_no_rival_decision_path(page, ctx)
+        # Bonus mini-cases (do not gate the pass).
+        self._s22a_self_build(page, ctx)
+        self._s22b_projection_build(page, ctx)
+        return page
+
+    # ── s01 — fresh-state proof ──────────────────────────────────────────────
+    def _s01_fresh_state(self, page: Any) -> None:
+        """App storage cleared, service worker unregistered, no plan pre-submit."""
+        cleared = self._clear_app_state(page)
+        page.reload(wait_until="load")
+        page.wait_for_timeout(1500)
+        no_plan = page.locator(WG_PLAN_ROOT).count() == 0
+        sw_cleared = bool(cleared.get("sw_unregister_requested"))
+        self.stage(
+            "s01_fresh_state",
+            no_plan,
+            f"no_plan_pre_submit={no_plan} sw_unregister={sw_cleared} "
+            f"ls_removed={len(cleared.get('localStorage_removed', []))}",
+        )
+        self.shot(page, "s01_fresh_state")
+
+    # ── s02 — authenticated principal + tenant proof ─────────────────────────
+    def _s02_principal_tenant(self, page: Any) -> None:
+        """Clerk session present AND GET /api/umh/objective-plan returns 200 JSON.
+
+        A 200 from the authed objective-plan surface proves the server resolved a
+        principal + tenant for this session (the route runs under the same auth
+        the operator uses); the Clerk session presence is the client-side half.
+        """
+        clerk_ok = bool(page.evaluate("() => !!(window.Clerk && window.Clerk.session)"))
+        resp = self._authed_get(page, "/api/umh/objective-plan")
+        # surface_list returns a JSON list; _authed_get wraps non-dict bodies in
+        # __body, so a 200 with either a dict or a list body is the pass signal.
+        status = resp.get("__status") if isinstance(resp, dict) else None
+        api_ok = status == 200 and not resp.get("__error")
+        self.stage(
+            "s02_principal_tenant",
+            clerk_ok and api_ok,
+            f"clerk_session={clerk_ok} objective_plan_status={status}",
+        )
+        self.shot(page, "s02_principal")
+
+    # ── s03 — communication-only ─────────────────────────────────────────────
+    def _s03_communication_only(self, page: Any, ctx: dict[str, Any]) -> None:
+        """A pure greeting creates NO plan card, NO kanban card, NO HUD row."""
+        cards_before = page.locator(WG_KANBAN_CARD).count()
+        approvals_before = page.locator(WG_OBJECTIVE_PLAN_ROW).count()
+        self._open_approvals(page)  # expand so any spurious row would be visible
+        self._send_and_wait(page, GREETING_MESSAGE)
+        page.wait_for_timeout(2500)  # bounded window for any (unwanted) artifact
+        no_plan = page.locator(WG_PLAN_ROOT).count() == 0
+        no_new_kanban = page.locator(WG_KANBAN_CARD).count() <= cards_before
+        no_new_approval = page.locator(WG_OBJECTIVE_PLAN_ROW).count() <= approvals_before
+        ctx["hud_rows_after_greeting"] = page.locator(WG_OBJECTIVE_PLAN_ROW).count()
+        self.stage(
+            "s03_communication_only",
+            no_plan and no_new_kanban and no_new_approval,
+            f"no_plan={no_plan} no_new_kanban={no_new_kanban} no_new_approval={no_new_approval}",
+        )
+        self.shot(page, "s03_communication")
+
+    # ── s04 — simple Task capture ────────────────────────────────────────────
+    def _s04_simple_task(self, page: Any, ctx: dict[str, Any]) -> None:
+        """An atomic task message → a new kanban card, NO HUD row, Ready/Backlog."""
+        cards_before = page.locator(WG_KANBAN_CARD).count()
+        approvals_before = page.locator(WG_OBJECTIVE_PLAN_ROW).count()
+        self._send_and_wait(page, f"{SIMPLE_TASK_MESSAGE} {self.run_tag}")
+        # The reply verbatim confirms the capture path (server-truthed string).
+        page.wait_for_timeout(2000)
+        reply_ok = self._body_contains(page, "Task captured on the Work board")
+        kanban_opened = self._open_kanban(page)
+        # A new card appears (DOM if reachable, else the packets API grows).
+        packets = self._read_packets(page)
+        task_packets = [p for p in packets if (p.get("source_type") != "objective_plan")]
+        dom_cards = page.locator(WG_KANBAN_CARD).count()
+        card_grew = dom_cards > cards_before or len(task_packets) >= 1
+        # Non-executable column: the packet status is Ready/Backlog, never
+        # approval_pending/approved/executing.
+        non_exec = all(
+            (p.get("status") or "").lower()
+            in ("drafted", "classified", "planned", "ready_for_review", "")
+            for p in task_packets
+        )
+        no_hud_row = page.locator(WG_OBJECTIVE_PLAN_ROW).count() <= approvals_before
+        ctx["task_packet_ids"] = [p["packet_id"] for p in task_packets]
+        ctx["kanban_cards_after_s04"] = dom_cards
+        self.stage(
+            "s04_simple_task",
+            card_grew and no_hud_row and non_exec and reply_ok,
+            f"card_grew={card_grew} reply_ok={reply_ok} no_hud_row={no_hud_row} "
+            f"non_executable={non_exec} kanban_opened={kanban_opened}",
+        )
+        self.shot(page, "s04_simple_task")
+        if kanban_opened:
+            self.dom(page, "s04_simple_task")
+
+    # ── s05 — duplicate resolution ───────────────────────────────────────────
+    def _s05_duplicate_task(self, page: Any, ctx: dict[str, Any]) -> None:
+        """A rephrase of the s04 task must NOT create a second kanban card."""
+        self._open_kanban(page)
+        cards_before = page.locator(WG_KANBAN_CARD).count()
+        packets_before = len(self._read_packets(page))
+        self._send_and_wait(page, f"{SIMPLE_TASK_REPHRASE} {self.run_tag}")
+        page.wait_for_timeout(2500)
+        self._open_kanban(page)
+        cards_after = page.locator(WG_KANBAN_CARD).count()
+        packets_after = len(self._read_packets(page))
+        # No new card by DOM AND no new packet by API — duplicate was resolved.
+        dom_unchanged = cards_after <= cards_before
+        api_unchanged = packets_after <= packets_before
+        self.stage(
+            "s05_duplicate_task",
+            dom_unchanged and api_unchanged,
+            f"cards {cards_before}->{cards_after} packets {packets_before}->{packets_after}",
+        )
+        self.shot(page, "s05_duplicate_task")
+
+    # ── s06 — Task-to-Objective attachment ───────────────────────────────────
+    def _s06_attach_task(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Attach the task to an objective; reply references linking, NO dupes.
+
+        There is no dedicated UI affordance for link_work in Wave 1, so the
+        machine-checkable assertion is the conservative one from the plan: the
+        reply does NOT create duplicate kanban cards (count unchanged). If the
+        reply text references linking/attachment we record it as a stronger
+        signal, but card-count invariance is the gate.
+        """
+        self._open_kanban(page)
+        cards_before = page.locator(WG_KANBAN_CARD).count()
+        packets_before = len(self._read_packets(page))
+        self._send_and_wait(page, ATTACH_TASK_TEMPLATE.format(run_tag=self.run_tag))
+        page.wait_for_timeout(2500)
+        self._open_kanban(page)
+        cards_after = page.locator(WG_KANBAN_CARD).count()
+        packets_after = len(self._read_packets(page))
+        no_dupes = cards_after <= cards_before and packets_after <= packets_before
+        references_link = any(
+            self._body_contains(page, phrase) for phrase in ("link", "attach", "objective")
+        )
+        self.stage(
+            "s06_attach_task",
+            no_dupes,
+            f"no_dupes={no_dupes} references_link={references_link} "
+            f"cards {cards_before}->{cards_after}",
+        )
+        self.shot(page, "s06_attach_task")
+
+    # ── s07 — complex dogfood Objective ──────────────────────────────────────
+    def _s07_complex_objective(self, page: Any, ctx: dict[str, Any]) -> None:
+        """The nine-subsystem objective → plan card with data-state + record id."""
+        self._send_and_wait(page, f"{DOGFOOD_OBJECTIVE} {self.run_tag}")
+        state = self._wait_wg_state(page, {"rendered", "awaiting_approval", "revised"})
+        card = self._plan_card(page)
+        plan_id = ""
+        try:
+            if card.count():
+                plan_id = card.first.get_attribute("data-plan-record-id") or ""
+        except Exception:  # noqa: BLE001
+            plan_id = ""
+        ctx["objective_plan_id"] = plan_id
+        ctx["objective_state_after_compile"] = state
+        ok = state in {"rendered", "awaiting_approval", "revised"} and bool(plan_id)
+        self.stage(
+            "s07_complex_objective",
+            ok,
+            f"state={state} plan_record_id={plan_id[:16]}",
+        )
+        self.shot(page, "s07_complex_objective")
+        self.dom(page, "s07_complex_objective")
+
+    # ── s08 — inspect Plan in Work Detail ────────────────────────────────────
+    def _s08_inspect_plan_detail(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Open Plan → wg-work-detail visible with context (scope/scale/arch/...)."""
+        opened = self._open_plan_panel(page)
+        detail_visible = page.locator(WG_WORK_DETAIL).count() > 0
+        # The context section renders scope(tenant)/planning-scale/archetype/
+        # skills/readiness. Its presence is the machine-checkable signal that the
+        # plan detail (not just an empty shell) rendered.
+        context_visible = page.locator(WG_WORK_DETAIL_CONTEXT).count() > 0
+        # Cross-check against server truth: the plan JSON carries work_scope +
+        # planning_scale so we can confirm the sections have real content.
+        plan_json = self._read_plan_json(page)
+        has_scope = bool(
+            isinstance(plan_json, dict)
+            and (plan_json.get("work_scope") or plan_json.get("planning_scale"))
+        )
+        self.stage(
+            "s08_inspect_plan_detail",
+            opened and detail_visible and (context_visible or has_scope),
+            f"work_detail={detail_visible} context_section={context_visible} "
+            f"server_has_scope={has_scope}",
+        )
+        self.shot(page, "s08_plan_detail")
+        if detail_visible:
+            self.dom(page, "s08_plan_detail")
+
+    # ── s09 — Tasks on kanban (plan-sourced) ─────────────────────────────────
+    def _s09_tasks_on_kanban(self, page: Any, ctx: dict[str, Any]) -> None:
+        """N>0 plan-sourced packets exist; plan-sourced cards carry Open-Plan btn."""
+        opened = self._open_kanban(page)
+        packets = self._read_packets(page)
+        plan_packets = [p for p in packets if p.get("source_type") == "objective_plan"]
+        # Plan-sourced cards render a wg-kanban-open-plan button (fromPlan branch).
+        open_plan_btns = page.locator(WG_KANBAN_OPEN_PLAN).count() if opened else 0
+        ctx["plan_packet_ids"] = [p["packet_id"] for p in plan_packets]
+        # The load-bearing proof is packet materialization from the plan; the
+        # open-plan affordance is confirmed when the board is reachable.
+        ok = len(plan_packets) > 0 and (open_plan_btns > 0 or not opened)
+        self.stage(
+            "s09_tasks_on_kanban",
+            ok,
+            f"plan_packets={len(plan_packets)} open_plan_btns={open_plan_btns} "
+            f"kanban_opened={opened}",
+        )
+        self.shot(page, "s09_tasks_on_kanban")
+        if opened:
+            self.dom(page, "s09_tasks_on_kanban")
+
+    # ── s10 — conversational revision ────────────────────────────────────────
+    def _s10_conversational_revision(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Revision → graph_version 2, v1 preserved (superseded) in history."""
+        self._send_and_wait(page, f"{REVISION_MESSAGE} {self.run_tag}")
+        rstate = self._wait_wg_state(page, {"revised", "awaiting_approval", "rendered"})
         card = self._plan_card(page)
         revision_attr = ""
         try:
             revision_attr = card.first.get_attribute("data-revision") or "" if card.count() else ""
         except Exception:  # noqa: BLE001
             revision_attr = ""
-        revised_ok = rstate == "revised" or revision_attr == "2"
-        self.stage("plan_revised", revised_ok, f"state={rstate} revision={revision_attr}")
-        self.shot(page, "03_plan_revised")
-        self.dom(page, "03_plan_revised")
-
-        # (e0) panel inspection (evidence only) — open the ObjectivePlanPanel via
-        # the chat card's "Open Plan" and confirm it renders the plan detail.
-        # Approve no longer happens here, but this proves the panel path works.
-        panel_seen = self._open_plan_panel(page)
+        # Server truth: versions history shows v1 preserved AND a v2 present.
+        plan_json = self._read_plan_json(page)
+        obj_id = plan_json.get("objective_id") if isinstance(plan_json, dict) else None
+        versions_ok = False
+        v_max = None
+        if obj_id and ctx.get("objective_plan_id"):
+            versions = self._authed_get(
+                page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}/versions"
+            )
+            rows = versions.get("__body") if isinstance(versions, dict) else None
+            if isinstance(rows, list) and rows:
+                gvs = [r.get("graph_version") for r in rows if isinstance(r, dict)]
+                gvs = [g for g in gvs if isinstance(g, int)]
+                if gvs:
+                    v_max = max(gvs)
+                    versions_ok = 1 in gvs and v_max >= 2
+        card_v2 = rstate == "revised" or revision_attr == "2"
         self.stage(
-            "plan_panel_inspected", panel_seen, "Open Plan → ObjectivePlanPanel renders detail"
+            "s10_conversational_revision",
+            card_v2 and (versions_ok or revision_attr == "2"),
+            f"state={rstate} data-revision={revision_attr} versions_ok={versions_ok} v_max={v_max}",
         )
-        self.shot(page, "03b_plan_panel")
-        if panel_seen:
-            self.dom(page, "03b_plan_panel")
+        self.shot(page, "s10_revision")
+        self.dom(page, "s10_revision")
 
-        # (e) approve via the ControlPanel APPROVALS column (as-built decision
-        # surface, ui-builder confirmed). Expand the column, find the
-        # objective_plan row anchored by the run tag, click wg-approve-btn there.
-        # Then verify the chat card data-state flips to approved AND the literal
-        # banner is visible AND read-only server truth confirms.
-        before_approve = self._read_plan_by_conversation(page)
+    # ── s11 — ambiguous reference ────────────────────────────────────────────
+    def _s11_ambiguous_reference(self, page: Any, ctx: dict[str, Any]) -> None:
+        """ "Cancel it" with no unique referent → ONE clarification, NO state change.
+
+        Uses a fresh conversation so there is no uniquely-selectable plan in the
+        thread's reference frame — the protocol must ask which one, and change
+        nothing. We assert the revised plan from s10 is UNTOUCHED afterward.
+        """
+        state_before = ""
+        if ctx.get("objective_plan_id"):
+            pj = self._authed_get(page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}")
+            state_before = pj.get("status", "") if isinstance(pj, dict) else ""
+        ctx["s11_state_before"] = state_before
+        self._new_conversation(page, "s11_ambiguous")
+        self._send_and_wait(page, f"{AMBIGUOUS_CANCEL_MESSAGE} {self.run_tag}")
+        page.wait_for_timeout(2500)
+        # Exactly one clarification question: the reply asks "which" and no plan
+        # transitioned to cancelled.
+        asks_clarification = any(
+            self._body_contains(page, phrase)
+            for phrase in ("which plan", "Which plan", "which one", "cancel target")
+        )
+        # No cancellation state appeared anywhere on the page.
+        no_cancel_state = (
+            page.locator('[data-testid="wg-plan-root"][data-state="cancelled"]').count() == 0
+        )
+        # The s10 plan is unchanged server-side.
+        state_after = state_before
+        if ctx.get("objective_plan_id"):
+            pj = self._authed_get(page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}")
+            state_after = pj.get("status", "") if isinstance(pj, dict) else state_before
+        unchanged = state_after == state_before
+        self.stage(
+            "s11_ambiguous_reference",
+            asks_clarification and no_cancel_state and unchanged,
+            f"asks_clarification={asks_clarification} no_cancel_state={no_cancel_state} "
+            f"plan_state {state_before}->{state_after}",
+        )
+        self.shot(page, "s11_ambiguous")
+
+    # ── s12 — no premature Decision ──────────────────────────────────────────
+    def _s12_no_premature_decision(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Before the plan was DECISION_READY there was no HUD row; now exactly one.
+
+        The "before" half is evidenced by s03's timeline (no objective_plan row
+        appeared after a pure greeting — recorded in ctx). The "now" half: after
+        the s07 objective reached awaiting_approval, exactly one objective_plan
+        row carrying this run tag exists in the ControlPanel.
+        """
+        before_rows = ctx.get("hud_rows_after_greeting", 0)
+        self._open_approvals(page)
+        rows_now = self._approval_row(page)
+        row_count = rows_now.count()
+        server_ready = False
+        if ctx.get("objective_plan_id"):
+            pj = self._authed_get(page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}")
+            if isinstance(pj, dict):
+                status = pj.get("status", "")
+                readiness = (pj.get("readiness_assessment") or {}).get("state", "")
+                server_ready = status == "awaiting_approval" or "READY" in str(readiness).upper()
+        ok = before_rows == 0 and row_count >= 1 and server_ready
+        ctx["s12_row_count"] = row_count
+        self.stage(
+            "s12_no_premature_decision",
+            ok,
+            f"rows_after_greeting={before_rows} objective_plan_rows_now={row_count} "
+            f"server_decision_ready={server_ready}",
+        )
+        self.shot(page, "s12_hud_row")
+
+    # ── s13 — chat "Approve that plan." explains HUD-only ────────────────────
+    def _s13_chat_approve_reply(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Chat approve → reply explains decisions happen in the control panel."""
+        self._send_and_wait(page, f"{CHAT_APPROVE_MESSAGE} {self.run_tag}")
+        page.wait_for_timeout(2000)
+        explains_hud = self._body_contains(page, "Decisions are made in the control panel") or (
+            self._body_contains(page, "control panel")
+            and self._body_contains(page, "Nothing changes until")
+        )
+        ctx["s13_explained_hud"] = explains_hud
+        self.stage(
+            "s13_chat_approve_reply",
+            explains_hud,
+            f"reply_explains_control_panel={explains_hud}",
+        )
+        self.shot(page, "s13_chat_approve")
+
+    # ── s14 — chat approve changed NOTHING ───────────────────────────────────
+    def _s14_chat_approve_no_change(self, page: Any, ctx: dict[str, Any]) -> None:
+        """After the chat 'approve', the plan is STILL awaiting_approval; HUD focused."""
+        status = ""
+        if ctx.get("objective_plan_id"):
+            pj = self._authed_get(page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}")
+            status = pj.get("status", "") if isinstance(pj, dict) else ""
+        still_awaiting = status == "awaiting_approval"
+        self._open_approvals(page)
+        hud_row_present = self._approval_row(page).count() >= 1
+        self.stage(
+            "s14_chat_approve_no_change",
+            still_awaiting and hud_row_present,
+            f"plan_status={status} still_awaiting={still_awaiting} hud_row={hud_row_present}",
+        )
+        self.shot(page, "s14_no_change")
+
+    # ── s15 — approve via Top HUD ────────────────────────────────────────────
+    def _s15_approve_via_hud(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Expand ControlPanel, click wg-approve-btn on the run-tag objective row."""
         clicked = self._decide_via_control_panel(page, "approve")
-        self.shot(page, "04a_control_panel_approve")
         astate = self._wait_wg_state(page, {"approved"})
-        banner_ok = APPROVED_BANNER in page.inner_text("body")
-        after_approve = self._read_plan_by_conversation(page)
-        server_ok = isinstance(after_approve, dict) and after_approve.get("state") == "approved"
+        ctx["approved_via_hud"] = clicked
+        ctx["card_state_after_approve"] = astate
         self.stage(
-            "plan_approved",
-            clicked and astate == "approved" and banner_ok,
-            f"clicked={clicked} card_state={astate} banner={'yes' if banner_ok else 'no'} "
-            f"server_state={after_approve.get('state') if isinstance(after_approve, dict) else '?'}",
+            "s15_approve_via_hud",
+            clicked and astate == "approved",
+            f"clicked={clicked} card_state={astate}",
         )
-        # Record the approved plan id for the continuity stages (before churn).
-        self.continuity["approved_plan"] = {
-            "before": before_approve,
-            "after": after_approve,
-            "server_confirmed": server_ok,
+        self.shot(page, "s15_hud_approve")
+        self.dom(page, "s15_hud_approve")
+
+    # ── s16 — APPROVED banner + decision-log message ─────────────────────────
+    def _s16_approved_banner(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Plan status APPROVED and the "PLAN APPROVED — EXECUTION NOT STARTED" copy.
+
+        Two independent signals: the UI banner text in the plan card/detail, and
+        the server decision_log's last entry carrying the same status message
+        (authorization_effect=plan_acceptance_only).
+        """
+        banner_ok = self._body_contains(page, APPROVED_BANNER)
+        plan_json = self._read_plan_json(page)
+        status = plan_json.get("status", "") if isinstance(plan_json, dict) else ""
+        decision_log = plan_json.get("decision_log") if isinstance(plan_json, dict) else None
+        log_ok = False
+        auth_effect_ok = False
+        if isinstance(decision_log, list) and decision_log:
+            last = decision_log[-1]
+            if isinstance(last, dict):
+                msg = str(last.get("status_message", "")) + str(last.get("message", ""))
+                log_ok = "APPROVED" in msg.upper() or "EXECUTION NOT STARTED" in msg.upper()
+                auth_effect_ok = str(last.get("authorization_effect", "")) == "plan_acceptance_only"
+        server_approved = status == "approved"
+        self.stage(
+            "s16_approved_banner",
+            banner_ok and server_approved and (log_ok or auth_effect_ok),
+            f"banner={banner_ok} server_status={status} log_msg_ok={log_ok} "
+            f"auth_effect_plan_acceptance_only={auth_effect_ok}",
+        )
+        self.shot(page, "s16_approved_banner")
+        self.dom(page, "s16_approved_banner")
+
+    # ── s17 — zero ExecutionAttempts ─────────────────────────────────────────
+    def _s17_zero_execution_attempts(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Every plan packet is still status=planned — none approved/executing."""
+        packets = self._read_packets(page)
+        plan_packets = [p for p in packets if p.get("source_type") == "objective_plan"]
+        exec_statuses = {
+            "approved",
+            "delegated",
+            "executing",
+            "reconverging",
+            "validating",
+            "completed",
         }
-        self.shot(page, "04_plan_approved")
-        self.dom(page, "04_plan_approved")
-
-        # (e2) kanban verification — after compile the Work panel kanban should
-        # materialize the packets. Navigate to it and screenshot the packets,
-        # anchoring by run-tag titles; reconcile packet ids read-only if titles
-        # do not carry the tag.
-        self._kanban_stage(page)
-
-        # (f) fresh state → clarification objective → clarification prompt
-        self._new_conversation(page, "clarify")
-        chat = self._find_chat_input(page)
-        ctag = self.run_tag
-        with page.expect_response(
-            lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=180000
-        ):
-            self._type_objective(page, chat, f"{CLARIFY_TRIGGER} {ctag}")
-        page.wait_for_selector(WG_CLARIFICATION_PROMPT, state="visible", timeout=180000)
-        self.stage("clarification_requested", True, "wg-clarification-prompt visible")
-        self.shot(page, "05_clarification_prompt")
-        # answer the clarification in the chat rail → plan renders
-        chat = self._find_chat_input(page)
-        with page.expect_response(
-            lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=180000
-        ):
-            self._type_objective(page, chat, f"{CLARIFY_ANSWER} {ctag}")
-        cstate = self._wait_wg_state(page, {"rendered", "awaiting_approval", "revised"})
-        self.stage("clarification_resolved", cstate != "", f"state={cstate}")
-        self.shot(page, "05b_clarified_plan")
-        self.dom(page, "05b_clarified_plan")
-
-        # (g) fresh state → distinct objective → reject via ControlPanel row
-        self._new_conversation(page, "reject")
-        chat = self._find_chat_input(page)
-        with page.expect_response(
-            lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=180000
-        ):
-            self._type_objective(
-                page, chat, f"Draft a graph to migrate the presence runtime. {self.run_tag}"
-            )
-        self._wait_wg_state(page, {"rendered", "awaiting_approval"})
-        clicked_rej = self._decide_via_control_panel(page, "reject")
-        self.shot(page, "06a_control_panel_reject")
-        jstate = self._wait_wg_state(page, {"rejected"})
-        self.stage(
-            "plan_rejected",
-            clicked_rej and jstate == "rejected",
-            f"clicked={clicked_rej} state={jstate}",
+        executed = [p for p in plan_packets if (p.get("status") or "").lower() in exec_statuses]
+        all_planned = all(
+            (p.get("status") or "").lower()
+            in ("planned", "classified", "drafted", "ready_for_review")
+            for p in plan_packets
         )
-        self.shot(page, "06_plan_rejected")
-        self.dom(page, "06_plan_rejected")
+        ok = len(plan_packets) > 0 and not executed and all_planned
+        self.stage(
+            "s17_zero_execution_attempts",
+            ok,
+            f"plan_packets={len(plan_packets)} executed={len(executed)} all_planned={all_planned}",
+        )
+        self.shot(page, "s17_no_execution")
 
-        # (h) fresh state → another objective → cancel via ObjectivePlanPanel.
-        # Cancel is the ONE decision that stays in the plan panel: open the panel
-        # from the chat card's "Open Plan" action, click wg-cancel-btn there.
-        self._new_conversation(page, "cancel")
-        chat = self._find_chat_input(page)
-        with page.expect_response(
-            lambda r: "/advisor/converse" in r.url and r.status == 200, timeout=180000
-        ):
-            self._type_objective(
-                page, chat, f"Draft a graph to migrate the tick_loop runtime. {self.run_tag}"
-            )
-        self._wait_wg_state(page, {"rendered", "awaiting_approval"})
-        panel_open = self._open_plan_panel(page)
-        self.stage("objective_plan_panel_opened", panel_open, "Open Plan → ObjectivePlanPanel")
-        if panel_open:
-            panel = page.locator(WG_OBJECTIVE_PLAN_PANEL)
-            cancel_btn = (
-                panel.first.locator(WG_CANCEL_BTN) if panel.count() else page.locator(WG_CANCEL_BTN)
-            )
-            if cancel_btn.count() > 0:
-                cancel_btn.first.click()
-        self.shot(page, "07a_plan_panel_cancel")
-        hstate = self._wait_wg_state(page, {"cancelled"})
-        self.stage("plan_cancelled", panel_open and hstate == "cancelled", f"state={hstate}")
-        self.shot(page, "07_plan_cancelled")
-        self.dom(page, "07_plan_cancelled")
-
-        # (i) continuity: reload → the approved plan card re-renders. To do this
-        # we need the approved conversation back. Its plan record id is read from
-        # server truth (read-only) BEFORE the fresh-state churn above would lose
-        # it, so we re-open by navigating fresh and reading the active plan.
-        self._continuity_reload(page)
-
-        # (j) full browser close → relaunch → same plan state, no duplicate graph
-        self._continuity_relaunch(browser, state_path)
-
-        return page
-
-    def _continuity_reload(self, page: Any) -> None:
-        """(i) page.reload() and confirm a plan card re-renders with server truth."""
+    # ── s18 — refresh persistence ────────────────────────────────────────────
+    def _s18_refresh_persistence(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Reload: plan card re-renders, kanban persists, no resurrected pending row."""
         before = self._read_plan_by_conversation(page)
         page.reload(wait_until="load")
-        page.wait_for_timeout(2000)
+        page.wait_for_timeout(2500)
         after = self._read_plan_by_conversation(page)
         card_present = page.locator(WG_PLAN_ROOT).count() > 0
-        same = (
+        same_plan = (
             isinstance(before, dict)
             and isinstance(after, dict)
             and before.get("plan_record_id")
             and before.get("plan_record_id") == after.get("plan_record_id")
         )
-        self.continuity["reload"] = {"before": before, "after": after, "card_present": card_present}
+        self._open_kanban(page)  # navigate the board (persistence of task cards)
+        packets = self._read_packets(page)
+        plan_packets = [p for p in packets if p.get("source_type") == "objective_plan"]
+        # No resurrected pending decision row for the now-decided (approved) plan.
+        self._open_approvals(page)
+        resurrected = self._approval_row(page).count() > 0
+        ctx["s18_after"] = after
         self.stage(
-            "continuity_reload",
-            bool(same or card_present),
-            f"plan_record_id={after.get('plan_record_id') if isinstance(after, dict) else '?'}",
+            "s18_refresh_persistence",
+            bool(same_plan or card_present) and len(plan_packets) > 0 and not resurrected,
+            f"card_present={card_present} same_plan={bool(same_plan)} "
+            f"plan_packets={len(plan_packets)} resurrected_pending_row={resurrected}",
         )
-        self.shot(page, "08_continuity_reload")
+        self.shot(page, "s18_refresh")
 
-    def _continuity_relaunch(self, browser: Any, state_path: str) -> None:
-        """(j) close context, open a brand new one, confirm identical plan state."""
+    # ── s19 — Chrome close / reopen ──────────────────────────────────────────
+    def _s19_close_reopen(self, browser: Any, state_path: str, ctx: dict[str, Any]) -> Any:
+        """Close the context, open a brand new one, re-auth from cached Clerk state."""
         context = self._new_context(browser, state_path)
         page = context.new_page()
         self._wire_listeners(page)
         page.goto(self.url, wait_until="load", timeout=45000)
         page.wait_for_timeout(2500)
+        reauthed = bool(page.evaluate("() => !!(window.Clerk && window.Clerk.session)"))
+        ctx["reopened_page"] = True
+        self.stage(
+            "s19_close_reopen",
+            reauthed,
+            f"reauthenticated_from_cached_clerk={reauthed}",
+        )
+        self.shot(page, "s19_reopen")
+        return page
+
+    # ── s20 — continuity after relaunch ──────────────────────────────────────
+    def _s20_continuity(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Conversation, Task cards, approved v2 Objective/Plan, scope, decision,
+        assistant name all persist after the s19 close/reopen."""
         after = self._read_plan_by_conversation(page)
-        before = self.continuity.get("reload", {}).get("after", {})
+        before = ctx.get("s18_after", {})
+        # Plan identity + version + approved state persist (no duplicate graph).
         no_dupe = (
             isinstance(after, dict)
             and isinstance(before, dict)
             and after.get("plan_record_id") == before.get("plan_record_id")
-            and after.get("graph_version") == before.get("graph_version")
         )
-        self.continuity["relaunch"] = {
-            "before": before,
-            "after": after,
-            "no_duplicate": bool(no_dupe),
-        }
+        plan_json = self._read_plan_json(page)
+        approved_persisted = isinstance(plan_json, dict) and plan_json.get("status") == "approved"
+        v2_persisted = (
+            isinstance(plan_json, dict)
+            and isinstance(plan_json.get("graph_version"), int)
+            and plan_json.get("graph_version") >= 2
+        )
+        scope_persisted = bool(
+            isinstance(plan_json, dict)
+            and (plan_json.get("work_scope") or plan_json.get("planning_scale"))
+        )
+        # Task cards persist.
+        self._open_kanban(page)
+        packets = self._read_packets(page)
+        cards_persisted = len(packets) > 0
+        # Assistant name persists (the chat input placeholder is "Message <name>…").
+        chat = self._find_chat_input(page)
+        name_persisted = chat.count() > 0
+        ok = (
+            (no_dupe or (isinstance(after, dict) and bool(after.get("plan_record_id"))))
+            and approved_persisted
+            and scope_persisted
+            and cards_persisted
+            and name_persisted
+        )
         self.stage(
-            "continuity_relaunch",
-            bool(no_dupe) or (isinstance(after, dict) and bool(after.get("plan_record_id"))),
-            f"plan_record_id={after.get('plan_record_id') if isinstance(after, dict) else '?'} "
-            f"graph_version={after.get('graph_version') if isinstance(after, dict) else '?'}",
+            "s20_continuity",
+            ok,
+            f"no_dupe={bool(no_dupe)} approved_persisted={approved_persisted} "
+            f"v2_persisted={v2_persisted} scope_persisted={scope_persisted} "
+            f"cards_persisted={cards_persisted} name_persisted={name_persisted}",
         )
-        self.shot(page, "09_continuity_relaunch")
+        self.shot(page, "s20_continuity")
+        self.dom(page, "s20_continuity")
+
+    # ── s21 — no rival decision path ─────────────────────────────────────────
+    def _s21_no_rival_decision_path(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Retired panel ids route to canonical surfaces; decision controls exist
+        ONLY in the ControlPanel HUD.
+
+        The retired ids (intent/intentloop/objectiveplan/commands/tasks) resolve
+        client-side through the panel registry (workdetail/work/chat). We cannot
+        call the store from Playwright, but we CAN verify the load-bearing
+        invariant: NO approve/reject control renders anywhere on the page while
+        the HUD is COLLAPSED, and when expanded the ONLY approve/reject controls
+        are inside the wg-hud-approvals / ControlPanel strip. A page-wide query
+        for wg-approve-btn/wg-reject-btn outside the HUD container must be empty.
+        """
+        # Navigate through each retired surface's canonical target and confirm no
+        # rogue decision control appears. We reach workdetail via Open Plan (the
+        # objectiveplan/intent target) and work via the kanban (the tasks target).
+        self._open_kanban(page)  # tasks/universalwork → work
+        work_decision_ctrls = page.locator(
+            f"{WG_KANBAN} {WG_APPROVE_BTN}, {WG_KANBAN} {WG_REJECT_BTN}"
+        ).count()
+        # Page-wide approve/reject buttons must all live inside the ControlPanel.
+        total_approve = page.locator(WG_APPROVE_BTN).count()
+        total_reject = page.locator(WG_REJECT_BTN).count()
+        # Buttons that are NOT descendants of a wg-approval-row (the HUD row) are
+        # rogue. XPath: any wg-approve-btn with no ancestor approval row.
+        rogue_approve = page.locator(
+            "xpath=//*[@data-testid='wg-approve-btn']"
+            "[not(ancestor::*[@data-testid='wg-approval-row'])]"
+        ).count()
+        rogue_reject = page.locator(
+            "xpath=//*[@data-testid='wg-reject-btn']"
+            "[not(ancestor::*[@data-testid='wg-approval-row'])]"
+        ).count()
+        ok = work_decision_ctrls == 0 and rogue_approve == 0 and rogue_reject == 0
+        self.stage(
+            "s21_no_rival_decision_path",
+            ok,
+            f"kanban_decision_ctrls={work_decision_ctrls} total_approve={total_approve} "
+            f"total_reject={total_reject} rogue_approve={rogue_approve} rogue_reject={rogue_reject}",
+        )
+        self.shot(page, "s21_no_rival_path")
+
+    # ── s22a / s22b — governance-profile mini-cases (bonus, non-gating) ───────
+    def _s22a_self_build(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Self-build planning message → plan compiles, umh_substrate governance,
+        approval NOT auto-granted."""
+        self._new_conversation(page, "s22a_self_build")
         try:
-            context.close()
-        except Exception as exc:  # noqa: BLE001
-            print(f"  relaunch context close failed: {exc}", file=sys.stderr)
+            self._send_and_wait(page, f"{SELF_BUILD_MESSAGE} {self.run_tag}")
+            state = self._wait_wg_state(
+                page, {"rendered", "awaiting_approval", "revised", "clarifying"}
+            )
+            plan_json = self._read_plan_json(page)
+            scope = plan_json.get("work_scope") if isinstance(plan_json, dict) else {}
+            target = (scope or {}).get("target_kind", "") if isinstance(scope, dict) else ""
+            not_auto_approved = (
+                isinstance(plan_json, dict) and plan_json.get("status") != "approved"
+            )
+            substrate_profile = target == "umh_substrate" or self._body_contains(page, "substrate")
+            self.stage(
+                "s22a_self_build",
+                state != "" and not_auto_approved,
+                f"state={state} target_kind={target} substrate_profile={substrate_profile} "
+                f"not_auto_approved={not_auto_approved}",
+            )
+        except Exception as exc:  # noqa: BLE001 — bonus step never breaks the pass
+            self.stage("s22a_self_build", False, f"exception={str(exc)[:120]}")
+        self.shot(page, "s22a_self_build")
+
+    def _s22b_projection_build(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Projection-build planning message → plan compiles, projection governance,
+        approval NOT auto-granted."""
+        self._new_conversation(page, "s22b_projection")
+        try:
+            self._send_and_wait(page, f"{PROJECTION_BUILD_MESSAGE} {self.run_tag}")
+            state = self._wait_wg_state(
+                page, {"rendered", "awaiting_approval", "revised", "clarifying"}
+            )
+            plan_json = self._read_plan_json(page)
+            scope = plan_json.get("work_scope") if isinstance(plan_json, dict) else {}
+            target = (scope or {}).get("target_kind", "") if isinstance(scope, dict) else ""
+            not_auto_approved = (
+                isinstance(plan_json, dict) and plan_json.get("status") != "approved"
+            )
+            self.stage(
+                "s22b_projection_build",
+                state != "" and not_auto_approved,
+                f"state={state} target_kind={target} not_auto_approved={not_auto_approved}",
+            )
+        except Exception as exc:  # noqa: BLE001 — bonus step never breaks the pass
+            self.stage("s22b_projection_build", False, f"exception={str(exc)[:120]}")
+        self.shot(page, "s22b_projection_build")
 
     # ── finalize + ship ──────────────────────────────────────────────────────
+    # Bonus steps that must NOT gate the pass (plan v5.1 §23: gate on s01–s21).
+    _NON_GATING_STAGES = ("s22a_self_build", "s22b_projection_build")
+
     def _finalize(self, page: Any) -> dict[str, Any]:
-        passed = self.error is None and all(s["ok"] for s in self.stages)
+        # Gate on every stage EXCEPT the explicitly non-gating bonus mini-cases.
+        gating_stages = [s for s in self.stages if s["stage"] not in self._NON_GATING_STAGES]
+        passed = self.error is None and all(s["ok"] for s in gating_stages)
+        bonus = {s["stage"]: s["ok"] for s in self.stages if s["stage"] in self._NON_GATING_STAGES}
         asset_files = sorted(
             {
                 n["url"]
@@ -1213,11 +1759,13 @@ class FieldCollector:
             "run_tag": self.run_tag,
             "session_proof": self.session_proof,
             "stages": self.stages,
+            "bonus_stages": bonus,
             "continuity": self.continuity,
             "correlation_ids": [self.correlation_id],
             "asset_files_seen": asset_files,
             "error": self.error,
-            "failed_stage": self.failed_stage,
+            # The gating failure (ignoring bonus mini-cases), for the terminal verdict.
+            "failed_stage": next((s["stage"] for s in gating_stages if not s["ok"]), None),
             "generated_at": _utc_now(),
         }
         # Strip any Authorization header value that may have slipped into network

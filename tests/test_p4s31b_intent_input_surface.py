@@ -239,23 +239,30 @@ def _advisor_converse_endpoint():
 
 
 def test_advisor_converse_routes_intent_through_rail(tmp_path, monkeypatch):
-    """Through the ACTUAL chat handler: an intent-bearing message is captured by
-    the rail (even with the organism down — degraded-governed), while a
-    conversational message follows the normal daemon-dependent path."""
+    """Through the ACTUAL chat handler: a work-bearing message is captured by
+    the WAVE 1 PLANNING rail (§23.5 cutover — the canonical Operator Intent
+    Protocol replaced the legacy intent-loop rail on this path), while a
+    conversational message follows the normal daemon-dependent path.
+
+    The cutover contract: new Cockpit submissions NEVER write legacy
+    IntentLoopRecords. The legacy loop remains reachable ONLY via the
+    explicit POST /intent-loop/submit compatibility route.
+    """
     store_path = _isolate_store(tmp_path, monkeypatch)
+    monkeypatch.setenv("UMH_ORG_ID", "test-org")
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
     endpoint = _advisor_converse_endpoint()
 
     out = endpoint({"content": _CHAT_INTENT})
-    assert out["intent"] == "intent_loop_submit"
-    assert out["metadata"]["submitted"] is True
-    assert out["metadata"]["stage"] == IntentLoopStage.AWAITING_APPROVAL.value
+    # The planning rail (not the legacy loop) owns the work seam now.
+    assert out["metadata"]["surface"] == "objective_plan"
+    assert out["intent"] in ("create_task", "create_objective")
 
-    # Gate held on the server-truth store.
+    # §23.5: ZERO legacy IntentLoopRecords written by the chat path.
     store = IntentLoopStore(store_path=store_path)
-    rec = store.get(out["metadata"]["loop_id"])
-    assert rec is not None and rec.stage == IntentLoopStage.AWAITING_APPROVAL.value
+    assert store.load_all() == []
 
-    # Conversational text does NOT enter the intent loop; with the organism
+    # Conversational text does NOT enter any work rail; with the organism
     # down it hits the normal daemon-dependent path.
     conv_out = endpoint({"content": _CHAT_CONVERSATION})
     assert conv_out == {"error": "organism not running"}

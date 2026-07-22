@@ -86,10 +86,11 @@ export interface PlanNode {
   evidence_refs: string[]
 }
 
+/** Server edge shape (compiler.py): `{"from": node_id, "to": node_id}`. */
 export interface PlanEdge {
-  from_node: string
-  to_node: string
-  type: string
+  from: string
+  to: string
+  type?: string
 }
 
 export interface StateStatement {
@@ -143,8 +144,12 @@ export interface PlanPacket {
 export interface DecisionLogEntry {
   decision: string
   decided_by: string
-  at: string
+  /** Server records `decided_at` (epoch seconds); `at` kept for older rows. */
+  decided_at?: number | string
+  at?: string
   reason?: string | null
+  authorization_effect?: string
+  status_message?: string
 }
 
 /** Plan work-scope — the first-class tenant/target context on a plan record. */
@@ -226,24 +231,6 @@ export interface PlanDetail {
 
 export type PlanDecision = 'approve' | 'reject' | 'cancel'
 
-interface SurfaceResponse {
-  ok: boolean
-  plans?: PlanSummary[]
-  error?: string
-}
-
-interface PlanResponse {
-  ok: boolean
-  plan?: PlanDetail | null
-  error?: string
-}
-
-interface VersionsResponse {
-  ok: boolean
-  versions?: PlanSummary[]
-  error?: string
-}
-
 interface DecisionResponse {
   ok: boolean
   plan?: PlanDetail
@@ -298,8 +285,9 @@ export const useObjectivePlanStore = create<ObjectivePlanState_>((set, get) => (
   fetchSurface: async () => {
     set({ loading: true })
     try {
-      const data = await fetchApi<SurfaceResponse>('/objective-plan')
-      set({ plans: data.plans ?? [], error: data.error ?? null, loading: false })
+      // Backend returns a BARE array of surface rows (objective_plan_routes).
+      const data = await fetchApi<PlanSummary[]>('/objective-plan')
+      set({ plans: Array.isArray(data) ? data : [], error: null, loading: false })
     } catch (err) {
       set({ error: err instanceof Error ? err.message : String(err), loading: false })
     }
@@ -308,16 +296,20 @@ export const useObjectivePlanStore = create<ObjectivePlanState_>((set, get) => (
   fetchPlan: async (planRecordId: string) => {
     set({ detailLoading: true })
     try {
-      const data = await fetchApi<PlanResponse>(`/objective-plan/${planRecordId}`)
-      const plan = data.plan ?? null
+      // Backend returns the BARE plan dict, or {error: "not_found", ...}.
+      const data = await fetchApi<PlanDetail | { error: string }>(
+        `/objective-plan/${planRecordId}`,
+      )
+      const plan = data && !('error' in data) && data.plan_record_id ? (data as PlanDetail) : null
       if (plan) {
         set((s) => ({
           planById: { ...s.planById, [plan.plan_record_id]: plan },
-          error: data.error ?? null,
+          error: null,
           detailLoading: false,
         }))
       } else {
-        set({ error: data.error ?? null, detailLoading: false })
+        const errorText = data && 'error' in data ? data.error : null
+        set({ error: errorText, detailLoading: false })
       }
       return plan
     } catch (err) {
@@ -329,18 +321,19 @@ export const useObjectivePlanStore = create<ObjectivePlanState_>((set, get) => (
   fetchByConversation: async (conversationId: string) => {
     set({ detailLoading: true })
     try {
-      const data = await fetchApi<PlanResponse>(
+      // Backend returns the BARE plan dict or null (no envelope).
+      const data = await fetchApi<PlanDetail | null>(
         `/objective-plan/by-conversation/${conversationId}`,
       )
-      const plan = data.plan ?? null
+      const plan = data && data.plan_record_id ? data : null
       if (plan) {
         set((s) => ({
           planById: { ...s.planById, [plan.plan_record_id]: plan },
-          error: data.error ?? null,
+          error: null,
           detailLoading: false,
         }))
       } else {
-        set({ error: data.error ?? null, detailLoading: false })
+        set({ error: null, detailLoading: false })
       }
       return plan
     } catch (err) {
@@ -351,10 +344,9 @@ export const useObjectivePlanStore = create<ObjectivePlanState_>((set, get) => (
 
   fetchVersions: async (planRecordId: string) => {
     try {
-      const data = await fetchApi<VersionsResponse>(
-        `/objective-plan/${planRecordId}/versions`,
-      )
-      const versions = data.versions ?? []
+      // Backend returns a BARE ascending array of version rows.
+      const data = await fetchApi<PlanSummary[]>(`/objective-plan/${planRecordId}/versions`)
+      const versions = Array.isArray(data) ? data : []
       // The versions endpoint is keyed by plan_record_id but returns every
       // version of that record's objective_id (ascending). Cache under the
       // objective_id so the version selector can key off the whole lineage.
@@ -362,10 +354,8 @@ export const useObjectivePlanStore = create<ObjectivePlanState_>((set, get) => (
       if (objectiveId) {
         set((s) => ({
           versionsByObjective: { ...s.versionsByObjective, [objectiveId]: versions },
-          error: data.error ?? null,
+          error: null,
         }))
-      } else {
-        set({ error: data.error ?? null })
       }
       return versions
     } catch (err) {

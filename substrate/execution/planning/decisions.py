@@ -117,6 +117,7 @@ def apply_plan_decision(
     reason: str = "",
     mutation_runner: Callable[..., Any] | None = None,
     event_emit: Callable[[str, dict[str, Any]], None] | None = None,
+    expected_version: int | None = None,
 ) -> ObjectivePlanRecord:
     """Apply one HUD plan decision under governed mutation.
 
@@ -140,6 +141,14 @@ def apply_plan_decision(
         raise PlanDecisionConflict(
             f"plan {plan_record_id} is {plan.status!r} — cannot {decision} "
             f"(a conflicting decision already resolved this decision_ref)"
+        )
+
+    if expected_version is not None and expected_version != plan.graph_version:
+        # Optimistic-concurrency: the caller decided against a STALE view
+        # (e.g. a revision superseded it) — reject, never silently apply.
+        raise PlanDecisionConflict(
+            f"plan {plan_record_id}: caller saw v{expected_version}, "
+            f"current is v{plan.graph_version}"
         )
 
     approval = build_plan_approval_request(plan)

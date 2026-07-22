@@ -419,7 +419,8 @@ class OperatorIntentProtocol:
         # Clarification response: an open session is waiting on this conversation.
         try:
             active = self._store.find_active_session(frame.conversation_id)
-        except Exception:
+        except Exception as exc:
+            logger.debug("find_active_session failed (treated as none): %s", exc)
             active = None
         if active is not None and active.stage == "awaiting_clarification":
             return IntentClass.CLARIFICATION_RESPONSE

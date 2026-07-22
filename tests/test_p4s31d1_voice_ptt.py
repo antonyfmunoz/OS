@@ -281,11 +281,13 @@ def _advisor_converse_endpoint():
 
 
 def test_voice_payload_enters_rail_verbatim_and_gate_holds(tmp_path, monkeypatch):
-    """The packet's core acceptance: a voice-shaped /advisor/converse payload
-    (source='voice', voice_turn_id) with intent-bearing transcript text
-    → canonical intent event, transcript VERBATIM in the loop record, gate
-    HELD at AWAITING_APPROVAL with no proof."""
+    """A voice-shaped /advisor/converse payload with work-bearing transcript
+    routes through the WAVE 1 PLANNING rail (§23.5 cutover — one protocol for
+    text + voice). The legacy intent loop receives ZERO records; nothing is
+    executable (capture-only, no HUD decision for an atomic Task)."""
     store_path = _isolate_loop_store(tmp_path, monkeypatch)
+    monkeypatch.setenv("UMH_ORG_ID", "test-org")
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
     endpoint = _advisor_converse_endpoint()
 
     out = endpoint(
@@ -295,30 +297,29 @@ def test_voice_payload_enters_rail_verbatim_and_gate_holds(tmp_path, monkeypatch
             "voice_turn_id": "vt-test-p4s31d1",
         }
     )
-    assert out["intent"] == "intent_loop_submit"
-    assert out["metadata"]["submitted"] is True
-    assert out["metadata"]["stage"] == IntentLoopStage.AWAITING_APPROVAL.value
+    # Planning rail owns the work seam for voice exactly as for text.
+    assert out["metadata"]["surface"] == "objective_plan"
+    assert out["intent"] in ("create_task", "create_objective")
 
-    # Server-truth store: gate held, no proof, transcript verbatim.
-    rec = IntentLoopStore(store_path=store_path).get(out["metadata"]["loop_id"])
-    assert rec is not None
-    assert rec.stage == IntentLoopStage.AWAITING_APPROVAL.value
-    assert rec.proof is None
-    assert rec.spec["raw_text"] == _VOICE_INTENT_TRANSCRIPT
+    # §23.5: the legacy loop store receives ZERO records from this path.
+    assert IntentLoopStore(store_path=store_path).load_all() == []
 
 
 def test_classification_is_source_independent(tmp_path, monkeypatch):
-    """Identical text classifies identically for voice and text payloads."""
+    """Identical text classifies identically for voice and text payloads —
+    one canonical protocol, source-independent."""
     store_path = _isolate_loop_store(tmp_path, monkeypatch)
+    monkeypatch.setenv("UMH_ORG_ID", "test-org")
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
     endpoint = _advisor_converse_endpoint()
 
     voice_out = endpoint({"content": _VOICE_INTENT_TRANSCRIPT, "source": "voice"})
     text_out = endpoint({"content": _VOICE_INTENT_TRANSCRIPT, "source": "text"})
-    assert voice_out["intent"] == text_out["intent"] == "intent_loop_submit"
+    assert voice_out["intent"] == text_out["intent"]
+    assert voice_out["metadata"]["surface"] == text_out["metadata"]["surface"] == "objective_plan"
 
-    records = IntentLoopStore(store_path=store_path).load_all()
-    raw_texts = {r.spec["raw_text"] for r in records}
-    assert raw_texts == {_VOICE_INTENT_TRANSCRIPT}
+    # No legacy records from either source (§23.5).
+    assert IntentLoopStore(store_path=store_path).load_all() == []
 
 
 # ── 5. No separate execution path (contract §Non-bypass, static) ──────────────

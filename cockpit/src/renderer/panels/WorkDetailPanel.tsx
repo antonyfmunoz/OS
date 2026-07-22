@@ -330,7 +330,7 @@ function PlanDetailView({ plan }: { plan: PlanDetail }) {
   const canCancel = plan.status === 'awaiting_approval' || plan.status === 'approved'
 
   const nodes = plan.nodes.map((n) => ({ id: n.node_id, label: n.title, type: n.kind, status: n.status }))
-  const edges = plan.edges.map((e) => ({ source: e.from_node, target: e.to_node, type: e.type }))
+  const edges = plan.edges.map((e) => ({ source: e.from, target: e.to, type: e.type ?? '' }))
   const colorMap: Record<string, string> = {}
   for (const n of plan.nodes) colorMap[n.kind] = nodeColor(n)
   const laneById = new Map(plan.nodes.map((n) => [n.node_id, n.lane]))
@@ -563,7 +563,10 @@ function PlanDetailView({ plan }: { plan: PlanDetail }) {
             <ul className="space-y-0.5">
               {plan.decision_log.map((d, i) => (
                 <li key={i} className="text-text-secondary font-mono text-[9px]">
-                  {d.decision} · {d.decided_by} · {d.at}
+                  {d.decision} · {d.decided_by} ·{' '}
+                  {d.decided_at != null
+                    ? new Date(Number(d.decided_at) * 1000).toLocaleString()
+                    : (d.at ?? '')}
                   {d.reason && <span className="text-text-tertiary"> — {d.reason}</span>}
                 </li>
               ))}

@@ -187,6 +187,28 @@ class TestAcceptanceNotExecution:
                 env.store, plan.plan_record_id, "reject", mutation_runner=env.runner
             )
 
+    def test_stale_client_version_rejected(self, env):
+        # Optimistic concurrency (adversarial-review fix): a decision made
+        # against a stale view (older graph_version) is rejected explicitly.
+        plan = _compiled_plan(env)
+        with pytest.raises(PlanDecisionConflict, match="caller saw"):
+            apply_plan_decision(
+                env.store,
+                plan.plan_record_id,
+                "approve",
+                mutation_runner=env.runner,
+                expected_version=plan.graph_version + 1,
+            )
+        # Correct version proceeds.
+        decided = apply_plan_decision(
+            env.store,
+            plan.plan_record_id,
+            "approve",
+            mutation_runner=env.runner,
+            expected_version=plan.graph_version,
+        )
+        assert decided.status == ObjectivePlanStatus.APPROVED.value
+
     def test_cancel_preserves_record(self, env):
         plan = _compiled_plan(env)
         cancelled = apply_plan_decision(

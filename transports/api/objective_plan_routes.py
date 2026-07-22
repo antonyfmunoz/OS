@@ -388,6 +388,9 @@ def _build_router() -> Any:
         decision: str
         decided_by: str = "operator"
         reason: str = ""
+        # Optimistic-concurrency token: the graph_version the CLIENT saw.
+        # When provided, a decision against a stale view is rejected.
+        expected_current_version: int | None = None
 
     @router.post("/{plan_record_id}/decision")
     def decide(plan_record_id: str, req: DecisionRequest) -> dict[str, Any]:
@@ -404,6 +407,7 @@ def _build_router() -> Any:
                 decided_by=req.decided_by,
                 reason=req.reason,
                 mutation_runner=governed_mutation,
+                expected_version=req.expected_current_version,
             )
             return {"ok": True, "plan": _plan_detail(plan)}
         except Exception as exc:

@@ -61,25 +61,35 @@ BANNED_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 # String-literal extractor for TS/TSX: '...', "...", `...` (no nesting needed
 # for label scanning) plus JSX text runs between > and <.
 _STRING_RE = re.compile(r"'(?:[^'\\\n]|\\.)*'|\"(?:[^\"\\\n]|\\.)*\"|`(?:[^`\\]|\\.)*`")
-_JSX_TEXT_RE = re.compile(r">([^<>{}]+)<")
+_JSX_TEXT_RE = re.compile(r">([^<>]+)<")
 # Attribute strings that are identifiers, not operator-visible labels.
 _IDENTIFIER_ATTR_RE = re.compile(
     r"(?:data-testid|data-[a-z-]+|className|class|id|key|href|src|import|from|type|name)\s*[:=]\s*$"
 )
 
 
+_TEMPLATE_INTERP_RE = re.compile(r"\$\{[^}]*\}")
+_JSX_INTERP_RE = re.compile(r"\{[^{}]*\}")
+
+
 def _extract_label_strings(source: str) -> list[tuple[int, str]]:
-    """Return (line, text) for operator-visible string content."""
+    """Return (line, text) for operator-visible string content.
+
+    Interpolations are replaced with a neutral placeholder INSIDE captured
+    text (never on the raw source, where braces delimit code blocks) so a
+    banned term adjacent to an interpolation is still caught.
+    """
     results: list[tuple[int, str]] = []
     for m in _STRING_RE.finditer(source):
         prefix = source[max(0, m.start() - 40) : m.start()]
         if _IDENTIFIER_ATTR_RE.search(prefix):
             continue
         line = source.count("\n", 0, m.start()) + 1
-        results.append((line, m.group(0)[1:-1]))
+        text = _TEMPLATE_INTERP_RE.sub(" _ ", m.group(0)[1:-1])
+        results.append((line, text))
     for m in _JSX_TEXT_RE.finditer(source):
-        text = m.group(1).strip()
-        if text:
+        text = _JSX_INTERP_RE.sub(" _ ", m.group(1)).strip()
+        if text and text != "_":
             line = source.count("\n", 0, m.start()) + 1
             results.append((line, text))
     return results

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { resolvePanelId } from '../../../panels/registry'
 
 const PANEL_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentType>> = {
   dashboard: lazy(() => import('../../../panels/DashboardPanel').then(m => ({ default: m.DashboardPanel }))),
@@ -98,7 +99,8 @@ export function PanelWindowContent({ panelId }: Props) {
     )
   }
 
-  const Component = PANEL_COMPONENTS[panelId]
+  // Retired/alias ids resolve to their canonical component (never a stub).
+  const Component = PANEL_COMPONENTS[resolvePanelId(panelId)] ?? PANEL_COMPONENTS[panelId]
   if (!Component) {
     return (
       <div className="flex items-center justify-center h-full" style={{ color: 'var(--color-text-tertiary)' }}>

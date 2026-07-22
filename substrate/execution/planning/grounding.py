@@ -82,7 +82,8 @@ def _objective_subsystem_tokens(spec: IntentSpec, text: str) -> list[str]:
         real_dirs = {
             d for d in os.listdir(legacy_root) if os.path.isdir(os.path.join(legacy_root, d))
         }
-    except OSError:
+    except OSError as exc:
+        logger.debug("legacy runtime root listing failed: %s", exc)
         real_dirs = set()
 
     tokens: list[str] = []
