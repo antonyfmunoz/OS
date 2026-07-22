@@ -374,12 +374,18 @@ def _remove_container_and_wait(runner: Runner, name: str, timeout_s: int = 90) -
         return
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        probe = subprocess.run(
-            ["docker", "inspect", name],
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
+        try:
+            probe = subprocess.run(
+                ["docker", "inspect", name],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        except subprocess.TimeoutExpired:
+            # A slow daemon (post-churn backlog) is "still busy", not a
+            # failure — keep waiting until the overall deadline.
+            print(f"[warn] docker inspect {name} slow — daemon busy, retrying")
+            continue
         if probe.returncode != 0:  # name no longer resolves — free
             return
         time.sleep(0.5)
