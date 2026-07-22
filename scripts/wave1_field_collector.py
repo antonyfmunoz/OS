@@ -938,22 +938,45 @@ class FieldCollector:
             return False
 
     def _find_chat_input(self, page: Any) -> Any:
-        """Locate the chat rail input, opening the rail if it boots closed."""
+        """Locate the chat rail input, opening the right drawer if closed.
+
+        A FRESH profile (and every post-clear reload) boots with the right
+        drawer CLOSED: cockpitStore `rightDrawerOpen` defaults to false and
+        the cleared persisted state can't reopen it. The chat input lives in
+        RightRail and is NOT in the DOM until the drawer opens. Two real
+        openers exist in CanvasToolbar: the PanelRight ToolbarButton titled
+        "Open panel" (ChatToggle → toggleRightDrawer), and choosing a view in
+        the RightPanelSwitcher dropdown (setRightPanelView force-opens the
+        drawer). The switcher BUTTON alone only shows the dropdown — clicking
+        it and stopping was why smoke 20260722T162438Z saw no input on an
+        otherwise fully-authenticated cockpit."""
         chat = page.locator(CHAT_INPUT_SELECTOR)
         if chat.count() > 0:
             return chat
-        # Canvas layout may boot with the chat rail closed. Try the toolbar
-        # control, then the Ctrl+/ shortcut (mirrors the proven p4s31c path).
-        toggle = page.get_by_role("button", name="Chat")
+        # (1) drawer toggle — deterministic single click
+        toggle = page.locator('button[title="Open panel"]')
         if toggle.count() > 0:
             toggle.first.click()
             page.wait_for_timeout(800)
-        chat = page.locator(CHAT_INPUT_SELECTOR)
-        if chat.count() == 0:
-            page.keyboard.press("Control+/")
+            chat = page.locator(CHAT_INPUT_SELECTOR)
+            if chat.count() > 0:
+                return chat
+        # (2) switcher dropdown → "Chat" item (also force-opens the drawer)
+        switcher = page.get_by_role("button", name="Chat")
+        if switcher.count() > 0:
+            switcher.first.click()
+            page.wait_for_timeout(400)
+            items = page.get_by_role("button", name="Chat")
+            if items.count() > 1:
+                items.nth(items.count() - 1).click()
             page.wait_for_timeout(800)
             chat = page.locator(CHAT_INPUT_SELECTOR)
-        return chat
+            if chat.count() > 0:
+                return chat
+        # (3) last resort — legacy shortcut from the p4s31c path
+        page.keyboard.press("Control+/")
+        page.wait_for_timeout(800)
+        return page.locator(CHAT_INPUT_SELECTOR)
 
     def _new_conversation(self, page: Any, tag: str) -> None:
         """Force a fresh conversation: clear app storage + reload.
