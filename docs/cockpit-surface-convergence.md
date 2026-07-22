@@ -24,6 +24,7 @@ Status values: `ACTIVE_DEBT` (bounded compatibility, retirement scheduled) |
 | 7 | Per-store private fcntl lock idiom repeated (planning store, approval_store, settings_persistence, GoalRegistry, …) | one canonical lock utility (future) | ACTIVE_DEBT | Extract shared helper when a 6th copy would appear; do not fork the idiom further |
 | 8 | SelfBuild / BuildLoop / Actions stores hold build work outside canonical packets | WorkPacket + WorkGraph | ACTIVE_DEBT | Verified read adapters only (visually distinct on Work board); store migration scheduled post-Wave-1 |
 | 9 | Seat/session-derived identity in legacy auth paths | PrincipalContext (principal ≠ tenant ≠ membership ≠ seat) | ACTIVE_DEBT | `substrate/contracts/principal_resolution.py` derives legacy_derived ids deterministically; membership NEVER from a browser session; native issuance in tenancy wave |
+| 10 | Per-route/per-module `EventSpine()` constructions (cockpit routes, operator engines) split event truth | `get_shared_event_spine()` (event_spine.py — persisted, recovered) | ACTIVE_DEBT | Planning path uses ONLY the shared spine (§22.6, enforced by test AC); per-route instances migrate in the observability convergence wave |
 
 ## Surface-level entries (Cockpit)
 
