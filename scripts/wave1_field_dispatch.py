@@ -354,7 +354,7 @@ def _read_clerk_publishable_key() -> str:
     return ""
 
 
-def _remove_container_and_wait(runner: Runner, name: str, timeout_s: int = 20) -> None:
+def _remove_container_and_wait(runner: Runner, name: str, timeout_s: int = 90) -> None:
     """`docker rm -f` + wait until the NAME is actually free.
 
     `docker rm -f` returns before the daemon releases the container name; an
@@ -362,7 +362,14 @@ def _remove_container_and_wait(runner: Runner, name: str, timeout_s: int = 20) -
     a name Conflict (observed twice on 2026-07-22 — the second time only
     because _must made it loud; the first time it silently left NO container
     and produced misleading connection-refused symptoms downstream)."""
-    runner.run(["docker", "rm", "-f", name], timeout=60, check=False)
+    try:
+        runner.run(["docker", "rm", "-f", name], timeout=90, check=False)
+    except subprocess.TimeoutExpired:
+        # Under daemon load the rm call can exceed its timeout while the
+        # removal itself continues daemon-side (observed twice 2026-07-22,
+        # host load ~1.6/core). The name-release wait below is the actual
+        # correctness gate — don't fail the deploy on the slow rm call.
+        print(f"[warn] docker rm -f {name} slow — waiting for name release")
     if runner.dry_run:
         return
     deadline = time.time() + timeout_s
@@ -498,9 +505,21 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         # --legacy-peer-deps: the repo has a known capacitor peer-dep conflict
         # (@capacitor/android@8 vs core@7) that only affects the native mobile
         # target, never the web build. dist-web builds cleanly regardless.
-        subprocess.run(
-            ["npm", "ci", "--legacy-peer-deps"], cwd=str(cockpit), timeout=600, check=False
-        )
+        #
+        # Skip `npm ci` when the lockfile is unchanged since the last install:
+        # a full ci per redeploy cost ~90s of CPU on a 4-core orchestrator and
+        # drove host load to ~1.6/core during repeated qualification cycles
+        # (CPU Gate Law). The lock hash stamp makes the skip deterministic.
+        lock_hash = _sha256_file(cockpit / "package-lock.json")
+        stamp = cockpit / "node_modules" / ".wave1-lock-sha"
+        if stamp.exists() and stamp.read_text(encoding="utf-8").strip() == lock_hash:
+            print("[deploy] npm ci skipped — lockfile unchanged since last install")
+        else:
+            subprocess.run(
+                ["npm", "ci", "--legacy-peer-deps"], cwd=str(cockpit), timeout=600, check=False
+            )
+            if (cockpit / "node_modules").is_dir():
+                stamp.write_text(lock_hash, encoding="utf-8")
         subprocess.run(
             ["npm", "run", "build:web"],
             cwd=str(cockpit),
