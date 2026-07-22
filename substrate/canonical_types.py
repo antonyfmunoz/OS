@@ -101,6 +101,18 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/contracts/agent_types.py ──────────────────────────────
     "TaskType": ["substrate.contracts.agent_types"],
     "ModelProvider": ["substrate.contracts.agent_types"],
+    # ── substrate/contracts/work_context.py (Wave 1 constitutional contracts) ──
+    # WorkLineageContext is deliberately NOT named WorkLineage: that name is the
+    # canonical continuity aggregate in substrate.organism.continuity_runtime
+    # (a different concept). See docs/cockpit-surface-convergence.md.
+    "PrincipalContext": ["substrate.contracts.work_context"],
+    "PrincipalKind": ["substrate.contracts.work_context"],
+    "EpistemicStatus": ["substrate.contracts.work_context"],
+    "WorkScope": ["substrate.contracts.work_context"],
+    "WorkLineageContext": ["substrate.contracts.work_context"],
+    "EvidenceRef": ["substrate.contracts.work_context"],
+    "SkillRequirementRef": ["substrate.contracts.work_context"],
+    "WorkRequirements": ["substrate.contracts.work_context"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.
