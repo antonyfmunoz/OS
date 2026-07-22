@@ -3,6 +3,8 @@ import { fetchApi } from '../api/client'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { usePolling } from '../hooks/usePolling'
 import { useOperatorLoopStore } from '../stores/operatorLoopStore'
+import { useCockpitStore } from '../stores/cockpitStore'
+import { useObjectivePlanStore } from '../stores/objectivePlanStore'
 import type {
   ExecutionMode,
   ExecutionPlan,
@@ -50,6 +52,8 @@ interface PacketSafe {
   delegation_topology_id: string
   linked_roadmap_phase: string
   blockers: string[]
+  source_type: string
+  source_id: string
   created_at: number
   updated_at: number
 }
@@ -349,9 +353,14 @@ function KanbanView({ packets, onSelect, onApprove, onReject, onExecute, onCompl
   onGeneratePlan: (id: string) => void
 }) {
   return (
-    <div className="flex gap-2 p-3 h-full overflow-x-auto">
+    <div data-testid="wg-kanban" className="flex gap-2 p-3 h-full overflow-x-auto">
       {KANBAN_COLUMNS.map((col) => {
-        const colPackets = packets.filter((p) => col.statuses.includes(p.status))
+        // Case-insensitive status match: objective-plan packets can land as
+        // CLASSIFIED / PLANNED (uppercase) while the columns list lowercase
+        // statuses. Fold both so plan packets show in Backlog / Ready.
+        const colPackets = packets.filter((p) =>
+          col.statuses.includes((p.status ?? '').toLowerCase()),
+        )
         return (
           <div key={col.key} className="flex-shrink-0 w-56 flex flex-col">
             <div className="flex items-center gap-2 px-2 py-2 mb-1">
@@ -381,8 +390,21 @@ function KanbanCard({ packet, onClick, onApprove, onReject, onExecute, onComplet
   onComplete: (id: string, success: boolean) => void
   onGeneratePlan: (id: string) => void
 }) {
+  // Packets materialized from an objective plan carry a source link back to the
+  // plan record. Surface an "Open Plan" affordance that navigates to the Work
+  // Detail panel and focuses that plan — the contextual Plan/Task inspection
+  // surface (never the HUD).
+  const fromPlan = packet.source_type === 'objective_plan' && !!packet.source_id
+  const openPlan = () => {
+    useCockpitStore.getState().setPanel('workdetail')
+    const planStore = useObjectivePlanStore.getState()
+    planStore.selectPlan(packet.source_id)
+    planStore.fetchPlan(packet.source_id)
+  }
+
   return (
-    <div className="border border-border rounded p-2 bg-surface-secondary cursor-pointer hover:border-cyan transition-colors"
+    <div data-testid="wg-kanban-card" data-packet-id={packet.packet_id} data-status={packet.status}
+         className="border border-border rounded p-2 bg-surface-secondary cursor-pointer hover:border-cyan transition-colors"
          onClick={onClick}>
       <p className="text-xs font-medium text-text-primary truncate mb-1">{packet.title}</p>
       <div className="flex items-center gap-2 mb-1">
@@ -391,6 +413,17 @@ function KanbanCard({ packet, onClick, onApprove, onReject, onExecute, onComplet
       </div>
       {packet.approval_gates.length > 0 && (
         <span className="text-[10px] text-warn">approval required</span>
+      )}
+      {fromPlan && (
+        <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            data-testid="wg-kanban-open-plan"
+            onClick={openPlan}
+            className="px-2 py-0.5 text-[10px] rounded bg-cyan/10 text-cyan border border-border hover:bg-cyan/20"
+          >
+            Open Plan
+          </button>
+        </div>
       )}
 
       <div className="flex flex-wrap gap-1 mt-2" onClick={(e) => e.stopPropagation()}>

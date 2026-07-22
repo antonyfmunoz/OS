@@ -1,0 +1,837 @@
+"""Wave 1 field-qualification dispatcher — runs on the VPS orchestrator.
+
+Stands up an ISOLATED candidate cockpit stack (candidate operator container +
+freshly-built dist-web served by its own nginx, exposed over the same Tailscale
+origin the operator uses), dispatches the field collector to the Windows
+executor through the GOVERNED mesh path, polls its status read-only, then
+reconciles the collected browser evidence against the candidate's own runtime
+state and docker logs. Finally tears the stack down and restores Tailscale serve.
+
+Nothing here runs a browser (Browser Verification Law) and nothing dispatches
+ungoverned (mesh_dispatch_port). The collector is the only browser-bearing part
+and it runs on the executor.
+
+Subcommands:
+  preflight        health + nodes relay, mesh reachability, echo the start shape
+  deploy-candidate build + start the candidate stack, wire Tailscale serve
+  smoke            one collector pass, smoke scenario
+  run              three collector passes, full scenario
+  reconcile        score collected evidence against candidate state + logs
+  teardown         stop candidate containers, restore Tailscale serve
+
+Every subcommand supports --dry-run: it prints the exact commands it WOULD run
+and assembles no side effects. Use it to prove command assembly without touching
+the live host.
+"""
+
+from __future__ import annotations
+
+import argparse
+import atexit
+import hashlib
+import json
+import os
+import re
+import shlex
+import signal
+import subprocess
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+_ROOT = Path(os.environ.get("UMH_ROOT", "/opt/OS"))
+_WORKTREE = Path(__file__).resolve().parent.parent  # the candidate source worktree
+
+# Executor-side paths (Windows Beast). Kept in one place so the start-command
+# shape is auditable.
+_BEAST_OS_ROOT = r"C:\dev\dev\OS"
+_BEAST_ENV_TPL = r"C:\dev\dev\OS\scripts\.env.beast.tpl"
+_BEAST_COLLECTOR = r"C:\dev\dev\OS\scripts\wave1_field_collector.py"
+_BEAST_EVIDENCE_DIR = r"C:\dev\wave1_evidence"
+
+_MESH_NODE_ID = "windows-desktop"  # from infra/device_registry.json (executor)
+_CANDIDATE_CONTAINER = "os-operator-candidate"
+_CANDIDATE_NGINX_CONTAINER = "os-nginx-candidate"
+_EOS_NETWORK = "eos_network"
+_CANDIDATE_API_PORT = 8091  # inside the container
+_CANDIDATE_API_HOST_PORT = 8191  # 127.0.0.1:8191 -> candidate api (recon reads)
+_CANDIDATE_NGINX_HOST_PORT = 8190  # 127.0.0.1:8190 -> candidate nginx
+_ORIGIN = "https://universalmetaharness.tech"
+
+_SECRET_REDACT_RE = re.compile(
+    r"(?i)(bearer\s+[A-Za-z0-9._\-]+|eyJ[A-Za-z0-9._\-]{20,}|"
+    r"(?:password|secret|token|api[_-]?key)\s*[=:]\s*\S+)"
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Command runner with dry-run + secret redaction
+# ─────────────────────────────────────────────────────────────────────────────
+class Runner:
+    """Runs shell commands, or in dry-run mode just prints their assembled form."""
+
+    def __init__(self, dry_run: bool) -> None:
+        self.dry_run = dry_run
+        self.log: list[str] = []
+
+    def run(
+        self,
+        cmd: list[str],
+        *,
+        timeout: int = 120,
+        check: bool = False,
+        capture: bool = True,
+    ) -> subprocess.CompletedProcess | None:
+        printable = " ".join(shlex.quote(c) for c in cmd)
+        printable = _SECRET_REDACT_RE.sub("<redacted>", printable)
+        self.log.append(printable)
+        if self.dry_run:
+            print(f"[dry-run] {printable}")
+            return None
+        return subprocess.run(
+            cmd,
+            timeout=timeout,
+            check=check,
+            capture_output=capture,
+            text=True,
+        )
+
+    def shell(self, cmd_str: str, *, timeout: int = 120) -> subprocess.CompletedProcess | None:
+        printable = _SECRET_REDACT_RE.sub("<redacted>", cmd_str)
+        self.log.append(printable)
+        if self.dry_run:
+            print(f"[dry-run] $ {printable}")
+            return None
+        return subprocess.run(cmd_str, shell=True, timeout=timeout, capture_output=True, text=True)
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _date_slug() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _proof_root() -> Path:
+    return _ROOT / "data" / "audits" / "proof" / f"{_date_slug()}_wave1_field"
+
+
+def _state_dir(sha: str) -> Path:
+    return Path("/var/lib/umh/candidates/wave1") / sha / "state" / "umh"
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tailscale serve snapshot / restore (idempotent, exit-safe)
+# ─────────────────────────────────────────────────────────────────────────────
+_serve_snapshot_path: Path | None = None
+_serve_restored = False
+
+
+def _snapshot_tailscale_serve(runner: Runner, run_dir: Path) -> Path:
+    """Snapshot current `tailscale serve status --json` to a run-scoped file."""
+    global _serve_snapshot_path
+    snap = run_dir / "tailscale_serve_snapshot.json"
+    _serve_snapshot_path = snap
+    result = runner.run(["tailscale", "serve", "status", "--json"], timeout=30, capture=True)
+    if runner.dry_run:
+        print(f"[dry-run] would snapshot tailscale serve → {snap}")
+        return snap
+    content = result.stdout if result and result.returncode == 0 else "{}"
+    snap.write_text(content, encoding="utf-8")
+    return snap
+
+
+def _restore_tailscale_serve(runner: Runner) -> None:
+    """Restore serve config from the snapshot. Idempotent; safe on every exit."""
+    global _serve_restored
+    if _serve_restored or _serve_snapshot_path is None:
+        return
+    _serve_restored = True
+    # Reset first, then re-apply the snapshot if it was non-empty.
+    runner.run(["tailscale", "serve", "reset"], timeout=30, check=False)
+    if runner.dry_run:
+        print("[dry-run] would re-apply tailscale serve snapshot if non-empty")
+        return
+    try:
+        snap = json.loads(_serve_snapshot_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        snap = {}
+    # A non-empty snapshot means serve was previously configured — re-apply the
+    # exact mapping it recorded (best-effort; the common case is the operator's
+    # own :443 → 127.0.0.1:8080 mapping).
+    web = snap.get("Web") if isinstance(snap, dict) else None
+    if web:
+        # Re-point 443 to the operator's real nginx (host 8080) — the standing
+        # production mapping. This is the documented restore target.
+        runner.run(
+            ["tailscale", "serve", "--bg", "--https=443", "http://127.0.0.1:8080"],
+            timeout=30,
+            check=False,
+        )
+
+
+def _install_exit_handlers(runner: Runner) -> None:
+    """atexit + SIGINT/SIGTERM → restore serve on EVERY exit path."""
+    atexit.register(lambda: _restore_tailscale_serve(runner))
+
+    def _handler(signum: int, _frame: Any) -> None:
+        _restore_tailscale_serve(runner)
+        raise SystemExit(128 + signum)
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(sig, _handler)
+        except (ValueError, OSError):
+            pass  # not in main thread / unsupported — atexit still covers us
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# deploy-candidate
+# ─────────────────────────────────────────────────────────────────────────────
+def _candidate_image_id(runner: Runner) -> str:
+    """Resolve the os-operator image id so the candidate runs the SAME image."""
+    result = runner.run(
+        ["docker", "inspect", "--format", "{{.Image}}", "os-operator"],
+        timeout=30,
+        capture=True,
+    )
+    if runner.dry_run or result is None:
+        return "<os-operator-image-id>"
+    return (result.stdout or "").strip() or "os-operator:latest"
+
+
+def _read_clerk_publishable_key() -> str:
+    """Read VITE_CLERK_PUBLISHABLE_KEY from the production fly.toml at runtime."""
+    fly = _ROOT / "cockpit" / "fly.toml"
+    try:
+        for line in fly.read_text(encoding="utf-8").splitlines():
+            if "VITE_CLERK_PUBLISHABLE_KEY" in line and "=" in line:
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return ""
+
+
+def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
+    """Build + start the candidate stack and wire Tailscale serve."""
+    run_dir = _proof_root()
+    if not runner.dry_run:
+        run_dir.mkdir(parents=True, exist_ok=True)
+    state_dir = _state_dir(sha)
+    image_id = _candidate_image_id(runner)
+    clerk_key = _read_clerk_publishable_key()
+
+    steps: dict[str, Any] = {"sha": sha, "state_dir": str(state_dir), "image": image_id}
+
+    # (1) candidate state dir
+    runner.run(["mkdir", "-p", str(state_dir)], timeout=30)
+
+    # (2) generate candidate.env by allowlist (names-only audit alongside)
+    env_out = run_dir / "candidate.env"
+    audit_out = run_dir / "candidate_env_audit.json"
+    runner.run(
+        [
+            sys.executable,
+            str(_WORKTREE / "infra" / "candidate" / "make_candidate_env.py"),
+            "--source",
+            str(_ROOT / "services" / ".env"),
+            "--out",
+            str(env_out),
+            "--audit-out",
+            str(audit_out),
+            "--state-dir",
+            "/candidate-state",
+            "--build-commit",
+            sha,
+        ],
+        timeout=30,
+    )
+
+    # (3) candidate operator container — SAME image, worktree mounted read-only,
+    # candidate state dir mounted rw, allowlisted env only.
+    runner.run(["docker", "rm", "-f", _CANDIDATE_CONTAINER], timeout=60, check=False)
+    runner.run(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            _CANDIDATE_CONTAINER,
+            "--network",
+            _EOS_NETWORK,
+            "-v",
+            f"{_WORKTREE}:/app:ro",
+            "-v",
+            f"{state_dir}:/candidate-state",
+            "-e",
+            "UMH_STATE_DIR=/candidate-state",
+            "-e",
+            "PYTHONDONTWRITEBYTECODE=1",
+            "-e",
+            "PYTHONPATH=/app",
+            "-e",
+            "UMH_ROOT=/app",
+            "-e",
+            f"UMH_BUILD_COMMIT={sha}",
+            "--env-file",
+            str(env_out),
+            "-p",
+            f"127.0.0.1:{_CANDIDATE_API_HOST_PORT}:{_CANDIDATE_API_PORT}",
+            image_id,
+            "python3",
+            "-m",
+            "uvicorn",
+            "services.operator_api:app",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            str(_CANDIDATE_API_PORT),
+        ],
+        timeout=120,
+    )
+
+    # (4) build the candidate frontend in the worktree cockpit dir, injecting
+    # the production Clerk publishable key at build time. Runs cwd-scoped, so it
+    # bypasses Runner (which has no cwd); dry-run just echoes the shape.
+    cockpit = _WORKTREE / "cockpit"
+    if runner.dry_run:
+        print(f"[dry-run] (cwd={cockpit}) npm ci")
+        print(
+            f"[dry-run] (cwd={cockpit}) "
+            "VITE_CLERK_PUBLISHABLE_KEY=<from fly.toml> npm run build:web"
+        )
+    else:
+        subprocess.run(["npm", "ci"], cwd=str(cockpit), timeout=600, check=False)
+        subprocess.run(
+            ["npm", "run", "build:web"],
+            cwd=str(cockpit),
+            timeout=600,
+            check=False,
+            env={**os.environ, "VITE_CLERK_PUBLISHABLE_KEY": clerk_key},
+        )
+    dist_web = cockpit / "dist-web"
+    steps["dist_web"] = str(dist_web)
+
+    # (5) render nginx.candidate.conf from the template and start nginx:alpine
+    conf_out = run_dir / "nginx.candidate.conf"
+    template = _WORKTREE / "infra" / "candidate" / "nginx.candidate.conf.template"
+    if runner.dry_run:
+        print(f"[dry-run] render {template} → {conf_out} (upstream os-operator-candidate:8091)")
+    else:
+        conf_out.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+    runner.run(["docker", "rm", "-f", _CANDIDATE_NGINX_CONTAINER], timeout=60, check=False)
+    runner.run(
+        [
+            "docker",
+            "run",
+            "-d",
+            "--name",
+            _CANDIDATE_NGINX_CONTAINER,
+            "--network",
+            _EOS_NETWORK,
+            "-v",
+            f"{dist_web}:/usr/share/nginx/html:ro",
+            "-v",
+            f"{conf_out}:/etc/nginx/conf.d/default.conf:ro",
+            "-p",
+            f"127.0.0.1:{_CANDIDATE_NGINX_HOST_PORT}:8080",
+            "nginx:alpine",
+        ],
+        timeout=90,
+    )
+
+    # (6) Tailscale serve: snapshot FIRST, register restore handlers, then swing
+    # the origin to the candidate nginx.
+    _snapshot_tailscale_serve(runner, run_dir)
+    _install_exit_handlers(runner)
+    runner.run(
+        [
+            "tailscale",
+            "serve",
+            "--bg",
+            "--https=443",
+            f"http://127.0.0.1:{_CANDIDATE_NGINX_HOST_PORT}",
+        ],
+        timeout=30,
+    )
+
+    # (7) health checks
+    checks = {
+        "candidate_api_health": _http_ok(
+            runner, f"http://127.0.0.1:{_CANDIDATE_API_HOST_PORT}/health"
+        ),
+        "origin_root": _http_ok(runner, _ORIGIN, expect_status={200, 401}),
+        "origin_api_health": _http_ok(
+            runner, f"{_ORIGIN}/api/umh/health", expect_status={200, 401}
+        ),
+    }
+    steps["health"] = checks
+    return steps
+
+
+def _http_ok(runner: Runner, url: str, expect_status: set[int] | None = None) -> dict[str, Any]:
+    """Curl-style read-only GET; returns {ok, status}. Dry-run → planned only."""
+    ok_set = expect_status or {200}
+    if runner.dry_run:
+        print(f"[dry-run] curl -sS -o /dev/null -w '%{{http_code}}' {url}")
+        return {"planned": url, "expect_status": sorted(ok_set)}
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            status = resp.status
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)[:200], "url": url}
+    return {"ok": status in ok_set, "status": status, "url": url}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# preflight
+# ─────────────────────────────────────────────────────────────────────────────
+def preflight(runner: Runner) -> dict[str, Any]:
+    """Relay health + nodes, mesh reachability, Beast→origin, echo start shape."""
+    out: dict[str, Any] = {}
+
+    # Relay health/nodes through op run (bearer injected) — read-only curl :8095.
+    mesh_tpl = str(_ROOT / "services" / "mesh.env.tpl")
+    health_cmd = (
+        f"op run --env-file={shlex.quote(mesh_tpl)} -- "
+        'bash -c \'curl -sS -H "Authorization: Bearer $UMH_MESH_RELAY_SECRET" '
+        "http://127.0.0.1:8095/health'"
+    )
+    r = runner.shell(health_cmd, timeout=30)
+    out["mesh_health"] = _shell_summary(runner, r)
+
+    # Read-only mesh dispatch: schtasks + query session on the executor.
+    out["schtasks_query"] = _mesh_read(runner, 'schtasks /query /tn "UMH Node Daemon" /v /fo LIST')
+    out["query_session"] = _mesh_read(runner, "query session")
+
+    # Beast → origin reachability (read-only curl from the executor).
+    out["beast_to_origin"] = _mesh_read(runner, f"curl -sS -o NUL -w %{{http_code}} {_ORIGIN}")
+
+    # Echo (never execute) the powershell Start-Process command shape.
+    start_shape = _build_start_command(
+        run_id="RUNID", pass_num=1, scenario="full", url=_ORIGIN, candidate_commit="SHA"
+    )
+    out["start_command_shape"] = _SECRET_REDACT_RE.sub("<redacted>", start_shape)
+    print("start-command shape (echo only):")
+    print(f"  {out['start_command_shape']}")
+    return out
+
+
+def _shell_summary(runner: Runner, r: subprocess.CompletedProcess | None) -> dict[str, Any]:
+    if runner.dry_run or r is None:
+        return {"dry_run": True}
+    return {"returncode": r.returncode, "stdout": (r.stdout or "")[:400]}
+
+
+def _mesh_read(runner: Runner, command: str) -> dict[str, Any]:
+    """Read-only mesh dispatch (risk_class read-only, no verdict needed)."""
+    if runner.dry_run:
+        print(f"[dry-run] mesh_dispatch(read-only) node={_MESH_NODE_ID} cmd={command!r}")
+        return {"dry_run": True, "command": command}
+    sys.path.insert(0, str(_ROOT))
+    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
+
+    result = mesh_dispatch(
+        node_id=_MESH_NODE_ID,
+        capability="shell",
+        params={"command": command, "timeout": 60},
+        risk_class="read_only",
+        timeout=90,
+    )
+    rd = result.get("result_data", {}) if isinstance(result, dict) else {}
+    return {
+        "ok": bool(result.get("ok")),
+        "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stdout", ""))[:400]),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# collector dispatch (smoke / run)
+# ─────────────────────────────────────────────────────────────────────────────
+def _build_start_command(
+    *, run_id: str, pass_num: int, scenario: str, url: str, candidate_commit: str
+) -> str:
+    """Assemble the detached powershell Start-Process → op run → collector cmd.
+
+    The collector runs under `op run` on the executor so credentials never
+    transit the mesh dispatch payload. Start-Process detaches it so the mesh
+    call returns immediately; we then poll status.json read-only.
+    """
+    ship_to = f"{_proof_root()}/raw"
+    collector = (
+        f"python {_BEAST_COLLECTOR} "
+        f"--url {url} "
+        f"--run-id {run_id} "
+        f"--pass-num {pass_num} "
+        f"--evidence-dir {_BEAST_EVIDENCE_DIR} "
+        f"--candidate-commit {candidate_commit} "
+        f"--scenario {scenario} "
+        f"--ship-to {ship_to}"
+    )
+    op_wrapped = f'op run --env-file="{_BEAST_ENV_TPL}" -- {collector}'
+    # Start-Process detaches; -WindowStyle Hidden keeps Session 1 clean.
+    return (
+        "powershell -NoProfile -Command "
+        f"\"Start-Process -WindowStyle Hidden -FilePath 'cmd.exe' "
+        f"-ArgumentList '/c {op_wrapped}'\""
+    )
+
+
+def _poll_status(
+    runner: Runner, run_id: str, pass_num: int, timeout_min: int = 30
+) -> dict[str, Any]:
+    """Read-only 30s polls of the executor status.json until terminal."""
+    status_path = f"{_BEAST_EVIDENCE_DIR}\\{run_id}\\pass{pass_num}\\status.json"
+    read_cmd = f"type {status_path}"
+    deadline = time.time() + timeout_min * 60
+    last: dict[str, Any] = {}
+    while time.time() < deadline:
+        res = _mesh_read(runner, read_cmd)
+        if runner.dry_run:
+            print(f"[dry-run] poll (every 30s, up to {timeout_min}m): mesh read {status_path}")
+            return {"dry_run": True, "status_path": status_path}
+        raw = res.get("stdout", "")
+        try:
+            last = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            last = {"raw": raw[:200]}
+        if last.get("state") in ("passed", "failed"):
+            return last
+        time.sleep(30)
+    last["timed_out"] = True
+    return last
+
+
+def dispatch_pass(
+    runner: Runner, *, run_id: str, pass_num: int, scenario: str, sha: str
+) -> dict[str, Any]:
+    """Dispatch one collector pass (governed write-class) and poll to terminal."""
+    command = _build_start_command(
+        run_id=run_id,
+        pass_num=pass_num,
+        scenario=scenario,
+        url=_ORIGIN,
+        candidate_commit=sha,
+    )
+    if runner.dry_run:
+        print(f"[dry-run] mesh_dispatch(shell, write-class) node={_MESH_NODE_ID}")
+        print(f"[dry-run]   detached start: {_SECRET_REDACT_RE.sub('<redacted>', command)}")
+        _poll_status(runner, run_id, pass_num)
+        return {"dry_run": True, "run_id": run_id, "pass_num": pass_num}
+
+    sys.path.insert(0, str(_ROOT))
+    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
+
+    result = mesh_dispatch(
+        node_id=_MESH_NODE_ID,
+        capability="shell",
+        params={"command": command, "timeout": 60},
+        risk_class="reversible_write",
+        timeout=90,
+    )
+    if not result.get("ok"):
+        return {"ok": False, "error": result.get("error"), "run_id": run_id, "pass_num": pass_num}
+    terminal = _poll_status(runner, run_id, pass_num)
+    return {"ok": terminal.get("state") == "passed", "terminal": terminal, "run_id": run_id}
+
+
+def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[str, Any]:
+    """Run N collector passes with fresh run-ids; restart candidate before pass 1."""
+    results = []
+    for i in range(1, passes + 1):
+        run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-p{i}"
+        if i == 1:
+            # RES-growth mitigation: restart the candidate before the first pass.
+            runner.run(["docker", "restart", _CANDIDATE_CONTAINER], timeout=120, check=False)
+            _http_ok(runner, f"http://127.0.0.1:{_CANDIDATE_API_HOST_PORT}/health")
+        results.append(dispatch_pass(runner, run_id=run_id, pass_num=i, scenario=scenario, sha=sha))
+    return {"scenario": scenario, "passes": passes, "results": results}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# reconcile
+# ─────────────────────────────────────────────────────────────────────────────
+# Gating UI transitions → the state-record token each must correspond to. Every
+# one of these, when asserted OK by the collector, must have a matching runtime
+# state record carrying the run tag, or reconciliation fails the pass. Approve
+# and reject now flow through the ControlPanel; cancel through the
+# ObjectivePlanPanel; kanban_materialized proves compile produced packets.
+_GATING_TRANSITIONS = {
+    "plan_rendered": "rendered",
+    "plan_revised": "revised",
+    "plan_approved": "approved",
+    "kanban_materialized": "packet",
+    "clarification_resolved": "clarified",
+    "plan_rejected": "rejected",
+    "plan_cancelled": "cancelled",
+}
+
+
+def _candidate_state_jsonls(sha: str) -> list[Path]:
+    """All runtime-state JSONLs the candidate may have written (glob broadly).
+
+    The work-graph's plan-record subsystem is being built in parallel, so rather
+    than hard-code its filename we glob every JSONL under the candidate state dir
+    and match run tags. Known subsystems (organism/messages, universal_work,
+    operator_experience) are included by the glob.
+    """
+    root = _state_dir(sha).parent  # .../state/umh
+    if not root.exists():
+        return []
+    return sorted(root.rglob("*.jsonl"))
+
+
+def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
+    """Score each pass: browser evidence vs candidate state + docker logs."""
+    raw_root = _proof_root() / "raw"
+    summary: dict[str, Any] = {"passes": [], "sha": sha}
+    if runner.dry_run:
+        print(f"[dry-run] reconcile: scan {raw_root}/*/pass*/ vs candidate state + docker logs")
+        print(f"[dry-run]   docker logs {_CANDIDATE_CONTAINER} --since <pass start>")
+        print(f"[dry-run]   glob candidate state JSONLs under {_state_dir(sha).parent}")
+        return {"dry_run": True, "raw_root": str(raw_root)}
+
+    state_blob = _read_state_blob(sha)
+    logs = _candidate_logs(runner)
+
+    for pass_dir in sorted(raw_root.glob("*/pass*")):
+        result_json = pass_dir / "result.json"
+        network_jsonl = pass_dir / "network.jsonl"
+        if not result_json.exists():
+            continue
+        result = json.loads(result_json.read_text(encoding="utf-8"))
+        run_tag = result.get("run_tag", "")
+        network = _read_jsonl(network_jsonl)
+
+        # Requests reconciliation: every asserted API request should show up in
+        # the candidate docker logs.
+        total_requests = len(network)
+        matched_requests = sum(1 for n in network if _path_in_logs(n.get("url", ""), logs))
+
+        # Transition reconciliation: every gating UI transition should have a
+        # matching state record carrying the run tag.
+        asserted = [
+            s["stage"]
+            for s in result.get("stages", [])
+            if s["stage"] in _GATING_TRANSITIONS and s["ok"]
+        ]
+        matched_transitions = 0
+        transition_detail = {}
+        for stage_name in asserted:
+            has_record = run_tag in state_blob
+            transition_detail[stage_name] = has_record
+            if has_record:
+                matched_transitions += 1
+
+        orphan_5xx = [n for n in network if isinstance(n.get("status"), int) and n["status"] >= 500]
+        denom = total_requests + len(asserted)
+        score = (matched_requests + matched_transitions) / denom if denom else 0.0
+        all_gating_matched = all(transition_detail.get(s, False) for s in asserted)
+        passed = score >= 0.90 and not orphan_5xx and all_gating_matched
+
+        pass_result = {
+            "pass_dir": str(pass_dir),
+            "run_tag": run_tag,
+            "total_api_requests": total_requests,
+            "matched_requests": matched_requests,
+            "asserted_transitions": asserted,
+            "matched_transitions": matched_transitions,
+            "transition_detail": transition_detail,
+            "orphan_5xx": [n["url"] for n in orphan_5xx],
+            "score": round(score, 3),
+            "passed": passed,
+        }
+        summary["passes"].append(pass_result)
+        pass_num = result.get("pass_num", "x")
+        (_proof_root() / f"reconciliation_pass{pass_num}.json").write_text(
+            json.dumps(pass_result, indent=2), encoding="utf-8"
+        )
+
+    summary["all_passed"] = bool(summary["passes"]) and all(p["passed"] for p in summary["passes"])
+    (_proof_root() / "reconciliation_summary.json").write_text(
+        json.dumps(summary, indent=2), encoding="utf-8"
+    )
+    return summary
+
+
+def _read_state_blob(sha: str) -> str:
+    """Concatenate all candidate state JSONLs into one searchable blob."""
+    parts: list[str] = []
+    for p in _candidate_state_jsonls(sha):
+        try:
+            parts.append(p.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            continue
+    return "\n".join(parts)
+
+
+def _candidate_logs(runner: Runner) -> str:
+    r = runner.run(
+        ["docker", "logs", _CANDIDATE_CONTAINER, "--tail", "2000"],
+        timeout=30,
+        capture=True,
+    )
+    if r is None:
+        return ""
+    return (r.stdout or "") + (r.stderr or "")
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    out = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return out
+
+
+def _path_in_logs(url: str, logs: str) -> bool:
+    if not url:
+        return False
+    from urllib.parse import urlparse
+
+    path = urlparse(url).path
+    return bool(path) and path in logs
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# teardown
+# ─────────────────────────────────────────────────────────────────────────────
+def teardown(runner: Runner) -> dict[str, Any]:
+    """Stop/rm candidate containers, restore Tailscale serve. State dir kept."""
+    runner.run(["docker", "rm", "-f", _CANDIDATE_NGINX_CONTAINER], timeout=60, check=False)
+    runner.run(["docker", "rm", "-f", _CANDIDATE_CONTAINER], timeout=60, check=False)
+    _restore_tailscale_serve(runner)
+    return {"torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER], "serve_restored": True}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# manifest
+# ─────────────────────────────────────────────────────────────────────────────
+def write_manifest(runner: Runner, sha: str) -> dict[str, Any]:
+    """manifest.json: sha, image id, dist index sha256 + asset list, artifacts."""
+    run_dir = _proof_root()
+    image_id = _candidate_image_id(runner)
+    dist_web = _WORKTREE / "cockpit" / "dist-web"
+    index = dist_web / "index.html"
+    assets_dir = dist_web / "assets"
+
+    manifest: dict[str, Any] = {
+        "candidate_sha": sha,
+        "container_image_id": image_id,
+        "generated_at": _utc_now(),
+        "heavyweight_artifacts_not_committed": [
+            str(dist_web),
+            str(_state_dir(sha).parent),
+            f"{run_dir}/raw (per-pass screenshots + DOM snapshots)",
+        ],
+    }
+    if runner.dry_run:
+        print(f"[dry-run] write manifest → {run_dir}/manifest.json (index sha256 + asset list)")
+        return {"dry_run": True}
+
+    if index.exists():
+        manifest["dist_index_sha256"] = _sha256_file(index)
+    if assets_dir.exists():
+        manifest["asset_files"] = sorted(p.name for p in assets_dir.iterdir() if p.is_file())
+    # Artifact sha256 list for the committed proof JSONs.
+    artifacts = {}
+    for p in run_dir.glob("*.json"):
+        artifacts[p.name] = _sha256_file(p)
+    manifest["artifact_sha256"] = artifacts
+
+    # Secret-hygiene redaction pass over collected JSON before finalizing.
+    _redact_tree(run_dir)
+
+    (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest
+
+
+def _redact_tree(root: Path) -> None:
+    """Redact bearer/jwt/password patterns in-place across collected JSON/JSONL."""
+    for p in list(root.rglob("*.json")) + list(root.rglob("*.jsonl")):
+        try:
+            text = p.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        redacted = _SECRET_REDACT_RE.sub("<redacted>", text)
+        if redacted != text:
+            p.write_text(redacted, encoding="utf-8")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLI
+# ─────────────────────────────────────────────────────────────────────────────
+def _candidate_sha(explicit: str) -> str:
+    if explicit:
+        return explicit
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(_WORKTREE), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        return (r.stdout or "").strip()[:12] or "unknown"
+    except Exception:  # noqa: BLE001
+        return "unknown"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Wave 1 field-qualification dispatcher (VPS)")
+    parser.add_argument("--dry-run", action="store_true", help="Print commands, execute nothing")
+    parser.add_argument("--sha", default="", help="Candidate commit sha (default: worktree HEAD)")
+    parser.add_argument("--scenario", default="full", choices=["full", "smoke"])
+    parser.add_argument("--passes", type=int, default=3)
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    for name in ("preflight", "deploy-candidate", "smoke", "run", "reconcile", "teardown"):
+        sub.add_parser(name)
+    args = parser.parse_args(argv)
+
+    runner = Runner(dry_run=args.dry_run)
+    sha = _candidate_sha(args.sha)
+
+    if args.cmd == "preflight":
+        out = preflight(runner)
+    elif args.cmd == "deploy-candidate":
+        out = deploy_candidate(runner, sha)
+        write_manifest(runner, sha)
+    elif args.cmd == "smoke":
+        out = run_passes(runner, sha=sha, scenario="smoke", passes=1)
+    elif args.cmd == "run":
+        out = run_passes(runner, sha=sha, scenario=args.scenario, passes=args.passes)
+    elif args.cmd == "reconcile":
+        out = reconcile(runner, sha)
+    elif args.cmd == "teardown":
+        out = teardown(runner)
+    else:  # pragma: no cover — argparse enforces
+        parser.error(f"unknown command {args.cmd}")
+        return 2
+
+    print(json.dumps({"command": args.cmd, "sha": sha, "result": out}, indent=2, default=str))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

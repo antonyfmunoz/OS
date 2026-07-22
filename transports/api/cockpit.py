@@ -1131,6 +1131,17 @@ def _mount_unified_approval_router() -> None:
 _mount_unified_approval_router()
 
 
+def _mount_objective_plan_router() -> None:
+    # Wave 1: objective-plan read + decision surfaces (thin adapter over the
+    # canonical Operator Intent Protocol).
+    from transports.api import objective_plan_routes
+
+    objective_plan_routes.mount(router)
+
+
+_mount_objective_plan_router()
+
+
 def _mount_loop_coherence_router() -> None:
     from transports.api import cockpit_loop_coherence_routes
 

@@ -35,7 +35,10 @@ export interface RRIPAttachment {
 export interface RRIPSuggestedAction {
   label: string
   action: string
-  payload: Record<string, unknown>
+  // Optional to stay assignable from chatStore's SuggestedAction — newer rails
+  // send a flat `target` instead of a `payload` (e.g. objective-plan navigate).
+  payload?: Record<string, unknown>
+  target?: string
 }
 
 export interface RRIPApprovalData {

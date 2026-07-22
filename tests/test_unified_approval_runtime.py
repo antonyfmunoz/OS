@@ -528,15 +528,16 @@ class TestSerialization:
 
 
 class TestSourceTypes:
-    def test_all_10_source_types(self) -> None:
-        assert len(ApprovalSourceType) == 10
+    def test_all_11_source_types(self) -> None:
+        # Wave 1 added objective_plan (plan-acceptance decisions).
+        assert len(ApprovalSourceType) == 11
 
     def test_source_type_values(self) -> None:
         expected = {
             "governed_work", "execution_intercept", "sandbox_gate",
             "strategic_recommendation", "knowledge_promotion",
             "memory_promotion", "template", "overnight",
-            "automation", "reconciliation",
+            "automation", "reconciliation", "objective_plan",
         }
         actual = {s.value for s in ApprovalSourceType}
         assert actual == expected

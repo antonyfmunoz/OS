@@ -14,6 +14,7 @@ const PANEL_LABELS: Partial<Record<Panel, string>> = {
   buildloop: 'Build Loop',
   tickloop: 'Tick Loop',
   intentloop: 'Intent Loop',
+  objectiveplan: 'Objective Plans',
   operatingloopview: 'Operating Loop',
   realitytimeline: 'Reality Timeline',
   realityintelligence: 'Reality Intelligence',

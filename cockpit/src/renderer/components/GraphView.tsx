@@ -21,9 +21,14 @@ interface GraphViewProps {
   edges: GraphEdge[]
   onNodeClick?: (node: GraphNode) => void
   colorMap?: Record<string, string>
+  /** OPTIONAL lane-aware layout. When provided, nodes are laid out in vertical
+   *  lanes (one column per distinct lane, in first-seen order) with a settling
+   *  force sim constrained toward each node's lane column — instead of the
+   *  free-floating centered sim. Existing callers omit it and are unaffected. */
+  laneOf?: (node: GraphNode) => string
 }
 
-export function GraphView({ nodes, edges, onNodeClick, colorMap = {} }: GraphViewProps) {
+export function GraphView({ nodes, edges, onNodeClick, colorMap = {}, laneOf }: GraphViewProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const simRef = useRef<GraphNode[]>([])
 
@@ -37,9 +42,30 @@ export function GraphView({ nodes, edges, onNodeClick, colorMap = {} }: GraphVie
     const cx = w / 2
     const cy = h / 2
 
-    const simNodes = nodes.map((n, i) => ({
+    // Lane layout: assign each distinct lane a column x-position. laneCx maps a
+    // node id to its lane column; when laneOf is absent every node targets cx.
+    const laneOrder: string[] = []
+    if (laneOf) {
+      for (const n of nodes) {
+        const lane = laneOf(n)
+        if (!laneOrder.includes(lane)) laneOrder.push(lane)
+      }
+    }
+    const laneCount = laneOrder.length || 1
+    const laneColX = (lane: string): number => {
+      if (!laneOf || laneOrder.length === 0) return cx
+      const idx = Math.max(0, laneOrder.indexOf(lane))
+      // Evenly spread lane columns across the width with a margin.
+      return laneCount === 1 ? cx : (w * 0.12) + (idx / (laneCount - 1)) * (w * 0.76)
+    }
+    const laneCxById = new Map<string, number>()
+    if (laneOf) {
+      for (const n of nodes) laneCxById.set(n.id, laneColX(laneOf(n)))
+    }
+
+    const simNodes = nodes.map((n) => ({
       ...n,
-      x: n.x ?? cx + (Math.random() - 0.5) * w * 0.6,
+      x: n.x ?? (laneOf ? (laneCxById.get(n.id) ?? cx) : cx + (Math.random() - 0.5) * w * 0.6),
       y: n.y ?? cy + (Math.random() - 0.5) * h * 0.6,
       vx: 0,
       vy: 0,
@@ -57,7 +83,10 @@ export function GraphView({ nodes, edges, onNodeClick, colorMap = {} }: GraphVie
       if (alpha <= 0) return
 
       for (const node of simNodes) {
-        let fx = (cx - (node.x ?? 0)) * 0.01
+        // Lane mode pulls each node toward its lane column (strong horizontal
+        // constraint) and only gently centers vertically; default mode centers.
+        const targetX = laneOf ? (laneCxById.get(node.id) ?? cx) : cx
+        let fx = (targetX - (node.x ?? 0)) * (laneOf ? 0.08 : 0.01)
         let fy = (cy - (node.y ?? 0)) * 0.01
 
         for (const other of simNodes) {
@@ -139,7 +168,7 @@ export function GraphView({ nodes, edges, onNodeClick, colorMap = {} }: GraphVie
 
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [nodes, edges, colorMap])
+  }, [nodes, edges, colorMap, laneOf])
 
   const defaultColor = 'var(--color-cyan)'
 
