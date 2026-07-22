@@ -1941,18 +1941,26 @@ class FieldCollector:
                 break
             page.wait_for_timeout(2000)
         before = ctx.get("s18_after", {})
-        # Plan identity + version + approved state persist (no duplicate graph).
-        no_dupe = isinstance(after, dict) and (
-            (
-                isinstance(before, dict)
-                and after.get("plan_record_id")
-                and after.get("plan_record_id") == before.get("plan_record_id")
-            )
-            or (
-                after.get("plan_record_id")
-                and after.get("plan_record_id") == ctx.get("objective_plan_id")
-            )
+        # IDENTITY INVARIANT = OBJECTIVE ID, not plan-record id: the restored
+        # thread's first card is legitimately the V1 record while ctx holds
+        # V2 — different plan_record_ids BY DESIGN (supersession, §22.2), one
+        # stable objective. no_dupe means the relaunch resolved the SAME
+        # canonical Objective lineage and minted nothing new (run
+        # 20260722T225229Z failed on id-equality while the page showed
+        # perfect continuity).
+        after_id = after.get("plan_record_id", "") if isinstance(after, dict) else ""
+        no_dupe = bool(after_id) and (
+            after_id == (before.get("plan_record_id") if isinstance(before, dict) else "")
+            or after_id == ctx.get("objective_plan_id")
         )
+        if after_id and not no_dupe:
+            pj_after = self._authed_get(page, f"/api/umh/objective-plan/{after_id}")
+            pj_ctx = self._authed_get(
+                page, f"/api/umh/objective-plan/{ctx.get('objective_plan_id', '')}"
+            )
+            obj_after = pj_after.get("objective_id", "") if isinstance(pj_after, dict) else ""
+            obj_ctx = pj_ctx.get("objective_id", "") if isinstance(pj_ctx, dict) else ""
+            no_dupe = bool(obj_after) and obj_after == obj_ctx
         # Server truth by re-anchored id (same rationale as s16).
         plan_json: Any = {}
         if ctx.get("objective_plan_id"):
