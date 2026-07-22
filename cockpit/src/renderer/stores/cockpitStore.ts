@@ -178,6 +178,21 @@ export const useCockpitStore = create<CockpitState>()(
           return
         }
         set({ activePanel: resolved as Panel })
+        // RENDER the panel: in the canvas cockpit panels only render as canvas
+        // windows (canvasStore.addWindow — see the App.tsx deep-link bridge);
+        // activePanel state alone renders NOTHING. Without this bridge every
+        // setPanel caller (NavRail, command palette, suggested actions, Open
+        // Plan) was a silent no-op (Wave-1 field runs 20260722T181248Z/
+        // 191415Z). 'canvas' is the workspace itself — nothing to window.
+        if (resolved !== 'canvas') {
+          import('./canvasStore').then(({ useCanvasStore }) => {
+            const store = useCanvasStore.getState()
+            const alreadyOpen = store.windows.some(
+              (w) => w.type === 'panel' && w.config?.panelId === resolved,
+            )
+            if (!alreadyOpen) store.addWindow('panel', { panelId: resolved })
+          })
+        }
         // Keep the assistant's view-context in sync with the ACTUAL active panel.
         // Previously only ~3 panels set active_route themselves, so the chat rail's
         // "Viewing:" label (and the context the assistant receives) was stale on

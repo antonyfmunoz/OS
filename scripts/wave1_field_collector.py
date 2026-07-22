@@ -946,7 +946,13 @@ class FieldCollector:
         """
         if page.locator(WG_KANBAN).count() > 0:
             return True
-        work_nav = page.get_by_role("button", name="Work")
+        # NavRail-scoped anchor: buttons carry title="<label> (Ctrl+<n>)". A
+        # bare role/name "Work" match resolved to buttons INSIDE open panels
+        # (run 20260722T191415Z hung clicking a Work-Detail row). setPanel now
+        # bridges to canvas windows, so this click genuinely opens the board.
+        work_nav = page.locator('button[title^="Work ("]')
+        if work_nav.count() == 0:
+            work_nav = page.get_by_role("button", name="Work")
         if work_nav.count() > 0:
             work_nav.first.click()
             page.wait_for_timeout(1000)
@@ -1544,6 +1550,16 @@ class FieldCollector:
         self.shot(page, "s08_plan_detail")
         if detail_visible:
             self.dom(page, "s08_plan_detail")
+        # Close the Work-Detail canvas window after evidence capture: leaving
+        # it open shadowed s09's nav targeting (run 20260722T191415Z — the
+        # "Work" click resolved to a button INSIDE the open panel and hung).
+        try:
+            closer = page.locator('button[title="Close"]')
+            if closer.count() > 0:
+                closer.last.click()
+                page.wait_for_timeout(500)
+        except Exception:  # noqa: BLE001 — best-effort; nav is title-scoped now
+            pass
 
     # ── s09 — Tasks on kanban (plan-sourced) ─────────────────────────────────
     def _s09_tasks_on_kanban(self, page: Any, ctx: dict[str, Any]) -> None:
