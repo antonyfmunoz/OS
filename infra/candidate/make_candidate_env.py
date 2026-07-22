@@ -47,9 +47,23 @@ _LLM_KEYS = (
     "GROQ_API_KEY",
 )
 
+# Instance identity envelope: substrate/contracts/principal_resolution.py
+# derives tenant_id/membership_id from UMH_ORG_ID (EOS_ORG_ID legacy fallback)
+# + UMH_USER_ID. These are IDENTITY VALUES, not credentials or mutation
+# authority — without them every planning-rail work mutation fails closed
+# ("missing tenant_id/membership_id", field run 20260722T165422Z). The legacy
+# names mirror what the production compose stack actually injects
+# (infra/docker/umh.env), so candidate identity behaves exactly like prod.
+_IDENTITY_KEYS = (
+    "UMH_ORG_ID",
+    "UMH_USER_ID",
+    "EOS_ORG_ID",
+    "EOS_USER_ID",
+)
+
 # The full allowlist. A key is included ONLY if it is present (non-empty) in the
 # source env — absent keys are silently skipped, never emitted blank.
-ALLOWLIST: tuple[str, ...] = _AUTH_KEYS + _LLM_KEYS
+ALLOWLIST: tuple[str, ...] = _AUTH_KEYS + _LLM_KEYS + _IDENTITY_KEYS
 
 # Patterns that must NEVER appear in the candidate env (defense-in-depth: even
 # if the allowlist were widened by mistake, these are hard-denied).
@@ -94,7 +108,7 @@ def _is_denied(key: str) -> bool:
 
 
 def build_candidate_env(
-    source_env: Path,
+    source_env: Path | list[Path],
     *,
     extra_umh: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
@@ -103,7 +117,13 @@ def build_candidate_env(
     candidate_env: the allowlisted KEY=VALUE map to write.
     audit: {"included": [...names...], "skipped_absent": [...], "denied": [...]}.
     """
-    src = _parse_env_file(source_env)
+    # Multiple sources merge in order, later files winning — the same
+    # precedence docker-compose applies to the production service's env_file
+    # list (services/.env then infra/docker/umh.env).
+    sources = source_env if isinstance(source_env, list) else [source_env]
+    src: dict[str, str] = {}
+    for one in sources:
+        src.update(_parse_env_file(one))
     included: dict[str, str] = {}
     audit: dict[str, list[str]] = {"included": [], "skipped_absent": [], "denied": []}
 
@@ -146,8 +166,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate the Wave-1 candidate env by allowlist")
     parser.add_argument(
         "--source",
-        default=os.path.join(os.environ.get("UMH_ROOT", "/opt/OS"), "services", ".env"),
-        help="Source production env file",
+        action="append",
+        default=None,
+        help="Source production env file (repeatable; later files win, "
+        "mirroring compose env_file precedence)",
     )
     parser.add_argument("--out", required=True, help="Output candidate.env path")
     parser.add_argument("--audit-out", default="", help="Optional audit JSON path")
@@ -165,7 +187,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.build_commit:
         extra_umh["UMH_BUILD_COMMIT"] = args.build_commit
 
-    env, audit = build_candidate_env(Path(args.source), extra_umh=extra_umh)
+    umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
+    sources = [Path(s) for s in (args.source or [os.path.join(umh_root, "services", ".env")])]
+    env, audit = build_candidate_env(sources, extra_umh=extra_umh)
 
     if args.dry_run:
         print(json.dumps({"would_write": args.out, "audit": audit}, indent=2))

@@ -431,6 +431,8 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 str(_WORKTREE / "infra" / "candidate" / "make_candidate_env.py"),
                 "--source",
                 str(_ROOT / "services" / ".env"),
+                "--source",
+                str(_ROOT / "infra" / "docker" / "umh.env"),
                 "--out",
                 str(env_out),
                 "--audit-out",
