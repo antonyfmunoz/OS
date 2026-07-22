@@ -333,10 +333,31 @@ def _build_router() -> Any:
 
     router = APIRouter(prefix="/objective-plan", tags=["objective-plan"])
 
+    def _caller_tenant_id() -> str:
+        """The server-resolved tenant of the calling deployment (single-tenant
+        Wave 1). Read surfaces filter to it — defense-in-depth so a future
+        second tenant on the same instance can never read foreign plans."""
+        try:
+            from substrate.contracts.principal_resolution import resolve_principal_context
+
+            return resolve_principal_context().tenant_id
+        except Exception as exc:
+            logger.debug("caller tenant resolution failed: %s", exc)
+            return ""
+
+    def _tenant_visible(plan: Any, tenant_id: str) -> bool:
+        plan_tenant = (plan.work_scope or {}).get("tenant_id", "")
+        # Empty plan tenant = pre-tenancy record; empty caller = single-tenant
+        # env without org config (fail open for reads only, writes fail closed).
+        return not tenant_id or not plan_tenant or plan_tenant == tenant_id
+
     @router.get("")
     def surface_list() -> list[dict[str, Any]]:
         try:
-            plans = _store().query_recent_plans(limit=50)
+            tenant_id = _caller_tenant_id()
+            plans = [
+                p for p in _store().query_recent_plans(limit=50) if _tenant_visible(p, tenant_id)
+            ]
             return [_plan_surface_row(p) for p in plans]
         except Exception as exc:
             logger.error("objective-plan surface failed: %s", exc)
@@ -349,7 +370,9 @@ def _build_router() -> Any:
             plans = [
                 p
                 for p in store.load_plans()
-                if p.conversation_id == conversation_id and p.status not in ("superseded",)
+                if p.conversation_id == conversation_id
+                and p.status not in ("superseded",)
+                and _tenant_visible(p, _caller_tenant_id())
             ]
             if not plans:
                 return None
@@ -364,7 +387,7 @@ def _build_router() -> Any:
         try:
             store = _store()
             plan = store.get_plan(plan_record_id)
-            if plan is None:
+            if plan is None or not _tenant_visible(plan, _caller_tenant_id()):
                 return []
             rows = store.versions_of(plan.objective_id)
             rows.sort(key=lambda p: p.graph_version)
@@ -377,6 +400,8 @@ def _build_router() -> Any:
     def detail(plan_record_id: str) -> dict[str, Any]:
         try:
             plan = _store().get_plan(plan_record_id)
+            if plan is not None and not _tenant_visible(plan, _caller_tenant_id()):
+                plan = None
             if plan is None:
                 return {"error": "not_found", "plan_record_id": plan_record_id}
             return _plan_detail(plan)

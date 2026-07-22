@@ -59,7 +59,31 @@ _EOS_NETWORK = "eos_network"
 _CANDIDATE_API_PORT = 8091  # inside the container
 _CANDIDATE_API_HOST_PORT = 8191  # 127.0.0.1:8191 -> candidate api (recon reads)
 _CANDIDATE_NGINX_HOST_PORT = 8190  # 127.0.0.1:8190 -> candidate nginx
-_ORIGIN = "https://universalmetaharness.tech"
+# CANDIDATE origin — the VPS's own tailnet HTTPS name, which `tailscale
+# serve --https=443 → 127.0.0.1:8190` actually fronts. The public domain
+# (universalmetaharness.tech) resolves to Fly PRODUCTION and is untouched by
+# tailscale serve — using it here would have "qualified" production instead
+# of the candidate (adversarial finding, 2026-07-22). Resolved at runtime;
+# override with UMH_CANDIDATE_ORIGIN only for explicit lab setups.
+
+
+def _candidate_origin() -> str:
+    override = os.environ.get("UMH_CANDIDATE_ORIGIN", "").strip()
+    if override:
+        return override.rstrip("/")
+    try:
+        out = subprocess.run(
+            ["tailscale", "status", "--json"], capture_output=True, text=True, timeout=15
+        )
+        dns_name = json.loads(out.stdout)["Self"]["DNSName"].rstrip(".")
+        if dns_name:
+            return f"https://{dns_name}"
+    except Exception as exc:  # noqa: BLE001 — preflight will fail loudly anyway
+        print(f"[warn] candidate origin resolution failed: {exc}")
+    raise SystemExit("cannot resolve the candidate tailnet origin — set UMH_CANDIDATE_ORIGIN")
+
+
+_ORIGIN = _candidate_origin()
 
 _SECRET_REDACT_RE = re.compile(
     r"(?i)(bearer\s+[A-Za-z0-9._\-]+|eyJ[A-Za-z0-9._\-]{20,}|"
