@@ -544,6 +544,23 @@ OBJECTIVE_GOAL_WRITE = MutationSpec(
     ),
 )
 
+OPERATOR_TASK_CAPTURE = MutationSpec(
+    name="operator_task_capture",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Capture one atomic operator Task as a canonical WorkPacket at most "
+        "PLANNED with a non-empty approval gate — no HUD decision exists, "
+        "execution stays unauthorized (Wave 2 decision); local JSONL only"
+    ),
+)
+
 OBJECTIVE_PLAN_ASSESS = MutationSpec(
     name="objective_plan_assess",
     action_type=ActionType.STATE,
@@ -947,6 +964,7 @@ class MutationRegistry:
             INTENT_LOOP_SUBMIT,
             INTENT_LOOP_APPROVAL_DECISION,
             OBJECTIVE_GOAL_WRITE,
+            OPERATOR_TASK_CAPTURE,
             OBJECTIVE_PLAN_ASSESS,
             OBJECTIVE_PLAN_COMPILE,
             OBJECTIVE_PLAN_DECISION,

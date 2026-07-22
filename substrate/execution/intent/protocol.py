@@ -826,6 +826,167 @@ class OperatorIntentProtocol:
         )
         return session
 
+    def capture_task(
+        self,
+        resolution: IntentResolution,
+        task_text: str,
+        conversation_id: str,
+        client_message_id: str = "",
+        work_queue: Any | None = None,
+    ) -> Any:
+        """Capture one atomic Task as a canonical WorkPacket (§23.1).
+
+        No Objective, no Plan, NO HUD Decision — the packet simply exists at
+        most PLANNED with a non-empty approval gate (non-executable until a
+        future execution-authorization decision, Wave 2). Idempotent per
+        (tenant, conversation, client_message_id): a retry returns the
+        existing packet. Fails closed without principal+tenant+membership.
+        """
+        principal = PrincipalContext.from_dict(resolution.principal_context)
+        principal.require_work_authority()
+        scope = WorkScope.from_dict(resolution.work_scope)
+        scope.validate()
+
+        from substrate.contracts.work_context import WorkLineageContext
+        from substrate.organism.work_packet import PacketLifecycleStatus, WorkPacket
+
+        if work_queue is None:
+            from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+            work_queue = UniversalWorkQueue()
+
+        operation_key = planning_operation_key(scope.tenant_id, conversation_id, client_message_id)
+        for existing in work_queue.all_packets():
+            if existing.source_type == "operator_task" and existing.source_id == operation_key:
+                return existing
+
+        from substrate.execution.planning.archetypes import resolve_archetype
+
+        archetype = resolve_archetype(task_text, scope)
+        lineage = WorkLineageContext(
+            decomposition_level=0,
+            end_state_contribution=task_text[:200],
+            originating_intent_id=resolution.intent_id,
+            originating_conversation_id=conversation_id,
+        )
+        packet = WorkPacket(
+            title=task_text[:120],
+            user_intent=task_text[:300],
+            desired_end_state=task_text[:300],
+            intent_summary=f"atomic {archetype.archetype_id} task",
+            domain=archetype.archetype_id,
+            source_type="operator_task",
+            source_id=operation_key,
+            risk_class=resolution.risk_level
+            if resolution.risk_level in ("low", "medium", "high")
+            else "low",
+            required_role_contracts=[archetype.default_role_contract_id],
+            approval_gates=["execution_authorization_required"],
+            work_scope=scope.to_dict(),
+            lineage=lineage.to_dict(),
+            requirements={
+                "work_archetype_ref": f"{archetype.archetype_id}@v{archetype.archetype_version}",
+                "required_skill_refs": [dict(r) for r in archetype.required_skill_refs],
+            },
+        )
+
+        def _write() -> tuple[str, bool]:
+            work_queue.ingest_work_packet(packet)
+            work_queue.update_packet_status(
+                packet.packet_id, PacketLifecycleStatus.CLASSIFIED, "operator task captured"
+            )
+            work_queue.update_packet_status(
+                packet.packet_id,
+                PacketLifecycleStatus.PLANNED,
+                "captured — execution NOT authorized (no HUD decision exists)",
+            )
+            return (f"task captured: {packet.packet_id}", True)
+
+        response = self._governed(
+            "operator_task_capture",
+            f"capture atomic operator task: {task_text[:80]}",
+            _write,
+            {
+                "packet_id": packet.packet_id,
+                "tenant_id": scope.tenant_id,
+                "correlation_id": resolution.correlation_id,
+            },
+        )
+        if not bool(getattr(response, "success", False)):
+            raise RuntimeError(
+                f"task capture rejected by governance: {getattr(response, 'output', '')}"
+            )
+        self._emit(
+            "planning.task_captured",
+            {
+                "tenant_id": scope.tenant_id,
+                "principal_id": principal.principal_id,
+                "membership_id": principal.membership_id,
+                "conversation_id": conversation_id,
+                "client_message_id": client_message_id,
+                "intent_id": resolution.intent_id,
+                "task_ids": [packet.packet_id],
+            },
+            resolution.correlation_id,
+        )
+        return work_queue.get_packet(packet.packet_id)
+
+    def plan_objective(
+        self,
+        resolution: IntentResolution,
+        objective_text: str,
+        conversation_id: str,
+        message_id: str = "",
+        client_message_id: str = "",
+        work_queue: Any | None = None,
+    ) -> tuple[PlanningSession, Any]:
+        """The single transport-facing planning entry: objective → committed plan.
+
+        Runs the complete §22.2 unit of work — objective resolution, bounded
+        grounding, state derivation, archetype resolution, plan compilation,
+        canonical Task materialization (max PLANNED, non-executable), decision
+        readiness — and returns (session, ObjectivePlanRecord). Retries are
+        idempotent end-to-end.
+        """
+        session = self.begin_planning_operation(
+            resolution,
+            objective_text,
+            conversation_id,
+            message_id=message_id,
+            client_message_id=client_message_id,
+        )
+        scope = WorkScope.from_dict(resolution.work_scope)
+
+        from substrate.execution.intent.intent_spec import IntentSpec
+        from substrate.execution.planning.compiler import compose_plan_for_session
+        from substrate.execution.planning.grounding import build_grounding_snapshot
+
+        if work_queue is None:
+            from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+            work_queue = UniversalWorkQueue()
+
+        spec = IntentSpec.from_dict(resolution.compat_spec)
+        snapshot = build_grounding_snapshot(
+            spec,
+            conversation_id,
+            message_id or client_message_id,
+            objective_text=objective_text,
+        )
+        plan = compose_plan_for_session(
+            session=session,
+            scope=scope,
+            planning_scale=resolution.planning_scale,
+            snapshot=snapshot,
+            store=self._store,
+            work_queue=work_queue,
+            mutation_runner=self._runner(),
+            event_emit=lambda event_type, data: self._emit(
+                event_type, data, resolution.correlation_id
+            ),
+        )
+        return session, plan
+
     def _governed(
         self,
         mutation_name: str,

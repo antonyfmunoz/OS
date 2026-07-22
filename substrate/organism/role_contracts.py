@@ -80,6 +80,17 @@ class RoleContract:
     reliability_score: float = 0.0
     status: str = "active"
     version: int = 1
+    # Wave 1 (§7) minimal backward-compatible skill/authority extension.
+    # Skill entries are SkillRequirementRef dicts (versioned, §23.4) for
+    # required refs; permitted/prohibited are skill_id lists (authorization
+    # boundaries, not requirements). No second Role type exists.
+    required_skill_refs: list[dict[str, Any]] = field(default_factory=list)
+    permitted_skill_ids: list[str] = field(default_factory=list)
+    prohibited_skill_ids: list[str] = field(default_factory=list)
+    skill_mastery_requirements: dict[str, str] = field(default_factory=dict)
+    reports_to_role_ids: list[str] = field(default_factory=list)
+    decision_rights: list[str] = field(default_factory=list)
+    separation_of_duty_rules: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -101,6 +112,13 @@ class RoleContract:
             "reliability_score": round(self.reliability_score, 4),
             "status": self.status,
             "version": self.version,
+            "required_skill_refs": self.required_skill_refs,
+            "permitted_skill_ids": self.permitted_skill_ids,
+            "prohibited_skill_ids": self.prohibited_skill_ids,
+            "skill_mastery_requirements": self.skill_mastery_requirements,
+            "reports_to_role_ids": self.reports_to_role_ids,
+            "decision_rights": self.decision_rights,
+            "separation_of_duty_rules": self.separation_of_duty_rules,
         }
 
     @classmethod
@@ -124,6 +142,13 @@ class RoleContract:
             reliability_score=float(d.get("reliability_score", 0.0)),
             status=d.get("status", "active"),
             version=int(d.get("version", 1)),
+            required_skill_refs=d.get("required_skill_refs", []),
+            permitted_skill_ids=d.get("permitted_skill_ids", []),
+            prohibited_skill_ids=d.get("prohibited_skill_ids", []),
+            skill_mastery_requirements=d.get("skill_mastery_requirements", {}),
+            reports_to_role_ids=d.get("reports_to_role_ids", []),
+            decision_rights=d.get("decision_rights", []),
+            separation_of_duty_rules=d.get("separation_of_duty_rules", []),
         )
 
 

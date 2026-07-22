@@ -136,6 +136,14 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "CurrentStateRecord": ["substrate.execution.planning.records"],
     "DesiredStateRecord": ["substrate.execution.planning.records"],
     "RevisionEditSet": ["substrate.execution.planning.records"],
+    "GapAssessmentSnapshot": ["substrate.execution.planning.records"],
+    # ── substrate/execution/planning/ (Wave 1 composition) ──
+    "WorkArchetypeResolution": ["substrate.execution.planning.archetypes"],
+    "DevelopmentPlanningProfile": ["substrate.execution.planning.dev_profile"],
+    "DecisionReadiness": ["substrate.execution.planning.readiness"],
+    "DecisionReadinessAssessment": ["substrate.execution.planning.readiness"],
+    "InstructionCompilationRequest": ["substrate.execution.planning.instruction_compilation"],
+    "ModelExecutionPackage": ["substrate.execution.planning.instruction_compilation"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.

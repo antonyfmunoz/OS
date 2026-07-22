@@ -143,16 +143,23 @@ class DesiredStateRecord:
 
 
 @dataclass
-class GapModel:
-    """The transformations/discoveries required between current and desired.
+class GapAssessmentSnapshot:
+    """Planning-time gap assessment — an EVIDENCE-class snapshot, NOT the
+    strategic-gap authority.
 
-    Also carries assumptions, contradictions, unknowns, and owner-only
-    decisions — all explicit, none folded into prose.
+    The canonical strategic gap is ``substrate.organism.strategic_gap_engine.
+    Gap`` (goal-linked, current/required state). This snapshot records the
+    transformations/discoveries one planning pass derived between current and
+    desired state, plus assumptions, contradictions, unknowns, and owner-only
+    decisions — all explicit, none folded into prose. ``goal_refs`` links to
+    canonical Gap/Goal records where they exist; the snapshot never claims
+    strategic-gap authority (Convergence Law representation class: evidence).
     """
 
     gap_model_id: str = field(default_factory=lambda: _new_id("gap"))
     current_state_id: str = ""
     desired_state_id: str = ""
+    goal_refs: list[str] = field(default_factory=list)
     gaps: list[dict[str, Any]] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
     contradictions: list[dict[str, Any]] = field(default_factory=list)
@@ -164,7 +171,7 @@ class GapModel:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> GapModel:
+    def from_dict(cls, d: dict[str, Any]) -> GapAssessmentSnapshot:
         return _from_dict(cls, d)
 
 
@@ -282,7 +289,10 @@ class ObjectivePlanRecord:
     """
 
     plan_record_id: str = field(default_factory=lambda: _new_id("opr"))
-    objective_id: str = field(default_factory=lambda: _new_id("obj"))
+    # REFERENCES the canonical Objective — a GoalRegistry Goal(OBJECTIVE) id
+    # (``goal-<hex>``). This record never mints a rival objective identity;
+    # an empty value means the plan is not yet bound and may not be compiled.
+    objective_id: str = ""
     graph_version: int = 1
     supersedes_plan_record_id: str = ""
     status: str = ObjectivePlanStatus.DRAFT.value
@@ -303,6 +313,15 @@ class ObjectivePlanRecord:
     edges: list[dict[str, str]] = field(default_factory=list)
     lanes: list[str] = field(default_factory=list)
     decision_log: list[dict[str, Any]] = field(default_factory=list)
+    # Wave 1 §4/§6/§7/§8/§10 — first-class typed context (never hidden in
+    # evidence blobs): scope, fractal decomposition record, archetype policy,
+    # development profile, and the latest readiness assessment.
+    work_scope: dict[str, Any] = field(default_factory=dict)
+    planning_scale: str = ""
+    decomposition: dict[str, Any] = field(default_factory=dict)
+    archetype_resolution: dict[str, Any] = field(default_factory=dict)
+    development_profile: dict[str, Any] = field(default_factory=dict)
+    readiness_assessment: dict[str, Any] = field(default_factory=dict)
     deterministic: bool = True
     enhancement_used: bool = False
     created_at: float = field(default_factory=time.time)
@@ -381,7 +400,7 @@ __all__ = [
     "NODE_KINDS",
     "CurrentStateRecord",
     "DesiredStateRecord",
-    "GapModel",
+    "GapAssessmentSnapshot",
     "GroundingSnapshot",
     "IntentAssessment",
     "IntentAssessmentState",
