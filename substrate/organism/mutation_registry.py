@@ -561,6 +561,23 @@ OPERATOR_TASK_CAPTURE = MutationSpec(
     ),
 )
 
+OBJECTIVE_TASK_LINK = MutationSpec(
+    name="objective_task_link",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Attach one existing canonical Task (WorkPacket) to a canonical "
+        "Objective (Goal) — lineage-only local JSONL update; idempotent; "
+        "never duplicates work, never dispatches or executes"
+    ),
+)
+
 OBJECTIVE_PLAN_ASSESS = MutationSpec(
     name="objective_plan_assess",
     action_type=ActionType.STATE,
@@ -965,6 +982,7 @@ class MutationRegistry:
             INTENT_LOOP_APPROVAL_DECISION,
             OBJECTIVE_GOAL_WRITE,
             OPERATOR_TASK_CAPTURE,
+            OBJECTIVE_TASK_LINK,
             OBJECTIVE_PLAN_ASSESS,
             OBJECTIVE_PLAN_COMPILE,
             OBJECTIVE_PLAN_DECISION,

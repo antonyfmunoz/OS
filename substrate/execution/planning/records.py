@@ -266,6 +266,9 @@ class ObjectivePlanNode:
     depends_on: list[str] = field(default_factory=list)
     evidence_refs: list[str] = field(default_factory=list)
     gap_id: str = ""
+    # Cross-projection planning (§23.6): "" | "substrate" | "projection:<id>".
+    # Projection-target nodes materialize with a NARROWED WorkScope.
+    target: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

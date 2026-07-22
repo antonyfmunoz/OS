@@ -505,6 +505,39 @@ class OperatorIntentProtocol:
                         {**entry, "match": "similarity", "confidence": round(similarity, 2)}
                     )
 
+        # Cross-conversation durable resolution (test L): an EXPLICIT plan id
+        # resolves through the store even when the plan lives in another
+        # conversation. Authority holds: a plan outside the caller's tenant is
+        # REJECTED, never resolved (zero leakage).
+        found_ids = {c["plan_record_id"] for c in resolution.candidates}
+        for plan_id in explicit_plan_ids:
+            if plan_id in found_ids:
+                continue
+            try:
+                stored = self._store.get_plan(plan_id)
+            except Exception:
+                stored = None
+            if stored is None:
+                resolution.unresolved.append(f"explicit plan id not found: {plan_id}")
+                continue
+            plan_tenant = (stored.work_scope or {}).get("tenant_id", "")
+            if plan_tenant and frame.tenant_id and plan_tenant != frame.tenant_id:
+                resolution.rejected.append(
+                    {"plan_record_id": plan_id, "reason": "outside caller tenant"}
+                )
+                continue
+            resolution.candidates.insert(
+                0,
+                {
+                    "kind": "plan",
+                    "plan_record_id": stored.plan_record_id,
+                    "objective_id": stored.objective_id,
+                    "title": stored.objective_text[:120],
+                    "status": stored.status,
+                    "match": "explicit_id",
+                },
+            )
+
         vague = bool(_VAGUE_REF_RE.search(text))
         if vague and not resolution.candidates and frame.current_plans:
             # "that plan" with exactly one live plan in context resolves to it.
@@ -932,6 +965,82 @@ class OperatorIntentProtocol:
             resolution.correlation_id,
         )
         return work_queue.get_packet(packet.packet_id)
+
+    def link_task_to_objective(
+        self,
+        resolution: IntentResolution,
+        packet_id: str,
+        objective_id: str,
+        work_queue: Any | None = None,
+    ) -> Any:
+        """LINK_WORK (test D): attach an existing Task to a canonical Objective.
+
+        Lineage-only mutation — no new Task, no new Objective, no duplicate of
+        either. Idempotent: linking an already-linked pair is a no-op. Fails
+        closed without work authority, on an unknown packet/objective, and on
+        any cross-tenant pairing (zero leakage).
+        """
+        principal = PrincipalContext.from_dict(resolution.principal_context)
+        principal.require_work_authority()
+        scope = WorkScope.from_dict(resolution.work_scope)
+        scope.validate()
+
+        if work_queue is None:
+            from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+            work_queue = UniversalWorkQueue()
+
+        packet = work_queue.get_packet(packet_id)
+        if packet is None:
+            raise ValueError(f"unknown task: {packet_id}")
+        goal = self._goals().get(objective_id)
+        if goal is None:
+            raise ValueError(f"unknown objective: {objective_id}")
+        packet_tenant = (packet.work_scope or {}).get("tenant_id", "")
+        for name, tenant in (("task", packet_tenant), ("objective", goal.tenant_id)):
+            if tenant and tenant != scope.tenant_id:
+                raise ValueError(f"cross-tenant link rejected: {name} outside caller tenant")
+
+        lineage = dict(packet.lineage or {})
+        if lineage.get("objective_id") == objective_id:
+            return packet  # idempotent — already attached
+
+        def _link() -> tuple[str, bool]:
+            lineage["objective_id"] = objective_id
+            refs = list(lineage.get("goal_refs", []))
+            if objective_id not in refs:
+                refs.append(objective_id)
+            lineage["goal_refs"] = refs
+            packet.lineage = lineage
+            work_queue._save()
+            return (f"task {packet_id} linked to objective {objective_id}", True)
+
+        response = self._governed(
+            "objective_task_link",
+            f"attach task {packet_id} to objective {objective_id}",
+            _link,
+            {
+                "packet_id": packet_id,
+                "objective_id": objective_id,
+                "tenant_id": scope.tenant_id,
+                "correlation_id": resolution.correlation_id,
+            },
+        )
+        if not bool(getattr(response, "success", False)):
+            raise RuntimeError(
+                f"task link rejected by governance: {getattr(response, 'output', '')}"
+            )
+        self._emit(
+            "planning.work_linked",
+            {
+                "tenant_id": scope.tenant_id,
+                "packet_id": packet_id,
+                "objective_id": objective_id,
+                "intent_id": resolution.intent_id,
+            },
+            resolution.correlation_id,
+        )
+        return work_queue.get_packet(packet_id)
 
     def plan_objective(
         self,

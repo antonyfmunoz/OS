@@ -77,6 +77,7 @@ def derive_state_records(
     objective_text: str,
     snapshot: GroundingSnapshot,
     tenant_id: str = "",
+    scope: WorkScope | None = None,
 ) -> tuple[CurrentStateRecord, DesiredStateRecord, GapAssessmentSnapshot]:
     """Derive the three planning records from evidence + the objective."""
     current = CurrentStateRecord(
@@ -117,6 +118,32 @@ def derive_state_records(
                     "title": f"Migrate subsystem '{name}' to the runtime-state boundary",
                     "evidence_ref": snapshot.evidence_ref(str(source.get("source", ""))),
                     "dependencies": [],
+                }
+            )
+    # Cross-projection objective (§23.6): scope declares 2+ projection
+    # targets → one shared substrate-contract gap that every projection gap
+    # depends on (substrate Tasks precede dependent projection Tasks), each
+    # projection gap tagged for scope narrowing at materialization. No
+    # duplicated substrate implementation.
+    if scope is not None and len(scope.projection_ids) >= 2:
+        substrate_key = "gap-substrate-contract"
+        gap_snapshot.gaps.append(
+            {
+                "gap_key": substrate_key,
+                "title": "Establish the shared substrate contract for this objective",
+                "evidence_ref": "",
+                "dependencies": [],
+                "target": "substrate",
+            }
+        )
+        for projection_id in scope.projection_ids:
+            gap_snapshot.gaps.append(
+                {
+                    "gap_key": f"gap-projection-{projection_id}",
+                    "title": f"Apply the objective in projection {projection_id}",
+                    "evidence_ref": "",
+                    "dependencies": [substrate_key],
+                    "target": f"projection:{projection_id}",
                 }
             )
     if not gap_snapshot.gaps:
@@ -258,6 +285,7 @@ def compile_plan(
             lane=lane,
             evidence_refs=[gap.get("evidence_ref", "")] if gap.get("evidence_ref") else [],
             gap_id=gap["gap_key"],
+            target=gap.get("target", ""),
         )
         packet_nodes.append(node)
         plan.nodes.append(node.to_dict())
@@ -344,9 +372,22 @@ def materialize_packets(
             originating_intent_id=plan.intent_id,
             originating_conversation_id=plan.conversation_id,
         )
+        # §23.6: projection-target nodes get a NARROWED WorkScope (that one
+        # projection, target_kind=projection); substrate nodes keep the plan
+        # scope. Never a cross-tenant scope.
+        node_scope = scope
+        node_target = raw.get("target", "")
+        if node_target.startswith("projection:"):
+            projection_id = node_target.split(":", 1)[1]
+            node_scope = WorkScope.from_dict(scope.to_dict())
+            node_scope.projection_ids = [projection_id]
+            node_scope.target_kind = "projection"
         packet = WorkPacket(
             title=raw.get("title", ""),
-            user_intent=plan.objective_text[:300],
+            # user_intent must be UNIQUE per node: UniversalWorkQueue dedupes
+            # ingests by user_intent, and a shared objective text would
+            # collapse a multi-Task plan into one packet (caught by test AJ).
+            user_intent=f"{raw.get('title', '')[:160]} — {plan.objective_text[:120]}",
             desired_end_state=raw.get("title", ""),
             intent_summary=f"{archetype.archetype_id} node of plan {plan.plan_record_id}",
             domain=archetype.archetype_id,
@@ -367,7 +408,7 @@ def materialize_packets(
             approval_gates=["execution_authorization_required"],  # never empty
             validation_plan="verification node of the owning plan",
             output_contracts=[f"contributes: {raw.get('title', '')[:120]}"],
-            work_scope=scope.to_dict(),
+            work_scope=node_scope.to_dict(),
             lineage=lineage.to_dict(),
             requirements=requirements.to_dict(),
         )
@@ -438,7 +479,7 @@ def compose_plan_for_session(
 
     try:
         current, desired, gap_snapshot = derive_state_records(
-            session.objective_text, snapshot, tenant_id=scope.tenant_id
+            session.objective_text, snapshot, tenant_id=scope.tenant_id, scope=scope
         )
         archetype = resolve_archetype(session.objective_text, scope)
         plan = compile_plan(
