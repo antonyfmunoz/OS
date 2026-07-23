@@ -1022,6 +1022,32 @@ class FieldCollector:
         except Exception:  # noqa: BLE001
             return []
 
+    def _read_task_packet_ids(self, page: Any) -> set[str]:
+        """THIS pass's atomic-task packets only — run-scoped and source-scoped.
+
+        Duplicate-resolution steps (s05/s06) must measure the ONE thing they
+        assert about: whether a rephrase/attachment created another *operator
+        task*. A raw global packet count is neither run- nor source-scoped: the
+        server keeps prior-pass packets, and the dogfood Objective's own
+        decomposition packets (source_type objective_plan / batch_child /
+        batch_decomposition) materialize ASYNCHRONOUSLY and can land inside the
+        s05 measurement window. Field run 20260723T045653Z-p3 failed s05 on
+        `packets 12->18` while creating exactly ONE operator_task packet — the
+        other rows were that pass's plan decomposition, not a duplicate task.
+        Scope by source_type == operator_task AND this pass's run tag.
+        """
+        ids: set[str] = set()
+        for packet in self._read_packets(page):
+            if (packet.get("source_type") or "") != "operator_task":
+                continue
+            blob = f"{packet.get('title', '')} {packet.get('source_id', '')}"
+            if self.run_tag and self.run_tag not in blob:
+                continue
+            pid = packet.get("packet_id")
+            if pid:
+                ids.add(str(pid))
+        return ids
+
     @staticmethod
     def _read_packet_ids(page: Any) -> list[str]:
         """Just the packet ids (compat shim over _read_packets)."""
@@ -1443,8 +1469,11 @@ class FieldCollector:
         reply_ok = self._body_contains(page, "Task captured on the Work board")
         kanban_opened = self._open_kanban(page)
         # A new card appears (DOM if reachable, else the packets API grows).
+        # Run-scoped: only THIS pass's operator_task packets, so prior-pass rows
+        # can neither satisfy nor fail this pass's assertions.
+        our_task_ids = self._read_task_packet_ids(page)
         packets = self._read_packets(page)
-        task_packets = [p for p in packets if (p.get("source_type") != "objective_plan")]
+        task_packets = [p for p in packets if str(p.get("packet_id")) in our_task_ids]
         dom_cards = page.locator(WG_KANBAN_CARD).count()
         card_grew = dom_cards > cards_before or len(task_packets) >= 1
         # Non-executable column: the packet status is Ready/Backlog, never
@@ -1472,19 +1501,25 @@ class FieldCollector:
         """A rephrase of the s04 task must NOT create a second kanban card."""
         self._open_kanban(page)
         cards_before = page.locator(WG_KANBAN_CARD).count()
-        packets_before = len(self._read_packets(page))
+        # Run-scoped + source-scoped: only THIS pass's operator_task packets.
+        # A global count also moves when the Objective's own decomposition
+        # packets land asynchronously (see _read_task_packet_ids).
+        tasks_before = self._read_task_packet_ids(page)
         self._send_and_wait(page, f"{SIMPLE_TASK_REPHRASE} {self.run_tag}")
         page.wait_for_timeout(2500)
         self._open_kanban(page)
         cards_after = page.locator(WG_KANBAN_CARD).count()
-        packets_after = len(self._read_packets(page))
-        # No new card by DOM AND no new packet by API — duplicate was resolved.
+        tasks_after = self._read_task_packet_ids(page)
+        # No new card by DOM AND no new TASK packet by API — duplicate resolved.
         dom_unchanged = cards_after <= cards_before
-        api_unchanged = packets_after <= packets_before
+        new_tasks = tasks_after - tasks_before
+        api_unchanged = not new_tasks
         self.stage(
             "s05_duplicate_task",
             dom_unchanged and api_unchanged,
-            f"cards {cards_before}->{cards_after} packets {packets_before}->{packets_after}",
+            f"cards {cards_before}->{cards_after} "
+            f"run_tagged_task_packets {len(tasks_before)}->{len(tasks_after)} "
+            f"new={sorted(new_tasks)}",
         )
         self.shot(page, "s05_duplicate_task")
 
@@ -1500,13 +1535,15 @@ class FieldCollector:
         """
         self._open_kanban(page)
         cards_before = page.locator(WG_KANBAN_CARD).count()
-        packets_before = len(self._read_packets(page))
+        # Run-scoped + source-scoped, same reason as s05.
+        tasks_before = self._read_task_packet_ids(page)
         self._send_and_wait(page, ATTACH_TASK_TEMPLATE.format(run_tag=self.run_tag))
         page.wait_for_timeout(2500)
         self._open_kanban(page)
         cards_after = page.locator(WG_KANBAN_CARD).count()
-        packets_after = len(self._read_packets(page))
-        no_dupes = cards_after <= cards_before and packets_after <= packets_before
+        tasks_after = self._read_task_packet_ids(page)
+        new_tasks = tasks_after - tasks_before
+        no_dupes = cards_after <= cards_before and not new_tasks
         references_link = any(
             self._body_contains(page, phrase) for phrase in ("link", "attach", "objective")
         )
@@ -1514,7 +1551,9 @@ class FieldCollector:
             "s06_attach_task",
             no_dupes,
             f"no_dupes={no_dupes} references_link={references_link} "
-            f"cards {cards_before}->{cards_after}",
+            f"cards {cards_before}->{cards_after} "
+            f"run_tagged_task_packets {len(tasks_before)}->{len(tasks_after)} "
+            f"new={sorted(new_tasks)}",
         )
         self.shot(page, "s06_attach_task")
 

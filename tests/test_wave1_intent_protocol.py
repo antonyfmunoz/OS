@@ -365,6 +365,19 @@ class TestExistingWorkResolution:
         assert r.intent_class == IntentClass.QUERY_STATE.value
         assert not r.creates_work
 
+    def test_identical_task_in_a_different_conversation_is_new_work(self, env):
+        """Task restatement is CONVERSATION-scoped. The same task stated in a
+        NEW conversation must still be captured — tenant-only scoping made later
+        conversations resolve as restatements of an earlier one and create
+        nothing (field runs 20260723T044000Z / 045653Z: zero task packets)."""
+        # build_context_frame filters by conversation, so a frame for conv-2
+        # simply does not carry conv-1's task.
+        frame = _frame(conversation_id="conv-2", tasks=[])
+        r = _resolve(env, "Fix the failing import in transports/api/voice.py", frame)
+        assert r.intent_class == IntentClass.CREATE_TASK.value
+        assert r.existing_work_resolution["relationship"] != "restatement_of_existing"
+        assert r.creates_work
+
     def test_task_naming_a_different_file_is_new_work(self, env):
         """A task naming a DIFFERENT file is genuinely new — the shared-path
         dedup must not collapse unrelated tasks."""
@@ -712,3 +725,42 @@ class TestContextFrame:
         frame = build_context_frame("tenant-a", "user-1", "conv-1", planning_store=env.store)
         assert len(frame.current_plans) == 1
         assert frame.current_plans[0]["objective_text"] == "Migrate things"
+
+    def test_task_section_is_conversation_and_tenant_scoped(self, env):
+        """current_tasks carries only THIS conversation's operator tasks.
+
+        Tenant-only scoping let a later conversation's identical task resolve as
+        a restatement of an earlier conversation's task and create nothing at all
+        (field runs 20260723T044000Z / 045653Z: zero operator_task packets).
+        """
+
+        class _Packet:
+            def __init__(self, pid, conv, tenant, source_type="operator_task"):
+                self.packet_id = pid
+                self.user_intent = "Fix the failing import in transports/api/voice.py"
+                self.title = self.user_intent
+                self.status = "planned"
+                self.source_type = source_type
+                self.source_id = f"op-{pid}"
+                self.work_scope = {"tenant_id": tenant, "conversation_id": conv}
+
+        class _Queue:
+            def __init__(self, packets):
+                self._p = packets
+
+            def all_packets(self):
+                return self._p
+
+        queue = _Queue(
+            [
+                _Packet("wp-here", "conv-1", "tenant-a"),
+                _Packet("wp-other-conv", "conv-2", "tenant-a"),
+                _Packet("wp-other-tenant", "conv-1", "tenant-b"),
+                _Packet("wp-not-a-task", "conv-1", "tenant-a", source_type="objective_plan"),
+            ]
+        )
+        frame = build_context_frame(
+            "tenant-a", "user-1", "conv-1", planning_store=env.store, work_queue=queue
+        )
+        ids = {t["packet_id"] for t in frame.current_tasks}
+        assert ids == {"wp-here"}

@@ -143,12 +143,17 @@ def build_context_frame(
     except Exception as exc:
         logger.debug("context frame: plan section unavailable: %s", exc)
 
-    # Current Tasks (atomic operator WorkPackets) for this conversation's tenant,
-    # bounded and newest-first. Without this, a rephrased task had NO existing
-    # task to resolve against — task-restatement dedup could only match the plan
-    # section (which a simple Task never populates), so a rephrase created a
-    # duplicate packet nondeterministically (field run 20260723T025829Z s05:
-    # packets 10→11). Existing-work resolution needs the prior task in the frame.
+    # Current Tasks (atomic operator WorkPackets) for THIS conversation, bounded
+    # and newest-first. Without this, a rephrased task had NO existing task to
+    # resolve against — task-restatement dedup could only match the plan section
+    # (which a simple Task never populates), so a rephrase created a duplicate
+    # packet nondeterministically (field run 20260723T025829Z s05: packets 10→11).
+    #
+    # CONVERSATION-SCOPED, not merely tenant-scoped: a task stated in a DIFFERENT
+    # conversation is not a restatement of this turn. Tenant-only scoping made a
+    # later conversation's identical task resolve as a restatement of the earlier
+    # one and create nothing at all (field run 20260723T044000Z/045653Z: passes 2
+    # and 3 captured ZERO operator_task packets because they matched pass 1's).
     try:
         if work_queue is None:
             from substrate.organism.universal_work_queue import UniversalWorkQueue
@@ -163,6 +168,9 @@ def build_context_frame(
             # Tenant isolation — a task from another tenant must never enter the
             # frame (same rule the plan section enforces).
             if tenant_id and ptenant and ptenant != tenant_id:
+                continue
+            pconv = pscope.get("conversation_id", "") if isinstance(pscope, dict) else ""
+            if conversation_id and pconv and pconv != conversation_id:
                 continue
             task_rows.append(
                 {
