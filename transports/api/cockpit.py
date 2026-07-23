@@ -1142,6 +1142,17 @@ def _mount_objective_plan_router() -> None:
 _mount_objective_plan_router()
 
 
+def _mount_execution_attempt_router() -> None:
+    # Wave 2: canonical execution read surface + governed cancel/retry (thin
+    # adapter over substrate.execution.attempts).
+    from transports.api import execution_attempt_routes
+
+    execution_attempt_routes.mount(router)
+
+
+_mount_execution_attempt_router()
+
+
 def _mount_loop_coherence_router() -> None:
     from transports.api import cockpit_loop_coherence_routes
 
