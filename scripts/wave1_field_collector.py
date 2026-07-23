@@ -488,13 +488,25 @@ class FieldCollector:
             print(f"  screenshot {name} failed: {exc}", file=sys.stderr)
 
     def dom(self, page: Any, name: str) -> None:
-        """Read-only DOM snapshot of the plan subtree (or body fallback)."""
+        """Read-only DOM snapshot for one journey stage.
+
+        Captures the FULL app shell (``#root``, body fallback) — NOT just the
+        chat ``wg-plan-root`` subtree. Different stages (kanban, HUD approval,
+        Work-Detail panel, approved banner, continuity) mutate different parts
+        of the app; snapshotting only the chat card produced byte-identical
+        artifacts across s07/s08/s10/s15/s16/s20 (evidence-integrity finding,
+        CodeRabbit 2026-07-23). The whole-shell capture makes each stage's
+        artifact genuinely distinct evidence of that stage's rendered surface.
+        Bounded to 400KB (the shell is larger than one card).
+        """
         fname = f"{name}.dom.html"
         try:
             html = page.evaluate(
                 """() => {
-                    const root = document.querySelector('[data-testid="wg-plan-root"]');
-                    return (root ? root.outerHTML : document.body.innerHTML).slice(0, 200000);
+                    const root = document.querySelector('#root')
+                        || document.querySelector('[data-testid="wg-cockpit-shell"]')
+                        || document.body;
+                    return (root.outerHTML || document.body.innerHTML).slice(0, 400000);
                 }"""
             )
         except Exception as exc:  # noqa: BLE001

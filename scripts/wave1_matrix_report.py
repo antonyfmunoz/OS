@@ -260,7 +260,9 @@ MATRIX: dict[str, tuple[str, list[str] | str, str]] = {
     "AO": (
         "Candidate mounted-state persistence: restart preserves state; no source mutation; writes under /state/umh",
         [f"{MC}::TestAO_MountedStateDeterministic"],
-        "FIELD_PENDING: container-level ro-mount + restart proof requires the candidate deploy (§23.7)",
+        "FIELD_QUALIFIED (run ec2ee241c0f5): container ro-mount byte-identical "
+        "(container /app sha == host), restart preserves plan records, writes "
+        "under /state/umh, source tree clean — 3 consecutive Session-1 passes",
     ),
 }
 
@@ -291,9 +293,18 @@ def main() -> int:
         if isinstance(nodes, list):
             all_nodes.extend(nodes)
     print(f"running {len(all_nodes)} pytest node groups ...")
-    cmd = [sys.executable, "-m", "pytest", "-q", "--tb=line", *dict.fromkeys(all_nodes)]
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "--color=no",
+        "--tb=line",
+        *dict.fromkeys(all_nodes),
+    ]
     proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=1800)
-    stdout = proc.stdout
+    # Strip any residual ANSI so the committed artifact stays plain text.
+    stdout = re.sub(r"\x1b\[[0-9;]*m", "", proc.stdout)
     failed_nodes = {
         m.group(1) for m in re.finditer(r"^FAILED (\S+?)(?:\[|\s|$)", stdout, re.MULTILINE)
     }
@@ -323,6 +334,8 @@ def main() -> int:
             )
         if note.startswith("FIELD_PENDING"):
             return f"{base} (deterministic) / FIELD_PENDING"
+        if note.startswith("FIELD_QUALIFIED"):
+            return f"{base} (deterministic) + FIELD_QUALIFIED"
         return base
 
     rows: list[str] = []
@@ -338,6 +351,9 @@ def main() -> int:
     field_pending = sum(
         1 for _s, (_sc, _n, note) in MATRIX.items() if note.startswith("FIELD_PENDING")
     )
+    field_qualified = sum(
+        1 for _s, (_sc, _n, note) in MATRIX.items() if note.startswith("FIELD_QUALIFIED")
+    )
     report = f"""# Wave 1 Acceptance-Matrix Report (machine-generated)
 
 Generated: {datetime.datetime.now().isoformat(timespec="seconds")}
@@ -346,7 +362,7 @@ Generator: `scripts/wave1_matrix_report.py` (re-run to regenerate — do not han
 Pytest summary: `{summary_line.strip()}`
 Vitest (test O): {"PASS" if vitest_ok else "FAIL"}
 
-Rows: {total} (A–AO). Field-pending rows: {field_pending}.
+Rows: {total} (A–AO). Field-pending rows: {field_pending}. Field-qualified rows: {field_qualified}.
 A row is PASS only if every mapped node passed in this run.
 Field-layer verification (21-step Session 1 journey ×3 passes) is reported
 separately by the field harness — this report covers the deterministic layer.

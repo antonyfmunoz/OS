@@ -7,6 +7,7 @@ import { useOrganismRealtime } from './hooks/useOrganismRealtime'
 import { useVisionConnection } from './hooks/useVisionConnection'
 import { useBootstrapStore, waitForHydration } from './stores/bootstrapStore'
 import { useChatStore } from './stores/chatStore'
+import type { Panel } from './stores/cockpitStore'
 import { setTokenGetter } from './api/client'
 
 const hasClerk = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
@@ -26,25 +27,23 @@ function AuthenticatedApp() {
   useOrganismRealtime()
   useVisionConnection()
 
-  // Panel deep-link: ?panel=<id> opens that panel as a canvas window on load.
-  // Bookmarkable and projection-general; also the navigation hook automated
-  // browser verification uses. Panels only render as canvas windows
-  // (canvasStore.addWindow) — cockpitStore.activePanel does not render.
+  // Panel deep-link: ?panel=<id> opens that surface on load. Bookmarkable and
+  // projection-general; also the navigation hook automated browser verification
+  // uses. Delegate to cockpitStore.setPanel — the SINGLE navigation authority —
+  // so every surface class resolves correctly: retired ids alias to their
+  // canonical panel, 'chat' opens the right rail (not a stray panel window),
+  // 'canvas' aliases (agents/workflows) open the workspace without a window,
+  // and every other panel renders as a canvas window. Duplicating setPanel's
+  // special-cases here previously turned ?panel=commands into a bogus "chat"
+  // panel window and ?panel=agents into a canvas panel window.
   useEffect(() => {
     const requested = new URLSearchParams(window.location.search).get('panel')
     if (requested) {
-      Promise.all([import('./stores/canvasStore'), import('./panels/registry')]).then(
-        ([{ useCanvasStore }, { resolvePanelId }]) => {
-          // Retired ids resolve to their canonical surface — a deep link to
-          // ?panel=intentloop must open Work Detail, never a dead stub.
-          const resolved = resolvePanelId(requested)
-          const store = useCanvasStore.getState()
-          const alreadyOpen = store.windows.some(
-            (w) => w.type === 'panel' && w.config?.panelId === resolved,
-          )
-          if (!alreadyOpen) store.addWindow('panel', { panelId: resolved })
-        },
-      )
+      import('./stores/cockpitStore').then(({ useCockpitStore }) => {
+        // setPanel resolves aliases internally (resolvePanelId accepts any
+        // string); the query value is a panel id or a registered alias.
+        useCockpitStore.getState().setPanel(requested as Panel)
+      })
     }
   }, [])
 

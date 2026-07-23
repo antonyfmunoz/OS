@@ -926,12 +926,20 @@ class OperatorIntentProtocol:
             self._store.append_session(session)
             return (f"clarification session opened: {session.session_id}", True)
 
-        self._governed(
+        response = self._governed(
             ASSESS_MUTATION_NAME,
             f"hold for clarification: {question[:80]}",
             _open,
             {"session_id": session.session_id, "tenant_id": scope.tenant_id},
         )
+        # Verify the governed write actually landed — matching begin_planning_
+        # operation / capture_task. If governance denies the write, append_session
+        # never ran; returning an unpersisted session would silently break the
+        # clarification loop (the next operator message finds no active session).
+        if not bool(getattr(response, "success", False)):
+            raise RuntimeError(
+                f"clarification hold rejected by governance: {getattr(response, 'output', '')}"
+            )
         return session
 
     def resume_clarification(self, session: PlanningSession, answer: str) -> str:
@@ -949,12 +957,19 @@ class OperatorIntentProtocol:
             self._store.update_session(session)
             return (f"clarification resolved: {session.session_id}", True)
 
-        self._governed(
+        response = self._governed(
             ASSESS_MUTATION_NAME,
             f"clarification answered: {answer[:80]}",
             _release,
             {"session_id": session.session_id, "tenant_id": session.tenant_id},
         )
+        # Verify the governed write landed. If governance denies it, update_session
+        # never ran; returning the locally-merged text as if persisted would leave
+        # a stale session and break clarification resumption on the next message.
+        if not bool(getattr(response, "success", False)):
+            raise RuntimeError(
+                f"clarification resume rejected by governance: {getattr(response, 'output', '')}"
+            )
         return merged
 
     def capture_task(

@@ -38,7 +38,7 @@ from substrate.execution.intent.protocol import (
 )
 from substrate.execution.planning.compiler import compile_revision, packet_predecessors
 from substrate.execution.planning.decisions import PlanDecisionConflict, apply_plan_decision
-from substrate.execution.planning.records import ObjectivePlanStatus, RevisionEditSet
+from substrate.execution.planning.records import RevisionEditSet
 from substrate.execution.planning.store import PlanningStore, PlanningStoreConflict
 from substrate.organism.event_spine import EventSpine
 from substrate.organism.strategic_gap_engine import GoalRegistry
@@ -371,11 +371,15 @@ class TestN_Concurrency:
         lock = threading.Lock()
 
         def revise(tag: str):
+            # Catch ONLY the CAS conflict we expect from a lost race. A broader
+            # `except Exception` would record an unrelated defect (e.g. an
+            # AttributeError from a genuine lost-update regression) as
+            # "conflict:*" and still pass on `len(oks) == 1` — masking the bug.
             try:
                 compile_revision(plan, edit, env.store, Runner())
                 with lock:
                     outcomes.append(f"ok:{tag}")
-            except (PlanningStoreConflict, Exception) as exc:
+            except PlanningStoreConflict as exc:
                 with lock:
                     outcomes.append(f"conflict:{tag}:{type(exc).__name__}")
 
@@ -543,7 +547,10 @@ class TestAdversarialReviewRegressions:
         )
 
         from substrate.execution.intent.intent_spec import IntentSpec
-        from substrate.execution.planning.compiler import compose_plan_for_session
+        from substrate.execution.planning.compiler import (
+            PlanCompilationError,
+            compose_plan_for_session,
+        )
         from substrate.execution.planning.grounding import build_grounding_snapshot
 
         spec = IntentSpec.from_dict(resolution.compat_spec)
@@ -558,7 +565,10 @@ class TestAdversarialReviewRegressions:
                 return SimpleNamespace(success=False, output="injected", envelope_id="e")
             return SimpleNamespace(success=ok, output=output, envelope_id="e")
 
-        with pytest.raises(Exception):
+        # Assert the SPECIFIC failure the injected governed-write rejection
+        # produces — not a bare Exception, which would also pass on an unrelated
+        # setup/arg error and fail to prove the partial-failure path.
+        with pytest.raises(PlanCompilationError):
             compose_plan_for_session(
                 session=session,
                 scope=_scope(),
@@ -648,6 +658,36 @@ class TestAdversarialReviewRegressions:
         released = env.store.get_session(held.session_id)
         assert released.stage == "assessed"
         assert released.clarification_history[-1]["answer"] == "the migration plan"
+
+    def test_clarification_hold_raises_when_governance_denies(self, tmp_path):
+        """CodeRabbit 2026-07-23 (Major): record_clarification / resume_
+        clarification must VERIFY the governed write landed. If governance denies
+        it, returning an unpersisted session would silently break the loop — the
+        next operator message would find no active session. Both methods must
+        raise instead of returning a phantom session."""
+
+        class DenyingRunner:
+            def __call__(self, mutation_name, intent, execute_fn, source="", metadata=None):
+                # Governance denies BEFORE the store write runs (execute_fn never called).
+                return SimpleNamespace(success=False, output="denied", envelope_id="e")
+
+        base = _mk_env(tmp_path)
+        proto = OperatorIntentProtocol(
+            store=base.store,
+            goal_registry=base.goals,
+            event_spine=EventSpine(),
+            mutation_runner=DenyingRunner(),
+        )
+        resolution = proto.resolve(
+            "Cancel it", base.principal, _scope(), _frame(), client_message_id="cl-9"
+        )
+        assert resolution.clarification_required
+        with pytest.raises(RuntimeError, match="clarification hold rejected"):
+            proto.record_clarification(
+                resolution, "Cancel it", "conv-9", client_message_id="cl-9", question="Which?"
+            )
+        # No phantom session was persisted.
+        assert base.store.find_active_session("conv-9") is None
 
 
 # ── Test Z addendum: legacy objective machinery receives ZERO new writes ────
