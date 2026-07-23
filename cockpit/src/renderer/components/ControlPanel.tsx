@@ -288,24 +288,31 @@ export function ControlPanel() {
                 // decision buttons the wg-* testids ONLY for this source, so the
                 // field harness anchors to the row whose desc holds its run tag.
                 const isPlan = source === 'objective_plan'
-                // UnifiedApproval.to_dict() nests plan context under `context.details`.
+                // Execution authorization is the sole execution-decision surface
+                // (HUD-only). Its row carries the full bounded package + the
+                // w2-execution-decision anchor and w2-exec-* decision testids.
+                // wg-approve/reject-btn stay PLAN-conditional so wave-1 harness
+                // anchors are untouched.
+                const isExecution = source === 'execution_authorization'
+                // UnifiedApproval.to_dict() nests context under `context.details`.
                 const uaContext = (ua.context ?? {}) as Record<string, unknown>
                 const details = ((uaContext.details ?? ua.details) ?? {}) as Record<string, unknown>
                 const graphVersion = typeof details.graph_version === 'number' ? details.graph_version : undefined
                 const packetCount = typeof details.packet_count === 'number' ? details.packet_count : undefined
+                const taskFrontier = Array.isArray(details.task_frontier) ? details.task_frontier : []
+                const planVersion = typeof details.plan_version === 'number' ? details.plan_version : undefined
+                const riskCeiling = typeof details.risk_ceiling === 'string' ? details.risk_ceiling : undefined
                 return (
                   <div
                     key={id}
                     data-testid="wg-approval-row"
                     data-source-type={source}
-                    // Deterministic row anchor: the description is truncated
-                    // server-side (300 chars), so text can NOT identify which
-                    // plan a row belongs to when descriptions collide — the
-                    // field harness (and any operator tooling) anchors by
-                    // plan record id instead.
+                    // Deterministic row anchor: descriptions are truncated
+                    // server-side, so the field harness anchors by record id.
                     {...(isPlan && typeof details.plan_record_id === 'string'
                       ? { 'data-plan-record-id': details.plan_record_id }
                       : {})}
+                    {...(isExecution ? { 'data-testid': 'w2-execution-decision', 'data-decision-ref': id } : {})}
                     className="mb-2"
                   >
                     <div className="flex items-center gap-1 flex-wrap">
@@ -316,18 +323,29 @@ export function ControlPanel() {
                       {isPlan && packetCount !== undefined && (
                         <span className="text-[9px] px-1 py-0.5 rounded bg-surface-raised text-text-tertiary font-mono">{packetCount} packets</span>
                       )}
+                      {isExecution && planVersion !== undefined && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-surface-raised text-text-tertiary font-mono">plan v{planVersion}</span>
+                      )}
+                      {isExecution && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-surface-raised text-text-tertiary font-mono">{taskFrontier.length} task(s)</span>
+                      )}
+                      {isExecution && riskCeiling && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-400/10 text-yellow-400 font-mono">risk {riskCeiling}</span>
+                      )}
                       <p className="text-[11px] text-text-primary truncate" title={desc}>{desc}</p>
                     </div>
                     <div className="flex gap-1 mt-1">
                       <button
                         {...(isPlan ? { 'data-testid': 'wg-approve-btn' } : {})}
+                        {...(isExecution ? { 'data-testid': 'w2-exec-approve-btn' } : {})}
                         onClick={() => unifiedApprove(id, source)}
                         className="text-[10px] px-2 py-1 rounded bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors"
                       >
-                        Approve
+                        {isExecution ? 'Authorize' : 'Approve'}
                       </button>
                       <button
                         {...(isPlan ? { 'data-testid': 'wg-reject-btn' } : {})}
+                        {...(isExecution ? { 'data-testid': 'w2-exec-reject-btn' } : {})}
                         onClick={() => unifiedReject(id, source)}
                         className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors"
                       >

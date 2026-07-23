@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { fetchApi } from '../api/client'
 import { useViewContextStore } from '../stores/viewContextStore'
+import { useExecutionAttemptStore } from '../stores/executionAttemptStore'
 import { CronTable, type CronJob } from '../components/CronTable'
 import { DetailDrawer } from '../components/DetailDrawer'
 import { StatusBadge } from '../components/StatusBadge'
@@ -483,6 +484,8 @@ function PacketCard({
         {packet.risk_class}
       </span>
       <span className="text-[9px] text-text-tertiary shrink-0">{packet.domain}</span>
+      {/* Execution overlay — attempt count / phase / blocker / proof */}
+      <ExecutionOverlayChip packetId={packet.packet_id} />
       {/* Control buttons */}
       <div className="flex gap-1 shrink-0">
         {packet.status === 'executing' && (
@@ -520,6 +523,32 @@ function PacketCard({
         )}
       </div>
     </div>
+  )
+}
+
+// Execution overlay chip — per-Task attempt count / active phase / blocker /
+// Proof, fed by the canonical /execution/overlay route. Additive: renders
+// nothing until an attempt exists for the packet.
+function ExecutionOverlayChip({ packetId }: { packetId: string }) {
+  const overlay = useExecutionAttemptStore((s) => s.overlayByPacket[packetId])
+  const fetchOverlay = useExecutionAttemptStore((s) => s.fetchOverlay)
+  useEffect(() => { fetchOverlay([packetId]) }, [packetId, fetchOverlay])
+  if (!overlay || overlay.attempt_count === 0) return null
+  return (
+    <span className="flex items-center gap-1 shrink-0" data-testid="w2-work-overlay" data-packet-id={packetId}>
+      <span className="text-[9px] px-1 rounded bg-surface-raised text-text-tertiary font-mono">
+        {overlay.attempt_count} att
+      </span>
+      {overlay.active_phase && (
+        <span className="text-[9px] px-1 rounded bg-cyan/10 text-cyan font-mono">{overlay.active_phase}</span>
+      )}
+      {overlay.blocker_state && (
+        <span className="text-[9px] px-1 rounded bg-red-400/10 text-red-400 font-mono">blocked</span>
+      )}
+      {overlay.proof_id && (
+        <span className="text-[9px] px-1 rounded bg-green-400/10 text-green-400 font-mono">proof</span>
+      )}
+    </span>
   )
 }
 

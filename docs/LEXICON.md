@@ -18,9 +18,14 @@ operator-facing labels. Enforced shrink-only by
 | **Plan** | `ObjectivePlanRecord` (versioned) + `WorkGraph` read projection | A Plan pursues exactly one Objective |
 | **Task** | `WorkPacket` | The unit of work; kanban card |
 | **Decision** | `ApprovalRequest` (adapted; 4-part `decision_ref`) via UnifiedApprovalRuntime | Surfaces ONLY in the Top HUD ControlPanel |
-| **Execution** | ExecutionAttempt (Wave 2+; ZERO in Wave 1) | Plan acceptance never authorizes execution |
+| **Execution** | `ExecutionAttempt` (Wave 2; one Task → 0..N attempts) | Plan acceptance never authorizes execution; the HUD execution Decision does |
+| **Authorization** | `ExecutionAuthorizationGrant` (bounded effect of an approved execution Decision) | NOT a Decision — ApprovalRequest owns that |
+| **Assignment** | durable `FleetAssignment`/`ExecutionAssignment` (role/skill/worker/model/harness/tools/env/verifier) | Deterministic placement; who/what/where + why |
+| **Environment** | `ExecutionEnvironmentLease` (a git-worktree sandbox) | One writable window per attempt |
+| **Worker** | qualified runtime worker (adapter/harness) | AgentType is a capability class, not a Role |
+| **Verification** | independent verifier record (verifier ≠ worker) | An agent never verifies its own work |
 | **Outcome** | outcome records (continuity runtime) | |
-| **Proof** | evidence packages / `EvidenceRef` provenance | Evidence is never mutation authority |
+| **Proof** | `ProofPackage` — AttemptProof / PlanExecutionProof | Evidence is never mutation authority; no completion without independent Proof |
 | **Agent** | Role-bound worker (RoleContract; scheduling = Wave 2) | |
 | **Memory** | canonical memory subsystems | |
 | *(assistant name)* | `get_ai_name()` / SelfModel.ai_name; neutral fallback "Assistant" | NEVER a hardcoded persona name in surfaces |
@@ -38,6 +43,13 @@ operator-facing labels. Enforced shrink-only by
   logs, and payload data is untouched.
 - Status line after plan approval reads exactly:
   `PLAN APPROVED — EXECUTION NOT STARTED`.
+- Wave 2 execution status lines (chat execution card) read exactly:
+  `EXECUTION AUTHORIZED — NOT STARTED` / `EXECUTION RUNNING` /
+  `EXECUTION BLOCKED — DECISION NEEDED` / `EXECUTION COMPLETE — PROOF ATTACHED` /
+  `EXECUTION FAILED — RETRY AVAILABLE` / `EXECUTION CANCELLED`.
+- Wave 2 additional Layer-2 terms (never operator-facing): "ExecutionAttempt",
+  "ExecutionAuthorizationGrant", "Workcell", "SimulationExecutor", "dispatch"
+  (as a verb for starting work — the operator word is "Execute").
 
 ## Change control
 

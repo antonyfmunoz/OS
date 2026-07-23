@@ -9,6 +9,7 @@ import { ExecutionTimeline } from '../components/ExecutionTimeline'
 import { EventConsole } from '../components/EventConsole'
 import { ConnectionBanner } from '../components/ConnectionBanner'
 import { ExecutorBadge } from '../components/ExecutorBadge'
+import { AttemptsView } from '../components/execution/AttemptsView'
 
 const RISK_BADGE: Record<string, string> = {
   low: 'text-ok',
@@ -39,9 +40,46 @@ export function ExecutionPanel() {
   usePolling(fetchAll, realtimeStatus === 'connected' ? 15000 : 5000)
   usePolling(() => { fetchPending(); fetchCompleted(); fetchJournalRecent() }, realtimeStatus === 'connected' ? 10000 : 3000)
 
+  const [tab, setTab] = useState<'attempts' | 'runtime'>('attempts')
+
+  return (
+    <div data-testid="w2-execution-root" className="flex flex-col h-full overflow-hidden">
+      <ConnectionBanner />
+
+      {/* Tab switcher — Attempts (the canonical execution view) / Runtime diagnostics */}
+      <div className="flex items-center gap-1 px-3 py-1 flex-shrink-0 border-b border-border">
+        {(['attempts', 'runtime'] as const).map((t) => (
+          <button
+            key={t}
+            data-testid={`w2-execution-tab-${t}`}
+            onClick={() => setTab(t)}
+            className={`text-[10px] font-mono px-2 py-0.5 rounded uppercase ${tab === t ? 'bg-cyan/10 text-cyan' : 'text-text-tertiary hover:text-text-secondary'}`}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'attempts' ? (
+        <AttemptsView />
+      ) : (
+        <RuntimeDiagnostics
+          spine={spine}
+          executionMode={executionMode}
+          guard={guard}
+          gateway={gateway}
+          leverage={leverage}
+          journal={journal}
+        />
+      )}
+    </div>
+  )
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function RuntimeDiagnostics({ spine, executionMode, guard, gateway, leverage, journal }: any) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <ConnectionBanner />
 
       {/* Top bar — governance status */}
       <div className="flex items-center gap-4 px-4 py-2 flex-shrink-0 border-b border-border">
