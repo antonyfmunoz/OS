@@ -979,14 +979,22 @@ _GATING_TRANSITIONS: dict[str, dict[str, Any]] = {
             )
         ),
     },
-    # Plan packets materialized: a packet record sourced from an objective_plan
-    # carrying the run tag (the plan decomposed into ≥1 packet).
+    # Plan packets materialized: the run-tagged objective_plan record itself
+    # carries >=1 workpacket_id AND >=1 packet node in its graph. Materialized
+    # WorkPackets are recorded ON the plan record (workpacket_ids + nodes),
+    # not as separate rows in work_packets.jsonl (that store holds only the
+    # simple-task/legacy packets) — so the plan record IS the authoritative
+    # materialization evidence (verified 2026-07-23: every approved full-pass
+    # plan carries 7 wp-ids + 7 packet nodes while work_packets.jsonl had none).
     "s09_tasks_on_kanban": {
-        "token": "packet",
+        "token": "workpacket_ids>=1",
         "match": lambda rec, tag: (
             _record_has_tag(rec, tag)
-            and _is_packet_record(rec)
-            and str(rec.get("source_type", "")) == "objective_plan"
+            and bool(rec.get("plan_record_id"))
+            and len(rec.get("workpacket_ids") or []) >= 1
+            and any(
+                n.get("kind") == "packet" for n in (rec.get("nodes") or []) if isinstance(n, dict)
+            )
         ),
     },
     # Revision: a plan record with the run tag whose graph_version >= 2 (v1 was
@@ -1120,7 +1128,24 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
     state_records = _read_state_records(sha)
     logs = _candidate_logs(runner)
 
+    # Scope to the FULL passes of the candidate SHA under qualification. The
+    # day's proof root also holds smoke passes and earlier requalified runs of
+    # OTHER shas — mixing them in scored the wrong evidence and imported a
+    # pre-fix run's warm-up 5xx list (observed 2026-07-23). A qualifying pass
+    # is: candidate_commit == sha AND scenario == "full".
+    candidate_passes = []
     for pass_dir in sorted(raw_root.glob("*/pass*")):
+        rj = pass_dir / "result.json"
+        if not rj.exists():
+            continue
+        try:
+            r = json.loads(rj.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        if r.get("candidate_commit") == sha[:12] and r.get("scenario") == "full":
+            candidate_passes.append(pass_dir)
+
+    for pass_dir in candidate_passes:
         result_json = pass_dir / "result.json"
         network_jsonl = pass_dir / "network.jsonl"
         if not result_json.exists():
