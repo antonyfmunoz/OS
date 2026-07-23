@@ -268,13 +268,17 @@ MATRIX: dict[str, tuple[str, list[str] | str, str]] = {
 
 
 def _run_vitest() -> bool:
-    proc = subprocess.run(
-        ["npx", "vitest", "run", "src/renderer/__tests__/surfaceAuthority.test.tsx"],
-        cwd=os.path.join(REPO, "cockpit"),
-        capture_output=True,
-        text=True,
-        timeout=600,
-    )
+    try:
+        proc = subprocess.run(
+            ["npx", "vitest", "run", "src/renderer/__tests__/surfaceAuthority.test.tsx"],
+            cwd=os.path.join(REPO, "cockpit"),
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    except subprocess.TimeoutExpired:
+        print("vitest run exceeded 600s — recorded as FAIL", file=sys.stderr)
+        return False
     return proc.returncode == 0
 
 
@@ -302,7 +306,13 @@ def main() -> int:
         "--tb=line",
         *dict.fromkeys(all_nodes),
     ]
-    proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=1800)
+    try:
+        proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=1800)
+    except subprocess.TimeoutExpired as exc:
+        # A hung pytest run must fail the generator LOUDLY with an exit code —
+        # an uncaught TimeoutExpired wrote no report and returned no status.
+        print(f"FATAL: pytest run exceeded {exc.timeout}s — no report written", file=sys.stderr)
+        return 1
     # Strip any residual ANSI so the committed artifact stays plain text.
     stdout = re.sub(r"\x1b\[[0-9;]*m", "", proc.stdout)
     failed_nodes = {

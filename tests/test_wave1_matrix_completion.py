@@ -370,11 +370,16 @@ class TestN_Concurrency:
         outcomes: list[str] = []
         lock = threading.Lock()
 
+        unexpected: list[BaseException] = []
+
         def revise(tag: str):
             # Catch ONLY the CAS conflict we expect from a lost race. A broader
             # `except Exception` would record an unrelated defect (e.g. an
             # AttributeError from a genuine lost-update regression) as
             # "conflict:*" and still pass on `len(oks) == 1` — masking the bug.
+            # Anything ELSE is captured and asserted absent below — an exception
+            # escaping to the thread hook would otherwise vanish silently while
+            # len(oks) == 1 still held.
             try:
                 compile_revision(plan, edit, env.store, Runner())
                 with lock:
@@ -382,12 +387,16 @@ class TestN_Concurrency:
             except PlanningStoreConflict as exc:
                 with lock:
                     outcomes.append(f"conflict:{tag}:{type(exc).__name__}")
+            except BaseException as exc:  # noqa: BLE001 — surfaced by assertion
+                with lock:
+                    unexpected.append(exc)
 
         threads = [threading.Thread(target=revise, args=(t,)) for t in ("a", "b")]
         for t in threads:
             t.start()
         for t in threads:
             t.join()
+        assert not unexpected, [repr(e) for e in unexpected]
         oks = [o for o in outcomes if o.startswith("ok")]
         assert len(oks) == 1, outcomes  # exactly one revision wins
         versions = env.store.versions_of(plan.objective_id)

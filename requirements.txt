@@ -7,6 +7,9 @@ anthropic
 google-genai
 flask>=3.1,<4.0
 fastapi>=0.115,<1.0
+# Directly imported by substrate/types.py (30+ models) — declared explicitly,
+# not left to arrive transitively via fastapi/anthropic/openai.
+pydantic>=2.0,<3.0
 PyJWT[crypto]>=2.8
 pywebpush>=2.0
 psutil

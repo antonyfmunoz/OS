@@ -27,11 +27,16 @@ def test_explicit_umh_root_is_honored(monkeypatch):
 
 
 def test_blank_umh_root_falls_through_to_derived_root(monkeypatch):
-    """A blank/whitespace UMH_ROOT is not an explicit root — derive instead."""
+    """A blank/whitespace UMH_ROOT is not an explicit root — derive instead.
+
+    Assert the DERIVATION (module-path parent), not inequality with any literal
+    path: a checkout legitimately mounted at /opt/OS would make a `!= "/opt/OS"`
+    assertion false-fail even though derivation worked correctly.
+    """
     monkeypatch.setenv("UMH_ROOT", "   ")
     root = grounding._repo_root()
     assert root.strip()
-    assert root != "/opt/OS"
+    assert Path(root) == Path(grounding.__file__).resolve().parents[3]
 
 
 def test_derived_root_when_env_unset_points_at_a_real_checkout(monkeypatch):
