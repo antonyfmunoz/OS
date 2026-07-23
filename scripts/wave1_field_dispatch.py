@@ -677,6 +677,32 @@ def _http_ok(runner: Runner, url: str, expect_status: set[int] | None = None) ->
     return {"ok": status in ok_set, "status": status, "url": url}
 
 
+def _wait_candidate_ready(
+    runner: Runner, *, timeout_s: float = 180.0, settle_s: float = 3.0
+) -> dict[str, Any]:
+    """Block until the candidate answers THROUGH nginx, or the budget expires.
+
+    Probes the same origin path the browser uses, so a ready verdict proves the
+    whole chain (nginx -> operator) is warm — not merely that the container
+    process exists. An auth-gated 401 is the ready signal (the API is reachable
+    and enforcing auth); 502/503 means nginx has no live upstream yet.
+    """
+    if runner.dry_run:
+        print("[dry-run] wait for candidate readiness via origin API")
+        return {"planned": "candidate-ready"}
+    url = f"{_candidate_origin()}/api/umh/objective-plan"
+    deadline = time.time() + timeout_s
+    last: dict[str, Any] = {}
+    while time.time() < deadline:
+        last = _http_ok(runner, url, expect_status={401, 200})
+        if last.get("ok"):
+            # Small settle so in-flight worker warm-up finishes before traffic.
+            time.sleep(settle_s)
+            return {"ready": True, "waited_s": round(timeout_s - (deadline - time.time()), 1)}
+        time.sleep(2.0)
+    return {"ready": False, "last": last}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # preflight
 # ─────────────────────────────────────────────────────────────────────────────
@@ -915,7 +941,14 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
         if i == 1:
             # RES-growth mitigation: restart the candidate before the first pass.
             runner.run(["docker", "restart", _CANDIDATE_CONTAINER], timeout=120, check=False)
-            _http_ok(runner, f"http://127.0.0.1:{_CANDIDATE_API_HOST_PORT}/health")
+            # WAIT for the upstream to answer again before dispatching. A single
+            # probe is not a readiness gate: the operator needs ~15s to boot
+            # (warm VoiceEngine preload), so pass 1 previously raced the restart
+            # and its first requests hit nginx with no upstream -> 502s that the
+            # reconciler correctly counts as orphan 5xx (run 20260723T052247Z-p1:
+            # device/register + execution-summary, both at ms~10000, zero journey
+            # impact but a hard reconciliation failure).
+            _wait_candidate_ready(runner)
         results.append(dispatch_pass(runner, run_id=run_id, pass_num=i, scenario=scenario, sha=sha))
     return {"scenario": scenario, "passes": passes, "results": results}
 
