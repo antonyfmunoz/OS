@@ -667,10 +667,18 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     # (5) render nginx.candidate.conf from the template and start nginx:alpine
     conf_out = run_dir / "nginx.candidate.conf"
     template = _WORKTREE / "infra" / "candidate" / "nginx.candidate.conf.template"
+    # The upstream MUST be the actual wave2 operator container name (the wave1
+    # template hardcoded os-operator-candidate, which does not resolve on the
+    # network with the -w2 suffix and crashes nginx -> 502). Substitute the real
+    # name at render time so the -w2 container is always the resolved backend.
+    upstream = f"{_CANDIDATE_CONTAINER}:{_CANDIDATE_API_PORT}"
     if runner.dry_run:
-        print(f"[dry-run] render {template} → {conf_out} (upstream os-operator-candidate:8091)")
+        print(f"[dry-run] render {template} → {conf_out} (upstream {upstream})")
     else:
-        conf_out.write_text(template.read_text(encoding="utf-8"), encoding="utf-8")
+        rendered = template.read_text(encoding="utf-8").replace("${CANDIDATE_UPSTREAM}", upstream)
+        if "${CANDIDATE_UPSTREAM}" in rendered:  # fail closed on unrendered token
+            raise RuntimeError("nginx template still has an unrendered ${CANDIDATE_UPSTREAM}")
+        conf_out.write_text(rendered, encoding="utf-8")
     _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
     _must(
         runner,
@@ -987,7 +995,10 @@ def _build_start_command(
 
 
 def _poll_status(
-    runner: Runner, run_id: str, pass_num: int, timeout_min: int = 30,
+    runner: Runner,
+    run_id: str,
+    pass_num: int,
+    timeout_min: int = 30,
     max_mesh_failures: int = 5,
 ) -> dict[str, Any]:
     """Read-only 30s polls of the executor status.json until terminal.
@@ -1015,9 +1026,11 @@ def _poll_status(
         if not res.get("ok", False):
             consecutive_mesh_failures += 1
             if consecutive_mesh_failures >= max_mesh_failures:
-                return {"mesh_unreachable": True,
-                        "consecutive_mesh_failures": consecutive_mesh_failures,
-                        "status_path": status_path}
+                return {
+                    "mesh_unreachable": True,
+                    "consecutive_mesh_failures": consecutive_mesh_failures,
+                    "status_path": status_path,
+                }
             time.sleep(30)
             continue
         consecutive_mesh_failures = 0
@@ -1623,8 +1636,12 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
         # Dry-run assembles the command only — it does NOT run the bwrap preflight,
         # so it must NEVER claim isolation was confirmed (review C3). isolation_ok
         # is None ("not verified in dry-run"), never True. A real run resolves it.
-        return {"started": True, "dry_run": True, "spool_root": str(spool_root),
-                "isolation_ok": None}
+        return {
+            "started": True,
+            "dry_run": True,
+            "spool_root": str(spool_root),
+            "isolation_ok": None,
+        }
 
     # Launch detached; the runner sources the secret from the 0600 file into its
     # own env var so the value never appears in this process's argv.
@@ -1718,15 +1735,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--scenario", default="full", choices=["full", "smoke"])
     parser.add_argument("--passes", type=int, default=3)
     parser.add_argument("--run-id", default="", help="Run id (seed-fixture/start-runner/teardown)")
-    parser.add_argument("--variant", default="clean",
-                        choices=["clean", "tools-revoked-a"],
-                        help="fixture/failure variant (seed-fixture, inject-failure)")
-    parser.add_argument("--max-iterations", type=int, default=0,
-                        help="host runner iterations (0 = until stopped)")
+    parser.add_argument(
+        "--variant",
+        default="clean",
+        choices=["clean", "tools-revoked-a"],
+        help="fixture/failure variant (seed-fixture, inject-failure)",
+    )
+    parser.add_argument(
+        "--max-iterations", type=int, default=0, help="host runner iterations (0 = until stopped)"
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in (
-        "preflight", "deploy-candidate", "seed-fixture", "start-runner",
-        "smoke", "run", "inject-failure", "reconcile", "teardown",
+        "preflight",
+        "deploy-candidate",
+        "seed-fixture",
+        "start-runner",
+        "smoke",
+        "run",
+        "inject-failure",
+        "reconcile",
+        "teardown",
     ):
         sub.add_parser(name)
     args = parser.parse_args(argv)

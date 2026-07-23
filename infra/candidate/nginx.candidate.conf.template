@@ -5,8 +5,12 @@
 # it reaches the candidate operator container by its Docker DNS name.
 #
 # CHANGES vs the production template (and WHY):
-#   * upstream retargeted 127.0.0.1:8091 -> os-operator-candidate:8091 (container
+#   * upstream retargeted 127.0.0.1:8091 -> ${CANDIDATE_UPSTREAM} (container
 #     DNS on the operator compose network — the candidate api backend, NOT the live os-operator).
+#     ${CANDIDATE_UPSTREAM} is substituted by wave2_field_dispatch.py at render
+#     time with the ACTUAL wave2 operator container name (os-operator-candidate-w2:8091);
+#     a hardcoded wave1 name (os-operator-candidate) does not resolve on the
+#     network and crashes nginx with "host not found in upstream" -> 502.
 #   * listen stays 8080 (nginx:alpine container); host publishes 127.0.0.1:8190.
 #   * KEPT: /api/umh/ws (chat/plan live updates), /api/ (converse + workgraph
 #     reads/writes), /sw.js, /assets/, / SPA fallback — the surfaces the
@@ -26,7 +30,7 @@
 #     — a literal address has no keepalive pool, so no cold-start 502 on upgrade.
 
 upstream candidate_api {
-    server os-operator-candidate:8091;
+    server ${CANDIDATE_UPSTREAM};
     keepalive 16;
 }
 
@@ -39,7 +43,7 @@ server {
     # Chat + plan live updates ride this WS. Literal backend address (no
     # keepalive pool) so the first upgrade never trips a cold-start 502.
     location /api/umh/ws {
-        proxy_pass http://os-operator-candidate:8091/api/umh/ws;
+        proxy_pass http://${CANDIDATE_UPSTREAM}/api/umh/ws;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
