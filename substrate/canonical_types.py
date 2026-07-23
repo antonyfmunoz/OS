@@ -168,6 +168,16 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ExecutionReadinessState": ["substrate.execution.attempts.readiness"],
     "ExecutionDecisionConflict": ["substrate.execution.attempts.decisions"],
     "ExecutionAuthorizationDecisionSource": ["substrate.execution.attempts.decisions"],
+    # C3 placement + lease + instruction compilation. ExecutionAssignment is the
+    # durable canonical placement record; ExecutionEnvironmentLease is the one
+    # writable-window record (no prior owner). DispatchBlocked / PlacementError /
+    # LeaseError are the fail-closed guards on each stage.
+    "ExecutionAssignment": ["substrate.execution.attempts.placement"],
+    "PlacementError": ["substrate.execution.attempts.placement"],
+    "ExecutionEnvironmentLease": ["substrate.execution.attempts.leases"],
+    "LeaseManager": ["substrate.execution.attempts.leases"],
+    "LeaseError": ["substrate.execution.attempts.leases"],
+    "DispatchBlocked": ["substrate.execution.attempts.dispatch"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.

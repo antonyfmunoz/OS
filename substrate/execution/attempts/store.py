@@ -57,6 +57,7 @@ _DEFAULT_ATTEMPTS_PATH = _resolve("execution_attempts.jsonl")
 _DEFAULT_GRANTS_PATH = _resolve("execution_authorization_grants.jsonl")
 _DEFAULT_READINESS_PATH = _resolve("readiness_assessments.jsonl")
 _DEFAULT_LEASES_PATH = _resolve("environment_leases.jsonl")
+_DEFAULT_ASSIGNMENTS_PATH = _resolve("execution_assignments.jsonl")
 
 
 class AttemptStoreConflict(RuntimeError):
@@ -75,16 +76,19 @@ class ExecutionAttemptStore:
         grants_path: str | None = None,
         readiness_path: str | None = None,
         leases_path: str | None = None,
+        assignments_path: str | None = None,
     ) -> None:
         self._attempts_path = attempts_path or _DEFAULT_ATTEMPTS_PATH
         self._grants_path = grants_path or _DEFAULT_GRANTS_PATH
         self._readiness_path = readiness_path or _DEFAULT_READINESS_PATH
         self._leases_path = leases_path or _DEFAULT_LEASES_PATH
+        self._assignments_path = assignments_path or _DEFAULT_ASSIGNMENTS_PATH
         for p in (
             self._attempts_path,
             self._grants_path,
             self._readiness_path,
             self._leases_path,
+            self._assignments_path,
         ):
             os.makedirs(os.path.dirname(p), exist_ok=True)
 
@@ -371,6 +375,26 @@ class ExecutionAttemptStore:
             if row.get("assessment_id") == assessment_id:
                 return row
         return None
+
+    # ── Assignments (durable placement records) ──────────────────────────────
+
+    def append_assignment(self, assignment: Any) -> None:
+        payload = assignment.to_dict() if hasattr(assignment, "to_dict") else dict(assignment)
+        with self._file_lock(self._assignments_path):
+            self._append_line(self._assignments_path, payload)
+
+    def get_assignment(self, assignment_id: str) -> dict[str, Any] | None:
+        for row in self._read_lines(self._assignments_path):
+            if row.get("assignment_id") == assignment_id:
+                return row
+        return None
+
+    def assignment_for_attempt(self, attempt_id: str) -> dict[str, Any] | None:
+        latest: dict[str, Any] | None = None
+        for row in self._read_lines(self._assignments_path):
+            if row.get("attempt_id") == attempt_id:
+                latest = row
+        return latest
 
     # ── Leases ───────────────────────────────────────────────────────────────
 
