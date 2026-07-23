@@ -44,6 +44,10 @@ from substrate.execution.attempts.store import AttemptStoreConflict, ExecutionAt
 
 logger = logging.getLogger(__name__)
 
+# Worker-authored lists (files_changed/commits) are self-report only — bounded so
+# a lying/oversized result cannot bloat the canonical record (review W5).
+_MAX_REPORTED_ITEMS = 500
+
 
 @dataclass
 class PollerPassReport:
@@ -171,6 +175,10 @@ class ControlPlanePoller:
             report.transitioned_running.append(attempt_id)
 
         # 2. running → verifying (record the worker's raw result; never trust it).
+        #    The worker AUTHORS files_changed/commits, so they are attacker-
+        #    controllable narrative (review W5): they are BOUNDED here and recorded
+        #    as a self-report only. verify_fn MUST derive the real changed-file set
+        #    by diffing the lease worktree independently — never from these lists.
         if attempt.status == _S.RUNNING.value:
             worker_result = _WorkerResultView(result.get("worker_result", {}) or {})
             attempt = self._transition(
@@ -178,8 +186,8 @@ class ControlPlanePoller:
                 actor="poller",
                 reason=f"worker reported status={worker_result.status}",
                 updates={
-                    "files_changed": list(worker_result.files_changed),
-                    "commits": list(worker_result.commits),
+                    "files_changed": list(worker_result.files_changed)[:_MAX_REPORTED_ITEMS],
+                    "commits": list(worker_result.commits)[:_MAX_REPORTED_ITEMS],
                 },
             )
             report.transitioned_verifying.append(attempt_id)
