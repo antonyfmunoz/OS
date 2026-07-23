@@ -24,6 +24,11 @@ from substrate.execution.attempts.host_isolation import (
     build_isolated_command,
     scrub_worker_env,
 )
+from substrate.execution.attempts.worker_credential_boundary import (
+    CredentialBoundaryError,
+    close_attempt_credential_home,
+    open_attempt_credential_home,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +101,7 @@ def _capture_git(worktree_path: str, base_commit: str) -> tuple[list[str], list[
     from substrate.execution.cpu_gate import gated_subprocess_run
 
     def _run(args: list[str]) -> str:
-        r = gated_subprocess_run(
-            ["git", *args], caller="worker_git", timeout=30, cwd=worktree_path
-        )
+        r = gated_subprocess_run(["git", *args], caller="worker_git", timeout=30, cwd=worktree_path)
         return (r.stdout or "").strip() if r else ""
 
     files = [f for f in _run(["diff", "--name-only", f"{base_commit}..HEAD"]).splitlines() if f]
@@ -115,9 +118,16 @@ def run_worker_in_lease(
     max_turns: int = _DEFAULT_MAX_TURNS,
     disallowed_tools: list[str] | None = None,
     oauth_token: str | None = None,
+    attempt_id: str = "",
+    run_root: str = "",
 ) -> WorkerResult:
     """Run the real Claude CLI worker for one attempt, isolated in its lease
-    worktree. Returns a WorkerResult (never raises for a normal failure)."""
+    worktree. Returns a WorkerResult (never raises for a normal failure).
+
+    ``attempt_id`` + ``run_root`` are REQUIRED: they bind this invocation's
+    private credential home (``<run_root>/worker-homes/<attempt_id>/``). A retry
+    is a new attempt_id, so A2 provably receives a different home than A1.
+    """
     import time as _time
 
     from substrate.execution.cpu_gate import gated_subprocess_run
@@ -133,33 +143,47 @@ def run_worker_in_lease(
 
     prompt = render_prompt(package)
     inner = [
-        cli, "--print", "--output-format", "text",
-        "--max-turns", str(max_turns), "--permission-mode", "auto",
+        cli,
+        "--print",
+        "--output-format",
+        "text",
+        "--max-turns",
+        str(max_turns),
+        "--permission-mode",
+        "auto",
     ]
     for tool in disallowed_tools or []:
         inner += ["--disallowedTools", tool]
     inner += [prompt]
 
-    # Minimal HOME under the worktree parent so ~/.claude auth is reachable but
-    # the real home (with credentials) is not exposed.
-    worker_home = os.path.join(os.path.dirname(worktree_path.rstrip("/")), ".worker-home")
-    os.makedirs(os.path.join(worker_home, ".claude"), exist_ok=True)
-    # Copy CLI auth into the confined home if present (token file only).
-    real_claude = os.path.expanduser("~/.claude")
-    for fname in (".credentials.json", "config.json"):
-        src = os.path.join(real_claude, fname)
-        if os.path.isfile(src):
-            try:
-                shutil.copy2(src, os.path.join(worker_home, ".claude", fname))
-            except Exception:
-                pass
+    # ATTEMPT-PRIVATE home (R1 / SEC-C2). The previous derivation
+    # `dirname(worktree_path)` resolved to the SAME directory for every lease in
+    # a run: two concurrent workers shared one home, the real ~/.claude
+    # credential was copied into it, and nothing ever deleted it. The home is now
+    # derived from attempt_id and destroyed on every terminal path below.
+    if not attempt_id:
+        return WorkerResult(error="attempt_id is required to bind a credential home")
+    if not run_root:
+        return WorkerResult(error="run_root is required to place a credential home")
+    try:
+        attempt_home = open_attempt_credential_home(attempt_id=attempt_id, run_root=run_root)
+    except CredentialBoundaryError as exc:
+        # Fail closed: never run a worker without its own credential boundary.
+        return WorkerResult(error=f"credential boundary unavailable: {exc}")
 
-    profile = IsolationProfile(worktree_path=worktree_path, worker_home=worker_home)
+    profile = IsolationProfile(
+        worktree_path=worktree_path,
+        worker_home=attempt_home.home_path,
+        tmp_path=attempt_home.tmp_path,
+        env_overrides=attempt_home.env_overrides(),
+    )
     try:
         cmd = build_isolated_command(inner, profile)
         isolated = True
     except IsolationUnavailable as exc:
-        # Fail closed: no unconfined worker.
+        # Fail closed: no unconfined worker — and destroy the credential we just
+        # placed, since no worker will consume it.
+        _close_home_or_fail(attempt_home)
         return WorkerResult(error=f"host isolation unavailable: {exc}")
 
     # The model credential (OAuth token) is INJECTED by the caller (the host
@@ -172,40 +196,74 @@ def run_worker_in_lease(
         extra_allow["CLAUDE_CODE_OAUTH_TOKEN"] = oauth_token
     elif os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
         extra_allow["CLAUDE_CODE_OAUTH_TOKEN"] = os.environ["CLAUDE_CODE_OAUTH_TOKEN"]
+    # scrub_worker_env is an ALLOWLIST: only keep_keys survive, and
+    # ANTHROPIC_API_KEY is additionally denied. The candidate control plane's API
+    # key is a DIFFERENT authority domain and must never reach the worker just
+    # because both take part in the same run.
     env = scrub_worker_env(dict(os.environ), extra_allow=extra_allow)
-    env["HOME"] = worker_home
+    # Attempt-private HOME/XDG/CLAUDE_CONFIG_DIR/TMPDIR — applied AFTER the scrub
+    # so no inherited value can point config lookup outside the boundary.
+    env.update(attempt_home.env_overrides())
 
     start = _time.monotonic()
-    result = gated_subprocess_run(
-        cmd, caller="wave2_worker_claude_cli", timeout=timeout,
-        cwd=worktree_path, env=env,
-    )
-    duration = _time.monotonic() - start
-
-    if result is None:
-        return WorkerResult(
-            error="worker skipped by CPU gate (blocked_cpu)", isolated=isolated,
-            duration_seconds=duration,
+    try:
+        result = gated_subprocess_run(
+            cmd,
+            caller="wave2_worker_claude_cli",
+            timeout=timeout,
+            cwd=worktree_path,
+            env=env,
         )
+        duration = _time.monotonic() - start
 
-    files, commits, diff = _capture_git(worktree_path, base_commit)
-    exit_ok = result.returncode == 0
-    produced = bool(commits) and bool(files)
-    return WorkerResult(
-        ok=exit_ok and produced,
-        status="succeeded" if (exit_ok and produced) else "failed",
-        summary=(result.stdout or "")[-500:],
-        stdout=result.stdout or "",
-        files_changed=files,
-        commits=commits,
-        diff=diff,
-        exit_code=result.returncode,
-        error="" if exit_ok else (result.stderr or "")[-500:],
-        duration_seconds=duration,
-        isolated=isolated,
-        cost_usd=None,        # clause 8: no trustworthy USD figure available
-        cost_status="unknown",
-    )
+        if result is None:
+            return WorkerResult(
+                error="worker skipped by CPU gate (blocked_cpu)",
+                isolated=isolated,
+                duration_seconds=duration,
+            )
+
+        files, commits, diff = _capture_git(worktree_path, base_commit)
+        exit_ok = result.returncode == 0
+        produced = bool(commits) and bool(files)
+        return WorkerResult(
+            ok=exit_ok and produced,
+            status="succeeded" if (exit_ok and produced) else "failed",
+            summary=(result.stdout or "")[-500:],
+            stdout=result.stdout or "",
+            files_changed=files,
+            commits=commits,
+            diff=diff,
+            exit_code=result.returncode,
+            error="" if exit_ok else (result.stderr or "")[-500:],
+            duration_seconds=duration,
+            isolated=isolated,
+            cost_usd=None,  # clause 8: no trustworthy USD figure available
+            cost_status="unknown",
+        )
+    finally:
+        # EVERY terminal path destroys the attempt's credential home: success,
+        # failure, timeout, CPU-gate skip, cancellation (KeyboardInterrupt) and
+        # any unexpected exception. Residue is a SECURITY failure, so a cleanup
+        # that cannot complete raises out of here rather than being swallowed.
+        _close_home_or_fail(attempt_home)
+
+
+def _close_home_or_fail(attempt_home: Any) -> None:
+    """Destroy an attempt credential home; surface residue as a security failure.
+
+    Cleanup failure must be visible, never a warning: if credential material
+    survives, the caller (and the run) must know.
+    """
+    try:
+        close_attempt_credential_home(attempt_home)
+    except CredentialBoundaryError:
+        logger.error(
+            "SECURITY: credential residue left for attempt %s at %s",
+            getattr(attempt_home, "attempt_id", "?"),
+            getattr(attempt_home, "home_path", "?"),
+        )
+        raise
 
 
 __all__ = ["WorkerResult", "run_worker_in_lease", "render_prompt"]

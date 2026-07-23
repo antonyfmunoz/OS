@@ -171,6 +171,10 @@ def run_loop(
             max_turns=int(envelope.max_turns or 30),
             disallowed_tools=list(envelope.disallowed_tools or []),
             oauth_token=oauth_token,
+            # Binds this attempt's PRIVATE credential home under the run target
+            # dir. A retry is a new attempt_id -> a new home (R1 / SEC-C2).
+            attempt_id=envelope.attempt_id,
+            run_root=targets_dir or os.path.dirname(spool_root.rstrip("/")),
         )
 
         # (5) write a SIGNED result to the outbox — the control-plane poller

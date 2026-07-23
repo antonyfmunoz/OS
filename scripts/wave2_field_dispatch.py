@@ -195,10 +195,18 @@ def _spool_root(sha: str, run_id: str) -> Path:
 def _run_secret_path(sha: str) -> Path:
     """0600 file holding the run-scoped UMH_W2_DISPATCH_SECRET.
 
-    NOT a production secret and NOT in the candidate env allowlist. Generated
-    fresh per run, readable only by the candidate control plane + host runner,
-    SHREDDED at teardown. Its VALUE never appears in logs, PR, evidence, process
-    args, or model context.
+    NOT a production secret and NOT in the candidate env allowlist.
+
+    HOST-ONLY (finding SEC-W6). The file sits at ``<candidate>/state/``, which is
+    the PARENT of the ``state/umh`` directory mounted into the candidate
+    container — so the container cannot read it, and must not: Amendment v1
+    clause 3 gives the worker (and the container) NO signing secret. Only the
+    host runner reads it. Do NOT "fix" the mount to match a sharing model that
+    was never intended.
+
+    Shredded by ``teardown`` AND by the crash handler, so an interrupted run does
+    not strand it (SEC-W4). Its VALUE never appears in logs, PR, evidence,
+    process args, or model context.
     """
     return _state_dir(sha).parent / ".w2_dispatch_secret"
 
@@ -271,13 +279,22 @@ def _shred_run_secret(runner: "Runner", sha: str) -> bool:
         return False
 
 
+# Redaction for LIVE OPERATOR OUTPUT (logs, command echoes, launch-log tails).
+#
+# The bare `\b[0-9a-f]{64}\b` rule that briefly lived here is WITHDRAWN (finding
+# SEC-C1): it matched every legitimate sha256 — artifact hashes, package_hash,
+# scope_hash, `sha256:` image IDs — and would have destroyed the proof manifest's
+# integrity claim. Evidence redaction is now done by the one-way finalization
+# pipeline (`substrate.execution.attempts.evidence_finalization`), which redacts
+# EXACT known secret values plus typed credential formats and never touches a
+# bare hash.
+#
+# The assignment form below still catches `UMH_W2_DISPATCH_SECRET=<value>`, which
+# is the shape the launch-log incident produced.
 _SECRET_REDACT_RE = re.compile(
     r"(?i)(bearer\s+[A-Za-z0-9._\-]+|eyJ[A-Za-z0-9._\-]{20,}|"
-    r"(?:password|secret|token|api[_-]?key)\s*[=:]\s*\S+|"
-    # A bare 64-hex run-scoped dispatch secret (token_hex(32)). Redacted even
-    # without a `secret=` prefix so a raw value can never reach a log, evidence
-    # file, PR comment, or model context by some path that skips the named form.
-    r"\b[0-9a-f]{64}\b)"
+    r"sk-ant-[A-Za-z0-9_\-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|"
+    r"(?:password|secret|token|api[_-]?key)\s*[=:]\s*\S+)"
 )
 
 
@@ -434,7 +451,7 @@ def _restore_tailscale_serve(runner: Runner) -> None:
         )
 
 
-def _install_crash_handlers(runner: Runner) -> None:
+def _install_crash_handlers(runner: Runner, sha: str = "") -> None:
     """SIGINT/SIGTERM → restore production serve. NO normal-exit restore.
 
     deploy-candidate, smoke, and run are separate CLI invocations that must
@@ -448,6 +465,15 @@ def _install_crash_handlers(runner: Runner) -> None:
 
     def _handler(signum: int, _frame: Any) -> None:
         _restore_tailscale_serve(runner)
+        # Destroy the run secret on an interrupted/killed run too (SEC-W4):
+        # shredding used to be reachable ONLY via an explicit `teardown`, so any
+        # crash or SIGKILL left it on disk indefinitely (one such orphan was
+        # found during R0 containment).
+        if sha:
+            try:
+                _shred_run_secret(runner, sha)
+            except Exception as exc:  # never block the exit path
+                print(f"[crash-handler] run-secret shred failed: {exc}")
         raise SystemExit(128 + signum)
 
     for sig in (signal.SIGINT, signal.SIGTERM):
@@ -1541,29 +1567,36 @@ def write_manifest(runner: Runner, sha: str) -> dict[str, Any]:
         manifest["dist_index_sha256"] = _sha256_file(index)
     if assets_dir.exists():
         manifest["asset_files"] = sorted(p.name for p in assets_dir.iterdir() if p.is_file())
-    # Artifact sha256 list for the committed proof JSONs.
-    artifacts = {}
-    for p in run_dir.glob("*.json"):
-        artifacts[p.name] = _sha256_file(p)
-    manifest["artifact_sha256"] = artifacts
 
-    # Secret-hygiene redaction pass over collected JSON before finalizing.
-    _redact_tree(run_dir)
+    # ONE-WAY EVIDENCE FINALIZATION (R1 / SEC-C1).
+    #
+    # The previous order hashed every artifact, THEN rewrote those same files
+    # with a redaction pass, THEN wrote the manifest — so the recorded hashes
+    # described bytes that no longer existed and could never re-verify. Hashing
+    # now happens LAST, inside the pipeline, after redaction has finished and a
+    # second scan has confirmed no secret survived. No file is rewritten after
+    # its hash is taken.
+    #
+    # The pipeline also replaces the withdrawn bare-64-hex redaction rule, which
+    # destroyed the legitimate artifact/package/scope hashes and image IDs the
+    # manifest's integrity claim is built on.
+    sys.path.insert(0, str(_ROOT))
+    from substrate.execution.attempts.evidence_finalization import finalize_evidence
 
-    (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    return manifest
-
-
-def _redact_tree(root: Path) -> None:
-    """Redact bearer/jwt/password patterns in-place across collected JSON/JSONL."""
-    for p in list(root.rglob("*.json")) + list(root.rglob("*.jsonl")):
+    exact_values: list[str] = []
+    secret_path = _run_secret_path(sha)
+    if secret_path.exists():
         try:
-            text = p.read_text(encoding="utf-8")
-        except OSError:
-            continue
-        redacted = _SECRET_REDACT_RE.sub("<redacted>", text)
-        if redacted != text:
-            p.write_text(redacted, encoding="utf-8")
+            exact_values.append(secret_path.read_text(encoding="utf-8").strip())
+        except OSError as exc:  # never fail finalization on an unreadable secret
+            print(f"[manifest] run secret unreadable for exact-value redaction: {exc}")
+
+    finalized = finalize_evidence(run_dir, exact_values=exact_values, extra_manifest=manifest)
+    manifest["file_count"] = len(finalized.files)
+    manifest["manifest_sha256"] = finalized.manifest_sha256
+    manifest["redacted_files"] = finalized.redacted_files
+    manifest["secret_scan_clean"] = finalized.secret_scan_clean
+    return manifest
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1663,6 +1696,24 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
     # the targets dir holding the .inject_failure marker. The runner is a HOST
     # process (bwrap hides /opt/OS from the worker); UMH_STATE_DIR here scopes
     # the runner's OWN store reads to the candidate state, never /opt/OS.
+    # Verify the secret file BEFORE building the launch line (SEC-W5). If
+    # `$(cat ...)` fails the child would receive an empty UMH_W2_DISPATCH_SECRET;
+    # the runner does fail closed on that, but the operator would see only a
+    # generic "runner did not come up" instead of the real cause.
+    try:
+        if not secret_path.is_file() or not secret_path.read_text(encoding="utf-8").strip():
+            return {
+                "started": False,
+                "isolation_ok": True,
+                "reason": f"run secret missing or empty at {secret_path} — refusing to launch",
+            }
+    except OSError as exc:
+        return {
+            "started": False,
+            "isolation_ok": True,
+            "reason": f"run secret unreadable at {secret_path}: {exc}",
+        }
+
     launch_log = spool_root.parent / f"runner_{run_id}.log"
     targets_dir = _targets_dir(sha, run_id)
     fixture_repo = targets_dir / "fixture"
@@ -1853,12 +1904,12 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "smoke":
         _ensure_mesh_secrets()
         _load_serve_snapshot_path()
-        _install_crash_handlers(runner)
+        _install_crash_handlers(runner, sha)
         out = run_passes(runner, sha=sha, scenario="smoke", passes=1)
     elif args.cmd == "run":
         _ensure_mesh_secrets()
         _load_serve_snapshot_path()
-        _install_crash_handlers(runner)
+        _install_crash_handlers(runner, sha)
         out = run_passes(runner, sha=sha, scenario=args.scenario, passes=args.passes)
     elif args.cmd == "inject-failure":
         out = inject_failure(runner, sha, run_id, args.variant)

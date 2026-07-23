@@ -32,13 +32,22 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class IsolationProfile:
-    """The confinement for one worker invocation."""
+    """The confinement for one worker invocation.
+
+    ``worker_home`` MUST be an attempt-private home (see
+    ``worker_credential_boundary.open_attempt_credential_home``). Binding a home
+    shared between attempts would let one worker read another's credential, so
+    only the single home is bound — never its parent ``worker-homes/`` directory,
+    which would make sibling homes enumerable.
+    """
 
     worktree_path: str  # the ONE writable root
-    worker_home: str  # a minimal HOME (holds only ~/.claude for CLI auth)
+    worker_home: str  # attempt-PRIVATE HOME (holds only this attempt's ~/.claude)
     ro_paths: list[str] = field(default_factory=list)  # read-only binds (bins, libs)
     allow_network: bool = True  # the model CLI needs network; egress bound is DECLARED
     primitive: str = "bwrap"
+    tmp_path: str = ""  # attempt-private TMPDIR (bound rw when set)
+    env_overrides: dict[str, str] = field(default_factory=dict)  # HOME/XDG/CLAUDE_CONFIG_DIR
 
 
 class IsolationUnavailable(RuntimeError):
@@ -63,9 +72,7 @@ def _default_ro_paths() -> list[str]:
     return [p for p in candidates if os.path.exists(p)]
 
 
-def build_bwrap_command(
-    inner_cmd: list[str], profile: IsolationProfile
-) -> list[str]:
+def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list[str]:
     """Wrap ``inner_cmd`` in a bubblewrap sandbox per ``profile``.
 
     The namespace exposes ONLY the worktree (rw), the worker HOME (rw, holds
@@ -78,9 +85,12 @@ def build_bwrap_command(
         "--unshare-all",
         "--die-with-parent",
         "--new-session",
-        "--proc", "/proc",
-        "--dev", "/dev",
-        "--tmpfs", "/tmp",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
     ]
     if profile.allow_network:
         cmd += ["--share-net"]
@@ -88,17 +98,27 @@ def build_bwrap_command(
         cmd += ["--ro-bind-try", ro, ro]
     # Writable worktree.
     cmd += ["--bind", profile.worktree_path, profile.worktree_path]
-    # Minimal HOME (CLI auth lives in ~/.claude only).
+    # This attempt's PRIVATE home only. Binding the parent `worker-homes/` dir
+    # would make every sibling attempt's credential enumerable from inside the
+    # sandbox — bind the single home, never its parent (R1 / SEC-C2).
     cmd += ["--bind", profile.worker_home, profile.worker_home]
-    cmd += ["--setenv", "HOME", profile.worker_home]
+    # Attempt-private TMPDIR. Without this the worker inherits the sandbox's
+    # shared /tmp tmpfs, which is a cross-worker channel for anything written
+    # under a predictable name.
+    if profile.tmp_path:
+        cmd += ["--bind", profile.tmp_path, profile.tmp_path]
+    # HOME plus every config/state path the CLI honours, so no lookup escapes
+    # the attempt boundary (XDG_*, CLAUDE_CONFIG_DIR, TMPDIR).
+    overrides = dict(profile.env_overrides or {})
+    overrides.setdefault("HOME", profile.worker_home)
+    for key in sorted(overrides):
+        cmd += ["--setenv", key, overrides[key]]
     cmd += ["--chdir", profile.worktree_path]
     cmd += inner_cmd
     return cmd
 
 
-def build_isolated_command(
-    inner_cmd: list[str], profile: IsolationProfile
-) -> list[str]:
+def build_isolated_command(inner_cmd: list[str], profile: IsolationProfile) -> list[str]:
     """Build the fully isolated command. Raises IsolationUnavailable if no
     primitive exists (fail closed — never run a worker unconfined)."""
     prim = isolation_primitive()
@@ -112,7 +132,11 @@ def build_isolated_command(
     if prim == "systemd-run":
         # Transient unit with a private tmp + restricted home; a coarser fallback.
         return [
-            "systemd-run", "--user", "--pipe", "--wait", "--collect",
+            "systemd-run",
+            "--user",
+            "--pipe",
+            "--wait",
+            "--collect",
             "--property=PrivateTmp=yes",
             f"--property=WorkingDirectory={profile.worktree_path}",
             f"--setenv=HOME={profile.worker_home}",
@@ -120,9 +144,17 @@ def build_isolated_command(
         ]
     # nsjail
     return [
-        "nsjail", "--mode", "o", "--chroot", "/", "--cwd", profile.worktree_path,
-        "--bindmount", f"{profile.worktree_path}:{profile.worktree_path}",
-        "--", *inner_cmd,
+        "nsjail",
+        "--mode",
+        "o",
+        "--chroot",
+        "/",
+        "--cwd",
+        profile.worktree_path,
+        "--bindmount",
+        f"{profile.worktree_path}:{profile.worktree_path}",
+        "--",
+        *inner_cmd,
     ]
 
 
@@ -146,7 +178,11 @@ def preflight_isolation(forbidden_probe_path: str = "/opt/OS") -> tuple[bool, st
     with tempfile.TemporaryDirectory() as wt, tempfile.TemporaryDirectory() as home:
         profile = IsolationProfile(worktree_path=wt, worker_home=home)
         # Inside the sandbox, /opt/OS is NOT bound → `test -e` returns non-zero.
-        inner = ["/bin/sh", "-c", f"if [ -e {forbidden_probe_path} ]; then echo LEAK; else echo OK; fi"]
+        inner = [
+            "/bin/sh",
+            "-c",
+            f"if [ -e {forbidden_probe_path} ]; then echo LEAK; else echo OK; fi",
+        ]
         cmd = build_bwrap_command(inner, profile)
         result = gated_subprocess_run(cmd, caller="isolation_preflight", timeout=30)
         if result is None:
@@ -160,17 +196,40 @@ def preflight_isolation(forbidden_probe_path: str = "/opt/OS") -> tuple[bool, st
 # Credential env keys a worker must NEVER receive (mirrors the candidate deny
 # list). The worktree worker gets a scrubbed env with only these stripped.
 FORBIDDEN_ENV_PREFIXES = (
-    "UMH_MESH_", "DISCORD_", "FLY_", "GITHUB_", "GH_", "OP_", "ANTHROPIC_API_KEY",
-    "AWS_", "OPENAI_", "GOOGLE_", "TAILSCALE_", "SSH_", "NEON_", "DATABASE_URL",
+    "UMH_MESH_",
+    "DISCORD_",
+    "FLY_",
+    "GITHUB_",
+    "GH_",
+    "OP_",
+    "ANTHROPIC_API_KEY",
+    "AWS_",
+    "OPENAI_",
+    "GOOGLE_",
+    "TAILSCALE_",
+    "SSH_",
+    "NEON_",
+    "DATABASE_URL",
 )
 
 
-def scrub_worker_env(base_env: dict[str, str], *, extra_allow: dict[str, str] | None = None) -> dict[str, str]:
+def scrub_worker_env(
+    base_env: dict[str, str], *, extra_allow: dict[str, str] | None = None
+) -> dict[str, str]:
     """Build the minimal env a worker receives: strip every forbidden credential,
     keep only PATH/HOME/LANG/GIT identity + the injected model-credential token."""
-    keep_keys = {"PATH", "HOME", "LANG", "LC_ALL", "TERM", "GIT_AUTHOR_NAME",
-                 "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
-                 "FIXTURE_VENV"}
+    keep_keys = {
+        "PATH",
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "TERM",
+        "GIT_AUTHOR_NAME",
+        "GIT_AUTHOR_EMAIL",
+        "GIT_COMMITTER_NAME",
+        "GIT_COMMITTER_EMAIL",
+        "FIXTURE_VENV",
+    }
     out: dict[str, str] = {}
     for k, v in base_env.items():
         if any(k.startswith(p) or k == p for p in FORBIDDEN_ENV_PREFIXES):

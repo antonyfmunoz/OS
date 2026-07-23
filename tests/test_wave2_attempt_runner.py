@@ -36,19 +36,40 @@ def test_runner_processes_dispatch_and_writes_signed_result(tmp_path, monkeypatc
         isolated = True
 
         def to_dict(self):
-            return {"ok": True, "status": "succeeded", "files_changed": self.files_changed,
-                    "commits": self.commits, "isolated": True}
+            return {
+                "ok": True,
+                "status": "succeeded",
+                "files_changed": self.files_changed,
+                "commits": self.commits,
+                "isolated": True,
+            }
 
     seen = {}
 
-    def _fake_worker(*, package, lease, timeout, max_turns, disallowed_tools, oauth_token):
+    def _fake_worker(
+        *,
+        package,
+        lease,
+        timeout,
+        max_turns,
+        disallowed_tools,
+        oauth_token,
+        attempt_id="",
+        run_root="",
+    ):
         seen["worktree"] = lease.worktree_path
         seen["disallowed"] = list(disallowed_tools)
+        # R1: the runner MUST pass the attempt identity + run root so the worker
+        # can bind an attempt-PRIVATE credential home. Without these the worker
+        # fails closed, so assert they actually arrive.
+        seen["attempt_id"] = attempt_id
+        seen["run_root"] = run_root
         return _Result()
 
     monkeypatch.setattr(runner, "run_worker_in_lease", _fake_worker, raising=False)
     # Also patch the name used inside run_loop's local import path.
     import substrate.execution.attempts.worker_claude_cli as wcc
+
     monkeypatch.setattr(wcc, "run_worker_in_lease", _fake_worker)
 
     wt = tmp_path / "wt"
@@ -56,15 +77,28 @@ def test_runner_processes_dispatch_and_writes_signed_result(tmp_path, monkeypatc
     spool_root = str(tmp_path / "spool")
     secret = "run-secret"
     spool = DispatchSpool(spool_root, secret)
-    spool.enqueue(DispatchEnvelope(
-        dispatch_id="d1", attempt_id="ea-1", task_id="wp-a",
-        authorization_ref="ref", package_hash="ph", lease_id="l1",
-        worktree_path=str(wt), nonce="n", sequence=1, payload_hash="p",
-    ))
+    spool.enqueue(
+        DispatchEnvelope(
+            dispatch_id="d1",
+            attempt_id="ea-1",
+            task_id="wp-a",
+            authorization_ref="ref",
+            package_hash="ph",
+            lease_id="l1",
+            worktree_path=str(wt),
+            nonce="n",
+            sequence=1,
+            payload_hash="p",
+        )
+    )
 
     rc = runner.run_loop(spool_root=spool_root, secret=secret, max_iterations=1, poll_seconds=0.01)
     assert rc == 0
     assert seen["worktree"] == str(wt)
+    # R1: attempt identity must reach the worker so it can bind an
+    # attempt-private credential home (a shared home was finding SEC-C2).
+    assert seen["attempt_id"] == "ea-1", "runner must pass attempt_id to the worker"
+    assert seen["run_root"], "runner must pass a run_root for the private home"
 
     # A SIGNED result is in the outbox and drains cleanly.
     results = spool.drain_results()
@@ -77,8 +111,11 @@ def test_runner_quarantines_bad_signature(tmp_path):
     """A tampered dispatch is quarantined by the spool the runner uses — never run."""
     spool_root = str(tmp_path / "spool")
     producer = DispatchSpool(spool_root, "real-secret")
-    producer.enqueue(DispatchEnvelope(dispatch_id="d1", attempt_id="ea-1", sequence=1,
-                                      worktree_path=str(tmp_path)))
+    producer.enqueue(
+        DispatchEnvelope(
+            dispatch_id="d1", attempt_id="ea-1", sequence=1, worktree_path=str(tmp_path)
+        )
+    )
     # A runner with the WRONG secret cannot claim it (signature check fails).
     consumer = DispatchSpool(spool_root, "wrong-secret")
     assert consumer.claim_next() is None
