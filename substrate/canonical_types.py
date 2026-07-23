@@ -188,6 +188,11 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "IsolationUnavailable": ["substrate.execution.attempts.host_isolation"],
     "DispatchEnvelope": ["substrate.execution.attempts.spool"],
     "DispatchSpool": ["substrate.execution.attempts.spool"],
+    # C5 verification + the two Proof classifications under the one canonical
+    # Proof authority (ProofPackage). VerificationVerdict carries an AttemptProof
+    # or PlanExecutionProof classification; it is NOT a rival Proof type.
+    "VerificationVerdict": ["substrate.execution.attempts.verification"],
+    "VerificationCheck": ["substrate.execution.attempts.verification"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.
