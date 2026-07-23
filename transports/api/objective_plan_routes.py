@@ -70,6 +70,27 @@ def _plan_detail(plan: Any) -> dict[str, Any]:
     return detail
 
 
+def _latest_approved_plan_for_conversation(store: Any, conversation_id: str) -> Any:
+    """The newest APPROVED, non-superseded plan for a conversation (or None).
+
+    Used by the execution-request rail to resolve exactly which accepted plan the
+    operator means when they say "execute the approved plan"."""
+    try:
+        plans = store.load_plans()
+    except Exception as exc:  # read-only resolve; never raise into the rail
+        logger.debug("approved-plan lookup failed: %s", exc)
+        return None
+    candidates = [
+        p
+        for p in plans
+        if getattr(p, "conversation_id", "") == conversation_id
+        and getattr(p, "status", "") == "approved"
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: getattr(p, "graph_version", 0))
+
+
 # ── Chat planning rail (the ONE conversational work seam) ────────────────────
 
 
@@ -286,11 +307,64 @@ def try_chat_planning_rail(
             )
 
         if intent_class == IntentClass.REQUEST_EXECUTION.value:
-            metadata["state"] = "execution_refused"
+            # Wave 2: chat NEVER authorizes execution. It resolves the accepted
+            # plan, runs a readiness pre-pass, and surfaces ONE bounded
+            # execution-authorization Decision to the HUD (the sole authorization
+            # surface). Nothing runs until the operator authorizes it there.
+            from substrate.execution.attempts.decisions import (
+                ExecutionDecisionConflict,
+                request_execution_authorization,
+            )
+            from substrate.execution.attempts.store import ExecutionAttemptStore
+
+            # Resolve the plan: an explicitly matched plan, else the latest
+            # APPROVED plan for this conversation's objective.
+            plan_id = resolution.existing_work_resolution.get("matched_plan_record_id", "")
+            plan = protocol._store.get_plan(plan_id) if plan_id else None
+            if plan is None:
+                plan = _latest_approved_plan_for_conversation(protocol._store, conv_id)
+            if plan is None:
+                metadata["state"] = "execution_no_accepted_plan"
+                return _respond(
+                    "There's no accepted plan to execute yet. Accept a plan in "
+                    "the control panel first, then ask me to execute it.",
+                    actions=[{"type": "focus_panel", "payload": {"panel": "work"}}],
+                )
+            if plan.status != "approved":
+                metadata["state"] = "execution_plan_not_accepted"
+                return _respond(
+                    f"That plan (v{plan.graph_version}) isn't accepted yet — "
+                    "accept it in the control panel first.",
+                    actions=[{"type": "focus_panel", "payload": {"panel": "approvals"}}],
+                )
+
+            frontier = [pid for pid in plan.workpacket_ids if pid]
+            try:
+                _grant, _approval = request_execution_authorization(
+                    ExecutionAttemptStore(),
+                    plan=plan,
+                    task_frontier=frontier,
+                    tenant_id=scope.tenant_id,
+                    principal_id=principal.principal_id,
+                    membership_id=principal.membership_id,
+                    conversation_id=conv_id,
+                    correlation_id=resolution.intent_id,
+                    requested_by=user_id or "cockpit_chat_operator",
+                    mutation_runner=protocol._runner(),
+                )
+            except ExecutionDecisionConflict as exc:
+                metadata["state"] = "execution_request_conflict"
+                return _respond(f"Cannot request execution: {exc}")
+
+            metadata["state"] = "execution_authorization_pending"
+            metadata["plan_record_id"] = plan.plan_record_id
+            metadata["decision_ref"] = _grant.decision_ref
+            metadata["surface"] = "execution_status"
             return _respond(
-                "Execution authorization is a separate decision that does not "
-                "exist yet (Wave 2). Plans can be accepted in the control "
-                "panel, but nothing runs from chat."
+                f"I've surfaced an execution decision for plan v{plan.graph_version} "
+                f"({len(frontier)} task(s)) in the control panel. Nothing runs "
+                "until you authorize it there.",
+                actions=[{"type": "focus_panel", "payload": {"panel": "approvals"}}],
             )
 
         if intent_class == IntentClass.CANCEL_WORK.value:

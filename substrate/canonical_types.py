@@ -160,6 +160,14 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ExecutionAttemptStore": ["substrate.execution.attempts.store"],
     "AttemptStoreConflict": ["substrate.execution.attempts.store"],
     "AttemptLifecycleError": ["substrate.execution.attempts.lifecycle"],
+    # C2 readiness + authorization. ExecutionReadinessAssessment is the
+    # execution-gating readiness type (distinct from organism ReadinessAssessment
+    # and planning DecisionReadinessAssessment). ExecutionDecisionConflict guards
+    # the one execution-authorization write path.
+    "ExecutionReadinessAssessment": ["substrate.execution.attempts.readiness"],
+    "ExecutionReadinessState": ["substrate.execution.attempts.readiness"],
+    "ExecutionDecisionConflict": ["substrate.execution.attempts.decisions"],
+    "ExecutionAuthorizationDecisionSource": ["substrate.execution.attempts.decisions"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.

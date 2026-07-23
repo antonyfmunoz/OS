@@ -39,6 +39,7 @@ class ApprovalSourceType(str, Enum):
     RECONCILIATION = "reconciliation"
     # Wave 1: objective-plan acceptance decisions (HUD-only; decision_ref ids)
     OBJECTIVE_PLAN = "objective_plan"
+    EXECUTION_AUTH = "execution_authorization"
 
 
 @dataclass
@@ -265,6 +266,7 @@ class UnifiedApprovalRuntime:
         automation_pipeline: Any | None = None,
         reconciliation: Any | None = None,
         objective_plan: Any | None = None,
+        execution_auth: Any | None = None,
     ) -> None:
         self._governed = governed_work
         self._intercept = approval_intercept
@@ -288,6 +290,19 @@ class UnifiedApprovalRuntime:
             except Exception as exc:
                 logger.debug("objective_plan decision source unavailable: %s", exc)
         self._objective_plan = objective_plan
+        if execution_auth is None:
+            # Wave 2 default: the execution-authorization decision source composes
+            # in automatically so execution decisions always reach the HUD (the
+            # sole authorization surface). Chat never authorizes.
+            try:
+                from substrate.execution.attempts.decisions import (
+                    ExecutionAuthorizationDecisionSource,
+                )
+
+                execution_auth = ExecutionAuthorizationDecisionSource()
+            except Exception as exc:
+                logger.debug("execution_auth decision source unavailable: %s", exc)
+        self._execution_auth = execution_auth
         self._decisions: list[ApprovalAction] = []
 
     # ── Query ─────────────────────────────────────────────────────────
@@ -333,6 +348,14 @@ class UnifiedApprovalRuntime:
         # decision_ref ids (never minted per poll).
         if not source_type or source_type == ApprovalSourceType.OBJECTIVE_PLAN.value:
             result = _safe_call(self._objective_plan, "pending_decisions")
+            if isinstance(result, list):
+                all_pending.extend(result)
+
+        # Execution authorizations (Wave 2) — the sole execution-authorization
+        # surface. STABLE decision_ref ids, risk HIGH. Chat never authorizes;
+        # these reach the operator only here, in the HUD.
+        if not source_type or source_type == ApprovalSourceType.EXECUTION_AUTH.value:
+            result = _safe_call(self._execution_auth, "pending_decisions")
             if isinstance(result, list):
                 all_pending.extend(result)
 
@@ -520,6 +543,11 @@ class UnifiedApprovalRuntime:
                 "approve",
                 {"plan_record_id": work_id, "decided_by": decided_by},
             ),
+            ApprovalSourceType.EXECUTION_AUTH: (
+                self._execution_auth,
+                "approve",
+                {"decision_ref": work_id, "decided_by": decided_by},
+            ),
         }
         route = routes.get(src)
         if not route:
@@ -574,6 +602,11 @@ class UnifiedApprovalRuntime:
                 self._objective_plan,
                 "reject",
                 {"plan_record_id": work_id, "reason": reason, "decided_by": decided_by},
+            ),
+            ApprovalSourceType.EXECUTION_AUTH: (
+                self._execution_auth,
+                "reject",
+                {"decision_ref": work_id, "reason": reason, "decided_by": decided_by},
             ),
         }
         route = routes.get(src)
