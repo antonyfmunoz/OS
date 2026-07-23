@@ -39,6 +39,7 @@ VERIFY = "tests/test_wave2_verification_proof.py"
 ROUTES = "tests/test_wave2_execution_routes.py"
 POLLER = "tests/test_wave2_control_plane_poller.py"
 REHEARSAL = "tests/test_wave2_harness_rehearsal.py"
+FAILPOLICY = "tests/test_wave2_field_failure_policy.py"
 COORD = "tests/test_execution_coordinator.py"
 SPINE1 = "tests/test_single_spine_architecture.py"
 
@@ -189,9 +190,12 @@ MATRIX: dict[str, tuple[str, object, str]] = {
             [f"{REHEARSAL}::test_full_graph_rehearsal_no_quota",
              f"{REHEARSAL}::test_signature_rejection_quarantines_bad_dispatch",
              f"{REHEARSAL}::test_rehearsal_is_not_real_qualification"], ""),
-    "HM3": ("Failure-qualification rehearsal: A genuinely produces no commit → verification "
-            "refuses → A fails (no false Proof) → C stays blocked",
-            [f"{REHEARSAL}::test_failure_qualification_rehearsal"], ""),
+    "HM3": ("Failure-qualification rehearsal: the inject-failure marker is ACTUALLY consumed "
+            "(revokes Edit/Write on A's first attempt) → A produces no commit → verification "
+            "refuses → A fails (no false Proof) → C stays blocked; retry runs unrevoked",
+            [f"{REHEARSAL}::test_failure_qualification_rehearsal",
+             f"{FAILPOLICY}::test_marker_actually_changes_policy",
+             f"{FAILPOLICY}::test_tools_revoked_a_does_not_touch_retry_or_other_tasks"], ""),
 
     # ── Field-qualified rows (Session 1) ────────────────────────────────────
     "FA": ("FIELD: two independent workers (A backend, B frontend) run concurrently in isolated worktrees",
