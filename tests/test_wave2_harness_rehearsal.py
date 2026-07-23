@@ -358,7 +358,10 @@ def test_failure_qualification_rehearsal(store, queue, tmp_path):
     attempt → the worker genuinely produces no commit → verification refuses → A
     fails → C stays blocked (no false Proof). Proves the marker is CONSUMED
     (review W1), not a dead write."""
-    from substrate.execution.attempts.field_failure_policy import disallowed_tools_for
+    from substrate.execution.attempts.field_failure_policy import (
+        disallowed_tools_for,
+        write_scenario_map,
+    )
 
     _add_approved_packet(queue, "A")
     _add_approved_packet(queue, "B")
@@ -368,7 +371,21 @@ def test_failure_qualification_rehearsal(store, queue, tmp_path):
     # Arm the marker exactly as `wave2_field_dispatch.py inject-failure` does.
     targets = tmp_path / "targets"
     targets.mkdir()
-    (targets / ".inject_failure").write_text("tools-revoked-a", encoding="utf-8")
+    (targets / ".inject_failure").write_text("tools-revoked-backend", encoding="utf-8")
+    # Targeting is by EXACT canonical id via the scenario map (finding C2): the
+    # old pattern match on a literal "A" never fired on a real wp-<hex12> id.
+    # This rehearsal's packets are named A/B/C, so the map records "A" as the
+    # backend task — the point is that the POLICY resolves an id it was TOLD,
+    # never one it guessed.
+    write_scenario_map(
+        targets,
+        {
+            "backend_task_id": "A",
+            "frontend_task_id": "B",
+            "integration_task_id": "C",
+            "verification_task_id": "D",
+        },
+    )
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)

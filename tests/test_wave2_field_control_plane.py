@@ -254,7 +254,20 @@ def test_driver_dispatch_fn_consults_failure_marker(store, queue, tmp_path):
 
     targets = tmp_path / "targets"
     targets.mkdir()
-    (targets / ".inject_failure").write_text("tools-revoked-a", encoding="utf-8")
+    (targets / ".inject_failure").write_text("tools-revoked-backend", encoding="utf-8")
+    # Targeting resolves through the scenario map (finding C2) — an exact id the
+    # harness recorded, never a guessed pattern.
+    from substrate.execution.attempts.field_failure_policy import write_scenario_map
+
+    write_scenario_map(
+        targets,
+        {
+            "backend_task_id": "A",
+            "frontend_task_id": "B",
+            "integration_task_id": "C",
+            "verification_task_id": "D",
+        },
+    )
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     driver = _driver(store, queue, spool, tmp_path, targets_dir=str(targets))

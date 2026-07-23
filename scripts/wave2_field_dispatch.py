@@ -1825,13 +1825,44 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     ACTUALLY consumed (it revokes Edit/Write on A's first attempt), never a dead
     write. A unit test pins that the marker changes the computed policy.
     """
-    marker = _targets_dir(sha, run_id) / ".inject_failure"
+    targets = _targets_dir(sha, run_id)
+    marker = targets / ".inject_failure"
     if runner.dry_run:
         print(f"[dry-run] arm failure variant {variant!r} → {marker}")
         return {"armed": True, "variant": variant, "dry_run": True}
     marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text(variant, encoding="utf-8")
-    return {"armed": True, "variant": variant, "marker": str(marker)}
+
+    # FAIL CLOSED (finding C2): a revoking variant with no scenario map cannot
+    # target a real task and would silently run clean — an armed injection that
+    # never fires must never be mistaken for a recovered one. Report it as NOT
+    # armed so the caller refuses to treat the pass as a qualification.
+    sys.path.insert(0, str(_ROOT))
+    from substrate.execution.attempts.field_failure_policy import (
+        arming_is_valid,
+        target_task_id,
+    )
+
+    ok, reason = arming_is_valid(str(targets))
+    if not ok:
+        return {
+            "armed": False,
+            "variant": variant,
+            "marker": str(marker),
+            "invalid_reason": reason,
+            "remediation": (
+                "record the run's canonical wp-* ids with "
+                "field_failure_policy.write_scenario_map(targets_dir, {...}) "
+                "after the Plan materializes its WorkPackets"
+            ),
+        }
+    return {
+        "armed": True,
+        "variant": variant,
+        "marker": str(marker),
+        "target_task_id": target_task_id(str(targets)),
+        "arming": reason,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1862,7 +1893,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--variant",
         default="clean",
-        choices=["clean", "tools-revoked-a"],
+        choices=["clean", "tools-revoked-backend", "tools-revoked-a"],
         help="fixture/failure variant (seed-fixture, inject-failure)",
     )
     parser.add_argument(
