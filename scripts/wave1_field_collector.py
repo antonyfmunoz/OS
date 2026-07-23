@@ -1832,6 +1832,21 @@ class FieldCollector:
         if not (isinstance(plan_json, dict) and plan_json.get("plan_record_id")):
             plan_json = self._read_plan_json(page)
         status = plan_json.get("status", "") if isinstance(plan_json, dict) else ""
+        # Snapshot the objective's version lineage NOW (post-approval, pre-
+        # relaunch) so s20 can prove the Chrome restart minted no new record.
+        ctx["objective_id"] = (
+            plan_json.get("objective_id", "") if isinstance(plan_json, dict) else ""
+        )
+        if ctx.get("objective_plan_id"):
+            versions = self._authed_get(
+                page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}/versions"
+            )
+            rows = versions.get("__body") if isinstance(versions, dict) else None
+            ctx["version_record_ids_before_relaunch"] = sorted(
+                r.get("plan_record_id", "")
+                for r in (rows or [])
+                if isinstance(r, dict) and r.get("plan_record_id")
+            )
         decision_log = plan_json.get("decision_log") if isinstance(plan_json, dict) else None
         log_ok = False
         auth_effect_ok = False
@@ -1929,38 +1944,27 @@ class FieldCollector:
     def _s20_continuity(self, page: Any, ctx: dict[str, Any]) -> None:
         """Conversation, Task cards, approved v2 Objective/Plan, scope, decision,
         assistant name all persist after the s19 close/reopen."""
-        # The freshly reopened page needs a beat before history/cards render —
-        # a single immediate read returned empty and failed no_dupe while every
-        # other continuity signal was TRUE (run 20260722T221430Z). Bounded poll,
-        # then identity also accepts the ctx plan id (API server truth).
-        after: dict[str, Any] = {}
-        poll_deadline = time.time() + 30
-        while time.time() < poll_deadline:
-            after = self._read_plan_by_conversation(page)
-            if isinstance(after, dict) and after.get("plan_record_id"):
-                break
-            page.wait_for_timeout(2000)
-        before = ctx.get("s18_after", {})
-        # IDENTITY INVARIANT = OBJECTIVE ID, not plan-record id: the restored
-        # thread's first card is legitimately the V1 record while ctx holds
-        # V2 — different plan_record_ids BY DESIGN (supersession, §22.2), one
-        # stable objective. no_dupe means the relaunch resolved the SAME
-        # canonical Objective lineage and minted nothing new (run
-        # 20260722T225229Z failed on id-equality while the page showed
-        # perfect continuity).
-        after_id = after.get("plan_record_id", "") if isinstance(after, dict) else ""
-        no_dupe = bool(after_id) and (
-            after_id == (before.get("plan_record_id") if isinstance(before, dict) else "")
-            or after_id == ctx.get("objective_plan_id")
-        )
-        if after_id and not no_dupe:
-            pj_after = self._authed_get(page, f"/api/umh/objective-plan/{after_id}")
-            pj_ctx = self._authed_get(
-                page, f"/api/umh/objective-plan/{ctx.get('objective_plan_id', '')}"
+        # NO-DUPLICATE = OUR OBJECTIVE'S VERSION LINEAGE IS UNCHANGED BY THE
+        # RELAUNCH. The restored page opens whatever conversation was newest
+        # (s22b's cleanup plan — a DIFFERENT objective), so comparing the
+        # restored card's id proves nothing (run 20260722T232851Z: card was a
+        # foreign objective while ours persisted perfectly). The real invariant:
+        # the dogfood objective's set of version record ids is IDENTICAL to the
+        # pre-relaunch snapshot — the restart minted no new record and dropped
+        # none. Read by id, never by the restored page's active conversation.
+        before_ids = ctx.get("version_record_ids_before_relaunch", [])
+        after_ids: list[str] = []
+        if ctx.get("objective_plan_id"):
+            versions = self._authed_get(
+                page, f"/api/umh/objective-plan/{ctx['objective_plan_id']}/versions"
             )
-            obj_after = pj_after.get("objective_id", "") if isinstance(pj_after, dict) else ""
-            obj_ctx = pj_ctx.get("objective_id", "") if isinstance(pj_ctx, dict) else ""
-            no_dupe = bool(obj_after) and obj_after == obj_ctx
+            rows = versions.get("__body") if isinstance(versions, dict) else None
+            after_ids = sorted(
+                r.get("plan_record_id", "")
+                for r in (rows or [])
+                if isinstance(r, dict) and r.get("plan_record_id")
+            )
+        no_dupe = bool(before_ids) and after_ids == before_ids
         # Server truth by re-anchored id (same rationale as s16).
         plan_json: Any = {}
         if ctx.get("objective_plan_id"):
@@ -1987,7 +1991,7 @@ class FieldCollector:
         chat = self._find_chat_input(page)
         name_persisted = chat.count() > 0
         ok = (
-            (no_dupe or (isinstance(after, dict) and bool(after.get("plan_record_id"))))
+            no_dupe
             and approved_persisted
             and scope_persisted
             and cards_persisted
@@ -1996,9 +2000,10 @@ class FieldCollector:
         self.stage(
             "s20_continuity",
             ok,
-            f"no_dupe={bool(no_dupe)} approved_persisted={approved_persisted} "
-            f"v2_persisted={v2_persisted} scope_persisted={scope_persisted} "
-            f"cards_persisted={cards_persisted} name_persisted={name_persisted}",
+            f"no_dupe={bool(no_dupe)} version_ids_stable={after_ids == before_ids} "
+            f"approved_persisted={approved_persisted} v2_persisted={v2_persisted} "
+            f"scope_persisted={scope_persisted} cards_persisted={cards_persisted} "
+            f"name_persisted={name_persisted}",
         )
         self.shot(page, "s20_continuity")
         self.dom(page, "s20_continuity")
