@@ -53,6 +53,13 @@ class MutationRequest:
     require_approval: bool | None = None
     verification_fn: Callable[[], bool] | None = None
     rollback_fn: Callable[[], bool] | None = None
+    # Wave 2 execution-authorization consumption (Amendment v1 clause 5).
+    # Backward-compatible empty defaults; propagated onto the ActionEnvelope.
+    authorization_ref: str = ""
+    authorization_effect: str = ""
+    authorized_subject_ids: list[str] = field(default_factory=list)
+    authorized_scope_hash: str = ""
+    authorization_expires_at: float = 0.0
 
 
 @dataclass
@@ -172,6 +179,11 @@ class MutationRouter:
                 ),
             ),
             required_capabilities=list(spec.required_capabilities),
+            authorization_ref=request.authorization_ref,
+            authorization_effect=request.authorization_effect,
+            authorized_subject_ids=list(request.authorized_subject_ids),
+            authorized_scope_hash=request.authorized_scope_hash,
+            authorization_expires_at=request.authorization_expires_at,
             metadata={
                 "mutation_name": request.mutation_name,
                 **request.metadata,

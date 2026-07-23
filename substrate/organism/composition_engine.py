@@ -27,6 +27,42 @@ _REPO_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 from substrate.types import RiskClass
 
 
+class CompositionAuthorityError(RuntimeError):
+    """Raised when the CompositionEngine is asked to re-plan or replace an
+    Objective that already has an accepted ObjectivePlanRecord. Accepted plans
+    are revised only through the governed plan-revision path — never by a fresh
+    composition (Convergence Law: ObjectivePlanRecord is the only operator Plan).
+    """
+
+
+def _reject_if_objective_plan_accepted(objective_id: str) -> None:
+    """Fail closed if ``objective_id`` has an APPROVED/AWAITING_APPROVAL plan.
+
+    Read-only; tolerant of a missing planning store (unbound composition still
+    works). Only an accepted/pending-acceptance plan blocks re-composition.
+    """
+    try:
+        from substrate.execution.planning.records import ObjectivePlanStatus
+        from substrate.execution.planning.store import PlanningStore
+
+        latest = PlanningStore().latest_version_of(objective_id)
+    except Exception as exc:  # store unavailable → composition is unbound, allow
+        logger.debug("composition authority check skipped for %s: %s", objective_id, exc)
+        return
+    if latest is None:
+        return
+    blocked = {
+        ObjectivePlanStatus.APPROVED.value,
+        ObjectivePlanStatus.AWAITING_APPROVAL.value,
+    }
+    if latest.status in blocked:
+        raise CompositionAuthorityError(
+            f"objective {objective_id} has an accepted/pending ObjectivePlanRecord "
+            f"({latest.plan_record_id} v{latest.graph_version}, status={latest.status}) — "
+            f"revise it via the governed plan-revision path, not a fresh composition"
+        )
+
+
 class GovernanceMode(str, Enum):
     AUTONOMOUS = "autonomous"
     ASSISTED = "assisted"
@@ -47,6 +83,11 @@ class CompositionIntent:
     category: str = "general"
     priority: str = "normal"
     source: str = "operator"
+    # Wave 2: when set, ties this composition to a canonical Objective. The
+    # engine refuses to re-plan an Objective that already has an accepted
+    # ObjectivePlanRecord (see CompositionAuthorityError). Empty = free-form
+    # composition, unbound to a canonical Objective (backward compatible).
+    objective_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -54,6 +95,7 @@ class CompositionIntent:
             "category": self.category,
             "priority": self.priority,
             "source": self.source,
+            "objective_id": self.objective_id,
         }
 
 
@@ -324,6 +366,13 @@ class CompositionEngine:
     ) -> CompositionPlan:
         self._ensure_models()
 
+        # Wave 2 authority boundary: the CompositionEngine may NOT re-plan or
+        # replace an accepted operator Plan. If this intent names an Objective
+        # whose ObjectivePlanRecord is APPROVED or AWAITING_APPROVAL, the only
+        # legal change is a governed plan revision — not a fresh composition.
+        if intent.objective_id:
+            _reject_if_objective_plan_accepted(intent.objective_id)
+
         category = _classify_intent(intent.description)
         intent.category = category
 
@@ -435,9 +484,16 @@ def compose_plan(intent_description: str, **kwargs) -> CompositionPlan:
 
 
 def persist_plan(plan: CompositionPlan, path: str | None = None) -> str:
-    """Persist composition plan to JSONL."""
+    """Persist composition plan to JSONL.
+
+    Wave 2: writes through the runtime-state boundary (no hardcoded data/umh
+    path). CompositionPlan is an internal compatibility/composition
+    representation — NOT the operator Plan (that is ObjectivePlanRecord).
+    """
     if path is None:
-        path = os.path.join(_REPO_ROOT, "data", "umh", "composition", "plans.jsonl")
+        from substrate.state.runtime_paths import runtime_state_path
+
+        path = str(runtime_state_path("composition", "plans.jsonl", create_parent=True))
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "a") as f:
         f.write(json.dumps(plan.to_dict(), default=str) + "\n")

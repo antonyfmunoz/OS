@@ -601,6 +601,15 @@ class GovernanceGate:
 
     @staticmethod
     def auto_approve_eligible(plan: CoordinatorExecutionPlan) -> bool:
+        # Wave 2 compatibility banner: CoordinatorExecutionPlan is an internal
+        # compatibility representation, NOT the operator Plan. Canonical Wave 1/2
+        # lineage (a plan carrying plan_record_id or execution_authorization_ref)
+        # can NEVER be auto-approved through the coordinator — its authorization
+        # is the HUD execution_authorization Decision, never a risk-based
+        # coordinator auto-approve. Fail closed for that lineage.
+        meta = plan.metadata or {}
+        if meta.get("plan_record_id") or meta.get("execution_authorization_ref"):
+            return False
         return not _RISK_REQUIRES_APPROVAL.get(plan.risk_class, True)
 
 

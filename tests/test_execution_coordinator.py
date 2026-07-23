@@ -389,6 +389,24 @@ class TestGovernanceGate(unittest.TestCase):
         plan = CoordinatorExecutionPlan(risk_class="negligible")
         self.assertTrue(GovernanceGate.auto_approve_eligible(plan))
 
+    def test_canonical_plan_lineage_never_auto_approved(self):
+        """Wave 2: a coordinator plan carrying canonical Wave 1/2 lineage
+        (plan_record_id or execution_authorization_ref) can NEVER be
+        auto-approved through the coordinator — its authorization is the HUD
+        execution_authorization Decision. Fail closed even at low/negligible risk."""
+        by_plan = CoordinatorExecutionPlan(
+            risk_class="low", metadata={"plan_record_id": "opr-1"}
+        )
+        self.assertFalse(GovernanceGate.auto_approve_eligible(by_plan))
+        by_auth = CoordinatorExecutionPlan(
+            risk_class="negligible",
+            metadata={"execution_authorization_ref": "objective_plan:opr-1:execution_authorization:v1"},
+        )
+        self.assertFalse(GovernanceGate.auto_approve_eligible(by_auth))
+        # A plain low-risk plan (no canonical lineage) still auto-approves.
+        plain = CoordinatorExecutionPlan(risk_class="low")
+        self.assertTrue(GovernanceGate.auto_approve_eligible(plain))
+
     def test_medium_risk_requires_approval(self):
         plan = CoordinatorExecutionPlan(risk_class="medium")
         self.assertTrue(GovernanceGate.requires_approval(plan))

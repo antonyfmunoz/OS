@@ -27,7 +27,17 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
 
+import os
+
 from substrate.organism.canonical_runtime import canonical_runtime_routing_enabled
+
+
+def _simulation_executor_allowed() -> bool:
+    """Wave 2: the ``simulation`` target executor is a fake-success path and is
+    PROHIBITED on the canonical execution path. It is permitted only when a test
+    explicitly opts in via ``UMH_ALLOW_SIMULATION_EXECUTOR=1`` — never in
+    production, never by default (Amendment / plan §V no-fake gate)."""
+    return os.environ.get("UMH_ALLOW_SIMULATION_EXECUTOR") == "1"
 
 logger = logging.getLogger(__name__)
 
@@ -227,15 +237,30 @@ class GovernedWorkRuntime:
         self,
         intent: str,
         risk_class: str = "low",
-        target_executor: str = "simulation",
+        target_executor: str = "",
         description: str = "",
     ) -> WorkSubmission:
-        """Submit work from operator intent.
+        """Submit work from operator intent (LEGACY compatibility path).
 
         Pipeline: intent → WorkPacket → ExecutionPlan → approval check.
+
+        Wave 2: this is NOT the canonical execution entry point. Canonical Wave 2
+        execution consumes existing WorkPacket ids produced by the planning
+        compiler and flows through ``substrate.execution.attempts`` — it never
+        creates a Task from raw intent here. The ``target_executor`` is now
+        REQUIRED and explicit; the fake ``simulation`` executor is rejected
+        unless a test opts in (fail closed, no default fake success).
         """
         if not intent.strip():
             return WorkSubmission(error="Empty intent")
+
+        if target_executor == "simulation" and not _simulation_executor_allowed():
+            return WorkSubmission(
+                error=(
+                    "simulation executor is prohibited on the canonical path "
+                    "(set UMH_ALLOW_SIMULATION_EXECUTOR=1 for tests only)"
+                ),
+            )
 
         packet_id = f"wp-{uuid4().hex[:12]}"
         plan_id = ""
@@ -365,12 +390,14 @@ class GovernedWorkRuntime:
     def execute_work(self, work_id: str) -> ExecutionReceipt:
         """Execute an approved work item.
 
-        WP-P1-001: when canonical routing is enabled and a MutationRouter is
-        available, the dispatch is submitted as a governed mutation through the
-        canonical runtime (``MutationRouter`` → ``GovernedExecutionSpine``), so
-        the executor is only reached via a governed verdict. When routing is
-        disabled (default) or no router is wired, the prior
-        coordinator→executor path runs unchanged.
+        WP-P1-001 + Wave 2 fail-closed: the dispatch is submitted as a governed
+        mutation through the canonical runtime (``MutationRouter`` →
+        ``GovernedExecutionSpine``), so the executor is only reached via a
+        governed verdict. If no canonical router is wired, this path FAILS CLOSED
+        with a rejected receipt — it NEVER silently falls back to the legacy
+        ``ExecutionCoordinator.dispatch_next()`` path (that fallback let a fake/
+        ungoverned executor run without a governed verdict). Legacy callers that
+        still need the coordinator dispatch must call it explicitly.
         """
         plan = self._find_plan_for_work(work_id)
         if plan is None:
@@ -391,19 +418,25 @@ class GovernedWorkRuntime:
         if self.proof_runtime is not None:
             snapshot_id = self.proof_runtime.capture_before(work_id)
 
-        # Canonical-runtime routing decision (deterministic, flag-based). When
-        # enabled with a router wired, the dispatch step goes through the governed
-        # spine; otherwise the executor is reached via the coordinator as before.
+        # Canonical-runtime routing (deterministic). Execution goes through the
+        # governed spine ONLY when canonical routing is enabled AND a
+        # MutationRouter is wired. There is NO silent fallback to coordinator
+        # dispatch_next() — absent either condition, fail closed with a rejected
+        # receipt. The routing guard is consulted before any executor is reached.
         route_canonical = canonical_runtime_routing_enabled() and self._mutation_router is not None
+        if not route_canonical:
+            return ExecutionReceipt(
+                work_id=work_id,
+                plan_id=plan.execution_plan_id,
+                status="rejected",
+                error=(
+                    "canonical routing unavailable — fail closed (no coordinator "
+                    "dispatch fallback). Enable canonical routing and wire a "
+                    "MutationRouter to execute."
+                ),
+            )
 
-        dispatched_plan = None
-        if route_canonical:
-            dispatched_plan = self._dispatch_via_canonical_runtime(plan)
-        elif self.execution_coordinator is not None:
-            if plan.status in ("approved", "queued"):
-                if plan.status == "approved":
-                    self.execution_coordinator.enqueue_plan(plan.execution_plan_id)
-                dispatched_plan = self.execution_coordinator.dispatch_next()
+        dispatched_plan = self._dispatch_via_canonical_runtime(plan)
 
         proof_id = ""
         if snapshot_id and self.proof_runtime is not None:

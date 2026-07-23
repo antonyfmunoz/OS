@@ -1432,6 +1432,27 @@ CANONICAL_TYPES: dict[str, list[str]] = {
 # Shape: {module_path: {type_name: {"owner", "sunset" (YYYY-MM-DD), "rationale"}}}
 
 LEGACY_DUPLICATES_META: dict[str, dict[str, dict[str, str]]] = {
+    # ── MVP Wave 2 (2026-07-23) ────────────────────────────────────────────
+    # Pre-existing homonym surfaced (not introduced) when the Wave 2 C1
+    # fail-closed edit touched plan_execution_adapter.py: Gate 1 blocks any
+    # STAGED file carrying a divergence, even a long-standing one. The adapter's
+    # local ``ExecutionGraph`` (a dict of ExecutablePlan for spine execution)
+    # predates and is distinct from the canonical
+    # ``substrate.organism.execution_graph.ExecutionGraph`` (an ExecutionGraphNode
+    # DAG). It is ruled a Wave 2 compatibility representation (convergence ledger
+    # #13); registered here rather than weakening the gate — must SHRINK, retired
+    # when plan_execution_adapter is converged off the legacy execution path.
+    "substrate.organism.plan_execution_adapter": {
+        "ExecutionGraph": {
+            "owner": "organism",
+            "sunset": "2026-12-31",
+            "rationale": (
+                "adapter-local ExecutablePlan DAG predates canonical "
+                "execution_graph.ExecutionGraph; Wave 2 compat representation "
+                "(ledger #13), retired when the adapter leaves the legacy path"
+            ),
+        },
+    },
     # ── MVP Wave 0 (2026-07-20) ────────────────────────────────────────────
     # Pre-existing homonyms surfaced (not introduced) when the runtime-state
     # boundary packet touched these modules: Gate 1 blocks any STAGED file

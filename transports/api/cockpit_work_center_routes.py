@@ -103,16 +103,25 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
 
     # ── Mutation routes (all through GovernedWorkRuntime) ─────
 
-    _VALID_EXECUTORS = frozenset({"simulation", "workstation", "agent"})
+    # Wave 2: no ``simulation`` default. Real executors only; ``simulation`` is a
+    # test-only compatibility opt-in, never a default and never valid in prod.
+    _VALID_EXECUTORS = frozenset({"workstation", "agent"})
 
     @r.post("/work/submit", dependencies=auth)
     async def work_submit(request: Request) -> dict[str, Any]:
+        import os as _os
+
         body = await request.json()
         intent = body.get("intent", "").strip()
         if not intent:
             return {"success": False, "error": "intent is required"}
-        target_executor = body.get("target_executor", "simulation")
-        if target_executor not in _VALID_EXECUTORS:
+        target_executor = body.get("target_executor", "").strip()
+        if not target_executor:
+            return {"success": False, "error": "target_executor is required"}
+        valid = set(_VALID_EXECUTORS)
+        if _os.environ.get("UMH_ALLOW_SIMULATION_EXECUTOR") == "1":
+            valid.add("simulation")
+        if target_executor not in valid:
             return {"success": False, "error": f"invalid target_executor: {target_executor}"}
         description = body.get("description", "")
 
