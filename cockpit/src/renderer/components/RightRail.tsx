@@ -13,8 +13,10 @@ import { useVoiceMessageStore, type VoiceMessageDraft } from '../stores/voiceMes
 import { desktopBrowserVoiceAdapter, ConsentRequiredError } from '../api/platform-voice-adapter'
 import { authHeader, fetchApi, API_BASE } from '../api/client'
 import type { SuggestedAction } from '../stores/chatStore'
-import { useCockpitStore } from '../stores/cockpitStore'
+import { useCockpitStore, type Panel } from '../stores/cockpitStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
+import { PlanSummaryCard, asObjectivePlanMetadata } from './cards/PlanSummaryCard'
+import { useObjectivePlanStore } from '../stores/objectivePlanStore'
 
 
 // ROOT E: the ONLY VoiceOutcomes whose error text is shown to the operator. These
@@ -350,12 +352,15 @@ function OperatorBubble({ msg }: { msg: ChatMessage }) {
   )
 }
 
-function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void }) {
+function MessageBubble({ msg, aiName, onAction, onOpenPlan, conversationId }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void; onOpenPlan?: (planRecordId: string, conversationId?: string) => void; conversationId?: string }) {
   if (msg.sender === 'operator') {
     return <OperatorBubble msg={msg} />
   }
 
   const isReport = msg.intent === 'report'
+  // Additive: when the assistant turn carries an objective-plan surface, render
+  // the compact plan control card inside the bubble (below the prose).
+  const planMeta = asObjectivePlanMetadata(msg.metadata)
 
   return (
     <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-secondary mr-4">
@@ -415,6 +420,13 @@ function MessageBubble({ msg, aiName, onAction }: { msg: ChatMessage; aiName: st
       <div className="chat-markdown leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
         <ReactMarkdown remarkPlugins={[remarkGfm]} urlTransform={safeUrl} components={markdownComponents}>{msg.content}</ReactMarkdown>
       </div>
+      {planMeta && (
+        <PlanSummaryCard
+          metadata={planMeta}
+          conversationId={conversationId}
+          onOpenPlan={() => onOpenPlan?.(planMeta.plan_record_id)}
+        />
+      )}
       {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
       {msg.suggested_actions && msg.suggested_actions.length > 0 && onAction && (() => {
         const filtered = msg.suggested_actions!.filter(
@@ -786,6 +798,7 @@ function ChatSection() {
   const aiName = useConfigStore((s) => s.aiName)
   const setConfigValue = useConfigStore((s) => s.setConfigValue)
   const messages = useChatStore((s) => s.messages)
+  const conversationId = useChatStore((s) => s.conversationId)
   const input = useChatStore((s) => s.input)
   const sending = useChatStore((s) => s.sending)
   const error = useChatStore((s) => s.error)
@@ -796,6 +809,8 @@ function ChatSection() {
   const removePendingMedia = useChatStore((s) => s.removePendingMedia)
   const viewContext = useViewContextStore((s) => s.context)
   const setPanel = useCockpitStore((s) => s.setPanel)
+  const selectObjectivePlan = useObjectivePlanStore((s) => s.selectPlan)
+  const fetchObjectivePlan = useObjectivePlanStore((s) => s.fetchPlan)
   const micState = useVoiceStore((s) => s.micState)
   const ttsState = useVoiceStore((s) => s.ttsState)
   const voiceError = useVoiceStore((s) => s.error)
@@ -871,17 +886,32 @@ function ChatSection() {
   }, [])
 
   const handleSuggestedAction = useCallback((action: SuggestedAction) => {
+    // `payload` is optional on SuggestedAction (newer rails send a flat `target`).
+    const payload = action.payload ?? {}
     switch (action.action) {
       case 'query':
-        sendMessage(action.payload.content as string, 'text', { ...viewContext })
+        sendMessage(payload.content as string, 'text', { ...viewContext })
         break
       case 'navigate':
-        if (action.payload.panel) setPanel(action.payload.panel as string)
+        // Honor both the legacy { panel } payload and the flat `target` (the
+        // objective-plan rail sends { action: 'navigate', target: 'objectiveplan' }).
+        // A plan_record_id in the payload selects + loads that plan first so
+        // Work Detail opens ON the referenced plan, not the bare list.
+        if (payload.plan_record_id) {
+          const planId = String(payload.plan_record_id)
+          import('../stores/objectivePlanStore').then(({ useObjectivePlanStore }) => {
+            const planStore = useObjectivePlanStore.getState()
+            planStore.selectPlan(planId)
+            void planStore.fetchPlan(planId)
+          })
+        }
+        if (payload.panel) setPanel(payload.panel as Panel)
+        else if (action.target) setPanel(action.target as Panel)
         break
       case 'cc_send':
         fetchApi('/claude-session/send', {
           method: 'POST',
-          body: JSON.stringify(action.payload),
+          body: JSON.stringify(payload),
         }).then((res) => {
           const r = res as Record<string, unknown>
           const msg = r.ok ? 'Sent to Claude Code session.' : `Claude Code: ${r.error || 'unavailable'}`
@@ -891,30 +921,30 @@ function ChatSection() {
       case 'council':
         fetchApi('/council/review', {
           method: 'POST',
-          body: JSON.stringify(action.payload),
+          body: JSON.stringify(payload),
         }).then(() => sendMessage('Council review submitted.', 'text'))
           .catch(() => sendMessage('Council review failed.', 'text'))
         break
       case 'decompose':
         fetchApi('/command-center/work-packets/decompose', {
           method: 'POST',
-          body: JSON.stringify(action.payload),
+          body: JSON.stringify(payload),
         }).then(() => sendMessage('Intent decomposed into work packets.', 'text'))
           .catch(() => sendMessage('Decomposition failed.', 'text'))
         break
       case 'engineering_plan':
         import('../stores/engineeringStore').then(({ useEngineeringStore }) => {
-          useEngineeringStore.getState().createPlan(action.payload.intent as string)
+          useEngineeringStore.getState().createPlan(payload.intent as string)
           setPanel('engineering')
           sendMessage('Engineering plan created.', 'text')
         }).catch(() => sendMessage('Failed to create engineering plan.', 'text'))
         break
       case 'approve_engineering_plan':
-        fetchApi(`/engineering/plans/${action.payload.plan_id}/approve`, {
+        fetchApi(`/engineering/plans/${payload.plan_id}/approve`, {
           method: 'POST',
         }).then(() => {
-          sendMessage(`Plan ${action.payload.plan_id} approved. Work packets generated.`, 'text')
-          return fetchApi(`/engineering/plans/${action.payload.plan_id}/dispatch`, {
+          sendMessage(`Plan ${payload.plan_id} approved. Work packets generated.`, 'text')
+          return fetchApi(`/engineering/plans/${payload.plan_id}/dispatch`, {
             method: 'POST',
             body: JSON.stringify({ node_id: 'windows-desktop' }),
           })
@@ -924,15 +954,24 @@ function ChatSection() {
         }).catch(() => sendMessage('Plan approval or dispatch failed.', 'text'))
         break
       case 'reject_engineering_plan':
-        fetchApi(`/engineering/plans/${action.payload.plan_id}/reject`, {
+        fetchApi(`/engineering/plans/${payload.plan_id}/reject`, {
           method: 'POST',
-        }).then(() => sendMessage(`Plan ${action.payload.plan_id} rejected.`, 'text'))
+        }).then(() => sendMessage(`Plan ${payload.plan_id} rejected.`, 'text'))
           .catch(() => sendMessage('Plan rejection failed.', 'text'))
         break
       default:
         break
     }
   }, [sendMessage, viewContext, setPanel])
+
+  const handleOpenPlan = useCallback((planRecordId: string) => {
+    // Select the plan for the panel, warm its detail cache, then open it.
+    // setPanel owns RENDERING now (it bridges to canvasStore.addWindow —
+    // panels only render as canvas windows; see cockpitStore.setPanel).
+    selectObjectivePlan(planRecordId)
+    fetchObjectivePlan(planRecordId)
+    setPanel('objectiveplan')
+  }, [selectObjectivePlan, fetchObjectivePlan, setPanel])
 
   const commitName = () => {
     const trimmed = nameInput.trim()
@@ -1004,7 +1043,7 @@ function ChatSection() {
       )}
       <div ref={scrollRef} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden space-y-2 mb-2">
         {messages.map((m) => (
-          <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} />
+          <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} onOpenPlan={handleOpenPlan} conversationId={conversationId} />
         ))}
         <VoiceDraftCards />
         {draftMessage && (

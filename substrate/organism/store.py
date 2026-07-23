@@ -81,6 +81,8 @@ class OrganismStore:
         responder: str = "system",
         media: list[dict[str, Any]] | None = None,
         source: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        thread_conversation_id: str | None = None,
     ) -> tuple[AgentMessage, AgentMessage]:
         """Persist both inbound user message and outbound response as a pair.
 
@@ -108,11 +110,22 @@ class OrganismStore:
         )
         self.save_message(inbound)
 
+        _outbound_payload: dict[str, Any] = {
+            "content": response,
+            "projection_id": projection_id,
+        }
+        if metadata:
+            # Wave 1: plan-card metadata (plan_record_id, state, linkage) is
+            # persisted on the turn so /chat/history re-emits the card after
+            # refresh/restart — chat continuity is server truth, not UI state.
+            _outbound_payload["metadata"] = metadata
+        if thread_conversation_id:
+            _outbound_payload["thread_conversation_id"] = thread_conversation_id
         outbound = AgentMessage(
             sender=responder,
             recipient="operator",
             intent="response",
-            payload={"content": response, "projection_id": projection_id},
+            payload=_outbound_payload,
             conversation_id=conv_id,
             parent_message_id=inbound.id,
             origin_channel=origin_channel,

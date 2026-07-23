@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { resolvePanelId } from '../panels/registry'
 
 export type Panel =
+  | 'workdetail'
   | 'dashboard'
   | 'portfolio'
   | 'company'
@@ -85,6 +87,7 @@ export type Panel =
   | 'recoverydashboard'
   | 'projectionmirrors'
   | 'intentloop'
+  | 'objectiveplan'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 
@@ -131,7 +134,7 @@ interface CockpitState {
 
 export const useCockpitStore = create<CockpitState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       activePanel: 'commandcenter' as Panel,
       chatOpen: false,
       splitPanel: null,
@@ -148,16 +151,9 @@ export const useCockpitStore = create<CockpitState>()(
       voiceStatus: 'disconnected' as ConnectionStatus,
 
       setPanel: (panel) => {
-        const redirects: Partial<Record<Panel, Panel>> = {
-          dashboard: 'commandcenter',
-          tasks: 'work',
-          universalwork: 'work',
-          runtime: 'execution',
-          skills: 'knowledge',
-          infrastructure: 'organismmap',
-          agents: 'canvas',
-          workflows: 'canvas',
-        }
+        // Canvas modes (agents / workflows) alias to 'canvas' in the registry,
+        // but still carry a sub-mode for the unified canvas store. Set it before
+        // resolving the alias so the canvas opens in the requested mode.
         const modeMap: Partial<Record<Panel, string>> = {
           agents: 'agents',
           workflows: 'workflows',
@@ -167,8 +163,36 @@ export const useCockpitStore = create<CockpitState>()(
             useUnifiedCanvasStore.getState().setMode(modeMap[panel] as 'agents' | 'workflows')
           })
         }
-        const resolved = redirects[panel] ?? panel
-        set({ activePanel: resolved })
+        // The panel-identity registry is the single naming authority: aliases
+        // (dashboard→commandcenter, tasks/universalwork→work, agents/workflows→
+        // canvas, intent/intentloop/objectiveplan→workdetail, …) resolve here.
+        const resolved = resolvePanelId(panel)
+        // 'chat' is a right-rail surface, not a Panel: open the chat rail and
+        // leave the active panel unchanged. View-context still syncs to the
+        // panel the operator is actually looking at.
+        if (resolved === 'chat') {
+          set({ chatOpen: true })
+          import('./viewContextStore').then(({ useViewContextStore }) => {
+            useViewContextStore.getState().setRoute(get().activePanel)
+          })
+          return
+        }
+        set({ activePanel: resolved as Panel })
+        // RENDER the panel: in the canvas cockpit panels only render as canvas
+        // windows (canvasStore.addWindow — see the App.tsx deep-link bridge);
+        // activePanel state alone renders NOTHING. Without this bridge every
+        // setPanel caller (NavRail, command palette, suggested actions, Open
+        // Plan) was a silent no-op (Wave-1 field runs 20260722T181248Z/
+        // 191415Z). 'canvas' is the workspace itself — nothing to window.
+        if (resolved !== 'canvas') {
+          import('./canvasStore').then(({ useCanvasStore }) => {
+            const store = useCanvasStore.getState()
+            const alreadyOpen = store.windows.some(
+              (w) => w.type === 'panel' && w.config?.panelId === resolved,
+            )
+            if (!alreadyOpen) store.addWindow('panel', { panelId: resolved })
+          })
+        }
         // Keep the assistant's view-context in sync with the ACTUAL active panel.
         // Previously only ~3 panels set active_route themselves, so the chat rail's
         // "Viewing:" label (and the context the assistant receives) was stale on

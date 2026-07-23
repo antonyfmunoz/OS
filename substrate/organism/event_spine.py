@@ -156,7 +156,9 @@ class EventSpine:
             except Exception as exc:
                 logger.warning(
                     "event subscriber '%s' raised %s: %s",
-                    sub.subscriber_id, type(exc).__name__, exc,
+                    sub.subscriber_id,
+                    type(exc).__name__,
+                    exc,
                 )
 
         return event
@@ -290,3 +292,36 @@ class EventSpine:
     def flush(self) -> None:
         """Ensure all buffered writes are flushed to disk."""
         pass
+
+
+# ── Shared canonical spine (Wave 1 §22.6) ───────────────────────────────────
+# The planning path uses exactly ONE shared, persisted EventSpine instance so
+# the intent→decision attribution lineage survives restart and is never split
+# across per-request spines. Per-route EventSpine() constructions elsewhere are
+# pre-existing debt tracked in docs/cockpit-surface-convergence.md — new
+# planning code MUST use this accessor and never construct its own spine.
+
+_shared_spine: EventSpine | None = None
+_shared_spine_lock = threading.Lock()
+
+
+def get_shared_event_spine() -> EventSpine:
+    """Return the process-wide shared EventSpine (persisted, recovered once)."""
+    global _shared_spine
+    if _shared_spine is None:
+        with _shared_spine_lock:
+            if _shared_spine is None:
+                from substrate.state.runtime_paths import runtime_state_path
+
+                persist = str(runtime_state_path("events", "organism_events.jsonl"))
+                spine = EventSpine(persist_path=persist)
+                spine.recover()
+                _shared_spine = spine
+    return _shared_spine
+
+
+def reset_shared_event_spine() -> None:
+    """Test seam: drop the shared instance (next accessor call rebuilds)."""
+    global _shared_spine
+    with _shared_spine_lock:
+        _shared_spine = None

@@ -16,11 +16,18 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Iterator
 from uuid import uuid4
+
+try:  # fcntl is POSIX-only; the registry degrades to thread-locking elsewhere.
+    import fcntl
+except ImportError:  # pragma: no cover
+    fcntl = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +38,22 @@ def _repo_root() -> str:
 
 def _data_dir() -> str:
     return os.path.join(_repo_root(), "data", "umh", "strategic_gaps")
+
+
+def _legacy_goals_paths() -> tuple[str, ...]:
+    """Pre-Wave-1 goal store locations, in probe order. READ-ONLY migration
+    sources — the registry never writes to either again (§22.1 boundary)."""
+    return (
+        os.path.join(_data_dir(), "goals.jsonl"),
+        os.path.join(_data_dir(), "goals", "goals.jsonl"),
+    )
+
+
+def _durable_goals_path() -> str:
+    """Canonical durable goal store beneath the runtime-state boundary."""
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path("strategic_gaps", "goals.jsonl"))
 
 
 def _ensure_dirs() -> None:
@@ -123,6 +146,13 @@ class Goal:
     dependencies: list[str] = field(default_factory=list)
     target_date: str = ""
     priority: int = 50
+    # Wave 1 (§22.1) backward-compatible additions. version is the CAS counter
+    # (pre-Wave-1 records deserialize as version 1). tenant_id/objective_key/
+    # scope_hash form the idempotent create-or-reuse identity for Objectives.
+    version: int = 1
+    tenant_id: str = ""
+    objective_key: str = ""
+    scope_hash: str = ""
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -142,6 +172,10 @@ class Goal:
             "dependencies": self.dependencies,
             "target_date": self.target_date,
             "priority": self.priority,
+            "version": self.version,
+            "tenant_id": self.tenant_id,
+            "objective_key": self.objective_key,
+            "scope_hash": self.scope_hash,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }
@@ -157,14 +191,16 @@ class Goal:
             domain=d.get("domain", ""),
             parent_goal_id=d.get("parent_goal_id", ""),
             child_goal_ids=d.get("child_goal_ids", []),
-            success_criteria=[
-                SuccessCriterion.from_dict(c) for c in d.get("success_criteria", [])
-            ],
+            success_criteria=[SuccessCriterion.from_dict(c) for c in d.get("success_criteria", [])],
             required_capabilities=d.get("required_capabilities", []),
             required_milestones=d.get("required_milestones", []),
             dependencies=d.get("dependencies", []),
             target_date=d.get("target_date", ""),
             priority=d.get("priority", 50),
+            version=d.get("version", 1),
+            tenant_id=d.get("tenant_id", ""),
+            objective_key=d.get("objective_key", ""),
+            scope_hash=d.get("scope_hash", ""),
             created_at=d.get("created_at", time.time()),
             updated_at=d.get("updated_at", time.time()),
         )
@@ -287,7 +323,9 @@ class Recommendation:
             suggested_agents=d.get("suggested_agents", []),
             dependency_chain=d.get("dependency_chain", []),
             priority_score=d.get("priority_score", 0.0),
-            status=RecommendationStatus(d["status"]) if "status" in d else RecommendationStatus.PENDING,
+            status=RecommendationStatus(d["status"])
+            if "status" in d
+            else RecommendationStatus.PENDING,
             converted_packet_id=d.get("converted_packet_id", ""),
             decision_reason=d.get("decision_reason", ""),
             created_at=d.get("created_at", time.time()),
@@ -344,16 +382,105 @@ class DecisionRecord:
 # ── Goal Registry ─────────────────────────────────────────────────────
 
 
+class GoalConflictError(RuntimeError):
+    """A CAS goal write found a different current version than expected."""
+
+    def __init__(self, goal_id: str, expected: int, actual: int) -> None:
+        super().__init__(f"goal {goal_id}: expected version {expected}, found {actual}")
+        self.goal_id = goal_id
+        self.expected = expected
+        self.actual = actual
+
+
 class GoalRegistry:
-    """Persists and queries goals. JSONL-backed like all UMH stores."""
+    """Persists and queries goals. JSONL-backed like all UMH stores.
+
+    Wave 1 durability (§22.1):
+      - default store resolves through the runtime-state boundary
+        (``<runtime-state>/strategic_gaps/goals.jsonl``) — never a new write
+        to the tracked ``data/umh/strategic_gaps/`` tree;
+      - bounded one-time migration of pre-existing legacy goal records
+        (IDs and serialized fields preserved; legacy file left untouched);
+      - interprocess ``fcntl`` locking + in-process thread lock, with
+        reload-before-write so concurrent writers see current truth;
+      - atomic replacement writes (temp file + ``os.replace``);
+      - per-goal ``version`` counter with optional compare-and-set
+        (``expected_version`` mismatch raises ``GoalConflictError``);
+      - idempotent Objective create-or-reuse keyed on
+        ``tenant_id + objective_key + scope_hash``.
+    """
 
     def __init__(self, store_path: str | None = None) -> None:
-        _ensure_dirs()
-        self._store_path = store_path or os.path.join(_data_dir(), "goals.jsonl")
+        if store_path:
+            self._store_path = store_path
+        else:
+            self._store_path = _durable_goals_path()
+        os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
+        self._thread_lock = threading.RLock()
         self._goals: dict[str, Goal] = {}
+        if not store_path:
+            # Under the interprocess lock: two processes cold-starting on a
+            # fresh install would otherwise both pass the existence guard and
+            # interleave their os.replace of the migrated store.
+            with self._file_lock():
+                self._migrate_legacy_once()
         self._load()
 
+    # ── Locking / durability primitives ───────────────────────────────
+
+    @contextmanager
+    def _file_lock(self) -> Iterator[None]:
+        """Interprocess exclusive lock scoped to the goal store file."""
+        with self._thread_lock:
+            lock_path = self._store_path + ".lock"
+            fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+            try:
+                if fcntl is not None:
+                    fcntl.flock(fd, fcntl.LOCK_EX)
+                yield
+            finally:
+                try:
+                    if fcntl is not None:
+                        fcntl.flock(fd, fcntl.LOCK_UN)
+                finally:
+                    os.close(fd)
+
+    def _migrate_legacy_once(self) -> None:
+        """Bounded one-time copy of legacy goal records into the boundary
+        store. Read-only on the legacy side; skipped once the durable store
+        exists (even empty)."""
+        if os.path.exists(self._store_path):
+            return
+        for legacy in _legacy_goals_paths():
+            if not os.path.exists(legacy):
+                continue
+            try:
+                with open(legacy) as f:
+                    lines = [ln.strip() for ln in f if ln.strip()]
+                migrated = 0
+                tmp = self._store_path + ".tmp"
+                with open(tmp, "w") as out:
+                    for line in lines:
+                        try:
+                            goal = Goal.from_dict(json.loads(line))
+                        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+                            logger.debug("skipping unreadable legacy goal line: %s", exc)
+                            continue
+                        out.write(json.dumps(goal.to_dict()) + "\n")
+                        migrated += 1
+                os.replace(tmp, self._store_path)
+                logger.info(
+                    "migrated %d goal record(s) from legacy store %s → %s (legacy file untouched)",
+                    migrated,
+                    legacy,
+                    self._store_path,
+                )
+                return
+            except OSError as e:
+                logger.error("legacy goal migration failed for %s: %s", legacy, e)
+
     def _load(self) -> None:
+        self._goals = {}
         if not os.path.exists(self._store_path):
             return
         try:
@@ -369,31 +496,101 @@ class GoalRegistry:
             logger.error("failed to load goals: %s", e)
 
     def _save(self) -> None:
+        """Atomic full-store replacement. Callers hold the file lock."""
         os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
-        with open(self._store_path, "w") as f:
+        tmp = self._store_path + ".tmp"
+        with open(tmp, "w") as f:
             for goal in self._goals.values():
                 f.write(json.dumps(goal.to_dict()) + "\n")
+        os.replace(tmp, self._store_path)
 
-    def add(self, goal: Goal) -> Goal:
-        self._goals[goal.goal_id] = goal
-        self._save()
+    def _check_version(self, goal_id: str, expected_version: int | None) -> int:
+        """Return the current stored version, enforcing CAS when requested."""
+        current = self._goals.get(goal_id)
+        actual = current.version if current else 0
+        if expected_version is not None and actual != expected_version:
+            raise GoalConflictError(goal_id, expected_version, actual)
+        return actual
+
+    # ── Writes (locked, versioned) ─────────────────────────────────────
+
+    def add(self, goal: Goal, expected_version: int | None = None) -> Goal:
+        with self._file_lock():
+            self._load()
+            actual = self._check_version(goal.goal_id, expected_version)
+            goal.version = actual + 1
+            self._goals[goal.goal_id] = goal
+            self._save()
         return goal
 
     def get(self, goal_id: str) -> Goal | None:
         return self._goals.get(goal_id)
 
-    def update(self, goal: Goal) -> Goal:
-        goal.updated_at = time.time()
-        self._goals[goal.goal_id] = goal
-        self._save()
+    def update(self, goal: Goal, expected_version: int | None = None) -> Goal:
+        with self._file_lock():
+            self._load()
+            actual = self._check_version(goal.goal_id, expected_version)
+            goal.updated_at = time.time()
+            goal.version = actual + 1
+            self._goals[goal.goal_id] = goal
+            self._save()
         return goal
 
     def remove(self, goal_id: str) -> bool:
-        if goal_id in self._goals:
-            del self._goals[goal_id]
+        with self._file_lock():
+            self._load()
+            if goal_id in self._goals:
+                del self._goals[goal_id]
+                self._save()
+                return True
+            return False
+
+    def create_or_reuse_objective(
+        self,
+        tenant_id: str,
+        objective_key: str,
+        scope_hash: str,
+        title: str = "",
+        description: str = "",
+        domain: str = "",
+        parent_goal_id: str = "",
+    ) -> tuple[Goal, bool]:
+        """Idempotently resolve the canonical Objective Goal for one identity.
+
+        Identity key: ``tenant_id + objective_key + scope_hash`` (§22.1).
+        Returns ``(goal, created)`` — retries and duplicate submissions reuse
+        the exact same goal_id. New Objectives start in the canonical initial
+        state ``GoalStatus.DRAFT`` (no new lifecycle states, §23.3).
+        """
+        if not tenant_id.strip():
+            raise ValueError("create_or_reuse_objective requires a non-empty tenant_id")
+        if not objective_key.strip():
+            raise ValueError("create_or_reuse_objective requires a non-empty objective_key")
+        with self._file_lock():
+            self._load()
+            for g in self._goals.values():
+                if (
+                    g.goal_type == GoalType.OBJECTIVE
+                    and g.tenant_id == tenant_id
+                    and g.objective_key == objective_key
+                    and g.scope_hash == scope_hash
+                ):
+                    return g, False
+            goal = Goal(
+                title=title or objective_key,
+                description=description,
+                goal_type=GoalType.OBJECTIVE,
+                status=GoalStatus.DRAFT,
+                domain=domain,
+                parent_goal_id=parent_goal_id,
+                tenant_id=tenant_id,
+                objective_key=objective_key,
+                scope_hash=scope_hash,
+            )
+            goal.version = 1
+            self._goals[goal.goal_id] = goal
             self._save()
-            return True
-        return False
+            return goal, True
 
     def active_goals(self) -> list[Goal]:
         return [g for g in self._goals.values() if g.status == GoalStatus.ACTIVE]
@@ -430,6 +627,7 @@ class GoalRegistry:
 
     def tree(self, root_id: str | None = None) -> dict[str, Any]:
         """Nested dict of goal hierarchy. If root_id is None, returns forest."""
+
         def _build(gid: str) -> dict[str, Any]:
             goal = self._goals.get(gid)
             if not goal:
@@ -553,7 +751,8 @@ class GapDetector:
             ms_lower = ms.lower()
             completed_packets = active_packets or []
             completed_titles = [
-                p.get("title", "").lower() for p in completed_packets
+                p.get("title", "").lower()
+                for p in completed_packets
                 if p.get("status") in ("completed", "archived")
             ]
             if not any(ms_lower in t for t in completed_titles):
@@ -672,10 +871,7 @@ class RecommendationEngine:
             total[domain] = total.get(domain, 0) + 1
             if dec.was_effective:
                 effective[domain] = effective.get(domain, 0) + 1
-        return {
-            d for d, count in effective.items()
-            if count / max(total.get(d, 1), 1) > 0.5
-        }
+        return {d for d, count in effective.items() if count / max(total.get(d, 1), 1) > 0.5}
 
     def _estimate_impact(self, gap: Gap, goal: Goal | None) -> str:
         if gap.severity == GapSeverity.CRITICAL:
@@ -759,7 +955,9 @@ class StrategicGapEngine:
         for goal in active_goals:
             goal_map[goal.goal_id] = goal
             goal_gaps = self._detector.detect_gaps(
-                goal, reality, active_packets,
+                goal,
+                reality,
+                active_packets,
             )
             all_gaps.extend(goal_gaps)
 
@@ -770,7 +968,9 @@ class StrategicGapEngine:
         all_gaps.sort(key=lambda g: g.priority_score, reverse=True)
 
         recommendations = self._recommender.generate(
-            all_gaps, goal_map, self._decisions,
+            all_gaps,
+            goal_map,
+            self._decisions,
         )
 
         self._persist_gaps(all_gaps)
@@ -911,6 +1111,7 @@ class StrategicGapEngine:
     def _get_reality(self) -> dict[str, Any]:
         try:
             from substrate.organism.empire_router import EmpireRouter
+
             router = EmpireRouter()
             return router.get_reality_snapshot().to_dict()
         except Exception as e:
@@ -928,6 +1129,7 @@ class StrategicGapEngine:
     def _get_active_packets(self) -> list[dict[str, Any]]:
         try:
             from substrate.organism.universal_work_queue import UniversalWorkQueue
+
             q = UniversalWorkQueue()
             return [p.to_dict() for p in q.all_packets()]
         except Exception as e:

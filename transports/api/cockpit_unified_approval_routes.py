@@ -8,6 +8,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pydantic import BaseModel
+
 from transports.api.cockpit_audit import emit_mutation_audit
 from transports.api.governed import governed_mutation
 
@@ -55,35 +57,45 @@ def configure(runtime: Any) -> None:
     _approval_runtime = runtime
 
 
+# Request models live at MODULE scope. With `from __future__ import
+# annotations` (PEP 563) every annotation is a string that FastAPI resolves
+# against module globals — a model class defined inside _build_router() is
+# invisible to that lookup, so FastAPI silently degraded each body param to a
+# required QUERY param and every JSON call 422'd with loc ["query","req"]
+# (Wave-1 field run 20260722T185410Z captured the response body; the
+# approve/reject endpoints had NEVER accepted a request body).
+class ApproveRequest(BaseModel):
+    approval_id: str
+    source_type: str
+    decided_by: str = "operator"
+    surface: str = "cockpit"
+
+
+class RejectRequest(BaseModel):
+    approval_id: str
+    source_type: str
+    reason: str = ""
+    decided_by: str = "operator"
+    surface: str = "cockpit"
+
+
+class ClaimRequest(BaseModel):
+    approval_id: str
+    surface: str = "cockpit"
+
+
+class ResolveRequest(BaseModel):
+    approval_id: str
+    decision: str
+    surface: str = "cockpit"
+    input_text: str = ""
+    decided_by: str = "operator"
+
+
 def _build_router() -> Any:
     from fastapi import APIRouter
-    from pydantic import BaseModel
 
     router = APIRouter(prefix="/unified-approval", tags=["unified-approval"])
-
-    class ApproveRequest(BaseModel):
-        approval_id: str
-        source_type: str
-        decided_by: str = "operator"
-        surface: str = "cockpit"
-
-    class RejectRequest(BaseModel):
-        approval_id: str
-        source_type: str
-        reason: str = ""
-        decided_by: str = "operator"
-        surface: str = "cockpit"
-
-    class ClaimRequest(BaseModel):
-        approval_id: str
-        surface: str = "cockpit"
-
-    class ResolveRequest(BaseModel):
-        approval_id: str
-        decision: str
-        surface: str = "cockpit"
-        input_text: str = ""
-        decided_by: str = "operator"
 
     @router.get("/pending")
     def get_pending(source_type: str = "") -> list[dict[str, Any]]:

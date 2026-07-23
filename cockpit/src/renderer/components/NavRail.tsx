@@ -4,7 +4,7 @@ import { useConfigStore } from '../stores/configStore'
 const NAV_ITEMS: Array<{ panel: Panel; icon: string; label: string; key: string }> = [
   { panel: 'dashboard', icon: '◉', label: 'Dashboard', key: '1' },
   { panel: 'agents', icon: '⬡', label: 'Agents', key: '2' },
-  { panel: 'tasks', icon: '▤', label: 'Tasks', key: '3' },
+  { panel: 'work', icon: '▤', label: 'Work', key: '3' },
   { panel: 'approvals', icon: '◈', label: 'Approvals', key: '4' },
   { panel: 'knowledge', icon: '◎', label: 'Knowledge', key: '5' },
   { panel: 'analytics', icon: '◧', label: 'Analytics', key: '6' },

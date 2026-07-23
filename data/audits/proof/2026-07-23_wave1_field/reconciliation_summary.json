@@ -1,0 +1,24 @@
+{
+  "passes": [
+    {
+      "run_id": "20260723T150841Z-p1",
+      "score": 0.99,
+      "orphan_5xx": [],
+      "passed": true
+    },
+    {
+      "run_id": "20260723T152348Z-p2",
+      "score": 0.987,
+      "orphan_5xx": [],
+      "passed": true
+    },
+    {
+      "run_id": "20260723T153846Z-p3",
+      "score": 0.991,
+      "orphan_5xx": [],
+      "passed": true
+    }
+  ],
+  "sha": "73632f24276e",
+  "all_passed": true
+}

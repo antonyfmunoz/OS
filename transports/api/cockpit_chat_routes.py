@@ -102,7 +102,16 @@ _configured: bool = False
 
 
 def try_chat_intent_rail(content: str, conversation_id: str = "") -> dict | None:
-    """P4S-31B Cockpit Chat intent rail — deterministic, no LLM.
+    """LEGACY P4S-31B intent rail — retained for bounded compatibility ONLY.
+
+    Wave 1 cutover (§23.5): the Cockpit converse path now routes through
+    ``transports.api.objective_plan_routes.try_chat_planning_rail`` (the
+    canonical Operator Intent Protocol). This function is no longer called by
+    the chat flow — new Cockpit submissions never write IntentLoopRecords.
+    Explicit legacy submissions still enter via ``POST /intent-loop/submit``.
+    Original docstring follows.
+
+    P4S-31B Cockpit Chat intent rail — deterministic, no LLM.
 
     Doctrine: intent originates ONLY through sanctioned Cockpit conversational
     surfaces (Cockpit Chat now; Cockpit Voice later as a thin adapter into the
@@ -300,12 +309,18 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
         if not content:
             return {"error": "content required"}
 
-        # P4S-31B Cockpit Chat intent rail: deterministic (classify_intent,
-        # no LLM). Intent-bearing messages become the canonical intent event
-        # (governed intent_loop_submit, gate HELD at awaiting_approval) and the
-        # server-truth status returns into this same thread. Runs BEFORE the
-        # daemon-backed conversation so intent capture works daemon-down.
-        rail = try_chat_intent_rail(content, payload.get("conversation_id", ""))
+        # Wave 1 planning rail — the ONE conversational work seam (§23.5
+        # cutover). Work-bearing messages route through the canonical
+        # Operator Intent Protocol (Objective → Plan → Tasks → HUD decision);
+        # new Cockpit submissions NEVER write legacy IntentLoopRecords. Pure
+        # communication returns None and falls through to the conversation.
+        from transports.api.objective_plan_routes import try_chat_planning_rail
+
+        rail = try_chat_planning_rail(
+            content,
+            payload.get("conversation_id", ""),
+            client_message_id=payload.get("client_message_id", ""),
+        )
         if rail is not None:
             return rail
 
@@ -550,6 +565,12 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
                 # badge + transcript chevron after a history reload.
                 if payload.get("source"):
                     entry["source"] = payload["source"]
+                # Wave 1: plan-card metadata persisted on the turn re-emits so
+                # PlanSummaryCard re-renders (status + Open Plan) after reload.
+                if payload.get("metadata"):
+                    entry["metadata"] = payload["metadata"]
+                if payload.get("thread_conversation_id"):
+                    entry["thread_conversation_id"] = payload["thread_conversation_id"]
                 result.append(entry)
             return result
         except Exception as e:

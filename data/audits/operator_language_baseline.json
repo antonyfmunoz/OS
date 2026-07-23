@@ -1,0 +1,10 @@
+{
+  "description": "Shrink-only operator-language baseline (docs/LEXICON.md). Counts may only decrease.",
+  "violations_per_file": {
+    "cockpit/src/renderer/components/ControlPanel.tsx": 0,
+    "cockpit/src/renderer/components/cards/PlanSummaryCard.tsx": 0,
+    "cockpit/src/renderer/panels/ObjectivePlanPanel.tsx": 0,
+    "cockpit/src/renderer/panels/UniversalWorkPanel.tsx": 0,
+    "cockpit/src/renderer/panels/WorkDetailPanel.tsx": 0
+  }
+}

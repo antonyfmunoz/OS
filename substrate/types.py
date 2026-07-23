@@ -421,6 +421,25 @@ class ApprovalRequest(BaseModel):
     operator_input: str = Field(default="", max_length=2000)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
+    # Wave 1 §22.3 — FIRST-CLASS typed Decision fields (never metadata-only).
+    # decision_ref = source_type:source_record_id:decision_kind:subject_version
+    # (stable across polls, unique, resolvable, double-decision-safe).
+    # authorization_effect states exactly what a decision conveys — Wave 1
+    # plan decisions carry "plan_acceptance_only": approval accepts the Plan
+    # and NEVER authorizes Task execution. Legacy records deserialize with
+    # empty defaults; adapters derive where possible and otherwise fail
+    # closed to pending + non-executable (§23.8).
+    decision_ref: str = Field(default="", max_length=300)
+    decision_kind: str = Field(default="", max_length=80)
+    subject_type: str = Field(default="", max_length=80)
+    subject_id: str = Field(default="", max_length=200)
+    subject_version: str = Field(default="", max_length=40)
+    tenant_id: str = Field(default="", max_length=120)
+    principal_id: str = Field(default="", max_length=120)
+    membership_id: str = Field(default="", max_length=120)
+    scope_ref: str = Field(default="", max_length=300)
+    authorization_effect: str = Field(default="", max_length=120)
+
     @property
     def status(self) -> str:
         """String status — the minimal contract every legacy caller expects."""
@@ -468,7 +487,31 @@ class ApprovalRequest(BaseModel):
             "rejection_reason": self.rejection_reason,
             "operator_input": self.operator_input,
             "metadata": self.metadata,
+            "decision_ref": self.decision_ref,
+            "decision_kind": self.decision_kind,
+            "subject_type": self.subject_type,
+            "subject_id": self.subject_id,
+            "subject_version": self.subject_version,
+            "tenant_id": self.tenant_id,
+            "principal_id": self.principal_id,
+            "membership_id": self.membership_id,
+            "scope_ref": self.scope_ref,
+            "authorization_effect": self.authorization_effect,
         }
+
+
+def build_decision_ref(
+    source_type: str, source_record_id: str, decision_kind: str, subject_version: str
+) -> str:
+    """The canonical 4-part decision reference (Wave 1 §8).
+
+    Example: ``objective_plan:opr-abc123:plan_acceptance:v2``. Stable across
+    polls, unique per decidable subject-version, resolvable back to its
+    source record, and double-decision-safe (a second decision on the same
+    ref is detectable).
+    """
+    version = subject_version if str(subject_version).startswith("v") else f"v{subject_version}"
+    return f"{source_type}:{source_record_id}:{decision_kind}:{version}"
 
 
 # ─── Execution ───────────────────────────────────────────────────────────────

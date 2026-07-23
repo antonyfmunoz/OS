@@ -1,0 +1,84 @@
+# Wave-1 candidate nginx config — derived from cockpit/nginx.conf.template.
+#
+# Scope: serve the freshly-built candidate dist-web and proxy the API surface
+# the Work-Graph field trial actually exercises. It runs on the operator compose network so
+# it reaches the candidate operator container by its Docker DNS name.
+#
+# CHANGES vs the production template (and WHY):
+#   * upstream retargeted 127.0.0.1:8091 -> os-operator-candidate:8091 (container
+#     DNS on the operator compose network — the candidate api backend, NOT the live os-operator).
+#   * listen stays 8080 (nginx:alpine container); host publishes 127.0.0.1:8190.
+#   * KEPT: /api/umh/ws (chat/plan live updates), /api/ (converse + workgraph
+#     reads/writes), /sw.js, /assets/, / SPA fallback — the surfaces the
+#     collector drives and reads.
+#   * REMOVED (not part of the wave-1 work-graph trial; would dangle to backends
+#     that don't exist in the candidate stack and risk confusing evidence):
+#       - /api/umh/voice/ws, /api/umh/vision/ws, /api/umh/desktop/ws,
+#         /api/umh/broadcast/ws, /api/umh/browser/ws  (other-surface WS)
+#       - /livekit/                                     (voice rooms)
+#       - /preview/auth, /preview/, /browse/            (IDE preview + proxy;
+#         these auth_request against the backend and pull in surfaces the trial
+#         does not touch)
+#       - /api/umh/mesh/dispatch                        (mesh actuation — the
+#         candidate stack is deliberately mesh-less; see make_candidate_env.py)
+#   * The /api/umh/ws block keeps the LITERAL upstream address pattern (not the
+#     keepalive `upstream` pool) exactly as the production voice-WS note requires
+#     — a literal address has no keepalive pool, so no cold-start 502 on upgrade.
+
+upstream candidate_api {
+    server os-operator-candidate:8091;
+    keepalive 16;
+}
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Chat + plan live updates ride this WS. Literal backend address (no
+    # keepalive pool) so the first upgrade never trips a cold-start 502.
+    location /api/umh/ws {
+        proxy_pass http://os-operator-candidate:8091/api/umh/ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Sec-WebSocket-Protocol $http_sec_websocket_protocol;
+        proxy_read_timeout 86400s;
+    }
+
+    # REST API: /advisor/converse, /api/umh/workgraph/*, /api/umh/health, etc.
+    location /api/ {
+        proxy_pass http://candidate_api;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Authorization $http_authorization;
+        proxy_read_timeout 180s;
+        proxy_connect_timeout 5s;
+    }
+
+    location = /sw.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Service-Worker-Allowed "/";
+    }
+
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript application/json;
+    gzip_min_length 256;
+}

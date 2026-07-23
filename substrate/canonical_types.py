@@ -101,6 +101,49 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # ── substrate/contracts/agent_types.py ──────────────────────────────
     "TaskType": ["substrate.contracts.agent_types"],
     "ModelProvider": ["substrate.contracts.agent_types"],
+    # ── substrate/contracts/work_context.py (Wave 1 constitutional contracts) ──
+    # WorkLineageContext is deliberately NOT named WorkLineage: that name is the
+    # canonical continuity aggregate in substrate.organism.continuity_runtime
+    # (a different concept). See docs/cockpit-surface-convergence.md.
+    "PrincipalContext": ["substrate.contracts.work_context"],
+    "PrincipalKind": ["substrate.contracts.work_context"],
+    "EpistemicStatus": ["substrate.contracts.work_context"],
+    "WorkScope": ["substrate.contracts.work_context"],
+    "WorkLineageContext": ["substrate.contracts.work_context"],
+    "EvidenceRef": ["substrate.contracts.work_context"],
+    "SkillRequirementRef": ["substrate.contracts.work_context"],
+    "WorkRequirements": ["substrate.contracts.work_context"],
+    # ── substrate/execution/intent/ (Wave 1 canonical Operator Intent Protocol) ──
+    "IntentClass": ["substrate.execution.intent.protocol"],
+    "PlanningScale": ["substrate.execution.intent.protocol"],
+    "DecisionRequirement": ["substrate.execution.intent.protocol"],
+    "IntentResolution": ["substrate.execution.intent.protocol"],
+    "ReferenceResolution": ["substrate.execution.intent.protocol"],
+    "ExistingWorkRelationshipResolution": ["substrate.execution.intent.protocol"],
+    "MaterialAmbiguity": ["substrate.execution.intent.protocol"],
+    "ContextFrame": ["substrate.execution.intent.context_frame"],
+    "SourceCorrespondenceResolution": ["substrate.execution.intent.correspondence"],
+    "GroundingAdjudication": ["substrate.execution.intent.correspondence"],
+    # ── substrate/execution/planning/records.py (Wave 1 planning records) ──
+    "PlanningSession": ["substrate.execution.planning.records"],
+    "PlanningStageMarker": ["substrate.execution.planning.records"],
+    "ObjectivePlanRecord": ["substrate.execution.planning.records"],
+    "ObjectivePlanNode": ["substrate.execution.planning.records"],
+    "ObjectivePlanStatus": ["substrate.execution.planning.records"],
+    "IntentAssessment": ["substrate.execution.planning.records"],
+    "IntentAssessmentState": ["substrate.execution.planning.records"],
+    "GroundingSnapshot": ["substrate.execution.planning.records"],
+    "CurrentStateRecord": ["substrate.execution.planning.records"],
+    "DesiredStateRecord": ["substrate.execution.planning.records"],
+    "RevisionEditSet": ["substrate.execution.planning.records"],
+    "GapAssessmentSnapshot": ["substrate.execution.planning.records"],
+    # ── substrate/execution/planning/ (Wave 1 composition) ──
+    "WorkArchetypeResolution": ["substrate.execution.planning.archetypes"],
+    "DevelopmentPlanningProfile": ["substrate.execution.planning.dev_profile"],
+    "DecisionReadiness": ["substrate.execution.planning.readiness"],
+    "DecisionReadinessAssessment": ["substrate.execution.planning.readiness"],
+    "InstructionCompilationRequest": ["substrate.execution.planning.instruction_compilation"],
+    "ModelExecutionPackage": ["substrate.execution.planning.instruction_compilation"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.

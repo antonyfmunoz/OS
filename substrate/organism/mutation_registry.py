@@ -521,6 +521,133 @@ INTENT_LOOP_APPROVAL_DECISION = MutationSpec(
     ),
 )
 
+OBJECTIVE_GOAL_WRITE = MutationSpec(
+    name="objective_goal_write",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    # LOW risk + LOCAL_FILE + degraded opt-in: Wave 1 canonical Objective
+    # identity writes — GoalRegistry create-or-reuse / CAS update of one
+    # Goal(OBJECTIVE) record beneath the runtime-state boundary
+    # (<runtime-state>/strategic_gaps/goals.jsonl). Idempotent under
+    # tenant_id + objective_key + scope_hash; never dispatches, executes,
+    # or writes a projection DB.
+    degraded_mode_allowed=True,
+    description=(
+        "Create-or-reuse / update one canonical Objective Goal record via "
+        "GoalRegistry (idempotent, versioned, locked JSONL beneath the "
+        "runtime-state boundary; never dispatches or executes)"
+    ),
+)
+
+OPERATOR_TASK_CAPTURE = MutationSpec(
+    name="operator_task_capture",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Capture one atomic operator Task as a canonical WorkPacket at most "
+        "PLANNED with a non-empty approval gate — no HUD decision exists, "
+        "execution stays unauthorized (Wave 2 decision); local JSONL only"
+    ),
+)
+
+OBJECTIVE_TASK_LINK = MutationSpec(
+    name="objective_task_link",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Attach one existing canonical Task (WorkPacket) to a canonical "
+        "Objective (Goal) — lineage-only local JSONL update; idempotent; "
+        "never duplicates work, never dispatches or executes"
+    ),
+)
+
+OBJECTIVE_PLAN_ASSESS = MutationSpec(
+    name="objective_plan_assess",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=15.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Assess one Cockpit objective message: planning session + intent "
+        "assessment + bounded grounding snapshot, JSONL state under "
+        "<runtime-state>/operator/objective_planning/ (never dispatches)"
+    ),
+)
+
+OBJECTIVE_PLAN_COMPILE = MutationSpec(
+    name="objective_plan_compile",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=30.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Compile one versioned ObjectivePlanRecord (current/desired/gap + "
+        "DAG-validated graph) and materialize canonical WorkPackets at most "
+        "PLANNED with non-empty approval gates — plan acceptance never "
+        "authorizes execution"
+    ),
+)
+
+OBJECTIVE_PLAN_DECISION = MutationSpec(
+    name="objective_plan_decision",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=10.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Record one HUD plan decision (approve/reject/cancel) with "
+        "authorization_effect=plan_acceptance_only — packets stay at most "
+        "PLANNED, zero ExecutionAttempts, execution authorization remains a "
+        "distinct unresolved future decision"
+    ),
+)
+
+OBJECTIVE_PLAN_REVISE = MutationSpec(
+    name="objective_plan_revise",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=30.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Append plan version v(n+1) from a validated revision edit set; "
+        "v(n) flips to SUPERSEDED and is preserved — versions are "
+        "append-only, never rewritten"
+    ),
+)
+
 VOICE_CONSENT_GRANT = MutationSpec(
     name="voice_consent_grant",
     action_type=ActionType.STATE,
@@ -853,6 +980,13 @@ class MutationRegistry:
             EOS_ACTION_PROPOSAL_EXECUTE,
             INTENT_LOOP_SUBMIT,
             INTENT_LOOP_APPROVAL_DECISION,
+            OBJECTIVE_GOAL_WRITE,
+            OPERATOR_TASK_CAPTURE,
+            OBJECTIVE_TASK_LINK,
+            OBJECTIVE_PLAN_ASSESS,
+            OBJECTIVE_PLAN_COMPILE,
+            OBJECTIVE_PLAN_DECISION,
+            OBJECTIVE_PLAN_REVISE,
             VOICE_CONSENT_GRANT,
             VOICE_CONSENT_REVOKE,
             GOVERNANCE_UPDATE,

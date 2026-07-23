@@ -69,7 +69,16 @@ class Trace:
 class TraceStore:
     """Append-only JSONL trace store with index for queries."""
 
-    def __init__(self, store_dir: str | Path = "data/umh/traces"):
+    def __init__(self, store_dir: str | Path | None = None):
+        # Runtime-state boundary (Wave 0): traces are runtime observability
+        # data and default UNDER runtime_state_dir (UMH_STATE_DIR-aware) —
+        # never the tracked source tree. The old relative "data/umh/traces"
+        # default crashed the organism daemon on the Wave-1 candidate's
+        # read-only source mount (field qualification, 2026-07-22).
+        if store_dir is None:
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            store_dir = runtime_state_dir("observability/traces")
         self.store_dir = Path(store_dir)
         self.store_dir.mkdir(parents=True, exist_ok=True)
         self.traces_path = self.store_dir / "traces.jsonl"

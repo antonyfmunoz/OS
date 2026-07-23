@@ -37,6 +37,8 @@ class ApprovalSourceType(str, Enum):
     OVERNIGHT = "overnight"
     AUTOMATION = "automation"
     RECONCILIATION = "reconciliation"
+    # Wave 1: objective-plan acceptance decisions (HUD-only; decision_ref ids)
+    OBJECTIVE_PLAN = "objective_plan"
 
 
 @dataclass
@@ -150,14 +152,30 @@ def _safe_call(obj: Any, method: str, *args: Any, **kwargs: Any) -> Any:
 
 
 def _extract_id(item: Any) -> str:
-    for attr in ("work_id", "packet_id", "request_id", "candidate_id",
-                 "item_id", "proposal_id", "rec_id", "id"):
+    for attr in (
+        "work_id",
+        "packet_id",
+        "request_id",
+        "candidate_id",
+        "item_id",
+        "proposal_id",
+        "rec_id",
+        "id",
+    ):
         val = getattr(item, attr, None)
         if val and isinstance(val, str):
             return val
     if isinstance(item, dict):
-        for key in ("work_id", "packet_id", "request_id", "candidate_id",
-                     "item_id", "proposal_id", "rec_id", "id"):
+        for key in (
+            "work_id",
+            "packet_id",
+            "request_id",
+            "candidate_id",
+            "item_id",
+            "proposal_id",
+            "rec_id",
+            "id",
+        ):
             val = item.get(key, "")
             if val:
                 return str(val)
@@ -211,8 +229,10 @@ def _item_to_unified(
     title = _extract_title(item)
     risk = _extract_risk(item)
     waiting = _extract_waiting_since(item)
-    ctx = item.to_dict() if hasattr(item, "to_dict") else (
-        item if isinstance(item, dict) else {"raw": str(item)[:200]}
+    ctx = (
+        item.to_dict()
+        if hasattr(item, "to_dict")
+        else (item if isinstance(item, dict) else {"raw": str(item)[:200]})
     )
     return UnifiedApproval(
         source_type=source_type,
@@ -244,6 +264,7 @@ class UnifiedApprovalRuntime:
         overnight_queue: Any | None = None,
         automation_pipeline: Any | None = None,
         reconciliation: Any | None = None,
+        objective_plan: Any | None = None,
     ) -> None:
         self._governed = governed_work
         self._intercept = approval_intercept
@@ -255,6 +276,18 @@ class UnifiedApprovalRuntime:
         self._overnight = overnight_queue
         self._automation = automation_pipeline
         self._reconciliation = reconciliation
+        if objective_plan is None:
+            # Wave 1 default: the objective-plan decision source composes in
+            # automatically so plan-acceptance decisions always reach the HUD.
+            try:
+                from substrate.execution.planning.decisions import (
+                    ObjectivePlanDecisionSource,
+                )
+
+                objective_plan = ObjectivePlanDecisionSource()
+            except Exception as exc:
+                logger.debug("objective_plan decision source unavailable: %s", exc)
+        self._objective_plan = objective_plan
         self._decisions: list[ApprovalAction] = []
 
     # ── Query ─────────────────────────────────────────────────────────
@@ -266,7 +299,12 @@ class UnifiedApprovalRuntime:
             (ApprovalSourceType.GOVERNED_WORK, self._governed, "blocked", ()),
             (ApprovalSourceType.EXECUTION_INTERCEPT, self._intercept, "pending", ()),
             (ApprovalSourceType.SANDBOX_GATE, self._gate, "pending_packets", ()),
-            (ApprovalSourceType.STRATEGIC_RECOMMENDATION, self._strategic, "get_top_recommendations", ()),
+            (
+                ApprovalSourceType.STRATEGIC_RECOMMENDATION,
+                self._strategic,
+                "get_top_recommendations",
+                (),
+            ),
             (ApprovalSourceType.TEMPLATE, self._templates, "pending_approvals", ()),
             (ApprovalSourceType.MEMORY_PROMOTION, self._memory, "pending_approvals", ()),
             (ApprovalSourceType.OVERNIGHT, self._overnight, "get_pending_approval", ()),
@@ -291,6 +329,13 @@ class UnifiedApprovalRuntime:
             recon_pending = self._get_reconciliation_pending()
             all_pending.extend(recon_pending)
 
+        # Objective plans — rows arrive as ready UnifiedApprovals with STABLE
+        # decision_ref ids (never minted per poll).
+        if not source_type or source_type == ApprovalSourceType.OBJECTIVE_PLAN.value:
+            result = _safe_call(self._objective_plan, "pending_decisions")
+            if isinstance(result, list):
+                all_pending.extend(result)
+
         # Recompute urgency scores with current time
         for appr in all_pending:
             appr.urgency_score = _compute_urgency(appr.risk_class, appr.waiting_since)
@@ -303,13 +348,13 @@ class UnifiedApprovalRuntime:
         try:
             # PromotionStatus enum — must pass enum, not string
             from substrate.organism.compounding_engine import PromotionStatus
+
             candidates = self._compounding.list_candidates(
                 status=PromotionStatus.PROPOSED,
             )
             if isinstance(candidates, list):
                 return [
-                    _item_to_unified(c, ApprovalSourceType.KNOWLEDGE_PROMOTION)
-                    for c in candidates
+                    _item_to_unified(c, ApprovalSourceType.KNOWLEDGE_PROMOTION) for c in candidates
                 ]
         except ImportError:
             # Fallback if PromotionStatus not importable
@@ -330,11 +375,16 @@ class UnifiedApprovalRuntime:
                 proposals = getattr(sess, "proposals", [])
                 if isinstance(proposals, list):
                     for p in proposals:
-                        status = p.get("status", "") if isinstance(p, dict) else getattr(p, "status", "")
+                        status = (
+                            p.get("status", "") if isinstance(p, dict) else getattr(p, "status", "")
+                        )
                         if status in ("pending", "proposed", ""):
-                            results.append(_item_to_unified(
-                                p, ApprovalSourceType.RECONCILIATION,
-                            ))
+                            results.append(
+                                _item_to_unified(
+                                    p,
+                                    ApprovalSourceType.RECONCILIATION,
+                                )
+                            )
             return results
         except Exception as exc:
             logger.debug("UnifiedApproval: reconciliation pending failed: %s", exc)
@@ -423,16 +473,53 @@ class UnifiedApprovalRuntime:
 
     def _route_approve(self, src: ApprovalSourceType, work_id: str, decided_by: str) -> bool:
         routes: dict[ApprovalSourceType, tuple[Any, str, dict[str, Any]]] = {
-            ApprovalSourceType.GOVERNED_WORK: (self._governed, "approve_work", {"work_id": work_id}),
-            ApprovalSourceType.EXECUTION_INTERCEPT: (self._intercept, "approve", {"approval_id": work_id}),
-            ApprovalSourceType.SANDBOX_GATE: (self._gate, "approve", {"packet_id": work_id, "decided_by": decided_by}),
-            ApprovalSourceType.STRATEGIC_RECOMMENDATION: (self._strategic, "approve_recommendation", {"recommendation_id": work_id, "reason": "Operator approved"}),
-            ApprovalSourceType.KNOWLEDGE_PROMOTION: (self._compounding, "approve", {"candidate_id": work_id}),
+            ApprovalSourceType.GOVERNED_WORK: (
+                self._governed,
+                "approve_work",
+                {"work_id": work_id},
+            ),
+            ApprovalSourceType.EXECUTION_INTERCEPT: (
+                self._intercept,
+                "approve",
+                {"approval_id": work_id},
+            ),
+            ApprovalSourceType.SANDBOX_GATE: (
+                self._gate,
+                "approve",
+                {"packet_id": work_id, "decided_by": decided_by},
+            ),
+            ApprovalSourceType.STRATEGIC_RECOMMENDATION: (
+                self._strategic,
+                "approve_recommendation",
+                {"recommendation_id": work_id, "reason": "Operator approved"},
+            ),
+            ApprovalSourceType.KNOWLEDGE_PROMOTION: (
+                self._compounding,
+                "approve",
+                {"candidate_id": work_id},
+            ),
             ApprovalSourceType.TEMPLATE: (self._templates, "approve", {"template_id": work_id}),
-            ApprovalSourceType.MEMORY_PROMOTION: (self._memory, "promote", {"candidate_id": work_id, "decided_by": decided_by}),
+            ApprovalSourceType.MEMORY_PROMOTION: (
+                self._memory,
+                "promote",
+                {"candidate_id": work_id, "decided_by": decided_by},
+            ),
             ApprovalSourceType.OVERNIGHT: (self._overnight, "approve", {"item_id": work_id}),
-            ApprovalSourceType.AUTOMATION: (self._automation, "approve", {"proposal_id": work_id, "decided_by": decided_by}),
-            ApprovalSourceType.RECONCILIATION: (self._reconciliation, "approve_proposal", {"session_id": "", "proposal_id": work_id}),
+            ApprovalSourceType.AUTOMATION: (
+                self._automation,
+                "approve",
+                {"proposal_id": work_id, "decided_by": decided_by},
+            ),
+            ApprovalSourceType.RECONCILIATION: (
+                self._reconciliation,
+                "approve_proposal",
+                {"session_id": "", "proposal_id": work_id},
+            ),
+            ApprovalSourceType.OBJECTIVE_PLAN: (
+                self._objective_plan,
+                "approve",
+                {"plan_record_id": work_id, "decided_by": decided_by},
+            ),
         }
         route = routes.get(src)
         if not route:
@@ -441,18 +528,53 @@ class UnifiedApprovalRuntime:
         result = _safe_call(obj, method, **kwargs)
         return result is not None and result is not False
 
-    def _route_reject(self, src: ApprovalSourceType, work_id: str, reason: str, decided_by: str) -> bool:
+    def _route_reject(
+        self, src: ApprovalSourceType, work_id: str, reason: str, decided_by: str
+    ) -> bool:
         routes: dict[ApprovalSourceType, tuple[Any, str, dict[str, Any]]] = {
-            ApprovalSourceType.GOVERNED_WORK: (self._governed, "reject_work", {"work_id": work_id, "reason": reason}),
-            ApprovalSourceType.EXECUTION_INTERCEPT: (self._intercept, "reject", {"approval_id": work_id, "reason": reason}),
-            ApprovalSourceType.SANDBOX_GATE: (self._gate, "reject", {"packet_id": work_id, "reason": reason, "decided_by": decided_by}),
-            ApprovalSourceType.STRATEGIC_RECOMMENDATION: (self._strategic, "reject_recommendation", {"recommendation_id": work_id, "reason": reason}),
-            ApprovalSourceType.KNOWLEDGE_PROMOTION: (self._compounding, "reject", {"candidate_id": work_id, "reason": reason}),
+            ApprovalSourceType.GOVERNED_WORK: (
+                self._governed,
+                "reject_work",
+                {"work_id": work_id, "reason": reason},
+            ),
+            ApprovalSourceType.EXECUTION_INTERCEPT: (
+                self._intercept,
+                "reject",
+                {"approval_id": work_id, "reason": reason},
+            ),
+            ApprovalSourceType.SANDBOX_GATE: (
+                self._gate,
+                "reject",
+                {"packet_id": work_id, "reason": reason, "decided_by": decided_by},
+            ),
+            ApprovalSourceType.STRATEGIC_RECOMMENDATION: (
+                self._strategic,
+                "reject_recommendation",
+                {"recommendation_id": work_id, "reason": reason},
+            ),
+            ApprovalSourceType.KNOWLEDGE_PROMOTION: (
+                self._compounding,
+                "reject",
+                {"candidate_id": work_id, "reason": reason},
+            ),
             ApprovalSourceType.TEMPLATE: (self._templates, "reject", {"template_id": work_id}),
-            ApprovalSourceType.MEMORY_PROMOTION: (self._memory, "reject", {"candidate_id": work_id, "reason": reason, "decided_by": decided_by}),
+            ApprovalSourceType.MEMORY_PROMOTION: (
+                self._memory,
+                "reject",
+                {"candidate_id": work_id, "reason": reason, "decided_by": decided_by},
+            ),
             ApprovalSourceType.OVERNIGHT: (self._overnight, "reject", {"item_id": work_id}),
             ApprovalSourceType.AUTOMATION: (self._automation, "reject", {"proposal_id": work_id}),
-            ApprovalSourceType.RECONCILIATION: (self._reconciliation, "reject_proposal", {"session_id": "", "proposal_id": work_id}),
+            ApprovalSourceType.RECONCILIATION: (
+                self._reconciliation,
+                "reject_proposal",
+                {"session_id": "", "proposal_id": work_id},
+            ),
+            ApprovalSourceType.OBJECTIVE_PLAN: (
+                self._objective_plan,
+                "reject",
+                {"plan_record_id": work_id, "reason": reason, "decided_by": decided_by},
+            ),
         }
         route = routes.get(src)
         if not route:

@@ -1,6 +1,27 @@
 import { create } from 'zustand'
 import { fetchApi, API_BASE, authHeader } from '../api/client'
 
+// Persist the active conversation id across reloads so a planning thread (and
+// its plan records) stays addressable after a refresh. localStorage-only, no
+// layout/styling impact.
+const CONVERSATION_ID_KEY = 'umh.chat.conversation_id'
+
+function loadConversationId(): string {
+  try {
+    return localStorage.getItem(CONVERSATION_ID_KEY) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function persistConversationId(id: string): void {
+  try {
+    if (id) localStorage.setItem(CONVERSATION_ID_KEY, id)
+  } catch {
+    /* storage disabled (private mode) — non-fatal */
+  }
+}
+
 export interface Provenance {
   node?: string
   harness?: string
@@ -28,7 +49,11 @@ export interface MediaAttachment {
 export interface SuggestedAction {
   label: string
   action: string
-  payload: Record<string, unknown>
+  // `payload` is the legacy carrier (e.g. { panel }). Newer server rails (the
+  // objective-plan rail) send a flat `target` instead — the navigate handler
+  // honors both. `payload` stays optional so target-only actions type-check.
+  payload?: Record<string, unknown>
+  target?: string
 }
 
 export interface ChatMessage {
@@ -118,7 +143,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sending: false,
   error: null,
   targetChannel: 'cockpit',
-  conversationId: '',
+  conversationId: loadConversationId(),
   _pollTimer: null,
   draftMessage: null,
   placeholderMessage: null,
@@ -205,6 +230,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             content: content.trim(),
             view_context: viewContext,
             conversation_id: conversationId,
+            // The optimistic operator-message id, so the server can correlate the
+            // turn (and any plan record it produces) back to this client message.
+            client_message_id: operatorMsg.id,
             source,
             ...(routing ? { routing } : {}),
             ...(voiceTurnId ? { voice_turn_id: voiceTurnId } : {}),
@@ -228,10 +256,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
           metadata: res.metadata,
         }
 
+        const nextConversationId = res.conversation_id || get().conversationId
+        persistConversationId(nextConversationId)
         set((s) => ({
           messages: [...s.messages, aiMsg],
           sending: false,
-          conversationId: res.conversation_id || s.conversationId,
+          conversationId: nextConversationId,
         }))
       } else {
         await fetchApi('/chat/send', {
@@ -262,6 +292,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         attachment?: Attachment
         media?: MediaAttachment[]
         source?: 'text' | 'voice'
+        suggested_actions?: SuggestedAction[]
+        metadata?: Record<string, unknown>
       }>>('/chat/history')
 
       const serverMsgs: ChatMessage[] = history.map((m) => ({
@@ -274,6 +306,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
         title: m.title,
         provenance: m.provenance,
         attachment: m.attachment,
+        // Carry the plan surface + actions through reload so a reloaded assistant
+        // turn still renders its PlanSummaryCard and Open-Plan action.
+        ...(m.suggested_actions ? { suggested_actions: m.suggested_actions } : {}),
+        ...(m.metadata ? { metadata: m.metadata } : {}),
         // Voice messages persist their audio player across reload: history returns the
         // stored media so MediaGrid/VoiceMessagePlayer render just like the live message.
         ...(m.media ? { media: m.media } : {}),

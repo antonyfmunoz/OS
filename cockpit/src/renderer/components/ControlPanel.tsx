@@ -214,8 +214,11 @@ export function ControlPanel() {
           PACKETS <span className="text-cyan">{executingPackets}</span>
         </span>
 
-        {/* 8. Approvals (unified + legacy) */}
-        <span className="text-[10px] font-mono uppercase text-text-tertiary">
+        {/* 8. Approvals (unified + legacy) — this strip IS the cockpit's top HUD
+            approval control (mounted directly under the title bar in Shell). The
+            wg-hud-approvals alias marks the pending-count badge for the field
+            harness; the expand toggle below opens the approval list. */}
+        <span data-testid="wg-hud-approvals" className="text-[10px] font-mono uppercase text-text-tertiary">
           APPROVALS <span className={totalPending > 0 ? 'text-yellow-400' : 'text-text-tertiary'}>{totalPending}</span>
         </span>
 
@@ -224,8 +227,11 @@ export function ControlPanel() {
           BLOCKED <span className="text-red-400">{blockedCount}</span>
         </span>
 
-        {/* 10. Expand/collapse — far right */}
+        {/* 10. Expand/collapse — far right. This control opens the expanded
+            approval list, so it carries the hud-approvals-toggle id the field
+            harness drives to reveal the approval rows. */}
         <button
+          data-testid="wg-hud-approvals-toggle"
           onClick={() => toggleExpanded('control-panel')}
           className="p-1 text-text-tertiary hover:text-cyan transition-colors"
         >
@@ -276,20 +282,52 @@ export function ControlPanel() {
                 const id = ua.approval_id ?? ua.id ?? `ua-${i}`
                 const desc = ua.description ?? ua.title ?? 'Pending approval'
                 const source = ua.source_type ?? ''
+                // Objective-plan approvals carry plan context in `details`
+                // ({plan_record_id, objective_id, graph_version, packet_count,
+                // conversation_id}). Surface v{n}/packets on the row and give the
+                // decision buttons the wg-* testids ONLY for this source, so the
+                // field harness anchors to the row whose desc holds its run tag.
+                const isPlan = source === 'objective_plan'
+                // UnifiedApproval.to_dict() nests plan context under `context.details`.
+                const uaContext = (ua.context ?? {}) as Record<string, unknown>
+                const details = ((uaContext.details ?? ua.details) ?? {}) as Record<string, unknown>
+                const graphVersion = typeof details.graph_version === 'number' ? details.graph_version : undefined
+                const packetCount = typeof details.packet_count === 'number' ? details.packet_count : undefined
                 return (
-                  <div key={id} className="mb-2">
-                    <div className="flex items-center gap-1">
+                  <div
+                    key={id}
+                    data-testid="wg-approval-row"
+                    data-source-type={source}
+                    // Deterministic row anchor: the description is truncated
+                    // server-side (300 chars), so text can NOT identify which
+                    // plan a row belongs to when descriptions collide — the
+                    // field harness (and any operator tooling) anchors by
+                    // plan record id instead.
+                    {...(isPlan && typeof details.plan_record_id === 'string'
+                      ? { 'data-plan-record-id': details.plan_record_id }
+                      : {})}
+                    className="mb-2"
+                  >
+                    <div className="flex items-center gap-1 flex-wrap">
                       {source && <span className="text-[9px] px-1 py-0.5 rounded bg-cyan/10 text-cyan font-mono">{source}</span>}
+                      {isPlan && graphVersion !== undefined && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-surface-raised text-text-tertiary font-mono">v{graphVersion}</span>
+                      )}
+                      {isPlan && packetCount !== undefined && (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-surface-raised text-text-tertiary font-mono">{packetCount} packets</span>
+                      )}
                       <p className="text-[11px] text-text-primary truncate" title={desc}>{desc}</p>
                     </div>
                     <div className="flex gap-1 mt-1">
                       <button
+                        {...(isPlan ? { 'data-testid': 'wg-approve-btn' } : {})}
                         onClick={() => unifiedApprove(id, source)}
                         className="text-[10px] px-2 py-1 rounded bg-green-600/20 text-green-400 hover:bg-green-600/40 transition-colors"
                       >
                         Approve
                       </button>
                       <button
+                        {...(isPlan ? { 'data-testid': 'wg-reject-btn' } : {})}
                         onClick={() => unifiedReject(id, source)}
                         className="text-[10px] px-2 py-1 rounded bg-red-600/20 text-red-400 hover:bg-red-600/40 transition-colors"
                       >

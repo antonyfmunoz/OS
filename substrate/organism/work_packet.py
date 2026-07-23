@@ -231,6 +231,13 @@ class WorkPacket:
     verification_results: list[dict[str, Any]] = field(default_factory=list)
     verification_passed: bool | None = None
     target_projection: str = ""
+    # Wave 1 (§4) first-class typed context contracts — serialized
+    # substrate.contracts.work_context shapes. Scope is NEVER hidden in
+    # source_evidence; lineage is ids-only; requirements carry versioned
+    # SkillRequirementRefs (bare skill ids prohibited in new artifacts).
+    work_scope: dict[str, Any] = field(default_factory=dict)
+    lineage: dict[str, Any] = field(default_factory=dict)
+    requirements: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -304,6 +311,9 @@ class WorkPacket:
             "verification_results": self.verification_results,
             "verification_passed": self.verification_passed,
             "target_projection": self.target_projection,
+            "work_scope": self.work_scope,
+            "lineage": self.lineage,
+            "requirements": self.requirements,
         }
 
     def to_safe_dict(self) -> dict[str, Any]:
@@ -338,6 +348,10 @@ class WorkPacket:
             "updated_at": self.updated_at,
             "verification_passed": self.verification_passed,
             "target_projection": self.target_projection,
+            "work_scope": self.work_scope,
+            "lineage": self.lineage,
+            "source_type": self.source_type,
+            "source_id": self.source_id,
         }
 
     @classmethod
@@ -418,6 +432,9 @@ class WorkPacket:
             verification_results=d.get("verification_results", []),
             verification_passed=d.get("verification_passed"),
             target_projection=d.get("target_projection", ""),
+            work_scope=d.get("work_scope", {}),
+            lineage=d.get("lineage", {}),
+            requirements=d.get("requirements", {}),
         )
 
     def summarize(self) -> str:

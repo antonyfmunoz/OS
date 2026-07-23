@@ -12,7 +12,7 @@ import logging
 import os
 import platform
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
@@ -170,8 +170,8 @@ async def _execution_pause(request: Request) -> dict[str, Any]:
             }
 
         if packet_id:
-            from substrate.organism.work_packet_engine import WorkPacketEngine
             from substrate.organism.work_packet import PacketLifecycleStatus
+            from substrate.organism.work_packet_engine import WorkPacketEngine
 
             wpe = WorkPacketEngine()
             pkt = wpe.get_packet(packet_id)
@@ -232,8 +232,8 @@ async def _execution_resume(request: Request) -> dict[str, Any]:
             }
 
         if packet_id:
-            from substrate.organism.work_packet_engine import WorkPacketEngine
             from substrate.organism.work_packet import PacketLifecycleStatus
+            from substrate.organism.work_packet_engine import WorkPacketEngine
 
             wpe = WorkPacketEngine()
             pkt = wpe.get_packet(packet_id)
@@ -292,8 +292,8 @@ async def _execution_stop(request: Request) -> dict[str, Any]:
             }
 
         if packet_id:
-            from substrate.organism.work_packet_engine import WorkPacketEngine
             from substrate.organism.work_packet import PacketLifecycleStatus
+            from substrate.organism.work_packet_engine import WorkPacketEngine
 
             wpe = WorkPacketEngine()
             ok = wpe.update_packet_status(packet_id, PacketLifecycleStatus.BLOCKED, reason)
@@ -586,7 +586,6 @@ def _read_mesh_snapshot() -> list[dict[str, Any]]:
 
 def _read_vps_node() -> dict[str, Any]:
     """Build VPS node info from local system."""
-    import os
 
     hostname = platform.node()
     return {
@@ -666,10 +665,18 @@ def _mode_composite(request: Request) -> dict[str, Any]:
 
 
 def _tmux_sessions(request: Request) -> dict[str, Any]:
-    from adapters.tool_adapters.tmux import TmuxAdapter
+    # NEVER-500 read surface: adapter construction/execution raises when tmux
+    # is absent from the runtime (the Wave-1 candidate container 500'd on
+    # every poll — field run 20260722T181248Z network evidence). A status
+    # read degrades to an empty, explicit "unavailable" — it never raises.
+    try:
+        from adapters.tool_adapters.tmux import TmuxAdapter
 
-    adapter = TmuxAdapter()
-    result = adapter._execute_impl("list_sessions", {})
+        adapter = TmuxAdapter()
+        result = adapter._execute_impl("list_sessions", {})
+    except Exception as exc:  # noqa: BLE001 — read surface fails soft
+        logger.debug("tmux sessions read unavailable: %s", exc)
+        return {"ok": False, "error": str(exc)[:200], "sessions": []}
     if not result.get("success"):
         return {
             "ok": False,
@@ -787,6 +794,7 @@ def _get_continuity_machine():
     if _continuity_machine is None:
         import json
         import os
+
         from substrate.workstation.continuity import ContinuityStateMachine
 
         path = os.path.join(
@@ -928,8 +936,8 @@ async def _generate_return_brief(request: Request) -> dict[str, Any]:
     body = await request.json()
 
     def _do_generate():
-        from substrate.workstation.resume_brief import ReturnBriefGenerator
         from substrate.workstation.mode_resolver import resolve_composite_mode
+        from substrate.workstation.resume_brief import ReturnBriefGenerator
 
         mode = resolve_composite_mode()
         gen = ReturnBriefGenerator()

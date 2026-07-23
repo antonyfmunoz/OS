@@ -8,9 +8,27 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pydantic import BaseModel
+
 from transports.api.governed import governed_mutation
 
 logger = logging.getLogger(__name__)
+
+
+# MODULE scope: PEP 563 string annotations resolve against module globals;
+# nested inside _build_router() these models were invisible to FastAPI and the
+# body params degraded to required query params (422 loc ["query","req"] —
+# same defect family as the unified-approval routes, field run 20260722).
+class TrackRequest(BaseModel):
+    intent_text: str
+    intent_id: str = ""
+
+
+class TransitionRequest(BaseModel):
+    to_stage: str
+    subsystem: str
+    metadata: dict[str, Any] = {}
+
 
 _loop_runtime: Any = None
 
@@ -19,6 +37,7 @@ def _get_loop_runtime() -> Any:
     global _loop_runtime
     if _loop_runtime is None:
         from substrate.workstation.operating_loop_runtime import OperatingLoopRuntime
+
         _loop_runtime = OperatingLoopRuntime()
     return _loop_runtime
 
@@ -30,18 +49,8 @@ def configure(runtime: Any) -> None:
 
 def _build_router() -> Any:
     from fastapi import APIRouter, HTTPException
-    from pydantic import BaseModel
 
     router = APIRouter(prefix="/operating-loop", tags=["operating-loop"])
-
-    class TrackRequest(BaseModel):
-        intent_text: str
-        intent_id: str = ""
-
-    class TransitionRequest(BaseModel):
-        to_stage: str
-        subsystem: str
-        metadata: dict[str, Any] = {}
 
     @router.post("/track")
     def track_loop(req: TrackRequest) -> dict[str, Any]:
@@ -61,6 +70,7 @@ def _build_router() -> Any:
     @router.post("/{loop_id}/transition")
     def record_transition(loop_id: str, req: TransitionRequest) -> dict[str, Any]:
         from substrate.workstation.operating_loop_runtime import OperatingLoopStage
+
         try:
             stage = OperatingLoopStage(req.to_stage)
         except ValueError:

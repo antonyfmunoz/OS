@@ -176,8 +176,17 @@ class LearningSignalFeed:
         }
 
 
-_SIGNAL_FEED_DIR = os.path.join(_REPO_ROOT, "data", "umh", "learning")
-_SIGNAL_FEED_PATH = os.path.join(_SIGNAL_FEED_DIR, "signal_feed.jsonl")
+def _signal_feed_path() -> str:
+    """Signal-feed home under the runtime-state root (Wave 0 boundary).
+
+    Resolved lazily (UMH_STATE_DIR-aware) — the old module-level
+    ``data/umh/learning`` repo path made every governed-spine submit fail on
+    the Wave-1 candidate's read-only source mount (field run 20260722T165422Z:
+    "spine submit failed for state_mutate: Read-only file system").
+    """
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return str(runtime_state_path("organism/learning", "signal_feed.jsonl"))
 
 
 class OutcomeLearningLoop:
@@ -502,8 +511,8 @@ class OutcomeLearningLoop:
         return feed
 
     def _persist_signal_feed(self, feed: LearningSignalFeed) -> None:
-        os.makedirs(_SIGNAL_FEED_DIR, exist_ok=True)
-        with open(_SIGNAL_FEED_PATH, "a") as f:
+        # runtime_state_path creates the parent directory on resolution.
+        with open(_signal_feed_path(), "a") as f:
             data = feed.to_dict()
             data["persisted_at"] = time.time()
             f.write(json.dumps(data, default=str) + "\n")
