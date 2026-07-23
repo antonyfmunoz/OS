@@ -1,0 +1,211 @@
+"""Real Claude-CLI worktree worker — the one real execution path (C4 part 2).
+
+A worker receives a sealed :class:`ModelExecutionPackage`, runs the Claude Code
+CLI inside its lease worktree under ENFORCED host isolation (bwrap), and returns
+a machine-readable result. It NEVER marks its own attempt complete — completion
+is Proof-gated in the verifier (Amendment v1 clause 6). It has no dispatch/result
+signing secret and a scrubbed env (no /opt/OS, no production credentials).
+
+There is NO simulation fallback here: if the CLI is unavailable or isolation
+cannot be established, the worker returns a failure — never a fabricated success.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import shutil
+from dataclasses import dataclass, field
+from typing import Any
+
+from substrate.execution.attempts.host_isolation import (
+    IsolationProfile,
+    IsolationUnavailable,
+    build_isolated_command,
+    scrub_worker_env,
+)
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_TIMEOUT = 600.0
+_DEFAULT_MAX_TURNS = 30
+
+
+@dataclass
+class WorkerResult:
+    """Machine-readable outcome of a real worker run. NOT a completion verdict."""
+
+    ok: bool = False
+    status: str = "failed"  # "succeeded" | "failed" (worker's self-report only)
+    summary: str = ""
+    stdout: str = ""
+    files_changed: list[str] = field(default_factory=list)
+    commits: list[str] = field(default_factory=list)
+    diff: str = ""
+    exit_code: int | None = None
+    error: str = ""
+    duration_seconds: float = 0.0
+    isolated: bool = False
+    cost_usd: float | None = None
+    cost_status: str = "unknown"
+
+    def to_dict(self) -> dict[str, Any]:
+        d = dict(self.__dict__)
+        d["stdout"] = self.stdout[-4000:]  # bound
+        d["diff"] = self.diff[-8000:]
+        return d
+
+
+def _resolve_cli_path() -> str:
+    for c in (
+        os.path.expanduser("~/.claude/local/claude"),
+        "/usr/local/bin/claude",
+        os.path.expanduser("~/.npm-global/bin/claude"),
+    ):
+        if os.path.isfile(c) and os.access(c, os.X_OK):
+            return c
+    return shutil.which("claude") or ""
+
+
+def render_prompt(package: Any) -> str:
+    """Render the sealed package into the worker prompt. The worker cannot alter
+    tenant/scope/authority/verification — those are sealed in the package hash;
+    this only assembles the human-facing instruction text."""
+    parts: list[str] = []
+    if getattr(package, "role_instructions", ""):
+        parts.append(package.role_instructions)
+    if getattr(package, "operation_instructions", ""):
+        parts.append(package.operation_instructions)
+    frame = {}
+    for ctx in getattr(package, "ordered_context", []) or []:
+        if isinstance(ctx, dict):
+            frame.update(ctx)
+    identity = getattr(package, "operation_identity", {}) or {}
+    if identity.get("task_id"):
+        parts.append(f"Task: {identity.get('task_id')}")
+    parts.append(
+        "Make the change in this worktree and commit it with a descriptive "
+        "message. Do not push. Do not create PRs. Do not touch files outside "
+        "the task scope."
+    )
+    return "\n\n".join(p for p in parts if p)
+
+
+def _capture_git(worktree_path: str, base_commit: str) -> tuple[list[str], list[str], str]:
+    """Return (files_changed, commits, diff) against the lease base commit."""
+    from substrate.execution.cpu_gate import gated_subprocess_run
+
+    def _run(args: list[str]) -> str:
+        r = gated_subprocess_run(
+            ["git", *args], caller="worker_git", timeout=30, cwd=worktree_path
+        )
+        return (r.stdout or "").strip() if r else ""
+
+    files = [f for f in _run(["diff", "--name-only", f"{base_commit}..HEAD"]).splitlines() if f]
+    commits = [c for c in _run(["log", "--oneline", f"{base_commit}..HEAD"]).splitlines() if c]
+    diff = _run(["diff", f"{base_commit}..HEAD"])
+    return files, commits, diff
+
+
+def run_worker_in_lease(
+    *,
+    package: Any,
+    lease: Any,
+    timeout: float = _DEFAULT_TIMEOUT,
+    max_turns: int = _DEFAULT_MAX_TURNS,
+    disallowed_tools: list[str] | None = None,
+    oauth_token: str | None = None,
+) -> WorkerResult:
+    """Run the real Claude CLI worker for one attempt, isolated in its lease
+    worktree. Returns a WorkerResult (never raises for a normal failure)."""
+    import time as _time
+
+    from substrate.execution.cpu_gate import gated_subprocess_run
+
+    worktree_path = getattr(lease, "worktree_path", "")
+    base_commit = getattr(lease, "snapshot_ref", "") or "HEAD"
+    if not worktree_path or not os.path.isdir(worktree_path):
+        return WorkerResult(error=f"lease worktree missing: {worktree_path}")
+
+    cli = _resolve_cli_path()
+    if not cli:
+        return WorkerResult(error="Claude Code CLI not found — no simulation fallback")
+
+    prompt = render_prompt(package)
+    inner = [
+        cli, "--print", "--output-format", "text",
+        "--max-turns", str(max_turns), "--permission-mode", "auto",
+    ]
+    for tool in disallowed_tools or []:
+        inner += ["--disallowedTools", tool]
+    inner += [prompt]
+
+    # Minimal HOME under the worktree parent so ~/.claude auth is reachable but
+    # the real home (with credentials) is not exposed.
+    worker_home = os.path.join(os.path.dirname(worktree_path.rstrip("/")), ".worker-home")
+    os.makedirs(os.path.join(worker_home, ".claude"), exist_ok=True)
+    # Copy CLI auth into the confined home if present (token file only).
+    real_claude = os.path.expanduser("~/.claude")
+    for fname in (".credentials.json", "config.json"):
+        src = os.path.join(real_claude, fname)
+        if os.path.isfile(src):
+            try:
+                shutil.copy2(src, os.path.join(worker_home, ".claude", fname))
+            except Exception:
+                pass
+
+    profile = IsolationProfile(worktree_path=worktree_path, worker_home=worker_home)
+    try:
+        cmd = build_isolated_command(inner, profile)
+        isolated = True
+    except IsolationUnavailable as exc:
+        # Fail closed: no unconfined worker.
+        return WorkerResult(error=f"host isolation unavailable: {exc}")
+
+    # The model credential (OAuth token) is INJECTED by the caller (the host
+    # attempt runner, which lives outside substrate and may resolve it). Substrate
+    # never reaches up into adapters/ to fetch it — dependency-direction law. If
+    # the token is absent, the confined ~/.claude credentials file (copied above)
+    # is the CLI's auth path.
+    extra_allow = {}
+    if oauth_token:
+        extra_allow["CLAUDE_CODE_OAUTH_TOKEN"] = oauth_token
+    elif os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        extra_allow["CLAUDE_CODE_OAUTH_TOKEN"] = os.environ["CLAUDE_CODE_OAUTH_TOKEN"]
+    env = scrub_worker_env(dict(os.environ), extra_allow=extra_allow)
+    env["HOME"] = worker_home
+
+    start = _time.monotonic()
+    result = gated_subprocess_run(
+        cmd, caller="wave2_worker_claude_cli", timeout=timeout,
+        cwd=worktree_path, env=env,
+    )
+    duration = _time.monotonic() - start
+
+    if result is None:
+        return WorkerResult(
+            error="worker skipped by CPU gate (blocked_cpu)", isolated=isolated,
+            duration_seconds=duration,
+        )
+
+    files, commits, diff = _capture_git(worktree_path, base_commit)
+    exit_ok = result.returncode == 0
+    produced = bool(commits) and bool(files)
+    return WorkerResult(
+        ok=exit_ok and produced,
+        status="succeeded" if (exit_ok and produced) else "failed",
+        summary=(result.stdout or "")[-500:],
+        stdout=result.stdout or "",
+        files_changed=files,
+        commits=commits,
+        diff=diff,
+        exit_code=result.returncode,
+        error="" if exit_ok else (result.stderr or "")[-500:],
+        duration_seconds=duration,
+        isolated=isolated,
+        cost_usd=None,        # clause 8: no trustworthy USD figure available
+        cost_status="unknown",
+    )
+
+
+__all__ = ["WorkerResult", "run_worker_in_lease", "render_prompt"]

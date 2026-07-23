@@ -182,6 +182,12 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # aware admission core (NOT a persistent supervisor — Wave 3).
     "AttemptScheduler": ["substrate.execution.attempts.scheduler"],
     "SchedulerPassReport": ["substrate.execution.attempts.scheduler"],
+    # C4 part 2: real worker, enforced host isolation, signed dispatch spool.
+    "WorkerResult": ["substrate.execution.attempts.worker_claude_cli"],
+    "IsolationProfile": ["substrate.execution.attempts.host_isolation"],
+    "IsolationUnavailable": ["substrate.execution.attempts.host_isolation"],
+    "DispatchEnvelope": ["substrate.execution.attempts.spool"],
+    "DispatchSpool": ["substrate.execution.attempts.spool"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.

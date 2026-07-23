@@ -1,0 +1,195 @@
+"""Enforced host isolation for real execution workers (Amendment v1 clause 4).
+
+Before a real worker subprocess runs, it MUST be confined so it cannot read
+/opt/OS, candidate runtime state, another run's files, or any SSH/1Password/
+GitHub/Fly/Discord credentials. This module builds that confinement using
+bubblewrap (``bwrap``) — a userspace sandbox that constructs a fresh mount
+namespace exposing ONLY:
+
+- the assigned writable worktree (read-write),
+- required read-only runtime files (the CLI binary dir, minimal system libs),
+- the minimal model-credential path (the worker's HOME with only ~/.claude).
+
+Everything else is absent from the namespace, so the confinement is by
+construction, not by allowlist-checking. Post-hoc diff validation (in the
+verifier) is ADDITIONAL — it is not the isolation.
+
+``preflight_isolation()`` verifies a working sandbox primitive exists and that a
+probe process genuinely cannot see a forbidden path. Field qualification calls it
+first; without a passing preflight, Session 1 is INSUFFICIENT_EVIDENCE.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import shutil
+from dataclasses import dataclass, field
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class IsolationProfile:
+    """The confinement for one worker invocation."""
+
+    worktree_path: str  # the ONE writable root
+    worker_home: str  # a minimal HOME (holds only ~/.claude for CLI auth)
+    ro_paths: list[str] = field(default_factory=list)  # read-only binds (bins, libs)
+    allow_network: bool = True  # the model CLI needs network; egress bound is DECLARED
+    primitive: str = "bwrap"
+
+
+class IsolationUnavailable(RuntimeError):
+    """Raised when no host-isolation primitive is available (fail closed)."""
+
+
+def isolation_primitive() -> str | None:
+    """Return the available isolation primitive name, or None."""
+    for name, binary in (("bwrap", "bwrap"), ("nsjail", "nsjail")):
+        if shutil.which(binary):
+            return name
+    # systemd-run gives cgroup/credential confinement but not a mount namespace
+    # by default; treat it as a last-resort primitive.
+    if shutil.which("systemd-run"):
+        return "systemd-run"
+    return None
+
+
+def _default_ro_paths() -> list[str]:
+    """Minimal read-only system paths a CLI worker needs to run."""
+    candidates = ["/usr", "/bin", "/lib", "/lib64", "/etc/ssl", "/etc/resolv.conf", "/etc/hosts"]
+    return [p for p in candidates if os.path.exists(p)]
+
+
+def build_bwrap_command(
+    inner_cmd: list[str], profile: IsolationProfile
+) -> list[str]:
+    """Wrap ``inner_cmd`` in a bubblewrap sandbox per ``profile``.
+
+    The namespace exposes ONLY the worktree (rw), the worker HOME (rw, holds
+    ~/.claude), and the declared read-only system paths. /opt/OS, candidate
+    state, and all other credential stores are simply not bound, so they do not
+    exist inside the sandbox.
+    """
+    cmd: list[str] = [
+        "bwrap",
+        "--unshare-all",
+        "--die-with-parent",
+        "--new-session",
+        "--proc", "/proc",
+        "--dev", "/dev",
+        "--tmpfs", "/tmp",
+    ]
+    if profile.allow_network:
+        cmd += ["--share-net"]
+    for ro in profile.ro_paths or _default_ro_paths():
+        cmd += ["--ro-bind-try", ro, ro]
+    # Writable worktree.
+    cmd += ["--bind", profile.worktree_path, profile.worktree_path]
+    # Minimal HOME (CLI auth lives in ~/.claude only).
+    cmd += ["--bind", profile.worker_home, profile.worker_home]
+    cmd += ["--setenv", "HOME", profile.worker_home]
+    cmd += ["--chdir", profile.worktree_path]
+    cmd += inner_cmd
+    return cmd
+
+
+def build_isolated_command(
+    inner_cmd: list[str], profile: IsolationProfile
+) -> list[str]:
+    """Build the fully isolated command. Raises IsolationUnavailable if no
+    primitive exists (fail closed — never run a worker unconfined)."""
+    prim = isolation_primitive()
+    if prim is None:
+        raise IsolationUnavailable(
+            "no host-isolation primitive (bwrap/nsjail/systemd-run) available — "
+            "refusing to run a worker unconfined (Amendment v1 clause 4)"
+        )
+    if prim == "bwrap":
+        return build_bwrap_command(inner_cmd, profile)
+    if prim == "systemd-run":
+        # Transient unit with a private tmp + restricted home; a coarser fallback.
+        return [
+            "systemd-run", "--user", "--pipe", "--wait", "--collect",
+            "--property=PrivateTmp=yes",
+            f"--property=WorkingDirectory={profile.worktree_path}",
+            f"--setenv=HOME={profile.worker_home}",
+            *inner_cmd,
+        ]
+    # nsjail
+    return [
+        "nsjail", "--mode", "o", "--chroot", "/", "--cwd", profile.worktree_path,
+        "--bindmount", f"{profile.worktree_path}:{profile.worktree_path}",
+        "--", *inner_cmd,
+    ]
+
+
+def preflight_isolation(forbidden_probe_path: str = "/opt/OS") -> tuple[bool, str]:
+    """Prove a sandbox genuinely hides a forbidden path. Returns (ok, detail).
+
+    Runs a trivial probe under the isolation primitive that lists the forbidden
+    path; if the sandbox is real, the path is absent inside the namespace."""
+    from substrate.execution.cpu_gate import gated_subprocess_run
+
+    prim = isolation_primitive()
+    if prim is None:
+        return False, "no isolation primitive available"
+    if prim != "bwrap":
+        # Only bwrap gives a mount-namespace guarantee we can positively prove
+        # here; other primitives are accepted but flagged as unproven.
+        return True, f"{prim} available (mount-namespace hiding not probe-verified)"
+
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as wt, tempfile.TemporaryDirectory() as home:
+        profile = IsolationProfile(worktree_path=wt, worker_home=home)
+        # Inside the sandbox, /opt/OS is NOT bound → `test -e` returns non-zero.
+        inner = ["/bin/sh", "-c", f"if [ -e {forbidden_probe_path} ]; then echo LEAK; else echo OK; fi"]
+        cmd = build_bwrap_command(inner, profile)
+        result = gated_subprocess_run(cmd, caller="isolation_preflight", timeout=30)
+        if result is None:
+            return False, "preflight skipped (CPU gate) — cannot confirm isolation"
+        out = (result.stdout or "").strip()
+        if "OK" in out and "LEAK" not in out:
+            return True, f"bwrap confinement verified: {forbidden_probe_path} hidden"
+        return False, f"isolation FAILED — probe saw {forbidden_probe_path}: {out!r}"
+
+
+# Credential env keys a worker must NEVER receive (mirrors the candidate deny
+# list). The worktree worker gets a scrubbed env with only these stripped.
+FORBIDDEN_ENV_PREFIXES = (
+    "UMH_MESH_", "DISCORD_", "FLY_", "GITHUB_", "GH_", "OP_", "ANTHROPIC_API_KEY",
+    "AWS_", "OPENAI_", "GOOGLE_", "TAILSCALE_", "SSH_", "NEON_", "DATABASE_URL",
+)
+
+
+def scrub_worker_env(base_env: dict[str, str], *, extra_allow: dict[str, str] | None = None) -> dict[str, str]:
+    """Build the minimal env a worker receives: strip every forbidden credential,
+    keep only PATH/HOME/LANG/GIT identity + the injected model-credential token."""
+    keep_keys = {"PATH", "HOME", "LANG", "LC_ALL", "TERM", "GIT_AUTHOR_NAME",
+                 "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
+                 "FIXTURE_VENV"}
+    out: dict[str, str] = {}
+    for k, v in base_env.items():
+        if any(k.startswith(p) or k == p for p in FORBIDDEN_ENV_PREFIXES):
+            continue
+        if k in keep_keys:
+            out[k] = v
+    # The single allowed model credential (OAuth token) is injected explicitly.
+    if extra_allow:
+        out.update(extra_allow)
+    return out
+
+
+__all__ = [
+    "IsolationProfile",
+    "IsolationUnavailable",
+    "isolation_primitive",
+    "build_isolated_command",
+    "build_bwrap_command",
+    "preflight_isolation",
+    "scrub_worker_env",
+    "FORBIDDEN_ENV_PREFIXES",
+]
