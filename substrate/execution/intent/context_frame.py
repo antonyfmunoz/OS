@@ -64,6 +64,7 @@ def build_context_frame(
     active_objects: list[dict[str, Any]] | None = None,
     external_evidence: list[dict[str, Any]] | None = None,
     planning_store: Any | None = None,
+    work_queue: Any | None = None,
 ) -> ContextFrame:
     """Assemble the bounded frame. Sections that fail to load stay empty.
 
@@ -141,6 +142,48 @@ def build_context_frame(
         frame.current_plans = scoped
     except Exception as exc:
         logger.debug("context frame: plan section unavailable: %s", exc)
+
+    # Current Tasks (atomic operator WorkPackets) for this conversation's tenant,
+    # bounded and newest-first. Without this, a rephrased task had NO existing
+    # task to resolve against — task-restatement dedup could only match the plan
+    # section (which a simple Task never populates), so a rephrase created a
+    # duplicate packet nondeterministically (field run 20260723T025829Z s05:
+    # packets 10→11). Existing-work resolution needs the prior task in the frame.
+    try:
+        if work_queue is None:
+            from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+            work_queue = UniversalWorkQueue()
+        task_rows: list[dict[str, Any]] = []
+        for packet in reversed(list(work_queue.all_packets())):
+            if getattr(packet, "source_type", "") != "operator_task":
+                continue
+            pscope = getattr(packet, "work_scope", {}) or {}
+            ptenant = pscope.get("tenant_id", "") if isinstance(pscope, dict) else ""
+            # Tenant isolation — a task from another tenant must never enter the
+            # frame (same rule the plan section enforces).
+            if tenant_id and ptenant and ptenant != tenant_id:
+                continue
+            task_rows.append(
+                {
+                    "packet_id": getattr(packet, "packet_id", ""),
+                    # objective_text is the field existing-work resolution reads;
+                    # a Task carries its intent in user_intent/title.
+                    "objective_text": getattr(packet, "user_intent", "")
+                    or getattr(packet, "title", ""),
+                    "status": getattr(packet, "status", ""),
+                    "conversation_id": (
+                        pscope.get("conversation_id", "") if isinstance(pscope, dict) else ""
+                    ),
+                    "source_id": getattr(packet, "source_id", ""),
+                }
+            )
+            if len(task_rows) >= _MAX_TASKS:
+                frame.truncated_sections.append("current_tasks")
+                break
+        frame.current_tasks = task_rows
+    except Exception as exc:
+        logger.debug("context frame: task section unavailable: %s", exc)
 
     return frame
 

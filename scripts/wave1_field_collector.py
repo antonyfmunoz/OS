@@ -121,6 +121,11 @@ PLAN_STATES = (
     "rejected",
     "cancelled",
     "clarifying",
+    # Emitted by objective_plan_routes when a chat "approve that plan" surfaces
+    # the decision to the HUD (PROVIDE_DECISION → HUD-only authority, no state
+    # transition). A legitimate published state — not UI drift.
+    "decision_surfaced",
+    "clarification_required",
 )
 
 # The daemon process signature we assert exactly-one-of, in the active console
@@ -2086,8 +2091,10 @@ class FieldCollector:
         self._new_conversation(page, "s22a_self_build")
         try:
             self._send_and_wait(page, f"{SELF_BUILD_MESSAGE} {self.run_tag}")
+            # BONUS/non-gating: bound the wait tightly so a slow bonus case never
+            # stalls pass finalization (see s22b note).
             state = self._wait_wg_state(
-                page, {"rendered", "awaiting_approval", "revised", "clarifying"}
+                page, {"rendered", "awaiting_approval", "revised", "clarifying"}, timeout_s=30.0
             )
             plan_json = self._read_plan_json(page)
             scope = plan_json.get("work_scope") if isinstance(plan_json, dict) else {}
@@ -2113,8 +2120,14 @@ class FieldCollector:
         self._new_conversation(page, "s22b_projection")
         try:
             self._send_and_wait(page, f"{PROJECTION_BUILD_MESSAGE} {self.run_tag}")
+            # BONUS/non-gating: bound the wait tightly. A slow or non-terminal
+            # projection-build plan must NOT stall pass finalization — the full
+            # 150s default here left the collector unterminated at s22b while the
+            # gating pass had already succeeded, hanging the dispatch status-poll
+            # (field run 20260723T033659Z-p3: gating pass=True but status stuck
+            # "running" at s22b). 30s is ample for a plan card to render.
             state = self._wait_wg_state(
-                page, {"rendered", "awaiting_approval", "revised", "clarifying"}
+                page, {"rendered", "awaiting_approval", "revised", "clarifying"}, timeout_s=30.0
             )
             plan_json = self._read_plan_json(page)
             scope = plan_json.get("work_scope") if isinstance(plan_json, dict) else {}

@@ -632,6 +632,45 @@ class OperatorIntentProtocol:
             return resolution
 
         has_revision_verbs = bool(_REVISION_RE.search(text))
+
+        # For an atomic CREATE_TASK, a rephrase must resolve against the EXISTING
+        # TASK it restates — not only against plans. current_tasks carries prior
+        # operator WorkPackets (populated by build_context_frame); a Task never
+        # populates current_plans, so without this a rephrased task deterministic-
+        # ally missed every candidate and a duplicate packet was created (field
+        # run 20260723T025829Z s05: packets 10→11). Task restatement is dedup —
+        # a matched task is authoritative and short-circuits before plan matching.
+        if intent_class == IntentClass.CREATE_TASK and not has_revision_verbs:
+            text_paths = set(_FILE_ID_RE.findall(text))
+            task_best: tuple[float, dict[str, Any], str] | None = None
+            for task in frame.current_tasks:
+                if str(task.get("status", "")).lower() in ("cancelled", "abandoned"):
+                    continue
+                task_text = task.get("objective_text", "")
+                similarity = _similarity(text, task_text)
+                # A shared concrete file-path identifier is a high-specificity
+                # duplicate signal: two task statements naming the SAME file path
+                # are the same work even when surrounding-verb phrasing dilutes the
+                # token-overlap coefficient below threshold (field run
+                # 20260723T025829Z: "Fix the failing import in X" vs "Go patch that
+                # broken import over in X so the module loads" scored 0.667 < 0.75
+                # yet both name transports/api/voice.py). Require at least MODERATE
+                # overlap alongside the shared path so a mere incidental path
+                # mention never collapses two genuinely different tasks.
+                shared_path = bool(text_paths & set(_FILE_ID_RE.findall(task_text)))
+                is_restatement = similarity >= _RESTATEMENT_THRESHOLD or (
+                    shared_path and similarity >= _ALTERNATIVE_THRESHOLD
+                )
+                reason = "shared file-path identifier" if shared_path else "high token overlap"
+                if is_restatement and (task_best is None or similarity > task_best[0]):
+                    task_best = (similarity, task, reason)
+            if task_best is not None:
+                resolution.relationship = "restatement_of_existing"
+                resolution.matched_packet_id = task_best[1].get("packet_id", "")
+                resolution.confidence = task_best[0]
+                resolution.reasoning = f"restatement of an existing Task ({task_best[2]})"
+                return resolution
+
         best: tuple[float, dict[str, Any]] | None = None
         for plan in frame.current_plans:
             if plan.get("status") in ("cancelled", "superseded", "rejected"):

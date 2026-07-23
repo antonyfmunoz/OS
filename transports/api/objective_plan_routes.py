@@ -199,6 +199,11 @@ def try_chat_planning_rail(
             )
 
         if intent_class == IntentClass.CREATE_TASK.value:
+            # NB: a rephrase of an EXISTING task resolves upstream as
+            # restatement_of_existing and the protocol downgrades it to
+            # QUERY_STATE (handled above) — so it never reaches here and no
+            # duplicate packet is created (field-journey s05). This branch only
+            # runs for genuinely new atomic tasks.
             packet = protocol.capture_task(
                 resolution, content, conv_id, client_message_id=client_message_id
             )

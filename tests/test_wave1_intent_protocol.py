@@ -105,12 +105,17 @@ def env(tmp_path, monkeypatch):
     )
 
 
-def _frame(conversation_id: str = "conv-1", plans: list | None = None) -> ContextFrame:
+def _frame(
+    conversation_id: str = "conv-1",
+    plans: list | None = None,
+    tasks: list | None = None,
+) -> ContextFrame:
     return ContextFrame(
         tenant_id="tenant-a",
         principal_id="user-1",
         conversation_id=conversation_id,
         current_plans=plans or [],
+        current_tasks=tasks or [],
     )
 
 
@@ -333,6 +338,41 @@ class TestExistingWorkResolution:
         )
         assert r.intent_class == IntentClass.MODIFY_PLAN.value
         assert r.existing_work_resolution["relationship"] == "revision_of_plan"
+
+    # An existing atomic Task lives in current_tasks (a simple Task never
+    # populates current_plans). objective_text carries the task's intent text.
+    LIVE_TASK = {
+        "packet_id": "wp-live",
+        "objective_text": "Fix the failing import in transports/api/voice.py",
+        "status": "planned",
+        "conversation_id": "conv-1",
+        "source_id": "op-key-1",
+    }
+
+    def test_task_rephrase_resolves_existing_task_not_new(self, env):
+        """A rephrase of an existing task (field run s05: 0.667 overlap but the
+        SAME file path transports/api/voice.py) resolves to that task as a
+        restatement — which the protocol downgrades to QUERY_STATE so NO
+        duplicate packet is created."""
+        rephrase = (
+            "Go patch that broken import over in transports/api/voice.py so the module loads."
+        )
+        r = _resolve(env, rephrase, _frame(tasks=[self.LIVE_TASK]))
+        assert r.existing_work_resolution["relationship"] == "restatement_of_existing"
+        assert r.existing_work_resolution["matched_packet_id"] == "wp-live"
+        # Restatement resolves existing work → downgraded to query_state, no
+        # new artifact (this is exactly what makes field-journey s05 dedup pass).
+        assert r.intent_class == IntentClass.QUERY_STATE.value
+        assert not r.creates_work
+
+    def test_task_naming_a_different_file_is_new_work(self, env):
+        """A task naming a DIFFERENT file is genuinely new — the shared-path
+        dedup must not collapse unrelated tasks."""
+        other = "Fix the failing import in adapters/models/model_router.py"
+        r = _resolve(env, other, _frame(tasks=[self.LIVE_TASK]))
+        assert r.intent_class == IntentClass.CREATE_TASK.value
+        assert r.existing_work_resolution["relationship"] != "restatement_of_existing"
+        assert r.creates_work
 
     def test_unrelated_objective_is_new_work(self, env):
         r = _resolve(

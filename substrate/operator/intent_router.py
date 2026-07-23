@@ -64,7 +64,7 @@ _OBSERVATION_PATTERNS = re.compile(
 )
 
 _WORK_IMPERATIVE_PATTERNS = re.compile(
-    r"^(build|deploy|create|implement|fix|refactor|migrate|launch|ship|release"
+    r"^(build|deploy|create|implement|fix|patch|repair|refactor|migrate|launch|ship|release"
     r"|set up|configure|install|remove|delete|update|upgrade|add|write|generate)\b",
     re.IGNORECASE,
 )
@@ -104,7 +104,7 @@ _HYBRID_QUALIFIERS = re.compile(
 )
 
 _ACTION_VERBS = re.compile(
-    r"\b(build|deploy|create|implement|fix|refactor|migrate|launch|ship|release"
+    r"\b(build|deploy|create|implement|fix|patch|repair|refactor|migrate|launch|ship|release"
     r"|configure|install|remove|delete|update|upgrade|add|write|generate"
     r"|research|plan|analyze|investigate|design|architect|audit)\b",
     re.IGNORECASE,
@@ -120,6 +120,7 @@ class IntentRouter:
     def _get_classifier(self) -> Any:
         if self._classifier is None:
             from substrate.organism.intent_classifier import IntentClassifier
+
             self._classifier = IntentClassifier()
         return self._classifier
 
@@ -184,7 +185,9 @@ class IntentRouter:
         return matches
 
     def _refine_with_classifier(
-        self, text: str, candidates: list[tuple[RouteType, float, str]],
+        self,
+        text: str,
+        candidates: list[tuple[RouteType, float, str]],
     ) -> RouteClassification:
         classifier = self._get_classifier()
         classification = classifier.classify(text)
