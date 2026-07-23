@@ -1163,14 +1163,26 @@ class FieldCollector:
         self._conversation_id = ""
         page.reload(wait_until="load")
         page.wait_for_timeout(1500)
-        # Fresh-state proof: no plan card should be visible before submission.
+        # Fresh-state proof: the persisted conversation binding is GONE, so the
+        # next send necessarily mints a NEW conversation. This is the invariant
+        # the journey needs — NOT an empty screen: server-side chat history
+        # legitimately re-renders prior conversations' plan cards after a reload
+        # (prior-pass artifacts persist server-side by design), so a global
+        # zero-plan-card gate degrades as history accumulates and is racy on the
+        # history fetch (run 20260723T141402Z: plan_root_present=5, all history
+        # cards, reset itself fully effective). The visible-card count is kept
+        # as informational detail only.
+        conv_key_cleared = page.evaluate(
+            "() => localStorage.getItem('umh.chat.conversation_id') === null"
+        )
         pre = page.locator(WG_PLAN_ROOT)
         self.stage(
             f"fresh_state_{tag}",
-            pre.count() == 0,
+            bool(conv_key_cleared),
+            f"conversation_binding_cleared={conv_key_cleared} "
             f"cleared={len(cleared.get('localStorage_removed', []))}ls "
             f"{len(cleared.get('sessionStorage_removed', []))}ss; "
-            f"plan_root_present={pre.count()}",
+            f"history_plan_cards_visible={pre.count()}",
         )
 
     # ── the scenario ─────────────────────────────────────────────────────────
@@ -1258,11 +1270,21 @@ class FieldCollector:
         cleared = self._clear_app_state(page)
         page.reload(wait_until="load")
         page.wait_for_timeout(1500)
+        # LOCAL-context freshness only (same scoping s01 documents): the server
+        # legitimately re-renders prior conversations' plan cards from history
+        # after a reload, so a global zero-card gate degrades as history
+        # accumulates. Gate on the conversation binding being cleared; record
+        # the visible history-card count as evidence baseline.
+        conv_key_cleared = page.evaluate(
+            "() => localStorage.getItem('umh.chat.conversation_id') === null"
+        )
         pre = page.locator(WG_PLAN_ROOT)
         self.stage(
             "fresh_context",
-            pre.count() == 0,
-            f"cleared={len(cleared.get('localStorage_removed', []))}ls; plan_root={pre.count()}",
+            bool(conv_key_cleared),
+            f"conversation_binding_cleared={conv_key_cleared} "
+            f"cleared={len(cleared.get('localStorage_removed', []))}ls; "
+            f"history_plan_cards_visible={pre.count()}",
         )
         self.shot(page, "01b_fresh_state")
 
