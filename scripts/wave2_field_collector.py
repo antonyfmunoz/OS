@@ -34,12 +34,28 @@ import argparse
 import ctypes
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# Secret-hygiene redaction (identical to wave1_field_dispatch.py). Applied at
+# capture time to any 4xx/5xx response body + console/pageerror text, and again
+# as a final pass over the shipped pass dir. A candidate error payload can echo
+# a bearer token / JWT / api_key= pair; without this it would land unredacted in
+# network.jsonl / console.jsonl and be scp'd into the committed proof (review C1).
+_SECRET_REDACT_RE = re.compile(
+    r"(?i)(bearer\s+[A-Za-z0-9._\-]+|eyJ[A-Za-z0-9._\-]{20,}|"
+    r"(?:password|secret|token|api[_-]?key)\s*[=:]\s*\S+)"
+)
+
+
+def _redact(text: str) -> str:
+    """Redact bearer/JWT/password patterns from a captured string."""
+    return _SECRET_REDACT_RE.sub("<redacted>", text)
 
 # ── Chat input: the primary Cockpit chat rail input. RightRail.tsx renders it
 # with placeholder `Message <aiName>...` (aiName from get_ai_name()), so the
@@ -588,7 +604,9 @@ class FieldCollector:
                     entry["method"] = "?"
                 if resp.status >= 400:
                     try:
-                        entry["body"] = (resp.text() or "")[:300]
+                        # Redact at capture time — an error body can echo a
+                        # bearer token / JWT / api_key= pair (review C1).
+                        entry["body"] = _redact((resp.text() or "")[:300])
                     except Exception:  # noqa: BLE001
                         entry["body"] = "<unreadable>"
                 self.network.append(entry)
@@ -601,7 +619,8 @@ class FieldCollector:
             lambda m: self.console.append(
                 {
                     "type": m.type,
-                    "text": m.text[:300],
+                    # Console text can echo a token from an error log (review C1).
+                    "text": _redact(m.text[:300]),
                     "ms": int((time.time() - self._start) * 1000),
                 }
             ),
@@ -611,7 +630,7 @@ class FieldCollector:
             lambda e: self.console.append(
                 {
                     "type": "pageerror",
-                    "text": str(e)[:300],
+                    "text": _redact(str(e)[:300]),
                     "ms": int((time.time() - self._start) * 1000),
                 }
             ),
@@ -1465,28 +1484,66 @@ class FieldCollector:
 
         Uses GET /api/umh/execution/by-plan/{plan_record_id} (attempts scoped to
         one plan) when a plan id is known, else /api/umh/execution/attempts.
-        Mutates nothing. Returns [] on any failure — the pre-authorization steps
-        REQUIRE an empty list, so a failed read must never look like attempts.
+        Mutates nothing. Returns [] on any failure. NOTE: callers that assert
+        "zero attempts" MUST use _read_attempts_checked instead — a failed read
+        also returns [] and would otherwise look identical to "confirmed empty"
+        (review C2). This bare form is for callers that only need the rows.
         """
+        rows, _ok, _status = self._read_attempts_checked(page, plan_record_id)
+        return rows
+
+    def _read_attempts_checked(
+        self, page: Any, plan_record_id: str = ""
+    ) -> tuple[list[dict[str, Any]], bool, Any]:
+        """Like _read_attempts but distinguishes 'confirmed empty (HTTP 200)' from
+        'unknown (non-200 / malformed)'. Returns (rows, ok, status) where ok is
+        True ONLY when the endpoint answered 200 with a well-formed body. A
+        negative "zero attempts" gate must require ok AND rows == [] (review C2)."""
         pid = plan_record_id or str(self._last_plan_id or "")
         path = (
             f"/api/umh/execution/by-plan/{pid}" if pid else "/api/umh/execution/attempts"
         )
         resp = self._authed_get(page, path)
         if not isinstance(resp, dict):
-            return []
-        rows = resp.get("attempts") or resp.get("__body") or resp.get("items") or []
+            return [], False, None
+        status = resp.get("__status")
+        if status != 200 or resp.get("__error"):
+            return [], False, status
+        rows = resp.get("attempts")
+        if rows is None:
+            rows = resp.get("__body") if isinstance(resp.get("__body"), list) else None
+        if rows is None:
+            rows = resp.get("items")
         if isinstance(rows, dict):
-            rows = rows.get("attempts") or []
-        return list(rows) if isinstance(rows, list) else []
+            rows = rows.get("attempts")
+        if not isinstance(rows, list):
+            # 200 but no recognizable attempts field → cannot confirm the shape.
+            return [], False, status
+        return list(rows), True, status
 
     def _read_authorizations(self, page: Any) -> list[dict[str, Any]]:
-        """Read-only fetch of execution-authorization grants + pending decisions."""
+        rows, _ok, _status = self._read_authorizations_checked(page)
+        return rows
+
+    def _read_authorizations_checked(
+        self, page: Any
+    ) -> tuple[list[dict[str, Any]], bool, Any]:
+        """Read-only fetch of execution-authorization grants + pending decisions,
+        with read-success status (review C2)."""
         resp = self._authed_get(page, "/api/umh/execution/authorizations")
         if not isinstance(resp, dict):
-            return []
-        rows = resp.get("authorizations") or resp.get("__body") or resp.get("items") or []
-        return list(rows) if isinstance(rows, list) else []
+            return [], False, None
+        status = resp.get("__status")
+        if status != 200 or resp.get("__error"):
+            return [], False, status
+        rows = resp.get("authorizations")
+        if rows is None:
+            rows = resp.get("__body") if isinstance(resp.get("__body"), list) else None
+        if rows is None:
+            rows = resp.get("items")
+        if not isinstance(rows, list):
+            return [], False, status
+        return list(rows), True, status
 
     def _read_frontier(self, page: Any) -> dict[str, Any]:
         """Read-only fetch of the authorized execution frontier."""
@@ -1528,15 +1585,18 @@ class FieldCollector:
         page.reload(wait_until="load")
         page.wait_for_timeout(1500)
         self._conversation_id = ""
-        attempts = self._read_attempts(page)
+        attempts, read_ok, status = self._read_attempts_checked(page)
         dom_attempts = self._attempts_dom(page).count()
-        ok = len(attempts) == 0 and dom_attempts == 0
-        self.stage(
-            "w02_zero_attempts_fresh",
-            ok,
+        # A failed/errored read must NOT look like "zero attempts" (review C2):
+        # require the endpoint to have answered 200 AND returned an empty list.
+        ok = read_ok and len(attempts) == 0 and dom_attempts == 0
+        detail = (
             f"ledger_attempts={len(attempts)} dom_attempts={dom_attempts} "
-            f"cleared={len(cleared.get('localStorage_removed', []))}ls",
+            f"cleared={len(cleared.get('localStorage_removed', []))}ls"
         )
+        if not read_ok:
+            detail = f"attempts read FAILED (status={status}) — cannot confirm zero; " + detail
+        self.stage("w02_zero_attempts_fresh", ok, detail)
         self.shot(page, "w02_fresh")
 
     # ── w03 — Clerk auth ──────────────────────────────────────────────────────
@@ -1615,15 +1675,22 @@ class FieldCollector:
             in ("drafted", "classified", "planned", "ready_for_review", "")
             for p in plan_packets
         )
-        attempts = self._read_attempts(page)
+        attempts, read_ok, status = self._read_attempts_checked(page)
         dom_attempts = self._attempts_dom(page).count()
-        ok = len(plan_packets) >= 1 and non_exec and len(attempts) == 0 and dom_attempts == 0
-        self.stage(
-            "w08_tasks_non_executable",
-            ok,
-            f"plan_packets={len(plan_packets)} non_executable={non_exec} "
-            f"attempts={len(attempts)} dom_attempts={dom_attempts}",
+        ok = (
+            len(plan_packets) >= 1
+            and non_exec
+            and read_ok
+            and len(attempts) == 0
+            and dom_attempts == 0
         )
+        detail = (
+            f"plan_packets={len(plan_packets)} non_executable={non_exec} "
+            f"attempts={len(attempts)} dom_attempts={dom_attempts}"
+        )
+        if not read_ok:
+            detail = f"attempts read FAILED (status={status}) — cannot confirm zero; " + detail
+        self.stage("w08_tasks_non_executable", ok, detail)
         self.shot(page, "w08_tasks")
 
     # ── w09 — approve the PLAN via HUD ────────────────────────────────────────
@@ -1662,13 +1729,12 @@ class FieldCollector:
                 page.wait_for_timeout(400)
         except Exception:  # noqa: BLE001
             pass
-        attempts = self._read_attempts(page)
-        ok = banner_ok and len(attempts) == 0
-        self.stage(
-            "w10_approved_banner_zero_attempts",
-            ok,
-            f"banner={banner_ok} attempts_after_plan_approval={len(attempts)}",
-        )
+        attempts, read_ok, status = self._read_attempts_checked(page)
+        ok = banner_ok and read_ok and len(attempts) == 0
+        detail = f"banner={banner_ok} attempts_after_plan_approval={len(attempts)}"
+        if not read_ok:
+            detail = f"attempts read FAILED (status={status}) — cannot confirm zero; " + detail
+        self.stage("w10_approved_banner_zero_attempts", ok, detail)
         self.shot(page, "w10_banner")
         self.dom(page, "w10_banner")
 
@@ -1695,14 +1761,15 @@ class FieldCollector:
                 )
             except Exception:  # noqa: BLE001
                 authorize_in_card = 0
-        attempts = self._read_attempts(page)
-        ok = card_present and authorize_in_card == 0 and len(attempts) == 0
-        self.stage(
-            "w12_chat_surfaces_decision",
-            ok,
+        attempts, read_ok, status = self._read_attempts_checked(page)
+        ok = card_present and authorize_in_card == 0 and read_ok and len(attempts) == 0
+        detail = (
             f"exec_card={card_present} authorize_in_card={authorize_in_card} "
-            f"attempts={len(attempts)}",
+            f"attempts={len(attempts)}"
         )
+        if not read_ok:
+            detail = f"attempts read FAILED (status={status}) — cannot confirm zero; " + detail
+        self.stage("w12_chat_surfaces_decision", ok, detail)
         self.shot(page, "w12_exec_card")
         self.dom(page, "w12_exec_card")
 
@@ -1710,22 +1777,31 @@ class FieldCollector:
     def _w13_zero_attempts_pre_hud(self, page: Any, ctx: dict[str, Any]) -> None:
         """Before the operator authorizes in the HUD: no attempt exists, and an
         execution-authorization decision is PENDING (not yet approved)."""
-        attempts = self._read_attempts(page)
-        auths = self._read_authorizations(page)
+        attempts, attempts_ok, attempts_status = self._read_attempts_checked(page)
+        auths, auths_ok, auths_status = self._read_authorizations_checked(page)
         # A pending execution authorization: a decision surfaced but not granted.
         pending = [
             a for a in auths
             if str(a.get("status", "")).lower() in ("", "pending", "activating")
             and str(a.get("state", "")).lower() not in ("active",)
         ]
-        # Fallback: if the authorizations surface reports grants only, a pending
-        # decision is still visible in the HUD (checked strictly in w14).
-        ok = len(attempts) == 0
-        self.stage(
-            "w13_zero_attempts_pre_hud",
-            ok,
-            f"attempts={len(attempts)} authorizations={len(auths)} pending_like={len(pending)}",
+        # Zero attempts must be a CONFIRMED empty read (200), not a failed read
+        # returning [] (review C2). The authorizations read must also have
+        # succeeded so a broken surface can't masquerade as "no pending".
+        ok = attempts_ok and len(attempts) == 0 and auths_ok
+        detail = (
+            f"attempts={len(attempts)} authorizations={len(auths)} pending_like={len(pending)}"
         )
+        if not attempts_ok:
+            detail = (
+                f"attempts read FAILED (status={attempts_status}) — cannot confirm zero; " + detail
+            )
+        elif not auths_ok:
+            detail = (
+                f"authorizations read FAILED (status={auths_status}) — cannot confirm pending; "
+                + detail
+            )
+        self.stage("w13_zero_attempts_pre_hud", ok, detail)
         self.shot(page, "w13_pre_hud")
 
     # ── w14 — HUD execution-authorization row present ─────────────────────────
@@ -1822,7 +1898,9 @@ class FieldCollector:
         # The canonical execution surface must be mounted while attempts run.
         exec_surface = page.locator(W2_EXECUTION_ROOT).count() > 0
         # Exactly-2 concurrency: two distinct implementation tasks running at once.
-        ok = len(running_tasks) == 2 and dom_running >= 2 and exec_surface
+        # BOTH the ledger and the DOM must show EXACTLY two — dom_running == 2, not
+        # >= 2, so a 3-way over-dispatch cannot slip through the DOM half (review W7).
+        ok = len(running_tasks) == 2 and dom_running == 2 and exec_surface
         self.stage(
             "w16_ab_running_concurrent",
             ok,
@@ -1834,28 +1912,53 @@ class FieldCollector:
 
     # ── w17 — C blocked until A and B verified ────────────────────────────────
     def _w17_c_blocked(self, page: Any, ctx: dict[str, Any]) -> None:
-        """The integration task C must NOT run before A and B are verified — its
-        attempt is blocked, or C has no running/succeeded attempt yet."""
-        attempts = self._read_attempts(page)
+        """The integration task C must NOT run before A and B are verified. This
+        gate is bounded-wait (like w16/w18/w19, not a single snapshot — review
+        W6): it polls until a fan-in task appears-and-is-blocked, and enforces
+        that no task outside the two running implementation tasks has advanced to
+        running/succeeded. The blocked fan-in task is the SPECIFIC integration
+        task (neither of the two concurrent A/B tasks)."""
         running_tasks = set(ctx.get("concurrent_running_tasks", []))
-        # C is the task that is NEITHER of the two concurrent implementation tasks
-        # and is not the final verifier — identify the blocked one from the ledger.
-        blocked = [a for a in attempts if self._attempt_status(a) == "blocked"]
-        blocked_tasks = {self._attempt_task(a) for a in blocked}
-        # No task outside {A,B} is running or succeeded yet.
-        advanced_non_ab = [
-            a for a in attempts
-            if self._attempt_task(a) not in running_tasks
-            and self._attempt_status(a) in ("running", "succeeded")
-        ]
-        dom_blocked = self._attempts_dom(page, "blocked").count()
-        ok = (len(blocked_tasks) >= 1 or dom_blocked >= 1) and len(advanced_non_ab) == 0
+        deadline = time.time() + 120
+        blocked_tasks: set[str] = set()
+        dom_blocked = 0
+        advanced_non_ab: list[dict[str, Any]] = []
+        c_specific_blocked = False
+        while time.time() < deadline:
+            attempts = self._read_attempts(page)
+            blocked = [a for a in attempts if self._attempt_status(a) == "blocked"]
+            blocked_tasks = {self._attempt_task(a) for a in blocked if self._attempt_task(a)}
+            dom_blocked = self._attempts_dom(page, "blocked").count()
+            # The SPECIFIC integration task = a blocked task that is NOT one of the
+            # two concurrent implementation tasks (A, B).
+            c_tasks = {t for t in blocked_tasks if t not in running_tasks}
+            c_specific_blocked = len(c_tasks) >= 1
+            # No task outside {A,B} may be running or succeeded before A∧B verify.
+            advanced_non_ab = [
+                a for a in attempts
+                if self._attempt_task(a) not in running_tasks
+                and self._attempt_status(a) in ("running", "succeeded")
+            ]
+            # Terminal-good once we've positively seen a non-A/B task blocked with
+            # nothing advanced; keep waiting for the blocked attempt to materialize.
+            if (c_specific_blocked or dom_blocked >= 1) and not advanced_non_ab:
+                # Give a beat to catch a late over-dispatch before declaring OK.
+                if c_specific_blocked:
+                    break
+            if advanced_non_ab:
+                break  # a violation is terminal — report it immediately
+            time.sleep(3)
         ctx["blocked_tasks"] = sorted(blocked_tasks)
+        # Prefer the specific-C proof; fall back to "≥1 blocked" only if the task
+        # id can't be distinguished, but ALWAYS require nothing advanced past A,B.
+        ok = (c_specific_blocked or len(blocked_tasks) >= 1 or dom_blocked >= 1) and len(
+            advanced_non_ab
+        ) == 0
         self.stage(
             "w17_c_blocked",
             ok,
-            f"blocked_tasks={sorted(blocked_tasks)} dom_blocked={dom_blocked} "
-            f"advanced_non_ab={len(advanced_non_ab)}",
+            f"blocked_tasks={sorted(blocked_tasks)} c_specific_blocked={c_specific_blocked} "
+            f"dom_blocked={dom_blocked} advanced_non_ab={len(advanced_non_ab)}",
         )
         self.shot(page, "w17_c_blocked")
 
@@ -2243,8 +2346,6 @@ class FieldCollector:
             "failed_stage": next((s["stage"] for s in gating_stages if not s["ok"]), None),
             "generated_at": _utc_now(),
         }
-        # Strip any Authorization header value that may have slipped into network
-        # (defensive — we never capture headers, but redact by contract).
         (self.pass_dir / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
         (self.pass_dir / "network.jsonl").write_text(
             "\n".join(json.dumps(n) for n in self.network), encoding="utf-8"
@@ -2252,9 +2353,30 @@ class FieldCollector:
         (self.pass_dir / "console.jsonl").write_text(
             "\n".join(json.dumps(c) for c in self.console), encoding="utf-8"
         )
+        # Final secret-hygiene pass over EVERY collected JSON/JSONL before it is
+        # shipped — bodies/console are redacted at capture time, but this is the
+        # belt-and-suspenders sweep so nothing unredacted can ever be scp'd into
+        # the committed proof (review C1).
+        self._redact_pass_dir()
         self._status("passed" if passed else "failed")
         self._ship()
         return result
+
+    def _redact_pass_dir(self) -> None:
+        """Redact bearer/JWT/password patterns in-place across the pass dir's
+        JSON/JSONL evidence before it ships (mirrors wave1_field_dispatch
+        _redact_tree). Runs AFTER the evidence is written, BEFORE _ship."""
+        for p in list(self.pass_dir.rglob("*.json")) + list(self.pass_dir.rglob("*.jsonl")):
+            try:
+                text = p.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            redacted = _SECRET_REDACT_RE.sub("<redacted>", text)
+            if redacted != text:
+                try:
+                    p.write_text(redacted, encoding="utf-8")
+                except OSError as exc:
+                    print(f"  redact rewrite failed for {p.name}: {exc}", file=sys.stderr)
 
     def _ship(self) -> None:
         """scp -r the pass dir to the VPS proof dir (best effort)."""
