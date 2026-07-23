@@ -16,7 +16,7 @@
 // decide() re-reads server truth after the write. Same authed fetch pattern as
 // intentLoopStore (fetchApi → Clerk bearer).
 import { create } from 'zustand'
-import { fetchApi } from '../api/client'
+import { ApiError, fetchApi } from '../api/client'
 
 /** Lifecycle state emitted on assistant-message metadata AND on plan records.
  *  Server is the sole authority for transitions; the UI only reflects it. */
@@ -383,25 +383,56 @@ export const useObjectivePlanStore = create<ObjectivePlanState_>((set, get) => (
           }),
         },
       )
-      // NEVER trust the POST's echoed body as truth on its own — re-read the
-      // canonical record so the surface, detail, and versions all reflect the
-      // server's governed post-decision state.
-      const fresh = await get().fetchPlan(planRecordId)
-      await get().fetchSurface()
+      // The POST's echoed body is NEVER accepted as truth. Post-decision state
+      // is established EXCLUSIVELY by canonical rereads (fetchPlan + fetchSurface).
+      // If either canonical read fails, that failure is preserved and surfaced,
+      // and NO plan is returned — echoed POST data can never masquerade as truth.
+      let fresh: PlanDetail | null = null
+      let rereadError: string | null = null
+      try {
+        fresh = await get().fetchPlan(planRecordId)
+        // fetchPlan resolves to null on both "not found" AND a store-recorded
+        // read error; treat a null-with-recorded-error as a reread failure so a
+        // transient canonical read can never be silently downgraded to success.
+        // Capture it BEFORE fetchSurface, which clears store.error on success.
+        if (fresh === null && get().error) {
+          rereadError = get().error
+        }
+        await get().fetchSurface()
+        // A surface reread failure is equally disqualifying.
+        if (rereadError === null && get().error) {
+          rereadError = get().error
+        }
+      } catch (rereadErr) {
+        rereadError = rereadErr instanceof Error ? rereadErr.message : String(rereadErr)
+      }
+
+      if (rereadError !== null) {
+        // Canonical reread failed. Surface the READ failure — never overwrite it
+        // with result.error (the POST's own status) — and return no plan.
+        set({ decidingPlanId: null, error: rereadError })
+        return { ok: false, plan: undefined, error: rereadError, conflict: result.conflict }
+      }
+
       set({ decidingPlanId: null, error: result.error ?? null })
       return {
         ok: result.ok,
-        plan: fresh ?? result.plan,
+        // Canonical reread is the ONLY source of the returned plan. fresh may be
+        // null (e.g. the record moved out of the read scope) — we return that,
+        // never the echoed result.plan.
+        plan: fresh ?? undefined,
         error: result.error ?? null,
         conflict: result.conflict,
       }
     } catch (err) {
+      // A 409 version-conflict surfaces through fetchApi as an ApiError — classify
+      // it structurally by status, not by string-matching the message.
+      const isConflict = err instanceof ApiError && err.status === 409
       const message = err instanceof Error ? err.message : String(err)
-      // A 409 version-conflict surfaces through fetchApi as an ApiError; re-read
-      // truth so the operator sees the current server version, then report it.
+      // Re-read truth so the operator sees the current server version, then report.
       await get().fetchPlan(planRecordId).catch(() => null)
       set({ decidingPlanId: null, error: message })
-      return { ok: false, error: message, conflict: /conflict|409|version/i.test(message) }
+      return { ok: false, plan: undefined, error: message, conflict: isConflict }
     }
   },
 }))

@@ -17,6 +17,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from substrate.execution.intent.intent_spec import IntentSpec
 from substrate.execution.planning.records import GroundingSnapshot
@@ -49,8 +50,24 @@ _SUBSYSTEM_TOKEN_RE = re.compile(r"[a-z][a-z0-9_]{2,}")
 _MAX_DIR_ENTRIES = 40
 
 
+# This module lives at <repo>/substrate/execution/planning/grounding.py, so the
+# repository root is four parents up. That derivation is instance-independent:
+# it holds wherever the checkout is placed, with no hardcoded deployment path.
+_DERIVED_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
 def _repo_root() -> str:
-    return os.environ.get("UMH_ROOT", "/opt/OS")
+    """Resolve the repository root instance-independently.
+
+    Explicit ``UMH_ROOT`` wins (deployment override); otherwise the root is
+    derived from this module's own on-disk location — never a hardcoded
+    ``/opt/OS`` fallback. Works from any checkout path (worktree, container
+    mount, CI clone) with no environment set.
+    """
+    override = os.environ.get("UMH_ROOT")
+    if override and override.strip():
+        return override
+    return str(_DERIVED_REPO_ROOT)
 
 
 def _bounded_dir_probe(path: str) -> dict[str, object]:
