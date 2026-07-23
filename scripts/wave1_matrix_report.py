@@ -260,9 +260,11 @@ MATRIX: dict[str, tuple[str, list[str] | str, str]] = {
     "AO": (
         "Candidate mounted-state persistence: restart preserves state; no source mutation; writes under /state/umh",
         [f"{MC}::TestAO_MountedStateDeterministic"],
-        "FIELD_QUALIFIED (run ec2ee241c0f5): container ro-mount byte-identical "
-        "(container /app sha == host), restart preserves plan records, writes "
-        "under /state/umh, source tree clean — 3 consecutive Session-1 passes",
+        "FIELD_QUALIFIED (run 73632f24276e, 2026-07-23): container ro-mount "
+        "byte-identical (git-free file-hash match host<->container), restart "
+        "preserves 7/7 plan records, writes under /state/umh, source tree clean "
+        "— 3 consecutive Session-1 passes, reconciliation 0.990/0.987/0.991, "
+        "zero orphan 5xx",
     ),
 }
 
