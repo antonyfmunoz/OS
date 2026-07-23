@@ -285,21 +285,36 @@ def test_full_graph_rehearsal_no_quota(store, queue, tmp_path):
 
 
 def test_failure_qualification_rehearsal(store, queue, tmp_path):
-    """tools-revoked-A analogue: A genuinely produces no commit → verification
-    refuses → A fails → C stays blocked (no false Proof). Proves the failure
-    path the inject-failure pass exercises."""
+    """tools-revoked-A: the REAL marker path drives the failure. The dispatcher's
+    inject-failure marker → field_failure_policy revokes Edit/Write on A's first
+    attempt → the worker genuinely produces no commit → verification refuses → A
+    fails → C stays blocked (no false Proof). Proves the marker is CONSUMED
+    (review W1), not a dead write."""
+    from substrate.execution.attempts.field_failure_policy import disallowed_tools_for
+
     _add_approved_packet(queue, "A")
     _add_approved_packet(queue, "B")
     _add_approved_packet(queue, "C", deps=["A", "B"])
     grant = _grant(["A", "B", "C"])
+
+    # Arm the marker exactly as `wave2_field_dispatch.py inject-failure` does.
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    (targets / ".inject_failure").write_text("tools-revoked-a", encoding="utf-8")
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)
     poller = _mk_poller(store, spool, sched, grant, _StubProofRuntime())
 
     _pass(sched, grant)
-    # A fails (no artifacts), B succeeds.
-    _stub_worker_drain(spool, fail_tasks={"A"})
+    # The stub worker consults the SAME policy the real dispatch path uses: a
+    # task whose first attempt had tools revoked genuinely cannot commit.
+    fail_tasks = {
+        env_task for env_task in ("A", "B", "C")
+        if disallowed_tools_for(targets_dir=str(targets), task_id=env_task, attempt_number=1)
+    }
+    assert fail_tasks == {"A"}, "the marker must revoke exactly A's first attempt"
+    _stub_worker_drain(spool, fail_tasks=fail_tasks)
     poller.run_pass()
 
     a = next(a for a in store.attempts_for_task("A"))

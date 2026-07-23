@@ -107,7 +107,29 @@ def _operator_network() -> str:
     )
 
 
-_OPERATOR_DOCKER_NETWORK = _operator_network()
+# Network + origin are module globals used by the inherited wave1 call sites as
+# bare names. They are resolved LAZILY at command entry (see `_resolve_env()`
+# called from `main()`), NOT at import — so importing this module for a helper
+# (e.g. the self-check exercising the secret helpers) never shells out to
+# `docker inspect`/`tailscale status` or `raise SystemExit` at import time
+# (review W8). They start as None; any real command resolves them first.
+_OPERATOR_DOCKER_NETWORK: str | None = None
+_ORIGIN: str | None = None
+
+
+def _resolve_env() -> None:
+    """Resolve the network + candidate origin globals on first real command.
+
+    Idempotent. Raises SystemExit (via the resolvers) only when a real command
+    actually needs them and they cannot be resolved — never at import.
+    """
+    global _OPERATOR_DOCKER_NETWORK, _ORIGIN
+    if _OPERATOR_DOCKER_NETWORK is None:
+        _OPERATOR_DOCKER_NETWORK = _operator_network()
+    if _ORIGIN is None:
+        _ORIGIN = _candidate_origin()
+
+
 _CANDIDATE_API_PORT = 8091  # inside the container
 _CANDIDATE_API_HOST_PORT = 8291  # 127.0.0.1:8191 -> candidate api (recon reads)
 _CANDIDATE_NGINX_HOST_PORT = 8290  # 127.0.0.1:8190 -> candidate nginx
@@ -147,10 +169,9 @@ def _candidate_origin() -> str:
 
 def _origin_host() -> str:
     """Bare hostname of the candidate origin (no scheme, no port) — for `tailscale cert`."""
+    _resolve_env()
     return _ORIGIN.removeprefix("https://").removeprefix("http://").split(":", 1)[0]
 
-
-_ORIGIN = _candidate_origin()
 
 # ── Wave 2: fixture targets + run-scoped dispatch secret ─────────────────────
 # The spool + host-runner infrastructure lives here.
@@ -196,16 +217,41 @@ def _mint_run_secret(runner: "Runner", sha: str) -> Path:
         return path
     path.parent.mkdir(parents=True, exist_ok=True)
     if not path.exists():
-        path.write_text(_secrets.token_hex(32), encoding="utf-8")
+        # Create with 0600 ATOMICALLY (O_CREAT|O_EXCL|mode) so the secret is
+        # never world-readable for even a TOCTOU window (write-then-chmod left a
+        # gap at the process umask — review W3). If creation cannot be locked
+        # down, FAIL CLOSED: a run secret we cannot protect must not exist (W2).
         try:
-            os.chmod(path, 0o600)
-        except OSError:
-            pass
+            fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            return path  # concurrent first-write won the race — reuse it
+        except OSError as exc:
+            raise RuntimeError(f"cannot mint run secret at {path}: {exc}") from exc
+        try:
+            os.write(fd, _secrets.token_hex(32).encode("ascii"))
+        finally:
+            os.close(fd)
+        # Defense in depth: verify the mode actually took; fail closed if not.
+        mode = os.stat(path).st_mode & 0o777
+        if mode != 0o600:
+            try:
+                os.chmod(path, 0o600)
+            except OSError as exc:
+                path.unlink(missing_ok=True)
+                raise RuntimeError(
+                    f"run secret {path} could not be locked to 0600 (mode={oct(mode)}): {exc}"
+                ) from exc
     return path
 
 
 def _shred_run_secret(runner: "Runner", sha: str) -> bool:
-    """Destroy the run-scoped dispatch secret at teardown. Overwrite then unlink."""
+    """Destroy the run-scoped dispatch secret at teardown.
+
+    Overwrites then unlinks. NOTE: overwrite-in-place is best-effort on
+    journaling/CoW/SSD filesystems and is NOT a cryptographic-erase guarantee
+    (review W4) — the unlink is what actually removes the run-scoped, low-value
+    secret from the namespace. The value never left this host or entered any log.
+    """
     path = _run_secret_path(sha)
     if runner.dry_run:
         print(f"[dry-run] shred run secret {path}")
@@ -861,13 +907,19 @@ def _ensure_mesh_secrets() -> None:
         print(f"[warn] mesh secret resolution failed: {exc}")
 
 
-def _mesh_read(runner: Runner, command: str) -> dict[str, Any]:
+def _mesh_read(runner: Runner, command: str, *, max_len: int = 400) -> dict[str, Any]:
     """Read-only shell command over the governed mesh.
 
     The NODE treats the shell capability as write-class regardless of the
     caller's claimed risk_class (fail-closed — a client claim is not
     trustworthy), so every shell dispatch carries a SIGNED verdict even for
-    read-only commands."""
+    read-only commands.
+
+    ``max_len`` caps the returned stdout AFTER redaction. The 400-char default is
+    right for short diagnostic reads, but a ``status.json`` read needs the FULL
+    document or ``json.loads`` fails on truncated JSON and the poll never sees a
+    terminal state (review W9). Callers reading structured JSON pass a larger cap.
+    """
     if runner.dry_run:
         print(
             f"[dry-run] mesh_dispatch(shell, signed verdict) node={_MESH_NODE_ID} cmd={command!r}"
@@ -886,7 +938,7 @@ def _mesh_read(runner: Runner, command: str) -> dict[str, Any]:
     rd = result.get("result_data", {}) if isinstance(result, dict) else {}
     return {
         "ok": bool(result.get("ok")),
-        "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stdout", ""))[:400]),
+        "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stdout", ""))[:max_len]),
     }
 
 
@@ -935,22 +987,45 @@ def _build_start_command(
 
 
 def _poll_status(
-    runner: Runner, run_id: str, pass_num: int, timeout_min: int = 30
+    runner: Runner, run_id: str, pass_num: int, timeout_min: int = 30,
+    max_mesh_failures: int = 5,
 ) -> dict[str, Any]:
-    """Read-only 30s polls of the executor status.json until terminal."""
+    """Read-only 30s polls of the executor status.json until terminal.
+
+    Reads the FULL status.json (large max_len — a truncated read never parses,
+    review W9). A run of consecutive mesh-read FAILURES (dispatch down, node
+    offline) fails fast after ``max_mesh_failures`` instead of silently burning
+    the entire poll budget (review W9). A parse failure while the mesh is HEALTHY
+    (status.json not yet written) is normal and keeps polling.
+    """
     status_path = f"{_BEAST_EVIDENCE_DIR}\\{run_id}\\pass{pass_num}\\status.json"
     read_cmd = f"type {status_path}"
     deadline = time.time() + timeout_min * 60
     last: dict[str, Any] = {}
+    consecutive_mesh_failures = 0
     while time.time() < deadline:
-        res = _mesh_read(runner, read_cmd)
+        # status.json is structured JSON — read it untruncated (64 KiB is ample).
+        res = _mesh_read(runner, read_cmd, max_len=65536)
         if runner.dry_run:
             print(f"[dry-run] poll (every 30s, up to {timeout_min}m): mesh read {status_path}")
             return {"dry_run": True, "status_path": status_path}
+        # A mesh dispatch FAILURE (ok=False) is distinct from "status.json not
+        # yet written" (ok=True, empty/partial). Fail fast on a run of dispatch
+        # failures rather than spinning the full budget.
+        if not res.get("ok", False):
+            consecutive_mesh_failures += 1
+            if consecutive_mesh_failures >= max_mesh_failures:
+                return {"mesh_unreachable": True,
+                        "consecutive_mesh_failures": consecutive_mesh_failures,
+                        "status_path": status_path}
+            time.sleep(30)
+            continue
+        consecutive_mesh_failures = 0
         raw = res.get("stdout", "")
         try:
             last = json.loads(raw)
         except (json.JSONDecodeError, TypeError):
+            # mesh healthy but status.json absent/partial — keep polling.
             last = {"raw": raw[:200]}
         if last.get("state") in ("passed", "failed"):
             return last
@@ -1545,8 +1620,11 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
             f"[dry-run] start host attempt runner (detached): spool={spool_root} "
             f"secret-file={secret_path} (value never printed) max_iterations={max_iterations}"
         )
+        # Dry-run assembles the command only — it does NOT run the bwrap preflight,
+        # so it must NEVER claim isolation was confirmed (review C3). isolation_ok
+        # is None ("not verified in dry-run"), never True. A real run resolves it.
         return {"started": True, "dry_run": True, "spool_root": str(spool_root),
-                "isolation_ok": True}
+                "isolation_ok": None}
 
     # Launch detached; the runner sources the secret from the 0600 file into its
     # own env var so the value never appears in this process's argv.
@@ -1599,8 +1677,12 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     genuinely fails → C stays blocked → no false Proof → retry from the HUD mints
     A2 without revocation → the graph continues). The fixture itself is
     identical; the failure is a real capability revocation, not a poisoned app.
-    The variant is recorded in the run's targets dir for the control plane to
-    honor at placement time.
+
+    The variant is written to ``<targets>/.inject_failure`` and read by
+    ``substrate.execution.attempts.field_failure_policy.disallowed_tools_for``
+    when the field-run dispatch path builds each envelope — so the marker is
+    ACTUALLY consumed (it revokes Edit/Write on A's first attempt), never a dead
+    write. A unit test pins that the marker changes the computed policy.
     """
     marker = _targets_dir(sha, run_id) / ".inject_failure"
     if runner.dry_run:
@@ -1652,6 +1734,10 @@ def main(argv: list[str] | None = None) -> int:
     runner = Runner(dry_run=args.dry_run)
     sha = _candidate_sha(args.sha)
     run_id = args.run_id or _run_id_default()
+
+    # Resolve the network + origin globals now (a real command needs them); this
+    # is where a resolution failure legitimately fails loudly — never at import.
+    _resolve_env()
 
     if args.cmd == "preflight":
         _ensure_mesh_secrets()
