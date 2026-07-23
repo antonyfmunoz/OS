@@ -37,6 +37,8 @@ SPINE = "tests/test_wave2_spine_authorization.py"
 ISO = "tests/test_wave2_worker_isolation_spool.py"
 VERIFY = "tests/test_wave2_verification_proof.py"
 ROUTES = "tests/test_wave2_execution_routes.py"
+POLLER = "tests/test_wave2_control_plane_poller.py"
+REHEARSAL = "tests/test_wave2_harness_rehearsal.py"
 COORD = "tests/test_execution_coordinator.py"
 SPINE1 = "tests/test_single_spine_architecture.py"
 
@@ -174,6 +176,22 @@ MATRIX: dict[str, tuple[str, object, str]] = {
            [f"{AUTH}::test_execution_request_surfaces_decision_and_starts_zero_attempts"], ""),
     "K3": ("attempts/* wires no WorkcellDaemon supervisor; events only on the shared spine",
            [f"{GATES}::test_attempts_do_not_wire_workcell_daemon_supervisor", f"{GATES}::test_attempts_events_use_only_shared_event_spine"], ""),
+
+    # ── Harness mechanics (deterministic — no quota, proves harness runnable) ─
+    "HM1": ("Control-plane poller drives dispatched→running→verifying→succeeded|failed; "
+            "never trusts worker self-report; verifier≠worker; idempotent on redelivery",
+            [f"{POLLER}::test_dispatched_result_drives_to_succeeded_with_proof",
+             f"{POLLER}::test_failed_verification_never_produces_success_proof",
+             f"{POLLER}::test_redelivered_result_is_idempotent"], ""),
+    "HM2": ("NO-QUOTA end-to-end rehearsal: REAL scheduler+spool+poller + stub worker "
+            "drive full A/B→C→D — exactly-2 concurrency, C blocked until A∧B proof, "
+            "fan-in, verifier≠worker (HARNESS_REHEARSAL_ONLY)",
+            [f"{REHEARSAL}::test_full_graph_rehearsal_no_quota",
+             f"{REHEARSAL}::test_signature_rejection_quarantines_bad_dispatch",
+             f"{REHEARSAL}::test_rehearsal_is_not_real_qualification"], ""),
+    "HM3": ("Failure-qualification rehearsal: A genuinely produces no commit → verification "
+            "refuses → A fails (no false Proof) → C stays blocked",
+            [f"{REHEARSAL}::test_failure_qualification_rehearsal"], ""),
 
     # ── Field-qualified rows (Session 1) ────────────────────────────────────
     "FA": ("FIELD: two independent workers (A backend, B frontend) run concurrently in isolated worktrees",
