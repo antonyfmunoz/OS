@@ -1676,7 +1676,7 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
     inner_cmd = (
         f"env UMH_W2_DISPATCH_SECRET=$(cat {shlex.quote(str(secret_path))}) "
         f"UMH_STATE_DIR={shlex.quote(str(host_state_dir))} "
-        f"-- {shlex.quote(sys.executable)} "
+        f"{shlex.quote(sys.executable)} "
         f"{shlex.quote(str(_WORKTREE / 'scripts' / 'wave2_attempt_runner.py'))} "
         f"--spool-root {shlex.quote(str(spool_root))} "
         f"--fixture-repo {shlex.quote(str(fixture_repo))} "
