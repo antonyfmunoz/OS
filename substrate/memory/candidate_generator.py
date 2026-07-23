@@ -63,9 +63,18 @@ class MemoryCandidateGenerator:
     The generator does NOT write to canonical memory.
     """
 
-    def __init__(self, store_dir: str | Path = "data/umh/memory_candidates"):
-        self.store_dir = Path(store_dir)
-        self.store_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, store_dir: str | Path | None = None):
+        # Default to the writable runtime-state root (honors UMH_STATE_DIR) so
+        # the store never lands on a repo-relative path — which resolves under a
+        # read-only /app mount in the candidate container and crashes boot
+        # (OSError: Read-only file system). Gate 15 runtime-state boundary.
+        if store_dir is None:
+            from substrate.state.runtime_paths import runtime_state_dir
+
+            self.store_dir = runtime_state_dir("memory_candidates")
+        else:
+            self.store_dir = Path(store_dir)
+            self.store_dir.mkdir(parents=True, exist_ok=True)
         self.candidates_path = self.store_dir / "candidates.jsonl"
 
     def _append_jsonl(self, record: dict[str, Any]) -> None:
