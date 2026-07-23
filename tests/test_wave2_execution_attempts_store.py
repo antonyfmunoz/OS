@@ -25,6 +25,17 @@ from substrate.execution.attempts.records import (
 from substrate.execution.attempts.store import AttemptStoreConflict, ExecutionAttemptStore
 
 
+# These tests exercise LIFECYCLE MECHANICS (CAS, legal transitions, poller
+# routing) — not Proof durability, which is covered end-to-end by
+# tests/test_wave2_verification_proof.py and the harness rehearsal. They use
+# synthetic proof ids, so the durable-Proof guard is explicitly relaxed HERE ONLY.
+# Never set this in field code: it is the check that stops a dangling proof_id
+# from completing an attempt (finding C1).
+@pytest.fixture(autouse=True)
+def _allow_synthetic_proof_ids(monkeypatch):
+    monkeypatch.setenv("UMH_W2_ALLOW_NONDURABLE_PROOF", "1")
+
+
 @pytest.fixture()
 def store(tmp_path):
     return ExecutionAttemptStore(

@@ -21,7 +21,21 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import uuid4
 
+try:  # fcntl is POSIX-only; the store degrades to unlocked appends elsewhere.
+    import fcntl
+except ImportError:  # pragma: no cover - non-POSIX
+    fcntl = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
+
+
+class ProofPersistenceError(RuntimeError):
+    """A Proof could not be written durably.
+
+    Never swallow this: an attempt may only become SUCCEEDED against a Proof that
+    is durably persisted and rereadable. A silent persistence failure is exactly
+    what produced dangling proof_ids (finding C1).
+    """
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -217,6 +231,59 @@ class ProofRuntime:
     def get(self, proof_id: str) -> ProofPackage | None:
         return self._packages.get(proof_id)
 
+    def reread_durable(self, proof_id: str) -> ProofPackage | None:
+        """Reread one Proof FROM DISK, bypassing the in-memory map.
+
+        This is the check an attempt's SUCCEEDED transition must make: a
+        ``proof_id`` that exists only in this process's memory is not a Proof
+        (finding C1). Returns None when the id is absent from the durable store,
+        which is what blocks the transition.
+        """
+        if not proof_id or not os.path.exists(self._store_path):
+            return None
+        try:
+            with open(self._store_path, "r") as f:
+                if fcntl is not None:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                try:
+                    lines = f.readlines()
+                finally:
+                    if fcntl is not None:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        except OSError as exc:
+            logger.debug("proof reread failed for %s: %s", proof_id, exc)
+            return None
+
+        # Last write wins: a re-persisted proof supersedes an earlier record.
+        for line in reversed(lines):
+            line = line.strip()
+            if not line or proof_id not in line:
+                continue
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue  # corrupt line — keep scanning, never trust a partial
+            if d.get("proof_id") != proof_id:
+                continue
+            try:
+                return ProofPackage(
+                    proof_id=d.get("proof_id", ""),
+                    work_id=d.get("work_id", ""),
+                    before_state=d.get("before_state", {}),
+                    action=d.get("action", {}),
+                    after_state=d.get("after_state", {}),
+                    evidence=[ProofEvidence(**e) for e in d.get("evidence", [])],
+                    timestamp=d.get("timestamp", 0.0),
+                    operator=d.get("operator", "operator"),
+                    governance_proofs=d.get("governance_proofs", []),
+                    execution_duration_ms=d.get("execution_duration_ms", 0.0),
+                    outcome=d.get("outcome", ""),
+                )
+            except (TypeError, ValueError) as exc:
+                logger.debug("corrupt proof record %s: %s", proof_id, exc)
+                return None
+        return None
+
     def recent(self, limit: int = 20) -> list[ProofPackage]:
         result: list[ProofPackage] = []
         for proof_id in reversed(self._history):
@@ -265,12 +332,32 @@ class ProofRuntime:
             logger.debug("cannot read proof packages: %s", exc)
 
     def _persist_package(self, package: ProofPackage) -> None:
-        os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
+        """Append one proof durably under an interprocess lock.
+
+        A Proof is the artifact a Task's SUCCEEDED transition depends on, so a
+        persistence failure MUST be loud: swallowing it produced proof_ids that
+        referenced nothing on disk (finding C1). Raises ProofPersistenceError.
+
+        The exclusive fcntl lock makes concurrent writers (two workers finishing
+        at once) safe — an interleaved partial line would corrupt the reread.
+        """
         try:
+            os.makedirs(os.path.dirname(self._store_path), exist_ok=True)
+            line = json.dumps(package.to_dict(), default=str) + "\n"
             with open(self._store_path, "a") as f:
-                f.write(json.dumps(package.to_dict(), default=str) + "\n")
+                if fcntl is not None:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    f.write(line)
+                    f.flush()
+                    os.fsync(f.fileno())
+                finally:
+                    if fcntl is not None:
+                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)
         except OSError as exc:
-            logger.debug("cannot persist proof package: %s", exc)
+            raise ProofPersistenceError(
+                f"cannot persist proof {package.proof_id} to {self._store_path}: {exc}"
+            ) from exc
 
     # ── Internal helpers ─────────────────────────────────────────
 

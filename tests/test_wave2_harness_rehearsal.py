@@ -20,6 +20,7 @@ candidate deploy, no visible Chrome). It proves the harness itself works.
 
 from __future__ import annotations
 
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -66,14 +67,22 @@ def queue(tmp_path, monkeypatch):
 
 
 def _add_approved_packet(queue, pid, deps=None):
-    pkt = WorkPacket(title=pid, user_intent=f"do {pid}", dependencies=deps or [],
-                     approval_gates=["execution_authorization_required"],
-                     work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"})
+    pkt = WorkPacket(
+        title=pid,
+        user_intent=f"do {pid}",
+        dependencies=deps or [],
+        approval_gates=["execution_authorization_required"],
+        work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+    )
     pkt.packet_id = pid
     queue.ingest_work_packet(pkt)
-    for s in (PacketLifecycleStatus.CLASSIFIED, PacketLifecycleStatus.PLANNED,
-              PacketLifecycleStatus.READY_FOR_REVIEW, PacketLifecycleStatus.APPROVAL_PENDING,
-              PacketLifecycleStatus.APPROVED):
+    for s in (
+        PacketLifecycleStatus.CLASSIFIED,
+        PacketLifecycleStatus.PLANNED,
+        PacketLifecycleStatus.READY_FOR_REVIEW,
+        PacketLifecycleStatus.APPROVAL_PENDING,
+        PacketLifecycleStatus.APPROVED,
+    ):
         queue.update_packet_status(pid, s, "test")
     return pkt
 
@@ -81,12 +90,23 @@ def _add_approved_packet(queue, pid, deps=None):
 def _grant(frontier):
     return SimpleNamespace(
         decision_ref="objective_plan:opr-1:execution_authorization:v1",
-        tenant_id="tenant-a", plan_record_id="opr-1", plan_version=1, objective_id="goal-1",
-        correlation_id="conv-1", status="active", task_frontier=frontier,
-        max_attempts_per_task=2, environment_classes=["git_worktree"],
-        credential_scope_refs=[], risk_ceiling="high", authorized_scope_hash="h",
-        verification_obligations=["verify"], cost_limit_usd=0.0, cost_enforceable=False,
-        principal_id="u", membership_id="m",
+        tenant_id="tenant-a",
+        plan_record_id="opr-1",
+        plan_version=1,
+        objective_id="goal-1",
+        correlation_id="conv-1",
+        status="active",
+        task_frontier=frontier,
+        max_attempts_per_task=2,
+        environment_classes=["git_worktree"],
+        credential_scope_refs=[],
+        risk_ceiling="high",
+        authorized_scope_hash="h",
+        verification_obligations=["verify"],
+        cost_limit_usd=0.0,
+        cost_enforceable=False,
+        principal_id="u",
+        membership_id="m",
     )
 
 
@@ -97,8 +117,12 @@ class _FakeSandbox:
 
     def create_sandbox(self, candidate_id, candidate_slug, agent_type="developer_agent"):
         self._i += 1
-        return SimpleNamespace(worktree_path=f"/tmp/wt-{self._i}", branch_name=f"br-{self._i}",
-                               base_commit="base", sandbox_id=f"sb-{self._i}")
+        return SimpleNamespace(
+            worktree_path=f"/tmp/wt-{self._i}",
+            branch_name=f"br-{self._i}",
+            base_commit="base",
+            sandbox_id=f"sb-{self._i}",
+        )
 
     def cleanup_sandbox(self, sandbox_id):
         pass
@@ -109,9 +133,16 @@ def _role(_pkt):
 
 
 def _workers():
-    return [{"worker_identity": "cc@vps", "agent_type": "builder",
-             "capabilities": ["code_write"], "reliability": 0.9,
-             "model_profile": {"model": "claude-opus"}, "harness_profile": {"harness": "cc"}}]
+    return [
+        {
+            "worker_identity": "cc@vps",
+            "agent_type": "builder",
+            "capabilities": ["code_write"],
+            "reliability": 0.9,
+            "model_profile": {"model": "claude-opus"},
+            "harness_profile": {"harness": "cc"},
+        }
+    ]
 
 
 # ── the SIGNED SPOOL dispatch_fn (real transport, exactly like the runner path) ─
@@ -120,13 +151,20 @@ def _spool_dispatch_fn(spool: DispatchSpool):
 
     def dispatch(*, attempt, assignment, lease, package, grant):
         seq["n"] += 1
-        spool.enqueue(DispatchEnvelope(
-            dispatch_id=f"d-{attempt.attempt_id}",
-            attempt_id=attempt.attempt_id, task_id=attempt.task_id,
-            authorization_ref=grant.decision_ref, package_hash=package.package_hash,
-            lease_id=lease.lease_id, worktree_path=lease.worktree_path,
-            nonce=f"n{seq['n']}", sequence=seq["n"], payload_hash=package.package_hash,
-        ))
+        spool.enqueue(
+            DispatchEnvelope(
+                dispatch_id=f"d-{attempt.attempt_id}",
+                attempt_id=attempt.attempt_id,
+                task_id=attempt.task_id,
+                authorization_ref=grant.decision_ref,
+                package_hash=package.package_hash,
+                lease_id=lease.lease_id,
+                worktree_path=lease.worktree_path,
+                nonce=f"n{seq['n']}",
+                sequence=seq["n"],
+                payload_hash=package.package_hash,
+            )
+        )
 
     return dispatch
 
@@ -144,32 +182,46 @@ def _stub_worker_drain(spool: DispatchSpool, *, fail_tasks: set[str] | None = No
             return processed
         token, env = claimed
         failing = env.task_id in fail_tasks
-        spool.complete(token, {
-            "dispatch_id": env.dispatch_id, "attempt_id": env.attempt_id,
-            "task_id": env.task_id, "package_hash": env.package_hash,
-            "worker_result": {
-                "ok": not failing,
-                "status": "failed" if failing else "succeeded",
-                "files_changed": [] if failing else [f"app/{env.task_id}.py"],
-                "commits": [] if failing else [f"c-{env.task_id} implement"],
-                "isolated": True,
+        spool.complete(
+            token,
+            {
+                "dispatch_id": env.dispatch_id,
+                "attempt_id": env.attempt_id,
+                "task_id": env.task_id,
+                "package_hash": env.package_hash,
+                "worker_result": {
+                    "ok": not failing,
+                    "status": "failed" if failing else "succeeded",
+                    "files_changed": [] if failing else [f"app/{env.task_id}.py"],
+                    "commits": [] if failing else [f"c-{env.task_id} implement"],
+                    "isolated": True,
+                },
             },
-        })
+        )
         processed += 1
 
 
 # ── a deterministic verifier (verifier ≠ worker, requires real artifacts) ────
-class _StubProofRuntime:
-    def __init__(self):
-        self._n = 0
+def _StubProofRuntime(tmp_path=None):
+    """The REAL canonical ProofRuntime on a temp store.
 
-    def record_proof(self, **kw):
-        self._n += 1
-        return SimpleNamespace(proof_id=f"proof-{self._n}")
+    Formerly a stub returning `proof-N` ids that were never persisted — the
+    rehearsal therefore "verified" attempts against Proofs that did not exist
+    (finding C1). The rehearsal must exercise the durable path, since that is
+    exactly what the field qualification depends on.
+    """
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    # NO store_path override: resolve through UMH_STATE_DIR (set by the `queue`
+    # fixture) so this runtime and the lifecycle guard's own reread hit the SAME
+    # file. Pointing them at different stores would make the guard reject every
+    # Proof the rehearsal mints.
+    return ProofRuntime()
 
 
 def _verify_fn(**kw):
     from substrate.execution.attempts.verification import verify_attempt
+
     return verify_attempt(**kw)
 
 
@@ -180,9 +232,15 @@ def _mk_scheduler(store, queue, tmp_path, spool):
 
     lm = LeaseManager(store, _FakeSandbox(tmp_path), mutation_runner=_runner())
     return AttemptScheduler(
-        store, work_queue=queue, placement_fn=place_attempt, lease_manager=lm,
-        compile_fn=compile_attempt_package, dispatch_fn=_spool_dispatch_fn(spool),
-        max_concurrency=2, mutation_runner=_runner(), lock_dir=str(tmp_path / "locks"),
+        store,
+        work_queue=queue,
+        placement_fn=place_attempt,
+        lease_manager=lm,
+        compile_fn=compile_attempt_package,
+        dispatch_fn=_spool_dispatch_fn(spool),
+        max_concurrency=2,
+        mutation_runner=_runner(),
+        lock_dir=str(tmp_path / "locks"),
     )
 
 
@@ -194,10 +252,14 @@ def _mk_poller(store, spool, scheduler, grant, proof_runtime):
         return None
 
     return ControlPlanePoller(
-        store=store, spool=spool, scheduler=scheduler, verify_fn=_verify_fn,
+        store=store,
+        spool=spool,
+        scheduler=scheduler,
+        verify_fn=_verify_fn,
         proof_runtime=proof_runtime,
         scheduler_pass_kwargs=dict(
-            grant=grant, role_resolver=_role,
+            grant=grant,
+            role_resolver=_role,
             verifier_role_resolver=lambda p: "role-verify-op",
             worker_candidates=_workers(),
             compute_nodes=[{"node_id": "vps", "headroom": 4}],
@@ -207,8 +269,11 @@ def _mk_poller(store, spool, scheduler, grant, proof_runtime):
 
 def _pass(sched, grant):
     return sched.run_scheduler_pass(
-        grant, role_resolver=_role, verifier_role_resolver=lambda p: "role-verify-op",
-        worker_candidates=_workers(), compute_nodes=[{"node_id": "vps", "headroom": 4}],
+        grant,
+        role_resolver=_role,
+        verifier_role_resolver=lambda p: "role-verify-op",
+        worker_candidates=_workers(),
+        compute_nodes=[{"node_id": "vps", "headroom": 4}],
     )
 
 
@@ -216,8 +281,11 @@ def _pass(sched, grant):
 def test_signature_rejection_quarantines_bad_dispatch(tmp_path):
     root = str(tmp_path / "spool")
     producer = DispatchSpool(root, _RUN_SECRET)
-    producer.enqueue(DispatchEnvelope(dispatch_id="d1", attempt_id="ea-1", sequence=1,
-                                      worktree_path=str(tmp_path)))
+    producer.enqueue(
+        DispatchEnvelope(
+            dispatch_id="d1", attempt_id="ea-1", sequence=1, worktree_path=str(tmp_path)
+        )
+    )
     # A worker (or runner) with the WRONG secret cannot claim it.
     wrong = DispatchSpool(root, "wrong-secret")
     assert wrong.claim_next() is None
@@ -235,7 +303,7 @@ def test_full_graph_rehearsal_no_quota(store, queue, tmp_path):
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)
-    proof_runtime = _StubProofRuntime()
+    proof_runtime = _StubProofRuntime(tmp_path)
     poller = _mk_poller(store, spool, sched, grant, proof_runtime)
 
     # Round 1: scheduler admits A + B (exactly 2 concurrency); C, D blocked by deps.
@@ -304,13 +372,14 @@ def test_failure_qualification_rehearsal(store, queue, tmp_path):
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)
-    poller = _mk_poller(store, spool, sched, grant, _StubProofRuntime())
+    poller = _mk_poller(store, spool, sched, grant, _StubProofRuntime(tmp_path))
 
     _pass(sched, grant)
     # The stub worker consults the SAME policy the real dispatch path uses: a
     # task whose first attempt had tools revoked genuinely cannot commit.
     fail_tasks = {
-        env_task for env_task in ("A", "B", "C")
+        env_task
+        for env_task in ("A", "B", "C")
         if disallowed_tools_for(targets_dir=str(targets), task_id=env_task, attempt_number=1)
     }
     assert fail_tasks == {"A"}, "the marker must revoke exactly A's first attempt"
@@ -323,8 +392,9 @@ def test_failure_qualification_rehearsal(store, queue, tmp_path):
     assert b.status == _S.SUCCEEDED.value and b.proof_id, "B still succeeded"
     # C must NOT be running/succeeded — a predecessor lacks proof.
     c = [x for x in store.active_attempts() if x.task_id == "C"]
-    assert not any(x.status in (_S.RUNNING.value, _S.SUCCEEDED.value) for x in c), \
+    assert not any(x.status in (_S.RUNNING.value, _S.SUCCEEDED.value) for x in c), (
         "C stays blocked while A has no AttemptProof"
+    )
 
 
 def test_rehearsal_is_not_real_qualification():

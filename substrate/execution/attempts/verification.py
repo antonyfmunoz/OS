@@ -157,6 +157,22 @@ def verify_attempt(
             checks=verdict.checks,
             verifier_identity=verifier_identity,
             worker_result=worker_result,
+            # Bind the Proof to EXACTLY this attempt (order R2): a Proof must
+            # identify its tenant, plan version, task, attempt, assignment,
+            # verifier and package hash so it can never be credited to another.
+            lineage={
+                "tenant_id": getattr(attempt, "tenant_id", ""),
+                "plan_record_id": getattr(attempt, "plan_record_id", ""),
+                "plan_version": getattr(attempt, "plan_version", 0),
+                "task_id": getattr(attempt, "task_id", ""),
+                "attempt_id": getattr(attempt, "attempt_id", ""),
+                "attempt_number": getattr(attempt, "attempt_number", 0),
+                "assignment_id": getattr(attempt, "assignment_id", ""),
+                "lease_id": getattr(attempt, "lease_id", ""),
+                "verifier_role_id": verifier_role_id,
+                "worker_identity": worker_identity,
+                "package_hash": package_hash,
+            },
         )
     return verdict
 
@@ -197,6 +213,10 @@ def verify_plan_execution(
     return verdict
 
 
+class ProofDurabilityError(RuntimeError):
+    """A Proof could not be minted durably, so no transition may rely on it."""
+
+
 def _persist_proof(
     proof_runtime: Any,
     *,
@@ -205,10 +225,16 @@ def _persist_proof(
     checks: list[dict[str, Any]],
     verifier_identity: str,
     worker_result: Any,
+    lineage: dict[str, Any] | None = None,
 ) -> str:
     """Persist a ProofPackage (the ONE canonical Proof authority) tagged with the
-    classification. Returns the proof_id."""
-    from substrate.organism.proof_runtime import ProofEvidence, ProofPackage
+    classification. Returns the proof_id.
+
+    ``lineage`` binds the Proof to exactly what it proves — tenant, plan record +
+    version, task, attempt, assignment, verifier role and package hash — so a
+    Proof cannot be mistaken for one belonging to a different attempt.
+    """
+    from substrate.organism.proof_runtime import ProofEvidence
 
     evidence = [
         ProofEvidence(
@@ -229,25 +255,44 @@ def _persist_proof(
                 },
             )
         )
-    package = ProofPackage(
+    # DURABLE persistence through the canonical ProofRuntime seam (finding C1).
+    #
+    # The previous code looked for `store_package`/`persist` — neither of which
+    # ProofRuntime exposes — and silently fell back to poking its private
+    # in-memory `_packages` dict. Nothing ever reached disk, so every SUCCEEDED
+    # attempt carried a proof_id that referenced an object which died with the
+    # process. `create_direct` is the real durable entry point: it appends to
+    # <runtime-state>/organism/proof_packages.jsonl under an exclusive lock and
+    # raises ProofPersistenceError if the write fails.
+    #
+    # No fallback: if the Proof cannot be persisted the attempt must NOT become
+    # SUCCEEDED, so the error propagates to the caller.
+    creator = getattr(proof_runtime, "create_direct", None)
+    if not callable(creator):
+        raise ProofDurabilityError(
+            f"proof runtime {type(proof_runtime).__name__} exposes no durable "
+            f"create_direct() — refusing to mint a non-durable Proof"
+        )
+    package = creator(
         work_id=work_id,
-        action={"classification": classification, "verifier_identity": verifier_identity},
-        evidence=evidence,
+        action={
+            "classification": classification,
+            "verifier_identity": verifier_identity,
+            # Full lineage binding: a Proof must identify exactly what it proves.
+            **{k: v for k, v in (lineage or {}).items() if v not in (None, "")},
+        },
         outcome=f"{classification}:passed",
         operator=verifier_identity,
     )
-    # Persist through the runtime's store if it exposes one; else return the id.
-    store = getattr(proof_runtime, "store_package", None) or getattr(proof_runtime, "persist", None)
-    if callable(store):
-        try:
-            store(package)
-        except Exception as exc:
-            logger.debug("proof persist failed: %s", exc)
-    else:
-        # ProofRuntime keeps an in-memory map; register directly if possible.
-        pkgs = getattr(proof_runtime, "_packages", None)
-        if isinstance(pkgs, dict):
-            pkgs[package.proof_id] = package
+    # Attach the verification evidence to the persisted package and re-persist so
+    # the durable record carries the checks, not just the verdict header.
+    try:
+        package.evidence.extend(evidence)
+        proof_runtime._persist_package(package)  # noqa: SLF001 - canonical seam
+    except Exception as exc:  # persistence is load-bearing — never swallow
+        raise ProofDurabilityError(
+            f"proof {package.proof_id} evidence could not be persisted: {exc}"
+        ) from exc
     return package.proof_id
 
 

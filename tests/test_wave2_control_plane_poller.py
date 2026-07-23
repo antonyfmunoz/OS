@@ -26,6 +26,17 @@ from substrate.execution.attempts.records import (  # noqa: E402
 from substrate.execution.attempts.store import ExecutionAttemptStore  # noqa: E402
 
 
+# These tests exercise LIFECYCLE MECHANICS (CAS, legal transitions, poller
+# routing) — not Proof durability, which is covered end-to-end by
+# tests/test_wave2_verification_proof.py and the harness rehearsal. They use
+# synthetic proof ids, so the durable-Proof guard is explicitly relaxed HERE ONLY.
+# Never set this in field code: it is the check that stops a dangling proof_id
+# from completing an attempt (finding C1).
+@pytest.fixture(autouse=True)
+def _allow_synthetic_proof_ids(monkeypatch):
+    monkeypatch.setenv("UMH_W2_ALLOW_NONDURABLE_PROOF", "1")
+
+
 @pytest.fixture()
 def store(tmp_path):
     return ExecutionAttemptStore(
@@ -40,29 +51,45 @@ def store(tmp_path):
 def _dispatched_attempt(store, **kw) -> ExecutionAttempt:
     """Create an attempt and walk it to DISPATCHED via the real CAS path."""
     base = dict(
-        task_id="wp-a", objective_id="goal-1", plan_record_id="opr-1", plan_version=1,
+        task_id="wp-a",
+        objective_id="goal-1",
+        plan_record_id="opr-1",
+        plan_version=1,
         execution_authorization_ref="objective_plan:opr-1:execution_authorization:v1",
-        attempt_number=1, tenant_id="tenant-a", correlation_id="conv-1",
+        attempt_number=1,
+        tenant_id="tenant-a",
+        correlation_id="conv-1",
     )
     base.update(kw)
     a = ExecutionAttempt(**base)
     a, _ = store.create_attempt_idempotent(a)
-    a = store.transition_cas(a.attempt_id, ExecutionAttemptStatus.READY.value,
-                             expected_record_version=a.record_version,
-                             expected_statuses=(ExecutionAttemptStatus.CREATED.value,),
-                             actor="test", reason="ready",
-                             updates={"assignment_id": "asn-1", "readiness_state": "authorized"})
-    a = store.transition_cas(a.attempt_id, ExecutionAttemptStatus.LEASED.value,
-                             expected_record_version=a.record_version,
-                             expected_statuses=(ExecutionAttemptStatus.READY.value,),
-                             actor="test", reason="leased",
-                             updates={"lease_id": "l-1", "verifier_role_id": "role-verify-op"})
-    a = store.transition_cas(a.attempt_id, ExecutionAttemptStatus.DISPATCHED.value,
-                             expected_record_version=a.record_version,
-                             expected_statuses=(ExecutionAttemptStatus.LEASED.value,),
-                             actor="test", reason="dispatched",
-                             updates={"instruction_package_hash": "ph-1",
-                                      "worker_identity": "worker:cc_cli_worktree"})
+    a = store.transition_cas(
+        a.attempt_id,
+        ExecutionAttemptStatus.READY.value,
+        expected_record_version=a.record_version,
+        expected_statuses=(ExecutionAttemptStatus.CREATED.value,),
+        actor="test",
+        reason="ready",
+        updates={"assignment_id": "asn-1", "readiness_state": "authorized"},
+    )
+    a = store.transition_cas(
+        a.attempt_id,
+        ExecutionAttemptStatus.LEASED.value,
+        expected_record_version=a.record_version,
+        expected_statuses=(ExecutionAttemptStatus.READY.value,),
+        actor="test",
+        reason="leased",
+        updates={"lease_id": "l-1", "verifier_role_id": "role-verify-op"},
+    )
+    a = store.transition_cas(
+        a.attempt_id,
+        ExecutionAttemptStatus.DISPATCHED.value,
+        expected_record_version=a.record_version,
+        expected_statuses=(ExecutionAttemptStatus.LEASED.value,),
+        actor="test",
+        reason="dispatched",
+        updates={"instruction_package_hash": "ph-1", "worker_identity": "worker:cc_cli_worktree"},
+    )
     return a
 
 
@@ -84,6 +111,7 @@ class _StubScheduler:
 
         class _R:
             attempts_admitted: list = []
+
         return _R()
 
 
@@ -99,27 +127,40 @@ def _passing_verify(**kw):
     # test fails loudly if the poller ever passes a colliding identity.
     assert kw["verifier_identity"].startswith("verifier:")
     assert kw["verifier_identity"] != kw["attempt"].worker_identity
-    return _Verdict(passed=True, proof_id="proof-xyz",
-                    checks=[{"check_id": "artifacts", "ok": True}])
+    return _Verdict(
+        passed=True, proof_id="proof-xyz", checks=[{"check_id": "artifacts", "ok": True}]
+    )
 
 
 def _failing_verify(**kw):
-    return _Verdict(passed=False, proof_id="",
-                    checks=[{"check_id": "artifacts", "ok": False},
-                            {"check_id": "tests", "ok": False}])
+    return _Verdict(
+        passed=False,
+        proof_id="",
+        checks=[{"check_id": "artifacts", "ok": False}, {"check_id": "tests", "ok": False}],
+    )
 
 
 def test_dispatched_result_drives_to_succeeded_with_proof(store):
     a = _dispatched_attempt(store)
-    spool = _StubSpool([{
-        "attempt_id": a.attempt_id, "task_id": a.task_id,
-        "worker_result": {"ok": True, "status": "succeeded",
-                          "files_changed": ["app/main.py"], "commits": ["abc add search"],
-                          "isolated": True},
-    }])
+    spool = _StubSpool(
+        [
+            {
+                "attempt_id": a.attempt_id,
+                "task_id": a.task_id,
+                "worker_result": {
+                    "ok": True,
+                    "status": "succeeded",
+                    "files_changed": ["app/main.py"],
+                    "commits": ["abc add search"],
+                    "isolated": True,
+                },
+            }
+        ]
+    )
     sched = _StubScheduler()
-    poller = ControlPlanePoller(store=store, spool=spool, scheduler=sched,
-                                verify_fn=_passing_verify)
+    poller = ControlPlanePoller(
+        store=store, spool=spool, scheduler=sched, verify_fn=_passing_verify
+    )
 
     report = poller.run_pass()
 
@@ -139,13 +180,23 @@ def test_dispatched_result_drives_to_succeeded_with_proof(store):
 
 def test_failed_verification_never_produces_success_proof(store):
     a = _dispatched_attempt(store)
-    spool = _StubSpool([{
-        "attempt_id": a.attempt_id, "task_id": a.task_id,
-        "worker_result": {"ok": True, "status": "succeeded",  # worker CLAIMS success
-                          "files_changed": [], "commits": []},
-    }])
-    poller = ControlPlanePoller(store=store, spool=spool, scheduler=_StubScheduler(),
-                                verify_fn=_failing_verify)
+    spool = _StubSpool(
+        [
+            {
+                "attempt_id": a.attempt_id,
+                "task_id": a.task_id,
+                "worker_result": {
+                    "ok": True,
+                    "status": "succeeded",  # worker CLAIMS success
+                    "files_changed": [],
+                    "commits": [],
+                },
+            }
+        ]
+    )
+    poller = ControlPlanePoller(
+        store=store, spool=spool, scheduler=_StubScheduler(), verify_fn=_failing_verify
+    )
 
     report = poller.run_pass()
 
@@ -161,18 +212,33 @@ def test_failed_verification_never_produces_success_proof(store):
 
 def test_redelivered_result_is_idempotent(store):
     a = _dispatched_attempt(store)
-    result = {"attempt_id": a.attempt_id, "task_id": a.task_id,
-              "worker_result": {"ok": True, "status": "succeeded",
-                                "files_changed": ["x"], "commits": ["c"]}}
+    result = {
+        "attempt_id": a.attempt_id,
+        "task_id": a.task_id,
+        "worker_result": {
+            "ok": True,
+            "status": "succeeded",
+            "files_changed": ["x"],
+            "commits": ["c"],
+        },
+    }
     # First delivery → succeeded.
-    p1 = ControlPlanePoller(store=store, spool=_StubSpool([result]),
-                            scheduler=_StubScheduler(), verify_fn=_passing_verify)
+    p1 = ControlPlanePoller(
+        store=store,
+        spool=_StubSpool([result]),
+        scheduler=_StubScheduler(),
+        verify_fn=_passing_verify,
+    )
     p1.run_pass()
     v1 = store.get_attempt(a.attempt_id).record_version
 
     # Re-delivery of the SAME result → no-op (already terminal).
-    p2 = ControlPlanePoller(store=store, spool=_StubSpool([result]),
-                            scheduler=_StubScheduler(), verify_fn=_passing_verify)
+    p2 = ControlPlanePoller(
+        store=store,
+        spool=_StubSpool([result]),
+        scheduler=_StubScheduler(),
+        verify_fn=_passing_verify,
+    )
     report = p2.run_pass()
     assert any(a.attempt_id in i and "already succeeded" in i for i in report.ignored)
     assert store.get_attempt(a.attempt_id).record_version == v1  # unchanged
@@ -182,7 +248,9 @@ def test_result_for_unknown_attempt_is_ignored(store):
     poller = ControlPlanePoller(
         store=store,
         spool=_StubSpool([{"attempt_id": "ea-ghost", "worker_result": {}}]),
-        scheduler=_StubScheduler(), verify_fn=_passing_verify)
+        scheduler=_StubScheduler(),
+        verify_fn=_passing_verify,
+    )
     report = poller.run_pass()
     assert any("not in ledger" in i for i in report.ignored)
     assert not report.succeeded and not report.failed
@@ -190,8 +258,9 @@ def test_result_for_unknown_attempt_is_ignored(store):
 
 def test_empty_outbox_still_runs_scheduler(store):
     sched = _StubScheduler()
-    poller = ControlPlanePoller(store=store, spool=_StubSpool([]), scheduler=sched,
-                                verify_fn=_passing_verify)
+    poller = ControlPlanePoller(
+        store=store, spool=_StubSpool([]), scheduler=sched, verify_fn=_passing_verify
+    )
     report = poller.run_pass()
     assert report.results_drained == 0
     assert sched.passes == 1  # frontier still gets a dispatch opportunity

@@ -12,6 +12,18 @@ from substrate.execution.attempts.store import ExecutionAttemptStore
 from substrate.organism.universal_work_queue import UniversalWorkQueue
 from substrate.organism.work_packet import PacketLifecycleStatus, WorkPacket
 
+
+# These tests exercise LIFECYCLE MECHANICS (CAS, legal transitions, poller
+# routing) — not Proof durability, which is covered end-to-end by
+# tests/test_wave2_verification_proof.py and the harness rehearsal. They use
+# synthetic proof ids, so the durable-Proof guard is explicitly relaxed HERE ONLY.
+# Never set this in field code: it is the check that stops a dangling proof_id
+# from completing an attempt (finding C1).
+@pytest.fixture(autouse=True)
+def _allow_synthetic_proof_ids(monkeypatch):
+    monkeypatch.setenv("UMH_W2_ALLOW_NONDURABLE_PROOF", "1")
+
+
 _S = ExecutionAttemptStatus
 
 
@@ -44,15 +56,22 @@ def queue(tmp_path, monkeypatch):
 
 
 def _add_approved_packet(queue, pid, deps=None):
-    pkt = WorkPacket(title=pid, user_intent=f"do {pid}",
-                     dependencies=deps or [],
-                     approval_gates=["execution_authorization_required"],
-                     work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"})
+    pkt = WorkPacket(
+        title=pid,
+        user_intent=f"do {pid}",
+        dependencies=deps or [],
+        approval_gates=["execution_authorization_required"],
+        work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+    )
     pkt.packet_id = pid
     queue.ingest_work_packet(pkt)
-    for s in (PacketLifecycleStatus.CLASSIFIED, PacketLifecycleStatus.PLANNED,
-              PacketLifecycleStatus.READY_FOR_REVIEW, PacketLifecycleStatus.APPROVAL_PENDING,
-              PacketLifecycleStatus.APPROVED):
+    for s in (
+        PacketLifecycleStatus.CLASSIFIED,
+        PacketLifecycleStatus.PLANNED,
+        PacketLifecycleStatus.READY_FOR_REVIEW,
+        PacketLifecycleStatus.APPROVAL_PENDING,
+        PacketLifecycleStatus.APPROVED,
+    ):
         queue.update_packet_status(pid, s, "test")
     return pkt
 
@@ -60,12 +79,23 @@ def _add_approved_packet(queue, pid, deps=None):
 def _grant(frontier, **kw):
     base = dict(
         decision_ref="objective_plan:opr-1:execution_authorization:v1",
-        tenant_id="tenant-a", plan_record_id="opr-1", plan_version=1, objective_id="goal-1",
-        correlation_id="conv-1", status="active", task_frontier=frontier,
-        max_attempts_per_task=2, environment_classes=["git_worktree"],
-        credential_scope_refs=[], risk_ceiling="high", authorized_scope_hash="h",
-        verification_obligations=["verify"], cost_limit_usd=0.0, cost_enforceable=False,
-        principal_id="u", membership_id="m",
+        tenant_id="tenant-a",
+        plan_record_id="opr-1",
+        plan_version=1,
+        objective_id="goal-1",
+        correlation_id="conv-1",
+        status="active",
+        task_frontier=frontier,
+        max_attempts_per_task=2,
+        environment_classes=["git_worktree"],
+        credential_scope_refs=[],
+        risk_ceiling="high",
+        authorized_scope_hash="h",
+        verification_obligations=["verify"],
+        cost_limit_usd=0.0,
+        cost_enforceable=False,
+        principal_id="u",
+        membership_id="m",
     )
     base.update(kw)
     return SimpleNamespace(**base)
@@ -78,8 +108,12 @@ class _FakeSandbox:
 
     def create_sandbox(self, candidate_id, candidate_slug, agent_type="developer_agent"):
         self._i += 1
-        return SimpleNamespace(worktree_path=f"/tmp/wt-{self._i}", branch_name=f"br-{self._i}",
-                               base_commit="base", sandbox_id=f"sb-{self._i}")
+        return SimpleNamespace(
+            worktree_path=f"/tmp/wt-{self._i}",
+            branch_name=f"br-{self._i}",
+            base_commit="base",
+            sandbox_id=f"sb-{self._i}",
+        )
 
     def cleanup_sandbox(self, sandbox_id):
         pass
@@ -92,9 +126,14 @@ def _mk_scheduler(store, queue, tmp_path, max_concurrency=2):
 
     lm = LeaseManager(store, _FakeSandbox(tmp_path), mutation_runner=_runner())
     return AttemptScheduler(
-        store, work_queue=queue, placement_fn=place_attempt, lease_manager=lm,
-        compile_fn=compile_attempt_package, dispatch_fn=None,
-        max_concurrency=max_concurrency, mutation_runner=_runner(),
+        store,
+        work_queue=queue,
+        placement_fn=place_attempt,
+        lease_manager=lm,
+        compile_fn=compile_attempt_package,
+        dispatch_fn=None,
+        max_concurrency=max_concurrency,
+        mutation_runner=_runner(),
         lock_dir=str(tmp_path / "locks"),
     )
 
@@ -104,15 +143,25 @@ def _role(_pkt):
 
 
 def _workers():
-    return [{"worker_identity": "cc@vps", "agent_type": "builder",
-             "capabilities": ["code_write"], "reliability": 0.9,
-             "model_profile": {"model": "claude-opus"}, "harness_profile": {"harness": "cc"}}]
+    return [
+        {
+            "worker_identity": "cc@vps",
+            "agent_type": "builder",
+            "capabilities": ["code_write"],
+            "reliability": 0.9,
+            "model_profile": {"model": "claude-opus"},
+            "harness_profile": {"harness": "cc"},
+        }
+    ]
 
 
 def _pass(sched, grant):
     return sched.run_scheduler_pass(
-        grant, role_resolver=_role, verifier_role_resolver=lambda p: "role-verify-op",
-        worker_candidates=_workers(), compute_nodes=[{"node_id": "vps", "headroom": 4}],
+        grant,
+        role_resolver=_role,
+        verifier_role_resolver=lambda p: "role-verify-op",
+        worker_candidates=_workers(),
+        compute_nodes=[{"node_id": "vps", "headroom": 4}],
     )
 
 
@@ -155,12 +204,18 @@ def test_fanin_task_blocked_until_predecessors_succeed(store, queue, tmp_path):
         att = store.attempts_for_task(tid)[0]
         # walk to succeeded via CAS (simulate real completion)
         for to, exp in [("running", ("dispatched",)), ("verifying", ("running",))]:
-            att = store.transition_cas(att.attempt_id, to, att.record_version, exp,
-                                       actor="worker:w", reason="t")
-        store.transition_cas(att.attempt_id, "succeeded", att.record_version, ("verifying",),
-                             actor="verifier:v", reason="done",
-                             updates={"proof_id": f"proof-{tid}", "verifier_identity": "v",
-                                      "worker_identity": "w"})
+            att = store.transition_cas(
+                att.attempt_id, to, att.record_version, exp, actor="worker:w", reason="t"
+            )
+        store.transition_cas(
+            att.attempt_id,
+            "succeeded",
+            att.record_version,
+            ("verifying",),
+            actor="verifier:v",
+            reason="done",
+            updates={"proof_id": f"proof-{tid}", "verifier_identity": "v", "worker_identity": "w"},
+        )
     report2 = _pass(sched, grant)
     created2 = {store.get_attempt(aid).task_id for aid in report2.attempts_created}
     assert "wp-c" in created2  # fan-in unblocked
@@ -196,9 +251,11 @@ def test_failed_predecessor_blocks_dependent(store, queue, tmp_path):
     _pass(sched, grant)
     # Fail wp-a's only attempt (max_attempts=1 → exhausted).
     att = store.attempts_for_task("wp-a")[0]
-    att = store.transition_cas(att.attempt_id, "running", att.record_version, ("dispatched",),
-                               actor="worker:w", reason="t")
-    store.transition_cas(att.attempt_id, "failed", att.record_version, ("running",),
-                         actor="worker:w", reason="boom")
+    att = store.transition_cas(
+        att.attempt_id, "running", att.record_version, ("dispatched",), actor="worker:w", reason="t"
+    )
+    store.transition_cas(
+        att.attempt_id, "failed", att.record_version, ("running",), actor="worker:w", reason="boom"
+    )
     report = _pass(sched, grant)
     assert "wp-c" in report.attempts_blocked

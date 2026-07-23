@@ -17,6 +17,7 @@ re-transition of a FAILED one.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from substrate.execution.attempts.records import ExecutionAttempt, ExecutionAttemptStatus
@@ -68,8 +69,7 @@ def validate_transition(
 
     if not is_legal_transition(from_status, to_status):
         raise AttemptLifecycleError(
-            f"attempt {attempt.attempt_id}: illegal transition "
-            f"{from_status!r} → {to_status!r}"
+            f"attempt {attempt.attempt_id}: illegal transition {from_status!r} → {to_status!r}"
         )
 
     # ready → leased: placement + readiness must be resolved.
@@ -123,11 +123,57 @@ def validate_transition(
                 f"attempt {attempt.attempt_id}: verifying→succeeded must be actioned by a "
                 f"verifier actor, got {actor!r}"
             )
+        # DURABILITY: a truthy proof_id is NOT a Proof (finding C1). Reread the
+        # canonical store from disk and confirm the record exists AND belongs to
+        # this exact attempt. An in-memory-only, missing, corrupt or mismatched
+        # Proof blocks the transition — the attempt stays VERIFYING/FAILED.
+        _assert_durable_proof(attempt, proof_id)
 
     # cancellation is an operator/scheduler/system action, never a worker one.
     if to_status == _S.CANCELLED.value and str(actor).startswith("worker:"):
         raise AttemptLifecycleError(
             f"attempt {attempt.attempt_id}: a worker may not cancel its own attempt"
+        )
+
+
+def _assert_durable_proof(attempt: ExecutionAttempt, proof_id: str) -> None:
+    """Fail closed unless ``proof_id`` names a DURABLE Proof for THIS attempt.
+
+    Rereads the canonical ProofRuntime store from disk (never the in-memory map),
+    then checks the record's recorded lineage binds it to this attempt. Set
+    ``UMH_W2_ALLOW_NONDURABLE_PROOF=1`` ONLY in unit tests that deliberately
+    exercise the pre-Proof lifecycle without a proof store.
+    """
+    if os.environ.get("UMH_W2_ALLOW_NONDURABLE_PROOF") == "1":
+        return
+    try:
+        from substrate.organism.proof_runtime import ProofRuntime
+    except ImportError as exc:  # substrate must be importable; fail closed
+        raise AttemptLifecycleError(
+            f"attempt {attempt.attempt_id}: cannot verify Proof durability: {exc}"
+        ) from exc
+
+    package = ProofRuntime().reread_durable(proof_id)
+    if package is None:
+        raise AttemptLifecycleError(
+            f"attempt {attempt.attempt_id}: proof {proof_id!r} is not durably persisted "
+            f"(missing, corrupt, or in-memory only) — refusing verifying→succeeded"
+        )
+
+    # The Proof must belong to THIS attempt: a durable Proof for a different
+    # attempt must never complete this one.
+    action = getattr(package, "action", {}) or {}
+    recorded_attempt = str(action.get("attempt_id", "") or "")
+    if recorded_attempt and recorded_attempt != attempt.attempt_id:
+        raise AttemptLifecycleError(
+            f"attempt {attempt.attempt_id}: proof {proof_id!r} is bound to attempt "
+            f"{recorded_attempt!r} — a Proof may not be credited to another attempt"
+        )
+    recorded_task = str(getattr(package, "work_id", "") or "")
+    if recorded_task and attempt.task_id and recorded_task != attempt.task_id:
+        raise AttemptLifecycleError(
+            f"attempt {attempt.attempt_id}: proof {proof_id!r} proves task "
+            f"{recorded_task!r}, not {attempt.task_id!r}"
         )
 
 
