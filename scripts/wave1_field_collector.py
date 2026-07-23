@@ -1929,13 +1929,30 @@ class FieldCollector:
         page = context.new_page()
         self._wire_listeners(page)
         page.goto(self.url, wait_until="load", timeout=45000)
-        page.wait_for_timeout(2500)
-        reauthed = bool(page.evaluate("() => !!(window.Clerk && window.Clerk.session)"))
+        # Clerk rehydrates its session from the restored storage state
+        # ASYNCHRONOUSLY after load — a single immediate read raced it and saw
+        # no session on an otherwise fully re-authenticated page (run
+        # 20260723T000635Z). Poll until window.Clerk.session materializes, the
+        # same condition-not-sleep discipline the rest of the journey uses. The
+        # authenticated chat input is a second, independent confirmation.
+        reauthed = False
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            try:
+                reauthed = bool(page.evaluate("() => !!(window.Clerk && window.Clerk.session)"))
+            except Exception:  # noqa: BLE001 — page still settling
+                reauthed = False
+            if reauthed:
+                break
+            page.wait_for_timeout(1000)
+        # Fallback: an authenticated cockpit (chat input present) is proof of a
+        # live session even if window.Clerk isn't queryable yet.
+        chat_present = self._find_chat_input(page).count() > 0
         ctx["reopened_page"] = True
         self.stage(
             "s19_close_reopen",
-            reauthed,
-            f"reauthenticated_from_cached_clerk={reauthed}",
+            reauthed or chat_present,
+            f"reauthenticated_from_cached_clerk={reauthed} chat_input_present={chat_present}",
         )
         self.shot(page, "s19_reopen")
         return page
