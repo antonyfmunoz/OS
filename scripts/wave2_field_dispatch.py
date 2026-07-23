@@ -1650,12 +1650,29 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
 
     # Launch detached; the runner sources the secret from the 0600 file into its
     # own env var so the value never appears in this process's argv.
+    #
+    # The runner ALSO runs the host control-plane loop (turning ACTIVE grants in
+    # the shared candidate ledger into signed dispatch envelopes). For that it
+    # needs UMH_STATE_DIR pointed at the SAME host state dir the candidate
+    # container mounts (so it reads the exact grants/packets the cockpit
+    # authorization wrote), plus the fixture repo it leases worktrees from and
+    # the targets dir holding the .inject_failure marker. The runner is a HOST
+    # process (bwrap hides /opt/OS from the worker); UMH_STATE_DIR here scopes
+    # the runner's OWN store reads to the candidate state, never /opt/OS.
     launch_log = spool_root.parent / f"runner_{run_id}.log"
+    targets_dir = _targets_dir(sha, run_id)
+    fixture_repo = targets_dir / "fixture"
+    leases_dir = targets_dir / "leases"
+    host_state_dir = _state_dir(sha)
     inner_cmd = (
         f"UMH_W2_DISPATCH_SECRET=$(cat {shlex.quote(str(secret_path))}) "
+        f"UMH_STATE_DIR={shlex.quote(str(host_state_dir))} "
         f"{shlex.quote(sys.executable)} "
         f"{shlex.quote(str(_WORKTREE / 'scripts' / 'wave2_attempt_runner.py'))} "
         f"--spool-root {shlex.quote(str(spool_root))} "
+        f"--fixture-repo {shlex.quote(str(fixture_repo))} "
+        f"--targets-dir {shlex.quote(str(targets_dir))} "
+        f"--leases-dir {shlex.quote(str(leases_dir))} "
         f"--max-iterations {int(max_iterations)} --poll-seconds 2.0"
     )
     proc = subprocess.Popen(  # noqa: S603 — run-scoped host launcher, gated by isolation preflight

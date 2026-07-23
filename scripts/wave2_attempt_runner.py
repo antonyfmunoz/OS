@@ -26,6 +26,7 @@ import json
 import os
 import sys
 import time
+from typing import Any
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
@@ -36,6 +37,34 @@ def _log(msg: str) -> None:
     print(f"[wave2-runner] {msg}", flush=True)
 
 
+def _build_control_plane_driver(
+    *, spool: Any, fixture_repo: str, targets_dir: str, leases_dir: str
+) -> Any:
+    """Assemble the host-side control-plane driver over the shared candidate
+    ledger (via UMH_STATE_DIR) and this run's spool. Returns None if the shared
+    state / fixture is not resolvable (the runner then behaves as worker-only)."""
+    from substrate.execution.attempts.field_control_plane import FieldControlPlaneDriver
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+    from substrate.organism.universal_work_queue import UniversalWorkQueue
+    from substrate.organism.worktree_sandbox import SandboxManager
+
+    store = ExecutionAttemptStore()  # honors UMH_STATE_DIR (shared candidate state)
+    queue = UniversalWorkQueue()  # honors UMH_STATE_DIR
+    sandbox = SandboxManager(
+        repo_root=fixture_repo,
+        worktree_base=leases_dir,
+        store_dir=os.path.join(targets_dir, "sandboxes"),
+        max_parallel=2,
+    )
+    return FieldControlPlaneDriver(
+        store=store,
+        work_queue=queue,
+        spool=spool,
+        sandbox_manager=sandbox,
+        targets_dir=targets_dir,
+    )
+
+
 def run_loop(
     *,
     spool_root: str,
@@ -43,6 +72,9 @@ def run_loop(
     max_iterations: int = 0,
     poll_seconds: float = 2.0,
     oauth_token: str | None = None,
+    fixture_repo: str = "",
+    targets_dir: str = "",
+    leases_dir: str = "",
 ) -> int:
     from substrate.execution.attempts.host_isolation import (
         isolation_primitive,
@@ -65,9 +97,47 @@ def run_loop(
     spool = DispatchSpool(spool_root, secret)
     _log(f"runner up: spool={spool_root} primitive={prim}")
 
+    # (1b) build the control-plane driver if the fixture + targets are wired.
+    # This is the HOST half that turns an ACTIVE grant in the shared candidate
+    # ledger into signed dispatch envelopes on this spool (the seam the candidate
+    # container cannot drive itself). Worker-only mode (no fixture) keeps the
+    # legacy behavior for tests/rehearsal that pre-fill the inbox.
+    driver = None
+    if fixture_repo and targets_dir:
+        try:
+            driver = _build_control_plane_driver(
+                spool=spool,
+                fixture_repo=fixture_repo,
+                targets_dir=targets_dir,
+                leases_dir=leases_dir or os.path.join(targets_dir, "leases"),
+            )
+            _log(f"control-plane driver up: fixture={fixture_repo} targets={targets_dir}")
+        except Exception as exc:  # worker-only fallback, loudly logged
+            _log(f"control-plane driver unavailable ({exc}) — worker-only mode")
+            driver = None
+
     iterations = 0
     while True:
         iterations += 1
+
+        # (2) control-plane pass FIRST: turn ACTIVE grants in the shared ledger
+        # into signed inbox dispatches, and advance any completed attempts from
+        # the outbox (drain → verify → re-schedule). This is what puts work in
+        # the inbox for the worker half below to claim.
+        if driver is not None:
+            try:
+                cycles = driver.run_cycle()
+                for c in cycles:
+                    if c.admitted or c.succeeded or c.failed or c.errors:
+                        _log(
+                            f"control-plane: grant={c.grant_ref[:32]} "
+                            f"admitted={len(c.admitted)} succeeded={len(c.succeeded)} "
+                            f"failed={len(c.failed)} drained={c.results_drained} "
+                            f"errors={len(c.errors)}"
+                        )
+            except Exception as exc:  # never let a control-plane fault kill the worker
+                _log(f"control-plane cycle error (continuing): {exc}")
+
         claimed = spool.claim_next()
         if claimed is None:
             if max_iterations and iterations >= max_iterations:
@@ -105,16 +175,21 @@ def run_loop(
 
         # (5) write a SIGNED result to the outbox — the control-plane poller
         # applies the canonical attempt transition; the runner never does.
-        spool.complete(token, {
-            "dispatch_id": envelope.dispatch_id,
-            "attempt_id": envelope.attempt_id,
-            "task_id": envelope.task_id,
-            "package_hash": envelope.package_hash,
-            "worker_result": result.to_dict(),
-            "reported_at": time.time(),
-        })
-        _log(f"completed {envelope.attempt_id}: ok={result.ok} status={result.status} "
-             f"files={len(result.files_changed)} isolated={result.isolated}")
+        spool.complete(
+            token,
+            {
+                "dispatch_id": envelope.dispatch_id,
+                "attempt_id": envelope.attempt_id,
+                "task_id": envelope.task_id,
+                "package_hash": envelope.package_hash,
+                "worker_result": result.to_dict(),
+                "reported_at": time.time(),
+            },
+        )
+        _log(
+            f"completed {envelope.attempt_id}: ok={result.ok} status={result.status} "
+            f"files={len(result.files_changed)} isolated={result.isolated}"
+        )
 
         if max_iterations and iterations >= max_iterations:
             return 0
@@ -123,12 +198,30 @@ def run_loop(
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--spool-root", required=True, help="run's dispatch spool root")
-    ap.add_argument("--secret-env", default="UMH_W2_DISPATCH_SECRET",
-                    help="env var holding the per-run HMAC secret")
+    ap.add_argument(
+        "--secret-env",
+        default="UMH_W2_DISPATCH_SECRET",
+        help="env var holding the per-run HMAC secret",
+    )
     ap.add_argument("--max-iterations", type=int, default=0, help="0 = run until stopped")
     ap.add_argument("--poll-seconds", type=float, default=2.0)
-    ap.add_argument("--preflight-only", action="store_true",
-                    help="verify isolation + exit (no worker loop)")
+    ap.add_argument(
+        "--preflight-only", action="store_true", help="verify isolation + exit (no worker loop)"
+    )
+    ap.add_argument(
+        "--fixture-repo",
+        default="",
+        help="fixture repo root the control-plane driver leases worktrees from "
+        "(enables the host control-plane loop; omit for worker-only mode)",
+    )
+    ap.add_argument(
+        "--targets-dir",
+        default="",
+        help="run's targets dir (holds .inject_failure marker, sandboxes, leases)",
+    )
+    ap.add_argument(
+        "--leases-dir", default="", help="worktree base for leases (default: <targets>/leases)"
+    )
     args = ap.parse_args()
 
     if args.preflight_only:
@@ -148,9 +241,14 @@ def main() -> int:
         return 2
     oauth = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or None
     return run_loop(
-        spool_root=args.spool_root, secret=secret,
-        max_iterations=args.max_iterations, poll_seconds=args.poll_seconds,
+        spool_root=args.spool_root,
+        secret=secret,
+        max_iterations=args.max_iterations,
+        poll_seconds=args.poll_seconds,
         oauth_token=oauth,
+        fixture_repo=args.fixture_repo,
+        targets_dir=args.targets_dir,
+        leases_dir=args.leases_dir,
     )
 
 
