@@ -178,6 +178,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "LeaseManager": ["substrate.execution.attempts.leases"],
     "LeaseError": ["substrate.execution.attempts.leases"],
     "DispatchBlocked": ["substrate.execution.attempts.dispatch"],
+    # C4 scheduler. AttemptScheduler is the bounded, single-writer, dependency-
+    # aware admission core (NOT a persistent supervisor — Wave 3).
+    "AttemptScheduler": ["substrate.execution.attempts.scheduler"],
+    "SchedulerPassReport": ["substrate.execution.attempts.scheduler"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.
