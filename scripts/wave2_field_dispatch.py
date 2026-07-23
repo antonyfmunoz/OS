@@ -273,7 +273,11 @@ def _shred_run_secret(runner: "Runner", sha: str) -> bool:
 
 _SECRET_REDACT_RE = re.compile(
     r"(?i)(bearer\s+[A-Za-z0-9._\-]+|eyJ[A-Za-z0-9._\-]{20,}|"
-    r"(?:password|secret|token|api[_-]?key)\s*[=:]\s*\S+)"
+    r"(?:password|secret|token|api[_-]?key)\s*[=:]\s*\S+|"
+    # A bare 64-hex run-scoped dispatch secret (token_hex(32)). Redacted even
+    # without a `secret=` prefix so a raw value can never reach a log, evidence
+    # file, PR comment, or model context by some path that skips the named form.
+    r"\b[0-9a-f]{64}\b)"
 )
 
 
@@ -1664,10 +1668,15 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
     fixture_repo = targets_dir / "fixture"
     leases_dir = targets_dir / "leases"
     host_state_dir = _state_dir(sha)
+    # `env VAR=value -- cmd` (NOT `exec VAR=value cmd`, which is invalid shell:
+    # exec rejects assignment prefixes and bash then reports the whole assignment
+    # as "not found" — echoing the SECRET VALUE into the launch log). With env the
+    # value is placed in the child's environment by the shell and never appears in
+    # this process's argv, nor in an error message if the interpreter is missing.
     inner_cmd = (
-        f"UMH_W2_DISPATCH_SECRET=$(cat {shlex.quote(str(secret_path))}) "
+        f"env UMH_W2_DISPATCH_SECRET=$(cat {shlex.quote(str(secret_path))}) "
         f"UMH_STATE_DIR={shlex.quote(str(host_state_dir))} "
-        f"{shlex.quote(sys.executable)} "
+        f"-- {shlex.quote(sys.executable)} "
         f"{shlex.quote(str(_WORKTREE / 'scripts' / 'wave2_attempt_runner.py'))} "
         f"--spool-root {shlex.quote(str(spool_root))} "
         f"--fixture-repo {shlex.quote(str(fixture_repo))} "
@@ -1682,6 +1691,48 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
         start_new_session=True,
     )
     (spool_root.parent / f"runner_{run_id}.pid").write_text(str(proc.pid), encoding="utf-8")
+
+    # Popen succeeding only proves bash forked — NOT that the runner is alive
+    # (a bad launch line dies instantly and would still report started=True).
+    # Wait for the runner to announce itself in its log, and fail closed if the
+    # process is gone. Never report a dead runner as started.
+    alive = False
+    announced = False
+    deadline = time.time() + 30.0
+    while time.time() < deadline:
+        time.sleep(1.0)
+        alive = proc.poll() is None
+        if launch_log.exists():
+            try:
+                head = launch_log.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                head = ""
+            if "runner up:" in head:
+                announced = True
+                break
+        if not alive:
+            break
+    if not (alive and announced):
+        tail = ""
+        if launch_log.exists():
+            try:
+                # Redact before surfacing ANY launch output (a failed launch line
+                # can carry the run secret — see the env/exec note above).
+                tail = _SECRET_REDACT_RE.sub(
+                    "<redacted>", launch_log.read_text(encoding="utf-8", errors="replace")
+                )[-400:]
+            except OSError:
+                tail = ""
+        return {
+            "started": False,
+            "isolation_ok": True,
+            "reason": "runner did not come up (process exited or never announced)",
+            "alive": alive,
+            "announced": announced,
+            "launch_log_tail": tail,
+            "spool_root": str(spool_root),
+        }
+
     return {
         "started": True,
         "isolation_ok": True,
