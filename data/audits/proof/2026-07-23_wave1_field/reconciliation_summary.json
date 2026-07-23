@@ -1,0 +1,156 @@
+{
+  "passes": [
+    {
+      "pass_dir": "/opt/OS/data/audits/proof/2026-07-23_wave1_field/raw/20260723T004421Z-p1/pass1",
+      "run_tag": "[w1-20260723T004421Z-p1-p1]",
+      "total_api_requests": 3986,
+      "matched_requests": 3958,
+      "asserted_transitions": [
+        "s04_simple_task",
+        "s07_complex_objective",
+        "s09_tasks_on_kanban",
+        "s10_conversational_revision",
+        "s15_approve_via_hud",
+        "s16_approved_banner"
+      ],
+      "matched_transitions": 6,
+      "transition_detail": {
+        "s04_simple_task": {
+          "matched": true,
+          "expected_token": "packet",
+          "matching_records": 3
+        },
+        "s07_complex_objective": {
+          "matched": true,
+          "expected_token": "awaiting_approval|PLAN_COMPILED",
+          "matching_records": 3
+        },
+        "s09_tasks_on_kanban": {
+          "matched": true,
+          "expected_token": "workpacket_ids>=1",
+          "matching_records": 2
+        },
+        "s10_conversational_revision": {
+          "matched": true,
+          "expected_token": "graph_version>=2",
+          "matching_records": 1
+        },
+        "s15_approve_via_hud": {
+          "matched": true,
+          "expected_token": "approved",
+          "matching_records": 1
+        },
+        "s16_approved_banner": {
+          "matched": true,
+          "expected_token": "plan_acceptance_only",
+          "matching_records": 1
+        }
+      },
+      "orphan_5xx": [],
+      "score": 0.993,
+      "passed": true
+    },
+    {
+      "pass_dir": "/opt/OS/data/audits/proof/2026-07-23_wave1_field/raw/20260723T010325Z-p2/pass2",
+      "run_tag": "[w1-20260723T010325Z-p2-p2]",
+      "total_api_requests": 3897,
+      "matched_requests": 3862,
+      "asserted_transitions": [
+        "s04_simple_task",
+        "s07_complex_objective",
+        "s09_tasks_on_kanban",
+        "s10_conversational_revision",
+        "s15_approve_via_hud",
+        "s16_approved_banner"
+      ],
+      "matched_transitions": 6,
+      "transition_detail": {
+        "s04_simple_task": {
+          "matched": true,
+          "expected_token": "packet",
+          "matching_records": 3
+        },
+        "s07_complex_objective": {
+          "matched": true,
+          "expected_token": "awaiting_approval|PLAN_COMPILED",
+          "matching_records": 3
+        },
+        "s09_tasks_on_kanban": {
+          "matched": true,
+          "expected_token": "workpacket_ids>=1",
+          "matching_records": 2
+        },
+        "s10_conversational_revision": {
+          "matched": true,
+          "expected_token": "graph_version>=2",
+          "matching_records": 1
+        },
+        "s15_approve_via_hud": {
+          "matched": true,
+          "expected_token": "approved",
+          "matching_records": 1
+        },
+        "s16_approved_banner": {
+          "matched": true,
+          "expected_token": "plan_acceptance_only",
+          "matching_records": 1
+        }
+      },
+      "orphan_5xx": [],
+      "score": 0.991,
+      "passed": true
+    },
+    {
+      "pass_dir": "/opt/OS/data/audits/proof/2026-07-23_wave1_field/raw/20260723T012224Z-p3/pass3",
+      "run_tag": "[w1-20260723T012224Z-p3-p3]",
+      "total_api_requests": 4013,
+      "matched_requests": 3982,
+      "asserted_transitions": [
+        "s04_simple_task",
+        "s07_complex_objective",
+        "s09_tasks_on_kanban",
+        "s10_conversational_revision",
+        "s15_approve_via_hud",
+        "s16_approved_banner"
+      ],
+      "matched_transitions": 6,
+      "transition_detail": {
+        "s04_simple_task": {
+          "matched": true,
+          "expected_token": "packet",
+          "matching_records": 3
+        },
+        "s07_complex_objective": {
+          "matched": true,
+          "expected_token": "awaiting_approval|PLAN_COMPILED",
+          "matching_records": 3
+        },
+        "s09_tasks_on_kanban": {
+          "matched": true,
+          "expected_token": "workpacket_ids>=1",
+          "matching_records": 2
+        },
+        "s10_conversational_revision": {
+          "matched": true,
+          "expected_token": "graph_version>=2",
+          "matching_records": 1
+        },
+        "s15_approve_via_hud": {
+          "matched": true,
+          "expected_token": "approved",
+          "matching_records": 1
+        },
+        "s16_approved_banner": {
+          "matched": true,
+          "expected_token": "plan_acceptance_only",
+          "matching_records": 1
+        }
+      },
+      "orphan_5xx": [],
+      "score": 0.992,
+      "passed": true
+    }
+  ],
+  "sha": "ec2ee241c0f5",
+  "all_passed": true
+}
