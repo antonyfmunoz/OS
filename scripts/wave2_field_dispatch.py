@@ -775,7 +775,12 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         "https_available": True,
     }
 
-    # (7) health checks
+    # (7) health checks — WAIT for the operator to finish its cold start
+    # (event registry + goal selector + faster-whisper load take ~15-30s)
+    # before probing, so the deploy report reflects the WARM state instead of
+    # racing the boot and reporting a false-negative 502/connection-reset.
+    readiness = _wait_candidate_ready(runner, timeout_s=180.0)
+    steps["readiness"] = readiness
     checks = {
         "candidate_api_health": _http_ok(
             runner, f"http://127.0.0.1:{_CANDIDATE_API_HOST_PORT}/health"
