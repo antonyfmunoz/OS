@@ -360,6 +360,10 @@ def materialize_packets(
     )
 
     packet_ids: list[str] = []
+    # node_id → materialized packet, so a second pass can translate plan-node
+    # depends_on edges into WorkPacket.dependencies (packet_id edges). Without
+    # this, dependency-aware scheduling silently never blocks (Wave 2 gap).
+    packet_by_node_id: dict[str, WorkPacket] = {}
     for index, raw in enumerate(plan.nodes):
         if raw.get("kind") != "packet" or raw.get("status") != "active":
             continue
@@ -424,8 +428,37 @@ def materialize_packets(
             "materialized from approved-pending plan — execution NOT authorized",
         )
         raw["workpacket_id"] = packet.packet_id
+        packet_by_node_id[raw.get("node_id", "")] = packet
         packet_ids.append(packet.packet_id)
         _ = index
+
+    # Second pass: translate each packet node's predecessor packet-nodes into
+    # WorkPacket.dependencies (packet_id edges). packet_predecessors() gives the
+    # transitive-through-non-packet-nodes packet predecessors — the only
+    # dependency translation packets receive. This is what makes the Wave 2
+    # dependency-aware scheduler able to hold a fan-in Task until its
+    # predecessors' attempts have succeeded. Forward edges are handled correctly
+    # because every packet node already has its packet minted by now.
+    deps_changed = False
+    for node_id, packet in packet_by_node_id.items():
+        pred_node_ids = packet_predecessors(plan, node_id)
+        dep_packet_ids = [
+            packet_by_node_id[p].packet_id
+            for p in pred_node_ids
+            if p in packet_by_node_id
+        ]
+        if dep_packet_ids and packet.dependencies != dep_packet_ids:
+            packet.dependencies = dep_packet_ids
+            deps_changed = True
+    if deps_changed:
+        # Packets are held by reference in the queue; persist the mutated
+        # dependency edges through the queue's own save path.
+        try:
+            work_queue._save()  # noqa: SLF001 - canonical persist for in-place packet edits
+        except AttributeError:
+            persist = getattr(work_queue, "persist", None)
+            if callable(persist):
+                persist()
 
     plan.workpacket_ids = packet_ids
     return packet_ids

@@ -144,6 +144,22 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "DecisionReadinessAssessment": ["substrate.execution.planning.readiness"],
     "InstructionCompilationRequest": ["substrate.execution.planning.instruction_compilation"],
     "ModelExecutionPackage": ["substrate.execution.planning.instruction_compilation"],
+    # ── substrate/execution/attempts/ (Wave 2 canonical execution slice) ──
+    # ExecutionAttempt is the ONE canonical concrete execution object. The
+    # ExecutionAuthorizationGrant is the persisted bounded EFFECT of an APPROVED
+    # execution_authorization Decision — NOT a rival Decision (ApprovalRequest
+    # remains the sole Decision authority; the grant carries no requested/denied
+    # state). ExecutionReadinessAssessment is distinct from the organism
+    # WorkReadinessRuntime.ReadinessAssessment (a legacy read-surface), and from
+    # planning.readiness.DecisionReadinessAssessment (plan-acceptance readiness).
+    "ExecutionAttempt": ["substrate.execution.attempts.records"],
+    "ExecutionAttemptStatus": ["substrate.execution.attempts.records"],
+    "AttemptTransition": ["substrate.execution.attempts.records"],
+    "ExecutionAuthorizationGrant": ["substrate.execution.attempts.records"],
+    "ExecutionAuthorizationGrantStatus": ["substrate.execution.attempts.records"],
+    "ExecutionAttemptStore": ["substrate.execution.attempts.store"],
+    "AttemptStoreConflict": ["substrate.execution.attempts.store"],
+    "AttemptLifecycleError": ["substrate.execution.attempts.lifecycle"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.
