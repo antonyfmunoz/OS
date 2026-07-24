@@ -26,7 +26,13 @@ import json
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
+
+# An INFLIGHT claim older than this with no result is treated as abandoned by a
+# crashed worker and returned to the inbox. Generously above the 600s execution
+# budget so a slow-but-live worker is never stolen from.
+_INFLIGHT_RECOVERY_SECONDS = 1200.0
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
@@ -75,6 +81,7 @@ def run_loop(
     fixture_repo: str = "",
     targets_dir: str = "",
     leases_dir: str = "",
+    max_workers: int = 2,
 ) -> int:
     from substrate.execution.attempts.host_isolation import (
         isolation_primitive,
@@ -95,7 +102,7 @@ def run_loop(
         return 2
 
     spool = DispatchSpool(spool_root, secret)
-    _log(f"runner up: spool={spool_root} primitive={prim}")
+    _log(f"runner up: spool={spool_root} primitive={prim} max_workers={max_workers}")
 
     # (1b) build the control-plane driver if the fixture + targets are wired.
     # This is the HOST half that turns an ACTIVE grant in the shared candidate
@@ -138,8 +145,33 @@ def run_loop(
             except Exception as exc:  # never let a control-plane fault kill the worker
                 _log(f"control-plane cycle error (continuing): {exc}")
 
-        claimed = spool.claim_next()
-        if claimed is None:
+        # (3) reap stale UNCLAIMED envelopes and recover crashed inflight work.
+        # Nothing previously did either: an expired envelope stranded its attempt
+        # in DISPATCHED forever, permanently consuming a concurrency slot, and a
+        # crashed worker's claim was never returned (finding C3).
+        try:
+            for name in spool.reap_stale_unclaimed():
+                _log(f"reaped stale unclaimed dispatch {name}")
+            for name in spool.recover_stale_inflight(older_than_seconds=_INFLIGHT_RECOVERY_SECONDS):
+                _log(f"recovered abandoned inflight dispatch {name}")
+        except Exception as exc:  # never let reaping kill the loop
+            _log(f"spool reap/recovery error (continuing): {exc}")
+
+        # (4) claim up to max_workers envelopes and run them CONCURRENTLY.
+        # The previous loop claimed ONE per iteration and ran the worker
+        # synchronously, so A and B never overlapped: the exactly-2 concurrency
+        # criterion was unobtainable, and B's envelope expired while A held the
+        # whole timeout. Claims are atomic (os.replace), so each worker owns a
+        # distinct envelope — with its own worktree, lease, package, credential
+        # home and process.
+        claims: list[tuple[str, Any]] = []
+        while len(claims) < max_workers:
+            claimed = spool.claim_next()
+            if claimed is None:
+                break
+            claims.append(claimed)
+
+        if not claims:
             if max_iterations and iterations >= max_iterations:
                 _log("max iterations reached — exiting")
                 return 0
@@ -148,55 +180,96 @@ def run_loop(
                 return 0
             continue
 
-        token, envelope = claimed
-        _log(f"claimed dispatch {envelope.dispatch_id} attempt={envelope.attempt_id}")
+        for _token, env in claims:
+            _log(f"claimed dispatch {env.dispatch_id} attempt={env.attempt_id}")
 
-        # (4) run the real worker. The package is reconstructed minimally from the
-        # envelope (the sealed package hash is carried for the verifier); the CLI
-        # worker renders and runs it in the lease worktree under isolation.
-        class _Lease:
-            worktree_path = envelope.worktree_path
-            snapshot_ref = ""  # base commit resolved from the worktree HEAD if absent
-
-        class _Package:
-            role_instructions = ""
-            operation_instructions = f"Execute task {envelope.task_id} per the objective contract."
-            ordered_context: list = []
-            operation_identity = {"task_id": envelope.task_id}
-
-        result = run_worker_in_lease(
-            package=_Package(),
-            lease=_Lease(),
-            timeout=float(envelope.timeout_seconds or 600),
-            max_turns=int(envelope.max_turns or 30),
-            disallowed_tools=list(envelope.disallowed_tools or []),
-            oauth_token=oauth_token,
-            # Binds this attempt's PRIVATE credential home under the run target
-            # dir. A retry is a new attempt_id -> a new home (R1 / SEC-C2).
-            attempt_id=envelope.attempt_id,
-            run_root=targets_dir or os.path.dirname(spool_root.rstrip("/")),
-        )
-
-        # (5) write a SIGNED result to the outbox — the control-plane poller
-        # applies the canonical attempt transition; the runner never does.
-        spool.complete(
-            token,
-            {
-                "dispatch_id": envelope.dispatch_id,
-                "attempt_id": envelope.attempt_id,
-                "task_id": envelope.task_id,
-                "package_hash": envelope.package_hash,
-                "worker_result": result.to_dict(),
-                "reported_at": time.time(),
-            },
-        )
-        _log(
-            f"completed {envelope.attempt_id}: ok={result.ok} status={result.status} "
-            f"files={len(result.files_changed)} isolated={result.isolated}"
-        )
+        run_root = targets_dir or os.path.dirname(spool_root.rstrip("/"))
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(
+                    _run_one_claim,
+                    spool=spool,
+                    token=token,
+                    envelope=env,
+                    oauth_token=oauth_token,
+                    run_root=run_root,
+                    run_worker=run_worker_in_lease,
+                ): env
+                for token, env in claims
+            }
+            for fut in as_completed(futures):
+                env = futures[fut]
+                try:
+                    fut.result()
+                except Exception as exc:  # a worker fault must not kill the pool
+                    _log(f"worker for {env.attempt_id} raised: {exc}")
 
         if max_iterations and iterations >= max_iterations:
             return 0
+
+
+def _run_one_claim(
+    *,
+    spool: Any,
+    token: str,
+    envelope: Any,
+    oauth_token: str | None,
+    run_root: str,
+    run_worker: Any,
+) -> None:
+    """Execute ONE claimed dispatch and write its signed result to the outbox.
+
+    Runs on a pool thread so sibling attempts execute concurrently. Everything
+    that distinguishes one attempt from another — worktree, lease, package,
+    credential home, tool policy — comes from its own envelope, so two workers
+    share no mutable state.
+    """
+
+    class _Lease:
+        worktree_path = envelope.worktree_path
+        snapshot_ref = ""  # base commit resolved from the worktree HEAD if absent
+
+    class _Package:
+        role_instructions = ""
+        operation_instructions = f"Execute task {envelope.task_id} per the objective contract."
+        ordered_context: list = []
+        operation_identity = {"task_id": envelope.task_id}
+
+    started_at = time.time()
+    result = run_worker(
+        package=_Package(),
+        lease=_Lease(),
+        timeout=float(envelope.timeout_seconds or 600),
+        max_turns=int(envelope.max_turns or 30),
+        disallowed_tools=list(envelope.disallowed_tools or []),
+        oauth_token=oauth_token,
+        # Binds this attempt's PRIVATE credential home under the run target
+        # dir. A retry is a new attempt_id -> a new home (R1 / SEC-C2).
+        attempt_id=envelope.attempt_id,
+        run_root=run_root,
+    )
+
+    # Write a SIGNED result to the outbox — the control-plane poller applies the
+    # canonical attempt transition; the runner never mutates the ledger.
+    spool.complete(
+        token,
+        {
+            "dispatch_id": envelope.dispatch_id,
+            "attempt_id": envelope.attempt_id,
+            "task_id": envelope.task_id,
+            "package_hash": envelope.package_hash,
+            "worker_result": result.to_dict(),
+            # Real wall-clock bounds, so reconciliation can PROVE overlap:
+            # max(started) < min(completed) across A and B.
+            "started_at": started_at,
+            "completed_at": time.time(),
+            "reported_at": time.time(),
+        },
+    )
+    _log(
+        f"completed {envelope.attempt_id}: ok={result.ok} status={result.status} "
+        f"files={len(result.files_changed)} isolated={result.isolated}"
+    )
 
 
 def main() -> int:
@@ -209,6 +282,12 @@ def main() -> int:
     )
     ap.add_argument("--max-iterations", type=int, default=0, help="0 = run until stopped")
     ap.add_argument("--poll-seconds", type=float, default=2.0)
+    ap.add_argument(
+        "--max-workers",
+        type=int,
+        default=2,
+        help="concurrent implementation workers (qualification bar: 2)",
+    )
     ap.add_argument(
         "--preflight-only", action="store_true", help="verify isolation + exit (no worker loop)"
     )
@@ -253,6 +332,7 @@ def main() -> int:
         fixture_repo=args.fixture_repo,
         targets_dir=args.targets_dir,
         leases_dir=args.leases_dir,
+        max_workers=args.max_workers,
     )
 
 

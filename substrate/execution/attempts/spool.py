@@ -48,6 +48,12 @@ class DispatchEnvelope:
     nonce: str = ""
     sequence: int = 0
     created_at: float = field(default_factory=time.time)
+    # CLAIM deadline only (finding C3). This bounds how long an UNCLAIMED
+    # envelope may sit in the inbox — it is NOT the execution budget. Once a
+    # worker atomically claims an envelope it must never expire underneath the
+    # running worker; execution is bounded by ``timeout_seconds`` (the attempt/
+    # lease timeout) instead. Setting this to now+timeout_seconds at dispatch is
+    # what caused B to be quarantined while A held the whole 600s.
     expires_at: float = 0.0
     disallowed_tools: list[str] = field(default_factory=list)
     max_turns: int = 30
@@ -101,7 +107,8 @@ class DispatchSpool:
         (claim_token, envelope) or None if the inbox is empty."""
         try:
             names = sorted(
-                n for n in os.listdir(self._dir(_INBOX))
+                n
+                for n in os.listdir(self._dir(_INBOX))
                 if n.endswith(".json") and not n.startswith(".")
             )
         except FileNotFoundError:
@@ -129,6 +136,90 @@ class DispatchSpool:
                 continue
             return name, envelope
         return None
+
+    def reap_stale_unclaimed(self, *, now: float | None = None) -> list[str]:
+        """Quarantine UNCLAIMED inbox envelopes whose claim deadline has passed.
+
+        Nothing previously reaped the spool: an envelope that expired simply sat
+        there until a claim attempt quarantined it, and its attempt stranded in
+        DISPATCHED forever, permanently consuming a concurrency slot (finding
+        C3). Returns the quarantined file names.
+        """
+        now = time.time() if now is None else now
+        reaped: list[str] = []
+        try:
+            names = sorted(
+                n
+                for n in os.listdir(self._dir(_INBOX))
+                if n.endswith(".json") and not n.startswith(".")
+            )
+        except FileNotFoundError:
+            return reaped
+        for name in names:
+            path = os.path.join(self._dir(_INBOX), name)
+            try:
+                with open(path, encoding="utf-8") as f:
+                    record = json.load(f)
+                envelope = DispatchEnvelope(**record.get("envelope", {}))
+            except Exception:  # noqa: BLE001 - unreadable is its own quarantine reason
+                self._quarantine(name, "unreadable")
+                reaped.append(name)
+                continue
+            if envelope.expires_at and now >= envelope.expires_at:
+                self._quarantine(name, "expired unclaimed")
+                reaped.append(name)
+        return reaped
+
+    def recover_stale_inflight(
+        self, *, older_than_seconds: float, now: float | None = None
+    ) -> list[str]:
+        """Return INFLIGHT envelopes abandoned by a crashed worker to the inbox.
+
+        A worker that dies mid-attempt leaves its claim in ``inflight`` with no
+        result ever written. Returning it to the inbox lets another worker claim
+        it WITHOUT minting a second attempt — the attempt id on the envelope is
+        unchanged, so no duplicate active attempt is created. Returns the names
+        recovered.
+        """
+        now = time.time() if now is None else now
+        recovered: list[str] = []
+        try:
+            names = sorted(os.listdir(self._dir(_INFLIGHT)))
+        except FileNotFoundError:
+            return recovered
+        for name in names:
+            if not name.endswith(".json") or name.startswith("."):
+                continue
+            path = os.path.join(self._dir(_INFLIGHT), name)
+            try:
+                age = now - os.path.getmtime(path)
+            except OSError:
+                continue
+            if age < older_than_seconds:
+                continue
+            # Clear the stale CLAIM deadline: the envelope already waited once,
+            # and re-expiring it immediately would defeat the recovery.
+            try:
+                with open(path, encoding="utf-8") as f:
+                    record = json.load(f)
+                env = record.get("envelope", {})
+                if env.get("expires_at"):
+                    env["expires_at"] = now + max(60.0, older_than_seconds)
+                    record["envelope"] = env
+                    record["signature"] = _sign(DispatchEnvelope(**env).signable(), self._secret)
+                    tmp = path + ".tmp"
+                    with open(tmp, "w", encoding="utf-8") as f:
+                        json.dump(record, f, separators=(",", ":"))
+                    os.replace(tmp, path)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("[DispatchSpool] could not refresh %s: %s", name, exc)
+            try:
+                os.replace(path, os.path.join(self._dir(_INBOX), name))
+                recovered.append(name)
+                logger.warning("[DispatchSpool] recovered stale inflight %s", name)
+            except FileNotFoundError:
+                continue
+        return recovered
 
     def _quarantine(self, name: str, reason: str) -> None:
         for sub in (_INFLIGHT, _INBOX):
@@ -165,7 +256,8 @@ class DispatchSpool:
         out: list[dict[str, Any]] = []
         try:
             names = sorted(
-                n for n in os.listdir(self._dir(_OUTBOX))
+                n
+                for n in os.listdir(self._dir(_OUTBOX))
                 if n.startswith("result-") and not n.startswith(".")
             )
         except FileNotFoundError:
@@ -190,7 +282,9 @@ class DispatchSpool:
     def _quarantine_outbox(self, name: str, reason: str) -> None:
         p = os.path.join(self._dir(_OUTBOX), name)
         if os.path.exists(p):
-            os.replace(p, os.path.join(self._dir(_QUARANTINE), f"{name}.{reason.replace(' ', '_')}"))
+            os.replace(
+                p, os.path.join(self._dir(_QUARANTINE), f"{name}.{reason.replace(' ', '_')}")
+            )
             logger.warning("[DispatchSpool] quarantined result %s: %s", name, reason)
 
     # ── Recovery ─────────────────────────────────────────────────────────────

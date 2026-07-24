@@ -26,6 +26,7 @@ verifier identity distinct from the worker.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -93,6 +94,30 @@ def verify_attempt(
 
     checks: list[VerificationCheck] = []
 
+    # 0. VERIFICATION CONTEXT must resolve (finding C4). A missing assignment or
+    #    lease meant the verifier ran blind — `_assignment_lookup` silently
+    #    returned None for every attempt, so no context check could fail. Absent
+    #    context is now a verification FAILURE, not a quiet pass.
+    context_missing: list[str] = []
+    if assignment is None:
+        context_missing.append("assignment")
+    if lease is None:
+        context_missing.append("lease")
+    if not package_hash:
+        context_missing.append("package_hash")
+    checks.append(
+        VerificationCheck(
+            check_id="verification_context",
+            kind="policy",
+            ok=not context_missing,
+            detail=(
+                "all context resolved"
+                if not context_missing
+                else f"missing: {', '.join(context_missing)}"
+            ),
+        )
+    )
+
     # 1. package hash sealed + matches the dispatched package.
     dispatched_hash = getattr(attempt, "instruction_package_hash", "")
     checks.append(
@@ -117,16 +142,52 @@ def verify_attempt(
         )
     )
 
-    # 3. diff-scope: changes confined to allowed paths (post-hoc scope check).
-    allowed = set(getattr(lease, "writable_paths", []) or [])
-    # Wave 2 scope enforcement is path-prefix based inside the worktree; a real
-    # allowlist can be injected via independent_checks for the fixture.
+    # 3. diff-scope: changes confined to allowed paths, computed from the ACTUAL
+    #    changed paths in the lease worktree — never hardcoded (finding C4).
+    #
+    #    This check used to be `ok=True` unconditionally, so a worker writing
+    #    outside its allowed paths passed verification. The changed set is
+    #    derived by diffing the worktree against its base commit; the worker's
+    #    self-reported file list is NOT trusted for this.
+    worktree_path = str(getattr(lease, "worktree_path", "") or "")
+    raw_allowed = [p for p in (getattr(lease, "writable_paths", []) or []) if p]
+    # The LeaseManager records writable_paths=[<absolute worktree>] to mean "the
+    # whole worktree is writable". Git reports changed paths RELATIVE to the
+    # worktree, so comparing the two directly can never match. Normalize: an
+    # entry equal to the worktree root means whole-worktree scope; any other
+    # entry is treated as a worktree-relative prefix.
+    allowed = [
+        os.path.relpath(p, worktree_path) if (worktree_path and os.path.isabs(p)) else p
+        for p in raw_allowed
+    ]
+    whole_worktree = any(a in (".", "") for a in allowed)
+    allowed = [a for a in allowed if a not in (".", "")]
+
+    changed_paths, diff_source = _actual_changed_paths(lease, worker_result)
+    outside = _paths_outside_allowlist(changed_paths, allowed)
+    if whole_worktree:
+        # Whole-worktree scope: the sandbox mount IS the boundary and it is
+        # enforced by construction (the worker cannot write outside its bind).
+        scope_ok = True
+        scope_detail = f"whole-worktree scope; sandbox-enforced ({diff_source})"
+    elif not allowed:
+        # No declared allowlist: the lease worktree itself is the boundary, which
+        # the sandbox already enforces. Record that honestly rather than implying
+        # a path check ran.
+        scope_ok = True
+        scope_detail = f"no writable_paths declared; worktree-confined ({diff_source})"
+    else:
+        scope_ok = not outside
+        scope_detail = (
+            f"changed={len(changed_paths)} allowed={sorted(allowed)} "
+            f"outside={sorted(outside)[:5]} ({diff_source})"
+        )
     checks.append(
         VerificationCheck(
             check_id="diff_scope",
             kind="diff",
-            ok=True,  # worktree-confined by the lease; fixture adds a strict check
-            detail=f"writable={sorted(allowed)}",
+            ok=scope_ok,
+            detail=scope_detail,
         )
     )
 
@@ -215,6 +276,48 @@ def verify_plan_execution(
 
 class ProofDurabilityError(RuntimeError):
     """A Proof could not be minted durably, so no transition may rely on it."""
+
+
+def _actual_changed_paths(lease: Any, worker_result: Any) -> tuple[list[str], str]:
+    """Changed paths derived INDEPENDENTLY from the lease worktree.
+
+    Diffs the worktree against its base commit via git. Falls back to the
+    worker's self-report ONLY when the worktree cannot be inspected, and says so
+    in the returned source label so a verdict can never silently rest on the
+    worker's narrative while claiming an independent check.
+    """
+    worktree = str(getattr(lease, "worktree_path", "") or "")
+    base = str(getattr(lease, "snapshot_ref", "") or "") or "HEAD"
+    if worktree and os.path.isdir(worktree):
+        try:
+            from substrate.execution.cpu_gate import gated_subprocess_run
+
+            result = gated_subprocess_run(
+                ["git", "diff", "--name-only", base],
+                caller="wave2_verify_diff_scope",
+                timeout=60,
+                cwd=worktree,
+            )
+            if result is not None and result.returncode == 0:
+                paths = [ln.strip() for ln in (result.stdout or "").splitlines() if ln.strip()]
+                return paths, "git diff (independent)"
+        except Exception as exc:  # noqa: BLE001 - diagnostics only
+            logger.debug("independent diff failed for %s: %s", worktree, exc)
+    reported = [str(p) for p in (getattr(worker_result, "files_changed", []) or [])]
+    return reported, "worker self-report (worktree not inspectable)"
+
+
+def _paths_outside_allowlist(changed: list[str], allowed: list[str]) -> list[str]:
+    """Changed paths not under any allowed prefix."""
+    outside: list[str] = []
+    for path in changed:
+        normalized = path.lstrip("./")
+        if not any(
+            normalized == a.rstrip("/") or normalized.startswith(a.rstrip("/") + "/")
+            for a in allowed
+        ):
+            outside.append(path)
+    return outside
 
 
 def _persist_proof(

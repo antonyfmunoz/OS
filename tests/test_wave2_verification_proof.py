@@ -48,8 +48,11 @@ def _assignment(worker="worker-1"):
     return SimpleNamespace(worker_identity=worker)
 
 
-def _lease():
-    return SimpleNamespace(writable_paths=["/tmp/wt"])
+def _lease(writable=("app", "tests")):
+    # Allowlist entries are worktree-RELATIVE, matching how git reports changed
+    # paths. The former "/tmp/wt" absolute entry could never match a real diff —
+    # it only passed because diff_scope was hardcoded ok=True (finding C4).
+    return SimpleNamespace(writable_paths=list(writable), worktree_path="", snapshot_ref="")
 
 
 def _worker_result(files=("app/main.py",), commits=("abc123 add search",)):
@@ -309,3 +312,63 @@ def test_plan_execution_proof_fails_on_any_check():
         reconvergence_checks=recon_checks,
     )
     assert verdict.passed is False
+
+
+def test_diff_outside_allowlist_fails_verification(tmp_path):
+    """R3 / finding C4: diff_scope was hardcoded ok=True, so a worker writing
+    outside its allowed paths passed verification. It must now FAIL."""
+    rt = _ProofRT(tmp_path)
+    verdict = verify_attempt(
+        attempt=_attempt(),
+        assignment=_assignment(),
+        lease=_lease(writable=("app",)),  # only app/ is writable
+        worker_result=_worker_result(
+            files=("app/main.py", "infra/secrets.tf"),  # escapes the allowlist
+            commits=("abc touched infra",),
+        ),
+        package_hash="h1",
+        verifier_identity="v",
+        verifier_role_id="r",
+        proof_runtime=rt,
+    )
+    assert verdict.passed is False, "an out-of-allowlist diff must fail verification"
+    scope = next(c for c in verdict.checks if c["check_id"] == "diff_scope")
+    assert scope["ok"] is False
+    assert "infra/secrets.tf" in scope["detail"]
+    assert verdict.proof_id == "", "no Proof for a scope violation"
+
+
+def test_missing_assignment_fails_verification(tmp_path):
+    """Absent verification context is a FAILURE, not a quiet pass — the
+    assignment lookup used to return None for every attempt (finding C4)."""
+    rt = _ProofRT(tmp_path)
+    verdict = verify_attempt(
+        attempt=_attempt(),
+        assignment=None,  # lookup resolved nothing
+        lease=_lease(),
+        worker_result=_worker_result(),
+        package_hash="h1",
+        verifier_identity="v",
+        verifier_role_id="r",
+        proof_runtime=rt,
+    )
+    assert verdict.passed is False
+    ctx = next(c for c in verdict.checks if c["check_id"] == "verification_context")
+    assert ctx["ok"] is False and "assignment" in ctx["detail"]
+
+
+def test_missing_lease_fails_verification(tmp_path):
+    rt = _ProofRT(tmp_path)
+    verdict = verify_attempt(
+        attempt=_attempt(),
+        assignment=_assignment(),
+        lease=None,
+        worker_result=_worker_result(),
+        package_hash="h1",
+        verifier_identity="v",
+        verifier_role_id="r",
+        proof_runtime=rt,
+    )
+    assert verdict.passed is False
+    ctx = next(c for c in verdict.checks if c["check_id"] == "verification_context")
+    assert ctx["ok"] is False and "lease" in ctx["detail"]

@@ -826,6 +826,21 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         ),
     }
     steps["health"] = checks
+
+    # READINESS CONTROLS THE VERDICT (finding SEC-C3). Readiness used to be
+    # recorded and then ignored: deploy_candidate returned unconditionally and
+    # main() returned 0, so a candidate that never came up reported success and
+    # an automated driver would have proceeded to spend worker quota against a
+    # dead stack. A NOT-ready deploy is now a hard failure.
+    failed_checks = [
+        name for name, c in checks.items() if isinstance(c, dict) and c.get("ok") is False
+    ]
+    ready = bool(readiness.get("ready")) if isinstance(readiness, dict) else False
+    steps["deploy_ok"] = ready and not failed_checks
+    if not steps["deploy_ok"]:
+        steps["failure_reason"] = (
+            f"readiness={'ok' if ready else 'NOT READY'}; failed_checks={failed_checks or 'none'}"
+        )
     return steps
 
 
@@ -909,6 +924,20 @@ def preflight(runner: Runner) -> dict[str, Any]:
     out["start_command_shape"] = _SECRET_REDACT_RE.sub("<redacted>", start_shape)
     print("start-command shape (echo only):")
     print(f"  {out['start_command_shape']}")
+
+    # PREFLIGHT VERDICT (finding SEC-C3): mesh relay, the executor daemon in an
+    # interactive session, and Beast->origin reachability are all REQUIRED. A
+    # preflight that records a failure must exit non-zero rather than reporting
+    # a green shape. (beast_to_origin legitimately fails before deploy — it is
+    # only asserted once an origin is expected to exist.)
+    required = ("mesh_health", "schtasks_query", "query_session")
+    failed = [k for k in required if isinstance(out.get(k), dict) and out[k].get("ok") is False]
+    mesh = out.get("mesh_health") or {}
+    if isinstance(mesh, dict) and mesh.get("returncode") not in (0, None):
+        failed.append("mesh_health")
+    out["ok"] = not failed
+    if failed:
+        out["failure_reason"] = f"preflight checks failed: {sorted(set(failed))}"
     return out
 
 
@@ -1130,11 +1159,25 @@ def _verify_beast_collector_commit(runner: Runner, sha: str) -> dict[str, Any]:
 
 def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[str, Any]:
     """Run N collector passes with fresh run-ids; restart candidate before pass 1."""
+    # READINESS GATE (finding SEC-C3): refuse to dispatch anything against a
+    # candidate that is not answering. A failed gate consumes ZERO worker quota
+    # because no dispatch is written, and it returns a non-zero exit via main().
+    ready = _wait_candidate_ready(runner, timeout_s=120.0)
+    if not runner.dry_run and not ready.get("ready"):
+        return {
+            "scenario": scenario,
+            "passes": 0,
+            "ok": False,
+            "refused": "candidate is not ready — refusing to dispatch (zero quota consumed)",
+            "readiness": ready,
+        }
+
     binding = _verify_beast_collector_commit(runner, sha)
     if not binding.get("ok"):
         return {
             "scenario": scenario,
             "passes": 0,
+            "ok": False,
             "refused": "beast collector worktree is not at the candidate commit",
             "binding": binding,
         }
@@ -1954,7 +1997,43 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     print(json.dumps({"command": args.cmd, "sha": sha, "result": out}, indent=2, default=str))
+
+    # EXIT CODE REFLECTS THE VERDICT (finding SEC-C3). A readiness report that
+    # records NOT READY but exits 0 is prohibited: it can silently green-light a
+    # run against a dead candidate and burn worker quota. Any command whose
+    # result declares failure exits non-zero so a caller (or an automated driver)
+    # stops. Zero worker quota is consumed on this path — no dispatch has
+    # happened yet at deploy/preflight time.
+    if isinstance(out, dict) and _result_declares_failure(out):
+        reason = (
+            out.get("failure_reason")
+            or out.get("reason")
+            or out.get("refused")
+            or out.get("invalid_reason")
+            or "readiness/verdict failed"
+        )
+        print(f"[{args.cmd}] FAILED: {reason}", file=sys.stderr)
+        return 3
     return 0
+
+
+def _result_declares_failure(out: dict[str, Any]) -> bool:
+    """True when a command result declares a failed verdict.
+
+    Explicit-False verdict keys only — a missing key is not a failure, so
+    commands that do not report a verdict keep exiting 0.
+    """
+    for key in ("deploy_ok", "started", "armed", "ok", "ready"):
+        if out.get(key) is False:
+            return True
+    if out.get("refused") or out.get("invalid_reason"):
+        return True
+    # run_passes: any pass that did not reach a passed terminal state.
+    results = out.get("results")
+    if isinstance(results, list) and results:
+        if any(isinstance(r, dict) and r.get("ok") is False for r in results):
+            return True
+    return False
 
 
 if __name__ == "__main__":

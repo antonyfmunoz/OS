@@ -37,9 +37,11 @@ transports/services/adapters.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,42 @@ logger = logging.getLogger(__name__)
 _IMPLEMENTER_ROLE_ID = "role-implementer-op"
 _INTEGRATOR_ROLE_ID = "role-integrator-op"
 _VERIFIER_ROLE_ID = "role-verifier-op"
+
+# How long an UNCLAIMED dispatch envelope may wait in the inbox before it is
+# reaped. This is the QUEUE budget and is deliberately distinct from the
+# execution budget (``timeout_seconds``): a claimed envelope never expires under
+# a running worker (finding C3).
+_CLAIM_BUDGET_SECONDS = 1800.0
+
+
+class _RecordView:
+    """Attribute view over a store record dict.
+
+    The store returns plain dicts, but ``verify_attempt`` reads its inputs with
+    ``getattr`` — so passing the raw dict would make every field read as empty
+    and the verifier would run blind even after the lookup was fixed (finding
+    C4). Wrapping keeps the store's dict contract while satisfying the verifier.
+    """
+
+    __slots__ = ("_d",)
+
+    def __init__(self, data: dict[str, Any]) -> None:
+        self._d = dict(data or {})
+
+    @classmethod
+    def wrap(cls, data: Any) -> Any:
+        if data is None or not isinstance(data, dict):
+            return data
+        return cls(data)
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self._d[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
+    def to_dict(self) -> dict[str, Any]:
+        return dict(self._d)
 
 
 @dataclass
@@ -205,18 +243,30 @@ class FieldControlPlaneDriver:
                 task_id=getattr(attempt, "task_id", ""),
                 attempt_number=int(getattr(attempt, "attempt_number", 1) or 1),
             )
+            # Unique per DISPATCH, not per attempt (review W6). `d-<attempt_id>`
+            # collided whenever an attempt was re-dispatched, and the spool
+            # filename is `<sequence>-<dispatch_id>.json` written with os.replace
+            # — a silent overwrite that stranded the clobbered attempt. `_seq`
+            # also reset to 0 on runner restart, so a fresh dispatch could
+            # overwrite a pending envelope for a DIFFERENT attempt.
+            unique = uuid4().hex[:8]
             self._spool.enqueue(
                 DispatchEnvelope(
-                    dispatch_id=f"d-{attempt.attempt_id}",
+                    dispatch_id=f"d-{attempt.attempt_id}-{unique}",
                     attempt_id=attempt.attempt_id,
                     task_id=attempt.task_id,
                     authorization_ref=getattr(grant, "decision_ref", ""),
                     package_hash=getattr(package, "package_hash", ""),
                     lease_id=getattr(lease, "lease_id", ""),
                     worktree_path=getattr(lease, "worktree_path", ""),
-                    nonce=f"n{self._seq}",
+                    nonce=uuid4().hex,  # anti-replay: must not reset on restart
                     sequence=self._seq,
-                    expires_at=time.time() + float(getattr(attempt, "timeout_seconds", 600) or 600),
+                    # CLAIM budget, NOT the execution budget (finding C3). This
+                    # bounds how long an UNCLAIMED envelope may wait; once
+                    # claimed it never expires under the running worker.
+                    # Previously this was now+timeout_seconds for BOTH A and B,
+                    # so B was quarantined while A held the full 600s.
+                    expires_at=time.time() + _CLAIM_BUDGET_SECONDS,
                     disallowed_tools=list(revoked),
                     max_turns=int(getattr(attempt, "max_turns", 30) or 30),
                     timeout_seconds=int(getattr(attempt, "timeout_seconds", 600) or 600),
@@ -260,6 +310,8 @@ class FieldControlPlaneDriver:
             verify_fn=verify_attempt,
             proof_runtime=self._proof_runtime,
             assignment_lookup=self._assignment_lookup,
+            lease_lookup=self._lease_lookup,
+            independent_checks_for=self._independent_checks_for,
             scheduler_pass_kwargs=dict(
                 grant=grant,
                 role_resolver=_default_role_resolver,
@@ -270,13 +322,76 @@ class FieldControlPlaneDriver:
         )
 
     def _assignment_lookup(self, assignment_id: str) -> Any:
-        lister = getattr(self._store, "list_assignments", None)
-        if not callable(lister):
+        """Resolve the durable FleetAssignment via the REAL store API.
+
+        This previously called ``store.list_assignments()`` — a method that does
+        not exist — behind a ``getattr`` guard, so it silently returned None for
+        every attempt and the verifier ran with no assignment context (finding
+        C4). ``get_assignment`` is the actual durable accessor.
+        """
+        if not assignment_id:
             return None
-        for asn in lister() or []:
-            if getattr(asn, "assignment_id", "") == assignment_id:
-                return asn
-        return None
+        getter = getattr(self._store, "get_assignment", None)
+        if not callable(getter):
+            raise AttributeError(
+                "ExecutionAttemptStore has no get_assignment(); refusing to verify "
+                "without assignment context"
+            )
+        return _RecordView.wrap(getter(assignment_id))
+
+    def _independent_checks_for(self, attempt: Any) -> Callable[[Any], list[Any]] | None:
+        """Independent checks the VERIFIER runs itself for this attempt.
+
+        Runs the fixture's own test suite in the lease worktree, so the verdict
+        rests on a signal the verifier produced — not on the worker's narrative.
+        Returns None when no fixture is wired (the context check then carries the
+        weight); the qualification asserts a real check ran.
+        """
+        fixture = os.path.join(self._targets_dir, "fixture")
+        if not os.path.isdir(fixture):
+            return None
+
+        def _checks(att: Any) -> list[Any]:
+            from substrate.execution.attempts.verification import VerificationCheck
+            from substrate.execution.cpu_gate import gated_subprocess_run
+
+            lease = self._lease_lookup(getattr(att, "lease_id", "") or "")
+            worktree = str(getattr(lease, "worktree_path", "") or "") if lease else ""
+            target = worktree if worktree and os.path.isdir(worktree) else fixture
+            result = gated_subprocess_run(
+                ["python3", "-m", "pytest", "-q", "--timeout=120"],
+                caller="wave2_verifier_independent_tests",
+                timeout=300,
+                cwd=target,
+            )
+            if result is None:
+                return [
+                    VerificationCheck(
+                        check_id="independent_tests",
+                        kind="tests",
+                        ok=False,
+                        detail="verifier test run skipped by CPU gate — cannot confirm",
+                    )
+                ]
+            return [
+                VerificationCheck(
+                    check_id="independent_tests",
+                    kind="tests",
+                    ok=result.returncode == 0,
+                    detail=f"pytest rc={result.returncode} in {target}",
+                )
+            ]
+
+        return _checks
+
+    def _lease_lookup(self, lease_id: str) -> Any:
+        """Resolve the durable EnvironmentLease (never silently None)."""
+        if not lease_id:
+            return None
+        getter = getattr(self._store, "get_lease", None)
+        if not callable(getter):
+            return None
+        return _RecordView.wrap(getter(lease_id))
 
     # ── one bounded cycle ────────────────────────────────────────────────────
 

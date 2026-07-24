@@ -245,11 +245,19 @@ def _mk_scheduler(store, queue, tmp_path, spool):
 
 
 def _mk_poller(store, spool, scheduler, grant, proof_runtime):
+    # Use the REAL durable store accessors (finding C4). This helper previously
+    # called store.list_assignments() — a method that does not exist — behind a
+    # hasattr guard, so it returned None for every attempt and the rehearsal
+    # verified with no assignment/lease context at all. The store returns dicts
+    # and verify_attempt reads attributes, so wrap them the same way the field
+    # driver does.
+    from substrate.execution.attempts.field_control_plane import _RecordView
+
     def _asn_lookup(aid):
-        for a in store.list_assignments() if hasattr(store, "list_assignments") else []:
-            if getattr(a, "assignment_id", "") == aid:
-                return a
-        return None
+        return _RecordView.wrap(store.get_assignment(aid)) if aid else None
+
+    def _lease_lookup(lid):
+        return _RecordView.wrap(store.get_lease(lid)) if lid else None
 
     return ControlPlanePoller(
         store=store,
@@ -257,6 +265,8 @@ def _mk_poller(store, spool, scheduler, grant, proof_runtime):
         scheduler=scheduler,
         verify_fn=_verify_fn,
         proof_runtime=proof_runtime,
+        assignment_lookup=_asn_lookup,
+        lease_lookup=_lease_lookup,
         scheduler_pass_kwargs=dict(
             grant=grant,
             role_resolver=_role,
