@@ -223,10 +223,45 @@ because "the repair needed repairing twice" is the finding.
   the frontier. The map persists `execution_authorization_ref` but authority is
   REREAD from the canonical stores at arming — never delegated to the map. Field
   callers derive the exact plan+authorization from the single ACTIVE grant in
-  candidate state (`_active_grant_binding`); the all-packets `_authorized_frontier`
-  helper is deleted. +28 tests (A–L cases). MUTATION-VERIFIED: re-adding synthetic
-  node-packets, the latest-plan fallback, or the all-packets frontier each fails
-  the suite.
+  candidate state; the all-packets `_authorized_frontier` helper is deleted.
+- **FINAL run-binding microfix (owner, binding):** the prior cut still resolved
+  the target through "the ONE ACTIVE grant in all candidate state" — NOT a run
+  binding. A legitimate ACTIVE grant left by a prior/parallel run breaks it (0 or
+  2 matches), and it discarded identifiers already on `ExecutionAuthorizationGrant`
+  (grant_id, decision_ref, conversation_id, correlation_id, tenant/principal/
+  membership). Fixed in five parts:
+  (1) **Capture the exact field-journey binding.** `write-scenario-map` now writes
+  `<targets>/<run-id>/execution_binding.json` (identifiers + observed versions
+  ONLY: run_id, candidate_sha, plan_record_id, plan_version, grant_id,
+  decision_ref, tenant/principal/membership/conversation/correlation), populated
+  from the grant THIS run's journey produced — matched by EXACT `correlation_id`
+  (`w2-<run_id>`, stamped by the collector), never a blob substring
+  (`run-1` ⊂ `opr-run-1`) and never "the only active grant".
+  (2) **Deleted global-singleton inference.** `_active_grant_binding` is removed;
+  `_capture_execution_binding` replaces it. Both `write-scenario-map` and
+  `inject-failure` load `execution_binding.json`; other ACTIVE grants are
+  irrelevant and never block the exact match.
+  (3) **Centralized canonical grant resolution.** ONE resolver
+  `resolve_canonical_grant(records, binding)` used by BOTH map writing and arming:
+  requires exact match on all nine binding fields; status ACTIVE; not_before
+  satisfied; not expired; non-empty task_frontier; the exact Plan version exists
+  and is a live accepted version (not draft/rejected/cancelled/superseded); every
+  frontier id a persisted canonical WorkPacket of that Plan and tenant. No second
+  weaker preselection helper.
+  (4) **The map's authorization binding is REAL, not asserted.** The digest now
+  covers the full binding (`binding_digest`). At arming, `validate_against_run`
+  rereads `execution_binding.json` + the canonical grant, requires persisted
+  `execution_authorization_ref == grant.decision_ref` and persisted
+  `grant_id == grant.grant_id`, recomputes the binding digest, and rejects any
+  mismatch — authority is never delegated to the map.
+  (5) **Tests A–N** (`tests/test_wave2_scenario_map_field.py`, 48): two unrelated
+  ACTIVE grants → exact selection; prior-pass grant doesn't shadow; other tenant /
+  wrong conversation / correlation / grant_id / tampered ref / missing binding /
+  duplicate exact binding / non-ACTIVE / expired / not-yet-valid / draft-or-
+  superseded plan / frontier packet outside plan or tenant — all fail closed.
+  MUTATION-VERIFIED: restoring "the only active grant" selection kills B/C/D/E/F;
+  dropping the decision_ref comparison kills the tampered-ref test; a static
+  build-time `binding_digest` kills the persisted-content-digest test.
 - **Residual risk:** the end-to-end injection→A1-fail→C-blocked→A2-recover graph
   mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
   live field pass requires a candidate deploy (C7, owner-gated).

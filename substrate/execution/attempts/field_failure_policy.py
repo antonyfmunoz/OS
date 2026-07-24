@@ -142,23 +142,21 @@ def arming_is_valid(targets_dir: str | os.PathLike[str]) -> tuple[bool, str]:
 def arming_is_valid_for_run(
     targets_dir: str | os.PathLike[str],
     *,
-    run_id: str,
     records: list[Any],
-    plan_record_id: str,
-    plan_version: int,
-    tenant_id: str = "",
     now: float | None = None,
 ) -> tuple[bool, str]:
     """AUTHORITATIVE arming check against the LIVE candidate state (C-3).
 
     A clean run (no revoking variant) is always valid. A revoking variant is
-    valid ONLY when the persisted scenario map validates against the EXACT live
-    plan version and the ACTIVE execution-authorization grant's task_frontier —
-    correct run binding, not stale, every role resolving to a REAL persisted
-    WorkPacket record inside the AUTHORIZED frontier. The frontier is derived from
-    the one active grant, never aggregated from all packets. Fails closed on every
-    mode (absent/stale/wrong-run/nonexistent/out-of-frontier/ambiguous/
-    no-grant/expired-grant/empty-frontier).
+    valid ONLY when the persisted scenario map validates against the run's
+    CAPTURED execution binding (``execution_binding.json``) and the ONE canonical
+    execution-authorization grant matching every binding identifier — grant_id,
+    decision_ref, plan id/version, tenant/principal/membership,
+    conversation/correlation. The frontier is that exact grant's task_frontier,
+    resolved by run binding, never "the only ACTIVE grant" and never aggregated
+    from all packets. Fails closed on every mode (absent binding/absent map/stale/
+    wrong-run/nonexistent/out-of-frontier/tampered ref/tampered grant_id/
+    non-ACTIVE/not-yet-valid/expired/empty-frontier/draft-or-superseded plan).
     """
     variant = read_variant(targets_dir)
     if not variant:
@@ -168,15 +166,7 @@ def arming_is_valid_for_run(
 
     from substrate.execution.attempts.field_scenario_map import validate_against_run
 
-    ok, reason = validate_against_run(
-        targets_dir,
-        run_id=run_id,
-        records=records,
-        plan_record_id=plan_record_id,
-        plan_version=plan_version,
-        tenant_id=tenant_id,
-        now=now,
-    )
+    ok, reason = validate_against_run(targets_dir, records=records, now=now)
     if not ok:
         return False, f"variant {variant!r} armed but map invalid: {reason}"
     target = target_task_id(targets_dir)

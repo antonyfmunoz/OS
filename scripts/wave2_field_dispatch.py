@@ -1862,21 +1862,25 @@ def stop_runner(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
 
 
 def write_scenario_map(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
-    """Resolve + persist the run's scenario map from REAL materialized records.
+    """Capture the run binding + resolve + persist the run's scenario map.
 
     This is the field consumer of the scenario-map capability (finding C-3). It
-    reads the candidate's live plan + WorkPacket records, resolves each semantic
-    role to its exact canonical ``wp-*`` id through plan-node lineage, and writes
-    a run+plan-bound ``scenario_map.json`` under the run's targets dir. WITHOUT
-    this, ``inject-failure`` reads ``{}`` and the failure-qualification pass is
+    CAPTURES the run's execution binding from the REAL grant produced by THIS
+    journey (the grant whose correlation_id is this run's ``w2-<run_id>``),
+    persists it as ``execution_binding.json`` (identifiers only), then resolves
+    each semantic role to its exact canonical ``wp-*`` id through plan-node
+    lineage and writes a binding-bound ``scenario_map.json``. WITHOUT this,
+    ``inject-failure`` reads no binding and the failure-qualification pass is
     unrunnable (exit 3 forever).
 
-    Must run AFTER the plan materializes its WorkPackets (i.e. after the plan
-    approval + activation the collector drives) and BEFORE inject-failure.
+    The binding is NEVER "the only ACTIVE grant" — it is the grant this run's
+    journey produced, resolved by exact correlation. Must run AFTER the plan
+    materializes its WorkPackets and the execution authorization is granted (i.e.
+    after the collector drives approval + activation) and BEFORE inject-failure.
     """
     targets = _targets_dir(sha, run_id)
     if runner.dry_run:
-        print(f"[dry-run] resolve + write scenario map for run {run_id} → {targets}")
+        print(f"[dry-run] capture binding + resolve + write scenario map for run {run_id}")
         return {"written": True, "dry_run": True, "run_id": run_id}
 
     # Import the worktree substrate (not the stale /opt/OS one) — the candidate
@@ -1885,35 +1889,33 @@ def write_scenario_map(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
     from substrate.execution.attempts.field_scenario_map import (
         ScenarioMapError,
         build_from_records,
+        write_execution_binding,
     )
     from substrate.execution.attempts.field_scenario_map import (
         write_scenario_map as _persist,
     )
 
     records = _read_state_records(sha)
-    # Resolve the EXACT plan + authorization the run produced from the ONE ACTIVE
-    # grant in candidate state — never "latest plan" or a run-tag substring.
-    binding = _active_grant_binding(records)
+    # Capture the EXACT binding from the grant THIS run's journey produced —
+    # matched by exact correlation, then read for its full identity. Never
+    # inferred from "the only active grant".
+    binding, cap_err = _capture_execution_binding(records, sha=sha, run_id=run_id)
     if binding is None:
         return {
             "written": False,
             "run_id": run_id,
-            "error": "no single ACTIVE execution-authorization grant found in candidate state",
-            "remediation": "drive the plan approval + execution authorization before writing the map",
+            "error": cap_err,
+            "remediation": "drive the plan approval + execution authorization for THIS run before writing the map",
         }
+    write_execution_binding(targets, binding)
     try:
-        payload = build_from_records(
-            records,
-            run_id=run_id,
-            plan_record_id=binding["plan_record_id"],
-            plan_version=binding["plan_version"],
-            execution_authorization_ref=binding["decision_ref"],
-        )
+        payload = build_from_records(records, binding=binding)
     except ScenarioMapError as exc:
         # FAIL CLOSED: no map is written, so inject-failure will refuse to arm.
         return {
             "written": False,
             "run_id": run_id,
+            "grant_id": binding.grant_id,
             "error": str(exc),
             "remediation": "ensure the plan materialized its WorkPackets before writing the map",
         }
@@ -1922,6 +1924,7 @@ def write_scenario_map(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
         "written": True,
         "run_id": run_id,
         "path": str(path),
+        "grant_id": binding.grant_id,
         "plan_record_id": payload.get("plan_record_id", ""),
         "plan_version": payload.get("plan_version", 0),
         "backend_task_id": payload.get("backend_task_id", ""),
@@ -1952,34 +1955,34 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     marker.write_text(variant, encoding="utf-8")
 
     # FAIL CLOSED (findings C2 + C-3): a revoking variant is only valid when the
-    # scenario map validates against THIS run's LIVE plan + packets — correct run
-    # binding, not stale, every role resolving to a real materialized packet
-    # inside the authorized frontier. An armed injection that cannot target a real
-    # authorized task must never be mistaken for a recovered one.
+    # scenario map validates against THIS run's CAPTURED execution binding — the
+    # ONE canonical grant matching every binding identifier (grant_id,
+    # decision_ref, plan id/version, tenant/principal/membership,
+    # conversation/correlation), not stale, ref/grant_id untampered, every role
+    # resolving to a real materialized packet inside that grant's frontier. An
+    # armed injection that cannot target a real authorized task must never be
+    # mistaken for a recovered one. The binding is read from the
+    # ``execution_binding.json`` that ``write-scenario-map`` captured for THIS run.
     sys.path.insert(0, str(_WORKTREE))
     from substrate.execution.attempts.field_failure_policy import (
         arming_is_valid_for_run,
         target_task_id,
     )
+    from substrate.execution.attempts.field_scenario_map import read_execution_binding
 
-    records = _read_state_records(sha)
-    binding = _active_grant_binding(records)
-    if binding is None:
+    if read_execution_binding(targets) is None:
         return {
             "armed": False,
             "variant": variant,
             "marker": str(marker),
-            "invalid_reason": "no single ACTIVE execution-authorization grant in candidate state",
-            "remediation": "drive the execution-authorization decision, then re-arm",
+            "invalid_reason": "no execution_binding.json for this run — binding not captured",
+            "remediation": (
+                "run `wave2_field_dispatch.py write-scenario-map` for THIS run AFTER "
+                "the execution authorization is granted, then re-arm"
+            ),
         }
-    ok, reason = arming_is_valid_for_run(
-        str(targets),
-        run_id=run_id,
-        records=records,
-        plan_record_id=binding["plan_record_id"],
-        plan_version=binding["plan_version"],
-        tenant_id=binding["tenant_id"],
-    )
+    records = _read_state_records(sha)
+    ok, reason = arming_is_valid_for_run(str(targets), records=records)
     if not ok:
         return {
             "armed": False,
@@ -1988,7 +1991,7 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
             "invalid_reason": reason,
             "remediation": (
                 "run `wave2_field_dispatch.py write-scenario-map` AFTER the plan "
-                "materializes its WorkPackets, then re-arm"
+                "materializes its WorkPackets and the grant is ACTIVE, then re-arm"
             ),
         }
     return {
@@ -2000,30 +2003,71 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     }
 
 
-def _active_grant_binding(records: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """The EXACT plan + authorization binding from the ONE ACTIVE grant.
+def _capture_execution_binding(
+    records: list[dict[str, Any]], *, sha: str, run_id: str
+) -> tuple[Any, str]:
+    """Capture THIS run's execution binding from the grant its journey produced.
 
-    The authorized frontier and plan version come from the single ACTIVE
-    execution-authorization grant in candidate state — never from "latest plan"
-    or an aggregation over all packets. Returns None (fail closed) when there is
-    not exactly one ACTIVE grant, so the caller refuses to write/arm.
+    The run's binding is NOT "the only ACTIVE grant" — it is the grant this run's
+    journey created, identified by an EXACT match on the grant's own
+    ``correlation_id`` (the collector stamps ``w2-<run_id>`` as the correlation of
+    THIS journey — see wave2_field_collector), never a blob substring: a short run
+    tag like ``run-1`` is a substring of ``opr-run-1`` and would false-match. The
+    grant is then read for its FULL identity (grant_id, decision_ref, plan
+    id/version, tenant/principal/membership, conversation/correlation). Returns
+    ``(ExecutionBinding, "")`` on success, or ``(None, reason)`` fail-closed when
+    zero or more than one grant carries this run's exact correlation, or the grant
+    is not ACTIVE.
+
+    An explicit ``run_tag`` field on the grant is also accepted (test/tooling
+    fixtures set it directly). Both are EXACT-match, never substring — the exact
+    match is what makes a legitimate ACTIVE grant left by a prior or parallel run
+    irrelevant: it carries a different correlation.
     """
+    from substrate.execution.attempts.field_scenario_map import ExecutionBinding
+
+    # The collector's correlation for this journey: w2-<run_id> (run_id already
+    # carries the -pN pass suffix). Match it exactly on the grant's correlation_id.
+    wanted_corr = {f"w2-{run_id}", run_id} if run_id else set()
+    run_tag = run_id.split("-p")[0] if run_id else run_id
+    wanted_tag = {t for t in (run_id, run_tag) if t}
     grants = [
         g
         for g in records
         if g.get("grant_id")
         and "task_frontier" in g
-        and str(g.get("status", "")).lower() == "active"
+        and (
+            str(g.get("correlation_id", "")) in wanted_corr
+            or str(g.get("run_tag", "")) in wanted_tag
+        )
     ]
     if len(grants) != 1:
-        return None
+        return None, (
+            f"{len(grants)} execution-authorization grants carry exact correlation "
+            f"{sorted(wanted_corr)!r} (need exactly 1) — the run's own grant is not "
+            f"uniquely identifiable"
+        )
     g = grants[0]
-    return {
-        "plan_record_id": str(g.get("plan_record_id", "")),
-        "plan_version": int(g.get("plan_version", 0)),
-        "tenant_id": str(g.get("tenant_id", "")),
-        "decision_ref": str(g.get("decision_ref", "")),
-    }
+    status = str(g.get("status", "")).lower()
+    if status != "active":
+        return None, (
+            f"grant {g.get('grant_id')!r} for run {run_id!r} status is {status!r}, "
+            f"not ACTIVE — the authorization is not live"
+        )
+    binding = ExecutionBinding(
+        run_id=run_id,
+        candidate_sha=sha,
+        plan_record_id=str(g.get("plan_record_id", "")),
+        plan_version=int(g.get("plan_version", 0)),
+        grant_id=str(g.get("grant_id", "")),
+        decision_ref=str(g.get("decision_ref", "")),
+        tenant_id=str(g.get("tenant_id", "")),
+        principal_id=str(g.get("principal_id", "")),
+        membership_id=str(g.get("membership_id", "")),
+        conversation_id=str(g.get("conversation_id", "")),
+        correlation_id=str(g.get("correlation_id", "")),
+    )
+    return binding, ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
