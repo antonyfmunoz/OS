@@ -140,12 +140,13 @@ def _assert_durable_proof(attempt: ExecutionAttempt, proof_id: str) -> None:
     """Fail closed unless ``proof_id`` names a DURABLE Proof for THIS attempt.
 
     Rereads the canonical ProofRuntime store from disk (never the in-memory map),
-    then checks the record's recorded lineage binds it to this attempt. Set
-    ``UMH_W2_ALLOW_NONDURABLE_PROOF=1`` ONLY in unit tests that deliberately
-    exercise the pre-Proof lifecycle without a proof store.
+    then checks the record's recorded lineage binds it to this attempt.
+
+    There is deliberately NO bypass. An earlier env hatch
+    (``UMH_W2_ALLOW_NONDURABLE_PROOF``) was removed: it was ambient, unlogged,
+    and inherited by the runner subprocess, so a stale export in any shell would
+    have silently voided governed completion on a live billed run.
     """
-    if os.environ.get("UMH_W2_ALLOW_NONDURABLE_PROOF") == "1":
-        return
     try:
         from substrate.organism.proof_runtime import ProofRuntime
     except ImportError as exc:  # substrate must be importable; fail closed
@@ -160,17 +161,24 @@ def _assert_durable_proof(attempt: ExecutionAttempt, proof_id: str) -> None:
             f"(missing, corrupt, or in-memory only) — refusing verifying→succeeded"
         )
 
-    # The Proof must belong to THIS attempt: a durable Proof for a different
-    # attempt must never complete this one.
+    # The Proof must belong to THIS attempt. Both checks are FAIL-CLOSED: absent
+    # lineage is a rejection, never a pass.
+    #
+    # These were previously guarded by truthiness (`if recorded_attempt and ...`),
+    # so a Proof whose action carried no attempt_id satisfied the gate for EVERY
+    # attempt — verified: a proof with an empty attempt_id completed an unrelated
+    # attempt on the same task. The plan-execution path mints exactly that shape.
+    # A softened check is where the guarantee dies.
     action = getattr(package, "action", {}) or {}
     recorded_attempt = str(action.get("attempt_id", "") or "")
-    if recorded_attempt and recorded_attempt != attempt.attempt_id:
+    if recorded_attempt != attempt.attempt_id:
         raise AttemptLifecycleError(
             f"attempt {attempt.attempt_id}: proof {proof_id!r} is bound to attempt "
-            f"{recorded_attempt!r} — a Proof may not be credited to another attempt"
+            f"{recorded_attempt!r} — a Proof may only complete the attempt it proves "
+            f"(absent lineage is a rejection)"
         )
     recorded_task = str(getattr(package, "work_id", "") or "")
-    if recorded_task and attempt.task_id and recorded_task != attempt.task_id:
+    if recorded_task != str(attempt.task_id or ""):
         raise AttemptLifecycleError(
             f"attempt {attempt.attempt_id}: proof {proof_id!r} proves task "
             f"{recorded_task!r}, not {attempt.task_id!r}"

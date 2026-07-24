@@ -13,15 +13,21 @@ from substrate.organism.universal_work_queue import UniversalWorkQueue
 from substrate.organism.work_packet import PacketLifecycleStatus, WorkPacket
 
 
-# These tests exercise LIFECYCLE MECHANICS (CAS, legal transitions, poller
-# routing) — not Proof durability, which is covered end-to-end by
-# tests/test_wave2_verification_proof.py and the harness rehearsal. They use
-# synthetic proof ids, so the durable-Proof guard is explicitly relaxed HERE ONLY.
-# Never set this in field code: it is the check that stops a dangling proof_id
-# from completing an attempt (finding C1).
-@pytest.fixture(autouse=True)
-def _allow_synthetic_proof_ids(monkeypatch):
-    monkeypatch.setenv("UMH_W2_ALLOW_NONDURABLE_PROOF", "1")
+# Lifecycle-mechanics tests mint a REAL durable Proof bound to the attempt under
+# test, rather than disabling the durability guard. The former env hatch
+# (UMH_W2_ALLOW_NONDURABLE_PROOF) was removed: it was ambient, unlogged, and any
+# stale export silently voided governed completion on a live billed run.
+def _durable_proof_for(attempt, *, tmp_path, monkeypatch):
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "proofstate"))
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    pkg = ProofRuntime().create_direct(
+        work_id=attempt.task_id,
+        action={"classification": "attempt_proof", "attempt_id": attempt.attempt_id},
+        outcome="attempt_proof:passed",
+        operator="verifier:v1",
+    )
+    return pkg.proof_id
 
 
 _S = ExecutionAttemptStatus
@@ -187,7 +193,7 @@ def test_concurrency_cap_limits_admission(store, queue, tmp_path):
     assert len(report.attempts_admitted) == 2  # only 2 of 3 admitted
 
 
-def test_fanin_task_blocked_until_predecessors_succeed(store, queue, tmp_path):
+def test_fanin_task_blocked_until_predecessors_succeed(store, queue, tmp_path, monkeypatch):
     _add_approved_packet(queue, "wp-a")
     _add_approved_packet(queue, "wp-b")
     _add_approved_packet(queue, "wp-c", deps=["wp-a", "wp-b"])
@@ -214,7 +220,11 @@ def test_fanin_task_blocked_until_predecessors_succeed(store, queue, tmp_path):
             ("verifying",),
             actor="verifier:v",
             reason="done",
-            updates={"proof_id": f"proof-{tid}", "verifier_identity": "v", "worker_identity": "w"},
+            updates={
+                "proof_id": _durable_proof_for(att, tmp_path=tmp_path, monkeypatch=monkeypatch),
+                "verifier_identity": "v",
+                "worker_identity": "w",
+            },
         )
     report2 = _pass(sched, grant)
     created2 = {store.get_attempt(aid).task_id for aid in report2.attempts_created}

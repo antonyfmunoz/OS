@@ -26,15 +26,21 @@ from substrate.execution.attempts.records import (  # noqa: E402
 from substrate.execution.attempts.store import ExecutionAttemptStore  # noqa: E402
 
 
-# These tests exercise LIFECYCLE MECHANICS (CAS, legal transitions, poller
-# routing) — not Proof durability, which is covered end-to-end by
-# tests/test_wave2_verification_proof.py and the harness rehearsal. They use
-# synthetic proof ids, so the durable-Proof guard is explicitly relaxed HERE ONLY.
-# Never set this in field code: it is the check that stops a dangling proof_id
-# from completing an attempt (finding C1).
-@pytest.fixture(autouse=True)
-def _allow_synthetic_proof_ids(monkeypatch):
-    monkeypatch.setenv("UMH_W2_ALLOW_NONDURABLE_PROOF", "1")
+# Lifecycle-mechanics tests mint a REAL durable Proof bound to the attempt under
+# test, rather than disabling the durability guard. The former env hatch
+# (UMH_W2_ALLOW_NONDURABLE_PROOF) was removed: it was ambient, unlogged, and any
+# stale export silently voided governed completion on a live billed run.
+def _durable_proof_for(attempt, *, tmp_path, monkeypatch):
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "proofstate"))
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    pkg = ProofRuntime().create_direct(
+        work_id=attempt.task_id,
+        action={"classification": "attempt_proof", "attempt_id": attempt.attempt_id},
+        outcome="attempt_proof:passed",
+        operator="verifier:v1",
+    )
+    return pkg.proof_id
 
 
 @pytest.fixture()
@@ -122,13 +128,32 @@ class _Verdict:
         self.checks = checks or []
 
 
+@pytest.fixture(autouse=True)
+def _shared_proof_store(tmp_path, monkeypatch):
+    """The fake verifier and the lifecycle guard must read the SAME proof store."""
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "proofstate"))
+
+
 def _passing_verify(**kw):
     # The verifier identity MUST differ from the worker — assert it here so the
     # test fails loudly if the poller ever passes a colliding identity.
     assert kw["verifier_identity"].startswith("verifier:")
     assert kw["verifier_identity"] != kw["attempt"].worker_identity
+    # Mint a REAL durable Proof bound to the attempt under verification, exactly
+    # as the production verifier does. A hardcoded id no longer completes an
+    # attempt: the lifecycle guard rereads the canonical store and checks
+    # lineage, and its former env bypass was removed.
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    attempt = kw["attempt"]
+    pkg = ProofRuntime().create_direct(
+        work_id=attempt.task_id,
+        action={"classification": "attempt_proof", "attempt_id": attempt.attempt_id},
+        outcome="attempt_proof:passed",
+        operator=kw["verifier_identity"],
+    )
     return _Verdict(
-        passed=True, proof_id="proof-xyz", checks=[{"check_id": "artifacts", "ok": True}]
+        passed=True, proof_id=pkg.proof_id, checks=[{"check_id": "artifacts", "ok": True}]
     )
 
 
@@ -170,7 +195,14 @@ def test_dispatched_result_drives_to_succeeded_with_proof(store):
     assert a.attempt_id in report.succeeded
     final = store.get_attempt(a.attempt_id)
     assert final.status == ExecutionAttemptStatus.SUCCEEDED.value
-    assert final.proof_id == "proof-xyz"
+    # Assert the DURABLE property, not a hardcoded id: the proof must resolve
+    # from the canonical store and be bound to this exact attempt.
+    assert final.proof_id
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    pkg = ProofRuntime().reread_durable(final.proof_id)
+    assert pkg is not None, "the completing Proof must be durably persisted"
+    assert pkg.action.get("attempt_id") == a.attempt_id
     assert final.verifier_identity.startswith("verifier:")
     # worker files/commits were recorded on the attempt
     assert final.files_changed == ["app/main.py"]

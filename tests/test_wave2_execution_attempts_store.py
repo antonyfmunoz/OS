@@ -25,15 +25,21 @@ from substrate.execution.attempts.records import (
 from substrate.execution.attempts.store import AttemptStoreConflict, ExecutionAttemptStore
 
 
-# These tests exercise LIFECYCLE MECHANICS (CAS, legal transitions, poller
-# routing) — not Proof durability, which is covered end-to-end by
-# tests/test_wave2_verification_proof.py and the harness rehearsal. They use
-# synthetic proof ids, so the durable-Proof guard is explicitly relaxed HERE ONLY.
-# Never set this in field code: it is the check that stops a dangling proof_id
-# from completing an attempt (finding C1).
-@pytest.fixture(autouse=True)
-def _allow_synthetic_proof_ids(monkeypatch):
-    monkeypatch.setenv("UMH_W2_ALLOW_NONDURABLE_PROOF", "1")
+# Lifecycle-mechanics tests mint a REAL durable Proof bound to the attempt under
+# test, rather than disabling the durability guard. The former env hatch
+# (UMH_W2_ALLOW_NONDURABLE_PROOF) was removed: it was ambient, unlogged, and any
+# stale export silently voided governed completion on a live billed run.
+def _durable_proof_for(attempt, *, tmp_path, monkeypatch):
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "proofstate"))
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    pkg = ProofRuntime().create_direct(
+        work_id=attempt.task_id,
+        action={"classification": "attempt_proof", "attempt_id": attempt.attempt_id},
+        outcome="attempt_proof:passed",
+        operator="verifier:v1",
+    )
+    return pkg.proof_id
 
 
 @pytest.fixture()
@@ -171,34 +177,37 @@ def test_illegal_transition_rejected(store):
             expected_record_version=0,
             expected_statuses=(ExecutionAttemptStatus.CREATED.value,),
             actor="verifier:v1",
-            updates={"proof_id": "p1", "verifier_identity": "v1"},
+            updates={"proof_id": "p-unused-illegal-transition", "verifier_identity": "v1"},
         )
 
 
 # ── Lifecycle guards (clause 6) ──────────────────────────────────────────────
 
 
-def test_succeed_requires_proof_and_distinct_verifier():
+def test_succeed_requires_proof_and_distinct_verifier(tmp_path, monkeypatch):
     a = _attempt(
         status=ExecutionAttemptStatus.VERIFYING.value,
         worker_identity="worker-1",
     )
+    # A REAL durable Proof bound to this attempt — the durability guard has no
+    # bypass, so lifecycle tests must mint one rather than disable the check.
+    _pid = _durable_proof_for(a, tmp_path=tmp_path, monkeypatch=monkeypatch)
     # No proof → reject.
     with pytest.raises(AttemptLifecycleError):
         validate_transition(a, "succeeded", "verifier:v1", {"verifier_identity": "v1"})
     # Verifier == worker → reject.
     with pytest.raises(AttemptLifecycleError):
         validate_transition(
-            a, "succeeded", "verifier:worker-1", {"proof_id": "p1", "verifier_identity": "worker-1"}
+            a, "succeeded", "verifier:worker-1", {"proof_id": _pid, "verifier_identity": "worker-1"}
         )
     # Non-verifier actor → reject.
     with pytest.raises(AttemptLifecycleError):
         validate_transition(
-            a, "succeeded", "worker:worker-1", {"proof_id": "p1", "verifier_identity": "v1"}
+            a, "succeeded", "worker:worker-1", {"proof_id": _pid, "verifier_identity": "v1"}
         )
     # Proof + distinct verifier + verifier actor → OK.
     validate_transition(
-        a, "succeeded", "verifier:v1", {"proof_id": "p1", "verifier_identity": "v1"}
+        a, "succeeded", "verifier:v1", {"proof_id": _pid, "verifier_identity": "v1"}
     )
 
 

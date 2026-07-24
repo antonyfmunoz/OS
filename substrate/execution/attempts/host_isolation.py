@@ -169,9 +169,20 @@ def preflight_isolation(forbidden_probe_path: str = "/opt/OS") -> tuple[bool, st
     if prim is None:
         return False, "no isolation primitive available"
     if prim != "bwrap":
-        # Only bwrap gives a mount-namespace guarantee we can positively prove
-        # here; other primitives are accepted but flagged as unproven.
-        return True, f"{prim} available (mount-namespace hiding not probe-verified)"
+        # FAIL CLOSED. These were previously accepted as "available but not
+        # probe-verified", and both callers honoured that (`if not ok and prim ==
+        # "bwrap"`), so a non-bwrap primitive could never fail the gate — while
+        # providing NO isolation at all:
+        #   * systemd-run creates no mount namespace: /opt/OS, every credential
+        #     and every other run's state stay readable.
+        #   * nsjail --chroot / is the whole filesystem.
+        # Neither propagates CLAUDE_CONFIG_DIR/TMPDIR/XDG_*, so the per-attempt
+        # credential boundary silently collapses back to the real ~/.claude —
+        # reinstating the shared-home defect. Wave 2 hard-requires bwrap.
+        return False, (
+            f"{prim} cannot be probe-verified to hide {forbidden_probe_path} and does not "
+            f"provide a mount namespace — refusing (Wave 2 requires bwrap)"
+        )
 
     import tempfile
 

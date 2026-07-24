@@ -100,8 +100,11 @@ def run_loop(
         return 2
     ok, detail = preflight_isolation("/opt/OS")
     _log(f"isolation preflight: {ok} ({detail})")
-    if not ok and prim == "bwrap":
-        _log("FATAL: isolation preflight failed — refusing to run workers unconfined")
+    if not ok:
+        # FAIL CLOSED for EVERY primitive (SEC-C4). The `and prim == "bwrap"`
+        # exemption meant a non-bwrap primitive could never fail this gate, while
+        # providing no isolation whatsoever.
+        _log(f"FATAL: isolation preflight failed ({detail}) — refusing to run workers unconfined")
         return 2
 
     spool = DispatchSpool(spool_root, secret)
@@ -332,7 +335,9 @@ def main() -> int:
         prim = isolation_primitive()
         ok, detail = preflight_isolation("/opt/OS")
         print(json.dumps({"primitive": prim, "isolation_ok": ok, "detail": detail}))
-        return 0 if (prim and (ok or prim != "bwrap")) else 2
+        # FAIL CLOSED: `ok or prim != "bwrap"` let any non-bwrap primitive pass
+        # the preflight that start_runner parses to decide whether to launch.
+        return 0 if (prim and ok) else 2
 
     secret = os.environ.get(args.secret_env, "")
     if not secret:
