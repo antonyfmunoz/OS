@@ -294,6 +294,30 @@ because "the repair needed repairing twice" is the finding.
   Suite now 61 tests. MUTATION-VERIFIED: removing the resolver call from map
   creation kills corr_A/B/C; honoring a fake top-level tenant kills corr_E;
   restoring run_tag/base-tag selection kills the capture-rejection test.
+- **FINAL fail-closed microfix (owner, binding):** three residual fail-open
+  conditions in `resolve_canonical_grant`, all preserving the C-3 architecture.
+  (1) **Exact APPROVED plan status — allowlist, not denylist.** The denylist
+  (`_PLAN_NONLIVE = {draft,rejected,cancelled,superseded}`) let AWAITING_APPROVAL
+  and unknown/malformed statuses pass as "live accepted". Replaced with
+  `plan_status != ObjectivePlanStatus.APPROVED.value` (imported from the canonical
+  planning-records home — no duplicated literal). `awaiting_approval`, empty, and
+  unknown statuses now all fail closed.
+  (2) **Nonempty exact Plan materialization set.** The old
+  `if plan_packet_ids and tid not in ...` failed open when `workpacket_ids` was
+  absent/empty. New `_validate_plan_materialization_set` requires
+  `workpacket_ids` to be a list, nonempty, with unique nonempty ids, each
+  resolving to exactly one persisted canonical WorkPacket of the same Plan+tenant;
+  the frontier-membership check is now UNCONDITIONAL. The set is NEVER inferred
+  from nodes (correspondence records) — `ObjectivePlanRecord.workpacket_ids` is
+  the first-class materialization record.
+  (3) **Nonempty canonical objective identity.** Before comparing, `plan.objective_id`,
+  `grant.plan_record_id`, `lineage.objective_id`, and `lineage.plan_record_id`
+  must ALL be nonempty — equality of two empty strings is never valid
+  correspondence.
+  Suite now 80 tests. MUTATION-VERIFIED: restoring the denylist kills the
+  non-APPROVED status cases; restoring `if plan_packet_ids and ...` (fail-open)
+  kills the empty-set + unconditional-check tests; allowing empty-string objective
+  correspondence kills the objective-identity tests.
 - **Residual risk:** the end-to-end injection→A1-fail→C-blocked→A2-recover graph
   mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
   live field pass requires a candidate deploy (C7, owner-gated).

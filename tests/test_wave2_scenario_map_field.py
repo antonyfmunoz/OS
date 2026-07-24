@@ -398,16 +398,41 @@ def test_J_not_yet_valid_grant_fails():
         resolve_canonical_grant(recs, _binding(), now=1.0)
 
 
-# ── K. active grant bound to a draft/rejected/superseded Plan fails ────────
+# ── K. plan status is an ALLOWLIST — exactly APPROVED, never a denylist ────
 
 
-@pytest.mark.parametrize("plan_status", ["draft", "rejected", "cancelled", "superseded"])
-def test_K_grant_bound_to_nonlive_plan_fails(plan_status):
-    # superseded is caught earlier by select_plan; draft/rejected/cancelled by the
-    # _PLAN_NONLIVE check. Both fail closed — accept either message.
+def test_K_approved_plan_passes():
+    grant = resolve_canonical_grant(_records(plan_status="approved"), _binding())
+    assert grant["grant_id"] == _GRANT_ID
+
+
+@pytest.mark.parametrize(
+    "plan_status",
+    ["awaiting_approval", "draft", "rejected", "cancelled", "superseded", "", "bogus_status"],
+)
+def test_K_non_approved_plan_status_fails(plan_status):
+    # superseded is caught earlier by select_plan; everything else — including
+    # awaiting_approval, empty, and unknown — by the APPROVED allowlist. All fail.
     recs = _records(plan_status=plan_status)
-    with pytest.raises(ScenarioMapError, match="not a live accepted plan|SUPERSEDED"):
+    with pytest.raises(ScenarioMapError, match="not an APPROVED|SUPERSEDED"):
         resolve_canonical_grant(recs, _binding())
+
+
+def test_K_status_check_is_allowlist_not_denylist():
+    """Source-level: the plan-status check compares == APPROVED (allowlist), and no
+    residual _PLAN_NONLIVE denylist frozenset survives."""
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import field_scenario_map as fsm
+
+    tree = ast.parse(inspect.getsource(fsm.resolve_canonical_grant).lstrip())
+    fn = tree.body[0]
+    body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+    code = "\n".join(ast.unparse(n) for n in body)
+    assert "_PLAN_APPROVED" in code and "!=" in code, "must be an == APPROVED allowlist"
+    assert "_PLAN_NONLIVE" not in code, "the denylist must be gone"
+    assert not hasattr(fsm, "_PLAN_NONLIVE"), "the denylist frozenset must be removed"
 
 
 # ── L. frontier packet outside the exact Plan or tenant fails ──────────────
@@ -574,12 +599,14 @@ def test_corr_C_not_yet_valid_grant_cannot_write_scenario_map(tmp_path):
 
 
 def test_corr_D_empty_work_scope_tenant_fails():
-    """D. Empty work_scope.tenant_id fails closed — no permissive empty allowance."""
+    """D. Empty work_scope.tenant_id fails closed — no permissive empty allowance.
+    Caught by the materialization-set validator (it checks every declared packet's
+    first-class tenant) OR the frontier-ownership validator — both fail closed."""
     recs = _records()
     for r in recs:
         if r.get("packet_id") == "wp-aaaaaaaaaaaa":
             r["work_scope"] = {"tenant_id": ""}
-    with pytest.raises(ScenarioMapError, match="empty work_scope.tenant_id"):
+    with pytest.raises(ScenarioMapError, match="tenant"):
         resolve_canonical_grant(recs, _binding())
 
 
@@ -592,17 +619,18 @@ def test_corr_E_fake_top_level_tenant_is_not_honored():
         p = _packet_record(label, work_scope={"tenant_id": ""}, top_level_tenant=True)
         recs.append(p)
     recs.append(_grant_record())
-    with pytest.raises(ScenarioMapError, match="empty work_scope.tenant_id"):
+    with pytest.raises(ScenarioMapError, match="tenant"):
         resolve_canonical_grant(recs, _binding())
 
 
 def test_corr_F_missing_lineage_fails():
-    """F. Missing/empty lineage fails closed."""
+    """F. Missing/empty lineage fails closed — caught by the materialization-set
+    validator (empty lineage → empty lineage.plan_record_id) or frontier ownership."""
     recs = _records()
     for r in recs:
         if r.get("packet_id") == "wp-aaaaaaaaaaaa":
             r["lineage"] = {}
-    with pytest.raises(ScenarioMapError, match="no lineage"):
+    with pytest.raises(ScenarioMapError, match="lineage|no lineage"):
         resolve_canonical_grant(recs, _binding())
 
 
@@ -664,7 +692,7 @@ def test_corr_L_restoring_empty_tenant_compatibility_fails():
     for r in recs:
         if r.get("packet_id") == "wp-bbbbbbbbbbbb":
             r["work_scope"] = {"tenant_id": ""}
-    with pytest.raises(ScenarioMapError, match="empty work_scope.tenant_id"):
+    with pytest.raises(ScenarioMapError, match="tenant"):
         resolve_canonical_grant(recs, _binding())
 
 
@@ -683,6 +711,160 @@ def test_corr_N_exact_correlation_with_unrelated_active_grants_is_green():
 
 def _is_plan_record_dict(rec):
     return bool(rec.get("plan_record_id")) and "nodes" in rec
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# FINAL FAIL-CLOSED MICROFIX — nonempty materialized Task set + nonempty
+# canonical objective identity. (Owner: sections 2 & 3.)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _set_plan(recs, **plan_kw):
+    """Replace the plan record in ``recs`` with one mutated by ``plan_kw``."""
+    out = []
+    for r in recs:
+        if _is_plan_record_dict(r):
+            r = {**r, **plan_kw}
+        out.append(r)
+    return out
+
+
+# ── section 2: nonempty exact Plan workpacket set ──────────────────────────
+
+
+def test_mat_missing_workpacket_ids_fails():
+    recs = _records()
+    for r in recs:
+        if _is_plan_record_dict(r):
+            del r["workpacket_ids"]
+    with pytest.raises(ScenarioMapError, match="no workpacket_ids list"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_mat_workpacket_ids_none_fails():
+    recs = _set_plan(_records(), workpacket_ids=None)
+    with pytest.raises(ScenarioMapError, match="no workpacket_ids list"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_mat_empty_workpacket_ids_fails():
+    recs = _set_plan(_records(), workpacket_ids=[])
+    with pytest.raises(ScenarioMapError, match="EMPTY workpacket_ids"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_mat_empty_id_in_set_fails():
+    ids = [_ROLE_NODE[label][1] for label in _LABELS] + [""]
+    recs = _set_plan(_records(), workpacket_ids=ids)
+    with pytest.raises(ScenarioMapError, match="empty id"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_mat_duplicate_workpacket_ids_fails():
+    ids = [_ROLE_NODE[label][1] for label in _LABELS] + ["wp-aaaaaaaaaaaa"]
+    recs = _set_plan(_records(), workpacket_ids=ids)
+    with pytest.raises(ScenarioMapError, match="duplicates"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_mat_frontier_packet_absent_from_nonempty_set_fails():
+    # A nonempty set that omits a frontier id — the frontier packet is absent.
+    recs = _set_plan(
+        _records(),
+        workpacket_ids=[_ROLE_NODE[label][1] for label in _LABELS if label != BACKEND],
+    )
+    with pytest.raises(
+        ScenarioMapError, match="materialized\n?.*WorkPacket|WorkPacket set|persisted canonical"
+    ):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_mat_exact_nonempty_set_passes():
+    grant = resolve_canonical_grant(_records(), _binding())
+    assert grant["grant_id"] == _GRANT_ID
+
+
+def test_mat_no_node_inferred_fallback():
+    """Source-level: the materialization set comes from workpacket_ids, never
+    inferred from nodes as a fallback."""
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import field_scenario_map as fsm
+
+    tree = ast.parse(inspect.getsource(fsm._validate_plan_materialization_set).lstrip())
+    fn = tree.body[0]
+    body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+    code = "\n".join(ast.unparse(n) for n in body)
+    assert "workpacket_ids" in code
+    assert "nodes" not in code, "the materialization set must not be inferred from nodes"
+
+
+def test_mat_restoring_conditional_check_fails():
+    """Mutation guard: the old `if plan_packet_ids and tid not in ...` (fail-open
+    when the set is empty/absent) must not return. The frontier check is now
+    UNCONDITIONAL. Asserted at source level."""
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import field_scenario_map as fsm
+
+    tree = ast.parse(inspect.getsource(fsm._validate_frontier_packet_ownership).lstrip())
+    fn = tree.body[0]
+    body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+    code = "\n".join(ast.unparse(n) for n in body)
+    assert "if plan_packet_ids and" not in code, (
+        "the conditional (fail-open) materialization check must be removed"
+    )
+    assert "if tid not in plan_packet_ids" in code, "the frontier check must be unconditional"
+
+
+# ── section 3: nonempty canonical objective identity ───────────────────────
+
+
+def test_obj_empty_plan_objective_id_fails():
+    recs = _set_plan(_records(), objective_id="")
+    with pytest.raises(ScenarioMapError, match="objective correspondence is unproven|objective"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_obj_empty_packet_lineage_objective_id_fails():
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["lineage"] = {"plan_record_id": _PLAN_ID, "objective_id": ""}
+    with pytest.raises(ScenarioMapError, match="objective correspondence is unproven"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_obj_both_empty_objective_id_still_fails():
+    # plan.objective_id="" AND packet lineage.objective_id="" — equality of two
+    # empty strings must NEVER be valid correspondence.
+    recs = _set_plan(_records(), objective_id="")
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["lineage"] = {"plan_record_id": _PLAN_ID, "objective_id": ""}
+    with pytest.raises(ScenarioMapError, match="objective correspondence is unproven"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_obj_empty_plan_record_id_both_sides_fails():
+    # A packet with empty lineage.plan_record_id must not match — even against an
+    # empty grant plan (which cannot happen for a resolved grant, but the guard is
+    # explicit): equality of two empty strings is never correspondence.
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["lineage"] = {"plan_record_id": "", "objective_id": _OBJECTIVE}
+    with pytest.raises(
+        ScenarioMapError, match="plan correspondence is unproven|lineage.plan_record_id"
+    ):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_obj_valid_exact_objective_identity_passes():
+    grant = resolve_canonical_grant(_records(), _binding())
+    assert grant["grant_id"] == _GRANT_ID
 
 
 # ── plan selection + frontier wrappers still fail closed ───────────────────
