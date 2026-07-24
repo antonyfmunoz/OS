@@ -3,11 +3,13 @@
 ## Campaign truth
 
 ```
-WAVE 2 IMPLEMENTATION:          IN REPAIR
-DETERMINISTIC QUALIFICATION:    INVALIDATED
-FIELD HARNESS QUALIFICATION:    INVALIDATED
-REAL-WORKER QUALIFICATION:      NOT RUN
-SECURITY REVIEW:                OPEN
+WAVE 2 IMPLEMENTATION:          REPAIRED (R0-R4 complete)
+CRITICAL FINDINGS REPAIRED:     7 / 7
+WARNINGS CLOSED:                11 / 11  (0 deferred)
+DETERMINISTIC QUALIFICATION:    RE-ESTABLISHED (no-quota)
+FIELD HARNESS QUALIFICATION:    REHEARSED (no-quota, repaired pathways)
+REAL-WORKER QUALIFICATION:      NOT RUN  (owner-gated on real Claude quota)
+SECURITY REVIEW:                CLOSED - no rotation required
 PRODUCTION DEPLOYMENT:          NOT PERFORMED
 MERGE:                          PROHIBITED
 ```
@@ -43,41 +45,53 @@ quota prevented a real credential incident. See
 
 | Commit | Scope | Status |
 |---|---|---|
-| R0 | Containment, teardown, security closure | **DONE** |
-| R1 | Per-attempt credential/home isolation; immutable evidence pipeline | pending |
-| R2 | Durable canonical Proof; real-Task-ID failure injection | pending |
-| R3 | Two-worker concurrency; fail-closed verification; readiness exit semantics | pending |
-| R4 | Eleven warnings; migrations/reverts; read-only-path corrections; matrix + runbook | pending |
+| R0 | Containment, teardown, security closure | **DONE** `c7e9279e` |
+| R1 | Per-attempt credential/home isolation; immutable evidence pipeline | **DONE** `0cdd9ddc` |
+| R2 | Durable canonical Proof (`2adc06ad`); real-Task-ID failure injection (`5a5017f3`) | **DONE** |
+| R3 | Two-worker concurrency; fail-closed verification; readiness exit semantics | **DONE** `da07f866` |
+| R4 | Eleven warnings; migration; read-only-path sweep; matrix + runbook + requalification | **DONE** (this commit) |
 
-## Warning register
+## Warning register — ALL CLOSED (0 deferred)
 
-| ID | Severity | Affected | Verified cause | Resolution | Test | Status |
+Every warning is repaired and covered by a regression test. **Nothing is
+deferred**: no security, Proof, concurrency, readiness, current-truth, credential
+or evidence-integrity finding was eligible for deferral, and none of the
+remaining warnings needed it.
+
+| ID | Root cause | Affected authority | Repair | Regression test | Commit | Residual risk |
 |---|---|---|---|---|---|---|
-| W5 | warning | `scheduler.py`, `field_control_plane.py`, `wave2_attempt_runner.py` | Un-APPROVED packets skipped with a bare `continue`; runner logs only when something happened → **silent forever stall** | report `skipped_not_approved`; log idle cycles with reason | pending | R3 |
-| W6 | warning | `field_control_plane.py` | `dispatch_id` not unique per dispatch; `_seq`/`nonce` reset on restart → silent spool overwrite, stranded attempt | uuid-suffixed `dispatch_id`, uuid `nonce`, monotonic sequence | pending | R3 |
-| W7 | warning | `field_control_plane.py` | `_role_resolver_for` dead code with the same uuid blindness | delete or wire with resolved IDs | pending | R2 |
-| W8 | warning | `field_control_plane.py`, `poller.py` | Broad `except` → error text never surfaced (`errors=N` only) | log at warning; abort on N consecutive erroring cycles | pending | R3 |
-| W9 | warning | `tests/test_wave2_field_control_plane.py` | Tests encode the same wrong assumptions; stub unfaithful (real worker keeps `Bash` and can still commit) | replace per §False-green tests; add `Bash` to revoked set | pending | R2/R4 |
-| SEC-W1 | warning | `substrate/memory/candidate_generator.py` | Default relocation **orphans 259 live production records** (no migration) | revert (Wave 2 does not need it) or bounded migration | pending | R4 |
-| SEC-W2 | warning | `substrate/memory/candidate_generator.py` | Explicit-`store_dir` branch still does eager `mkdir` → same crash pattern | move `mkdir` into `_append_jsonl` for both branches | pending | R4 |
-| SEC-W3 | warning | `memory/watcher.py`, `promoter.py`, `claude_bridge.py` | Repo-relative writable paths → crash under `/app:ro` mid-run, burning a pass | route through `runtime_state_dir` | pending | R4 |
-| SEC-W4 | warning | `wave2_field_dispatch.py` | Secret shredded only by explicit `teardown`; no `atexit`/`finally`/crash-handler shred (one orphan found on disk) | shred in crash handler + `finally` | pending | R1 |
-| SEC-W5 | warning | `wave2_field_dispatch.py` | `$(cat)` failure → empty secret; runner fails closed but diagnosis is generic | verify secret file exists and is non-empty in `start_runner` | pending | R1 |
-| SEC-W6 | warning | `wave2_field_dispatch.py` | `_run_secret_path` docstring claims container-readable; it is **host-only** — a future edit could "fix" the mount and hand the secret to the container | correct the docstring | pending | R1 |
+| W5 | Un-APPROVED packets skipped with a bare `continue`; the runner logged only when something happened, so a stall was indistinguishable from "waiting for work" — **forever, with zero output** | Operator observability of the execution frontier | `ControlPlaneCycleReport.skipped_not_approved` names the blocking tasks and their status; the runner logs an idle cycle every 30 iterations with the cause | `test_cycle_report_names_tasks_that_are_not_approved` | R4 | None. Idle logging is rate-limited by design |
+| W6 | `dispatch_id = d-<attempt_id>` collided on re-dispatch and `_seq`/`nonce` reset to 0 on runner restart; the spool file is written with `os.replace` → **silent overwrite** of a pending envelope, stranding its attempt | Dispatch identity / spool integrity | uuid-suffixed `dispatch_id`, uuid `nonce` | `test_dispatch_id_is_unique_per_dispatch` | R3 | None |
+| W7 | `_role_resolver_for` defined and never called, carrying the same uuid-blindness as the failure matcher — it *looked* like role differentiation but implemented nothing | None (dead code) | Deleted | `test_dead_role_resolver_is_removed` | R4 | Integration/verification tasks share the implementer role contract; SoD (verifier != worker) is separately guarded, and per-task role differentiation is **not claimed** anywhere |
+| W8 | Broad `except` appended `str(exc)` and logged at `debug`; the runner printed only `errors=N` → a systematic failure showed as a bare counter with no cause | Operator diagnosability | Error text carries the exception type, logs at `warning` with traceback, runner prints each error line | `test_cycle_errors_carry_the_exception_text` | R4 | A per-grant fault still does not abort the run (by design — one bad grant must not stall others); it is now loud |
+| W9 | Tests encoded the same wrong assumptions as the code; the stub modelled "revocation implies failure" while the real worker retained `Bash` and could still `cat > file` and commit | Failure-qualification truth | `Bash` added to the revoked set; false-green tests replaced (see below) | `test_revocation_fires_on_the_real_backend_packet_id` | R2 | None |
+| SEC-W1 | Relocating the default store orphaned **259 live production records**; dedup/promotion reading an empty store would re-promote already-processed candidates | Memory-candidate continuity | **Migrated, not reverted** — a revert would restore the boot crash (`app.py:46` builds `ExecutionPipeline` at import). `_iter_records()` reads legacy-then-current, newest-wins on `candidate_id`; the legacy path is **read-only** | `test_legacy_records_remain_readable_after_relocation`, `test_new_records_and_legacy_records_coexist`, `test_writes_go_to_the_new_store_not_the_legacy_one` | R4 | Legacy read-through is permanent until the store is consolidated. Retirement owner: memory subsystem; wave: post-Wave-2 |
+| SEC-W2 | Only the `store_dir is None` branch was made lazy; the explicit branch still did `mkdir` in `__init__`, reproducing the original crash for any caller passing a non-writable path | Operator API boot | `mkdir` removed from **both** branches; directories created lazily in `_append_jsonl` | `test_construction_never_creates_directories`, `test_construction_survives_an_unwritable_root` (proved non-vacuous by re-injecting the eager mkdir: fails with `Errno 30 Read-only file system`) | R4 | None |
+| SEC-W3 | `watcher.py` / `promoter.py` / `claude_bridge.py` kept repo-relative writable defaults; latent, but the first watcher event or promotion under `/app:ro` raises **mid-run**, burning a qualification pass | Candidate runtime stability | All three resolve through `runtime_state_path`; `HASH_STORE` became a lazy resolver | `test_no_repo_relative_writable_defaults_remain`, `test_memory_stores_resolve_under_umh_state_dir` | R4 | None |
+| SEC-W4 | The run secret was shredded ONLY by an explicit `teardown`; any crash/SIGKILL left it on disk (an orphan from a prior SHA was found during R0 containment) | Run-secret lifetime | Crash handler shreds it too, with the sha threaded through `_install_crash_handlers` | R0 containment evidence + `docs/wave2_security_incident_closure.md` | R1 | `deploy-candidate` deliberately does **not** shred (a later `start-runner` needs it) |
+| SEC-W5 | `$(cat)` failure yielded an empty secret; the runner failed closed but the operator saw only a generic "runner did not come up" | Diagnosability of a fail-closed path | `start_runner` verifies the secret file exists and is non-empty **before** building the launch line | `test_failed_verdicts_are_detected` (`started:False` shape) | R1 | None |
+| SEC-W6 | `_run_secret_path` docstring claimed the secret was "readable by the candidate control plane" — it is **host-only**. A future edit could "fix" the mount to match and hand the secret to the container | Amendment clause 3 (worker/container gets no signing secret) | Docstring corrected with an explicit do-not-change warning | `test_control_plane_api_key_never_reaches_the_worker` | R1 | None |
 
 Security, evidence, Proof, readiness, concurrency and current-truth warnings are
-**not deferrable** per the order.
+**not deferrable** per the order — and none were deferred.
 
 ## False-green tests to replace
 
 | Old test | Wrong assumption | Replacement |
 |---|---|---|
-| `test_driver_drives_full_graph_to_green` | asserts `a.proof_id` is *truthy*, never that it **resolves** | assert durable reread from a fresh `ProofRuntime` after restart |
-| `test_driver_dispatch_fn_consults_failure_marker` | uses hand-picked `packet_id = "A"` — the one shape the matcher accepts | use real `wp-<hex12>` IDs from the scenario map |
-| `test_driver_admits_independent_frontier_first` | admission ≠ execution; no concurrency asserted | assert `max(started) < min(completed)` with real overlap |
-| `_stub_worker_drain` | zero-latency drain hides expiry/sequencing; models revocation ⇒ failure, but the real worker keeps `Bash` and may still commit | slow-worker stub; add `Bash` to the revoked set; assert genuine no-commit |
+| Finding | Old test | Wrong assumption it encoded | Adversarial replacement | Proof the replacement fails against the OLD implementation |
+|---|---|---|---|---|
+| C1 | `test_wave2_verification_proof::_ProofRT` stub + `assert proof_id in rt._packages` | that an id held in memory is a Proof | real `ProofRuntime`; `assert reread_durable(proof_id) is not None`; plus fabricated-id, wrong-attempt, and restart-durability cases | The old stub exposes no `create_direct`, so `_persist_proof` now raises `ProofDurabilityError` — 9 tests failed the moment the guard landed and had to be rewritten |
+| C2 | `test_wave2_field_failure_policy` using `task_id="A"` | that the harness controls packet ids | real `wp-<hex12>` ids resolved through `scenario_map.json`; the fake-id test is **retained** asserting those ids control nothing | The 2000-id measurement: **0/2000** matched before, **2000/2000** after |
+| C3 | `test_driver_admits_independent_frontier_first` | that admission implies execution | `test_two_workers_overlap_in_wall_clock` asserts `max(started) < min(finished)` from measured timestamps behind a thread barrier | Mutation-tested against the sequential loop: `max(started) < min(finished)` is **False**, so the assertion fails |
+| C4 | verification tests with `writable_paths=["/tmp/wt"]` and no assignment | that `diff_scope` was checked (it was hardcoded `ok=True`) | `test_diff_outside_allowlist_fails_verification`, `test_missing_assignment_fails_verification`, `test_missing_lease_fails_verification` | With `ok=True` hardcoded the scope test passes trivially; with the real computation an out-of-allowlist path fails |
+| SEC-C1 | none (the redaction had no evidence-integrity test) | that redaction was safe for hashes | `test_legitimate_hashes_survive_redaction`, `test_recorded_hashes_describe_final_bytes`, `test_verify_detects_post_finalization_mutation` | Applying the withdrawn bare-64-hex rule to a sha256 redacts it — asserted directly |
+| SEC-C2 | none (no per-lease isolation test existed) | that a shared home was acceptable | `test_worker_cannot_read_another_attempts_credential` runs a REAL bwrap probe | Mutation-tested: binding the parent dir makes the same probe print `LEAK` and read the planted token |
+| SEC-C3 | none (readiness had no exit-code test) | that recording readiness was sufficient | `test_run_passes_refuses_when_candidate_not_ready` + every failure-verdict shape | The old `main()` returned 0 unconditionally; `_result_declares_failure` now drives exit 3 |
 
-A test that mocks away the contract under test does not count.
+A test that mocks away the contract under test does not count. Where a claim is
+about the sandbox or about wall-clock overlap, the test runs a real process and
+asserts on what it observed.
 
 ## Verified-sound (not changed by the repair)
 

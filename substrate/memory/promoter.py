@@ -80,7 +80,14 @@ class MemoryPromoter:
         path: Path | None = None,
         confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
     ) -> None:
-        self._path = path or Path("data/umh/promoted_memories.json")
+        # Runtime-state resolved (finding SEC-W3): the former repo-relative
+        # default resolves under the read-only /app mount in the candidate
+        # container and raises on the first promotion mid-run.
+        if path is None:
+            from substrate.state.runtime_paths import runtime_state_path
+
+            path = Path(runtime_state_path("memory", "promoted_memories.json", create_parent=False))
+        self._path = path
         self._threshold = confidence_threshold
         self._memories: list[dict[str, Any]] = []
         self._seen_hashes: set[str] = set()

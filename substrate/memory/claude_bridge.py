@@ -95,12 +95,18 @@ class ClaudeMemoryBridge:
         self._promoter = promoter or MemoryPromoter()
         self._reconciler = reconciler or AutoReconciler()
         self._synced_hashes: set[str] = set()
-        self._hash_file = Path("data/umh/claude_memory_sync_hashes.json")
+        # Runtime-state resolved (finding SEC-W3).
+        from substrate.state.runtime_paths import runtime_state_path
+
+        self._hash_file = Path(
+            runtime_state_path("memory", "claude_memory_sync_hashes.json", create_parent=False)
+        )
         self._load_synced()
 
     def _load_synced(self) -> None:
         if self._hash_file.exists():
             import json
+
             try:
                 self._synced_hashes = set(json.loads(self._hash_file.read_text()))
             except (json.JSONDecodeError, OSError):
@@ -108,6 +114,7 @@ class ClaudeMemoryBridge:
 
     def _save_synced(self) -> None:
         import json
+
         self._hash_file.parent.mkdir(parents=True, exist_ok=True)
         self._hash_file.write_text(json.dumps(sorted(self._synced_hashes)))
 
@@ -158,9 +165,14 @@ class ClaudeMemoryBridge:
                     recon = self._reconciler.reconcile_promoted(candidate, promotion)
                     try:
                         from substrate.reality_model.reality_mutation import (
-                            RealityMutation, MutationSource, MutationType,
+                            RealityMutation,
+                            MutationSource,
+                            MutationType,
                         )
-                        from substrate.reality_model.canonical_reality_write import CanonicalRealityWritePath
+                        from substrate.reality_model.canonical_reality_write import (
+                            CanonicalRealityWritePath,
+                        )
+
                         conv_mutation = RealityMutation(
                             mutation_id=f"rm-conv-{uuid4().hex[:12]}",
                             source_system=MutationSource.CONVERSATION_MEMORY,
@@ -176,17 +188,21 @@ class ClaudeMemoryBridge:
                         CanonicalRealityWritePath().apply_mutation(conv_mutation)
                     except Exception as exc:
                         logger.debug("claude_bridge: reality mutation failed: %s", exc)
-                    results["details"].append({
-                        "file": path.name,
-                        "action": recon.get("action", "unknown"),
-                    })
+                    results["details"].append(
+                        {
+                            "file": path.name,
+                            "action": recon.get("action", "unknown"),
+                        }
+                    )
                     results["new"] += 1
                 else:
-                    results["details"].append({
-                        "file": path.name,
-                        "action": "promotion_skipped",
-                        "reason": promotion.get("reason", ""),
-                    })
+                    results["details"].append(
+                        {
+                            "file": path.name,
+                            "action": "promotion_skipped",
+                            "reason": promotion.get("reason", ""),
+                        }
+                    )
                     results["skipped"] += 1
 
                 self._synced_hashes.add(file_hash)
@@ -198,7 +214,9 @@ class ClaudeMemoryBridge:
         self._save_synced()
         logger.info(
             "Claude memory sync: %d new, %d skipped, %d errors",
-            results["new"], results["skipped"], results["errors"],
+            results["new"],
+            results["skipped"],
+            results["errors"],
         )
         return results
 

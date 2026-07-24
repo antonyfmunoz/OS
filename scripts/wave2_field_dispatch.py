@@ -835,6 +835,14 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     failed_checks = [
         name for name, c in checks.items() if isinstance(c, dict) and c.get("ok") is False
     ]
+    if runner.dry_run:
+        # A dry run asserts NOTHING about a live candidate — it only echoes the
+        # command shapes. Reporting NOT READY here would make every dry-run
+        # exit non-zero and mark the harness self-check FAIL, which is a false
+        # negative, not a safety property.
+        steps["deploy_ok"] = True
+        steps["dry_run"] = True
+        return steps
     ready = bool(readiness.get("ready")) if isinstance(readiness, dict) else False
     steps["deploy_ok"] = ready and not failed_checks
     if not steps["deploy_ok"]:

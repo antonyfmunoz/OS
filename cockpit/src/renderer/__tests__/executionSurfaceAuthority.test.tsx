@@ -84,7 +84,15 @@ describe('wave2 — alias convergence + persistence-by-refetch', () => {
 
   it('executionAttemptStore never persists execution state to browser storage', () => {
     const store = src('stores/executionAttemptStore.ts')
-    expect(store).not.toMatch(/localStorage|sessionStorage/)
+    // Strip comments before asserting: the store carries a comment DOCUMENTING
+    // that it uses neither API, and a raw regex cannot tell a prohibition from a
+    // use. Assert on CODE, not prose.
+    const code = store
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n')
+    expect(code).not.toMatch(/localStorage|sessionStorage/)
     // Mutations reread canonical truth (POST echo is never trusted).
     expect(store).toMatch(/fetchAttempt|fetchAttempts/)
   })

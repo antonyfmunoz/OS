@@ -34,6 +34,9 @@ from typing import Any
 # budget so a slow-but-live worker is never stolen from.
 _INFLIGHT_RECOVERY_SECONDS = 1200.0
 
+# Log an idle cycle every N iterations so a stall is visible without flooding.
+_IDLE_LOG_EVERY = 30
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
@@ -142,6 +145,19 @@ def run_loop(
                             f"failed={len(c.failed)} drained={c.results_drained} "
                             f"errors={len(c.errors)}"
                         )
+                        # Surface the CAUSE, not just a count (review W8).
+                        for err in c.errors:
+                            _log(f"control-plane ERROR: {err}")
+                    elif getattr(c, "skipped_not_approved", None):
+                        # A stall with a known cause must never look like
+                        # "waiting for work" (review W5).
+                        if iterations % _IDLE_LOG_EVERY == 1:
+                            _log(
+                                f"control-plane IDLE: grant={c.grant_ref[:32]} is waiting on "
+                                f"tasks that are not APPROVED yet: {c.skipped_not_approved}"
+                            )
+                    elif iterations % _IDLE_LOG_EVERY == 1:
+                        _log(f"control-plane idle: grant={c.grant_ref[:32]} no eligible work")
             except Exception as exc:  # never let a control-plane fault kill the worker
                 _log(f"control-plane cycle error (continuing): {exc}")
 

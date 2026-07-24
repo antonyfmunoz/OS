@@ -110,6 +110,12 @@ class ControlPlaneCycleReport:
     failed: list[str] = field(default_factory=list)
     admitted: list[str] = field(default_factory=list)
     idle: bool = False
+    # Tasks in the grant frontier that the scheduler skipped because their
+    # packet is not APPROVED/DELEGATED yet (review W5). The scheduler skips
+    # these with a bare `continue`, and the runner only logged when something
+    # happened — so an activation that never transitioned the packets presented
+    # as a HEALTHY-looking process doing nothing, forever.
+    skipped_not_approved: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -120,25 +126,9 @@ class ControlPlaneCycleReport:
             "failed": list(self.failed),
             "admitted": list(self.admitted),
             "idle": self.idle,
+            "skipped_not_approved": list(self.skipped_not_approved),
             "errors": list(self.errors),
         }
-
-
-def _role_resolver_for(task_id: str) -> Callable[[Any], Any]:
-    """Return a role resolver bound to the implementer identity for this task.
-
-    An integration Task (id starts with the integrator marker) resolves the
-    integrator role; every other implementation Task resolves the implementer
-    role. Both are ≠ the verifier role (SoD).
-    """
-    lowered = task_id.lower()
-    is_integration = "integrat" in lowered or lowered.endswith("-c") or lowered == "c"
-    role_id = _INTEGRATOR_ROLE_ID if is_integration else _IMPLEMENTER_ROLE_ID
-
-    def _resolve(_packet: Any) -> Any:
-        return _RoleView(role_id=role_id)
-
-    return _resolve
 
 
 def _default_role_resolver(_packet: Any) -> Any:
@@ -426,11 +416,34 @@ class FieldControlPlaneDriver:
                     and not self._has_live_attempts(grant)
                 )
                 report.errors = list(pass_report.errors)
+                report.skipped_not_approved = self._not_approved_frontier(grant)
             except Exception as exc:  # a bad grant never stalls the others
-                report.errors.append(str(exc))
+                # Surface the TEXT (review W8): the runner previously logged only
+                # `errors=N`, so a systematic failure presented as a silent
+                # counter with no cause.
+                report.errors.append(f"{type(exc).__name__}: {exc}")
+                logger.warning("field control-plane cycle failed: %s", exc, exc_info=True)
                 logger.debug("field control-plane cycle failed: %s", exc, exc_info=True)
             reports.append(report)
         return reports
+
+    def _not_approved_frontier(self, grant: Any) -> list[str]:
+        """Frontier tasks whose packet is not yet APPROVED/DELEGATED.
+
+        The scheduler silently skips these, so without reporting them an
+        activation that failed to transition the packets looks identical to
+        "no work to do" (review W5).
+        """
+        out: list[str] = []
+        for task_id in list(getattr(grant, "task_frontier", []) or []):
+            packet = self._queue.get_packet(task_id)
+            if packet is None:
+                out.append(f"{task_id}(missing)")
+                continue
+            status = getattr(getattr(packet, "status", None), "value", "")
+            if status not in ("approved", "delegated"):
+                out.append(f"{task_id}({status or 'unknown'})")
+        return out
 
     def _has_live_attempts(self, grant: Any) -> bool:
         plan_id = getattr(grant, "plan_record_id", "")

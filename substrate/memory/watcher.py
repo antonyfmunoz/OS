@@ -49,7 +49,17 @@ TYPE_TO_SCOPE = {
     "reference": "project",
 }
 
-HASH_STORE = Path("data/umh/memory_watcher_hashes.json")
+
+def _hash_store_path() -> Path:
+    """Runtime-state resolved (finding SEC-W3).
+
+    Was a module-level repo-relative constant, which under the candidate's
+    read-only /app mount raised on the first watcher event mid-run.
+    """
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return Path(runtime_state_path("memory", "memory_watcher_hashes.json", create_parent=False))
+
 
 DEFAULT_WATCH_DIRS = [
     Path.home() / ".claude" / "projects" / "-opt-OS" / "memory",
@@ -84,7 +94,8 @@ def _file_hash(path: Path) -> str:
 class _SyncedHashes:
     """Thread-safe hash tracking for deduplication."""
 
-    def __init__(self, path: Path = HASH_STORE) -> None:
+    def __init__(self, path: Path | None = None) -> None:
+        path = path or _hash_store_path()
         self._path = path
         self._lock = threading.Lock()
         self._hashes: set[str] = set()
@@ -189,9 +200,14 @@ class _MemoryFileHandler(FileSystemEventHandler):
             recon = self._reconciler.reconcile_promoted(candidate, promotion)
             try:
                 from substrate.reality_model.reality_mutation import (
-                    RealityMutation, MutationSource, MutationType,
+                    RealityMutation,
+                    MutationSource,
+                    MutationType,
                 )
-                from substrate.reality_model.canonical_reality_write import CanonicalRealityWritePath
+                from substrate.reality_model.canonical_reality_write import (
+                    CanonicalRealityWritePath,
+                )
+
                 watcher_mutation = RealityMutation(
                     mutation_id=f"rm-watch-{uuid4().hex[:12]}",
                     source_system=MutationSource.CONVERSATION_MEMORY,
@@ -209,7 +225,10 @@ class _MemoryFileHandler(FileSystemEventHandler):
                 logger.debug("watcher: reality mutation failed: %s", exc)
             logger.info(
                 "[MemoryWatcher] %s → canonical (%s, %s, conf=%.2f)",
-                path.name, self._agent, recon.get("action", "?"), confidence,
+                path.name,
+                self._agent,
+                recon.get("action", "?"),
+                confidence,
             )
 
         self._hashes.add(fh)
@@ -331,7 +350,8 @@ def start_memory_watcher() -> MemoryWatcher:
     result = watcher.initial_sync()
     logger.info(
         "[MemoryWatcher] Initial sync: %d new, %d already synced",
-        result["synced"], result["skipped"],
+        result["synced"],
+        result["skipped"],
     )
     watcher.start()
     return watcher
