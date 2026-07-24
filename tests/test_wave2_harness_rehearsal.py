@@ -531,3 +531,37 @@ def test_rehearsal_is_not_real_qualification():
         "reason": "stub worker, no candidate deploy, no visible Chrome, no Claude quota",
     }
     assert classification["real_worker_qualification"] == "NOT_SATISFIED"
+
+
+def test_release_failure_surfaces_as_a_blocking_run_error(store, queue, tmp_path, monkeypatch):
+    """C-2 microfix at the PIPELINE level: if lease release raises during the
+    poller's terminalization, the pass report must carry a blocking error, the
+    lease must stay active, and the retry must remain inadmissible — the run
+    cannot be reported clean on a fail-open cleanup."""
+    from substrate.execution.attempts.terminalization import retry_admissible
+
+    _add_approved_packet(queue, "A")
+    grant = _grant(["A"])
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    sched = _mk_scheduler(store, queue, tmp_path, spool)
+    poller = _mk_poller(
+        store, spool, sched, grant, _StubProofRuntime(tmp_path), queue=queue, run_root=str(tmp_path)
+    )
+
+    _pass(sched, grant)  # admit + dispatch A1
+    _stub_worker_drain(spool)  # A1 produces artifacts
+
+    # Break lease release so terminalization on the SUCCEEDED transition fails.
+    monkeypatch.setattr(
+        sched._leases,
+        "release",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("release boom")),
+    )
+    report = poller.run_pass()
+
+    assert any("terminalize" in e for e in report.errors), report.errors
+    # Fail-open would have released nothing yet reported ok — here the lease
+    # stays active and the retry is refused.
+    assert store.active_lease_for_task("A") is not None
+    ok, _why = retry_admissible(store, "A")
+    assert ok is False, "a failed release must not let a retry be admitted"

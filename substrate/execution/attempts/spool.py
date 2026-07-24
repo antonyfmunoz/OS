@@ -227,6 +227,67 @@ class DispatchSpool:
                 continue
         return recovered
 
+    def drop_inflight_for_attempt(self, attempt_id: str) -> list[str]:
+        """Reconcile spool ownership when an attempt terminalizes (C-2).
+
+        Moves every INBOX or INFLIGHT envelope whose SIGNED payload names exactly
+        this ``attempt_id`` into quarantine, so a dead attempt leaves no dangling
+        dispatch the runner could later claim and execute.
+
+        Guarantees:
+        - matches the attempt_id inside the VERIFIED envelope, never a filename;
+        - an unreadable or badly-signed envelope is QUARANTINED (fail closed) and
+          counted as reconciled — a tampered envelope must never be left claimable;
+        - moves are atomic (os.replace) and idempotent — a second call finds
+          nothing left and returns [];
+        - returns the exact list of envelope identities reconciled
+          (``dispatch_id`` when resolvable, else the filename).
+
+        Returns the identities reconciled. Raises only on an unexpected OS error,
+        which the caller records as a spool-reconcile failure.
+        """
+        if not attempt_id:
+            return []
+        reconciled: list[str] = []
+        for sub in (_INBOX, _INFLIGHT):
+            try:
+                names = sorted(
+                    n
+                    for n in os.listdir(self._dir(sub))
+                    if n.endswith(".json") and not n.startswith(".")
+                )
+            except FileNotFoundError:
+                continue
+            for name in names:
+                path = os.path.join(self._dir(sub), name)
+                try:
+                    with open(path, encoding="utf-8") as f:
+                        record = json.load(f)
+                except FileNotFoundError:
+                    continue  # claimed/moved concurrently
+                except Exception:
+                    # Unreadable envelope: fail closed — quarantine it so it can
+                    # never be claimed, and count it as reconciled.
+                    self._quarantine(name, "unreadable-on-reconcile")
+                    reconciled.append(name)
+                    continue
+                envelope = DispatchEnvelope(**record.get("envelope", {}))
+                signature = record.get("signature", "")
+                if not _verify(envelope.signable(), self._secret, signature):
+                    # A tampered envelope must never survive reconciliation.
+                    self._quarantine(name, "bad-signature-on-reconcile")
+                    reconciled.append(envelope.dispatch_id or name)
+                    continue
+                if envelope.attempt_id != attempt_id:
+                    continue  # a sibling attempt's envelope — never touch it
+                dst = os.path.join(self._dir(_QUARANTINE), f"{name}.terminalized-{attempt_id}")
+                try:
+                    os.replace(path, dst)
+                    reconciled.append(envelope.dispatch_id or name)
+                except FileNotFoundError:
+                    continue  # moved concurrently
+        return reconciled
+
     def _quarantine(self, name: str, reason: str) -> None:
         for sub in (_INFLIGHT, _INBOX):
             p = os.path.join(self._dir(sub), name)

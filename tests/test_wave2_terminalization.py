@@ -312,3 +312,251 @@ def test_unknown_reason_fails_closed(store, tmp_path):
     a1.status = _S.FAILED.value
     with pytest.raises(TerminalizationError, match="unknown terminal reason"):
         terminalize(attempt=a1, reason="whatever", lease_manager=lm, run_root=str(tmp_path))
+
+
+# ── C-2 microfix: ok fails for ANY error, not just SECURITY-prefixed ─────────
+#
+# The first cut of `ok` returned True unless a SECURITY-prefixed error or
+# credential residue was present, so a lease-release failure reported ok=True and
+# the run would pass while the task's lease stayed ACTIVE. That is the exact
+# fail-open this campaign exists to kill.
+
+
+def test_lease_release_failure_fails_the_terminalization(store, tmp_path, monkeypatch):
+    lm = _lease_manager(store, tmp_path)
+    a1, _ = _leased_attempt(store, lm)
+    a1.status = _S.FAILED.value
+
+    def _boom(*a, **k):
+        raise RuntimeError("release blew up")
+
+    monkeypatch.setattr(lm, "release", _boom)
+    result = terminalize(
+        attempt=a1,
+        reason="failed",
+        lease_manager=lm,
+        run_root=str(tmp_path),
+        raise_on_security_failure=False,
+    )
+    assert result.ok is False, "a lease-release failure must fail the terminalization"
+    assert result.lease_released is False
+    assert any("lease release failed" in e for e in result.errors)
+    # The lease is STILL active → retry must remain inadmissible.
+    assert store.active_lease_for_task("wp-a") is not None
+    ok, _ = retry_admissible(store, "wp-a")
+    assert ok is False, "a failed release must not let a retry be admitted"
+
+
+def test_missing_lease_manager_with_a_lease_fails(store, tmp_path):
+    a1, _ = _leased_attempt(store, _lease_manager(store, tmp_path))
+    a1.status = _S.FAILED.value
+    result = terminalize(
+        attempt=a1,
+        reason="failed",
+        lease_manager=None,
+        run_root=str(tmp_path),
+        raise_on_security_failure=False,
+    )
+    assert result.ok is False
+    assert any("no lease_manager" in e for e in result.errors)
+
+
+def test_missing_run_root_fails(store, tmp_path):
+    lm = _lease_manager(store, tmp_path)
+    a1, _ = _leased_attempt(store, lm)
+    a1.status = _S.FAILED.value
+    result = terminalize(
+        attempt=a1,
+        reason="failed",
+        lease_manager=lm,
+        run_root="",
+        raise_on_security_failure=False,
+    )
+    assert result.ok is False
+    assert any("run_root" in e for e in result.errors)
+
+
+# ── spool reconciliation ─────────────────────────────────────────────────────
+
+
+def test_spool_reconcile_failure_fails_the_terminalization(store, tmp_path):
+    lm = _lease_manager(store, tmp_path)
+    a1, _ = _leased_attempt(store, lm)
+    a1.status = _S.FAILED.value
+
+    class _BoomSpool:
+        def drop_inflight_for_attempt(self, attempt_id):
+            raise RuntimeError("spool exploded")
+
+    result = terminalize(
+        attempt=a1,
+        reason="failed",
+        lease_manager=lm,
+        run_root=str(tmp_path),
+        spool=_BoomSpool(),
+        raise_on_security_failure=False,
+    )
+    assert result.ok is False
+    assert any("spool reconcile failed" in e for e in result.errors)
+
+
+def test_spool_without_drop_hook_is_not_reconciled(store, tmp_path):
+    """A spool was SUPPLIED but exposes no hook — that is a missing capability,
+    an explicit failure, not a benign 'ledger is truth' no-op."""
+    lm = _lease_manager(store, tmp_path)
+    a1, _ = _leased_attempt(store, lm)
+    a1.status = _S.FAILED.value
+    result = terminalize(
+        attempt=a1,
+        reason="failed",
+        lease_manager=lm,
+        run_root=str(tmp_path),
+        spool=object(),  # no drop_inflight_for_attempt
+        raise_on_security_failure=False,
+    )
+    assert result.spool_reconciled is False
+    assert result.ok is False
+    assert any("no drop_inflight_for_attempt" in e for e in result.errors)
+
+
+def test_no_spool_is_a_clean_noop(store, tmp_path):
+    """CONTROL: spool=None means 'nothing to reconcile' and stays clean — the
+    failure cases above are about a SUPPLIED spool, not the absence of one."""
+    lm = _lease_manager(store, tmp_path)
+    a1, _ = _leased_attempt(store, lm)
+    a1.status = _S.FAILED.value
+    assert (
+        terminalize(attempt=a1, reason="failed", lease_manager=lm, run_root=str(tmp_path)).ok
+        is True
+    )
+
+
+# ── DispatchSpool.drop_inflight_for_attempt ──────────────────────────────────
+
+
+def _real_spool(tmp_path):
+    from substrate.execution.attempts.spool import DispatchSpool
+
+    return DispatchSpool(str(tmp_path / "spool"), "run-secret")
+
+
+def _enqueue(spool, *, attempt_id, dispatch_id):
+    from substrate.execution.attempts.spool import DispatchEnvelope
+
+    spool.enqueue(
+        DispatchEnvelope(
+            dispatch_id=dispatch_id,
+            attempt_id=attempt_id,
+            task_id="wp-a",
+            nonce=dispatch_id,
+            sequence=1,
+            worktree_path="/x",
+            base_commit="b",
+        )
+    )
+
+
+def test_drop_inflight_removes_exact_attempt_only(tmp_path):
+    spool = _real_spool(tmp_path)
+    _enqueue(spool, attempt_id="ea-target", dispatch_id="d-target")
+    _enqueue(spool, attempt_id="ea-sibling", dispatch_id="d-sibling")
+
+    reconciled = spool.drop_inflight_for_attempt("ea-target")
+    assert reconciled == ["d-target"], reconciled
+
+    # The SIBLING envelope must survive and still be claimable.
+    claim = spool.claim_next()
+    assert claim is not None
+    _tok, env = claim
+    assert env.attempt_id == "ea-sibling", "reconcile must never touch a sibling attempt"
+
+
+def test_drop_inflight_covers_both_inbox_and_inflight(tmp_path):
+    spool = _real_spool(tmp_path)
+    _enqueue(spool, attempt_id="ea-1", dispatch_id="d-inbox")
+    _enqueue(spool, attempt_id="ea-1", dispatch_id="d-inflight")
+    # Claim one → it moves to inflight; the other stays in inbox.
+    spool.claim_next()
+    reconciled = spool.drop_inflight_for_attempt("ea-1")
+    assert set(reconciled) == {"d-inbox", "d-inflight"}, reconciled
+    assert spool.claim_next() is None, "nothing claimable after reconcile"
+
+
+def test_drop_inflight_is_idempotent(tmp_path):
+    spool = _real_spool(tmp_path)
+    _enqueue(spool, attempt_id="ea-1", dispatch_id="d-1")
+    assert spool.drop_inflight_for_attempt("ea-1") == ["d-1"]
+    assert spool.drop_inflight_for_attempt("ea-1") == [], "second call is a clean no-op"
+
+
+def test_drop_inflight_quarantines_a_tampered_envelope(tmp_path):
+    """A badly-signed envelope naming the attempt must be quarantined (fail
+    closed), never left claimable."""
+    import json
+    import os
+
+    spool = _real_spool(tmp_path)
+    _enqueue(spool, attempt_id="ea-1", dispatch_id="d-1")
+    # Tamper the on-disk record's signature.
+    inbox = os.path.join(str(tmp_path / "spool"), "inbox")
+    name = os.listdir(inbox)[0]
+    path = os.path.join(inbox, name)
+    rec = json.load(open(path))
+    rec["signature"] = "0" * 64
+    json.dump(rec, open(path, "w"))
+
+    reconciled = spool.drop_inflight_for_attempt("ea-1")
+    assert reconciled, "a tampered envelope for this attempt must be reconciled (quarantined)"
+    assert spool.claim_next() is None, "the tampered envelope must not remain claimable"
+
+
+# ── truthful wiring: exactly the two reasons the live poller performs ─────────
+#
+# The authority SUPPORTS eleven reasons; the production pipeline WIRES two. This
+# test pins that boundary so the count can neither silently shrink (a terminal
+# path stops terminalizing) nor be overclaimed (docs say eleven wired).
+
+
+def test_poller_wires_exactly_succeeded_and_verification_rejected():
+    """AST-level: ControlPlanePoller._verify_and_settle invokes _terminalize with
+    exactly the two reasons the live pipeline transitions an attempt through."""
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import poller as P
+
+    src = inspect.getsource(P.ControlPlanePoller)
+    tree = ast.parse(src.lstrip())
+    reasons = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "_terminalize"
+        ):
+            # second positional arg is the reason string literal
+            if len(node.args) >= 2 and isinstance(node.args[1], ast.Constant):
+                reasons.add(node.args[1].value)
+    assert reasons == {"succeeded", "verification_rejected"}, (
+        f"the live poller wires exactly these terminal reasons; got {reasons}. "
+        f"If a new terminal path was wired, update this test AND the ledger — "
+        f"the authority supporting a reason is not the pipeline wiring it."
+    )
+
+
+def test_scheduler_does_not_claim_a_revoke_cascade_it_lacks():
+    """The scheduler docstring must not claim it cancels/revokes attempts: it has
+    no such code, and the overclaim previously masked that the cascade is a
+    Wave 2 follow-on (order §4/§6 truthfulness)."""
+    import inspect
+
+    from substrate.execution.attempts import scheduler as SCH
+
+    src = inspect.getsource(SCH)
+    # No production cascade code exists...
+    assert "def _cascade" not in src and "def _sweep_revoked" not in src
+    # ...so the module docstring must say the wiring is pending, not done.
+    module_doc = SCH.__doc__ or ""
+    assert "pending" in module_doc.lower(), (
+        "the scheduler must state the revoke/expire cascade is pending, not claim it"
+    )

@@ -3,15 +3,22 @@
 Run-scoped Wave 2 component (NOT the Wave 3 persistent supervisor). One
 ``run_scheduler_pass()`` is a single bounded sweep that:
 
-1. sweeps expired authorizations + stale leases; cascades REVOKED/INVALIDATED
-   grants (cancel non-terminal attempts, revoke their leases);
-2. computes the ready frontier from canonical WorkGraph/WorkPacket dependencies
+1. computes the ready frontier from canonical WorkGraph/WorkPacket dependencies
    (chain, fan-out, fan-in, independent lanes) — dependency truth is the attempt
    ledger (a dep is satisfied only when it has a SUCCEEDED attempt with Proof);
-3. propagates failure (a Task whose attempts are exhausted → dependents BLOCKED);
-4. creates bounded retries (a new attempt_number, linked to the prior);
-5. ADMITS ready attempts up to max_concurrency: place → lease → compile → dispatch,
+2. propagates failure (a Task whose attempts are exhausted → dependents BLOCKED);
+3. creates bounded retries (a new attempt_number, linked to the prior);
+4. ADMITS ready attempts up to max_concurrency: place → lease → compile → dispatch,
    each step CAS-guarded so a losing concurrent tick mutates nothing.
+
+Terminal transitions (SUCCEEDED / FAILED-at-verification) are performed by the
+control-plane POLLER, which invokes the one terminalization authority
+(``terminalization.terminalize``) to release the lease and destroy the credential
+home. The scheduler does NOT itself cancel/revoke/expire attempts today — a
+grant-level REVOKED/INVALIDATED cascade onto in-flight attempts is a Wave 2
+follow-on (the authority supports the ``revoked``/``expired``/``cancelled``
+reasons; their scheduler-side wiring is pending and is stated as such in the
+C-2 ledger entry, not claimed as done).
 
 Single-writer: a pass acquires an interprocess scheduler lease keyed
 tenant+plan+version (non-blocking flock). A losing tick returns immediately with
@@ -125,7 +132,10 @@ class AttemptScheduler:
     # ── One bounded pass ─────────────────────────────────────────────────────
 
     def run_scheduler_pass(
-        self, grant: Any, *, role_resolver: Callable[[Any], Any] | None = None,
+        self,
+        grant: Any,
+        *,
+        role_resolver: Callable[[Any], Any] | None = None,
         verifier_role_resolver: Callable[[Any], str] | None = None,
         worker_candidates: list[dict[str, Any]] | None = None,
         compute_nodes: list[dict[str, Any]] | None = None,
@@ -192,8 +202,13 @@ class AttemptScheduler:
 
             # (5) admission up to concurrency.
             self._admit(
-                grant, report, role_resolver, verifier_role_resolver,
-                worker_candidates or [], compute_nodes or [], now,
+                grant,
+                report,
+                role_resolver,
+                verifier_role_resolver,
+                worker_candidates or [],
+                compute_nodes or [],
+                now,
             )
             return report
 
@@ -203,8 +218,10 @@ class AttemptScheduler:
         for task_id in getattr(grant, "task_frontier", []) or []:
             attempts = self._store.attempts_for_task(task_id)
             failed = [a for a in attempts if a.status == _S.FAILED.value]
-            if failed and len(attempts) >= max_attempts and not any(
-                a.status == _S.SUCCEEDED.value for a in attempts
+            if (
+                failed
+                and len(attempts) >= max_attempts
+                and not any(a.status == _S.SUCCEEDED.value for a in attempts)
             ):
                 out.add(task_id)
         return out
@@ -247,20 +264,32 @@ class AttemptScheduler:
             return None
         emit_execution_event(
             "execution.attempt_created",
-            {"attempt_id": created.attempt_id, "task_id": created.task_id,
-             "decision_ref": getattr(grant, "decision_ref", "")},
+            {
+                "attempt_id": created.attempt_id,
+                "task_id": created.task_id,
+                "decision_ref": getattr(grant, "decision_ref", ""),
+            },
             correlation_id=getattr(grant, "correlation_id", ""),
         )
         # created → ready.
-        self._transition(created, _S.READY.value, (_S.CREATED.value,), "scheduler", "frontier ready")
+        self._transition(
+            created, _S.READY.value, (_S.CREATED.value,), "scheduler", "frontier ready"
+        )
         return created
 
     def _admit(
-        self, grant, report, role_resolver, verifier_role_resolver,
-        worker_candidates, compute_nodes, now,
+        self,
+        grant,
+        report,
+        role_resolver,
+        verifier_role_resolver,
+        worker_candidates,
+        compute_nodes,
+        now,
     ) -> None:
         active = [
-            a for a in self._store.active_attempts()
+            a
+            for a in self._store.active_attempts()
             if a.status in (_S.LEASED.value, _S.DISPATCHED.value, _S.RUNNING.value)
         ]
         slots = self._max_concurrency - len(active)
@@ -275,41 +304,67 @@ class AttemptScheduler:
             if packet is None:
                 continue
             role = role_resolver(packet) if role_resolver else None
-            verifier = verifier_role_resolver(packet) if verifier_role_resolver else "role-verify-op"
+            verifier = (
+                verifier_role_resolver(packet) if verifier_role_resolver else "role-verify-op"
+            )
             try:
                 assignment = self._place(
-                    packet=packet, grant=grant, role_contract=role,
-                    attempt_id=attempt.attempt_id, worker_candidates=worker_candidates,
-                    compute_nodes=compute_nodes, verifier_role_id=verifier,
-                    store=self._store, mutation_runner=self._mutation_runner,
+                    packet=packet,
+                    grant=grant,
+                    role_contract=role,
+                    attempt_id=attempt.attempt_id,
+                    worker_candidates=worker_candidates,
+                    compute_nodes=compute_nodes,
+                    verifier_role_id=verifier,
+                    store=self._store,
+                    mutation_runner=self._mutation_runner,
                 )
                 lease = self._leases.acquire(attempt=attempt, assignment=assignment, grant=grant)
                 attempt = self._transition(
-                    attempt, _S.LEASED.value, (_S.READY.value,), "scheduler",
+                    attempt,
+                    _S.LEASED.value,
+                    (_S.READY.value,),
+                    "scheduler",
                     "placed + leased",
-                    updates={"assignment_id": assignment.assignment_id, "lease_id": lease.lease_id,
-                             "verifier_role_id": assignment.verifier_role_id},
+                    updates={
+                        "assignment_id": assignment.assignment_id,
+                        "lease_id": lease.lease_id,
+                        "verifier_role_id": assignment.verifier_role_id,
+                    },
                 )
                 package = self._compile(
                     attempt=attempt, packet=packet, assignment=assignment, grant=grant
                 )
                 attempt = self._transition(
-                    attempt, _S.DISPATCHED.value, (_S.LEASED.value,), "scheduler",
+                    attempt,
+                    _S.DISPATCHED.value,
+                    (_S.LEASED.value,),
+                    "scheduler",
                     "package sealed",
-                    updates={"instruction_package_hash": package.package_hash,
-                             "worker_identity": assignment.worker_identity,
-                             "max_turns": 30, "timeout_seconds": 600},
+                    updates={
+                        "instruction_package_hash": package.package_hash,
+                        "worker_identity": assignment.worker_identity,
+                        "max_turns": 30,
+                        "timeout_seconds": 600,
+                    },
                 )
                 report.attempts_admitted.append(attempt.attempt_id)
                 if self._dispatch is not None:
-                    self._dispatch(attempt=attempt, assignment=assignment, lease=lease,
-                                   package=package, grant=grant)
+                    self._dispatch(
+                        attempt=attempt,
+                        assignment=assignment,
+                        lease=lease,
+                        package=package,
+                        grant=grant,
+                    )
             except Exception as exc:
                 logger.debug("admission of %s failed: %s", attempt.attempt_id, exc)
                 try:
                     self._transition(
-                        attempt, _S.BLOCKED.value,
-                        (_S.READY.value, _S.LEASED.value), "scheduler",
+                        attempt,
+                        _S.BLOCKED.value,
+                        (_S.READY.value, _S.LEASED.value),
+                        "scheduler",
                         f"admission failed: {exc}",
                         updates={"blocked_reason": str(exc)[:200]},
                     )
@@ -322,9 +377,12 @@ class AttemptScheduler:
 
         def _apply() -> tuple[str, bool]:
             updated = self._store.transition_cas(
-                attempt.attempt_id, to_status,
+                attempt.attempt_id,
+                to_status,
                 expected_record_version=attempt.record_version,
-                expected_statuses=expected, actor=actor, reason=reason,
+                expected_statuses=expected,
+                actor=actor,
+                reason=reason,
                 updates=updates or {},
             )
             result_holder["attempt"] = updated

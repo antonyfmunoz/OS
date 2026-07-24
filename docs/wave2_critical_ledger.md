@@ -151,8 +151,30 @@ because "the repair needed repairing twice" is the finding.
   `test_failure_qualification_rehearsal`. MUTATION-VERIFIED: skipping lease
   release fails the deadlock tests; dropping the residue scan fails the security
   test; removing the poller's terminalize call fails the pipeline recovery test.
+- **Microfix (owner, binding):** the first cut of `TerminalizationResult.ok`
+  failed OPEN — it returned True unless a SECURITY-prefixed error or credential
+  residue was present, so a lease-release failure reported ok=True and the run
+  would pass while the lease stayed ACTIVE. Corrected: `ok` is False for ANY
+  error (release/revoke failure, missing LeaseManager with a lease_id, missing
+  run_root, residue, spool-reconcile failure, unknown reason). A supplied spool
+  with no `drop_inflight_for_attempt` hook is now an explicit failure, not a
+  "ledger is truth" no-op. `DispatchSpool.drop_inflight_for_attempt` implemented:
+  exact-attempt-id match on the VERIFIED envelope (never a filename), atomic move
+  to quarantine, fail-closed on unreadable/tampered envelopes, idempotent, never
+  touches a sibling attempt. +12 mutation-verified tests.
+- **Wiring truth (order §6):** the authority SUPPORTS eleven reasons; the live
+  pipeline WIRES exactly TWO — the poller's `succeeded` and
+  `verification_rejected` transitions, the only terminal transitions the
+  run-scoped pipeline performs on an attempt. Cancellation / revocation / expiry
+  / abandonment / crash / teardown / security-failure are supported but their
+  production call sites (a grant-level REVOKED cascade, a teardown sweep) are
+  Wave 2 follow-ons — NOT claimed as wired. Pinned by
+  `test_poller_wires_exactly_succeeded_and_verification_rejected` and the
+  scheduler-docstring truthfulness test (the scheduler docstring previously
+  overclaimed a revoke cascade it has no code for; corrected).
 - **Residual risk:** teardown-level "zero worker homes across the whole run" is
-  SEC-C1's scope (order §8), tracked separately.
+  SEC-C1's scope (order §8); the cancel/revoke/expiry cascade wiring is a stated
+  Wave 2 follow-on, tracked here not hidden.
 
 ### C-3 — `scenario_map.json` has no field writer — **OPEN**
 

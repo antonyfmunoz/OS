@@ -10,11 +10,23 @@ re-READY → BLOCKED, forever — while producing the exact observable shape the
 qualification expects ("A failed, C blocked, no false Proof") for the wrong
 reason.
 
-``terminalize`` is the single authority. It covers EVERY terminal condition:
+``terminalize`` is the single authority. It SUPPORTS every terminal condition:
 
     SUCCEEDED · FAILED · CANCELLED · REVOKED · EXPIRED · verification rejection ·
     worker crash · dispatch abandonment · authorization expiry ·
     security-boundary failure · cleanup failure · qualification teardown
+
+PRODUCTION WIRING (truthful, not aspirational). Today the live pipeline performs
+exactly TWO terminal attempt transitions, and BOTH route through this authority:
+the control-plane poller calls it on ``succeeded`` and on
+``verification_rejected``. Those are the only terminal transitions the run-scoped
+pipeline currently makes on an attempt. The remaining reasons (cancellation,
+revocation, expiry, dispatch abandonment, worker crash, teardown,
+security-boundary failure) are SUPPORTED by this function but their production
+call sites do not exist yet — a grant-level REVOKED/INVALIDATED cascade onto
+in-flight attempts, and a teardown-time sweep, are Wave 2 follow-ons. This is
+stated in the C-2 ledger entry and pinned by a test, so the "eleven paths" are
+never mistaken for "eleven wired paths".
 
 Invariant (strict order — each step must complete before the next):
 
@@ -95,12 +107,18 @@ class TerminalizationResult:
 
     @property
     def ok(self) -> bool:
-        """A terminalization is OK only if NO credential residue survived.
+        """A terminalization is OK only if it FULLY succeeded.
 
-        A lease that could not be released is an error but leaves no credential
-        on disk; residue is the security-blocking condition.
+        ANY error fails the contract — lease release failure, missing
+        LeaseManager while a lease_id exists, inability to verify home
+        destruction, credential residue, spool reconciliation failure, or an
+        unknown terminal reason. The earlier version restricted failure to
+        SECURITY-prefixed errors, which failed OPEN on every other cleanup fault:
+        a lease that could not be released would report ok=True and the run would
+        pass while the task's lease stayed ACTIVE. There is no such tier now — an
+        error is an error.
         """
-        return not self.credential_residue and not self._security_errors()
+        return not self.errors and not self.credential_residue
 
     def _security_errors(self) -> list[str]:
         return [e for e in self.errors if e.startswith("SECURITY:")]
@@ -283,11 +301,15 @@ def _reconcile_spool(result: TerminalizationResult, spool: Any) -> None:
         return
     dropper = getattr(spool, "drop_inflight_for_attempt", None)
     if not callable(dropper):
-        # The spool has no reconcile hook. The ledger is the truth (clause 3), so
-        # a dangling inflight file is harmless and reaped by the runner's
-        # recover_stale_inflight; record honestly rather than claim reconciled.
-        result.steps.append("spool has no drop_inflight_for_attempt (ledger is truth)")
-        result.spool_reconciled = True
+        # A spool WAS supplied but exposes no reconcile hook. This used to be
+        # recorded as spool_reconciled=True ("the ledger is truth") — a softening:
+        # if the caller passes a spool it means "reconcile it", and a spool that
+        # cannot be reconciled is a missing capability, not a benign no-op. Fail
+        # explicitly. (A caller with genuinely nothing to reconcile passes
+        # spool=None.)
+        result.errors.append(
+            "spool supplied but has no drop_inflight_for_attempt — cannot reconcile"
+        )
         return
     try:
         dropped = dropper(result.attempt_id)
