@@ -1891,9 +1891,24 @@ def write_scenario_map(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
     )
 
     records = _read_state_records(sha)
-    run_tag = run_id
+    # Resolve the EXACT plan + authorization the run produced from the ONE ACTIVE
+    # grant in candidate state — never "latest plan" or a run-tag substring.
+    binding = _active_grant_binding(records)
+    if binding is None:
+        return {
+            "written": False,
+            "run_id": run_id,
+            "error": "no single ACTIVE execution-authorization grant found in candidate state",
+            "remediation": "drive the plan approval + execution authorization before writing the map",
+        }
     try:
-        payload = build_from_records(records, run_id=run_id, run_tag=run_tag)
+        payload = build_from_records(
+            records,
+            run_id=run_id,
+            plan_record_id=binding["plan_record_id"],
+            plan_version=binding["plan_version"],
+            execution_authorization_ref=binding["decision_ref"],
+        )
     except ScenarioMapError as exc:
         # FAIL CLOSED: no map is written, so inject-failure will refuse to arm.
         return {
@@ -1948,13 +1963,22 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     )
 
     records = _read_state_records(sha)
-    frontier = _authorized_frontier(records, run_tag=run_id)
+    binding = _active_grant_binding(records)
+    if binding is None:
+        return {
+            "armed": False,
+            "variant": variant,
+            "marker": str(marker),
+            "invalid_reason": "no single ACTIVE execution-authorization grant in candidate state",
+            "remediation": "drive the execution-authorization decision, then re-arm",
+        }
     ok, reason = arming_is_valid_for_run(
         str(targets),
         run_id=run_id,
         records=records,
-        authorized_frontier=frontier,
-        run_tag=run_id,
+        plan_record_id=binding["plan_record_id"],
+        plan_version=binding["plan_version"],
+        tenant_id=binding["tenant_id"],
     )
     if not ok:
         return {
@@ -1976,21 +2000,30 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     }
 
 
-def _authorized_frontier(records: list[dict[str, Any]], *, run_tag: str = "") -> list[str]:
-    """The set of materialized packet ids for the live plan — the authorized
-    frontier an injection may target. Read from candidate state, never guessed."""
-    from substrate.execution.attempts.field_scenario_map import _latest_plan
+def _active_grant_binding(records: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The EXACT plan + authorization binding from the ONE ACTIVE grant.
 
-    plan = _latest_plan(records, run_tag=run_tag) or {}
-    ids: set[str] = set(str(w) for w in (plan.get("workpacket_ids") or []))
-    for n in plan.get("nodes") or []:
-        if isinstance(n, dict) and n.get("workpacket_id"):
-            ids.add(str(n["workpacket_id"]))
-    for rec in records:
-        pid = rec.get("packet_id")
-        if pid and not rec.get("plan_record_id"):
-            ids.add(str(pid))
-    return sorted(ids)
+    The authorized frontier and plan version come from the single ACTIVE
+    execution-authorization grant in candidate state — never from "latest plan"
+    or an aggregation over all packets. Returns None (fail closed) when there is
+    not exactly one ACTIVE grant, so the caller refuses to write/arm.
+    """
+    grants = [
+        g
+        for g in records
+        if g.get("grant_id")
+        and "task_frontier" in g
+        and str(g.get("status", "")).lower() == "active"
+    ]
+    if len(grants) != 1:
+        return None
+    g = grants[0]
+    return {
+        "plan_record_id": str(g.get("plan_record_id", "")),
+        "plan_version": int(g.get("plan_version", 0)),
+        "tenant_id": str(g.get("tenant_id", "")),
+        "decision_ref": str(g.get("decision_ref", "")),
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

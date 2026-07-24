@@ -207,6 +207,26 @@ because "the repair needed repairing twice" is the finding.
   no-shape-guessing test.
 - **Commit:** this one. **Tests:** `tests/test_wave2_scenario_map_field.py` (16).
   MUTATION-VERIFIED: skipping the staleness recompute fails the stale-map test.
+- **Microfix (owner, binding):** the first cut left three fail-open shortcuts.
+  (1) A plan node's `workpacket_id` was treated as PROOF a packet exists —
+  `build_from_records` synthesized packet records from plan nodes. Removed: for
+  every role the lineage must close on a REAL persisted WorkPacket record whose
+  `source_evidence` names the node AND whose `packet_id == node.workpacket_id`
+  (fails on ghost packet, mismatched lineage, id disagreement). (2) Run selection
+  fell back to "latest plan" via a run-tag substring — a run could adopt
+  another's plan. Removed: `select_plan` requires an EXACT `(plan_record_id,
+  plan_version)`; zero or multiple matches fail. (3) The "authorized frontier"
+  was "all packets I can find". Replaced by `resolve_authorized_frontier`, which
+  reads the ONE ACTIVE execution-authorization grant's `task_frontier` for the
+  exact plan version — no grant / multiple grants / non-ACTIVE / expired / empty
+  frontier / wrong-version all fail closed, and an unrelated packet never enters
+  the frontier. The map persists `execution_authorization_ref` but authority is
+  REREAD from the canonical stores at arming — never delegated to the map. Field
+  callers derive the exact plan+authorization from the single ACTIVE grant in
+  candidate state (`_active_grant_binding`); the all-packets `_authorized_frontier`
+  helper is deleted. +28 tests (A–L cases). MUTATION-VERIFIED: re-adding synthetic
+  node-packets, the latest-plan fallback, or the all-packets frontier each fails
+  the suite.
 - **Residual risk:** the end-to-end injection→A1-fail→C-blocked→A2-recover graph
   mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
   live field pass requires a candidate deploy (C7, owner-gated).

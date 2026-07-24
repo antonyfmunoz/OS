@@ -144,17 +144,21 @@ def arming_is_valid_for_run(
     *,
     run_id: str,
     records: list[Any],
-    authorized_frontier: list[str] | None = None,
-    run_tag: str = "",
+    plan_record_id: str,
+    plan_version: int,
+    tenant_id: str = "",
+    now: float | None = None,
 ) -> tuple[bool, str]:
     """AUTHORITATIVE arming check against the LIVE candidate state (C-3).
 
     A clean run (no revoking variant) is always valid. A revoking variant is
-    valid ONLY when the persisted scenario map validates against this run's live
-    plan + packets: correct run binding, not stale, every role resolves to a real
-    materialized packet inside the authorized frontier, and the backend target is
-    present. Fails closed on every C-3 mode — absent/stale/wrong-run/nonexistent/
-    out-of-frontier/ambiguous.
+    valid ONLY when the persisted scenario map validates against the EXACT live
+    plan version and the ACTIVE execution-authorization grant's task_frontier —
+    correct run binding, not stale, every role resolving to a REAL persisted
+    WorkPacket record inside the AUTHORIZED frontier. The frontier is derived from
+    the one active grant, never aggregated from all packets. Fails closed on every
+    mode (absent/stale/wrong-run/nonexistent/out-of-frontier/ambiguous/
+    no-grant/expired-grant/empty-frontier).
     """
     variant = read_variant(targets_dir)
     if not variant:
@@ -168,8 +172,10 @@ def arming_is_valid_for_run(
         targets_dir,
         run_id=run_id,
         records=records,
-        authorized_frontier=authorized_frontier,
-        run_tag=run_tag,
+        plan_record_id=plan_record_id,
+        plan_version=plan_version,
+        tenant_id=tenant_id,
+        now=now,
     )
     if not ok:
         return False, f"variant {variant!r} armed but map invalid: {reason}"

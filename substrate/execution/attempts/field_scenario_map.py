@@ -40,6 +40,7 @@ from typing import Any
 from substrate.execution.attempts.field_task_scope import (
     SEMANTIC_LABELS,
     ScopeResolutionError,
+    _node_id_for_packet,
     resolve_scenario_map,
     scenario_map_digest,
 )
@@ -83,72 +84,113 @@ def _is_packet_record(rec: dict[str, Any]) -> bool:
     return bool(rec.get("packet_id")) and not rec.get("plan_record_id")
 
 
-def _latest_plan(records: list[dict[str, Any]], *, run_tag: str = "") -> dict[str, Any] | None:
-    """The newest non-superseded plan record (optionally filtered by run tag).
+def select_plan(
+    records: list[dict[str, Any]], *, plan_record_id: str, plan_version: int
+) -> dict[str, Any]:
+    """Select EXACTLY the plan (plan_record_id, plan_version). No fallback.
 
-    "Newest" = highest graph_version among records whose status is not SUPERSEDED.
-    A stale/superseded plan must never seed a live injection.
+    There is no "latest available" and no run-tag substring search — those let a
+    run adopt another run's or another Objective's plan. Zero matches or multiple
+    matches fail closed: the caller must name the exact plan version it observed
+    through the real Cockpit/API journey.
     """
-    plans = [r for r in records if _is_plan_record(r)]
-    if run_tag:
-        tagged = [p for p in plans if run_tag in json.dumps(p, sort_keys=True)]
-        if tagged:
-            plans = tagged
-    live = [p for p in plans if str(p.get("status", "")).lower() != "superseded"]
-    if not live:
-        return None
-    return max(live, key=lambda p: int(p.get("graph_version", 0)))
+    if not plan_record_id:
+        raise ScenarioMapError("plan_record_id is required — no 'latest plan' fallback")
+    matches = [
+        p
+        for p in records
+        if _is_plan_record(p)
+        and str(p.get("plan_record_id", "")) == plan_record_id
+        and int(p.get("graph_version", -1)) == int(plan_version)
+    ]
+    if len(matches) != 1:
+        raise ScenarioMapError(
+            f"plan {plan_record_id!r} v{plan_version} matched {len(matches)} records "
+            f"(need exactly 1) — refusing an ambiguous or absent plan selection"
+        )
+    plan = matches[0]
+    if str(plan.get("status", "")).lower() == "superseded":
+        raise ScenarioMapError(
+            f"plan {plan_record_id!r} v{plan_version} is SUPERSEDED — a stale plan "
+            f"may never seed a live injection"
+        )
+    return plan
+
+
+def _canonical_packets(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """REAL persisted WorkPacket records only (packet_id + not a plan record).
+
+    A plan node's ``workpacket_id`` is a REFERENCE, never proof that
+    materialization succeeded. Only a record in the WorkPacket store counts."""
+    return [r for r in records if _is_packet_record(r)]
 
 
 def build_from_records(
     records: list[dict[str, Any]],
     *,
     run_id: str,
-    run_tag: str = "",
+    plan_record_id: str,
+    plan_version: int,
+    execution_authorization_ref: str = "",
     node_titles: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Resolve the scenario map from REAL materialized records.
+    """Resolve the scenario map from REAL materialized records for an EXACT plan.
 
-    Returns the persistable payload (semantic ids + run/plan binding + digest).
-    Raises ``ScenarioMapError`` if no live plan exists or lineage is ambiguous.
+    For every semantic role, resolution requires the full lineage to close on a
+    REAL canonical WorkPacket record:
+
+        exact plan node → node_id → exactly one persisted WorkPacket record whose
+        source_evidence names that node_id AND whose packet_id == node.workpacket_id
+
+    There is NO synthesized-node-packet path: a plan node claiming
+    ``workpacket_id`` is not evidence the packet exists. Fails closed when a node
+    names a packet with no canonical record, a packet carries no matching node
+    lineage, node/packet ids disagree, a node resolves to multiple packets, or a
+    packet claims multiple nodes.
+
+    Returns the persistable payload (semantic ids + run/plan/authorization
+    binding + digest). Correspondence evidence only — never mutation authority.
     """
-    plan = _latest_plan(records, run_tag=run_tag)
-    if plan is None:
-        raise ScenarioMapError(
-            "no live (non-superseded) plan record found in candidate state — "
-            "cannot resolve canonical task ids for the injection"
-        )
+    plan = select_plan(records, plan_record_id=plan_record_id, plan_version=plan_version)
     nodes = [n for n in (plan.get("nodes") or []) if isinstance(n, dict)]
-    packets = [r for r in records if _is_packet_record(r)]
+    packets = _canonical_packets(records)
 
-    # Also fold in the packets the plan records ON itself (plan.workpacket_ids +
-    # node.workpacket_id). A packet node carries its materialized packet id
-    # directly; synthesize a minimal packet view so a node whose packet lives
-    # only on the plan record still resolves.
-    node_packets: list[dict[str, Any]] = []
-    for n in nodes:
-        wp = str(n.get("workpacket_id", "") or "")
-        if wp:
-            node_packets.append(
-                {
-                    "packet_id": wp,
-                    "source_evidence": [{"type": "plan_node", "node_id": n.get("node_id", "")}],
-                }
-            )
-
+    # resolve_scenario_map walks node title → node_id → packet.source_evidence →
+    # packet_id over the REAL packets only. A node whose packet never
+    # materialized therefore resolves to nothing and raises (fail closed).
     try:
-        mapping = resolve_scenario_map(
-            plan_nodes=nodes, packets=packets + node_packets, node_titles=node_titles
-        )
+        mapping = resolve_scenario_map(plan_nodes=nodes, packets=packets, node_titles=node_titles)
     except ScopeResolutionError as exc:
         raise ScenarioMapError(f"lineage resolution failed: {exc}") from exc
 
-    plan_record_id = str(plan.get("plan_record_id", "") or "")
-    plan_version = int(plan.get("graph_version", 0))
+    # Additional cross-checks the title-based resolver does not enforce: for each
+    # resolved role, the node's declared workpacket_id must EQUAL the packet id we
+    # resolved through source_evidence (a node and its packet must agree).
+    node_by_id = {str(n.get("node_id", "")): n for n in nodes}
+    for label, packet_id in mapping.items():
+        packet = next((p for p in packets if str(p.get("packet_id", "")) == packet_id), None)
+        if packet is None:
+            raise ScenarioMapError(
+                f"{label}: resolved packet {packet_id!r} has no canonical record"
+            )
+        node_id = _node_id_for_packet(packet)
+        node = node_by_id.get(node_id)
+        if node is None:
+            raise ScenarioMapError(
+                f"{label}: packet {packet_id!r} names node {node_id!r} absent from the plan"
+            )
+        declared = str(node.get("workpacket_id", "") or "")
+        if declared and declared != packet_id:
+            raise ScenarioMapError(
+                f"{label}: plan node {node_id!r} declares workpacket_id {declared!r} but "
+                f"lineage resolved packet {packet_id!r} — node and packet disagree"
+            )
+
     payload: dict[str, Any] = {k: mapping[k] for k in SEMANTIC_LABELS}
     payload["run_id"] = run_id
-    payload["plan_record_id"] = plan_record_id
-    payload["plan_version"] = plan_version
+    payload["plan_record_id"] = str(plan.get("plan_record_id", "") or "")
+    payload["plan_version"] = int(plan.get("graph_version", 0))
+    payload["execution_authorization_ref"] = execution_authorization_ref
     payload["digest"] = scenario_map_digest(mapping, run_id=run_id)
     return payload
 
@@ -172,25 +214,101 @@ def read_scenario_map(targets_dir: str | os.PathLike[str]) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-# ── validate the map against live reality (staleness / frontier) ─────────────
+# ── authorized frontier: derived from the ONE active grant, never aggregated ─
+def _is_grant_record(rec: dict[str, Any]) -> bool:
+    return bool(rec.get("grant_id")) and "task_frontier" in rec
+
+
+_GRANT_TERMINAL = frozenset({"expired", "revoked", "invalidated", "failed_activation"})
+
+
+def resolve_authorized_frontier(
+    records: list[dict[str, Any]],
+    *,
+    plan_record_id: str,
+    plan_version: int,
+    tenant_id: str = "",
+    now: float | None = None,
+) -> tuple[list[str], str]:
+    """The authorized frontier = the ONE ACTIVE execution-authorization grant's
+    ``task_frontier`` for EXACTLY this plan version. ``(frontier, reason)``.
+
+    This is NOT "all packets I can find". Exactly one grant must satisfy:
+      * status ACTIVE (not ACTIVATING/EXPIRED/REVOKED/INVALIDATED/FAILED_ACTIVATION);
+      * decision_kind execution_authorization (the grant record IS that);
+      * exact plan_record_id + plan_version;
+      * matching tenant when supplied;
+      * not past expires_at.
+    Zero matches, multiple matches, an empty frontier, or an expired/terminal
+    grant raises — injection arming then fails closed. An unrelated packet never
+    enters the frontier merely because it lacks a plan_record_id.
+    """
+    import time as _time
+
+    now = _time.time() if now is None else now
+    grants = [g for g in records if _is_grant_record(g)]
+    matches = [
+        g
+        for g in grants
+        if str(g.get("plan_record_id", "")) == plan_record_id
+        and int(g.get("plan_version", -1)) == int(plan_version)
+        and (not tenant_id or str(g.get("tenant_id", "")) == tenant_id)
+    ]
+    if not matches:
+        raise ScenarioMapError(
+            f"no execution-authorization grant for plan {plan_record_id!r} v{plan_version} "
+            f"(tenant={tenant_id!r}) — the injection has no authorized frontier"
+        )
+    if len(matches) > 1:
+        raise ScenarioMapError(
+            f"{len(matches)} grants match plan {plan_record_id!r} v{plan_version} — "
+            f"ambiguous authorization; refusing"
+        )
+    grant = matches[0]
+    status = str(grant.get("status", "")).lower()
+    if status != "active":
+        raise ScenarioMapError(
+            f"grant {grant.get('grant_id')!r} status is {status!r}, not ACTIVE — "
+            f"an injection may only target an ACTIVE authorization"
+        )
+    expires_at = float(grant.get("expires_at", 0) or 0)
+    if expires_at and now >= expires_at:
+        raise ScenarioMapError(
+            f"grant {grant.get('grant_id')!r} expired at {expires_at} — refusing"
+        )
+    frontier = [str(t) for t in (grant.get("task_frontier") or []) if t]
+    if not frontier:
+        raise ScenarioMapError(
+            f"grant {grant.get('grant_id')!r} has an EMPTY task_frontier — an empty "
+            f"frontier is a failure, never 'skip the frontier check'"
+        )
+    return frontier, f"grant {grant.get('grant_id')} frontier={sorted(frontier)}"
+
+
+# ── validate the map against live reality (identity + authorization) ─────────
 def validate_against_run(
     targets_dir: str | os.PathLike[str],
     *,
     run_id: str,
     records: list[dict[str, Any]],
-    authorized_frontier: list[str] | None = None,
-    run_tag: str = "",
+    plan_record_id: str,
+    plan_version: int,
+    tenant_id: str = "",
+    now: float | None = None,
 ) -> tuple[bool, str]:
-    """Is the persisted map valid for THIS run + THIS live plan? ``(ok, reason)``.
+    """Is the persisted map valid for THIS run + THIS exact plan + authorization?
 
-    Fails closed on every C-3 mode:
-      * absent map;
-      * wrong run (run_id mismatch);
-      * stale map (plan_record_id / plan_version no longer the live plan, or the
-        digest does not recompute from the live plan's lineage);
-      * a role id that is not a real materialized packet;
-      * a role id outside the authorized frontier;
-      * ambiguity (surfaced by build_from_records raising).
+    Rereads the canonical stores (plan, WorkPackets, grant) and validates the
+    persisted map against them. Fails closed on every mode:
+      * absent map / wrong run binding;
+      * stale map (recompute from the exact live plan version does not match);
+      * a role id that is not a REAL persisted WorkPacket (node reference is not
+        proof — enforced by build_from_records);
+      * a role id outside the ACTIVE grant's task_frontier;
+      * no grant / multiple grants / non-ACTIVE / expired / empty frontier /
+        wrong plan version (all via resolve_authorized_frontier).
+
+    The map is NEVER trusted to grant eligibility — the authority is reread here.
     """
     persisted = read_scenario_map(targets_dir)
     if not persisted:
@@ -201,10 +319,16 @@ def validate_against_run(
             f"(stale map from another run)"
         )
 
-    # Recompute from the CURRENT live records; the persisted map must match it
-    # exactly. Any drift (superseded plan, re-materialized packet) fails.
+    # Recompute from the EXACT live plan version; the persisted map must match it
+    # byte-for-byte on identity + binding.
     try:
-        fresh = build_from_records(records, run_id=run_id, run_tag=run_tag)
+        fresh = build_from_records(
+            records,
+            run_id=run_id,
+            plan_record_id=plan_record_id,
+            plan_version=plan_version,
+            execution_authorization_ref=str(persisted.get("execution_authorization_ref", "")),
+        )
     except ScenarioMapError as exc:
         return False, f"cannot recompute scenario map from live state: {exc}"
 
@@ -215,32 +339,43 @@ def validate_against_run(
                 f"live={fresh.get(key)!r} (plan superseded or ids drifted)"
             )
 
-    # Every resolved id must be a REAL materialized packet AND inside the
-    # authorized frontier (an injection may only target an authorized Task).
-    real_ids = {str(r.get("packet_id", "")) for r in records if _is_packet_record(r)}
-    # Packets recorded only on the plan node also count as materialized.
-    plan = _latest_plan(records, run_tag=run_tag) or {}
-    for n in plan.get("nodes") or []:
-        if isinstance(n, dict) and n.get("workpacket_id"):
-            real_ids.add(str(n["workpacket_id"]))
-    frontier = set(authorized_frontier or [])
+    # The authorized frontier is the ACTIVE grant's task_frontier — reread now,
+    # never taken from the map or aggregated from all packets.
+    try:
+        frontier, _why = resolve_authorized_frontier(
+            records,
+            plan_record_id=plan_record_id,
+            plan_version=plan_version,
+            tenant_id=tenant_id,
+            now=now,
+        )
+    except ScenarioMapError as exc:
+        return False, f"authorization frontier unresolved: {exc}"
+
+    frontier_set = set(frontier)
+    real_ids = {str(r.get("packet_id", "")) for r in _canonical_packets(records)}
     for label in SEMANTIC_LABELS:
         tid = str(persisted.get(label, ""))
         if tid and tid not in real_ids:
-            return False, f"{label} → {tid!r} is not a materialized WorkPacket"
-        if frontier and tid and tid not in frontier:
-            return False, f"{label} → {tid!r} is not in the authorized frontier {sorted(frontier)}"
+            return False, f"{label} → {tid!r} is not a persisted WorkPacket record"
+        if tid and tid not in frontier_set:
+            return False, (
+                f"{label} → {tid!r} is not in the authorized frontier {sorted(frontier_set)}"
+            )
 
     return (
         True,
-        f"scenario map valid for run {run_id} plan {fresh['plan_record_id']} v{fresh['plan_version']}",
+        f"scenario map valid for run {run_id} plan {fresh['plan_record_id']} "
+        f"v{fresh['plan_version']} (authorized frontier honored)",
     )
 
 
 __all__ = [
     "ScenarioMapError",
     "scenario_map_path",
+    "select_plan",
     "build_from_records",
+    "resolve_authorized_frontier",
     "write_scenario_map",
     "read_scenario_map",
     "validate_against_run",
