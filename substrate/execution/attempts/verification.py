@@ -75,6 +75,8 @@ def verify_attempt(
     package_hash: str,
     verifier_identity: str,
     verifier_role_id: str,
+    packet: Any = None,
+    semantic_label: str = "",
     independent_checks: Callable[[Any], list[VerificationCheck]] | None = None,
     proof_runtime: Any | None = None,
 ) -> VerificationVerdict:
@@ -142,46 +144,25 @@ def verify_attempt(
         )
     )
 
-    # 3. diff-scope: changes confined to allowed paths, computed from the ACTUAL
-    #    changed paths in the lease worktree — never hardcoded (finding C4).
+    # 3. diff-scope: changes confined to the Task's AUTHORIZED paths, computed
+    #    from the ACTUAL changed paths in the lease worktree.
     #
-    #    This check used to be `ok=True` unconditionally, so a worker writing
-    #    outside its allowed paths passed verification. The changed set is
-    #    derived by diffing the worktree against its base commit; the worker's
-    #    self-reported file list is NOT trusted for this.
-    worktree_path = str(getattr(lease, "worktree_path", "") or "")
-    raw_allowed = [p for p in (getattr(lease, "writable_paths", []) or []) if p]
-    # The LeaseManager records writable_paths=[<absolute worktree>] to mean "the
-    # whole worktree is writable". Git reports changed paths RELATIVE to the
-    # worktree, so comparing the two directly can never match. Normalize: an
-    # entry equal to the worktree root means whole-worktree scope; any other
-    # entry is treated as a worktree-relative prefix.
-    allowed = [
-        os.path.relpath(p, worktree_path) if (worktree_path and os.path.isabs(p)) else p
-        for p in raw_allowed
-    ]
-    whole_worktree = any(a in (".", "") for a in allowed)
-    allowed = [a for a in allowed if a not in (".", "")]
-
-    changed_paths, diff_source = _actual_changed_paths(lease, worker_result)
-    outside = _paths_outside_allowlist(changed_paths, allowed)
-    if whole_worktree:
-        # Whole-worktree scope: the sandbox mount IS the boundary and it is
-        # enforced by construction (the worker cannot write outside its bind).
-        scope_ok = True
-        scope_detail = f"whole-worktree scope; sandbox-enforced ({diff_source})"
-    elif not allowed:
-        # No declared allowlist: the lease worktree itself is the boundary, which
-        # the sandbox already enforces. Record that honestly rather than implying
-        # a path check ran.
-        scope_ok = True
-        scope_detail = f"no writable_paths declared; worktree-confined ({diff_source})"
-    else:
-        scope_ok = not outside
-        scope_detail = (
-            f"changed={len(changed_paths)} allowed={sorted(allowed)} "
-            f"outside={sorted(outside)[:5]} ({diff_source})"
-        )
+    #    Finding C-1: this check was structurally incapable of failing. The
+    #    LeaseManager recorded `writable_paths=[<absolute worktree>]`, which
+    #    normalized to "." → `whole_worktree=True` → `scope_ok=True`
+    #    unconditionally, and the computed `outside` list was discarded. A worker
+    #    that rewrote the fixture's own tests earned a valid AttemptProof.
+    #
+    #    The authority is now the Task's DECLARED allowed paths (canonical
+    #    WorkPacket requirements, resolved by field_task_scope), never the lease
+    #    worktree. The sandbox mount is a CONTAINMENT boundary; it was never a
+    #    diff-scope authority, and treating it as one is what nullified the check.
+    scope_ok, scope_detail = _diff_scope_verdict(
+        lease=lease,
+        packet=packet,
+        worker_result=worker_result,
+        semantic_label=semantic_label,
+    )
     checks.append(
         VerificationCheck(
             check_id="diff_scope",
@@ -278,13 +259,18 @@ class ProofDurabilityError(RuntimeError):
     """A Proof could not be minted durably, so no transition may rely on it."""
 
 
-def _actual_changed_paths(lease: Any, worker_result: Any) -> tuple[list[str], str]:
+def _actual_changed_paths(lease: Any, worker_result: Any) -> tuple[list[str], str, bool]:
     """Changed paths derived INDEPENDENTLY from the lease worktree.
 
-    Diffs the worktree against its base commit via git. Falls back to the
-    worker's self-report ONLY when the worktree cannot be inspected, and says so
-    in the returned source label so a verdict can never silently rest on the
-    worker's narrative while claiming an independent check.
+    Returns ``(paths, source_label, independent)``. ``independent`` is the
+    load-bearing value: when the worktree cannot be inspected the worker's
+    self-report is returned for DIAGNOSTICS only, flagged False, and the caller
+    must reject. Returning a label alone was not enough — a caller could (and the
+    C-1 code effectively did) ignore it and pass anyway.
+
+    The diff covers BOTH committed and uncommitted changes: ``git diff <base>``
+    alone misses untracked files, so a worker could write a new file outside its
+    scope and leave no trace in the verdict.
     """
     worktree = str(getattr(lease, "worktree_path", "") or "")
     base = str(getattr(lease, "snapshot_ref", "") or "") or "HEAD"
@@ -292,32 +278,87 @@ def _actual_changed_paths(lease: Any, worker_result: Any) -> tuple[list[str], st
         try:
             from substrate.execution.cpu_gate import gated_subprocess_run
 
-            result = gated_subprocess_run(
+            paths: set[str] = set()
+            tracked = gated_subprocess_run(
                 ["git", "diff", "--name-only", base],
                 caller="wave2_verify_diff_scope",
                 timeout=60,
                 cwd=worktree,
             )
-            if result is not None and result.returncode == 0:
-                paths = [ln.strip() for ln in (result.stdout or "").splitlines() if ln.strip()]
-                return paths, "git diff (independent)"
+            if tracked is None or tracked.returncode != 0:
+                return [], "git diff unavailable", False
+            paths.update(ln.strip() for ln in (tracked.stdout or "").splitlines() if ln.strip())
+            # Untracked files are real changes and must count against scope.
+            untracked = gated_subprocess_run(
+                ["git", "ls-files", "--others", "--exclude-standard"],
+                caller="wave2_verify_diff_scope_untracked",
+                timeout=60,
+                cwd=worktree,
+            )
+            if untracked is not None and untracked.returncode == 0:
+                paths.update(
+                    ln.strip() for ln in (untracked.stdout or "").splitlines() if ln.strip()
+                )
+            return sorted(paths), "git diff + untracked (independent)", True
         except Exception as exc:  # noqa: BLE001 - diagnostics only
             logger.debug("independent diff failed for %s: %s", worktree, exc)
     reported = [str(p) for p in (getattr(worker_result, "files_changed", []) or [])]
-    return reported, "worker self-report (worktree not inspectable)"
+    return reported, "worker self-report (worktree not inspectable)", False
 
 
-def _paths_outside_allowlist(changed: list[str], allowed: list[str]) -> list[str]:
-    """Changed paths not under any allowed prefix."""
-    outside: list[str] = []
-    for path in changed:
-        normalized = path.lstrip("./")
-        if not any(
-            normalized == a.rstrip("/") or normalized.startswith(a.rstrip("/") + "/")
-            for a in allowed
-        ):
-            outside.append(path)
-    return outside
+def _diff_scope_verdict(
+    *, lease: Any, packet: Any, worker_result: Any, semantic_label: str = ""
+) -> tuple[bool, str]:
+    """Fail-closed diff-scope verdict for one attempt (finding C-1).
+
+    The authority is the Task's DECLARED allowed paths — canonical WorkPacket
+    requirements — normalized relative to the lease root. The lease worktree is
+    NOT the authority: it is the containment boundary, and using it as the scope
+    is precisely what made this check unable to fail.
+
+    Every failure mode is a REJECTION:
+
+    - no packet / no declared scope → cannot verify containment → fail;
+    - an unsafe policy (``.``, absolute, parent traversal) → fail;
+    - the diff cannot be computed independently → fail (a verdict must never
+      rest on the worker's self-report while claiming to be independent);
+    - any changed path outside the allowlist → fail.
+    """
+    from substrate.execution.attempts.field_task_scope import (
+        ScopeResolutionError,
+        allowed_paths_for,
+        normalize_allowed_paths,
+        paths_outside,
+    )
+
+    worktree_path = str(getattr(lease, "worktree_path", "") or "")
+
+    if packet is None:
+        return False, (
+            "no canonical WorkPacket supplied — the authorized path scope cannot be "
+            "resolved, so containment is unverifiable (refusing to pass)"
+        )
+    try:
+        declared = allowed_paths_for(packet, semantic_label=semantic_label)
+        allowed = normalize_allowed_paths(declared, lease_root=worktree_path)
+    except ScopeResolutionError as exc:
+        return False, f"unusable path scope: {exc}"
+
+    changed_paths, diff_source, independent = _actual_changed_paths(lease, worker_result)
+    if not independent:
+        return False, (
+            f"changed paths could not be computed independently ({diff_source}) — "
+            f"a diff-scope verdict may not rest on the worker's own report"
+        )
+
+    outside = paths_outside(changed_paths, allowed)
+    detail = (
+        f"changed={len(changed_paths)} allowed={sorted(allowed)} "
+        f"outside={sorted(outside)[:5]} ({diff_source})"
+    )
+    if outside:
+        return False, f"changes outside authorized scope: {detail}"
+    return True, detail
 
 
 def _persist_proof(

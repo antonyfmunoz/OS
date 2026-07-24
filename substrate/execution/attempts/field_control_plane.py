@@ -301,6 +301,7 @@ class FieldControlPlaneDriver:
             proof_runtime=self._proof_runtime,
             assignment_lookup=self._assignment_lookup,
             lease_lookup=self._lease_lookup,
+            packet_lookup=self._packet_lookup,
             independent_checks_for=self._independent_checks_for,
             scheduler_pass_kwargs=dict(
                 grant=grant,
@@ -328,6 +329,48 @@ class FieldControlPlaneDriver:
                 "without assignment context"
             )
         return _RecordView.wrap(getter(assignment_id))
+
+    def _packet_lookup(self, task_id: str) -> Any:
+        """The canonical WorkPacket for a Task — the diff-scope AUTHORITY (C-1).
+
+        Returns the packet with its declared ``allowed_paths`` resolved. When the
+        packet itself declares none (the fixture compiles packets without a path
+        policy), the scenario map's semantic label supplies the fixture default,
+        so the scope is still sourced from canonical Task identity — never
+        inferred from the lease worktree.
+
+        Returns None when the Task cannot be resolved, which makes the verifier
+        fail closed. That is the intended behaviour: an unresolvable scope is a
+        verification failure, not a pass.
+        """
+        if not task_id:
+            return None
+        packet = self._queue.get_packet(task_id)
+        if packet is None:
+            return None
+        requirements = getattr(packet, "requirements", None)
+        declared = requirements.get("allowed_paths") if isinstance(requirements, dict) else None
+        if isinstance(declared, list):
+            return packet
+
+        from substrate.execution.attempts.field_failure_policy import read_scenario_map
+        from substrate.execution.attempts.field_task_scope import (
+            FIXTURE_ALLOWED_PATHS,
+            SEMANTIC_LABELS,
+        )
+
+        mapping = read_scenario_map(self._targets_dir)
+        label = next((k for k in SEMANTIC_LABELS if mapping.get(k) == task_id), "")
+        if not label:
+            # Unknown semantic role → no authorized scope can be named. Fail
+            # closed rather than defaulting to a permissive policy.
+            return None
+        return _RecordView.wrap(
+            {
+                "packet_id": task_id,
+                "requirements": {"allowed_paths": list(FIXTURE_ALLOWED_PATHS[label])},
+            }
+        )
 
     def _independent_checks_for(self, attempt: Any) -> Callable[[Any], list[Any]] | None:
         """Independent checks the VERIFIER runs itself for this attempt.

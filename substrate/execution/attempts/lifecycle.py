@@ -17,7 +17,6 @@ re-transition of a FAILED one.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from substrate.execution.attempts.records import ExecutionAttempt, ExecutionAttemptStatus

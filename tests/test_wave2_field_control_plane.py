@@ -17,6 +17,7 @@ failure, never a false green).
 
 from __future__ import annotations
 
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -52,8 +53,13 @@ def queue(tmp_path, monkeypatch):
 
 
 class _FakeSandbox:
-    """Creates non-colliding fake worktrees (no real git — the stub worker never
-    touches them). Exercises the LeaseManager's forbidden-workspace guard path."""
+    """Creates non-colliding REAL git worktrees.
+
+    These were bare paths that did not exist on disk. Diff-scope is now computed
+    by running git in the lease worktree (finding C-1), so a nonexistent path
+    makes verification fail closed and the driver could never reach green. The
+    LeaseManager's forbidden-workspace guard path is still exercised.
+    """
 
     def __init__(self, tmp_path):
         self._repo_root = str(tmp_path / "fixture")
@@ -61,12 +67,29 @@ class _FakeSandbox:
         self._i = 0
 
     def create_sandbox(self, candidate_id, candidate_slug, agent_type="developer_agent"):
+        import os
+        import subprocess
+
         self._i += 1
         wt = f"{self._repo_root}-lease-{self._i}"
+        os.makedirs(os.path.join(wt, "app"), exist_ok=True)
+        with open(os.path.join(wt, "app", "__init__.py"), "w", encoding="utf-8") as fh:
+            fh.write("")
+        for args in (
+            ("init", "-q"),
+            ("config", "user.email", "t@example.com"),
+            ("config", "user.name", "t"),
+            ("add", "-A"),
+            ("commit", "-q", "-m", "base"),
+        ):
+            subprocess.run(["git", *args], cwd=wt, check=True, capture_output=True)
+        base = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt, capture_output=True, text=True
+        ).stdout.strip()
         return SimpleNamespace(
             worktree_path=wt,
             branch_name=f"br-{self._i}",
-            base_commit="base",
+            base_commit=base,
             sandbox_id=f"sb-{self._i}",
         )
 
@@ -74,13 +97,17 @@ class _FakeSandbox:
         pass
 
 
-def _add_approved_packet(queue, pid, deps=None):
+def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests")):
+    """An APPROVED packet carrying a DECLARED path scope (finding C-1): the
+    canonical WorkPacket is the diff-scope authority, and a packet declaring no
+    scope now fails verification closed instead of authorizing everything."""
     pkt = WorkPacket(
         title=pid,
         user_intent=f"do {pid}",
         dependencies=deps or [],
         approval_gates=["execution_authorization_required"],
         work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+        requirements={"allowed_paths": list(allowed_paths)},
     )
     pkt.packet_id = pid
     queue.ingest_work_packet(pkt)
@@ -142,6 +169,15 @@ def _stub_worker_drain(spool, *, fail_tasks=None):
         # failure. This mirrors the real worker: the tool revocation is on the
         # envelope, and the stub honors it faithfully.
         revoked = bool(env.disallowed_tools) or env.task_id in fail_tasks
+        # A real worker WRITES into its lease worktree; the verifier computes the
+        # changed set from git there (finding C-1). A revoked worker writes
+        # nothing — which is exactly why its verification genuinely fails.
+        worktree = getattr(env, "worktree_path", "") or ""
+        if not revoked and worktree and os.path.isdir(worktree):
+            target = os.path.join(worktree, "app", f"{env.task_id}.py")
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, "w", encoding="utf-8") as fh:
+                fh.write(f"# implemented by {env.task_id}\n")
         spool.complete(
             token,
             {

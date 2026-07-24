@@ -55,6 +55,40 @@ def _lease(writable=("app", "tests")):
     return SimpleNamespace(writable_paths=list(writable), worktree_path="", snapshot_ref="")
 
 
+def _real_worktree(tmp_path, name="wt"):
+    """A real git worktree with one base commit.
+
+    Diff-scope is now computed by running git against the lease worktree, so a
+    stub lease cannot exercise it. Tests that assert on scope must supply a real
+    tree; a stub is exactly the shape that hid finding C-1.
+    """
+    import subprocess
+
+    root = tmp_path / name
+    (root / "app").mkdir(parents=True)
+    (root / "app" / "main.py").write_text("# base\n", encoding="utf-8")
+    for args in (
+        ("init", "-q"),
+        ("config", "user.email", "t@example.com"),
+        ("config", "user.name", "t"),
+        ("add", "-A"),
+        ("commit", "-q", "-m", "base"),
+    ):
+        subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True)
+    base = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=str(root), capture_output=True, text=True
+    ).stdout.strip()
+    return SimpleNamespace(path=str(root), base=base)
+
+
+def _scoped(tmp_path, allowed=("app",), name="wt"):
+    """(lease, packet) pair over a real worktree with a declared path scope."""
+    wt = _real_worktree(tmp_path, name)
+    lease = SimpleNamespace(worktree_path=wt.path, snapshot_ref=wt.base, writable_paths=[wt.path])
+    packet = SimpleNamespace(packet_id="wp-a", requirements={"allowed_paths": list(allowed)})
+    return wt, lease, packet
+
+
 def _worker_result(files=("app/main.py",), commits=("abc123 add search",)):
     return SimpleNamespace(files_changed=list(files), commits=list(commits))
 
@@ -63,15 +97,22 @@ def _worker_result(files=("app/main.py",), commits=("abc123 add search",)):
 
 
 def test_attempt_proof_passes_with_real_artifacts(tmp_path):
+    """The PASS control. Requires a real worktree + declared scope, because the
+    repaired diff-scope check is computed independently via git — a stub lease
+    can no longer produce a pass, which is the point of finding C-1."""
     rt = _ProofRT(tmp_path)
+    wt, lease, packet = _scoped(tmp_path, allowed=("app",))
+    with open(os.path.join(wt.path, "app", "main.py"), "a", encoding="utf-8") as f:
+        f.write("# in-scope change\n")
     verdict = verify_attempt(
         attempt=_attempt(pkg_hash="h1"),
         assignment=_assignment(),
-        lease=_lease(),
+        lease=lease,
         worker_result=_worker_result(),
         package_hash="h1",
         verifier_identity="verifier-1",
         verifier_role_id="role-verify-op",
+        packet=packet,
         proof_runtime=rt,
     )
     assert verdict.classification == ATTEMPT_PROOF
@@ -315,26 +356,37 @@ def test_plan_execution_proof_fails_on_any_check():
 
 
 def test_diff_outside_allowlist_fails_verification(tmp_path):
-    """R3 / finding C4: diff_scope was hardcoded ok=True, so a worker writing
-    outside its allowed paths passed verification. It must now FAIL."""
+    """R3 / finding C-1: a worker writing outside its allowed paths must FAIL.
+
+    This test previously passed a stub lease and asserted on the worker's OWN
+    reported file list — which the repaired verifier no longer trusts, because a
+    scope verdict resting on the worker's narrative is not an independent check.
+    It now uses a REAL git worktree and a canonical packet, so the assertion is
+    about what the verifier independently observed. Full mutation coverage lives
+    in tests/test_wave2_diff_scope_authority.py.
+    """
     rt = _ProofRT(tmp_path)
+    wt = _real_worktree(tmp_path)
+    # The worker writes outside its authorized scope.
+    with open(os.path.join(wt.path, "infra_secrets.tf"), "w", encoding="utf-8") as f:
+        f.write("# not authorized\n")
     verdict = verify_attempt(
         attempt=_attempt(),
         assignment=_assignment(),
-        lease=_lease(writable=("app",)),  # only app/ is writable
-        worker_result=_worker_result(
-            files=("app/main.py", "infra/secrets.tf"),  # escapes the allowlist
-            commits=("abc touched infra",),
+        lease=SimpleNamespace(
+            worktree_path=wt.path, snapshot_ref=wt.base, writable_paths=[wt.path]
         ),
+        worker_result=_worker_result(files=("app/main.py",), commits=("abc",)),
         package_hash="h1",
         verifier_identity="v",
         verifier_role_id="r",
+        packet=SimpleNamespace(packet_id="wp-a", requirements={"allowed_paths": ["app"]}),
         proof_runtime=rt,
     )
     assert verdict.passed is False, "an out-of-allowlist diff must fail verification"
     scope = next(c for c in verdict.checks if c["check_id"] == "diff_scope")
     assert scope["ok"] is False
-    assert "infra/secrets.tf" in scope["detail"]
+    assert "infra_secrets.tf" in scope["detail"]
     assert verdict.proof_id == "", "no Proof for a scope violation"
 
 

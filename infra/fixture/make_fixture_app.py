@@ -201,12 +201,13 @@ Add tests in `tests/test_search_api.py`. Confine changes to `app/main.py`,
 
 ## Task B (frontend) — the exact contract
 
-Add to `static/index.html`:
+Add to `app/static/index.html`:
 - a search input with `data-testid="note-search-input"`;
 - a results list with `data-testid="note-search-results"`.
-Wire `static/app.js` to call `GET /api/notes/search?q=<value>` on input and
+Wire `app/static/app.js` to call `GET /api/notes/search?q=<value>` on input and
 render the results. Add `tests/test_ui_search.py` asserting the served HTML
-contains BOTH testids. Confine changes to `static/*` and `tests/test_ui_search.py`.
+contains BOTH testids. Confine changes to `app/static/*` and
+`tests/test_ui_search.py`.
 
 ## Task C (integration) — depends on A and B
 

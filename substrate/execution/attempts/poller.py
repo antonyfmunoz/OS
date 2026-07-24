@@ -100,6 +100,7 @@ class ControlPlanePoller:
         verify_fn: Callable[..., Any],
         assignment_lookup: Callable[[str], Any] | None = None,
         lease_lookup: Callable[[str], Any] | None = None,
+        packet_lookup: Callable[[str], Any] | None = None,
         proof_runtime: Any | None = None,
         independent_checks_for: Callable[[Any], Callable[[Any], list[Any]] | None] | None = None,
         scheduler_pass_kwargs: dict[str, Any] | None = None,
@@ -110,6 +111,10 @@ class ControlPlanePoller:
         self._verify = verify_fn
         self._assignment_lookup = assignment_lookup or (lambda _aid: None)
         self._lease_lookup = lease_lookup or (lambda _lid: None)
+        # Default resolves to None → the diff-scope check fails closed. This is
+        # deliberate: an unwired packet lookup must NOT silently authorize the
+        # whole worktree (finding C-1).
+        self._packet_lookup = packet_lookup or (lambda _tid: None)
         self._proof_runtime = proof_runtime
         self._independent_checks_for = independent_checks_for or (lambda _a: None)
         self._pass_kwargs = dict(scheduler_pass_kwargs or {})
@@ -129,9 +134,7 @@ class ControlPlanePoller:
             except AttemptStoreConflict as exc:
                 # A concurrent writer moved the row — safe to ignore this pass;
                 # the next pass rereads canonical state.
-                report.ignored.append(
-                    f"{result.get('attempt_id', '?')}: conflict {exc}"
-                )
+                report.ignored.append(f"{result.get('attempt_id', '?')}: conflict {exc}")
             except Exception as exc:  # never let one bad result stall the loop
                 report.errors.append(f"{result.get('attempt_id', '?')}: {exc}")
                 logger.debug("poller: result apply failed: %s", exc, exc_info=True)
@@ -169,8 +172,11 @@ class ControlPlanePoller:
         #    running as soon as we see any result for a dispatched attempt.
         if attempt.status == _S.DISPATCHED.value:
             attempt = self._transition(
-                attempt, _S.RUNNING.value, (_S.DISPATCHED.value,),
-                actor="poller", reason="worker result received",
+                attempt,
+                _S.RUNNING.value,
+                (_S.DISPATCHED.value,),
+                actor="poller",
+                reason="worker result received",
             )
             report.transitioned_running.append(attempt_id)
 
@@ -182,7 +188,9 @@ class ControlPlanePoller:
         if attempt.status == _S.RUNNING.value:
             worker_result = _WorkerResultView(result.get("worker_result", {}) or {})
             attempt = self._transition(
-                attempt, _S.VERIFYING.value, (_S.RUNNING.value,),
+                attempt,
+                _S.VERIFYING.value,
+                (_S.RUNNING.value,),
                 actor="poller",
                 reason=f"worker reported status={worker_result.status}",
                 updates={
@@ -196,19 +204,30 @@ class ControlPlanePoller:
             self._verify_and_settle(attempt, worker_result, result, report)
 
     def _verify_and_settle(
-        self, attempt: Any, worker_result: Any, raw: dict[str, Any],
+        self,
+        attempt: Any,
+        worker_result: Any,
+        raw: dict[str, Any],
         report: PollerPassReport,
     ) -> None:
         assignment = self._assignment_lookup(getattr(attempt, "assignment_id", "") or "")
         lease = self._lease_lookup(getattr(attempt, "lease_id", "") or "")
         # Verifier identity is the assignment's verifier role — deterministically
         # distinct from the worker (SoD enforced at placement + here + in the guard).
-        verifier_role = getattr(attempt, "verifier_role_id", "") or getattr(
-            assignment, "verifier_role_id", "",
-        ) or "role-verify-op"
+        verifier_role = (
+            getattr(attempt, "verifier_role_id", "")
+            or getattr(
+                assignment,
+                "verifier_role_id",
+                "",
+            )
+            or "role-verify-op"
+        )
         verifier_identity = f"verifier:{verifier_role}"
         worker_identity = getattr(attempt, "worker_identity", "") or getattr(
-            assignment, "worker_identity", "",
+            assignment,
+            "worker_identity",
+            "",
         )
         if verifier_identity == worker_identity:  # never let them collide
             verifier_identity = f"verifier:{verifier_role}:{attempt.attempt_id}"
@@ -222,13 +241,20 @@ class ControlPlanePoller:
             package_hash=package_hash,
             verifier_identity=verifier_identity,
             verifier_role_id=verifier_role,
+            # The canonical WorkPacket is the diff-scope AUTHORITY (finding C-1).
+            # Without it the verifier cannot resolve which paths this Task was
+            # authorized to write, and the scope check fails closed rather than
+            # falling back to "the whole worktree is fine".
+            packet=self._packet_lookup(getattr(attempt, "task_id", "")),
             independent_checks=self._independent_checks_for(attempt),
             proof_runtime=self._proof_runtime,
         )
 
         if getattr(verdict, "passed", False) and getattr(verdict, "proof_id", ""):
             self._transition(
-                attempt, _S.SUCCEEDED.value, (_S.VERIFYING.value,),
+                attempt,
+                _S.SUCCEEDED.value,
+                (_S.VERIFYING.value,),
                 actor=verifier_identity,
                 reason="AttemptProof verified (verifier ≠ worker)",
                 updates={
@@ -245,24 +271,34 @@ class ControlPlanePoller:
                     c.get("check_id", "?") for c in fails[:4]
                 )
             self._transition(
-                attempt, _S.FAILED.value, (_S.VERIFYING.value,),
+                attempt,
+                _S.FAILED.value,
+                (_S.VERIFYING.value,),
                 actor=verifier_identity,
                 reason=reason,
-                updates={"verifier_identity": verifier_identity,
-                         "blocked_reason": reason[:200]},
+                updates={"verifier_identity": verifier_identity, "blocked_reason": reason[:200]},
             )
             report.failed.append(attempt.attempt_id)
 
     # ── canonical write ──────────────────────────────────────────────────────
 
     def _transition(
-        self, attempt: Any, to_status: str, expected: tuple[str, ...],
-        *, actor: str, reason: str, updates: dict[str, Any] | None = None,
+        self,
+        attempt: Any,
+        to_status: str,
+        expected: tuple[str, ...],
+        *,
+        actor: str,
+        reason: str,
+        updates: dict[str, Any] | None = None,
     ) -> Any:
         return self._store.transition_cas(
-            attempt.attempt_id, to_status,
+            attempt.attempt_id,
+            to_status,
             expected_record_version=attempt.record_version,
-            expected_statuses=expected, actor=actor, reason=reason,
+            expected_statuses=expected,
+            actor=actor,
+            reason=reason,
             updates=updates or {},
         )
 

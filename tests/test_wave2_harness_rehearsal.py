@@ -66,13 +66,21 @@ def queue(tmp_path, monkeypatch):
     return UniversalWorkQueue(store_path=str(tmp_path / "packets.jsonl"))
 
 
-def _add_approved_packet(queue, pid, deps=None):
+def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests")):
+    """An APPROVED packet carrying a DECLARED path scope.
+
+    ``allowed_paths`` is load-bearing: the canonical WorkPacket is the diff-scope
+    authority (finding C-1), and a packet with no declared scope now fails
+    verification closed rather than defaulting to the whole worktree. The
+    rehearsal must therefore model a real Task, which declares its scope.
+    """
     pkt = WorkPacket(
         title=pid,
         user_intent=f"do {pid}",
         dependencies=deps or [],
         approval_gates=["execution_authorization_required"],
         work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+        requirements={"allowed_paths": list(allowed_paths)},
     )
     pkt.packet_id = pid
     queue.ingest_work_packet(pkt)
@@ -111,16 +119,43 @@ def _grant(frontier):
 
 
 class _FakeSandbox:
+    """Hands out REAL git worktrees.
+
+    These were previously `/tmp/wt-<n>` — paths that never existed. Diff-scope is
+    computed by running git in the lease worktree (finding C-1), so a nonexistent
+    path means the verifier cannot observe anything independently and must fail
+    closed. A rehearsal over fake paths would only ever rehearse that failure, so
+    it must create real trees.
+    """
+
     def __init__(self, tmp_path):
         self._repo_root = str(tmp_path / "repo")
+        self._base = tmp_path / "leases"
         self._i = 0
 
     def create_sandbox(self, candidate_id, candidate_slug, agent_type="developer_agent"):
+        import subprocess
+
         self._i += 1
+        root = self._base / f"wt-{self._i}"
+        (root / "app").mkdir(parents=True)
+        (root / "tests").mkdir(parents=True)
+        (root / "app" / "__init__.py").write_text("", encoding="utf-8")
+        for args in (
+            ("init", "-q"),
+            ("config", "user.email", "t@example.com"),
+            ("config", "user.name", "t"),
+            ("add", "-A"),
+            ("commit", "-q", "-m", "base"),
+        ):
+            subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True)
+        base = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=str(root), capture_output=True, text=True
+        ).stdout.strip()
         return SimpleNamespace(
-            worktree_path=f"/tmp/wt-{self._i}",
+            worktree_path=str(root),
             branch_name=f"br-{self._i}",
-            base_commit="base",
+            base_commit=base,
             sandbox_id=f"sb-{self._i}",
         )
 
@@ -182,6 +217,16 @@ def _stub_worker_drain(spool: DispatchSpool, *, fail_tasks: set[str] | None = No
             return processed
         token, env = claimed
         failing = env.task_id in fail_tasks
+        # A real worker WRITES into its lease worktree. The verifier computes the
+        # changed set from git there (finding C-1), so a stub that only *reports*
+        # files would produce an empty independent diff. Write in-scope files so
+        # the rehearsal exercises the real verification path.
+        worktree = getattr(env, "worktree_path", "") or ""
+        if not failing and worktree and os.path.isdir(worktree):
+            target = os.path.join(worktree, "app", f"{env.task_id}.py")
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, "w", encoding="utf-8") as fh:
+                fh.write(f"# implemented by {env.task_id}\n")
         spool.complete(
             token,
             {
@@ -244,7 +289,7 @@ def _mk_scheduler(store, queue, tmp_path, spool):
     )
 
 
-def _mk_poller(store, spool, scheduler, grant, proof_runtime):
+def _mk_poller(store, spool, scheduler, grant, proof_runtime, queue=None):
     # Use the REAL durable store accessors (finding C4). This helper previously
     # called store.list_assignments() — a method that does not exist — behind a
     # hasattr guard, so it returned None for every attempt and the rehearsal
@@ -259,6 +304,12 @@ def _mk_poller(store, spool, scheduler, grant, proof_runtime):
     def _lease_lookup(lid):
         return _RecordView.wrap(store.get_lease(lid)) if lid else None
 
+    def _packet_lookup(tid):
+        # The canonical WorkPacket is the diff-scope authority (finding C-1).
+        # An unwired lookup makes verification fail closed, so the rehearsal must
+        # resolve real packets — exactly as the field driver does.
+        return queue.get_packet(tid) if (queue is not None and tid) else None
+
     return ControlPlanePoller(
         store=store,
         spool=spool,
@@ -267,6 +318,7 @@ def _mk_poller(store, spool, scheduler, grant, proof_runtime):
         proof_runtime=proof_runtime,
         assignment_lookup=_asn_lookup,
         lease_lookup=_lease_lookup,
+        packet_lookup=_packet_lookup,
         scheduler_pass_kwargs=dict(
             grant=grant,
             role_resolver=_role,
@@ -314,7 +366,7 @@ def test_full_graph_rehearsal_no_quota(store, queue, tmp_path):
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)
     proof_runtime = _StubProofRuntime(tmp_path)
-    poller = _mk_poller(store, spool, sched, grant, proof_runtime)
+    poller = _mk_poller(store, spool, sched, grant, proof_runtime, queue=queue)
 
     # Round 1: scheduler admits A + B (exactly 2 concurrency); C, D blocked by deps.
     r1 = _pass(sched, grant)
@@ -399,7 +451,7 @@ def test_failure_qualification_rehearsal(store, queue, tmp_path):
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)
-    poller = _mk_poller(store, spool, sched, grant, _StubProofRuntime(tmp_path))
+    poller = _mk_poller(store, spool, sched, grant, _StubProofRuntime(tmp_path), queue=queue)
 
     _pass(sched, grant)
     # The stub worker consults the SAME policy the real dispatch path uses: a
