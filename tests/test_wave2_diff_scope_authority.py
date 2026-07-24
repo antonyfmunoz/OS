@@ -481,3 +481,172 @@ def test_seeding_writes_authority_onto_the_contract():
 
     verifier = seed_scope_from_label(WorkRequirements(), VERIFICATION)
     assert verifier.scope_declared is True and verifier.writable_path_scope == []
+
+
+# ── C-1 final closure: the diff must be anchored to the AUTHORIZED base ─────
+#
+# `base = lease.snapshot_ref or "HEAD"` was a deterministic false green, not an
+# edge case. Real workers COMMIT their work, so after the commit HEAD *is* the
+# worker's own commit and `git diff HEAD` returns exactly nothing — an
+# out-of-scope committed change reads as a clean, "independent" empty diff and
+# passes containment. Verified directly:
+#     vs REAL base : 'tests/test_api.py'
+#     vs HEAD      : ''            <-- the violation vanishes
+# Every prior fixture supplied a valid base, so nothing caught it.
+
+
+def _committed_out_of_scope(worktree):
+    """Worker rewrites the fixture's own test and COMMITS it, as a real one does."""
+    with open(os.path.join(worktree.path, "tests", "test_api.py"), "w", encoding="utf-8") as f:
+        f.write("def test_base(): assert True  # neutered by the worker\n")
+    _git("add", "-A", cwd=worktree.path)
+    _git("commit", "-q", "-m", "worker: out-of-scope change", cwd=worktree.path)
+
+
+def _verify_with_base(worktree, *, snapshot_ref, allowed=("app/main.py",)):
+    lease = SimpleNamespace(
+        worktree_path=worktree.path,
+        snapshot_ref=snapshot_ref,
+        writable_paths=[worktree.path],
+    )
+    return verify_attempt(
+        attempt=SimpleNamespace(
+            attempt_id="ea-1",
+            task_id="wp-abc123def456",
+            instruction_package_hash="h1",
+            worker_identity="worker-1",
+            tenant_id="t",
+            plan_record_id="opr-1",
+            plan_version=1,
+            attempt_number=1,
+            assignment_id="asn-1",
+            lease_id="l-1",
+        ),
+        assignment=SimpleNamespace(worker_identity="worker-1"),
+        lease=lease,
+        worker_result=SimpleNamespace(files_changed=["app/main.py"], commits=["abc"]),
+        package_hash="h1",
+        verifier_identity="verifier:v1",
+        verifier_role_id="role-verify",
+        packet=_packet(list(allowed)),
+    )
+
+
+def test_committed_change_with_missing_snapshot_ref_fails_closed(worktree):
+    """THE case: inspectable worktree + committed out-of-scope change + no
+    snapshot_ref. `git diff HEAD` would report nothing; this must NOT pass."""
+    _committed_out_of_scope(worktree)
+    verdict = _verify_with_base(worktree, snapshot_ref="")
+    check = _scope_check(verdict)
+    assert check["ok"] is False, "a diff with no authorized base must never pass"
+    assert "snapshot_ref" in check["detail"]
+    assert verdict.passed is False
+    assert verdict.proof_id == "", "no Proof may be minted without an anchored diff"
+
+
+def test_control_real_base_sha_detects_the_same_committed_change(worktree):
+    """CONTROL: with the REAL base the violation is visible, proving the test
+    above fails for the missing-base reason and not because commits are opaque."""
+    base = worktree.base
+    _committed_out_of_scope(worktree)
+    check = _scope_check(_verify_with_base(worktree, snapshot_ref=base))
+    assert check["ok"] is False
+    assert "tests/test_api.py" in check["detail"], (
+        "against the authorized base the committed out-of-scope change must be seen"
+    )
+
+
+def test_control_in_scope_commit_against_real_base_passes(worktree):
+    """CONTROL: the anchored diff still PASSES legitimate committed work, so the
+    rejections above are not simply 'commits always fail'."""
+    with open(os.path.join(worktree.path, "app", "main.py"), "a", encoding="utf-8") as f:
+        f.write("# in-scope search endpoint\n")
+    _git("add", "-A", cwd=worktree.path)
+    _git("commit", "-q", "-m", "worker: in-scope change", cwd=worktree.path)
+    check = _scope_check(_verify_with_base(worktree, snapshot_ref=worktree.base))
+    assert check["ok"] is True, check["detail"]
+
+
+def test_whitespace_only_snapshot_ref_is_treated_as_missing(worktree):
+    """A blank-but-present ref is not an authorized base."""
+    _committed_out_of_scope(worktree)
+    check = _scope_check(_verify_with_base(worktree, snapshot_ref="   "))
+    assert check["ok"] is False and "snapshot_ref" in check["detail"]
+
+
+def test_no_head_fallback_remains_in_the_diff_source():
+    """Source-level: the 'or HEAD' fallback must not return. Asserted against
+    CODE (AST-unparsed), not prose — the comment explains the removed fallback."""
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import verification as V
+
+    tree = ast.parse(inspect.getsource(V._actual_changed_paths).lstrip())
+    fn = tree.body[0]
+    body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+    code = "\n".join(ast.unparse(node) for node in body)
+    assert '"HEAD"' not in code and "'HEAD'" not in code, (
+        "a HEAD fallback makes a committed out-of-scope change invisible"
+    )
+
+
+# ── the same unanchored-base defect on the WORKER side ──────────────────────
+#
+# Found while closing the verifier's fallback: the worker captured artifacts as
+# `<base>..HEAD` with `base = lease.snapshot_ref or "HEAD"`, and the runner built
+# its lease with `snapshot_ref = ""`. So the real field range was `HEAD..HEAD` —
+# empty BY DEFINITION. Every attempt would have reported zero files and zero
+# commits, failing the `artifacts` check on genuinely successful work. The
+# dispatch envelope carried no base commit at all.
+
+
+def test_dispatch_envelope_carries_the_authorized_base_commit():
+    """The base must travel on the SIGNED envelope, so it cannot be tampered."""
+    import dataclasses
+
+    from substrate.execution.attempts.spool import DispatchEnvelope
+
+    names = {f.name for f in dataclasses.fields(DispatchEnvelope)}
+    assert "base_commit" in names, "the worker needs an authorized base to attribute artifacts"
+    # signable() covers every field via asdict(), so the base is HMAC-protected.
+    env = DispatchEnvelope(dispatch_id="d", attempt_id="ea", base_commit="abc123")
+    assert "abc123" in env.signable()
+
+
+def test_worker_refuses_a_lease_with_no_authorized_base():
+    """`HEAD..HEAD` is empty by definition — the worker must refuse, not report
+    an empty artifact set that reads as 'the worker did nothing'."""
+    from substrate.execution.attempts.worker_claude_cli import run_worker_in_lease
+
+    result = run_worker_in_lease(
+        lease=SimpleNamespace(worktree_path=os.getcwd(), snapshot_ref=""),
+        package=SimpleNamespace(
+            role_instructions="",
+            operation_instructions="x",
+            ordered_context=[],
+            operation_identity={},
+        ),
+        attempt_id="ea-1",
+    )
+    assert result.ok is False
+    assert "snapshot_ref" in (result.error or "")
+
+
+def test_runner_threads_the_envelope_base_into_the_worker_lease():
+    """Source-level: the runner's lease must take its base from the envelope,
+    not the empty string it used to hardcode. Asserted against CODE."""
+    import ast
+
+    src = open("scripts/wave2_attempt_runner.py", encoding="utf-8").read()
+    tree = ast.parse(src)
+    found = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "_Lease":
+            code = "\n".join(ast.unparse(n) for n in node.body)
+            assert "envelope.base_commit" in code, (
+                "the worker lease must carry the envelope's authorized base commit"
+            )
+            assert "snapshot_ref = ''" not in code, "an empty base makes the diff range HEAD..HEAD"
+            found = True
+    assert found, "runner must build a worker lease"

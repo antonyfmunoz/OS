@@ -249,6 +249,10 @@ class FieldControlPlaneDriver:
                     package_hash=getattr(package, "package_hash", ""),
                     lease_id=getattr(lease, "lease_id", ""),
                     worktree_path=getattr(lease, "worktree_path", ""),
+                    # The AUTHORIZED base the worker attributes its artifacts
+                    # against. Without it the worker fell back to "HEAD", making
+                    # the range `HEAD..HEAD` — empty by definition.
+                    base_commit=str(getattr(lease, "snapshot_ref", "") or ""),
                     nonce=uuid4().hex,  # anti-replay: must not reset on restart
                     sequence=self._seq,
                     # CLAIM budget, NOT the execution budget (finding C3). This

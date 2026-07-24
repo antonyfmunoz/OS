@@ -246,7 +246,11 @@ def _run_one_claim(
 
     class _Lease:
         worktree_path = envelope.worktree_path
-        snapshot_ref = ""  # base commit resolved from the worktree HEAD if absent
+        # The AUTHORIZED base commit, carried on the signed envelope. It was
+        # previously "" and the worker fell back to "HEAD", making the artifact
+        # range `HEAD..HEAD` — empty by definition, so every attempt reported no
+        # files and no commits. The worker now refuses an unanchored lease.
+        snapshot_ref = envelope.base_commit
 
     class _Package:
         role_instructions = ""

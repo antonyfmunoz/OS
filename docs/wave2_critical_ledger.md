@@ -14,7 +14,7 @@ correct accounting is below and is now the authority.
 |---|---|---|
 | Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
 | Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
-| **Round 2 status** | **9 = 3 fixed + 6 open** | fixed: SEC-C2, SEC-C3, SEC-C4 |
+| **Round 2 status** | **9 = 4 fixed + 5 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1 |
 
 Round-1 and Round-2 IDs are namespaced by round; they are different findings that
 happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
@@ -78,19 +78,52 @@ ledger tracks Round 2.
   `test_isolation_gates_fail_closed_for_every_primitive`.
 - **Residual risk:** the run cannot proceed on a host without bwrap. Intended.
 
-### C-1 — `diff_scope` is a structural no-op — **OPEN**
+### C-1 — `diff_scope` is a structural no-op — **FIXED**
+
+Closed in three stages; the first two were incomplete and are recorded here
+because "the repair needed repairing twice" is the finding.
 
 - **Root cause:** `LeaseManager.acquire` always sets
-  `writable_paths=[worktree_path]`; verification normalizes that single absolute
+  `writable_paths=[worktree_path]`; verification normalized that single absolute
   entry to `"."` → `whole_worktree=True` → `scope_ok=True` unconditionally, and
-  the computed `outside` list is discarded.
-- **Authority violated:** diff-scope containment; the packet's declared allowed
-  paths.
-- **Failure path:** a worker that rewrites the fixture's own tests, or writes
-  anywhere in the worktree, earns a valid AttemptProof. The repair replaced a
-  hardcoded `ok=True` with a computation whose result is thrown away — the same
-  false green with more code.
-- **Status:** OPEN — repair in progress (order §3).
+  the computed `outside` list was discarded.
+- **Authority violated:** diff-scope containment; the packet's declared paths.
+- **Failure path:** a worker that rewrites the fixture's own tests earns a valid
+  AttemptProof.
+- **Stage 1 (`dab9045f5`):** scope sourced from canonical WorkPacket, computed
+  from git (tracked + untracked) against the lease base, unsafe policies
+  rejected, verdict fails before Proof creation.
+- **Stage 2 (`7ece70194`) — owner correction, BINDING:** stage 1 resolved scope
+  through plan-node lineage, which reads `source_evidence`. That made
+  *descriptive provenance* control *execution permission* — editing an evidence
+  entry could widen what a worker may write. `EvidenceRef` states the rule
+  verbatim: "Evidence is provenance — it can never be a mutation authority."
+  Authority moved to first-class typed `WorkRequirements.writable_path_scope` +
+  `scope_declared`. Evidence still resolves IDENTITY (which packet is "the
+  backend Task"), never permission.
+- **Stage 3 (this commit) — snapshot-bound diff:** `base = snapshot_ref or
+  "HEAD"` was a *deterministic* false green, not an edge case. Real workers
+  COMMIT, so after the commit HEAD **is** the worker's commit and
+  `git diff HEAD` returns exactly nothing. Measured:
+  `vs REAL base: 'tests/test_api.py'` / `vs HEAD: ''`. No fallback remains; a
+  lease with no snapshot_ref fails closed.
+- **Same defect found on the WORKER side while closing stage 3:**
+  `worker_claude_cli` captured artifacts as `<base>..HEAD` with the same `or
+  "HEAD"` fallback, and `wave2_attempt_runner` built its lease with
+  `snapshot_ref = ""`. The real field range was therefore `HEAD..HEAD` — empty
+  by definition — so **every** attempt would have reported zero files and zero
+  commits and failed the `artifacts` check on genuinely successful work. The
+  dispatch envelope carried no base at all. `DispatchEnvelope.base_commit` added
+  (covered by the HMAC via `asdict`), threaded through the runner, and the
+  worker now refuses an unanchored lease.
+- **Commits:** dab9045f5, 7ece70194, this one.
+- **Tests:** `tests/test_wave2_diff_scope_authority.py` (37) — every rejection
+  paired with a control so a reject-everything check cannot masquerade as
+  correct. Mutation-verified at each stage: re-injecting the whole-worktree pass
+  fails 5; re-injecting evidence-derived scope fails 2; restoring the HEAD
+  fallback fails 3 (verifier) + 2 (worker chain).
+- **Residual risk:** the fixture defaults are a seeding input at materialization
+  only. A Task that reaches verification with no declared scope BLOCKS.
 
 ### C-2 — the lease is never released; retry deadlocks — **OPEN**
 

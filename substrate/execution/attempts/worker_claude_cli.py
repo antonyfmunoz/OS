@@ -133,9 +133,18 @@ def run_worker_in_lease(
     from substrate.execution.cpu_gate import gated_subprocess_run
 
     worktree_path = getattr(lease, "worktree_path", "")
-    base_commit = getattr(lease, "snapshot_ref", "") or "HEAD"
+    # No "HEAD" fallback: artifacts are captured as `<base>..HEAD`, and
+    # `HEAD..HEAD` is empty BY DEFINITION — the worker would report zero files
+    # and zero commits for genuinely successful work, failing the artifacts
+    # check on every attempt. A lease with no recorded base cannot anchor a diff.
+    base_commit = str(getattr(lease, "snapshot_ref", "") or "").strip()
     if not worktree_path or not os.path.isdir(worktree_path):
         return WorkerResult(error=f"lease worktree missing: {worktree_path}")
+    if not base_commit:
+        return WorkerResult(
+            error="lease has no snapshot_ref (authorized base commit) — refusing to "
+            "run: artifacts could not be attributed to this attempt"
+        )
 
     cli = _resolve_cli_path()
     if not cli:

@@ -45,6 +45,12 @@ class DispatchEnvelope:
     package_hash: str = ""
     lease_id: str = ""
     worktree_path: str = ""
+    # The lease's AUTHORIZED base commit. The worker computes its artifact set as
+    # `<base>..HEAD`, so without this it fell back to "HEAD" — and `HEAD..HEAD`
+    # is empty by definition, meaning the worker reported zero files and zero
+    # commits for genuinely successful work. Same root cause as the verifier's
+    # missing-snapshot_ref defect: a diff with no authorized anchor is not a diff.
+    base_commit: str = ""
     nonce: str = ""
     sequence: int = 0
     created_at: float = field(default_factory=time.time)

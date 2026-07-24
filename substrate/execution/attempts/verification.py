@@ -273,7 +273,16 @@ def _actual_changed_paths(lease: Any, worker_result: Any) -> tuple[list[str], st
     scope and leave no trace in the verdict.
     """
     worktree = str(getattr(lease, "worktree_path", "") or "")
-    base = str(getattr(lease, "snapshot_ref", "") or "") or "HEAD"
+    # The authorized BASE must be the lease's recorded snapshot. There is no
+    # "HEAD" fallback: after a worker commits — which real workers do — HEAD IS
+    # the worker's own commit, so `git diff HEAD` returns EXACTLY nothing. An
+    # out-of-scope committed change would then read as a clean, "independent"
+    # empty diff and pass containment. That is a deterministic false green, not
+    # an edge case. A lease with no snapshot_ref cannot anchor a diff at all, so
+    # it fails closed.
+    base = str(getattr(lease, "snapshot_ref", "") or "").strip()
+    if not base:
+        return [], "missing lease snapshot_ref (no authorized base to diff against)", False
     if worktree and os.path.isdir(worktree):
         try:
             from substrate.execution.cpu_gate import gated_subprocess_run
