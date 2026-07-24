@@ -318,6 +318,25 @@ because "the repair needed repairing twice" is the finding.
   non-APPROVED status cases; restoring `if plan_packet_ids and ...` (fail-open)
   kills the empty-set + unconditional-check tests; allowing empty-string objective
   correspondence kills the objective-identity tests.
+- **IDENTITY-CARDINALITY microfix (owner, binding):** `_validate_plan_materialization_set`
+  claimed "exactly one persisted WorkPacket per id" but `resolve_canonical_grant`
+  first built a LOSSY `packets_by_id = {pid: packet for p in ...}` that collapsed
+  duplicate packet_id records by record order (last-write-wins). The WorkPacket
+  JSONL can carry multiple current-truth records with the same packet_id, so
+  cardinality must be PROVEN before selecting.
+  New `_index_packet_records` builds a cardinality-preserving
+  `packet_id → [all records]` index; `_exactly_one_packet` enforces the exact-one
+  rule (0 → fail, 1 → return, >1 → fail as canonical identity ambiguity). BOTH
+  byte-identical and conflicting duplicates fail — a duplicate current-truth
+  identity is corruption even when payloads match. Order-invariant (reversing
+  duplicate rows yields the same rejection, never selects another record). The one
+  resolved record is threaded forward (materialization → frontier ownership) so no
+  downstream code rebuilds a lossy dict. Bounded to the ids this run trusts (Plan
+  materialization set ∪ frontier); unrelated duplicates elsewhere do not block.
+  `resolve_scenario_map`'s `by_node` tightened to reject ANY second record for a
+  node_id (including byte-identical). Suite now 88 tests. MUTATION-VERIFIED:
+  restoring the lossy comprehension makes the duplicate tests (C/D/E/F) stop
+  failing and trips the AST guard (H).
 - **Residual risk:** the end-to-end injection→A1-fail→C-blocked→A2-recover graph
   mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
   live field pass requires a candidate deploy (C7, owner-gated).

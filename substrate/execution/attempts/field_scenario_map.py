@@ -282,13 +282,56 @@ def _packet_lineage(packet: dict[str, Any]) -> dict[str, Any]:
     return ln if isinstance(ln, dict) else {}
 
 
+def _index_packet_records(records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    """Cardinality-PRESERVING index: packet_id → ALL persisted records with that id.
+
+    The underlying WorkPacket JSONL can contain multiple current-truth records
+    with the same ``packet_id``. A lossy ``{pid: packet}`` comprehension would
+    collapse them by record order (last-write-wins) — so canonical identity
+    ambiguity must be proven, not silently resolved. This keeps every record so
+    the caller can require EXACTLY ONE before selecting it.
+    """
+    index: dict[str, list[dict[str, Any]]] = {}
+    for p in _canonical_packets(records):
+        pid = str(p.get("packet_id", ""))
+        if not pid:
+            continue
+        index.setdefault(pid, []).append(p)
+    return index
+
+
+def _exactly_one_packet(
+    packet_index: dict[str, list[dict[str, Any]]], pid: str, *, context: str
+) -> dict[str, Any]:
+    """Resolve ``pid`` to its ONE persisted canonical WorkPacket, or fail closed.
+
+    Cardinality rule (order-invariant): zero records → fail; exactly one →
+    return it; more than one → fail as canonical identity ambiguity. Both
+    byte-identical and conflicting duplicates fail — a duplicate current-truth
+    identity is corruption even when payloads match. Never selects first, last,
+    newest, or "most complete".
+    """
+    recs = packet_index.get(pid) or []
+    if len(recs) == 0:
+        raise ScenarioMapError(
+            f"{context}: packet {pid!r} has no persisted canonical WorkPacket record"
+        )
+    if len(recs) > 1:
+        raise ScenarioMapError(
+            f"{context}: packet {pid!r} resolves to {len(recs)} persisted WorkPacket "
+            f"records — canonical identity ambiguity (duplicate current-truth ids are "
+            f"corruption even when payloads match)"
+        )
+    return recs[0]
+
+
 def _validate_plan_materialization_set(
     *,
     plan: dict[str, Any],
     plan_record_id: str,
     grant_tenant: str,
-    packets_by_id: dict[str, dict[str, Any]],
-) -> set[str]:
+    packet_index: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, Any]]:
     """The Plan's FIRST-CLASS materialization record: ``workpacket_ids``.
 
     ``ObjectivePlanRecord.workpacket_ids`` is the Plan's authoritative record of
@@ -297,11 +340,13 @@ def _validate_plan_materialization_set(
 
       * ``workpacket_ids`` exists as a LIST (missing / None → fail);
       * it is NONEMPTY (an execution-authorized Plan materialized ≥1 Task);
-      * every id is nonempty and UNIQUE;
-      * every declared id resolves to exactly one persisted canonical WorkPacket
-        belonging to the same Plan and tenant.
+      * every declared id is nonempty and UNIQUE within the list;
+      * every declared id resolves to EXACTLY ONE persisted canonical WorkPacket
+        (zero → fail; >1 → fail as identity ambiguity) belonging to the same Plan
+        and tenant.
 
-    Returns the validated nonempty set of plan workpacket ids.
+    Returns a mapping ``{packet_id: the ONE resolved record}`` — the exact records
+    threaded forward so no downstream code rebuilds a lossy id→record dict.
     """
     raw = plan.get("workpacket_ids")
     if not isinstance(raw, list):
@@ -325,15 +370,13 @@ def _validate_plan_materialization_set(
             f"plan {plan_record_id!r} workpacket_ids contains duplicates {ids} — "
             f"the materialization set must be unique"
         )
-    # Every declared id must resolve to exactly one persisted canonical WorkPacket
-    # of the same Plan + tenant.
+    # Every declared id must resolve to EXACTLY ONE persisted canonical WorkPacket
+    # of the same Plan + tenant. Cardinality is proven before selection.
+    resolved: dict[str, dict[str, Any]] = {}
     for pid in ids:
-        packet = packets_by_id.get(pid)
-        if packet is None:
-            raise ScenarioMapError(
-                f"plan {plan_record_id!r} declares workpacket_id {pid!r} with no "
-                f"persisted canonical WorkPacket record"
-            )
+        packet = _exactly_one_packet(
+            packet_index, pid, context=f"plan {plan_record_id!r} materialized packet"
+        )
         p_scope = _packet_work_scope(packet)
         p_tenant = str(p_scope.get("tenant_id", ""))
         if not p_tenant or (grant_tenant and p_tenant != grant_tenant):
@@ -349,7 +392,8 @@ def _validate_plan_materialization_set(
                 f"plan {plan_record_id!r} materialized packet {pid!r} "
                 f"lineage.plan_record_id {p_plan!r} does not match the Plan"
             )
-    return set(ids)
+        resolved[pid] = packet
+    return resolved
 
 
 def _validate_frontier_packet_ownership(
@@ -697,31 +741,36 @@ def resolve_canonical_grant(
     # The Plan's FIRST-CLASS materialization record: ObjectivePlanRecord.workpacket_ids
     # must exist as a nonempty list of unique nonempty ids. It is NEVER inferred from
     # nodes (correspondence records) as a fallback. Every declared id must resolve to
-    # exactly one persisted canonical WorkPacket of the same Plan and tenant.
+    # EXACTLY ONE persisted canonical WorkPacket of the same Plan and tenant.
+    #
+    # The packet index is CARDINALITY-PRESERVING (packet_id → [all records]) so a
+    # duplicate current-truth id is proven ambiguous, never collapsed last-write-wins
+    # by a lossy {pid: packet} comprehension. Bounded to the ids this run would trust
+    # (the Plan materialization set ∪ the authorization frontier); unrelated duplicate
+    # ids elsewhere in state do not block this run.
     plan_record_id = str(grant.get("plan_record_id", ""))
     grant_tenant = str(grant.get("tenant_id", ""))
-    packets_by_id = {str(p.get("packet_id", "")): p for p in _canonical_packets(records)}
+    packet_index = _index_packet_records(records)
     plan_node_ids = {
         str(n.get("node_id", "")) for n in (plan.get("nodes") or []) if isinstance(n, dict)
     }
-    plan_packet_ids = _validate_plan_materialization_set(
+    materialized = _validate_plan_materialization_set(
         plan=plan,
         plan_record_id=plan_record_id,
         grant_tenant=grant_tenant,
-        packets_by_id=packets_by_id,
+        packet_index=packet_index,
     )
+    plan_packet_ids = set(materialized)
 
-    # Every frontier id must be a persisted canonical WorkPacket first-class-OWNED
-    # by THIS plan+tenant, AND unconditionally present in the materialization set —
-    # validated through work_scope/lineage/source_evidence, never a permissive empty
-    # value, a fake top-level tenant_id, or an absent/empty materialization set.
+    # Every frontier id must resolve to EXACTLY ONE persisted canonical WorkPacket
+    # (order-invariant, duplicates fail) that is first-class-OWNED by THIS
+    # plan+tenant AND unconditionally present in the materialization set. The exact
+    # record threaded from the materialization map is reused when the frontier id is
+    # in it; otherwise it is resolved (and cardinality-checked) from the same index.
     for tid in frontier:
-        packet = packets_by_id.get(tid)
-        if packet is None:
-            raise ScenarioMapError(
-                f"grant {grant.get('grant_id')!r} frontier id {tid!r} is not a "
-                f"persisted WorkPacket record"
-            )
+        packet = materialized.get(tid) or _exactly_one_packet(
+            packet_index, tid, context=f"grant {grant.get('grant_id')!r} frontier"
+        )
         _validate_frontier_packet_ownership(
             packet,
             tid=tid,

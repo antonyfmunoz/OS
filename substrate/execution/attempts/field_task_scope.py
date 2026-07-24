@@ -153,17 +153,21 @@ def resolve_scenario_map(
     """
     titles = dict(node_titles or FIXTURE_NODE_TITLES)
 
-    # node_id → packet_id, rejecting a node that materialized twice.
+    # node_id → packet_id, rejecting a node that materialized twice. ANY second
+    # record for the same node_id is ambiguous lineage — including a byte-identical
+    # duplicate packet_id: a duplicate current-truth record is corruption even when
+    # the payloads match, so cardinality is proven, never collapsed by record order.
     by_node: dict[str, str] = {}
     for packet in packets or []:
         node_id = _node_id_for_packet(packet)
         pid = _packet_id(packet)
         if not node_id or not pid:
             continue
-        if node_id in by_node and by_node[node_id] != pid:
+        if node_id in by_node:
             raise ScopeResolutionError(
-                f"plan node {node_id!r} materialized more than one packet "
-                f"({by_node[node_id]!r}, {pid!r}) — ambiguous lineage"
+                f"plan node {node_id!r} materialized more than one packet record "
+                f"({by_node[node_id]!r}, {pid!r}) — ambiguous lineage (duplicate "
+                f"current-truth records are corruption even when payloads match)"
             )
         by_node[node_id] = pid
 

@@ -441,7 +441,7 @@ def test_K_status_check_is_allowlist_not_denylist():
 def test_L_frontier_packet_outside_plan_fails():
     recs = _records(frontier=["wp-aaaaaaaaaaaa", "wp-not-a-packet"])
     with pytest.raises(
-        ScenarioMapError, match="not a\n?.*persisted WorkPacket|persisted WorkPacket"
+        ScenarioMapError, match="persisted canonical WorkPacket|persisted WorkPacket"
     ):
         resolve_canonical_grant(recs, _binding())
 
@@ -817,6 +817,125 @@ def test_mat_restoring_conditional_check_fails():
         "the conditional (fail-open) materialization check must be removed"
     )
     assert "if tid not in plan_packet_ids" in code, "the frontier check must be unconditional"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# IDENTITY-CARDINALITY MICROFIX — no last-write-wins packet authority. A packet
+# id that resolves to >1 persisted record is canonical identity ambiguity and
+# fails closed (both byte-identical and conflicting duplicates). (Owner A–H.)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _dup_packet(label, *, conflict=False):
+    """A second persisted record for the same packet_id — identical, or (conflict)
+    payload-divergent (different tenant/lineage) to prove BOTH cases fail."""
+    node_id, packet_id = _ROLE_NODE[label]
+    if conflict:
+        return {
+            "packet_id": packet_id,
+            "source_evidence": [{"type": "plan_node", "node_id": node_id}],
+            "title": FIXTURE_NODE_TITLES[label],
+            "work_scope": {"tenant_id": "tenant-CONFLICT"},
+            "lineage": {"plan_record_id": "opr-CONFLICT", "objective_id": "goal-CONFLICT"},
+        }
+    return _packet_record(label)  # byte-identical to the canonical record
+
+
+def test_card_A_one_record_per_declared_id_passes():
+    """A. Exactly one persisted record for every declared id passes."""
+    grant = resolve_canonical_grant(_records(), _binding())
+    assert grant["grant_id"] == _GRANT_ID
+
+
+def test_card_B_zero_records_fails():
+    """B. A declared id with zero persisted records fails closed."""
+    recs = _records(packets=["frontend_task_id", "integration_task_id", VERIFICATION])
+    # backend declared in workpacket_ids but no persisted record
+    with pytest.raises(ScenarioMapError, match="no persisted canonical WorkPacket"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_card_C_two_identical_records_fail():
+    """C. Two byte-identical records with the same packet_id fail — a duplicate
+    current-truth identity is corruption even when payloads match."""
+    recs = _records()
+    recs.append(_dup_packet(BACKEND, conflict=False))
+    with pytest.raises(ScenarioMapError, match="canonical identity ambiguity|resolves to 2"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_card_D_two_conflicting_records_fail():
+    """D. Two conflicting records with the same packet_id fail."""
+    recs = _records()
+    recs.append(_dup_packet(BACKEND, conflict=True))
+    with pytest.raises(ScenarioMapError, match="canonical identity ambiguity|resolves to 2"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_card_E_reversing_conflicting_duplicate_order_same_rejection():
+    """E. Reversing the duplicate rows produces the SAME rejection — order-invariant,
+    never last-write-wins."""
+    base = _records()
+    dup = _dup_packet(BACKEND, conflict=True)
+    forward = [*base, dup]
+    reversed_recs = [dup, *base]
+    for recs in (forward, reversed_recs):
+        with pytest.raises(ScenarioMapError, match="canonical identity ambiguity|resolves to 2"):
+            resolve_canonical_grant(recs, _binding())
+
+
+def test_card_F_duplicate_of_non_frontier_plan_declared_packet_fails():
+    """F. A duplicate of a Plan-declared packet that is NOT in the frontier still
+    fails — the materialization set proves cardinality for every declared id."""
+    # frontier authorizes only backend; verification is Plan-declared but not in frontier
+    recs = _records(frontier=["wp-aaaaaaaaaaaa"])
+    recs.append(_dup_packet(VERIFICATION, conflict=False))
+    with pytest.raises(ScenarioMapError, match="canonical identity ambiguity|resolves to 2"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_card_G_unrelated_duplicate_outside_plan_and_frontier_does_not_block():
+    """G. A duplicate of an id OUTSIDE the exact Plan and frontier does not block —
+    the cardinality check is bounded to the identities this run trusts."""
+    recs = _records()
+    # two records for an unrelated id never referenced by this Plan/frontier
+    unrelated = {
+        "packet_id": "wp-unrelated9999",
+        "source_evidence": [],
+        "work_scope": {"tenant_id": "tenant-a"},
+        "lineage": {"plan_record_id": "opr-elsewhere", "objective_id": "goal-elsewhere"},
+    }
+    recs.append(unrelated)
+    recs.append({**unrelated})
+    grant = resolve_canonical_grant(recs, _binding())
+    assert grant["grant_id"] == _GRANT_ID
+
+
+def test_card_H_no_lossy_packet_id_dict_comprehension_in_authority_path():
+    """H. Source/AST guard: the lossy {packet_id: packet} comprehension must NOT
+    appear in the C-3 authority path (resolve_canonical_grant); packet indexing
+    goes through the cardinality-preserving _index_packet_records."""
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import field_scenario_map as fsm
+
+    for func in (fsm.resolve_canonical_grant, fsm._validate_plan_materialization_set):
+        tree = ast.parse(inspect.getsource(func).lstrip())
+        fn = tree.body[0]
+        body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+        code = "\n".join(ast.unparse(n) for n in body)
+        # a dict comprehension keyed on packet_id mapping to the packet is the lossy form
+        assert "for p in _canonical_packets(records)}" not in code, (
+            f"{func.__name__} must not build a lossy packet_id→packet dict"
+        )
+        assert "packets_by_id" not in code, (
+            f"{func.__name__} must not use the lossy packets_by_id index"
+        )
+    # the authority path must reach the cardinality-preserving index + exact-one rule
+    rcg = ast.unparse(ast.parse(inspect.getsource(fsm.resolve_canonical_grant).lstrip()))
+    assert "_index_packet_records" in rcg
+    assert "_exactly_one_packet" in rcg
 
 
 # ── section 3: nonempty canonical objective identity ───────────────────────
