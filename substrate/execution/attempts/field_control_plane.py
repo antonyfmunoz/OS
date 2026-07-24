@@ -381,45 +381,47 @@ class FieldControlPlaneDriver:
     def _independent_checks_for(self, attempt: Any) -> Callable[[Any], list[Any]] | None:
         """Independent checks the VERIFIER runs itself for this attempt.
 
-        Runs the fixture's own test suite in the lease worktree, so the verdict
-        rests on a signal the verifier produced — not on the worker's narrative.
+        C-4: worker-authored code (the fixture's pytest + its ``conftest.py``) runs
+        ONLY through the canonical confined verifier seam
+        (``run_confined_verifier_checks``) — a distinct verifier lease, bwrap-only
+        (fail-closed, never an unconfined host subprocess), source mounted
+        READ-ONLY, network unshared, credential-free env, parent-side zero-diff
+        integrity proof, and lease teardown on every terminal path. This method
+        NEVER runs worker-tree pytest directly on the host.
+
         Returns None when no fixture is wired (the context check then carries the
-        weight); the qualification asserts a real check ran.
+        weight); the qualification asserts a real confined check ran.
         """
         fixture = os.path.join(self._targets_dir, "fixture")
         if not os.path.isdir(fixture):
             return None
 
-        def _checks(att: Any) -> list[Any]:
-            from substrate.execution.attempts.verification import VerificationCheck
-            from substrate.execution.cpu_gate import gated_subprocess_run
+        control_plane = self
 
-            lease = self._lease_lookup(getattr(att, "lease_id", "") or "")
-            worktree = str(getattr(lease, "worktree_path", "") or "") if lease else ""
-            target = worktree if worktree and os.path.isdir(worktree) else fixture
-            result = gated_subprocess_run(
-                ["python3", "-m", "pytest", "-q", "--timeout=120"],
-                caller="wave2_verifier_independent_tests",
-                timeout=300,
-                cwd=target,
+        def _checks(att: Any) -> list[Any]:
+            from substrate.execution.attempts.verifier_isolation import (
+                run_confined_verifier_checks,
             )
-            if result is None:
-                return [
-                    VerificationCheck(
-                        check_id="independent_tests",
-                        kind="tests",
-                        ok=False,
-                        detail="verifier test run skipped by CPU gate — cannot confirm",
-                    )
-                ]
-            return [
-                VerificationCheck(
-                    check_id="independent_tests",
-                    kind="tests",
-                    ok=result.returncode == 0,
-                    detail=f"pytest rc={result.returncode} in {target}",
-                )
-            ]
+
+            # The integration source under verification is the lease worktree when
+            # present (worker-authored), else the seeded fixture. Either way it is
+            # mounted READ-ONLY inside bwrap and never executed on the host.
+            lease = control_plane._lease_lookup(getattr(att, "lease_id", "") or "")
+            worktree = str(getattr(lease, "worktree_path", "") or "") if lease else ""
+            source = worktree if worktree and os.path.isdir(worktree) else fixture
+            source_commit = str(getattr(lease, "snapshot_ref", "") or "") if lease else ""
+            worker_identity = getattr(att, "worker_identity", "") or ""
+
+            checks, evidence = run_confined_verifier_checks(
+                attempt=att,
+                run_root=control_plane._run_root(),
+                source_path=source,
+                verifier_role_id=_VERIFIER_ROLE_ID,
+                worker_identity=worker_identity,
+                source_commit=source_commit,
+            )
+            control_plane._last_verifier_evidence = evidence
+            return checks
 
         return _checks
 

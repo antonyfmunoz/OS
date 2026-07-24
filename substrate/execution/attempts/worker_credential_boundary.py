@@ -203,6 +203,68 @@ def open_attempt_credential_home(
     )
 
 
+def verifier_homes_root(run_root: str) -> str:
+    """Parent of all per-attempt VERIFIER homes for a run.
+
+    Distinct directory from ``worker-homes/`` so a verifier home is never confused
+    with (or reused from) a worker home.
+    """
+    return os.path.join(run_root, "verifier-homes")
+
+
+def verifier_home_path(run_root: str, attempt_id: str) -> str:
+    """Unique VERIFIER home path for one attempt (keyed by attempt_id)."""
+    safe = _safe_component(attempt_id)
+    return os.path.join(verifier_homes_root(run_root), safe)
+
+
+def open_verifier_home(*, attempt_id: str, run_root: str) -> AttemptHome:
+    """Create this attempt's CREDENTIAL-FREE private verifier home.
+
+    Unlike ``open_attempt_credential_home``, NO credential is ever placed here: a
+    mechanical pytest/diff verifier receives no model credential. The home is
+    distinct from the worker home (``verifier-homes/`` not ``worker-homes/``), so
+    there is zero worker-home reuse and zero credential reuse. Fail closed on any
+    failure to create a directory at 0700.
+    """
+    if not attempt_id:
+        raise CredentialBoundaryError("attempt_id is required to bind a verifier home")
+    if not run_root:
+        raise CredentialBoundaryError("run_root is required to place a verifier home")
+
+    home = verifier_home_path(run_root, attempt_id)
+    claude_dir = os.path.join(home, ".claude")  # present but EMPTY (no credential)
+    tmp_dir = os.path.join(home, "tmp")
+    try:
+        _mkdir_private(verifier_homes_root(run_root))
+        _mkdir_private(home)
+        _mkdir_private(claude_dir)
+        _mkdir_private(tmp_dir)
+        _mkdir_private(os.path.join(home, ".config"))
+        _mkdir_private(os.path.join(home, ".cache"))
+        _mkdir_private(os.path.join(home, ".local", "share"))
+    except OSError as exc:
+        raise CredentialBoundaryError(f"cannot create verifier home {home}: {exc}") from exc
+
+    _assert_private(home)
+    # credential_files is deliberately empty — nothing to overwrite on close.
+    return AttemptHome(
+        attempt_id=attempt_id,
+        home_path=home,
+        tmp_path=tmp_dir,
+        claude_dir=claude_dir,
+        credential_files=[],
+    )
+
+
+def assert_no_verifier_home_residue(run_root: str) -> list[str]:
+    """Return any surviving verifier home directories (empty == clean)."""
+    root = verifier_homes_root(run_root)
+    if not os.path.isdir(root):
+        return []
+    return [os.path.join(root, name) for name in os.listdir(root)]
+
+
 def _assert_private(path: str) -> None:
     mode = stat.S_IMODE(os.stat(path).st_mode)
     if mode & 0o077:
@@ -283,8 +345,12 @@ __all__ = [
     "AttemptHome",
     "CredentialBoundaryError",
     "assert_no_credential_residue",
+    "assert_no_verifier_home_residue",
     "attempt_home_path",
     "close_attempt_credential_home",
     "open_attempt_credential_home",
+    "open_verifier_home",
+    "verifier_home_path",
+    "verifier_homes_root",
     "worker_homes_root",
 ]

@@ -14,7 +14,7 @@ correct accounting is below and is now the authority.
 |---|---|---|
 | Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
 | Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
-| **Round 2 status** | **9 = 6 fixed + 3 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3 |
+| **Round 2 status** | **9 = 7 fixed + 2 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3, C-4 |
 
 Round-1 and Round-2 IDs are namespaced by round; they are different findings that
 happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
@@ -341,9 +341,9 @@ because "the repair needed repairing twice" is the finding.
   mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
   live field pass requires a candidate deploy (C7, owner-gated).
 
-### C-4 — the verifier executes worker-authored code unconfined — **OPEN**
+### C-4 — the verifier executes worker-authored code unconfined — **FIXED**
 
-- **Root cause:** `_independent_checks_for` runs `pytest` with
+- **Root cause:** `_independent_checks_for` ran `pytest` with
   `cwd=<lease worktree>` via `gated_subprocess_run` — no `build_isolated_command`,
   no bwrap, no `scrub_worker_env`, full host environment.
 - **Authority violated:** Amendment v1 clause 4; the entire R1 credential
@@ -352,8 +352,51 @@ because "the repair needed repairing twice" is the finding.
   including test modules. A `conftest.py` there is arbitrary Python that pytest
   imports and executes as the runner user with the runner's environment
   (including `CLAUDE_CODE_OAUTH_TOKEN`). The runner refuses to start without
-  bwrap and then runs adversary-influenced code unconfined a few frames later.
-- **Status:** OPEN — repair in progress (order §6).
+  bwrap and then ran adversary-influenced code unconfined a few frames later.
+- **Fix:** one canonical verifier-isolation seam
+  `substrate/execution/attempts/verifier_isolation.py::run_confined_verifier_checks`
+  is the ONLY path that runs worker-authored code, consumed by the real poller via
+  `field_control_plane._independent_checks_for` (which no longer builds a host
+  pytest argv). Per run it:
+  - mints a DISTINCT `VerifierLease` (verifier_lease_id, attempt/task ids, verifier
+    identity/role, verified commit) with a CREDENTIAL-FREE private home under
+    `verifier-homes/` (never `worker-homes/`), private HOME/XDG_CONFIG/CACHE/DATA
+    + TMPDIR (`open_verifier_home`), zero worker-home/credential/dispatch-secret
+    reuse;
+  - runs ONLY inside bwrap (`build_isolated_verifier_command`, argv list, never
+    `shell=True`): bwrap absent / non-bwrap primitive / preflight unproven each
+    FAIL CLOSED — no unconfined fallback, no "available but unproven";
+  - namespace exposes the integration source READ-ONLY (`--ro-bind`), a
+    credential-free HOME + private tmpfs as the ONLY writable mounts; `/opt/OS`,
+    `/root/.claude`, worker homes, the dispatch secret file, candidate state are
+    simply not bound; `/proc` fresh, `/dev` minimal, `/tmp` a tmpfs;
+  - UNSHARES the network for worker code (`--unshare-all`); trusted HTTP/browser
+    checks stay on the separate collector path that never executes worker code;
+  - strips every credential from the subprocess env (`scrub_verifier_env`:
+    OAuth token, dispatch secret, API keys, mesh/Fly/GitHub/1Password, worker
+    `CLAUDE_CONFIG_DIR`) — a mechanical pytest/diff verifier receives NO model
+    credential;
+  - proves ZERO source mutation PARENT-SIDE (pre/post file-hash map + `HEAD`
+    rev-parse + `status --porcelain`) — a verifier diff fails verification even if
+    the tests "passed"; never trusts the subprocess to self-report;
+  - persists hashed, name-only `VerifierEvidence` (lease identity, verified commit,
+    bwrap argv, env var NAMES, mount policy, isolation probe, source pre/post
+    hashes, zero-diff, test result, timestamps) bound to the AttemptProof lineage;
+  - destroys the verifier lease/home/tmp on EVERY terminal path (`finally`);
+    cleanup failure surfaces a failed check AND re-raises — a blocking security
+    failure, never a warning.
+  SoD preserved: `verifier_identity != worker_identity` (collision → raise);
+  poller still requires a durable Proof for the transition; the worker can never
+  invoke the success transition.
+- **Tests:** `tests/test_wave2_verifier_isolation.py` (15) incl. an adversarial
+  `conftest.py` (through the production seam) whose token/dispatch/`/opt/OS`/
+  `/root/.claude`/source-write/network probes are ALL denied while a legitimate
+  test still runs. MUTATION-VERIFIED: restoring the host `pytest cwd=worktree`,
+  allowing a bwrap host fallback, dropping the parent-side after-hash check, and
+  downgrading cleanup-failure to a warning each fail the suite.
+- **Live-verified:** a real bwrap run on this host confirms the boundaries
+  (token/dispatch env absent, `/opt/OS` unbound, network unshared, source
+  read-only, zero-diff, verifier home destroyed).
 
 ### C-5 — `reconcile`/`teardown` exit 0 on failure — **OPEN**
 

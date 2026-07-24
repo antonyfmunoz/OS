@@ -157,6 +157,92 @@ def build_isolated_command(inner_cmd: list[str], profile: IsolationProfile) -> l
     ]
 
 
+@dataclass
+class VerifierIsolationProfile:
+    """Confinement for one VERIFIER invocation that runs worker-authored code.
+
+    Distinct from ``IsolationProfile`` (the implementation worker) in the ways
+    that matter for C-4:
+
+    - ``source_ro_path`` is the integration source, bound READ-ONLY. There is NO
+      writable worktree — the verifier must never mutate the source.
+    - ``verifier_home`` is a CREDENTIAL-FREE private home (no ~/.claude token).
+    - ``allow_network`` defaults False: worker-authored Python/tests run with the
+      network unshared. Trusted harness HTTP/browser checks run on a SEPARATE
+      path that never executes worker-tree code.
+    - ``writable_paths`` are ONLY verifier-private tmpfs/dirs (HOME/XDG/TMP), never
+      the source.
+    """
+
+    source_ro_path: str  # integration source, mounted READ-ONLY
+    verifier_home: str  # credential-FREE private HOME
+    tmp_path: str  # verifier-private TMPDIR (rw)
+    ro_paths: list[str] = field(default_factory=list)
+    allow_network: bool = False
+    env_overrides: dict[str, str] = field(default_factory=dict)  # HOME/XDG/TMPDIR
+
+
+def build_verifier_bwrap_command(
+    inner_cmd: list[str], profile: VerifierIsolationProfile
+) -> list[str]:
+    """Wrap ``inner_cmd`` in a bwrap sandbox for VERIFICATION of worker code.
+
+    The namespace exposes ONLY: the integration source (READ-ONLY), the
+    credential-free verifier HOME (rw), the verifier-private TMPDIR (rw), and the
+    declared read-only system paths. /opt/OS, /root/.claude, worker homes, the
+    dispatch secret file, and candidate state are simply not bound. Network is
+    unshared unless explicitly allowed (it never is for worker-authored code).
+    """
+    cmd: list[str] = [
+        "bwrap",
+        "--unshare-all",  # implies --unshare-net (no network for worker code)
+        "--die-with-parent",
+        "--new-session",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--tmpfs",
+        "/tmp",
+    ]
+    if profile.allow_network:
+        # Deliberately NOT reached for worker-authored code — kept explicit so the
+        # default (network unshared) is visibly the safe one.
+        cmd += ["--share-net"]
+    for ro in profile.ro_paths or _default_ro_paths():
+        cmd += ["--ro-bind-try", ro, ro]
+    # The integration source is mounted READ-ONLY — the verifier cannot mutate it.
+    cmd += ["--ro-bind", profile.source_ro_path, profile.source_ro_path]
+    # Credential-free private HOME (rw) + private TMPDIR (rw). These are the ONLY
+    # writable mounts.
+    cmd += ["--bind", profile.verifier_home, profile.verifier_home]
+    if profile.tmp_path:
+        cmd += ["--bind", profile.tmp_path, profile.tmp_path]
+    overrides = dict(profile.env_overrides or {})
+    overrides.setdefault("HOME", profile.verifier_home)
+    for key in sorted(overrides):
+        cmd += ["--setenv", key, overrides[key]]
+    cmd += ["--chdir", profile.source_ro_path]
+    cmd += inner_cmd
+    return cmd
+
+
+def build_isolated_verifier_command(
+    inner_cmd: list[str], profile: VerifierIsolationProfile
+) -> list[str]:
+    """Build the fully isolated VERIFIER command. Raises IsolationUnavailable
+    unless bwrap is present — never runs worker-authored code unconfined, and
+    never falls back to a coarser primitive (nsjail --chroot / and systemd-run
+    provide no mount namespace, so worker code would see /opt/OS + credentials)."""
+    prim = isolation_primitive()
+    if prim != "bwrap":
+        raise IsolationUnavailable(
+            f"verifier requires bwrap to run worker-authored code; primitive={prim!r} "
+            f"— refusing to verify unconfined (C-4, Amendment v1 clause 4)"
+        )
+    return build_verifier_bwrap_command(inner_cmd, profile)
+
+
 def preflight_isolation(forbidden_probe_path: str = "/opt/OS") -> tuple[bool, str]:
     """Prove a sandbox genuinely hides a forbidden path. Returns (ok, detail).
 
@@ -252,13 +338,43 @@ def scrub_worker_env(
     return out
 
 
+def scrub_verifier_env(base_env: dict[str, str]) -> dict[str, str]:
+    """The minimal env a VERIFIER subprocess receives — even stricter than the
+    worker's. Strips every forbidden credential prefix AND the worker's model
+    credential (``CLAUDE_CODE_OAUTH_TOKEN``), dispatch secret, and worker config
+    dir. A mechanical pytest/diff verifier receives NO model credential.
+    """
+    forbidden_exact = {
+        "CLAUDE_CODE_OAUTH_TOKEN",
+        "ANTHROPIC_API_KEY",
+        "UMH_W2_DISPATCH_SECRET",
+        "CLAUDE_CONFIG_DIR",
+    }
+    keep_keys = {"PATH", "LANG", "LC_ALL", "TERM", "FIXTURE_VENV"}
+    out: dict[str, str] = {}
+    for k, v in base_env.items():
+        if k in forbidden_exact:
+            continue
+        if any(k.startswith(p) or k == p for p in FORBIDDEN_ENV_PREFIXES):
+            continue
+        if k in keep_keys:
+            out[k] = v
+    # HOME/XDG/TMPDIR are set by the verifier profile's env_overrides, never
+    # inherited — so they are deliberately NOT carried over here.
+    return out
+
+
 __all__ = [
     "IsolationProfile",
+    "VerifierIsolationProfile",
     "IsolationUnavailable",
     "isolation_primitive",
     "build_isolated_command",
     "build_bwrap_command",
+    "build_isolated_verifier_command",
+    "build_verifier_bwrap_command",
     "preflight_isolation",
     "scrub_worker_env",
+    "scrub_verifier_env",
     "FORBIDDEN_ENV_PREFIXES",
 ]
