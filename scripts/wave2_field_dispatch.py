@@ -1861,6 +1861,58 @@ def stop_runner(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
         return {"stopped": False, "note": str(exc)}
 
 
+def write_scenario_map(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
+    """Resolve + persist the run's scenario map from REAL materialized records.
+
+    This is the field consumer of the scenario-map capability (finding C-3). It
+    reads the candidate's live plan + WorkPacket records, resolves each semantic
+    role to its exact canonical ``wp-*`` id through plan-node lineage, and writes
+    a run+plan-bound ``scenario_map.json`` under the run's targets dir. WITHOUT
+    this, ``inject-failure`` reads ``{}`` and the failure-qualification pass is
+    unrunnable (exit 3 forever).
+
+    Must run AFTER the plan materializes its WorkPackets (i.e. after the plan
+    approval + activation the collector drives) and BEFORE inject-failure.
+    """
+    targets = _targets_dir(sha, run_id)
+    if runner.dry_run:
+        print(f"[dry-run] resolve + write scenario map for run {run_id} → {targets}")
+        return {"written": True, "dry_run": True, "run_id": run_id}
+
+    # Import the worktree substrate (not the stale /opt/OS one) — the candidate
+    # source lives in this worktree, and _WORKTREE is where its modules resolve.
+    sys.path.insert(0, str(_WORKTREE))
+    from substrate.execution.attempts.field_scenario_map import (
+        ScenarioMapError,
+        build_from_records,
+    )
+    from substrate.execution.attempts.field_scenario_map import (
+        write_scenario_map as _persist,
+    )
+
+    records = _read_state_records(sha)
+    run_tag = run_id
+    try:
+        payload = build_from_records(records, run_id=run_id, run_tag=run_tag)
+    except ScenarioMapError as exc:
+        # FAIL CLOSED: no map is written, so inject-failure will refuse to arm.
+        return {
+            "written": False,
+            "run_id": run_id,
+            "error": str(exc),
+            "remediation": "ensure the plan materialized its WorkPackets before writing the map",
+        }
+    path = _persist(targets, payload)
+    return {
+        "written": True,
+        "run_id": run_id,
+        "path": str(path),
+        "plan_record_id": payload.get("plan_record_id", ""),
+        "plan_version": payload.get("plan_version", 0),
+        "backend_task_id": payload.get("backend_task_id", ""),
+    }
+
+
 def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[str, Any]:
     """Arm a genuine worker-failure variant for the failure-qualification pass.
 
@@ -1884,17 +1936,26 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text(variant, encoding="utf-8")
 
-    # FAIL CLOSED (finding C2): a revoking variant with no scenario map cannot
-    # target a real task and would silently run clean — an armed injection that
-    # never fires must never be mistaken for a recovered one. Report it as NOT
-    # armed so the caller refuses to treat the pass as a qualification.
-    sys.path.insert(0, str(_ROOT))
+    # FAIL CLOSED (findings C2 + C-3): a revoking variant is only valid when the
+    # scenario map validates against THIS run's LIVE plan + packets — correct run
+    # binding, not stale, every role resolving to a real materialized packet
+    # inside the authorized frontier. An armed injection that cannot target a real
+    # authorized task must never be mistaken for a recovered one.
+    sys.path.insert(0, str(_WORKTREE))
     from substrate.execution.attempts.field_failure_policy import (
-        arming_is_valid,
+        arming_is_valid_for_run,
         target_task_id,
     )
 
-    ok, reason = arming_is_valid(str(targets))
+    records = _read_state_records(sha)
+    frontier = _authorized_frontier(records, run_tag=run_id)
+    ok, reason = arming_is_valid_for_run(
+        str(targets),
+        run_id=run_id,
+        records=records,
+        authorized_frontier=frontier,
+        run_tag=run_id,
+    )
     if not ok:
         return {
             "armed": False,
@@ -1902,9 +1963,8 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
             "marker": str(marker),
             "invalid_reason": reason,
             "remediation": (
-                "record the run's canonical wp-* ids with "
-                "field_failure_policy.write_scenario_map(targets_dir, {...}) "
-                "after the Plan materializes its WorkPackets"
+                "run `wave2_field_dispatch.py write-scenario-map` AFTER the plan "
+                "materializes its WorkPackets, then re-arm"
             ),
         }
     return {
@@ -1914,6 +1974,23 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
         "target_task_id": target_task_id(str(targets)),
         "arming": reason,
     }
+
+
+def _authorized_frontier(records: list[dict[str, Any]], *, run_tag: str = "") -> list[str]:
+    """The set of materialized packet ids for the live plan — the authorized
+    frontier an injection may target. Read from candidate state, never guessed."""
+    from substrate.execution.attempts.field_scenario_map import _latest_plan
+
+    plan = _latest_plan(records, run_tag=run_tag) or {}
+    ids: set[str] = set(str(w) for w in (plan.get("workpacket_ids") or []))
+    for n in plan.get("nodes") or []:
+        if isinstance(n, dict) and n.get("workpacket_id"):
+            ids.add(str(n["workpacket_id"]))
+    for rec in records:
+        pid = rec.get("packet_id")
+        if pid and not rec.get("plan_record_id"):
+            ids.add(str(pid))
+    return sorted(ids)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1958,6 +2035,7 @@ def main(argv: list[str] | None = None) -> int:
         "start-runner",
         "smoke",
         "run",
+        "write-scenario-map",
         "inject-failure",
         "reconcile",
         "teardown",
@@ -1993,6 +2071,8 @@ def main(argv: list[str] | None = None) -> int:
         _load_serve_snapshot_path()
         _install_crash_handlers(runner, sha)
         out = run_passes(runner, sha=sha, scenario=args.scenario, passes=args.passes)
+    elif args.cmd == "write-scenario-map":
+        out = write_scenario_map(runner, sha, run_id)
     elif args.cmd == "inject-failure":
         out = inject_failure(runner, sha, run_id, args.variant)
     elif args.cmd == "reconcile":

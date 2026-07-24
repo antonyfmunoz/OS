@@ -111,11 +111,14 @@ def target_task_id(targets_dir: str | os.PathLike[str]) -> str:
 
 
 def arming_is_valid(targets_dir: str | os.PathLike[str]) -> tuple[bool, str]:
-    """Is the armed failure variant actually able to fire? ``(ok, reason)``.
+    """Fast local pre-check: is a revoking variant armed with a usable map?
 
-    A revoking variant with no scenario map — or one whose ``backend_task_id`` is
-    absent — CANNOT fire. The run must then be reported INVALID, never green:
-    that combination is precisely the silent false green of finding C2.
+    This checks only what is readable from ``targets_dir`` alone (marker +
+    persisted map). The AUTHORITATIVE check — that the map is fresh, bound to
+    this run/plan, resolves to real materialized packets, and targets an
+    authorized-frontier Task — is ``arming_is_valid_for_run`` below, which needs
+    the live candidate records. A pipeline MUST call the run-aware form; this one
+    exists so ``inject-failure`` can fail fast before the run even starts.
     """
     variant = read_variant(targets_dir)
     if not variant:
@@ -134,6 +137,46 @@ def arming_is_valid(targets_dir: str | os.PathLike[str]) -> tuple[bool, str]:
             f"backend_task_id — nothing to revoke"
         )
     return True, f"variant {variant!r} targets {mapping['backend_task_id']}"
+
+
+def arming_is_valid_for_run(
+    targets_dir: str | os.PathLike[str],
+    *,
+    run_id: str,
+    records: list[Any],
+    authorized_frontier: list[str] | None = None,
+    run_tag: str = "",
+) -> tuple[bool, str]:
+    """AUTHORITATIVE arming check against the LIVE candidate state (C-3).
+
+    A clean run (no revoking variant) is always valid. A revoking variant is
+    valid ONLY when the persisted scenario map validates against this run's live
+    plan + packets: correct run binding, not stale, every role resolves to a real
+    materialized packet inside the authorized frontier, and the backend target is
+    present. Fails closed on every C-3 mode — absent/stale/wrong-run/nonexistent/
+    out-of-frontier/ambiguous.
+    """
+    variant = read_variant(targets_dir)
+    if not variant:
+        return True, "no failure variant armed (clean run)"
+    if variant not in _REVOKING_VARIANTS:
+        return False, f"unknown failure variant {variant!r}"
+
+    from substrate.execution.attempts.field_scenario_map import validate_against_run
+
+    ok, reason = validate_against_run(
+        targets_dir,
+        run_id=run_id,
+        records=records,
+        authorized_frontier=authorized_frontier,
+        run_tag=run_tag,
+    )
+    if not ok:
+        return False, f"variant {variant!r} armed but map invalid: {reason}"
+    target = target_task_id(targets_dir)
+    if not target:
+        return False, f"variant {variant!r} armed but no backend_task_id resolved"
+    return True, f"variant {variant!r} targets {target} ({reason})"
 
 
 def disallowed_tools_for(
@@ -177,6 +220,7 @@ def injection_fired(dispatched_envelopes: list[Any]) -> bool:
 
 __all__ = [
     "arming_is_valid",
+    "arming_is_valid_for_run",
     "disallowed_tools_for",
     "injection_fired",
     "read_scenario_map",

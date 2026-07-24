@@ -14,7 +14,7 @@ correct accounting is below and is now the authority.
 |---|---|---|
 | Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
 | Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
-| **Round 2 status** | **9 = 5 fixed + 4 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2 |
+| **Round 2 status** | **9 = 6 fixed + 3 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3 |
 
 Round-1 and Round-2 IDs are namespaced by round; they are different findings that
 happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
@@ -176,16 +176,40 @@ because "the repair needed repairing twice" is the finding.
   SEC-C1's scope (order §8); the cancel/revoke/expiry cascade wiring is a stated
   Wave 2 follow-on, tracked here not hidden.
 
-### C-3 — `scenario_map.json` has no field writer — **OPEN**
+### C-3 — `scenario_map.json` has no field writer — **FIXED**
 
-- **Root cause:** `write_scenario_map` is called only from tests; the sole
-  non-test occurrence is inside a **remediation string**.
+- **Root cause:** `write_scenario_map` had ONE non-test occurrence — inside a
+  remediation *string*. The real pipeline never wrote the map, so
+  `inject-failure` read `{}` → `armed:False` → exit 3, and the failure pass was
+  unrunnable. An operator hitting exit 3 would hand-write the map with guessed
+  ids or delete the check — restoring the original defect.
 - **Authority violated:** failure-injection targeting.
-- **Failure path:** `arming_is_valid()` → `{}` → `armed: False` → exit 3 on every
-  `inject-failure`. The fail-closed works, but the failure pass is *unrunnable* —
-  and an operator hitting exit 3 repeatedly will hand-write the map with guessed
-  ids or delete the check, restoring the original defect.
-- **Status:** OPEN — repair in progress (order §5).
+- **Fix:** new field consumer `substrate/execution/attempts/field_scenario_map.py`
+  + `write-scenario-map` field subcommand. It reads the ACTUAL materialized
+  plan + WorkPacket records from candidate state, resolves each semantic role to
+  its exact `wp-<hex12>` through plan-node lineage (`resolve_scenario_map`, no
+  title/regex/id-shape guess), and writes a map BOUND to run_id +
+  plan_record_id + plan_version + a digest over the resolved ids.
+- **Consumed:** `inject-failure` now calls `arming_is_valid_for_run`, which
+  validates the persisted map against the LIVE plan+packets and the authorized
+  frontier before arming. The chain: real records → exact ids → bound map →
+  reread at arming → target by exact equality → injection fires on the backend
+  packet's FIRST attempt only → retry (attempt 2) unrevoked → recover.
+- **Fails qualification on all C-3 modes** (each pinned by a test): absent map,
+  stale map (plan superseded / digest recompute mismatch), wrong-run binding,
+  nonexistent task, target outside the authorized frontier, ambiguous role
+  (two nodes same title), unknown variant, and `injection_fired`==False
+  (configured-but-never-observed). A sibling task is never revoked.
+- **Architectural guard (C-1 applied to C-3):** the map carries task IDENTITIES
+  + binding ONLY — never allowed tools, writable scope, or execution
+  constraints. Those stay on the canonical WorkPacket requirements. Pinned by
+  `test_scenario_map_is_identity_only_never_writable_scope` and an AST-level
+  no-shape-guessing test.
+- **Commit:** this one. **Tests:** `tests/test_wave2_scenario_map_field.py` (16).
+  MUTATION-VERIFIED: skipping the staleness recompute fails the stale-map test.
+- **Residual risk:** the end-to-end injection→A1-fail→C-blocked→A2-recover graph
+  mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
+  live field pass requires a candidate deploy (C7, owner-gated).
 
 ### C-4 — the verifier executes worker-authored code unconfined — **OPEN**
 
