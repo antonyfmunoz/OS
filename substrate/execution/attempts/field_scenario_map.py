@@ -256,6 +256,126 @@ def _canonical_packets(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [r for r in records if _is_packet_record(r)]
 
 
+def _packet_work_scope(packet: dict[str, Any]) -> dict[str, Any]:
+    """The packet's first-class ``work_scope`` dict, or ``{}`` if malformed.
+
+    WorkPacket has NO canonical top-level ``tenant_id`` — the authoritative tenant
+    lives at ``work_scope.tenant_id`` (see ``substrate.contracts.work_context``).
+    A packet whose work_scope is absent or not a dict has no ownership and fails
+    closed at the call site.
+    """
+    ws = packet.get("work_scope")
+    return ws if isinstance(ws, dict) else {}
+
+
+def _packet_lineage(packet: dict[str, Any]) -> dict[str, Any]:
+    """The packet's first-class ``lineage`` dict, or ``{}`` if malformed.
+
+    Authoritative plan/objective correspondence lives at
+    ``lineage.plan_record_id`` / ``lineage.objective_id`` (WorkLineageContext) —
+    never top-level. A missing/non-dict lineage has no ownership and fails closed.
+    """
+    ln = packet.get("lineage")
+    return ln if isinstance(ln, dict) else {}
+
+
+def _validate_frontier_packet_ownership(
+    packet: dict[str, Any],
+    *,
+    tid: str,
+    grant: dict[str, Any],
+    plan: dict[str, Any],
+    plan_node_ids: set[str],
+    plan_packet_ids: set[str],
+) -> None:
+    """Assert a frontier packet is a first-class-owned WorkPacket of THIS run.
+
+    Every check reads the AUTHORITATIVE first-class contract fields, never a
+    permissive empty-value or a fake top-level ``tenant_id``. Fails closed
+    (raises ``ScenarioMapError``) on any missing/mismatched field:
+
+      * ``work_scope`` is a dict;
+      * ``work_scope.tenant_id`` is non-empty AND == ``grant.tenant_id`` exactly;
+      * ``lineage`` is a dict;
+      * ``lineage.plan_record_id`` == ``grant.plan_record_id`` exactly;
+      * ``lineage.objective_id`` == the referenced Plan's ``objective_id`` exactly;
+      * ``packet_id`` is in the exact Plan's materialized WorkPacket set;
+      * exactly one Plan node corresponds to it (its ``workpacket_id`` == packet_id);
+      * ``source_evidence`` resolves to that same node.
+    """
+    grant_tenant = str(grant.get("tenant_id", ""))
+    plan_record_id = str(grant.get("plan_record_id", ""))
+    plan_objective_id = str(plan.get("objective_id", ""))
+
+    scope = _packet_work_scope(packet)
+    if not scope:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} has no work_scope — a packet without a "
+            f"first-class scope has no ownership"
+        )
+    packet_tenant = str(scope.get("tenant_id", ""))
+    if not packet_tenant:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} has an empty work_scope.tenant_id — ownership is unproven"
+        )
+    if packet_tenant != grant_tenant:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} work_scope.tenant_id {packet_tenant!r} does not "
+            f"match grant tenant {grant_tenant!r}"
+        )
+
+    lineage = _packet_lineage(packet)
+    if not lineage:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} has no lineage — plan/objective correspondence is unproven"
+        )
+    packet_plan = str(lineage.get("plan_record_id", ""))
+    if packet_plan != plan_record_id:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} lineage.plan_record_id {packet_plan!r} does not "
+            f"match grant plan {plan_record_id!r}"
+        )
+    packet_objective = str(lineage.get("objective_id", ""))
+    if packet_objective != plan_objective_id:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} lineage.objective_id {packet_objective!r} does not "
+            f"match plan objective {plan_objective_id!r}"
+        )
+
+    # packet_id must be in the exact Plan's materialized WorkPacket set.
+    if plan_packet_ids and tid not in plan_packet_ids:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} is not in plan {plan_record_id!r}'s materialized "
+            f"WorkPacket set {sorted(plan_packet_ids)}"
+        )
+
+    # Exactly one Plan node must correspond, its workpacket_id must equal packet_id,
+    # and the packet's source_evidence must resolve to that same node.
+    node_id = _node_id_for_packet(packet)
+    if not node_id:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} source_evidence names no plan node — node "
+            f"correspondence is absent"
+        )
+    nodes = [n for n in (plan.get("nodes") or []) if isinstance(n, dict)]
+    corresponding = [n for n in nodes if str(n.get("node_id", "")) == node_id]
+    if len(corresponding) != 1:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} corresponds to {len(corresponding)} plan nodes "
+            f"with node_id {node_id!r} (need exactly 1)"
+        )
+    if node_id not in plan_node_ids:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} names node {node_id!r} that is not in plan {plan_record_id!r}"
+        )
+    declared = str(corresponding[0].get("workpacket_id", "") or "")
+    if declared != tid:
+        raise ScenarioMapError(
+            f"frontier packet {tid!r} corresponds to node {node_id!r} whose "
+            f"workpacket_id is {declared!r} — packet and node disagree"
+        )
+
+
 def binding_digest(mapping: dict[str, str], binding: ExecutionBinding) -> str:
     """Digest over the resolved ids AND the full run+authorization binding.
 
@@ -283,6 +403,7 @@ def build_from_records(
     *,
     binding: ExecutionBinding,
     node_titles: dict[str, str] | None = None,
+    now: float | None = None,
 ) -> dict[str, Any]:
     """Resolve the scenario map from REAL materialized records for the run's EXACT
     captured binding.
@@ -299,11 +420,23 @@ def build_from_records(
     lineage, node/packet ids disagree, a node resolves to multiple packets, or a
     packet claims multiple nodes.
 
+    THE SINGLE AUTHORITY GATE: before producing any payload this calls
+    ``resolve_canonical_grant(records, binding, now=now)`` — the SAME resolver
+    arming uses. Map creation therefore fails closed on zero/multiple exact grants,
+    non-ACTIVE status, unmet not_before, elapsed expires_at, empty frontier, an
+    absent/non-live exact Plan version, and any invalid first-class frontier packet
+    ownership. There is no second reduced validator: an expired or not-yet-valid
+    grant cannot even produce ``scenario_map.json``.
+
     The plan is selected by the binding's exact (plan_record_id, plan_version) —
     never "latest". Returns the persistable payload (semantic ids + full run +
     authorization binding + binding digest). Correspondence evidence only — never
     mutation authority.
     """
+    # THE authority gate — identical to arming. No payload is produced unless the
+    # exact canonical grant validates (status/validity window/frontier ownership).
+    resolve_canonical_grant(records, binding, now=now)
+
     plan = select_plan(
         records, plan_record_id=binding.plan_record_id, plan_version=binding.plan_version
     )
@@ -469,13 +602,14 @@ def resolve_canonical_grant(
             f"{plan_status!r} — not a live accepted plan version"
         )
 
-    # Every frontier id must be a persisted canonical WorkPacket of THIS plan and
-    # tenant — never a bare id or a packet from another plan/tenant.
-    grant_tenant = str(grant.get("tenant_id", ""))
+    # Every frontier id must be a persisted canonical WorkPacket first-class-OWNED
+    # by THIS plan+tenant — validated through work_scope/lineage/source_evidence,
+    # never a permissive empty value or a fake top-level tenant_id.
     packets_by_id = {str(p.get("packet_id", "")): p for p in _canonical_packets(records)}
     plan_node_ids = {
         str(n.get("node_id", "")) for n in (plan.get("nodes") or []) if isinstance(n, dict)
     }
+    plan_packet_ids = {str(pid) for pid in (plan.get("workpacket_ids") or []) if pid}
     for tid in frontier:
         packet = packets_by_id.get(tid)
         if packet is None:
@@ -483,17 +617,14 @@ def resolve_canonical_grant(
                 f"grant {grant.get('grant_id')!r} frontier id {tid!r} is not a "
                 f"persisted WorkPacket record"
             )
-        if grant_tenant and str(packet.get("tenant_id", "")) not in ("", grant_tenant):
-            raise ScenarioMapError(
-                f"frontier packet {tid!r} tenant {packet.get('tenant_id')!r} does not "
-                f"match grant tenant {grant_tenant!r}"
-            )
-        node_id = _node_id_for_packet(packet)
-        if node_id and plan_node_ids and node_id not in plan_node_ids:
-            raise ScenarioMapError(
-                f"frontier packet {tid!r} names node {node_id!r} that is not in plan "
-                f"{plan.get('plan_record_id')!r} v{plan.get('graph_version')}"
-            )
+        _validate_frontier_packet_ownership(
+            packet,
+            tid=tid,
+            grant=grant,
+            plan=plan,
+            plan_node_ids=plan_node_ids,
+            plan_packet_ids=plan_packet_ids,
+        )
     return grant
 
 
@@ -583,7 +714,7 @@ def validate_against_run(
     # Recompute from the EXACT live plan version bound by the binding; the persisted
     # map must match on identity, the id digest AND the full binding digest.
     try:
-        fresh = build_from_records(records, binding=binding)
+        fresh = build_from_records(records, binding=binding, now=now)
     except ScenarioMapError as exc:
         return False, f"cannot recompute scenario map from live state: {exc}"
 

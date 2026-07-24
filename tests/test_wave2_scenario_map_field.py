@@ -47,14 +47,17 @@ from substrate.execution.attempts.field_task_scope import (
 )
 
 _PLAN_ID = "opr-run-1"
+_OBJECTIVE = "goal-run-1"
 _TENANT = "tenant-a"
 _GRANT_ID = "grant-1"
 _DECISION_REF = f"objective_plan:{_PLAN_ID}:execution_authorization:v1"
 _CONV = "conv-1"
-_CORR = "corr-1"
+_RUN_ID = "run-1"
+# The collector stamps w2-<run_id> as the journey correlation. The grant's
+# canonical correlation_id must equal this for capture to resolve it.
+_CORR = f"w2-{_RUN_ID}"
 _PRINCIPAL = "prin-1"
 _MEMBERSHIP = "mem-1"
-_RUN_ID = "run-1"
 
 _ROLE_NODE = {
     BACKEND: ("node-be", "wp-aaaaaaaaaaaa"),
@@ -66,7 +69,7 @@ _LABELS = (BACKEND, "frontend_task_id", "integration_task_id", VERIFICATION)
 
 
 # ── realistic candidate records: plan + 4 WorkPackets + 1 ACTIVE grant ──────
-def _plan_record(*, version=1, status="approved"):
+def _plan_record(*, version=1, status="approved", objective_id=_OBJECTIVE):
     nodes = [
         {
             "node_id": _ROLE_NODE[label][0],
@@ -79,25 +82,46 @@ def _plan_record(*, version=1, status="approved"):
     ]
     return {
         "plan_record_id": _PLAN_ID,
+        "objective_id": objective_id,
         "graph_version": version,
         "status": status,
         "objective_text": "add note search",
         "workpacket_ids": [_ROLE_NODE[label][1] for label in _LABELS],
         "nodes": nodes,
-        # the run tag rides on the plan/grant records so capture is journey-derived
-        "run_tag": _RUN_ID,
     }
 
 
-def _packet_record(label, *, tenant=_TENANT):
-    """A REAL persisted WorkPacket record with exact plan-node lineage."""
+def _packet_record(
+    label,
+    *,
+    tenant=_TENANT,
+    plan_record_id=_PLAN_ID,
+    objective_id=_OBJECTIVE,
+    work_scope=None,
+    lineage=None,
+    top_level_tenant=False,
+):
+    """A REAL persisted WorkPacket record with FIRST-CLASS work_scope + lineage.
+
+    WorkPacket has no canonical top-level tenant_id — ownership lives at
+    work_scope.tenant_id and lineage.plan_record_id/objective_id. ``top_level_tenant``
+    lets a test forge a fake top-level tenant_id to prove it is NOT honored.
+    """
     node_id, packet_id = _ROLE_NODE[label]
-    return {
+    rec = {
         "packet_id": packet_id,
         "source_evidence": [{"type": "plan_node", "node_id": node_id}],
         "title": FIXTURE_NODE_TITLES[label],
-        "tenant_id": tenant,
+        "work_scope": {"tenant_id": tenant} if work_scope is None else work_scope,
+        "lineage": (
+            {"plan_record_id": plan_record_id, "objective_id": objective_id}
+            if lineage is None
+            else lineage
+        ),
     }
+    if top_level_tenant:
+        rec["tenant_id"] = tenant
+    return rec
 
 
 def _grant_record(
@@ -114,9 +138,8 @@ def _grant_record(
     correlation_id=_CORR,
     principal_id=_PRINCIPAL,
     membership_id=_MEMBERSHIP,
-    run_tag=_RUN_ID,
 ):
-    rec = {
+    return {
         "grant_id": grant_id,
         "decision_ref": decision_ref,
         "plan_record_id": _PLAN_ID,
@@ -133,9 +156,6 @@ def _grant_record(
         "expires_at": expires_at,
         "not_before": not_before,
     }
-    if run_tag:
-        rec["run_tag"] = run_tag
-    return rec
 
 
 def _records(
@@ -248,8 +268,7 @@ def test_A_two_unrelated_active_grants_exact_binding_selects_correct():
         grant_id="grant-OTHER",
         decision_ref="objective_plan:opr-OTHER:execution_authorization:v1",
         conversation_id="conv-OTHER",
-        correlation_id="corr-OTHER",
-        run_tag="run-OTHER",
+        correlation_id="w2-run-OTHER",
     )
     other["plan_record_id"] = "opr-OTHER"
     recs = _records(extra_grants=[other])
@@ -265,8 +284,7 @@ def test_B_prior_pass_active_grant_does_not_shadow_this_run():
         grant_id="grant-PRIOR",
         decision_ref="objective_plan:opr-PRIOR:execution_authorization:v1",
         conversation_id="conv-PRIOR",
-        correlation_id="corr-PRIOR",
-        run_tag="run-PRIOR",
+        correlation_id="w2-run-PRIOR",
     )
     prior["plan_record_id"] = "opr-PRIOR"
     recs = _records(extra_grants=[prior])
@@ -403,17 +421,7 @@ def test_L_frontier_packet_outside_plan_fails():
         resolve_canonical_grant(recs, _binding())
 
 
-def test_L_frontier_packet_wrong_tenant_fails():
-    # a frontier packet persisted under a DIFFERENT tenant than the grant
-    recs = _records()
-    for r in recs:
-        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
-            r["tenant_id"] = "tenant-OTHER"
-    with pytest.raises(ScenarioMapError, match="does not.*match grant tenant|tenant"):
-        resolve_canonical_grant(recs, _binding())
-
-
-# ── M. restoring global "one ACTIVE grant" selection fails the suite ───────
+# ── M. removed global-singleton inference; capture is correlation-scoped ───
 
 
 def test_M_no_global_singleton_grant_inference_remains():
@@ -430,23 +438,44 @@ def test_M_no_global_singleton_grant_inference_remains():
     )
 
 
-def test_M_capture_is_run_tag_scoped_not_status_only():
-    """The capture helper selects the grant by THIS run's tag, so a legitimate
-    ACTIVE grant from another run is not picked up."""
+def test_M_capture_is_exact_correlation_scoped():
+    """The capture helper selects the grant by THIS run's EXACT correlation_id
+    (w2-<run_id>), so a legitimate ACTIVE grant from another run is not picked up,
+    and a non-canonical run_tag/base-tag is NOT a selection path."""
     import scripts.wave2_field_dispatch as wd
 
-    this_run = _grant_record(run_tag="run-1")
-    other_run = _grant_record(grant_id="grant-OTHER", run_tag="run-OTHER", conversation_id="conv-x")
+    this_run = _grant_record(correlation_id="w2-run-1")
+    other_run = _grant_record(
+        grant_id="grant-OTHER", correlation_id="w2-run-OTHER", conversation_id="conv-x"
+    )
     binding, err = wd._capture_execution_binding(
         [this_run, other_run], sha="deadbeef1234", run_id="run-1"
     )
     assert err == "" and binding is not None
-    assert binding.grant_id == _GRANT_ID
-    # a run whose tag matches NO grant fails closed
+    assert binding.grant_id == _GRANT_ID and binding.correlation_id == "w2-run-1"
+    # a run whose correlation matches NO grant fails closed
     none_binding, none_err = wd._capture_execution_binding(
         [other_run], sha="deadbeef1234", run_id="run-1"
     )
     assert none_binding is None and "need exactly 1" in none_err
+
+
+def test_M_capture_rejects_run_tag_and_base_tag_selection():
+    """A grant that carries only a non-canonical run_tag (or matches only the base
+    tag before -p) is NOT selected — run_tag is not part of the grant identity
+    contract, and there is no base-pass fallback."""
+    import scripts.wave2_field_dispatch as wd
+
+    # grant carries run_tag but the WRONG correlation → must not be selected
+    tag_only = _grant_record(correlation_id="w2-somethingelse")
+    tag_only["run_tag"] = "20260724T0000Z-p1"
+    b, err = wd._capture_execution_binding([tag_only], sha="sha", run_id="20260724T0000Z-p1")
+    assert b is None and "need exactly 1" in err
+
+    # a grant correlated to the BASE tag (no -pN) must not satisfy a -p1 run
+    base = _grant_record(correlation_id="w2-20260724T0000Z")
+    b2, err2 = wd._capture_execution_binding([base], sha="sha", run_id="20260724T0000Z-p1")
+    assert b2 is None and "need exactly 1" in err2
 
 
 # ── N. removing authorization-ref comparison or digest coverage fails ──────
@@ -502,6 +531,158 @@ def test_N_persisted_binding_digest_is_the_real_content_digest(tmp_path):
     _arm(targets)
     ok, reason = _arm_check(targets, _records())
     assert ok is False and "stale" in reason.lower() and "binding_digest" in reason
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# C-3 CLOSURE CORRECTION — resolve_canonical_grant IS the single authority for
+# map creation, and packet ownership is validated through FIRST-CLASS contracts.
+# (Owner mutation letters A–N.)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_corr_A_map_creation_calls_resolve_canonical_grant():
+    """A. Source-level: build_from_records must invoke resolve_canonical_grant
+    BEFORE producing any payload. Asserted on AST-unparsed CODE (docstring
+    stripped) so removing the call fails the suite."""
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import field_scenario_map as fsm
+
+    tree = ast.parse(inspect.getsource(fsm.build_from_records).lstrip())
+    fn = tree.body[0]
+    body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+    code = "\n".join(ast.unparse(n) for n in body)
+    assert "resolve_canonical_grant(records, binding" in code, (
+        "map creation must reach the same resolve_canonical_grant as arming"
+    )
+
+
+def test_corr_B_expired_grant_cannot_write_scenario_map(tmp_path):
+    """B. An expired grant cannot even PRODUCE scenario_map.json — map creation
+    fails closed, not merely later arming."""
+    recs = _records(grant_expires=1.0)
+    with pytest.raises(ScenarioMapError, match="expired"):
+        build_from_records(recs, binding=_binding(), now=1e9)
+
+
+def test_corr_C_not_yet_valid_grant_cannot_write_scenario_map(tmp_path):
+    """C. A not-yet-valid grant cannot PRODUCE scenario_map.json."""
+    recs = _records(grant_not_before=1e9)
+    with pytest.raises(ScenarioMapError, match="not yet valid"):
+        build_from_records(recs, binding=_binding(), now=1.0)
+
+
+def test_corr_D_empty_work_scope_tenant_fails():
+    """D. Empty work_scope.tenant_id fails closed — no permissive empty allowance."""
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["work_scope"] = {"tenant_id": ""}
+    with pytest.raises(ScenarioMapError, match="empty work_scope.tenant_id"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_E_fake_top_level_tenant_is_not_honored():
+    """E. A packet whose tenant is only at a fake top-level tenant_id (no
+    work_scope.tenant_id) fails — the top-level field is never read as authority."""
+    recs = [_plan_record()]
+    for label in _LABELS:
+        # forge top-level tenant, blank the first-class scope tenant
+        p = _packet_record(label, work_scope={"tenant_id": ""}, top_level_tenant=True)
+        recs.append(p)
+    recs.append(_grant_record())
+    with pytest.raises(ScenarioMapError, match="empty work_scope.tenant_id"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_F_missing_lineage_fails():
+    """F. Missing/empty lineage fails closed."""
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["lineage"] = {}
+    with pytest.raises(ScenarioMapError, match="no lineage"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_G_wrong_lineage_plan_record_id_fails():
+    """G. Wrong lineage.plan_record_id fails closed."""
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["lineage"] = {"plan_record_id": "opr-OTHER", "objective_id": _OBJECTIVE}
+    with pytest.raises(ScenarioMapError, match="lineage.plan_record_id"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_H_wrong_lineage_objective_id_fails():
+    """H. Wrong lineage.objective_id fails closed."""
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["lineage"] = {"plan_record_id": _PLAN_ID, "objective_id": "goal-OTHER"}
+    with pytest.raises(ScenarioMapError, match="lineage.objective_id"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_I_frontier_packet_absent_from_plan_workpacket_ids_fails():
+    """I. A frontier packet not in the Plan's materialized workpacket_ids fails."""
+    recs = _records()
+    for r in recs:
+        if _is_plan_record_dict(r):
+            r["workpacket_ids"] = [_ROLE_NODE[label][1] for label in _LABELS if label != BACKEND]
+    with pytest.raises(ScenarioMapError, match="materialized\n?.*WorkPacket set|WorkPacket set"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_J_frontier_packet_without_node_correspondence_fails():
+    """J. A frontier packet whose source_evidence names no plan node fails."""
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-aaaaaaaaaaaa":
+            r["source_evidence"] = []
+    with pytest.raises(ScenarioMapError, match="names no plan node|no plan node"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_K_packet_node_workpacket_id_disagreement_fails():
+    """K. Packet/node workpacket_id disagreement fails closed."""
+    recs = _records()
+    for r in recs:
+        for n in r.get("nodes", []):
+            if n.get("node_id") == "node-be":
+                n["workpacket_id"] = "wp-different0001"
+    with pytest.raises(ScenarioMapError, match="disagree"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_L_restoring_empty_tenant_compatibility_fails():
+    """L. Restoring an empty-tenant "compatibility allowance" fails: a packet whose
+    work_scope.tenant_id is empty must NOT be treated as matching."""
+    recs = _records()
+    for r in recs:
+        if r.get("packet_id") == "wp-bbbbbbbbbbbb":
+            r["work_scope"] = {"tenant_id": ""}
+    with pytest.raises(ScenarioMapError, match="empty work_scope.tenant_id"):
+        resolve_canonical_grant(recs, _binding())
+
+
+def test_corr_N_exact_correlation_with_unrelated_active_grants_is_green():
+    """N. Exact correlation with unrelated ACTIVE grants present remains green —
+    the correct grant is selected and a full map is produced."""
+    other = _grant_record(
+        grant_id="grant-OTHER", correlation_id="w2-run-OTHER", conversation_id="conv-x"
+    )
+    other["plan_record_id"] = "opr-OTHER"
+    recs = _records(extra_grants=[other])
+    payload = build_from_records(recs, binding=_binding())
+    assert payload[BACKEND] == "wp-aaaaaaaaaaaa"
+    assert payload["grant_id"] == _GRANT_ID
+
+
+def _is_plan_record_dict(rec):
+    return bool(rec.get("plan_record_id")) and "nodes" in rec
 
 
 # ── plan selection + frontier wrappers still fail closed ───────────────────

@@ -262,6 +262,38 @@ because "the repair needed repairing twice" is the finding.
   MUTATION-VERIFIED: restoring "the only active grant" selection kills B/C/D/E/F;
   dropping the decision_ref comparison kills the tampered-ref test; a static
   build-time `binding_digest` kills the persisted-content-digest test.
+- **CLOSURE CORRECTION (owner, binding):** three discrepancies still blocked
+  truthful closure. All prior exact-run-binding work is preserved.
+  (1) **`resolve_canonical_grant` is now the ACTUAL single authority for map
+  creation.** `build_from_records` previously captured a binding and built the
+  payload WITHOUT calling the resolver — contradicting the "same resolver governs
+  writing and arming" invariant. It now calls
+  `resolve_canonical_grant(records, binding, now=now)` BEFORE producing any
+  payload, so map creation fails closed on zero/multiple exact grants, non-ACTIVE
+  status, unmet not_before, elapsed expires_at, empty frontier, absent/non-live
+  Plan version, and any invalid first-class frontier ownership. No second reduced
+  validator: an expired or not-yet-valid grant cannot even produce
+  `scenario_map.json` (proven by `test_corr_B`/`test_corr_C`, not merely later
+  arming rejection).
+  (2) **Packet ownership validated through FIRST-CLASS contracts.** WorkPacket has
+  no canonical top-level `tenant_id`; the permissive `packet.get("tenant_id")` +
+  empty-value handling is replaced by `_validate_frontier_packet_ownership`, which
+  reads the authoritative fields: `work_scope.tenant_id` (non-empty AND ==
+  grant.tenant_id), `lineage.plan_record_id` == grant.plan_record_id,
+  `lineage.objective_id` == Plan.objective_id, `packet_id` ∈ Plan.workpacket_ids,
+  exactly one corresponding Plan node whose `workpacket_id` == packet_id, and
+  `source_evidence` resolving to that same node. Missing scope, missing lineage,
+  empty tenant, a fake top-level tenant_id, absent node correspondence, or any
+  mismatch fails closed (`test_corr_D`–`test_corr_L`).
+  (3) **Removed the non-canonical `run_tag` match escape.**
+  `_capture_execution_binding` now selects ONLY on the exact canonical
+  `correlation_id` (`w2-<run_id>`); the `run_tag`/base-tag (pre-`-p`) fallback is
+  gone — `run_tag` is not part of the grant identity contract. Test fixtures
+  populate `correlation_id`, not `run_tag`. Proven by
+  `test_M_capture_rejects_run_tag_and_base_tag_selection`.
+  Suite now 61 tests. MUTATION-VERIFIED: removing the resolver call from map
+  creation kills corr_A/B/C; honoring a fake top-level tenant kills corr_E;
+  restoring run_tag/base-tag selection kills the capture-rejection test.
 - **Residual risk:** the end-to-end injection→A1-fail→C-blocked→A2-recover graph
   mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
   live field pass requires a candidate deploy (C7, owner-gated).

@@ -2009,42 +2009,38 @@ def _capture_execution_binding(
     """Capture THIS run's execution binding from the grant its journey produced.
 
     The run's binding is NOT "the only ACTIVE grant" — it is the grant this run's
-    journey created, identified by an EXACT match on the grant's own
+    journey created, identified by an EXACT match on the grant's CANONICAL
     ``correlation_id`` (the collector stamps ``w2-<run_id>`` as the correlation of
-    THIS journey — see wave2_field_collector), never a blob substring: a short run
-    tag like ``run-1`` is a substring of ``opr-run-1`` and would false-match. The
-    grant is then read for its FULL identity (grant_id, decision_ref, plan
-    id/version, tenant/principal/membership, conversation/correlation). Returns
-    ``(ExecutionBinding, "")`` on success, or ``(None, reason)`` fail-closed when
-    zero or more than one grant carries this run's exact correlation, or the grant
-    is not ACTIVE.
+    THIS journey — see wave2_field_collector). ``correlation_id`` is part of the
+    ``ExecutionAuthorizationGrant`` identity contract; ``run_tag`` is NOT, so there
+    is no ``run_tag``/base-pass escape here — the production field path selects only
+    the exact collector-observed correlation. The grant is then read for its FULL
+    identity (grant_id, decision_ref, plan id/version, tenant/principal/membership,
+    conversation/correlation). Returns ``(ExecutionBinding, "")`` on success, or
+    ``(None, reason)`` fail-closed when zero or more than one grant carries this
+    run's exact correlation, or the grant is not ACTIVE.
 
-    An explicit ``run_tag`` field on the grant is also accepted (test/tooling
-    fixtures set it directly). Both are EXACT-match, never substring — the exact
-    match is what makes a legitimate ACTIVE grant left by a prior or parallel run
-    irrelevant: it carries a different correlation.
+    The exact-correlation match is what makes a legitimate ACTIVE grant left by a
+    prior or parallel run irrelevant: it carries a different correlation.
     """
     from substrate.execution.attempts.field_scenario_map import ExecutionBinding
 
     # The collector's correlation for this journey: w2-<run_id> (run_id already
-    # carries the -pN pass suffix). Match it exactly on the grant's correlation_id.
-    wanted_corr = {f"w2-{run_id}", run_id} if run_id else set()
-    run_tag = run_id.split("-p")[0] if run_id else run_id
-    wanted_tag = {t for t in (run_id, run_tag) if t}
+    # carries the -pN pass suffix). Match ONLY the canonical correlation_id — no
+    # run_tag field, no base-tag (pre "-p") fallback.
+    wanted_corr = f"w2-{run_id}" if run_id else ""
     grants = [
         g
         for g in records
         if g.get("grant_id")
         and "task_frontier" in g
-        and (
-            str(g.get("correlation_id", "")) in wanted_corr
-            or str(g.get("run_tag", "")) in wanted_tag
-        )
+        and wanted_corr
+        and str(g.get("correlation_id", "")) == wanted_corr
     ]
     if len(grants) != 1:
         return None, (
-            f"{len(grants)} execution-authorization grants carry exact correlation "
-            f"{sorted(wanted_corr)!r} (need exactly 1) — the run's own grant is not "
+            f"{len(grants)} execution-authorization grants carry exact correlation_id "
+            f"{wanted_corr!r} (need exactly 1) — the run's own grant is not "
             f"uniquely identifiable"
         )
     g = grants[0]
