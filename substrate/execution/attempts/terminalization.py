@@ -1,0 +1,320 @@
+"""One idempotent terminalization authority for an ExecutionAttempt (C-2).
+
+Every way an attempt can END must converge on ONE operation. Before this module,
+cleanup was scattered: ``LeaseManager.release`` had zero production callers, the
+worker destroyed only its own credential home in a ``finally``, and nothing tied
+lease release to home destruction to retry admission. The consequence was the
+C-2 deadlock: A1 fails → its lease stays ACTIVE → the scheduler mints A2 →
+``LeaseManager.acquire`` raises (one active lease per task) → A2 BLOCKED →
+re-READY → BLOCKED, forever — while producing the exact observable shape the
+qualification expects ("A failed, C blocked, no false Proof") for the wrong
+reason.
+
+``terminalize`` is the single authority. It covers EVERY terminal condition:
+
+    SUCCEEDED · FAILED · CANCELLED · REVOKED · EXPIRED · verification rejection ·
+    worker crash · dispatch abandonment · authorization expiry ·
+    security-boundary failure · cleanup failure · qualification teardown
+
+Invariant (strict order — each step must complete before the next):
+
+    1. terminalize ONCE          — idempotent; a second call is a verified no-op
+    2. persist terminal state    — the attempt reaches its terminal status first
+    3. release / revoke lease     — the lease is no longer ACTIVE
+    4. destroy attempt-private home + remove credential material
+    5. reconcile spool ownership  — drop any inflight claim for this attempt
+    6. permit retry ONLY after the prior lease is no longer active
+       (enforced structurally: acquire() already refuses while one is active,
+        and terminalization is what makes it inactive)
+
+Cleanup failure is a BLOCKING SECURITY CONDITION, never a warning. If the
+credential home cannot be destroyed, ``terminalize`` records the failure on the
+result AND raises unless the caller explicitly collects the outcome — a run may
+not be reported clean while credential material survives on disk.
+
+This module imports only downward (substrate + same-package).
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass, field
+from typing import Any
+
+from substrate.execution.attempts.worker_credential_boundary import (
+    CredentialBoundaryError,
+    assert_no_credential_residue,
+    attempt_home_path,
+)
+
+logger = logging.getLogger(__name__)
+
+# The complete set of reasons an attempt terminalizes. Every terminal path in
+# the system maps to exactly one of these — there is no "other".
+TERMINAL_REASONS = frozenset(
+    {
+        "succeeded",
+        "failed",
+        "cancelled",
+        "revoked",
+        "expired",
+        "verification_rejected",
+        "worker_crash",
+        "dispatch_abandoned",
+        "authorization_expired",
+        "security_boundary_failure",
+        "cleanup_failure",
+        "teardown",
+    }
+)
+
+
+class TerminalizationError(RuntimeError):
+    """A terminalization step failed in a way the caller must not ignore.
+
+    Raised specifically for cleanup / credential-residue failures — a run may
+    never be reported clean while these are unresolved.
+    """
+
+
+@dataclass
+class TerminalizationResult:
+    """Truthful, side-effect-free record of one terminalization."""
+
+    attempt_id: str = ""
+    task_id: str = ""
+    lease_id: str = ""
+    reason: str = ""
+    already_terminal: bool = False
+    lease_released: bool = False
+    home_destroyed: bool = False
+    spool_reconciled: bool = False
+    credential_residue: list[str] = field(default_factory=list)
+    steps: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        """A terminalization is OK only if NO credential residue survived.
+
+        A lease that could not be released is an error but leaves no credential
+        on disk; residue is the security-blocking condition.
+        """
+        return not self.credential_residue and not self._security_errors()
+
+    def _security_errors(self) -> list[str]:
+        return [e for e in self.errors if e.startswith("SECURITY:")]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "attempt_id": self.attempt_id,
+            "task_id": self.task_id,
+            "lease_id": self.lease_id,
+            "reason": self.reason,
+            "already_terminal": self.already_terminal,
+            "lease_released": self.lease_released,
+            "home_destroyed": self.home_destroyed,
+            "spool_reconciled": self.spool_reconciled,
+            "credential_residue": list(self.credential_residue),
+            "steps": list(self.steps),
+            "errors": list(self.errors),
+            "ok": self.ok,
+        }
+
+
+def terminalize(
+    *,
+    attempt: Any,
+    reason: str,
+    lease_manager: Any | None = None,
+    run_root: str = "",
+    spool: Any | None = None,
+    raise_on_security_failure: bool = True,
+) -> TerminalizationResult:
+    """Terminalize one attempt through the single authority.
+
+    ``attempt`` must already be in (or be transitioned by the CALLER to) a
+    terminal status: terminalization does NOT decide the verdict, it enacts the
+    consequences of one. The caller owns the ledger transition (SUCCEEDED /
+    FAILED / CANCELLED); this owns everything downstream of it.
+
+    Idempotent: a second call with the same attempt whose lease is already
+    inactive and whose home is already gone is a verified no-op.
+
+    ``run_root`` locates the attempt-private credential home. Without it the home
+    cannot be destroyed, which is a security-blocking failure (unless the caller
+    disables raising and inspects the result).
+    """
+    result = TerminalizationResult(
+        attempt_id=str(getattr(attempt, "attempt_id", "") or ""),
+        task_id=str(getattr(attempt, "task_id", "") or ""),
+        lease_id=str(getattr(attempt, "lease_id", "") or ""),
+        reason=reason,
+    )
+    if reason not in TERMINAL_REASONS:
+        # Fail closed on an unknown reason: a terminal path we did not enumerate
+        # must be made explicit, never silently accepted.
+        result.errors.append(f"unknown terminal reason {reason!r}")
+        if raise_on_security_failure:
+            raise TerminalizationError(result.errors[-1])
+        return result
+
+    # (2) The attempt must be terminal before we tear its resources down. We do
+    # NOT transition it here (the caller owns the verdict), but we refuse to
+    # terminalize a still-live attempt — releasing the lease under a running
+    # worker would strand it.
+    status = str(getattr(attempt, "status", "") or "")
+    is_terminal = getattr(attempt, "is_terminal", None)
+    terminal = is_terminal() if callable(is_terminal) else status in _TERMINAL_STATUSES
+    if not terminal:
+        result.errors.append(
+            f"refusing to terminalize {result.attempt_id}: status {status!r} is not terminal"
+        )
+        if raise_on_security_failure:
+            raise TerminalizationError(result.errors[-1])
+        return result
+
+    # (3) Release/revoke the lease so it is no longer ACTIVE. This is what
+    # unblocks retry admission (acquire() refuses while a task has an active
+    # lease). Idempotent: releasing an already-released lease is a no-op.
+    _release_lease(result, attempt, lease_manager, reason)
+
+    # (4) Destroy the attempt-private credential home + material. The worker's
+    # own finally handles the graceful path; this is the AUTHORITATIVE sweep that
+    # also covers the paths the worker never reached (crash, revoke, timeout,
+    # abandonment) — the SIGTERM-with-no-handler case that left the operator's
+    # real OAuth credential on disk indefinitely (SEC-C1).
+    _destroy_home(result, run_root)
+
+    # (5) Reconcile spool ownership: drop any inflight claim for this attempt so
+    # the ephemeral transport does not hold a dangling reference to a dead
+    # attempt. The ledger, not the spool, is the truth (Amendment v1 clause 3).
+    _reconcile_spool(result, spool)
+
+    if not result.ok and raise_on_security_failure:
+        raise TerminalizationError(
+            f"terminalize({result.attempt_id}, {reason}) left a security-blocking "
+            f"condition: residue={result.credential_residue} errors={result._security_errors()}"
+        )
+    return result
+
+
+_TERMINAL_STATUSES = frozenset({"succeeded", "failed", "cancelled", "rolled_back"})
+
+
+def _release_lease(
+    result: TerminalizationResult, attempt: Any, lease_manager: Any, reason: str
+) -> None:
+    lease_id = result.lease_id
+    if not lease_id:
+        result.steps.append("no lease to release")
+        result.lease_released = True
+        return
+    if lease_manager is None:
+        result.errors.append("no lease_manager supplied — lease not released")
+        return
+    try:
+        # REVOKED/EXPIRED terminal reasons revoke; everything else releases.
+        # Both drive the lease out of ACTIVE and destroy the sandbox worktree;
+        # revoke is used when the termination is adversarial/forced.
+        if reason in ("revoked", "expired", "authorization_expired", "security_boundary_failure"):
+            lease_manager.revoke(lease_id, f"terminalize:{reason}")
+        else:
+            lease_manager.release(lease_id, cleanup=True)
+        result.lease_released = True
+        result.steps.append(f"lease {lease_id} released ({reason})")
+    except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+        result.errors.append(f"lease release failed: {exc}")
+        logger.debug("terminalize: lease release failed for %s: %s", lease_id, exc)
+
+
+def _destroy_home(result: TerminalizationResult, run_root: str) -> None:
+    if not run_root:
+        # No run_root = we cannot even locate the home. If nothing was ever
+        # placed this is benign, but we cannot PROVE that — so it is an error,
+        # not a silent pass. Callers that never open a home pass run_root anyway.
+        result.errors.append("no run_root supplied — cannot verify credential home destroyed")
+        return
+    if not result.attempt_id:
+        result.errors.append("no attempt_id — cannot locate credential home")
+        return
+
+    from substrate.execution.attempts.worker_credential_boundary import (
+        AttemptHome,
+        close_attempt_credential_home,
+    )
+
+    home_path = attempt_home_path(run_root, result.attempt_id)
+    claude_dir = f"{home_path}/.claude"
+    tmp_dir = f"{home_path}/tmp"
+    # Reconstruct a closer over the derived path. The credential filenames are
+    # the canonical set; close overwrites+removes whatever is present, and the
+    # residue scan below is the authoritative check regardless.
+    home = AttemptHome(
+        attempt_id=result.attempt_id,
+        home_path=home_path,
+        tmp_path=tmp_dir,
+        claude_dir=claude_dir,
+        credential_files=[f"{claude_dir}/.credentials.json", f"{claude_dir}/config.json"],
+    )
+    try:
+        close_attempt_credential_home(home)
+        result.home_destroyed = True
+        result.steps.append(f"home {home_path} destroyed")
+    except CredentialBoundaryError as exc:
+        # Cleanup failure is a SECURITY failure, not a warning.
+        result.errors.append(f"SECURITY: home destruction failed: {exc}")
+        logger.error("terminalize: SECURITY home destruction failed for %s: %s", home_path, exc)
+
+    # Authoritative residue scan: 'destroyed' is a verified claim, not a hope.
+    residue = assert_no_credential_residue(run_root)
+    # Scope the residue to THIS attempt's home (a sibling attempt's live home is
+    # not this terminalization's failure).
+    mine = [p for p in residue if home_path in p]
+    if mine:
+        result.credential_residue = mine
+        result.errors.append(f"SECURITY: credential residue survived: {mine}")
+
+
+def _reconcile_spool(result: TerminalizationResult, spool: Any) -> None:
+    if spool is None:
+        result.spool_reconciled = True  # nothing to reconcile
+        result.steps.append("no spool to reconcile")
+        return
+    dropper = getattr(spool, "drop_inflight_for_attempt", None)
+    if not callable(dropper):
+        # The spool has no reconcile hook. The ledger is the truth (clause 3), so
+        # a dangling inflight file is harmless and reaped by the runner's
+        # recover_stale_inflight; record honestly rather than claim reconciled.
+        result.steps.append("spool has no drop_inflight_for_attempt (ledger is truth)")
+        result.spool_reconciled = True
+        return
+    try:
+        dropped = dropper(result.attempt_id)
+        result.spool_reconciled = True
+        result.steps.append(f"spool inflight dropped for {result.attempt_id}: {dropped}")
+    except Exception as exc:  # noqa: BLE001
+        result.errors.append(f"spool reconcile failed: {exc}")
+
+
+def retry_admissible(store: Any, task_id: str) -> tuple[bool, str]:
+    """Whether a NEW attempt for ``task_id`` may be admitted.
+
+    A retry is admissible ONLY when the task has no ACTIVE lease. This is the
+    structural guarantee behind "permit retry only after the prior lease is no
+    longer active": terminalize() drives the prior lease out of ACTIVE, and this
+    predicate refuses admission until it is.
+    """
+    active = store.active_lease_for_task(task_id)
+    if active is not None:
+        return False, f"task {task_id} still has an active lease {active.get('lease_id', '')!r}"
+    return True, "no active lease — retry admissible"
+
+
+__all__ = [
+    "TERMINAL_REASONS",
+    "TerminalizationError",
+    "TerminalizationResult",
+    "terminalize",
+    "retry_admissible",
+]

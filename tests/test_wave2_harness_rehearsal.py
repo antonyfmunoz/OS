@@ -293,7 +293,7 @@ def _mk_scheduler(store, queue, tmp_path, spool):
     )
 
 
-def _mk_poller(store, spool, scheduler, grant, proof_runtime, queue=None):
+def _mk_poller(store, spool, scheduler, grant, proof_runtime, queue=None, run_root=""):
     # Use the REAL durable store accessors (finding C4). This helper previously
     # called store.list_assignments() — a method that does not exist — behind a
     # hasattr guard, so it returned None for every attempt and the rehearsal
@@ -323,6 +323,11 @@ def _mk_poller(store, spool, scheduler, grant, proof_runtime, queue=None):
         assignment_lookup=_asn_lookup,
         lease_lookup=_lease_lookup,
         packet_lookup=_packet_lookup,
+        # C-2: terminalize on every terminal transition through the SAME lease
+        # manager the scheduler acquires with, so a failed A1 releases its lease
+        # and A2's retry is admissible (no deadlock).
+        lease_manager=scheduler._leases,  # noqa: SLF001 - shared instance by design
+        run_root=run_root,
         scheduler_pass_kwargs=dict(
             grant=grant,
             role_resolver=_role,
@@ -370,7 +375,9 @@ def test_full_graph_rehearsal_no_quota(store, queue, tmp_path):
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)
     proof_runtime = _StubProofRuntime(tmp_path)
-    poller = _mk_poller(store, spool, sched, grant, proof_runtime, queue=queue)
+    poller = _mk_poller(
+        store, spool, sched, grant, proof_runtime, queue=queue, run_root=str(tmp_path)
+    )
 
     # Round 1: scheduler admits A + B (exactly 2 concurrency); C, D blocked by deps.
     r1 = _pass(sched, grant)
@@ -455,7 +462,9 @@ def test_failure_qualification_rehearsal(store, queue, tmp_path):
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     sched = _mk_scheduler(store, queue, tmp_path, spool)
-    poller = _mk_poller(store, spool, sched, grant, _StubProofRuntime(tmp_path), queue=queue)
+    poller = _mk_poller(
+        store, spool, sched, grant, _StubProofRuntime(tmp_path), queue=queue, run_root=str(tmp_path)
+    )
 
     _pass(sched, grant)
     # The stub worker consults the SAME policy the real dispatch path uses: a
@@ -477,6 +486,38 @@ def test_failure_qualification_rehearsal(store, queue, tmp_path):
     c = [x for x in store.active_attempts() if x.task_id == "C"]
     assert not any(x.status in (_S.RUNNING.value, _S.SUCCEEDED.value) for x in c), (
         "C stays blocked while A has no AttemptProof"
+    )
+
+    # C-2 RECOVERY: A1's terminalization released its lease, so the poller's
+    # internal scheduler re-run already minted A2 and A2 ACQUIRED a fresh lease.
+    # Before the terminalization authority, A1's lease stayed ACTIVE and A2
+    # deadlocked (BLOCKED → re-READY → BLOCKED forever) while producing this very
+    # "A failed, C blocked" shape for the wrong reason.
+    #
+    # The load-bearing invariant: A1's lease is out of ACTIVE (released), and at
+    # most ONE lease for A is active — the one A2 acquired. A stale A1 lease would
+    # make TWO active, and A2 would never have been able to acquire at all.
+    leases_a = [r for r in store._read_lines(store._leases_path) if r.get("task_id") == "A"]  # noqa: SLF001
+    a1_leases = [r for r in leases_a if r.get("lease_id") == a.lease_id]
+    assert a1_leases and a1_leases[-1]["status"] in ("released", "revoked"), (
+        f"A1's lease must be terminalized (was {a1_leases[-1]['status'] if a1_leases else 'missing'})"
+    )
+    active = [r for r in leases_a if r.get("status") == "active"]
+    # newest-per-lease-id: collapse to latest status per lease.
+    latest: dict[str, str] = {}
+    for r in leases_a:
+        latest[r["lease_id"]] = r["status"]
+    active_ids = [lid for lid, st in latest.items() if st == "active"]
+    assert len(active_ids) <= 1, f"never more than one active lease for A: {active_ids}"
+
+    # A2 exists, acquired its OWN (different) lease, and progressed past BLOCKED.
+    a2 = [x for x in store.attempts_for_task("A") if x.attempt_number == 2]
+    assert a2, "A2 retry must be created after A1 terminalized"
+    assert a2[0].lease_id and a2[0].lease_id != a.lease_id, (
+        "A2 must acquire a NEW lease — the deadlock was A2 never getting one"
+    )
+    assert a2[0].status in (_S.LEASED.value, _S.DISPATCHED.value, _S.RUNNING.value), (
+        f"A2 must progress past BLOCKED (was {a2[0].status})"
     )
 
 

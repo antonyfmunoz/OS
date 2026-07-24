@@ -103,6 +103,8 @@ class ControlPlanePoller:
         packet_lookup: Callable[[str], Any] | None = None,
         proof_runtime: Any | None = None,
         independent_checks_for: Callable[[Any], Callable[[Any], list[Any]] | None] | None = None,
+        lease_manager: Any | None = None,
+        run_root: str = "",
         scheduler_pass_kwargs: dict[str, Any] | None = None,
     ) -> None:
         self._store = store
@@ -111,6 +113,12 @@ class ControlPlanePoller:
         self._verify = verify_fn
         self._assignment_lookup = assignment_lookup or (lambda _aid: None)
         self._lease_lookup = lease_lookup or (lambda _lid: None)
+        # Terminalization authority (C-2): on EVERY terminal transition the
+        # attempt's lease is released and its credential home destroyed through
+        # ONE idempotent path, so a failed A1 never deadlocks A2's retry and no
+        # credential survives on disk.
+        self._lease_manager = lease_manager
+        self._run_root = run_root
         # Default resolves to None → the diff-scope check fails closed. This is
         # deliberate: an unwired packet lookup must NOT silently authorize the
         # whole worktree (finding C-1).
@@ -251,7 +259,7 @@ class ControlPlanePoller:
         )
 
         if getattr(verdict, "passed", False) and getattr(verdict, "proof_id", ""):
-            self._transition(
+            updated = self._transition(
                 attempt,
                 _S.SUCCEEDED.value,
                 (_S.VERIFYING.value,),
@@ -263,6 +271,7 @@ class ControlPlanePoller:
                 },
             )
             report.succeeded.append(attempt.attempt_id)
+            self._terminalize(updated or attempt, "succeeded", report)
         else:
             reason = "verification refused"
             fails = [c for c in getattr(verdict, "checks", []) if not c.get("ok", False)]
@@ -270,7 +279,7 @@ class ControlPlanePoller:
                 reason = "verification refused: " + ", ".join(
                     c.get("check_id", "?") for c in fails[:4]
                 )
-            self._transition(
+            updated = self._transition(
                 attempt,
                 _S.FAILED.value,
                 (_S.VERIFYING.value,),
@@ -279,6 +288,36 @@ class ControlPlanePoller:
                 updates={"verifier_identity": verifier_identity, "blocked_reason": reason[:200]},
             )
             report.failed.append(attempt.attempt_id)
+            # verification_rejected is a terminal reason: release the lease so the
+            # retry is admissible, and destroy the credential home.
+            self._terminalize(updated or attempt, "verification_rejected", report)
+
+    def _terminalize(self, attempt: Any, reason: str, report: PollerPassReport) -> None:
+        """Run the ONE terminalization authority for a just-terminalized attempt.
+
+        Releases the lease (unblocking any retry) and destroys the attempt's
+        credential home. A residue/security failure is surfaced on the report —
+        never swallowed — but does not raise here, so one bad teardown cannot
+        stall the drain loop; the run's teardown + selfcheck fail closed on it.
+        """
+        from substrate.execution.attempts.terminalization import terminalize
+
+        try:
+            result = terminalize(
+                attempt=attempt,
+                reason=reason,
+                lease_manager=self._lease_manager,
+                run_root=self._run_root,
+                spool=self._spool,
+                raise_on_security_failure=False,
+            )
+            if not result.ok:
+                report.errors.append(
+                    f"terminalize({attempt.attempt_id},{reason}) SECURITY: {result.errors}"
+                )
+        except Exception as exc:  # never let teardown stall the drain loop
+            report.errors.append(f"terminalize({attempt.attempt_id},{reason}) raised: {exc}")
+            logger.debug("poller: terminalize failed: %s", exc, exc_info=True)
 
     # ── canonical write ──────────────────────────────────────────────────────
 

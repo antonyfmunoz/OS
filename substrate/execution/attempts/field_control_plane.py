@@ -213,6 +213,17 @@ class FieldControlPlaneDriver:
             proof_runtime = ProofRuntime()
         self._proof_runtime = proof_runtime
         self._seq = 0
+        # ONE LeaseManager instance, shared by the scheduler and the poller so a
+        # poller-side release is visible to the next scheduler acquire (C-2).
+        self._lease_mgr: Any = None
+
+    def _run_root(self) -> str:
+        """Where per-attempt credential homes live: ``<run_root>/worker-homes/``.
+
+        The host runner uses ``targets_dir`` as run_root when invoking the worker
+        (``run_root = targets_dir``), so terminalization must use the SAME root to
+        find and destroy the home the worker created."""
+        return self._targets_dir
 
     # ── the signed spool dispatch_fn (real transport) ────────────────────────
 
@@ -272,20 +283,28 @@ class FieldControlPlaneDriver:
 
     # ── assemble the real scheduler + poller ─────────────────────────────────
 
+    def _lease_manager(self) -> Any:
+        """ONE LeaseManager shared by the scheduler (acquire) and the poller
+        (release via terminalization). They must be the same instance so a
+        release the poller performs is seen by the next admit's acquire."""
+        if self._lease_mgr is None:
+            from substrate.execution.attempts.leases import LeaseManager
+
+            self._lease_mgr = LeaseManager(
+                self._store, self._sandbox, mutation_runner=self._mutation_runner
+            )
+        return self._lease_mgr
+
     def _build_scheduler(self) -> Any:
         from substrate.execution.attempts.dispatch import compile_attempt_package
-        from substrate.execution.attempts.leases import LeaseManager
         from substrate.execution.attempts.placement import place_attempt
         from substrate.execution.attempts.scheduler import AttemptScheduler
 
-        lease_manager = LeaseManager(
-            self._store, self._sandbox, mutation_runner=self._mutation_runner
-        )
         return AttemptScheduler(
             self._store,
             work_queue=self._queue,
             placement_fn=place_attempt,
-            lease_manager=lease_manager,
+            lease_manager=self._lease_manager(),
             compile_fn=compile_attempt_package,
             dispatch_fn=self._dispatch_fn(),
             max_concurrency=2,
@@ -307,6 +326,11 @@ class FieldControlPlaneDriver:
             lease_lookup=self._lease_lookup,
             packet_lookup=self._packet_lookup,
             independent_checks_for=self._independent_checks_for,
+            # C-2 terminalization: the poller releases the lease + destroys the
+            # credential home on every terminal transition, through the SAME
+            # lease manager the scheduler acquires with.
+            lease_manager=self._lease_manager(),
+            run_root=self._run_root(),
             scheduler_pass_kwargs=dict(
                 grant=grant,
                 role_resolver=_default_role_resolver,

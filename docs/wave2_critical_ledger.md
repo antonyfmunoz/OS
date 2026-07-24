@@ -14,7 +14,7 @@ correct accounting is below and is now the authority.
 |---|---|---|
 | Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
 | Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
-| **Round 2 status** | **9 = 4 fixed + 5 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1 |
+| **Round 2 status** | **9 = 5 fixed + 4 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2 |
 
 Round-1 and Round-2 IDs are namespaced by round; they are different findings that
 happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
@@ -125,17 +125,34 @@ because "the repair needed repairing twice" is the finding.
 - **Residual risk:** the fixture defaults are a seeding input at materialization
   only. A Task that reaches verification with no declared scope BLOCKS.
 
-### C-2 — the lease is never released; retry deadlocks — **OPEN**
+### C-2 — the lease is never released; retry deadlocks — **FIXED**
 
-- **Root cause:** `LeaseManager.release()` has **zero production callers**
-  (verified by grep across `substrate/` and `scripts/`).
+- **Root cause:** `LeaseManager.release()` had **zero production callers**;
+  cleanup was scattered (acquire-rollback, revoke, and the worker's own
+  `finally`) with nothing tying lease release to home destruction to retry
+  admission.
 - **Authority violated:** one-active-lease-per-task; retry-as-new-attempt.
-- **Failure path:** A1 fails → scheduler mints A2 → `acquire()` raises
-  `LeaseError` (l-1 still active) → caught at `scheduler.py` and logged at
-  **debug** → A2 → BLOCKED → re-READY → BLOCKED, forever. The failure pass then
-  produces the **exact observable shape the qualification expects** ("A failed, C
-  blocked, no false Proof") for entirely the wrong reason.
-- **Status:** OPEN — repair in progress (order §4).
+- **Failure path:** A1 fails → its lease stays ACTIVE → scheduler mints A2 →
+  `acquire()` raises `LeaseError` → A2 BLOCKED → re-READY → BLOCKED forever,
+  producing the exact "A failed, C blocked, no false Proof" shape the
+  qualification expects for entirely the wrong reason.
+- **Fix:** ONE idempotent authority `substrate/execution/attempts/
+  terminalization.py::terminalize`. Strict order: verify terminal → release/
+  revoke lease → destroy attempt-private home + credential material → reconcile
+  spool → retry admissible only after the prior lease is inactive. Covers all
+  eleven terminal reasons. Cleanup failure RAISES (blocking security condition),
+  never a warning. Refuses to terminalize a still-live attempt. `retry_admissible`
+  is the structural gate.
+- **Wired:** the control-plane poller terminalizes on EVERY terminal transition
+  (SUCCEEDED + verification_rejected) through the SAME `LeaseManager` the
+  scheduler acquires with (shared instance in `FieldControlPlaneDriver`).
+- **Commit:** this one. **Tests:** `tests/test_wave2_terminalization.py` (21) +
+  the field-pipeline recovery assertion in
+  `test_failure_qualification_rehearsal`. MUTATION-VERIFIED: skipping lease
+  release fails the deadlock tests; dropping the residue scan fails the security
+  test; removing the poller's terminalize call fails the pipeline recovery test.
+- **Residual risk:** teardown-level "zero worker homes across the whole run" is
+  SEC-C1's scope (order §8), tracked separately.
 
 ### C-3 — `scenario_map.json` has no field writer — **OPEN**
 
