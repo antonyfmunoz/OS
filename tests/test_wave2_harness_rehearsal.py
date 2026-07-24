@@ -69,10 +69,11 @@ def queue(tmp_path, monkeypatch):
 def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests")):
     """An APPROVED packet carrying a DECLARED path scope.
 
-    ``allowed_paths`` is load-bearing: the canonical WorkPacket is the diff-scope
-    authority (finding C-1), and a packet with no declared scope now fails
-    verification closed rather than defaulting to the whole worktree. The
-    rehearsal must therefore model a real Task, which declares its scope.
+    ``allowed_paths`` is load-bearing: the writable-path authority is a FIRST-CLASS
+    typed field on the Task contract (WorkRequirements.writable_path_scope +
+    scope_declared), never derived from evidence. A packet with no declared scope
+    fails verification closed rather than defaulting to the whole worktree, so the
+    rehearsal must model a real Task that declares its own mutation authority.
     """
     pkt = WorkPacket(
         title=pid,
@@ -80,7 +81,10 @@ def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests")):
         dependencies=deps or [],
         approval_gates=["execution_authorization_required"],
         work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
-        requirements={"allowed_paths": list(allowed_paths)},
+        requirements={
+            "writable_path_scope": list(allowed_paths),
+            "scope_declared": True,
+        },
     )
     pkt.packet_id = pid
     queue.ingest_work_packet(pkt)

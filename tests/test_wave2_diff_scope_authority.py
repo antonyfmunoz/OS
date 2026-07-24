@@ -66,7 +66,10 @@ def _lease(worktree):
 
 
 def _packet(allowed):
-    return SimpleNamespace(packet_id="wp-abc123def456", requirements={"allowed_paths": allowed})
+    return SimpleNamespace(
+        packet_id="wp-abc123def456",
+        requirements={"writable_path_scope": allowed, "scope_declared": True},
+    )
 
 
 def _verify(worktree, *, packet, files=("app/main.py",)):
@@ -355,3 +358,126 @@ def test_fixture_allowed_paths_exist_in_the_generated_tree(tmp_path):
             assert target.exists() or target.parent.is_dir(), (
                 f"{label}: authorized path {p!r} has no home in the fixture tree"
             )
+
+
+# ── BINDING: evidence is provenance, never mutation authority ───────────────
+#
+# Owner correction (R4c follow-up). WorkPacket.source_evidence may prove WHERE a
+# scope came from; it must never CONTROL what a worker may write. Wave 1 fixed
+# this split: `EvidenceRef` — "Evidence is provenance — it can never be a
+# mutation authority"; `WorkScope` — "Always a typed field, never hidden in
+# source_evidence". These tests pin that boundary for the writable-path scope.
+
+
+def test_scope_authority_is_a_first_class_typed_field():
+    """The authority lives on WorkRequirements, not in a loose dict key."""
+    import dataclasses
+
+    from substrate.contracts.work_context import WorkRequirements
+
+    names = {f.name for f in dataclasses.fields(WorkRequirements)}
+    assert "writable_path_scope" in names, "writable-path authority must be first-class"
+    assert "scope_declared" in names, (
+        "an undeclared scope must be distinguishable from a declared-empty one"
+    )
+
+
+def test_evidence_alone_can_never_grant_writable_authority():
+    """THE binding rule: a packet whose ONLY scope signal is source_evidence has
+    no authority. Editing descriptive evidence must not widen write permission."""
+    evidence_only = SimpleNamespace(
+        packet_id="wp-evidence-only",
+        requirements={},  # no first-class contract
+        source_evidence=[
+            {"type": "plan_node", "node_id": "node-1"},
+            # A forged evidence entry attempting to grant scope:
+            {"type": "writable_path_scope", "paths": ["/", "app", "tests", ".."]},
+        ],
+    )
+    with pytest.raises(ScopeResolutionError):
+        allowed_paths_for(evidence_only)
+
+
+def test_forged_evidence_scope_does_not_widen_a_declared_contract(worktree):
+    """Evidence claiming a broader scope must not expand the persisted contract.
+
+    The contract authorizes only `app/main.py`; the evidence claims the whole
+    tree. The worker writes outside the contract. Verification must still fail.
+    """
+    with open(os.path.join(worktree.path, "tests", "test_api.py"), "a", encoding="utf-8") as f:
+        f.write("# touched under a forged evidence claim\n")
+    packet = SimpleNamespace(
+        packet_id="wp-forged",
+        requirements={"writable_path_scope": ["app/main.py"], "scope_declared": True},
+        source_evidence=[{"type": "writable_path_scope", "paths": ["."]}],
+    )
+    check = _scope_check(_verify(worktree, packet=packet))
+    assert check["ok"] is False, "evidence must never widen the persisted contract"
+    assert "tests/test_api.py" in check["detail"]
+
+
+def test_declared_empty_scope_is_distinct_from_undeclared():
+    """`[]` + declared = zero-diff policy (valid). `[]` + undeclared = blocked."""
+    declared_empty = SimpleNamespace(
+        packet_id="wp-1", requirements={"writable_path_scope": [], "scope_declared": True}
+    )
+    assert allowed_paths_for(declared_empty) == []
+
+    undeclared = SimpleNamespace(
+        packet_id="wp-2", requirements={"writable_path_scope": [], "scope_declared": False}
+    )
+    with pytest.raises(ScopeResolutionError, match="scope_declared is False"):
+        allowed_paths_for(undeclared)
+
+
+def test_scope_module_never_reads_evidence_for_authority():
+    """Source-level: the authority function must not consult source_evidence.
+
+    Asserted against CODE, not prose — the docstring legitimately *explains* that
+    evidence is never read, and a raw substring scan would match that explanation.
+    (Third time this trap has appeared in this campaign; strip commentary first.)
+    """
+    import ast
+    import inspect
+
+    from substrate.execution.attempts import field_task_scope as fts
+
+    tree = ast.parse(inspect.getsource(fts.allowed_paths_for).lstrip())
+    fn = tree.body[0]
+    # Drop the docstring, then render only executable statements back to source.
+    body = fn.body[1:] if isinstance(fn.body[0], ast.Expr) else fn.body
+    code = "\n".join(ast.unparse(node) for node in body)
+    assert "source_evidence" not in code, (
+        "allowed_paths_for must never read evidence — that is a provenance channel"
+    )
+    # And it must read the first-class contract fields.
+    assert "writable_path_scope" in code and "scope_declared" in code
+
+
+def test_contract_rejects_unsafe_scope_at_declaration_time():
+    """An unsafe scope is refused at the CONTRACT, so it can never be persisted
+    onto a Task and discovered only later at verification."""
+    from substrate.contracts.work_context import WorkRequirements
+
+    for bad in (".", "/etc", "../escape", ""):
+        req = WorkRequirements()
+        req.declare_writable_paths([bad])
+        assert req.validate_writable_path_scope(), f"{bad!r} must be rejected by the contract"
+
+    ok = WorkRequirements().declare_writable_paths(["app/main.py", "tests"])
+    assert ok.validate_writable_path_scope() == [], "legitimate scope must validate clean"
+
+
+def test_seeding_writes_authority_onto_the_contract():
+    """Fixture defaults enter ONLY at materialization, producing a persisted
+    first-class contract — never a verification-time fallback."""
+    from substrate.contracts.work_context import WorkRequirements
+    from substrate.execution.attempts.field_task_scope import seed_scope_from_label
+
+    req = seed_scope_from_label(WorkRequirements(), BACKEND)
+    assert req.scope_declared is True
+    assert "app/main.py" in req.writable_path_scope
+    assert req.validate_writable_path_scope() == []
+
+    verifier = seed_scope_from_label(WorkRequirements(), VERIFICATION)
+    assert verifier.scope_declared is True and verifier.writable_path_scope == []

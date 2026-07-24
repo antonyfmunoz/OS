@@ -85,7 +85,10 @@ def _scoped(tmp_path, allowed=("app",), name="wt"):
     """(lease, packet) pair over a real worktree with a declared path scope."""
     wt = _real_worktree(tmp_path, name)
     lease = SimpleNamespace(worktree_path=wt.path, snapshot_ref=wt.base, writable_paths=[wt.path])
-    packet = SimpleNamespace(packet_id="wp-a", requirements={"allowed_paths": list(allowed)})
+    packet = SimpleNamespace(
+        packet_id="wp-a",
+        requirements={"writable_path_scope": list(allowed), "scope_declared": True},
+    )
     return wt, lease, packet
 
 
@@ -380,7 +383,9 @@ def test_diff_outside_allowlist_fails_verification(tmp_path):
         package_hash="h1",
         verifier_identity="v",
         verifier_role_id="r",
-        packet=SimpleNamespace(packet_id="wp-a", requirements={"allowed_paths": ["app"]}),
+        packet=SimpleNamespace(
+            packet_id="wp-a", requirements={"writable_path_scope": ["app"], "scope_declared": True}
+        ),
         proof_runtime=rt,
     )
     assert verdict.passed is False, "an out-of-allowlist diff must fail verification"

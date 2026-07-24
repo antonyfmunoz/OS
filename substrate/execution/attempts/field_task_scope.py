@@ -7,18 +7,36 @@ only as English prose in ``OBJECTIVE.md``, and the semantic labels existed only
 in the reviewer's head — so the diff-scope check degenerated to
 ``whole_worktree=True`` and the injection targeted an id that never existed.
 
-This module supplies both from ONE canonical derivation, with no pattern
-matching anywhere:
+TWO DIFFERENT CONCERNS — do not conflate them
+---------------------------------------------
+1. **Identity / correspondence** (``resolve_scenario_map``). Which canonical
+   ``wp-<hex12>`` is "the backend Task"? Resolved by walking plan-node lineage:
 
-    plan node (ObjectivePlanNode.node_id)
-        → WorkPacket.source_evidence[{"type": "plan_node", "node_id": …}]
-        → packet_id (the real ``wp-<hex12>``)
+       plan node (ObjectivePlanNode.node_id)
+           → WorkPacket.source_evidence[{"type": "plan_node", "node_id": …}]
+           → packet_id
 
-``resolve_scenario_map`` walks that lineage and returns
-``{semantic_label: packet_id}``. ``allowed_paths_for`` returns the packet's
-declared writable paths. Both fail CLOSED: an unresolvable or ambiguous mapping
-raises rather than degrading to a permissive default, because every softening in
-this campaign has been exactly such a default.
+   Evidence is a legitimate source here: this asks "which record corresponds to
+   which planned node", a provenance question.
+
+2. **Mutation authority** (``allowed_paths_for``). Which paths may this Task
+   write? Resolved ONLY from the first-class typed contract fields
+   ``WorkRequirements.writable_path_scope`` + ``scope_declared``.
+
+   Evidence is NEVER consulted for this. ``EvidenceRef`` states the rule
+   directly: "Evidence is provenance — it can never be a mutation authority."
+   If write permission were derived through ``source_evidence``, editing a
+   descriptive evidence entry would widen what a worker may write, letting
+   descriptive data control execution permissions.
+
+The fixture defaults below are a **seeding** input consumed at materialization
+(``seed_scope_from_label``), which persists the authority onto the Task
+contract. They are never a verification-time fallback: a Task that reaches
+verification with no declared scope is a governance failure and blocks.
+
+Both paths fail CLOSED — an unresolvable, ambiguous or undeclared value raises
+rather than degrading to a permissive default, because every softening in this
+campaign has been exactly such a default.
 
 Scope: the Wave-2 qualification fixture. This is not a general capability.
 """
@@ -226,33 +244,69 @@ def normalize_allowed_paths(raw_paths: list[str], *, lease_root: str) -> list[st
 
 
 def allowed_paths_for(packet: Any, *, semantic_label: str = "") -> list[str]:
-    """The declared writable paths for a Task, from canonical packet state.
+    """The AUTHORITATIVE writable paths for a Task.
 
-    Order of authority:
+    Reads exactly ONE source: the first-class ``WorkRequirements`` fields
+    ``writable_path_scope`` + ``scope_declared``, persisted on the Task contract.
 
-    1. ``packet.requirements['allowed_paths']`` — the canonical carrier written
-       at materialization;
-    2. the fixture default for ``semantic_label`` — used when the harness seeds
-       a packet it did not compile.
+    It deliberately does NOT read ``source_evidence``. Evidence is provenance
+    (``EvidenceRef``: "Evidence is provenance, it can never be a mutation
+    authority"); the plan-node lineage in ``resolve_scenario_map`` is used to
+    establish Task IDENTITY and to SEED the contract at materialization, never to
+    grant write permission at verification time. If scope were read through
+    evidence, editing a descriptive evidence entry would widen what a worker may
+    write — descriptive data controlling execution permission.
 
-    Raises when neither resolves, so a Task with no declared scope can never
-    execute under an implicit "everything" policy.
+    ``semantic_label`` is accepted for diagnostics only; the fixture defaults are
+    a SEEDING input (see ``seed_scope_from_label``), never a verification-time
+    fallback. A Task that reaches verification with no declared scope is a
+    governance failure and raises.
     """
     requirements = getattr(packet, "requirements", None)
     if requirements is None and isinstance(packet, dict):
         requirements = packet.get("requirements")
     if isinstance(requirements, dict):
-        declared = requirements.get("allowed_paths")
-        if isinstance(declared, list):
-            # An explicitly empty list is a REAL policy (zero-diff), so accept it
-            # here rather than falling through to the default.
-            return [str(p) for p in declared]
-    if semantic_label and semantic_label in FIXTURE_ALLOWED_PATHS:
-        return list(FIXTURE_ALLOWED_PATHS[semantic_label])
+        declared_flag = bool(requirements.get("scope_declared", False))
+        scope = requirements.get("writable_path_scope")
+        if declared_flag and isinstance(scope, list):
+            # An explicitly declared EMPTY scope is a real policy (zero-diff).
+            return [str(p) for p in scope]
     raise ScopeResolutionError(
-        f"packet {_packet_id(packet)!r} declares no allowed_paths and no fixture "
-        f"default applies (label={semantic_label!r}) — refusing an implicit "
-        f"whole-worktree scope"
+        f"packet {_packet_id(packet)!r} carries no first-class writable_path_scope "
+        f"(scope_declared is False) — the Task contract never recorded a mutation "
+        f"authority, so execution cannot be verified as contained "
+        f"(label={semantic_label!r}; evidence is NEVER consulted for scope)"
+    )
+
+
+def seed_scope_from_label(requirements: Any, semantic_label: str) -> Any:
+    """SEED a Task contract's writable-path authority from the fixture role.
+
+    This is the ONLY place fixture defaults enter, and it happens at
+    MATERIALIZATION — writing the authority onto the persisted Task contract —
+    not at verification. Once seeded, verification reads the contract alone, so
+    the resulting authority is first-class and auditable rather than recomputed
+    from a label every time a diff is checked.
+    """
+    if semantic_label not in FIXTURE_ALLOWED_PATHS:
+        raise ScopeResolutionError(
+            f"no fixture writable-path scope for {semantic_label!r} — refusing to "
+            f"materialize a Task with no mutation authority"
+        )
+    paths = list(FIXTURE_ALLOWED_PATHS[semantic_label])
+    declare = getattr(requirements, "declare_writable_paths", None)
+    if callable(declare):
+        declare(paths)
+        errors = requirements.validate_writable_path_scope()
+        if errors:
+            raise ScopeResolutionError(f"invalid seeded scope for {semantic_label!r}: {errors}")
+        return requirements
+    if isinstance(requirements, dict):
+        requirements["writable_path_scope"] = paths
+        requirements["scope_declared"] = True
+        return requirements
+    raise ScopeResolutionError(
+        f"cannot seed writable-path scope onto {type(requirements).__name__}"
     )
 
 

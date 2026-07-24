@@ -107,7 +107,10 @@ def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests")):
         dependencies=deps or [],
         approval_gates=["execution_authorization_required"],
         work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
-        requirements={"allowed_paths": list(allowed_paths)},
+        requirements={
+            "writable_path_scope": list(allowed_paths),
+            "scope_declared": True,
+        },
     )
     pkt.packet_id = pid
     queue.ingest_work_packet(pkt)
