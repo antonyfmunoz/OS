@@ -1570,24 +1570,88 @@ def _path_in_logs(url: str, logs: str) -> bool:
 # teardown
 # ─────────────────────────────────────────────────────────────────────────────
 def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
-    """Stop containers + runner, shred the run secret, restore serve. State kept.
+    """Stop containers + runner, sweep credential homes, shred the run secret,
+    restore serve. Candidate STATE is kept as evidence; credential material is NOT.
 
     The run-scoped dispatch secret is DESTROYED here (Amendment v1 clause 3 /
     order step 4): it existed only for this run's spool and must not persist.
+
+    SEC-C1: teardown now also runs the RUN-LEVEL sweep over the run's targets dir,
+    destroying every worker/verifier credential home and PROVING zero residue.
+    ``stop_runner`` SIGTERMs the runner, which unwinds into its OWN teardown; this
+    is the authoritative second sweep that also covers a runner that already died
+    (crash / SIGKILL) and never got to clean up. ``homes_swept`` feeds the
+    QualificationVerdict — residue makes teardown exit non-zero (closure bar §5).
     """
+    if runner.dry_run:
+        print(
+            f"[dry-run] teardown: stop runner, sweep homes, shred secret, restore serve ({run_id})"
+        )
+        return {
+            "torn_down": [],
+            "run_secret_shredded": True,
+            "serve_restored": True,
+            "dry_run": True,
+        }
+
     stopped = {}
     if run_id:
         stopped = stop_runner(runner, sha, run_id)
+        # Give the runner's signal-driven teardown a moment to unwind and sweep
+        # its own homes before we run the authoritative sweep below.
+        _wait_for_runner_exit(sha, run_id)
     _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
     _remove_container_and_wait(runner, _CANDIDATE_CONTAINER)
+
+    homes_swept = _sweep_run_homes(sha, run_id) if run_id else {"ok": True, "note": "no run_id"}
+
     secret_shredded = _shred_run_secret(runner, sha) if sha else True
     _restore_tailscale_serve(runner)
     return {
         "torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER],
         "runner": stopped,
+        "homes_swept": homes_swept,
         "run_secret_shredded": secret_shredded,
         "serve_restored": True,
     }
+
+
+def _wait_for_runner_exit(sha: str, run_id: str, timeout_s: float = 8.0) -> None:
+    """Best-effort wait for the SIGTERM'd runner to finish its own teardown.
+
+    Polls the recorded pid file's process; returns as soon as it is gone or the
+    timeout elapses. The authoritative home sweep runs regardless — this only
+    lets the runner's own idempotent sweep go first so the two never race a
+    half-deleted tree.
+    """
+    pid_file = _spool_root(sha, run_id).parent / f"runner_{run_id}.pid"
+    try:
+        pid = int(pid_file.read_text(encoding="utf-8").strip()) if pid_file.exists() else 0
+    except (OSError, ValueError):
+        pid = 0
+    if pid <= 0:
+        return
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        try:
+            os.kill(pid, 0)
+        except (ProcessLookupError, OSError):
+            return  # gone
+        time.sleep(0.25)
+
+
+def _sweep_run_homes(sha: str, run_id: str) -> dict[str, Any]:
+    """Authoritative run-level credential-home sweep for teardown (SEC-C1).
+
+    Destroys every worker/verifier home under the run's targets dir and proves
+    zero residue. Returns the RunSweepResult dict; ``ok`` gates the verdict.
+    """
+    sys.path.insert(0, str(_WORKTREE))
+    from substrate.execution.attempts.run_teardown import sweep_run
+
+    run_root = str(_targets_dir(sha, run_id))
+    res = sweep_run(run_root)
+    return res.to_dict()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2312,6 +2376,16 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
         mandatory["teardown:serve_restored"] = serve is not False
         if serve is False:
             reasons.append("tailscale serve was NOT restored")
+        # SEC-C1: credential-home residue is a security failure that makes the
+        # whole run NOT-QUALIFIED even when execution succeeded (closure bar §5).
+        # A teardown that ran the sweep MUST report homes_swept.ok — a missing key
+        # (older teardown result) is treated as failure so residue can never hide.
+        homes = out.get("homes_swept")
+        homes_ok = isinstance(homes, dict) and homes.get("ok") is True
+        mandatory["teardown:homes_swept"] = homes_ok
+        if not homes_ok:
+            detail = homes.get("errors") if isinstance(homes, dict) else "no homes_swept result"
+            reasons.append(f"credential homes not proven clean: {detail}")
 
     ok = all(mandatory.values()) if mandatory else True
     return QualificationVerdict(command=command, ok=ok, reasons=tuple(reasons), mandatory=mandatory)

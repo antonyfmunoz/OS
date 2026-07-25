@@ -183,9 +183,31 @@ def test_teardown_clean_passes():
         "torn_down": ["c1", "c2"],
         "run_secret_shredded": True,
         "serve_restored": True,
+        "homes_swept": {"ok": True},  # SEC-C1: residue proof required
     }
     v = wd.qualification_verdict("teardown", out)
     assert v.ok is True
+
+
+def test_teardown_with_home_residue_fails():
+    # SEC-C1: a teardown that shredded the secret and restored serve but left
+    # credential-home residue is STILL a security failure.
+    out = {
+        "run_secret_shredded": True,
+        "serve_restored": True,
+        "homes_swept": {"ok": False, "errors": ["SECURITY: worker home residue: [...]"]},
+    }
+    v = wd.qualification_verdict("teardown", out)
+    assert v.ok is False
+    assert v.mandatory.get("teardown:homes_swept") is False
+
+
+def test_teardown_missing_homes_swept_fails():
+    # A teardown result with no homes_swept key cannot prove clean → failure.
+    out = {"run_secret_shredded": True, "serve_restored": True}
+    v = wd.qualification_verdict("teardown", out)
+    assert v.ok is False
+    assert v.mandatory.get("teardown:homes_swept") is False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -215,7 +237,8 @@ def test_teardown_after_failure_cannot_greenwash():
         "reconcile", {"passes": [{"passed": False}], "all_passed": False}
     )
     tear = wd.qualification_verdict(
-        "teardown", {"run_secret_shredded": True, "serve_restored": True}
+        "teardown",
+        {"run_secret_shredded": True, "serve_restored": True, "homes_swept": {"ok": True}},
     )
     assert recon.ok is False
     assert tear.ok is True  # teardown ran cleanly...
@@ -266,7 +289,7 @@ def test_main_returns_0_on_clean_teardown(monkeypatch):
     rc = _run_main(
         monkeypatch,
         "teardown",
-        {"run_secret_shredded": True, "serve_restored": True},
+        {"run_secret_shredded": True, "serve_restored": True, "homes_swept": {"ok": True}},
     )
     assert rc == 0
 
@@ -339,6 +362,10 @@ def test_backcompat_wrapper_agrees_with_verdict():
         ("reconcile", {"passes": [{"passed": True}], "all_passed": True}),
         ("teardown", {"run_secret_shredded": False, "serve_restored": True}),
         ("teardown", {"run_secret_shredded": True, "serve_restored": True}),
+        (
+            "teardown",
+            {"run_secret_shredded": True, "serve_restored": True, "homes_swept": {"ok": True}},
+        ),
         ("preflight", {"ready": True}),
         ("deploy-candidate", {"deploy_ok": False}),
         ("inject-failure", {"armed": False, "invalid_reason": "x"}),

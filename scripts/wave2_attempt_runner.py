@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -44,6 +45,28 @@ if REPO not in sys.path:
 
 def _log(msg: str) -> None:
     print(f"[wave2-runner] {msg}", flush=True)
+
+
+class _Shutdown(BaseException):
+    """Raised out of the signal handler to unwind the loop into its finally.
+
+    A BaseException (not Exception) so the worker-fault ``except Exception`` inside
+    the loop never swallows it — a SIGTERM must always reach the run's finally,
+    where the ONE run-teardown authority sweeps every credential home. This is the
+    SEC-C1 fix: the default SIGTERM disposition terminated the process with no
+    unwinding, leaving worker/verifier homes (and the operator's OAuth token) on
+    disk. The handler converts the signal into controlled unwinding — it does NOT
+    maintain a second cleanup implementation.
+    """
+
+
+def _install_signal_handlers() -> None:
+    def _handler(signum, _frame):  # noqa: ANN001
+        _log(f"received signal {signum} — unwinding into run teardown")
+        raise _Shutdown()
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(sig, _handler)
 
 
 def _build_control_plane_driver(
@@ -90,6 +113,11 @@ def run_loop(
         isolation_primitive,
         preflight_isolation,
     )
+    from substrate.execution.attempts.run_teardown import (
+        recover_stale_runs,
+        register_resource,
+        sweep_run,
+    )
     from substrate.execution.attempts.spool import DispatchSpool
     from substrate.execution.attempts.worker_claude_cli import run_worker_in_lease
 
@@ -107,8 +135,35 @@ def run_loop(
         _log(f"FATAL: isolation preflight failed ({detail}) — refusing to run workers unconfined")
         return 2
 
+    # (1a) SEC-C1: convert SIGTERM/SIGINT into controlled unwinding so the run
+    # teardown below ALWAYS runs. Without this the default disposition killed the
+    # process mid-work and every credential home under run_root survived.
+    _install_signal_handlers()
+
+    run_root = targets_dir or os.path.dirname(spool_root.rstrip("/"))
+
+    # (1a-i) Crash recovery: before starting, sweep any PRIOR dead run's residue
+    # under this run's sibling set (closure bar §8). A run whose owner process is
+    # still alive is refused — this destroys only abandoned runs, never a live one.
+    try:
+        runs_root = os.path.dirname(run_root.rstrip("/"))
+        for res in recover_stale_runs(runs_root, live_pids={os.getpid()}):
+            _log(f"crash-recovery swept stale run {res.run_root}: ok={res.ok} {res.steps}")
+    except Exception as exc:  # never let recovery block startup
+        _log(f"crash-recovery sweep error (continuing): {exc}")
+
+    # Record THIS run's owner pid so a future startup can recognise it as ours and
+    # (if we die) sweep our residue. 'run_owner' is a liveness anchor, never a
+    # swept resource. The homes themselves are registered as the worker opens each
+    # one; this anchors the manifest to a live owner.
+    register_resource(run_root, kind="run_owner", ident=str(os.getpid()), detail="runner_owner")
+
     spool = DispatchSpool(spool_root, secret)
     _log(f"runner up: spool={spool_root} primitive={prim} max_workers={max_workers}")
+
+    # In-flight attempt ids, so the run-teardown finally can terminalize workers
+    # that a signal interrupted mid-execution before sweeping their homes.
+    inflight_attempts: set[str] = set()
 
     # (1b) build the control-plane driver if the fixture + targets are wired.
     # This is the HOST half that turns an ACTIVE grant in the shared candidate
@@ -129,102 +184,142 @@ def run_loop(
             _log(f"control-plane driver unavailable ({exc}) — worker-only mode")
             driver = None
 
+    def _run_teardown(reason: str) -> None:
+        """The ONE run-teardown, invoked on EVERY exit path via the finally below.
+
+        Sweeps the whole run root through the single run-teardown authority —
+        worker/verifier homes (by directory), manifest-recorded leases and
+        worktrees, and the spool — proving zero residue. It is idempotent, so the
+        normal-exit call and a signal-driven call converge on the same authority
+        (no second cleanup implementation). Homes are destroyed by directory here,
+        which covers exactly the attempts a signal interrupted mid-run (whose
+        per-attempt terminalize never ran).
+        """
+        if inflight_attempts:
+            _log(f"run teardown ({reason}): {len(inflight_attempts)} attempt(s) interrupted mid-run")
+        res = sweep_run(run_root, spool=spool)
+        _log(
+            f"run teardown ({reason}): ok={res.ok} homes={res.homes_destroyed} "
+            f"verifier_homes={res.verifier_homes_destroyed} "
+            f"residue_cred={len(res.credential_residue)} "
+            f"residue_worker={len(res.worker_home_residue)} "
+            f"residue_verifier={len(res.verifier_home_residue)} errors={res.errors}"
+        )
+
     iterations = 0
-    while True:
-        iterations += 1
+    try:
+        while True:
+            iterations += 1
 
-        # (2) control-plane pass FIRST: turn ACTIVE grants in the shared ledger
-        # into signed inbox dispatches, and advance any completed attempts from
-        # the outbox (drain → verify → re-schedule). This is what puts work in
-        # the inbox for the worker half below to claim.
-        if driver is not None:
-            try:
-                cycles = driver.run_cycle()
-                for c in cycles:
-                    if c.admitted or c.succeeded or c.failed or c.errors:
-                        _log(
-                            f"control-plane: grant={c.grant_ref[:32]} "
-                            f"admitted={len(c.admitted)} succeeded={len(c.succeeded)} "
-                            f"failed={len(c.failed)} drained={c.results_drained} "
-                            f"errors={len(c.errors)}"
-                        )
-                        # Surface the CAUSE, not just a count (review W8).
-                        for err in c.errors:
-                            _log(f"control-plane ERROR: {err}")
-                    elif getattr(c, "skipped_not_approved", None):
-                        # A stall with a known cause must never look like
-                        # "waiting for work" (review W5).
-                        if iterations % _IDLE_LOG_EVERY == 1:
-                            _log(
-                                f"control-plane IDLE: grant={c.grant_ref[:32]} is waiting on "
-                                f"tasks that are not APPROVED yet: {c.skipped_not_approved}"
-                            )
-                    elif iterations % _IDLE_LOG_EVERY == 1:
-                        _log(f"control-plane idle: grant={c.grant_ref[:32]} no eligible work")
-            except Exception as exc:  # never let a control-plane fault kill the worker
-                _log(f"control-plane cycle error (continuing): {exc}")
-
-        # (3) reap stale UNCLAIMED envelopes and recover crashed inflight work.
-        # Nothing previously did either: an expired envelope stranded its attempt
-        # in DISPATCHED forever, permanently consuming a concurrency slot, and a
-        # crashed worker's claim was never returned (finding C3).
-        try:
-            for name in spool.reap_stale_unclaimed():
-                _log(f"reaped stale unclaimed dispatch {name}")
-            for name in spool.recover_stale_inflight(older_than_seconds=_INFLIGHT_RECOVERY_SECONDS):
-                _log(f"recovered abandoned inflight dispatch {name}")
-        except Exception as exc:  # never let reaping kill the loop
-            _log(f"spool reap/recovery error (continuing): {exc}")
-
-        # (4) claim up to max_workers envelopes and run them CONCURRENTLY.
-        # The previous loop claimed ONE per iteration and ran the worker
-        # synchronously, so A and B never overlapped: the exactly-2 concurrency
-        # criterion was unobtainable, and B's envelope expired while A held the
-        # whole timeout. Claims are atomic (os.replace), so each worker owns a
-        # distinct envelope — with its own worktree, lease, package, credential
-        # home and process.
-        claims: list[tuple[str, Any]] = []
-        while len(claims) < max_workers:
-            claimed = spool.claim_next()
-            if claimed is None:
-                break
-            claims.append(claimed)
-
-        if not claims:
-            if max_iterations and iterations >= max_iterations:
-                _log("max iterations reached — exiting")
-                return 0
-            time.sleep(poll_seconds)
-            if max_iterations and iterations >= max_iterations:
-                return 0
-            continue
-
-        for _token, env in claims:
-            _log(f"claimed dispatch {env.dispatch_id} attempt={env.attempt_id}")
-
-        run_root = targets_dir or os.path.dirname(spool_root.rstrip("/"))
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {
-                pool.submit(
-                    _run_one_claim,
-                    spool=spool,
-                    token=token,
-                    envelope=env,
-                    oauth_token=oauth_token,
-                    run_root=run_root,
-                    run_worker=run_worker_in_lease,
-                ): env
-                for token, env in claims
-            }
-            for fut in as_completed(futures):
-                env = futures[fut]
+            # (2) control-plane pass FIRST: turn ACTIVE grants in the shared ledger
+            # into signed inbox dispatches, and advance any completed attempts from
+            # the outbox (drain → verify → re-schedule). This is what puts work in
+            # the inbox for the worker half below to claim.
+            if driver is not None:
                 try:
-                    fut.result()
-                except Exception as exc:  # a worker fault must not kill the pool
-                    _log(f"worker for {env.attempt_id} raised: {exc}")
+                    cycles = driver.run_cycle()
+                    for c in cycles:
+                        if c.admitted or c.succeeded or c.failed or c.errors:
+                            _log(
+                                f"control-plane: grant={c.grant_ref[:32]} "
+                                f"admitted={len(c.admitted)} succeeded={len(c.succeeded)} "
+                                f"failed={len(c.failed)} drained={c.results_drained} "
+                                f"errors={len(c.errors)}"
+                            )
+                            # Surface the CAUSE, not just a count (review W8).
+                            for err in c.errors:
+                                _log(f"control-plane ERROR: {err}")
+                        elif getattr(c, "skipped_not_approved", None):
+                            # A stall with a known cause must never look like
+                            # "waiting for work" (review W5).
+                            if iterations % _IDLE_LOG_EVERY == 1:
+                                _log(
+                                    f"control-plane IDLE: grant={c.grant_ref[:32]} is waiting on "
+                                    f"tasks that are not APPROVED yet: {c.skipped_not_approved}"
+                                )
+                        elif iterations % _IDLE_LOG_EVERY == 1:
+                            _log(f"control-plane idle: grant={c.grant_ref[:32]} no eligible work")
+                except Exception as exc:  # never let a control-plane fault kill the worker
+                    _log(f"control-plane cycle error (continuing): {exc}")
 
-        if max_iterations and iterations >= max_iterations:
-            return 0
+            # (3) reap stale UNCLAIMED envelopes and recover crashed inflight work.
+            # Nothing previously did either: an expired envelope stranded its attempt
+            # in DISPATCHED forever, permanently consuming a concurrency slot, and a
+            # crashed worker's claim was never returned (finding C3).
+            try:
+                for name in spool.reap_stale_unclaimed():
+                    _log(f"reaped stale unclaimed dispatch {name}")
+                for name in spool.recover_stale_inflight(
+                    older_than_seconds=_INFLIGHT_RECOVERY_SECONDS
+                ):
+                    _log(f"recovered abandoned inflight dispatch {name}")
+            except Exception as exc:  # never let reaping kill the loop
+                _log(f"spool reap/recovery error (continuing): {exc}")
+
+            # (4) claim up to max_workers envelopes and run them CONCURRENTLY.
+            # The previous loop claimed ONE per iteration and ran the worker
+            # synchronously, so A and B never overlapped: the exactly-2 concurrency
+            # criterion was unobtainable, and B's envelope expired while A held the
+            # whole timeout. Claims are atomic (os.replace), so each worker owns a
+            # distinct envelope — with its own worktree, lease, package, credential
+            # home and process.
+            claims: list[tuple[str, Any]] = []
+            while len(claims) < max_workers:
+                claimed = spool.claim_next()
+                if claimed is None:
+                    break
+                claims.append(claimed)
+
+            if not claims:
+                if max_iterations and iterations >= max_iterations:
+                    _log("max iterations reached — exiting")
+                    return 0
+                time.sleep(poll_seconds)
+                if max_iterations and iterations >= max_iterations:
+                    return 0
+                continue
+
+            for _token, env in claims:
+                _log(f"claimed dispatch {env.dispatch_id} attempt={env.attempt_id}")
+                inflight_attempts.add(str(env.attempt_id))
+
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = {
+                    pool.submit(
+                        _run_one_claim,
+                        spool=spool,
+                        token=token,
+                        envelope=env,
+                        oauth_token=oauth_token,
+                        run_root=run_root,
+                        run_worker=run_worker_in_lease,
+                    ): env
+                    for token, env in claims
+                }
+                for fut in as_completed(futures):
+                    env = futures[fut]
+                    try:
+                        fut.result()
+                    except Exception as exc:  # a worker fault must not kill the pool
+                        _log(f"worker for {env.attempt_id} raised: {exc}")
+                    finally:
+                        inflight_attempts.discard(str(env.attempt_id))
+
+            if max_iterations and iterations >= max_iterations:
+                return 0
+    except _Shutdown:
+        # A SIGTERM/SIGINT arrived. The finally below has ALREADY run the run
+        # teardown by the time we get here; convert the signal into a clean exit
+        # code (143 = 128 + SIGTERM) instead of an uncaught-BaseException stack.
+        _log("shutdown complete — exiting after run teardown")
+        return 143
+    finally:
+        # SEC-C1: EVERY exit — normal max-iterations return, a worker-loop
+        # exception, or the _Shutdown raised from the SIGTERM/SIGINT handler —
+        # unwinds through here. The run-teardown authority destroys every
+        # credential home under the run root and proves zero residue. A Shutdown
+        # interrupted mid-worker leaves the home on disk; this is what removes it.
+        _run_teardown("signal/normal-exit")
 
 
 def _run_one_claim(
@@ -257,6 +352,19 @@ def _run_one_claim(
         operation_instructions = f"Execute task {envelope.task_id} per the objective contract."
         ordered_context: list = []
         operation_identity = {"task_id": envelope.task_id}
+
+    # SEC-C1: durably register the worktree AND the worker home the instant before
+    # the worker populates them, so a signal/crash mid-run leaves enough manifest
+    # state for the run-teardown sweep (and next-start crash recovery) to find and
+    # destroy them. Registration is append-only and never raises into this path.
+    from substrate.execution.attempts.run_teardown import register_resource
+    from substrate.execution.attempts.worker_credential_boundary import attempt_home_path
+
+    register_resource(
+        run_root, kind="worker_home", ident=attempt_home_path(run_root, str(envelope.attempt_id))
+    )
+    if envelope.worktree_path:
+        register_resource(run_root, kind="worktree", ident=str(envelope.worktree_path))
 
     started_at = time.time()
     result = run_worker(

@@ -14,7 +14,7 @@ correct accounting is below and is now the authority.
 |---|---|---|
 | Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
 | Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
-| **Round 2 status** | **9 = 8 fixed + 1 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3, C-4, C-5 — open: SEC-C1 |
+| **Round 2 status** | **9 = 9 fixed + 0 open** | fixed: SEC-C1, SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3, C-4, C-5 |
 
 Round-1 and Round-2 IDs are namespaced by round; they are different findings that
 happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
@@ -481,18 +481,53 @@ because "the repair needed repairing twice" is the finding.
 - **Status:** FIXED — locally observed (not CI-verified; head has no attached
   GitHub Actions run).
 
-### SEC-C1 — teardown never destroys `worker-homes/`; residue assert is dead — **OPEN**
+### SEC-C1 — teardown never destroys `worker-homes/`; residue assert is dead — **FIXED**
 
-- **Root cause:** `assert_no_credential_residue` is defined, exported and tested
-  but **called from nowhere in production**; `teardown()` contains zero
-  references to `worker-homes`.
+- **Root cause:** `assert_no_credential_residue` was defined, exported and tested
+  but **called from nowhere in production**; `teardown()` contained zero
+  references to `worker-homes`; the runner installed **no signal handler**.
 - **Authority violated:** credential lifetime (the incident this campaign opened
   with).
-- **Exploit path:** `stop_runner` sends SIGTERM; the runner installs **no signal
-  handler**, so the `finally:` that destroys the attempt home never runs and the
-  operator's real OAuth credential survives on disk indefinitely. The cleanup
-  guarantee holds only on the graceful path.
-- **Status:** OPEN — repair in progress (order §8).
+- **Exploit path (before):** `stop_runner` sends SIGTERM; the runner installed no
+  handler, so the default disposition terminated it with no unwinding — the
+  `finally` that destroys the attempt home never ran and the operator's real
+  OAuth credential survived on disk indefinitely. The cleanup guarantee held only
+  on the graceful path.
+- **Fix — one run-level teardown authority** (`substrate/execution/attempts/run_teardown.py`):
+  - **`sweep_run(run_root)`** destroys worker homes + verifier homes (by
+    directory), manifest-recorded leases + worktrees, spool residue, preview pids,
+    and the run secret, then PROVES zero residue. Returns a typed `RunSweepResult`
+    whose `.ok` is False on ANY residue or unsafe-path refusal — idempotent, so
+    every exit path converges on it.
+  - **Signal convergence:** the runner installs a SIGTERM/SIGINT handler that
+    raises `_Shutdown` (a BaseException so the loop's `except Exception` can't
+    swallow it), unwinding into ONE `finally` that calls `sweep_run`. No second
+    cleanup implementation. Proven by a REAL SIGTERM integration test that
+    launches the runner subprocess, plants an OAuth sentinel in a worker home,
+    SIGTERMs it mid-run, and asserts the credential + home are gone (exit 143,
+    teardown log `ok=True homes=1 residue_cred=0`).
+  - **Durable registration:** `register_resource(run_root, kind, ident)` appends
+    to `<run_root>/run_manifest.jsonl` the instant each home/lease/worktree/owner
+    is created, so a partially-started run that dies is reconstructible.
+  - **Scope-safe deletion:** `_safe_run_descendant` realpath-validates every
+    delete target is a true descendant of the exact run root; symlinks, `..`, `/`,
+    empty paths and anything outside FAIL CLOSED. A symlinked homes root pointing
+    outside the tree is refused and the outside dir survives (tested).
+  - **Crash recovery:** `recover_stale_runs(runs_root)` sweeps prior dead runs'
+    residue at next startup keyed on the `run_owner` pid, and REFUSES any run
+    whose owner is still alive. No SIGKILL overclaim — the honest guarantee is
+    next-start recovery.
+  - **Verdict integration (C-5):** dispatch `teardown()` runs the authoritative
+    `sweep_run` and returns `homes_swept`; `qualification_verdict` adds a
+    mandatory `teardown:homes_swept` gate, so home residue makes teardown exit
+    non-zero even when execution/verification otherwise succeeded (closure bar §5).
+- **Verification:** `tests/test_wave2_run_teardown.py` (23 tests incl. the real
+  SIGTERM integration test) + 2 new C-5 teardown-residue tests. MUTATION-TESTS
+  cover: no-home-destruction → residue caught; unsafe-delete guard bypass →
+  outside survives only WITH the guard; false-success-after-residue → `.ok`
+  tracks residue; stale-recovery-disabled → home survives until recovery runs.
+- **Status:** FIXED — locally observed (not CI-verified; head has no attached
+  GitHub Actions run).
 
 ---
 
