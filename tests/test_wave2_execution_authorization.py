@@ -181,6 +181,80 @@ def test_approve_activates_all_tasks_then_grant_active(store, queue):
     assert ok is True
 
 
+def test_default_decision_source_activate_fn_transitions_tasks(tmp_path, monkeypatch):
+    """The DEFAULT ExecutionAuthorizationDecisionSource (no injected activate_fn,
+    exactly how UnifiedApprovalRuntime constructs it in production) MUST run the
+    FULL activation unit of work on approve — grant → ACTIVE AND every
+    task_frontier packet PLANNED → APPROVED.
+
+    Regression pin for field run 20260725T185849Z-p1: the default source fell back
+    to `_mark_active` (grant-flip only), so approval left the grant ACTIVE but its
+    tasks PLANNED. The runner then refused to dispatch ("waiting on tasks that are
+    not APPROVED yet") and no worker ran. The pre-existing
+    test_approve_activates_all_tasks_then_grant_active passed ONLY because it
+    INJECTED activate_fn — the very wiring production lacked (a coverage gap).
+    This test uses NO injection: it exercises the production default path.
+    """
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("UMH_ROOT", str(tmp_path / "repo"))
+    (tmp_path / "repo").mkdir(exist_ok=True)
+    # The default activate_fn builds UniversalWorkQueue() -> reads
+    # $UMH_STATE_DIR/universal_work/work_packets.jsonl. Seed the packets THERE so
+    # the default queue finds them.
+    default_pkt_path = tmp_path / "state" / "universal_work" / "work_packets.jsonl"
+    default_pkt_path.parent.mkdir(parents=True, exist_ok=True)
+    q = UniversalWorkQueue(store_path=str(default_pkt_path))
+    for pid in ("wp-a", "wp-b"):
+        pkt = WorkPacket(
+            title=pid,
+            user_intent=f"do {pid}",
+            approval_gates=["execution_authorization_required"],
+            work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+        )
+        pkt.packet_id = pid
+        q.ingest_work_packet(pkt)
+        q.update_packet_status(pid, PacketLifecycleStatus.CLASSIFIED, "test")
+        q.update_packet_status(pid, PacketLifecycleStatus.PLANNED, "test")
+
+    s = ExecutionAttemptStore(
+        attempts_path=str(tmp_path / "attempts.jsonl"),
+        grants_path=str(tmp_path / "grants.jsonl"),
+        readiness_path=str(tmp_path / "readiness.jsonl"),
+        leases_path=str(tmp_path / "leases.jsonl"),
+    )
+    request_execution_authorization(
+        s,
+        plan=_plan(),
+        task_frontier=["wp-a", "wp-b"],
+        tenant_id="tenant-a",
+        mutation_runner=_runner(),
+    )
+    ref = execution_decision_ref(_plan())
+
+    # DEFAULT source — NO activate_fn injected. Inject only the mutation_runner
+    # (the HIGH decision spec is not degraded-eligible; in production the daemon
+    # provides this via the canonical spine).
+    source = ExecutionAuthorizationDecisionSource(
+        store=s,
+        latest_plan_lookup=lambda oid: _plan(),
+        mutation_runner=_runner(),
+    )
+    assert source._activate_fn is not None, "default source must wire an activate_fn"
+    ok = source.approve(ref, decided_by="operator")
+    assert ok is True
+
+    grant = s.get_grant(ref)
+    assert grant.status == ExecutionAuthorizationGrantStatus.ACTIVE.value
+    # THE POINT: tasks walked PLANNED → APPROVED via the DEFAULT path. The default
+    # activate_fn transitions packets through its OWN UniversalWorkQueue instance
+    # and persists to disk; re-read from a FRESH queue at the same path (the `q`
+    # above holds a stale in-memory view, exactly like the runner reads fresh).
+    q2 = UniversalWorkQueue(store_path=str(default_pkt_path))
+    assert q2.get_packet("wp-a").status == PacketLifecycleStatus.APPROVED
+    assert q2.get_packet("wp-b").status == PacketLifecycleStatus.APPROVED
+    assert set(grant.activated_task_ids) == {"wp-a", "wp-b"}
+
+
 def test_duplicate_approval_idempotent(store, queue):
     ref = execution_decision_ref(_plan())
     request_execution_authorization(

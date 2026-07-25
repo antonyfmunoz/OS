@@ -495,6 +495,31 @@ class ExecutionAuthorizationDecisionSource:
     ) -> None:
         self._store = store or ExecutionAttemptStore()
         self._latest_plan_lookup = latest_plan_lookup
+        # Default the activation to the FULL unit-of-work (grant → ACTIVE AND each
+        # task_frontier packet PLANNED → APPROVED), not the bare grant-flip.
+        # apply_execution_decision falls back to `_mark_active` when activate_fn is
+        # None, and `_mark_active` ONLY flips the grant to ACTIVE — it does NOT
+        # close the task gate. With no activate_fn wired, the HUD approve left the
+        # grant ACTIVE but its tasks PLANNED, so the runner refused to dispatch
+        # ("waiting on tasks that are not APPROVED yet") and no worker ran (field
+        # run 20260725T185849Z-p1). Wire activate_authorized_tasks by default so
+        # approval runs the whole clause-2 unit of work; a caller may still inject
+        # its own activate_fn for tests.
+        if activate_fn is None:
+            def _default_activate_fn(
+                grant: ExecutionAuthorizationGrant,
+            ) -> ExecutionAuthorizationGrant:
+                from substrate.execution.attempts.activation import activate_authorized_tasks
+                from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+                return activate_authorized_tasks(
+                    self._store,
+                    grant,
+                    UniversalWorkQueue(),
+                    mutation_runner=self._mutation_runner,
+                )
+
+            activate_fn = _default_activate_fn
         self._activate_fn = activate_fn
         self._on_grant_activated = on_grant_activated
         self._mutation_runner = mutation_runner
