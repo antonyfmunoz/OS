@@ -43,6 +43,20 @@ FAILPOLICY = "tests/test_wave2_field_failure_policy.py"
 COORD = "tests/test_execution_coordinator.py"
 SPINE1 = "tests/test_single_spine_architecture.py"
 
+# Round-2 critical-repair suites (C-1..C-5, SEC-C1..SEC-C4). These map the
+# matrix's L-category rows to the EXACT tests that pin each repaired invariant,
+# so "every repaired invariant is in the matrix" is machine-checked, not asserted.
+DIFFSCOPE = "tests/test_wave2_diff_scope_authority.py"
+TERMINAL = "tests/test_wave2_terminalization.py"
+SCENARIO = "tests/test_wave2_scenario_map_field.py"
+EVIDENCE = "tests/test_wave2_verifier_evidence.py"
+VERISO = "tests/test_wave2_verifier_isolation.py"
+CREDBOUND = "tests/test_wave2_credential_boundary.py"
+CONCURRENCY = "tests/test_wave2_concurrency_and_readiness.py"
+FINALIZE = "tests/test_wave2_evidence_finalization.py"
+VERDICT = "tests/test_wave2_qualification_verdict.py"
+TEARDOWN = "tests/test_wave2_run_teardown.py"
+
 # vitest suites (scored per-file)
 VITEST_SURF = "src/renderer/__tests__/surfaceAuthority.test.tsx"
 VITEST_EXEC = "src/renderer/__tests__/executionSurfaceAuthority.test.tsx"
@@ -51,161 +65,475 @@ VITEST_EXEC = "src/renderer/__tests__/executionSurfaceAuthority.test.tsx"
 # id → (scenario, nodes, notes/deferral)
 MATRIX: dict[str, tuple[str, object, str]] = {
     # ── A. Ownership / convergence ──────────────────────────────────────────
-    "A1": ("One canonical ExecutionAttempt type; grant carries no requested/denied Decision state",
-           [f"{GATES}::test_grant_has_no_requested_or_denied_state", f"{STORE}::test_grant_has_no_requested_or_denied_state"], ""),
-    "A2": ("attempts/* imports no legacy execution rival (coordinator/executor_runtime/adapter/composition/governed_work)",
-           [f"{GATES}::test_attempts_package_never_imports_legacy_rivals"], ""),
-    "A3": ("Durable placement record (ExecutionAssignment) persists role/skill/worker/model/harness/env/verifier",
-           [f"{PLACE}::test_placement_records_full_assignment"], ""),
-    "A4": ("One ExecutionEnvironmentLease type; one active lease per Task",
-           [f"{PLACE}::test_lease_acquire_and_one_active_per_task"], ""),
-    "A5": ("Execution-panel family converges — aliases resolve, retired panels non-executable stubs",
-           ("vitest", VITEST_SURF), "component/source level; live-DOM in field"),
-    "A6": ("No default fake-success executor definition; no simulation default on canonical entry points",
-           [f"{GATES}::test_no_default_fake_execute_in_plan_execution_adapter", f"{GATES}::test_no_simulation_default_on_canonical_entry_points"], ""),
-
+    "A1": (
+        "One canonical ExecutionAttempt type; grant carries no requested/denied Decision state",
+        [
+            f"{GATES}::test_grant_has_no_requested_or_denied_state",
+            f"{STORE}::test_grant_has_no_requested_or_denied_state",
+        ],
+        "",
+    ),
+    "A2": (
+        "attempts/* imports no legacy execution rival (coordinator/executor_runtime/adapter/composition/governed_work)",
+        [f"{GATES}::test_attempts_package_never_imports_legacy_rivals"],
+        "",
+    ),
+    "A3": (
+        "Durable placement record (ExecutionAssignment) persists role/skill/worker/model/harness/env/verifier",
+        [f"{PLACE}::test_placement_records_full_assignment"],
+        "",
+    ),
+    "A4": (
+        "One ExecutionEnvironmentLease type; one active lease per Task",
+        [f"{PLACE}::test_lease_acquire_and_one_active_per_task"],
+        "",
+    ),
+    "A5": (
+        "Execution-panel family converges — aliases resolve, retired panels non-executable stubs",
+        ("vitest", VITEST_SURF),
+        "component/source level; live-DOM in field",
+    ),
+    "A6": (
+        "No default fake-success executor definition; no simulation default on canonical entry points",
+        [
+            f"{GATES}::test_no_default_fake_execute_in_plan_execution_adapter",
+            f"{GATES}::test_no_simulation_default_on_canonical_entry_points",
+        ],
+        "",
+    ),
     # ── B. Authorization ────────────────────────────────────────────────────
-    "B1": ("Chat request mints ONE execution-authorization decision; ZERO attempts started",
-           [f"{AUTH}::test_execution_request_surfaces_decision_and_starts_zero_attempts", f"{AUTH}::test_request_creates_one_activating_grant_no_authority"], ""),
-    "B2": ("Approve activates only the authorized Task set (grant ACTIVE after all Task transitions)",
-           [f"{AUTH}::test_approve_activates_all_tasks_then_grant_active"], ""),
-    "B3": ("Duplicate approval is idempotent",
-           [f"{AUTH}::test_duplicate_approval_idempotent"], ""),
-    "B4": ("Rejected decision creates no ACTIVE grant",
-           [f"{AUTH}::test_reject_creates_no_active_grant"], ""),
-    "B5": ("Expired authorization blocks (swept to EXPIRED, invalid)",
-           [f"{AUTH}::test_expired_grant_is_swept_and_invalid"], ""),
-    "B6": ("Revocation of an ACTIVE grant",
-           [f"{AUTH}::test_revoke_active_grant"], ""),
-    "B7": ("Plan revision invalidates a stale authorization on approval",
-           [f"{AUTH}::test_approve_after_plan_revision_is_invalidated"], ""),
-
+    "B1": (
+        "Chat request mints ONE execution-authorization decision; ZERO attempts started",
+        [
+            f"{AUTH}::test_execution_request_surfaces_decision_and_starts_zero_attempts",
+            f"{AUTH}::test_request_creates_one_activating_grant_no_authority",
+        ],
+        "",
+    ),
+    "B2": (
+        "Approve activates only the authorized Task set (grant ACTIVE after all Task transitions)",
+        [f"{AUTH}::test_approve_activates_all_tasks_then_grant_active"],
+        "",
+    ),
+    "B3": ("Duplicate approval is idempotent", [f"{AUTH}::test_duplicate_approval_idempotent"], ""),
+    "B4": (
+        "Rejected decision creates no ACTIVE grant",
+        [f"{AUTH}::test_reject_creates_no_active_grant"],
+        "",
+    ),
+    "B5": (
+        "Expired authorization blocks (swept to EXPIRED, invalid)",
+        [f"{AUTH}::test_expired_grant_is_swept_and_invalid"],
+        "",
+    ),
+    "B6": ("Revocation of an ACTIVE grant", [f"{AUTH}::test_revoke_active_grant"], ""),
+    "B7": (
+        "Plan revision invalidates a stale authorization on approval",
+        [f"{AUTH}::test_approve_after_plan_revision_is_invalidated"],
+        "",
+    ),
     # ── C. Canonical attempts ───────────────────────────────────────────────
-    "C1": ("Idempotent attempt creation — duplicate request returns existing",
-           [f"{STORE}::test_create_attempt_idempotent_returns_existing"], ""),
-    "C2": ("Attempt lifecycle CAS: version conflict + status conflict rejected; history append-only",
-           [f"{STORE}::test_transition_cas_version_conflict", f"{STORE}::test_transition_cas_status_conflict", f"{STORE}::test_transition_cas_happy_path_and_history"], ""),
-    "C3": ("Identity fields immutable; illegal transitions rejected",
-           [f"{STORE}::test_transition_cas_rejects_immutable_field_write", f"{STORE}::test_illegal_transition_rejected"], ""),
-    "C4": ("Retry is a new linked attempt_number",
-           [f"{STORE}::test_retry_is_a_new_attempt_number"], ""),
-    "C5": ("Exactly-once: repeated scheduler pass creates no duplicate attempt",
-           [f"{SCHED}::test_no_duplicate_attempt_on_repeated_pass"], ""),
-    "C6": ("Compiler wires plan-node depends_on → WorkPacket.dependencies (fan-in/chain/persist)",
-           [f"{DEPS}"], ""),
-
+    "C1": (
+        "Idempotent attempt creation — duplicate request returns existing",
+        [f"{STORE}::test_create_attempt_idempotent_returns_existing"],
+        "",
+    ),
+    "C2": (
+        "Attempt lifecycle CAS: version conflict + status conflict rejected; history append-only",
+        [
+            f"{STORE}::test_transition_cas_version_conflict",
+            f"{STORE}::test_transition_cas_status_conflict",
+            f"{STORE}::test_transition_cas_happy_path_and_history",
+        ],
+        "",
+    ),
+    "C3": (
+        "Identity fields immutable; illegal transitions rejected",
+        [
+            f"{STORE}::test_transition_cas_rejects_immutable_field_write",
+            f"{STORE}::test_illegal_transition_rejected",
+        ],
+        "",
+    ),
+    "C4": (
+        "Retry is a new linked attempt_number",
+        [f"{STORE}::test_retry_is_a_new_attempt_number"],
+        "",
+    ),
+    "C5": (
+        "Exactly-once: repeated scheduler pass creates no duplicate attempt",
+        [f"{SCHED}::test_no_duplicate_attempt_on_repeated_pass"],
+        "",
+    ),
+    "C6": (
+        "Compiler wires plan-node depends_on → WorkPacket.dependencies (fan-in/chain/persist)",
+        [f"{DEPS}"],
+        "",
+    ),
     # ── D. Dependencies ─────────────────────────────────────────────────────
-    "D1": ("Independent lanes admit up to concurrency",
-           [f"{SCHED}::test_independent_lanes_admit_up_to_concurrency"], ""),
-    "D2": ("Fan-in Task blocked until predecessors SUCCEED with proof, then unblocked",
-           [f"{SCHED}::test_fanin_task_blocked_until_predecessors_succeed"], ""),
-    "D3": ("Failed predecessor blocks dependent",
-           [f"{SCHED}::test_failed_predecessor_blocks_dependent"], ""),
-    "D4": ("Capacity cap limits admission",
-           [f"{SCHED}::test_concurrency_cap_limits_admission"], ""),
-
+    "D1": (
+        "Independent lanes admit up to concurrency",
+        [f"{SCHED}::test_independent_lanes_admit_up_to_concurrency"],
+        "",
+    ),
+    "D2": (
+        "Fan-in Task blocked until predecessors SUCCEED with proof, then unblocked",
+        [f"{SCHED}::test_fanin_task_blocked_until_predecessors_succeed"],
+        "",
+    ),
+    "D3": (
+        "Failed predecessor blocks dependent",
+        [f"{SCHED}::test_failed_predecessor_blocks_dependent"],
+        "",
+    ),
+    "D4": (
+        "Capacity cap limits admission",
+        [f"{SCHED}::test_concurrency_cap_limits_admission"],
+        "",
+    ),
     # ── E. Role / skill / placement ─────────────────────────────────────────
-    "E1": ("Deterministic placement — same inputs → same worker/node/scores",
-           [f"{PLACE}::test_placement_is_deterministic"], ""),
-    "E2": ("Separation of duty — verifier role ≠ worker role",
-           [f"{PLACE}::test_placement_separation_of_duty"], ""),
-    "E3": ("No eligible worker fails closed",
-           [f"{PLACE}::test_placement_no_eligible_worker_fails_closed"], ""),
-    "E4": ("15 readiness checks incl. prohibited-skill → PROHIBITED, verifier≠worker",
-           [f"{READY}::test_all_checks_pass_authorized", f"{READY}::test_prohibited_skill_prohibited", f"{READY}::test_verifier_must_differ_from_worker_role"], ""),
-    "E5": ("Coordinator canonical lineage never auto-approved (compat isolation)",
-           [f"{COORD}::TestGovernanceGate::test_canonical_plan_lineage_never_auto_approved"], ""),
-
+    "E1": (
+        "Deterministic placement — same inputs → same worker/node/scores",
+        [f"{PLACE}::test_placement_is_deterministic"],
+        "",
+    ),
+    "E2": (
+        "Separation of duty — verifier role ≠ worker role",
+        [f"{PLACE}::test_placement_separation_of_duty"],
+        "",
+    ),
+    "E3": (
+        "No eligible worker fails closed",
+        [f"{PLACE}::test_placement_no_eligible_worker_fails_closed"],
+        "",
+    ),
+    "E4": (
+        "15 readiness checks incl. prohibited-skill → PROHIBITED, verifier≠worker",
+        [
+            f"{READY}::test_all_checks_pass_authorized",
+            f"{READY}::test_prohibited_skill_prohibited",
+            f"{READY}::test_verifier_must_differ_from_worker_role",
+        ],
+        "",
+    ),
+    "E5": (
+        "Coordinator canonical lineage never auto-approved (compat isolation)",
+        [f"{COORD}::TestGovernanceGate::test_canonical_plan_lineage_never_auto_approved"],
+        "",
+    ),
     # ── F. Environment ──────────────────────────────────────────────────────
-    "F1": ("Lease rejects repo-root / /opt/OS workspace (cleans up bad worktree)",
-           [f"{PLACE}::test_lease_rejects_repo_root_workspace"], ""),
-    "F2": ("Lease release + revoke",
-           [f"{PLACE}::test_lease_release_and_revoke"], ""),
-    "F3": ("Enforced host isolation — bwrap hides /opt/OS (live-verified)",
-           [f"{ISO}::test_preflight_hides_opt_os", f"{ISO}::test_isolation_primitive_available"], ""),
-    "F4": ("Worker env scrub strips ALL credentials",
-           [f"{ISO}::test_env_scrub_strips_all_credentials"], ""),
-
+    "F1": (
+        "Lease rejects repo-root / /opt/OS workspace (cleans up bad worktree)",
+        [f"{PLACE}::test_lease_rejects_repo_root_workspace"],
+        "",
+    ),
+    "F2": ("Lease release + revoke", [f"{PLACE}::test_lease_release_and_revoke"], ""),
+    "F3": (
+        "Enforced host isolation — bwrap hides /opt/OS (live-verified)",
+        [f"{ISO}::test_preflight_hides_opt_os", f"{ISO}::test_isolation_primitive_available"],
+        "",
+    ),
+    "F4": (
+        "Worker env scrub strips ALL credentials",
+        [f"{ISO}::test_env_scrub_strips_all_credentials"],
+        "",
+    ),
     # ── G. Instructions ─────────────────────────────────────────────────────
-    "G1": ("Dispatch consumes compile_instruction_package (first production caller; sealed hash)",
-           [f"{PLACE}::test_compile_package_sealed_and_hashed"], ""),
-    "G2": ("Package hash sealed — tamper changes hash",
-           [f"{PLACE}::test_compile_package_tamper_changes_hash"], ""),
-    "G3": ("Compilation failure blocks dispatch (fail closed)",
-           [f"{PLACE}::test_compilation_failure_blocks_dispatch"], ""),
-
+    "G1": (
+        "Dispatch consumes compile_instruction_package (first production caller; sealed hash)",
+        [f"{PLACE}::test_compile_package_sealed_and_hashed"],
+        "",
+    ),
+    "G2": (
+        "Package hash sealed — tamper changes hash",
+        [f"{PLACE}::test_compile_package_tamper_changes_hash"],
+        "",
+    ),
+    "G3": (
+        "Compilation failure blocks dispatch (fail closed)",
+        [f"{PLACE}::test_compilation_failure_blocks_dispatch"],
+        "",
+    ),
     # ── H. Real execution ───────────────────────────────────────────────────
-    "H1": ("Real worker fails closed without CLI (no simulation fallback)",
-           [f"{ISO}::test_worker_fails_closed_without_cli"], "H2/H3 real-artifact halves in field"),
-    "H2": ("Signed spool: enqueue/claim roundtrip; tampered/wrong-secret/expired quarantined",
-           [f"{ISO}::test_enqueue_claim_roundtrip", f"{ISO}::test_tampered_envelope_is_quarantined", f"{ISO}::test_wrong_secret_rejects", f"{ISO}::test_expired_envelope_quarantined"], ""),
-    "H3": ("Spool is transport-only — no operator status inferred from files; results signed",
-           [f"{ISO}::test_spool_never_infers_status_only_transports", f"{ISO}::test_result_roundtrip_and_signature", f"{ISO}::test_tampered_result_quarantined"], ""),
-    "H4": ("execute_work fails closed without canonical router; no dispatch_next fallback",
-           [f"{SPINE1}::test_execute_work_fails_closed_without_canonical_router", f"{SPINE1}::test_governed_work_runtime_gates_execution_behind_canonical_routing"], ""),
-    "H5": ("Spine authorization consumption — out-of-scope/hash-mismatch/expired/inactive rejected",
-           [f"{SPINE}::test_out_of_scope_subject_rejected", f"{SPINE}::test_scope_hash_mismatch_rejected", f"{SPINE}::test_expired_authorization_rejected", f"{SPINE}::test_inactive_grant_rejected", f"{SPINE}::test_authorization_ref_without_lookup_fails_closed"], ""),
-
+    "H1": (
+        "Real worker fails closed without CLI (no simulation fallback)",
+        [f"{ISO}::test_worker_fails_closed_without_cli"],
+        "H2/H3 real-artifact halves in field",
+    ),
+    "H2": (
+        "Signed spool: enqueue/claim roundtrip; tampered/wrong-secret/expired quarantined",
+        [
+            f"{ISO}::test_enqueue_claim_roundtrip",
+            f"{ISO}::test_tampered_envelope_is_quarantined",
+            f"{ISO}::test_wrong_secret_rejects",
+            f"{ISO}::test_expired_envelope_quarantined",
+        ],
+        "",
+    ),
+    "H3": (
+        "Spool is transport-only — no operator status inferred from files; results signed",
+        [
+            f"{ISO}::test_spool_never_infers_status_only_transports",
+            f"{ISO}::test_result_roundtrip_and_signature",
+            f"{ISO}::test_tampered_result_quarantined",
+        ],
+        "",
+    ),
+    "H4": (
+        "execute_work fails closed without canonical router; no dispatch_next fallback",
+        [
+            f"{SPINE1}::test_execute_work_fails_closed_without_canonical_router",
+            f"{SPINE1}::test_governed_work_runtime_gates_execution_behind_canonical_routing",
+        ],
+        "",
+    ),
+    "H5": (
+        "Spine authorization consumption — out-of-scope/hash-mismatch/expired/inactive rejected",
+        [
+            f"{SPINE}::test_out_of_scope_subject_rejected",
+            f"{SPINE}::test_scope_hash_mismatch_rejected",
+            f"{SPINE}::test_expired_authorization_rejected",
+            f"{SPINE}::test_inactive_grant_rejected",
+            f"{SPINE}::test_authorization_ref_without_lookup_fails_closed",
+        ],
+        "",
+    ),
     # ── I. Attribution / Proof ──────────────────────────────────────────────
-    "I1": ("AttemptProof requires real artifacts + verifier≠worker; no artifacts fails",
-           [f"{VERIFY}::test_attempt_proof_passes_with_real_artifacts", f"{VERIFY}::test_verifier_must_differ_from_worker", f"{VERIFY}::test_no_artifacts_fails_verification"], ""),
-    "I2": ("Proof-gated completion — attempt SUCCEEDED only with proof_id + distinct verifier",
-           [f"{VERIFY}::test_attempt_completes_only_with_proof_and_distinct_verifier"], ""),
-    "I3": ("Package-hash mismatch + independent verifier tests fail the verdict",
-           [f"{VERIFY}::test_package_hash_mismatch_fails", f"{VERIFY}::test_independent_checks_can_fail_verdict"], ""),
-    "I4": ("PlanExecutionProof — reconvergence/tests/live/browser/integrity/zero-deploy; fails on any check",
-           [f"{VERIFY}::test_plan_execution_proof", f"{VERIFY}::test_plan_execution_proof_fails_on_any_check"], "live/browser halves in field"),
-
+    "I1": (
+        "AttemptProof requires real artifacts + verifier≠worker; no artifacts fails",
+        [
+            f"{VERIFY}::test_attempt_proof_passes_with_real_artifacts",
+            f"{VERIFY}::test_verifier_must_differ_from_worker",
+            f"{VERIFY}::test_no_artifacts_fails_verification",
+        ],
+        "",
+    ),
+    "I2": (
+        "Proof-gated completion — attempt SUCCEEDED only with proof_id + distinct verifier",
+        [f"{VERIFY}::test_attempt_completes_only_with_proof_and_distinct_verifier"],
+        "",
+    ),
+    "I3": (
+        "Package-hash mismatch + independent verifier tests fail the verdict",
+        [
+            f"{VERIFY}::test_package_hash_mismatch_fails",
+            f"{VERIFY}::test_independent_checks_can_fail_verdict",
+        ],
+        "",
+    ),
+    "I4": (
+        "PlanExecutionProof — reconvergence/tests/live/browser/integrity/zero-deploy; fails on any check",
+        [
+            f"{VERIFY}::test_plan_execution_proof",
+            f"{VERIFY}::test_plan_execution_proof_fails_on_any_check",
+        ],
+        "live/browser halves in field",
+    ),
     # ── J. Surfaces ─────────────────────────────────────────────────────────
-    "J1": ("Chat has no execution authorize controls; ChatExecutionCard status-only",
-           ("vitest", VITEST_EXEC), ""),
-    "J2": ("Execution decisions HUD-only (w2-execution-decision + w2-exec-* only in ControlPanel)",
-           ("vitest", VITEST_EXEC), ""),
-    "J3": ("Execution-cluster aliases resolve to canonical execution; retired panels stubs",
-           ("vitest", VITEST_SURF), ""),
-    "J4": ("All 10 w2-* execution testids present at their surfaces",
-           ("vitest", VITEST_EXEC), "live-DOM half in field"),
-    "J5": ("Persistence-by-refetch — executionAttemptStore never uses localStorage",
-           ("vitest", VITEST_EXEC), ""),
-    "J6": ("Execution read surface never 500s; retry fails closed without active grant",
-           [f"{ROUTES}::test_reads_never_500", f"{ROUTES}::test_retry_fails_closed_without_active_grant"], ""),
-
+    "J1": (
+        "Chat has no execution authorize controls; ChatExecutionCard status-only",
+        ("vitest", VITEST_EXEC),
+        "",
+    ),
+    "J2": (
+        "Execution decisions HUD-only (w2-execution-decision + w2-exec-* only in ControlPanel)",
+        ("vitest", VITEST_EXEC),
+        "",
+    ),
+    "J3": (
+        "Execution-cluster aliases resolve to canonical execution; retired panels stubs",
+        ("vitest", VITEST_SURF),
+        "",
+    ),
+    "J4": (
+        "All 10 w2-* execution testids present at their surfaces",
+        ("vitest", VITEST_EXEC),
+        "live-DOM half in field",
+    ),
+    "J5": (
+        "Persistence-by-refetch — executionAttemptStore never uses localStorage",
+        ("vitest", VITEST_EXEC),
+        "",
+    ),
+    "J6": (
+        "Execution read surface never 500s; retry fails closed without active grant",
+        [
+            f"{ROUTES}::test_reads_never_500",
+            f"{ROUTES}::test_retry_fails_closed_without_active_grant",
+        ],
+        "",
+    ),
     # ── K. Wave boundary ────────────────────────────────────────────────────
-    "K1": ("Single-writer scheduler — a losing tick no-ops (no mutation)",
-           [f"{SCHED}::test_single_writer_lease_losing_tick_noops"], ""),
-    "K2": ("Chat cannot start execution directly — request surfaces the HUD decision only",
-           [f"{AUTH}::test_execution_request_surfaces_decision_and_starts_zero_attempts"], ""),
-    "K3": ("attempts/* wires no WorkcellDaemon supervisor; events only on the shared spine",
-           [f"{GATES}::test_attempts_do_not_wire_workcell_daemon_supervisor", f"{GATES}::test_attempts_events_use_only_shared_event_spine"], ""),
-
+    "K1": (
+        "Single-writer scheduler — a losing tick no-ops (no mutation)",
+        [f"{SCHED}::test_single_writer_lease_losing_tick_noops"],
+        "",
+    ),
+    "K2": (
+        "Chat cannot start execution directly — request surfaces the HUD decision only",
+        [f"{AUTH}::test_execution_request_surfaces_decision_and_starts_zero_attempts"],
+        "",
+    ),
+    "K3": (
+        "attempts/* wires no WorkcellDaemon supervisor; events only on the shared spine",
+        [
+            f"{GATES}::test_attempts_do_not_wire_workcell_daemon_supervisor",
+            f"{GATES}::test_attempts_events_use_only_shared_event_spine",
+        ],
+        "",
+    ),
+    # ── L. Round-2 critical repairs (C-1..C-5, SEC-C1..SEC-C4) ──────────────────
+    # Each row maps to the EXACT tests pinning a repaired invariant so the matrix
+    # is the machine-checked record that every closure landed on this head.
+    "L-C1": (
+        "C-1 writable-scope authority: diff confined to the Task's DECLARED WorkPacket "
+        "paths; rewriting the fixture's own tests / out-of-scope changes fail closed",
+        [
+            f"{DIFFSCOPE}::test_in_scope_change_passes",
+            f"{DIFFSCOPE}::test_rewriting_the_fixtures_own_tests_fails",
+        ],
+        "",
+    ),
+    "L-C2": (
+        "C-2 one idempotent lease/home terminalization: failed attempt's lease blocks retry "
+        "until terminalized; terminalize destroys the attempt credential home; idempotent",
+        [
+            f"{TERMINAL}::test_failed_attempt_lease_blocks_retry_until_terminalized",
+            f"{TERMINAL}::test_terminalize_destroys_the_attempt_credential_home",
+            f"{TERMINAL}::test_terminalize_is_idempotent",
+        ],
+        "",
+    ),
+    "L-C3": (
+        "C-3 canonical failure injection + scenario map: map built only from real materialized "
+        "packets, run/plan/grant/tenant/frontier exact-bound; no last-write-wins packet identity",
+        [
+            f"{SCENARIO}::test_build_requires_real_packets_and_binds_exactly",
+            f"{SCENARIO}::test_full_chain_arms_targets_backend_first_attempt",
+        ],
+        "",
+    ),
+    "L-C4": (
+        "C-4/C-4a confined verifier + durable evidence: verified_commit == worker HEAD (≠ base); "
+        "expected-commit mismatch fails; exactly-one durable evidence; verifier home destroyed",
+        [
+            f"{EVIDENCE}::test_verified_commit_is_worker_head_not_base",
+            f"{EVIDENCE}::test_expected_result_commit_mismatch_fails",
+            f"{VERISO}::test_verifier_home_destroyed_after_run",
+        ],
+        "",
+    ),
+    "L-C5": (
+        "C-5 one typed QualificationVerdict governs report+exit: empty/below-threshold reconcile "
+        "fails; all_passed cannot override a failed pass; failed reconcile → main() exit 3",
+        [
+            f"{VERDICT}::test_empty_reconcile_passes_list_is_failure",
+            f"{VERDICT}::test_reconcile_below_threshold_fails",
+            f"{VERDICT}::test_all_passed_cannot_override_failed_pass",
+            f"{VERDICT}::test_main_returns_3_on_failed_reconcile",
+        ],
+        "",
+    ),
+    "L-SEC1": (
+        "SEC-C1 run-level teardown + signal convergence + crash recovery: sweep destroys "
+        "worker+verifier homes proving zero residue; unsafe paths fail closed; recover refuses "
+        "a LIVE run; signal handler installed; _Shutdown is BaseException; teardown in a finally",
+        [
+            f"{TEARDOWN}::test_sweep_destroys_worker_and_verifier_homes",
+            f"{TEARDOWN}::test_sweep_never_deletes_outside_the_run_root",
+            f"{TEARDOWN}::test_recover_refuses_live_run",
+            f"{TEARDOWN}::test_runner_installs_signal_handlers",
+            f"{TEARDOWN}::test_shutdown_is_baseexception_not_exception",
+            f"{TEARDOWN}::test_run_loop_teardown_runs_in_a_finally",
+        ],
+        "real-SIGTERM half has a deterministic guard",
+    ),
+    "L-SEC1b": (
+        "SEC-C1 REAL SIGTERM integration: launch runner subprocess, plant OAuth sentinel in a "
+        "worker home, SIGTERM mid-run, prove credential+home destroyed (load-sensitive; "
+        "CPU-gate-skips, guarded by the deterministic L-SEC1 source-pins above)",
+        [f"{TEARDOWN}::test_real_sigterm_destroys_worker_home"],
+        "load-sensitive; deterministic guard = L-SEC1",
+    ),
+    "L-SEC2": (
+        "SEC-C2 per-attempt credential home derived from attempt_id (retry → new home); "
+        "residue detector finds a planted credential; forced-interrupt cleanup leaves none",
+        [
+            f"{CREDBOUND}::test_home_is_derived_from_attempt_id_not_worktree_parent",
+            f"{CREDBOUND}::test_retry_attempt_gets_a_new_home",
+            f"{CREDBOUND}::test_residue_detector_finds_a_planted_credential",
+        ],
+        "",
+    ),
+    "L-SEC3": (
+        "SEC-C3 readiness/verdict exit semantics: a NOT-READY deploy declares failure and "
+        "exits non-zero; run_passes refuses when candidate not ready (zero quota consumed)",
+        [
+            f"{CONCURRENCY}::test_not_ready_deploy_declares_failure",
+            f"{CONCURRENCY}::test_run_passes_refuses_when_candidate_not_ready",
+        ],
+        "",
+    ),
+    "L-SEC4": (
+        "SEC-C4 evidence finalization + manifest re-verification: the live-output redaction "
+        "regex does not eat legitimate hashes but redacts the launch-log secret leak form",
+        [f"{FINALIZE}::test_withdrawn_bare_hex_rule_does_not_eat_hashes_in_live_output"],
+        "",
+    ),
     # ── Harness mechanics (deterministic — no quota, proves harness runnable) ─
-    "HM1": ("Control-plane poller drives dispatched→running→verifying→succeeded|failed; "
-            "never trusts worker self-report; verifier≠worker; idempotent on redelivery",
-            [f"{POLLER}::test_dispatched_result_drives_to_succeeded_with_proof",
-             f"{POLLER}::test_failed_verification_never_produces_success_proof",
-             f"{POLLER}::test_redelivered_result_is_idempotent"], ""),
-    "HM2": ("NO-QUOTA end-to-end rehearsal: REAL scheduler+spool+poller + stub worker "
-            "drive full A/B→C→D — exactly-2 concurrency, C blocked until A∧B proof, "
-            "fan-in, verifier≠worker (HARNESS_REHEARSAL_ONLY)",
-            [f"{REHEARSAL}::test_full_graph_rehearsal_no_quota",
-             f"{REHEARSAL}::test_signature_rejection_quarantines_bad_dispatch",
-             f"{REHEARSAL}::test_rehearsal_is_not_real_qualification"], ""),
-    "HM3": ("Failure-qualification rehearsal: the inject-failure marker is ACTUALLY consumed "
-            "(revokes Edit/Write on A's first attempt) → A produces no commit → verification "
-            "refuses → A fails (no false Proof) → C stays blocked; retry runs unrevoked",
-            [f"{REHEARSAL}::test_failure_qualification_rehearsal",
-             f"{FAILPOLICY}::test_marker_actually_changes_policy",
-             f"{FAILPOLICY}::test_tools_revoked_a_does_not_touch_retry_or_other_tasks"], ""),
-
+    "HM1": (
+        "Control-plane poller drives dispatched→running→verifying→succeeded|failed; "
+        "never trusts worker self-report; verifier≠worker; idempotent on redelivery",
+        [
+            f"{POLLER}::test_dispatched_result_drives_to_succeeded_with_proof",
+            f"{POLLER}::test_failed_verification_never_produces_success_proof",
+            f"{POLLER}::test_redelivered_result_is_idempotent",
+        ],
+        "",
+    ),
+    "HM2": (
+        "NO-QUOTA end-to-end rehearsal: REAL scheduler+spool+poller + stub worker "
+        "drive full A/B→C→D — exactly-2 concurrency, C blocked until A∧B proof, "
+        "fan-in, verifier≠worker (HARNESS_REHEARSAL_ONLY)",
+        [
+            f"{REHEARSAL}::test_full_graph_rehearsal_no_quota",
+            f"{REHEARSAL}::test_signature_rejection_quarantines_bad_dispatch",
+            f"{REHEARSAL}::test_rehearsal_is_not_real_qualification",
+        ],
+        "",
+    ),
+    "HM3": (
+        "Failure-qualification rehearsal: the inject-failure marker is ACTUALLY consumed "
+        "(revokes Edit/Write on A's first attempt) → A produces no commit → verification "
+        "refuses → A fails (no false Proof) → C stays blocked; retry runs unrevoked",
+        [
+            f"{REHEARSAL}::test_failure_qualification_rehearsal",
+            f"{FAILPOLICY}::test_marker_changes_the_computed_policy",
+            f"{FAILPOLICY}::test_retry_attempt_is_not_revoked",
+        ],
+        "",
+    ),
     # ── Field-qualified rows (Session 1) ────────────────────────────────────
-    "FA": ("FIELD: two independent workers (A backend, B frontend) run concurrently in isolated worktrees",
-           [], "FIELD_PENDING — Session 1 steps w16"),
-    "FB": ("FIELD: C reconverges only after A∧B AttemptProof; D independently verifies with real Chrome",
-           [], "FIELD_PENDING — Session 1 steps w17–w24"),
-    "FC": ("FIELD: same-thread report; refresh + Chrome restart persistence; zero prod deploy; /opt/OS unchanged",
-           [], "FIELD_PENDING — Session 1 steps w26–w30"),
-    "FD": ("FIELD: failure qualification — injected worker failure, C stays blocked, no false Proof, retry continues",
-           [], "FIELD_PENDING — inject-failure pass"),
+    "FA": (
+        "FIELD: two independent workers (A backend, B frontend) run concurrently in isolated worktrees",
+        [],
+        "FIELD_PENDING — Session 1 steps w16",
+    ),
+    "FB": (
+        "FIELD: C reconverges only after A∧B AttemptProof; D independently verifies with real Chrome",
+        [],
+        "FIELD_PENDING — Session 1 steps w17–w24",
+    ),
+    "FC": (
+        "FIELD: same-thread report; refresh + Chrome restart persistence; zero prod deploy; /opt/OS unchanged",
+        [],
+        "FIELD_PENDING — Session 1 steps w26–w30",
+    ),
+    "FD": (
+        "FIELD: failure qualification — injected worker failure, C stays blocked, no false Proof, retry continues",
+        [],
+        "FIELD_PENDING — inject-failure pass",
+    ),
 }
 
 
@@ -214,38 +542,104 @@ def _run_vitest(suite: str) -> bool:
         proc = subprocess.run(
             ["npx", "vitest", "run", suite],
             cwd=os.path.join(REPO, "cockpit"),
-            capture_output=True, text=True, timeout=600,
+            capture_output=True,
+            text=True,
+            timeout=600,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
-        print(f"vitest {suite} not runnable here ({exc.__class__.__name__}) — "
-              f"deferred to candidate", file=sys.stderr)
+        print(
+            f"vitest {suite} not runnable here ({exc.__class__.__name__}) — deferred to candidate",
+            file=sys.stderr,
+        )
         return False
     return proc.returncode == 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default=os.path.join(
-        REPO, "data", "audits", f"{datetime.date.today().isoformat()}_wave2_matrix_report.md"))
-    parser.add_argument("--skip-vitest", action="store_true",
-                        help="skip vitest (node_modules not present, e.g. VPS) — vitest rows FIELD_PENDING")
+    parser.add_argument(
+        "--out",
+        default=os.path.join(
+            REPO, "data", "audits", f"{datetime.date.today().isoformat()}_wave2_matrix_report.md"
+        ),
+    )
+    parser.add_argument(
+        "--skip-vitest",
+        action="store_true",
+        help="skip vitest (node_modules not present, e.g. VPS) — vitest rows FIELD_PENDING",
+    )
     args = parser.parse_args()
 
     all_nodes: list[str] = []
     for _sid, (_sc, nodes, _n) in MATRIX.items():
         if isinstance(nodes, list):
             all_nodes.extend(nodes)
+    unique_nodes = list(dict.fromkeys(all_nodes))
     print(f"running {len(all_nodes)} pytest node groups ...")
-    cmd = [sys.executable, "-m", "pytest", "-q", "--color=no", "--tb=line", *dict.fromkeys(all_nodes)]
+
+    # FAIL CLOSED on a mistyped/missing node. A node that does not collect makes
+    # pytest exit with an ERROR and NO "FAILED"/"passed" summary — under which the
+    # old scorer marked every row PASS (a false green). Preflight-collect every
+    # node first; a single uncollectable node aborts the whole matrix.
+    collect = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            *unique_nodes,
+        ],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    collect_out = re.sub(r"\x1b\[[0-9;]*m", "", collect.stdout + collect.stderr)
+    if collect.returncode != 0 or "no match" in collect_out or "not found" in collect_out:
+        bad = [ln for ln in collect_out.splitlines() if "not found" in ln or "no match" in ln]
+        print(
+            "FATAL: one or more matrix nodes do not collect — refusing to emit a "
+            "possibly-false-green report:\n  " + "\n  ".join(bad or [collect_out[-400:]]),
+            file=sys.stderr,
+        )
+        return 1
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "--color=no",
+        "--tb=line",
+        *unique_nodes,
+    ]
     try:
         proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=1800)
     except subprocess.TimeoutExpired as exc:
         print(f"FATAL: pytest exceeded {exc.timeout}s — no report", file=sys.stderr)
         return 1
     stdout = re.sub(r"\x1b\[[0-9;]*m", "", proc.stdout)
-    failed_nodes = {m.group(1) for m in re.finditer(r"^FAILED (\S+?)(?:\[|\s|$)", stdout, re.MULTILINE)}
-    summary_line = next((ln for ln in reversed(stdout.splitlines()) if "passed" in ln or "failed" in ln), "")
+    failed_nodes = {
+        m.group(1) for m in re.finditer(r"^FAILED (\S+?)(?:\[|\s|$)", stdout, re.MULTILINE)
+    }
+    summary_line = next(
+        (ln for ln in reversed(stdout.splitlines()) if "passed" in ln or "failed" in ln), ""
+    )
     print("pytest:", summary_line.strip())
+
+    # FAIL CLOSED on a missing summary or a collection error in the real run: an
+    # empty summary means pytest did not run the set to completion, so no row's
+    # PASS can be trusted. (rc 0/1 = ran; 2=interrupt, 3=internal, 4=usage, 5=none.)
+    if not summary_line or "error" in summary_line.lower() or proc.returncode not in (0, 1):
+        print(
+            f"FATAL: pytest did not produce a clean summary (rc={proc.returncode}, "
+            f"summary={summary_line.strip()!r}) — refusing to emit a report",
+            file=sys.stderr,
+        )
+        return 1
 
     # Per-suite vitest results.
     vitest_results: dict[str, bool] = {}
@@ -259,8 +653,9 @@ def main() -> int:
             vitest_results[suite] = ok
             print(f"vitest {suite}: {'PASS' if ok else 'FAIL/deferred'}")
 
-    commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO,
-                            capture_output=True, text=True).stdout.strip()
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True
+    ).stdout.strip()
 
     def _status(nodes: object, note: str) -> str:
         if isinstance(nodes, tuple):  # vitest
@@ -272,8 +667,11 @@ def main() -> int:
         elif isinstance(nodes, list) and not nodes:  # field-only row
             return "FIELD_PENDING"
         else:
-            base = ("FAIL" if any(f == n or f.startswith(n + "::")
-                                  for n in nodes for f in failed_nodes) else "PASS")
+            base = (
+                "FAIL"
+                if any(f == n or f.startswith(n + "::") for n in nodes for f in failed_nodes)
+                else "PASS"
+            )
         if note.startswith("FIELD_PENDING"):
             return f"{base} (deterministic) / FIELD_PENDING"
         if note.startswith("FIELD_QUALIFIED"):
@@ -291,11 +689,16 @@ def main() -> int:
         else:
             exact = "<br>".join(f"`{n}`" for n in nodes)
             evidence = summary_line.strip()
-        rows.append(f"| {sid} | {scenario} | {exact} | **{_status(nodes, note)}** | {evidence} | `{commit[:12]}` | {note or '—'} |")
+        rows.append(
+            f"| {sid} | {scenario} | {exact} | **{_status(nodes, note)}** | {evidence} | `{commit[:12]}` | {note or '—'} |"
+        )
 
     total = len(MATRIX)
-    field_pending = sum(1 for _s, (_sc, _n, note) in MATRIX.items()
-                        if note.startswith("FIELD_PENDING") or (isinstance(_n, list) and not _n))
+    field_pending = sum(
+        1
+        for _s, (_sc, _n, note) in MATRIX.items()
+        if note.startswith("FIELD_PENDING") or (isinstance(_n, list) and not _n)
+    )
     report = f"""# Wave 2 Acceptance-Matrix Report (machine-generated)
 
 Generated: {datetime.datetime.now().isoformat(timespec="seconds")}
