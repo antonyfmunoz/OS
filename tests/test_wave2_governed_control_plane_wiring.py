@@ -91,3 +91,53 @@ def test_governed_prefers_canonical_port_over_spine_router() -> None:
         assert governed._get_router() is not None
     finally:
         _reset()
+
+
+# ── substrate-native runner (the path the execution-auth decision actually uses) ──
+
+
+def test_substrate_native_runner_uses_spine_when_daemon_registered(monkeypatch) -> None:
+    """The substrate-native governed runner (used by apply_execution_decision via
+    UnifiedApprovalRuntime) MUST route through the canonical spine when a daemon is
+    registered — NOT the fail-closed degraded gate. Before the fix it ALWAYS
+    degraded, so execution_authorization_decision (degraded_mode_allowed=False)
+    fail-closed and the grant never activated."""
+    import substrate.execution.intent.loop as loop
+    import substrate.organism.mutation_router as mr
+
+    _reset()
+    calls = {"router": 0, "degraded": 0}
+
+    class _SpyRouter:
+        def __init__(self, spine, registry) -> None: ...
+
+        def execute(self, req):  # noqa: ANN001
+            calls["router"] += 1
+            return "ROUTER"
+
+    monkeypatch.setattr(mr, "MutationRouter", _SpyRouter)
+    monkeypatch.setattr(mr, "route_mutation_degraded", lambda req: calls.__setitem__("degraded", calls["degraded"] + 1) or "DEGRADED")
+    try:
+        organism_port.register_organism_accessor(lambda: _FakeDaemon())
+        result = loop._substrate_native_governed_mutation("m", "i", lambda: ("ok", True))
+        assert result == "ROUTER", "native runner must use the canonical spine when daemon present"
+        assert calls["router"] == 1 and calls["degraded"] == 0
+    finally:
+        _reset()
+
+
+def test_substrate_native_runner_degrades_when_no_daemon(monkeypatch) -> None:
+    """With no daemon registered the native runner MUST fall back to the
+    fail-closed degraded gate (unchanged safety property)."""
+    import substrate.execution.intent.loop as loop
+    import substrate.organism.mutation_router as mr
+
+    _reset()
+    calls = {"degraded": 0}
+    monkeypatch.setattr(mr, "route_mutation_degraded", lambda req: calls.__setitem__("degraded", calls["degraded"] + 1) or "DEGRADED")
+    try:
+        organism_port.register_organism_accessor(lambda: None)
+        result = loop._substrate_native_governed_mutation("m", "i", lambda: ("ok", True))
+        assert result == "DEGRADED" and calls["degraded"] == 1
+    finally:
+        _reset()

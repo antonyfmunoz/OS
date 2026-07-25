@@ -221,16 +221,29 @@ def _substrate_native_governed_mutation(
     source: str = "intent_loop",
     metadata: dict[str, Any] | None = None,
 ) -> Any:
-    """Substrate-native governed submission — the fail-closed canonical gate.
+    """Substrate-native governed submission — canonical spine when live, else fail-closed.
 
-    Routes through ``substrate.organism.mutation_router.route_mutation_degraded``,
-    the in-substrate choke point that governs a mutation when no live daemon
-    router is injected. It rejects any non-eligible mutation (fail-closed) and
-    only executes low-risk / LOCAL / degraded-opted-in specs, always with a
-    mandatory audit record. Keeping this in substrate preserves the
-    dependency-direction law (substrate never imports transports); the transport
-    route may still inject the full daemon-backed ``governed_mutation`` for the
-    live spine path.
+    Resolution order (both in-substrate — dependency-direction law preserved,
+    substrate never imports transports):
+
+    1. If a live organism daemon is registered on the CANONICAL organism port
+       (``substrate.sockets.organism_port`` — populated by whichever entrypoint
+       started the daemon), route through the full daemon-backed
+       ``MutationRouter`` → ``GovernedExecutionSpine``. This is what lets a
+       HIGH-risk, degraded-disallowed mutation (e.g.
+       ``execution_authorization_decision``) actually execute: the control plane
+       is present, so it is NOT degraded.
+    2. Otherwise fall back to ``route_mutation_degraded`` — the fail-closed gate
+       that rejects any non-eligible mutation and only runs low-risk / LOCAL /
+       degraded-opted-in specs, always audited.
+
+    Before this, the native runner ALWAYS used route_mutation_degraded, so every
+    substrate-native governed mutation degraded even with the daemon running —
+    fail-closing execution_authorization_decision and leaving the grant stuck in
+    ACTIVATING (observed field run 20260725T175325Z-p1: HUD approve 200, grant
+    never ACTIVE, no worker ran). The transport shim's daemon runner is only
+    injected on some call paths; the decision source under UnifiedApprovalRuntime
+    used this native path, so the daemon must be reachable HERE too.
     """
     from substrate.organism.mutation_router import MutationRequest, route_mutation_degraded
 
@@ -241,6 +254,23 @@ def _substrate_native_governed_mutation(
         source=source,
         metadata=metadata or {},
     )
+
+    # (1) canonical spine when a daemon is registered — via the substrate port.
+    try:
+        from substrate.sockets.organism_port import get_organism
+
+        daemon = get_organism()
+        if daemon is not None:
+            spine = getattr(daemon, "governed_spine", None)
+            registry = getattr(daemon, "mutation_registry", None)
+            if spine is not None and registry is not None:
+                from substrate.organism.mutation_router import MutationRouter
+
+                return MutationRouter(spine=spine, registry=registry).execute(request)
+    except Exception:  # noqa: BLE001 — never fail the mutation on router construction; degrade below
+        pass
+
+    # (2) no live control plane → substrate's fail-closed degraded gate.
     return route_mutation_degraded(request)
 
 
