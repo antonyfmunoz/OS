@@ -15,6 +15,50 @@ correct accounting is below and is now the authority.
 | Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
 | Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
 | **Round 2 status** | **9 = 9 fixed + 0 open** | fixed: SEC-C1, SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3, C-4, C-5 |
+| Round 3 (requalification independent review) | 2 HIGH + 2 MED + 2 LOW | RV-HIGH-1, RV-HIGH-2, RV-MED-1, RV-MED-2(dormant), RV-LOW-1, RV-LOW-2 |
+| **Round 3 status** | **HIGH+MED fixed; LOW recorded** | fixed: RV-HIGH-1, RV-HIGH-2, RV-MED-1; recorded: RV-MED-2 (preview_pid pid-reuse — no preview process exists today), RV-LOW-1 (SoD skipped when worker_identity=="" — structurally unreachable), RV-LOW-2 (worker builder non-bwrap branches — runner startup preflight fails closed for any non-bwrap primitive) |
+
+## Round 3 — requalification independent adversarial review (repair range 4e506f9f4..01c53f524)
+
+Three fresh-context reviewers, 12-point checklist. 0 CRITICAL.
+
+- **RV-HIGH-1 — durable-evidence validator unwired from the completion gate — FIXED.**
+  `_assert_durable_proof` validated only outer proof lineage (attempt_id/work_id);
+  a post-persistence tamper of a proof's `verifier_confined_run` evidence (edited
+  `zero_diff`/`tests_ok` with a stale `evidence_sha256`) still completed the
+  attempt. `validate_evidence_binding` is now invoked in the completion gate:
+  whenever a confined-verifier record is present it recomputes the digest and
+  re-binds to THIS attempt/task. Context-only/harness AttemptProofs (no record —
+  by design, `verification.py`) and PlanExecutionProofs are exempt. **Bounded
+  residual (NOT closed by this gate):** a store-tamperer DELETING the entire
+  evidence record to mimic a context-only proof — bounded by the host-only,
+  append-only-under-lock durable store, mint-time `passed=all(checks)`, and the
+  field path never producing an evidence-less AttemptProof. Recorded here, not
+  silently ignored.
+- **RV-HIGH-2 — lease-release fault re-created the C-2 deadlock — FIXED.**
+  `register_resource(kind="lease")` had zero callers and the run-sweep lease path
+  ran without a `lease_manager`. The poller now re-drives `revoke()` on
+  `lease_released=False` at the authoritative terminal transition (retry
+  unblocked); leases are registered in the run manifest at dispatch as a
+  crash-recovery backstop. Runtime lease release is the poller's authority; the
+  sweep releases only when explicitly given a `lease_manager`.
+- **RV-MED-1 — terminalize residue scoping substring bug — FIXED.**
+  `home_path in p` mis-attributed a sibling's residue when one attempt-id was a
+  prefix of another (`att1` vs `att11`). Now a path-boundary match
+  (`== or startswith(home_path + os.sep)`).
+- **RV-MED-2 — preview_pid SIGTERM pid-reuse — RECORDED (dormant).** No live path
+  registers a `preview_pid` (the fixture runs as a Docker container torn down by
+  name), so the sweep's preview loop is a documented no-op today. Flagged for
+  whoever wires the first real host preview process.
+- **RV-LOW-1 / RV-LOW-2 — RECORDED (not live).** The verifier SoD identity check
+  is skipped when `worker_identity==""` (structurally unreachable: verifier id is
+  `verifier:<role>:<attempt>`, worker id is `worker:*`). The worker isolation
+  builder retains systemd-run/nsjail branches, but the runner's startup
+  `preflight_isolation` fails closed for any non-bwrap primitive, so no worker
+  runs unconfined.
+
+Each RV fix is mutation/regression-tested; the false-green history and its
+generator-hardening are recorded in the requalification commits.
 
 Round-1 and Round-2 IDs are namespaced by round; they are different findings that
 happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
