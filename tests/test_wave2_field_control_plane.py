@@ -326,6 +326,47 @@ def test_driver_dispatch_fn_consults_failure_marker(store, queue, tmp_path):
     )
 
 
+def test_driver_reloads_packets_written_after_construction(store, queue, tmp_path):
+    """FIELD-ORDERING regression (fourth control-plane layer, run 20260725T194515Z).
+
+    Every other test in this file seeds the packet into the queue BEFORE building
+    the driver. The field is the reverse: the host runner constructs the driver
+    (and its ``UniversalWorkQueue``) at startup over an EMPTY packet store, and
+    the candidate app writes the authorized packet (PLANNED→APPROVED) to disk
+    LATER, during the pass. ``UniversalWorkQueue`` caches its packets in memory at
+    construction and never reloads, so ``get_packet`` returned None for every
+    packet minted this run — the grant activated, the task was APPROVED on disk,
+    and the driver reported ``wp-…(missing)`` forever, dispatching NO worker.
+
+    This pins the fix: ``run_cycle`` re-reads the packet store each cycle, so a
+    packet appearing on disk after construction is admitted."""
+    grant = _grant(["A"])
+    _seed_active_grant(store, grant)
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    # Driver built BEFORE the packet exists — exactly the field ordering.
+    driver = _driver(store, queue, spool, tmp_path)
+
+    # Sanity: with an empty store the frontier is (missing) and nothing admits.
+    pre = driver.run_cycle()
+    assert pre[0].skipped_not_approved == ["A(missing)"], "empty store → missing, no dispatch"
+    assert not store.active_attempts(), "no worker dispatched against a missing packet"
+
+    # Now a SECOND queue writes the APPROVED packet to the SAME store path — this
+    # is the candidate app writing after the runner started. The driver's own
+    # queue is a stale, separately-constructed instance (like the real runner's).
+    writer = UniversalWorkQueue(store_path=queue._store_path)
+    _add_approved_packet(writer, "A")
+
+    # Without the reload, the driver's cached queue still returns None here.
+    post = driver.run_cycle()
+    assert "A(missing)" not in post[0].skipped_not_approved, (
+        "driver must reload the packet store and see the newly-APPROVED packet"
+    )
+    admitted_tasks = {store.get_attempt(a).task_id for a in post[0].admitted}
+    assert admitted_tasks == {"A"}, "the freshly-written APPROVED packet is admitted"
+
+
 def test_driver_no_active_grant_is_idle_noop(store, queue, tmp_path):
     """No ACTIVE grant → the driver does nothing (no attempts, no dispatches)."""
     _add_approved_packet(queue, "A")

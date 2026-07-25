@@ -371,6 +371,22 @@ class FieldControlPlaneDriver:
             )
         return _RecordView.wrap(getter(assignment_id))
 
+    def _reload_queue(self) -> None:
+        """Re-read the WorkPacket store from disk into the cached queue.
+
+        ``UniversalWorkQueue`` loads packets once at construction; the driver is
+        a persistent loop, so packets the candidate app writes after startup are
+        invisible until reloaded. This mirrors the store's stateless per-call
+        reads. Fail-open: a queue without a private ``_load`` is left as-is
+        rather than crashing the cycle (never worse than the prior behavior).
+        """
+        reload_fn = getattr(self._queue, "_load", None)
+        if callable(reload_fn):
+            try:
+                reload_fn()
+            except Exception as exc:  # a transient read must not stall the loop
+                logger.debug("work-queue reload failed (using cached view): %s", exc)
+
     def _packet_lookup(self, task_id: str) -> Any:
         """The canonical WorkPacket for a Task — the diff-scope AUTHORITY (C-1).
 
@@ -469,6 +485,17 @@ class FieldControlPlaneDriver:
         call repeatedly — terminal attempts are no-ops.
         """
         reports: list[ControlPlaneCycleReport] = []
+        # Refresh the WorkPacket view from disk BEFORE reading grants. The driver
+        # is a long-lived poll loop; ``ExecutionAttemptStore`` is stateless
+        # per-call (every read hits disk), but ``UniversalWorkQueue`` caches its
+        # packets in memory at construction and never reloads. The candidate app
+        # writes the authorized packets (PLANNED→APPROVED) to disk AFTER the
+        # runner starts, so without this reload ``get_packet`` returns None for
+        # every packet minted this run and the frontier looks permanently
+        # ``(missing)`` — the grant activates, the task is APPROVED on disk, and
+        # yet no worker is ever dispatched. Reloading each cycle makes the queue
+        # match the store's fresh-read contract.
+        self._reload_queue()
         grants = [g for g in self._store.active_grants() if getattr(g, "status", "") == "active"]
         for grant in grants:
             report = ControlPlaneCycleReport(grant_ref=getattr(grant, "decision_ref", ""))
