@@ -206,6 +206,7 @@ def test_live_inflight_is_not_stolen(tmp_path):
 
 def _dispatcher():
     import importlib.util
+    import sys
 
     path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -214,6 +215,12 @@ def _dispatcher():
     )
     spec = importlib.util.spec_from_file_location("_w2fd_r3", path)
     mod = importlib.util.module_from_spec(spec)
+    # Register BEFORE exec_module: a module-level @dataclass (QualificationVerdict)
+    # makes dataclasses resolve `sys.modules[cls.__module__]` during class
+    # construction. An unregistered synthetic module name resolves to None and
+    # crashes the import. Registering it is the documented-correct use of
+    # module_from_spec and is idempotent across repeated loads in this suite.
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     return mod
 

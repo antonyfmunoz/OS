@@ -197,6 +197,7 @@ def test_withdrawn_bare_hex_rule_does_not_eat_hashes_in_live_output():
     """
     import importlib.util
     import os
+    import sys
 
     path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -205,6 +206,10 @@ def test_withdrawn_bare_hex_rule_does_not_eat_hashes_in_live_output():
     )
     spec = importlib.util.spec_from_file_location("_w2fd_guard", path)
     mod = importlib.util.module_from_spec(spec)
+    # Register before exec: a module-level @dataclass (QualificationVerdict) makes
+    # dataclasses resolve sys.modules[cls.__module__] during construction; an
+    # unregistered synthetic name resolves to None and crashes the import.
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)  # import-time side effects are lazy by design
     rx = mod._SECRET_REDACT_RE
 

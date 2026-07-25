@@ -14,7 +14,7 @@ correct accounting is below and is now the authority.
 |---|---|---|
 | Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
 | Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
-| **Round 2 status** | **9 = 7 fixed + 2 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3, C-4 |
+| **Round 2 status** | **9 = 8 fixed + 1 open** | fixed: SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3, C-4, C-5 — open: SEC-C1 |
 
 Round-1 and Round-2 IDs are namespaced by round; they are different findings that
 happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
@@ -441,18 +441,45 @@ because "the repair needed repairing twice" is the finding.
   timestamps-omitted-from-digest, pid-forced-0, evidence-omitted-from-Proof,
   reread-digest-validation-removed each fail the suite.
 
-### C-5 — `reconcile`/`teardown` exit 0 on failure — **OPEN**
+### C-5 — `reconcile`/`teardown` exit 0 on failure — **FIXED**
 
-- **Root cause:** `_result_declares_failure` checks
+- **Root cause:** `_result_declares_failure` checked
   `("deploy_ok","started","armed","ok","ready")`; `reconcile` returns
-  `all_passed`, `teardown` returns no verdict key at all.
+  `all_passed`, `teardown` returns no verdict key at all — neither was inspected.
 - **Authority violated:** readiness/verdict exit semantics (the SEC-C3 class from
   round 1), in the scoring command.
-- **Failure path:** a reconciliation scoring 0.0 — or scoring **zero passes** —
-  exits 0. A driver chaining `deploy → run → reconcile` by exit code treats a
-  failed or empty reconciliation as success. `teardown` failing to shred the run
-  secret also exits 0.
-- **Status:** OPEN — repair in progress (order §7).
+- **Failure path (before):** a reconciliation scoring 0.0 — or scoring **zero
+  passes** — exited 0. A driver chaining `deploy → run → reconcile` by exit code
+  treated a failed or empty reconciliation as success. `teardown` failing to
+  shred the run secret also exited 0.
+- **Fix (one typed authority):** `QualificationVerdict` — a frozen dataclass
+  computed once by `qualification_verdict(command, out)` and BOTH embedded in the
+  command's JSON report (`qualification_verdict` key) AND consumed for the process
+  exit status, so the report can never disagree with the exit code. Per-command
+  mandatory predicates:
+  - `reconcile`: `passes` must be nonempty (zero passes = failure); every pass
+    `passed` must be True (below-threshold `passed=False` from
+    `score>=0.90 and not orphan_5xx and all_gating_matched` fails here); the
+    `all_passed` flag must be exactly True — a lying `all_passed=True` over a
+    failed pass CANNOT override the per-pass gate.
+  - `teardown`: `run_secret_shredded` must not be False; `serve_restored` must
+    not be False. Teardown still runs on the failure path (main() invokes it
+    after a failed run) but its verdict is graded per-command, so a clean
+    teardown can never greenwash a prior failed reconcile.
+  - generic gates (`deploy_ok/started/armed/ok/ready` False, `refused`,
+    `invalid_reason`, `results[].ok` False) preserved. `dry_run` never graded.
+  - `armed` False (an armed injection that did not validly arm) fails via the
+    generic `armed` gate + `invalid_reason`.
+- **Nested-layer preservation:** `main()` returns `3` on `not verdict.ok`; the
+  code is the process exit — callers must not `|| true` it.
+- **Verification:** `tests/test_wave2_qualification_verdict.py` (28 tests) pins
+  every predicate and MUTATION-TESTS each fail-open behaviour — reverting the
+  reconcile-nonempty gate, the teardown-shred gate, and the all-passed-override
+  guard each independently turns the suite red; restored → green. Back-compat:
+  `_result_declares_failure(out, command)` retained as a thin wrapper equal to
+  `not verdict.ok` (pinned).
+- **Status:** FIXED — locally observed (not CI-verified; head has no attached
+  GitHub Actions run).
 
 ### SEC-C1 — teardown never destroys `worker-homes/`; residue assert is dead — **OPEN**
 

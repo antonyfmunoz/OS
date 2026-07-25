@@ -40,6 +40,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -2157,44 +2158,173 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"unknown command {args.cmd}")
         return 2
 
-    print(json.dumps({"command": args.cmd, "sha": sha, "result": out}, indent=2, default=str))
-
-    # EXIT CODE REFLECTS THE VERDICT (finding SEC-C3). A readiness report that
-    # records NOT READY but exits 0 is prohibited: it can silently green-light a
-    # run against a dead candidate and burn worker quota. Any command whose
-    # result declares failure exits non-zero so a caller (or an automated driver)
-    # stops. Zero worker quota is consumed on this path — no dispatch has
-    # happened yet at deploy/preflight time.
-    if isinstance(out, dict) and _result_declares_failure(out):
-        reason = (
-            out.get("failure_reason")
-            or out.get("reason")
-            or out.get("refused")
-            or out.get("invalid_reason")
-            or "readiness/verdict failed"
+    # THE ONE TYPED VERDICT (C-5). Computed once, embedded in the report AND used
+    # for the exit status so a report can never disagree with the exit code. This
+    # replaces the ad-hoc allowlist that never inspected reconcile's all_passed
+    # nor teardown's run_secret_shredded — a reconciliation scoring 0.0 (or ZERO
+    # passes) and a failed secret-shred both used to exit 0.
+    verdict = qualification_verdict(args.cmd, out if isinstance(out, dict) else {})
+    print(
+        json.dumps(
+            {
+                "command": args.cmd,
+                "sha": sha,
+                "result": out,
+                "qualification_verdict": verdict.to_dict(),
+            },
+            indent=2,
+            default=str,
         )
-        print(f"[{args.cmd}] FAILED: {reason}", file=sys.stderr)
+    )
+
+    # EXIT CODE REFLECTS THE VERDICT (findings SEC-C3 + C-5). A report that
+    # records NOT-QUALIFIED but exits 0 is prohibited: it can silently green-light
+    # a run against a dead candidate or a failed reconciliation/teardown. The exit
+    # is driven by the SAME verdict object that was written to the report. Nested
+    # shell/dispatcher layers must preserve this nonzero code — never `|| true`.
+    if not verdict.ok:
+        reason = (
+            "; ".join(verdict.reasons)
+            or out.get("failure_reason")
+            or out.get("reason")
+            or "qualification verdict failed"
+        )
+        print(f"[{args.cmd}] NOT QUALIFIED: {reason}", file=sys.stderr)
         return 3
     return 0
 
 
-def _result_declares_failure(out: dict[str, Any]) -> bool:
-    """True when a command result declares a failed verdict.
+@dataclass(frozen=True)
+class QualificationVerdict:
+    """The ONE typed verdict that governs both the written report and the exit.
 
-    Explicit-False verdict keys only — a missing key is not a failure, so
-    commands that do not report a verdict keep exiting 0.
+    C-5: reconcile/teardown could report failure yet exit 0. The prior
+    ``_result_declares_failure`` allowlist only knew a handful of generic gate
+    keys — it never inspected ``reconcile``'s ``all_passed`` nor ``teardown``'s
+    ``run_secret_shredded``, so a reconciliation scoring 0.0 (or ZERO passes) and
+    a teardown that failed to shred the run secret both exited 0. The fix is one
+    verdict object, computed by ``qualification_verdict``, that is BOTH embedded
+    in the command's JSON report AND consumed for the process exit status — a
+    single source of truth so the report can never disagree with the exit code.
+
+    ``mandatory`` records every gate that was evaluated (name → passed). ``ok`` is
+    True only when EVERY mandatory gate passed; a single False gate makes the
+    whole verdict fail and no other key can override it (``all_passed`` cannot
+    convert an independently-failed pass into success; teardown runs after a
+    failed run but cannot turn failure into success).
     """
+
+    command: str
+    ok: bool
+    reasons: tuple[str, ...]
+    mandatory: dict[str, bool]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "command": self.command,
+            "ok": self.ok,
+            "reasons": list(self.reasons),
+            "mandatory": dict(self.mandatory),
+        }
+
+
+def _grade_generic(out: dict[str, Any], mandatory: dict[str, bool], reasons: list[str]) -> None:
+    """Generic fail-closed gates shared by every command (the prior allowlist)."""
     for key in ("deploy_ok", "started", "armed", "ok", "ready"):
-        if out.get(key) is False:
-            return True
-    if out.get("refused") or out.get("invalid_reason"):
-        return True
-    # run_passes: any pass that did not reach a passed terminal state.
+        if key in out:
+            passed = out.get(key) is not False
+            mandatory[f"gate:{key}"] = passed
+            if not passed:
+                reasons.append(f"{key} is False")
+    if out.get("refused"):
+        mandatory["not_refused"] = False
+        reasons.append(f"refused: {out.get('refused')}")
+    if out.get("invalid_reason"):
+        mandatory["no_invalid_reason"] = False
+        reasons.append(f"invalid_reason: {out.get('invalid_reason')}")
     results = out.get("results")
     if isinstance(results, list) and results:
-        if any(isinstance(r, dict) and r.get("ok") is False for r in results):
-            return True
-    return False
+        failed = [r for r in results if isinstance(r, dict) and r.get("ok") is False]
+        passed = not failed
+        mandatory["all_results_ok"] = passed
+        if not passed:
+            reasons.append(f"{len(failed)}/{len(results)} pass result(s) did not reach ok")
+
+
+def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVerdict:
+    """Compute the typed qualification verdict for a command's result dict.
+
+    Command-specific mandatory predicates (C-5 closure bar):
+
+    ``reconcile`` — a reconciliation is a PASS only when it actually scored at
+    least one pass AND every scored pass passed. An empty ``passes`` list is a
+    FAILURE (nothing was proven); ``all_passed`` must be exactly True; any
+    per-pass ``passed is False`` fails independently so ``all_passed`` can never
+    override a failed gate. A score-below-threshold pass already sets
+    ``passed=False`` in ``reconcile()`` (``score >= 0.90 and not orphan_5xx and
+    all_gating_matched``), so below-threshold is caught here too.
+
+    ``teardown`` — the run-scoped dispatch secret MUST be shredded and the serve
+    MUST be restored. ``run_secret_shredded is False`` or ``serve_restored is
+    False`` is a FAILURE. Teardown still runs on the failure path (main() calls
+    it after a failed run), but a failed teardown cannot be reported as success.
+
+    A dry-run result is never graded as a failure (it asserts no side effects).
+    """
+    mandatory: dict[str, bool] = {}
+    reasons: list[str] = []
+
+    if out.get("dry_run") is True:
+        return QualificationVerdict(command=command, ok=True, reasons=(), mandatory={})
+
+    _grade_generic(out, mandatory, reasons)
+
+    if command == "reconcile":
+        passes = out.get("passes")
+        has_passes = isinstance(passes, list) and len(passes) > 0
+        mandatory["reconcile:nonempty"] = has_passes
+        if not has_passes:
+            reasons.append("reconciliation scored ZERO passes — nothing was proven")
+        else:
+            each_passed = all(bool(p.get("passed")) for p in passes if isinstance(p, dict))
+            mandatory["reconcile:every_pass_passed"] = each_passed
+            if not each_passed:
+                failed_tags = [
+                    p.get("run_tag", "?")
+                    for p in passes
+                    if isinstance(p, dict) and not p.get("passed")
+                ]
+                reasons.append(
+                    "reconciliation has failing pass(es) "
+                    f"(score<0.90 / orphan 5xx / unmatched gating): {failed_tags}"
+                )
+            all_passed = out.get("all_passed")
+            mandatory["reconcile:all_passed_flag"] = all_passed is True
+            if all_passed is not True:
+                reasons.append(f"all_passed is {all_passed!r}, not True")
+
+    if command == "teardown":
+        shredded = out.get("run_secret_shredded")
+        mandatory["teardown:secret_shredded"] = shredded is not False
+        if shredded is False:
+            reasons.append("run secret was NOT shredded — a run secret must never persist")
+        serve = out.get("serve_restored")
+        mandatory["teardown:serve_restored"] = serve is not False
+        if serve is False:
+            reasons.append("tailscale serve was NOT restored")
+
+    ok = all(mandatory.values()) if mandatory else True
+    return QualificationVerdict(command=command, ok=ok, reasons=tuple(reasons), mandatory=mandatory)
+
+
+def _result_declares_failure(out: dict[str, Any], command: str = "") -> bool:
+    """True when a command result declares a failed verdict.
+
+    Thin back-compat wrapper over :func:`qualification_verdict` (the one typed
+    authority). Retained so any external caller keeps working; new logic in
+    ``main()`` uses the verdict object directly.
+    """
+    return not qualification_verdict(command, out).ok
 
 
 if __name__ == "__main__":
