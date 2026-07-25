@@ -1837,34 +1837,55 @@ class FieldCollector:
     # ── w15 — authorize execution in the HUD ──────────────────────────────────
     def _w15_authorize_execution(self, page: Any, ctx: dict[str, Any]) -> None:
         """Click Authorize on the execution-authorization row (anchored by
-        decision_ref), inside expect_response on /unified-approval/approve."""
+        decision_ref), inside expect_response on /unified-approval/approve.
+
+        The Top HUD renders the pending-approval list from an ASYNC poll of
+        /unified-approval, so the execution-decision row + its approve button can
+        take a few seconds to (re)appear after _open_approvals re-navigates —
+        exactly like w14, which already retries up to 60s. A single _open_approvals
+        followed by an immediate row.count() check races that poll: the row is 0,
+        the whole click block is skipped, and the stage fails with an EMPTY
+        decision_response (observed run 20260725T171015Z-p1: authorized=False,
+        decision_response=<empty>, while the backend grant was correctly still
+        ACTIVATING and approvable). Retry _open_approvals until the APPROVE BUTTON
+        itself is present, then click — mirroring w14's tolerance."""
         ref = str(self._execution_decision_ref or "")
-        self._open_approvals(page)
         row = page.locator(W2_EXECUTION_DECISION)
-        if ref:
-            scoped = page.locator(f'{W2_EXECUTION_DECISION}[data-decision-ref="{ref}"]')
-            if scoped.count() > 0:
-                row = scoped
+        btn = None
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            self._open_approvals(page)
+            row = page.locator(W2_EXECUTION_DECISION)
+            if ref:
+                scoped = page.locator(f'{W2_EXECUTION_DECISION}[data-decision-ref="{ref}"]')
+                if scoped.count() > 0:
+                    row = scoped
+            if row.count() > 0:
+                cand = row.first.locator(W2_EXEC_APPROVE_BTN)
+                if cand.count() > 0:
+                    btn = cand
+                    break
+            time.sleep(3)
         clicked = False
         status_body = ""
-        if row.count() > 0:
-            btn = row.first.locator(W2_EXEC_APPROVE_BTN)
-            if btn.count() > 0:
+        if btn is not None:
+            try:
+                with page.expect_response(
+                    lambda r: "/unified-approval/approve" in r.url, timeout=20000
+                ) as ri:
+                    btn.first.click()
+                resp = ri.value
+                body = ""
                 try:
-                    with page.expect_response(
-                        lambda r: "/unified-approval/approve" in r.url, timeout=20000
-                    ) as ri:
-                        btn.first.click()
-                    resp = ri.value
-                    body = ""
-                    try:
-                        body = (resp.text() or "")[:160]
-                    except Exception:  # noqa: BLE001
-                        body = "<unreadable>"
-                    status_body = f"{resp.status} {body}"
-                    clicked = resp.status < 300
-                except Exception as exc:  # noqa: BLE001
-                    status_body = f"no-response ({str(exc)[:80]})"
+                    body = (resp.text() or "")[:160]
+                except Exception:  # noqa: BLE001
+                    body = "<unreadable>"
+                status_body = f"{resp.status} {body}"
+                clicked = resp.status < 300
+            except Exception as exc:  # noqa: BLE001
+                status_body = f"no-response ({str(exc)[:80]})"
+        else:
+            status_body = "approve-button-never-appeared"
         ctx["execution_authorized"] = clicked
         self.stage(
             "w15_authorize_execution",
