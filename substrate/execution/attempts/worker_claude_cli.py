@@ -128,6 +128,86 @@ def _render_context_payload(payload: Any) -> str:
     return text if text else ""
 
 
+class LeaseGitError(RuntimeError):
+    """The lease worktree could not be made a self-contained git repo."""
+
+
+def make_lease_selfcontained(worktree_path: str) -> None:
+    """Turn a linked git worktree into a STANDALONE repo inside the lease dir.
+
+    ``git worktree add`` gives the lease a ``.git`` FILE pointing at
+    ``<fixture>/.git/worktrees/<id>`` (with objects in ``<fixture>/.git``). Both
+    live OUTSIDE the lease directory. The worker runs under bwrap, which binds
+    ONLY the lease dir — so inside the sandbox the gitdir target does not exist,
+    every git command fails, and the worker (correctly, from its blind POV) ran
+    ``git init`` to make a fresh repo, orphaning its commit from the fixture base.
+    ``git diff base..HEAD`` then saw nothing → files=0 on every attempt
+    (field run 20260725T220643Z, eighth layer).
+
+    Fix: before the worker runs, absorb the external gitdir INTO the lease as a
+    real ``.git`` directory (objects + refs + HEAD), so the lease is a complete,
+    self-contained repository. This preserves the base-commit ancestry (so
+    ``git diff base..HEAD`` and commit lineage still work) AND keeps everything
+    the worker needs inside the single bound writable dir. Idempotent: a lease
+    whose ``.git`` is already a directory is left as-is. Raises LeaseGitError on
+    failure (dispatch must fail closed, not run a worker that cannot commit)."""
+    import shutil as _shutil
+    import subprocess as _sp
+
+    from substrate.execution.cpu_gate import gated_subprocess_run
+
+    dot_git = os.path.join(worktree_path, ".git")
+    if os.path.isdir(dot_git):
+        return  # already standalone
+    if not os.path.isfile(dot_git):
+        raise LeaseGitError(f"lease has no .git at {worktree_path}")
+
+    # Resolve the external gitdir and the shared common (objects) dir via git
+    # itself — robust against layout differences.
+    def _git(args: list[str], cwd: str) -> str:
+        r = gated_subprocess_run(["git", *args], caller="lease_selfcontain", timeout=30, cwd=cwd)
+        if r is None:
+            raise LeaseGitError("git refused by CPU gate while self-containing lease")
+        if r.returncode != 0:
+            raise LeaseGitError(f"git {' '.join(args)} failed: {r.stderr}")
+        return (r.stdout or "").strip()
+
+    gitdir = _git(["rev-parse", "--absolute-git-dir"], worktree_path)
+    commondir = _git(["rev-parse", "--git-common-dir"], worktree_path)
+    if not os.path.isabs(commondir):
+        commondir = os.path.abspath(os.path.join(gitdir, commondir))
+
+    tmp_git = dot_git + ".standalone"
+    if os.path.exists(tmp_git):
+        _shutil.rmtree(tmp_git, ignore_errors=True)
+    # Start from the shared common dir (objects, packed-refs, config, refs), then
+    # overlay the per-worktree gitdir (HEAD, index, this worktree's refs).
+    _shutil.copytree(commondir, tmp_git, symlinks=True, ignore=_shutil.ignore_patterns("worktrees"))
+    for entry in ("HEAD", "index", "ORIG_HEAD", "packed-refs"):
+        src = os.path.join(gitdir, entry)
+        if os.path.exists(src):
+            _shutil.copy2(src, os.path.join(tmp_git, entry))
+    wt_refs = os.path.join(gitdir, "refs")
+    if os.path.isdir(wt_refs):
+        _sp.run(
+            ["cp", "-rn", wt_refs + "/.", os.path.join(tmp_git, "refs")],
+            check=False,
+            capture_output=True,
+        )
+    # Swap the pointer file for the real dir and drop worktree-only config.
+    os.remove(dot_git)
+    os.rename(tmp_git, dot_git)
+    for key in ("core.worktree", "core.bare"):
+        gated_subprocess_run(
+            ["git", "config", "--unset", key],
+            caller="lease_selfcontain",
+            timeout=15,
+            cwd=worktree_path,
+        )
+    # Prove it: the standalone repo must resolve HEAD to the base commit's tree.
+    _git(["rev-parse", "HEAD"], worktree_path)
+
+
 def _capture_git(worktree_path: str, base_commit: str) -> tuple[list[str], list[str], str]:
     """Return (files_changed, commits, diff) against the lease base commit."""
     from substrate.execution.cpu_gate import gated_subprocess_run
@@ -178,9 +258,22 @@ def run_worker_in_lease(
             "run: artifacts could not be attributed to this attempt"
         )
 
+    # Resolve the worker CLI FIRST — the cheapest, most fundamental precondition.
+    # No point preparing a lease for a worker that cannot run, and this keeps the
+    # no-simulation-fallback guarantee the earliest failure.
     cli = _resolve_cli_path()
     if not cli:
         return WorkerResult(error="Claude Code CLI not found — no simulation fallback")
+
+    # Make the lease a SELF-CONTAINED git repo before isolating it: a linked
+    # worktree's gitdir lives outside the lease dir and is invisible under bwrap,
+    # so the worker cannot commit and every attempt reports files=0 (eighth
+    # layer). Fail closed if it cannot be done — a worker that cannot commit is
+    # useless and would only burn quota.
+    try:
+        make_lease_selfcontained(worktree_path)
+    except LeaseGitError as exc:
+        return WorkerResult(error=f"lease git could not be made self-contained: {exc}")
 
     prompt = render_prompt(package)
     inner = [
