@@ -107,6 +107,65 @@ def test_runner_processes_dispatch_and_writes_signed_result(tmp_path, monkeypatc
     assert results[0]["worker_result"]["status"] == "succeeded"
 
 
+def test_host_control_plane_governs_attempt_create_not_degraded(tmp_path, monkeypatch):
+    """FIELD regression (fifth control-plane layer, run 20260725T202237Z).
+
+    The host runner is a separate process from the candidate container, so its
+    driver has NO organism daemon registered on the canonical organism_port. The
+    driver creates attempts through governed mutations (execution_attempt_create,
+    degraded_mode_allowed=False). With nothing registered,
+    _substrate_native_governed_mutation degraded and every such mutation
+    fail-closed — the grant activated, the packet was APPROVED, the driver
+    reached admission, then refused to create the attempt ("control plane
+    unavailable — FAIL CLOSED on execution_attempt_create") so NO worker ran.
+
+    Every deterministic driver test INJECTED a stub mutation_runner that always
+    succeeds (the exact wiring production lacked — same coverage-gap shape as
+    layers 1-4). This pins the production path: _register_host_control_plane
+    builds + registers a REAL host-side spine so a governed execution mutation
+    runs non-degraded."""
+    import scripts.wave2_attempt_runner as runner
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+    from substrate.execution.intent.loop import _substrate_native_governed_mutation
+    from substrate.sockets import organism_port
+
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("UMH_ROOT", str(tmp_path / "repo"))
+    (tmp_path / "repo").mkdir(exist_ok=True)
+    monkeypatch.setattr(organism_port, "_get_organism_fn", None, raising=False)
+
+    store = ExecutionAttemptStore()
+
+    # BEFORE registration: a governed execution mutation degrades → fail closed.
+    pre = _substrate_native_governed_mutation(
+        mutation_name="execution_attempt_create",
+        intent="probe",
+        execute_fn=lambda: ("x", True),
+        source="test",
+        metadata={},
+    )
+    assert getattr(pre, "success", getattr(pre, "ok", None)) is False, (
+        "with no control plane the mutation must fail closed (degraded_mode_allowed=False)"
+    )
+
+    # Register the host control plane (the fix).
+    holder = runner._register_host_control_plane(store)
+    assert hasattr(holder, "governed_spine") and hasattr(holder, "mutation_registry")
+
+    # AFTER registration: the SAME mutation runs governed, non-degraded.
+    post = _substrate_native_governed_mutation(
+        mutation_name="execution_attempt_create",
+        intent="probe",
+        execute_fn=lambda: ("created", True),
+        source="test",
+        metadata={},
+    )
+    assert getattr(post, "success", getattr(post, "ok", None)) is True, (
+        "the registered host spine must govern the mutation, not degrade it"
+    )
+    monkeypatch.setattr(organism_port, "_get_organism_fn", None, raising=False)
+
+
 def test_runner_quarantines_bad_signature(tmp_path):
     """A tampered dispatch is quarantined by the spool the runner uses — never run."""
     spool_root = str(tmp_path / "spool")

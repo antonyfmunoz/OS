@@ -69,6 +69,81 @@ def _install_signal_handlers() -> None:
         signal.signal(sig, _handler)
 
 
+def _register_host_control_plane(store: Any) -> Any:
+    """Build + register a HOST-SIDE governed control plane so the driver's
+    execution mutations are governed, NOT degraded.
+
+    The host runner is a separate process from the candidate container; the
+    organism daemon (and its GovernedExecutionSpine) live INSIDE the container,
+    so nothing is registered on the canonical ``organism_port`` in the runner's
+    process. The driver creates/leases/dispatches attempts through governed
+    mutations (``execution_attempt_create`` etc.), all of which have
+    ``degraded_mode_allowed=False``. With no spine registered,
+    ``_substrate_native_governed_mutation`` fell back to
+    ``route_mutation_degraded`` and every one fail-closed — the grant activated,
+    the packet was APPROVED, the driver reached admission, and then refused to
+    create the attempt ("control plane unavailable — FAIL CLOSED on
+    execution_attempt_create") so NO worker ran (field run 20260725T202237Z,
+    the fifth control-plane layer).
+
+    The spine is entirely substrate-level and host-constructible. We build the
+    minimal real spine (event spine + execution mode + mutation registry +
+    journal) plus the clause-5 ``authorization_lookup`` that resolves a grant by
+    decision_ref from the SAME shared store (fresh per call), and register it on
+    the canonical port. The native runner then routes through
+    ``MutationRouter → GovernedExecutionSpine`` in-process — a real, audited,
+    non-degraded control plane. The organism-like holder exposes exactly the two
+    attributes the native runner reads (``governed_spine`` /
+    ``mutation_registry``); nothing else in the daemon is needed host-side.
+    """
+    from substrate.organism.event_spine import get_shared_event_spine
+    from substrate.organism.execution_journal import ExecutionJournal
+    from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
+    from substrate.organism.governed_spine import GovernedExecutionSpine
+    from substrate.organism.mutation_registry import MutationRegistry
+    from substrate.sockets.organism_port import get_organism, register_organism_accessor
+    from substrate.state.runtime_paths import runtime_state_path
+
+    # If something already registered a daemon in this process, don't shadow it.
+    existing = None
+    try:
+        existing = get_organism()
+    except Exception:  # noqa: BLE001 — treat an unresolvable accessor as absent
+        existing = None
+    if existing is not None:
+        return existing
+
+    event_spine = get_shared_event_spine()  # persisted, honors UMH_STATE_DIR
+    registry = MutationRegistry()  # auto-registers execution_* specs
+    journal = ExecutionJournal(
+        persist_path=str(runtime_state_path("execution", "host_control_plane_journal.jsonl"))
+    )
+    # AUTONOMOUS: this is a headless run-scoped host loop consuming an already
+    # HUD-authorized grant — there is no interactive operator to ASSIST. The
+    # per-action authority still comes from the ACTIVE grant (clause 5), which
+    # the authorization_lookup below enforces on every authorization-bound action.
+    mode = ExecutionModeManager(initial_mode=ExecutionMode.AUTONOMOUS, event_spine=event_spine)
+    spine = GovernedExecutionSpine(
+        event_spine=event_spine,
+        execution_mode=mode,
+        mutation_registry=registry,
+        journal=journal,
+        # clause 5: resolve authorization_ref → grant from the shared store,
+        # fresh each call. Without this, the HIGH execution_attempt_dispatch
+        # (which carries an authorization_ref) fails closed "no lookup".
+        authorization_lookup=store.get_grant,
+    )
+
+    class _HostControlPlane:
+        governed_spine = spine
+        mutation_registry = registry
+
+    holder = _HostControlPlane()
+    register_organism_accessor(lambda: holder)
+    _log("host control plane registered (governed spine live — mutations NOT degraded)")
+    return holder
+
+
 def _build_control_plane_driver(
     *, spool: Any, fixture_repo: str, targets_dir: str, leases_dir: str
 ) -> Any:
@@ -88,6 +163,11 @@ def _build_control_plane_driver(
         store_dir=os.path.join(targets_dir, "sandboxes"),
         max_parallel=2,
     )
+    # Register the host governed control plane BEFORE building the driver so the
+    # driver's mutations route through a live spine (never degraded). The driver
+    # leaves mutation_runner=None → the scheduler/lease manager resolve the
+    # native runner, which now finds the spine we just registered.
+    _register_host_control_plane(store)
     return FieldControlPlaneDriver(
         store=store,
         work_queue=queue,
@@ -196,7 +276,9 @@ def run_loop(
         per-attempt terminalize never ran).
         """
         if inflight_attempts:
-            _log(f"run teardown ({reason}): {len(inflight_attempts)} attempt(s) interrupted mid-run")
+            _log(
+                f"run teardown ({reason}): {len(inflight_attempts)} attempt(s) interrupted mid-run"
+            )
         res = sweep_run(run_root, spool=spool)
         _log(
             f"run teardown ({reason}): ok={res.ok} homes={res.homes_destroyed} "
