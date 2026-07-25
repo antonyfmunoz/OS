@@ -398,7 +398,7 @@ class FieldControlPlaneDriver:
 
         control_plane = self
 
-        def _checks(att: Any) -> list[Any]:
+        def _checks(att: Any) -> tuple[list[Any], Any]:
             from substrate.execution.attempts.verifier_isolation import (
                 run_confined_verifier_checks,
             )
@@ -409,19 +409,25 @@ class FieldControlPlaneDriver:
             lease = control_plane._lease_lookup(getattr(att, "lease_id", "") or "")
             worktree = str(getattr(lease, "worktree_path", "") or "") if lease else ""
             source = worktree if worktree and os.path.isdir(worktree) else fixture
-            source_commit = str(getattr(lease, "snapshot_ref", "") or "") if lease else ""
+            # base_commit is the AUTHORIZED diff base (lease.snapshot_ref) — the
+            # verifier reads the actual worktree HEAD itself as verified_commit
+            # (C-4a). They are never conflated.
+            base_commit = str(getattr(lease, "snapshot_ref", "") or "") if lease else ""
             worker_identity = getattr(att, "worker_identity", "") or ""
 
-            checks, evidence = run_confined_verifier_checks(
+            # Returns (checks, VerifierEvidence). The evidence is threaded through
+            # verify_attempt → _persist_proof INTO this attempt's Proof — there is
+            # NO process-local `_last_verifier_evidence` authority.
+            return run_confined_verifier_checks(
                 attempt=att,
                 run_root=control_plane._run_root(),
                 source_path=source,
                 verifier_role_id=_VERIFIER_ROLE_ID,
                 worker_identity=worker_identity,
-                source_commit=source_commit,
+                base_commit=base_commit,
+                assignment_id=getattr(att, "assignment_id", "") or "",
+                package_hash=getattr(att, "instruction_package_hash", "") or "",
             )
-            control_plane._last_verifier_evidence = evidence
-            return checks
 
         return _checks
 

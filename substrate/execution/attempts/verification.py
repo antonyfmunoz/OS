@@ -174,8 +174,17 @@ def verify_attempt(
 
     # 4. independent domain checks (tests / http / browser) — supplied by the
     #    caller so the verifier runs the packet's OWN validation, not the worker's.
+    #    The production supplier (the confined verifier) returns (checks, evidence);
+    #    a legacy/harness supplier may return a bare list. The structured evidence
+    #    is threaded into THIS attempt's Proof (C-4a) — never a process-local field.
+    verifier_evidence: Any = None
     if independent_checks is not None:
-        checks.extend(independent_checks(attempt))
+        produced = independent_checks(attempt)
+        if isinstance(produced, tuple) and len(produced) == 2:
+            extra_checks, verifier_evidence = produced
+            checks.extend(extra_checks or [])
+        else:
+            checks.extend(produced or [])
 
     passed = all(c.ok for c in checks)
 
@@ -215,6 +224,10 @@ def verify_attempt(
                 "worker_identity": worker_identity,
                 "package_hash": package_hash,
             },
+            # The confined verifier's structured evidence is persisted INSIDE this
+            # exact AttemptProof as one typed ProofEvidence (C-4a) — durable,
+            # restart-safe, digest-bound. No process-local field is the authority.
+            verifier_evidence=verifier_evidence,
         )
     return verdict
 
@@ -379,6 +392,7 @@ def _persist_proof(
     verifier_identity: str,
     worker_result: Any,
     lineage: dict[str, Any] | None = None,
+    verifier_evidence: Any = None,
 ) -> str:
     """Persist a ProofPackage (the ONE canonical Proof authority) tagged with the
     classification. Returns the proof_id.
@@ -406,6 +420,22 @@ def _persist_proof(
                     "files_changed": list(getattr(worker_result, "files_changed", []) or []),
                     "commits": list(getattr(worker_result, "commits", []) or []),
                 },
+            )
+        )
+    # EXACTLY-ONE confined-verifier evidence record (C-4a): the structured
+    # VerifierEvidence is persisted inside THIS Proof as one typed entry, so a
+    # reread from disk reconstructs the full binding (lease id, attempt/task/
+    # assignment, verifier/worker identity, package hash, base + verified commits,
+    # isolation results, timestamps, trusted process identity, digest) without any
+    # process-local field.
+    if verifier_evidence is not None:
+        from substrate.execution.attempts.verifier_isolation import VERIFIER_EVIDENCE_TYPE
+
+        evidence.append(
+            ProofEvidence(
+                evidence_type=VERIFIER_EVIDENCE_TYPE,
+                description="confined verifier run (bwrap; source read-only; net unshared)",
+                data=verifier_evidence.to_dict(),
             )
         )
     # DURABLE persistence through the canonical ProofRuntime seam (finding C1).

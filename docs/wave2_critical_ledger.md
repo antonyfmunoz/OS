@@ -397,6 +397,49 @@ because "the repair needed repairing twice" is the finding.
 - **Live-verified:** a real bwrap run on this host confirms the boundaries
   (token/dispatch env absent, `/opt/OS` unbound, network unshared, source
   read-only, zero-diff, verifier home destroyed).
+- **C-4a — durable evidence + exact-commit binding (owner, binding):** C-4
+  confinement was accepted; closure was blocked until the evidence chain proved
+  what ran, which commit it verified, and which durable Proof contains it. Three
+  defects closed:
+  (1) **Durable, in-Proof evidence.** `_last_verifier_evidence` is deleted as an
+  authority. `run_confined_verifier_checks` returns `(checks, VerifierEvidence)`;
+  the evidence is threaded run_confined_verifier_checks → `verify_attempt` →
+  `_persist_proof` and persisted INSIDE the exact AttemptProof as ONE typed
+  `ProofEvidence` (`verifier_confined_run`). A reread from disk
+  (`ProofRuntime.reread_durable`) reconstructs the full binding — verifier lease
+  id, attempt/task/assignment, verifier + worker identity, package hash, base +
+  verified commits, source pre/post hash map, zero-diff, isolation probe, mount
+  policy, env var NAMES, bwrap argv + digest, test verdict, timestamps, trusted
+  process identity, `verifier_evidence_sha256` — with NO in-memory field.
+  (2) **Exact commit binding.** `base_commit` (lease.snapshot_ref, the authorized
+  diff base) and `verified_commit` (the ACTUAL worktree HEAD) are DISTINCT fields.
+  `verified_commit` is read PARENT-SIDE via `git rev-parse HEAD` (full 40-hex SHA
+  required), must equal an `expected_result_commit` when supplied, and must be
+  unchanged after the run — HEAD movement fails closed. `snapshot_ref` never
+  occupies `verified_commit`.
+  (3) **Full-payload digest + real process identity.** `finalize()` hashes the
+  COMPLETE canonical payload incl. `started_at`/`ended_at`, both commits, all
+  lineage ids, and the process identity — and never hashes `evidence_sha256` into
+  itself. A parent-controlled wrapper writes a trusted process-identity record
+  (PID + start time + argv0 + parent-generated nonce) BEFORE exec; `verifier_pid`
+  is the real child PID (never 0 on success), nonce-validated so a payload cannot
+  forge it. No trusted pid → fail closed.
+  Exactly-one binding: `evidence_from_proof` fails closed on zero / multiple
+  verifier evidence records or a digest that does not recompute;
+  `validate_evidence_binding` additionally rejects attempt/task/assignment/
+  verifier/verified-commit/package-hash mismatch, an empty verified commit, and an
+  untrusted process identity.
+  **Live-proven:** the real confined seam through `verify_attempt` mints a durable
+  Proof; after destroying all runtime objects a FRESH `ProofRuntime` rereads it
+  from disk, `validate_evidence_binding` confirms `verified_commit`==worker HEAD
+  (≠ base), a real PID, a recomputing digest, and exactly-one evidence — and a
+  Proof claiming the base-as-verified is rejected on reread. Tests:
+  `tests/test_wave2_verifier_evidence.py` (17) — exact-commit, expected-mismatch,
+  HEAD-movement, real pid, digest coverage, durable reread, base-as-verified
+  rejection, exactly-one, tamper, concurrency (two attempts → distinct bound
+  evidence, no cross-substitution). MUTATION-VERIFIED: snapshot_ref-as-verified,
+  timestamps-omitted-from-digest, pid-forced-0, evidence-omitted-from-Proof,
+  reread-digest-validation-removed each fail the suite.
 
 ### C-5 — `reconcile`/`teardown` exit 0 on failure — **OPEN**
 
