@@ -84,9 +84,7 @@ def test_no_default_fake_execute_in_plan_execution_adapter():
     # No FUNCTION named _default_execute may be DEFINED (a docstring that names
     # the removed stub is fine — a live definition is not).
     defined = {
-        n.name
-        for n in ast.walk(tree)
-        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+        n.name for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
     }
     assert "_default_execute" not in defined, (
         "plan_execution_adapter must not define a default fake-success executor"

@@ -26,9 +26,14 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(store_mod, "_DEFAULT_ASSIGNMENTS_PATH", str(tmp_path / "asn.jsonl"))
 
     store = ExecutionAttemptStore()
-    a = ExecutionAttempt(task_id="wp-a", plan_record_id="opr-1", tenant_id="",
-                         execution_authorization_ref="ref", status="running",
-                         worker_identity="w")
+    a = ExecutionAttempt(
+        task_id="wp-a",
+        plan_record_id="opr-1",
+        tenant_id="",
+        execution_authorization_ref="ref",
+        status="running",
+        worker_identity="w",
+    )
     store.create_attempt_idempotent(a)
 
     from transports.api import execution_attempt_routes
@@ -59,9 +64,14 @@ def test_attempt_detail(client):
 
 def test_reads_never_500(client):
     c, _ = client
-    for path in ("/execution/attempts", "/execution/frontier", "/execution/authorizations",
-                 "/execution/by-plan/opr-1", "/execution/overlay?packet_ids=wp-a",
-                 "/execution/attempts/nonexistent"):
+    for path in (
+        "/execution/attempts",
+        "/execution/frontier",
+        "/execution/authorizations",
+        "/execution/by-plan/opr-1",
+        "/execution/overlay?packet_ids=wp-a",
+        "/execution/attempts/nonexistent",
+    ):
         assert c.get(path).status_code == 200, path
 
 

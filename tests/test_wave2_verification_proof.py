@@ -23,6 +23,55 @@ _GUARD_ERRORS = (AttemptStoreConflict, AttemptLifecycleError)
 _S = ExecutionAttemptStatus
 
 
+def _attach_valid_verifier_evidence(rt, pkg, attempt):
+    """Attach a digest-valid, correctly-bound confined-verifier evidence record to
+    a durable AttemptProof and re-persist — mirroring production _persist_proof.
+
+    RV-HIGH-1: the verifying→succeeded gate validates this evidence, so a proof
+    used to complete an attempt must carry it (a bare proof no longer completes).
+    """
+    from substrate.execution.attempts.verifier_isolation import (
+        VERIFIER_EVIDENCE_TYPE,
+        VerifierEvidence,
+    )
+    from substrate.organism.proof_runtime import ProofEvidence
+
+    ev = VerifierEvidence(
+        verifier_lease_id="vl-1",
+        attempt_id=attempt.attempt_id,
+        task_id=attempt.task_id,
+        assignment_id="",
+        verifier_identity="verifier:v1",
+        verifier_role_id="role-verifier-op",
+        worker_identity=getattr(attempt, "worker_identity", "") or "worker:w1",
+        package_hash="",
+        base_commit="b" * 40,
+        verified_commit="c" * 40,
+        bwrap_argv=["bwrap"],
+        bwrap_argv_digest="d",
+        env_var_names=["PATH"],
+        mount_policy={},
+        isolation_probe={"ok": True},
+        source_hashes_before={},
+        source_hashes_after={},
+        zero_diff=True,
+        tests_ok=True,
+        tests_detail="ok",
+        started_at=1.0,
+        ended_at=2.0,
+        process_identity={"pid": 7, "valid": True},
+        verifier_pid=7,
+    ).finalize()
+    pkg.evidence.append(
+        ProofEvidence(
+            evidence_type=VERIFIER_EVIDENCE_TYPE,
+            description="confined verifier run",
+            data=ev.to_dict(),
+        )
+    )
+    rt._persist_package(pkg)  # noqa: SLF001 - canonical seam, as production does
+
+
 def _ProofRT(tmp_path=None):
     """The REAL canonical ProofRuntime, pointed at a temp store.
 
@@ -239,6 +288,11 @@ def test_attempt_completes_only_with_proof_and_distinct_verifier(store, tmp_path
         outcome=f"{ATTEMPT_PROOF}:passed",
         operator="verifier:v1",
     )
+    # RV-HIGH-1: the completion gate now requires an AttemptProof to carry a
+    # digest-valid, correctly-bound confined-verifier evidence record (the C-4a
+    # validators are wired into _assert_durable_proof). Attach one, as the real
+    # field _persist_proof path does, so a COMPLETE proof reaches SUCCEEDED.
+    _attach_valid_verifier_evidence(rt, pkg, a)
 
     # Verifier == worker → still rejected even with a durable proof.
     with pytest.raises(_GUARD_ERRORS):

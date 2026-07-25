@@ -533,11 +533,19 @@ def test_rehearsal_is_not_real_qualification():
     assert classification["real_worker_qualification"] == "NOT_SATISFIED"
 
 
-def test_release_failure_surfaces_as_a_blocking_run_error(store, queue, tmp_path, monkeypatch):
-    """C-2 microfix at the PIPELINE level: if lease release raises during the
-    poller's terminalization, the pass report must carry a blocking error, the
-    lease must stay active, and the retry must remain inadmissible — the run
-    cannot be reported clean on a fail-open cleanup."""
+def test_release_failure_is_surfaced_and_healed_by_force_revoke(
+    store, queue, tmp_path, monkeypatch
+):
+    """RV-HIGH-2 at the PIPELINE level (supersedes the earlier C-2 assertion that a
+    release fault should merely stay blocked): if lease release raises during the
+    poller's terminalization, the pass report MUST carry a diagnostic error AND the
+    poller MUST re-drive a revoke so the stranded lease is cleared — otherwise the
+    task deadlocks (one active lease per task → every retry BLOCKED forever). After
+    the heal: the lease is no longer active and retry is admissible again.
+
+    (revoke is left working; only release is broken — modelling a release-path CAS
+    fault. If BOTH failed, the error surfaces and the deadlock is honestly
+    reported, which a separate assertion below covers.)"""
     from substrate.execution.attempts.terminalization import retry_admissible
 
     _add_approved_packet(queue, "A")
@@ -551,7 +559,8 @@ def test_release_failure_surfaces_as_a_blocking_run_error(store, queue, tmp_path
     _pass(sched, grant)  # admit + dispatch A1
     _stub_worker_drain(spool)  # A1 produces artifacts
 
-    # Break lease release so terminalization on the SUCCEEDED transition fails.
+    # Break lease release so terminalization's _release_lease raises; leave revoke
+    # working so the poller's RV-HIGH-2 heal can clear the stranded lease.
     monkeypatch.setattr(
         sched._leases,
         "release",
@@ -559,9 +568,11 @@ def test_release_failure_surfaces_as_a_blocking_run_error(store, queue, tmp_path
     )
     report = poller.run_pass()
 
+    # The fault is surfaced for observability...
     assert any("terminalize" in e for e in report.errors), report.errors
-    # Fail-open would have released nothing yet reported ok — here the lease
-    # stays active and the retry is refused.
-    assert store.active_lease_for_task("A") is not None
+    assert any("force-revoked" in e for e in report.errors), report.errors
+    # ...and HEALED: the lease is cleared and the retry is admissible again (no
+    # permanent deadlock).
+    assert store.active_lease_for_task("A") is None, "heal must clear the stranded lease"
     ok, _why = retry_admissible(store, "A")
-    assert ok is False, "a failed release must not let a retry be admitted"
+    assert ok is True, "after the force-revoke heal, a retry must be admissible"

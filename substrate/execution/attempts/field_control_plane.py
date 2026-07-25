@@ -251,6 +251,19 @@ class FieldControlPlaneDriver:
             # also reset to 0 on runner restart, so a fresh dispatch could
             # overwrite a pending envelope for a DIFFERENT attempt.
             unique = uuid4().hex[:8]
+            # RV-HIGH-2: durably record the lease in the run manifest the moment it
+            # is dispatched, so recover_stale_runs / a run-teardown sweep given a
+            # LeaseManager can release a lease stranded by a crash. Runtime lease
+            # release remains the poller's authority (it re-drives revoke on a
+            # release fault); this manifest entry is the crash-recovery backstop.
+            lease_id = getattr(lease, "lease_id", "")
+            if lease_id:
+                try:
+                    from substrate.execution.attempts.run_teardown import register_resource
+
+                    register_resource(self._run_root(), kind="lease", ident=str(lease_id))
+                except Exception:  # manifest write must never break dispatch
+                    pass
             self._spool.enqueue(
                 DispatchEnvelope(
                     dispatch_id=f"d-{attempt.attempt_id}-{unique}",
@@ -258,7 +271,7 @@ class FieldControlPlaneDriver:
                     task_id=attempt.task_id,
                     authorization_ref=getattr(grant, "decision_ref", ""),
                     package_hash=getattr(package, "package_hash", ""),
-                    lease_id=getattr(lease, "lease_id", ""),
+                    lease_id=lease_id,
                     worktree_path=getattr(lease, "worktree_path", ""),
                     # The AUTHORIZED base the worker attributes its artifacts
                     # against. Without it the worker fell back to "HEAD", making

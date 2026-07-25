@@ -28,15 +28,21 @@ def _spine(tmp_path, authorization_lookup=None):
 
 
 def _grant(**kw):
-    base = dict(status="active", authorized_scope_hash="hash-1",
-                task_frontier=["wp-a", "wp-b"], expires_at=time.time() + 3600)
+    base = dict(
+        status="active",
+        authorized_scope_hash="hash-1",
+        task_frontier=["wp-a", "wp-b"],
+        expires_at=time.time() + 3600,
+    )
     base.update(kw)
     return SimpleNamespace(**base)
 
 
 def _envelope(**kw):
     return ActionEnvelope(
-        intent="do a thing", action_type=ActionType.STATE, source="test",
+        intent="do a thing",
+        action_type=ActionType.STATE,
+        source="test",
         execute_fn=lambda: ("ok", True),
         metadata={"mutation_name": "execution_attempt_dispatch"},
         **kw,
@@ -63,7 +69,8 @@ def test_in_scope_action_admitted(tmp_path):
     spine = _spine(tmp_path, authorization_lookup=lambda ref: grant)
     env = _envelope(
         authorization_ref="objective_plan:opr-1:execution_authorization:v1",
-        authorized_scope_hash="hash-1", authorized_subject_ids=["wp-a"],
+        authorized_scope_hash="hash-1",
+        authorized_subject_ids=["wp-a"],
     )
     result = spine.submit(env)
     assert result.status.value != "rejected"
@@ -74,7 +81,8 @@ def test_out_of_scope_subject_rejected(tmp_path):
     spine = _spine(tmp_path, authorization_lookup=lambda ref: grant)
     env = _envelope(
         authorization_ref="objective_plan:opr-1:execution_authorization:v1",
-        authorized_scope_hash="hash-1", authorized_subject_ids=["wp-OUTSIDE"],
+        authorized_scope_hash="hash-1",
+        authorized_subject_ids=["wp-OUTSIDE"],
     )
     result = spine.submit(env)
     assert result.status.value == "rejected"
@@ -86,7 +94,8 @@ def test_scope_hash_mismatch_rejected(tmp_path):
     spine = _spine(tmp_path, authorization_lookup=lambda ref: grant)
     env = _envelope(
         authorization_ref="objective_plan:opr-1:execution_authorization:v1",
-        authorized_scope_hash="hash-TAMPERED", authorized_subject_ids=["wp-a"],
+        authorized_scope_hash="hash-TAMPERED",
+        authorized_subject_ids=["wp-a"],
     )
     result = spine.submit(env)
     assert result.status.value == "rejected"
@@ -98,7 +107,8 @@ def test_expired_authorization_rejected(tmp_path):
     spine = _spine(tmp_path, authorization_lookup=lambda ref: grant)
     env = _envelope(
         authorization_ref="objective_plan:opr-1:execution_authorization:v1",
-        authorized_scope_hash="hash-1", authorized_subject_ids=["wp-a"],
+        authorized_scope_hash="hash-1",
+        authorized_subject_ids=["wp-a"],
     )
     result = spine.submit(env)
     assert result.status.value == "rejected"
@@ -110,7 +120,8 @@ def test_inactive_grant_rejected(tmp_path):
     spine = _spine(tmp_path, authorization_lookup=lambda ref: grant)
     env = _envelope(
         authorization_ref="objective_plan:opr-1:execution_authorization:v1",
-        authorized_scope_hash="hash-1", authorized_subject_ids=["wp-a"],
+        authorized_scope_hash="hash-1",
+        authorized_subject_ids=["wp-a"],
     )
     result = spine.submit(env)
     assert result.status.value == "rejected"

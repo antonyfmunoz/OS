@@ -33,16 +33,32 @@ def test_preflight_hides_opt_os():
 
 def test_env_scrub_strips_all_credentials():
     dirty = {
-        "PATH": "/usr/bin", "HOME": "/home/x", "GIT_AUTHOR_NAME": "w",
-        "OP_SERVICE_ACCOUNT_TOKEN": "s", "FLY_API_TOKEN": "s", "GITHUB_TOKEN": "s",
-        "DISCORD_BOT_TOKEN": "s", "UMH_MESH_RELAY_SECRET": "s", "ANTHROPIC_API_KEY": "s",
-        "AWS_SECRET_ACCESS_KEY": "s", "DATABASE_URL": "s", "SSH_AUTH_SOCK": "s",
+        "PATH": "/usr/bin",
+        "HOME": "/home/x",
+        "GIT_AUTHOR_NAME": "w",
+        "OP_SERVICE_ACCOUNT_TOKEN": "s",
+        "FLY_API_TOKEN": "s",
+        "GITHUB_TOKEN": "s",
+        "DISCORD_BOT_TOKEN": "s",
+        "UMH_MESH_RELAY_SECRET": "s",
+        "ANTHROPIC_API_KEY": "s",
+        "AWS_SECRET_ACCESS_KEY": "s",
+        "DATABASE_URL": "s",
+        "SSH_AUTH_SOCK": "s",
     }
     clean = scrub_worker_env(dirty, extra_allow={"CLAUDE_CODE_OAUTH_TOKEN": "tok"})
     assert set(clean) == {"PATH", "HOME", "GIT_AUTHOR_NAME", "CLAUDE_CODE_OAUTH_TOKEN"}
-    for forbidden in ("OP_SERVICE_ACCOUNT_TOKEN", "FLY_API_TOKEN", "GITHUB_TOKEN",
-                      "DISCORD_BOT_TOKEN", "UMH_MESH_RELAY_SECRET", "ANTHROPIC_API_KEY",
-                      "AWS_SECRET_ACCESS_KEY", "DATABASE_URL", "SSH_AUTH_SOCK"):
+    for forbidden in (
+        "OP_SERVICE_ACCOUNT_TOKEN",
+        "FLY_API_TOKEN",
+        "GITHUB_TOKEN",
+        "DISCORD_BOT_TOKEN",
+        "UMH_MESH_RELAY_SECRET",
+        "ANTHROPIC_API_KEY",
+        "AWS_SECRET_ACCESS_KEY",
+        "DATABASE_URL",
+        "SSH_AUTH_SOCK",
+    ):
         assert forbidden not in clean
 
 
@@ -67,9 +83,18 @@ def spool(tmp_path):
 
 
 def _env(seq=1, dispatch_id="d1", **kw):
-    base = dict(dispatch_id=dispatch_id, attempt_id="ea-1", task_id="wp-a",
-                authorization_ref="ref", package_hash="ph", lease_id="l1",
-                worktree_path="/tmp/wt", nonce="n1", sequence=seq, payload_hash="p1")
+    base = dict(
+        dispatch_id=dispatch_id,
+        attempt_id="ea-1",
+        task_id="wp-a",
+        authorization_ref="ref",
+        package_hash="ph",
+        lease_id="l1",
+        worktree_path="/tmp/wt",
+        nonce="n1",
+        sequence=seq,
+        payload_hash="p1",
+    )
     base.update(kw)
     return DispatchEnvelope(**base)
 
@@ -89,6 +114,7 @@ def test_tampered_envelope_is_quarantined(tmp_path):
     name = sp.enqueue(_env())
     # Tamper with the signed file directly.
     import json
+
     p = os.path.join(tmp_path / "s", "inbox", name)
     with open(p) as f:
         rec = json.load(f)
@@ -129,6 +155,7 @@ def test_tampered_result_quarantined(tmp_path):
     sp.complete(token, {"status": "failed"})
     # Tamper the outbox result.
     import json
+
     outdir = os.path.join(tmp_path / "s", "outbox")
     name = os.listdir(outdir)[0]
     with open(os.path.join(outdir, name)) as f:

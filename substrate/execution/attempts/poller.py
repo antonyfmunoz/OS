@@ -315,6 +315,27 @@ class ControlPlanePoller:
                 report.errors.append(
                     f"terminalize({attempt.attempt_id},{reason}) SECURITY: {result.errors}"
                 )
+            # RV-HIGH-2: a lease-release fault leaves the task's lease ACTIVE, and
+            # `acquire()` refuses a second active lease per task — so the next
+            # attempt deadlocks BLOCKED↔READY forever. terminalize does not raise
+            # on a non-security error, so heal it HERE at the authoritative terminal
+            # transition: re-drive a revoke for the stranded lease so retry admission
+            # can proceed. Idempotent — revoking an already-revoked lease is a no-op.
+            if not result.lease_released and result.lease_id and self._lease_manager is not None:
+                try:
+                    self._lease_manager.revoke(
+                        result.lease_id, f"terminalize_release_retry:{reason}"
+                    )
+                    report.errors.append(
+                        f"terminalize({attempt.attempt_id},{reason}): lease "
+                        f"{result.lease_id} force-revoked after release fault (retry unblocked)"
+                    )
+                except Exception as exc:  # noqa: BLE001 - surfaced, never swallowed
+                    report.errors.append(
+                        f"terminalize({attempt.attempt_id},{reason}): lease "
+                        f"{result.lease_id} STILL active after revoke retry: {exc} — "
+                        f"retry for this task is blocked until manual release"
+                    )
         except Exception as exc:  # never let teardown stall the drain loop
             report.errors.append(f"terminalize({attempt.attempt_id},{reason}) raised: {exc}")
             logger.debug("poller: terminalize failed: %s", exc, exc_info=True)

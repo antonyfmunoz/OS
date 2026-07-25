@@ -77,12 +77,22 @@ def _role(role_id="role-impl-op"):
 
 def _workers():
     return [
-        {"worker_identity": "cc_cli_worktree@vps", "agent_type": "builder",
-         "capabilities": ["code_write", "test"], "reliability": 0.9,
-         "model_profile": {"model": "claude-opus"}, "harness_profile": {"harness": "cc_cli"}},
-        {"worker_identity": "codex@vps", "agent_type": "builder",
-         "capabilities": ["code_write"], "reliability": 0.6,
-         "model_profile": {"model": "codex"}, "harness_profile": {"harness": "codex"}},
+        {
+            "worker_identity": "cc_cli_worktree@vps",
+            "agent_type": "builder",
+            "capabilities": ["code_write", "test"],
+            "reliability": 0.9,
+            "model_profile": {"model": "claude-opus"},
+            "harness_profile": {"harness": "cc_cli"},
+        },
+        {
+            "worker_identity": "codex@vps",
+            "agent_type": "builder",
+            "capabilities": ["code_write"],
+            "reliability": 0.6,
+            "model_profile": {"model": "codex"},
+            "harness_profile": {"harness": "codex"},
+        },
     ]
 
 
@@ -98,9 +108,15 @@ def _nodes():
 
 def test_placement_records_full_assignment(store):
     asn = place_attempt(
-        packet=_packet(), grant=_grant(), role_contract=_role(), attempt_id="ea-1",
-        worker_candidates=_workers(), compute_nodes=_nodes(),
-        verifier_role_id="role-verify-op", store=store, mutation_runner=_runner(),
+        packet=_packet(),
+        grant=_grant(),
+        role_contract=_role(),
+        attempt_id="ea-1",
+        worker_candidates=_workers(),
+        compute_nodes=_nodes(),
+        verifier_role_id="role-verify-op",
+        store=store,
+        mutation_runner=_runner(),
     )
     assert asn.role_contract_id == "role-impl-op"
     assert asn.worker_identity == "cc_cli_worktree@vps"  # highest score
@@ -115,9 +131,15 @@ def test_placement_records_full_assignment(store):
 
 
 def test_placement_is_deterministic(store):
-    kw = dict(packet=_packet(), grant=_grant(), role_contract=_role(),
-              worker_candidates=_workers(), compute_nodes=_nodes(),
-              verifier_role_id="role-verify-op", persist=False)
+    kw = dict(
+        packet=_packet(),
+        grant=_grant(),
+        role_contract=_role(),
+        worker_candidates=_workers(),
+        compute_nodes=_nodes(),
+        verifier_role_id="role-verify-op",
+        persist=False,
+    )
     a = place_attempt(attempt_id="ea-1", **kw)
     b = place_attempt(attempt_id="ea-2", **kw)
     assert a.worker_identity == b.worker_identity
@@ -128,8 +150,12 @@ def test_placement_is_deterministic(store):
 def test_placement_separation_of_duty(store):
     with pytest.raises(PlacementError):
         place_attempt(
-            packet=_packet(), grant=_grant(), role_contract=_role("role-impl-op"),
-            attempt_id="ea-1", worker_candidates=_workers(), compute_nodes=_nodes(),
+            packet=_packet(),
+            grant=_grant(),
+            role_contract=_role("role-impl-op"),
+            attempt_id="ea-1",
+            worker_candidates=_workers(),
+            compute_nodes=_nodes(),
             verifier_role_id="role-impl-op",  # same as worker role → SoD violation
             persist=False,
         )
@@ -139,9 +165,13 @@ def test_placement_no_eligible_worker_fails_closed(store):
     with pytest.raises(PlacementError):
         place_attempt(
             packet=_packet(requirements={"required_capability_ids": ["quantum"]}),
-            grant=_grant(), role_contract=_role(), attempt_id="ea-1",
-            worker_candidates=_workers(), compute_nodes=_nodes(),
-            verifier_role_id="role-verify-op", persist=False,
+            grant=_grant(),
+            role_contract=_role(),
+            attempt_id="ea-1",
+            worker_candidates=_workers(),
+            compute_nodes=_nodes(),
+            verifier_role_id="role-verify-op",
+            persist=False,
         )
 
 
@@ -156,7 +186,9 @@ class _FakeSandbox:
 
     def create_sandbox(self, candidate_id, candidate_slug, agent_type="developer_agent"):
         return SimpleNamespace(
-            worktree_path=self._wt, branch_name="attempt/wp-a", base_commit="base123",
+            worktree_path=self._wt,
+            branch_name="attempt/wp-a",
+            base_commit="base123",
             sandbox_id="sb-1",
         )
 
@@ -173,9 +205,13 @@ def _attempt():
 def test_lease_acquire_and_one_active_per_task(store, tmp_path):
     sandbox = _FakeSandbox(str(tmp_path / "repo"), str(tmp_path / "wt"))
     lm = LeaseManager(store, sandbox, mutation_runner=_runner())
-    asn = SimpleNamespace(worker_identity="w", compute_node_id="vps",
-                          environment_class="git_worktree", tool_profile=["shell"],
-                          worker_agent_type="builder")
+    asn = SimpleNamespace(
+        worker_identity="w",
+        compute_node_id="vps",
+        environment_class="git_worktree",
+        tool_profile=["shell"],
+        worker_agent_type="builder",
+    )
     lease = lm.acquire(attempt=_attempt(), assignment=asn, grant=_grant())
     assert lease.status == "active"
     assert lease.worktree_path == str(tmp_path / "wt")
@@ -192,8 +228,13 @@ def test_lease_rejects_repo_root_workspace(store, tmp_path):
     repo = str(tmp_path / "repo")
     sandbox = _FakeSandbox(repo, repo)  # worktree == repo root → forbidden
     lm = LeaseManager(store, sandbox, mutation_runner=_runner())
-    asn = SimpleNamespace(worker_identity="w", compute_node_id="vps",
-                          environment_class="git_worktree", tool_profile=[], worker_agent_type="b")
+    asn = SimpleNamespace(
+        worker_identity="w",
+        compute_node_id="vps",
+        environment_class="git_worktree",
+        tool_profile=[],
+        worker_agent_type="b",
+    )
     with pytest.raises(LeaseError):
         lm.acquire(attempt=_attempt(), assignment=asn, grant=_grant())
     assert sandbox.cleaned == ["sb-1"]  # the bad worktree was cleaned up
@@ -202,8 +243,13 @@ def test_lease_rejects_repo_root_workspace(store, tmp_path):
 def test_lease_release_and_revoke(store, tmp_path):
     sandbox = _FakeSandbox(str(tmp_path / "repo"), str(tmp_path / "wt"))
     lm = LeaseManager(store, sandbox, mutation_runner=_runner())
-    asn = SimpleNamespace(worker_identity="w", compute_node_id="vps",
-                          environment_class="git_worktree", tool_profile=[], worker_agent_type="b")
+    asn = SimpleNamespace(
+        worker_identity="w",
+        compute_node_id="vps",
+        environment_class="git_worktree",
+        tool_profile=[],
+        worker_agent_type="b",
+    )
     lease = lm.acquire(attempt=_attempt(), assignment=asn, grant=_grant())
     lm.release(lease.lease_id)
     assert store.get_lease(lease.lease_id)["status"] == "released"
@@ -228,9 +274,12 @@ def _assignment_for_pkg():
 
 def _attempt_for_pkg():
     a = ExecutionAttempt(
-        task_id="wp-a", plan_record_id="opr-1", plan_version=1,
+        task_id="wp-a",
+        plan_record_id="opr-1",
+        plan_version=1,
         execution_authorization_ref="objective_plan:opr-1:execution_authorization:v1",
-        timeout_seconds=600, max_turns=30,
+        timeout_seconds=600,
+        max_turns=30,
     )
     a.attempt_id = "ea-1"
     return a
@@ -238,8 +287,10 @@ def _attempt_for_pkg():
 
 def test_compile_package_sealed_and_hashed():
     pkg = compile_attempt_package(
-        attempt=_attempt_for_pkg(), packet=_packet(),
-        assignment=_assignment_for_pkg(), grant=_grant(),
+        attempt=_attempt_for_pkg(),
+        packet=_packet(),
+        assignment=_assignment_for_pkg(),
+        grant=_grant(),
     )
     assert pkg.package_hash
     # The sealed hash covers operation_identity + governance + verification.
@@ -251,8 +302,10 @@ def test_compile_package_sealed_and_hashed():
 
 def test_compile_package_tamper_changes_hash():
     pkg = compile_attempt_package(
-        attempt=_attempt_for_pkg(), packet=_packet(),
-        assignment=_assignment_for_pkg(), grant=_grant(),
+        attempt=_attempt_for_pkg(),
+        packet=_packet(),
+        assignment=_assignment_for_pkg(),
+        grant=_grant(),
     )
     original = pkg.package_hash
     pkg.governance_constraints.append("tampered=true")
@@ -266,6 +319,8 @@ def test_compilation_failure_blocks_dispatch():
     bad_assignment.model_profile = {}  # missing required "model"
     with pytest.raises(DispatchBlocked):
         compile_attempt_package(
-            attempt=_attempt_for_pkg(), packet=_packet(),
-            assignment=bad_assignment, grant=_grant(),
+            attempt=_attempt_for_pkg(),
+            packet=_packet(),
+            assignment=bad_assignment,
+            grant=_grant(),
         )

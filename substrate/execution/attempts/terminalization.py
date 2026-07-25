@@ -50,6 +50,7 @@ This module imports only downward (substrate + same-package).
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -287,8 +288,11 @@ def _destroy_home(result: TerminalizationResult, run_root: str) -> None:
     # Authoritative residue scan: 'destroyed' is a verified claim, not a hope.
     residue = assert_no_credential_residue(run_root)
     # Scope the residue to THIS attempt's home (a sibling attempt's live home is
-    # not this terminalization's failure).
-    mine = [p for p in residue if home_path in p]
+    # not this terminalization's failure). RV-MED-1: use a PATH-BOUNDARY match, not
+    # a substring — `home_path in p` mis-attributed a sibling's residue whenever one
+    # attempt-id was a prefix of another (att1's home path is a substring of att11's
+    # credential path), flagging the wrong attempt.
+    mine = [p for p in residue if p == home_path or p.startswith(home_path + os.sep)]
     if mine:
         result.credential_residue = mine
         result.errors.append(f"SECURITY: credential residue survived: {mine}")

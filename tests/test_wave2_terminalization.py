@@ -188,6 +188,38 @@ def test_terminalize_destroys_the_attempt_credential_home(store, tmp_path):
     assert result.ok is True
 
 
+def test_residue_scoping_is_path_boundary_not_substring(store, tmp_path):
+    """RV-MED-1: terminalizing attempt `ea-1` must NOT mis-attribute a SIBLING
+    attempt's residue whose id has `ea-1` as a prefix (`ea-11`). The old
+    `home_path in p` substring match flagged the wrong attempt; a path-boundary
+    match (`== or startswith(home_path + sep)`) does not."""
+    from substrate.execution.attempts.records import ExecutionAttempt
+
+    lm = _lease_manager(store, tmp_path)
+    # ea-1 with a CLEAN home (its own credential destroyed).
+    a1, _ = _leased_attempt(store, lm)
+    a1.attempt_id = "ea-1"
+    home1 = open_attempt_credential_home(attempt_id="ea-1", run_root=str(tmp_path))
+    # ea-11 (a DIFFERENT attempt whose id has ea-1 as a prefix) keeps a live
+    # credential — it is NOT part of this terminalization.
+    src = tmp_path / "src11"
+    src.mkdir()
+    (src / ".credentials.json").write_text('{"token":"SIBLING"}')
+    open_attempt_credential_home(
+        attempt_id="ea-11", run_root=str(tmp_path), source_claude_dir=str(src)
+    )
+
+    a1.status = _S.FAILED.value
+    result = terminalize(attempt=a1, reason="failed", lease_manager=lm, run_root=str(tmp_path))
+    # ea-1's own home was destroyed; the sibling ea-11 credential is NOT counted
+    # against ea-1 (no substring mis-attribution).
+    assert not os.path.exists(home1.home_path)
+    assert result.credential_residue == [], (
+        f"sibling residue mis-attributed: {result.credential_residue}"
+    )
+    assert result.ok is True
+
+
 def test_worker_crash_path_destroys_home_even_though_worker_never_cleaned(store, tmp_path):
     """SEC-C1: the SIGTERM/crash path never ran the worker's finally. The
     authority is what sweeps the home the worker abandoned."""

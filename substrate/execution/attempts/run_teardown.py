@@ -21,7 +21,10 @@ The four guarantees this module provides:
    or unsafe-path refusal. A second call on an already-clean run is a verified
    no-op. Every exit path (normal / failure / exception / SIGINT / SIGTERM)
    converges here; the runner's signal handler triggers a ``finally`` that calls
-   it — it does not maintain a second cleanup implementation.
+   it — it does not maintain a second cleanup implementation. NOTE: runtime lease
+   release is the POLLER's authority (it terminalizes each attempt and re-drives a
+   revoke on a release fault); this sweep releases leases only as a CRASH BACKSTOP
+   when an explicit ``lease_manager`` is supplied (e.g. :func:`recover_stale_runs`).
 
 2. **Durable registration.** :func:`register_resource` appends each resource to
    ``<run_root>/run_manifest.jsonl`` the moment it is created, with the owning
@@ -294,20 +297,29 @@ def sweep_run(
 
     killer = kill_process or os.kill
 
-    # (1) Release every lease recorded in the manifest, driving each out of ACTIVE
-    # and removing its sandbox worktree. Idempotent: releasing an already-released
-    # lease is a no-op. A missing LeaseManager with recorded leases is an error.
+    # (1) Lease release. RUNTIME lease release is the POLLER's authority: on every
+    # terminal transition it terminalizes the attempt and, on a release fault,
+    # re-drives a revoke so retry can never deadlock (RV-HIGH-2, poller._terminalize).
+    # This sweep is the CRASH BACKSTOP: when an explicit LeaseManager is supplied
+    # (e.g. recover_stale_runs for a dead run), it revokes every manifest-recorded
+    # lease — idempotent, so revoking an already-released lease is a no-op. When NO
+    # manager is supplied (the normal runner-finally / dispatch-teardown sweep,
+    # which have no store handle), recorded leases are NOT an error: the poller
+    # already owns their release, and a lease record carries no credential material.
     manifest = read_manifest(run_root)
     lease_ids = _dedup(e["ident"] for e in manifest if e.get("kind") == "lease")
-    if lease_ids and lease_manager is None:
-        result.errors.append(f"{len(lease_ids)} recorded lease(s) but no lease_manager to release")
-    for lid in lease_ids:
-        try:
-            if lease_manager is not None:
+    if lease_manager is not None:
+        for lid in lease_ids:
+            try:
                 lease_manager.revoke(lid, "run_teardown")
                 result.leases_released += 1
-        except Exception as exc:  # noqa: BLE001
-            result.errors.append(f"lease {lid} release failed: {exc}")
+            except Exception as exc:  # noqa: BLE001
+                result.errors.append(f"lease {lid} release failed: {exc}")
+    elif lease_ids:
+        result.steps.append(
+            f"{len(lease_ids)} recorded lease(s) not swept here — poller owns runtime "
+            f"release; pass a lease_manager for crash-recovery revoke"
+        )
 
     # (2) Remove recorded worktrees that survived lease release (defense in depth).
     for wt in _dedup(e["ident"] for e in manifest if e.get("kind") == "worktree"):

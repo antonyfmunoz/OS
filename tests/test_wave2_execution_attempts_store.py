@@ -29,16 +29,67 @@ from substrate.execution.attempts.store import AttemptStoreConflict, ExecutionAt
 # test, rather than disabling the durability guard. The former env hatch
 # (UMH_W2_ALLOW_NONDURABLE_PROOF) was removed: it was ambient, unlogged, and any
 # stale export silently voided governed completion on a live billed run.
+def _valid_verifier_evidence(attempt):
+    """A digest-valid, correctly-bound confined-verifier evidence record.
+
+    RV-HIGH-1: the verifying→succeeded gate now requires an AttemptProof to carry
+    exactly-one digest-valid verifier evidence bound to this attempt/task. A bare
+    proof (the pre-C-4a shape) no longer completes an attempt — so the durable
+    proof a test mints to reach SUCCEEDED must be COMPLETE, as the field path is.
+    """
+    from substrate.execution.attempts.verifier_isolation import VerifierEvidence
+
+    return VerifierEvidence(
+        verifier_lease_id="vl-1",
+        attempt_id=attempt.attempt_id,
+        task_id=attempt.task_id,
+        assignment_id="",
+        verifier_identity="verifier:v1",
+        verifier_role_id="role-verifier-op",
+        worker_identity="worker:w1",
+        package_hash="",
+        base_commit="b" * 40,
+        verified_commit="c" * 40,
+        bwrap_argv=["bwrap"],
+        bwrap_argv_digest="d",
+        env_var_names=["PATH"],
+        mount_policy={},
+        isolation_probe={"ok": True},
+        source_hashes_before={},
+        source_hashes_after={},
+        zero_diff=True,
+        tests_ok=True,
+        tests_detail="ok",
+        started_at=1.0,
+        ended_at=2.0,
+        process_identity={"pid": 7, "valid": True},
+        verifier_pid=7,
+    ).finalize()
+
+
 def _durable_proof_for(attempt, *, tmp_path, monkeypatch):
     monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "proofstate"))
-    from substrate.organism.proof_runtime import ProofRuntime
+    from substrate.execution.attempts.verifier_isolation import VERIFIER_EVIDENCE_TYPE
+    from substrate.organism.proof_runtime import ProofEvidence, ProofRuntime
 
-    pkg = ProofRuntime().create_direct(
+    ev = _valid_verifier_evidence(attempt)
+    rt = ProofRuntime()
+    pkg = rt.create_direct(
         work_id=attempt.task_id,
         action={"classification": "attempt_proof", "attempt_id": attempt.attempt_id},
         outcome="attempt_proof:passed",
         operator="verifier:v1",
     )
+    # Mirror the production _persist_proof path: attach the confined-verifier
+    # evidence to the package and re-persist so the durable record carries it.
+    pkg.evidence.append(
+        ProofEvidence(
+            evidence_type=VERIFIER_EVIDENCE_TYPE,
+            description="confined verifier run",
+            data=ev.to_dict(),
+        )
+    )
+    rt._persist_package(pkg)  # noqa: SLF001 - canonical seam, as production does
     return pkg.proof_id
 
 

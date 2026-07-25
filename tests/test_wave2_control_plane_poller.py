@@ -30,16 +30,68 @@ from substrate.execution.attempts.store import ExecutionAttemptStore  # noqa: E4
 # test, rather than disabling the durability guard. The former env hatch
 # (UMH_W2_ALLOW_NONDURABLE_PROOF) was removed: it was ambient, unlogged, and any
 # stale export silently voided governed completion on a live billed run.
+def _attach_valid_verifier_evidence(rt, pkg, attempt, verifier_identity="verifier:v1"):
+    """Attach a digest-valid, correctly-bound confined-verifier evidence record to
+    a durable AttemptProof and re-persist — mirroring production _persist_proof.
+
+    RV-HIGH-1: the verifying→succeeded gate now validates this evidence, so a stub
+    verifier that mints a proof to complete an attempt must attach it (as the real
+    field verifier does), or the completion is correctly refused.
+    """
+    from substrate.execution.attempts.verifier_isolation import (
+        VERIFIER_EVIDENCE_TYPE,
+        VerifierEvidence,
+    )
+    from substrate.organism.proof_runtime import ProofEvidence
+
+    ev = VerifierEvidence(
+        verifier_lease_id="vl-1",
+        attempt_id=attempt.attempt_id,
+        task_id=attempt.task_id,
+        assignment_id="",
+        verifier_identity=verifier_identity,
+        verifier_role_id="role-verifier-op",
+        worker_identity=getattr(attempt, "worker_identity", "") or "worker:w1",
+        package_hash="",
+        base_commit="b" * 40,
+        verified_commit="c" * 40,
+        bwrap_argv=["bwrap"],
+        bwrap_argv_digest="d",
+        env_var_names=["PATH"],
+        mount_policy={},
+        isolation_probe={"ok": True},
+        source_hashes_before={},
+        source_hashes_after={},
+        zero_diff=True,
+        tests_ok=True,
+        tests_detail="ok",
+        started_at=1.0,
+        ended_at=2.0,
+        process_identity={"pid": 7, "valid": True},
+        verifier_pid=7,
+    ).finalize()
+    pkg.evidence.append(
+        ProofEvidence(
+            evidence_type=VERIFIER_EVIDENCE_TYPE,
+            description="confined verifier run",
+            data=ev.to_dict(),
+        )
+    )
+    rt._persist_package(pkg)  # noqa: SLF001 - canonical seam, as production does
+
+
 def _durable_proof_for(attempt, *, tmp_path, monkeypatch):
     monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "proofstate"))
     from substrate.organism.proof_runtime import ProofRuntime
 
-    pkg = ProofRuntime().create_direct(
+    rt = ProofRuntime()
+    pkg = rt.create_direct(
         work_id=attempt.task_id,
         action={"classification": "attempt_proof", "attempt_id": attempt.attempt_id},
         outcome="attempt_proof:passed",
         operator="verifier:v1",
     )
+    _attach_valid_verifier_evidence(rt, pkg, attempt)
     return pkg.proof_id
 
 
@@ -146,12 +198,14 @@ def _passing_verify(**kw):
     from substrate.organism.proof_runtime import ProofRuntime
 
     attempt = kw["attempt"]
-    pkg = ProofRuntime().create_direct(
+    rt = ProofRuntime()
+    pkg = rt.create_direct(
         work_id=attempt.task_id,
         action={"classification": "attempt_proof", "attempt_id": attempt.attempt_id},
         outcome="attempt_proof:passed",
         operator=kw["verifier_identity"],
     )
+    _attach_valid_verifier_evidence(rt, pkg, attempt, verifier_identity=kw["verifier_identity"])
     return _Verdict(
         passed=True, proof_id=pkg.proof_id, checks=[{"check_id": "artifacts", "ok": True}]
     )
@@ -296,3 +350,75 @@ def test_empty_outbox_still_runs_scheduler(store):
     report = poller.run_pass()
     assert report.results_drained == 0
     assert sched.passes == 1  # frontier still gets a dispatch opportunity
+
+
+# ── RV-HIGH-2: a lease-release fault must be HEALED, not deadlock retry ──────
+class _FaultyThenRevocableLeaseManager:
+    """release() FAULTS (leaving the lease ACTIVE); revoke() SUCCEEDS.
+
+    Models the exact RV-HIGH-2 hazard: terminalize's _release_lease raises/leaves
+    the lease active, so retry would deadlock (one active lease per task). The
+    poller must re-drive revoke() to unblock retry.
+    """
+
+    def __init__(self):
+        self.revoked = []
+
+    def release(self, lease_id, **kw):
+        raise RuntimeError("simulated lease-store CAS conflict on release")
+
+    def revoke(self, lease_id, reason, **kw):
+        self.revoked.append((lease_id, reason))
+
+
+def test_lease_release_fault_is_force_revoked_to_unblock_retry(store, tmp_path, monkeypatch):
+    """RV-HIGH-2: when terminalize reports lease_released=False (a release fault),
+    the poller re-drives revoke() so the task's ACTIVE lease is cleared and the
+    next attempt is not deadlocked. Without the heal, the lease stays ACTIVE
+    forever and retry BLOCKS↔READY."""
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    a = _dispatched_attempt(store)
+    # Move to VERIFYING then to a terminal FAILED via CAS so terminalize accepts it.
+    a = store.transition_cas(
+        a.attempt_id,
+        ExecutionAttemptStatus.RUNNING.value,
+        expected_record_version=a.record_version,
+        expected_statuses=(ExecutionAttemptStatus.DISPATCHED.value,),
+        actor="runner",
+        reason="running",
+    )
+    a = store.transition_cas(
+        a.attempt_id,
+        ExecutionAttemptStatus.VERIFYING.value,
+        expected_record_version=a.record_version,
+        expected_statuses=(ExecutionAttemptStatus.RUNNING.value,),
+        actor="runner",
+        reason="verifying",
+    )
+    a = store.transition_cas(
+        a.attempt_id,
+        ExecutionAttemptStatus.FAILED.value,
+        expected_record_version=a.record_version,
+        expected_statuses=(ExecutionAttemptStatus.VERIFYING.value,),
+        actor="verifier:v1",
+        reason="verification refused",
+    )
+
+    lm = _FaultyThenRevocableLeaseManager()
+    poller = ControlPlanePoller(
+        store=store,
+        spool=_StubSpool([]),
+        scheduler=_StubScheduler(),
+        verify_fn=_passing_verify,
+        lease_manager=lm,
+        run_root=str(tmp_path / "targets"),
+    )
+    from substrate.execution.attempts.poller import PollerPassReport
+
+    report = PollerPassReport()
+    poller._terminalize(a, "failed", report)  # noqa: SLF001 - direct unit exercise
+
+    # The release fault was healed by a force-revoke of the stranded lease.
+    assert lm.revoked, "poller did not re-drive revoke after a release fault"
+    assert lm.revoked[0][0] == a.lease_id
+    assert any("force-revoked" in e for e in report.errors)

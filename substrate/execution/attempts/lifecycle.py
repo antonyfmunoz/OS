@@ -183,6 +183,54 @@ def _assert_durable_proof(attempt: ExecutionAttempt, proof_id: str) -> None:
             f"{recorded_task!r}, not {attempt.task_id!r}"
         )
 
+    # RV-HIGH-1: if the AttemptProof carries confined-verifier evidence, it MUST be
+    # digest-valid and bound to THIS attempt. The outer lineage checks above only
+    # prove the Proof NAMES this attempt; they do NOT detect a post-persistence
+    # tamper of the plaintext append-only proof store (e.g. an edited
+    # zero_diff/tests_ok with a stale evidence_sha256). The C-4a validators catch
+    # exactly that but were unwired from this completion gate — wire them here.
+    #
+    # Scope (truthful): the confined verifier (the FIELD path, fixture wired) always
+    # threads a `verifier_confined_run` record into the AttemptProof, so a field
+    # attempt is fully re-validated at completion. A context-only / harness verifier
+    # (no fixture) legitimately mints an AttemptProof WITHOUT that record by design
+    # (verification.py: "a legacy/harness supplier may return a bare list") — those
+    # are exempt here, gated by the outer lineage + mint-time checks. PlanExecution
+    # proofs carry no verifier evidence and are likewise exempt. The residual not
+    # closed by THIS gate — a store-tamperer DELETING the whole evidence record to
+    # look like a context-only proof — is bounded: the durable store is
+    # host-only/append-only under lock, mint-time gates `passed=all(checks)`, and
+    # the field path never produces an evidence-less AttemptProof. Recorded in the
+    # ledger as bounded residual, not silently ignored.
+    from substrate.execution.attempts.verifier_isolation import VERIFIER_EVIDENCE_TYPE
+
+    has_verifier_evidence = any(
+        getattr(e, "evidence_type", "") == VERIFIER_EVIDENCE_TYPE
+        for e in (getattr(package, "evidence", []) or [])
+    )
+    if has_verifier_evidence:
+        try:
+            from substrate.execution.attempts.verifier_isolation import (
+                VerifierEvidenceBindingError,
+                validate_evidence_binding,
+            )
+        except ImportError as exc:  # substrate must be importable; fail closed
+            raise AttemptLifecycleError(
+                f"attempt {attempt.attempt_id}: cannot verify Proof evidence binding: {exc}"
+            ) from exc
+        try:
+            validate_evidence_binding(
+                package,
+                attempt_id=attempt.attempt_id,
+                task_id=str(attempt.task_id or ""),
+            )
+        except VerifierEvidenceBindingError as exc:
+            raise AttemptLifecycleError(
+                f"attempt {attempt.attempt_id}: AttemptProof {proof_id!r} verifier "
+                f"evidence is tampered or bound to another attempt: {exc} "
+                f"— refusing verifying→succeeded"
+            ) from exc
+
 
 __all__ = [
     "TRANSITIONS",
