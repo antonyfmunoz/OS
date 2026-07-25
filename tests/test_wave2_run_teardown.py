@@ -411,3 +411,68 @@ def test_mutation_stale_recovery_disabled_would_leave_residue(tmp_path):
     assert os.path.isdir(wh)  # residue present when recovery is NOT run
     rt.recover_stale_runs(runs_root, pid_is_alive=lambda pid: False)
     assert not os.path.isdir(wh)  # recovery removed it
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Source-pinned runner invariants (the "no signal handler" + "swallowed error"
+# fail-open modes made mechanically detectable). These pin the two load-bearing
+# lines a future edit could silently regress.
+# ─────────────────────────────────────────────────────────────────────────────
+def _runner_source() -> str:
+    path = os.path.join(REPO, "scripts", "wave2_attempt_runner.py")
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def test_runner_installs_signal_handlers():
+    # The "no signal handler" fail-open (the original defect): run_loop MUST call
+    # _install_signal_handlers, and the installer MUST bind SIGTERM and SIGINT.
+    import ast
+
+    tree = ast.parse(_runner_source())
+    run_loop = next(
+        n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run_loop"
+    )
+    calls = {
+        n.func.id
+        for n in ast.walk(run_loop)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "_install_signal_handlers" in calls, "run_loop no longer installs signal handlers"
+
+    installer = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "_install_signal_handlers"
+    )
+    src = ast.unparse(installer)
+    assert "SIGTERM" in src and "SIGINT" in src, "handler must bind both SIGTERM and SIGINT"
+
+
+def test_shutdown_is_baseexception_not_exception():
+    # The "swallowed teardown error" fail-open: _Shutdown MUST subclass
+    # BaseException so the loop's `except Exception` cannot swallow the signal
+    # before the finally runs. If a refactor makes it an Exception, this fails.
+    runner = importlib.import_module("scripts.wave2_attempt_runner")
+    assert issubclass(runner._Shutdown, BaseException)
+    assert not issubclass(runner._Shutdown, Exception), (
+        "_Shutdown must NOT be an Exception — the loop's except Exception would eat it"
+    )
+
+
+def test_run_loop_teardown_runs_in_a_finally():
+    # The teardown call MUST be in a finally so EVERY exit path reaches it.
+    import ast
+
+    tree = ast.parse(_runner_source())
+    run_loop = next(
+        n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "run_loop"
+    )
+    finally_calls = []
+    for node in ast.walk(run_loop):
+        if isinstance(node, ast.Try):
+            for stmt in node.finalbody:
+                for c in ast.walk(stmt):
+                    if isinstance(c, ast.Call) and isinstance(c.func, ast.Name):
+                        finally_calls.append(c.func.id)
+    assert "_run_teardown" in finally_calls, "_run_teardown must be invoked from a finally block"
