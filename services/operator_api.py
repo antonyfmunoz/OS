@@ -172,6 +172,21 @@ async def lifespan(application):
         logger.info("runtime graph built: %d runtimes, %d available", graph.node_count, avail)
         _organism_daemon = OrganismDaemon(graph=graph)
         _organism_daemon.start()
+        # Register the running daemon with the CANONICAL organism port so the
+        # governed mutation path (transports/api/governed.py -> _get_router) can
+        # reach the control plane. Without this the governed path finds no
+        # organism, degrades EVERY mutation, and fail-closes HIGH-risk decisions
+        # like execution_authorization_decision — the operator can approve
+        # execution in the HUD (200) but the grant never activates and no worker
+        # ever runs (observed field run 20260725T172540Z-p1). Voice wiring alone
+        # (wire_organism) does not populate this port.
+        try:
+            from substrate.sockets.organism_port import register_organism_accessor
+
+            register_organism_accessor(lambda: _organism_daemon)
+            logger.info("organism registered with canonical organism_port (governed path live)")
+        except Exception as exc:  # never block startup on the accessor wiring
+            logger.error("failed to register organism accessor: %s", exc)
         _wire_spine_to_cockpit_ws(_organism_daemon)
         _tick_task = asyncio.create_task(_tick_loop(_organism_daemon, _tick_executor))
         logger.info("organism daemon started with autonomous tick loop (dedicated thread)")
