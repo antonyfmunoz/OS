@@ -245,29 +245,50 @@ def check_clerk_origin() -> dict:
 
 
 def check_beast() -> dict:
-    """Read-only Beast reachability via tailscale status (no dispatch)."""
+    """Beast readiness: tailnet reachability AND mesh registration.
+
+    Tailnet reachability alone is NOT readiness. On 2026-07-24 the Beast was
+    tailnet-active while ``connected_nodes: 0`` (duplicate daemons thrashing the
+    same mesh identity), and this check reported PASS — blind to the layer where
+    the failure lived. The executor is only READY when exactly one
+    ``windows-desktop`` identity is connected to the mesh; a reachable-but-absent
+    node is machine-resolvable via ``scripts/wave2_beast_reconciler.py``.
+    """
     try:
         import subprocess
 
         out = subprocess.run(["tailscale", "status"], capture_output=True, text=True, timeout=15)
         text = out.stdout or ""
-        for line in text.splitlines():
-            if "windows" in line.lower() and "active" in line.lower():
-                return _result(
-                    "beast_reachable",
-                    "PASS",
-                    "windows-desktop active on tailnet",
-                    line.strip()[:120],
-                )
-        for line in text.splitlines():
-            if "windows" in line.lower():
-                return _result(
-                    "beast_reachable",
-                    "OWNER_GATED",
-                    "windows node present but not active — wake Beast",
-                    line.strip()[:120],
-                )
-        return _result("beast_reachable", "OWNER_GATED", "no windows node on tailnet")
+        tailnet = any("windows" in ln.lower() for ln in text.splitlines())
+        if not tailnet:
+            return _result("beast_reachable", "OWNER_GATED", "no windows node on tailnet")
+
+        # Reachable — now require mesh registration (the layer the old check missed).
+        node_ids: list[str] = []
+        try:
+            from scripts.wave2_beast_reconciler import _mesh_health, _MESH_NODE_ID
+
+            node_ids = list(_mesh_health().get("node_ids", []) or [])
+        except Exception:  # noqa: BLE001 — fall back to name below
+            _MESH_NODE_ID = "windows-desktop"
+
+        if node_ids == [_MESH_NODE_ID]:
+            return _result(
+                "beast_reachable", "PASS", "windows-desktop connected to mesh", str(node_ids)
+            )
+        if _MESH_NODE_ID in node_ids:
+            return _result(
+                "beast_reachable",
+                "FAIL",
+                "duplicate/extra mesh identities — run wave2_beast_reconciler",
+                str(node_ids),
+            )
+        return _result(
+            "beast_reachable",
+            "FAIL",
+            "tailnet-reachable but absent from mesh — run wave2_beast_reconciler",
+            str(node_ids),
+        )
     except Exception as exc:  # noqa: BLE001
         return _result("beast_reachable", "OWNER_GATED", str(exc))
 

@@ -1696,7 +1696,13 @@ def write_manifest(runner: Runner, sha: str) -> dict[str, Any]:
     # The pipeline also replaces the withdrawn bare-64-hex redaction rule, which
     # destroyed the legitimate artifact/package/scope hashes and image IDs the
     # manifest's integrity claim is built on.
-    sys.path.insert(0, str(_ROOT))
+    # evidence_finalization is Wave-2-only code that lives in the candidate
+    # worktree, NOT in the stale /opt/OS main checkout (which is frozen at Wave
+    # 0). Import it from _WORKTREE like every other attempts.* import in this
+    # dispatcher (seed-fixture/start-runner/reconcile sites) — using _ROOT here
+    # raised ModuleNotFoundError and aborted deploy-candidate before it could
+    # write its manifest.
+    sys.path.insert(0, str(_WORKTREE))
     from substrate.execution.attempts.evidence_finalization import finalize_evidence
 
     exact_values: list[str] = []
@@ -2088,6 +2094,10 @@ def _capture_execution_binding(
     The exact-correlation match is what makes a legitimate ACTIVE grant left by a
     prior or parallel run irrelevant: it carries a different correlation.
     """
+    # field_scenario_map is Wave-2-only (candidate worktree, not stale /opt/OS
+    # main). Guard the import with _WORKTREE explicitly rather than relying on a
+    # prior call having inserted it — same defect class as write_manifest.
+    sys.path.insert(0, str(_WORKTREE))
     from substrate.execution.attempts.field_scenario_map import ExecutionBinding
 
     # The collector's correlation for this journey: w2-<run_id> (run_id already
