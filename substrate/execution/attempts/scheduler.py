@@ -156,6 +156,17 @@ class AttemptScheduler:
                 report.reason = f"grant {grant.status} not active"
                 return report
 
+            # Un-block TRANSIENTLY-blocked attempts so they retry this pass.
+            # A CPU-gate refusal during lease acquisition parks the attempt in
+            # BLOCKED (recoverable, non-terminal) — but nothing ever moved it
+            # back, so a task that hit an overloaded host at admission stayed
+            # wedged forever ("no eligible work") even after load dropped (field
+            # run 20260725T205058Z, sixth control-plane layer). BLOCKED→READY is
+            # a legal transition; re-arming here lets the very next admission try
+            # again. Only transient (CPU-gate) blocks are re-armed — a block from
+            # a real admission fault is left parked.
+            self._rearm_transient_blocks(grant)
+
             frontier = list(getattr(grant, "task_frontier", []) or [])
 
             # (3) failure propagation: a Task with an exhausted FAILED attempt
@@ -211,6 +222,38 @@ class AttemptScheduler:
                 now,
             )
             return report
+
+    # A block whose reason names the CPU gate is transient and safe to re-arm.
+    _TRANSIENT_BLOCK_MARKERS = ("cpu gate", "cpu_gate", "host overloaded")
+
+    def _rearm_transient_blocks(self, grant: Any) -> None:
+        """Move CPU-gate-blocked attempts BLOCKED→READY so they retry.
+
+        A CPU-gate refusal during lease acquisition is transient: the attempt is
+        parked in BLOCKED (non-terminal) with a reason naming the CPU gate. Once
+        load drops the attempt should be admissible again, but the admission loop
+        only ever looks at READY attempts and the frontier loop SKIPS a task that
+        has any non-terminal attempt — so without this re-arm the task is wedged
+        permanently. Re-arm ONLY transient (CPU) blocks; a block from a genuine
+        admission fault stays parked for inspection."""
+        for task_id in getattr(grant, "task_frontier", []) or []:
+            for att in self._store.attempts_for_task(task_id):
+                if att.status != _S.BLOCKED.value:
+                    continue
+                reason = (getattr(att, "blocked_reason", "") or "").lower()
+                if not any(m in reason for m in self._TRANSIENT_BLOCK_MARKERS):
+                    continue
+                try:
+                    self._transition(
+                        att,
+                        _S.READY.value,
+                        (_S.BLOCKED.value,),
+                        "scheduler",
+                        "re-arm after transient CPU-gate block",
+                        updates={"blocked_reason": ""},
+                    )
+                except AttemptStoreConflict:
+                    pass  # a concurrent pass already moved it — fine
 
     def _exhausted_failed_tasks(self, grant: Any) -> set[str]:
         max_attempts = int(getattr(grant, "max_attempts_per_task", 1))

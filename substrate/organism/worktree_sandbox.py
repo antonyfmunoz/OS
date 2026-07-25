@@ -139,14 +139,32 @@ def make_branch_name(candidate_slug: str, short_id: str) -> str:
     return f"auto/low-risk/{slug}-{short_id[:8]}"
 
 
+class CpuGatedGitError(RuntimeError):
+    """Raised when a git subprocess is refused by the CPU gate (host overloaded).
+
+    ``gated_subprocess_run`` returns ``None`` when the CPU gate blocks (CPU Gate
+    Law: "the gated wrappers return None when CPU is overloaded — handle
+    gracefully"). Every caller here immediately reads ``result.returncode``, so a
+    None silently became ``'NoneType' object has no attribute 'returncode'`` — an
+    opaque crash that a caller could not distinguish from a real git failure. A
+    worktree/lease acquisition that hits this is TRANSIENT and RETRYABLE (retry
+    when load drops), NOT a permanent failure. Callers that create leases catch
+    this and mark the attempt CPU-blocked (recoverable) rather than failed."""
+
+
 def _run_git(args: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
-    return gated_subprocess_run(
+    result = gated_subprocess_run(
         ["git"] + args,
         cwd=cwd or _REPO_ROOT,
         capture_output=True,
         text=True,
         timeout=30,
     )
+    if result is None:
+        # CPU gate refused the subprocess — surface a clear, catchable signal
+        # instead of letting the caller crash on result.returncode (CPU Gate Law).
+        raise CpuGatedGitError(f"git {' '.join(args)} refused by CPU gate (host overloaded)")
+    return result
 
 
 class SandboxManager:
@@ -191,9 +209,7 @@ class SandboxManager:
                     created_at=entry.get("created_at", 0),
                     status=SandboxStatus(entry.get("status", "created")),
                     affected_files=entry.get("affected_files", []),
-                    cleanup_policy=SandboxCleanupPolicy(
-                        entry.get("cleanup_policy", "on_merge")
-                    ),
+                    cleanup_policy=SandboxCleanupPolicy(entry.get("cleanup_policy", "on_merge")),
                     pr_url=entry.get("pr_url", ""),
                     pr_number=entry.get("pr_number", 0),
                     error=entry.get("error", ""),
@@ -229,10 +245,7 @@ class SandboxManager:
             SandboxStatus.VALIDATED,
             SandboxStatus.PR_CREATED,
         }
-        return [
-            sb for sb in self._sandboxes.values()
-            if sb.status in active_statuses
-        ]
+        return [sb for sb in self._sandboxes.values() if sb.status in active_statuses]
 
     @property
     def all_sandboxes(self) -> list[WorktreeSandbox]:
@@ -273,9 +286,7 @@ class SandboxManager:
         affected = affected_files or []
         conflicts = self.check_file_conflicts(affected)
         if conflicts:
-            raise RuntimeError(
-                f"File lock conflict on: {', '.join(conflicts[:5])}"
-            )
+            raise RuntimeError(f"File lock conflict on: {', '.join(conflicts[:5])}")
 
         short_id = uuid4().hex[:8]
         sandbox_id = f"sb-{short_id}"
@@ -316,7 +327,9 @@ class SandboxManager:
         self._persist()
         logger.info(
             "Created sandbox %s on branch %s at %s",
-            sandbox_id, branch_name, worktree_path,
+            sandbox_id,
+            branch_name,
+            worktree_path,
         )
         return sandbox
 
@@ -357,9 +370,7 @@ class SandboxManager:
         self._persist()
         return sb
 
-    def add_validation_result(
-        self, sandbox_id: str, result: SandboxValidationResult
-    ) -> None:
+    def add_validation_result(self, sandbox_id: str, result: SandboxValidationResult) -> None:
         sb = self._sandboxes.get(sandbox_id)
         if not sb:
             raise KeyError(f"Unknown sandbox: {sandbox_id}")
@@ -435,15 +446,11 @@ class SandboxManager:
         result = _run_git(["rev-parse", "HEAD"], cwd=self._repo_root)
         main_commit = result.stdout.strip() if result.returncode == 0 else "unknown"
 
-        result = _run_git(
-            ["log", "--oneline", "-1", "main"], cwd=self._repo_root
-        )
+        result = _run_git(["log", "--oneline", "-1", "main"], cwd=self._repo_root)
         main_log = result.stdout.strip() if result.returncode == 0 else "unknown"
 
         pending_prs = [
-            sb.to_dict()
-            for sb in self._sandboxes.values()
-            if sb.status == SandboxStatus.PR_CREATED
+            sb.to_dict() for sb in self._sandboxes.values() if sb.status == SandboxStatus.PR_CREATED
         ]
 
         return {

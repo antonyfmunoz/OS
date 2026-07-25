@@ -171,6 +171,33 @@ def _pass(sched, grant):
     )
 
 
+def _blocked_attempt(store, grant, task_id, blocked_reason):
+    """Create one attempt and park it BLOCKED with the given reason, via legal
+    transitions (created → blocked), mirroring _admit's failure path."""
+    from substrate.execution.attempts.records import ExecutionAttempt
+
+    att, _ = store.create_attempt_idempotent(
+        ExecutionAttempt(
+            task_id=task_id,
+            objective_id=getattr(grant, "objective_id", ""),
+            plan_record_id=getattr(grant, "plan_record_id", ""),
+            plan_version=getattr(grant, "plan_version", 0),
+            execution_authorization_ref=getattr(grant, "decision_ref", ""),
+            attempt_number=1,
+            tenant_id=getattr(grant, "tenant_id", ""),
+        )
+    )
+    return store.transition_cas(
+        att.attempt_id,
+        _S.BLOCKED.value,
+        att.record_version,
+        (_S.CREATED.value,),
+        actor="scheduler",
+        reason=f"admission failed: {blocked_reason}",
+        updates={"blocked_reason": blocked_reason},
+    )
+
+
 # ── Tests ────────────────────────────────────────────────────────────────────
 
 
@@ -251,6 +278,47 @@ def test_no_duplicate_attempt_on_repeated_pass(store, queue, tmp_path):
     _pass(sched, grant)
     _pass(sched, grant)  # second pass: attempt already active → no duplicate
     assert len(store.attempts_for_task("wp-a")) == 1
+
+
+def test_cpu_gate_blocked_attempt_is_rearmed_and_readmitted(store, queue, tmp_path):
+    """FIELD regression (sixth control-plane layer, run 20260725T205058Z).
+
+    A CPU-gate refusal during lease acquisition parks the attempt in BLOCKED
+    (non-terminal, recoverable) with a reason naming the CPU gate. But nothing
+    moved it back: the admission loop only admits READY attempts, and the
+    frontier loop SKIPS a task that has any non-terminal attempt — so the task
+    stayed wedged forever ("no eligible work") even after load dropped. This pins
+    the re-arm: the next pass transitions the CPU-blocked attempt BLOCKED→READY
+    and re-admits it. A block from a NON-transient cause must stay parked."""
+    _add_approved_packet(queue, "wp-a")
+    sched = _mk_scheduler(store, queue, tmp_path)
+    grant = _grant(["wp-a"])
+    # A CPU-gate-blocked attempt: created → blocked (legal) with a CPU reason,
+    # exactly as _admit parks it when the lease git-subprocess is CPU-gated.
+    att = _blocked_attempt(
+        store, grant, "wp-a", "git rev-parse refused by CPU gate (host overloaded)"
+    )
+    assert store.get_attempt(att.attempt_id).status == _S.BLOCKED.value
+
+    # Next pass: the transient block must be re-armed to READY and re-admitted —
+    # NO new attempt is created (the existing one is reused).
+    report = _pass(sched, grant)
+    after = store.get_attempt(att.attempt_id)
+    assert after.status != _S.BLOCKED.value, "CPU-blocked attempt must be re-armed, not stay wedged"
+    assert not report.attempts_created, "re-arm reuses the existing attempt, mints no new one"
+    assert len(store.attempts_for_task("wp-a")) == 1, "no duplicate attempt from re-arm"
+
+
+def test_non_transient_block_is_not_rearmed(store, queue, tmp_path):
+    """A block whose reason is NOT the CPU gate stays parked for inspection."""
+    _add_approved_packet(queue, "wp-a")
+    sched = _mk_scheduler(store, queue, tmp_path)
+    grant = _grant(["wp-a"])
+    att = _blocked_attempt(store, grant, "wp-a", "genuine admission fault, not transient")
+    _pass(sched, grant)
+    assert store.get_attempt(att.attempt_id).status == _S.BLOCKED.value, (
+        "a non-transient block must NOT be re-armed"
+    )
 
 
 def test_failed_predecessor_blocks_dependent(store, queue, tmp_path):
