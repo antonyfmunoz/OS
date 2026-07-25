@@ -81,19 +81,51 @@ def render_prompt(package: Any) -> str:
         parts.append(package.role_instructions)
     if getattr(package, "operation_instructions", ""):
         parts.append(package.operation_instructions)
-    frame = {}
-    for ctx in getattr(package, "ordered_context", []) or []:
-        if isinstance(ctx, dict):
-            frame.update(ctx)
     identity = getattr(package, "operation_identity", {}) or {}
     if identity.get("task_id"):
         parts.append(f"Task: {identity.get('task_id')}")
+    # Render the ordered context (the ACTUAL task spec: title / intent /
+    # desired_end_state / constraints / success_criteria). compile_instruction_
+    # package nests each section as {"section": name, "payload": {...}}. This was
+    # previously accumulated into a local `frame` dict and then DROPPED — the
+    # worker only ever saw "Execute task <id>" with no description of what to
+    # build, so every worker produced files=0 and failed verification
+    # (field run 20260725T210642Z, seventh layer). Render the payloads so the
+    # worker knows the objective.
+    for ctx in getattr(package, "ordered_context", []) or []:
+        if not isinstance(ctx, dict):
+            continue
+        payload = ctx.get("payload", ctx)
+        rendered = _render_context_payload(payload)
+        if rendered:
+            section = str(ctx.get("section", "context")).replace("_", " ").title()
+            parts.append(f"## {section}\n{rendered}")
     parts.append(
         "Make the change in this worktree and commit it with a descriptive "
         "message. Do not push. Do not create PRs. Do not touch files outside "
         "the task scope."
     )
     return "\n\n".join(p for p in parts if p)
+
+
+def _render_context_payload(payload: Any) -> str:
+    """Flatten one context payload into readable prompt text. A dict becomes
+    ``key: value`` lines (lists joined); a scalar becomes its string. Empty
+    values are skipped so the worker sees only substantive task content."""
+    if isinstance(payload, dict):
+        lines: list[str] = []
+        for key, value in payload.items():
+            if value in ("", None, [], {}):
+                continue
+            if isinstance(value, (list, tuple)):
+                value = "; ".join(str(v) for v in value if str(v))
+                if not value:
+                    continue
+            label = str(key).replace("_", " ")
+            lines.append(f"- {label}: {value}")
+        return "\n".join(lines)
+    text = str(payload).strip()
+    return text if text else ""
 
 
 def _capture_git(worktree_path: str, base_commit: str) -> tuple[list[str], list[str], str]:
