@@ -992,3 +992,24 @@ def test_old_persisted_node_without_semantic_label_still_loads():
     node = ObjectivePlanNode.from_dict(old)
     assert node.semantic_label == ""
     assert node.scope_declared is True
+
+
+@pytest.mark.parametrize("bad", ["~", "~/secrets", "C:\\Windows", "c:/Users"])
+def test_home_and_drive_paths_are_refused(bad):
+    """Third review MEDIUM: '~' and drive-qualified paths survived the
+    validator — the backslash swap turned 'C:\\Windows' into a benign-looking
+    relative 'C:/Windows'. The contract promises refusal HERE."""
+    requirements = WorkRequirements()
+    requirements.declare_writable_paths([bad])
+    assert requirements.validate_writable_path_scope()
+
+    lanes = [ObjectiveLane(lane_key="a", writable_path_scope=[bad])]
+    with pytest.raises(PlanCompilationError):
+        _compile(lanes)
+
+
+@pytest.mark.parametrize("good", ["app/main.py", "app/static", "tests/test_x.py"])
+def test_legitimate_workspace_paths_still_allowed(good):
+    requirements = WorkRequirements()
+    requirements.declare_writable_paths([good])
+    assert requirements.validate_writable_path_scope() == []

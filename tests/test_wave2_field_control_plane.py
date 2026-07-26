@@ -467,18 +467,24 @@ def test_failed_gate_still_drains_worker_results(store, queue, tmp_path):
     workers: results never applied, leases never released."""
     _add_approved_packet(queue, "A", plan_record_id="opr-1")
     _seed_active_grant(store, _grant(["A"]))
-
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
-    driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
 
-    reports = driver.run_cycle()
+    # PHASE 1 — gate OFF: admit A and let the worker finish, so a real result is
+    # sitting in the outbox.
+    open_driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=False)
+    assert open_driver.run_cycle()[0].admitted, "setup: A must be admitted"
+    assert _stub_worker_drain(spool) == 1, "setup: worker must produce one result"
 
-    # Gate refuses admission...
+    # PHASE 2 — gate ON and FAILING (a lone Task is not the 4-lane shape). The
+    # already-dispatched worker's result MUST still be drained: asserting only
+    # `isinstance(results_drained, int)` passes on the dataclass DEFAULT, so it
+    # holds even when the gate short-circuits past the poller entirely.
+    gated = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
+    reports = gated.run_cycle()
+
     assert any("graph_shape_gate" in e for e in reports[0].errors)
-    assert reports[0].admitted == []
-    # ...but the drain path still ran (a report exists and did not short-circuit
-    # before the poller). results_drained is an int, not an un-run sentinel.
-    assert isinstance(reports[0].results_drained, int)
+    assert reports[0].admitted == [], "a failed gate must admit nothing"
+    assert reports[0].results_drained == 1, "failed gate did not drain the outbox"
 
 
 def test_admission_failure_releases_the_lease(store, queue, tmp_path):

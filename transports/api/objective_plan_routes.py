@@ -104,6 +104,7 @@ def _protocol() -> Any:
 
         _protocol_singleton = OperatorIntentProtocol(
             workspace_scope_resolver=_declared_workspace_scope,
+            lane_resolver=_declared_lanes,
         )
     return _protocol_singleton
 

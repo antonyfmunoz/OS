@@ -346,6 +346,21 @@ def run_loop(
             except Exception as exc:  # never let reaping kill the loop
                 _log(f"spool reap/recovery error (continuing): {exc}")
 
+            # Leases need the same crash recovery the spool has. A process
+            # death between acquire() and terminalization leaves the lease
+            # ACTIVE forever, and LeaseManager.acquire then refuses that task
+            # permanently ("task already has an active lease") while its
+            # worktree keeps consuming a max_parallel slot. expires_at was set
+            # (ttl 3600s) but never enforced — expire_stale had no caller.
+            try:
+                lease_mgr = getattr(driver, "_lease_mgr", None) if driver is not None else None
+                if lease_mgr is not None:
+                    expired = lease_mgr.expire_stale()
+                    if expired:
+                        _log(f"expired {expired} stale lease(s)")
+            except Exception as exc:  # never let lease expiry kill the loop
+                _log(f"lease expiry error (continuing): {exc}")
+
             # (4) claim up to max_workers envelopes and run them CONCURRENTLY.
             # The previous loop claimed ONE per iteration and ran the worker
             # synchronously, so A and B never overlapped: the exactly-2 concurrency

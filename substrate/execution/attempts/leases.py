@@ -17,11 +17,14 @@ sandbox) plus the allowlists that scope what the worker may touch. Invariants
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
+
+logger = logging.getLogger(__name__)
 
 
 def _new_id(prefix: str) -> str:
@@ -292,8 +295,10 @@ class LeaseManager:
                         metadata={"lease_id": lease.lease_id},
                     )
                     expired += 1
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # No silent except-pass: a lease that will not expire is a
+                    # slot that never returns, so the failure must be visible.
+                    logger.debug("failed to expire lease %s: %s", lease.lease_id, exc)
         return expired
 
 

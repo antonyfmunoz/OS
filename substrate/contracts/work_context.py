@@ -390,6 +390,13 @@ class WorkRequirements:
                 continue
             if path.startswith("/"):
                 errors.append(f"absolute writable path {path!r} — must be workspace-relative")
+            if path.startswith("~"):
+                errors.append(f"home-relative writable path {path!r} — must be workspace-relative")
+            # A Windows drive path survives the normalization below (the
+            # backslash swap turns 'C:\\Windows' into a benign-looking relative
+            # 'C:/Windows'), so it must be refused explicitly.
+            if len(path) > 1 and path[1] == ":" and path[0].isalpha():
+                errors.append(f"drive-qualified writable path {path!r} — must be workspace-relative")
             # Normalize with os.path.normpath, not a bare string strip: 'app/..'
             # and 'app//..' both COLLAPSE to '.' (whole workspace) yet passed the
             # string-only check, so an unsafe authority could be persisted and was
