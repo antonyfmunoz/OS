@@ -1161,3 +1161,41 @@ def test_harness_declares_writable_path_scope_on_every_lane():
     assert declared, "harness lane declaration is empty"
     for entry in declared:
         assert "writable_path_scope" in entry, entry.get("lane_key")
+
+
+def test_only_writable_path_scope_has_the_omitted_versus_empty_ambiguity():
+    """Generalization of the omitted-scope MEDIUM: is any OTHER ObjectiveLane
+    field vulnerable to the same "empty default silently becomes a meaningful
+    declaration" defect?
+
+    Answer, established by execution rather than assertion: no.
+    - ``lane_key``: empty is refused by the compiler (fail closed).
+    - ``writable_path_scope``: None refused; omitted now refused at the
+      declaration boundary; explicit [] accepted (zero-write verifier).
+    - ``depends_on``: empty is NOT a distinct grant of authority — "no
+      dependencies" genuinely equals "unstated", and A/B declare exactly that.
+
+    ``writable_path_scope`` was the only field where EMPTY carries authority
+    meaning, which is precisely why it was the vulnerable one.
+    """
+    scope = WorkScope(tenant_id="t-amb", target_kind="self_build")
+
+    def _derive(lanes):
+        return derive_state_records(
+            OBJECTIVE,
+            GroundingSnapshot(intent_id="int-amb"),
+            tenant_id="t-amb",
+            scope=scope,
+            writable_path_scope=["app"],
+            lanes=lanes,
+        )
+
+    with pytest.raises(PlanCompilationError, match="lane_key"):
+        _derive([ObjectiveLane("", "B", ["a.py"])])
+
+    with pytest.raises(PlanCompilationError, match="writable_path_scope"):
+        _derive([ObjectiveLane("backend", "B", None)])
+
+    # depends_on omitted is legitimate — it is how an independent lane declares
+    # itself runnable immediately.
+    _derive([ObjectiveLane("backend", "B", ["a.py"])])
