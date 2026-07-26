@@ -777,3 +777,45 @@ def test_malformed_sealed_scope_never_crashes_or_mis_parses(raw):
     prompt = render_prompt(package)
     assert "Execute task wp-1." in prompt
     assert "Writable Scope" not in prompt
+
+
+# ── H. the lane DECLARATION boundary type-checks and least-privilege-checks ──
+# Self-hunted after the review: _lane_gaps validated keys and dependency refs
+# but not the scope's TYPE. A bare string is iterable, so "app/main.py" became
+# ['a','p','p',...] — eleven VALID relative paths that pass every downstream
+# check, yielding a Task whose declared authority is nonsense.
+
+
+@pytest.mark.parametrize(
+    "entries,reason",
+    [
+        ([{"lane_key": "a", "writable_path_scope": "app/main.py"}], "must be a list of paths"),
+        (
+            [
+                {"lane_key": "a", "writable_path_scope": []},
+                {"lane_key": "b", "writable_path_scope": [], "depends_on": "a"},
+            ],
+            "must be a list of lane keys",
+        ),
+        ([{"lane_key": "a", "writable_path_scope": ["/etc/passwd"]}], "invalid"),
+        ([{"lane_key": "a", "writable_path_scope": ["../.."]}], "invalid"),
+        ([{"lane_key": "a", "writable_path_scope": ["."]}], "invalid"),
+    ],
+)
+def test_malformed_lane_scope_fails_closed_at_declaration(entries, reason):
+    lanes = [ObjectiveLane.from_dict(e) for e in entries]
+    with pytest.raises(PlanCompilationError) as exc:
+        _compile(lanes)
+    assert reason in str(exc.value)
+
+
+def test_lane_scope_string_is_never_iterated_into_characters():
+    """The specific silent-corruption case: valid-looking one-character paths."""
+    lanes = [ObjectiveLane.from_dict({"lane_key": "a", "writable_path_scope": "app"})]
+    with pytest.raises(PlanCompilationError):
+        _compile(lanes)
+
+
+def test_valid_declaration_still_compiles_after_the_type_check():
+    nodes = _packet_nodes(_compile(_lanes()))
+    assert len(nodes) == 4

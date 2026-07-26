@@ -97,6 +97,35 @@ def _lane_gaps(lanes: list[Any]) -> list[dict[str, Any]]:
                 f"lane {key!r} declares no writable_path_scope — an undeclared authority is "
                 "never whole-repository permission"
             )
+        # TYPE-CHECK the declaration. A bare string is the dangerous case: it is
+        # iterable, so it silently becomes one-character "paths" ("app/main.py"
+        # → ['a','p','p',…]) which are VALID relative paths and pass every
+        # downstream check, yielding a Task whose scope is nonsense. A string
+        # depends_on would likewise be iterated into single characters that
+        # resolve to no lane.
+        if isinstance(lane.writable_path_scope, (str, bytes)) or not isinstance(
+            lane.writable_path_scope, (list, tuple)
+        ):
+            raise PlanCompilationError(
+                f"lane {key!r} writable_path_scope must be a list of paths, got "
+                f"{type(lane.writable_path_scope).__name__}"
+            )
+        if isinstance(lane.depends_on, (str, bytes)) or not isinstance(
+            lane.depends_on, (list, tuple)
+        ):
+            raise PlanCompilationError(
+                f"lane {key!r} depends_on must be a list of lane keys, got "
+                f"{type(lane.depends_on).__name__}"
+            )
+        # Least privilege at the DECLARATION boundary, using the contract's own
+        # validator — the same authority materialization enforces.
+        probe = WorkRequirements()
+        probe.declare_writable_paths([str(p) for p in lane.writable_path_scope])
+        scope_errors = probe.validate_writable_path_scope()
+        if scope_errors:
+            raise PlanCompilationError(
+                f"lane {key!r} declares an invalid writable_path_scope: {scope_errors}"
+            )
         lane.lane_key = key
         normalized.append(lane)
 
