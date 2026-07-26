@@ -564,10 +564,19 @@ class FieldControlPlaneDriver:
         from substrate.execution.attempts.graph_shape_gate import evaluate_graph_shape
 
         plan_id = str(getattr(grant, "plan_record_id", "") or "")
+        frontier = [str(t) for t in (getattr(grant, "task_frontier", []) or [])]
         packets: list[dict[str, Any]] = []
-        for task_id in list(getattr(grant, "task_frontier", []) or []):
+        missing: list[str] = []
+        for task_id in frontier:
             packet = self._queue.get_packet(task_id)
             if packet is None:
+                # NEVER skip silently: skipping shrinks the evaluated set, so a
+                # 6-Task grant with 2 unresolvable ids would present exactly 4
+                # packets and PASS a gate whose whole purpose is fail-closed —
+                # while the two unexamined Tasks dispatch. (The packet-visibility
+                # race this hits is real: it is why _reload_queue exists.)
+                missing.append(task_id)
+                logger.debug("graph-shape gate: frontier task %s not resolvable", task_id)
                 continue
             as_dict = packet.to_dict() if hasattr(packet, "to_dict") else dict(packet)
             packets.append(as_dict)
@@ -576,13 +585,11 @@ class FieldControlPlaneDriver:
         # a poll loop), so asserting it every cycle would refuse the run the
         # moment its own first worker started. Shape itself is re-checked every
         # cycle — only this one pre-dispatch invariant is first-cycle-only.
-        attempt_count = len(list(self._store.attempts_for_plan(plan_id)))
         verdict = evaluate_graph_shape(
             packets=packets,
             plan_record_id=plan_id,
-            # First admission → assert zero attempts. Afterwards the invariant
-            # is satisfied by history, so pass None (check not applicable).
-            attempt_count=0 if attempt_count == 0 else None,
+            frontier_size=len(frontier),
+            unresolvable_tasks=missing,
         )
         return verdict.to_dict()
 

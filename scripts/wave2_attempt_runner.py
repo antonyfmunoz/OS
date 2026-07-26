@@ -174,6 +174,14 @@ def _build_control_plane_driver(
         spool=spool,
         sandbox_manager=sandbox,
         targets_dir=targets_dir,
+        # PRE-QUOTA GRAPH-SHAPE GATE, on the path that actually spends quota.
+        # Enabled whenever the run declares a multi-lane decomposition: the
+        # gate then refuses a wrong-shaped graph BEFORE any dispatch envelope
+        # is written. Without this the gate exists but is dark — the exact
+        # "contract right, production unwired" shape that produced the last ten
+        # defect layers. A single-Task smoke objective declares no lanes, so
+        # the gate stays off there and is not misreported as malformed.
+        enforce_graph_shape=bool(os.environ.get("UMH_WORKSPACE_LANES", "").strip()),
     )
 
 

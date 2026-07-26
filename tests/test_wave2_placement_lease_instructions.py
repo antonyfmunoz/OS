@@ -48,6 +48,9 @@ def _packet(**kw):
         requirements={
             "required_skill_refs": [{"skill_id": "python"}],
             "required_capability_ids": ["code_write"],
+            # Dispatch refuses a Task with undeclared mutation authority.
+            "scope_declared": True,
+            "writable_path_scope": ["app", "tests"],
         },
     )
     base.update(kw)

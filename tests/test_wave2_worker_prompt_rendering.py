@@ -33,6 +33,12 @@ def _pkg():
         desired_end_state="GET /api/notes/search?q= returns matching notes.",
         constraints=["diff confined to app/main.py, tests/test_search_api.py"],
         validation_plan="pytest tests/test_search_api.py green",
+        # Dispatch REFUSES a Task with undeclared mutation authority, so a
+        # realistic packet must declare its scope.
+        requirements={
+            "scope_declared": True,
+            "writable_path_scope": ["app/main.py", "tests/test_search_api.py"],
+        },
     )
     attempt = SimpleNamespace(
         task_id="wp-test",

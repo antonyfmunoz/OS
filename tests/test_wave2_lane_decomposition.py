@@ -20,6 +20,9 @@ titles, packet-id shapes, or a worker's diff.
 
 from __future__ import annotations
 
+import json
+import os
+
 import pytest
 
 from substrate.contracts.work_context import WorkRequirements, WorkScope
@@ -242,7 +245,7 @@ def test_gate_accepts_the_graph_the_compiler_produces():
         packets=_as_packets(plan), plan_record_id=plan.plan_record_id, attempt_count=0
     )
     assert verdict.ok, verdict.failures
-    assert len(verdict.checks) == 10
+    assert len(verdict.checks) == 11
     assert all(c["ok"] for c in verdict.checks)
 
 
@@ -456,3 +459,321 @@ def test_resume_reseeds_per_lane_not_from_the_flat_scope():
         if n["kind"] == "packet" and n["title"] == "Backend search endpoint"
     )
     assert backend_after["writable_path_scope"] == BACKEND_SCOPE
+
+
+# ── E. THE PRODUCTION PATH (the test that would have caught the unwired seam) ─
+# Adversarial review of 2600641d0f62: every test above calls the compiler
+# DIRECTLY, so all of them passed while no production caller ever supplied
+# `lanes` — the field run still compiled one umbrella Task. These tests drive
+# the real transport → protocol → compiler chain instead.
+
+FIELD_LANES_JSON = json.dumps(
+    [
+        {
+            "lane_key": "backend",
+            "title": "Add the note-search backend endpoint",
+            "writable_path_scope": BACKEND_SCOPE,
+            "depends_on": [],
+            "semantic_label": "backend_task_id",
+        },
+        {
+            "lane_key": "frontend",
+            "title": "Add the note-search frontend UI",
+            "writable_path_scope": FRONTEND_SCOPE,
+            "depends_on": [],
+            "semantic_label": "frontend_task_id",
+        },
+        {
+            "lane_key": "integration",
+            "title": "Integrate and reconcile the search branches",
+            "writable_path_scope": INTEGRATION_SCOPE,
+            "depends_on": ["backend", "frontend"],
+            "semantic_label": "integration_task_id",
+        },
+        {
+            "lane_key": "verification",
+            "title": "Independently verify note search",
+            "writable_path_scope": [],
+            "depends_on": ["integration"],
+            "semantic_label": "verification_task_id",
+        },
+    ]
+)
+
+
+def test_transport_resolver_declares_four_lanes_from_env(monkeypatch):
+    """The transport seam must actually hand lanes to the protocol."""
+    from transports.api.objective_plan_routes import _declared_lanes
+
+    monkeypatch.setenv("UMH_WORKSPACE_LANES", FIELD_LANES_JSON)
+    lanes = _declared_lanes(None, OBJECTIVE)
+
+    assert lanes is not None and len(lanes) == 4
+    by_key = {lane.lane_key: lane for lane in lanes}
+    assert by_key["backend"].writable_path_scope == BACKEND_SCOPE
+    assert by_key["verification"].writable_path_scope == []
+    assert by_key["integration"].depends_on == ["backend", "frontend"]
+
+
+def test_transport_resolver_returns_none_when_undeclared(monkeypatch):
+    from transports.api.objective_plan_routes import _declared_lanes
+
+    monkeypatch.delenv("UMH_WORKSPACE_LANES", raising=False)
+    assert _declared_lanes(None, OBJECTIVE) is None
+
+
+@pytest.mark.parametrize("raw", ["not json", "{}", "[]", "[1, 2]", '"a string"'])
+def test_transport_resolver_refuses_malformed_declaration(monkeypatch, raw):
+    """Malformed → None (never a partial or invented decomposition)."""
+    from transports.api.objective_plan_routes import _declared_lanes
+
+    monkeypatch.setenv("UMH_WORKSPACE_LANES", raw)
+    assert _declared_lanes(None, OBJECTIVE) is None
+
+
+def test_protocol_forwards_declared_lanes_to_the_compiler(monkeypatch):
+    """OperatorIntentProtocol must pass `lanes` through to compose_plan_for_session.
+
+    This is the seam that was missing: the protocol had no lane parameter at
+    all, so the declaration could never reach the compiler.
+    """
+    from substrate.execution.intent.protocol import OperatorIntentProtocol
+    from substrate.execution.planning import compiler as compiler_module
+
+    seen: dict[str, object] = {}
+
+    class _Captured(RuntimeError):
+        pass
+
+    def _capture(**kwargs):
+        seen.update(kwargs)
+        raise _Captured()
+
+    # protocol.py imports compose_plan_for_session INSIDE the function, so patch
+    # it at its source module — patching the protocol module would silently
+    # no-op and make this test vacuous.
+    monkeypatch.setattr(compiler_module, "compose_plan_for_session", _capture)
+
+    from substrate.contracts.work_context import PrincipalContext
+    from substrate.execution.intent.protocol import ContextFrame
+
+    proto = OperatorIntentProtocol(lane_resolver=lambda _scope, _text: _lanes())
+    resolution = proto.resolve(
+        OBJECTIVE,
+        PrincipalContext(tenant_id="t-lane", principal_id="u", membership_id="m"),
+        WorkScope(tenant_id="t-lane", target_kind="self_build"),
+        ContextFrame(),
+    )
+    with pytest.raises(_Captured):
+        proto.plan_objective(resolution, OBJECTIVE, "conv-lane", work_queue=_NoQueue())
+
+    # The REAL call reached the compiler carrying the declared lanes.
+    forwarded = seen.get("lanes")
+    assert forwarded is not None, "plan_objective did not forward lanes to the compiler"
+    assert [lane.lane_key for lane in forwarded] == [
+        "backend",
+        "frontend",
+        "integration",
+        "verification",
+    ]
+
+
+def test_protocol_lane_resolver_failure_does_not_crash_planning():
+    """A broken resolver degrades to 'not decomposed', never an exception."""
+    from substrate.execution.intent.protocol import OperatorIntentProtocol
+
+    def _boom(_scope, _text):
+        raise RuntimeError("resolver exploded")
+
+    proto = OperatorIntentProtocol(lane_resolver=_boom)
+    assert proto._resolve_lanes(None, OBJECTIVE) is None
+
+
+def test_field_runner_arms_the_gate_when_lanes_are_declared(monkeypatch):
+    """The gate must be ON for the multi-lane protocol — it was dark before."""
+    monkeypatch.setenv("UMH_WORKSPACE_LANES", FIELD_LANES_JSON)
+    assert bool(os.environ.get("UMH_WORKSPACE_LANES", "").strip()) is True
+    monkeypatch.delenv("UMH_WORKSPACE_LANES", raising=False)
+    assert bool(os.environ.get("UMH_WORKSPACE_LANES", "").strip()) is False
+
+
+def test_harness_lane_declaration_matches_the_canonical_scope_map():
+    """The harness must declare lanes from the ONE canonical map, not literals."""
+    from substrate.execution.attempts.field_task_scope import (
+        BACKEND,
+        FIXTURE_ALLOWED_PATHS,
+        FRONTEND,
+        VERIFICATION,
+    )
+
+    assert FIXTURE_ALLOWED_PATHS[BACKEND] == BACKEND_SCOPE
+    assert FIXTURE_ALLOWED_PATHS[FRONTEND] == FRONTEND_SCOPE
+    assert FIXTURE_ALLOWED_PATHS[VERIFICATION] == []
+
+
+# ── F. RESUME without lanes must not widen persisted authority ───────────────
+
+
+def test_resume_without_lanes_never_widens_a_declared_node():
+    """CRITICAL: with lanes=None the old code re-seeded EVERY node from the flat
+    scope, silently granting the zero-write verifier write authority on the
+    whole union — on every retry, with scope_declared still True."""
+    from substrate.execution.planning.compiler import compose_plan_for_session
+
+    plan = _compile(_lanes())
+    session = PlanningSession(
+        objective_id="goal-lane", objective_text=OBJECTIVE, conversation_id="conv-lane"
+    )
+    session.active_plan_record_id = plan.plan_record_id
+    session.operation_stage = ""
+
+    resumed = compose_plan_for_session(
+        session,
+        WorkScope(tenant_id="t-lane", target_kind="self_build"),
+        "task_objective",
+        GroundingSnapshot(intent_id="int-lane"),
+        _ResumeStore(plan),
+        _NoQueue(),
+        mutation_runner=_governed_ok,
+        writable_path_scope=list(INTEGRATION_SCOPE),
+        lanes=None,  # the ONLY reachable production state before lane wiring
+    )
+
+    verifier = next(
+        n
+        for n in resumed.nodes
+        if n["kind"] == "packet" and n["title"] == "Independently verify note search"
+    )
+    assert verifier["writable_path_scope"] == [], "resume widened the zero-write lane"
+
+    backend = next(
+        n
+        for n in resumed.nodes
+        if n["kind"] == "packet" and n["title"] == "Backend search endpoint"
+    )
+    assert backend["writable_path_scope"] == BACKEND_SCOPE, "resume widened an impl lane"
+
+
+# ── G. remaining adversarial-review findings ────────────────────────────────
+
+
+def test_gate_refuses_a_partially_evaluated_frontier():
+    """MAJOR-5: skipping unresolvable Tasks let a 6-Task grant present exactly
+    the required 4 and PASS while two unexamined Tasks dispatched."""
+    verdict = evaluate_graph_shape(
+        packets=_good_packets(),
+        plan_record_id="opr-x",
+        frontier_size=6,
+        unresolvable_tasks=["wp-e", "wp-f"],
+    )
+    assert not verdict.ok
+    assert any("frontier_fully_evaluated" in f for f in verdict.failures)
+
+
+def test_gate_accepts_a_fully_evaluated_frontier():
+    verdict = evaluate_graph_shape(
+        packets=_good_packets(),
+        plan_record_id="opr-x",
+        frontier_size=4,
+        unresolvable_tasks=[],
+    )
+    assert verdict.ok, verdict.failures
+
+
+@pytest.mark.parametrize("bad", [".", "/etc", "../..", "app/../.."])
+def test_gate_refuses_scopes_the_contract_would_reject(bad):
+    """MINOR-8: the gate is the last proof before quota — it must not certify a
+    scope the contract layer rejects (repo root, absolute, parent traversal)."""
+    packets = _good_packets()
+    packets[0]["requirements"]["writable_path_scope"] = [bad]
+    verdict = evaluate_graph_shape(packets=packets, plan_record_id="opr-x")
+    assert not verdict.ok
+    assert any("scopes_pass_contract_validation" in f for f in verdict.failures)
+
+
+def test_declared_lanes_exceeding_the_cap_fail_closed():
+    """MAJOR-4: the generic cap silently deferred trailing lanes — a declared
+    graph could lose its independent-verification lane and compile clean."""
+    many = [
+        ObjectiveLane(
+            lane_key=f"l{i:02d}", title=f"L{i}", writable_path_scope=[f"app/f{i}.py"]
+        )
+        for i in range(13)
+    ]
+    with pytest.raises(PlanCompilationError) as exc:
+        _compile(many)
+    assert "cap" in str(exc.value)
+
+
+def test_dispatch_refuses_a_task_with_undeclared_authority():
+    """MAJOR-7: an undeclared Task silently regressed to the pre-fix prompt."""
+    from types import SimpleNamespace
+
+    from substrate.execution.attempts.dispatch import (
+        DispatchBlocked,
+        compile_attempt_package,
+    )
+
+    def _build(requirements):
+        return compile_attempt_package(
+            attempt=SimpleNamespace(
+                attempt_id="ea-1", task_id="wp-test", attempt_number=1, plan_record_id="opr-1"
+            ),
+            packet=SimpleNamespace(
+                packet_id="wp-test",
+                title="Add note search",
+                user_intent="Add a search endpoint.",
+                desired_end_state="GET /api/notes/search?q= works.",
+                constraints=[],
+                validation_plan="pytest green",
+                requirements=requirements,
+            ),
+            assignment=SimpleNamespace(
+                role_contract_id="role-impl-op",
+                tool_profile=["Edit", "Write"],
+                model_profile={"model": "claude-opus"},
+                environment_class="git_worktree",
+            ),
+            grant=SimpleNamespace(
+                tenant_id="tenant-a",
+                decision_ref="objective_plan:opr-1:execution_authorization:v1",
+                authorized_scope_hash="h",
+                risk_ceiling="high",
+                task_frontier=["wp-test"],
+                verification_obligations=["verify"],
+            ),
+        )
+
+    # Declared → compiles and seals the scope.
+    package = _build({"scope_declared": True, "writable_path_scope": ["app/main.py"]})
+    assert any(
+        str(c).startswith("writable_path_scope=")
+        for c in getattr(package, "governance_constraints", [])
+    )
+
+    # Undeclared → refused, never silently dispatched with an unnamed scope.
+    with pytest.raises(DispatchBlocked) as exc:
+        _build({"scope_declared": False, "writable_path_scope": []})
+    assert "undeclared mutation authority" in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    "raw", ["writable_path_scope=1", 'writable_path_scope="app"', "writable_path_scope=None"]
+)
+def test_malformed_sealed_scope_never_crashes_or_mis_parses(raw):
+    """MAJOR-6: literal_eval returned an int (TypeError on iteration) or a bare
+    string (iterated character-by-character into one-character 'paths')."""
+    from types import SimpleNamespace
+
+    from substrate.execution.attempts.worker_claude_cli import render_prompt
+
+    package = SimpleNamespace(
+        role_instructions="",
+        operation_instructions="Execute task wp-1.",
+        operation_identity={"task_id": "wp-1"},
+        ordered_context=[],
+        governance_constraints=[raw],
+    )
+    prompt = render_prompt(package)
+    assert "Execute task wp-1." in prompt
+    assert "Writable Scope" not in prompt

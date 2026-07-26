@@ -65,6 +65,8 @@ REVISE_MUTATION_NAME = "objective_plan_revise"
 # nodes — larger scales defer children instead of flattening.
 PACKET_NODE_CAP = 12
 _FRONTIER_CAP = 5  # actionable child objectives surfaced per larger-scale plan
+# Scales that keep a bounded actionable frontier and defer the remainder.
+_LARGER_SCALES = ("program_objective", "portfolio_objective", "institution_objective")
 
 
 class PlanCompilationError(RuntimeError):
@@ -354,7 +356,21 @@ def compile_plan(
     gaps = list(gap_snapshot.gaps)
     deferred: list[dict[str, Any]] = []
     stop_reason = "all gaps materialized as Tasks"
-    if planning_scale in ("program_objective", "portfolio_objective", "institution_objective"):
+    # A caller-DECLARED decomposition is ATOMIC: materialize every lane or none.
+    # The generic caps below defer trailing gaps as child objectives, which for
+    # lanes silently deletes them — and if a lane and its dependency are cut
+    # together, even the fail-closed dependency check cannot see it. A declared
+    # graph that lost its independent-verification lane would compile clean.
+    _lane_gap_count = sum(1 for g in gaps if str(g.get("gap_key", "")).startswith("gap-lane-"))
+    if _lane_gap_count:
+        _cap = _FRONTIER_CAP if planning_scale in _LARGER_SCALES else PACKET_NODE_CAP
+        if len(gaps) > _cap:
+            raise PlanCompilationError(
+                f"declared decomposition has {len(gaps)} lane(s) but the {planning_scale} "
+                f"cap is {_cap} — refusing to silently defer lanes from an atomic "
+                "caller-declared graph"
+            )
+    if planning_scale in _LARGER_SCALES:
         # Larger scales keep a bounded actionable frontier; the rest become
         # deferred child objectives — never a giant flat graph.
         frontier = gaps[:_FRONTIER_CAP]
@@ -713,21 +729,23 @@ def compose_plan_for_session(
         archetype = resolve_archetype(session.objective_text, scope)
         if resumed_plan is not None:
             plan = resumed_plan
-            # RESUME re-seeds node authority from the freshly-derived scope. The
-            # resumed record's nodes were persisted by an earlier attempt (and a
-            # record written before Tasks carried scope defaults to
-            # scope_declared=False), so without this a resumed plan would fail
-            # materialization FOREVER — an unrecoverable poison record, since
-            # every retry takes this same branch. Re-seeding never WIDENS an
-            # authority: it applies the same caller declaration this call already
-            # derived, and a None declaration still fails closed downstream.
-            # Per-lane authority must survive resume. Re-seeding every packet
-            # node from the single flat scope would WIDEN a lane that declared
-            # a narrower authority — most dangerously the zero-write verifier
-            # lane, which would silently gain write permission on any retry.
-            # So when lanes were declared, each node is re-seeded from ITS OWN
-            # lane (matched by the gap id the compiler minted), never from the
-            # flat scope.
+            # RESUME: THE PERSISTED NODE IS AUTHORITATIVE. A node that already
+            # carries scope_declared=True has a mutation authority that some
+            # earlier call committed; re-deriving it here can only ever WIDEN or
+            # narrow it behind the contract's back. Adversarial review found the
+            # widening case live: with lanes=None (the only reachable production
+            # state before lane wiring) the old code re-seeded EVERY node from
+            # the single flat scope, so the zero-write independent verifier
+            # silently gained write permission on the whole union — on every
+            # retry, with scope_declared still True so nothing downstream
+            # flagged it. That is exactly the "verification must not be
+            # weakened" prohibition, so resume now never touches a declared
+            # node.
+            #
+            # Re-seeding remains ONLY for legacy nodes persisted before Tasks
+            # carried scope (scope_declared=False), which would otherwise fail
+            # materialization forever — an unrecoverable poison record, since
+            # every retry takes this same branch.
             lane_scope_by_gap: dict[str, list[str]] = {}
             for raw_lane in lanes or []:
                 lane_obj = (
@@ -741,17 +759,22 @@ def compose_plan_for_session(
             for node in plan.nodes:
                 if node.get("kind") != "packet":
                     continue
+                if node.get("scope_declared"):
+                    # Persisted authority is canonical — never re-derived.
+                    continue
                 gap_id = node.get("gap_id", "")
                 if gap_id in lane_scope_by_gap:
                     node["writable_path_scope"] = list(lane_scope_by_gap[gap_id])
                     node["scope_declared"] = True
                     continue
-                if lanes:
-                    # A packet node with no matching lane cannot be re-seeded
-                    # from the flat scope without widening it; fail closed.
+                if str(gap_id).startswith("gap-lane-"):
+                    # A lane-derived node whose lane this call did not declare
+                    # cannot be re-seeded from the flat scope without widening
+                    # it (the verifier lane is the dangerous case). Fail closed.
                     raise PlanCompilationError(
-                        f"resumed plan node {node.get('node_id', '')!r} (gap {gap_id!r}) matches "
-                        "no declared lane — refusing to re-seed authority from the flat scope"
+                        f"resumed plan node {node.get('node_id', '')!r} (gap {gap_id!r}) is "
+                        "lane-derived but no matching lane was declared — refusing to re-seed "
+                        "authority from the flat scope"
                     )
                 node["writable_path_scope"] = list(writable_path_scope or [])
                 node["scope_declared"] = writable_path_scope is not None

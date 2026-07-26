@@ -204,6 +204,62 @@ def _smoke_workspace_scope() -> str:
     return ",".join(FIXTURE_ALLOWED_PATHS[INTEGRATION])
 
 
+def _declared_lanes_json() -> str:
+    """The A/B/C/D lane DECLARATION for the full field protocol, as JSON.
+
+    This is the producer the multi-lane journey requires. Every lane's authority
+    comes from the ONE canonical map (``FIXTURE_ALLOWED_PATHS``) so the harness
+    can never drift from what the verifier enforces, and the verification lane
+    is declared ZERO-WRITE (empty list = nothing may change, never "anything
+    may change").
+
+    Dependencies encode the required graph:  A ─┐
+                                                ├→ C → D
+                                             B ─┘
+    Setting this env var also arms the runner's pre-quota graph-shape gate.
+    """
+    sys.path.insert(0, str(_WORKTREE))
+    from substrate.execution.attempts.field_task_scope import (
+        BACKEND,
+        FIXTURE_ALLOWED_PATHS,
+        FRONTEND,
+        INTEGRATION,
+        VERIFICATION,
+    )
+
+    lanes = [
+        {
+            "lane_key": "backend",
+            "title": "Add the note-search backend endpoint",
+            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[BACKEND]),
+            "depends_on": [],
+            "semantic_label": BACKEND,
+        },
+        {
+            "lane_key": "frontend",
+            "title": "Add the note-search frontend UI",
+            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[FRONTEND]),
+            "depends_on": [],
+            "semantic_label": FRONTEND,
+        },
+        {
+            "lane_key": "integration",
+            "title": "Integrate and reconcile the search branches",
+            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[INTEGRATION]),
+            "depends_on": ["backend", "frontend"],
+            "semantic_label": INTEGRATION,
+        },
+        {
+            "lane_key": "verification",
+            "title": "Independently verify note search",
+            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[VERIFICATION]),
+            "depends_on": ["integration"],
+            "semantic_label": VERIFICATION,
+        },
+    ]
+    return json.dumps(lanes)
+
+
 def _targets_dir(sha: str, run_id: str) -> Path:
     """Per-run fixture-target root — a fresh dir every pass, retained as evidence.
 
@@ -673,6 +729,12 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 # unverifiable (field run 20260725T230726Z, ninth layer).
                 "-e",
                 f"UMH_WORKSPACE_WRITABLE_PATHS={_smoke_workspace_scope()}",
+                # The A/B/C/D lane DECLARATION. Without it the candidate's
+                # planning rail compiles ONE umbrella Task and the multi-lane
+                # journey is unsatisfiable by construction (field run
+                # 20260726T025143Z-p1). Built from the one canonical scope map.
+                "-e",
+                f"UMH_WORKSPACE_LANES={_declared_lanes_json()}",
                 "--env-file",
                 str(env_out),
                 "-p",
@@ -1884,6 +1946,10 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
     inner_cmd = (
         f"env UMH_W2_DISPATCH_SECRET=$(cat {shlex.quote(str(secret_path))}) "
         f"UMH_STATE_DIR={shlex.quote(str(host_state_dir))} "
+        # Arms the runner's PRE-QUOTA graph-shape gate. The runner refuses a
+        # wrong-shaped graph before writing any dispatch envelope, so a
+        # planning defect costs zero worker invocations.
+        f"UMH_WORKSPACE_LANES={shlex.quote(_declared_lanes_json())} "
         f"{shlex.quote(sys.executable)} "
         f"{shlex.quote(str(_WORKTREE / 'scripts' / 'wave2_attempt_runner.py'))} "
         f"--spool-root {shlex.quote(str(spool_root))} "

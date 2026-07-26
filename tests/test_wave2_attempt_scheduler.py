@@ -68,6 +68,9 @@ def _add_approved_packet(queue, pid, deps=None):
         dependencies=deps or [],
         approval_gates=["execution_authorization_required"],
         work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+        # Dispatch refuses a Task with undeclared mutation authority, so a
+        # schedulable packet must declare its writable scope.
+        requirements={"scope_declared": True, "writable_path_scope": ["app", "tests"]},
     )
     pkt.packet_id = pid
     queue.ingest_work_packet(pkt)

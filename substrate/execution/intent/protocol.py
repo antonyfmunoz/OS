@@ -322,6 +322,7 @@ class OperatorIntentProtocol:
         event_spine: Any | None = None,
         mutation_runner: Callable[..., Any] | None = None,
         workspace_scope_resolver: Callable[[Any], list[str] | None] | None = None,
+        lane_resolver: Callable[[Any, str], list[Any] | None] | None = None,
     ) -> None:
         self._store = store or PlanningStore()
         self._goal_registry = goal_registry
@@ -334,6 +335,11 @@ class OperatorIntentProtocol:
         # workspace declared no authority and Task materialization fails closed
         # (an undeclared scope is never whole-repository permission).
         self._workspace_scope_resolver = workspace_scope_resolver
+        # Resolves (WorkScope, objective_text) → the DECLARED lane decomposition
+        # for this objective, or None for "not decomposed" (one umbrella Task).
+        # Injected for the same reason as the scope resolver: substrate must not
+        # know a concrete workspace's lanes, and must never infer them.
+        self._lane_resolver = lane_resolver
 
     # ── Lazy canonical collaborators ────────────────────────────────────
 
@@ -1292,8 +1298,28 @@ class OperatorIntentProtocol:
                 event_type, data, resolution.correlation_id
             ),
             writable_path_scope=self._resolve_workspace_scope(scope),
+            lanes=self._resolve_lanes(scope, objective_text),
         )
         return session, plan
+
+    def _resolve_lanes(self, scope: Any, objective_text: str) -> list[Any] | None:
+        """The caller-DECLARED lane decomposition for this objective, or None.
+
+        Mirrors ``_resolve_workspace_scope``: substrate is instance-agnostic and
+        never infers lanes (no title matching, no id shapes, no diff reading), so
+        the runtime that owns the target workspace injects the declaration. None
+        means "not decomposed" and the objective compiles to one umbrella Task,
+        exactly as before. Fails CLOSED on a resolver error — a broken resolver
+        must never silently downgrade a declared multi-lane objective to one
+        Task (that downgrade is what made a field run unqualifiable).
+        """
+        if self._lane_resolver is None:
+            return None
+        try:
+            return self._lane_resolver(scope, objective_text)
+        except Exception as exc:
+            logger.debug("lane resolver failed: %s", exc)
+            return None
 
     def _resolve_workspace_scope(self, scope: Any) -> list[str] | None:
         """The target workspace's DECLARED writable-path authority, or None.

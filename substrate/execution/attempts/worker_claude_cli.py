@@ -150,9 +150,15 @@ def _declared_scope_line(package: Any) -> str:
         try:
             import ast
 
-            paths = [str(p) for p in ast.literal_eval(raw)]
-        except (ValueError, SyntaxError):
+            parsed = ast.literal_eval(raw)
+        except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError):
             return ""
+        # A non-sequence (int) would raise on iteration; a bare string would be
+        # iterated CHARACTER BY CHARACTER, handing the worker one-character
+        # "paths" so every real edit reads as out of scope.
+        if not isinstance(parsed, (list, tuple)):
+            return ""
+        paths = [str(p) for p in parsed]
         if not paths:
             return (
                 "## Writable Scope\n"

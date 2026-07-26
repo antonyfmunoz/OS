@@ -20,6 +20,7 @@ Read surfaces never raise 500 (projection read-surface discipline).
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import uuid
@@ -55,6 +56,47 @@ def _declared_workspace_scope(_scope: Any) -> list[str] | None:
     return paths or None
 
 
+def _declared_lanes(_scope: Any, _objective_text: str) -> list[Any] | None:
+    """The DECLARED lane decomposition for this objective, or None.
+
+    Read from ``UMH_WORKSPACE_LANES``: a JSON array of lane objects, each
+    ``{"lane_key", "title", "writable_path_scope", "depends_on", "semantic_label"}``.
+    A multi-lane objective materializes one Task PER LANE, each with its own
+    least-privilege authority and resolved dependencies, instead of a single
+    umbrella Task (field run 20260726T025143Z-p1 compiled one combined Task, so
+    a graph asserting two concurrent implementation Tasks was unsatisfiable by
+    construction).
+
+    Like ``_declared_workspace_scope`` this NEVER infers: no title matching, no
+    packet-id shapes, no evidence, no post-hoc diff. It reads one declaration.
+    Unset → None → the objective compiles to one umbrella Task exactly as
+    before. Malformed → None, and any lane the runtime meant to declare is then
+    absent, which the pre-dispatch graph-shape gate refuses BEFORE quota rather
+    than discovering after a worker has run.
+    """
+    raw = os.environ.get("UMH_WORKSPACE_LANES", "").strip()
+    if not raw:
+        return None
+    try:
+        declared = json.loads(raw)
+    except (ValueError, TypeError):
+        logger.warning("UMH_WORKSPACE_LANES is not valid JSON — no lanes declared")
+        return None
+    if not isinstance(declared, list) or not declared:
+        logger.warning("UMH_WORKSPACE_LANES is not a non-empty JSON array — no lanes declared")
+        return None
+
+    from substrate.execution.planning.records import ObjectiveLane
+
+    lanes: list[Any] = []
+    for entry in declared:
+        if not isinstance(entry, dict):
+            logger.warning("UMH_WORKSPACE_LANES entry is not an object — no lanes declared")
+            return None
+        lanes.append(ObjectiveLane.from_dict(entry))
+    return lanes
+
+
 def _protocol() -> Any:
     global _protocol_singleton
     if _protocol_singleton is None:
@@ -62,6 +104,7 @@ def _protocol() -> Any:
 
         _protocol_singleton = OperatorIntentProtocol(
             workspace_scope_resolver=_declared_workspace_scope,
+            lane_resolver=_declared_lanes,
         )
     return _protocol_singleton
 

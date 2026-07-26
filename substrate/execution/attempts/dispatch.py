@@ -96,9 +96,18 @@ def compile_attempt_package(
     _requirements = getattr(packet, "requirements", {}) or {}
     if not isinstance(_requirements, dict):
         _requirements = getattr(_requirements, "to_dict", lambda: {})() or {}
-    if _requirements.get("scope_declared"):
-        _declared_paths = [str(p) for p in (_requirements.get("writable_path_scope") or [])]
-        governance_constraints.append(f"writable_path_scope={sorted(_declared_paths)}")
+    if not _requirements.get("scope_declared"):
+        # No unguarded fallback in a fail-closed system: without a declaration
+        # the prompt silently regresses to the pre-fix text ("do not touch files
+        # outside the task scope", scope unnamed) and the diff has no authority
+        # to be checked against. Materialization already refuses this, so
+        # reaching here means the contract was rewritten behind our back.
+        raise DispatchBlocked(
+            f"task {getattr(packet, 'packet_id', '')!r} has scope_declared=False — "
+            "refusing to dispatch a Task with undeclared mutation authority"
+        )
+    _declared_paths = [str(p) for p in (_requirements.get("writable_path_scope") or [])]
+    governance_constraints.append(f"writable_path_scope={sorted(_declared_paths)}")
 
     verification_requirements = list(
         getattr(grant, "verification_obligations", []) or []

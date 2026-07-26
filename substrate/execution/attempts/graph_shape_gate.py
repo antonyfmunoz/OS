@@ -91,15 +91,36 @@ def evaluate_graph_shape(
     plan_record_id: str,
     plan_version: int = 0,
     attempt_count: int | None = None,
+    frontier_size: int | None = None,
+    unresolvable_tasks: list[str] | None = None,
 ) -> GraphShapeVerdict:
     """Evaluate the persisted Tasks of ONE accepted plan version.
 
     ``packets`` are the canonical WorkPacket dicts already filtered to the plan
     under evaluation. ``attempt_count``, when supplied, asserts the pre-dispatch
     invariant that no ExecutionAttempt exists yet.
+
+    ``frontier_size`` / ``unresolvable_tasks`` let the caller declare how many
+    Tasks the grant authorized and which of them could not be read. Every
+    authorized Task MUST be evaluated: silently evaluating a subset would let a
+    larger, wrong-shaped graph present exactly the required shape while the
+    unread Tasks dispatch unexamined.
     """
     verdict = GraphShapeVerdict(plan_record_id=plan_record_id, plan_version=plan_version)
     verdict.task_ids = [str(p.get("packet_id") or "") for p in packets]
+
+    # 0. every authorized Task was actually readable and evaluated
+    missing = list(unresolvable_tasks or [])
+    if missing or frontier_size is not None:
+        complete = not missing and (frontier_size is None or len(packets) == frontier_size)
+        _record(
+            verdict,
+            "frontier_fully_evaluated",
+            complete,
+            f"unresolvable Task(s): {missing}"
+            if missing
+            else f"evaluated {len(packets)} of {frontier_size} authorized Task(s)",
+        )
 
     # 1. exactly 4 Tasks
     _record(
@@ -190,7 +211,32 @@ def evaluate_graph_shape(
         else "all Tasks declare mutation authority",
     )
 
-    # 8. the two implementation lanes have DISTINCT scopes
+    # 8a. every declared scope passes the CONTRACT's own validation. The gate is
+    # the last proof before quota; it must not certify a scope the contract
+    # layer would reject (repo root, ".", absolute paths, parent traversal).
+    scope_errors: list[str] = []
+    for packet in packets:
+        declared, paths = _scope_of(packet)
+        if not declared or not paths:
+            continue
+        try:
+            from substrate.contracts.work_context import WorkRequirements
+
+            probe = WorkRequirements()
+            probe.declare_writable_paths(list(paths))
+            errors = probe.validate_writable_path_scope()
+        except Exception as exc:  # a contract that cannot validate is not proof
+            errors = [f"validation raised: {exc}"]
+        if errors:
+            scope_errors.append(f"{packet.get('packet_id', '')}: {errors}")
+    _record(
+        verdict,
+        "scopes_pass_contract_validation",
+        not scope_errors,
+        "; ".join(scope_errors) if scope_errors else "all declared scopes valid",
+    )
+
+    # 8b. the two implementation lanes have DISTINCT scopes
     if len(roots) == IMPLEMENTATION_LANES:
         a_scope = tuple(sorted(_scope_of(roots[0])[1]))
         b_scope = tuple(sorted(_scope_of(roots[1])[1]))
