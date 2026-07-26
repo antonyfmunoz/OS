@@ -578,15 +578,30 @@ def test_protocol_forwards_declared_lanes_to_the_compiler(monkeypatch):
     ]
 
 
-def test_protocol_lane_resolver_failure_does_not_crash_planning():
-    """A broken resolver degrades to 'not decomposed', never an exception."""
-    from substrate.execution.intent.protocol import OperatorIntentProtocol
+def test_protocol_lane_resolver_failure_fails_closed():
+    """A broken resolver FAILS CLOSED — it never degrades to 'not decomposed'.
+
+    This test previously asserted the opposite ("degrades to 'not decomposed',
+    never an exception") and so pinned the defect as intended behavior, while
+    ``_resolve_lanes``' own docstring said "Fails CLOSED on a resolver error".
+    The docstring carried the requirement; the code and this test carried the
+    bug. Returning None is not a safe degradation: None is a LEGITIMATE value
+    meaning "undecomposed", so a fault became indistinguishable from a
+    deliberate single-Task objective — and with grounding evidence present it
+    handed executable Task authority to the evidence-DERIVED producer
+    (adversarial-review HIGH).
+    """
+    from substrate.execution.intent.protocol import (
+        LaneResolutionError,
+        OperatorIntentProtocol,
+    )
 
     def _boom(_scope, _text):
         raise RuntimeError("resolver exploded")
 
     proto = OperatorIntentProtocol(lane_resolver=_boom)
-    assert proto._resolve_lanes(None, OBJECTIVE) is None
+    with pytest.raises(LaneResolutionError):
+        proto._resolve_lanes(None, OBJECTIVE)
 
 
 def test_field_runner_arms_the_gate_when_lanes_are_declared(monkeypatch, tmp_path):
@@ -1026,3 +1041,51 @@ def test_legitimate_workspace_paths_still_allowed(good):
     requirements = WorkRequirements()
     requirements.declare_writable_paths([good])
     assert requirements.validate_writable_path_scope() == []
+
+
+def test_lane_declared_run_refuses_to_start_with_the_gate_disarmed(monkeypatch, tmp_path):
+    """MEDIUM (fresh-head review): driver construction failure was swallowed by
+    a blanket ``except Exception`` that demoted the run to worker-only mode with
+    only a log line. The pre-quota graph-shape gate is armed INSIDE that driver,
+    so the demotion silently deleted the gate while the loop kept claiming and
+    executing spool envelopes — the same "gate goes dark unnoticed" shape as the
+    preceding defect layers. A lane-declared run must now refuse to start,
+    matching the isolation preflight's fail-closed precedent.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_w2_runner_failclosed",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "wave2_attempt_runner.py"),
+    )
+    runner_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner_mod)
+
+    # Isolation preflight passes; the DRIVER is what fails. These are imported
+    # inside run_loop, so patch them at their defining module.
+    import substrate.execution.attempts.host_isolation as _iso
+
+    monkeypatch.setattr(_iso, "isolation_primitive", lambda: "bwrap")
+    monkeypatch.setattr(_iso, "preflight_isolation", lambda _root: (True, "ok"))
+
+    def _explode(**_kw):
+        raise RuntimeError("shared ledger unreadable")
+
+    monkeypatch.setattr(runner_mod, "_build_control_plane_driver", _explode)
+
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    spool_root = tmp_path / "spool"
+    spool_root.mkdir()
+
+    monkeypatch.setenv("UMH_WORKSPACE_LANES", FIELD_LANES_JSON)
+    rc = runner_mod.run_loop(
+        spool_root=str(spool_root),
+        secret="s" * 32,
+        max_iterations=1,
+        poll_seconds=0.0,
+        fixture_repo=str(fixture),
+        targets_dir=str(tmp_path / "targets"),
+        leases_dir=str(tmp_path / "leases"),
+    )
+    assert rc == 2, "lane-declared run must FAIL CLOSED when the gate cannot be armed"

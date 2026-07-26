@@ -283,6 +283,17 @@ class TaskScopeUndeclaredError(RuntimeError):
     """A Task would persist with no declared writable authority. Fail closed."""
 
 
+class LaneResolutionError(RuntimeError):
+    """The declared-lane resolver failed, so no decomposition owner was resolved.
+
+    Fail closed rather than returning None: None is a legitimate value meaning
+    "not decomposed", so a swallowed resolver fault is indistinguishable from a
+    deliberate single-Task objective — and when grounding evidence exists it
+    silently transfers executable Task authority to the evidence-derived
+    producer.
+    """
+
+
 def _task_requirements(archetype: Any, declared_scope: list[str] | None) -> dict[str, Any]:
     """Build a Task's WorkRequirements with its DECLARED writable authority.
 
@@ -1318,8 +1329,18 @@ class OperatorIntentProtocol:
         try:
             return self._lane_resolver(scope, objective_text)
         except Exception as exc:
-            logger.debug("lane resolver failed: %s", exc)
-            return None
+            # FAIL CLOSED (adversarial-review HIGH). Swallowing this returned
+            # None, and None does NOT mean "one umbrella Task" when grounding
+            # evidence exists — it hands executable Task authority to the
+            # evidence-DERIVED producer, the exact rival the declared-exclusive
+            # selection exists to dethrone. A resolver fault must never
+            # silently choose a different decomposition owner, and logging it
+            # at debug made that transfer invisible at default log level.
+            logger.error("lane resolver failed — refusing to compile: %s", exc)
+            raise LaneResolutionError(
+                f"declared-lane resolver failed: {exc} — refusing to compile a "
+                "decomposition whose authority was not resolved"
+            ) from exc
 
     def _resolve_workspace_scope(self, scope: Any) -> list[str] | None:
         """The target workspace's DECLARED writable-path authority, or None.

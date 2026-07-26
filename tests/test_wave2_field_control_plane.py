@@ -737,3 +737,52 @@ def test_runner_reaps_leases_through_the_lazy_accessor(tmp_path, monkeypatch):
     assert callable(accessor)
     accessor().expire_stale()
     assert calls == ["expired"], "reap did not reach the lease manager"
+
+
+def test_gate_arms_the_zero_attempt_check_on_the_first_admission(store, queue, tmp_path):
+    """LOW (fresh-head review): the sole production caller never passed
+    ``attempt_count``, so ``zero_attempts_pre_dispatch`` was skipped on EVERY
+    cycle — production evaluated 11 checks while the qualification claim said
+    12. The surrounding comment described first-cycle-only arming the code
+    never implemented. Assert the check is actually recorded pre-dispatch.
+    """
+    _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "D", deps=["C"], allowed_paths=(), plan_record_id="opr-1")
+    grant = _grant(["A", "B", "C", "D"])
+    _seed_active_grant(store, grant)
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
+
+    verdict = driver._graph_shape_verdict(grant)
+    recorded = {c["check_id"] for c in verdict["checks"]}
+    assert "zero_attempts_pre_dispatch" in recorded, (
+        "the pre-dispatch zero-attempt invariant is not armed by production"
+    )
+    assert len(recorded) == 12, sorted(recorded)
+    assert verdict["ok"], verdict["failures"]
+
+
+def test_gate_disarms_the_zero_attempt_check_after_the_first_attempt_exists(
+    store, queue, tmp_path
+):
+    """Control: the check is FIRST-CYCLE-ONLY by design — a poll loop must not
+    refuse the run the moment its own first worker starts. Without this the
+    'fix' for the arming gap would deadlock every real run after cycle one."""
+    _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "D", deps=["C"], allowed_paths=(), plan_record_id="opr-1")
+    grant = _grant(["A", "B", "C", "D"])
+    _seed_active_grant(store, grant)
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
+    driver.run_cycle()  # creates real attempts for the two independent lanes
+
+    verdict = driver._graph_shape_verdict(grant)
+    recorded = {c["check_id"] for c in verdict["checks"]}
+    assert "zero_attempts_pre_dispatch" not in recorded
+    assert verdict["ok"], verdict["failures"]

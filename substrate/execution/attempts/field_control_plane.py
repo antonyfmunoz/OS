@@ -593,9 +593,23 @@ class FieldControlPlaneDriver:
         # a poll loop), so asserting it every cycle would refuse the run the
         # moment its own first worker started. Shape itself is re-checked every
         # cycle — only this one pre-dispatch invariant is first-cycle-only.
+        #
+        # This comment previously described an intent the code never
+        # implemented: `attempt_count` was simply never passed, so the check was
+        # skipped on EVERY cycle including the first and production evaluated 11
+        # checks while the qualification claim said 12 (adversarial-review LOW).
+        # Reading the ledger here arms it exactly once, as described.
+        attempt_count: int | None = None
+        try:
+            existing = self._store.attempts_for_plan(plan_id)
+            if not existing:
+                attempt_count = 0
+        except Exception as exc:  # ledger unreadable → leave the check unarmed
+            logger.debug("graph-shape gate: attempt ledger unreadable: %s", exc)
         verdict = evaluate_graph_shape(
             packets=packets,
             plan_record_id=plan_id,
+            attempt_count=attempt_count,
             frontier_size=len(frontier),
             unresolvable_tasks=missing,
         )

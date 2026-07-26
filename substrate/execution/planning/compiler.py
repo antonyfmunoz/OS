@@ -1052,6 +1052,23 @@ def compose_plan_for_session(
 # ── Revision (append-only versions) ──────────────────────────────────────────
 
 
+def _edit_target_id(edit: dict[str, Any]) -> str:
+    """Node reference of one revision edit — the ONE key-resolution authority.
+
+    ``classify_revision`` (the production chat path) emits ``target_node_id``;
+    direct/API edit sets use ``node_id``. Both the DECLARED_EXCLUSIVE guard and
+    the applier below MUST resolve the reference through this single function.
+
+    This is module-scope rather than a closure because the guard and the applier
+    once parsed this field independently: the guard read ``node_id``/``target``
+    while production sent ``target_node_id``, so the guard was invisible to every
+    real caller and one chat sentence deleted the zero-write verification lane
+    from a DECLARED_EXCLUSIVE plan (adversarial-review CRITICAL). A guard and the
+    operation it guards may never disagree about which field names the target.
+    """
+    return str(edit.get("target_node_id") or edit.get("node_id") or edit.get("target") or "")
+
+
 def compile_revision(
     plan: ObjectivePlanRecord,
     edit_set: RevisionEditSet,
@@ -1083,7 +1100,7 @@ def compile_revision(
                     "executable packet node; re-declare the lane set instead"
                 )
             if op == "remove_node":
-                target = str(edit.get("node_id") or edit.get("target") or "")
+                target = _edit_target_id(edit)
                 if target in lane_ids:
                     raise PlanCompilationError(
                         f"plan version is DECLARED_EXCLUSIVE — a revision may not remove "
@@ -1101,12 +1118,9 @@ def compile_revision(
 
     by_id = {n["node_id"]: n for n in new_plan.nodes}
 
-    def _target_id(edit: dict[str, Any]) -> str:
-        """Node reference of one edit. classify_revision emits
-        ``target_node_id``; direct/API edit sets use ``node_id`` — accept
-        both (adversarial-review BLOCKER: the mismatch made remove/retitle/
-        move_lane silent no-ops while the rail claimed 'Plan revised')."""
-        return str(edit.get("target_node_id") or edit.get("node_id") or "")
+    # ONE key-resolution authority, shared with the DECLARED_EXCLUSIVE guard
+    # above — see _edit_target_id.
+    _target_id = _edit_target_id
 
     unapplied: list[str] = []
     for edit in edit_set.edits:

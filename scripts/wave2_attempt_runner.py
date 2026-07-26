@@ -268,7 +268,22 @@ def run_loop(
                 leases_dir=leases_dir or os.path.join(targets_dir, "leases"),
             )
             _log(f"control-plane driver up: fixture={fixture_repo} targets={targets_dir}")
-        except Exception as exc:  # worker-only fallback, loudly logged
+        except Exception as exc:
+            # FAIL CLOSED when this run DECLARED a lane decomposition. The
+            # pre-quota graph-shape gate is armed inside the driver
+            # (enforce_graph_shape above), so demoting to worker-only here does
+            # not merely lose the control plane — it silently deletes the gate
+            # while the loop keeps claiming and executing spool envelopes. That
+            # is the "gate goes dark unnoticed" shape (adversarial-review
+            # MEDIUM), and it matches the isolation preflight's precedent above:
+            # a missing enforcement mechanism refuses to run, it does not warn.
+            if os.environ.get("UMH_WORKSPACE_LANES", "").strip():
+                _log(
+                    f"FATAL: control-plane driver unavailable ({exc}) but this run "
+                    "declares UMH_WORKSPACE_LANES — refusing to run with the "
+                    "pre-quota graph-shape gate disarmed"
+                )
+                return 2
             _log(f"control-plane driver unavailable ({exc}) — worker-only mode")
             driver = None
 

@@ -813,3 +813,157 @@ def test_preserved_evidence_is_not_an_alias_of_the_executable_set():
     _, _, _, _, gaps, _ = _derive(_lanes(), legacy=FIELD_LEGACY_PENDING)
     assert gaps.derived_evidence_gaps is not gaps.gaps
     assert not ({g["gap_key"] for g in gaps.gaps} & {g["gap_key"] for g in gaps.derived_evidence_gaps})
+
+
+# ── O. the guard must hold for the key PRODUCTION sends ─────────────────────
+
+
+def test_chat_sentence_cannot_delete_the_zero_write_verification_lane(tmp_path):
+    """CRITICAL (fresh-head review): the DECLARED_EXCLUSIVE remove_node guard
+    read ``node_id``/``target`` while ``classify_revision`` — the production
+    chat path — emits ``target_node_id``. The guard was therefore invisible to
+    every real caller: one operator sentence deleted the zero-write independent
+    verification lane from a governed 4-lane plan, and the suite stayed green
+    because every existing test hand-wrote the key production never sends.
+
+    This drives the REAL classifier rather than a hand-built edit dict.
+    """
+    from substrate.execution.planning.objective_classifier import classify_revision
+
+    plan, _ = _compose(tmp_path, _lanes())
+    assert plan.decomposition_mode == DecompositionMode.DECLARED_EXCLUSIVE.value
+
+    edit_set = classify_revision(
+        "update the plan; remove Independently verify note search", plan
+    )
+    # Pin the mismatch itself: production really does emit target_node_id.
+    assert edit_set.edits, "classifier produced no edits — test would be vacuous"
+    assert any(
+        "target_node_id" in e for e in edit_set.edits
+    ), "classifier no longer emits target_node_id; update this regression"
+
+    with pytest.raises(PlanCompilationError) as exc:
+        _revision(plan, list(edit_set.edits), tmp_path)
+    assert "atomic" in str(exc.value)
+
+
+@pytest.mark.parametrize("key", ["target_node_id", "node_id", "target"])
+def test_declared_lane_removal_blocked_under_every_target_key(tmp_path, key):
+    """The guard and the applier must resolve the node reference through ONE
+    function. Any key the applier honours must also be seen by the guard."""
+    plan, _ = _compose(tmp_path, _lanes())
+    verifier = next(n for n in plan.nodes if n.get("gap_id") == "gap-lane-verification")
+    with pytest.raises(PlanCompilationError) as exc:
+        _revision(plan, [{"op": "remove_node", key: verifier["node_id"]}], tmp_path)
+    assert "atomic" in str(exc.value)
+
+
+# ── P. a resolver fault must never transfer decomposition authority ─────────
+
+
+def test_lane_resolver_failure_fails_closed_and_never_yields_derived_authority():
+    """HIGH (fresh-head review): ``_resolve_lanes`` documented "Fails CLOSED on
+    a resolver error" but caught Exception, logged at debug, and returned None.
+    None is a LEGITIMATE value ("not decomposed"), so the fault was
+    indistinguishable from a deliberate single-Task objective — and with
+    grounding evidence present it handed executable Task authority to the
+    evidence-DERIVED producer, the exact rival DECLARED_EXCLUSIVE dethrones.
+    """
+    from substrate.execution.intent.protocol import (
+        LaneResolutionError,
+        OperatorIntentProtocol,
+    )
+
+    def _boom(_scope, _text):
+        raise RuntimeError("resolver exploded")
+
+    protocol = OperatorIntentProtocol(lane_resolver=_boom)
+    scope = WorkScope(tenant_id="t-l11", target_kind="self_build")
+    with pytest.raises(LaneResolutionError):
+        protocol._resolve_lanes(scope, OBJECTIVE)
+
+
+def test_absent_lane_resolver_still_means_not_decomposed():
+    """The fail-closed rule must not break the legitimate 'no declaration'
+    path: no resolver at all still compiles as an undecomposed objective."""
+    from substrate.execution.intent.protocol import OperatorIntentProtocol
+
+    protocol = OperatorIntentProtocol()
+    scope = WorkScope(tenant_id="t-l11", target_kind="self_build")
+    assert protocol._resolve_lanes(scope, OBJECTIVE) is None
+
+
+# ── Q. every gate check falsifiable IN ISOLATION ────────────────────────────
+
+
+def _gate_packets(plan_id="opr-iso"):
+    """The exact-shape 4-Task graph the gate must accept."""
+    def _p(pid, title, deps, scope):
+        return {
+            "packet_id": pid,
+            "user_intent": title,
+            "dependencies": list(deps),
+            "lineage": {"plan_record_id": plan_id},
+            "requirements": {"writable_path_scope": list(scope), "scope_declared": True},
+        }
+
+    return [
+        _p("A", "backend", [], ["app/main.py"]),
+        _p("B", "frontend", [], ["app/static"]),
+        _p("C", "integration", ["A", "B"], ["app/main.py", "app/static"]),
+        _p("D", "verification", ["C"], []),
+    ]
+
+
+def test_gate_names_independent_implementation_lanes_on_a_serialized_graph():
+    """MEDIUM (fresh-head review): this check survived mutation to ``True``
+    because every existing parametrized case co-tripped another check first.
+
+    A single-check isolation is impossible here BY CONSTRUCTION, and that is
+    worth stating rather than faking: the gate identifies the implementation
+    lanes *by* their dependency-free-ness, so any graph that violates the
+    two-roots rule necessarily also makes lane identification fail. What this
+    test pins is that the check is NAMED in the failures for a serialized
+    graph — which is exactly what the mutation to ``True`` removes (verified:
+    mutating the predicate makes this test fail).
+    """
+    packets = _gate_packets()
+    by_id = {p["packet_id"]: p for p in packets}
+    by_id["B"]["dependencies"] = ["A"]          # serialize B behind A → one root
+    by_id["C"]["dependencies"] = ["B"]
+
+    verdict = evaluate_graph_shape(packets=packets, plan_record_id="opr-iso")
+    assert not verdict.ok
+    assert any(f.startswith("independent_implementation_lanes") for f in verdict.failures), (
+        verdict.failures
+    )
+
+
+def test_gate_names_verifier_depends_on_fan_in_when_the_chain_is_broken():
+    """MEDIUM (fresh-head review): the second mutation survivor.
+
+    As with the lanes check, a single-check isolation is impossible by
+    construction — the verifier is IDENTIFIED by depending on the fan-in, so
+    breaking that edge necessarily also makes verifier-derived checks
+    unverifiable. This pins that the check is NAMED when the chain is broken,
+    which is precisely what mutating the predicate to ``True`` removes
+    (verified: the mutation makes this test fail).
+    """
+    packets = _gate_packets()
+    by_id = {p["packet_id"]: p for p in packets}
+    by_id["D"]["dependencies"] = ["A"]
+
+    verdict = evaluate_graph_shape(packets=packets, plan_record_id="opr-iso")
+    assert not verdict.ok
+    assert any(f.startswith("verifier_depends_on_fan_in") for f in verdict.failures), (
+        verdict.failures
+    )
+
+
+def test_gate_accepts_the_exact_shape_so_the_isolation_tests_are_not_vacuous():
+    """Control: the unmodified fixture graph must PASS, otherwise the two
+    isolation tests above would pass for the wrong reason."""
+    verdict = evaluate_graph_shape(
+        packets=_gate_packets(), plan_record_id="opr-iso", attempt_count=0
+    )
+    assert verdict.ok, verdict.failures
