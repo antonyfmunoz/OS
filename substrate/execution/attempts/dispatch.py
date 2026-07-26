@@ -86,6 +86,19 @@ def compile_attempt_package(
         f"allowed_tools={sorted(getattr(assignment, 'tool_profile', []) or [])}",
         f"environment_class={getattr(assignment, 'environment_class', '')}",
     ]
+    # The DECLARED writable-path authority, read from the Task contract the
+    # VERIFIER reads — one source, never a second derivation. Without this the
+    # worker is told "do not touch files outside the task scope" while never
+    # being told what that scope IS, so a legitimate implementation can fail
+    # verification for a boundary it was never shown (field run
+    # 20260726T025143Z-p1). Sealing it into the hash means the worker cannot
+    # widen it either.
+    _requirements = getattr(packet, "requirements", {}) or {}
+    if not isinstance(_requirements, dict):
+        _requirements = getattr(_requirements, "to_dict", lambda: {})() or {}
+    if _requirements.get("scope_declared"):
+        _declared_paths = [str(p) for p in (_requirements.get("writable_path_scope") or [])]
+        governance_constraints.append(f"writable_path_scope={sorted(_declared_paths)}")
 
     verification_requirements = list(
         getattr(grant, "verification_obligations", []) or []

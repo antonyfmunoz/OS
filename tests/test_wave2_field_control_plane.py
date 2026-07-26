@@ -97,7 +97,9 @@ class _FakeSandbox:
         pass
 
 
-def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests")):
+def _add_approved_packet(
+    queue, pid, deps=None, allowed_paths=("app", "tests"), plan_record_id=""
+):
     """An APPROVED packet carrying a DECLARED path scope (finding C-1): the
     canonical WorkPacket is the diff-scope authority, and a packet declaring no
     scope now fails verification closed instead of authorizing everything."""
@@ -113,6 +115,10 @@ def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests")):
         },
     )
     pkt.packet_id = pid
+    if plan_record_id:
+        # Set BEFORE ingest: the driver reloads the queue from disk each cycle,
+        # so an in-memory mutation after ingest would be discarded.
+        pkt.lineage = {**(getattr(pkt, "lineage", {}) or {}), "plan_record_id": plan_record_id}
     queue.ingest_work_packet(pkt)
     for s in (
         PacketLifecycleStatus.CLASSIFIED,
@@ -200,7 +206,7 @@ def _stub_worker_drain(spool, *, fail_tasks=None):
         processed += 1
 
 
-def _driver(store, queue, spool, tmp_path, targets_dir=""):
+def _driver(store, queue, spool, tmp_path, targets_dir="", enforce_graph_shape=False):
     return FieldControlPlaneDriver(
         store=store,
         work_queue=queue,
@@ -209,6 +215,7 @@ def _driver(store, queue, spool, tmp_path, targets_dir=""):
         targets_dir=targets_dir or str(tmp_path / "targets"),
         mutation_runner=_mutation_runner(),
         lock_dir=str(tmp_path / "locks"),
+        enforce_graph_shape=enforce_graph_shape,
     )
 
 
@@ -250,6 +257,82 @@ def test_driver_admits_independent_frontier_first(store, queue, tmp_path):
     assert admitted_tasks == {"A", "B"}, "exactly the independent frontier admitted (2-concurrency)"
     # C has no attempt yet (blocked on A∧B proof).
     assert not any(a.task_id == "C" for a in store.active_attempts())
+
+
+def test_graph_shape_gate_refuses_single_umbrella_task_before_any_dispatch(
+    store, queue, tmp_path
+):
+    """The exact field failure: ONE combined Task instead of the four-lane graph.
+
+    The gate must refuse BEFORE a dispatch envelope is written, so the wrong
+    shape costs ZERO worker quota (field run 20260726T025143Z-p1 spent quota and
+    only then failed at the two-concurrent-Tasks assertion).
+    """
+    _add_approved_packet(queue, "A")
+    _seed_active_grant(store, _grant(["A"]))
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
+
+    reports = driver.run_cycle()
+
+    assert len(reports) == 1
+    assert any("graph_shape_gate" in e for e in reports[0].errors)
+    assert any("task_count" in e for e in reports[0].errors)
+    assert reports[0].admitted == [], "nothing may be admitted on a refused graph"
+    assert not store.active_attempts(), "ZERO attempts — zero worker quota spent"
+    assert not list(spool.inbox_names()) if hasattr(spool, "inbox_names") else True
+
+
+def test_graph_shape_gate_admits_the_correct_four_lane_graph(store, queue, tmp_path):
+    """The gate is not merely restrictive: the right shape proceeds normally."""
+    _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "D", deps=["C"], allowed_paths=(), plan_record_id="opr-1")
+    _seed_active_grant(store, _grant(["A", "B", "C", "D"]))
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
+
+    reports = driver.run_cycle()
+
+    assert not any("graph_shape_gate" in e for e in reports[0].errors), reports[0].errors
+    admitted = {store.get_attempt(a).task_id for a in reports[0].admitted}
+    assert admitted == {"A", "B"}, "the two independent lanes are admitted concurrently"
+
+
+def test_graph_shape_gate_refuses_write_authorized_verifier(store, queue, tmp_path):
+    """D holding write authority is the dangerous shape — refuse before dispatch."""
+    _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
+    _add_approved_packet(queue, "D", deps=["C"], allowed_paths=("app/main.py",), plan_record_id="opr-1")
+    _seed_active_grant(store, _grant(["A", "B", "C", "D"]))
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
+
+    reports = driver.run_cycle()
+
+    assert any("verifier_zero_write" in e for e in reports[0].errors)
+    assert not store.active_attempts(), "zero quota spent on a write-authorized verifier"
+
+
+def test_graph_shape_gate_is_off_by_default_for_single_task_objectives(
+    store, queue, tmp_path
+):
+    """A legitimate single-Task smoke objective must not be misreported."""
+    _add_approved_packet(queue, "A")
+    _seed_active_grant(store, _grant(["A"]))
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path)  # gate OFF (default)
+
+    reports = driver.run_cycle()
+
+    assert not any("graph_shape_gate" in e for e in reports[0].errors)
+    assert reports[0].admitted, "the single-Task objective still dispatches"
 
 
 def test_driver_drives_full_graph_to_green(store, queue, tmp_path):

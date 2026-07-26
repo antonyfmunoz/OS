@@ -100,12 +100,73 @@ def render_prompt(package: Any) -> str:
         if rendered:
             section = str(ctx.get("section", "context")).replace("_", " ").title()
             parts.append(f"## {section}\n{rendered}")
-    parts.append(
-        "Make the change in this worktree and commit it with a descriptive "
-        "message. Do not push. Do not create PRs. Do not touch files outside "
-        "the task scope."
-    )
+    # STATE the declared writable scope. Telling a worker "do not touch files
+    # outside the task scope" without naming that scope grades it against a
+    # boundary it was never shown — a legitimate implementation then fails
+    # verification for an unattributable reason. The paths come from the SEALED
+    # package (which carries the Task contract's own declaration), so this is
+    # the same authority the verifier enforces, never a second derivation.
+    scope_line = _declared_scope_line(package)
+    if scope_line:
+        parts.append(scope_line)
+    if _is_zero_write(package):
+        # Never tell a zero-write verifier to "make the change and commit it" —
+        # the closing instruction would contradict its own scope declaration and
+        # invite the exact diff that fails it closed.
+        parts.append(
+            "Do NOT modify anything. Inspect and report only. Do not commit, "
+            "push, or create PRs."
+        )
+    else:
+        parts.append(
+            "Make the change in this worktree and commit it with a descriptive "
+            "message. Do not push. Do not create PRs. Do not touch files outside "
+            "the task scope."
+        )
     return "\n\n".join(p for p in parts if p)
+
+
+def _is_zero_write(package: Any) -> bool:
+    """True when the package seals an EXPLICIT empty writable-path scope."""
+    for constraint in getattr(package, "governance_constraints", []) or []:
+        text = str(constraint)
+        if text.startswith("writable_path_scope="):
+            return text.split("=", 1)[1].strip() in ("[]", "()")
+    return False
+
+
+def _declared_scope_line(package: Any) -> str:
+    """The sealed ``writable_path_scope`` constraint as worker-facing text.
+
+    An EMPTY declared scope is meaningful, not missing: it is the independent
+    verifier's zero-write authority, and the worker must be told explicitly that
+    it may change nothing — otherwise it "helpfully" edits and fails closed.
+    """
+    for constraint in getattr(package, "governance_constraints", []) or []:
+        text = str(constraint)
+        if not text.startswith("writable_path_scope="):
+            continue
+        raw = text.split("=", 1)[1].strip()
+        try:
+            import ast
+
+            paths = [str(p) for p in ast.literal_eval(raw)]
+        except (ValueError, SyntaxError):
+            return ""
+        if not paths:
+            return (
+                "## Writable Scope\n"
+                "This task is READ-ONLY: it declares ZERO writable paths. Do not "
+                "create, edit, or delete any file. Any change is out of scope and "
+                "fails verification."
+            )
+        listed = "\n".join(f"- {p}" for p in paths)
+        return (
+            "## Writable Scope\n"
+            "You may change ONLY these paths (verification rejects anything "
+            f"outside them):\n{listed}"
+        )
+    return ""
 
 
 def _render_context_payload(payload: Any) -> str:

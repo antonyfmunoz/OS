@@ -87,3 +87,55 @@ def test_prompt_is_not_only_the_boilerplate_shell():
     )
     # And it must be substantive (the field failure prompt was ~180 chars).
     assert len(prompt) > 300, "a real task prompt carries the spec, not just the id"
+
+
+# ── Declared writable scope must be STATED, not merely enforced ──────────────
+# Field run 20260726T025143Z-p1: the prompt ended with "Do not touch files
+# outside the task scope" while never naming that scope, so a worker was graded
+# against a boundary it was never shown.
+
+
+def _scope_pkg(constraints):
+    return SimpleNamespace(
+        role_instructions="",
+        operation_instructions="Execute task wp-1.",
+        operation_identity={"task_id": "wp-1"},
+        ordered_context=[],
+        governance_constraints=list(constraints),
+    )
+
+
+def test_prompt_states_the_declared_writable_paths():
+    prompt = render_prompt(_scope_pkg(["writable_path_scope=['app/main.py', 'app/store.py']"]))
+    assert "app/main.py" in prompt
+    assert "app/store.py" in prompt
+    assert "Writable Scope" in prompt
+
+
+def test_zero_write_scope_is_stated_as_read_only():
+    prompt = render_prompt(_scope_pkg(["writable_path_scope=[]"]))
+    assert "READ-ONLY" in prompt
+    assert "ZERO writable paths" in prompt
+
+
+def test_zero_write_prompt_does_not_ask_for_a_commit():
+    """The closing instruction must not contradict a zero-write declaration."""
+    prompt = render_prompt(_scope_pkg(["writable_path_scope=[]"]))
+    assert "Make the change in this worktree and commit it" not in prompt
+    assert "Do NOT modify anything" in prompt
+
+
+def test_implementation_prompt_still_asks_for_a_commit():
+    prompt = render_prompt(_scope_pkg(["writable_path_scope=['app/main.py']"]))
+    assert "commit it with a descriptive message" in prompt
+
+
+def test_prompt_unchanged_when_no_scope_constraint_is_sealed():
+    prompt = render_prompt(_scope_pkg(["risk_ceiling=high"]))
+    assert "Writable Scope" not in prompt
+    assert "commit it with a descriptive message" in prompt
+
+
+def test_malformed_scope_constraint_does_not_crash_the_prompt():
+    prompt = render_prompt(_scope_pkg(["writable_path_scope=<not-a-list>"]))
+    assert "Execute task wp-1." in prompt

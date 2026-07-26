@@ -46,6 +46,7 @@ from substrate.execution.planning.records import (
     DesiredStateRecord,
     GapAssessmentSnapshot,
     GroundingSnapshot,
+    ObjectiveLane,
     ObjectivePlanNode,
     ObjectivePlanRecord,
     ObjectivePlanStatus,
@@ -70,6 +71,61 @@ class PlanCompilationError(RuntimeError):
     """Deterministic compilation failed — the plan is not created."""
 
 
+# ── Caller-declared lane decomposition ───────────────────────────────────────
+
+
+def _lane_gaps(lanes: list[Any]) -> list[dict[str, Any]]:
+    """Turn a caller's declared lanes into gaps with resolved dependencies.
+
+    Fail-closed on every malformed declaration: a bad decomposition must stop
+    planning, never silently degrade to one umbrella Task (which is what the
+    multi-lane protocol would then fail to satisfy at execution time).
+
+    ``lane_key`` → ``gap-lane-<key>`` is the ONLY identity a caller influences.
+    Node ids and packet ids remain minted by canonical materialization alone.
+    """
+    normalized: list[ObjectiveLane] = []
+    for raw in lanes:
+        lane = raw if isinstance(raw, ObjectiveLane) else ObjectiveLane.from_dict(dict(raw))
+        key = (lane.lane_key or "").strip()
+        if not key:
+            raise PlanCompilationError("declared lane has no lane_key — refusing to compile")
+        if lane.writable_path_scope is None:
+            raise PlanCompilationError(
+                f"lane {key!r} declares no writable_path_scope — an undeclared authority is "
+                "never whole-repository permission"
+            )
+        lane.lane_key = key
+        normalized.append(lane)
+
+    keys = [lane.lane_key for lane in normalized]
+    duplicates = {k for k in keys if keys.count(k) > 1}
+    if duplicates:
+        raise PlanCompilationError(f"duplicate lane_key(s) declared: {sorted(duplicates)}")
+    known = set(keys)
+
+    gaps: list[dict[str, Any]] = []
+    for lane in normalized:
+        unknown = [d for d in lane.depends_on if d not in known]
+        if unknown:
+            raise PlanCompilationError(
+                f"lane {lane.lane_key!r} depends on undeclared lane(s): {sorted(unknown)}"
+            )
+        if lane.lane_key in lane.depends_on:
+            raise PlanCompilationError(f"lane {lane.lane_key!r} depends on itself")
+        gaps.append(
+            {
+                "gap_key": f"gap-lane-{lane.lane_key}",
+                "title": (lane.title or lane.lane_key)[:160],
+                "evidence_ref": "",
+                "dependencies": [f"gap-lane-{d}" for d in lane.depends_on],
+                "writable_path_scope": [str(p) for p in lane.writable_path_scope],
+                "semantic_label": lane.semantic_label,
+            }
+        )
+    return gaps
+
+
 # ── State derivation (current ≠ desired by construction) ─────────────────────
 
 
@@ -79,6 +135,7 @@ def derive_state_records(
     tenant_id: str = "",
     scope: WorkScope | None = None,
     writable_path_scope: list[str] | None = None,
+    lanes: list[Any] | None = None,
 ) -> tuple[CurrentStateRecord, DesiredStateRecord, GapAssessmentSnapshot]:
     """Derive the three planning records from evidence + the objective.
 
@@ -90,6 +147,14 @@ def derive_state_records(
     seeds it onto each materialized WorkPacket's contract. ``None`` means the
     caller declared no authority: materialization then fails closed rather than
     persisting a Task whose diff can never be verified.
+
+    ``lanes`` is the caller's optional DECLARED decomposition (``ObjectiveLane``
+    or dicts). When supplied it takes precedence over every other gap producer:
+    the objective becomes one Task PER LANE, each carrying that lane's own
+    least-privilege authority and its resolved dependencies, instead of the
+    single umbrella Task the fallback below produces. Substrate still infers
+    nothing — lanes are declared by the runtime that owns the workspace, the
+    same seam that already declares ``writable_path_scope``.
     """
     declared_scope = None if writable_path_scope is None else [str(p) for p in writable_path_scope]
     current = CurrentStateRecord(
@@ -161,7 +226,22 @@ def derive_state_records(
                     "writable_path_scope": declared_scope,
                 }
             )
-    if not gap_snapshot.gaps:
+    if lanes:
+        # CALLER-DECLARED DECOMPOSITION (highest precedence). The objective is
+        # realized by several cooperating Tasks, each with its OWN authority and
+        # its own place in the graph. This is the producer the multi-lane field
+        # protocol requires: without it the objective takes the umbrella branch
+        # below and yields ONE combined Task, so a graph asserting two
+        # concurrent implementation Tasks can never be satisfied (field run
+        # 20260726T025143Z-p1 failed at w16_ab_running_concurrent for exactly
+        # this reason).
+        #
+        # Lanes are DECLARED, never inferred: substrate does not read titles,
+        # packet-id shapes, or diffs to decide them. Dependencies are resolved
+        # lane_key → gap_key here, so a caller can never supply a node or packet
+        # id and thereby mint identity outside canonical materialization.
+        gap_snapshot.gaps.extend(_lane_gaps(lanes))
+    elif not gap_snapshot.gaps:
         gap_snapshot.gaps.append(
             {
                 "gap_key": "gap-objective",
@@ -312,6 +392,23 @@ def compile_plan(
             scope_declared=declared_scope is not None,
         )
         packet_nodes.append(node)
+
+    # Resolve gap-level dependencies onto real node ids. Without this a declared
+    # graph (C after A∧B, D after C) flattens into independent nodes and the
+    # scheduler admits every Task at once — the dependency would be documented
+    # but not enforced. Keyed by gap id, so identity stays compiler-minted.
+    node_by_gap = {n.gap_id: n for n in packet_nodes}
+    for gap, node in zip(gaps, packet_nodes):
+        for dep_gap in gap.get("dependencies", []) or []:
+            dep_node = node_by_gap.get(dep_gap)
+            if dep_node is None:
+                # A dependency on a gap that was deferred by the caps above
+                # would silently unblock the dependent Task.
+                raise PlanCompilationError(
+                    f"gap {gap['gap_key']!r} depends on {dep_gap!r}, which materialized no node"
+                )
+            node.depends_on.append(dep_node.node_id)
+    for node in packet_nodes:
         plan.nodes.append(node.to_dict())
 
     verification = ObjectivePlanNode(
@@ -333,11 +430,19 @@ def compile_plan(
         plan.edges.append({"from": node.node_id, "to": verification.node_id})
     plan.edges.append({"from": verification.node_id, "to": milestone.node_id})
     # Gap-declared dependencies become packet→packet edges (predecessor-only).
+    # Unknown/self references already failed closed during node resolution
+    # above, so anything reaching here resolves; the guard stays as a belt-and-
+    # braces check rather than a silent skip.
     key_to_node = {n.gap_id: n.node_id for n in packet_nodes}
     for gap in gaps:
         for dep_key in gap.get("dependencies", []):
-            if dep_key in key_to_node and dep_key != gap["gap_key"]:
-                plan.edges.append({"from": key_to_node[dep_key], "to": key_to_node[gap["gap_key"]]})
+            if dep_key == gap["gap_key"]:
+                raise PlanCompilationError(f"gap {dep_key!r} depends on itself")
+            if dep_key not in key_to_node:
+                raise PlanCompilationError(
+                    f"gap {gap['gap_key']!r} depends on {dep_key!r}, which materialized no node"
+                )
+            plan.edges.append({"from": key_to_node[dep_key], "to": key_to_node[gap["gap_key"]]})
 
     _kahn_validate(plan.nodes, plan.edges)
 
@@ -558,12 +663,17 @@ def compose_plan_for_session(
     event_emit: Callable[[str, dict[str, Any]], None] | None = None,
     dev_profile_enabled: bool | None = None,
     writable_path_scope: list[str] | None = None,
+    lanes: list[Any] | None = None,
 ) -> ObjectivePlanRecord:
     """Run compile → materialize → readiness as the recoverable unit of work.
 
     ``writable_path_scope`` is the objective-derived, least-privilege mutation
     authority every Task of this plan is materialized with (see
     ``derive_state_records``). ``None`` fails materialization closed.
+
+    ``lanes`` is the caller's declared decomposition: when supplied the
+    objective materializes one Task per lane, each with that lane's own
+    authority and resolved dependencies, instead of a single umbrella Task.
 
     Idempotent: a session that already committed a plan version returns it
     unchanged (no duplicate plans/Tasks/events on retry).
@@ -598,6 +708,7 @@ def compose_plan_for_session(
             tenant_id=scope.tenant_id,
             scope=scope,
             writable_path_scope=writable_path_scope,
+            lanes=lanes,
         )
         archetype = resolve_archetype(session.objective_text, scope)
         if resumed_plan is not None:
@@ -610,9 +721,38 @@ def compose_plan_for_session(
             # every retry takes this same branch. Re-seeding never WIDENS an
             # authority: it applies the same caller declaration this call already
             # derived, and a None declaration still fails closed downstream.
+            # Per-lane authority must survive resume. Re-seeding every packet
+            # node from the single flat scope would WIDEN a lane that declared
+            # a narrower authority — most dangerously the zero-write verifier
+            # lane, which would silently gain write permission on any retry.
+            # So when lanes were declared, each node is re-seeded from ITS OWN
+            # lane (matched by the gap id the compiler minted), never from the
+            # flat scope.
+            lane_scope_by_gap: dict[str, list[str]] = {}
+            for raw_lane in lanes or []:
+                lane_obj = (
+                    raw_lane
+                    if isinstance(raw_lane, ObjectiveLane)
+                    else ObjectiveLane.from_dict(dict(raw_lane))
+                )
+                lane_scope_by_gap[f"gap-lane-{lane_obj.lane_key}"] = [
+                    str(p) for p in lane_obj.writable_path_scope
+                ]
             for node in plan.nodes:
                 if node.get("kind") != "packet":
                     continue
+                gap_id = node.get("gap_id", "")
+                if gap_id in lane_scope_by_gap:
+                    node["writable_path_scope"] = list(lane_scope_by_gap[gap_id])
+                    node["scope_declared"] = True
+                    continue
+                if lanes:
+                    # A packet node with no matching lane cannot be re-seeded
+                    # from the flat scope without widening it; fail closed.
+                    raise PlanCompilationError(
+                        f"resumed plan node {node.get('node_id', '')!r} (gap {gap_id!r}) matches "
+                        "no declared lane — refusing to re-seed authority from the flat scope"
+                    )
                 node["writable_path_scope"] = list(writable_path_scope or [])
                 node["scope_declared"] = writable_path_scope is not None
         else:

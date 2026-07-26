@@ -194,7 +194,13 @@ class FieldControlPlaneDriver:
         mutation_runner: Callable[..., Any] | None = None,
         lock_dir: str | None = None,
         proof_runtime: Any | None = None,
+        enforce_graph_shape: bool = False,
     ) -> None:
+        # Pre-quota graph-shape enforcement. OFF by default so a legitimate
+        # single-Task objective (the planning-rail smoke) is not misreported as
+        # a malformed graph; the multi-lane field protocol turns it ON, and a
+        # wrong-shaped graph is then refused BEFORE any worker quota is spent.
+        self._enforce_graph_shape = bool(enforce_graph_shape)
         self._store = store
         self._queue = work_queue
         self._spool = spool
@@ -500,6 +506,26 @@ class FieldControlPlaneDriver:
         for grant in grants:
             report = ControlPlaneCycleReport(grant_ref=getattr(grant, "decision_ref", ""))
             try:
+                # PRE-QUOTA GRAPH-SHAPE GATE. This is the last point before an
+                # ACTIVE grant becomes signed dispatches — i.e. before any real
+                # worker quota can be spent. A graph of the wrong shape is a
+                # PLANNING defect that used to surface only after a worker had
+                # already run (field run 20260726T025143Z-p1: one umbrella Task,
+                # quota spent, then a guaranteed failure at the two-concurrent-
+                # Tasks assertion). Refusing here costs zero quota.
+                shape = self._graph_shape_verdict(grant)
+                if shape is not None and not shape.get("ok", False):
+                    report.errors.extend(
+                        f"graph_shape_gate: {f}" for f in shape.get("failures", [])
+                    )
+                    logger.warning(
+                        "field control-plane REFUSED dispatch (zero quota spent) — "
+                        "graph shape invalid for grant %s: %s",
+                        getattr(grant, "decision_ref", ""),
+                        "; ".join(shape.get("failures", [])),
+                    )
+                    reports.append(report)
+                    continue
                 scheduler = self._build_scheduler()
                 poller = self._build_poller(scheduler, grant)
                 pass_report = poller.run_pass()
@@ -523,6 +549,42 @@ class FieldControlPlaneDriver:
                 logger.debug("field control-plane cycle failed: %s", exc, exc_info=True)
             reports.append(report)
         return reports
+
+    def _graph_shape_verdict(self, grant: Any) -> dict[str, Any] | None:
+        """Evaluate the persisted Task graph for one grant BEFORE dispatch.
+
+        Returns ``None`` when the gate does not apply (it is enabled explicitly
+        for the multi-lane field protocol, so a legitimate single-Task smoke
+        objective is not misreported as a malformed graph). Read-only: it never
+        creates, repairs, or re-scopes a Task, and it derives no authority — it
+        asserts only what the persisted contracts already say.
+        """
+        if not self._enforce_graph_shape:
+            return None
+        from substrate.execution.attempts.graph_shape_gate import evaluate_graph_shape
+
+        plan_id = str(getattr(grant, "plan_record_id", "") or "")
+        packets: list[dict[str, Any]] = []
+        for task_id in list(getattr(grant, "task_frontier", []) or []):
+            packet = self._queue.get_packet(task_id)
+            if packet is None:
+                continue
+            as_dict = packet.to_dict() if hasattr(packet, "to_dict") else dict(packet)
+            packets.append(as_dict)
+        # The zero-attempt invariant applies only to the FIRST admission for
+        # this plan. Later cycles legitimately see live attempts (the driver is
+        # a poll loop), so asserting it every cycle would refuse the run the
+        # moment its own first worker started. Shape itself is re-checked every
+        # cycle — only this one pre-dispatch invariant is first-cycle-only.
+        attempt_count = len(list(self._store.attempts_for_plan(plan_id)))
+        verdict = evaluate_graph_shape(
+            packets=packets,
+            plan_record_id=plan_id,
+            # First admission → assert zero attempts. Afterwards the invariant
+            # is satisfied by history, so pass None (check not applicable).
+            attempt_count=0 if attempt_count == 0 else None,
+        )
+        return verdict.to_dict()
 
     def _not_approved_frontier(self, grant: Any) -> list[str]:
         """Frontier tasks whose packet is not yet APPROVED/DELEGATED.

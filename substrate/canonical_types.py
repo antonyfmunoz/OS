@@ -129,6 +129,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PlanningStageMarker": ["substrate.execution.planning.records"],
     "ObjectivePlanRecord": ["substrate.execution.planning.records"],
     "ObjectivePlanNode": ["substrate.execution.planning.records"],
+    "ObjectiveLane": ["substrate.execution.planning.records"],
     "ObjectivePlanStatus": ["substrate.execution.planning.records"],
     "IntentAssessment": ["substrate.execution.planning.records"],
     "IntentAssessmentState": ["substrate.execution.planning.records"],
@@ -152,6 +153,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # state). ExecutionReadinessAssessment is distinct from the organism
     # WorkReadinessRuntime.ReadinessAssessment (a legacy read-surface), and from
     # planning.readiness.DecisionReadinessAssessment (plan-acceptance readiness).
+    "GraphShapeVerdict": ["substrate.execution.attempts.graph_shape_gate"],
     "ExecutionAttempt": ["substrate.execution.attempts.records"],
     "ExecutionAttemptStatus": ["substrate.execution.attempts.records"],
     "AttemptTransition": ["substrate.execution.attempts.records"],

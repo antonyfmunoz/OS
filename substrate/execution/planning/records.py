@@ -290,6 +290,49 @@ class ObjectivePlanNode:
 
 
 @dataclass
+class ObjectiveLane:
+    """One caller-declared lane of a decomposed objective.
+
+    A lane is the planning-time declaration that an objective is realized by
+    SEVERAL cooperating Tasks rather than one umbrella Task — each with its own
+    least-privilege mutation authority and its own place in the dependency
+    graph. It is the typed form of the authority the caller already supplies
+    via ``writable_path_scope``: substrate never infers lanes from titles, ids,
+    packet-id shapes, or a worker's diff (all explicitly prohibited) — the
+    runtime that OWNS the target workspace declares them, exactly as it already
+    declares that workspace's writable paths.
+
+    ``lane_key`` is the caller's stable handle for this lane; ``depends_on``
+    names other lanes by their ``lane_key``. The compiler resolves those keys
+    to canonical gap keys and then to real node ids — a caller never supplies a
+    node id or a packet id, so a lane declaration can never mint identity.
+
+    ``writable_path_scope`` is this lane's own authority. An EMPTY list is
+    meaningful and legal: it declares a zero-write lane (the independent
+    verifier), which materializes a Task whose every diff is out of scope.
+    ``None`` is NOT permitted here — a lane that declares no authority is a
+    caller error, and the compiler fails closed rather than materializing a
+    Task no diff can satisfy.
+    """
+
+    lane_key: str = ""
+    title: str = ""
+    writable_path_scope: list[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
+    # Optional semantic identity for this lane (e.g. an implementation lane vs
+    # the independent-verification lane). Carried onto the node for read
+    # surfaces and the verifier contract; never used to DERIVE authority.
+    semantic_label: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ObjectiveLane:
+        return _from_dict(cls, d)
+
+
+@dataclass
 class ObjectivePlanRecord:
     """One immutable VERSION of an objective's plan.
 
