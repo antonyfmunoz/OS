@@ -360,3 +360,87 @@ def test_no_attempt_is_ever_created_without_an_active_grant(tmp_path):
         assert "not active" in (report.reason or ""), (status, report.reason)
         assert not report.attempts_created, (status, report.attempts_created)
         assert not report.attempts_admitted, (status, report.attempts_admitted)
+
+
+def test_execution_api_retry_route_is_fail_closed_and_mints_nothing(tmp_path):
+    """Closes the third declared coverage gap: is the execution API an
+    alternate Task-production or authority-minting door?
+
+    It is not. ``POST /execution/attempts/{id}/retry`` refuses every non-ACTIVE
+    grant state AND a missing grant, and even on success it creates no
+    ExecutionAttempt — it records the operator request and the next scheduler
+    pass mints the linked attempt under the ACTIVE grant. Authority stays with
+    the ONE producer (AttemptScheduler), never with the transport.
+    """
+    from substrate.execution.attempts.records import (
+        ExecutionAttempt,
+        ExecutionAuthorizationGrant,
+    )
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+    import transports.api.execution_attempt_routes as routes
+
+    store = ExecutionAttemptStore(
+        attempts_path=str(tmp_path / "attempts.jsonl"),
+        grants_path=str(tmp_path / "grants.jsonl"),
+        readiness_path=str(tmp_path / "readiness.jsonl"),
+        leases_path=str(tmp_path / "leases.jsonl"),
+        assignments_path=str(tmp_path / "assignments.jsonl"),
+    )
+    attempt = ExecutionAttempt(
+        task_id="A",
+        plan_record_id="opr-1",
+        plan_version=1,
+        execution_authorization_ref="ref-1",
+        attempt_number=1,
+        tenant_id="t",
+        objective_id="goal-1",
+    )
+    attempt.status = "failed"
+    store.create_attempt_idempotent(attempt)
+
+    class _Store:
+        def __init__(self, status):
+            self.status = status
+
+        def get_attempt(self, aid):
+            return store.get_attempt(aid)
+
+        def get_grant(self, ref):
+            if self.status is None:
+                return None
+            grant = ExecutionAuthorizationGrant(
+                decision_ref=ref,
+                tenant_id="t",
+                plan_record_id="opr-1",
+                plan_version=1,
+                task_frontier=["A"],
+            )
+            grant.status = self.status
+            return grant
+
+    class _Body:
+        decided_by = "op"
+        reason = "r"
+
+    original = routes._store
+    before = len(store.attempts_for_plan("opr-1"))
+    try:
+        for status in ("expired", "revoked", "activating", "invalidated", None):
+            routes._store = lambda s=status: _Store(s)
+            endpoint = {
+                r.path: r.endpoint for r in routes._build_router().routes
+            }["/execution/attempts/{attempt_id}/retry"]
+            out = endpoint(attempt.attempt_id, _Body())
+            assert out.get("success") is False, (status, out)
+
+        routes._store = lambda: _Store("active")
+        endpoint = {r.path: r.endpoint for r in routes._build_router().routes}[
+            "/execution/attempts/{attempt_id}/retry"
+        ]
+        out = endpoint(attempt.attempt_id, _Body())
+        assert out.get("success") is True, out
+    finally:
+        routes._store = original
+
+    # The decisive assertion: no attempt was minted by the transport.
+    assert len(store.attempts_for_plan("opr-1")) == before
