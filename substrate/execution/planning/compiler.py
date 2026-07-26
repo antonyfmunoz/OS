@@ -117,6 +117,10 @@ def _lane_gaps(lanes: list[Any]) -> list[dict[str, Any]]:
                 f"lane {key!r} writable_path_scope must be a list of paths, got "
                 f"{type(lane.writable_path_scope).__name__}"
             )
+        if lane.depends_on is None:
+            # JSON `null` plainly means "no dependencies" — normalize rather
+            # than refusing a legitimate declaration.
+            lane.depends_on = []
         if isinstance(lane.depends_on, (str, bytes)) or not isinstance(
             lane.depends_on, (list, tuple)
         ):

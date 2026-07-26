@@ -959,3 +959,36 @@ def test_semantic_label_reaches_the_plan_node():
     labels = {n["title"]: n.get("semantic_label") for n in nodes}
     assert labels["Backend search endpoint"] == "backend_task_id"
     assert labels["Independently verify note search"] == "verification_task_id"
+
+
+def test_depends_on_null_means_no_dependencies():
+    """JSON `null` is a legitimate 'no dependencies' declaration — over-rejecting
+    it would force callers to work around the type-check."""
+    lanes = [ObjectiveLane(lane_key="a", writable_path_scope=["app/x.py"], depends_on=None)]
+    nodes = _packet_nodes(_compile(lanes))
+    assert len(nodes) == 1
+    assert nodes[0]["depends_on"] == []
+
+
+def test_old_persisted_node_without_semantic_label_still_loads():
+    """MAJOR-G added a field to ObjectivePlanNode; records persisted before it
+    must still deserialize (plans are immutable versioned JSONL)."""
+    from substrate.execution.planning.records import ObjectivePlanNode
+
+    old = {
+        "node_id": "node-1",
+        "kind": "packet",
+        "title": "t",
+        "lane": "development",
+        "workpacket_id": "",
+        "status": "active",
+        "depends_on": [],
+        "evidence_refs": [],
+        "gap_id": "gap-x",
+        "target": "",
+        "writable_path_scope": ["app"],
+        "scope_declared": True,
+    }
+    node = ObjectivePlanNode.from_dict(old)
+    assert node.semantic_label == ""
+    assert node.scope_declared is True
