@@ -89,6 +89,13 @@ def _lane_gaps(lanes: list[Any]) -> list[dict[str, Any]]:
     normalized: list[ObjectiveLane] = []
     for raw in lanes:
         lane = raw if isinstance(raw, ObjectiveLane) else ObjectiveLane.from_dict(dict(raw))
+        # lane_key comes from arbitrary caller JSON; a non-string would escape
+        # as a bare AttributeError from .strip(), which callers catching
+        # PlanCompilationError never handle.
+        if lane.lane_key is not None and not isinstance(lane.lane_key, str):
+            raise PlanCompilationError(
+                f"lane_key must be a string, got {type(lane.lane_key).__name__}"
+            )
         key = (lane.lane_key or "").strip()
         if not key:
             raise PlanCompilationError("declared lane has no lane_key — refusing to compile")
@@ -116,6 +123,20 @@ def _lane_gaps(lanes: list[Any]) -> list[dict[str, Any]]:
             raise PlanCompilationError(
                 f"lane {key!r} depends_on must be a list of lane keys, got "
                 f"{type(lane.depends_on).__name__}"
+            )
+        # Reject non-string ENTRIES rather than str()-coercing them: [1, 2]
+        # would become writable paths "1" and "2", which are valid relative
+        # paths and pass every downstream check — a Task with scope_declared=True
+        # and a nonsense authority.
+        non_strings = [p for p in lane.writable_path_scope if not isinstance(p, str)]
+        if non_strings:
+            raise PlanCompilationError(
+                f"lane {key!r} writable_path_scope has non-string entries: {non_strings}"
+            )
+        bad_deps = [d for d in lane.depends_on if not isinstance(d, str)]
+        if bad_deps:
+            raise PlanCompilationError(
+                f"lane {key!r} depends_on has non-string entries: {bad_deps}"
             )
         # Least privilege at the DECLARATION boundary, using the contract's own
         # validator — the same authority materialization enforces.
@@ -390,15 +411,27 @@ def compile_plan(
     # lanes silently deletes them — and if a lane and its dependency are cut
     # together, even the fail-closed dependency check cannot see it. A declared
     # graph that lost its independent-verification lane would compile clean.
-    _lane_gap_count = sum(1 for g in gaps if str(g.get("gap_key", "")).startswith("gap-lane-"))
-    if _lane_gap_count:
+    _is_lane = [str(g.get("gap_key", "")).startswith("gap-lane-") for g in gaps]
+    _lane_gaps_declared = [g for g, lane in zip(gaps, _is_lane) if lane]
+    if _lane_gaps_declared:
         _cap = _FRONTIER_CAP if planning_scale in _LARGER_SCALES else PACKET_NODE_CAP
-        if len(gaps) > _cap:
+        # Compare the LANE count against the cap, not the total: lane gaps are
+        # appended after any evidence-derived gaps, so `len(gaps)` conflates the
+        # two and both false-fires (raising "has 13 lane(s)" when 4 are
+        # declared) and mis-diagnoses.
+        if len(_lane_gaps_declared) > _cap:
             raise PlanCompilationError(
-                f"declared decomposition has {len(gaps)} lane(s) but the {planning_scale} "
-                f"cap is {_cap} — refusing to silently defer lanes from an atomic "
-                "caller-declared graph"
+                f"declared decomposition has {len(_lane_gaps_declared)} lane(s) but the "
+                f"{planning_scale} cap is {_cap} — refusing to silently defer lanes from "
+                "an atomic caller-declared graph"
             )
+        # Lanes FIRST so the generic truncation below can only ever cut
+        # evidence-derived gaps. Ordered the other way, 9 legacy gaps + 4 lanes
+        # truncates at 12 and silently drops gap-lane-verification — deleting
+        # the independent-verification lane, exactly what MAJOR-4 exists to
+        # prevent.
+        _other = [g for g, lane in zip(gaps, _is_lane) if not lane]
+        gaps = _lane_gaps_declared + _other
     if planning_scale in _LARGER_SCALES:
         # Larger scales keep a bounded actionable frontier; the rest become
         # deferred child objectives — never a giant flat graph.
@@ -435,6 +468,7 @@ def compile_plan(
             target=gap.get("target", ""),
             writable_path_scope=[str(p) for p in (declared_scope or [])],
             scope_declared=declared_scope is not None,
+            semantic_label=str(gap.get("semantic_label", "") or ""),
         )
         packet_nodes.append(node)
 

@@ -514,21 +514,26 @@ class FieldControlPlaneDriver:
                 # quota spent, then a guaranteed failure at the two-concurrent-
                 # Tasks assertion). Refusing here costs zero quota.
                 shape = self._graph_shape_verdict(grant)
-                if shape is not None and not shape.get("ok", False):
+                shape_ok = shape is None or shape.get("ok", False)
+                if not shape_ok:
                     report.errors.extend(
                         f"graph_shape_gate: {f}" for f in shape.get("failures", [])
                     )
                     logger.warning(
-                        "field control-plane REFUSED dispatch (zero quota spent) — "
+                        "field control-plane REFUSED admission (zero quota spent) — "
                         "graph shape invalid for grant %s: %s",
                         getattr(grant, "decision_ref", ""),
                         "; ".join(shape.get("failures", [])),
                     )
-                    reports.append(report)
-                    continue
                 scheduler = self._build_scheduler()
                 poller = self._build_poller(scheduler, grant)
-                pass_report = poller.run_pass()
+                # A failed gate suppresses ADMISSION only — never result
+                # draining. `continue`ing here would skip the one path that
+                # drains the worker outbox, so a transient gate failure (the
+                # packet-visibility race _reload_queue exists for) would strand
+                # already-dispatched workers: their results never applied, their
+                # leases never released.
+                pass_report = poller.run_pass(run_scheduler=shape_ok)
                 report.results_drained = pass_report.results_drained
                 report.succeeded = list(pass_report.succeeded)
                 report.failed = list(pass_report.failed)
@@ -538,7 +543,10 @@ class FieldControlPlaneDriver:
                     and not report.admitted
                     and not self._has_live_attempts(grant)
                 )
-                report.errors = list(pass_report.errors)
+                # EXTEND, never replace: the graph-shape refusal reasons were
+                # recorded above and a plain assignment would discard them, so
+                # a refused run would report no cause at all.
+                report.errors.extend(pass_report.errors)
                 report.skipped_not_approved = self._not_approved_frontier(grant)
             except Exception as exc:  # a bad grant never stalls the others
                 # Surface the TEXT (review W8): the runner previously logged only

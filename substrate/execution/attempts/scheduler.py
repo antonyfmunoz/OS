@@ -350,6 +350,7 @@ class AttemptScheduler:
             verifier = (
                 verifier_role_resolver(packet) if verifier_role_resolver else "role-verify-op"
             )
+            lease = None
             try:
                 assignment = self._place(
                     packet=packet,
@@ -402,6 +403,24 @@ class AttemptScheduler:
                     )
             except Exception as exc:
                 logger.debug("admission of %s failed: %s", attempt.attempt_id, exc)
+                # RELEASE THE LEASE. It is acquired before the package is
+                # compiled, and compilation can now fail closed (a Task with
+                # undeclared mutation authority raises DispatchBlocked). Without
+                # this the lease survives a BLOCKED attempt — which is NOT a
+                # terminal status, so terminalization never releases it — and
+                # LeaseManager.acquire then refuses the task forever ("task
+                # already has an active lease"). Worse, each orphan lease holds
+                # a sandbox worktree, so TWO admission failures exhaust
+                # max_parallel=2 and wedge the entire run.
+                if lease is not None:
+                    try:
+                        self._leases.release(getattr(lease, "lease_id", ""), cleanup=True)
+                    except Exception as rel:
+                        logger.debug(
+                            "lease release after failed admission of %s: %s",
+                            attempt.attempt_id,
+                            rel,
+                        )
                 try:
                     self._transition(
                         attempt,

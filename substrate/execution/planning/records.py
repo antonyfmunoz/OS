@@ -280,6 +280,11 @@ class ObjectivePlanNode:
     # with scope_declared=False made every legitimate diff unverifiable).
     writable_path_scope: list[str] = field(default_factory=list)
     scope_declared: bool = False
+    # The declaring lane's semantic identity (e.g. implementation vs the
+    # independent-verification lane), carried for read surfaces and verifier
+    # diagnostics. NEVER used to derive authority — the persisted
+    # writable_path_scope is the only mutation authority.
+    semantic_label: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

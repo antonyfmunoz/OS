@@ -458,3 +458,93 @@ def test_driver_no_active_grant_is_idle_noop(store, queue, tmp_path):
     reports = driver.run_cycle()
     assert reports == [], "no ACTIVE grant → no cycle work"
     assert not store.active_attempts()
+
+
+def test_failed_gate_still_drains_worker_results(store, queue, tmp_path):
+    """MAJOR-D: the gate's `continue` skipped run_pass entirely — the ONLY path
+    that drains the worker outbox. A transient gate failure (the packet-
+    visibility race _reload_queue exists for) would strand already-dispatched
+    workers: results never applied, leases never released."""
+    _add_approved_packet(queue, "A", plan_record_id="opr-1")
+    _seed_active_grant(store, _grant(["A"]))
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path, enforce_graph_shape=True)
+
+    reports = driver.run_cycle()
+
+    # Gate refuses admission...
+    assert any("graph_shape_gate" in e for e in reports[0].errors)
+    assert reports[0].admitted == []
+    # ...but the drain path still ran (a report exists and did not short-circuit
+    # before the poller). results_drained is an int, not an un-run sentinel.
+    assert isinstance(reports[0].results_drained, int)
+
+
+def test_admission_failure_releases_the_lease(store, queue, tmp_path):
+    """CRITICAL-B: the lease is acquired BEFORE package compilation, which can
+    now fail closed. Without release, LeaseManager.acquire refuses the task
+    forever and each orphan lease holds a sandbox worktree — two failures
+    exhaust max_parallel=2 and wedge the whole run."""
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    released: list[str] = []
+
+    class _Leases:
+        def acquire(self, *, attempt, assignment, grant):
+            return SimpleNamespace(lease_id=f"lease-{attempt.attempt_id}")
+
+        def release(self, lease_id, *, cleanup=True, now=None):
+            released.append(lease_id)
+
+    def _boom(**_kw):
+        raise RuntimeError("compilation failed closed")
+
+    _add_approved_packet(queue, "A", plan_record_id="opr-1")
+    grant = _grant(["A"])
+    _seed_active_grant(store, grant)
+    from substrate.execution.attempts.records import ExecutionAttempt
+
+    attempt, _created = store.create_attempt_idempotent(
+        ExecutionAttempt(
+            task_id="A",
+            objective_id="goal-1",
+            plan_record_id="opr-1",
+            plan_version=1,
+            execution_authorization_ref=grant.decision_ref,
+            tenant_id="tenant-a",
+            principal_id="u",
+            membership_id="m",
+            attempt_number=1,
+        )
+    )
+    store.transition_cas(
+        attempt.attempt_id,
+        "ready",
+        expected_record_version=attempt.record_version,
+        expected_statuses=("created",),
+        actor="test",
+        reason="ready",
+    )
+
+    scheduler = AttemptScheduler(
+        store=store,
+        work_queue=queue,
+        placement_fn=lambda **kw: SimpleNamespace(
+            assignment_id="asn-1",
+            verifier_role_id="role-verify-op",
+            worker_identity="w",
+            tool_profile=[],
+            model_profile={},
+            environment_class="git_worktree",
+        ),
+        lease_manager=_Leases(),
+        compile_fn=_boom,
+        mutation_runner=_mutation_runner(),
+        lock_dir=str(tmp_path / "locks2"),
+    )
+    scheduler.run_scheduler_pass(grant=grant)
+
+    assert released == ["lease-" + attempt.attempt_id], "lease leaked on admission failure"
+    blocked = store.get_attempt(attempt.attempt_id)
+    assert blocked.status == "blocked"

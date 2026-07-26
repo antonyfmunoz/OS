@@ -589,12 +589,51 @@ def test_protocol_lane_resolver_failure_does_not_crash_planning():
     assert proto._resolve_lanes(None, OBJECTIVE) is None
 
 
-def test_field_runner_arms_the_gate_when_lanes_are_declared(monkeypatch):
-    """The gate must be ON for the multi-lane protocol — it was dark before."""
+def test_field_runner_arms_the_gate_when_lanes_are_declared(monkeypatch, tmp_path):
+    """The REAL runner builder must arm the gate — asserting on os.environ here
+    would test Python's bool(), not the wiring (it did, and the wiring was
+    deletable with a fully green suite)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_w2_runner", os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "wave2_attempt_runner.py")
+    )
+    runner_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner_mod)
+
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    monkeypatch.setattr(runner_mod, "_register_host_control_plane", lambda _store: None)
+
+    def _build():
+        return runner_mod._build_control_plane_driver(
+            spool=object(),
+            fixture_repo=str(fixture),
+            targets_dir=str(tmp_path / "targets"),
+            leases_dir=str(tmp_path / "leases"),
+        )
+
     monkeypatch.setenv("UMH_WORKSPACE_LANES", FIELD_LANES_JSON)
-    assert bool(os.environ.get("UMH_WORKSPACE_LANES", "").strip()) is True
+    assert _build()._enforce_graph_shape is True, "gate DARK on the quota-spending path"
+
     monkeypatch.delenv("UMH_WORKSPACE_LANES", raising=False)
-    assert bool(os.environ.get("UMH_WORKSPACE_LANES", "").strip()) is False
+    assert _build()._enforce_graph_shape is False, "gate must stay off for single-Task smoke"
+
+
+def test_production_protocol_factory_supplies_the_lane_resolver():
+    """The FACTORY must inject the resolver — the previous test only proved that
+    a protocol GIVEN a resolver forwards it, so deleting the production wiring
+    (the actual defect) left the suite fully green."""
+    import transports.api.objective_plan_routes as routes
+
+    routes._protocol_singleton = None  # force a fresh build of the real factory
+    try:
+        proto = routes._protocol()
+        assert proto._lane_resolver is routes._declared_lanes
+        assert proto._workspace_scope_resolver is routes._declared_workspace_scope
+    finally:
+        routes._protocol_singleton = None
 
 
 def test_harness_lane_declaration_matches_the_canonical_scope_map():
@@ -819,3 +858,104 @@ def test_lane_scope_string_is_never_iterated_into_characters():
 def test_valid_declaration_still_compiles_after_the_type_check():
     nodes = _packet_nodes(_compile(_lanes()))
     assert len(nodes) == 4
+
+
+# ── I. second-review findings (CRITICAL-A/B, MAJOR-D/E/F/G) ─────────────────
+
+
+def _legacy_snapshot(n: int) -> GroundingSnapshot:
+    snapshot = GroundingSnapshot(intent_id="int-lane")
+    if n:
+        snapshot.sources = [
+            {
+                "source": "s",
+                "status": "ok",
+                "summary": "x",
+                "evidence": {"legacy_pending": [f"sub{i}" for i in range(n)]},
+            }
+        ]
+    return snapshot
+
+
+def _compile_with_legacy(n: int):
+    scope = WorkScope(tenant_id="t-lane", target_kind="self_build")
+    snapshot = _legacy_snapshot(n)
+    current, desired, gaps = derive_state_records(
+        OBJECTIVE, snapshot, tenant_id="t-lane", scope=scope, lanes=_lanes()
+    )
+    session = PlanningSession(
+        objective_id="goal-lane", objective_text=OBJECTIVE, conversation_id="conv-lane"
+    )
+    return compile_plan(
+        session,
+        scope,
+        "task_objective",
+        current,
+        desired,
+        gaps,
+        snapshot.grounding_snapshot_id,
+        resolve_archetype(OBJECTIVE, scope),
+    )
+
+
+@pytest.mark.parametrize("legacy", [0, 2, 9, 20])
+def test_lanes_survive_generic_truncation_at_every_gap_count(legacy):
+    """CRITICAL-A: with 9 legacy gaps + 4 lanes, truncation at the node cap cut
+    gap-lane-verification — silently deleting the independent-verification lane
+    that MAJOR-4 exists to protect."""
+    nodes = _packet_nodes(_compile_with_legacy(legacy))
+    lane_nodes = [n for n in nodes if n["gap_id"].startswith("gap-lane-")]
+    assert len(lane_nodes) == 4, f"lost lane(s) at legacy={legacy}"
+    assert any(n["gap_id"] == "gap-lane-verification" for n in nodes)
+
+
+def test_lane_cap_raise_reports_the_true_lane_count():
+    """CRITICAL-A: the raise compared TOTAL gaps, so it reported '13 lane(s)'
+    when 4 were declared — lying to the operator about their own declaration."""
+    many = [
+        ObjectiveLane(lane_key=f"l{i:02d}", title="l", writable_path_scope=[f"app/f{i}.py"])
+        for i in range(13)
+    ]
+    with pytest.raises(PlanCompilationError) as exc:
+        _compile(many)
+    assert "13 lane(s)" in str(exc.value)
+
+
+def test_a_correct_four_lane_graph_is_not_refused_by_legacy_gaps():
+    """CRITICAL-A: 1-8 legacy gaps compiled >4 Tasks, so the shape gate refused
+    a perfectly correct declaration."""
+    nodes = _packet_nodes(_compile_with_legacy(2))
+    lane_nodes = [n for n in nodes if n["gap_id"].startswith("gap-lane-")]
+    assert len(lane_nodes) == 4
+
+
+@pytest.mark.parametrize(
+    "entries,reason",
+    [
+        ([{"lane_key": 1, "writable_path_scope": []}], "lane_key must be a string"),
+        ([{"lane_key": "a", "writable_path_scope": [1, 2]}], "non-string entries"),
+        (
+            [
+                {"lane_key": "a", "writable_path_scope": []},
+                {"lane_key": "b", "writable_path_scope": [], "depends_on": [7]},
+            ],
+            "non-string entries",
+        ),
+    ],
+)
+def test_non_string_lane_fields_fail_closed_typed(entries, reason):
+    """MAJOR-E/F: a non-string lane_key escaped as a bare AttributeError, and
+    [1,2] was str()-coerced into valid-looking paths '1' and '2'."""
+    lanes = [ObjectiveLane.from_dict(e) for e in entries]
+    with pytest.raises(PlanCompilationError) as exc:
+        _compile(lanes)
+    assert reason in str(exc.value)
+
+
+def test_semantic_label_reaches_the_plan_node():
+    """MAJOR-G: ObjectiveLane documents the label as 'carried onto the node',
+    but ObjectivePlanNode had no such field and it evaporated."""
+    nodes = _packet_nodes(_compile(_lanes()))
+    labels = {n["title"]: n.get("semantic_label") for n in nodes}
+    assert labels["Backend search endpoint"] == "backend_task_id"
+    assert labels["Independently verify note search"] == "verification_task_id"
