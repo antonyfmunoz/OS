@@ -45,6 +45,7 @@ from substrate.execution.planning.records import (
     CurrentStateRecord,
     DesiredStateRecord,
     GapAssessmentSnapshot,
+    DecompositionMode,
     GroundingSnapshot,
     ObjectiveLane,
     ObjectivePlanNode,
@@ -282,22 +283,44 @@ def derive_state_records(
                     "writable_path_scope": declared_scope,
                 }
             )
+    # ── THE ONE DECOMPOSITION-SELECTION POINT ────────────────────────────────
+    # Everything appended above is the DERIVED candidate set. Exactly one
+    # producer may own the executable decomposition of a Plan version; two
+    # producers both claiming Task authority is what compiled 11 Tasks where
+    # the protocol requires 4 (field run 20260726T193442Z, layer 11).
+    #
+    # This selection is deterministic and typed. It NEVER infers authority from
+    # evidence contents, titles, regexes, or packet-id shapes, and it happens
+    # BEFORE any bounding cap — a cap may protect boundedness, but it must
+    # never decide which semantic owner wins or hide executable Tasks. (At
+    # program_objective scale the frontier cap of 5 silently truncated the 7
+    # evidence siblings and produced an accidentally-correct 4-node graph:
+    # right answer, wrong reason, and unreliable at any other scale.)
+    derived_gaps = list(gap_snapshot.gaps)
     if lanes:
-        # CALLER-DECLARED DECOMPOSITION (highest precedence). The objective is
-        # realized by several cooperating Tasks, each with its OWN authority and
-        # its own place in the graph. This is the producer the multi-lane field
-        # protocol requires: without it the objective takes the umbrella branch
-        # below and yields ONE combined Task, so a graph asserting two
-        # concurrent implementation Tasks can never be satisfied (field run
-        # 20260726T025143Z-p1 failed at w16_ab_running_concurrent for exactly
-        # this reason).
-        #
-        # Lanes are DECLARED, never inferred: substrate does not read titles,
-        # packet-id shapes, or diffs to decide them. Dependencies are resolved
-        # lane_key → gap_key here, so a caller can never supply a node or packet
-        # id and thereby mint identity outside canonical materialization.
-        gap_snapshot.gaps.extend(_lane_gaps(lanes))
-    elif not gap_snapshot.gaps:
+        # DECLARED_EXCLUSIVE — the declared lane set is the COMPLETE executable
+        # decomposition. Lanes are DECLARED by the runtime that owns the target
+        # workspace, never inferred; dependencies resolve lane_key → gap_key
+        # here, so a caller can never supply a node or packet id and thereby
+        # mint identity outside canonical materialization.
+        gap_snapshot.decomposition_mode = DecompositionMode.DECLARED_EXCLUSIVE.value
+        gap_snapshot.gaps = _lane_gaps(lanes)
+        # PRESERVE, never delete: the derived gaps remain first-class planning
+        # evidence (inspectable, available to later planning) while creating
+        # ZERO sibling Tasks.
+        gap_snapshot.derived_evidence_gaps = derived_gaps
+        if derived_gaps:
+            gap_snapshot.assumptions.append(
+                f"declared decomposition is exclusive for this plan version: "
+                f"{len(derived_gaps)} evidence-derived gap(s) preserved as "
+                f"non-executable planning evidence"
+            )
+    elif gap_snapshot.gaps:
+        # DERIVED — no declaration; the evidence/gap compiler owns it.
+        gap_snapshot.decomposition_mode = DecompositionMode.DERIVED.value
+    else:
+        # UMBRELLA_FALLBACK — neither produced anything actionable.
+        gap_snapshot.decomposition_mode = DecompositionMode.UMBRELLA_FALLBACK.value
         gap_snapshot.gaps.append(
             {
                 "gap_key": "gap-objective",
@@ -417,25 +440,35 @@ def compile_plan(
     # graph that lost its independent-verification lane would compile clean.
     _is_lane = [str(g.get("gap_key", "")).startswith("gap-lane-") for g in gaps]
     _lane_gaps_declared = [g for g, lane in zip(gaps, _is_lane) if lane]
+    # Under DECLARED_EXCLUSIVE the gap set IS the declared lane set (selection
+    # already ran), so no reordering is needed to protect lanes from the cap —
+    # there is nothing else in the list. The cap now only bounds a DERIVED
+    # decomposition, and a declared set that exceeds it fails closed rather
+    # than being silently trimmed.
     if _lane_gaps_declared:
         _cap = _FRONTIER_CAP if planning_scale in _LARGER_SCALES else PACKET_NODE_CAP
-        # Compare the LANE count against the cap, not the total: lane gaps are
-        # appended after any evidence-derived gaps, so `len(gaps)` conflates the
-        # two and both false-fires (raising "has 13 lane(s)" when 4 are
-        # declared) and mis-diagnoses.
+        # Compare the LANE count against the cap. A declared decomposition is
+        # ATOMIC: materialize every lane or none. The cap bounds work; it must
+        # never silently defer part of a declared graph (that is how a plan
+        # loses its independent-verification lane and still compiles clean).
         if len(_lane_gaps_declared) > _cap:
             raise PlanCompilationError(
                 f"declared decomposition has {len(_lane_gaps_declared)} lane(s) but the "
                 f"{planning_scale} cap is {_cap} — refusing to silently defer lanes from "
                 "an atomic caller-declared graph"
             )
-        # Lanes FIRST so the generic truncation below can only ever cut
-        # evidence-derived gaps. Ordered the other way, 9 legacy gaps + 4 lanes
-        # truncates at 12 and silently drops gap-lane-verification — deleting
-        # the independent-verification lane, exactly what MAJOR-4 exists to
-        # prevent.
-        _other = [g for g, lane in zip(gaps, _is_lane) if not lane]
-        gaps = _lane_gaps_declared + _other
+        # Selection ran BEFORE this cap, so the executable set is EXACTLY the
+        # declared lanes — no evidence siblings remain to order around. Assert
+        # that invariant instead of re-deriving it: a non-lane gap surviving
+        # here means a second producer re-entered the executable set after
+        # selection, which is the layer-11 defect.
+        _intruders = [g["gap_key"] for g, lane in zip(gaps, _is_lane) if not lane]
+        if _intruders:
+            raise PlanCompilationError(
+                "declared decomposition is exclusive, but evidence-derived gap(s) "
+                f"{_intruders} entered the executable set — a second producer is "
+                "claiming Task authority for this plan version"
+            )
     if planning_scale in _LARGER_SCALES:
         # Larger scales keep a bounded actionable frontier; the rest become
         # deferred child objectives — never a giant flat graph.

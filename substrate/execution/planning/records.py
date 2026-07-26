@@ -160,12 +160,22 @@ class GapAssessmentSnapshot:
     current_state_id: str = ""
     desired_state_id: str = ""
     goal_refs: list[str] = field(default_factory=list)
+    # The EXECUTABLE gap set — exactly the gaps that materialize as Tasks.
     gaps: list[dict[str, Any]] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
     contradictions: list[dict[str, Any]] = field(default_factory=list)
     unknowns: list[str] = field(default_factory=list)
     owner_decisions: list[dict[str, Any]] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
+    # Which producer owns ``gaps`` for this Plan version (DecompositionMode).
+    # Recorded so the selection is auditable rather than inferred after the
+    # fact from what happens to be present.
+    decomposition_mode: str = ""
+    # Evidence-derived gaps that did NOT win executable authority under
+    # DECLARED_EXCLUSIVE. They are PRESERVED here as non-executable planning
+    # evidence — never silently deleted, never materialized as sibling Tasks —
+    # so the information remains inspectable and available to later planning.
+    derived_evidence_gaps: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -292,6 +302,30 @@ class ObjectivePlanNode:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ObjectivePlanNode:
         return _from_dict(cls, d)
+
+
+class DecompositionMode(str, Enum):
+    """WHO owns the executable decomposition of one Plan version.
+
+    Exactly one mode wins per ObjectivePlanRecord version, chosen at a single
+    deterministic selection point in the canonical compiler. Two producers may
+    never both claim executable Task authority for the same Plan version: a
+    caller-DECLARED lane set and generic evidence-DERIVED gaps compiling as
+    siblings is what produced an 11-Task graph where the protocol requires
+    four (field run 20260726T193442Z, layer 11).
+
+    - ``DECLARED_EXCLUSIVE`` — the caller declared lanes; that set is the
+      COMPLETE executable decomposition. Evidence-derived gaps are preserved as
+      non-executable planning evidence (``GapAssessmentSnapshot.gaps`` retains
+      them via ``derived_evidence_gaps``) and materialize ZERO sibling Tasks.
+    - ``DERIVED`` — no declaration; the evidence/gap compiler owns it.
+    - ``UMBRELLA_FALLBACK`` — neither produced anything actionable, so the
+      objective itself is the single transformation.
+    """
+
+    DECLARED_EXCLUSIVE = "declared_exclusive"
+    DERIVED = "derived"
+    UMBRELLA_FALLBACK = "umbrella_fallback"
 
 
 @dataclass
