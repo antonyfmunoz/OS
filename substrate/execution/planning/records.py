@@ -415,6 +415,13 @@ class ObjectivePlanRecord:
     work_scope: dict[str, Any] = field(default_factory=dict)
     planning_scale: str = ""
     decomposition: dict[str, Any] = field(default_factory=dict)
+    # WHICH producer owns this VERSION's executable decomposition
+    # (``DecompositionMode``). It lives on the PLAN, not only on the transient
+    # gap snapshot, because a plan VERSION is also minted by ``compile_revision``
+    # — which never loads a gap snapshot and so could add an executable packet
+    # node to a DECLARED_EXCLUSIVE plan, reintroducing the additive defect
+    # through a second door.
+    decomposition_mode: str = ""
     archetype_resolution: dict[str, Any] = field(default_factory=dict)
     development_profile: dict[str, Any] = field(default_factory=dict)
     readiness_assessment: dict[str, Any] = field(default_factory=dict)
@@ -495,9 +502,11 @@ __all__ = [
     "EDIT_OPS",
     "NODE_KINDS",
     "CurrentStateRecord",
+    "DecompositionMode",
     "DesiredStateRecord",
     "GapAssessmentSnapshot",
     "GroundingSnapshot",
+    "ObjectiveLane",
     "IntentAssessment",
     "IntentAssessmentState",
     "ObjectivePlanNode",

@@ -428,6 +428,9 @@ def compile_plan(
         work_scope=scope.to_dict(),
         planning_scale=planning_scale,
         archetype_resolution=archetype.to_dict(),
+        # Stamp the selected owner onto the PLAN VERSION so every later
+        # producer of a version (notably compile_revision) can enforce it.
+        decomposition_mode=gap_snapshot.decomposition_mode,
     )
 
     gaps = list(gap_snapshot.gaps)
@@ -876,6 +879,19 @@ def compose_plan_for_session(
                         "lane-derived but no matching lane was declared — refusing to re-seed "
                         "authority from the flat scope"
                     )
+                if not gap_id:
+                    # A node with no gap_id was minted OUTSIDE compilation (the
+                    # revision path's add_node). Seeding it from the caller's
+                    # flat scope hands an undeclared node the full workspace
+                    # authority and makes it a new executable Task — a 5th
+                    # Task with write access the operator never declared.
+                    # Legacy re-seeding is for records compiled BEFORE Tasks
+                    # carried scope; those always have a gap_id.
+                    raise PlanCompilationError(
+                        f"resumed plan node {node.get('node_id', '')!r} has no gap_id — "
+                        "refusing to seed authority from the flat scope onto a node "
+                        "minted outside compilation"
+                    )
                 node["writable_path_scope"] = list(writable_path_scope or [])
                 node["scope_declared"] = writable_path_scope is not None
         else:
@@ -1047,6 +1063,34 @@ def compile_revision(
     if errors:
         raise PlanCompilationError(f"invalid revision ops: {errors}")
 
+    # A plan VERSION is minted here too, so the decomposition authority chosen
+    # at compile time must be enforced here as well. Without this, `add_node`
+    # mints an executable packet node on a DECLARED_EXCLUSIVE plan without ever
+    # consulting the mode, and `remove_node` deletes a declared lane — including
+    # the zero-write independent-verification lane — from a plain chat sentence,
+    # defeating the atomicity `compile_plan` refuses to break.
+    if plan.decomposition_mode == DecompositionMode.DECLARED_EXCLUSIVE.value:
+        lane_ids = {
+            n["node_id"]
+            for n in plan.nodes
+            if n.get("kind") == "packet" and str(n.get("gap_id", "")).startswith("gap-lane-")
+        }
+        for edit in edit_set.edits:
+            op = str(edit.get("op", ""))
+            if op == "add_node" and str(edit.get("kind", "packet")) == "packet":
+                raise PlanCompilationError(
+                    "plan version is DECLARED_EXCLUSIVE — a revision may not add an "
+                    "executable packet node; re-declare the lane set instead"
+                )
+            if op == "remove_node":
+                target = str(edit.get("node_id") or edit.get("target") or "")
+                if target in lane_ids:
+                    raise PlanCompilationError(
+                        f"plan version is DECLARED_EXCLUSIVE — a revision may not remove "
+                        f"declared lane {target!r}; a declared decomposition is atomic and "
+                        "must be revised by re-declaration"
+                    )
+
     new_plan = ObjectivePlanRecord.from_dict(plan.to_dict())
     new_plan.plan_record_id = ObjectivePlanRecord().plan_record_id  # fresh id
     new_plan.graph_version = plan.graph_version + 1
@@ -1069,10 +1113,35 @@ def compile_revision(
         op = edit.get("op")
         target = _target_id(edit)
         if op == "remove_node" and target in by_id:
+            # Removing a node that a surviving EXECUTABLE node depends on would
+            # silently unblock that node: the edge list is cleaned below, but a
+            # stale `depends_on` entry survived, so the materialized
+            # WorkPacket.dependencies lost the predecessor (an integration Task
+            # declared to fan in on A∧B shipped with one dependency, and the
+            # scheduler admitted it once the survivor alone succeeded).
+            orphaned = [
+                n["node_id"]
+                for n in new_plan.nodes
+                if n.get("kind") == "packet"
+                and n.get("status") == "active"
+                and n["node_id"] != target
+                and target in (n.get("depends_on") or [])
+            ]
+            if orphaned:
+                raise PlanCompilationError(
+                    f"removing {target!r} would silently unblock dependent node(s) "
+                    f"{orphaned} — remove or re-point the dependents in the same revision"
+                )
             by_id[target]["status"] = "removed"
             new_plan.edges = [
                 e for e in new_plan.edges if e.get("from") != target and e.get("to") != target
             ]
+            # Defensive: strip the reference from any non-executable node too,
+            # so no dangling id survives into the persisted version.
+            for node in new_plan.nodes:
+                deps = node.get("depends_on") or []
+                if target in deps:
+                    node["depends_on"] = [d for d in deps if d != target]
         elif op == "add_node":
             node = ObjectivePlanNode(
                 kind=edit.get("kind", "packet"),

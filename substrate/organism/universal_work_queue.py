@@ -68,13 +68,9 @@ class UniversalWorkQueue:
         persist_packets(list(self._packets.values()), self._store_path)
 
     def ingest_work_packet(self, packet: WorkPacket) -> WorkPacket:
-        if self._is_duplicate(packet):
-            for existing in self._packets.values():
-                if (
-                    existing.user_intent == packet.user_intent
-                    and existing.status not in _TERMINAL_STATUSES
-                ):
-                    return existing
+        existing = self._duplicate_of(packet)
+        if existing is not None:
+            return existing
         self._packets[packet.packet_id] = packet
         self._save()
         return packet
@@ -339,6 +335,44 @@ class UniversalWorkQueue:
 
     def all_packets(self) -> list[WorkPacket]:
         return list(self._packets.values())
+
+    @staticmethod
+    def _dedupe_key(packet: WorkPacket) -> tuple[str, str, str]:
+        """Identity a duplicate is judged on: TENANT + PLAN + intent.
+
+        Matching on ``user_intent`` alone aliases Tasks ACROSS TENANTS: two
+        tenants whose objective text and lane titles coincide collapse to one
+        packet, so the second tenant's plan durably records a packet id owned
+        by the first and its objective becomes permanently undispatchable.
+        Scoping the key to tenant + plan makes a duplicate mean "the same Task
+        of the same plan", which is the only sense the resume path needs.
+        """
+        scope = packet.work_scope if isinstance(packet.work_scope, dict) else {}
+        lineage = packet.lineage if isinstance(packet.lineage, dict) else {}
+        return (
+            str(scope.get("tenant_id", "") or ""),
+            str(lineage.get("plan_record_id", "") or ""),
+            (packet.user_intent or "").strip().lower(),
+        )
+
+    def _duplicate_of(self, packet: WorkPacket) -> WorkPacket | None:
+        """The live packet this one duplicates, or None.
+
+        ONE predicate for both the decision and the retrieval. Previously
+        ``_is_duplicate`` could match on ``source_id`` while the caller's
+        retrieval loop matched only on ``user_intent``; a packet that matched
+        the first but not the second was returned to the caller WITHOUT being
+        stored — an orphan id recorded on the plan but absent from the queue.
+        """
+        key = self._dedupe_key(packet)
+        if not key[2]:
+            return None
+        for existing in self._packets.values():
+            if existing.status in _TERMINAL_STATUSES:
+                continue
+            if self._dedupe_key(existing) == key:
+                return existing
+        return None
 
     def _is_duplicate(self, packet: WorkPacket) -> bool:
         for existing in self._packets.values():

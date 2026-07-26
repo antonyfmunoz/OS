@@ -264,6 +264,12 @@ def test_evidence_reordering_changes_nothing():
 
     assert shape(plan_a) == shape(plan_b)
     assert len(_packets(plan_a)) == len(_packets(plan_b)) == 4
+    # ABSOLUTE assertions: comparing two runs of the same compiler cannot catch
+    # a deterministic defect that mutates both sides identically.
+    assert shape(plan_a)["backend"] == (0, tuple(BACKEND_SCOPE), True, "backend_task_id")
+    assert shape(plan_a)["frontend"] == (0, tuple(FRONTEND_SCOPE), True, "frontend_task_id")
+    assert shape(plan_a)["integration"] == (2, tuple(INTEGRATION_SCOPE), True, "integration_task_id")
+    assert shape(plan_a)["verification"] == (1, (), True, "verification_task_id")
 
 
 # ── J. non-declared objectives keep the existing behavior ────────────────────
@@ -542,21 +548,40 @@ def test_recompiling_the_same_plan_version_does_not_duplicate(tmp_path):
     assert len(second) == 4
 
 
-def test_cross_objective_evidence_cannot_enter_another_objectives_packets(tmp_path):
-    """K: two objectives in separate stores; neither sees the other's Tasks."""
-    a = tmp_path / "a"
-    b = tmp_path / "b"
-    a.mkdir()
-    b.mkdir()
-    plan_a, _ = _compose(a, _lanes(), tenant="tenant-a")
-    plan_b, _ = _compose(b, _lanes(), tenant="tenant-b", objective="A different objective.")
+def test_cross_tenant_tasks_are_not_aliased_in_one_shared_store(tmp_path):
+    """K: two tenants, ONE shared store, IDENTICAL objective text.
 
-    ids_a = {p.packet_id for p in _reread_packets(a, plan_a.plan_record_id)}
-    ids_b = {p.packet_id for p in _reread_packets(b, plan_b.plan_record_id)}
-    assert len(ids_a) == 4 and len(ids_b) == 4
-    assert not (ids_a & ids_b)
-    assert not _reread_packets(a, plan_b.plan_record_id)
-    assert not _reread_packets(b, plan_a.plan_record_id)
+    The previous version of this test used two separate tmp dirs, so its
+    assertions were guaranteed by uuid4 and filesystem separation — it
+    exercised zero isolation logic. Dedupe keyed on user_intent alone aliased
+    Tasks across tenants: the second tenant's plan durably recorded packet ids
+    owned by the first, making its objective permanently undispatchable.
+    """
+    plan_a, _ = _compose(tmp_path, _lanes(), tenant="tenant-a")
+    plan_b, _ = _compose(tmp_path, _lanes(), tenant="tenant-b")
+
+    ids_a = {p.packet_id for p in _reread_packets(tmp_path, plan_a.plan_record_id)}
+    ids_b = {p.packet_id for p in _reread_packets(tmp_path, plan_b.plan_record_id)}
+
+    assert len(ids_a) == 4, "tenant-a lost packets to aliasing"
+    assert len(ids_b) == 4, "tenant-b lost packets to aliasing"
+    assert not (ids_a & ids_b), "packets aliased ACROSS TENANTS"
+
+    # Every id a plan claims must actually resolve in the store.
+    from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+    queue = UniversalWorkQueue(store_path=str(tmp_path / "packets.jsonl"))
+    stored = {p.packet_id for p in queue.all_packets()}
+    for plan in (plan_a, plan_b):
+        claimed = set(plan.workpacket_ids)
+        assert claimed and claimed <= stored, f"plan claims phantom packet ids: {claimed - stored}"
+
+    # Each stored packet belongs to exactly the tenant that declared it.
+    by_id = {p.packet_id: p for p in queue.all_packets()}
+    for pid in ids_a:
+        assert (by_id[pid].work_scope or {}).get("tenant_id") == "tenant-a"
+    for pid in ids_b:
+        assert (by_id[pid].work_scope or {}).get("tenant_id") == "tenant-b"
 
 
 def test_plan_record_persists_the_selected_mode(tmp_path):
@@ -608,3 +633,183 @@ def test_a_second_producer_re_entering_the_executable_set_fails_closed():
     message = str(exc.value)
     assert "exclusive" in message
     assert "gap-presence" in message
+
+
+# ── Review findings: a plan VERSION is also minted by compile_revision ───────
+# The closure claim is "sole executable authority FOR THAT PLAN VERSION".
+# compile_revision mints v(n+1) of the same objective and originally performed
+# none of the layer-11 checks — a second unguarded producer, the exact defect
+# shape of the prior layers.
+
+
+def _revision(plan, edits, tmp_path):
+    from substrate.execution.planning.compiler import compile_revision
+    from substrate.execution.planning.records import RevisionEditSet
+
+    store, _ = _fresh_stores(tmp_path)
+
+    class _Resp:
+        def __init__(self, output):
+            self.success = True
+            self.output = output
+
+    def _runner(**kw):
+        fn = kw.get("execute_fn")
+        out = ""
+        if callable(fn):
+            r = fn()
+            out = r[0] if isinstance(r, tuple) else r
+        return _Resp(out)
+
+    return compile_revision(plan, RevisionEditSet(edits=edits), store, _runner)
+
+
+def test_plan_version_records_the_decomposition_mode(tmp_path):
+    """The mode must live on the PLAN, not only on a transient gap snapshot —
+    compile_revision never loads a gap snapshot."""
+    plan, _ = _compose(tmp_path, _lanes())
+    assert plan.decomposition_mode == DecompositionMode.DECLARED_EXCLUSIVE.value
+
+    from substrate.execution.planning.store import PlanningStore
+
+    store = PlanningStore(
+        sessions_path=str(tmp_path / "sessions.jsonl"),
+        plans_path=str(tmp_path / "plans.jsonl"),
+        grounding_path=str(tmp_path / "grounding.jsonl"),
+        current_path=str(tmp_path / "current.jsonl"),
+        desired_path=str(tmp_path / "desired.jsonl"),
+        gaps_path=str(tmp_path / "gaps.jsonl"),
+    )
+    reread = store.get_plan(plan.plan_record_id)
+    assert reread is not None
+    assert reread.decomposition_mode == DecompositionMode.DECLARED_EXCLUSIVE.value
+
+
+def test_revision_cannot_add_an_executable_task_to_a_declared_plan(tmp_path):
+    """CRITICAL: add_node minted a 5th executable packet node with no lane, no
+    scope, and no exclusivity check."""
+    plan, _ = _compose(tmp_path, _lanes())
+    with pytest.raises(PlanCompilationError) as exc:
+        _revision(plan, [{"op": "add_node", "title": "INJECTED sibling"}], tmp_path)
+    assert "DECLARED_EXCLUSIVE" in str(exc.value)
+
+
+def test_revision_cannot_delete_the_zero_write_verification_lane(tmp_path):
+    """CRITICAL: one chat sentence deleted the independent-verification lane —
+    the lane whose whole purpose is that it cannot be weakened — and the plan
+    compiled clean with three Tasks."""
+    plan, _ = _compose(tmp_path, _lanes())
+    verifier = next(
+        n for n in plan.nodes if n.get("gap_id") == "gap-lane-verification"
+    )
+    with pytest.raises(PlanCompilationError) as exc:
+        _revision(plan, [{"op": "remove_node", "node_id": verifier["node_id"]}], tmp_path)
+    assert "atomic" in str(exc.value)
+
+
+def test_removing_a_node_never_silently_unblocks_its_dependents(tmp_path):
+    """CRITICAL: remove_node cleaned edges but left a stale depends_on, so the
+    integration Task declared to fan in on A AND B materialized with ONE
+    dependency and the scheduler admitted it once B alone succeeded."""
+    from substrate.execution.planning.records import ObjectivePlanRecord
+
+    plan, _ = _compose(tmp_path, _lanes())
+    # A DERIVED plan (no exclusivity guard) still must not orphan a dependent.
+    derived = ObjectivePlanRecord.from_dict(plan.to_dict())
+    derived.decomposition_mode = DecompositionMode.DERIVED.value
+    backend = next(n for n in derived.nodes if n.get("gap_id") == "gap-lane-backend")
+
+    with pytest.raises(PlanCompilationError) as exc:
+        _revision(derived, [{"op": "remove_node", "node_id": backend["node_id"]}], tmp_path)
+    assert "silently unblock" in str(exc.value)
+
+
+def test_resume_refuses_to_seed_authority_onto_a_node_minted_outside_compilation(
+    tmp_path,
+):
+    """CRITICAL: a revision-added node (no gap_id, scope_declared=False) fell
+    through the lane guard on resume and was granted the caller's FULL flat
+    scope — becoming a 5th executable Task with undeclared write access."""
+    from substrate.execution.planning.compiler import compose_plan_for_session
+    from substrate.execution.planning.records import ObjectivePlanNode
+
+    from substrate.execution.planning.records import ObjectivePlanRecord
+
+    plan, session = _compose(tmp_path, _lanes())
+    sneaky = ObjectivePlanNode(kind="packet", title="Sneaky", lane="development")
+    assert sneaky.gap_id == "" and sneaky.scope_declared is False
+
+    # Mint a NEW version carrying the extra node — this is the shape a
+    # revision leaves behind (append_plan will not overwrite an existing id).
+    revised = ObjectivePlanRecord.from_dict(plan.to_dict())
+    revised.plan_record_id = ObjectivePlanRecord().plan_record_id
+    revised.nodes = list(plan.nodes) + [sneaky.to_dict()]
+
+    store, queue = _fresh_stores(tmp_path)
+    store.append_plan(revised)
+    session.active_plan_record_id = revised.plan_record_id
+    # A COMMITTED session returns its plan unchanged; the resume branch is the
+    # partial-failure recovery path, which runs at an earlier stage.
+    session.operation_stage = ""
+    session.stage = "compiled"
+
+    class _Resp:
+        def __init__(self, output):
+            self.success = True
+            self.output = output
+
+    def _runner(**kw):
+        fn = kw.get("execute_fn")
+        out = ""
+        if callable(fn):
+            r = fn()
+            out = r[0] if isinstance(r, tuple) else r
+        return _Resp(out)
+
+    with pytest.raises(PlanCompilationError) as exc:
+        compose_plan_for_session(
+            session=session,
+            scope=WorkScope(tenant_id="t-l11", target_kind="self_build"),
+            planning_scale="task_objective",
+            snapshot=_snapshot(FIELD_LEGACY_PENDING),
+            store=store,
+            work_queue=queue,
+            mutation_runner=_runner,
+            writable_path_scope=["app", "secrets"],
+            lanes=_lanes(),
+        )
+    assert "minted outside compilation" in str(exc.value)
+
+
+def test_cross_projection_gaps_are_preserved_not_executable(tmp_path):
+    """HIGH: a declared plan with 2+ projection targets must still yield only
+    the declared lanes; the cross-projection gaps are preserved evidence."""
+    scope = WorkScope(tenant_id="t-l11", target_kind="self_build")
+    scope.projection_ids = ["eos", "creatoros"]
+    snapshot = _snapshot(FIELD_LEGACY_PENDING)
+    _, _, gaps = derive_state_records(
+        OBJECTIVE,
+        snapshot,
+        tenant_id="t-l11",
+        scope=scope,
+        writable_path_scope=["app"],
+        lanes=_lanes(),
+    )
+    assert gaps.decomposition_mode == DecompositionMode.DECLARED_EXCLUSIVE.value
+    assert [g["gap_key"] for g in gaps.gaps] == [
+        "gap-lane-backend",
+        "gap-lane-frontend",
+        "gap-lane-integration",
+        "gap-lane-verification",
+    ]
+    preserved = {g["gap_key"] for g in gaps.derived_evidence_gaps}
+    assert "gap-substrate-contract" in preserved
+    assert "gap-projection-eos" in preserved
+
+
+def test_preserved_evidence_is_not_an_alias_of_the_executable_set():
+    """LOW: the defensive copy is load-bearing — if the executable set were
+    ever mutated in place, preservation would silently alias it."""
+    _, _, _, _, gaps, _ = _derive(_lanes(), legacy=FIELD_LEGACY_PENDING)
+    assert gaps.derived_evidence_gaps is not gaps.gaps
+    assert not ({g["gap_key"] for g in gaps.gaps} & {g["gap_key"] for g in gaps.derived_evidence_gaps})
