@@ -712,7 +712,18 @@ def materialize_packets(
         )
         if requirement_gaps:
             packet.blockers = [f"requirement gap: {g}" for g in requirement_gaps]
-        work_queue.ingest_work_packet(packet)
+        # The QUEUE decides identity, not this loop. `ingest_work_packet`
+        # returns the SURVIVING packet — the freshly minted one when it is new,
+        # the pre-existing one when tenant-scoped dedupe matches. Discarding
+        # that return value and continuing to use the locally minted
+        # `packet.packet_id` meant a second materialization of the same plan
+        # recorded four `workpacket_id`s that DO NOT EXIST on disk: node
+        # bindings, the dependency translation below, and the returned id list
+        # all pointed at packets the queue had refused to persist.
+        # Not reachable through `compose_plan_for_session` today (the resume
+        # branch stops re-materialization), but it is a latent identity
+        # divergence, and one canonical id is cheaper than a future layer.
+        packet = work_queue.ingest_work_packet(packet) or packet
         work_queue.update_packet_status(
             packet.packet_id, PacketLifecycleStatus.CLASSIFIED, "plan compiled"
         )

@@ -967,3 +967,47 @@ def test_gate_accepts_the_exact_shape_so_the_isolation_tests_are_not_vacuous():
         packets=_gate_packets(), plan_record_id="opr-iso", attempt_count=0
     )
     assert verdict.ok, verdict.failures
+
+
+# ── R. the QUEUE owns Task identity, not the materialization loop ───────────
+
+
+def test_second_materialization_binds_to_the_surviving_packets(tmp_path):
+    """MEDIUM: ``materialize_packets`` discarded ``ingest_work_packet``'s return
+    value and kept using the locally minted id.
+
+    The queue is the identity authority: on a tenant-scoped dedupe match it
+    returns the SURVIVING packet. Discarding that meant a second materialization
+    of the same plan recorded four ``workpacket_id``s that do not exist on disk
+    — node bindings, the dependency translation, and the returned id list all
+    pointing at packets the queue had refused to persist.
+
+    Not reachable via ``compose_plan_for_session`` (its resume branch stops
+    re-materialization), so this pins the invariant directly at the seam.
+    """
+    from substrate.execution.planning.archetypes import resolve_archetype
+    from substrate.execution.planning.compiler import materialize_packets
+    from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+    plan, session = _compose(tmp_path, _lanes())
+    scope = WorkScope(tenant_id="t-l11", target_kind="self_build")
+    archetype = resolve_archetype(OBJECTIVE, scope)
+    queue = UniversalWorkQueue(store_path=str(tmp_path / "packets.jsonl"))
+
+    second = materialize_packets(plan, scope, archetype, session, queue)
+
+    fresh = UniversalWorkQueue(store_path=str(tmp_path / "packets.jsonl"))
+    on_disk = {p.packet_id for p in fresh.all_packets()}
+    assert set(second) <= on_disk, (
+        "second materialization returned ids that do not exist on disk"
+    )
+
+    mine = [
+        p
+        for p in fresh.all_packets()
+        if (p.lineage or {}).get("plan_record_id") == plan.plan_record_id
+    ]
+    assert len(mine) == 4, f"duplicated Tasks: {len(mine)}"
+    for node in plan.nodes:
+        if node.get("kind") == "packet" and node.get("status") == "active":
+            assert node.get("workpacket_id") in on_disk, node.get("workpacket_id")
