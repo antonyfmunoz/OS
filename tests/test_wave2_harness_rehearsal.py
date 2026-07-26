@@ -338,7 +338,30 @@ def _mk_poller(store, spool, scheduler, grant, proof_runtime, queue=None, run_ro
     )
 
 
+def _persist_grant(sched, grant):
+    """Production grants ALWAYS come from the ledger (`store.active_grants()`),
+    and the scheduler rereads the grant under its lock so a revocation
+    committed after the caller captured its reference is seen. Persist like
+    production rather than passing an in-memory object."""
+    from substrate.execution.attempts.records import ExecutionAuthorizationGrant
+
+    payload = {k: v for k, v in vars(grant).items() if not k.startswith("_")}
+    record = ExecutionAuthorizationGrant(
+        **{k: v for k, v in payload.items() if k != "status"}
+    )
+    record.status = getattr(grant, "status", "active")
+    if sched._store.get_grant(record.decision_ref) is None:
+        created, _ = sched._store.create_grant_idempotent(record)
+        if created.status != record.status:
+            created.status = record.status
+            sched._store.update_grant_cas(
+                created, expected_record_version=created.record_version
+            )
+    return grant
+
+
 def _pass(sched, grant):
+    _persist_grant(sched, grant)
     return sched.run_scheduler_pass(
         grant,
         role_resolver=_role,

@@ -494,6 +494,28 @@ class ExecutionAuthorizationDecisionSource:
         mutation_runner: Callable[..., Any] | None = None,
     ) -> None:
         self._store = store or ExecutionAttemptStore()
+        # Default the supersession lookup to the REAL planning store, for the
+        # same reason activate_fn is defaulted below: production constructed
+        # this source with no lookup, so the supersession guard in
+        # `apply_execution_decision` (`if latest_plan_lookup is not None:`) was
+        # never entered on the HUD approve path. A stale v1 grant could be
+        # approved to ACTIVE after the plan was revised to v2, and the only
+        # writer of INVALIDATED lives inside that same unreachable block — so a
+        # superseded frontier kept being admitted, leased and dispatched
+        # (adversarial-review HIGH ×2). Wiring the default here fixes it for
+        # EVERY caller rather than for one call site; a caller may still inject
+        # its own lookup for tests.
+        if latest_plan_lookup is None:
+            def _default_latest_plan_lookup(objective_id: str) -> Any:
+                from substrate.execution.planning.store import PlanningStore
+
+                try:
+                    return PlanningStore().latest_version_of(objective_id)
+                except Exception as exc:  # unreadable store → treat as absent
+                    logger.debug("latest-plan lookup failed for %s: %s", objective_id, exc)
+                    return None
+
+            latest_plan_lookup = _default_latest_plan_lookup
         self._latest_plan_lookup = latest_plan_lookup
         # Default the activation to the FULL unit-of-work (grant → ACTIVE AND each
         # task_frontier packet PLANNED → APPROVED), not the bare grant-flip.

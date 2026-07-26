@@ -32,6 +32,7 @@ _INFLIGHT = "inflight"
 _PROCESSED = "processed"
 _OUTBOX = "outbox"
 _QUARANTINE = "quarantine"
+_CONSUMED = "consumed"  # durable anti-replay ledger (one marker per dispatch)
 
 
 @dataclass
@@ -86,7 +87,7 @@ class DispatchSpool:
     def __init__(self, root_dir: str, secret: str) -> None:
         self._root = root_dir
         self._secret = secret
-        for sub in (_INBOX, _INFLIGHT, _PROCESSED, _OUTBOX, _QUARANTINE):
+        for sub in (_INBOX, _INFLIGHT, _PROCESSED, _OUTBOX, _QUARANTINE, _CONSUMED):
             os.makedirs(os.path.join(self._root, sub), exist_ok=True)
 
     def _dir(self, sub: str) -> str:
@@ -140,8 +141,46 @@ class DispatchSpool:
             if envelope.expires_at and time.time() >= envelope.expires_at:
                 self._quarantine(name, "expired")
                 continue
+            # ANTI-REPLAY. The envelope carries a per-dispatch ``nonce`` whose
+            # own comment says "must not reset on restart" — but nothing ever
+            # checked it, so an envelope COPIED back into the inbox verified
+            # cleanly (the signature covers the original fields) and was
+            # re-executed: duplicate billed worker quota and duplicate mutations
+            # in the lease worktree (adversarial-review HIGH). Signature proves
+            # authenticity, never freshness. The consumed set is durable so a
+            # runner restart cannot forget it.
+            if not self._consume_nonce(envelope):
+                self._quarantine(name, "replayed dispatch (nonce already consumed)")
+                continue
             return name, envelope
         return None
+
+    def _consume_nonce(self, envelope: DispatchEnvelope) -> bool:
+        """Record this dispatch as consumed. False if it was already consumed.
+
+        Keyed on ``dispatch_id`` + ``nonce`` so neither a resent id nor a
+        recycled nonce alone can pass. Durable (one file per consumed dispatch)
+        because an in-memory set would forget across the runner restarts this
+        spool is explicitly designed to survive.
+        """
+        nonce = f"{getattr(envelope, 'dispatch_id', '')}:{getattr(envelope, 'nonce', '')}"
+        if nonce == ":":
+            return False  # an unidentifiable dispatch is never replay-safe
+        consumed_dir = self._dir(_CONSUMED)
+        os.makedirs(consumed_dir, exist_ok=True)
+        safe = hashlib.sha256(nonce.encode("utf-8")).hexdigest()
+        marker = os.path.join(consumed_dir, f"{safe}.json")
+        try:
+            # O_EXCL is the atomic test-and-set: the first claimer creates it,
+            # every later claim of the same dispatch fails with FileExistsError.
+            fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            return False
+        try:
+            os.write(fd, json.dumps({"dispatch_id": envelope.dispatch_id, "at": time.time()}).encode())
+        finally:
+            os.close(fd)
+        return True
 
     def reap_stale_unclaimed(self, *, now: float | None = None) -> list[str]:
         """Quarantine UNCLAIMED inbox envelopes whose claim deadline has passed.
@@ -220,12 +259,39 @@ class DispatchSpool:
             except Exception as exc:  # noqa: BLE001
                 logger.debug("[DispatchSpool] could not refresh %s: %s", name, exc)
             try:
+                # AUTHORIZED re-claim: release the anti-replay marker so the
+                # recovered envelope can be claimed once more. This is what
+                # separates RECOVERY from REPLAY — recovery is performed by the
+                # spool itself on an abandoned claim, whereas a replay is an
+                # unauthorized copy that never passed through here. Without this
+                # release, crash recovery would strand real work behind the
+                # replay guard.
+                self._release_nonce_from_record(path)
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("[DispatchSpool] nonce release failed for %s: %s", name, exc)
+            try:
                 os.replace(path, os.path.join(self._dir(_INBOX), name))
                 recovered.append(name)
                 logger.warning("[DispatchSpool] recovered stale inflight %s", name)
             except FileNotFoundError:
                 continue
         return recovered
+
+    def _release_nonce_from_record(self, path: str) -> None:
+        """Drop the consumed-nonce marker for the envelope stored at ``path``."""
+        with open(path, encoding="utf-8") as f:
+            record = json.load(f)
+        env = DispatchEnvelope(**record.get("envelope", {}))
+        nonce = f"{env.dispatch_id}:{env.nonce}"
+        if nonce == ":":
+            return
+        marker = os.path.join(
+            self._dir(_CONSUMED), f"{hashlib.sha256(nonce.encode('utf-8')).hexdigest()}.json"
+        )
+        try:
+            os.remove(marker)
+        except FileNotFoundError:
+            pass
 
     def drop_inflight_for_attempt(self, attempt_id: str) -> list[str]:
         """Reconcile spool ownership when an attempt terminalizes (C-2).

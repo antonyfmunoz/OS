@@ -357,12 +357,15 @@ def test_no_attempt_is_ever_created_without_an_active_grant(tmp_path):
             max_attempts_per_task=1,
         )
         report = scheduler.run_scheduler_pass(grant)
-        assert "not active" in (report.reason or ""), (status, report.reason)
+        # The scheduler now REREADS the grant from the ledger under the lock, so
+        # an unpersisted caller-supplied object fails closed at the reread — a
+        # stricter refusal than the old status-field check, and the correct one.
         assert not report.attempts_created, (status, report.attempts_created)
         assert not report.attempts_admitted, (status, report.attempts_admitted)
+        assert report.reason, status
 
 
-def test_execution_api_retry_route_is_fail_closed_and_mints_nothing(tmp_path):
+def test_execution_api_retry_route_is_fail_closed_and_mints_nothing(tmp_path, monkeypatch):
     """Closes the third declared coverage gap: is the execution API an
     alternate Task-production or authority-minting door?
 
@@ -397,6 +400,17 @@ def test_execution_api_retry_route_is_fail_closed_and_mints_nothing(tmp_path):
     )
     attempt.status = "failed"
     store.create_attempt_idempotent(attempt)
+
+    # Pin the caller's tenant to the attempt's own. Without this the test
+    # depended on ambient principal resolution: once the cross-tenant test ran
+    # first, the leaked context made the tenant guard (correctly) filter this
+    # attempt out, and this test failed under -k while passing in isolation.
+    import substrate.contracts.principal_resolution as principal
+
+    class _Ctx:
+        tenant_id = "t"
+
+    monkeypatch.setattr(principal, "resolve_principal_context", lambda *a, **k: _Ctx())
 
     class _Store:
         def __init__(self, status):
@@ -444,3 +458,224 @@ def test_execution_api_retry_route_is_fail_closed_and_mints_nothing(tmp_path):
 
     # The decisive assertion: no attempt was minted by the transport.
     assert len(store.attempts_for_plan("opr-1")) == before
+
+
+def _grant_store(tmp_path):
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+
+    return ExecutionAttemptStore(
+        attempts_path=str(tmp_path / "attempts.jsonl"),
+        grants_path=str(tmp_path / "grants.jsonl"),
+        readiness_path=str(tmp_path / "readiness.jsonl"),
+        leases_path=str(tmp_path / "leases.jsonl"),
+        assignments_path=str(tmp_path / "assignments.jsonl"),
+    )
+
+
+def test_expired_or_not_yet_valid_grant_mints_no_attempt(tmp_path):
+    """CRITICAL: the sole ExecutionAttempt producer checked only the grant's
+    STATUS FIELD (`status != "active"`) and never evaluated authorization
+    VALIDITY. A grant that was expired — or not yet within its window — but
+    whose status field still read "active" minted attempts, acquired leases and
+    spent real billed worker quota. The time window was decorative.
+
+    ``is_authorization_valid`` had ZERO production callers; so did
+    ``evaluate_execution_readiness`` and ``sweep_expired_authorizations``.
+
+    NOTE ON METHOD: an earlier self-check varied the status FIELD across
+    expired/revoked/... and reported the path safe. That test was shaped like
+    the code instead of like the threat — status is the one dimension that WAS
+    checked. This test varies the time window while status stays "active".
+    """
+    from types import SimpleNamespace
+
+    from substrate.execution.attempts.records import ExecutionAuthorizationGrant
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    def _boom(*_a, **_k):
+        raise AssertionError("admission reached with an INVALID grant")
+
+    store = _grant_store(tmp_path)
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=_boom),
+        placement_fn=_boom,
+        lease_manager=SimpleNamespace(acquire=_boom),
+        compile_fn=_boom,
+        lock_dir=str(tmp_path / "locks"),
+    )
+    now = time.time()
+
+    for ref, kwargs, expected in (
+        ("ref-expired", {"expires_at": now - 3600}, "expired"),
+        ("ref-future", {"not_before": now + 3600}, "not yet active"),
+    ):
+        grant = ExecutionAuthorizationGrant(
+            decision_ref=ref,
+            tenant_id="t",
+            plan_record_id="opr-1",
+            plan_version=1,
+            task_frontier=["A"],
+            objective_id="goal-1",
+            **kwargs,
+        )
+        grant.status = "active"  # the field the old check looked at
+        created, _ = store.create_grant_idempotent(grant)
+        report = scheduler.run_scheduler_pass(created)
+        assert expected in (report.reason or ""), (ref, report.reason)
+        assert not report.attempts_created, (ref, report.attempts_created)
+
+
+def test_scheduler_rereads_the_grant_so_a_committed_revocation_is_seen(tmp_path):
+    """The grant reference is captured BEFORE the lock, so a revocation
+    committed in between was invisible for the life of that reference — the
+    "Re-read canonical state AFTER lock acquisition" docstring was false."""
+    from types import SimpleNamespace
+
+    from substrate.execution.attempts.records import ExecutionAuthorizationGrant
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    def _boom(*_a, **_k):
+        raise AssertionError("admission reached with a REVOKED grant")
+
+    store = _grant_store(tmp_path)
+    grant = ExecutionAuthorizationGrant(
+        decision_ref="ref-revoke",
+        tenant_id="t",
+        plan_record_id="opr-1",
+        plan_version=1,
+        task_frontier=["A"],
+        objective_id="goal-1",
+        expires_at=time.time() + 3600,
+    )
+    grant.status = "active"
+    stale, _ = store.create_grant_idempotent(grant)
+
+    # Revoke it durably AFTER the caller captured `stale`.
+    fresh = store.get_grant("ref-revoke")
+    fresh.status = "revoked"
+    store.update_grant_cas(fresh, expected_record_version=fresh.record_version)
+
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=_boom),
+        placement_fn=_boom,
+        lease_manager=SimpleNamespace(acquire=_boom),
+        compile_fn=_boom,
+        lock_dir=str(tmp_path / "locks"),
+    )
+    report = scheduler.run_scheduler_pass(stale)  # the STALE reference
+    assert not report.attempts_created, report.attempts_created
+    assert "not active" in (report.reason or "") or "invalid" in (report.reason or ""), report.reason
+
+
+def test_execution_api_refuses_cross_tenant_read_and_write(tmp_path, monkeypatch):
+    """CRITICAL: ``_tenant_visible`` was defined but applied in only ONE of
+    eight routes. Every other read — and BOTH POSTs — were tenant-blind, and
+    ``grep -c tenant`` on the attempt store returns 0, so there was no
+    downstream defense: ``transition_cas`` validates version, status,
+    transition legality and immutability, but never tenant.
+
+    A different tenant could enumerate attempts, grants, frontier, worker
+    identities and lease paths — and CANCEL another tenant's in-flight
+    execution.
+    """
+    from substrate.execution.attempts.records import ExecutionAttempt
+    import substrate.contracts.principal_resolution as principal
+    import transports.api.execution_attempt_routes as routes
+
+    store = _grant_store(tmp_path)
+    attempt = ExecutionAttempt(
+        task_id="T-A",
+        plan_record_id="opr-a",
+        plan_version=1,
+        execution_authorization_ref="ref-a",
+        attempt_number=1,
+        tenant_id="tenant-a",
+        objective_id="goal-a",
+    )
+    attempt.status = "failed"
+    store.create_attempt_idempotent(attempt)
+
+    class _Ctx:
+        tenant_id = "tenant-b"
+
+    monkeypatch.setattr(principal, "resolve_principal_context", lambda *a, **k: _Ctx())
+    monkeypatch.setattr(routes, "_store", lambda: store)
+
+    class _Body:
+        decided_by = "mallory"
+        reason = "x"
+
+    endpoints = {r.path: r.endpoint for r in routes._build_router().routes}
+
+    assert endpoints["/execution/attempts/{attempt_id}"](attempt.attempt_id) == {
+        "error": "not found"
+    }
+    assert (
+        endpoints["/execution/attempts/{attempt_id}/cancel"](
+            attempt.attempt_id, _Body()
+        ).get("success")
+        is False
+    )
+    assert (
+        endpoints["/execution/attempts/{attempt_id}/retry"](
+            attempt.attempt_id, _Body()
+        ).get("success")
+        is False
+    )
+    assert endpoints["/execution/by-plan/{plan_record_id}"]("opr-a")["attempts"] == []
+    assert endpoints["/execution/overlay"]("T-A")["overlay"] == {}
+
+    # The decisive assertion: the other tenant's attempt was NOT mutated.
+    assert store.get_attempt(attempt.attempt_id).status == "failed"
+
+
+def test_production_decision_source_wires_the_supersession_lookup():
+    """HIGH: production built ``ExecutionAuthorizationDecisionSource`` with no
+    ``latest_plan_lookup``, so the supersession guard in
+    ``apply_execution_decision`` (``if latest_plan_lookup is not None:``) was
+    never entered — a stale v1 grant could be approved to ACTIVE after the plan
+    was revised to v2. The only writer of INVALIDATED lives in that same block,
+    so a superseded frontier also kept being admitted and dispatched.
+
+    Defaulted inside the source rather than at one call site, so it holds for
+    EVERY caller (same pattern as the defaulted ``activate_fn``).
+    """
+    from substrate.execution.attempts.decisions import ExecutionAuthorizationDecisionSource
+
+    source = ExecutionAuthorizationDecisionSource()
+    assert source._latest_plan_lookup is not None
+    assert callable(source._latest_plan_lookup)
+
+
+def test_spool_refuses_a_replayed_envelope_but_allows_recovery(tmp_path):
+    """HIGH: the signed ``nonce`` (commented "anti-replay: must not reset on
+    restart") was never checked. An envelope COPIED back into the inbox
+    verified cleanly — the signature covers the original fields — and was
+    re-executed: duplicate billed quota and duplicate mutations in the lease
+    worktree. Signature proves authenticity, never freshness.
+
+    The control half matters as much: authorized crash RECOVERY must still
+    work, so recovery releases the marker. Recovery is the spool returning its
+    own abandoned claim; replay is an unauthorized copy.
+    """
+    import shutil
+
+    spool = DispatchSpool(str(tmp_path / "spool"), _SECRET)
+    envelope = _envelope(1)
+    name = spool.enqueue(envelope)
+
+    assert spool.claim_next() is not None
+    shutil.copy(
+        str(tmp_path / "spool" / "inflight" / name),
+        str(tmp_path / "spool" / "inbox" / name),
+    )
+    assert spool.claim_next() is None, "a replayed envelope must be refused"
+    assert any(
+        "replayed" in n for n in os.listdir(str(tmp_path / "spool" / "quarantine"))
+    )
+
+    # A DIFFERENT legitimate dispatch still flows.
+    spool.enqueue(_envelope(2))
+    assert spool.claim_next() is not None

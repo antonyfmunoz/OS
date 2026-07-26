@@ -152,8 +152,36 @@ class AttemptScheduler:
                 return report
 
             # Re-read canonical state AFTER lock acquisition (single-writer).
-            if getattr(grant, "status", "") != "active":
-                report.reason = f"grant {grant.status} not active"
+            #
+            # This must be a REAL reread of the durable record, not a look at
+            # the caller-passed object: the grant reference is captured before
+            # the lock, so a revocation committed in between was invisible for
+            # the life of that reference and the docstring above was false
+            # (adversarial-review CRITICAL).
+            fresh = None
+            try:
+                fresh = self._store.get_grant(getattr(grant, "decision_ref", ""))
+            except Exception as exc:  # unreadable ledger → fail closed below
+                logger.debug("scheduler grant reread failed: %s", exc)
+            if fresh is None:
+                report.reason = "grant not resolvable from the ledger (fail closed)"
+                return report
+            grant = fresh
+
+            # Validity is MORE than the status field. `is_authorization_valid`
+            # is the authority on it — it checks not_before, expires_at, and
+            # plan supersession. The scheduler previously compared
+            # `status != "active"` and nothing else, so a grant that was
+            # EXPIRED or NOT-YET-VALID in substance, but whose status field
+            # still read "active", minted attempts, acquired leases, and spent
+            # real billed worker quota. The time window was decorative and
+            # operator revocation was unenforced. `is_authorization_valid` had
+            # ZERO production callers before this line.
+            from substrate.execution.attempts.decisions import is_authorization_valid
+
+            valid, why = is_authorization_valid(grant)
+            if not valid:
+                report.reason = f"authorization invalid: {why}"
                 return report
 
             # Un-block TRANSIENTLY-blocked attempts so they retry this pass.

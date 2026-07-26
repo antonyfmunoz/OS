@@ -104,6 +104,11 @@ def _build_router() -> Any:
             att = store.get_attempt(attempt_id)
             if att is None:
                 return {"error": "not found"}
+            # Cross-tenant reads leaked worker identities, lease paths,
+            # files_changed and commits (adversarial-review CRITICAL). "not
+            # found" rather than "forbidden": existence is itself tenant data.
+            if not _tenant_visible(_caller_tenant(), getattr(att, "tenant_id", "")):
+                return {"error": "not found"}
             row = _attempt_row(att)
             row["transitions"] = att.transitions
             row["assignment"] = store.assignment_for_attempt(attempt_id)
@@ -123,7 +128,10 @@ def _build_router() -> Any:
         try:
             store = _store()
             out = []
+            tenant = _caller_tenant()
             for grant in store.active_grants():
+                if not _tenant_visible(tenant, getattr(grant, "tenant_id", "")):
+                    continue
                 for task_id in grant.task_frontier:
                     attempts = store.attempts_for_task(task_id)
                     out.append({
@@ -143,6 +151,8 @@ def _build_router() -> Any:
         try:
             store = _store()
             rows = store._read_lines(store._grants_path)  # noqa: SLF001
+            tenant = _caller_tenant()
+            rows = [r for r in rows if _tenant_visible(tenant, r.get("tenant_id", ""))]
             return {"authorizations": [
                 {
                     "decision_ref": r.get("decision_ref"),
@@ -162,11 +172,17 @@ def _build_router() -> Any:
     def by_plan(plan_record_id: str) -> dict[str, Any]:
         try:
             store = _store()
-            attempts = [_attempt_row(a) for a in store.attempts_for_plan(plan_record_id)]
+            tenant = _caller_tenant()
+            attempts = [
+                _attempt_row(a)
+                for a in store.attempts_for_plan(plan_record_id)
+                if _tenant_visible(tenant, getattr(a, "tenant_id", ""))
+            ]
             grants = [
                 {"decision_ref": g.decision_ref, "status": g.status,
                  "task_frontier": g.task_frontier}
                 for g in store.grants_for_plan(plan_record_id)
+                if _tenant_visible(tenant, getattr(g, "tenant_id", ""))
             ]
             return {"attempts": attempts, "authorizations": grants}
         except Exception as exc:
@@ -179,8 +195,15 @@ def _build_router() -> Any:
             store = _store()
             ids = [p for p in packet_ids.split(",") if p]
             out: dict[str, Any] = {}
+            tenant = _caller_tenant()
             for pid in ids:
-                attempts = store.attempts_for_task(pid)
+                attempts = [
+                    a
+                    for a in store.attempts_for_task(pid)
+                    if _tenant_visible(tenant, getattr(a, "tenant_id", ""))
+                ]
+                if not attempts:
+                    continue
                 active = next((a for a in attempts if not a.is_terminal()), None)
                 proof = next((a.proof_id for a in attempts if a.proof_id), "")
                 out[pid] = {
@@ -203,6 +226,12 @@ def _build_router() -> Any:
             store = _store()
             att = store.get_attempt(attempt_id)
             if att is None:
+                return {"success": False, "error": "not found"}
+            # A cross-tenant CANCEL terminated another tenant's in-flight
+            # execution (adversarial-review CRITICAL). The store is tenant-blind
+            # — transition_cas validates version/status/legality/immutability
+            # but never tenant — so this is the boundary that must hold.
+            if not _tenant_visible(_caller_tenant(), getattr(att, "tenant_id", "")):
                 return {"success": False, "error": "not found"}
 
             def _do() -> tuple[str, bool]:
@@ -236,6 +265,8 @@ def _build_router() -> Any:
             store = _store()
             att = store.get_attempt(attempt_id)
             if att is None:
+                return {"success": False, "error": "not found"}
+            if not _tenant_visible(_caller_tenant(), getattr(att, "tenant_id", "")):
                 return {"success": False, "error": "not found"}
             if att.status != "failed":
                 return {"success": False, "error": f"attempt is {att.status}, only failed attempts retry"}

@@ -161,8 +161,18 @@ def evaluate_execution_readiness(
     in_frontier = getattr(packet, "packet_id", "") in frontier
     max_attempts = int(getattr(authorization, "max_attempts_per_task", 0) or 0)
     budget_ok = next_attempt_number <= max_attempts
-    valid_auth, valid_detail = (True, "assumed valid")
-    if is_authorization_valid is not None:
+    # FAIL CLOSED when no validator is injected. This previously defaulted to
+    # ``(True, "assumed valid")`` — an unchecked authorization was reported as
+    # a PASSING readiness check, so the one gate that exists to refuse an
+    # expired/revoked/superseded grant asserted the opposite (adversarial-review
+    # CRITICAL). An absent validator means "not verified", never "valid".
+    if is_authorization_valid is None:
+        from substrate.execution.attempts.decisions import (
+            is_authorization_valid as _canonical_validity,
+        )
+
+        valid_auth, valid_detail = _canonical_validity(authorization)
+    else:
         valid_auth, valid_detail = is_authorization_valid(authorization)
     ok4 = valid_auth and in_frontier and budget_ok
     record(
