@@ -1089,3 +1089,75 @@ def test_lane_declared_run_refuses_to_start_with_the_gate_disarmed(monkeypatch, 
         leases_dir=str(tmp_path / "leases"),
     )
     assert rc == 2, "lane-declared run must FAIL CLOSED when the gate cannot be armed"
+
+
+def test_lane_entry_omitting_writable_path_scope_is_refused(monkeypatch):
+    """MEDIUM (fresh-head review): an OMITTED ``writable_path_scope`` silently
+    became a ZERO-WRITE lane, because ``ObjectiveLane`` defaults it to ``[]``
+    and ``[]`` is MEANINGFUL (it declares the verifier lane). A typo in the
+    runtime's declaration therefore minted a Task that no legitimate diff could
+    satisfy, discovered only at verification time. An undeclared authority is
+    never inferred — in EITHER direction.
+    """
+    import transports.api.objective_plan_routes as routes
+
+    monkeypatch.setenv(
+        "UMH_WORKSPACE_LANES",
+        json.dumps(
+            [
+                {
+                    "lane_key": "backend",
+                    "title": "Backend",
+                    "writable_path_scope": ["app/main.py"],
+                    "semantic_label": "backend_task_id",
+                },
+                {  # omits writable_path_scope entirely
+                    "lane_key": "verification",
+                    "title": "Verify",
+                    "depends_on": ["backend"],
+                    "semantic_label": "verification_task_id",
+                },
+            ]
+        ),
+    )
+    assert routes._declared_lanes(None, OBJECTIVE) is None
+
+
+def test_lane_entry_with_explicit_empty_scope_is_accepted(monkeypatch):
+    """Control: an EXPLICIT ``[]`` is a legitimate zero-write declaration and
+    must still be accepted — otherwise the fix above would break the verifier
+    lane the field protocol depends on."""
+    import transports.api.objective_plan_routes as routes
+
+    monkeypatch.setenv(
+        "UMH_WORKSPACE_LANES",
+        json.dumps(
+            [
+                {
+                    "lane_key": "backend",
+                    "title": "Backend",
+                    "writable_path_scope": ["app/main.py"],
+                    "semantic_label": "backend_task_id",
+                },
+                {
+                    "lane_key": "verification",
+                    "title": "Verify",
+                    "writable_path_scope": [],
+                    "depends_on": ["backend"],
+                    "semantic_label": "verification_task_id",
+                },
+            ]
+        ),
+    )
+    lanes = routes._declared_lanes(None, OBJECTIVE)
+    assert lanes is not None
+    assert [l.writable_path_scope for l in lanes] == [["app/main.py"], []]
+
+
+def test_harness_declares_writable_path_scope_on_every_lane():
+    """The field harness must survive the stricter declaration boundary: every
+    lane it emits declares the key explicitly (the verifier declares [])."""
+    declared = json.loads(FIELD_LANES_JSON)
+    assert declared, "harness lane declaration is empty"
+    for entry in declared:
+        assert "writable_path_scope" in entry, entry.get("lane_key")

@@ -93,6 +93,21 @@ def _declared_lanes(_scope: Any, _objective_text: str) -> list[Any] | None:
         if not isinstance(entry, dict):
             logger.warning("UMH_WORKSPACE_LANES entry is not an object — no lanes declared")
             return None
+        # An OMITTED writable_path_scope is not the same declaration as an
+        # explicitly empty one, and `ObjectiveLane` cannot tell them apart once
+        # its default has been applied: `[]` is MEANINGFUL (it declares the
+        # zero-write verifier lane). So a typo in the runtime's declaration
+        # would silently mint a zero-write Task that no legitimate diff can
+        # satisfy, discovered only at verification time (adversarial-review
+        # MEDIUM). Require the key explicitly — an undeclared authority is
+        # never inferred, in either direction.
+        if "writable_path_scope" not in entry:
+            logger.warning(
+                "UMH_WORKSPACE_LANES entry %r omits writable_path_scope — no lanes "
+                "declared (declare [] explicitly for a zero-write lane)",
+                entry.get("lane_key", "?"),
+            )
+            return None
         lanes.append(ObjectiveLane.from_dict(entry))
     return lanes
 
