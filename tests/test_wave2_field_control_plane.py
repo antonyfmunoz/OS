@@ -595,6 +595,101 @@ def test_stale_lease_is_actually_expired(store, queue, tmp_path):
     assert store.active_lease_for_task("A") is None, "stale lease still blocks the task"
 
 
+def test_runner_loop_actually_reaps_stale_leases(tmp_path, monkeypatch):
+    """Drive the RUNNER'S REAL LOOP for one iteration and prove the reap fires.
+
+    Asserting on inspect.getsource() text is vacuous: stripping the string
+    assertions and deleting the production reap left the suite green. This
+    instruments the driver the runner builds and asserts expire_stale() was
+    genuinely CALLED, so deleting or mis-wiring the reap turns this red.
+
+    It also pins the lazy-attribute trap: `_lease_mgr` is None until the
+    accessor runs, so a cycle that returns early (no active grant) must STILL
+    reap — that is precisely the crash-restart case expire_stale exists for.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_w2_runner_loop",
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "scripts", "wave2_attempt_runner.py"
+        ),
+    )
+    runner_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner_mod)
+
+    calls: list[str] = []
+
+    class _SpyLeaseMgr:
+        def expire_stale(self, now=None):
+            calls.append("expire_stale")
+            return 0
+
+    class _SpyDriver:
+        """Mirrors the real driver: raw attr None until the accessor builds it,
+        and run_cycle returns early (no active grants) so nothing else runs."""
+
+        _lease_mgr = None
+
+        def _lease_manager(self):
+            if type(self)._lease_mgr is None:
+                type(self)._lease_mgr = _SpyLeaseMgr()
+            return type(self)._lease_mgr
+
+        def run_cycle(self):
+            return []
+
+    fixture = tmp_path / "fixture"
+    fixture.mkdir()
+    targets = tmp_path / "targets"
+    targets.mkdir()
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setattr(
+        runner_mod, "_build_control_plane_driver", lambda **_kw: _SpyDriver()
+    )
+
+    rc = runner_mod.run_loop(
+        spool_root=str(tmp_path / "spool"),
+        secret="test-secret",
+        max_iterations=1,
+        poll_seconds=0.0,
+        fixture_repo=str(fixture),
+        targets_dir=str(targets),
+        leases_dir=str(tmp_path / "leases"),
+    )
+
+    assert rc in (0, 2), f"runner exited unexpectedly: {rc}"
+    if rc == 2:
+        pytest.skip("no host isolation primitive available in this environment")
+    assert calls == ["expire_stale"], (
+        "runner loop did not reap stale leases — expires_at is unenforced, so a "
+        "crash between acquire() and terminalization wedges the task forever"
+    )
+
+
+
+def test_stale_lease_is_actually_expired(store, queue, tmp_path):
+    """End-to-end: a lease past its expires_at is reaped, freeing the task."""
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path)
+    manager = driver._lease_manager()
+
+    attempt = SimpleNamespace(attempt_id="ea-stale", task_id="A")
+    assignment = SimpleNamespace(assignment_id="asn-1", environment_class="git_worktree")
+    grant = _grant(["A"])
+    lease = manager.acquire(attempt=attempt, assignment=assignment, grant=grant)
+    assert store.active_lease_for_task("A") is not None
+
+    # Force it stale, then reap through the same call the runner makes.
+    row = store.get_lease(lease.lease_id)
+    row["expires_at"] = 1.0
+    store.update_lease_cas(
+        type(lease).from_dict(row), expected_record_version=row.get("record_version", 0)
+    )
+    assert manager.expire_stale() == 1
+    assert store.active_lease_for_task("A") is None, "stale lease still blocks the task"
+
+
 def test_runner_reaps_leases_through_the_lazy_accessor(tmp_path, monkeypatch):
     """The RUNNER must reap via the accessor. Reading the raw `_lease_mgr`
     attribute is a silent no-op whenever a cycle returns early (no active grant,

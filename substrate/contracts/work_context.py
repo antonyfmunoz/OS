@@ -38,6 +38,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
@@ -390,12 +391,21 @@ class WorkRequirements:
                 continue
             if path.startswith("/"):
                 errors.append(f"absolute writable path {path!r} — must be workspace-relative")
-            if path.startswith("~"):
+            # Home-relative EXPANSION only ('~' or '~user' followed by a
+            # separator, or bare '~'). A file legitimately named '~notes.md' is
+            # not home-relative and must stay allowed. KNOWN LIMITATION: a
+            # directory whose name genuinely starts with '~' (e.g. '~tmp~/f.py')
+            # is indistinguishable from '~user/' here and is refused. That is
+            # the fail-closed side of a rare case; declare such a path under a
+            # non-'~' parent.
+            if path == "~" or re.match(r"^~[^/]*/", path):
                 errors.append(f"home-relative writable path {path!r} — must be workspace-relative")
             # A Windows drive path survives the normalization below (the
             # backslash swap turns 'C:\\Windows' into a benign-looking relative
-            # 'C:/Windows'), so it must be refused explicitly.
-            if len(path) > 1 and path[1] == ":" and path[0].isalpha():
+            # 'C:/Windows'), so refuse it explicitly — but only a real drive
+            # prefix (single letter + ':' + separator, or a bare 'C:'), never a
+            # filename that merely contains a colon such as 'a:b.txt'.
+            if re.match(r"^[A-Za-z]:([/\\]|$)", path):
                 errors.append(f"drive-qualified writable path {path!r} — must be workspace-relative")
             # Normalize with os.path.normpath, not a bare string strip: 'app/..'
             # and 'app//..' both COLLAPSE to '.' (whole workspace) yet passed the

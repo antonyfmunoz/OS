@@ -1008,7 +1008,20 @@ def test_home_and_drive_paths_are_refused(bad):
         _compile(lanes)
 
 
-@pytest.mark.parametrize("good", ["app/main.py", "app/static", "tests/test_x.py"])
+@pytest.mark.parametrize(
+    "good",
+    [
+        "app/main.py",
+        "app/static",
+        "tests/test_x.py",
+        # Precision: these merely CONTAIN '~' or ':' — they are not
+        # home-relative expansions or drive prefixes, and refusing them would
+        # be a false positive that blocks legitimate declarations.
+        "~notes.md",
+        "a:b.txt",
+        "app/i18n/en:US.json",
+    ],
+)
 def test_legitimate_workspace_paths_still_allowed(good):
     requirements = WorkRequirements()
     requirements.declare_writable_paths([good])
