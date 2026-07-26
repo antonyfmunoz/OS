@@ -293,3 +293,70 @@ def test_dispatch_id_is_unique_per_dispatch(tmp_path):
         )
     inbox = os.listdir(os.path.join(str(tmp_path / "spool"), "inbox"))
     assert len(inbox) == 50, f"every dispatch must persist its own file, got {len(inbox)}"
+
+
+def test_no_attempt_is_ever_created_without_an_active_grant(tmp_path):
+    """Producer-census closure: the ONE ExecutionAttempt producer
+    (``AttemptScheduler._create_attempt``) is unreachable for any grant that is
+    not ACTIVE.
+
+    Reviewer A's fresh-head review declared the ExecutionAttempt /
+    ExecutionAuthorizationGrant / ApprovalRequest producer census explicitly NOT
+    ATTEMPTED, so this closes it by execution. The census itself is singular:
+    one attempt producer (scheduler.py `_create_attempt` → the store's
+    `create_attempt_idempotent`), one grant producer (decisions.py), one
+    approval producer (decisions.py). There is no second owner.
+
+    Placement, lease acquisition, and instruction compilation are passed
+    sentinels that RAISE — so a non-ACTIVE grant slipping past the status check
+    is loud, not silently tolerated.
+    """
+    from types import SimpleNamespace
+
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+
+    def _boom(*_a, **_k):
+        raise AssertionError("admission reached with a non-ACTIVE grant")
+
+    store = ExecutionAttemptStore(
+        attempts_path=str(tmp_path / "attempts.jsonl"),
+        grants_path=str(tmp_path / "grants.jsonl"),
+        readiness_path=str(tmp_path / "readiness.jsonl"),
+        leases_path=str(tmp_path / "leases.jsonl"),
+        assignments_path=str(tmp_path / "assignments.jsonl"),
+    )
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=_boom),
+        placement_fn=_boom,
+        lease_manager=SimpleNamespace(acquire=_boom),
+        compile_fn=_boom,
+        lock_dir=str(tmp_path / "locks"),
+    )
+
+    for status in (
+        "expired",
+        "revoked",
+        "activating",
+        "invalidated",
+        "failed_activation",
+        "",
+    ):
+        grant = SimpleNamespace(
+            status=status,
+            tenant_id="t",
+            plan_record_id="opr-1",
+            plan_version=1,
+            decision_ref="d:1:execution_authorization:v1",
+            task_frontier=["A"],
+            objective_id="goal-1",
+            principal_id="u",
+            membership_id="m",
+            correlation_id="c",
+            max_attempts_per_task=1,
+        )
+        report = scheduler.run_scheduler_pass(grant)
+        assert "not active" in (report.reason or ""), (status, report.reason)
+        assert not report.attempts_created, (status, report.attempts_created)
+        assert not report.attempts_admitted, (status, report.attempts_admitted)
