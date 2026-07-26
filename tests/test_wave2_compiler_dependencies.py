@@ -30,10 +30,27 @@ from substrate.organism.universal_work_queue import UniversalWorkQueue
 
 def _fanin_plan() -> ObjectivePlanRecord:
     """A: backend, B: frontend (independent); C: integration (depends on A∧B)."""
-    a = ObjectivePlanNode(kind="packet", title="backend change", lane="build")
-    b = ObjectivePlanNode(kind="packet", title="frontend change", lane="build")
+    a = ObjectivePlanNode(
+        kind="packet",
+        title="backend change",
+        lane="build",
+        writable_path_scope=["app", "tests"],
+        scope_declared=True,
+    )
+    b = ObjectivePlanNode(
+        kind="packet",
+        title="frontend change",
+        lane="build",
+        writable_path_scope=["app", "tests"],
+        scope_declared=True,
+    )
     c = ObjectivePlanNode(
-        kind="packet", title="integration", lane="build", depends_on=[a.node_id, b.node_id]
+        kind="packet",
+        title="integration",
+        lane="build",
+        depends_on=[a.node_id, b.node_id],
+        writable_path_scope=["app", "tests"],
+        scope_declared=True,
     )
     plan = ObjectivePlanRecord(
         objective_id="goal-1",
@@ -104,9 +121,29 @@ def test_fanin_dependencies_persist_to_queue_store(queue):
 
 def test_chain_dependencies(queue):
     """A → B → C: B depends on A, C depends on B (transitive edges not collapsed)."""
-    a = ObjectivePlanNode(kind="packet", title="a", lane="build")
-    b = ObjectivePlanNode(kind="packet", title="b", lane="build", depends_on=[a.node_id])
-    c = ObjectivePlanNode(kind="packet", title="c", lane="build", depends_on=[b.node_id])
+    a = ObjectivePlanNode(
+        kind="packet",
+        title="a",
+        lane="build",
+        writable_path_scope=["app", "tests"],
+        scope_declared=True,
+    )
+    b = ObjectivePlanNode(
+        kind="packet",
+        title="b",
+        lane="build",
+        depends_on=[a.node_id],
+        writable_path_scope=["app", "tests"],
+        scope_declared=True,
+    )
+    c = ObjectivePlanNode(
+        kind="packet",
+        title="c",
+        lane="build",
+        depends_on=[b.node_id],
+        writable_path_scope=["app", "tests"],
+        scope_declared=True,
+    )
     plan = ObjectivePlanRecord(
         objective_id="goal-2",
         objective_text="chain objective",

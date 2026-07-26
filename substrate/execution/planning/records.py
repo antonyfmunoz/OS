@@ -269,6 +269,17 @@ class ObjectivePlanNode:
     # Cross-projection planning (§23.6): "" | "substrate" | "projection:<id>".
     # Projection-target nodes materialize with a NARROWED WorkScope.
     target: str = ""
+    # The node's OBJECTIVE-DERIVED writable-path authority, worktree-relative.
+    # This is the planning-time owner of mutation scope: the compiler seeds it
+    # onto the materialized WorkPacket's WorkRequirements
+    # (``declare_writable_paths`` → ``scope_declared=True``), and verification
+    # reads that persisted contract alone. Empty list + ``scope_declared`` means
+    # "nothing may change" (the verifier lane); a packet node that declares NO
+    # scope fails materialization closed — an undeclared scope is never
+    # whole-repository permission (field run 20260725T230726Z: a Task persisted
+    # with scope_declared=False made every legitimate diff unverifiable).
+    writable_path_scope: list[str] = field(default_factory=list)
+    scope_declared: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

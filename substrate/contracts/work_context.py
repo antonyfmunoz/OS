@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
@@ -389,7 +390,12 @@ class WorkRequirements:
                 continue
             if path.startswith("/"):
                 errors.append(f"absolute writable path {path!r} — must be workspace-relative")
-            normalized = path.replace("\\", "/").strip("/")
+            # Normalize with os.path.normpath, not a bare string strip: 'app/..'
+            # and 'app//..' both COLLAPSE to '.' (whole workspace) yet passed the
+            # string-only check, so an unsafe authority could be persisted and was
+            # only refused later at verification. The contract's promise — refused
+            # HERE so it can never be persisted — must actually hold.
+            normalized = os.path.normpath(path.replace("\\", "/")).strip("/")
             if normalized in (".", ""):
                 errors.append(
                     "whole-workspace scope ('.') is not a scope — the sandbox mount is a "

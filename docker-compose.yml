@@ -195,6 +195,13 @@ services:
       - UMH_ROOT=/app
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
+      # This workspace's DECLARED writable-path authority (worktree-relative,
+      # least-privilege). Every Task materialized here carries exactly this
+      # scope on its contract, and verification enforces it. Materialization
+      # fails CLOSED without a declaration — an undeclared scope is never
+      # whole-repository permission. Widen deliberately, never with '.' or an
+      # absolute path (both are refused by the WorkRequirements contract).
+      - UMH_WORKSPACE_WRITABLE_PATHS=substrate,transports,adapters,services,projections,scripts,tests,docs,data
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       - UMH_MESH_RELAY_HOST=host.docker.internal
       - UMH_ROUTER_CLAUDE_CLI_ENABLED=0

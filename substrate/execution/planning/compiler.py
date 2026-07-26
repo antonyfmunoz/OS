@@ -78,8 +78,20 @@ def derive_state_records(
     snapshot: GroundingSnapshot,
     tenant_id: str = "",
     scope: WorkScope | None = None,
+    writable_path_scope: list[str] | None = None,
 ) -> tuple[CurrentStateRecord, DesiredStateRecord, GapAssessmentSnapshot]:
-    """Derive the three planning records from evidence + the objective."""
+    """Derive the three planning records from evidence + the objective.
+
+    ``writable_path_scope`` is the objective-derived mutation authority for the
+    Tasks this objective will materialize, worktree-relative and least-privilege.
+    It is supplied by the CALLER (the surface that knows the objective's target
+    workspace) — substrate never infers it from titles, ids, or a worker's diff.
+    Every derived gap inherits it, the plan node carries it, and the compiler
+    seeds it onto each materialized WorkPacket's contract. ``None`` means the
+    caller declared no authority: materialization then fails closed rather than
+    persisting a Task whose diff can never be verified.
+    """
+    declared_scope = None if writable_path_scope is None else [str(p) for p in writable_path_scope]
     current = CurrentStateRecord(
         intent_id=snapshot.intent_id,
         grounding_snapshot_id=snapshot.grounding_snapshot_id,
@@ -118,6 +130,7 @@ def derive_state_records(
                     "title": f"Migrate subsystem '{name}' to the runtime-state boundary",
                     "evidence_ref": snapshot.evidence_ref(str(source.get("source", ""))),
                     "dependencies": [],
+                    "writable_path_scope": declared_scope,
                 }
             )
     # Cross-projection objective (§23.6): scope declares 2+ projection
@@ -134,6 +147,7 @@ def derive_state_records(
                 "evidence_ref": "",
                 "dependencies": [],
                 "target": "substrate",
+                "writable_path_scope": declared_scope,
             }
         )
         for projection_id in scope.projection_ids:
@@ -144,6 +158,7 @@ def derive_state_records(
                     "evidence_ref": "",
                     "dependencies": [substrate_key],
                     "target": f"projection:{projection_id}",
+                    "writable_path_scope": declared_scope,
                 }
             )
     if not gap_snapshot.gaps:
@@ -153,6 +168,7 @@ def derive_state_records(
                 "title": objective_text.strip()[:160] or "Realize the stated objective",
                 "evidence_ref": "",
                 "dependencies": [],
+                "writable_path_scope": declared_scope,
             }
         )
     gap_snapshot.unknowns = list(snapshot.unknown_sources)
@@ -279,6 +295,12 @@ def compile_plan(
     plan.lanes = [lane, "verification"]
     packet_nodes: list[ObjectivePlanNode] = []
     for gap in gaps:
+        # The gap carries the OBJECTIVE-DERIVED writable-path authority; the node
+        # is its planning-time owner and the compiler seeds it onto the packet's
+        # WorkRequirements at materialization. A gap that declares no scope
+        # produces a node with scope_declared=False, which fails materialization
+        # closed rather than persisting a Task no diff can ever satisfy.
+        declared_scope = gap.get("writable_path_scope")
         node = ObjectivePlanNode(
             kind="packet",
             title=gap["title"][:160],
@@ -286,6 +308,8 @@ def compile_plan(
             evidence_refs=[gap.get("evidence_ref", "")] if gap.get("evidence_ref") else [],
             gap_id=gap["gap_key"],
             target=gap.get("target", ""),
+            writable_path_scope=[str(p) for p in (declared_scope or [])],
+            scope_declared=declared_scope is not None,
         )
         packet_nodes.append(node)
         plan.nodes.append(node.to_dict())
@@ -359,6 +383,28 @@ def materialize_packets(
         proof_contract=dict(archetype.proof_contract),
     )
 
+    # PRE-VALIDATE every packet node's declared authority BEFORE any queue write.
+    # Raising mid-loop left already-ingested packets behind (an orphan PLANNED
+    # Task plus a mutated node["workpacket_id"]) because the queue write is not
+    # rolled back by the governed mutation's failure. Validate first so a plan
+    # with any undeclared/invalid node persists NOTHING.
+    for raw in plan.nodes:
+        if raw.get("kind") != "packet" or raw.get("status") != "active":
+            continue
+        if not raw.get("scope_declared"):
+            raise PlanCompilationError(
+                f"plan node {raw.get('node_id', '')!r} declares no writable_path_scope — "
+                "refusing to materialize a Task with undeclared mutation authority"
+            )
+        probe = WorkRequirements()
+        probe.declare_writable_paths([str(p) for p in (raw.get("writable_path_scope") or [])])
+        probe_errors = probe.validate_writable_path_scope()
+        if probe_errors:
+            raise PlanCompilationError(
+                f"plan node {raw.get('node_id', '')!r} has an invalid writable_path_scope: "
+                f"{probe_errors}"
+            )
+
     packet_ids: list[str] = []
     # node_id → materialized packet, so a second pass can translate plan-node
     # depends_on edges into WorkPacket.dependencies (packet_id edges). Without
@@ -386,6 +432,30 @@ def materialize_packets(
             node_scope = WorkScope.from_dict(scope.to_dict())
             node_scope.projection_ids = [projection_id]
             node_scope.target_kind = "projection"
+        # PER-NODE mutation authority (field run 20260725T230726Z, ninth layer).
+        # `requirements` above is shared archetype metadata; the writable-path
+        # scope is NOT shared — it is the node's own objective-derived authority
+        # and must be seeded onto THIS packet's contract before persistence, so
+        # every later reread (attempt, lease, package, dispatch, verification)
+        # reads one canonical scope. A packet node that declares no scope fails
+        # CLOSED here: persisting scope_declared=False produced a Task whose
+        # every legitimate diff was unverifiable, and an empty/undeclared scope
+        # must never be read as whole-repository permission.
+        node_requirements = WorkRequirements.from_dict(requirements.to_dict())
+        if not raw.get("scope_declared"):
+            raise PlanCompilationError(
+                f"plan node {raw.get('node_id', '')!r} declares no writable_path_scope — "
+                "refusing to materialize a Task with undeclared mutation authority"
+            )
+        node_requirements.declare_writable_paths(
+            [str(p) for p in (raw.get("writable_path_scope") or [])]
+        )
+        scope_errors = node_requirements.validate_writable_path_scope()
+        if scope_errors:
+            raise PlanCompilationError(
+                f"plan node {raw.get('node_id', '')!r} has an invalid writable_path_scope: "
+                f"{scope_errors}"
+            )
         packet = WorkPacket(
             title=raw.get("title", ""),
             # user_intent must be UNIQUE per node: UniversalWorkQueue dedupes
@@ -414,7 +484,7 @@ def materialize_packets(
             output_contracts=[f"contributes: {raw.get('title', '')[:120]}"],
             work_scope=node_scope.to_dict(),
             lineage=lineage.to_dict(),
-            requirements=requirements.to_dict(),
+            requirements=node_requirements.to_dict(),
         )
         if requirement_gaps:
             packet.blockers = [f"requirement gap: {g}" for g in requirement_gaps]
@@ -443,9 +513,7 @@ def materialize_packets(
     for node_id, packet in packet_by_node_id.items():
         pred_node_ids = packet_predecessors(plan, node_id)
         dep_packet_ids = [
-            packet_by_node_id[p].packet_id
-            for p in pred_node_ids
-            if p in packet_by_node_id
+            packet_by_node_id[p].packet_id for p in pred_node_ids if p in packet_by_node_id
         ]
         if dep_packet_ids and packet.dependencies != dep_packet_ids:
             packet.dependencies = dep_packet_ids
@@ -489,8 +557,13 @@ def compose_plan_for_session(
     mutation_runner: Callable[..., Any],
     event_emit: Callable[[str, dict[str, Any]], None] | None = None,
     dev_profile_enabled: bool | None = None,
+    writable_path_scope: list[str] | None = None,
 ) -> ObjectivePlanRecord:
     """Run compile → materialize → readiness as the recoverable unit of work.
+
+    ``writable_path_scope`` is the objective-derived, least-privilege mutation
+    authority every Task of this plan is materialized with (see
+    ``derive_state_records``). ``None`` fails materialization closed.
 
     Idempotent: a session that already committed a plan version returns it
     unchanged (no duplicate plans/Tasks/events on retry).
@@ -520,11 +593,28 @@ def compose_plan_for_session(
 
     try:
         current, desired, gap_snapshot = derive_state_records(
-            session.objective_text, snapshot, tenant_id=scope.tenant_id, scope=scope
+            session.objective_text,
+            snapshot,
+            tenant_id=scope.tenant_id,
+            scope=scope,
+            writable_path_scope=writable_path_scope,
         )
         archetype = resolve_archetype(session.objective_text, scope)
         if resumed_plan is not None:
             plan = resumed_plan
+            # RESUME re-seeds node authority from the freshly-derived scope. The
+            # resumed record's nodes were persisted by an earlier attempt (and a
+            # record written before Tasks carried scope defaults to
+            # scope_declared=False), so without this a resumed plan would fail
+            # materialization FOREVER — an unrecoverable poison record, since
+            # every retry takes this same branch. Re-seeding never WIDENS an
+            # authority: it applies the same caller declaration this call already
+            # derived, and a None declaration still fails closed downstream.
+            for node in plan.nodes:
+                if node.get("kind") != "packet":
+                    continue
+                node["writable_path_scope"] = list(writable_path_scope or [])
+                node["scope_declared"] = writable_path_scope is not None
         else:
             plan = compile_plan(
                 session,

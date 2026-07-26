@@ -74,7 +74,14 @@ def _mk_env(tmp_path):
     queue = UniversalWorkQueue(store_path=str(tmp_path / "packets.jsonl"))
     runner = Runner()
     protocol = OperatorIntentProtocol(
-        store=store, goal_registry=goals, event_spine=EventSpine(), mutation_runner=runner
+        store=store,
+        goal_registry=goals,
+        event_spine=EventSpine(),
+        mutation_runner=runner,
+        # Ninth-layer: a materialized Task must carry DECLARED writable authority;
+        # the runtime that owns the workspace declares it (materialization fails
+        # closed without it). These tests exercise the production path.
+        workspace_scope_resolver=lambda _scope: ["app", "tests"],
     )
     principal = PrincipalContext(
         principal_id="user-1", tenant_id="tenant-a", membership_id="mem-abc"
@@ -586,6 +593,7 @@ class TestAdversarialReviewRegressions:
                 store=env.store,
                 work_queue=env.queue,
                 mutation_runner=failing_runner,
+                writable_path_scope=["app", "tests"],
             )
         assert session.operation_stage == PlanningStageMarker.FAILED.value
         plans_after_failure = env.store.versions_of(session.objective_id)
@@ -599,6 +607,7 @@ class TestAdversarialReviewRegressions:
             store=env.store,
             work_queue=env.queue,
             mutation_runner=Runner(),
+            writable_path_scope=["app", "tests"],
         )
         all_versions = env.store.versions_of(session.objective_id)
         assert len(all_versions) == 1  # RESUMED, not duplicated
@@ -686,6 +695,10 @@ class TestAdversarialReviewRegressions:
             goal_registry=base.goals,
             event_spine=EventSpine(),
             mutation_runner=DenyingRunner(),
+            # Ninth-layer: a materialized Task must carry DECLARED writable authority;
+            # the runtime that owns the workspace declares it (materialization fails
+            # closed without it). These tests exercise the production path.
+            workspace_scope_resolver=lambda _scope: ["app", "tests"],
         )
         resolution = proto.resolve(
             "Cancel it", base.principal, _scope(), _frame(), client_message_id="cl-9"

@@ -179,6 +179,31 @@ def _origin_host() -> str:
 import secrets as _secrets  # noqa: E402
 
 
+def _smoke_workspace_scope() -> str:
+    """The smoke-style COMBINED task's declared writable authority, comma-joined.
+
+    The smoke objective is one Task covering backend + frontend + their tests, so
+    its authority is the canonical combined lane — ``FIXTURE_ALLOWED_PATHS`` under
+    the INTEGRATION label, which is exactly
+    ``app/main.py, app/store.py, app/static, tests/test_search_api.py,
+    tests/test_ui_search.py``. It deliberately EXCLUDES the fixture's seed data,
+    config, and pre-existing tests: a worker that rewrites ``tests/test_api.py``
+    to make its own change pass is out of scope and must fail verification.
+
+    Read from the ONE canonical map so the harness can never drift from the
+    authority the verifier enforces. This does NOT replace the A/B/C/D split —
+    the full field graph still materializes distinct Tasks with the distinct
+    per-lane scopes from the same map.
+    """
+    sys.path.insert(0, str(_WORKTREE))
+    from substrate.execution.attempts.field_task_scope import (
+        FIXTURE_ALLOWED_PATHS,
+        INTEGRATION,
+    )
+
+    return ",".join(FIXTURE_ALLOWED_PATHS[INTEGRATION])
+
+
 def _targets_dir(sha: str, run_id: str) -> Path:
     """Per-run fixture-target root — a fresh dir every pass, retained as evidence.
 
@@ -638,6 +663,16 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 "UMH_ROOT=/app",
                 "-e",
                 f"UMH_BUILD_COMMIT={sha}",
+                # The fixture workspace's DECLARED writable-path authority. The
+                # candidate materializes every Task of the fixture objective with
+                # exactly this least-privilege scope (see
+                # objective_plan_routes._declared_workspace_scope). Sourced from
+                # the ONE canonical map (field_task_scope.FIXTURE_ALLOWED_PATHS),
+                # never a second literal. Without it, Tasks persist with
+                # scope_declared=False and every legitimate worker diff is
+                # unverifiable (field run 20260725T230726Z, ninth layer).
+                "-e",
+                f"UMH_WORKSPACE_WRITABLE_PATHS={_smoke_workspace_scope()}",
                 "--env-file",
                 str(env_out),
                 "-p",

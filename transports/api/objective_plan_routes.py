@@ -21,6 +21,7 @@ Read surfaces never raise 500 (projection read-surface discipline).
 from __future__ import annotations
 
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -32,12 +33,36 @@ logger = logging.getLogger(__name__)
 _protocol_singleton: Any | None = None
 
 
+def _declared_workspace_scope(_scope: Any) -> list[str] | None:
+    """The target workspace's DECLARED writable-path authority, or None.
+
+    Substrate is instance-agnostic, so the concrete workspace's least-privilege
+    mutation authority is declared by the RUNTIME that owns the workspace and
+    injected here (``UMH_WORKSPACE_WRITABLE_PATHS``: a comma-separated list of
+    worktree-relative paths). Returning None means the workspace declared no
+    authority and Task materialization fails CLOSED — an undeclared scope is
+    never whole-repository permission (field run 20260725T230726Z persisted a
+    Task with ``scope_declared=False``, making every legitimate worker diff
+    unverifiable).
+
+    This resolver NEVER infers a scope: no title matching, no packet-id shapes,
+    no evidence, no post-hoc diff. It reads one declaration.
+    """
+    raw = os.environ.get("UMH_WORKSPACE_WRITABLE_PATHS", "").strip()
+    if not raw:
+        return None
+    paths = [p.strip() for p in raw.split(",") if p.strip()]
+    return paths or None
+
+
 def _protocol() -> Any:
     global _protocol_singleton
     if _protocol_singleton is None:
         from substrate.execution.intent.protocol import OperatorIntentProtocol
 
-        _protocol_singleton = OperatorIntentProtocol()
+        _protocol_singleton = OperatorIntentProtocol(
+            workspace_scope_resolver=_declared_workspace_scope,
+        )
     return _protocol_singleton
 
 
