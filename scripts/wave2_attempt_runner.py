@@ -353,9 +353,14 @@ def run_loop(
             # worktree keeps consuming a max_parallel slot. expires_at was set
             # (ttl 3600s) but never enforced — expire_stale had no caller.
             try:
-                lease_mgr = getattr(driver, "_lease_mgr", None) if driver is not None else None
-                if lease_mgr is not None:
-                    expired = lease_mgr.expire_stale()
+                # Use the ACCESSOR, not the raw attribute: `_lease_mgr` is lazily
+                # built and stays None until a scheduler pass constructs it, so a
+                # cycle that returns early (no active grant, or the graph-shape
+                # gate refusing) would leave the reap a silent no-op — the exact
+                # defect class that has recurred through this review series.
+                accessor = getattr(driver, "_lease_manager", None) if driver is not None else None
+                if callable(accessor):
+                    expired = accessor().expire_stale()
                     if expired:
                         _log(f"expired {expired} stale lease(s)")
             except Exception as exc:  # never let lease expiry kill the loop
