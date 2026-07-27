@@ -1083,22 +1083,81 @@ def test_every_documented_check_number_matches_the_code():
                     "the exact M-4 defect a range check cannot detect"
                 )
 
-    # KNOWN LIMITATION, stated rather than papered over (round-8 review N-2b).
+    # SENTENCE-SCOPED binding (round-8 review: "one instrument dismissed
+    # slightly early"). The residual case was called undetectable because
+    # "making check 9 a tautology" ties the 9 to nothing. But the REAL ledger
+    # sentence is not bare — `role_ids` appears in it:
     #
-    # A bare in-range stale number that names NO concern beside it — e.g.
-    # "making check 9 a tautology", where the tautology is really about check 8
-    # — is NOT mechanically detectable here. Nothing in the text ties that "9"
-    # to a concern, so neither the range check (9 <= 17) nor the name<->number
-    # binding above can fire. Detecting it would require understanding the
-    # PROSE, not the number.
+    #   "`grant.role_ids := union(...)` is true BY CONSTRUCTION, making check 8
+    #    a tautology AND deletable-green behind check 2 …"
     #
-    # This gate therefore catches: out-of-range numbers anywhere (including in
-    # list continuations, after interrupting parentheticals, and at sentence
-    # end), and in-range numbers cited beside a named concern. It does NOT
-    # catch a bare in-range number whose surrounding argument is about a
-    # different check. That residual case is a review responsibility, and it is
-    # written down here so no one mistakes a green gate for full coverage —
-    # which is the failure mode this whole campaign exists to eliminate.
+    # So: if a sentence cites exactly one check number AND names exactly one
+    # mapped concern, they must agree. Both "exactly ones" are load-bearing —
+    # a sentence naming two concerns, or citing two numbers, is ambiguous and
+    # is deliberately NOT judged, which is what keeps the false-positive rate
+    # at zero (the reviewer measured 0/11 on the parenthesized rule and flagged
+    # this exact risk for the sentence-scoped one).
+    for source_name, text in (("admission.py", admission), ("ledger", ledger)):
+        for sentence in re.split(r"(?<=[.;])\s+|\n\n|\| ", text):
+            named = {tok for tok in concern_tokens if tok in sentence}
+            if len(named) != 1:
+                # Two concerns named -> ambiguous. Never judged; this is what
+                # keeps the false-positive rate at zero.
+                continue
+            token = next(iter(named))
+
+            # Judge each cited number by its GRAMMATICAL ROLE, not by sentence
+            # -wide uniqueness. The real ledger sentence cites TWO numbers:
+            #
+            #   "`grant.role_ids := union(...)` is true BY CONSTRUCTION, making
+            #    check 8 a tautology AND deletable-green behind check 2 …"
+            #
+            # A `len(nums) != 1` guard skipped it entirely — which is why the
+            # original M-4 defect survived. But loosening that guard produced a
+            # measured FALSE POSITIVE on the sibling sentence, whose "check 2"
+            # legitimately refers to the frontier check while naming role_ids.
+            #
+            # The distinction is grammatical: "making check N a tautology"
+            # ASSERTS something about the named concern; "behind check N"
+            # merely refers to another check in passing. Only the assertive
+            # forms are judged, so both requirements hold at once.
+            asserted = {
+                int(g)
+                for m in re.finditer(
+                    r"\bmaking\s+check(?:s)?\s+(\d{1,3})\b|"
+                    r"\bcheck(?:s)?\s+(\d{1,3})\s*\(|"
+                    r"\bcheck(?:s)?\s+(\d{1,3})\s+(?:is|are|was|were)\b",
+                    sentence,
+                )
+                for g in [m.group(1) or m.group(2) or m.group(3)]
+                if g
+            }
+            if len(asserted) != 1:
+                continue
+            cited_num = next(iter(asserted))
+            assert cited_num == concern_tokens[token], (
+                f"{source_name} sentence cites check {cited_num} while naming "
+                f"only {token!r}, which is check {concern_tokens[token]} — the "
+                "original M-4 defect shape (a bare in-range stale number whose "
+                "sentence does identify the concern)"
+            )
+
+    # RESIDUAL, stated rather than papered over.
+    #
+    # The bare in-range case was twice called "mechanically undetectable" — by
+    # me, and by the independent reviewer who agreed while noting one
+    # instrument had been dismissed slightly early. The reviewer was right:
+    # the real ledger sentence is NOT bare, it names `role_ids` alongside the
+    # number, and the grammatical rule above now catches it. Measured: the
+    # original M-4 defect is CAUGHT with 0 false positives on correct text.
+    #
+    # What remains genuinely undetectable: a citation whose sentence names NO
+    # mapped concern at all, or names two (deliberately not judged — that
+    # ambiguity guard is what keeps false positives at zero), or phrases the
+    # assertion in a form outside {making check N …, check N (concern),
+    # check N is/are/was/were …}. Those need a reader, not a rule.
+    #
+    # Recorded so a green gate is never mistaken for total coverage.
 
     # The four checks the R6-F1/R6-F2 classification names must map to the right
     # concerns, so a renumbering cannot silently repoint the argument.
