@@ -2042,3 +2042,127 @@ def test_admission_refuses_when_no_attempt_ledger_lookup_is_supplied():
     )
     assert not v.admitted
     assert v.refusal_code == "sibling_lookup_unavailable", v.refusal_code
+
+
+# ── adversarial-review round 3 (F1/F2/F3/F5) ───────────────────────────────
+
+
+def test_disjoint_role_and_grant_tools_refuse_rather_than_vacate():
+    """F1 (HIGH): a NARROWER operator bound must not admit MORE.
+
+    The predicate was `t for t in pkt_tools if permitted_tools and t not in
+    permitted_tools` — copied from readiness.py. It VACATES whenever
+    `permitted_tools` is empty, and an empty set arises when role and grant
+    tool sets are DISJOINT. So tightening `grant.allowed_tools` from ["shell"]
+    (which correctly refused "Bash") to ["python"] (disjoint from role
+    ["shell"]) turned the guard OFF and admitted "rm_rf".
+
+    An inversion, not a gap — and a direct violation of this module's own rule
+    that empty data is a REFUSAL.
+    """
+    v = _adm(
+        packet_kw={"required_tools": ["rm_rf"]},
+        role_kw={"allowed_tools": ["shell"]},
+        grant_kw={"allowed_tools": ["python"]},  # DISJOINT from the role
+    )
+    assert not v.admitted, "disjoint role/grant tool sets admitted an arbitrary tool"
+    assert v.refusal_code == "role_grant_tool_disjoint", v.refusal_code
+
+
+def test_narrowing_the_operator_tool_bound_never_widens_what_is_admitted():
+    """The monotonicity property F1 broke, stated directly.
+
+    Whatever a broad bound refuses, a narrower bound must also refuse.
+    """
+    broad = _adm(
+        packet_kw={"required_tools": ["Bash"]},
+        role_kw={"allowed_tools": ["shell"]},
+        grant_kw={"allowed_tools": ["shell"]},
+    )
+    narrowed = _adm(
+        packet_kw={"required_tools": ["Bash"]},
+        role_kw={"allowed_tools": ["shell"]},
+        grant_kw={"allowed_tools": ["python"]},  # strictly narrower authority
+    )
+    assert not broad.admitted, "control: an unpermitted tool must refuse"
+    assert not narrowed.admitted, (
+        "narrowing the operator's tool bound ADMITTED work the broader bound "
+        "refused — the guard inverts"
+    )
+
+
+def test_a_role_permitting_no_tools_refuses_a_task_that_needs_one():
+    """An EMPTY role allowlist means the role permits NO tools — never 'no limit'."""
+    v = _adm(
+        packet_kw={"required_tools": ["shell"]},
+        role_kw={"allowed_tools": []},
+        grant_kw={"allowed_tools": []},
+    )
+    assert not v.admitted
+    assert v.refusal_code == "tool_not_authorized", v.refusal_code
+
+
+def test_a_task_needing_no_tools_is_unaffected_by_tool_bounds():
+    """Control: the tool guard must not refuse work that requires no tools."""
+    v = _adm(packet_kw={"required_tools": []}, grant_kw={"allowed_tools": ["python"]})
+    assert v.admitted, (v.refusal_code, v.failed_checks())
+
+
+def test_skill_allowlist_enforces_when_the_role_declares_one():
+    """F2 (HIGH): the ALLOWLIST half must actually fire.
+
+    Production's `_RoleView` had no `permitted_skill_ids` field at all, so
+    `getattr(..., [])` supplied empty and the allowlist half was unreachable —
+    a Task requiring ANY skill was admitted. The prohibited-skill test passed
+    only because it injected a bespoke role object (injected-wiring confounder).
+    """
+    v = _adm(
+        packet_kw={
+            "requirements": {"required_skill_refs": [{"skill_id": "skill-EXFILTRATE"}]}
+        },
+        role_kw={"permitted_skill_ids": ["skill-ALLOWED"]},
+    )
+    assert not v.admitted, "a skill outside the role's allowlist was admitted"
+    assert v.refusal_code == "skill_not_authorized", v.refusal_code
+
+
+def test_production_role_view_carries_the_fields_admission_reads():
+    """Field parity: a field `_RoleView` OMITS silently disables its guard.
+
+    Admission reads role fields by `getattr` with an empty default, so an
+    absent field is not "unset" — it is "this check never fires". This asserts
+    the production role shape actually carries what admission consults.
+    """
+    from substrate.execution.attempts.field_control_plane import _default_role_resolver
+
+    role = _default_role_resolver(None)
+    for f in ("role_id", "allowed_tools", "permitted_skill_ids", "prohibited_skill_ids"):
+        assert hasattr(role, f), (
+            f"production role contract has no {f!r} — the admission guard that "
+            f"reads it can never fire"
+        )
+
+
+def test_no_environment_class_refuses_even_when_rollback_is_declared():
+    """F3 (MEDIUM): the corner where check 11 is the SOLE refuser.
+
+    The `environment_classes=[]` vector is also refused by check 12
+    (`structural_rollback = bool(env_classes) and ...`), so that case left
+    check 11 deletable-green. With a DECLARED rollback, check 12 passes and
+    only check 11 refuses — the one input where it is load-bearing.
+    """
+    v = _adm(
+        grant_kw={
+            "environment_classes": [],
+            "rollback_obligations": ["snapshot restore"],
+        }
+    )
+    assert not v.admitted, "no environment class was admitted"
+    assert v.refusal_code == "no_environment_class", v.refusal_code
+
+
+def test_negative_cost_limit_is_malformed_not_absent():
+    """F5 (LOW): `<= 0.0` treated a negative ceiling as 'no ceiling declared'."""
+    v = _adm(grant_kw={"cost_limit_usd": -5.0, "cost_enforceable": False})
+    assert not v.admitted
+    assert v.refusal_code == "malformed_cost_ceiling", v.refusal_code

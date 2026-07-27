@@ -93,10 +93,24 @@ class _RecordView:
 
 @dataclass
 class _RoleView:
-    """Minimal RoleContract shape the placement pipeline reads."""
+    """Minimal RoleContract shape the placement + admission pipeline reads.
+
+    Field parity with the canonical ``RoleContract`` matters: admission reads
+    these by ``getattr`` with an empty default, so a field this view OMITS is
+    not "unset" — it silently disables the guard that reads it. ``_RoleView``
+    previously had no ``permitted_skill_ids`` at all, so the skill ALLOWLIST
+    half of admission check 9 could never fire in production and a Task
+    requiring any skill whatsoever was admitted (adversarial review F2, HIGH).
+
+    ``permitted_skill_ids`` is empty by default, which means "this role does
+    not narrow skills" — the denylist still applies. It is present so that
+    populating it from a real RoleContract ENFORCES rather than silently
+    doing nothing.
+    """
 
     role_id: str
     allowed_tools: list[str] = field(default_factory=lambda: ["shell", "Edit", "Write"])
+    permitted_skill_ids: list[str] = field(default_factory=list)
     prohibited_skill_ids: list[str] = field(default_factory=list)
 
 

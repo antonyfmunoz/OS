@@ -219,32 +219,81 @@ def authorize_admission(
     permitted_skills = {str(s) for s in (getattr(role_contract, "permitted_skill_ids", []) or [])}
     prohibited_skills = {str(s) for s in (getattr(role_contract, "prohibited_skill_ids", []) or [])}
     conflicting = sorted(s for s in required_skills if s in prohibited_skills)
-    unauthorized = sorted(
-        s for s in required_skills if permitted_skills and s not in permitted_skills
-    )
+    # The DENYLIST always applies. The ALLOWLIST applies only when the role
+    # declares one — an empty `permitted_skill_ids` means "this role does not
+    # narrow skills", not "every skill is fine to skip checking".
+    #
+    # That distinction is stated explicitly rather than smuggled into the
+    # comprehension as `if permitted_skills and ...`: production's `_RoleView`
+    # had NO `permitted_skill_ids` field at all, so `getattr(..., [])` made the
+    # allowlist half unreachable and a Task requiring ANY skill was admitted
+    # (adversarial review F2, HIGH). The field now exists on `_RoleView`, so
+    # populating it enforces instead of silently doing nothing.
+    if permitted_skills:
+        unauthorized = sorted(s for s in required_skills if s not in permitted_skills)
+    else:
+        unauthorized = []
     ok &= check(
         "skills_role_authorized",
         not conflicting and not unauthorized,
-        f"required={required_skills} prohibited_hit={conflicting} unauthorized={unauthorized}",
+        f"required={required_skills} prohibited_hit={conflicting} "
+        f"unauthorized={unauthorized} allowlist_active={bool(permitted_skills)}",
         "skill_not_authorized",
     )
 
     # ── 10. tools ⊆ (role.allowed_tools ∩ grant.allowed_tools) ────────────
     # This is the check `placement.py` claimed happened "in readiness".
+    #
+    # The predicate below was ORIGINALLY copied from readiness.py as
+    # ``t for t in pkt_tools if permitted_tools and t not in permitted_tools``.
+    # That trailing guard VACATES the whole comprehension whenever
+    # ``permitted_tools`` is empty — and an empty set arises precisely when
+    # role and grant tool sets are DISJOINT. So tightening
+    # ``grant.allowed_tools`` from ["shell"] (which correctly refused "Bash")
+    # to ["python"] (disjoint from the role's ["shell"]) turned the guard OFF
+    # and admitted anything, including "rm_rf".
+    #
+    # A NARROWER operator bound admitting MORE is an inversion, not a gap, and
+    # it contradicted this module's own rule 2 ("Missing, empty, or unreadable
+    # data is a REFUSAL, never a pass"). Adversarial review F1 (HIGH).
+    #
+    # The empty cases are therefore decided EXPLICITLY, each on its own line:
     pkt_tools = [str(t) for t in (getattr(packet, "required_tools", []) or [])]
     role_tools = {str(t) for t in (getattr(role_contract, "allowed_tools", []) or [])}
     auth_tools = {str(t) for t in (getattr(grant, "allowed_tools", []) or [])}
-    if role_tools and auth_tools:
-        permitted_tools = role_tools & auth_tools
+
+    if not pkt_tools:
+        # The Task requires no tools — nothing to authorize.
+        check("tools_permitted", True, "task requires no tools")
+    elif role_tools and auth_tools and not (role_tools & auth_tools):
+        # DISJOINT: the operator authorized a tool set the role cannot hold.
+        # Nothing is jointly permitted, so nothing may run — never "no limit".
+        ok &= check(
+            "tools_permitted",
+            False,
+            f"role tools {sorted(role_tools)} and authorized tools "
+            f"{sorted(auth_tools)} are DISJOINT — no tool is jointly permitted",
+            "role_grant_tool_disjoint",
+        )
     else:
-        permitted_tools = role_tools or auth_tools
-    tool_violations = sorted(t for t in pkt_tools if permitted_tools and t not in permitted_tools)
-    ok &= check(
-        "tools_permitted",
-        not tool_violations,
-        f"required={pkt_tools} permitted={sorted(permitted_tools)} violations={tool_violations}",
-        "tool_not_authorized",
-    )
+        # An EMPTY grant bound means "the grant adds no narrowing", so the
+        # role's own allowlist governs. An empty ROLE allowlist means the role
+        # permits no tools at all — a Task requiring one is refused, not waved
+        # through. Only a genuine intersection permits.
+        if role_tools and auth_tools:
+            permitted_tools = role_tools & auth_tools
+        elif auth_tools:
+            permitted_tools = auth_tools
+        else:
+            permitted_tools = role_tools
+        tool_violations = sorted(t for t in pkt_tools if t not in permitted_tools)
+        ok &= check(
+            "tools_permitted",
+            not tool_violations,
+            f"required={pkt_tools} permitted={sorted(permitted_tools)} "
+            f"violations={tool_violations}",
+            "tool_not_authorized",
+        )
 
     # ── 11. environment class declared (empty must REFUSE, not default) ───
     env_classes = [str(e) for e in (getattr(grant, "environment_classes", []) or [])]
@@ -308,13 +357,25 @@ def authorize_admission(
 
     # ── 15. cost: a declared ceiling that cannot be enforced BLOCKS ───────
     # Amendment v1 clause 8, verbatim. Production admitted these.
-    cost_limit = float(getattr(grant, "cost_limit_usd", 0.0) or 0.0)
+    # A NEGATIVE limit is a MALFORMED ceiling, not an absent one. `<= 0.0`
+    # treated it as "no ceiling declared" and admitted it unenforceable
+    # (adversarial review F5). Absent is exactly 0.0; anything below is refused.
+    try:
+        cost_limit = float(getattr(grant, "cost_limit_usd", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        cost_limit = float("nan")
     cost_enforceable = bool(getattr(grant, "cost_enforceable", False))
+    if cost_limit != cost_limit:  # NaN — unparseable ceiling, fail closed
+        cost_ok, cost_code = False, "malformed_cost_ceiling"
+    elif cost_limit < 0.0:
+        cost_ok, cost_code = False, "malformed_cost_ceiling"
+    else:
+        cost_ok, cost_code = (cost_limit == 0.0 or cost_enforceable), "unenforceable_cost_ceiling"
     ok &= check(
         "cost_bounded",
-        cost_limit <= 0.0 or cost_enforceable,
+        cost_ok,
         f"cost_limit_usd={cost_limit} enforceable={cost_enforceable}",
-        "unenforceable_cost_ceiling",
+        cost_code,
     )
 
     # ── 16. no sibling attempt already live for this Task ─────────────────

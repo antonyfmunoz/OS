@@ -190,13 +190,16 @@ def test_grant_docstring_declares_it_is_not_a_decision():
 # ── R3: ONE admission authority (finding R2-5) ─────────────────────────────
 
 
-def test_admission_authority_is_consumed_by_the_production_scheduler():
-    """`authorize_admission` must be REACHABLE from the real admission path.
+def test_scheduler_binds_the_canonical_admission_symbol():
+    """The scheduler must bind THE canonical authority, not a rival copy.
 
-    Behavioral, not a source-string check: it verifies the scheduler module
-    actually binds the symbol, and that the symbol is the one from the
-    canonical admission module — the exact property that was FALSE for
-    `evaluate_execution_readiness` (defined, exported, and never called).
+    This is a BINDING check only — it deliberately no longer claims to be
+    behavioral. `hasattr` + symbol identity both hold for a module that imports
+    a function and never calls it, which is EXACTLY the R2-5 shape
+    (`evaluate_execution_readiness` was defined, exported, and never called).
+    A gate that cannot detect the defect it is named for is worse than no gate
+    (adversarial review F4). Consumption is proven by
+    `test_admission_verdict_is_actually_consumed` below.
     """
     from substrate.execution.attempts import admission, scheduler
 
@@ -208,6 +211,139 @@ def test_admission_authority_is_consumed_by_the_production_scheduler():
         "the scheduler is bound to a DIFFERENT authorize_admission than the "
         "canonical one — a rival admission authority exists"
     )
+
+
+def test_admission_verdict_is_actually_consumed(tmp_path, monkeypatch):
+    """The scheduler must CALL the authority and HONOUR its refusal.
+
+    Genuinely behavioral: a recording stub replaces the authority and returns a
+    REFUSAL for otherwise-valid work. If the scheduler merely imports the
+    symbol (the R2-5 shape) the stub is never invoked; if it calls but ignores
+    the verdict (the R2-1 shape) the attempt is admitted anyway. Both fail here.
+    """
+    from types import SimpleNamespace
+
+    from substrate.execution.attempts import scheduler as sched_mod
+    from substrate.execution.attempts.admission import AdmissionVerdict
+    from substrate.execution.attempts.records import (
+        ExecutionAttempt,
+        ExecutionAuthorizationGrant,
+    )
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+
+    store = ExecutionAttemptStore(
+        attempts_path=str(tmp_path / "a.jsonl"),
+        grants_path=str(tmp_path / "g.jsonl"),
+        readiness_path=str(tmp_path / "r.jsonl"),
+        leases_path=str(tmp_path / "l.jsonl"),
+        assignments_path=str(tmp_path / "asn.jsonl"),
+    )
+    packet = SimpleNamespace(
+        packet_id="T",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+        lineage={"plan_record_id": "p"},
+        requirements={},
+        validation_plan="v",
+        required_tools=[],
+        rollback_plan="",
+    )
+    grant = ExecutionAuthorizationGrant(
+        decision_ref="r",
+        tenant_id="t",
+        plan_record_id="p",
+        plan_version=1,
+        task_frontier=["T"],
+        objective_id="g",
+        max_attempts_per_task=2,
+        environment_classes=["git_worktree"],
+        verification_obligations=["v"],
+    )
+    grant.status = "active"
+    created, _ = store.create_grant_idempotent(grant)
+    att, _ = store.create_attempt_idempotent(
+        ExecutionAttempt(
+            task_id="T",
+            plan_record_id="p",
+            plan_version=1,
+            execution_authorization_ref="r",
+            attempt_number=1,
+            tenant_id="t",
+        )
+    )
+    store.transition_cas(
+        att.attempt_id,
+        "ready",
+        expected_record_version=att.record_version,
+        expected_statuses=("created",),
+        actor="test",
+        reason="ready",
+    )
+
+    calls: list[str] = []
+    leased: list[str] = []
+
+    def _recording_refusal(**kw):
+        calls.append(kw["attempt"].attempt_id)
+        return AdmissionVerdict(
+            admitted=False,
+            task_id=kw["attempt"].task_id,
+            attempt_id=kw["attempt"].attempt_id,
+            refusal_code="stub_refusal",
+            reason="stub refusal",
+        )
+
+    monkeypatch.setattr(sched_mod, "authorize_admission", _recording_refusal)
+
+    def _permit(**kw):
+        fn = kw.get("execute_fn")
+        out, ok = fn() if fn else ("", True)
+        return SimpleNamespace(success=ok, output=out)
+
+    s = sched_mod.AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=lambda p: packet if p == "T" else None),
+        placement_fn=lambda **kw: SimpleNamespace(
+            assignment_id="as",
+            worker_identity="w",
+            verifier_role_id="role-verify-op",
+            tool_profile=[],
+            model_profile={},
+            environment_class="git_worktree",
+        ),
+        lease_manager=SimpleNamespace(
+            acquire=lambda **kw: (
+                leased.append(kw["attempt"].attempt_id)
+                or SimpleNamespace(lease_id="L", worktree_path=str(tmp_path), base_commit="c")
+            ),
+            release=lambda *a, **k: None,
+        ),
+        compile_fn=lambda **kw: SimpleNamespace(package_hash="h"),
+        dispatch_fn=lambda **kw: None,
+        mutation_runner=_permit,
+        lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="p", status="approved"
+        ),
+    )
+    report = s.run_scheduler_pass(
+        created,
+        role_resolver=lambda p: SimpleNamespace(
+            role_id="role-impl-op",
+            allowed_tools=["shell"],
+            permitted_skill_ids=[],
+            prohibited_skill_ids=[],
+        ),
+        verifier_role_resolver=lambda p: "role-verify-op",
+    )
+
+    assert calls, (
+        "the scheduler never CALLED the admission authority — importing it is "
+        "not consuming it, and that is precisely the R2-5 shape"
+    )
+    assert not report.attempts_admitted, "the scheduler ignored a REFUSAL verdict"
+    assert not leased, "a refused attempt acquired a lease"
 
 
 def test_readiness_module_claims_no_admission_authority():
