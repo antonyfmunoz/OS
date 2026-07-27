@@ -241,23 +241,35 @@ def authorize_admission(
         "skill_not_authorized",
     )
 
-    # ── 10. tools ⊆ (role.allowed_tools ∩ grant.allowed_tools) ────────────
+    # ── 10. tools ⊆ grant.allowed_tools (the OPERATOR's bound) ────────────
     # This is the check `placement.py` claimed happened "in readiness".
     #
-    # The predicate below was ORIGINALLY copied from readiness.py as
-    # ``t for t in pkt_tools if permitted_tools and t not in permitted_tools``.
-    # That trailing guard VACATES the whole comprehension whenever
-    # ``permitted_tools`` is empty — and an empty set arises precisely when
-    # role and grant tool sets are DISJOINT. So tightening
-    # ``grant.allowed_tools`` from ["shell"] (which correctly refused "Bash")
-    # to ["python"] (disjoint from the role's ["shell"]) turned the guard OFF
-    # and admitted anything, including "rm_rf".
+    # SCOPE — deliberately the GRANT bound, not role ∩ grant.
+    # ``packet.required_tools`` is PLANNING vocabulary, copied verbatim from the
+    # archetype's ``tool_policy`` (compiler.py:705): repository, typecheck,
+    # editor, shell_gated, docker, crm, search, read, graph_query, test_runner.
+    # ``RoleContract.allowed_tools`` is an INDEPENDENTLY-AUTHORED vocabulary:
+    # code_edit, test_runner, deploy, web_search, document_analysis, monitor,
+    # config. The two namespaces share exactly ONE token out of sixteen
+    # (`test_runner`) and no mapping between them exists anywhere in the tree.
     #
-    # A NARROWER operator bound admitting MORE is an inversion, not a gap, and
-    # it contradicted this module's own rule 2 ("Missing, empty, or unreadable
-    # data is a REFUSAL, never a pass"). Adversarial review F1 (HIGH).
+    # Comparing them refused 5 of 5 real archetypes `tool_not_authorized` —
+    # every packet the canonical compiler produces (adversarial review R4-3).
+    # The fixture suites could not see it because they hand-build packets with
+    # ``required_tools=[]``. A guard that refuses ALL legitimate work is as
+    # broken as one that admits everything, so the role leg is NOT enforced
+    # here. Reconciling the two vocabularies is real work with a real owner
+    # (see the ledger entry) — not something to fake with a lenient predicate.
     #
-    # The empty cases are therefore decided EXPLICITLY, each on its own line:
+    # ``grant.allowed_tools`` IS comparable: an operator narrowing execution to
+    # a tool set expresses it in the Task's own vocabulary, which is what they
+    # see on the decision. That bound is enforced strictly.
+    #
+    # The empty cases are decided EXPLICITLY. The original predicate, copied
+    # from readiness.py as
+    # ``t for t in pkt_tools if permitted_tools and t not in permitted_tools``,
+    # VACATED whenever the permitted set was empty, so a NARROWER operator
+    # bound admitted MORE (F1, R4-1 — the same inversion twice).
     pkt_tools = [str(t) for t in (getattr(packet, "required_tools", []) or [])]
     role_tools = {str(t) for t in (getattr(role_contract, "allowed_tools", []) or [])}
     auth_tools = {str(t) for t in (getattr(grant, "allowed_tools", []) or [])}
@@ -265,33 +277,25 @@ def authorize_admission(
     if not pkt_tools:
         # The Task requires no tools — nothing to authorize.
         check("tools_permitted", True, "task requires no tools")
-    elif role_tools and auth_tools and not (role_tools & auth_tools):
-        # DISJOINT: the operator authorized a tool set the role cannot hold.
-        # Nothing is jointly permitted, so nothing may run — never "no limit".
-        ok &= check(
+    elif not auth_tools:
+        # The operator declared no tool bound, so this check adds no narrowing.
+        # Recorded explicitly (never silently skipped) so the absence is legible
+        # in the verdict, and it names the role vocabulary it did NOT compare.
+        check(
             "tools_permitted",
-            False,
-            f"role tools {sorted(role_tools)} and authorized tools "
-            f"{sorted(auth_tools)} are DISJOINT — no tool is jointly permitted",
-            "role_grant_tool_disjoint",
+            True,
+            f"grant declares no tool bound; required={pkt_tools} "
+            f"(role vocabulary {sorted(role_tools)} not comparable — see ledger #15)",
         )
     else:
-        # An EMPTY grant bound means "the grant adds no narrowing", so the
-        # role's own allowlist governs. An empty ROLE allowlist means the role
-        # permits no tools at all — a Task requiring one is refused, not waved
-        # through. Only a genuine intersection permits.
-        if role_tools and auth_tools:
-            permitted_tools = role_tools & auth_tools
-        elif auth_tools:
-            permitted_tools = auth_tools
-        else:
-            permitted_tools = role_tools
-        tool_violations = sorted(t for t in pkt_tools if t not in permitted_tools)
+        # A declared operator bound is enforced STRICTLY: every required tool
+        # must appear in it. Empty never means "unrestricted" here — that case
+        # is the branch above, decided on its own terms.
+        tool_violations = sorted(t for t in pkt_tools if t not in auth_tools)
         ok &= check(
             "tools_permitted",
             not tool_violations,
-            f"required={pkt_tools} permitted={sorted(permitted_tools)} "
-            f"violations={tool_violations}",
+            f"required={pkt_tools} authorized={sorted(auth_tools)} violations={tool_violations}",
             "tool_not_authorized",
         )
 
@@ -368,6 +372,10 @@ def authorize_admission(
     if cost_limit != cost_limit:  # NaN — unparseable ceiling, fail closed
         cost_ok, cost_code = False, "malformed_cost_ceiling"
     elif cost_limit < 0.0:
+        cost_ok, cost_code = False, "malformed_cost_ceiling"
+    elif cost_limit == float("inf"):
+        # An INFINITE ceiling is not a ceiling. Marking it "enforceable" would
+        # otherwise satisfy the bound while bounding nothing (review R4-5).
         cost_ok, cost_code = False, "malformed_cost_ceiling"
     else:
         cost_ok, cost_code = (cost_limit == 0.0 or cost_enforceable), "unenforceable_cost_ceiling"

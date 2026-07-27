@@ -2047,26 +2047,80 @@ def test_admission_refuses_when_no_attempt_ledger_lookup_is_supplied():
 # ── adversarial-review round 3 (F1/F2/F3/F5) ───────────────────────────────
 
 
-def test_disjoint_role_and_grant_tools_refuse_rather_than_vacate():
-    """F1 (HIGH): a NARROWER operator bound must not admit MORE.
+def test_a_tool_outside_the_operator_bound_is_refused_whatever_the_role_says():
+    """F1/R4-1 (HIGH): the empty-set VACATE must never turn the guard off.
 
     The predicate was `t for t in pkt_tools if permitted_tools and t not in
-    permitted_tools` — copied from readiness.py. It VACATES whenever
-    `permitted_tools` is empty, and an empty set arises when role and grant
-    tool sets are DISJOINT. So tightening `grant.allowed_tools` from ["shell"]
-    (which correctly refused "Bash") to ["python"] (disjoint from role
-    ["shell"]) turned the guard OFF and admitted "rm_rf".
-
-    An inversion, not a gap — and a direct violation of this module's own rule
-    that empty data is a REFUSAL.
+    permitted_tools` — copied from readiness.py. It VACATES whenever the
+    permitted set is empty, so a NARROWER operator bound admitted MORE. The
+    check now compares against `grant.allowed_tools` directly (see
+    `test_role_tool_vocabulary_is_not_compared_against_task_tools` for why the
+    role leg is excluded), and a declared bound is enforced strictly no matter
+    what the role's own vocabulary contains.
     """
     v = _adm(
         packet_kw={"required_tools": ["rm_rf"]},
         role_kw={"allowed_tools": ["shell"]},
-        grant_kw={"allowed_tools": ["python"]},  # DISJOINT from the role
+        grant_kw={"allowed_tools": ["python"]},
     )
-    assert not v.admitted, "disjoint role/grant tool sets admitted an arbitrary tool"
-    assert v.refusal_code == "role_grant_tool_disjoint", v.refusal_code
+    assert not v.admitted, "a tool outside the operator's bound was admitted"
+    assert v.refusal_code == "tool_not_authorized", v.refusal_code
+
+
+def test_narrowing_the_operator_bound_never_admits_more_across_role_shapes():
+    """The monotonicity property F1 and R4-1 both broke, over role shapes.
+
+    R4-1 was the SAME inversion one branch over: with an empty role allowlist,
+    ADDING `grant.allowed_tools=[rm_rf]` where there was none flipped a refusal
+    into an admit, because the grant stood in for the absent role list. A grant
+    may only ever SHRINK what is permitted.
+    """
+    for role_tools in ([], ["shell"], ["rm_rf"]):
+        unbounded = _adm(
+            packet_kw={"required_tools": ["rm_rf"]},
+            role_kw={"allowed_tools": role_tools},
+            grant_kw={"allowed_tools": []},
+        )
+        bounded = _adm(
+            packet_kw={"required_tools": ["rm_rf"]},
+            role_kw={"allowed_tools": role_tools},
+            grant_kw={"allowed_tools": ["something-else"]},
+        )
+        assert not bounded.admitted, (
+            f"role={role_tools}: adding an operator tool bound that does NOT "
+            f"include the required tool must refuse, got {bounded.refusal_code!r}"
+        )
+        if not unbounded.admitted:
+            assert not bounded.admitted, (
+                f"role={role_tools}: narrowing the bound admitted work the "
+                f"unbounded case refused — the guard inverts"
+            )
+
+
+def test_role_tool_vocabulary_is_not_compared_against_task_tools():
+    """R4-3 (MEDIUM): comparing role tools to Task tools refused ALL real work.
+
+    `packet.required_tools` is PLANNING vocabulary copied from the archetype
+    (`repository`, `typecheck`, `editor`, `shell_gated`, `crm`, …).
+    `RoleContract.allowed_tools` is an independently-authored vocabulary
+    (`code_edit`, `deploy`, `web_search`, …). They share ONE token out of
+    sixteen and no mapping exists, so the intersection refused 5 of 5 real
+    archetypes — every packet the canonical compiler produces. A guard that
+    refuses all legitimate work is as broken as one that admits everything.
+
+    This pins the deliberate scope: the ROLE leg is not enforced here. It must
+    not be "fixed" by re-adding the comparison; reconciling the two
+    vocabularies is tracked as ledger #15.
+    """
+    v = _adm(
+        packet_kw={"required_tools": ["repository", "typecheck"]},
+        role_kw={"allowed_tools": ["code_edit", "deploy"]},  # disjoint vocabulary
+        grant_kw={"allowed_tools": []},
+    )
+    assert v.admitted, (
+        "a real compiler-shaped Task was refused because its planning tool "
+        "vocabulary differs from the role store's — this refuses ALL real work"
+    )
 
 
 def test_narrowing_the_operator_tool_bound_never_widens_what_is_admitted():
@@ -2091,15 +2145,21 @@ def test_narrowing_the_operator_tool_bound_never_widens_what_is_admitted():
     )
 
 
-def test_a_role_permitting_no_tools_refuses_a_task_that_needs_one():
-    """An EMPTY role allowlist means the role permits NO tools — never 'no limit'."""
+def test_no_operator_tool_bound_is_recorded_explicitly_not_silently_skipped():
+    """An absent operator bound adds no narrowing — but must be LEGIBLE.
+
+    The verdict records the check as passed with a detail naming the
+    un-compared role vocabulary, so "this check did not constrain anything"
+    can never be mistaken for "this check enforced something".
+    """
     v = _adm(
         packet_kw={"required_tools": ["shell"]},
         role_kw={"allowed_tools": []},
         grant_kw={"allowed_tools": []},
     )
-    assert not v.admitted
-    assert v.refusal_code == "tool_not_authorized", v.refusal_code
+    assert v.admitted, (v.refusal_code, v.failed_checks())
+    detail = next(c["detail"] for c in v.checks if c["check"] == "tools_permitted")
+    assert "no tool bound" in detail, detail
 
 
 def test_a_task_needing_no_tools_is_unaffected_by_tool_bounds():
@@ -2164,5 +2224,79 @@ def test_no_environment_class_refuses_even_when_rollback_is_declared():
 def test_negative_cost_limit_is_malformed_not_absent():
     """F5 (LOW): `<= 0.0` treated a negative ceiling as 'no ceiling declared'."""
     v = _adm(grant_kw={"cost_limit_usd": -5.0, "cost_enforceable": False})
+    assert not v.admitted
+    assert v.refusal_code == "malformed_cost_ceiling", v.refusal_code
+
+
+def test_production_resolver_returns_the_packets_declared_role():
+    """R4-2 (HIGH): the production resolver returned a CONSTANT for every packet.
+
+    `_default_role_resolver` hardcoded `_RoleView(role_id=_IMPLEMENTER_ROLE_ID)`
+    with permanently-empty skill lists, so `skills_role_authorized` could not
+    refuse anything in production — a Task requiring ANY skill was admitted.
+    Adding the `permitted_skill_ids` FIELD did not fix that: the field was
+    always empty, and the parity test asserted only `hasattr`, which is true of
+    a permanently-empty field (the same structural-standing-in-for-behavioral
+    shape F4 was filed for).
+
+    The resolver now resolves the packet's OWN declared role from the canonical
+    store the compiler used, so the guard judges against real authority.
+    """
+    from substrate.execution.attempts.field_control_plane import _default_role_resolver
+
+    pkt = SimpleNamespace(required_role_contracts=["role-research-op"])
+    role = _default_role_resolver(pkt)
+    assert role.role_id == "role-research-op", (
+        f"the resolver ignored the packet's declared role, returned "
+        f"{getattr(role, 'role_id', None)!r} — it is still a constant"
+    )
+    assert "web_search" in (getattr(role, "allowed_tools", []) or []), (
+        "the resolved role does not carry the canonical store's data"
+    )
+
+
+def test_production_resolver_falls_back_for_a_packet_with_no_declared_role():
+    """A packet declaring no role must stay DECIDABLE, not crash admission."""
+    from substrate.execution.attempts.field_control_plane import _default_role_resolver
+
+    role = _default_role_resolver(SimpleNamespace(required_role_contracts=[]))
+    assert getattr(role, "role_id", ""), "fallback role must still have an id"
+    for f in ("allowed_tools", "permitted_skill_ids", "prohibited_skill_ids"):
+        assert hasattr(role, f), f"fallback role missing {f}"
+
+
+def test_a_resolved_role_with_a_real_prohibited_skill_refuses():
+    """The denylist must fire against a role resolved from the canonical store,
+    not only against a hand-injected SimpleNamespace (the confounder that hid
+    F2 twice)."""
+    from substrate.organism.role_contracts import RoleContract
+
+    role = RoleContract.from_dict(
+        {"role_id": "role-impl-op", "prohibited_skill_ids": ["skill-FORBIDDEN"]}
+    )
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, _ = _adm_inputs(
+        packet_kw={
+            "requirements": {"required_skill_refs": [{"skill_id": "skill-FORBIDDEN"}]}
+        }
+    )
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="role-verify-op",
+        plan_lookup=lambda _o: SimpleNamespace(plan_record_id="p", status="approved"),
+        attempts_for_task=lambda _t: [],
+    )
+    assert not v.admitted
+    assert v.refusal_code == "skill_not_authorized", v.refusal_code
+
+
+def test_infinite_cost_ceiling_is_malformed():
+    """R4-5 (LOW): an INFINITE ceiling is not a ceiling. Marking it enforceable
+    would satisfy the bound while bounding nothing."""
+    v = _adm(grant_kw={"cost_limit_usd": float("inf"), "cost_enforceable": True})
     assert not v.admitted
     assert v.refusal_code == "malformed_cost_ceiling", v.refusal_code

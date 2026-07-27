@@ -145,7 +145,52 @@ class ControlPlaneCycleReport:
         }
 
 
-def _default_role_resolver(_packet: Any) -> Any:
+def _canonical_role(role_contract_id: str) -> Any:
+    """Resolve a role from the ONE canonical role store, or None.
+
+    Same source the planning compiler uses (`compiler._load_role` →
+    `SEED_ROLE_CONTRACTS`), so admission judges a Task against the role the
+    plan actually declared for it rather than a constant.
+    """
+    try:
+        from substrate.organism.role_contracts import SEED_ROLE_CONTRACTS, RoleContract
+
+        for seed in SEED_ROLE_CONTRACTS:
+            if seed.get("role_id") == role_contract_id:
+                return RoleContract.from_dict(seed)
+    except Exception as exc:  # unreadable store → caller falls back, never crashes
+        logger.debug("role contract load failed for %s: %s", role_contract_id, exc)
+    return None
+
+
+def _default_role_resolver(packet: Any) -> Any:
+    """The role the PACKET declares, resolved from the canonical role store.
+
+    This previously returned a hardcoded ``_RoleView(role_id=_IMPLEMENTER_ROLE_ID)``
+    for every packet, which made two admission guards unable to refuse anything
+    in production (adversarial review R4-2/R4-3):
+
+    * ``skills_role_authorized`` — the stub's ``permitted_skill_ids`` and
+      ``prohibited_skill_ids`` were both permanently empty, so a Task requiring
+      ANY skill was admitted;
+    * ``tools_permitted`` — the stub's ``allowed_tools`` (``shell/Edit/Write``)
+      is DISJOINT from every archetype's ``tool_policy``
+      (``repository/test_runner/typecheck``, ``editor``, ``shell_gated/docker``,
+      …), so all 5 real archetypes were refused ``tool_not_authorized``. The
+      fixture tests could not see it: they hand-build packets with
+      ``required_tools=[]``.
+
+    Resolving the packet's OWN declared role from the same store the compiler
+    used makes both guards judge against real authority. The ``_RoleView``
+    fallback is retained for packets that declare no role (hand-built fixtures
+    and any pre-compiler packet) so admission stays decidable — it is a
+    fallback, never the primary path.
+    """
+    declared = [str(r) for r in (getattr(packet, "required_role_contracts", None) or []) if str(r)]
+    for role_id in declared:
+        resolved = _canonical_role(role_id)
+        if resolved is not None:
+            return resolved
     return _RoleView(role_id=_IMPLEMENTER_ROLE_ID)
 
 
