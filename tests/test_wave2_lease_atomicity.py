@@ -25,7 +25,9 @@ import multiprocessing as mp
 import os
 from types import SimpleNamespace
 
-from substrate.execution.attempts.leases import LeaseManager
+import pytest
+
+from substrate.execution.attempts.leases import LeaseError, LeaseManager
 from substrate.execution.attempts.records import ExecutionAttempt
 from substrate.execution.attempts.store import ExecutionAttemptStore
 
@@ -425,3 +427,196 @@ def test_passing_checks_never_record_refusal_text():
     assert "task_in_authorized_frontier" in failed_with_detail, (
         "a refusal must still record WHY it refused"
     )
+
+
+# ── C-1: the claim must be judged by the LEDGER, not by an exception ────────
+#
+# Round-8 independent review, CRITICAL. The store half of the F1 fix
+# (`append_lease_if_no_active`) was correct, but `acquire` depended on
+# `AttemptStoreConflict` PROPAGATING out of the governed runner — and every real
+# runner CATCHES what `execute_fn` raises and returns a response object instead:
+#   GovernedExecutionSpine._execute   (governed_spine.py:507)
+#   MutationRouter.execute            (mutation_router.py:136-144)
+#   route_mutation_degraded           (mutation_router.py:369-377)
+#
+# So on the production path the `except` never fired and `acquire` fell through
+# to `return lease`, handing the race LOSER a lease that was never persisted,
+# with its worktree leaked. That is WORSE than the original race: the loser
+# believes it holds the lease, so `_admit` proceeds LEASED → compile → dispatch
+# a real worker against a Task whose lease belongs to someone else. And since
+# `release()`/`revoke()` both `get_lease(...)` and return silently on None, a
+# never-persisted lease is invisible to terminalization — the leak is
+# unrecoverable.
+#
+# Defect shape: confounder (d) — TEST WIRING INJECTED WHAT PRODUCTION NEVER
+# SUPPLIES. The tests above use a raise-through runner, which no real runner is.
+# These tests use runners that behave like the real ones.
+
+
+def _swallowing_runner(**kw):
+    """Behaves like every REAL governed runner: catches, returns, never raises."""
+    fn = kw.get("execute_fn")
+    try:
+        out, ok = fn() if fn else ("", True)
+        return SimpleNamespace(success=ok, output=out)
+    except Exception as exc:  # noqa: BLE001 — this swallowing IS the point
+        return SimpleNamespace(success=False, output=str(exc))
+
+
+def _refusing_runner(**kw):
+    """Degraded mode: `execution_lease_mutate` is refused, execute_fn never runs."""
+    return SimpleNamespace(success=False, output="degraded_mode_not_allowed")
+
+
+class _BlindPreCheck:
+    """Makes the cheap pre-check see nothing, as a real racing process does."""
+
+    def __init__(self, real):
+        self._real = real
+
+    def active_lease_for_task(self, task_id):
+        return None
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+def test_race_loser_is_refused_even_when_the_runner_swallows_the_conflict(tmp_path):
+    """The decisive test: a REALISTIC runner, not a raise-through one."""
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    sandbox = _SlowSandbox(str(tmp_path / "repo"), str(tmp_path / "wt"), delay=0.0)
+    lm = LeaseManager(store, sandbox, mutation_runner=_swallowing_runner)
+
+    a1 = ExecutionAttempt(task_id="wp-a", attempt_number=1)
+    a1.attempt_id = "ea-1"
+    lm.acquire(attempt=a1, assignment=_assignment(), grant=_grant())
+
+    lm._store = _BlindPreCheck(store)  # noqa: SLF001 — simulate the race window
+    a2 = ExecutionAttempt(task_id="wp-a", attempt_number=2)
+    a2.attempt_id = "ea-2"
+
+    with pytest.raises(LeaseError):
+        lm.acquire(attempt=a2, assignment=_assignment(), grant=_grant())
+
+    assert len(_active_leases_for(paths, "wp-a")) == 1, (
+        "a second lease persisted, or the loser was handed an unpersisted one"
+    )
+    assert "sb-ea-2" in sandbox.cleaned, (
+        "the race loser leaked its worktree — release()/revoke() cannot reclaim "
+        "a lease that was never persisted, so the leak is unrecoverable"
+    )
+
+
+def test_degraded_mutation_refusal_never_returns_a_phantom_lease(tmp_path):
+    """`execution_lease_mutate` has degraded_mode_allowed=False.
+
+    When the mutation is refused outright nothing persists — the caller must be
+    REFUSED, not handed a lease object it would then dispatch a worker against.
+    """
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    sandbox = _SlowSandbox(str(tmp_path / "repo"), str(tmp_path / "wt"), delay=0.0)
+    lm = LeaseManager(store, sandbox, mutation_runner=_refusing_runner)
+
+    attempt = ExecutionAttempt(task_id="wp-a", attempt_number=1)
+    attempt.attempt_id = "ea-1"
+
+    with pytest.raises(LeaseError):
+        lm.acquire(attempt=attempt, assignment=_assignment(), grant=_grant())
+
+    assert _active_leases_for(paths, "wp-a") == [], "a phantom lease persisted"
+    assert "sb-ea-1" in sandbox.cleaned, "worktree leaked on a refused mutation"
+
+
+def test_acquire_is_judged_by_the_ledger_not_by_the_runners_return(tmp_path):
+    """Even a runner that claims SUCCESS cannot conjure a lease.
+
+    The durable ledger is the only authority. A runner returning success=True
+    while nothing persisted must still refuse.
+    """
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    sandbox = _SlowSandbox(str(tmp_path / "repo"), str(tmp_path / "wt"), delay=0.0)
+
+    def _lying_runner(**kw):
+        return SimpleNamespace(success=True, output="pretended to persist")
+
+    lm = LeaseManager(store, sandbox, mutation_runner=_lying_runner)
+    attempt = ExecutionAttempt(task_id="wp-a", attempt_number=1)
+    attempt.attempt_id = "ea-1"
+
+    with pytest.raises(LeaseError):
+        lm.acquire(attempt=attempt, assignment=_assignment(), grant=_grant())
+    assert _active_leases_for(paths, "wp-a") == []
+    assert "sb-ea-1" in sandbox.cleaned
+
+
+# ── H-1: a REFUSED CAS transition must not look like a successful one ───────
+
+
+def test_transition_refused_by_a_swallowing_runner_raises_not_returns_stale():
+    """Round-8 H-1, executed and confirmed before fixing.
+
+    `_transition` populated `result_holder` inside `execute_fn` and fell back to
+    `return attempt` when the holder was empty. Because every real governed
+    runner swallows what `execute_fn` raises, a REFUSED `transition_cas` left
+    the holder empty and the method returned the STALE pre-transition attempt —
+    indistinguishable from success. Callers then proceeded as though the attempt
+    had advanced. Measured before the fix: an illegal ready→dispatched jump
+    returned status 'ready' with the ledger unchanged and no signal at all.
+
+    Same remedy as C-1: the durable ledger is the authority, not the runner's
+    return value.
+    """
+    import tempfile
+
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+    from substrate.execution.attempts.store import AttemptStoreConflict
+
+    tmp = tempfile.mkdtemp(prefix="h1-")
+    store = ExecutionAttemptStore(
+        attempts_path=os.path.join(tmp, "a.jsonl"),
+        grants_path=os.path.join(tmp, "g.jsonl"),
+        readiness_path=os.path.join(tmp, "r.jsonl"),
+        leases_path=os.path.join(tmp, "l.jsonl"),
+        assignments_path=os.path.join(tmp, "asn.jsonl"),
+    )
+    attempt = ExecutionAttempt(task_id="wp-a", attempt_number=1)
+    attempt.attempt_id = "ea-1"
+    attempt.status = "ready"
+    store.create_attempt_idempotent(attempt)
+
+    sched = AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=lambda _t: None),
+        placement_fn=lambda **_k: None,
+        lease_manager=None,
+        compile_fn=lambda **_k: None,
+        mutation_runner=_swallowing_runner,
+        lock_dir=os.path.join(tmp, "locks"),
+    )
+
+    fresh = store.get_attempt("ea-1")
+    with pytest.raises(AttemptStoreConflict):
+        sched._transition(  # noqa: SLF001
+            fresh, "dispatched", ("leased",), "scheduler", "illegal jump"
+        )
+    assert store.get_attempt("ea-1").status == "ready", "the ledger must be untouched"
+
+    # A WELL-FORMED transition still commits — the fix must not refuse real work.
+    fresh = store.get_attempt("ea-1")
+    out = sched._transition(  # noqa: SLF001
+        fresh,
+        "leased",
+        ("ready",),
+        "scheduler",
+        "placed + leased",
+        updates={
+            "assignment_id": "exasn-1",
+            "lease_id": "lease-1",
+            "verifier_role_id": "role-verify-op",
+        },
+    )
+    assert out.status == "leased"
+    assert store.get_attempt("ea-1").status == "leased"

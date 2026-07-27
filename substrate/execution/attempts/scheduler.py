@@ -694,7 +694,39 @@ class AttemptScheduler:
             source="execution_attempts_scheduler",
             metadata={"attempt_id": attempt.attempt_id, "to_status": to_status},
         )
-        return result_holder.get("attempt", attempt)
+        updated = result_holder.get("attempt")
+        if updated is not None:
+            return updated
+
+        # The holder is empty, so `_apply` did not complete. DO NOT return the
+        # stale pre-transition attempt as if nothing were wrong: every real
+        # governed runner CATCHES what `execute_fn` raises and returns a
+        # response object instead of re-raising (`GovernedExecutionSpine._execute`,
+        # `MutationRouter.execute`, `route_mutation_degraded`), so an
+        # `AttemptStoreConflict` from `transition_cas` never reaches the
+        # `except AttemptStoreConflict` handlers in this module. Silently
+        # returning the stale attempt made a REFUSED transition indistinguishable
+        # from a successful one — the caller then proceeds as though the attempt
+        # had advanced (round-8 independent review H-1, executed and confirmed:
+        # an illegal ready→dispatched jump returned status 'ready' with the
+        # ledger unchanged and no signal).
+        #
+        # Same remedy as the lease claim (C-1): the durable ledger is the only
+        # authority. Re-read it; if the attempt really did advance (a concurrent
+        # writer, or a runner that persisted without populating the holder),
+        # honour that. Otherwise raise so the caller fails closed.
+        fresh = None
+        try:
+            fresh = self._store.get_attempt(attempt.attempt_id)
+        except Exception as exc:  # unreadable ledger → fail closed
+            logger.debug("attempt re-read failed for %s: %s", attempt.attempt_id, exc)
+        if fresh is not None and str(getattr(fresh, "status", "")) == str(to_status):
+            return fresh
+        raise AttemptStoreConflict(
+            f"transition {attempt.attempt_id} → {to_status} did not commit "
+            f"(ledger status "
+            f"{str(getattr(fresh, 'status', 'unreadable')) if fresh is not None else 'unreadable'})"
+        )
 
     def _native_runner(self) -> Callable[..., Any]:
         from substrate.execution.intent.loop import _substrate_native_governed_mutation

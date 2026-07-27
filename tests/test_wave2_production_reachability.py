@@ -990,3 +990,82 @@ def test_grant_bounds_are_not_derived_from_the_plans_own_packets():
     assert list(getattr(grant, "allowed_tools", [])) == [], (
         "grant.allowed_tools is populated by default — same tautology risk"
     )
+
+
+def test_every_documented_check_number_matches_the_code():
+    """M-4: documentation check numbers must agree with the code's own numbering.
+
+    The admission docstring once numbered the checks 9/11/16/10 while the inline
+    `── N.` section comments numbered those same checks 8/10/15/9. The
+    correction fixed the docstring but left two stale numbers in convergence
+    ledger row #18 — including the very number the commit set out to fix, later
+    in the same row — plus a reference to a "check 18" that does not exist
+    (the module has 17). Found by round-8 independent review.
+
+    This module's whole premise is that a comment must never misdescribe the
+    code it documents. That standard applies to the ledger too, so the numbering
+    is pinned mechanically rather than by proofreading.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1]
+    admission = (root / "substrate" / "execution" / "attempts" / "admission.py").read_text()
+
+    # Ground truth: the inline `── N. <name>` section comments.
+    inline = re.findall(r"^    # ── (\d+)\. (.+?)\s*─*$", admission, re.M)
+    numbers = {int(n) for n, _ in inline}
+    assert numbers, "no inline check sections found — the anchor format changed"
+    highest = max(numbers)
+    assert numbers == set(range(1, highest + 1)), (
+        f"inline check numbering is not contiguous 1..{highest}: {sorted(numbers)}"
+    )
+
+    # No document may reference a check number the module does not have.
+    ledger = (root / "docs" / "cockpit-surface-convergence.md").read_text()
+
+    def _cited_numbers(text: str) -> set[int]:
+        """Every check number a document cites.
+
+        Two earlier versions of this gate were defeated by their own target
+        defect. The first matched only the number immediately after `check(s)`,
+        so `checks 3, 4 and 18` cited three numbers but only 3 was inspected.
+        The second consumed list continuations but broke on an interrupting
+        parenthetical — `checks 3 (tenant), 4 (...) and 18` — which is exactly
+        the shape the real ledger row uses.
+
+        Regex-walking prose is the wrong instrument. Instead: take a WINDOW of
+        text after each `check(s)` anchor and inspect EVERY bare integer in it,
+        stopping at a sentence end. Over-inspecting is safe here (a false
+        positive is a number > 17 that a human must justify); under-inspecting
+        is what let the defect back in twice.
+        """
+        cited: set[int] = set()
+        for match in re.finditer(r"\bcheck(?:s)?\b", text):
+            window = text[match.end() : match.end() + 160]
+            window = re.split(r"(?<=[.;])\s|\n\n|\| ", window)[0]
+            cited.update(int(n) for n in re.findall(r"(?<![\w.-])(\d{1,3})(?![\w.-])", window))
+        return cited
+
+    for source_name, text in (("admission.py", admission), ("ledger", ledger)):
+        for cited_num in sorted(_cited_numbers(text)):
+            assert cited_num <= highest, (
+                f"{source_name} cites check {cited_num}, but admission.py has only "
+                f"{highest} checks — a stale number from an earlier numbering"
+            )
+
+    # The four checks the R6-F1/R6-F2 classification names must map to the right
+    # concerns, so a renumbering cannot silently repoint the argument.
+    by_number = {int(n): name for n, name in inline}
+    expected = {
+        8: "role",       # grant.role_ids
+        9: "skills",     # skills_role_authorized
+        10: "tools",     # grant.allowed_tools
+        15: "cost",      # cost_limit_usd
+    }
+    for num, token in expected.items():
+        assert num in by_number, f"check {num} no longer exists"
+        assert token in by_number[num].lower(), (
+            f"check {num} is now {by_number[num]!r}, not the {token!r} check the "
+            "R6-F1/R6-F2 classification and ledger rows #16/#18 refer to"
+        )

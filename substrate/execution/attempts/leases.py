@@ -204,6 +204,7 @@ class LeaseManager:
             self._store.append_lease_if_no_active(lease)
             return (f"lease acquired: {lease.lease_id}", True)
 
+        conflict: Exception | None = None
         try:
             self._runner()(
                 mutation_name="execution_lease_mutate",
@@ -213,10 +214,37 @@ class LeaseManager:
                 metadata={"lease_id": lease.lease_id, "task_id": task_id},
             )
         except AttemptStoreConflict as exc:
-            # We lost the race after creating a worktree. Destroy it before
-            # failing closed, or the loser leaks a sandbox that the teardown
-            # assertions ("git worktree list shows only the main tree") would
-            # later trip over.
+            conflict = exc
+
+        # DO NOT trust the exception to reach us. Every real governed runner
+        # CATCHES what `execute_fn` raises and returns a response object
+        # instead of re-raising — `GovernedExecutionSpine._execute`,
+        # `MutationRouter.execute` and `route_mutation_degraded` all do. The
+        # `except` above therefore never fires on the production path, and an
+        # earlier version of this method fell through to `return lease`,
+        # handing the race LOSER a lease that was never persisted, with its
+        # worktree leaked (round-8 independent review C-1, CRITICAL).
+        #
+        # That is worse than the original race: the loser BELIEVES it holds the
+        # lease, so `_admit` proceeds LEASED → compile → dispatch a real worker
+        # against a Task whose lease belongs to someone else. And because
+        # `release()`/`revoke()` both begin with `get_lease(...)` and return
+        # silently on `None`, a never-persisted lease is invisible to
+        # terminalization, so the leak is unrecoverable.
+        #
+        # The durable ledger is the only authority on whether the claim
+        # succeeded. Re-read it. This also covers the degraded case, where
+        # `execution_lease_mutate` is refused outright
+        # (`degraded_mode_allowed=False`) and nothing persists at all.
+        persisted = None
+        try:
+            persisted = self._store.get_lease(lease.lease_id)
+        except Exception as exc:  # unreadable ledger → fail closed
+            logger.debug("lease persistence re-read failed for %s: %s", lease.lease_id, exc)
+        if conflict is not None or persisted is None:
+            # We did not get the lease. Destroy the worktree we already created
+            # before failing closed, or the loser leaks a sandbox that teardown
+            # ("git worktree list shows only the main tree") would later trip on.
             if self._sandbox is not None and sandbox_id:
                 try:
                     self._sandbox.cleanup_sandbox(sandbox_id)  # type: ignore[attr-defined]
@@ -226,7 +254,12 @@ class LeaseManager:
                         sandbox_id,
                         cleanup_exc,
                     )
-            raise LeaseError(f"task {task_id} already has an active lease") from exc
+            reason = (
+                f"task {task_id} already has an active lease"
+                if conflict is not None
+                else f"lease {lease.lease_id} did not persist (claim refused or mutation blocked)"
+            )
+            raise LeaseError(reason) from conflict
         return lease
 
     def heartbeat(self, lease_id: str, now: float | None = None) -> None:
