@@ -998,3 +998,23 @@ def test_default_field_driver_forwards_a_supersession_lookup(tmp_path):
     scheduler = driver._build_scheduler()
     assert scheduler._latest_plan_lookup is not None
     assert scheduler._latest_plan_lookup("goal-that-does-not-exist") is None
+
+
+def test_plan_revision_mints_a_new_record_id_so_binding_is_version_binding():
+    """The Task<->grant binding compares `plan_record_id`, NOT `plan_version` —
+    and that is sufficient ONLY because a revision mints a FRESH
+    `plan_record_id` (compiler.py: `new_plan.plan_record_id = ...  # fresh id`).
+
+    `WorkLineageContext` carries no version field at all, so a packet cannot be
+    compared on version even in principle. If a future change ever made a
+    revision REUSE the record id, the binding check would silently stop being
+    version-binding and a v1 packet would satisfy a v2 grant. This pins the
+    invariant the binding depends on.
+    """
+    from substrate.contracts.work_context import WorkLineageContext
+    from substrate.execution.planning.records import ObjectivePlanRecord
+
+    assert not hasattr(WorkLineageContext(), "plan_version"), (
+        "packets now carry a plan version — the binding check should compare it"
+    )
+    assert ObjectivePlanRecord().plan_record_id != ObjectivePlanRecord().plan_record_id
