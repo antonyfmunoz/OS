@@ -528,16 +528,28 @@ class TestSerialization:
 
 
 class TestSourceTypes:
-    def test_all_11_source_types(self) -> None:
+    def test_all_12_source_types(self) -> None:
         # Wave 1 added objective_plan (plan-acceptance decisions).
-        assert len(ApprovalSourceType) == 11
+        # Wave 2 added execution_authorization (the bounded execution-authorization
+        # decision) — the source the HUD execution card is composed from.
+        assert len(ApprovalSourceType) == 12
 
     def test_source_type_values(self) -> None:
+        """Pins the EXACT membership, deliberately — adding a decision source is
+        a governance change and must be a conscious edit here, not a silent one.
+
+        This test was stale: Wave 2 introduced `execution_authorization` and left the
+        expected set at Wave 1's eleven, so it failed on the candidate while
+        passing on the base. Caught by comparing shard failure counts against
+        the Wave 1 merge base (8 there, 10 here) rather than accepting a
+        `wave2_failures=0` summary.
+        """
         expected = {
             "governed_work", "execution_intercept", "sandbox_gate",
             "strategic_recommendation", "knowledge_promotion",
             "memory_promotion", "template", "overnight",
             "automation", "reconciliation", "objective_plan",
+            "execution_authorization",
         }
         actual = {s.value for s in ApprovalSourceType}
         assert actual == expected
