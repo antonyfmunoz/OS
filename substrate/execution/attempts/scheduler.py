@@ -77,6 +77,7 @@ class AttemptScheduler:
         max_concurrency: int = 2,
         mutation_runner: Callable[..., Any] | None = None,
         lock_dir: str | None = None,
+        latest_plan_lookup: Callable[[str], Any] | None = None,
     ) -> None:
         self._store = store
         self._queue = work_queue
@@ -92,6 +93,24 @@ class AttemptScheduler:
 
             lock_dir = str(runtime_state_dir("operator/execution_attempts"))
         self._lock_dir = lock_dir
+        # Supersession lookup, defaulted for EVERY caller (same pattern and same
+        # default as ExecutionAuthorizationDecisionSource). Left as None this
+        # would silently skip the supersession branch of is_authorization_valid
+        # on the one path that runs every pass — which is exactly how a
+        # superseded grant kept dispatching.
+        if latest_plan_lookup is None:
+
+            def _default_latest_plan_lookup(objective_id: str) -> Any:
+                from substrate.execution.planning.store import PlanningStore
+
+                try:
+                    return PlanningStore().latest_version_of(objective_id)
+                except Exception as exc:  # unreadable store → treat as absent
+                    logger.debug("latest-plan lookup failed for %s: %s", objective_id, exc)
+                    return None
+
+            latest_plan_lookup = _default_latest_plan_lookup
+        self._latest_plan_lookup = latest_plan_lookup
 
     # ── Single-writer lease ──────────────────────────────────────────────────
 
@@ -179,7 +198,18 @@ class AttemptScheduler:
             # ZERO production callers before this line.
             from substrate.execution.attempts.decisions import is_authorization_valid
 
-            valid, why = is_authorization_valid(grant)
+            # SUPERSESSION IS AN ADMISSION-TIME QUESTION, NOT ONLY AN
+            # APPROVE-TIME ONE (adversarial-review HIGH). `is_authorization_valid`
+            # skips its supersession block when `latest_plan_lookup is None`, so
+            # calling it bare here re-checked the time window but NEVER asked
+            # whether the plan had moved on. Wiring the default lookup into the
+            # decision source closed the approve-time hole only: a grant approved
+            # while the plan was v1 kept admitting, leasing and dispatching after
+            # the operator revised to v2, because the scheduler is the component
+            # that runs every pass and it never asked the question.
+            valid, why = is_authorization_valid(
+                grant, latest_plan_lookup=self._latest_plan_lookup
+            )
             if not valid:
                 report.reason = f"authorization invalid: {why}"
                 return report
@@ -208,6 +238,26 @@ class AttemptScheduler:
                 pkt_status = getattr(getattr(packet, "status", None), "value", "")
                 # Only APPROVED|DELEGATED Tasks are admissible (activation done).
                 if pkt_status not in ("approved", "delegated"):
+                    continue
+
+                # BOUNDED-AUTHORIZATION BINDING (adversarial-review CRITICAL).
+                # A grant authorizes a SPECIFIC Task set, of a SPECIFIC plan
+                # version, for a SPECIFIC tenant. This loop previously enforced
+                # only "the id string appears in task_frontier" and then COPIED
+                # the grant's tenant onto the attempt — it never COMPARED the
+                # packet's own tenant or plan to the grant's. The checks that
+                # would have bound it live in the readiness module, which no
+                # production caller invokes.
+                #
+                # So any principal who got a grant approved for their own plan
+                # could name ANY Task id in the system and have a real worker
+                # execute it — in a lease worktree, spending billed quota,
+                # mutating a repository — against another tenant's Task, another
+                # plan, or a stale plan version. The store is tenant-blind, so
+                # there was no downstream defense. The same defect class was
+                # fixed on the API surface; this is the surface that actually
+                # spends quota.
+                if not self._packet_bound_to_grant(packet, grant, task_id, report):
                     continue
                 # Already has a live or successful attempt? skip creation.
                 existing = self._store.attempts_for_task(task_id)
@@ -296,6 +346,47 @@ class AttemptScheduler:
             ):
                 out.add(task_id)
         return out
+
+    @staticmethod
+    def _packet_bound_to_grant(packet: Any, grant: Any, task_id: str, report: Any) -> bool:
+        """Fail closed unless the packet is EXACTLY what the grant authorized.
+
+        Compares the packet's OWN tenant and plan lineage against the grant's,
+        rather than trusting frontier membership. Empty on either side is a
+        MISMATCH, never a pass: an unbound packet or an unbound grant is
+        precisely the case that must not execute.
+        """
+        scope = getattr(packet, "work_scope", None) or {}
+        lineage = getattr(packet, "lineage", None) or {}
+        if not isinstance(scope, dict):
+            scope = {}
+        if not isinstance(lineage, dict):
+            lineage = {}
+
+        pkt_tenant = str(scope.get("tenant_id", "") or "")
+        grant_tenant = str(getattr(grant, "tenant_id", "") or "")
+        if not pkt_tenant or not grant_tenant or pkt_tenant != grant_tenant:
+            logger.error(
+                "scheduler refused task %s: tenant %r is not the grant's %r",
+                task_id,
+                pkt_tenant,
+                grant_tenant,
+            )
+            report.attempts_blocked.append(task_id)
+            return False
+
+        pkt_plan = str(lineage.get("plan_record_id", "") or "")
+        grant_plan = str(getattr(grant, "plan_record_id", "") or "")
+        if not pkt_plan or not grant_plan or pkt_plan != grant_plan:
+            logger.error(
+                "scheduler refused task %s: plan %r is not the grant's %r",
+                task_id,
+                pkt_plan,
+                grant_plan,
+            )
+            report.attempts_blocked.append(task_id)
+            return False
+        return True
 
     def _create_attempt(
         self, grant: Any, packet: Any, attempt_number: int, prior_failed: list

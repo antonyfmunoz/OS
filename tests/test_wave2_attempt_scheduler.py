@@ -68,6 +68,13 @@ def _add_approved_packet(queue, pid, deps=None):
         dependencies=deps or [],
         approval_gates=["execution_authorization_required"],
         work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+        # The scheduler binds a grant to the Task it authorized: the packet's
+        # OWN tenant and plan must equal the grant's, or a grant could name any
+        # Task id in the system and have a real worker execute it (adversarial-
+        # review CRITICAL). The canonical compiler stamps lineage.plan_record_id
+        # on every materialized packet, so a fixture that omits it is modelling
+        # a packet production never creates.
+        lineage={"plan_record_id": "opr-1"},
         # Dispatch refuses a Task with undeclared mutation authority, so a
         # schedulable packet must declare its writable scope.
         requirements={"scope_declared": True, "writable_path_scope": ["app", "tests"]},
@@ -128,6 +135,24 @@ class _FakeSandbox:
         pass
 
 
+
+def _fixture_plan_lookup(plan_record_id="opr-1"):
+    """A lookup returning the APPROVED plan the grant names.
+
+    Production grants copy `objective_id` from the plan at request time, so the
+    planning store always resolves it; a synthetic grant whose objective was
+    never persisted does not. The scheduler now asks the supersession question
+    on EVERY pass (an ACTIVE grant for a superseded plan previously kept
+    admitting, leasing and dispatching), and `is_authorization_valid` refuses
+    when the lookup returns None — correctly. Tests therefore model the plan
+    production would find, rather than disabling supersession.
+    """
+    from types import SimpleNamespace
+
+    return lambda _objective_id: SimpleNamespace(
+        plan_record_id=plan_record_id, status="approved"
+    )
+
 def _mk_scheduler(store, queue, tmp_path, max_concurrency=2):
     from substrate.execution.attempts.dispatch import compile_attempt_package
     from substrate.execution.attempts.leases import LeaseManager
@@ -136,6 +161,7 @@ def _mk_scheduler(store, queue, tmp_path, max_concurrency=2):
     lm = LeaseManager(store, _FakeSandbox(tmp_path), mutation_runner=_runner())
     return AttemptScheduler(
         store,
+        latest_plan_lookup=_fixture_plan_lookup(),
         work_queue=queue,
         placement_fn=place_attempt,
         lease_manager=lm,

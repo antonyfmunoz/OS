@@ -109,6 +109,13 @@ def _add_approved_packet(
         dependencies=deps or [],
         approval_gates=["execution_authorization_required"],
         work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+        # The scheduler binds a grant to the Task it authorized: the packet's
+        # OWN tenant and plan must equal the grant's, or a grant could name any
+        # Task id in the system and have a real worker execute it (adversarial-
+        # review CRITICAL). The canonical compiler stamps lineage.plan_record_id
+        # on every materialized packet, so a fixture that omits it is modelling
+        # a packet production never creates.
+        lineage={"plan_record_id": "opr-1"},
         requirements={
             "writable_path_scope": list(allowed_paths),
             "scope_declared": True,
@@ -216,6 +223,7 @@ def _driver(store, queue, spool, tmp_path, targets_dir="", enforce_graph_shape=F
         mutation_runner=_mutation_runner(),
         lock_dir=str(tmp_path / "locks"),
         enforce_graph_shape=enforce_graph_shape,
+        latest_plan_lookup=_fixture_plan_lookup(),
     )
 
 
@@ -487,6 +495,24 @@ def test_failed_gate_still_drains_worker_results(store, queue, tmp_path):
     assert reports[0].results_drained == 1, "failed gate did not drain the outbox"
 
 
+
+def _fixture_plan_lookup(plan_record_id="opr-1"):
+    """A lookup returning the APPROVED plan the grant names.
+
+    Production grants copy `objective_id` from the plan at request time, so the
+    planning store always resolves it; a synthetic grant whose objective was
+    never persisted does not. The scheduler now asks the supersession question
+    on EVERY pass (an ACTIVE grant for a superseded plan previously kept
+    admitting, leasing and dispatching), and `is_authorization_valid` refuses
+    when the lookup returns None — correctly. Tests therefore model the plan
+    production would find, rather than disabling supersession.
+    """
+    from types import SimpleNamespace
+
+    return lambda _objective_id: SimpleNamespace(
+        plan_record_id=plan_record_id, status="approved"
+    )
+
 def test_admission_failure_releases_the_lease(store, queue, tmp_path):
     """CRITICAL-B: the lease is acquired BEFORE package compilation, which can
     now fail closed. Without release, LeaseManager.acquire refuses the task
@@ -535,6 +561,7 @@ def test_admission_failure_releases_the_lease(store, queue, tmp_path):
 
     scheduler = AttemptScheduler(
         store=store,
+        latest_plan_lookup=_fixture_plan_lookup(),
         work_queue=queue,
         placement_fn=lambda **kw: SimpleNamespace(
             assignment_id="asn-1",

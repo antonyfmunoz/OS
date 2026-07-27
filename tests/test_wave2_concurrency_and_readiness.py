@@ -22,6 +22,7 @@ import json
 import os
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -333,6 +334,9 @@ def test_no_attempt_is_ever_created_without_an_active_grant(tmp_path):
         lease_manager=SimpleNamespace(acquire=_boom),
         compile_fn=_boom,
         lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-1", status="approved"
+        ),
     )
 
     for status in (
@@ -503,6 +507,9 @@ def test_expired_or_not_yet_valid_grant_mints_no_attempt(tmp_path):
         lease_manager=SimpleNamespace(acquire=_boom),
         compile_fn=_boom,
         lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-1", status="approved"
+        ),
     )
     now = time.time()
 
@@ -563,6 +570,9 @@ def test_scheduler_rereads_the_grant_so_a_committed_revocation_is_seen(tmp_path)
         lease_manager=SimpleNamespace(acquire=_boom),
         compile_fn=_boom,
         lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-1", status="approved"
+        ),
     )
     report = scheduler.run_scheduler_pass(stale)  # the STALE reference
     assert not report.attempts_created, report.attempts_created
@@ -794,3 +804,197 @@ def test_spool_refuses_a_replayed_envelope_but_allows_recovery(tmp_path):
     # A DIFFERENT legitimate dispatch still flows.
     spool.enqueue(_envelope(2))
     assert spool.claim_next() is not None
+
+
+def _bound_packet(tenant, plan, pid="T-1"):
+    return SimpleNamespace(
+        packet_id=pid,
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": tenant},
+        lineage={"plan_record_id": plan},
+    )
+
+
+def _bind_scheduler(tmp_path, packet, grant_tenant="tenant-A", grant_plan="opr-A"):
+    """Scheduler whose placement/lease/compile all RAISE, so any admission of an
+    unbound packet is loud rather than silently tolerated."""
+    from substrate.execution.attempts.records import ExecutionAuthorizationGrant
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    store = _grant_store(tmp_path)
+
+    def _boom(*_a, **_k):
+        raise AssertionError("admission reached with a packet NOT bound to the grant")
+
+    grant = ExecutionAuthorizationGrant(
+        decision_ref="ref-bind",
+        tenant_id=grant_tenant,
+        plan_record_id=grant_plan,
+        plan_version=1,
+        task_frontier=[packet.packet_id],
+        objective_id="goal-bind",
+        expires_at=time.time() + 3600,
+        max_attempts_per_task=2,
+    )
+    grant.status = "active"
+    created, _ = store.create_grant_idempotent(grant)
+
+    class _Q:
+        def get_packet(self, pid):
+            return packet if pid == packet.packet_id else None
+
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=_Q(),
+        placement_fn=_boom,
+        lease_manager=SimpleNamespace(acquire=_boom),
+        compile_fn=_boom,
+        lock_dir=str(tmp_path / "locks"),
+        # The plan resolves (production copies objective_id from the plan), so
+        # the ONLY thing that can refuse here is the tenant/plan binding.
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id=grant_plan, status="approved"
+        ),
+    )
+    return store, scheduler, created
+
+
+@pytest.mark.parametrize(
+    "pkt_tenant,pkt_plan,why",
+    [
+        ("tenant-VICTIM", "opr-A", "another tenant's Task"),
+        ("tenant-A", "opr-OTHER", "another plan's Task"),
+        ("", "opr-A", "unbound tenant"),
+        ("tenant-A", "", "unbound plan"),
+    ],
+)
+def test_grant_cannot_execute_a_task_it_does_not_own(tmp_path, pkt_tenant, pkt_plan, why):
+    """CRITICAL (review A-1): the sole attempt producer performed NO tenant,
+    plan, or plan-version binding — it enforced only "the id string appears in
+    task_frontier" and then COPIED the grant's tenant onto the attempt.
+
+    Any principal who got a grant approved for their own plan could name ANY
+    Task id in the system and have a real worker execute it — in a lease
+    worktree, spending billed quota, mutating a repository — against another
+    tenant's Task, another plan, or a stale plan version. The store is
+    tenant-blind, so there was no downstream defense.
+
+    The checks that would have bound it live in the readiness module, which no
+    production caller invokes. This is the same defect class already fixed on
+    the API surface; this is the surface that actually spends quota.
+    """
+    packet = _bound_packet(pkt_tenant, pkt_plan)
+    store, scheduler, grant = _bind_scheduler(tmp_path, packet)
+
+    report = scheduler.run_scheduler_pass(grant)
+
+    assert not report.attempts_created, (why, report.attempts_created)
+    assert packet.packet_id in report.attempts_blocked, (why, report.attempts_blocked)
+    assert store.attempts_for_plan("opr-A") == [], why
+
+
+def test_a_correctly_bound_task_is_not_blocked_by_the_binding_check(tmp_path):
+    """Control: the binding guard must not be blanket denial. A packet whose
+    tenant AND plan match the grant passes the check and proceeds to admission
+    (the sentinel then fires, proving the guard let it through)."""
+    packet = _bound_packet("tenant-A", "opr-A")
+    _store, scheduler, grant = _bind_scheduler(tmp_path, packet)
+
+    report = scheduler.run_scheduler_pass(grant)
+
+    # The DECISIVE assertion is that the binding check did not block it. It is
+    # not admitted here only because `execution_attempt_create` is refused in
+    # degraded mode (no control plane in-process) — a different gate entirely,
+    # and one that must not be mistaken for the binding guard. Asserting
+    # "blocked is empty" isolates the guard under test.
+    assert packet.packet_id not in report.attempts_blocked, report.attempts_blocked
+
+
+def test_superseded_plan_stops_admission_on_the_very_next_pass(tmp_path):
+    """HIGH (review A-4): supersession was enforced ONLY at approve time.
+
+    `is_authorization_valid` skips its supersession branch when
+    `latest_plan_lookup is None`, and the scheduler called it bare — so a grant
+    approved while the plan was v1 kept admitting, leasing and dispatching after
+    the operator revised to v2. Wiring the default lookup into the decision
+    source closed the approve-time hole only; the scheduler is the component
+    that runs EVERY pass, and it never asked the question.
+
+    My own commit message for the earlier fix described this consequence as
+    closed. It was not — only half of it was.
+    """
+    packet = _bound_packet("tenant-A", "opr-A")
+    store, scheduler, grant = _bind_scheduler(tmp_path, packet)
+
+    # The plan has moved on: latest is now opr-A-v2, not the grant's opr-A.
+    scheduler._latest_plan_lookup = lambda _o: SimpleNamespace(
+        plan_record_id="opr-A-v2", status="approved"
+    )
+
+    report = scheduler.run_scheduler_pass(grant)
+
+    assert not report.attempts_created, report.attempts_created
+    assert "invalidated by a newer plan" in (report.reason or ""), report.reason
+    assert store.attempts_for_plan("opr-A") == []
+
+
+def test_unresolvable_plan_fails_closed_at_admission(tmp_path):
+    """A grant whose objective resolves to NO plan must not dispatch. Production
+    grants copy `objective_id` from the plan at request time, so an
+    unresolvable objective means the planning state is gone or wrong — which is
+    not a licence to execute."""
+    packet = _bound_packet("tenant-A", "opr-A")
+    store, scheduler, grant = _bind_scheduler(tmp_path, packet)
+    scheduler._latest_plan_lookup = lambda _o: None
+
+    report = scheduler.run_scheduler_pass(grant)
+
+    assert not report.attempts_created, report.attempts_created
+    assert "no plan" in (report.reason or ""), report.reason
+
+
+def test_default_scheduler_construction_carries_a_supersession_lookup(tmp_path):
+    """The DEFAULT construction must be wired — not merely wirable.
+
+    Every test above injects `latest_plan_lookup`, so they prove the guard works
+    when supplied and prove nothing about production. Deleting the constructor
+    default therefore left them all green (mutation M-A4b SURVIVED). That is the
+    exact defect class this slice keeps producing: a contract that exists but
+    production never fires. This asserts the default itself.
+    """
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    scheduler = AttemptScheduler(
+        _grant_store(tmp_path),
+        work_queue=SimpleNamespace(get_packet=lambda _p: None),
+        placement_fn=lambda **_k: None,
+        lease_manager=SimpleNamespace(acquire=lambda **_k: None),
+        compile_fn=lambda **_k: None,
+        lock_dir=str(tmp_path / "locks"),
+    )
+    assert scheduler._latest_plan_lookup is not None
+    assert callable(scheduler._latest_plan_lookup)
+    # And it must really query the planning store, not be a stub that returns a
+    # truthy object for anything.
+    assert scheduler._latest_plan_lookup("goal-that-does-not-exist") is None
+
+
+def test_default_field_driver_forwards_a_supersession_lookup(tmp_path):
+    """Same question one layer up: the field control-plane driver builds its own
+    scheduler, so the driver's default must reach the scheduler's default."""
+    from substrate.execution.attempts.field_control_plane import FieldControlPlaneDriver
+
+    driver = FieldControlPlaneDriver(
+        store=_grant_store(tmp_path),
+        work_queue=SimpleNamespace(get_packet=lambda _p: None),
+        spool=DispatchSpool(str(tmp_path / "spool"), _SECRET),
+        sandbox_manager=SimpleNamespace(),
+        targets_dir=str(tmp_path / "targets"),
+        lock_dir=str(tmp_path / "locks"),
+    )
+    # None here means "inherit the scheduler's real default", never "skip".
+    assert not hasattr(driver, "_latest_plan_lookup") or driver._latest_plan_lookup is None
+    scheduler = driver._build_scheduler()
+    assert scheduler._latest_plan_lookup is not None
+    assert scheduler._latest_plan_lookup("goal-that-does-not-exist") is None

@@ -195,7 +195,12 @@ class FieldControlPlaneDriver:
         lock_dir: str | None = None,
         proof_runtime: Any | None = None,
         enforce_graph_shape: bool = False,
+        latest_plan_lookup: Any | None = None,
     ) -> None:
+        # Forwarded to the scheduler, which asks the supersession question on
+        # every pass. None means "use the scheduler's own default lookup"
+        # (the real PlanningStore) — never "skip supersession".
+        self._latest_plan_lookup = latest_plan_lookup
         # Pre-quota graph-shape enforcement. OFF by default so a legitimate
         # single-Task objective (the planning-rail smoke) is not misreported as
         # a malformed graph; the multi-lane field protocol turns it ON, and a
@@ -329,6 +334,7 @@ class FieldControlPlaneDriver:
             max_concurrency=2,
             mutation_runner=self._mutation_runner,
             lock_dir=self._lock_dir,
+            latest_plan_lookup=self._latest_plan_lookup,
         )
 
     def _build_poller(self, scheduler: Any, grant: Any) -> Any:
