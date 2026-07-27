@@ -619,3 +619,144 @@ def test_real_compiler_packets_admit_under_a_real_grant():
         )
         admitted_any = True
     assert admitted_any
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GRANT-PRODUCER PASS-THROUGH PINNING (round-7 finding D5/D11/D12)
+#
+# The bound tests above apply operator bounds as POST-MINT overrides
+# (`_grant_from_production_defaults(role_ids=[...])` sets the attribute after
+# `request_execution_authorization` returns). That proves admission ENFORCES a
+# bound, but it cannot see the PRODUCER silently DISCARD one — the grant object
+# is overwritten either way.
+#
+# Independently reproduced producer mutations that survived every suite:
+#
+#   D12 `request_execution_authorization` drops the operator's `role_ids`
+#       -> admission admits a role the operator explicitly excluded
+#       -> a bound the operator SET is unenforced, 270 tests green
+#
+#   D11 compiler stops stamping `required_tools`
+#       -> check 10 goes vacuous for ALL real work; an unauthorized-tool bound
+#          stops refusing
+#
+#   D5  grant default `ttl_seconds: 3600.0 -> 0.0`
+#       -> every grant expires at mint; total authorization outage. The oracle
+#          (`is_authorization_valid`) AGREES the grant is dead — it just was
+#          never asserted.
+#
+# These tests pass the bounds THROUGH the producer and assert they survive the
+# round trip, and pin the mint-time validity window.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _mint_with_bounds(**producer_kwargs) -> Any:
+    """Mint a grant passing bounds THROUGH the real producer (not after it)."""
+    from substrate.execution.attempts.decisions import request_execution_authorization
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+
+    tmp = tempfile.mkdtemp(prefix="prod-reach-bounds-")
+    store = ExecutionAttemptStore(
+        attempts_path=os.path.join(tmp, "a.jsonl"),
+        grants_path=os.path.join(tmp, "g.jsonl"),
+        readiness_path=os.path.join(tmp, "r.jsonl"),
+        leases_path=os.path.join(tmp, "l.jsonl"),
+        assignments_path=os.path.join(tmp, "asn.jsonl"),
+    )
+    plan = SimpleNamespace(
+        plan_record_id="opr-1",
+        objective_id="goal-1",
+        graph_version=1,
+        status="approved",
+        workpacket_ids=["wp-real"],
+        work_scope={"tenant_id": "tenant-a", "target_kind": "umh_substrate"},
+    )
+    grant, _approval = request_execution_authorization(
+        store,
+        plan=plan,
+        task_frontier=["wp-real"],
+        tenant_id="tenant-a",
+        principal_id="u",
+        membership_id="m",
+        conversation_id="conv-1",
+        correlation_id="c",
+        requested_by="cockpit_chat_operator",
+        mutation_runner=_module_runner,
+        **producer_kwargs,
+    )
+    grant.status = "active"
+    return grant
+
+
+def test_producer_preserves_the_operator_role_bound():
+    """D12: a `role_ids` bound passed to the producer must reach the grant AND refuse.
+
+    Asserted end-to-end (producer round-trip THEN admission), so a producer that
+    silently discards the bound is caught even though admission is unchanged.
+    """
+    grant = _mint_with_bounds(role_ids=["role-research-op"])
+    assert list(getattr(grant, "role_ids", [])) == ["role-research-op"], (
+        "the producer DISCARDED the operator's role_ids bound — a bound the "
+        "operator set would be silently unenforced"
+    )
+    arch = _real_archetype(_WORK_TEXTS[0])  # development -> role-impl-op
+    verdict = _admit(_packet_from_archetype(arch), grant)
+    assert not verdict.admitted and verdict.refusal_code == "role_not_authorized", (
+        f"a role outside the operator's declared bound must REFUSE, got "
+        f"admitted={verdict.admitted} code={verdict.refusal_code}"
+    )
+
+
+def test_producer_preserves_the_operator_tool_bound():
+    """D12 sibling: an `allowed_tools` bound must survive the producer AND refuse."""
+    grant = _mint_with_bounds(allowed_tools=["repository"])
+    assert list(getattr(grant, "allowed_tools", [])) == ["repository"], (
+        "the producer DISCARDED the operator's allowed_tools bound"
+    )
+    arch = _real_archetype(_WORK_TEXTS[0])
+    packet = _packet_from_archetype(arch)
+    # The development archetype requires more than `repository`.
+    assert set(packet.required_tools) - {"repository"}, "archetype tool policy too narrow to test"
+    verdict = _admit(packet, grant)
+    assert not verdict.admitted and verdict.refusal_code == "tool_not_authorized", (
+        f"tools outside the operator's declared bound must REFUSE, got "
+        f"admitted={verdict.admitted} code={verdict.refusal_code}"
+    )
+
+
+def test_compiler_stamps_the_tools_the_operator_bound_is_compared_against():
+    """D11: packets must carry `required_tools`, or check 10 is vacuous for all work.
+
+    If the compiler stops stamping tools, `pkt_tools` is empty, admission takes
+    the "task requires no tools" branch, and an operator tool bound stops
+    refusing anything — silently.
+    """
+    tmp = tempfile.mkdtemp(prefix="pin-tools-")
+    _plan, packets, _store = _real_compiler_packets(tmp)
+    assert packets, "the real compiler produced no packets"
+    for pkt in packets:
+        assert list(getattr(pkt, "required_tools", []) or []), (
+            f"packet {pkt.packet_id} carries no required_tools — admission "
+            "check 10 becomes vacuous for ALL real work"
+        )
+
+
+def test_the_production_grant_ttl_is_a_live_window():
+    """D5: the default TTL must yield a grant that is valid now and expires later.
+
+    `ttl_seconds: 3600.0 -> 0.0` makes every grant expire at mint — a total
+    authorization outage — and every suite stayed green. `is_authorization_valid`
+    already knows; nothing asserted it.
+    """
+    import time as _time
+
+    from substrate.execution.attempts.decisions import is_authorization_valid
+
+    grant = _mint_with_bounds()
+    now = _time.time()
+    valid, reason = is_authorization_valid(grant, now=now)
+    assert valid, f"a freshly minted grant must be valid at mint time ({reason})"
+    assert float(getattr(grant, "expires_at", 0.0)) > now, (
+        "the grant's expiry window is not in the future — every grant expires at "
+        "mint (total authorization outage)"
+    )
