@@ -620,3 +620,102 @@ def test_transition_refused_by_a_swallowing_runner_raises_not_returns_stale():
     )
     assert out.status == "leased"
     assert store.get_attempt("ea-1").status == "leased"
+
+
+def test_a_failed_ready_transition_does_not_abort_the_whole_scheduler_pass():
+    """Self-found while auditing the H-1 fix — a fix that traded one defect for a worse one.
+
+    `_transition` now RAISES when the ledger does not show the target status.
+    Correct at the admission boundary. But `_create_attempt`'s `created → ready`
+    call was unguarded, so the raise escaped the frontier loop and ABORTED
+    `run_scheduler_pass` — killing work for every OTHER Task in the frontier,
+    where before H-1 it degraded silently. A one-Task hiccup became a
+    fleet-wide outage.
+
+    Reproduced by swallowing only `execution_attempt_transition`:
+        PASS ABORTED: AttemptStoreConflict ... → ready did not commit
+
+    The Task is now dropped from THIS pass (it stays CREATED; the next pass
+    retries it, and `create_attempt_idempotent` returns the same record so no
+    duplicate is minted) and the pass continues.
+    """
+    import tempfile
+
+    from substrate.execution.attempts.decisions import request_execution_authorization
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    def _plain(**kw):
+        fn = kw.get("execute_fn")
+        try:
+            r = fn() if fn else ("", True)
+            out, ok = r if isinstance(r, tuple) else (r, True)
+            return SimpleNamespace(success=ok, output=out)
+        except Exception as exc:  # noqa: BLE001
+            return SimpleNamespace(success=False, output=str(exc))
+
+    def _swallow_only_transitions(**kw):
+        if kw.get("mutation_name") == "execution_attempt_transition":
+            return SimpleNamespace(success=False, output="swallowed conflict")
+        return _plain(**kw)
+
+    tmp = tempfile.mkdtemp(prefix="pass-abort-")
+    store = ExecutionAttemptStore(
+        attempts_path=os.path.join(tmp, "a.jsonl"),
+        grants_path=os.path.join(tmp, "g.jsonl"),
+        readiness_path=os.path.join(tmp, "r.jsonl"),
+        leases_path=os.path.join(tmp, "l.jsonl"),
+        assignments_path=os.path.join(tmp, "asn.jsonl"),
+    )
+    plan = SimpleNamespace(
+        plan_record_id="opr-1",
+        objective_id="goal-1",
+        graph_version=1,
+        status="approved",
+        workpacket_ids=["wp-a"],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+    )
+    grant, _ = request_execution_authorization(
+        store,
+        plan=plan,
+        task_frontier=["wp-a"],
+        tenant_id="t",
+        principal_id="u",
+        membership_id="m",
+        conversation_id="c",
+        correlation_id="c",
+        requested_by="op",
+        mutation_runner=_plain,
+    )
+    grant.status = "active"
+    store.update_grant_cas(grant, expected_record_version=grant.record_version)
+
+    packet = SimpleNamespace(
+        packet_id="wp-a",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+        lineage={"plan_record_id": "opr-1"},
+        requirements={"required_skill_refs": []},
+        validation_plan="v",
+        required_tools=[],
+        rollback_plan="",
+    )
+    sched = AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=lambda _t: packet),
+        placement_fn=lambda **_k: None,
+        lease_manager=None,
+        compile_fn=lambda **_k: None,
+        mutation_runner=_swallow_only_transitions,
+        lock_dir=os.path.join(tmp, "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-1", status="approved"
+        ),
+    )
+
+    # Must NOT raise: the pass completes and simply creates nothing this round.
+    report = sched.run_scheduler_pass(store.get_grant(grant.decision_ref))
+    assert report.acquired
+    assert report.attempts_created == [], (
+        "an attempt that could not be made READY must not be reported as created"
+    )

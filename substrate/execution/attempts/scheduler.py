@@ -473,9 +473,35 @@ class AttemptScheduler:
             correlation_id=getattr(grant, "correlation_id", ""),
         )
         # created → ready.
-        self._transition(
-            created, _S.READY.value, (_S.CREATED.value,), "scheduler", "frontier ready"
-        )
+        #
+        # `_transition` now RAISES when the ledger does not show the target
+        # status, instead of silently returning the stale attempt (H-1). That
+        # is correct at the admission boundary, where a refused transition must
+        # stop the attempt — but here it would escape `_create_attempt`, escape
+        # the frontier loop, and ABORT THE WHOLE SCHEDULER PASS, killing work
+        # for every OTHER Task in the frontier. Before H-1 this path degraded
+        # silently; a fix that converts a one-Task hiccup into a fleet-wide
+        # outage trades one defect for a worse one.
+        #
+        # Self-found while auditing the H-1 fix: reproduced by swallowing only
+        # `execution_attempt_transition`, which aborted `run_scheduler_pass`
+        # with `AttemptStoreConflict ... → ready did not commit`.
+        #
+        # So: this Task is dropped from THIS pass (it stays CREATED and the next
+        # pass retries it — `create_attempt_idempotent` returns the same record,
+        # so no duplicate is minted), and the pass continues for everyone else.
+        try:
+            self._transition(
+                created, _S.READY.value, (_S.CREATED.value,), "scheduler", "frontier ready"
+            )
+        except (AttemptStoreConflict, AttemptLifecycleError) as exc:
+            logger.warning(
+                "attempt %s could not be made READY this pass (%s); it stays "
+                "CREATED and the next pass retries it",
+                created.attempt_id,
+                exc,
+            )
+            return None
         return created
 
     def _admit(
