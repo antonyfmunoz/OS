@@ -1092,3 +1092,52 @@ def test_legitimate_statuses_are_still_writable(tmp_path):
             {"lease_id": f"l-{status}", "task_id": "wp-z", "status": status}
         )
     assert _active_leases_for(paths, "wp-z") == []
+
+
+def test_the_atomic_claim_path_sees_exotic_statuses_after_serialization(tmp_path):
+    """`append_lease_if_no_active` needs no status normalisation — and why.
+
+    It is the one lease-writing path that does NOT call `_is_active_status`.
+    That is safe by construction rather than by luck: its uniqueness check reads
+    through `_read_lines`, i.e. POST-serialization, so it compares the same
+    `"active"` literal the writer produced regardless of the input type.
+
+    Both orderings are asserted, because only the second is the dangerous one:
+    if an exotic status could claim a task INVISIBLY to the check, a later
+    ordinary claim would succeed and F1 would be reopened through the atomic
+    path itself.
+    """
+    from substrate.execution.attempts.store import AttemptStoreConflict
+
+    class _StrDunder:
+        def __str__(self):
+            return "active"
+
+    # Ordering 1 — ordinary claim first, exotic second.
+    paths = _paths(tmp_path / "a")
+    (tmp_path / "a").mkdir()
+    store = ExecutionAttemptStore(**paths)
+    store.append_lease_if_no_active(
+        {"lease_id": "l1", "task_id": "wp-a", "status": "active"}
+    )
+    with pytest.raises(AttemptStoreConflict):
+        store.append_lease_if_no_active(
+            {"lease_id": "l2", "task_id": "wp-a", "status": _StrDunder()}
+        )
+    assert len(_active_leases_for(paths, "wp-a")) == 1
+
+    # Ordering 2 — EXOTIC claim first. The check must still see it.
+    paths2 = _paths(tmp_path / "b")
+    (tmp_path / "b").mkdir()
+    store2 = ExecutionAttemptStore(**paths2)
+    store2.append_lease_if_no_active(
+        {"lease_id": "l1", "task_id": "wp-a", "status": _StrDunder()}
+    )
+    with pytest.raises(AttemptStoreConflict):
+        store2.append_lease_if_no_active(
+            {"lease_id": "l2", "task_id": "wp-a", "status": "active"}
+        )
+    assert len(_active_leases_for(paths2, "wp-a")) == 1, (
+        "an exotic first claim was invisible to the uniqueness check — F1 is "
+        "reopened through the atomic path itself"
+    )
