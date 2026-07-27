@@ -26,6 +26,38 @@ Worse, three live comments described the absence as coverage
 an identity list-comprehension). That is why the hole survived every prior
 review: the files a reviewer opens to check it asserted it was checked.
 
+What is ENFORCED today vs what is CORRECT-BUT-UNDECLARED
+--------------------------------------------------------
+Stated here so no reader mistakes "the guard exists" for "the bound is set"
+(round-7 findings R6-F1 / R6-F2, measured against the real production path).
+
+**Enforced on every production input** — the bounded-authorization triad the
+Wave 2 acceptance contract actually names, plus the structural guards:
+attempt↔grant identity, frontier membership, tenant, plan record, packet
+status (TOCTOU), work-scope completeness, attempt budget, environment class,
+rollback guarantee, verifier distinctness, verification obligation, live
+sibling, and plan supersession.
+
+**Correct but never exercised in production** — checks 9 (``role_ids``),
+11 (``allowed_tools``) and 16 (``cost_limit_usd``). Each is strict and DOES
+refuse the moment its bound is declared — verified by passing the bound
+through the real producer and observing ``role_not_authorized`` /
+``tool_not_authorized`` / ``unenforceable_cost_ceiling``. But the sole
+production caller (``objective_plan_routes.py:426``) declares none of them,
+and ``apply_execution_decision`` has no parameter through which an operator
+could. **There is no operator surface for these bounds; that surface is
+Wave 5.** They are correct-and-waiting, NOT active controls today.
+
+These bounds are deliberately NOT derived from the plan's own archetypes.
+``grant.role_ids := union(packet.required_role_contracts)`` would be true by
+construction — a tautology, and deletable-green behind check 2. A bound is a
+control only when its authority is INDEPENDENT of the thing it bounds.
+
+**Vacuous today** — check 10 (``skills_role_authorized``): no production
+writer populates the role store and no seed role carries either skill list, so
+both legs vacate (convergence ledger #16). Skills are advisory metadata; no
+worker capability is gated on a skill name.
+
 Design rules this module obeys
 ------------------------------
 1. **One authority.** No caller may re-derive or partially re-interpret these

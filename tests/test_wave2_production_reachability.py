@@ -867,3 +867,97 @@ def test_a_mixed_environment_set_refuses_unless_every_class_is_guaranteed():
     )
     verdict = _admit(_packet_from_archetype(arch), grant)
     assert not verdict.admitted and verdict.refusal_code == "no_rollback_guarantee"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# R6-F1 / R6-F2 — the RECLASSIFICATION is pinned, in both directions
+#
+# These checks are CORRECT-BUT-UNDECLARED: strict, and they DO refuse the moment
+# a bound is declared — but the sole production caller declares none, and
+# `apply_execution_decision` has no parameter through which an operator could.
+# That surface is Wave 5.
+#
+# Deliberately NOT "fixed" by deriving the bound from the plan's own archetypes:
+# `grant.role_ids := union(packet.required_role_contracts)` is true BY
+# CONSTRUCTION — a tautology, and deletable-green behind check 2
+# (`task_in_authorized_frontier`). That would manufacture fake reachability
+# rather than a control. A bound is a control only when its authority is
+# INDEPENDENT of the thing it bounds.
+#
+# These tests pin BOTH halves so the classification cannot rot:
+#   (a) the ENFORCEMENT half really works (bound declared -> refusal), and
+#   (b) the DECLARATION half is genuinely absent in production.
+# If (b) ever starts passing a bound, the reclassification must be revisited —
+# the test says so and fails.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("producer_kwargs", "expected_code"),
+    [
+        ({"role_ids": ["role-research-op"]}, "role_not_authorized"),
+        ({"allowed_tools": ["repository"]}, "tool_not_authorized"),
+        ({"cost_limit_usd": 25.0}, "unenforceable_cost_ceiling"),
+    ],
+)
+def test_undeclared_bounds_do_enforce_once_declared(producer_kwargs, expected_code):
+    """(a) ENFORCEMENT half: a bound passed THROUGH the real producer refuses.
+
+    This is what makes R6-F1 a Wave 5 gap rather than a broken guard. The
+    bound goes through `request_execution_authorization`, not a post-mint
+    override, so a producer that discarded it would fail here too.
+    """
+    grant = _mint_with_bounds(**producer_kwargs)
+    arch = _real_archetype(_WORK_TEXTS[0])  # development: role-impl-op, 3 tools
+    verdict = _admit(_packet_from_archetype(arch), grant)
+    assert not verdict.admitted, (
+        f"a declared bound {producer_kwargs} must REFUSE work outside it"
+    )
+    assert verdict.refusal_code == expected_code, verdict.refusal_code
+
+
+def test_the_production_caller_still_declares_no_operator_bound():
+    """(b) DECLARATION half: production genuinely sets none of these bounds.
+
+    Read from the SOURCE of the sole production call site rather than asserted,
+    so this cannot silently become false. The moment an operator surface ships
+    and starts passing a bound, this test FAILS — which is the intended signal
+    to revisit the R6-F1 reclassification (MEDIUM / RESERVED_FUTURE / Wave 5)
+    rather than let a stale classification persist.
+    """
+    import pathlib
+    import re
+
+    src = pathlib.Path("transports/api/objective_plan_routes.py").read_text()
+    call = re.search(
+        r"request_execution_authorization\((.*?)\n            \)", src, re.S
+    )
+    assert call, "the sole production call site could not be located"
+    body = call.group(1)
+
+    for bound in ("role_ids", "allowed_tools", "cost_limit_usd", "cost_enforceable"):
+        assert bound not in body, (
+            f"the production caller now declares {bound!r} — an operator bound "
+            "surface has shipped. Revisit the R6-F1 reclassification: the check "
+            "is no longer 'correct but undeclared', it is now a LIVE control and "
+            "must be covered as one."
+        )
+
+
+def test_grant_bounds_are_not_derived_from_the_plans_own_packets():
+    """The anti-tautology pin.
+
+    If a future change derives `role_ids` from the plan's own packets, check 9
+    becomes true by construction and stops being a control. This asserts the
+    production grant does NOT carry such a derived bound — the honest empty
+    default is preferable to a bound that can never refuse.
+    """
+    grant = _grant_from_production_defaults()
+    assert list(getattr(grant, "role_ids", [])) == [], (
+        "grant.role_ids is populated on the default production path — if this "
+        "was derived from the plan's own packets it is a TAUTOLOGY (check 9 can "
+        "never refuse) and fake reachability, not a control"
+    )
+    assert list(getattr(grant, "allowed_tools", [])) == [], (
+        "grant.allowed_tools is populated by default — same tautology risk"
+    )
