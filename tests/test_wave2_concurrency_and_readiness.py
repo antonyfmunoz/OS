@@ -2148,9 +2148,15 @@ def test_narrowing_the_operator_tool_bound_never_widens_what_is_admitted():
 def test_no_operator_tool_bound_is_recorded_explicitly_not_silently_skipped():
     """An absent operator bound adds no narrowing — but must be LEGIBLE.
 
-    The verdict records the check as passed with a detail naming the
-    un-compared role vocabulary, so "this check did not constrain anything"
-    can never be mistaken for "this check enforced something".
+    The verdict records the check as passed with a NOTE naming the un-compared
+    role vocabulary, so "this check did not constrain anything" can never be
+    mistaken for "this check enforced something".
+
+    The provenance moved from `detail` to `note` in round 7: `detail` is the
+    REFUSAL message and is now stored only on a refusal, because storing it on
+    a pass made the audit record state the opposite of what happened (N4).
+    `note` is the pass-side counterpart, so this legibility property survives
+    without the verdict being able to lie.
     """
     v = _adm(
         packet_kw={"required_tools": ["shell"]},
@@ -2158,8 +2164,10 @@ def test_no_operator_tool_bound_is_recorded_explicitly_not_silently_skipped():
         grant_kw={"allowed_tools": []},
     )
     assert v.admitted, (v.refusal_code, v.failed_checks())
-    detail = next(c["detail"] for c in v.checks if c["check"] == "tools_permitted")
-    assert "no tool bound" in detail, detail
+    row = next(c for c in v.checks if c["check"] == "tools_permitted")
+    assert row["passed"] is True
+    assert "detail" not in row, "a PASSING check must not carry refusal text"
+    assert "no tool bound" in row.get("note", ""), row
 
 
 def test_a_task_needing_no_tools_is_unaffected_by_tool_bounds():

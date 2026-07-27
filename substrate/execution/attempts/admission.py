@@ -100,12 +100,40 @@ def authorize_admission(
         decision_ref=str(getattr(grant, "decision_ref", "") or ""),
     )
 
-    def check(name: str, passed: bool, detail: str = "", code: str = "") -> bool:
-        verdict.checks.append({"check": name, "passed": bool(passed), "detail": detail})
-        if not passed and not verdict.refusal_code:
+    def check(
+        name: str, passed: bool, detail: str = "", code: str = "", note: str = ""
+    ) -> bool:
+        """Record one check. ``detail`` is the REFUSAL message — never shown on a pass.
+
+        Every call site passes the message that explains a REFUSAL ("task X not
+        in the authorized frontier"). Storing it unconditionally made a PASSING
+        verdict state the exact opposite of what happened on 4 of 18 checks:
+
+            PASS  task_in_authorized_frontier  task 'wp-a' not in the authorized frontier
+            PASS  task_admissible_status       packet status 'approved' is not one of [...]
+
+        This verdict IS the durable audit record for a governed execution
+        decision. A campaign whose root cause is "comments asserted guarantees
+        nothing provided" cannot ship an audit trail with the same property
+        (round-7 review N4).
+
+        `detail` is therefore attached ONLY to a refusal. A check that passes
+        for a reason worth recording — "the operator declared no tool bound, so
+        nothing was narrowed" — passes that provenance as `note`, which is
+        stored only on a PASS. The two can never be confused for one another.
+        """
+        passed_b = bool(passed)
+        row: dict[str, Any] = {"check": name, "passed": passed_b}
+        if passed_b:
+            if note:
+                row["note"] = note
+        else:
+            row["detail"] = detail
+        verdict.checks.append(row)
+        if not passed_b and not verdict.refusal_code:
             verdict.refusal_code = code or name
             verdict.reason = detail or name
-        return bool(passed)
+        return passed_b
 
     ok = True
 
@@ -161,7 +189,7 @@ def authorize_admission(
         # Not every materialized packet stamps a version; when it does, it must
         # agree. An absent stamp is not treated as a mismatch, but a PRESENT
         # and DIFFERENT one is a hard refusal.
-        check("plan_version_match", True, "packet declares no plan_version (not compared)")
+        check("plan_version_match", True, note="packet declares no plan_version (not compared)")
     else:
         ok &= check(
             "plan_version_match",
@@ -276,7 +304,7 @@ def authorize_admission(
 
     if not pkt_tools:
         # The Task requires no tools — nothing to authorize.
-        check("tools_permitted", True, "task requires no tools")
+        check("tools_permitted", True, note="task requires no tools")
     elif not auth_tools:
         # The operator declared no tool bound, so this check adds no narrowing.
         # Recorded explicitly (never silently skipped) so the absence is legible
@@ -284,8 +312,10 @@ def authorize_admission(
         check(
             "tools_permitted",
             True,
-            f"grant declares no tool bound; required={pkt_tools} "
-            f"(role vocabulary {sorted(role_tools)} not comparable — see ledger #15)",
+            note=(
+                f"grant declares no tool bound; required={pkt_tools} "
+                f"(role vocabulary {sorted(role_tools)} not comparable — see ledger #15)"
+            ),
         )
     else:
         # A declared operator bound is enforced STRICTLY: every required tool

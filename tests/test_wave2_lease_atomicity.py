@@ -335,3 +335,93 @@ def test_task_admission_lock_actually_excludes(tmp_path):
         f"critical sections overlapped — lock is not excluding: {events}"
     )
     assert store is not None
+
+
+# ── N4: the admission verdict is an AUDIT RECORD and must not lie ───────────
+
+
+def test_passing_checks_never_record_refusal_text():
+    """A PASSING check must not carry the message that explains a REFUSAL.
+
+    `check()` stored `detail` unconditionally while every call site passes the
+    refusal message, so an ADMITTED verdict stated the exact opposite of what
+    happened on 4 of 18 checks — e.g.
+
+        PASS  task_in_authorized_frontier  task 'wp-a' not in the authorized frontier
+
+    on a check that passed BECAUSE the task was in the frontier. This verdict is
+    the durable audit record for a governed execution decision; a campaign whose
+    root cause is "comments asserted guarantees nothing provided" cannot ship an
+    audit trail with the same property (round-7 review N4).
+    """
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet = SimpleNamespace(
+        packet_id="wp-a",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+        lineage={"plan_record_id": "opr-1"},
+        requirements={"required_skill_refs": []},
+        validation_plan="v",
+        required_tools=[],
+        rollback_plan="",
+    )
+    grant = SimpleNamespace(
+        decision_ref="d",
+        tenant_id="t",
+        task_frontier=["wp-a"],
+        plan_record_id="opr-1",
+        plan_version=1,
+        max_attempts_per_task=2,
+        role_ids=[],
+        allowed_tools=[],
+        environment_classes=["git_worktree"],
+        cost_limit_usd=0.0,
+        cost_enforceable=False,
+        verification_obligations=[],
+        rollback_obligations=[],
+        objective_id="goal-1",
+    )
+    attempt = SimpleNamespace(
+        attempt_id="ea-1",
+        task_id="wp-a",
+        attempt_number=1,
+        execution_authorization_ref="d",
+    )
+    verdict = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=SimpleNamespace(role_id="role-impl-op", allowed_tools=[]),
+        verifier_role_id="role-verify-op",
+        plan_lookup=lambda _o: SimpleNamespace(plan_record_id="opr-1", status="approved"),
+        attempts_for_task=lambda _t: [],
+    )
+    assert verdict.admitted
+
+    lying = [c for c in verdict.checks if c.get("passed") and c.get("detail")]
+    assert not lying, (
+        "PASSING checks carry refusal text — the audit record states the "
+        f"opposite of what happened: {[(c['check'], c['detail']) for c in lying]}"
+    )
+
+    # A refusal must still carry its full explanation.
+    grant.task_frontier = []
+    refused = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=SimpleNamespace(role_id="role-impl-op", allowed_tools=[]),
+        verifier_role_id="role-verify-op",
+        plan_lookup=lambda _o: SimpleNamespace(plan_record_id="opr-1", status="approved"),
+        attempts_for_task=lambda _t: [],
+    )
+    assert not refused.admitted
+    assert refused.refusal_code == "task_outside_frontier"
+    failed_with_detail = [
+        c["check"] for c in refused.checks if not c["passed"] and c.get("detail")
+    ]
+    assert "task_in_authorized_frontier" in failed_with_detail, (
+        "a refusal must still record WHY it refused"
+    )
