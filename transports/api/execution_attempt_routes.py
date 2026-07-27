@@ -63,14 +63,40 @@ def _build_router() -> Any:
     router = APIRouter(prefix="/execution", tags=["execution"])
 
     def _tenant_visible(tenant_id: str, row_tenant: str) -> bool:
-        return not tenant_id or not row_tenant or row_tenant == tenant_id
+        """Exact tenant match. EMPTY on either side means DENY, never ALLOW.
+
+        This previously read ``not tenant_id or not row_tenant or ...``, which
+        was fail-OPEN in both directions on the most sensitive surface in the
+        slice (worker identities, lease paths, files_changed, commits, and
+        CANCEL):
+
+        - an attempt written WITHOUT a tenant was visible and cancellable by
+          every tenant — and such a record exists in live state
+          (``ea-cf043ef5e0a0``, status ``running``);
+        - a caller whose principal resolution FAILED got ``""`` and therefore
+          saw EVERYTHING, so a resolution outage escalated privilege instead of
+          removing it.
+
+        ``principal_resolution`` states a "Fail-closed posture"; this read path
+        inverted it (adversarial-review HIGH). A deliberate single-tenant
+        fail-open may be defensible on the plan surface, which documents it —
+        it is not defensible here, and it is not needed: the field harness and
+        production both resolve a non-empty tenant.
+        """
+        return bool(tenant_id) and bool(row_tenant) and row_tenant == tenant_id
 
     def _caller_tenant() -> str:
+        """The caller's tenant, or "" when it cannot be resolved.
+
+        "" now DENIES rather than grants (see ``_tenant_visible``), so the bare
+        ``except`` below removes authority instead of conferring it.
+        """
         try:
             from substrate.contracts.principal_resolution import resolve_principal_context
 
             return resolve_principal_context().tenant_id
-        except Exception:
+        except Exception as exc:
+            logger.warning("caller tenant unresolved — denying execution reads: %s", exc)
             return ""
 
     @router.get("/attempts")

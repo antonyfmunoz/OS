@@ -26,15 +26,28 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(store_mod, "_DEFAULT_ASSIGNMENTS_PATH", str(tmp_path / "asn.jsonl"))
 
     store = ExecutionAttemptStore()
+    # The attempt carries a REAL tenant, and the caller resolves to the same
+    # one. This fixture previously seeded tenant_id="" and relied on the read
+    # routes treating an empty tenant as "visible to everyone" — i.e. these
+    # tests were passing BECAUSE of the fail-open that adversarial review found
+    # (an empty-tenant attempt was globally readable AND cancellable). Empty is
+    # now DENY on both sides, so the fixture must model a real operator.
     a = ExecutionAttempt(
         task_id="wp-a",
         plan_record_id="opr-1",
-        tenant_id="",
+        tenant_id="tenant-fixture",
         execution_authorization_ref="ref",
         status="running",
         worker_identity="w",
     )
     store.create_attempt_idempotent(a)
+
+    import substrate.contracts.principal_resolution as principal
+
+    class _Ctx:
+        tenant_id = "tenant-fixture"
+
+    monkeypatch.setattr(principal, "resolve_principal_context", lambda *args, **kw: _Ctx())
 
     from transports.api import execution_attempt_routes
 

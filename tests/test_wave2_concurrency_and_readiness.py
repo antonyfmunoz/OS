@@ -569,20 +569,14 @@ def test_scheduler_rereads_the_grant_so_a_committed_revocation_is_seen(tmp_path)
     assert "not active" in (report.reason or "") or "invalid" in (report.reason or ""), report.reason
 
 
-def test_execution_api_refuses_cross_tenant_read_and_write(tmp_path, monkeypatch):
-    """CRITICAL: ``_tenant_visible`` was defined but applied in only ONE of
-    eight routes. Every other read — and BOTH POSTs — were tenant-blind, and
-    ``grep -c tenant`` on the attempt store returns 0, so there was no
-    downstream defense: ``transition_cas`` validates version, status,
-    transition legality and immutability, but never tenant.
-
-    A different tenant could enumerate attempts, grants, frontier, worker
-    identities and lease paths — and CANCEL another tenant's in-flight
-    execution.
-    """
+def _tenant_routes(tmp_path, monkeypatch, caller_tenant, victim_status="running"):
+    """Seed ONE attempt owned by tenant-a and resolve the caller to
+    ``caller_tenant``. Returns (store, attempt, endpoints)."""
     from substrate.execution.attempts.records import ExecutionAttempt
     import substrate.contracts.principal_resolution as principal
     import transports.api.execution_attempt_routes as routes
+
+    from substrate.execution.attempts.records import ExecutionAuthorizationGrant
 
     store = _grant_store(tmp_path)
     attempt = ExecutionAttempt(
@@ -594,41 +588,162 @@ def test_execution_api_refuses_cross_tenant_read_and_write(tmp_path, monkeypatch
         tenant_id="tenant-a",
         objective_id="goal-a",
     )
-    attempt.status = "failed"
+    attempt.status = victim_status
     store.create_attempt_idempotent(attempt)
 
+    # An ACTIVE grant owned by tenant-a MUST exist, otherwise /frontier and
+    # /authorizations return empty because there is nothing to leak — and the
+    # cross-tenant assertion would pass for the wrong reason (exactly the C-1
+    # defect, one layer down: mutating those two guards away kept the suite
+    # green until this grant was seeded).
+    grant = ExecutionAuthorizationGrant(
+        decision_ref="ref-a",
+        tenant_id="tenant-a",
+        plan_record_id="opr-a",
+        plan_version=1,
+        task_frontier=["T-A"],
+        objective_id="goal-a",
+    )
+    grant.status = "active"
+    store.create_grant_idempotent(grant)
+
     class _Ctx:
-        tenant_id = "tenant-b"
+        tenant_id = caller_tenant
 
     monkeypatch.setattr(principal, "resolve_principal_context", lambda *a, **k: _Ctx())
     monkeypatch.setattr(routes, "_store", lambda: store)
+    return store, attempt, {r.path: r.endpoint for r in routes._build_router().routes}
 
-    class _Body:
-        decided_by = "mallory"
-        reason = "x"
 
-    endpoints = {r.path: r.endpoint for r in routes._build_router().routes}
+class _CancelBody:
+    decided_by = "mallory"
+    reason = "x"
 
+
+def test_every_execution_route_refuses_cross_tenant_access(tmp_path, monkeypatch):
+    """HIGH (review C-1): the per-route tenant guards were VACUOUS.
+
+    The previous version of this test asserted on only 5 of 8 routes, and its
+    cancel/retry assertions passed for the WRONG REASON: the victim attempt was
+    ``failed``, so ``transition_cas`` refused ``failed -> cancelled`` on
+    LIFECYCLE grounds before tenancy was ever consulted. Removing the cancel
+    tenant guard entirely left this suite green. Only a blanket
+    ``_tenant_visible -> True`` was caught; each individual per-route guard
+    could be deleted and ship green.
+
+    Every route is now asserted individually, and the victim is RUNNING so a
+    cancel refusal can only come from tenancy.
+    """
+    store, attempt, endpoints = _tenant_routes(tmp_path, monkeypatch, "tenant-b")
+
+    assert endpoints["/execution/attempts"]()["attempts"] == []
+    assert endpoints["/execution/attempts/{attempt_id}"](attempt.attempt_id) == {
+        "error": "not found"
+    }
+    assert endpoints["/execution/frontier"]()["frontier"] == []
+    assert endpoints["/execution/authorizations"]()["authorizations"] == []
+    assert endpoints["/execution/by-plan/{plan_record_id}"]("opr-a")["attempts"] == []
+    assert endpoints["/execution/overlay"]("T-A")["overlay"] == {}
+    assert (
+        endpoints["/execution/attempts/{attempt_id}/retry"](
+            attempt.attempt_id, _CancelBody()
+        ).get("success")
+        is False
+    )
+    # DECISIVE. Two confounders had to be removed before this assertion could
+    # mean anything: (1) a `failed` victim made transition_cas refuse on
+    # LIFECYCLE grounds, (2) `governed_mutation` refuses in degraded mode when
+    # no control plane is up. With BOTH removed — a RUNNING victim and a
+    # permitting mutation runner — the only thing left that can refuse the
+    # cancel is tenancy.
+    import transports.api.governed as governed
+
+    def _permit(**kw):
+        fn = kw.get("execute_fn")
+        out = fn() if callable(fn) else ("", True)
+        return SimpleNamespace(success=True, output=out[0] if isinstance(out, tuple) else out)
+
+    monkeypatch.setattr(governed, "governed_mutation", _permit)
+    assert (
+        endpoints["/execution/attempts/{attempt_id}/cancel"](
+            attempt.attempt_id, _CancelBody()
+        ).get("success")
+        is False
+    )
+    assert store.get_attempt(attempt.attempt_id).status == "running"
+
+
+def test_same_tenant_cancel_is_permitted_so_the_guard_is_not_blanket_denial(
+    tmp_path, monkeypatch
+):
+    """Control for the test above: with the caller's tenant MATCHING, cancel
+    must reach the lifecycle. Without this, a guard that denied everything
+    would satisfy the cross-tenant assertions for the wrong reason — the exact
+    defect class being fixed."""
+    store, attempt, endpoints = _tenant_routes(tmp_path, monkeypatch, "tenant-a")
+
+    assert endpoints["/execution/attempts/{attempt_id}"](attempt.attempt_id).get(
+        "attempt_id"
+    ) == attempt.attempt_id
+    out = endpoints["/execution/attempts/{attempt_id}/cancel"](
+        attempt.attempt_id, _CancelBody()
+    )
+    assert "not found" not in str(out.get("error", "")), out
+
+
+def test_empty_tenant_is_denied_on_both_sides(tmp_path, monkeypatch):
+    """HIGH (review C-2): ``_tenant_visible`` returned True when EITHER side was
+    empty, on the surface exposing worker identities, lease paths,
+    files_changed, commits and CANCEL.
+
+    Row side was LIVE: attempt ``ea-cf043ef5e0a0`` exists in runtime state with
+    ``tenant_id=''`` and status ``running`` — globally readable and cancellable.
+    Caller side was latent: ``_caller_tenant()`` catches Exception and returns
+    ``""``, so a principal-resolution FAILURE granted universal visibility
+    instead of removing it.
+    """
+    # (a) caller cannot resolve a tenant -> sees nothing
+    store, attempt, endpoints = _tenant_routes(tmp_path, monkeypatch, "")
+    assert endpoints["/execution/attempts"]()["attempts"] == []
     assert endpoints["/execution/attempts/{attempt_id}"](attempt.attempt_id) == {
         "error": "not found"
     }
     assert (
         endpoints["/execution/attempts/{attempt_id}/cancel"](
-            attempt.attempt_id, _Body()
+            attempt.attempt_id, _CancelBody()
         ).get("success")
         is False
     )
-    assert (
-        endpoints["/execution/attempts/{attempt_id}/retry"](
-            attempt.attempt_id, _Body()
-        ).get("success")
-        is False
-    )
-    assert endpoints["/execution/by-plan/{plan_record_id}"]("opr-a")["attempts"] == []
-    assert endpoints["/execution/overlay"]("T-A")["overlay"] == {}
+    assert store.get_attempt(attempt.attempt_id).status == "running"
 
-    # The decisive assertion: the other tenant's attempt was NOT mutated.
-    assert store.get_attempt(attempt.attempt_id).status == "failed"
+    # (b) a row WITHOUT a tenant is not globally visible
+    from substrate.execution.attempts.records import ExecutionAttempt
+
+    orphan = ExecutionAttempt(
+        task_id="T-ORPHAN",
+        plan_record_id="opr-orphan",
+        plan_version=1,
+        execution_authorization_ref="ref-o",
+        attempt_number=1,
+        tenant_id="",
+        objective_id="goal-o",
+    )
+    orphan.status = "running"
+    store.create_attempt_idempotent(orphan)
+
+    import substrate.contracts.principal_resolution as principal
+
+    class _Ctx:
+        tenant_id = "tenant-b"
+
+    monkeypatch.setattr(principal, "resolve_principal_context", lambda *a, **k: _Ctx())
+    import transports.api.execution_attempt_routes as routes
+
+    endpoints = {r.path: r.endpoint for r in routes._build_router().routes}
+    assert endpoints["/execution/attempts/{attempt_id}"](orphan.attempt_id) == {
+        "error": "not found"
+    }
+    assert orphan.attempt_id not in str(endpoints["/execution/attempts"]())
 
 
 def test_production_decision_source_wires_the_supersession_lookup():
