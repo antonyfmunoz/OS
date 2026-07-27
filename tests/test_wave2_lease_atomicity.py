@@ -837,3 +837,142 @@ def test_an_attempt_stranded_at_created_is_recovered_by_a_later_pass():
         "the attempt is STILL stranded at CREATED after a healthy pass — it is "
         "blocking its own retry and the Task will never execute"
     )
+
+
+def test_append_lease_refuses_to_write_an_active_claim(tmp_path):
+    """M-3: the unguarded name must not be usable to CLAIM a task.
+
+    `append_lease` sat public and production-dead beside
+    `append_lease_if_no_active`. A future caller reaching for the obvious name
+    to acquire a lease would silently reintroduce F1 — the CRITICAL
+    check-then-act that put two real workers on one Task.
+
+    Writing a released/expired/revoked row stays legal; writing an ACTIVE row
+    (a claim) is refused and must go through the atomic path.
+    """
+    from substrate.execution.attempts.store import AttemptStoreConflict
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+
+    with pytest.raises(AttemptStoreConflict):
+        store.append_lease({"lease_id": "l-x", "task_id": "wp-a", "status": "active"})
+    assert _active_leases_for(paths, "wp-a") == []
+
+    # Non-claiming rows are unaffected.
+    store.append_lease_if_no_active(
+        {"lease_id": "l-1", "task_id": "wp-a", "status": "active"}
+    )
+    store.append_lease({"lease_id": "l-1", "task_id": "wp-a", "status": "released"})
+    assert _active_leases_for(paths, "wp-a") == []
+
+
+def test_a_raising_runner_in_the_promotion_path_cannot_abort_the_pass():
+    """A-1: the promotion guard must survive a runner that RAISES.
+
+    No real governed runner raises today — they all catch and return. But the
+    promotion runs inside the frontier loop, so ANY escape aborts the whole pass
+    and drops every remaining Task: the N-1 outage, reintroduced through the
+    N-3 fix. Recovering one orphan must never cost the fleet.
+    """
+    import tempfile
+
+    from substrate.execution.attempts.decisions import request_execution_authorization
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    def _plain(**kw):
+        fn = kw.get("execute_fn")
+        try:
+            r = fn() if fn else ("", True)
+            out, ok = r if isinstance(r, tuple) else (r, True)
+            return SimpleNamespace(success=ok, output=out)
+        except Exception as exc:  # noqa: BLE001
+            return SimpleNamespace(success=False, output=str(exc))
+
+    class _RaisesOnTransition:
+        """A runner that RAISES rather than returning — the A-1 shape."""
+
+        def __init__(self):
+            self.armed = False
+
+        def __call__(self, **kw):
+            if self.armed and kw.get("mutation_name") == "execution_attempt_transition":
+                raise RuntimeError("runner exploded mid-transition")
+            return _plain(**kw)
+
+    tmp = tempfile.mkdtemp(prefix="a1-")
+    store = ExecutionAttemptStore(
+        attempts_path=os.path.join(tmp, "a.jsonl"),
+        grants_path=os.path.join(tmp, "g.jsonl"),
+        readiness_path=os.path.join(tmp, "r.jsonl"),
+        leases_path=os.path.join(tmp, "l.jsonl"),
+        assignments_path=os.path.join(tmp, "asn.jsonl"),
+    )
+    plan = SimpleNamespace(
+        plan_record_id="opr-1",
+        objective_id="goal-1",
+        graph_version=1,
+        status="approved",
+        workpacket_ids=["wp-a"],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+    )
+    grant, _ = request_execution_authorization(
+        store,
+        plan=plan,
+        task_frontier=["wp-a"],
+        tenant_id="t",
+        principal_id="u",
+        membership_id="m",
+        conversation_id="c",
+        correlation_id="c",
+        requested_by="op",
+        mutation_runner=_plain,
+    )
+    grant.status = "active"
+    store.update_grant_cas(grant, expected_record_version=grant.record_version)
+
+    packet = SimpleNamespace(
+        packet_id="wp-a",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+        lineage={"plan_record_id": "opr-1"},
+        requirements={"required_skill_refs": []},
+        validation_plan="v",
+        required_tools=[],
+        rollback_plan="",
+    )
+    runner = _RaisesOnTransition()
+    sched = AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=lambda _t: packet),
+        placement_fn=lambda **_k: None,
+        lease_manager=None,
+        compile_fn=lambda **_k: None,
+        mutation_runner=runner,
+        lock_dir=os.path.join(tmp, "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-1", status="approved"
+        ),
+    )
+
+    # Strand the attempt at CREATED: swallow ONLY the transition mutation.
+    def _swallow_transitions(**kw):
+        if kw.get("mutation_name") == "execution_attempt_transition":
+            return SimpleNamespace(success=False, output="swallowed")
+        return _plain(**kw)
+
+    sched._mutation_runner = _swallow_transitions  # noqa: SLF001
+    sched.run_scheduler_pass(store.get_grant(grant.decision_ref))
+    assert store.attempts_for_task("wp-a")[0].status == "created", (
+        "setup failed: the attempt was not stranded at CREATED"
+    )
+
+    # Now the promotion path meets a runner that RAISES. The pass must survive.
+    runner.armed = True
+    sched._mutation_runner = runner  # noqa: SLF001
+    report = sched.run_scheduler_pass(store.get_grant(grant.decision_ref))
+    assert report.acquired, "a raising runner aborted the whole scheduler pass"
+    assert store.attempts_for_task("wp-a")[0].status == "created", (
+        "the orphan should remain CREATED when the promotion itself explodes"
+    )

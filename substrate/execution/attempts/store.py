@@ -399,7 +399,25 @@ class ExecutionAttemptStore:
     # ── Leases ───────────────────────────────────────────────────────────────
 
     def append_lease(self, lease: Any) -> None:
+        """Append a lease row that does NOT claim the task. Never for acquisition.
+
+        Round-8 review M-3: this is the obvious name sitting beside the guarded
+        one, it has ZERO production callers, and reaching for it to acquire a
+        lease reintroduces F1 (the CRITICAL check-then-act that put two workers
+        on one Task). `acquire()` must use `append_lease_if_no_active`, which
+        performs the uniqueness check and the append in ONE critical section.
+
+        So this refuses an ACTIVE row outright. Legitimate uses — recording a
+        released/expired/revoked lease — are unaffected, and a future caller
+        reaching for the wrong name gets an error instead of a silent race.
+        """
         payload = lease.to_dict() if hasattr(lease, "to_dict") else dict(lease)
+        if str(payload.get("status", "")) == "active":
+            raise AttemptStoreConflict(
+                "append_lease cannot write an ACTIVE lease — that is a task "
+                "CLAIM and must go through append_lease_if_no_active, which "
+                "checks and appends atomically (F1)"
+            )
         with self._file_lock(self._leases_path):
             self._append_line(self._leases_path, payload)
 

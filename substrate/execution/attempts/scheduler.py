@@ -332,7 +332,13 @@ class AttemptScheduler:
                                 "scheduler",
                                 "frontier ready (recovered from a lost transition)",
                             )
-                        except (AttemptStoreConflict, AttemptLifecycleError) as exc:
+                        except Exception as exc:  # noqa: BLE001
+                            # Deliberately broad (round-8 review A-1). No real
+                            # runner raises today, but this promotion runs
+                            # inside the frontier loop: ANY escape aborts the
+                            # whole pass and drops every remaining Task — the
+                            # N-1 outage, reintroduced through the N-3 fix.
+                            # Recovering one orphan must never cost the fleet.
                             logger.warning(
                                 "attempt %s still cannot be made READY: %s",
                                 orphan.attempt_id,
