@@ -844,6 +844,22 @@ def _bind_scheduler(tmp_path, packet, grant_tenant="tenant-A", grant_plan="opr-A
         def get_packet(self, pid):
             return packet if pid == packet.packet_id else None
 
+    def _permit(**kw):
+        """A PERMITTING mutation runner.
+
+        Without this the scheduler used the default runner, which fails closed
+        on `execution_attempt_create` in-process (no control plane), so
+        `assert not attempts_created` held whether or not the binding guard
+        refused — and the `_boom` sentinels never fired. A mutant that RECORDS
+        the block but returns True instead of False shipped green
+        (adversarial-review HIGH: the same vacuity shape as C-1, reintroduced).
+        """
+        fn = kw.get("execute_fn")
+        out = fn() if callable(fn) else ("", True)
+        return SimpleNamespace(
+            success=True, output=out[0] if isinstance(out, tuple) else out
+        )
+
     scheduler = AttemptScheduler(
         store,
         work_queue=_Q(),
@@ -851,6 +867,7 @@ def _bind_scheduler(tmp_path, packet, grant_tenant="tenant-A", grant_plan="opr-A
         lease_manager=SimpleNamespace(acquire=_boom),
         compile_fn=_boom,
         lock_dir=str(tmp_path / "locks"),
+        mutation_runner=_permit,
         # The plan resolves (production copies objective_id from the plan), so
         # the ONLY thing that can refuse here is the tenant/plan binding.
         latest_plan_lookup=lambda _o: SimpleNamespace(
@@ -1018,3 +1035,378 @@ def test_plan_revision_mints_a_new_record_id_so_binding_is_version_binding():
         "packets now carry a plan version — the binding check should compare it"
     )
     assert ObjectivePlanRecord().plan_record_id != ObjectivePlanRecord().plan_record_id
+
+
+def test_admission_refuses_a_ready_attempt_the_grant_does_not_own(tmp_path):
+    """CRITICAL (review R2-1): the A-1 binding fix guarded attempt CREATION and
+    left ADMISSION open — the door that actually spends quota.
+
+    ``_admit`` selected from ``store.active_attempts()``, which reads the ENTIRE
+    ledger and is tenant-blind and grant-blind. Every READY attempt in a shared
+    multi-tenant store was leased, compiled and dispatched under whatever grant
+    the pass happened to hold. The attacker's grant is entirely legitimate for
+    their own plan and its ``task_frontier`` is EMPTY — it names nothing at all.
+    """
+    from substrate.execution.attempts.records import (
+        ExecutionAttempt,
+        ExecutionAuthorizationGrant,
+    )
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    store = _grant_store(tmp_path)
+    victim = ExecutionAttempt(
+        task_id="VICTIM-TASK",
+        plan_record_id="opr-VICTIM",
+        plan_version=1,
+        execution_authorization_ref="ref-VICTIM",
+        attempt_number=1,
+        tenant_id="tenant-VICTIM",
+        objective_id="goal-v",
+    )
+    victim, _ = store.create_attempt_idempotent(victim)
+    store.transition_cas(
+        victim.attempt_id,
+        "ready",
+        expected_record_version=victim.record_version,
+        expected_statuses=("created",),
+        actor="test",
+        reason="ready",
+    )
+
+    placed: list = []
+    leased: list = []
+    dispatched: list = []
+    victim_packet = SimpleNamespace(
+        packet_id="VICTIM-TASK",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "tenant-VICTIM"},
+        lineage={"plan_record_id": "opr-VICTIM"},
+    )
+
+    class _Q:
+        def get_packet(self, pid):
+            return victim_packet if pid == "VICTIM-TASK" else None
+
+    attacker = ExecutionAuthorizationGrant(
+        decision_ref="ref-ATTACKER",
+        tenant_id="tenant-ATTACKER",
+        plan_record_id="opr-ATTACKER",
+        plan_version=1,
+        task_frontier=[],  # names NOTHING
+        objective_id="goal-a",
+        expires_at=time.time() + 3600,
+        max_attempts_per_task=2,
+    )
+    attacker.status = "active"
+    created, _ = store.create_grant_idempotent(attacker)
+
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=_Q(),
+        placement_fn=lambda **kw: placed.append(kw.get("attempt_id"))
+        or SimpleNamespace(assignment_id="as", worker_identity="w", verifier_role_id="v"),
+        lease_manager=SimpleNamespace(
+            acquire=lambda **kw: leased.append(kw.get("attempt_id"))
+            or SimpleNamespace(lease_id="L", worktree_path=str(tmp_path), base_commit="c")
+        ),
+        compile_fn=lambda **kw: SimpleNamespace(package_hash="h"),
+        dispatch_fn=lambda **kw: dispatched.append(kw.get("attempt_id")),
+        lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-ATTACKER", status="approved"
+        ),
+    )
+
+    report = scheduler.run_scheduler_pass(created)
+
+    assert placed == [], "another tenant's Task was PLACED"
+    assert leased == [], "another tenant's Task was LEASED"
+    assert dispatched == [], "another tenant's Task was DISPATCHED"
+    assert report.attempts_admitted == [], report.attempts_admitted
+    assert store.get_attempt(victim.attempt_id).status == "ready"
+
+
+def test_admission_admits_a_ready_attempt_the_grant_DOES_own(tmp_path):
+    """Control for R2-1: the admission binding must discriminate, not deny. A
+    grant that owns the Task still places, leases and dispatches it."""
+    from substrate.execution.attempts.records import (
+        ExecutionAttempt,
+        ExecutionAuthorizationGrant,
+    )
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    store = _grant_store(tmp_path)
+    grant = ExecutionAuthorizationGrant(
+        decision_ref="ref-OWN",
+        tenant_id="tenant-A",
+        plan_record_id="opr-A",
+        plan_version=1,
+        task_frontier=["OWN-TASK"],
+        objective_id="goal-a",
+        expires_at=time.time() + 3600,
+        max_attempts_per_task=2,
+    )
+    grant.status = "active"
+    created, _ = store.create_grant_idempotent(grant)
+
+    attempt = ExecutionAttempt(
+        task_id="OWN-TASK",
+        plan_record_id="opr-A",
+        plan_version=1,
+        execution_authorization_ref="ref-OWN",
+        attempt_number=1,
+        tenant_id="tenant-A",
+        objective_id="goal-a",
+    )
+    attempt, _ = store.create_attempt_idempotent(attempt)
+    store.transition_cas(
+        attempt.attempt_id,
+        "ready",
+        expected_record_version=attempt.record_version,
+        expected_statuses=("created",),
+        actor="test",
+        reason="ready",
+    )
+
+    packet = SimpleNamespace(
+        packet_id="OWN-TASK",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "tenant-A"},
+        lineage={"plan_record_id": "opr-A"},
+    )
+
+    class _Q:
+        def get_packet(self, pid):
+            return packet if pid == "OWN-TASK" else None
+
+    placed: list = []
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=_Q(),
+        placement_fn=lambda **kw: placed.append(kw.get("attempt_id"))
+        or SimpleNamespace(assignment_id="as", worker_identity="w", verifier_role_id="v"),
+        lease_manager=SimpleNamespace(
+            acquire=lambda **kw: SimpleNamespace(
+                lease_id="L", worktree_path=str(tmp_path), base_commit="c"
+            )
+        ),
+        compile_fn=lambda **kw: SimpleNamespace(package_hash="h"),
+        dispatch_fn=lambda **kw: None,
+        lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-A", status="approved"
+        ),
+    )
+
+    scheduler.run_scheduler_pass(created)
+    assert placed == [attempt.attempt_id], "a grant was refused its OWN Task"
+
+
+def test_retry_route_refuses_cross_tenant_with_a_retryable_victim(tmp_path, monkeypatch):
+    """HIGH (review R2-4): the retry tenant guard was UNTESTED. The
+    cross-tenant test used a RUNNING victim, but retry requires ``failed`` — so
+    the status check refused first and the tenant guard could be deleted green.
+
+    The victim here is FAILED, i.e. legitimately retryable, and the grant it
+    references is ACTIVE. The only thing left that can refuse is tenancy.
+    """
+    from substrate.execution.attempts.records import ExecutionAuthorizationGrant
+
+    store, attempt, endpoints = _tenant_routes(
+        tmp_path, monkeypatch, "tenant-b", victim_status="failed"
+    )
+    # An ACTIVE grant for the victim's own plan, so `retry` cannot refuse for
+    # lack of authorization either.
+    grant = ExecutionAuthorizationGrant(
+        decision_ref="ref-a",
+        tenant_id="tenant-a",
+        plan_record_id="opr-a",
+        plan_version=1,
+        task_frontier=["T-A"],
+        objective_id="goal-a",
+        expires_at=time.time() + 3600,
+    )
+    grant.status = "active"
+    try:
+        store.create_grant_idempotent(grant)
+    except Exception:
+        pass
+
+    out = endpoints["/execution/attempts/{attempt_id}/retry"](
+        attempt.attempt_id, _CancelBody()
+    )
+    assert out.get("success") is False, out
+    assert "not found" in str(out.get("error", "")), (
+        "retry refused for a reason OTHER than tenancy — the guard is untested again"
+    )
+
+
+def test_admission_revalidates_a_packet_that_changed_after_the_frontier_check(tmp_path):
+    """CRITICAL (review R2-2): the packet is RE-READ in ``_admit`` after the
+    frontier loop already checked it, so it must be RE-VALIDATED there.
+
+    This isolates the second call: the attempt IS in the grant's frontier and
+    DOES carry the grant's authorization_ref, so the frontier narrowing admits
+    it — and only the re-validation can catch that the packet's tenant changed
+    between the two reads. Without it, deleting the second binding call ships
+    green (verified: the R2-1 test alone does not cover it).
+    """
+    from substrate.execution.attempts.records import (
+        ExecutionAttempt,
+        ExecutionAuthorizationGrant,
+    )
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    store = _grant_store(tmp_path)
+    grant = ExecutionAuthorizationGrant(
+        decision_ref="ref-own",
+        tenant_id="tenant-A",
+        plan_record_id="opr-A",
+        plan_version=1,
+        task_frontier=["T-DRIFT"],
+        objective_id="goal-a",
+        expires_at=time.time() + 3600,
+        max_attempts_per_task=2,
+    )
+    grant.status = "active"
+    created, _ = store.create_grant_idempotent(grant)
+
+    attempt = ExecutionAttempt(
+        task_id="T-DRIFT",
+        plan_record_id="opr-A",
+        plan_version=1,
+        execution_authorization_ref="ref-own",
+        attempt_number=1,
+        tenant_id="tenant-A",
+        objective_id="goal-a",
+    )
+    attempt, _ = store.create_attempt_idempotent(attempt)
+    store.transition_cas(
+        attempt.attempt_id,
+        "ready",
+        expected_record_version=attempt.record_version,
+        expected_statuses=("created",),
+        actor="test",
+        reason="ready",
+    )
+
+    # The packet DRIFTS: by the time _admit re-reads it, it belongs elsewhere.
+    drifted = SimpleNamespace(
+        packet_id="T-DRIFT",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "tenant-SOMEONE-ELSE"},
+        lineage={"plan_record_id": "opr-A"},
+    )
+
+    class _Q:
+        def get_packet(self, pid):
+            return drifted if pid == "T-DRIFT" else None
+
+    placed: list = []
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=_Q(),
+        placement_fn=lambda **kw: placed.append(kw.get("attempt_id"))
+        or SimpleNamespace(assignment_id="as", worker_identity="w", verifier_role_id="v"),
+        lease_manager=SimpleNamespace(
+            acquire=lambda **kw: SimpleNamespace(
+                lease_id="L", worktree_path=str(tmp_path), base_commit="c"
+            )
+        ),
+        compile_fn=lambda **kw: SimpleNamespace(package_hash="h"),
+        dispatch_fn=lambda **kw: None,
+        lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-A", status="approved"
+        ),
+    )
+
+    scheduler.run_scheduler_pass(created)
+    assert placed == [], "a drifted packet was placed — admission did not re-validate"
+
+
+def test_admission_will_not_run_an_attempt_minted_under_a_different_grant(tmp_path):
+    """The frontier/authorization narrowing in ``_admit`` is INDEPENDENTLY
+    load-bearing, not redundant with the packet re-validation.
+
+    Two grants can legitimately share a tenant AND a plan — so a packet-level
+    binding check passes for both. What separates them is which grant the
+    ATTEMPT was minted under. Here the attempt belongs to ``ref-ONE`` while the
+    pass is held by ``ref-TWO`` (empty frontier); the packet check cannot tell
+    them apart, and only the narrowing refuses.
+    """
+    from substrate.execution.attempts.records import (
+        ExecutionAttempt,
+        ExecutionAuthorizationGrant,
+    )
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    store = _grant_store(tmp_path)
+    attempt = ExecutionAttempt(
+        task_id="T",
+        plan_record_id="opr-A",
+        plan_version=1,
+        execution_authorization_ref="ref-ONE",
+        attempt_number=1,
+        tenant_id="tenant-A",
+        objective_id="goal-a",
+    )
+    attempt, _ = store.create_attempt_idempotent(attempt)
+    store.transition_cas(
+        attempt.attempt_id,
+        "ready",
+        expected_record_version=attempt.record_version,
+        expected_statuses=("created",),
+        actor="test",
+        reason="ready",
+    )
+
+    packet = SimpleNamespace(
+        packet_id="T",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "tenant-A"},
+        lineage={"plan_record_id": "opr-A"},
+    )
+
+    class _Q:
+        def get_packet(self, pid):
+            return packet
+
+    other = ExecutionAuthorizationGrant(
+        decision_ref="ref-TWO",
+        tenant_id="tenant-A",
+        plan_record_id="opr-A",
+        plan_version=1,
+        task_frontier=[],
+        objective_id="goal-a",
+        expires_at=time.time() + 3600,
+        max_attempts_per_task=2,
+    )
+    other.status = "active"
+    created, _ = store.create_grant_idempotent(other)
+
+    placed: list = []
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=_Q(),
+        placement_fn=lambda **kw: placed.append(kw.get("attempt_id"))
+        or SimpleNamespace(assignment_id="as", worker_identity="w", verifier_role_id="v"),
+        lease_manager=SimpleNamespace(
+            acquire=lambda **kw: SimpleNamespace(
+                lease_id="L", worktree_path=str(tmp_path), base_commit="c"
+            )
+        ),
+        compile_fn=lambda **kw: SimpleNamespace(package_hash="h"),
+        dispatch_fn=lambda **kw: None,
+        lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-A", status="approved"
+        ),
+    )
+
+    scheduler.run_scheduler_pass(created)
+    assert placed == [], "an attempt minted under another grant was admitted"

@@ -457,13 +457,45 @@ class AttemptScheduler:
         slots = self._max_concurrency - len(active)
         if slots <= 0:
             return
+        # `active_attempts()` reads the ENTIRE ledger — it is tenant-blind and
+        # grant-blind, and the store is a shared multi-tenant, multi-plan file.
+        # Admission must therefore re-establish the grant binding itself; it
+        # cannot inherit it from the frontier loop (adversarial-review CRITICAL).
+        #
+        # Guarding only attempt CREATION left this door open: every READY
+        # attempt in the whole store was leased, compiled and dispatched under
+        # whatever grant the current pass happened to hold. An attacker's
+        # entirely legitimate grant — with an EMPTY task_frontier, naming
+        # nothing — leased and dispatched another tenant's Task. This is the
+        # surface that spends billed quota and mutates repositories.
+        #
+        # Frontier membership is checked FIRST as a cheap narrowing, but it is
+        # explicitly NOT the binding check: A-1 established that membership of
+        # an id string proves nothing about ownership.
+        frontier_ids = {str(t) for t in (getattr(grant, "task_frontier", []) or [])}
         ready = sorted(
-            [a for a in self._store.active_attempts() if a.status == _S.READY.value],
+            [
+                a
+                for a in self._store.active_attempts()
+                if a.status == _S.READY.value
+                and a.task_id in frontier_ids
+                and str(getattr(a, "execution_authorization_ref", "")) == str(
+                    getattr(grant, "decision_ref", "")
+                )
+            ],
             key=lambda a: (a.task_id, a.attempt_number),
         )
         for attempt in ready[:slots]:
             packet = self._queue.get_packet(attempt.task_id)
             if packet is None:
+                continue
+            # The packet is RE-READ here, after the frontier loop's check, so it
+            # must be RE-VALIDATED here (adversarial-review CRITICAL: TOCTOU).
+            # A packet whose scope or lineage changed between the two reads —
+            # or an attempt created under a previous pass — would otherwise be
+            # placed, leased and dispatched on the strength of a check that ran
+            # against a different object.
+            if not self._packet_bound_to_grant(packet, grant, attempt.task_id, report):
                 continue
             role = role_resolver(packet) if role_resolver else None
             verifier = (
