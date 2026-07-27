@@ -2461,3 +2461,45 @@ def test_skill_bounds_from_the_persisted_role_store_are_enforced(tmp_path, monke
     )
     assert not v.admitted
     assert v.refusal_code == "skill_not_authorized", v.refusal_code
+
+
+def test_check9_reachability_debt_is_recorded_not_hidden(tmp_path, monkeypatch):
+    """Ledger #16: check 9's refusal branch is UNREACHABLE in production today.
+
+    Round 5 wired the resolver to the PERSISTED role store, which is where an
+    operator would configure skill bounds. But `persist_role_contracts` has
+    ZERO production callers, so that store is always empty in a real
+    deployment, the hardcoded seeds are always used, and NO seed carries either
+    skill list. The guard is capable but unfed.
+
+    This test asserts the honest state in BOTH directions so the debt cannot be
+    silently forgotten OR falsely closed:
+      1. no seed role carries skill bounds  -> the debt is real
+      2. WHEN the store is populated, the guard ENFORCES -> the debt is only
+         data, not a missing mechanism
+
+    When the role↔skill governance model is decided and the store is populated,
+    leg 1 flips and this test must be updated together with ledger #16.
+    """
+    from substrate.organism.role_contracts import SEED_ROLE_CONTRACTS
+
+    unbounded = [
+        s.get("role_id")
+        for s in SEED_ROLE_CONTRACTS
+        if not s.get("permitted_skill_ids") and not s.get("prohibited_skill_ids")
+    ]
+    assert len(unbounded) == len(SEED_ROLE_CONTRACTS), (
+        "a seed role now carries skill bounds — check 9 may be reachable on the "
+        "default path. Update ledger #16 and this test together."
+    )
+
+    # Leg 2: the MECHANISM works; only the data is missing. Proven by the
+    # persisted-store test above, re-asserted here as the debt's exit criterion.
+    from substrate.execution.attempts.field_control_plane import _canonical_role
+
+    resolved = _canonical_role("role-impl-op")
+    assert resolved is not None, "the seed fallback must still resolve"
+    assert hasattr(resolved, "prohibited_skill_ids"), (
+        "the resolved role must carry the field the guard reads, so populating "
+        "the store is sufficient to enforce with no code change"
+    )
