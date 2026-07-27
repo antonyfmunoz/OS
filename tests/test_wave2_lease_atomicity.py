@@ -719,3 +719,121 @@ def test_a_failed_ready_transition_does_not_abort_the_whole_scheduler_pass():
     assert report.attempts_created == [], (
         "an attempt that could not be made READY must not be reported as created"
     )
+
+
+def test_an_attempt_stranded_at_created_is_recovered_by_a_later_pass():
+    """Self-found: the N-1 fix's own comment was false until this branch existed.
+
+    `_create_attempt` returns None when its created→READY transition loses a
+    CAS race, leaving the attempt CREATED "for the next pass to retry". But
+    CREATED is not terminal, so the frontier loop's
+    `if any(not a.is_terminal() ...): continue` guard skipped straight past it —
+    the attempt BLOCKED ITS OWN RETRY and the Task was stranded forever, even
+    after the interference cleared.
+
+    Measured before this fix (pass 2 entirely healthy):
+        pass1: [('ea-9b6cd2755', 'created', 1)]
+        pass2: [('ea-9b6cd2755', 'created', 1)]   <- never recovers
+
+    A later pass now promotes the orphan instead of skipping it, and mints no
+    duplicate.
+    """
+    import tempfile
+
+    from substrate.execution.attempts.decisions import request_execution_authorization
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    def _plain(**kw):
+        fn = kw.get("execute_fn")
+        try:
+            r = fn() if fn else ("", True)
+            out, ok = r if isinstance(r, tuple) else (r, True)
+            return SimpleNamespace(success=ok, output=out)
+        except Exception as exc:  # noqa: BLE001
+            return SimpleNamespace(success=False, output=str(exc))
+
+    class _BlockTransitions:
+        """Swallows transitions while `block` is set — the real runner shape."""
+
+        def __init__(self):
+            self.block = True
+
+        def __call__(self, **kw):
+            if self.block and kw.get("mutation_name") == "execution_attempt_transition":
+                return SimpleNamespace(success=False, output="swallowed conflict")
+            return _plain(**kw)
+
+    tmp = tempfile.mkdtemp(prefix="stranded-")
+    store = ExecutionAttemptStore(
+        attempts_path=os.path.join(tmp, "a.jsonl"),
+        grants_path=os.path.join(tmp, "g.jsonl"),
+        readiness_path=os.path.join(tmp, "r.jsonl"),
+        leases_path=os.path.join(tmp, "l.jsonl"),
+        assignments_path=os.path.join(tmp, "asn.jsonl"),
+    )
+    plan = SimpleNamespace(
+        plan_record_id="opr-1",
+        objective_id="goal-1",
+        graph_version=1,
+        status="approved",
+        workpacket_ids=["wp-a"],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+    )
+    grant, _ = request_execution_authorization(
+        store,
+        plan=plan,
+        task_frontier=["wp-a"],
+        tenant_id="t",
+        principal_id="u",
+        membership_id="m",
+        conversation_id="c",
+        correlation_id="c",
+        requested_by="op",
+        mutation_runner=_plain,
+    )
+    grant.status = "active"
+    store.update_grant_cas(grant, expected_record_version=grant.record_version)
+
+    packet = SimpleNamespace(
+        packet_id="wp-a",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "t", "target_kind": "k"},
+        lineage={"plan_record_id": "opr-1"},
+        requirements={"required_skill_refs": []},
+        validation_plan="v",
+        required_tools=[],
+        rollback_plan="",
+    )
+    runner = _BlockTransitions()
+    sched = AttemptScheduler(
+        store,
+        work_queue=SimpleNamespace(get_packet=lambda _t: packet),
+        placement_fn=lambda **_k: None,
+        lease_manager=None,
+        compile_fn=lambda **_k: None,
+        mutation_runner=runner,
+        lock_dir=os.path.join(tmp, "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-1", status="approved"
+        ),
+    )
+
+    # Pass 1: the transition is swallowed → the attempt is stranded at CREATED.
+    sched.run_scheduler_pass(store.get_grant(grant.decision_ref))
+    after_1 = store.attempts_for_task("wp-a")
+    assert len(after_1) == 1 and after_1[0].status == "created"
+
+    # Pass 2: interference cleared. The orphan must be RECOVERED, not skipped.
+    runner.block = False
+    sched.run_scheduler_pass(store.get_grant(grant.decision_ref))
+    after_2 = store.attempts_for_task("wp-a")
+
+    assert len(after_2) == 1, (
+        f"a duplicate attempt was minted for the stranded Task: "
+        f"{[(a.attempt_id, a.status) for a in after_2]}"
+    )
+    assert after_2[0].status != "created", (
+        "the attempt is STILL stranded at CREATED after a healthy pass — it is "
+        "blocking its own retry and the Task will never execute"
+    )

@@ -300,7 +300,46 @@ class AttemptScheduler:
                     continue
                 # Already has a live or successful attempt? skip creation.
                 existing = self._store.attempts_for_task(task_id)
-                if any(not a.is_terminal() for a in existing):
+                # …EXCEPT one still stuck at CREATED. `_create_attempt` returns
+                # None when its created→READY transition loses a CAS race, and
+                # the attempt is left CREATED for "the next pass to retry". But
+                # CREATED is not terminal, so this very guard used to `continue`
+                # past it — the attempt blocked its own retry and the Task was
+                # stranded FOREVER, silently, even after the interference
+                # cleared. Verified: a second, entirely healthy pass left it
+                # `('created', 1)` and admitted nothing.
+                #
+                # Self-found while checking whether the N-1 fix could strand a
+                # Task; the comment claiming the next pass retries it was false
+                # until this branch existed. Promoting it here is the retry.
+                stuck_created = [
+                    a
+                    for a in existing
+                    if a.status == _S.CREATED.value and not a.is_terminal()
+                ]
+                live = [
+                    a
+                    for a in existing
+                    if not a.is_terminal() and a.status != _S.CREATED.value
+                ]
+                if not live and stuck_created:
+                    for orphan in stuck_created:
+                        try:
+                            self._transition(
+                                orphan,
+                                _S.READY.value,
+                                (_S.CREATED.value,),
+                                "scheduler",
+                                "frontier ready (recovered from a lost transition)",
+                            )
+                        except (AttemptStoreConflict, AttemptLifecycleError) as exc:
+                            logger.warning(
+                                "attempt %s still cannot be made READY: %s",
+                                orphan.attempt_id,
+                                exc,
+                            )
+                    continue
+                if live:
                     continue
                 if any(a.status == _S.SUCCEEDED.value for a in existing):
                     continue
@@ -487,9 +526,15 @@ class AttemptScheduler:
         # `execution_attempt_transition`, which aborted `run_scheduler_pass`
         # with `AttemptStoreConflict ... → ready did not commit`.
         #
-        # So: this Task is dropped from THIS pass (it stays CREATED and the next
-        # pass retries it — `create_attempt_idempotent` returns the same record,
-        # so no duplicate is minted), and the pass continues for everyone else.
+        # So: this Task is dropped from THIS pass and stays CREATED. The NEXT
+        # pass recovers it — but only because the frontier loop explicitly
+        # promotes a stuck-CREATED attempt (see `stuck_created` above). When
+        # this comment was first written that promotion did NOT exist: CREATED
+        # is not terminal, so the loop's `not a.is_terminal()` guard skipped
+        # straight past the orphan, which then blocked its own retry and
+        # stranded the Task FOREVER. The claim "the next pass retries it" was
+        # false for one commit; both halves now exist and are pinned by
+        # `test_an_attempt_stranded_at_created_is_recovered_by_a_later_pass`.
         try:
             self._transition(
                 created, _S.READY.value, (_S.CREATED.value,), "scheduler", "frontier ready"
