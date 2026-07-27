@@ -77,8 +77,23 @@ def _is_active_status(status: Any) -> bool:
     one literal. Widening this to `.strip().lower()` would make the writer
     STRICTER than the reader, refusing rows that could never be claims.
     """
+    # The serializer decides what lands on disk, so the guard must model it
+    # exactly. `_append_line` uses `json.dumps(..., default=str)`:
+    #   * a str (or str subclass) is written verbatim;
+    #   * an Enum member is written as its VALUE;
+    #   * anything else json cannot encode falls back to `str(obj)`.
+    # Checking only `.value` closed the enum hole (B-1) but left the third path
+    # open: an object with no `.value` whose `__str__` returns "active" wrote a
+    # row that `active_lease_for_task` then returned as a live claim. Self-found
+    # while attacking the B-1 fix. All three serializer paths are now covered.
     value = getattr(status, "value", status)
-    return isinstance(value, str) and value == "active"
+    if isinstance(value, str):
+        return value == "active"
+    try:
+        encoded = json.loads(json.dumps(status, default=str))
+    except (TypeError, ValueError):  # unencodable → cannot become a claim
+        return False
+    return encoded == "active"
 
 
 class AttemptStoreConflict(RuntimeError):

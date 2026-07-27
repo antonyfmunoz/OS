@@ -1012,3 +1012,83 @@ def test_an_enum_valued_status_cannot_smuggle_an_active_claim(tmp_path):
         {"lease_id": "l-rel", "task_id": "wp-b", "status": _StatusEnum.RELEASED}
     )
     assert _active_leases_for(paths, "wp-b") == []
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["plain_str", "str_enum", "plain_enum", "value_attr", "str_subclass", "str_dunder"],
+)
+def test_no_type_can_smuggle_an_active_claim_past_append_lease(tmp_path, label):
+    """The guard must model the SERIALIZER, across all three of its paths.
+
+    `_append_line` uses `json.dumps(..., default=str)`, so a status reaches disk
+    as `"active"` by three different routes:
+      * a str (or str subclass) written verbatim;
+      * an Enum member written as its VALUE  (B-1, reviewer);
+      * anything else json cannot encode, via `str(obj)`  (self-found while
+        attacking the B-1 fix — an object with NO `.value` whose `__str__`
+        returns "active" wrote a row that read back as a live claim).
+
+    Only the third shape is a genuine defect once written: the test asserts the
+    property that matters — no input may be ACCEPTED by the writer and then
+    READ as an active claim.
+    """
+    import enum
+
+    class _StrEnum(str, enum.Enum):
+        ACTIVE = "active"
+
+    class _PlainEnum(enum.Enum):
+        ACTIVE = "active"
+
+    class _ValueAttr:
+        value = "active"
+
+        def __str__(self):
+            return "not-active"
+
+    class _StrSubclass(str):
+        pass
+
+    class _StrDunder:
+        def __str__(self):
+            return "active"
+
+    statuses = {
+        "plain_str": "active",
+        "str_enum": _StrEnum.ACTIVE,
+        "plain_enum": _PlainEnum.ACTIVE,
+        "value_attr": _ValueAttr(),
+        "str_subclass": _StrSubclass("active"),
+        "str_dunder": _StrDunder(),
+    }
+
+    from substrate.execution.attempts.store import AttemptStoreConflict
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+
+    wrote = True
+    try:
+        store.append_lease(
+            {"lease_id": f"l-{label}", "task_id": "wp-a", "status": statuses[label]}
+        )
+    except AttemptStoreConflict:
+        wrote = False
+
+    claims = _active_leases_for(paths, "wp-a") != []
+    assert not (wrote and claims), (
+        f"status shape {label!r} was ACCEPTED by append_lease and reads back as "
+        "an ACTIVE claim — the F1 door is open again"
+    )
+
+
+def test_legitimate_statuses_are_still_writable(tmp_path):
+    """Control: the guard must not become stricter than the reader."""
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    for status in ("released", "revoked", "expired", "pending"):
+        store.append_lease(
+            {"lease_id": f"l-{status}", "task_id": "wp-z", "status": status}
+        )
+    assert _active_leases_for(paths, "wp-z") == []
