@@ -2300,3 +2300,164 @@ def test_infinite_cost_ceiling_is_malformed():
     v = _adm(grant_kw={"cost_limit_usd": float("inf"), "cost_enforceable": True})
     assert not v.admitted
     assert v.refusal_code == "malformed_cost_ceiling", v.refusal_code
+
+
+# ── round-5 findings: PRODUCTION-DATA-SOURCE tests ─────────────────────────
+#
+# Round 5's method note: mutating a guard and watching a test fail is NOT
+# sufficient — all 18 checks passed that bar while three were UNREACHABLE in
+# production. The discriminating test mutates the production DATA SOURCE (the
+# role store, the resolver, the compiler output) and asks whether any
+# behavioral test notices. These do that.
+
+
+def test_unresolvable_declared_role_refuses_instead_of_substituting():
+    """R5-F3 (HIGH): a resolution FAILURE must not wear the fallback's clothes.
+
+    The fallback could not distinguish "declared nothing" from "declared
+    something unresolvable", so a packet naming a role that does not exist was
+    silently RELABELLED `role-implementer-op` and admitted under a grant scoped
+    to THAT role — while a packet naming a REAL but unauthorized role was
+    correctly refused. Refusing honest declarations and admitting unresolvable
+    ones is the F1/R4-1 inversion one layer up.
+    """
+    from substrate.execution.attempts.field_control_plane import _default_role_resolver
+
+    resolved = _default_role_resolver(
+        SimpleNamespace(packet_id="T", required_role_contracts=["role-DOES-NOT-EXIST"])
+    )
+    assert resolved is None, (
+        f"an unresolvable role was substituted with {getattr(resolved, 'role_id', None)!r} "
+        f"— admission would judge it against a role the packet never declared"
+    )
+
+
+def test_declaring_no_role_still_resolves_so_admission_stays_decidable():
+    """Control for the above: the legitimate fallback must survive."""
+    from substrate.execution.attempts.field_control_plane import _default_role_resolver
+
+    resolved = _default_role_resolver(
+        SimpleNamespace(packet_id="T", required_role_contracts=[])
+    )
+    assert resolved is not None and getattr(resolved, "role_id", "")
+
+
+def test_malformed_required_role_contracts_refuses_rather_than_raising():
+    """R5-F6: a non-sequence raised TypeError OUT of `_admit` (it is read
+    outside the admission try/except) or walked characters/dict keys and
+    resolved something arbitrary."""
+    from substrate.execution.attempts.field_control_plane import _default_role_resolver
+
+    for malformed in (5, 3.5, True):
+        assert (
+            _default_role_resolver(
+                SimpleNamespace(packet_id="T", required_role_contracts=malformed)
+            )
+            is None
+        ), f"malformed required_role_contracts={malformed!r} did not fail closed"
+
+
+def test_verifier_and_worker_roles_share_one_namespace():
+    """R5-F2 (HIGH): disjoint namespaces made `verifier != role_id` a tautology.
+
+    The R4-2 fix moved the WORKER role into `SEED_ROLE_CONTRACTS` while the
+    verifier stayed the module constant `role-verifier-op` — which is not in
+    that store (it spells the verification role `role-verify-op`). Both
+    admission check 13 and the placement separation-of-duty raise therefore
+    became unreachable in production: the exact control R4-4 was deferred on.
+    """
+    from substrate.execution.attempts.field_control_plane import (
+        _canonical_role,
+        _verifier_role_resolver,
+    )
+
+    verifier = _verifier_role_resolver(SimpleNamespace(packet_id="T"))
+    assert _canonical_role(verifier) is not None, (
+        f"the verifier role {verifier!r} does not exist in the store that worker "
+        f"roles resolve from — `verifier != worker_role` can never be false"
+    )
+
+
+def test_a_packet_declaring_the_verifier_role_is_refused():
+    """The collision the shared namespace makes possible — end to end, with
+    the REAL production resolvers rather than injected pairs."""
+    from substrate.execution.attempts.admission import authorize_admission
+    from substrate.execution.attempts.field_control_plane import (
+        _default_role_resolver,
+        _verifier_role_resolver,
+    )
+
+    verifier_id = _verifier_role_resolver(SimpleNamespace(packet_id="T"))
+    packet, grant, attempt, _ = _adm_inputs(
+        packet_kw={"required_role_contracts": [verifier_id]}
+    )
+    role = _default_role_resolver(packet)
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id=verifier_id,
+        plan_lookup=lambda _o: SimpleNamespace(plan_record_id="p", status="approved"),
+        attempts_for_task=lambda _t: [],
+    )
+    assert not v.admitted, "a Task whose worker role IS the verifier role was admitted"
+    assert v.refusal_code == "verifier_not_distinct", v.refusal_code
+
+
+def test_skill_bounds_from_the_persisted_role_store_are_enforced(tmp_path, monkeypatch):
+    """R5-F1 (HIGH): the R4-2 fix repaired the RESOLVER, not the STORE.
+
+    Every hardcoded `SEED_ROLE_CONTRACTS` entry leaves both skill lists unset,
+    so check 9 still could not refuse in production — and the test claiming
+    otherwise built its own `RoleContract` carrying the field the store does
+    not supply (the injected-wiring confounder, third occurrence).
+
+    This drives the PERSISTED store (`load_role_contracts()`), which is where
+    an operator actually populates skill bounds, and asserts the resolved role
+    carries them through to a refusal.
+    """
+    import json
+
+    from substrate.execution.attempts.admission import authorize_admission
+    from substrate.execution.attempts.field_control_plane import _default_role_resolver
+
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    store_dir = tmp_path / "state" / "universal_work"
+    store_dir.mkdir(parents=True, exist_ok=True)
+    (store_dir / "role_contracts.jsonl").write_text(
+        json.dumps(
+            {
+                "role_id": "role-impl-op",
+                "name": "implementation_operator",
+                "prohibited_skill_ids": ["skill-FORBIDDEN"],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    packet, grant, attempt, _ = _adm_inputs(
+        packet_kw={
+            "required_role_contracts": ["role-impl-op"],
+            "requirements": {
+                "required_skill_refs": [{"skill_id": "skill-FORBIDDEN"}]
+            },
+        }
+    )
+    role = _default_role_resolver(packet)
+    assert "skill-FORBIDDEN" in (getattr(role, "prohibited_skill_ids", []) or []), (
+        "the resolver did not read the PERSISTED role store — check 9 cannot "
+        "refuse for any role an operator configures"
+    )
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="role-verify-op",
+        plan_lookup=lambda _o: SimpleNamespace(plan_record_id="p", status="approved"),
+        attempts_for_task=lambda _t: [],
+    )
+    assert not v.admitted
+    assert v.refusal_code == "skill_not_authorized", v.refusal_code

@@ -54,6 +54,11 @@ _IMPLEMENTER_ROLE_ID = "role-implementer-op"
 _INTEGRATOR_ROLE_ID = "role-integrator-op"
 _VERIFIER_ROLE_ID = "role-verifier-op"
 
+# The verification role AS SPELLED IN THE CANONICAL ROLE STORE. Worker roles
+# resolve from that store, so the verifier must be compared in the same
+# namespace or `verifier != worker_role` is a tautology (review R5-F2).
+_SEED_VERIFIER_ROLE_ID = "role-verify-op"
+
 # How long an UNCLAIMED dispatch envelope may wait in the inbox before it is
 # reaped. This is the QUEUE budget and is deliberately distinct from the
 # execution budget (``timeout_seconds``): a claimed envelope never expires under
@@ -146,19 +151,36 @@ class ControlPlaneCycleReport:
 
 
 def _canonical_role(role_contract_id: str) -> Any:
-    """Resolve a role from the ONE canonical role store, or None.
+    """Resolve a role from the canonical role store — PERSISTED first, then seeds.
 
-    Same source the planning compiler uses (`compiler._load_role` →
-    `SEED_ROLE_CONTRACTS`), so admission judges a Task against the role the
-    plan actually declared for it rather than a constant.
+    The PERSISTED store (`load_role_contracts()` →
+    runtime-state `universal_work/role_contracts.jsonl`) is where an operator
+    actually populates `permitted_skill_ids` / `prohibited_skill_ids`. Reading
+    ONLY `SEED_ROLE_CONTRACTS` — as this did — meant admission check 9 could
+    never refuse, because every hardcoded seed leaves both skill lists unset:
+    the R4-2 fix repaired the RESOLVER while the STORE it resolved from carried
+    no skill bounds at all (review R5-F1, HIGH). Fixing the resolver alone was
+    the same "contract exists but nothing fires it" shape one level down.
+
+    Seeds remain the fallback so a fresh instance with no persisted store still
+    resolves the roles the compiler stamps.
     """
+    try:
+        from substrate.organism.role_contracts import load_role_contracts
+
+        for contract in load_role_contracts() or []:
+            if getattr(contract, "role_id", "") == role_contract_id:
+                return contract
+    except Exception as exc:  # unreadable persisted store → fall through to seeds
+        logger.debug("persisted role store unreadable for %s: %s", role_contract_id, exc)
+
     try:
         from substrate.organism.role_contracts import SEED_ROLE_CONTRACTS, RoleContract
 
         for seed in SEED_ROLE_CONTRACTS:
             if seed.get("role_id") == role_contract_id:
                 return RoleContract.from_dict(seed)
-    except Exception as exc:  # unreadable store → caller falls back, never crashes
+    except Exception as exc:  # unreadable store → caller fails closed, never crashes
         logger.debug("role contract load failed for %s: %s", role_contract_id, exc)
     return None
 
@@ -186,15 +208,64 @@ def _default_role_resolver(packet: Any) -> Any:
     and any pre-compiler packet) so admission stays decidable — it is a
     fallback, never the primary path.
     """
-    declared = [str(r) for r in (getattr(packet, "required_role_contracts", None) or []) if str(r)]
+    raw = getattr(packet, "required_role_contracts", None) or []
+    if isinstance(raw, (str, bytes)) or not isinstance(raw, (list, tuple, set)):
+        # A non-sequence is MALFORMED, not "no role declared". Iterating it
+        # either raised out of `_admit` (an int) or walked characters/dict keys
+        # and resolved something arbitrary (review R5-F6).
+        logger.error(
+            "packet %s declares a malformed required_role_contracts (%s) — no role resolved",
+            getattr(packet, "packet_id", ""),
+            type(raw).__name__,
+        )
+        return None
+    declared = [str(r) for r in raw if str(r)]
+
+    if not declared:
+        # DECLARED NOTHING — the legitimate fallback. Hand-built fixtures and
+        # any pre-compiler packet take this path and stay decidable.
+        return _RoleView(role_id=_IMPLEMENTER_ROLE_ID)
+
     for role_id in declared:
         resolved = _canonical_role(role_id)
         if resolved is not None:
             return resolved
-    return _RoleView(role_id=_IMPLEMENTER_ROLE_ID)
+
+    # DECLARED SOMETHING UNRESOLVABLE — a resolution FAILURE that must not wear
+    # the fallback's clothes. Both cases previously shared one branch, so a
+    # packet naming a role that does not exist was silently RELABELLED
+    # `role-implementer-op` and admitted under a grant scoped to THAT role,
+    # while a packet naming a REAL but unauthorized role was correctly refused.
+    # The guard refused honest declarations and admitted unresolvable ones —
+    # the F1/R4-1 inversion shape, one layer up (review R5-F3, HIGH).
+    #
+    # Returning None makes admission check 8's `bool(role_id)` leg refuse.
+    logger.error(
+        "packet %s declares role(s) %s that resolve to nothing — refusing to "
+        "substitute a different role",
+        getattr(packet, "packet_id", ""),
+        declared,
+    )
+    return None
 
 
-def _verifier_role_resolver(_packet: Any) -> str:
+def _verifier_role_resolver(packet: Any) -> str:
+    """The VERIFIER role id, in the SAME namespace the worker role comes from.
+
+    This returned the module constant ``role-verifier-op`` while the R4-2 fix
+    moved the worker role into ``SEED_ROLE_CONTRACTS``, whose verification role
+    is spelled ``role-verify-op``. The two namespaces are disjoint, so
+    ``verifier != role_id`` became UNCONDITIONALLY true and both admission
+    check 13 and the ``placement.py`` separation-of-duty raise went unreachable
+    in production — the very control R4-4 was deferred on (review R5-F2, HIGH).
+    My own R4-2 fix created that tautology.
+
+    Resolving the verifier from the same store the worker role comes from makes
+    the comparison meaningful again: a packet whose declared role IS the
+    verification role now collides and is refused.
+    """
+    if _canonical_role(_SEED_VERIFIER_ROLE_ID) is not None:
+        return _SEED_VERIFIER_ROLE_ID
     return _VERIFIER_ROLE_ID
 
 
