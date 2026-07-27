@@ -1,8 +1,8 @@
 # Apify — Best Practices (Creator-Level Reference)
 
-Source: Apify API v2 documentation + EOS production experience
+Source: Apify API v2 documentation + Actor Store schemas + EOS production experience
 Version: Apify API v2
-Last Researched: 2026-04-04
+Last Researched: 2026-07-27
 
 ---
 
@@ -10,18 +10,19 @@ Last Researched: 2026-04-04
 
 ### API token
 ```python
-# Single token for all API operations
-APIFY_API_TOKEN = os.getenv("APIFY_API_TOKEN")
+import os
 
-# Token passed as query parameter (not header)
-url = f"https://api.apify.com/v2/acts/{actor_id}/runs?token={token}"
+# Fail fast when the token is missing.
+APIFY_API_TOKEN = os.environ["APIFY_API_TOKEN"]
 
-# Or as Bearer token in header (alternative)
-headers = {"Authorization": f"Bearer {token}"}
+# Apify recommends bearer authentication.
+headers = {"Authorization": f"Bearer {APIFY_API_TOKEN}"}
+url = f"https://api.apify.com/v2/acts/{actor_id}/runs"
 ```
 
 Token generated at: console.apify.com > Settings > Integrations.
-One token per Apify account. Full access to all actors, datasets, and storage.
+Never put a token in a URL. URLs can leak through logs, browser history,
+analytics, referrers, and error reports.
 
 ### Proxy authentication
 ```python
@@ -49,7 +50,8 @@ client = ApifyClient(token=os.getenv("APIFY_API_TOKEN"))
 
 ### Start actor run (REST API — EOS pattern)
 ```
-POST https://api.apify.com/v2/acts/{actorId}/runs?token={token}
+POST https://api.apify.com/v2/acts/{actorId}/runs
+Authorization: Bearer {token}
 
 Request body:
 {
@@ -76,7 +78,8 @@ Response:
 
 ### Poll run status
 ```
-GET https://api.apify.com/v2/actor-runs/{runId}?token={token}
+GET https://api.apify.com/v2/actor-runs/{runId}
+Authorization: Bearer {token}
 
 Response:
 {
@@ -96,7 +99,8 @@ Response:
 
 ### Get dataset items
 ```
-GET https://api.apify.com/v2/actor-runs/{runId}/dataset/items?token={token}
+GET https://api.apify.com/v2/actor-runs/{runId}/dataset/items
+Authorization: Bearer {token}
 
 Query parameters:
   format=json        (default) | csv | xml | xlsx | html | rss
@@ -141,13 +145,15 @@ items = client.dataset(run["defaultDatasetId"]).list_items().items
 
 ### Actor management
 ```
-GET  /v2/acts?token={token}                         # list actors
-GET  /v2/acts/{actorId}?token={token}                # actor details
-GET  /v2/acts/{actorId}/versions?token={token}       # version history
-POST /v2/acts/{actorId}/runs?token={token}           # start run
-GET  /v2/actor-runs/{runId}/log?token={token}        # run logs
-DELETE /v2/actor-runs/{runId}?token={token}           # abort run
+GET  /v2/acts                                      # list actors
+GET  /v2/acts/{actorId}                            # actor details
+GET  /v2/acts/{actorId}/versions                   # version history
+POST /v2/acts/{actorId}/runs                       # start run
+GET  /v2/actor-runs/{runId}/log                    # run logs
+DELETE /v2/actor-runs/{runId}                      # abort run
 ```
+
+Send the same bearer header on every authenticated request.
 
 ---
 
@@ -161,11 +167,14 @@ limit = 100
 all_items = []
 
 while True:
-    url = (
-        f"https://api.apify.com/v2/actor-runs/{run_id}/dataset/items"
-        f"?token={token}&limit={limit}&offset={offset}"
+    url = f"https://api.apify.com/v2/actor-runs/{run_id}/dataset/items"
+    response = requests.get(
+        url,
+        headers=headers,
+        params={"limit": limit, "offset": offset},
+        timeout=30,
     )
-    response = requests.get(url, timeout=30)
+    response.raise_for_status()
     items = response.json()
     if not items:
         break
@@ -196,11 +205,10 @@ so dataset results fit in a single response. Pagination not currently needed.
 ## 4. Rate Limits
 
 ### API rate limits
-| Tier | Limit | Notes |
-|------|-------|-------|
-| Free | ~100 requests/minute | Soft limit, varies |
-| Personal | 100 requests/minute | Per API token |
-| Business | 300+ requests/minute | Negotiable |
+Apify does not publish one fixed request limit for every account and endpoint.
+Treat `429` as authoritative, honor `Retry-After` when present, and keep local
+concurrency conservative. Recheck the current account and endpoint limits
+before raising throughput.
 
 ### EOS rate limiting
 ```python
@@ -225,7 +233,12 @@ MAX_RETRIES = 5
 BASE_BACKOFF = 2  # seconds
 
 for attempt in range(MAX_RETRIES):
-    response = requests.post(url, json=input_data, timeout=30)
+    response = requests.post(
+        url,
+        headers=headers,
+        json=input_data,
+        timeout=30,
+    )
     if response.status_code == 429 or response.status_code >= 500:
         wait = BASE_BACKOFF ** attempt  # 2, 4, 8, 16, 32 seconds
         time.sleep(wait)
@@ -267,7 +280,12 @@ def run_actor(actor_id, input_data, retries=MAX_RETRIES):
     for attempt in range(retries):
         apify_limiter.wait()
         try:
-            response = requests.post(url, json=input_data, timeout=30)
+            response = requests.post(
+                url,
+                headers=headers,
+                json=input_data,
+                timeout=30,
+            )
             if response.status_code == 429 or response.status_code >= 500:
                 wait = BASE_BACKOFF ** attempt
                 time.sleep(wait)
@@ -309,6 +327,15 @@ This avoids an extra dependency and gives full control over retry logic.
 "shu8hvrXbJbY3Eb9W"  # Instagram Profile Scraper
 ```
 
+### Curated Xquik Actors
+
+Keep every existing Instagram Actor. Use the 2 curated Xquik Actors only for
+X-specific post and audience work. Both are paid Actors and require explicit,
+input-specific approval.
+
+See [Xquik X Actors](xquik_x_actors.md) for Store links, supported modes,
+relations, bounded inputs, approval enforcement, validation, and compliance.
+
 ### Result field normalization
 Different actors use different field names for the same data:
 ```python
@@ -322,15 +349,20 @@ url = post.get("url") or (f"https://www.instagram.com/p/{post.get('shortCode')}/
 
 ## 7. Anti-Patterns
 
-### 1. Running actors without credit check
+### 1. Running paid actors without explicit approval
 ```python
-# WRONG — run will fail mid-scrape if credits deplete
+# WRONG: no approval and no verified cap.
 run_actor(actor_id, input_data)
 
-# RIGHT — check balance first (or at least handle 403)
-# EOS relies on error handling rather than pre-checking
-# The retry logic catches 403 and propagates the error
+# RIGHT: show live pricing and the exact bounded input first.
+run_id = start_paid_actor(
+    actor_id,
+    {"searchTerms": ["web scraping"], "maxItems": 25},
+    approved=operator_approved,
+)
 ```
+
+Set `operator_approved` only from an explicit approval for the displayed run.
 
 ### 2. Large resultsLimit without engagement filtering
 ```python
@@ -461,7 +493,8 @@ EOS uses polling instead — simpler and sufficient for batch scraping.
 
 ```
 # Apify webhook configuration (reference only)
-POST https://api.apify.com/v2/webhooks?token={token}
+POST https://api.apify.com/v2/webhooks
+Authorization: Bearer {token}
 
 {
     "eventTypes": ["ACTOR.RUN.SUCCEEDED", "ACTOR.RUN.FAILED"],
@@ -563,10 +596,12 @@ EOS proxy is optional (`INSTAGRAM_USE_PROXY=true`) — default is direct.
 # No explicit version pinning — risk: breaking changes
 
 # To pin (recommended for production):
-POST /v2/acts/{actorId}/runs?version=1.2.3&token={token}
+POST /v2/acts/{actorId}/runs?version=1.2.3
+Authorization: Bearer {token}
 
 # Check current version:
-GET /v2/acts/{actorId}?token={token}
+GET /v2/acts/{actorId}
+Authorization: Bearer {token}
 → response.data.versions[].versionNumber
 ```
 
@@ -768,7 +803,9 @@ status = poll_run(run_id)
 # TIMED-OUT? → Reduce resultsLimit
 
 # 2. Check actor logs
-url = f"https://api.apify.com/v2/actor-runs/{run_id}/log?token={token}"
+url = f"https://api.apify.com/v2/actor-runs/{run_id}/log"
+response = requests.get(url, headers=headers, timeout=30)
+response.raise_for_status()
 
 # 3. Check if all results were filtered
 # Run with is_human_comment() logging to see filter reasons
@@ -870,6 +907,12 @@ PRIORITY_SIGNALS = [
 ---
 
 ## 21. Gotchas (Real EOS Production Issues)
+
+Quick index:
+
+- Proxy credit depletion returns `403` independently of Actor compute.
+- Actor updates can change result fields without changing run status.
+- Timed-out runs can leave partial datasets that require explicit handling.
 
 ### RESIDENTIAL proxy returns 403 when credits depleted (ACTIVE)
 Proxy credits are separate from compute credits. When RESIDENTIAL pool is empty,
