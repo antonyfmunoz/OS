@@ -1792,9 +1792,21 @@ def _adm_inputs(*, packet_kw=None, grant_kw=None, attempt_kw=None, role_kw=None)
 
 
 def _adm(**kw):
+    """Call the authority with the resolvers PRODUCTION always supplies.
+
+    `plan_lookup` and `attempts_for_task` are keyword-optional for ergonomics
+    but NOT optional in effect: an absent resolver REFUSES rather than skipping
+    its check (a guard that vanishes when its lookup is missing is the exact
+    fail-open shape this module removes). Defaults here therefore model the
+    scheduler, which always passes both.
+    """
     from substrate.execution.attempts.admission import authorize_admission
 
-    plan_lookup = kw.pop("plan_lookup", None)
+    plan_lookup = kw.pop(
+        "plan_lookup",
+        lambda _o: SimpleNamespace(plan_record_id="p", status="approved"),
+    )
+    attempts_for_task = kw.pop("attempts_for_task", lambda _t: [])
     packet, grant, attempt, role = _adm_inputs(**kw)
     return authorize_admission(
         packet=packet,
@@ -1803,6 +1815,7 @@ def _adm(**kw):
         role_contract=role,
         verifier_role_id="role-verify-op",
         plan_lookup=plan_lookup,
+        attempts_for_task=attempts_for_task,
     )
 
 
@@ -1986,3 +1999,46 @@ def test_admission_enforces_the_intersection_of_role_and_grant_tools():
     )
     assert not v.admitted
     assert v.refusal_code == "tool_not_authorized", v.refusal_code
+
+
+def test_admission_refuses_when_no_plan_lookup_is_supplied():
+    """An ABSENT resolver must REFUSE, never skip its check.
+
+    `readiness.evaluate_execution_readiness` skipped its authorization check
+    whenever no validator was injected, and `is_authorization_valid` still
+    skips supersession when `latest_plan_lookup` is None. A guard that silently
+    disappears with its resolver is the fail-open shape this module removes, so
+    omitting the lookup is a refusal here.
+    """
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, role = _adm_inputs()
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="role-verify-op",
+        attempts_for_task=lambda _t: [],
+        # plan_lookup deliberately omitted
+    )
+    assert not v.admitted
+    assert v.refusal_code == "plan_lookup_unavailable", v.refusal_code
+
+
+def test_admission_refuses_when_no_attempt_ledger_lookup_is_supplied():
+    """Same rule for the sibling-attempt resolver."""
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, role = _adm_inputs()
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="role-verify-op",
+        plan_lookup=lambda _o: SimpleNamespace(plan_record_id="p", status="approved"),
+        # attempts_for_task deliberately omitted
+    )
+    assert not v.admitted
+    assert v.refusal_code == "sibling_lookup_unavailable", v.refusal_code

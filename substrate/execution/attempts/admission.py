@@ -318,7 +318,20 @@ def authorize_admission(
     )
 
     # ── 16. no sibling attempt already live for this Task ─────────────────
-    if attempts_for_task is not None:
+    # An ABSENT resolver REFUSES. A guard that silently vanishes when its
+    # lookup is not supplied is the fail-open shape this module exists to
+    # remove: `readiness` skipped its authorization check whenever no validator
+    # was injected, and `is_authorization_valid` still skips supersession when
+    # `latest_plan_lookup` is None. The scheduler always passes both; a future
+    # caller that forgets gets a refusal, never an unchecked pass.
+    if attempts_for_task is None:
+        ok &= check(
+            "no_live_sibling_attempt",
+            False,
+            "no attempt-ledger lookup supplied (fail closed)",
+            "sibling_lookup_unavailable",
+        )
+    else:
         this_id = str(getattr(attempt, "attempt_id", "") or "")
         try:
             siblings = list(attempts_for_task(task_id))
@@ -348,7 +361,15 @@ def authorize_admission(
             )
 
     # ── 17. plan still current + approved (supersession, re-asked here) ───
-    if plan_lookup is not None:
+    # As with check 16: an ABSENT lookup REFUSES rather than skipping.
+    if plan_lookup is None:
+        ok &= check(
+            "plan_current_and_approved",
+            False,
+            "no plan lookup supplied — supersession unverifiable (fail closed)",
+            "plan_lookup_unavailable",
+        )
+    else:
         objective_id = str(getattr(grant, "objective_id", "") or "")
         latest = None
         try:
