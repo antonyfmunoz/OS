@@ -919,29 +919,58 @@ def test_undeclared_bounds_do_enforce_once_declared(producer_kwargs, expected_co
 def test_the_production_caller_still_declares_no_operator_bound():
     """(b) DECLARATION half: production genuinely sets none of these bounds.
 
-    Read from the SOURCE of the sole production call site rather than asserted,
-    so this cannot silently become false. The moment an operator surface ships
-    and starts passing a bound, this test FAILS — which is the intended signal
-    to revisit the R6-F1 reclassification (MEDIUM / RESERVED_FUTURE / Wave 5)
-    rather than let a stale classification persist.
+    Parsed from the AST of the sole production call site, not asserted and not
+    regex-matched over source text. The moment an operator surface ships and
+    starts passing a bound, this test FAILS — which is the intended signal to
+    revisit the R6-F1 reclassification (MEDIUM / RESERVED_FUTURE / Wave 5)
+    rather than letting a stale classification persist.
+
+    An earlier version of this test regex-matched the call body with a
+    12-space-indent terminator while the real call closes at 16 spaces. It
+    over-captured 776 characters past the call — the `except` block, the
+    `metadata[...]` assignments and the whole `_respond(...)` block — so it
+    could have fired on unrelated text, and it substring-matched rather than
+    argument-matched, so `**kwargs` forwarding would have slipped through
+    (round-7 independent adjudication, defect D). The AST walk below inspects
+    the actual keyword arguments of the actual call.
     """
+    import ast
     import pathlib
-    import re
 
-    src = pathlib.Path("transports/api/objective_plan_routes.py").read_text()
-    call = re.search(
-        r"request_execution_authorization\((.*?)\n            \)", src, re.S
+    root = pathlib.Path(__file__).resolve().parents[1]
+    path = root / "transports" / "api" / "objective_plan_routes.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+
+    calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "request_execution_authorization"
+    ]
+    assert len(calls) == 1, (
+        f"expected exactly ONE production grant-minting call site, found "
+        f"{len(calls)} — the 'sole producer' premise of the R6-F1 "
+        f"classification no longer holds"
     )
-    assert call, "the sole production call site could not be located"
-    body = call.group(1)
+    call = calls[0]
 
-    for bound in ("role_ids", "allowed_tools", "cost_limit_usd", "cost_enforceable"):
-        assert bound not in body, (
-            f"the production caller now declares {bound!r} — an operator bound "
-            "surface has shipped. Revisit the R6-F1 reclassification: the check "
-            "is no longer 'correct but undeclared', it is now a LIVE control and "
-            "must be covered as one."
-        )
+    declared = {kw.arg for kw in call.keywords if kw.arg is not None}
+    bounds = {"role_ids", "allowed_tools", "cost_limit_usd", "cost_enforceable"}
+    leaked = sorted(declared & bounds)
+    assert not leaked, (
+        f"the production caller now declares {leaked} — an operator bound "
+        "surface has shipped. Revisit the R6-F1 reclassification: these checks "
+        "are no longer 'correct but undeclared', they are LIVE controls and "
+        "must be covered as such."
+    )
+
+    # `**kwargs` forwarding would smuggle a bound past a keyword-name check.
+    assert not any(kw.arg is None for kw in call.keywords), (
+        "the production call now forwards **kwargs — a bound could be passed "
+        "without appearing as a keyword. The AST check can no longer prove the "
+        "bounds are undeclared; verify by executing the producer."
+    )
 
 
 def test_grant_bounds_are_not_derived_from_the_plans_own_packets():

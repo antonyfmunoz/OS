@@ -38,8 +38,9 @@ status (TOCTOU), work-scope completeness, attempt budget, environment class,
 rollback guarantee, verifier distinctness, verification obligation, live
 sibling, and plan supersession.
 
-**Correct but never exercised in production** — checks 9 (``role_ids``),
-11 (``allowed_tools``) and 16 (``cost_limit_usd``). Each is strict and DOES
+**Correct but never exercised in production** — checks 8 (``role_ids``),
+10 (``allowed_tools``) and 15 (``cost_limit_usd``), numbered as the inline
+section comments below number them. Each is strict and DOES
 refuse the moment its bound is declared — verified by passing the bound
 through the real producer and observing ``role_not_authorized`` /
 ``tool_not_authorized`` / ``unenforceable_cost_ceiling``. But the sole
@@ -53,10 +54,16 @@ These bounds are deliberately NOT derived from the plan's own archetypes.
 construction — a tautology, and deletable-green behind check 2. A bound is a
 control only when its authority is INDEPENDENT of the thing it bounds.
 
-**Vacuous today** — check 10 (``skills_role_authorized``): no production
+**Vacuous today** — check 9 (``skills_role_authorized``): no production
 writer populates the role store and no seed role carries either skill list, so
 both legs vacate (convergence ledger #16). Skills are advisory metadata; no
 worker capability is gated on a skill name.
+
+(Check numbers throughout this docstring are the inline ``── N.`` section
+numbers in the body below. An earlier revision numbered these 9/11/16/10 —
+off by one against the code's own comments, in a module whose whole premise is
+that a comment must never misdescribe the code it sits above. Corrected by
+round-7 independent adjudication.)
 
 Design rules this module obeys
 ------------------------------
