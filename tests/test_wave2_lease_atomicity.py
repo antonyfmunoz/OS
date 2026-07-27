@@ -1016,7 +1016,15 @@ def test_an_enum_valued_status_cannot_smuggle_an_active_claim(tmp_path):
 
 @pytest.mark.parametrize(
     "label",
-    ["plain_str", "str_enum", "plain_enum", "value_attr", "str_subclass", "str_dunder"],
+    [
+        "plain_str",
+        "str_enum",
+        "plain_enum",
+        "value_attr",
+        "str_subclass",
+        "str_dunder",
+        "lying_value",
+    ],
 )
 def test_no_type_can_smuggle_an_active_claim_past_append_lease(tmp_path, label):
     """The guard must model the SERIALIZER, across all three of its paths.
@@ -1054,7 +1062,23 @@ def test_no_type_can_smuggle_an_active_claim_past_append_lease(tmp_path, label):
         def __str__(self):
             return "active"
 
+    class _LyingValue:
+        """B-2: `.value` says released, `__str__` says active.
+
+        The reviewer rated this LOW ("unreachable"); it is included because the
+        criterion that matters is not reachability but ASYMMETRY — the writer
+        accepted it and the reader claimed it. A `.value` shortcut that trusts a
+        string `.value` never asks the serializer, which writes `str(obj)` for a
+        non-encodable object. Only always consulting the serializer closes it.
+        """
+
+        value = "released"
+
+        def __str__(self):
+            return "active"
+
     statuses = {
+        "lying_value": _LyingValue(),
         "plain_str": "active",
         "str_enum": _StrEnum.ACTIVE,
         "plain_enum": _PlainEnum.ACTIVE,

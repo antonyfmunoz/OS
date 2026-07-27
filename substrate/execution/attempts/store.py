@@ -82,16 +82,19 @@ def _is_active_status(status: Any) -> bool:
     #   * a str (or str subclass) is written verbatim;
     #   * an Enum member is written as its VALUE;
     #   * anything else json cannot encode falls back to `str(obj)`.
-    # Checking only `.value` closed the enum hole (B-1) but left the third path
-    # open: an object with no `.value` whose `__str__` returns "active" wrote a
-    # row that `active_lease_for_task` then returned as a live claim. Self-found
-    # while attacking the B-1 fix. All three serializer paths are now covered.
-    value = getattr(status, "value", status)
-    if isinstance(value, str):
-        return value == "active"
+    # Two earlier versions approximated this instead of asking, and each left a
+    # hole: comparing `str(status)` missed a `(str, Enum)` member (B-1), and
+    # short-circuiting on `.value` when it happened to be a str missed an object
+    # whose `.value` says "released" while its `__str__` says "active" (B-2) —
+    # the guard allowed the write and the reader claimed the row.
+    #
+    # There is no shortcut that is safe, because only the serializer decides
+    # what lands on disk. So ASK IT: round-trip through the exact call
+    # `_append_line` makes and compare the result. No approximation to drift.
     try:
         encoded = json.loads(json.dumps(status, default=str))
-    except (TypeError, ValueError):  # unencodable → cannot become a claim
+    except (TypeError, ValueError, RecursionError):
+        # Unencodable: `_append_line` would raise too, so no row — no claim.
         return False
     return encoded == "active"
 
