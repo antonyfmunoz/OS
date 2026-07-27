@@ -143,6 +143,43 @@ class AttemptScheduler:
                     pass
             os.close(fd)
 
+    @contextmanager
+    def _task_admission_lock(self, tenant_id: str, task_id: str) -> Iterator[None]:
+        """BLOCKING interprocess lock keyed on the RESOURCE being admitted.
+
+        `_scheduler_lease` is keyed `tenant:plan_record_id:version` — that is the
+        AUTHORIZATION, not the resource. Two grants for the same plan at
+        different versions are both legitimately active and both name the same
+        Task in their frontier, so they take DIFFERENT lock keys and never
+        serialize against one another (round-7 adversarial review F2). The
+        "single-writer scheduler" guarantee therefore did not hold for the
+        concurrent case that actually matters.
+
+        The Task is what must not be admitted twice, so the Task is what is
+        locked — held across the whole verdict → place → lease → dispatch
+        window, so no second admitter can interleave between the decision and
+        the effects that decision authorizes.
+
+        Blocking rather than try-lock: the loser must WAIT and then evaluate
+        admission against post-winner state, where check 16
+        (`no_live_sibling_attempt`) refuses it on the merits. A try-lock that
+        skipped would silently drop legitimate work from the pass.
+        """
+        os.makedirs(self._lock_dir, exist_ok=True)
+        safe = f"{tenant_id}:{task_id}".replace("/", "_").replace(":", "_")
+        lock_path = os.path.join(self._lock_dir, f"task-admission-{safe}.lock")
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            try:
+                if fcntl is not None:
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+            finally:
+                os.close(fd)
+
     def _default_dep_lookup(self, dep_task_id: str) -> bool:
         """A dependency is satisfied iff it has a SUCCEEDED attempt with a Proof."""
         for att in self._store.attempts_for_task(dep_task_id):
@@ -488,143 +525,150 @@ class AttemptScheduler:
             key=lambda a: (a.task_id, a.attempt_number),
         )
         for attempt in ready[:slots]:
-            packet = self._queue.get_packet(attempt.task_id)
-            if packet is None:
-                continue
-            role = role_resolver(packet) if role_resolver else None
-            verifier = (
-                verifier_role_resolver(packet) if verifier_role_resolver else "role-verify-op"
-            )
-
-            # ── THE admission boundary ───────────────────────────────────
-            # ONE canonical fail-closed authority, consumed ATOMICALLY here:
-            # inside the single-writer scheduler lease, on the RE-READ packet
-            # and the RE-READ grant, in the same transaction that leases and
-            # dispatches. Nothing downstream re-interprets these conditions
-            # and no earlier, staler assessment can authorize execution.
-            #
-            # Before this, `evaluate_execution_readiness`'s 15 checks had ZERO
-            # production callers: the scheduler open-coded a partial subset
-            # (tenant + plan + frontier + deps) and never asked the rest, so
-            # `grant.role_ids`, `grant.allowed_tools` and `grant.cost_limit_usd`
-            # — bounds the OPERATOR sets on the decision — were decorative, and
-            # comments in lifecycle.py/placement.py described the absent checks
-            # as already performed (round-3 finding R2-5, escalated to HIGH).
-            verdict = authorize_admission(
-                packet=packet,
-                grant=grant,
-                attempt=attempt,
-                role_contract=role,
-                verifier_role_id=verifier,
-                plan_lookup=self._latest_plan_lookup,
-                attempts_for_task=self._store.attempts_for_task,
-            )
-            if not verdict.admitted:
-                logger.error(
-                    "admission REFUSED for attempt %s (task %s): %s [%s]",
-                    attempt.attempt_id,
-                    attempt.task_id,
-                    verdict.reason,
-                    verdict.refusal_code,
+            # Per-TASK lock (the resource), entered BEFORE the verdict and held
+            # through dispatch: the state the verdict judged cannot change
+            # between the decision and the effects it authorizes, and no second
+            # admitter — another grant version, another process — can interleave.
+            with self._task_admission_lock(
+                str(getattr(grant, "tenant_id", "") or ""), str(attempt.task_id)
+            ):
+                packet = self._queue.get_packet(attempt.task_id)
+                if packet is None:
+                    continue
+                role = role_resolver(packet) if role_resolver else None
+                verifier = (
+                    verifier_role_resolver(packet) if verifier_role_resolver else "role-verify-op"
                 )
-                report.attempts_blocked.append(attempt.task_id)
-                try:
-                    self._transition(
-                        attempt,
-                        _S.BLOCKED.value,
-                        (_S.READY.value,),
-                        "scheduler",
-                        f"admission refused: {verdict.refusal_code}",
-                        updates={"blocked_reason": verdict.reason[:200]},
-                    )
-                except AttemptStoreConflict:
-                    pass
-                except AttemptLifecycleError as exc:
-                    logger.debug("blocking refused attempt %s: %s", attempt.attempt_id, exc)
-                continue
 
-            lease = None
-            try:
-                assignment = self._place(
+                # ── THE admission boundary ───────────────────────────────────
+                # ONE canonical fail-closed authority, consumed ATOMICALLY here:
+                # inside the single-writer scheduler lease, on the RE-READ packet
+                # and the RE-READ grant, in the same transaction that leases and
+                # dispatches. Nothing downstream re-interprets these conditions
+                # and no earlier, staler assessment can authorize execution.
+                #
+                # Before this, `evaluate_execution_readiness`'s 15 checks had ZERO
+                # production callers: the scheduler open-coded a partial subset
+                # (tenant + plan + frontier + deps) and never asked the rest, so
+                # `grant.role_ids`, `grant.allowed_tools` and `grant.cost_limit_usd`
+                # — bounds the OPERATOR sets on the decision — were decorative, and
+                # comments in lifecycle.py/placement.py described the absent checks
+                # as already performed (round-3 finding R2-5, escalated to HIGH).
+                verdict = authorize_admission(
                     packet=packet,
                     grant=grant,
+                    attempt=attempt,
                     role_contract=role,
-                    attempt_id=attempt.attempt_id,
-                    worker_candidates=worker_candidates,
-                    compute_nodes=compute_nodes,
                     verifier_role_id=verifier,
-                    store=self._store,
-                    mutation_runner=self._mutation_runner,
+                    plan_lookup=self._latest_plan_lookup,
+                    attempts_for_task=self._store.attempts_for_task,
                 )
-                lease = self._leases.acquire(attempt=attempt, assignment=assignment, grant=grant)
-                attempt = self._transition(
-                    attempt,
-                    _S.LEASED.value,
-                    (_S.READY.value,),
-                    "scheduler",
-                    "placed + leased",
-                    updates={
-                        "assignment_id": assignment.assignment_id,
-                        "lease_id": lease.lease_id,
-                        "verifier_role_id": assignment.verifier_role_id,
-                    },
-                )
-                package = self._compile(
-                    attempt=attempt, packet=packet, assignment=assignment, grant=grant
-                )
-                attempt = self._transition(
-                    attempt,
-                    _S.DISPATCHED.value,
-                    (_S.LEASED.value,),
-                    "scheduler",
-                    "package sealed",
-                    updates={
-                        "instruction_package_hash": package.package_hash,
-                        "worker_identity": assignment.worker_identity,
-                        "max_turns": 30,
-                        "timeout_seconds": 600,
-                    },
-                )
-                report.attempts_admitted.append(attempt.attempt_id)
-                if self._dispatch is not None:
-                    self._dispatch(
-                        attempt=attempt,
-                        assignment=assignment,
-                        lease=lease,
-                        package=package,
-                        grant=grant,
+                if not verdict.admitted:
+                    logger.error(
+                        "admission REFUSED for attempt %s (task %s): %s [%s]",
+                        attempt.attempt_id,
+                        attempt.task_id,
+                        verdict.reason,
+                        verdict.refusal_code,
                     )
-            except Exception as exc:
-                logger.debug("admission of %s failed: %s", attempt.attempt_id, exc)
-                # RELEASE THE LEASE. It is acquired before the package is
-                # compiled, and compilation can now fail closed (a Task with
-                # undeclared mutation authority raises DispatchBlocked). Without
-                # this the lease survives a BLOCKED attempt — which is NOT a
-                # terminal status, so terminalization never releases it — and
-                # LeaseManager.acquire then refuses the task forever ("task
-                # already has an active lease"). Worse, each orphan lease holds
-                # a sandbox worktree, so TWO admission failures exhaust
-                # max_parallel=2 and wedge the entire run.
-                if lease is not None:
+                    report.attempts_blocked.append(attempt.task_id)
                     try:
-                        self._leases.release(getattr(lease, "lease_id", ""), cleanup=True)
-                    except Exception as rel:
-                        logger.debug(
-                            "lease release after failed admission of %s: %s",
-                            attempt.attempt_id,
-                            rel,
+                        self._transition(
+                            attempt,
+                            _S.BLOCKED.value,
+                            (_S.READY.value,),
+                            "scheduler",
+                            f"admission refused: {verdict.refusal_code}",
+                            updates={"blocked_reason": verdict.reason[:200]},
                         )
+                    except AttemptStoreConflict:
+                        pass
+                    except AttemptLifecycleError as exc:
+                        logger.debug("blocking refused attempt %s: %s", attempt.attempt_id, exc)
+                    continue
+
+                lease = None
                 try:
-                    self._transition(
-                        attempt,
-                        _S.BLOCKED.value,
-                        (_S.READY.value, _S.LEASED.value),
-                        "scheduler",
-                        f"admission failed: {exc}",
-                        updates={"blocked_reason": str(exc)[:200]},
+                    assignment = self._place(
+                        packet=packet,
+                        grant=grant,
+                        role_contract=role,
+                        attempt_id=attempt.attempt_id,
+                        worker_candidates=worker_candidates,
+                        compute_nodes=compute_nodes,
+                        verifier_role_id=verifier,
+                        store=self._store,
+                        mutation_runner=self._mutation_runner,
                     )
-                except AttemptStoreConflict:
-                    pass
+                    lease = self._leases.acquire(attempt=attempt, assignment=assignment, grant=grant)
+                    attempt = self._transition(
+                        attempt,
+                        _S.LEASED.value,
+                        (_S.READY.value,),
+                        "scheduler",
+                        "placed + leased",
+                        updates={
+                            "assignment_id": assignment.assignment_id,
+                            "lease_id": lease.lease_id,
+                            "verifier_role_id": assignment.verifier_role_id,
+                        },
+                    )
+                    package = self._compile(
+                        attempt=attempt, packet=packet, assignment=assignment, grant=grant
+                    )
+                    attempt = self._transition(
+                        attempt,
+                        _S.DISPATCHED.value,
+                        (_S.LEASED.value,),
+                        "scheduler",
+                        "package sealed",
+                        updates={
+                            "instruction_package_hash": package.package_hash,
+                            "worker_identity": assignment.worker_identity,
+                            "max_turns": 30,
+                            "timeout_seconds": 600,
+                        },
+                    )
+                    report.attempts_admitted.append(attempt.attempt_id)
+                    if self._dispatch is not None:
+                        self._dispatch(
+                            attempt=attempt,
+                            assignment=assignment,
+                            lease=lease,
+                            package=package,
+                            grant=grant,
+                        )
+                except Exception as exc:
+                    logger.debug("admission of %s failed: %s", attempt.attempt_id, exc)
+                    # RELEASE THE LEASE. It is acquired before the package is
+                    # compiled, and compilation can now fail closed (a Task with
+                    # undeclared mutation authority raises DispatchBlocked). Without
+                    # this the lease survives a BLOCKED attempt — which is NOT a
+                    # terminal status, so terminalization never releases it — and
+                    # LeaseManager.acquire then refuses the task forever ("task
+                    # already has an active lease"). Worse, each orphan lease holds
+                    # a sandbox worktree, so TWO admission failures exhaust
+                    # max_parallel=2 and wedge the entire run.
+                    if lease is not None:
+                        try:
+                            self._leases.release(getattr(lease, "lease_id", ""), cleanup=True)
+                        except Exception as rel:
+                            logger.debug(
+                                "lease release after failed admission of %s: %s",
+                                attempt.attempt_id,
+                                rel,
+                            )
+                    try:
+                        self._transition(
+                            attempt,
+                            _S.BLOCKED.value,
+                            (_S.READY.value, _S.LEASED.value),
+                            "scheduler",
+                            f"admission failed: {exc}",
+                            updates={"blocked_reason": str(exc)[:200]},
+                        )
+                    except AttemptStoreConflict:
+                        pass
 
     def _transition(self, attempt, to_status, expected, actor, reason, updates=None):
         runner = self._mutation_runner or self._native_runner()

@@ -352,3 +352,270 @@ def test_archetype_tool_policy_reaches_the_packet_unchanged():
     # survives this suite BY DESIGN. The real exposure it hints at — that no
     # worker capability is gated on tool names at all — is ledger #15, not
     # something to paper over with an assertion on a literal here.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPILER PRODUCER PINNING (round-7 finding N1/N2)
+#
+# The tests above close the GRANT half of the producer→consumer seam: the grant
+# is minted by calling `request_execution_authorization`, so changing a producer
+# default breaks them (proven by mutation: max_attempts 2→0, env_class→docker,
+# cost_limit→unenforceable each fail 10-13 tests).
+#
+# The PACKET half was still a hand-built mirror. `_packet_from_archetype` above
+# returns a SimpleNamespace "shaped the way compiler.py materializes one" — the
+# exact defect this module's own docstring condemns, applied to the other half
+# of the seam. Because the mirror keeps stamping `validation_plan` and
+# `role-impl-op` no matter what the real compiler does, TWO one-line compiler
+# regressions passed the whole Wave 2 suite green:
+#
+#   M4  compiler stops stamping `validation_plan`
+#       → every packet refused `verification_obligation_declared`
+#       → ZERO attempts dispatch system-wide (total execution outage)
+#       → 111 passed, 0 failed
+#
+#   M5  compiler stamps `role-verify-op` as the WORKER role
+#       → worker role == verifier role
+#       → refused `verifier_distinct`; and had the guard not caught it, the
+#         Wave 2 "no worker verifies its own Task" contract breaks AT ITS SOURCE
+#       → 111 passed, 0 failed
+#
+# Both were reproduced independently before these tests were written. The tests
+# below drive the REAL `compose_plan_for_session` and assert the properties
+# admission depends on, so a compiler regression cannot ship green.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _module_runner(**kw):
+    """Governed-mutation runner for the real compiler (module scope)."""
+    fn = kw.get("execute_fn")
+    out = ""
+    if callable(fn):
+        r = fn()
+        out = r[0] if isinstance(r, tuple) else r
+    return SimpleNamespace(success=True, output=out)
+
+
+def _grant_for_real_plan(plan: Any, frontier: list[str], tenant: str = "tenant-a") -> Any:
+    """Mint a grant via the REAL producer, bound to a REAL compiled plan.
+
+    Same producer as `_grant_from_production_defaults` and the same argument
+    list the sole production caller passes — but bound to the plan the compiler
+    actually produced, so both halves of the seam are production-derived.
+    """
+    from substrate.execution.attempts.decisions import request_execution_authorization
+    from substrate.execution.attempts.store import ExecutionAttemptStore
+
+    tmp = tempfile.mkdtemp(prefix="prod-reach-plan-")
+    store = ExecutionAttemptStore(
+        attempts_path=os.path.join(tmp, "a.jsonl"),
+        grants_path=os.path.join(tmp, "g.jsonl"),
+        readiness_path=os.path.join(tmp, "r.jsonl"),
+        leases_path=os.path.join(tmp, "l.jsonl"),
+        assignments_path=os.path.join(tmp, "asn.jsonl"),
+    )
+    grant, _approval = request_execution_authorization(
+        store,
+        plan=plan,
+        task_frontier=list(frontier),
+        tenant_id=tenant,
+        principal_id="u",
+        membership_id="m",
+        conversation_id="conv-1",
+        correlation_id="c",
+        requested_by="cockpit_chat_operator",
+        mutation_runner=_module_runner,
+    )
+    grant.status = "active"
+    return grant
+
+
+def _real_compiler_packets(tmp_dir: str, tenant: str = "tenant-a"):
+    """Drive the REAL compiler → real persisted WorkPackets. No mirrors."""
+    from substrate.execution.planning.compiler import compose_plan_for_session
+    from substrate.execution.planning.records import (
+        GroundingSnapshot,
+        ObjectiveLane,
+        PlanningSession,
+    )
+    from substrate.execution.planning.store import PlanningStore
+    from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+    store = PlanningStore(
+        sessions_path=os.path.join(tmp_dir, "sessions.jsonl"),
+        plans_path=os.path.join(tmp_dir, "plans.jsonl"),
+        grounding_path=os.path.join(tmp_dir, "grounding.jsonl"),
+        current_path=os.path.join(tmp_dir, "current.jsonl"),
+        desired_path=os.path.join(tmp_dir, "desired.jsonl"),
+        gaps_path=os.path.join(tmp_dir, "gaps.jsonl"),
+    )
+    queue = UniversalWorkQueue(store_path=os.path.join(tmp_dir, "packets.jsonl"))
+    lanes = [
+        ObjectiveLane(
+            lane_key="backend",
+            title="backend search endpoint",
+            writable_path_scope=["app/main.py"],
+        ),
+        ObjectiveLane(
+            lane_key="frontend",
+            title="frontend search box",
+            writable_path_scope=["app/static"],
+        ),
+        ObjectiveLane(
+            lane_key="integration",
+            title="integrate and verify",
+            writable_path_scope=["app/main.py"],
+            depends_on=["backend", "frontend"],
+        ),
+        ObjectiveLane(
+            lane_key="verify",
+            title="independent verification",
+            writable_path_scope=[],
+            depends_on=["integration"],
+        ),
+    ]
+    plan = compose_plan_for_session(
+        session=PlanningSession(
+            objective_id=f"goal-{tenant}",
+            objective_text="Add note search: backend + frontend, integrated and verified.",
+            conversation_id=f"conv-{tenant}",
+        ),
+        scope=WorkScope(tenant_id=tenant, target_kind="self_build"),
+        planning_scale="task_objective",
+        snapshot=GroundingSnapshot(intent_id="int-pin"),
+        store=store,
+        work_queue=queue,
+        mutation_runner=_module_runner,
+        writable_path_scope=["app"],
+        lanes=lanes,
+    )
+    packets = [queue.get_packet(pid) for pid in plan.workpacket_ids]
+    return plan, [p for p in packets if p is not None], store
+
+
+def test_compiler_stamps_a_verification_obligation_on_every_packet():
+    """PRODUCER PIN: the compiler must stamp `validation_plan`.
+
+    Admission check 15 refuses a packet with neither `validation_plan` nor a
+    grant verification obligation, and no production caller sets the grant side.
+    So `validation_plan` is the ONLY thing standing between the fleet and a
+    total execution outage. Mutation M4 (compiler stops stamping it) previously
+    passed 111/111 green.
+    """
+    tmp = tempfile.mkdtemp(prefix="pin-validation-")
+    _plan, packets, _store = _real_compiler_packets(tmp)
+    assert packets, "the real compiler produced no packets"
+    for pkt in packets:
+        assert str(getattr(pkt, "validation_plan", "") or "").strip(), (
+            f"packet {getattr(pkt, 'packet_id', '')} carries no validation_plan — "
+            "admission check 15 will refuse EVERY attempt (execution outage)"
+        )
+
+
+def test_compiler_never_stamps_the_verifier_role_as_the_worker_role():
+    """PRODUCER PIN: worker role must differ from the resolved verifier role.
+
+    This is the Wave 2 "no worker verifies its own Task" contract at its
+    SOURCE. Admission check 14 catches a collision, but mutation M5 (compiler
+    stamps `role-verify-op` as the worker role) previously passed 111/111 green
+    — the suite could not see the producer break the contract.
+    """
+    tmp = tempfile.mkdtemp(prefix="pin-verifier-")
+    _plan, packets, _store = _real_compiler_packets(tmp)
+    assert packets, "the real compiler produced no packets"
+    for pkt in packets:
+        worker_role = _default_role_resolver(pkt)
+        worker_role_id = str(getattr(worker_role, "role_id", "") or "")
+        verifier_role_id = str(_verifier_role_resolver(pkt) or "")
+        assert worker_role_id, (
+            f"packet {getattr(pkt, 'packet_id', '')} resolves to no worker role"
+        )
+        assert verifier_role_id, "no verifier role resolves"
+        assert worker_role_id != verifier_role_id, (
+            f"packet {getattr(pkt, 'packet_id', '')} names the VERIFIER role "
+            f"{verifier_role_id!r} as its worker role — separation of duty is "
+            "broken at the producer"
+        )
+
+
+def test_compiler_stamps_the_scope_and_lineage_admission_binds_on():
+    """PRODUCER PIN: work_scope and lineage carry what checks 3/4/7 compare.
+
+    Checks 3 (tenant_match), 4 (plan_record_match) and 7 (work_scope_complete)
+    are the genuinely-enforced core of bounded authorization. Each compares a
+    field the compiler stamps; if the compiler stops stamping one, the check
+    refuses everything (outage) rather than admitting wrongly — still a
+    production break the suite must see.
+    """
+    tmp = tempfile.mkdtemp(prefix="pin-scope-")
+    plan, packets, planning_store = _real_compiler_packets(tmp)
+    assert packets, "the real compiler produced no packets"
+    for pkt in packets:
+        scope = dict(getattr(pkt, "work_scope", {}) or {})
+        lineage = dict(getattr(pkt, "lineage", {}) or {})
+        assert scope.get("tenant_id"), f"packet {pkt.packet_id} lost work_scope.tenant_id"
+        assert scope.get("target_kind"), f"packet {pkt.packet_id} lost work_scope.target_kind"
+        assert lineage.get("plan_record_id") == plan.plan_record_id, (
+            f"packet {pkt.packet_id} lineage.plan_record_id "
+            f"{lineage.get('plan_record_id')!r} != plan {plan.plan_record_id!r}"
+        )
+
+
+def test_real_compiler_packets_admit_under_a_real_grant():
+    """LIVENESS end-to-end: real compiler + real grant producer ⇒ ADMIT.
+
+    The strongest form of the liveness assertion: neither side of the seam is
+    hand-built. A guard that refuses what the real producers jointly emit is as
+    broken as one that admits everything (R4-3 refused 5/5 real archetypes).
+    """
+    tmp = tempfile.mkdtemp(prefix="pin-live-")
+    plan, packets, planning_store = _real_compiler_packets(tmp)
+    assert packets, "the real compiler produced no packets"
+
+    frontier = [p.packet_id for p in packets]
+
+    # Accept the plan through the REAL decision authority first — the producer
+    # correctly refuses to authorize execution for an unaccepted plan, which is
+    # the Wave 1 invariant "plan acceptance is a separate decision".
+    from substrate.execution.planning.decisions import apply_plan_decision
+
+    plan = apply_plan_decision(
+        planning_store,
+        plan.plan_record_id,
+        "approve",
+        decided_by="operator",
+        mutation_runner=_module_runner,
+    )
+
+    # Mint via the REAL producer, bound to the REAL accepted plan.
+    grant = _grant_for_real_plan(plan, frontier)
+
+    admitted_any = False
+    for pkt in packets:
+        pkt.status = SimpleNamespace(value="approved")
+        attempt = SimpleNamespace(
+            attempt_id=f"ea-{pkt.packet_id}",
+            task_id=pkt.packet_id,
+            attempt_number=1,
+            execution_authorization_ref=grant.decision_ref,
+        )
+        verdict = authorize_admission(
+            packet=pkt,
+            grant=grant,
+            attempt=attempt,
+            role_contract=_default_role_resolver(pkt),
+            verifier_role_id=_verifier_role_resolver(pkt),
+            plan_lookup=lambda _oid: SimpleNamespace(
+                plan_record_id=plan.plan_record_id,
+                status=str(getattr(plan.status, "value", plan.status)),
+            ),
+            attempts_for_task=lambda _t: [],
+        )
+        failed = [c["check"] for c in verdict.checks if not c["passed"]]
+        assert not failed, (
+            f"real compiler packet {pkt.packet_id} REFUSED by {failed} — a guard "
+            "that refuses real production work is as broken as one that admits "
+            "everything"
+        )
+        admitted_any = True
+    assert admitted_any

@@ -24,6 +24,8 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from typing import Any, Callable
 
+from substrate.execution.attempts.store import AttemptStoreConflict
+
 logger = logging.getLogger(__name__)
 
 
@@ -195,16 +197,36 @@ class LeaseManager:
         )
 
         def _apply() -> tuple[str, bool]:
-            self._store.append_lease(lease)
+            # ATOMIC claim: the uniqueness check and the append happen inside
+            # ONE store critical section. The pre-check at the top of this
+            # method stays as a cheap early-out (it avoids building a worktree
+            # we would only throw away), but it is NOT the guarantee — this is.
+            self._store.append_lease_if_no_active(lease)
             return (f"lease acquired: {lease.lease_id}", True)
 
-        self._runner()(
-            mutation_name="execution_lease_mutate",
-            intent=f"acquire environment lease for attempt {lease.attempt_id}",
-            execute_fn=_apply,
-            source="execution_attempts_leases",
-            metadata={"lease_id": lease.lease_id, "task_id": task_id},
-        )
+        try:
+            self._runner()(
+                mutation_name="execution_lease_mutate",
+                intent=f"acquire environment lease for attempt {lease.attempt_id}",
+                execute_fn=_apply,
+                source="execution_attempts_leases",
+                metadata={"lease_id": lease.lease_id, "task_id": task_id},
+            )
+        except AttemptStoreConflict as exc:
+            # We lost the race after creating a worktree. Destroy it before
+            # failing closed, or the loser leaks a sandbox that the teardown
+            # assertions ("git worktree list shows only the main tree") would
+            # later trip over.
+            if self._sandbox is not None and sandbox_id:
+                try:
+                    self._sandbox.cleanup_sandbox(sandbox_id)  # type: ignore[attr-defined]
+                except Exception as cleanup_exc:  # noqa: BLE001
+                    logger.debug(
+                        "lease race loser failed to clean sandbox %s: %s",
+                        sandbox_id,
+                        cleanup_exc,
+                    )
+            raise LeaseError(f"task {task_id} already has an active lease") from exc
         return lease
 
     def heartbeat(self, lease_id: str, now: float | None = None) -> None:

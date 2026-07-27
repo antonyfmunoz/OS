@@ -403,6 +403,41 @@ class ExecutionAttemptStore:
         with self._file_lock(self._leases_path):
             self._append_line(self._leases_path, payload)
 
+    def append_lease_if_no_active(self, lease: Any) -> None:
+        """Append a lease ONLY if its task has no active lease — atomically.
+
+        `acquire()` used to read `active_lease_for_task` and then append in a
+        separate `append_lease` call. Both operations locked, but the window
+        BETWEEN them did not — and git-worktree creation sits inside that
+        window. Two callers could each observe "no active lease" and each
+        append, producing two concurrent active leases for one Task
+        (reproduced 5/25 trials directly, 1/20 through the real scheduler:
+        round-7 adversarial review F1).
+
+        Two active leases means two real workers mutating one Task's workspace
+        under a single authorization, with two dispatch envelopes and two Proof
+        paths — the invariant that bounds the worktree, tool profile,
+        credential scope and billed worker.
+
+        The check and the append are therefore ONE critical section here.
+        Callers must treat `AttemptStoreConflict` as "someone else won the
+        race" and clean up any environment they already created.
+        """
+        payload = lease.to_dict() if hasattr(lease, "to_dict") else dict(lease)
+        task_id = str(payload.get("task_id", "") or "")
+        with self._file_lock(self._leases_path):
+            latest_by_id: dict[str, dict[str, Any]] = {}
+            for row in self._read_lines(self._leases_path):
+                if row.get("task_id") == task_id:
+                    latest_by_id[row.get("lease_id", "")] = row
+            for row in latest_by_id.values():
+                if row.get("status") == "active":
+                    raise AttemptStoreConflict(
+                        f"task {task_id} already has an active lease "
+                        f"({row.get('lease_id', '')})"
+                    )
+            self._append_line(self._leases_path, payload)
+
     def get_lease(self, lease_id: str) -> dict[str, Any] | None:
         latest: dict[str, Any] | None = None
         for row in self._read_lines(self._leases_path):
