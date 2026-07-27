@@ -1165,3 +1165,48 @@ def test_the_atomic_claim_path_sees_exotic_statuses_after_serialization(tmp_path
         "an exotic first claim was invisible to the uniqueness check — F1 is "
         "reopened through the atomic path itself"
     )
+
+
+def test_a_status_whose_str_raises_is_not_a_new_failure_mode(tmp_path):
+    """The guard serializes, so a broken `__str__` surfaces there — by design.
+
+    Calling `json.dumps` inside `_is_active_status` could have introduced a NEW
+    failure mode. It does not: `_append_line` serializes the same payload with
+    the same `default=str`, so an object whose `__str__` raises would have
+    raised there anyway. The guard only surfaces it a few lines earlier, and in
+    both cases NO ROW IS WRITTEN — so no claim exists either way.
+
+    Deliberately NOT caught. Swallowing it would mask a genuinely broken object
+    and write a lease whose status nobody can render.
+    """
+
+    class _Boom:
+        def __str__(self):
+            raise RuntimeError("boom")
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+
+    with pytest.raises(RuntimeError):
+        store.append_lease({"lease_id": "l", "task_id": "wp-a", "status": _Boom()})
+
+    # The invariant that matters: no row, therefore no claim.
+    assert _active_leases_for(paths, "wp-a") == []
+
+
+def test_the_guard_is_cheap_and_terminates_on_pathological_input(tmp_path):
+    """Serializing per write must not become a cost or liveness problem."""
+    import time
+
+    from substrate.execution.attempts.store import _is_active_status
+
+    start = time.perf_counter()
+    for _ in range(10_000):
+        _is_active_status("active")
+    elapsed = time.perf_counter() - start
+    assert elapsed < 2.0, f"guard is too slow on the common path: {elapsed:.2f}s"
+
+    # A self-referential structure must terminate, not hang or blow the stack.
+    recursive: dict = {}
+    recursive["self"] = recursive
+    assert _is_active_status(recursive) is False
