@@ -976,3 +976,39 @@ def test_a_raising_runner_in_the_promotion_path_cannot_abort_the_pass():
     assert store.attempts_for_task("wp-a")[0].status == "created", (
         "the orphan should remain CREATED when the promotion itself explodes"
     )
+
+
+def test_an_enum_valued_status_cannot_smuggle_an_active_claim(tmp_path):
+    """B-1: the guard must normalise the way the SERIALIZER does, not `str()`.
+
+    `str(payload.get("status", "")) == "active"` misses a `(str, Enum)` member:
+    `str(St.ACTIVE)` is `'St.ACTIVE'` on this Python, so the guard passed — but
+    `json.dumps` writes the VALUE, `"active"`, so the row landed on disk as a
+    live claim and `active_lease_for_task` returned it. Reproduced before the
+    fix: append WROTE, read-back-as-claim True. That is the F1 door the guard
+    exists to close, reopened by a type the check did not anticipate.
+    """
+    import enum
+
+    from substrate.execution.attempts.store import AttemptStoreConflict
+
+    class _StatusEnum(str, enum.Enum):
+        ACTIVE = "active"
+        RELEASED = "released"
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+
+    with pytest.raises(AttemptStoreConflict):
+        store.append_lease(
+            {"lease_id": "l-enum", "task_id": "wp-a", "status": _StatusEnum.ACTIVE}
+        )
+    assert _active_leases_for(paths, "wp-a") == [], (
+        "an enum-valued active status was written and reads back as a CLAIM"
+    )
+
+    # A non-active enum member must still be writable — no over-correction.
+    store.append_lease(
+        {"lease_id": "l-rel", "task_id": "wp-b", "status": _StatusEnum.RELEASED}
+    )
+    assert _active_leases_for(paths, "wp-b") == []

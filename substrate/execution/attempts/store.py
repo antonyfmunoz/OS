@@ -60,6 +60,27 @@ _DEFAULT_LEASES_PATH = _resolve("environment_leases.jsonl")
 _DEFAULT_ASSIGNMENTS_PATH = _resolve("execution_assignments.jsonl")
 
 
+def _is_active_status(status: Any) -> bool:
+    """True if ``status`` will be READ as an active lease claim.
+
+    Must normalise the way the SERIALIZER does, not the way ``str()`` does.
+    An earlier version compared ``str(payload.get("status", ""))`` to
+    "active" — which misses a ``(str, Enum)`` member, because ``str(St.ACTIVE)``
+    is ``'St.ACTIVE'`` on this Python while ``json.dumps`` writes its VALUE,
+    ``"active"``. The row bypassed the guard and then read back as a live claim
+    (round-8 review B-1, reproduced: append WROTE, `active_lease_for_task` →
+    True). That is the F1 door the guard exists to close.
+
+    So: unwrap ``.value`` first, then compare. Deliberately exact — a missing,
+    differently-cased or whitespace-padded status is NOT read as active by
+    ``active_lease_for_task`` either, so writer and reader stay in agreement on
+    one literal. Widening this to `.strip().lower()` would make the writer
+    STRICTER than the reader, refusing rows that could never be claims.
+    """
+    value = getattr(status, "value", status)
+    return isinstance(value, str) and value == "active"
+
+
 class AttemptStoreConflict(RuntimeError):
     """Raised when a compare-and-swap write loses to a concurrent writer, or a
     lifecycle guard rejects the transition."""
@@ -412,7 +433,7 @@ class ExecutionAttemptStore:
         reaching for the wrong name gets an error instead of a silent race.
         """
         payload = lease.to_dict() if hasattr(lease, "to_dict") else dict(lease)
-        if str(payload.get("status", "")) == "active":
+        if _is_active_status(payload.get("status")):
             raise AttemptStoreConflict(
                 "append_lease cannot write an ACTIVE lease — that is a task "
                 "CLAIM and must go through append_lease_if_no_active, which "
