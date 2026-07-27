@@ -1,4 +1,24 @@
-"""ExecutionReadinessAssessment — the 15 fail-closed execution-readiness checks.
+"""ExecutionReadinessAssessment — the PRE-GRANT advisory readiness assessment.
+
+⚠ THIS MODULE HOLDS NO ADMISSION AUTHORITY. ⚠
+
+The ONE canonical fail-closed admission authority is
+``substrate.execution.attempts.admission.authorize_admission``, consumed
+atomically by ``AttemptScheduler._admit`` at the final attempt-admission
+boundary. Nothing here gates execution, and nothing here may be cited as
+evidence that a condition is enforced.
+
+This module exists to answer a DIFFERENT question — "would this Task be ready
+if a grant were issued?" — for the request-time pre-pass and operator-facing
+surfaces. It is advisory: an assessment can be computed, stored and displayed
+without any attempt being admitted.
+
+History (round-3 finding R2-5): these 15 checks once WERE described as the
+execution gate while having zero production callers, and the scheduler
+open-coded only a partial subset. The bounds an operator sets on a grant —
+role_ids, allowed_tools, cost_limit_usd — were therefore unenforced. If you are
+adding a condition that must BLOCK execution, add it to ``admission.py``. Adding
+it here does not enforce anything.
 
 A NEW canonical type (adjudicated in the plan): it is deliberately NOT the
 organism ``WorkReadinessRuntime.ReadinessAssessment`` (a legacy read-surface over

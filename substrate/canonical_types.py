@@ -169,6 +169,13 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # the one execution-authorization write path.
     "ExecutionReadinessAssessment": ["substrate.execution.attempts.readiness"],
     "ExecutionReadinessState": ["substrate.execution.attempts.readiness"],
+    # R3: AdmissionVerdict is the ONE canonical admission answer, produced by
+    # `admission.authorize_admission` and consumed atomically by the scheduler
+    # at the final attempt-admission boundary. It does NOT rival
+    # ExecutionReadinessAssessment: readiness is the pre-grant advisory
+    # assessment surface; AdmissionVerdict is the enforcing authority. Exactly
+    # one component decides admission, and this is its verdict type.
+    "AdmissionVerdict": ["substrate.execution.attempts.admission"],
     "ExecutionDecisionConflict": ["substrate.execution.attempts.decisions"],
     "ExecutionAuthorizationDecisionSource": ["substrate.execution.attempts.decisions"],
     # C3 placement + lease + instruction compilation. ExecutionAssignment is the

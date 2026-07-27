@@ -35,7 +35,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterator
 
+from substrate.execution.attempts.admission import authorize_admission
 from substrate.execution.attempts.events import emit_execution_event
+from substrate.execution.attempts.lifecycle import AttemptLifecycleError
 from substrate.execution.attempts.records import (
     ExecutionAttempt,
     ExecutionAttemptStatus,
@@ -489,18 +491,58 @@ class AttemptScheduler:
             packet = self._queue.get_packet(attempt.task_id)
             if packet is None:
                 continue
-            # The packet is RE-READ here, after the frontier loop's check, so it
-            # must be RE-VALIDATED here (adversarial-review CRITICAL: TOCTOU).
-            # A packet whose scope or lineage changed between the two reads —
-            # or an attempt created under a previous pass — would otherwise be
-            # placed, leased and dispatched on the strength of a check that ran
-            # against a different object.
-            if not self._packet_bound_to_grant(packet, grant, attempt.task_id, report):
-                continue
             role = role_resolver(packet) if role_resolver else None
             verifier = (
                 verifier_role_resolver(packet) if verifier_role_resolver else "role-verify-op"
             )
+
+            # ── THE admission boundary ───────────────────────────────────
+            # ONE canonical fail-closed authority, consumed ATOMICALLY here:
+            # inside the single-writer scheduler lease, on the RE-READ packet
+            # and the RE-READ grant, in the same transaction that leases and
+            # dispatches. Nothing downstream re-interprets these conditions
+            # and no earlier, staler assessment can authorize execution.
+            #
+            # Before this, `evaluate_execution_readiness`'s 15 checks had ZERO
+            # production callers: the scheduler open-coded a partial subset
+            # (tenant + plan + frontier + deps) and never asked the rest, so
+            # `grant.role_ids`, `grant.allowed_tools` and `grant.cost_limit_usd`
+            # — bounds the OPERATOR sets on the decision — were decorative, and
+            # comments in lifecycle.py/placement.py described the absent checks
+            # as already performed (round-3 finding R2-5, escalated to HIGH).
+            verdict = authorize_admission(
+                packet=packet,
+                grant=grant,
+                attempt=attempt,
+                role_contract=role,
+                verifier_role_id=verifier,
+                plan_lookup=self._latest_plan_lookup,
+                attempts_for_task=self._store.attempts_for_task,
+            )
+            if not verdict.admitted:
+                logger.error(
+                    "admission REFUSED for attempt %s (task %s): %s [%s]",
+                    attempt.attempt_id,
+                    attempt.task_id,
+                    verdict.reason,
+                    verdict.refusal_code,
+                )
+                report.attempts_blocked.append(attempt.task_id)
+                try:
+                    self._transition(
+                        attempt,
+                        _S.BLOCKED.value,
+                        (_S.READY.value,),
+                        "scheduler",
+                        f"admission refused: {verdict.refusal_code}",
+                        updates={"blocked_reason": verdict.reason[:200]},
+                    )
+                except AttemptStoreConflict:
+                    pass
+                except AttemptLifecycleError as exc:
+                    logger.debug("blocking refused attempt %s: %s", attempt.attempt_id, exc)
+                continue
+
             lease = None
             try:
                 assignment = self._place(

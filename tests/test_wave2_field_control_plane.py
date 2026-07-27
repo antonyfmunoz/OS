@@ -116,6 +116,13 @@ def _add_approved_packet(
         # on every materialized packet, so a fixture that omits it is modelling
         # a packet production never creates.
         lineage={"plan_record_id": "opr-1"},
+        # The admission authority refuses a Task with no verification obligation
+        # BEFORE billed quota is spent. The canonical compiler stamps
+        # `validation_plan` on every materialized packet unconditionally
+        # (compiler.py:707), so a fixture omitting it models a packet production
+        # never creates — the same class of fixture drift as the
+        # lineage.plan_record_id note above.
+        validation_plan="verification node of the owning plan",
         requirements={
             "writable_path_scope": list(allowed_paths),
             "scope_declared": True,
@@ -576,7 +583,19 @@ def test_admission_failure_releases_the_lease(store, queue, tmp_path):
         mutation_runner=_mutation_runner(),
         lock_dir=str(tmp_path / "locks2"),
     )
-    scheduler.run_scheduler_pass(grant=grant)
+    # Production ALWAYS supplies a role resolver (field_control_plane.py:361).
+    # Without one the admission authority refuses on `role_not_authorized`
+    # BEFORE a lease is acquired — so the pass would never reach the compile
+    # failure this test exists to exercise, and "no lease leaked" would hold
+    # vacuously (nothing was ever leased). Modelling production keeps the
+    # assertion load-bearing.
+    scheduler.run_scheduler_pass(
+        grant=grant,
+        role_resolver=lambda _p: SimpleNamespace(
+            role_id="role-impl-op", allowed_tools=["shell"], prohibited_skill_ids=[]
+        ),
+        verifier_role_resolver=lambda _p: "role-verify-op",
+    )
 
     assert released == ["lease-" + attempt.attempt_id], "lease leaked on admission failure"
     blocked = store.get_attempt(attempt.attempt_id)

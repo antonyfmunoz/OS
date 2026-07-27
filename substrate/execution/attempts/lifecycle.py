@@ -4,9 +4,19 @@ The transition table is the single source of legal attempt state changes; the
 store's ``transition_cas`` validates every write against it. Guards enforce the
 non-negotiable execution invariants (directive §IV/§X + Amendment v1 clause 6):
 
-- ``ready → leased`` requires a resolved assignment + AUTHORIZED readiness.
-- ``leased → dispatched`` requires a sealed instruction package + an ACTIVE
-  lease + the authorization re-validated at that instant.
+- ``ready → leased`` requires a resolved assignment_id. NOTE: authorization is
+  NOT decided here. The one canonical admission authority is
+  ``admission.authorize_admission``, consumed by ``AttemptScheduler._admit``
+  under the scheduler lock immediately before the lease is acquired. These
+  guards are structural post-conditions of that decision, not a second opinion
+  on it.
+  (This line previously claimed the transition required "AUTHORIZED readiness".
+  It never did — the guard checks assignment_id truthiness, and the readiness
+  module it alluded to had zero production callers. Round-3 finding R2-5.)
+- ``leased → dispatched`` requires a sealed instruction package + a lease id +
+  a worker identity. Authorization re-validation happens at the admission
+  boundary above, not here — the earlier claim that the authorization was
+  "re-validated at that instant" described a check that did not exist.
 - ``verifying → succeeded`` requires an AttemptProof id AND a verifier identity
   DISTINCT from the worker identity AND a ``verifier:*`` actor — an agent can
   never complete its own Task, and no Task completes without independent Proof.

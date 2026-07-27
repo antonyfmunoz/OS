@@ -185,3 +185,63 @@ def test_grant_has_no_requested_or_denied_state():
 def test_grant_docstring_declares_it_is_not_a_decision():
     src = (ATTEMPTS_DIR / "records.py").read_text()
     assert "NOT a Decision" in src or "not a Decision" in src.replace("NOT", "not")
+
+
+# ── R3: ONE admission authority (finding R2-5) ─────────────────────────────
+
+
+def test_admission_authority_is_consumed_by_the_production_scheduler():
+    """`authorize_admission` must be REACHABLE from the real admission path.
+
+    Behavioral, not a source-string check: it verifies the scheduler module
+    actually binds the symbol, and that the symbol is the one from the
+    canonical admission module — the exact property that was FALSE for
+    `evaluate_execution_readiness` (defined, exported, and never called).
+    """
+    from substrate.execution.attempts import admission, scheduler
+
+    assert hasattr(scheduler, "authorize_admission"), (
+        "the scheduler does not import the admission authority — admission is "
+        "being decided somewhere else, which is how R2-5 happened"
+    )
+    assert scheduler.authorize_admission is admission.authorize_admission, (
+        "the scheduler is bound to a DIFFERENT authorize_admission than the "
+        "canonical one — a rival admission authority exists"
+    )
+
+
+def test_readiness_module_claims_no_admission_authority():
+    """The advisory module must not be re-described as the gate.
+
+    `readiness.py` once documented itself as the execution gate while having
+    zero production callers, and comments elsewhere cited it as coverage. This
+    pins the disclaimer so the laundering cannot silently return.
+    """
+    import inspect
+
+    from substrate.execution.attempts import readiness
+
+    doc = inspect.getdoc(readiness) or ""
+    assert "NO ADMISSION AUTHORITY" in doc.upper(), (
+        "readiness.py must state that it holds no admission authority"
+    )
+
+
+def test_no_second_component_decides_admission():
+    """Exactly ONE module may define an admission decision function.
+
+    A second `authorize_admission` (or a scheduler-local reimplementation) is
+    the divergence this finding is about: two components independently deciding
+    whether execution may proceed.
+    """
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "substrate" / "execution" / "attempts"
+    definers = [
+        p.name
+        for p in root.glob("*.py")
+        if "def authorize_admission" in p.read_text(encoding="utf-8")
+    ]
+    assert definers == ["admission.py"], (
+        f"admission must be defined in exactly one module, found: {definers}"
+    )

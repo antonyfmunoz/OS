@@ -129,11 +129,16 @@ def place_attempt(
     req = getattr(packet, "requirements", {}) or {}
     skill_refs = list(req.get("required_skill_refs", []) or [])
     required_capabilities = list(req.get("required_capability_ids", []) or [])
-    tool_profile = [
-        t
-        for t in (getattr(packet, "required_tools", []) or [])
-        # tools already validated against role ∩ authorization in readiness.
-    ]
+    # Tools are AUTHORIZED by `admission.authorize_admission`, which runs
+    # immediately before this call inside the scheduler lock and refuses any
+    # tool outside role.allowed_tools ∩ grant.allowed_tools. This list is
+    # therefore a copy of an ALREADY-AUTHORIZED set.
+    #
+    # It previously carried the comment "tools already validated against role ∩
+    # authorization in readiness" — attached to an identity comprehension with
+    # no predicate, naming a module with zero production callers. The comment
+    # asserted a guarantee nothing provided (round-3 finding R2-5).
+    tool_profile = list(getattr(packet, "required_tools", []) or [])
 
     ranked, rejections = _rank_workers(worker_candidates, required_capabilities)
     if not ranked:

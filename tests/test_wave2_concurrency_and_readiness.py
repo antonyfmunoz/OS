@@ -47,6 +47,23 @@ def _envelope(n: int, *, expires_in: float = 1800.0, timeout: int = 600) -> Disp
 # ── real concurrency ────────────────────────────────────────────────────────
 
 
+
+def _prod_role_resolver(_packet=None):
+    """The role shape PRODUCTION always supplies (field_control_plane.py:361).
+
+    The admission authority refuses `role_not_authorized` when no role resolves.
+    A positive-control test that omits the resolver would then be refused for a
+    reason it is not testing, and its "was admitted" assertion could no longer
+    fail for the right cause. Passing the production shape keeps these controls
+    load-bearing.
+    """
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        role_id="role-impl-op", allowed_tools=["shell"], prohibited_skill_ids=[]
+    )
+
+
 def test_two_workers_overlap_in_wall_clock(tmp_path):
     """A and B must be RUNNING at the same instant.
 
@@ -811,7 +828,7 @@ def _bound_packet(tenant, plan, pid="T-1"):
         packet_id=pid,
         status=SimpleNamespace(value="approved"),
         dependencies=[],
-        work_scope={"tenant_id": tenant},
+        work_scope={"tenant_id": tenant, "target_kind": "umh_substrate"},
         lineage={"plan_record_id": plan},
     )
 
@@ -836,6 +853,10 @@ def _bind_scheduler(tmp_path, packet, grant_tenant="tenant-A", grant_plan="opr-A
         objective_id="goal-bind",
         expires_at=time.time() + 3600,
         max_attempts_per_task=2,
+        # Match the sole production grant producer (decisions.py:208/215),
+        # which always stamps these; the raw dataclass defaults are empty.
+        environment_classes=["git_worktree"],
+        verification_obligations=["independent verification"],
     )
     grant.status = "active"
     created, _ = store.create_grant_idempotent(grant)
@@ -918,7 +939,15 @@ def test_a_correctly_bound_task_is_not_blocked_by_the_binding_check(tmp_path):
     packet = _bound_packet("tenant-A", "opr-A")
     _store, scheduler, grant = _bind_scheduler(tmp_path, packet)
 
-    report = scheduler.run_scheduler_pass(grant)
+    # Production always supplies a role resolver; without one the admission
+    # authority blocks on `role_not_authorized`, which would satisfy this
+    # test's "was it blocked?" assertion for a reason that has nothing to do
+    # with the binding guard under test.
+    report = scheduler.run_scheduler_pass(
+        grant,
+        role_resolver=lambda p: _prod_role_resolver(p),
+        verifier_role_resolver=lambda p: "role-verify-op",
+    )
 
     # The DECISIVE assertion is that the binding check did not block it. It is
     # not admitted here only because `execution_attempt_create` is refused in
@@ -1080,7 +1109,7 @@ def test_admission_refuses_a_ready_attempt_the_grant_does_not_own(tmp_path):
         packet_id="VICTIM-TASK",
         status=SimpleNamespace(value="approved"),
         dependencies=[],
-        work_scope={"tenant_id": "tenant-VICTIM"},
+        work_scope={"tenant_id": "tenant-VICTIM", "target_kind": "umh_substrate"},
         lineage={"plan_record_id": "opr-VICTIM"},
     )
 
@@ -1146,6 +1175,13 @@ def test_admission_admits_a_ready_attempt_the_grant_DOES_own(tmp_path):
         objective_id="goal-a",
         expires_at=time.time() + 3600,
         max_attempts_per_task=2,
+        # The SOLE production grant producer (`request_execution_authorization`)
+        # always stamps environment_classes=["git_worktree"] (decisions.py:208);
+        # the raw dataclass default is []. A fixture built straight from the
+        # dataclass therefore models a grant production cannot mint, and the
+        # admission authority correctly refuses it (`no_environment_class`).
+        environment_classes=["git_worktree"],
+        verification_obligations=["independent verification"],
     )
     grant.status = "active"
     created, _ = store.create_grant_idempotent(grant)
@@ -1173,7 +1209,7 @@ def test_admission_admits_a_ready_attempt_the_grant_DOES_own(tmp_path):
         packet_id="OWN-TASK",
         status=SimpleNamespace(value="approved"),
         dependencies=[],
-        work_scope={"tenant_id": "tenant-A"},
+        work_scope={"tenant_id": "tenant-A", "target_kind": "umh_substrate"},
         lineage={"plan_record_id": "opr-A"},
     )
 
@@ -1200,7 +1236,11 @@ def test_admission_admits_a_ready_attempt_the_grant_DOES_own(tmp_path):
         ),
     )
 
-    scheduler.run_scheduler_pass(created)
+    scheduler.run_scheduler_pass(
+        created,
+        role_resolver=lambda p: _prod_role_resolver(p),
+        verifier_role_resolver=lambda p: "role-verify-op",
+    )
     assert placed == [attempt.attempt_id], "a grant was refused its OWN Task"
 
 
@@ -1269,6 +1309,13 @@ def test_admission_revalidates_a_packet_that_changed_after_the_frontier_check(tm
         objective_id="goal-a",
         expires_at=time.time() + 3600,
         max_attempts_per_task=2,
+        # The SOLE production grant producer (`request_execution_authorization`)
+        # always stamps environment_classes=["git_worktree"] (decisions.py:208);
+        # the raw dataclass default is []. A fixture built straight from the
+        # dataclass therefore models a grant production cannot mint, and the
+        # admission authority correctly refuses it (`no_environment_class`).
+        environment_classes=["git_worktree"],
+        verification_obligations=["independent verification"],
     )
     grant.status = "active"
     created, _ = store.create_grant_idempotent(grant)
@@ -1297,7 +1344,7 @@ def test_admission_revalidates_a_packet_that_changed_after_the_frontier_check(tm
         packet_id="T-DRIFT",
         status=SimpleNamespace(value="approved"),
         dependencies=[],
-        work_scope={"tenant_id": "tenant-SOMEONE-ELSE"},
+        work_scope={"tenant_id": "tenant-SOMEONE-ELSE", "target_kind": "umh_substrate"},
         lineage={"plan_record_id": "opr-A"},
     )
 
@@ -1368,7 +1415,7 @@ def test_admission_will_not_run_an_attempt_minted_under_a_different_grant(tmp_pa
         packet_id="T",
         status=SimpleNamespace(value="approved"),
         dependencies=[],
-        work_scope={"tenant_id": "tenant-A"},
+        work_scope={"tenant_id": "tenant-A", "target_kind": "umh_substrate"},
         lineage={"plan_record_id": "opr-A"},
     )
 
@@ -1410,3 +1457,532 @@ def test_admission_will_not_run_an_attempt_minted_under_a_different_grant(tmp_pa
 
     scheduler.run_scheduler_pass(created)
     assert placed == [], "an attempt minted under another grant was admitted"
+
+
+# ── R2-5 / R3: the ONE canonical admission authority ────────────────────────
+#
+# `evaluate_execution_readiness` defined 15 fail-closed checks and had ZERO
+# production callers. The scheduler open-coded a partial subset and never asked
+# the rest, so bounds the OPERATOR sets on the execution decision were
+# decorative: `grant.role_ids`, `grant.allowed_tools` and `grant.cost_limit_usd`
+# imposed nothing. Worse, `lifecycle.py` claimed ready→leased required
+# "AUTHORIZED readiness" and `placement.py` claimed tools were "already
+# validated ... in readiness" — comments asserting guarantees no code provided.
+#
+# These tests drive the REAL production entry point (`run_scheduler_pass`) with
+# the real placement/lease/compile pipeline. Each asserts that admission creates
+# NO attempt of its own, NO lease, and NO dispatch envelope — not merely that a
+# boolean flipped.
+
+
+def _admission_world(tmp_path, *, packet_kw=None, grant_kw=None):
+    """A production-shaped world: one APPROVED packet, one ACTIVE grant, and a
+    scheduler whose lease/compile/dispatch RECORD what they were asked to do.
+
+    Everything defaults to the shape production actually mints, so any refusal
+    is attributable to the single field the caller overrode.
+    """
+    from substrate.execution.attempts.records import (
+        ExecutionAttempt,
+        ExecutionAuthorizationGrant,
+    )
+    from substrate.execution.attempts.scheduler import AttemptScheduler
+
+    store = _grant_store(tmp_path)
+    leased: list = []
+    compiled: list = []
+    dispatched: list = []
+
+    pkt_defaults = dict(
+        packet_id="T-ADM",
+        status=SimpleNamespace(value="approved"),
+        dependencies=[],
+        work_scope={"tenant_id": "tenant-A", "target_kind": "umh_substrate"},
+        lineage={"plan_record_id": "opr-A"},
+        requirements={"scope_declared": True, "writable_path_scope": ["app"]},
+        validation_plan="verification node of the owning plan",
+        required_tools=[],
+        rollback_plan="",
+    )
+    pkt_defaults.update(packet_kw or {})
+    packet = SimpleNamespace(**pkt_defaults)
+
+    grant_defaults = dict(
+        decision_ref="ref-ADM",
+        tenant_id="tenant-A",
+        plan_record_id="opr-A",
+        plan_version=1,
+        task_frontier=[packet.packet_id],
+        objective_id="goal-adm",
+        expires_at=time.time() + 3600,
+        max_attempts_per_task=2,
+        environment_classes=["git_worktree"],
+        verification_obligations=["independent verification"],
+    )
+    grant_defaults.update(grant_kw or {})
+    grant = ExecutionAuthorizationGrant(**grant_defaults)
+    grant.status = "active"
+    created, _ = store.create_grant_idempotent(grant)
+
+    attempt = ExecutionAttempt(
+        task_id=packet.packet_id,
+        plan_record_id="opr-A",
+        plan_version=1,
+        execution_authorization_ref=created.decision_ref,
+        attempt_number=1,
+        tenant_id="tenant-A",
+    )
+    stored, _ = store.create_attempt_idempotent(attempt)
+    store.transition_cas(
+        stored.attempt_id,
+        "ready",
+        expected_record_version=stored.record_version,
+        expected_statuses=("created",),
+        actor="test",
+        reason="ready",
+    )
+
+    class _Q:
+        def get_packet(self, pid):
+            return packet if pid == packet.packet_id else None
+
+    def _permit(**kw):
+        fn = kw.get("execute_fn")
+        out, ok = fn() if fn else ("", True)
+        return SimpleNamespace(success=ok, output=out)
+
+    scheduler = AttemptScheduler(
+        store,
+        work_queue=_Q(),
+        placement_fn=lambda **kw: SimpleNamespace(
+            assignment_id="asn-1",
+            worker_identity="w",
+            verifier_role_id="role-verify-op",
+            tool_profile=[],
+            model_profile={},
+            environment_class="git_worktree",
+        ),
+        lease_manager=SimpleNamespace(
+            acquire=lambda **kw: (
+                leased.append(kw.get("attempt").attempt_id)
+                or SimpleNamespace(
+                    lease_id="L", worktree_path=str(tmp_path), base_commit="c"
+                )
+            ),
+            release=lambda *a, **k: None,
+        ),
+        compile_fn=lambda **kw: (
+            compiled.append(kw.get("attempt").attempt_id)
+            or SimpleNamespace(package_hash="h")
+        ),
+        dispatch_fn=lambda **kw: dispatched.append(kw.get("attempt").attempt_id),
+        mutation_runner=_permit,
+        lock_dir=str(tmp_path / "locks"),
+        latest_plan_lookup=lambda _o: SimpleNamespace(
+            plan_record_id="opr-A", status="approved"
+        ),
+    )
+    return store, scheduler, created, stored, leased, compiled, dispatched
+
+
+def _run_admission(tmp_path, **kw):
+    store, sched, grant, attempt, leased, compiled, dispatched = _admission_world(
+        tmp_path, **kw
+    )
+    report = sched.run_scheduler_pass(
+        grant,
+        role_resolver=lambda p: _prod_role_resolver(p),
+        verifier_role_resolver=lambda p: "role-verify-op",
+    )
+    return SimpleNamespace(
+        report=report,
+        leased=leased,
+        compiled=compiled,
+        dispatched=dispatched,
+        attempt=attempt,
+        store=store,
+    )
+
+
+def test_admission_control_admits_a_fully_valid_task(tmp_path):
+    """CONTROL. Without this, every refusal test below could pass because the
+    gate refuses everything — which is a broken gate, not a strict one."""
+    r = _run_admission(tmp_path)
+    assert r.report.attempts_admitted == [r.attempt.attempt_id], r.report
+    assert r.leased == [r.attempt.attempt_id], "a valid Task must acquire its lease"
+    assert r.dispatched == [r.attempt.attempt_id], "a valid Task must dispatch"
+
+
+@pytest.mark.parametrize(
+    "label,packet_kw,grant_kw",
+    [
+        # The OPERATOR's role bound. `grant.role_ids` was never read at admission.
+        ("role_not_authorized", None, {"role_ids": ["role-SOMETHING-ELSE"]}),
+        # The OPERATOR's tool bound. placement.py claimed readiness checked this.
+        (
+            "tool_not_authorized",
+            {"required_tools": ["rm_rf_everything"]},
+            {"allowed_tools": ["shell"]},
+        ),
+        # Amendment v1 clause 8: an unenforceable ceiling must BLOCK.
+        (
+            "unenforceable_cost_ceiling",
+            None,
+            {"cost_limit_usd": 500.0, "cost_enforceable": False},
+        ),
+        # WorkScope completeness — target_kind had no admission consumer at all.
+        ("incomplete_work_scope", {"work_scope": {"tenant_id": "tenant-A"}}, None),
+        # No environment class ⇒ no structural rollback guarantee.
+        ("no_environment_class", None, {"environment_classes": []}),
+        # A Task with no verification obligation must not burn billed quota.
+        (
+            "no_verification_obligation",
+            {"validation_plan": ""},
+            {"verification_obligations": []},
+        ),
+        # Cross-tenant and wrong-plan remain refused by the same one authority.
+        ("cross_tenant", {"work_scope": {"tenant_id": "tenant-B", "target_kind": "x"}}, None),
+        ("wrong_plan", {"lineage": {"plan_record_id": "opr-OTHER"}}, None),
+        # A packet that went terminal between creation and admission (TOCTOU).
+        ("task_not_admissible", {"status": SimpleNamespace(value="completed")}, None),
+    ],
+)
+def test_admission_refuses_and_spends_nothing(tmp_path, label, packet_kw, grant_kw):
+    """Each violation must produce ZERO lease, ZERO package, ZERO dispatch.
+
+    Asserting only "not admitted" would be satisfied by a refusal anywhere; the
+    side-effect assertions prove no billed quota, no worktree and no envelope
+    were committed before the refusal.
+    """
+    r = _run_admission(tmp_path, packet_kw=packet_kw, grant_kw=grant_kw)
+    assert not r.report.attempts_admitted, f"{label}: admitted despite violation"
+    assert not r.leased, f"{label}: a lease was acquired for a refused admission"
+    assert not r.compiled, f"{label}: a package was sealed for a refused admission"
+    assert not r.dispatched, f"{label}: a dispatch envelope was emitted"
+
+
+def test_admission_refusal_is_recorded_on_the_attempt(tmp_path):
+    """A refusal must be VISIBLE — the attempt parks BLOCKED with a truthful
+    reason, rather than silently vanishing from the frontier each pass."""
+    r = _run_admission(tmp_path, grant_kw={"role_ids": ["role-SOMETHING-ELSE"]})
+    blocked = r.store.get_attempt(r.attempt.attempt_id)
+    assert blocked.status == "blocked", blocked.status
+    assert "role" in (blocked.blocked_reason or "").lower(), blocked.blocked_reason
+
+
+def test_prohibited_skill_is_refused_at_admission(tmp_path):
+    """`skills_role_authorized` is a PROHIBITED-class check in readiness — the
+    hardest verdict — and had no production counterpart at all."""
+    store, sched, grant, attempt, leased, compiled, dispatched = _admission_world(
+        tmp_path,
+        packet_kw={
+            "requirements": {
+                "scope_declared": True,
+                "writable_path_scope": ["app"],
+                "required_skill_refs": [{"skill_id": "skill-FORBIDDEN"}],
+            }
+        },
+    )
+    report = sched.run_scheduler_pass(
+        grant,
+        role_resolver=lambda p: SimpleNamespace(
+            role_id="role-impl-op",
+            allowed_tools=["shell"],
+            prohibited_skill_ids=["skill-FORBIDDEN"],
+        ),
+        verifier_role_resolver=lambda p: "role-verify-op",
+    )
+    assert not report.attempts_admitted, "a prohibited skill was admitted"
+    assert not leased and not dispatched, "prohibited skill reached lease/dispatch"
+
+
+def test_admission_refuses_when_the_plan_was_superseded(tmp_path):
+    """Supersession is asked at the admission boundary, not only at approve."""
+    store, sched, grant, attempt, leased, compiled, dispatched = _admission_world(
+        tmp_path
+    )
+    sched._latest_plan_lookup = lambda _o: SimpleNamespace(
+        plan_record_id="opr-NEWER", status="approved"
+    )
+    report = sched.run_scheduler_pass(
+        grant,
+        role_resolver=lambda p: _prod_role_resolver(p),
+        verifier_role_resolver=lambda p: "role-verify-op",
+    )
+    assert not report.attempts_admitted, "a superseded plan still admitted"
+    assert not leased and not dispatched
+
+
+def test_readiness_module_is_no_longer_the_only_authority(tmp_path):
+    """The canonical authority must be REACHABLE from the production path.
+
+    Not a source-string test: it asserts the scheduler's admission actually
+    consults `authorize_admission` by observing that a violation ONLY that
+    function knows about (an unenforceable cost ceiling) changes the outcome.
+    """
+    valid = _run_admission(tmp_path / "a")
+    violating = _run_admission(
+        tmp_path / "b", grant_kw={"cost_limit_usd": 900.0, "cost_enforceable": False}
+    )
+    assert valid.report.attempts_admitted, "control must admit"
+    assert not violating.report.attempts_admitted, (
+        "the cost bound is decided by no other component — if this admits, "
+        "authorize_admission is not on the production path"
+    )
+
+
+# ── admission authority: DIRECT unit tests ─────────────────────────────────
+#
+# The scheduler refuses some conditions EARLIER than the admission boundary
+# (attempt budget at creation time; supersession via `is_authorization_valid`
+# before the loop). Driving those only through `run_scheduler_pass` therefore
+# cannot kill a mutation of the admission-level guard — the earlier refusal
+# satisfies the assertion, exactly the confounder class that let R2-3/R2-4 ship
+# green. These call the authority DIRECTLY so each guard is independently
+# load-bearing, and they are defense-in-depth for the earlier gates, not
+# duplicates of them.
+
+
+def _adm_inputs(*, packet_kw=None, grant_kw=None, attempt_kw=None, role_kw=None):
+    pkt = dict(
+        packet_id="T",
+        status=SimpleNamespace(value="approved"),
+        work_scope={"tenant_id": "t", "target_kind": "umh_substrate"},
+        lineage={"plan_record_id": "p"},
+        requirements={},
+        validation_plan="verification node of the owning plan",
+        required_tools=[],
+        rollback_plan="",
+    )
+    pkt.update(packet_kw or {})
+    grant = dict(
+        decision_ref="r",
+        tenant_id="t",
+        plan_record_id="p",
+        plan_version=1,
+        task_frontier=["T"],
+        max_attempts_per_task=2,
+        role_ids=[],
+        allowed_tools=[],
+        environment_classes=["git_worktree"],
+        verification_obligations=["independent verification"],
+        rollback_obligations=[],
+        cost_limit_usd=0.0,
+        cost_enforceable=False,
+        objective_id="g",
+    )
+    grant.update(grant_kw or {})
+    att = dict(
+        task_id="T", attempt_id="a", execution_authorization_ref="r", attempt_number=1
+    )
+    att.update(attempt_kw or {})
+    role = dict(
+        role_id="role-impl-op",
+        allowed_tools=["shell"],
+        prohibited_skill_ids=[],
+        permitted_skill_ids=[],
+    )
+    role.update(role_kw or {})
+    return (
+        SimpleNamespace(**pkt),
+        SimpleNamespace(**grant),
+        SimpleNamespace(**att),
+        SimpleNamespace(**role),
+    )
+
+
+def _adm(**kw):
+    from substrate.execution.attempts.admission import authorize_admission
+
+    plan_lookup = kw.pop("plan_lookup", None)
+    packet, grant, attempt, role = _adm_inputs(**kw)
+    return authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="role-verify-op",
+        plan_lookup=plan_lookup,
+    )
+
+
+def test_admission_unit_control_admits():
+    """Control for the direct unit tests — otherwise every refusal below could
+    pass because the authority refuses unconditionally."""
+    v = _adm()
+    assert v.admitted, (v.refusal_code, v.failed_checks())
+
+
+def test_admission_refuses_attempt_beyond_the_authorized_budget():
+    """`max_attempts_per_task` re-checked AT the boundary.
+
+    The scheduler also caps attempt CREATION, so this cannot be proven through
+    a scheduler pass — an attempt beyond budget is never created there. But an
+    attempt created under a PREVIOUS pass (or a grant whose budget was since
+    reduced) reaches admission, and this is the guard that stops it.
+    """
+    v = _adm(grant_kw={"max_attempts_per_task": 1}, attempt_kw={"attempt_number": 5})
+    assert not v.admitted
+    assert v.refusal_code == "attempt_budget_exhausted", v.refusal_code
+
+
+def test_admission_refuses_a_superseded_plan_at_the_boundary():
+    """Supersession asked AGAIN at admission (defense in depth).
+
+    `run_scheduler_pass` refuses a superseded grant before the loop, so that
+    path cannot exercise this guard. It exists because admission must not rely
+    on a check that ran earlier against a possibly-staler view.
+    """
+    v = _adm(plan_lookup=lambda _o: SimpleNamespace(plan_record_id="p-NEWER", status="approved"))
+    assert not v.admitted
+    assert v.refusal_code == "plan_superseded_or_unapproved", v.refusal_code
+
+
+def test_admission_refuses_an_unresolvable_plan():
+    """A lookup that cannot resolve the plan is a REFUSAL, never a pass."""
+    v = _adm(plan_lookup=lambda _o: None)
+    assert not v.admitted
+    assert v.refusal_code == "plan_unresolvable", v.refusal_code
+
+
+def test_admission_refuses_an_environment_without_a_rollback_guarantee():
+    """A NON-EMPTY environment class that is not rollback-guaranteed.
+
+    The `environment_classes=[]` vector is refused by `environment_class_declared`
+    FIRST, so it cannot prove this guard — using it would leave the rollback
+    check deletable-green. `bare_host` is declared (passing check 11) but has no
+    structural rollback, so only this guard refuses it.
+    """
+    v = _adm(grant_kw={"environment_classes": ["bare_host"]})
+    assert not v.admitted
+    assert v.refusal_code == "no_rollback_guarantee", v.refusal_code
+
+
+def test_admission_accepts_a_declared_rollback_on_an_unusual_environment():
+    """An explicitly DECLARED rollback rescues a non-structural environment —
+    proving the guard checks a rollback guarantee, not the literal env string."""
+    v = _adm(
+        grant_kw={"environment_classes": ["bare_host"], "rollback_obligations": ["snapshot restore"]}
+    )
+    assert v.admitted, (v.refusal_code, v.failed_checks())
+
+
+def test_admission_refuses_an_attempt_minted_under_a_different_grant():
+    """The R2-1 shape at the authority level: an attempt whose authorization
+    ref is not this grant's must never be admitted by this pass."""
+    v = _adm(attempt_kw={"execution_authorization_ref": "SOME-OTHER-GRANT"})
+    assert not v.admitted
+    assert v.refusal_code == "attempt_not_authorized_by_this_grant", v.refusal_code
+
+
+def test_admission_refuses_a_task_outside_the_frontier():
+    v = _adm(grant_kw={"task_frontier": ["SOMETHING-ELSE"]})
+    assert not v.admitted
+    assert v.refusal_code == "task_outside_frontier", v.refusal_code
+
+
+def test_admission_refuses_a_stale_plan_version_when_the_packet_declares_one():
+    """A packet stamped with a plan_version different from the grant's."""
+    v = _adm(packet_kw={"lineage": {"plan_record_id": "p", "plan_version": 7}})
+    assert not v.admitted
+    assert v.refusal_code == "stale_plan_version", v.refusal_code
+
+
+def test_admission_refuses_when_the_attempt_ledger_is_unreadable():
+    """Fail closed: an unreadable ledger removes authority, never confers it."""
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, role = _adm_inputs()
+
+    def _boom(_task_id):
+        raise OSError("ledger unreadable")
+
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="role-verify-op",
+        attempts_for_task=_boom,
+    )
+    assert not v.admitted
+    assert v.refusal_code == "ledger_unreadable", v.refusal_code
+
+
+def test_admission_refuses_a_second_live_attempt_for_the_same_task():
+    """Exactly-once: a Task with a live sibling attempt must not admit another."""
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, role = _adm_inputs()
+    sibling = SimpleNamespace(
+        attempt_id="OTHER", status="running", is_terminal=lambda: False
+    )
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="role-verify-op",
+        attempts_for_task=lambda _t: [sibling],
+    )
+    assert not v.admitted
+    assert v.refusal_code == "duplicate_active_attempt", v.refusal_code
+
+
+def test_admission_refuses_a_verifier_equal_to_the_worker_role():
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, role = _adm_inputs()
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id=role.role_id,  # SAME as the worker role
+    )
+    assert not v.admitted
+    assert v.refusal_code == "verifier_not_distinct", v.refusal_code
+
+
+def test_admission_refuses_an_empty_verifier():
+    """Empty must REFUSE, not skip the comparison (the placement.py fail-open)."""
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, role = _adm_inputs()
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=role,
+        verifier_role_id="",
+    )
+    assert not v.admitted
+    assert v.refusal_code == "verifier_not_distinct", v.refusal_code
+
+
+def test_admission_refuses_when_no_role_resolves():
+    """A None RoleContract is a refusal, not an unchecked pass."""
+    from substrate.execution.attempts.admission import authorize_admission
+
+    packet, grant, attempt, _role = _adm_inputs()
+    v = authorize_admission(
+        packet=packet,
+        grant=grant,
+        attempt=attempt,
+        role_contract=None,
+        verifier_role_id="role-verify-op",
+    )
+    assert not v.admitted
+    assert v.refusal_code == "role_not_authorized", v.refusal_code
+
+
+def test_admission_enforces_the_intersection_of_role_and_grant_tools():
+    """A tool permitted by the ROLE but not by the GRANT must still refuse —
+    the bound is the INTERSECTION, not either set alone."""
+    v = _adm(
+        packet_kw={"required_tools": ["Edit"]},
+        role_kw={"allowed_tools": ["Edit", "shell"]},
+        grant_kw={"allowed_tools": ["shell"]},  # grant does NOT authorize Edit
+    )
+    assert not v.admitted
+    assert v.refusal_code == "tool_not_authorized", v.refusal_code
