@@ -52,6 +52,29 @@ logger = logging.getLogger(__name__)
 # anything it has not heard of.
 ADMISSIBLE_PACKET_STATUSES = frozenset({"approved", "delegated"})
 
+# The ONE owner of "which environment classes carry a mechanically-enforced
+# rollback" (Convergence Law: one concept, one semantic owner).
+#
+# Wave 2 rollback is STRUCTURAL, not declarative: every lease is a disposable
+# git worktree anchored to `snapshot_ref = base_commit` with
+# `rollback_policy = git_reset_to_snapshot` (leases.py:72-73, :193), and
+# `worker_claude_cli.py:322` fail-closes when that anchor is missing.
+# Discarding the worktree IS the rollback.
+#
+# `isolated_worktree` (planning vocabulary, archetypes.py:87) and
+# `git_worktree` (execution vocabulary, decisions.py:208) are the SAME concept
+# under two names — the disjointness recorded as R6-F3. Both are named here so
+# the guard is satisfied by the property, not by a coincidence of defaults.
+#
+# `read_only` qualifies on its own merit: a zero-write environment has nothing
+# to roll back. That is the environment the independent verifier runs in.
+#
+# NOT included, deliberately — no mechanism guarantees their rollback today, so
+# they must continue to refuse: `workspace`, `governed_runtime`.
+ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES = frozenset(
+    {"git_worktree", "isolated_worktree", "read_only"}
+)
+
 
 @dataclass
 class AdmissionVerdict:
@@ -354,12 +377,29 @@ def authorize_admission(
     # the environment class must be one whose rollback is mechanically
     # enforced. An UNRECOGNIZED environment class has no such guarantee and is
     # refused.
-    rollback_guaranteed_classes = {"git_worktree"}
+    # VOCABULARY RECONCILIATION (round-7 finding R6-F3, previously ACTIVE_DEBT).
+    # Planning and execution named the SAME concept differently:
+    #   archetypes.py:87  environment_class = "isolated_worktree"
+    #   decisions.py:208  environment_classes default = ["git_worktree"]
+    # The two sets were DISJOINT, so this guard passed only because the grant
+    # producer's default happened to be the one literal the guard accepted —
+    # never because an archetype agreed. Any future caller that forwarded the
+    # archetype's own class (the obvious thing to do) would have been refused
+    # `no_rollback_guarantee` for a rollback that IS in fact guaranteed.
+    #
+    # `ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES` is now the single owner of which
+    # environment classes carry a mechanically-enforced rollback, and it names
+    # BOTH spellings of the one worktree concept. `read_only` is included on its
+    # own merit: a zero-write environment has nothing to roll back, and that is
+    # the environment the independent verifier (Task D) runs in.
+    #
+    # `workspace` and `governed_runtime` are deliberately NOT included — no
+    # mechanism guarantees their rollback today, so they must keep refusing.
     declared_rollback = bool(getattr(packet, "rollback_plan", "")) or bool(
         getattr(grant, "rollback_obligations", []) or []
     )
     structural_rollback = bool(env_classes) and all(
-        e in rollback_guaranteed_classes for e in env_classes
+        e in ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES for e in env_classes
     )
     ok &= check(
         "rollback_guaranteed",
@@ -501,6 +541,7 @@ def authorize_admission(
 
 __all__ = [
     "ADMISSIBLE_PACKET_STATUSES",
+    "ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES",
     "AdmissionVerdict",
     "authorize_admission",
 ]

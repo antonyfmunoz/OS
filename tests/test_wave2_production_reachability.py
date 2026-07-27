@@ -192,23 +192,41 @@ def test_the_production_attempt_budget_default_admits_a_first_attempt():
 
 
 def test_the_production_environment_class_default_carries_a_rollback_guarantee():
-    """R6-F3: archetypes declare `isolated_worktree`/`read_only`/`workspace`/
-    `governed_runtime`; admission's rollback set is `{git_worktree}` — an EMPTY
-    intersection. It is inert only because the compiler does not thread the
-    archetype value through. This pins the default that keeps work alive, so
-    wiring the archetype through cannot silently refuse 100% of production."""
+    """R6-F3 RESOLVED: the two vocabularies are reconciled under one owner.
+
+    This test previously asserted the DISJOINTNESS as a standing property —
+    archetypes declaring `isolated_worktree` while admission accepted only
+    `git_worktree` — and said in its own failure message: *"if the vocabularies
+    were reconciled, update this test and the ledger together."* Round 7 did
+    reconcile them (`ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES` is now the single
+    owner naming both spellings of the one worktree concept), so the assertion
+    inverts: forwarding the archetype's OWN class must now ADMIT.
+
+    It pins two things at once: the producer default still keeps work alive,
+    AND the archetype value is no longer refused for a rollback that is in fact
+    structurally guaranteed.
+    """
     arch = _real_archetype(_WORK_TEXTS[0])
     packet = _packet_from_archetype(arch)
     assert _admit(packet, _grant_from_production_defaults()).admitted
-    drifted = _admit(
+
+    forwarded = _admit(
         packet,
         _grant_from_production_defaults(environment_classes=[arch.environment_class]),
     )
-    assert not drifted.admitted, (
-        "the archetype's own environment_class now admits — if the vocabularies "
-        "were reconciled, update this test and the ledger together"
+    assert forwarded.admitted, (
+        f"the archetype's own environment_class {arch.environment_class!r} is "
+        f"REFUSED ({forwarded.refusal_code}) — the R6-F3 vocabulary "
+        f"disjointness has regressed"
     )
-    assert drifted.refusal_code == "no_rollback_guarantee", drifted.refusal_code
+
+    # The reconciliation is NOT a blanket widening: a class with no rollback
+    # mechanism must still refuse.
+    ungoverned = _admit(
+        packet, _grant_from_production_defaults(environment_classes=["workspace"])
+    )
+    assert not ungoverned.admitted
+    assert ungoverned.refusal_code == "no_rollback_guarantee", ungoverned.refusal_code
 
 
 # ── AUTHORITY: a bound the operator DOES declare must REFUSE ───────────────
@@ -760,3 +778,92 @@ def test_the_production_grant_ttl_is_a_live_window():
         "the grant's expiry window is not in the future — every grant expires at "
         "mint (total authorization outage)"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# R6-F3 — the environment-class vocabularies are RECONCILED (was ACTIVE_DEBT)
+#
+# Planning and execution named one concept two ways:
+#   archetypes.py:87  environment_class = "isolated_worktree"
+#   decisions.py:208  environment_classes default = ["git_worktree"]
+# The sets were DISJOINT, so check 12 passed only because the grant producer's
+# default happened to be the single literal the guard accepted — never because
+# an archetype agreed. Any caller forwarding the archetype's own class (the
+# obvious thing to do) would have been refused for a rollback that IS in fact
+# guaranteed.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_every_archetype_environment_class_is_adjudicated():
+    """No archetype env class may be silently unknown to admission.
+
+    Each must be either rollback-guaranteed (admits) or deliberately excluded
+    (refuses) — never accidentally absent from the vocabulary.
+    """
+    from substrate.execution.attempts.admission import (
+        ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES,
+    )
+
+    guaranteed, ungoverned = set(), set()
+    for work_text in _WORK_TEXTS:
+        arch = _real_archetype(work_text)
+        env = str(getattr(arch, "environment_class", "") or "")
+        assert env, f"archetype {arch.archetype_id!r} declares no environment_class"
+        (guaranteed if env in ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES else ungoverned).add(env)
+
+    # The worktree concept must be reconciled under BOTH spellings.
+    assert "isolated_worktree" in ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES, (
+        "the planning spelling of the git-worktree lease is not recognised — "
+        "the R6-F3 disjointness has regressed"
+    )
+    assert "git_worktree" in ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES
+    assert guaranteed, "no archetype maps to a rollback-guaranteed environment"
+
+    # Classes with no rollback mechanism must NOT have been swept in.
+    assert "workspace" not in ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES
+    assert "governed_runtime" not in ROLLBACK_GUARANTEED_ENVIRONMENT_CLASSES
+
+
+@pytest.mark.parametrize(
+    ("env_class", "should_admit"),
+    [
+        ("git_worktree", True),        # execution vocabulary
+        ("isolated_worktree", True),   # planning vocabulary — same concept
+        ("read_only", True),           # zero-write: nothing to roll back
+        ("workspace", False),          # no rollback mechanism
+        ("governed_runtime", False),   # no rollback mechanism
+        ("docker", False),             # unrecognised
+    ],
+)
+def test_rollback_guarantee_is_decided_by_the_property_not_a_default(
+    env_class, should_admit
+):
+    """Admission must judge the environment class on its rollback guarantee.
+
+    Parametrized over BOTH vocabularies so neither side can drift again without
+    a failure, and over ungoverned classes so the reconciliation cannot be
+    mistaken for a blanket widening.
+    """
+    arch = _real_archetype(_WORK_TEXTS[0])
+    grant = _grant_from_production_defaults(environment_classes=[env_class])
+    verdict = _admit(_packet_from_archetype(arch), grant)
+    if should_admit:
+        assert verdict.admitted, (
+            f"env class {env_class!r} carries a guaranteed rollback but was "
+            f"REFUSED ({verdict.refusal_code})"
+        )
+    else:
+        assert not verdict.admitted and verdict.refusal_code == "no_rollback_guarantee", (
+            f"env class {env_class!r} has no rollback mechanism and must REFUSE, "
+            f"got admitted={verdict.admitted} code={verdict.refusal_code}"
+        )
+
+
+def test_a_mixed_environment_set_refuses_unless_every_class_is_guaranteed():
+    """One ungoverned class in the set must refuse the whole grant."""
+    arch = _real_archetype(_WORK_TEXTS[0])
+    grant = _grant_from_production_defaults(
+        environment_classes=["isolated_worktree", "workspace"]
+    )
+    verdict = _admit(_packet_from_archetype(arch), grant)
+    assert not verdict.admitted and verdict.refusal_code == "no_rollback_guarantee"
