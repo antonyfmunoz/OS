@@ -1044,7 +1044,7 @@ def test_every_documented_check_number_matches_the_code():
         for match in re.finditer(r"\bcheck(?:s)?\b", text):
             window = text[match.end() : match.end() + 160]
             window = re.split(r"(?<=[.;])\s|\n\n|\| ", window)[0]
-            cited.update(int(n) for n in re.findall(r"(?<![\w.-])(\d{1,3})(?![\w.-])", window))
+            cited.update(int(n) for n in re.findall(r"(?<![\w-])(\d{1,3})(?![\w-]|\.\d)", window))
         return cited
 
     for source_name, text in (("admission.py", admission), ("ledger", ledger)):
@@ -1053,6 +1053,52 @@ def test_every_documented_check_number_matches_the_code():
                 f"{source_name} cites check {cited_num}, but admission.py has only "
                 f"{highest} checks — a stale number from an earlier numbering"
             )
+
+    # HOLE (b), and the harder half: an IN-RANGE stale number passes any range
+    # check. "making check 9 a tautology" cites 9, which is <= 17 and therefore
+    # numerically valid — but 9 is `skills_role_authorized`, while the tautology
+    # argument is about `role_ids` = check 8. That is the ORIGINAL M-4 defect,
+    # and a range check structurally cannot see it (round-8 review N-2).
+    #
+    # Catching it requires binding the number to the CONCERN named beside it.
+    # Where prose cites a check number AND names a check in the same breath —
+    # `check 8 (``role_ids``)`, "check 9 (`skills_role_authorized`)" — the
+    # number must match that check's inline section.
+    concern_tokens = {
+        "role_ids": 8,
+        "skills_role_authorized": 9,
+        "allowed_tools": 10,
+        "cost_limit_usd": 15,
+        "rollback_guaranteed": 12,
+    }
+    for source_name, text in (("admission.py", admission), ("ledger", ledger)):
+        for match in re.finditer(
+            r"check(?:s)?\s+(\d{1,3})\s*\(+`*([a-z_]+)`*\)+", text
+        ):
+            num, token = int(match.group(1)), match.group(2)
+            if token in concern_tokens:
+                assert num == concern_tokens[token], (
+                    f"{source_name} cites check {num} for {token!r}, but {token!r} "
+                    f"is check {concern_tokens[token]} — an IN-RANGE stale number, "
+                    "the exact M-4 defect a range check cannot detect"
+                )
+
+    # KNOWN LIMITATION, stated rather than papered over (round-8 review N-2b).
+    #
+    # A bare in-range stale number that names NO concern beside it — e.g.
+    # "making check 9 a tautology", where the tautology is really about check 8
+    # — is NOT mechanically detectable here. Nothing in the text ties that "9"
+    # to a concern, so neither the range check (9 <= 17) nor the name<->number
+    # binding above can fire. Detecting it would require understanding the
+    # PROSE, not the number.
+    #
+    # This gate therefore catches: out-of-range numbers anywhere (including in
+    # list continuations, after interrupting parentheticals, and at sentence
+    # end), and in-range numbers cited beside a named concern. It does NOT
+    # catch a bare in-range number whose surrounding argument is about a
+    # different check. That residual case is a review responsibility, and it is
+    # written down here so no one mistakes a green gate for full coverage —
+    # which is the failure mode this whole campaign exists to eliminate.
 
     # The four checks the R6-F1/R6-F2 classification names must map to the right
     # concerns, so a renumbering cannot silently repoint the argument.
