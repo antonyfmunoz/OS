@@ -622,3 +622,146 @@ def test_b2_the_terminal_return_reaches_the_teardown():
             ):
                 guarded = True
     assert guarded, "the bounded-failure return 3 does not unwind through the teardown"
+
+
+# ── NEW-4 (round 3): the CALLER WIRING, not just the extracted units ─────────
+#
+# Independent review (R9) at aa459edde confirmed 9/9 original mutants dead and
+# both root causes gone (no regex scraping, no replayed logic) — then found four
+# survivors of a NEW shape: the units are tested, the WIRING is not.
+#
+#   N4  start_runner CALLS runner_readiness_announced but DISCARDS the result
+#       (`announced = True`)  -> the original B1 defect, verbatim
+#   N9  the loop never calls cp_budget.record_failure(exc)   -> never terminates
+#   N10 `if cp_budget.exhausted:` -> `if False:`             -> never terminates
+#   N12 record_success() called inside the `except` branch   -> fires 4x later
+#
+# All four restore a real defect, so they are coverage gaps, not equivalent
+# mutants. The lesson is NEW-2 one level up: extraction made the decision
+# testable, and "the caller actually consumes it" became the new untested seam.
+
+
+def test_b2_a_broken_driver_terminates_the_real_run_loop(tmp_path, monkeypatch):
+    """END-TO-END wiring test: drive the REAL run_loop with a driver whose
+    run_cycle always raises, and assert it returns 3 within the consecutive
+    bound. Kills N9, N10 and N12 together — none of which any unit test can see,
+    because each breaks how the LOOP uses the budget rather than the budget."""
+    runner = _runner_mod()
+
+    cycles = {"n": 0}
+
+    class _AlwaysRaisingDriver:
+        def run_cycle(self):
+            cycles["n"] += 1
+            raise RuntimeError("control plane down")
+
+    monkeypatch.setattr(
+        runner, "_build_control_plane_driver", lambda **kw: _AlwaysRaisingDriver()
+    )
+    # keep the loop off every other real seam: no isolation preflight, no spool work
+    monkeypatch.setattr(runner, "preflight_isolation", lambda *a, **k: True, raising=False)
+
+    rc = runner.run_loop(
+        spool_root=str(tmp_path / "spool"),
+        secret="s" * 32,
+        max_iterations=500,          # far beyond the bound; the bound must stop us
+        poll_seconds=0.0,
+        fixture_repo=str(tmp_path / "fixture"),
+        targets_dir=str(tmp_path / "targets"),
+        leases_dir=str(tmp_path / "leases"),
+    )
+
+    assert rc == 3, f"a permanently broken control plane did not terminate (rc={rc})"
+    assert cycles["n"] <= runner._CP_MAX_CONSECUTIVE_ERRORS, (
+        f"terminated after {cycles['n']} cycles, expected "
+        f"<= {runner._CP_MAX_CONSECUTIVE_ERRORS}"
+    )
+
+
+def test_b1_start_runner_consumes_the_readiness_result():
+    """N4 kept the call to runner_readiness_announced and threw the value away
+    (`announced = True`), so an existence-of-call assertion still passed while
+    the launcher accepted ANY launch — including a dead process or a stale log.
+
+    Pin that the call's VALUE is bound, not merely made."""
+    import ast
+
+    path = os.path.join(REPO, "scripts", "wave2_field_dispatch.py")
+    tree = ast.parse(open(path, encoding="utf-8").read(), filename=path)
+    fn = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "start_runner"
+    )
+
+    def _is_readiness_call(node):
+        return (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "runner_readiness_announced"
+        )
+
+    consumed = False
+    for node in ast.walk(fn):
+        # `announced = runner_readiness_announced(...)`
+        if isinstance(node, ast.Assign) and _is_readiness_call(node.value):
+            consumed = True
+        # or used directly as a condition
+        if isinstance(node, (ast.If, ast.While)) and _is_readiness_call(node.test):
+            consumed = True
+    assert consumed, (
+        "start_runner calls runner_readiness_announced but never uses its result — "
+        "readiness is being decided by something else"
+    )
+
+    # and `announced` must never be hard-assigned True in start_runner
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant):
+            if node.value.value is True:
+                for tgt in node.targets:
+                    assert not (
+                        isinstance(tgt, ast.Name) and tgt.id == "announced"
+                    ), "readiness is hard-coded True, defeating the pid/marker check"
+
+
+def test_b2_the_loop_wires_the_budget_on_the_right_branches():
+    """AST pin for N9/N12: inside run_loop, record_failure must be reachable from
+    an except handler, record_success must NOT be, and an If must test
+    .exhausted. Complements the end-to-end test above (which is the stronger
+    signal) so a refactor that keeps rc==3 by another route still gets caught."""
+    import ast
+
+    path = os.path.join(REPO, "scripts", "wave2_attempt_runner.py")
+    tree = ast.parse(open(path, encoding="utf-8").read(), filename=path)
+    fn = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "run_loop"
+    )
+
+    def _calls(node, attr):
+        return [
+            n for n in ast.walk(node)
+            if isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == attr
+        ]
+
+    handlers = [n for n in ast.walk(fn) if isinstance(n, ast.ExceptHandler)]
+    failure_in_except = any(_calls(h, "record_failure") for h in handlers)
+    success_in_except = any(_calls(h, "record_success") for h in handlers)
+
+    assert failure_in_except, "run_loop never records a control-plane failure"
+    assert not success_in_except, (
+        "record_success is called from an except branch — a failure would clear "
+        "the consecutive budget it just incremented"
+    )
+    assert _calls(fn, "record_success"), "run_loop never records a successful cycle"
+
+    tests_exhausted = any(
+        isinstance(n, ast.If)
+        and any(
+            isinstance(s, ast.Attribute) and s.attr == "exhausted"
+            for s in ast.walk(n.test)
+        )
+        for n in ast.walk(fn)
+    )
+    assert tests_exhausted, "run_loop never checks cp_budget.exhausted"
