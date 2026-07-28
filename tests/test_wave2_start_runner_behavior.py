@@ -254,9 +254,78 @@ def test_worker_only_marker_permits_started(env, tmp_path, monkeypatch):
     assert out["started"] is True, f"worker-only readiness was not accepted: {out}"
 
 
+def test_a_slow_runner_that_announces_later_is_still_accepted(env, tmp_path, monkeypatch):
+    """The launcher must POLL until the deadline, not decide on the first look.
+
+    Second finding from self-adversarial mutation: replacing `if not alive:
+    break` with an unconditional `break` survived the original suite, because
+    every fixture wrote its log before the first poll. A real runner takes time
+    to start — under that mutant a slow-but-healthy runner is rejected on
+    iteration 1 with announced=False.
+
+    Here the process sleeps past several polls before announcing, so only an
+    implementation that keeps polling can see it.
+    """
+    mod = env
+    scripts = tmp_path / "fake_worktree" / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    # The launcher's clock is accelerated 12x by `_accelerate_deadline`, so its
+    # real 30s deadline elapses in ~2.5s of wall time and each 1s poll sleeps
+    # 0.25s. Announce after ~0.6s: comfortably past the FIRST poll (which is what
+    # the mutant decides on) yet well inside the budget.
+    (scripts / "wave2_attempt_runner.py").write_text(
+        "import os, sys, time\n"
+        # nothing on stdout for the first couple of polls
+        "time.sleep(0.6)\n"
+        'sys.stdout.write("control-plane driver up: pid=%d run_root=/x\\n" % os.getpid())\n'
+        "sys.stdout.flush()\n"
+        "time.sleep(30)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(mod, "_WORKTREE", tmp_path / "fake_worktree")
+    out = _start(mod)
+    assert out["started"] is True, (
+        "a healthy runner that announced after the first poll was rejected — "
+        f"the launcher is not polling to its deadline: {out}"
+    )
+
+
+def test_announced_then_died_is_not_started(env, tmp_path, monkeypatch):
+    """A process that ANNOUNCES readiness and then DIES must not be started.
+
+    Found by self-adversarial mutation of this very file: dropping the `alive`
+    half of the launcher's guard (`if not (alive and announced)` -> `if not
+    announced`) survived all 12 original tests, because every one of them held
+    `alive` and `announced` in lockstep. This is the case that separates them —
+    the real code returns alive=False, announced=True, started=False, and the
+    mutant returns started=True.
+
+    Readiness is a CONJUNCTION: announced AND still running. A runner that
+    printed its readiness line and then crashed is not ready, it is dead.
+    """
+    mod = env
+    _install_fake_runner_script(
+        mod,
+        tmp_path,
+        monkeypatch,
+        lines=["control-plane driver up: pid=@PID@ run_root=/x"],
+        stay_alive=False,
+        exit_code=9,
+    )
+    out = _start(mod)
+    # assert the VERDICT first: under the mutant this is True and the success
+    # dict carries no diagnostic keys, so checking `announced` first would fail
+    # with a bare KeyError instead of naming the defect.
+    assert out["started"] is False, (
+        "a runner that announced readiness and then DIED was reported started — "
+        "the liveness half of the readiness conjunction is not enforced"
+    )
+    assert out["announced"] is True, "fixture did not actually announce readiness"
+    assert out["alive"] is False, "fixture was supposed to exit after announcing"
+
+
 # --------------------------------------------------------------------------
 # NEGATIVE: everything that must NOT permit readiness.
-# Each exhausts the real deadline, hence `slow`.
 # --------------------------------------------------------------------------
 
 
