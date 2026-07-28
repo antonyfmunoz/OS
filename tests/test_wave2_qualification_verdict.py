@@ -33,7 +33,9 @@ import importlib
 
 import pytest
 
-wd = importlib.import_module("scripts.wave2_field_dispatch")
+from tests.wave2_script_import import load_wave2_script
+
+wd = load_wave2_script("wave2_field_dispatch")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

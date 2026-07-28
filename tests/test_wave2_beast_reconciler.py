@@ -7,8 +7,10 @@ one identity). Pure logic + mocked observe — no network, no quota.
 
 from __future__ import annotations
 
-import scripts.wave2_beast_reconciler as R
-from scripts.wave2_beast_reconciler import NodeState, reconcile
+from tests.wave2_script_import import load_wave2_script
+
+R = load_wave2_script("wave2_beast_reconciler")
+NodeState, reconcile = R.NodeState, R.reconcile
 
 
 def _healthy_state() -> NodeState:

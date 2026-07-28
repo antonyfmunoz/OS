@@ -32,6 +32,8 @@ import time
 
 import pytest
 
+from tests.wave2_script_import import load_wave2_script
+
 rt = importlib.import_module("substrate.execution.attempts.run_teardown")
 wcb = importlib.import_module("substrate.execution.attempts.worker_credential_boundary")
 
@@ -453,7 +455,7 @@ def test_shutdown_is_baseexception_not_exception():
     # The "swallowed teardown error" fail-open: _Shutdown MUST subclass
     # BaseException so the loop's `except Exception` cannot swallow the signal
     # before the finally runs. If a refactor makes it an Exception, this fails.
-    runner = importlib.import_module("scripts.wave2_attempt_runner")
+    runner = load_wave2_script("wave2_attempt_runner")
     assert issubclass(runner._Shutdown, BaseException)
     assert not issubclass(runner._Shutdown, Exception), (
         "_Shutdown must NOT be an Exception — the loop's except Exception would eat it"

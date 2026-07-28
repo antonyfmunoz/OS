@@ -22,6 +22,7 @@ order entirely -- the module can only ever come from this candidate tree.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import os
 import sys
@@ -33,19 +34,27 @@ _REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def load_wave2_script(module_name: str) -> ModuleType:
     """Import ``scripts/<module_name>.py`` from this repo, ignoring sys.path.
 
-    Cached under a candidate-specific key so repeated calls are cheap and can
-    never collide with a same-named module loaded from another checkout.
+    The cache key embeds the RESOLVED ABSOLUTE PATH, not just the module name.
+    ``_REPO`` is derived from this file's own ``__file__``, so within a single
+    process it is already fixed -- but that is a property of how the helper
+    happens to be imported, not something the cache itself enforced. Keying on
+    the path makes the guarantee structural instead of circumstantial: two
+    different candidate checkouts loaded in one process get two distinct cache
+    entries and cannot return each other's module, and a stale entry can never
+    be served for a different path.
     """
-    cache_key = f"_wave2_candidate_scripts.{module_name}"
-    cached = sys.modules.get(cache_key)
-    if cached is not None:
-        return cached
-
-    path = os.path.join(_REPO, "scripts", f"{module_name}.py")
+    path = os.path.realpath(os.path.join(_REPO, "scripts", f"{module_name}.py"))
     if not os.path.exists(path):
         raise ModuleNotFoundError(
             f"{module_name} not found in this candidate repo at {path}"
         )
+
+    # Path-qualified identity: same name + different checkout => different key.
+    digest = hashlib.sha256(path.encode()).hexdigest()[:12]
+    cache_key = f"_wave2_candidate_scripts.{digest}.{module_name}"
+    cached = sys.modules.get(cache_key)
+    if cached is not None:
+        return cached
 
     spec = importlib.util.spec_from_file_location(cache_key, path)
     if spec is None or spec.loader is None:
