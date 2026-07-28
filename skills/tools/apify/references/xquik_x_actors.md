@@ -244,7 +244,11 @@ def validate_x_dataset(
     target: str,
 ) -> list[dict[str, object]]:
     """Validate object rows against approved aggregate and per-target caps."""
-    if approved_global_cap <= 0 or approved_per_target_cap <= 0:
+    approved_caps = (approved_global_cap, approved_per_target_cap)
+    if any(
+        isinstance(cap, bool) or not isinstance(cap, int) or cap <= 0
+        for cap in approved_caps
+    ):
         raise ValueError("Invalid caps. Use positive approved caps.")
     normalized_target = target.strip().removeprefix("@").casefold()
     if not normalized_target:
@@ -253,12 +257,12 @@ def validate_x_dataset(
         raise ValueError("Invalid dataset. Expected a list.")
     if any(not isinstance(item, dict) for item in items):
         raise ValueError("Invalid dataset. Expected object rows.")
-    if len(items) > approved_global_cap:
-        raise ValueError("Cap exceeded. Stop downstream processing.")
-
     data_items = [
         item for item in items if item.get("resultType") != "diagnostic"
     ]
+    if len(data_items) > approved_global_cap:
+        raise ValueError("Cap exceeded. Stop downstream processing.")
+
     target_count = 0
     for item in data_items:
         row_targets: list[object] = []
