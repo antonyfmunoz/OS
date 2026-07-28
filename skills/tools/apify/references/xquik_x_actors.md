@@ -239,15 +239,16 @@ Supported relations: `followers`, `following`, `verified_followers`,
 ```python
 def validate_x_dataset(
     items: object,
-    approved_cap: int,
+    approved_global_cap: int,
 ) -> list[dict[str, object]]:
-    if approved_cap <= 0:
+    """Validate object rows against only the approved aggregate cap."""
+    if approved_global_cap <= 0:
         raise ValueError("Invalid cap. Use a positive approved cap.")
     if not isinstance(items, list):
         raise ValueError("Invalid dataset. Expected a list.")
     if any(not isinstance(item, dict) for item in items):
         raise ValueError("Invalid dataset. Expected object rows.")
-    if len(items) > approved_cap:
+    if len(items) > approved_global_cap:
         raise ValueError("Cap exceeded. Stop downstream processing.")
     return [item for item in items if item.get("resultType") != "diagnostic"]
 ```
