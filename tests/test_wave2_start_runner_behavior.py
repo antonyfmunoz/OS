@@ -254,6 +254,59 @@ def test_worker_only_marker_permits_started(env, tmp_path, monkeypatch):
     assert out["started"] is True, f"worker-only readiness was not accepted: {out}"
 
 
+def test_realistic_startup_volume_still_reaches_the_marker(env, tmp_path, monkeypatch):
+    """The readiness read must cover the WHOLE log, not a fixed window of it.
+
+    Third gap in this file, found by independent review R11: every other fixture
+    here writes 1-3 short lines, so no test made the log LONG. A truncating read
+    (`read_text(...)[:200]`, a tail-read, any fixed window) is therefore
+    invisible — it passes all 14 of the other tests while reporting a HEALTHY
+    runner as failed after burning the entire deadline.
+
+    That is not hypothetical. Measured against the REAL runner
+    (`scripts/wave2_attempt_runner.py`), a MINIMAL startup with ZERO
+    crash-recovery lines already writes **309 bytes** before
+    `control-plane driver up:` —
+
+        [wave2-runner] isolation preflight: True (<detail>)          (line 278)
+        [wave2-runner] crash-recovery swept stale run ...   UNBOUNDED (line 299)
+        [wave2-runner] runner starting: pid=... run_root=... ...     (line 317)
+
+    — and each crash-recovery line adds ~124 bytes more. So the marker sits
+    beyond any small window on EVERY real launch, not just an unlucky one.
+
+    This fixture reproduces that shape: realistic chatter first, marker last.
+    """
+    mod = env
+    chatter = [
+        "isolation preflight: True (bwrap confinement verified: /opt/OS hidden, creds scrubbed)",
+        *[
+            f"crash-recovery swept stale run /var/lib/umh/candidates/wave2/x/targets/run-{i}: "
+            f"ok=True ['worker_home', 'lease', 'credentials']"
+            for i in range(12)
+        ],
+        "runner starting: pid=@PID@ run_root=/x spool=/y primitive=bwrap max_workers=2",
+    ]
+    # Chatter BEFORE the marker kills a head-window read; chatter AFTER it kills
+    # a tail-window read. A real runner produces both — it logs its startup
+    # sequence, announces, then logs worker-loop activity — so the fixture must
+    # bracket the marker on BOTH sides or one truncation direction stays
+    # invisible. (Found by extending R11's M6 along its own axis: `[:200]` and
+    # `[:400]` are caught by the leading chatter, `[-200:]` only by the trailing.)
+    post_announce = [f"claimed dispatch 0000000{i}-ea-wp-a.json" for i in range(8)]
+    _install_fake_runner_script(
+        mod,
+        tmp_path,
+        monkeypatch,
+        lines=[*chatter, "control-plane driver up: pid=@PID@ run_root=/x", *post_announce],
+    )
+    out = _start(mod)
+    assert out["started"] is True, (
+        "a healthy runner whose readiness marker sits past realistic startup "
+        f"chatter was reported failed — the evidence read is truncating: {out}"
+    )
+
+
 def test_a_slow_runner_that_announces_later_is_still_accepted(env, tmp_path, monkeypatch):
     """The launcher must POLL until the deadline, not decide on the first look.
 
