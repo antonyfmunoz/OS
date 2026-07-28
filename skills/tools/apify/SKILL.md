@@ -243,8 +243,9 @@ text = comment.get("text") or comment.get("commentText") or ""
 
 ### Rate limit 429 during burst scraping (RESOLVED)
 Rapid sequential API calls triggered 429 responses.
-**Fix:** `RateLimiter(calls_per_minute=10)` retries explicit 429 responses.
-Reconcile uncertain 5xx outcomes before resubmitting a paid run.
+**Fix:** `RateLimiter(calls_per_minute=10)` paces requests before dispatch.
+Handle 429 responses in the request flow. Reconcile uncertain 5xx outcomes
+before resubmitting a paid run.
 
 ### Scraped posts cache grows unbounded (RESOLVED)
 `scraped_posts.json` tracked all scraped URLs without cleanup.
