@@ -38,6 +38,10 @@ headers = {
 }
 
 
+class RunSubmissionUncertain(RuntimeError):
+    """The run request may have succeeded and must not be retried."""
+
+
 def canonical_request_fingerprint(
     actor_id: str,
     actor_input: dict[str, object],
@@ -65,6 +69,8 @@ def start_paid_actor(
     *,
     max_items: int,
     max_total_charge_usd: float,
+    configured_max_items: int,
+    configured_max_total_charge_usd: float,
     live_pricing: dict[str, object],
     approval_record: Mapping[str, object],
 ) -> str:
@@ -75,12 +81,27 @@ def start_paid_actor(
     ):
         raise ValueError("Invalid item cap. Use a positive integer.")
     if (
+        isinstance(configured_max_items, bool)
+        or not isinstance(configured_max_items, int)
+        or configured_max_items <= 0
+        or max_items > configured_max_items
+    ):
+        raise ValueError("Item cap exceeds the configured maximum.")
+    if (
         isinstance(max_total_charge_usd, bool)
         or not isinstance(max_total_charge_usd, (int, float))
         or not math.isfinite(max_total_charge_usd)
         or max_total_charge_usd <= 0
     ):
         raise ValueError("Invalid run cap. Use positive approved caps.")
+    if (
+        isinstance(configured_max_total_charge_usd, bool)
+        or not isinstance(configured_max_total_charge_usd, (int, float))
+        or not math.isfinite(configured_max_total_charge_usd)
+        or configured_max_total_charge_usd <= 0
+        or max_total_charge_usd > configured_max_total_charge_usd
+    ):
+        raise ValueError("Run cap exceeds the configured maximum.")
     if actor_input.get("maxItems") != max_items:
         raise ValueError("Actor input and approved global cap differ.")
     per_target_cap = actor_input.get("maxItemsPerTarget")
@@ -90,9 +111,10 @@ def start_paid_actor(
             isinstance(per_target_cap, bool)
             or not isinstance(per_target_cap, int)
             or per_target_cap <= 0
+            or per_target_cap > max_items
         )
     ):
-        raise ValueError("Invalid per-target cap. Use a positive integer.")
+        raise ValueError("Invalid per-target cap. Keep it within the global cap.")
     if not live_pricing:
         raise ValueError("Live pricing snapshot required.")
 
@@ -114,13 +136,22 @@ def start_paid_actor(
             "Approval does not match this Actor, input, caps, and live price."
         )
 
-    response = requests.post(
-        f"https://api.apify.com/v2/acts/{actor_id}/runs",
-        headers=headers,
-        json=actor_input,
-        params=run_options,
-        timeout=30,
+    uncertain_message = (
+        "Run outcome uncertain. Do not retry. Reconcile recent Apify runs "
+        f"for request fingerprint {expected_fingerprint}."
     )
+    try:
+        response = requests.post(
+            f"https://api.apify.com/v2/actors/{actor_id}/runs",
+            headers=headers,
+            json=actor_input,
+            params=run_options,
+            timeout=30,
+        )
+    except (requests.Timeout, requests.ConnectionError) as error:
+        raise RunSubmissionUncertain(uncertain_message) from error
+    if response.status_code == 408 or response.status_code >= 500:
+        raise RunSubmissionUncertain(uncertain_message)
     response.raise_for_status()
     payload = response.json()
     if not isinstance(payload, dict):
@@ -150,6 +181,11 @@ approval_record = {
 
 Any change to the Actor, input, caps, or pricing snapshot produces a different
 fingerprint and invalidates the approval.
+
+Persist the request fingerprint before submission. If
+`RunSubmissionUncertain` is raised, do not retry. Reconcile recent Apify runs
+and their inputs first. Resume only the confirmed run, or obtain fresh approval
+after confirming that no run started.
 
 ## X Tweet Scraper
 

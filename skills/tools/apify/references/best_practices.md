@@ -366,11 +366,13 @@ run_actor(actor_id, input_data)
 
 # RIGHT: show live pricing and the exact bounded input first.
 run_id = start_paid_actor(
-    actor_id,
-    {"searchTerms": ["web scraping"], "maxItems": 25},
-    max_items=25,
-    max_total_charge_usd=approved_charge_cap,
-    live_pricing=displayed_live_pricing,
+    "xquik~x-tweet-scraper",
+    tweet_input,
+    max_items=50,
+    max_total_charge_usd=5.0,
+    configured_max_items=100,
+    configured_max_total_charge_usd=5.0,
+    live_pricing=live_pricing,
     approval_record=approval_record,
 )
 ```
