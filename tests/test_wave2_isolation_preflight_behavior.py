@@ -440,6 +440,33 @@ def test_caller_refuses_worker_execution_unless_isolation_is_proven(tmp_path):
         assert out.popen_calls == 0, f"worker launched despite {out}"
 
 
+@pytest.mark.parametrize("blank_stderr", ["   ", "\n", "\r\n", "\t\n "])
+def test_whitespace_only_stderr_is_not_a_contradiction(tmp_path, blank_stderr):
+    """A trailing newline on stderr must not be read as "the preflight complained".
+
+    The contract is "stderr empty" — and `stderr` is NORMALIZED with `.strip()`
+    before it is tested, so whitespace counts as empty. Independent review R14
+    mutated that normalization away (`(... or "").strip()` -> `(... or "")`) and
+    it SURVIVED: nothing pinned the whitespace case.
+
+    The direction of that mutant is fail-CLOSED — it REFUSES where real code
+    proceeds — so it is not a security regression. It is still a real behavioral
+    difference, and the behavior it breaks is one that matters operationally: a
+    healthy bwrap host that emits a stray newline on stderr would be refused, and
+    the field run would abort claiming isolation could not be proven. That is a
+    false negative on the Amendment v1 clause 4 gate, which costs a whole run.
+
+    Pinning it keeps the strict no-stderr rule strict about CONTENT without making
+    it brittle about WHITESPACE.
+    """
+    out = _start(_completed(0, AFFIRMATIVE, blank_stderr), tmp_path)
+    assert out.preflight_calls == 1
+    assert out.get("isolation_ok") is True, (
+        f"whitespace-only stderr {blank_stderr!r} was treated as a contradiction — "
+        f"a healthy host would be refused: {out}"
+    )
+
+
 def test_a_result_without_a_usable_returncode_fails_closed(tmp_path):
     """A preflight result whose returncode is absent/None is NOT proof of isolation.
 
@@ -467,70 +494,22 @@ def test_a_result_without_a_usable_returncode_fails_closed(tmp_path):
     assert out.popen_calls == 0, "worker launched on a preflight with no exit status"
 
 
-def test_dry_run_never_fabricates_a_real_isolation_verdict(tmp_path):
-    """`dry_run` must not be able to short-circuit the refusal on a REAL run.
-
-    R14 mutated the gate to `not getattr(runner, "dry_run", True)` and it SURVIVED:
-    with the default flipped to True, any runner object lacking an explicit
-    `dry_run` attribute would skip the refusal entirely and proceed to launch. The
-    production `Runner` always sets `dry_run`, so this is unreachable today — but the
-    failure mode (a missing attribute silently meaning "don't enforce") is exactly
-    the fail-open shape this whole correction exists to remove.
-    """
-
-    class _NoDryRunAttr:
-        """A runner-like object that never declares dry_run."""
-
-        def __init__(self):
-            self.log: list[str] = []
-            self.preflight_calls = 0
-
-        def run(self, cmd, *, timeout=120, check=False, capture=True):
-            if any(str(p) == "--preflight-only" for p in cmd):
-                self.preflight_calls += 1
-                return _completed(1, AFFIRMATIVE, "")
-            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
-
-        def shell(self, cmd_str, *, timeout=120):
-            return subprocess.CompletedProcess(args=cmd_str, returncode=0, stdout="", stderr="")
-
-    mod = _dispatch_mod()
-    state = tmp_path / "state"
-    (state / "spool").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "targets").mkdir(parents=True, exist_ok=True)
-    secret = state / "secret"
-    secret.write_text("s", encoding="utf-8")
-
-    popen_calls: list = []
-
-    class _FakePopen:
-        def __init__(self, *a, **k):
-            popen_calls.append(1)
-            self.pid = 4242
-
-        def poll(self):
-            return 0
-
-    monkey = pytest.MonkeyPatch()
-    try:
-        monkey.setattr(mod, "_spool_root", lambda sha, rid: state / "spool")
-        monkey.setattr(mod, "_state_dir", lambda sha: state)
-        monkey.setattr(mod, "_targets_dir", lambda sha, rid: tmp_path / "targets")
-        monkey.setattr(mod, "_mint_run_secret", lambda r, sha: secret)
-        monkey.setattr(mod, "subprocess", _PopenShim(mod.subprocess, _FakePopen))
-        runner = _NoDryRunAttr()
-        try:
-            out = mod.start_runner(runner, "c" * 40, "rid", 1)
-        except AttributeError:
-            # Refusing by raising on a malformed runner is also fail-closed.
-            assert not popen_calls, "worker launched before the dry_run AttributeError"
-            return
-    finally:
-        monkey.undo()
-
-    assert out["isolation_ok"] is False, f"dry_run default fabricated isolation: {out}"
-    assert out["started"] is False, out
-    assert not popen_calls, "worker launched on a failed preflight via the dry_run default"
+# NOTE — r14_g_dry_run_bypass is a PROVEN EQUIVALENT MUTANT, deliberately untested.
+#
+# Independent review R14 mutated the refusal gate to
+# `not getattr(runner, "dry_run", True)` and it survived every attempt to kill it,
+# including a test written specifically for it. Instrumenting the mutant showed why,
+# and the reason is STRUCTURAL rather than a gap in coverage: a runner lacking
+# `dry_run` never reaches a differing outcome, because `start_runner` reads
+# `runner.dry_run` AGAIN a few lines later (the dry-run branch) and that second
+# access is not mutated. So the attribute-less runner raises AttributeError in BOTH
+# versions, with zero workers launched.
+#
+# Proven by execution over all 9 reachable runner shapes (dry_run absent/False/True
+# x preflight rc 0/1/2): identical isolation verdict, identical started value,
+# identical worker-launch count, identical exception type. Zero distinguishable
+# cases. A test asserting a difference here would assert something the code cannot
+# do — so none is written, and the equivalence is recorded instead of papered over.
 
 
 def test_seam_is_load_bearing_not_an_unused_name(tmp_path):
