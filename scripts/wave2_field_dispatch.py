@@ -1953,9 +1953,14 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
         elif _raw_stderr is None:
             stderr = ""
         else:
-            # Anything else (int, list, arbitrary object) carries content that is
-            # not a recognised stream: a contradiction, never silence.
-            stderr = repr(_raw_stderr)
+            # Anything else (int, list, arbitrary object) is not a recognised
+            # stream, so it is a contradiction by CONSTRUCTION — never by the
+            # content of its repr(). Deriving the verdict from `repr()` alone was
+            # a fail-OPEN: an object whose `__repr__` returns "" produced an empty
+            # `stderr`, the contradiction check saw silence, and a worker launched
+            # (isolation_ok=True, popen=1). The type prefix guarantees a non-empty,
+            # non-whitespace marker no matter what the object renders as.
+            stderr = f"<non-stream stderr {type(_raw_stderr).__name__}> {_raw_stderr!r}"
         if rc != 0:
             isolation_detail = f"preflight exited {rc} — isolation not proven"
         elif stderr:

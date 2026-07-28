@@ -558,6 +558,48 @@ def test_a_non_string_stderr_carrying_content_fails_closed(tmp_path, noisy_stder
     assert out.popen_calls == 0, "worker launched despite a real stderr diagnostic"
 
 
+def test_a_non_stream_stderr_is_a_contradiction_even_when_its_repr_is_empty(tmp_path):
+    """A non-stream stderr must be a contradiction by CONSTRUCTION, not by its repr().
+
+    Self-found while briefing the next reviewer on the failure mode this sequence keeps
+    producing: each fix introduced the next fail-open. Deriving the verdict from
+    `repr(_raw_stderr)` had exactly that shape — an object whose `__repr__` returns `""`
+    yields an empty `stderr`, the contradiction check sees silence, and the launcher
+    reports `isolation_ok=True` and LAUNCHES A WORKER.
+
+    Reproduced through the real caller before the fix: `isolation_ok=True, popen=1`.
+
+    The distinction that matters: whitespace-only *streams* (`"  "`, `b"  "`) genuinely
+    mean the preflight said nothing, so they remain silence. A non-stream OBJECT is not
+    a stream at all — its emptiness is a property of its rendering, not evidence that the
+    preflight was quiet. The type-name prefix makes it non-empty regardless.
+    """
+
+    class _EmptyRepr:
+        def __repr__(self) -> str:
+            return ""
+
+    class _WhitespaceRepr:
+        def __repr__(self) -> str:
+            return "   "
+
+    for obj in (_EmptyRepr(), _WhitespaceRepr()):
+
+        class _Result:
+            returncode = 0
+            stdout = AFFIRMATIVE
+
+        result = _Result()
+        result.stderr = obj
+
+        out = _start(result, tmp_path / f"r{id(obj)}")
+        assert out["isolation_ok"] is False, (
+            f"a {type(obj).__name__} stderr was read as silence because its repr() is "
+            f"empty — isolation was affirmed on a non-stream stderr: {out}"
+        )
+        assert out.popen_calls == 0, "worker launched on a non-stream stderr"
+
+
 def test_a_result_with_no_stdout_attribute_at_all_fails_closed(tmp_path):
     """A result object lacking `stdout` entirely must default to NO evidence.
 
