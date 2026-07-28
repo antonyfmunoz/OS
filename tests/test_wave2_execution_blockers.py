@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import sys
-import tempfile
 import time
 
 import pytest
@@ -658,8 +657,19 @@ def test_b2_a_broken_driver_terminates_the_real_run_loop(tmp_path, monkeypatch):
     monkeypatch.setattr(
         runner, "_build_control_plane_driver", lambda **kw: _AlwaysRaisingDriver()
     )
-    # keep the loop off every other real seam: no isolation preflight, no spool work
-    monkeypatch.setattr(runner, "preflight_isolation", lambda *a, **k: True, raising=False)
+    # Keep the loop off the real bwrap preflight. It MUST be patched on the module
+    # run_loop actually imports from (`substrate.execution.attempts.host_isolation`,
+    # imported INSIDE run_loop and therefore resolved at call time) — NOT on the
+    # runner module. Independent review R10 found the previous
+    # `monkeypatch.setattr(runner, "preflight_isolation", ..., raising=False)` was a
+    # NO-OP: that name is not a runner attribute (`hasattr(...) is False`), so this
+    # test only ever reached the failure budget because bwrap happened to be
+    # installed on the host. `raising=` is deliberately omitted below so the patch
+    # FAILS LOUDLY if either symbol is ever renamed or relocated.
+    import substrate.execution.attempts.host_isolation as _iso
+
+    monkeypatch.setattr(_iso, "isolation_primitive", lambda *a, **k: "bwrap")
+    monkeypatch.setattr(_iso, "preflight_isolation", lambda *a, **k: (True, "test seam"))
 
     rc = runner.run_loop(
         spool_root=str(tmp_path / "spool"),
@@ -672,9 +682,13 @@ def test_b2_a_broken_driver_terminates_the_real_run_loop(tmp_path, monkeypatch):
     )
 
     assert rc == 3, f"a permanently broken control plane did not terminate (rc={rc})"
-    assert cycles["n"] <= runner._CP_MAX_CONSECUTIVE_ERRORS, (
-        f"terminated after {cycles['n']} cycles, expected "
-        f"<= {runner._CP_MAX_CONSECUTIVE_ERRORS}"
+    # EXACT, not `<=` (R10 LOW-1): `<=` also passes when the bound fires EARLY,
+    # which would silently truncate the transient-fault tolerance the budget
+    # exists to provide. A driver that raises on every cycle must run exactly
+    # _CP_MAX_CONSECUTIVE_ERRORS cycles — no more, no fewer.
+    assert cycles["n"] == runner._CP_MAX_CONSECUTIVE_ERRORS, (
+        f"terminated after {cycles['n']} cycles, expected exactly "
+        f"{runner._CP_MAX_CONSECUTIVE_ERRORS} (early firing truncates transient tolerance)"
     )
 
 
