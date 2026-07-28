@@ -254,6 +254,103 @@ def test_worker_only_marker_permits_started(env, tmp_path, monkeypatch):
     assert out["started"] is True, f"worker-only readiness was not accepted: {out}"
 
 
+def test_undecodable_bytes_in_the_log_do_not_crash_the_launcher(env, tmp_path, monkeypatch):
+    """The evidence read must tolerate malformed bytes — `errors="replace"`.
+
+    Fourth gap in this file, found by self-adversarial mutation on the axis
+    independent review R12 was pointed at (log-read robustness). Flipping
+    `errors="replace"` -> `errors="strict"` survived all 15 tests, because every
+    fixture emitted clean ASCII.
+
+    It is a REAL defect, proven by execution rather than argument: the launch log
+    is arbitrary subprocess output, and a flush boundary can split a multi-byte
+    UTF-8 character. Under `strict` that raises `UnicodeDecodeError` — which is a
+    ValueError, NOT an OSError, so the `except OSError` beside the read does NOT
+    catch it and it propagates out of `start_runner` entirely. A truncated
+    character in a log would crash the launcher instead of starting the run.
+
+    HONEST SCOPE — this test does NOT kill the `errors="strict"` mutant, and
+    says so rather than implying coverage it lacks.
+
+    Three fixture attempts failed to kill it, and instrumenting the launcher
+    explains why: it decodes the log ONCE, on its first poll (measured: a single
+    decode of the complete 100-character log), because the launcher sleeps a real
+    1.0s before polling while the stand-in has already finished writing. Killing
+    the mutant would require the truncated character to be the newest content at
+    the exact moment of a poll — a sub-second race. A test that depends on
+    winning that race would be FLAKY, and a flaky test is a worse defect than the
+    low-probability crash it guards against.
+
+    What this test DOES pin, which is real and deterministic: a launch log
+    containing an incomplete UTF-8 sequence still yields the CORRECT readiness
+    verdict rather than an exception or a false negative. `errors="replace"`
+    remains correct defensive code; its removal is recorded in the ledger as a
+    known-unkilled mutant with this rationale, not silently.
+    """
+    mod = env
+    scripts = tmp_path / "fake_worktree" / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    (scripts / "wave2_attempt_runner.py").write_text(
+        "import os, sys, time\n"
+        'sys.stdout.write("runner starting: pid=%d run_root=/x\\n" % os.getpid())\n'
+        "sys.stdout.flush()\n"
+        # a HALF of a multi-byte UTF-8 sequence — exactly what a flush boundary
+        # can leave behind mid-write — BEFORE the readiness marker
+        # a HALF of a multi-byte UTF-8 sequence, BEFORE the marker, so the poll
+        # that finds the marker must decode past the bad bytes to reach it
+        'os.write(1, b"partial:\\xe2\\x82\\n")\n'
+        'sys.stdout.write("control-plane driver up: pid=%d run_root=/x\\n" % os.getpid())\n'
+        "sys.stdout.flush()\n"
+        "time.sleep(30)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(mod, "_WORKTREE", tmp_path / "fake_worktree")
+    out = _start(mod)
+    assert out["started"] is True, (
+        "a log containing an incomplete UTF-8 sequence broke readiness detection — "
+        f"the evidence read is not decode-tolerant: {out}"
+    )
+
+
+def test_a_failed_evidence_read_never_fabricates_readiness(env, tmp_path, monkeypatch):
+    """If the log cannot be READ, readiness must be UNKNOWN — never assumed.
+
+    Fifth gap, same hunt. Replacing the read's `except OSError: head = ""` with
+    anything that yields a readiness-looking string survived all 15 tests, because
+    no fixture ever made the read FAIL. That mutant is the N4b defect class
+    exactly — a verdict fabricated from something other than real evidence — and
+    it reports a runner ready on an I/O error.
+
+    Here the log is made unreadable (chmod 000) while the process runs, so the
+    real `read_text` raises and the real handler decides. Fail closed.
+    """
+    mod = env
+    _install_fake_runner_script(
+        mod,
+        tmp_path,
+        monkeypatch,
+        lines=["control-plane driver up: pid=@PID@ run_root=/x"],
+        alive_seconds=40.0,
+    )
+
+    # Make every launch log unreadable the moment it appears. Patch Path.read_text
+    # ONLY for the launch log so the real except-branch executes for real.
+    real_read_text = Path.read_text
+
+    def _deny(self, *a, **kw):
+        if self.name.startswith("runner_") and self.suffix == ".log":
+            raise PermissionError("simulated unreadable launch log")
+        return real_read_text(self, *a, **kw)
+
+    monkeypatch.setattr(Path, "read_text", _deny)
+    out = _start(mod)
+    assert out["started"] is False, (
+        "an UNREADABLE launch log produced a positive readiness verdict — readiness "
+        f"is being fabricated when evidence is unavailable: {out}"
+    )
+    assert out["announced"] is False
+
+
 def test_realistic_startup_volume_still_reaches_the_marker(env, tmp_path, monkeypatch):
     """The readiness read must cover the WHOLE log, not a fixed window of it.
 
