@@ -186,11 +186,13 @@ explicit multi-target modes. Supported modes include `legacy`, `tweet`,
 actor_id = "xquik~x-follower-scraper"
 input_data = {
     "relation": "followers",
-    "usernames": ["OpenAI", "github"],
+    "twitterHandles": ["OpenAI", "github"],
     "maxItems": 50,
     "maxItemsPerTarget": 25,
-    "outputVariant": "full",
+    "outputMode": "full",
+    "includeTargetMetadata": True,
     "dedupeMode": "merge",
+    "overlapMode": True,
 }
 ```
 
@@ -241,7 +243,8 @@ text = comment.get("text") or comment.get("commentText") or ""
 
 ### Rate limit 429 during burst scraping (RESOLVED)
 Rapid sequential API calls triggered 429 responses.
-**Fix:** `RateLimiter(calls_per_minute=10)` with exponential backoff on 429/5xx.
+**Fix:** `RateLimiter(calls_per_minute=10)` retries explicit 429 responses.
+Reconcile uncertain 5xx outcomes before resubmitting a paid run.
 
 ### Scraped posts cache grows unbounded (RESOLVED)
 `scraped_posts.json` tracked all scraped URLs without cleanup.

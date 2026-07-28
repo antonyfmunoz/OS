@@ -40,8 +40,7 @@ Proxy password is separate from API token. Found in console.apify.com > Proxy.
 ```python
 from apify_client import ApifyClient
 
-client = ApifyClient(token=os.getenv("APIFY_API_TOKEN"))
-# Or set APIFY_TOKEN env var and omit token parameter
+client = ApifyClient(token=os.environ["APIFY_API_TOKEN"])
 ```
 
 ---
@@ -228,24 +227,55 @@ apify_limiter = RateLimiter(calls_per_minute=10)
 ```
 
 ### Retry strategy
+
+`POST /runs` is not idempotent. Retry an explicit `429` response only after
+honoring `Retry-After`. Treat a `5xx` response or network exception as an
+uncertain outcome. Reconcile recent runs before deciding whether another POST
+is safe.
+
 ```python
 MAX_RETRIES = 5
 BASE_BACKOFF = 2  # seconds
 
-for attempt in range(MAX_RETRIES):
-    response = requests.post(
-        url,
-        headers=headers,
-        json=input_data,
-        timeout=30,
-    )
-    if response.status_code == 429 or response.status_code >= 500:
-        wait = BASE_BACKOFF ** attempt  # 2, 4, 8, 16, 32 seconds
-        time.sleep(wait)
-        continue
-    response.raise_for_status()
-    return response.json()["data"]["id"]
+def start_actor_with_reconciliation(actor_id, input_data):
+    attempt_started_at = time.time()
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = requests.post(
+                f"https://api.apify.com/v2/acts/{actor_id}/runs",
+                headers=headers,
+                json=input_data,
+                timeout=30,
+            )
+        except requests.RequestException as error:
+            return reconcile_run_or_raise(
+                actor_id,
+                input_data,
+                attempt_started_at,
+                error,
+            )
+
+        if response.status_code == 429:
+            time.sleep(retry_after_seconds(response, BASE_BACKOFF ** attempt))
+            continue
+        if response.status_code >= 500:
+            return reconcile_run_or_raise(
+                actor_id,
+                input_data,
+                attempt_started_at,
+                RuntimeError(f"Run start returned {response.status_code}"),
+            )
+        response.raise_for_status()
+        return response.json()["data"]["id"]
+
+    raise RuntimeError("Run start remained rate limited.")
 ```
+
+`reconcile_run_or_raise` must list runs for the exact Actor started after
+`attempt_started_at`, fetch each candidate's `INPUT` record, and compare its
+canonical JSON with `input_data`. Reuse the run ID only when exactly one match
+exists. If no unique match exists, stop for operator review. Never blindly
+repeat a paid POST after an uncertain outcome.
 
 ---
 
@@ -261,9 +291,9 @@ for attempt in range(MAX_RETRIES):
 | 403 | Forbidden (proxy credits depleted) | Disable proxy or buy credits |
 | 404 | Actor/run not found | Check actor ID spelling |
 | 408 | Timeout | Increase timeout or reduce scope |
-| 429 | Rate limited | Exponential backoff |
-| 500 | Server error | Retry with backoff |
-| 502 | Bad gateway | Retry after delay |
+| 429 | Rate limited | Honor `Retry-After`; use bounded backoff as fallback |
+| 500 | Server error | Reconcile the uncertain run before any retry |
+| 502 | Bad gateway | Reconcile the uncertain run before any retry |
 
 ### Run failure statuses
 | Status | Meaning | Recovery |
@@ -275,29 +305,9 @@ for attempt in range(MAX_RETRIES):
 
 ### EOS error handling
 ```python
-def run_actor(actor_id, input_data, retries=MAX_RETRIES):
-    last_exc = None
-    for attempt in range(retries):
-        apify_limiter.wait()
-        try:
-            response = requests.post(
-                url,
-                headers=headers,
-                json=input_data,
-                timeout=30,
-            )
-            if response.status_code == 429 or response.status_code >= 500:
-                wait = BASE_BACKOFF ** attempt
-                time.sleep(wait)
-                continue
-            response.raise_for_status()
-            return response.json()["data"]["id"]
-        except requests.RequestException as e:
-            last_exc = e
-            if attempt == retries - 1:
-                raise
-            time.sleep(BASE_BACKOFF ** attempt)
-    raise RuntimeError(f"run_actor failed after {retries} retries") from last_exc
+def run_actor(actor_id, input_data):
+    apify_limiter.wait()
+    return start_actor_with_reconciliation(actor_id, input_data)
 ```
 
 ---
@@ -312,7 +322,7 @@ This avoids an extra dependency and gives full control over retry logic.
 # All Apify calls in EOS follow this pattern:
 # 1. rate_limiter.wait()
 # 2. requests.post/get with timeout=30
-# 3. Check for 429/5xx → retry with exponential backoff
+# 3. Retry 429 after Retry-After; reconcile uncertain 5xx/network outcomes
 # 4. response.raise_for_status()
 # 5. Parse JSON
 ```
@@ -358,11 +368,15 @@ run_actor(actor_id, input_data)
 run_id = start_paid_actor(
     actor_id,
     {"searchTerms": ["web scraping"], "maxItems": 25},
-    approved=operator_approved,
+    max_items=25,
+    max_total_charge_usd=approved_charge_cap,
+    live_pricing=displayed_live_pricing,
+    approval_record=approval_record,
 )
 ```
 
-Set `operator_approved` only from an explicit approval for the displayed run.
+Create `approval_record` only after displaying the canonical request
+fingerprint. Any Actor, input, cap, or live-price change invalidates it.
 
 ### 2. Large resultsLimit without engagement filtering
 ```python
@@ -532,7 +546,9 @@ apify_scraper.py completes
 | Concurrent runs | 5 | 25+ |
 | Max run time | 60s (free actors) | configurable |
 | Dataset item size | 1 MB per item | same |
-| API calls | ~100/min | 100-300/min |
+
+API throughput depends on the account and endpoint. Follow the `429`,
+`Retry-After`, and conservative-concurrency guidance in section 4.
 
 ### Proxy limits (separate credit pool)
 | Proxy Type | Price | Notes |
