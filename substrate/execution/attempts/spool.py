@@ -127,13 +127,38 @@ class DispatchSpool:
                 os.replace(src, claimed)  # atomic ownership claim
             except FileNotFoundError:
                 continue  # another runner claimed it
+            # STAMP THE CLAIM TIME. os.replace preserves the INBOX mtime, and
+            # ``recover_stale_inflight`` measures staleness as now - mtime. An
+            # envelope that merely WAITED in the inbox longer than the recovery
+            # threshold was therefore stale the instant it was claimed, so the
+            # very next recovery sweep re-queued it while its worker was still
+            # running: two live dispatches of ONE Attempt against ONE lease
+            # worktree, and duplicate billed worker quota.
+            # Staleness must measure how long THIS claim has been held, not how
+            # long the work waited to be picked up. This is the invariant the
+            # ``expires_at`` docstring already states: "once a worker atomically
+            # claims an envelope it must never expire underneath the running
+            # worker". Recorded via the runner heartbeat below as well.
+            try:
+                os.utime(claimed, None)  # now = claim instant
+            except OSError as exc:  # pragma: no cover - fs-level failure
+                logger.debug("[DispatchSpool] could not stamp claim %s: %s", name, exc)
+            # PARSE **AND** SCHEMA-CONSTRUCT INSIDE THE QUARANTINE BOUNDARY.
+            # DispatchEnvelope(**record) used to sit OUTSIDE this try, so a
+            # record that was valid JSON but schema-invalid (unknown key, wrong
+            # type) raised TypeError straight out of claim_next() — killing the
+            # claim loop instead of quarantining one bad file. The record was
+            # already moved to inflight by then, so it was neither executed nor
+            # quarantined: it poisoned every later poll. A malformed
+            # authority-bearing record must be preserved and set aside, never
+            # normalized, retried, or allowed to escape.
             try:
                 with open(claimed, encoding="utf-8") as f:
                     record = json.load(f)
-            except Exception:
-                self._quarantine(name, "unreadable")
+                envelope = DispatchEnvelope(**record.get("envelope", {}))
+            except Exception as exc:  # noqa: BLE001 - unreadable OR schema-invalid
+                self._quarantine(name, f"unreadable or schema-invalid: {exc}")
                 continue
-            envelope = DispatchEnvelope(**record.get("envelope", {}))
             signature = record.get("signature", "")
             if not _verify(envelope.signable(), self._secret, signature):
                 self._quarantine(name, "bad signature")
@@ -214,6 +239,22 @@ class DispatchSpool:
                 self._quarantine(name, "expired unclaimed")
                 reaped.append(name)
         return reaped
+
+    def heartbeat_claim(self, claim_token: str) -> bool:
+        """Mark a claim as STILL LIVE. Returns False if the claim is gone.
+
+        Staleness is measured from the inflight file's mtime, so a worker that
+        legitimately runs longer than the recovery threshold would otherwise be
+        declared abandoned and have its envelope re-queued underneath it. The
+        claimant calls this periodically; a claim that stops beating is the only
+        kind recovery may reclaim. Liveness, not elapsed time, is the signal.
+        """
+        path = os.path.join(self._dir(_INFLIGHT), claim_token)
+        try:
+            os.utime(path, None)
+            return True
+        except OSError:
+            return False
 
     def recover_stale_inflight(
         self, *, older_than_seconds: float, now: float | None = None

@@ -188,10 +188,16 @@ class ProofRuntime:
             outcome=outcome,
         )
 
+        # PERSIST FIRST, PUBLISH SECOND. These three index writes used to run
+        # BEFORE _persist_package, which raises ProofPersistenceError on failure
+        # — so a failed write left a fully visible in-memory Proof that never
+        # existed on disk. package_for()/get_proof() read those indexes, so a
+        # caller could observe, reference, and act on a Proof that no restart
+        # would ever see. A Proof must become durable before it becomes visible.
+        self._persist_package(package)
         self._packages[package.proof_id] = package
         self._by_work_id[work_id] = package.proof_id
         self._history.append(package.proof_id)
-        self._persist_package(package)
 
         return package
 
@@ -216,10 +222,16 @@ class ProofRuntime:
                 ),
             ],
         )
+        # PERSIST FIRST, PUBLISH SECOND. These three index writes used to run
+        # BEFORE _persist_package, which raises ProofPersistenceError on failure
+        # — so a failed write left a fully visible in-memory Proof that never
+        # existed on disk. package_for()/get_proof() read those indexes, so a
+        # caller could observe, reference, and act on a Proof that no restart
+        # would ever see. A Proof must become durable before it becomes visible.
+        self._persist_package(package)
         self._packages[package.proof_id] = package
         self._by_work_id[work_id] = package.proof_id
         self._history.append(package.proof_id)
-        self._persist_package(package)
         return package
 
     def package_for(self, work_id: str) -> ProofPackage | None:

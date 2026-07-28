@@ -1981,8 +1981,25 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
                 head = launch_log.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 head = ""
-            if "runner up:" in head:
-                announced = True
+            # OPERATIONAL readiness, not process startup. This used to accept
+            # "runner up:", which the runner emits BEFORE it builds the
+            # control-plane driver — so a run whose driver construction failed
+            # still returned started=True and then produced no governed progress
+            # at all. Accept only a marker the runner emits AFTER that
+            # construction resolves, and require it to name THIS pid so a stale
+            # log from a previous launch in the same targets dir cannot satisfy
+            # a new one.
+            pid_tag = f"pid={proc.pid} "
+            for marker in ("control-plane driver up: ", "runner ready worker-only: "):
+                idx = head.find(marker)
+                while idx != -1:
+                    if head[idx + len(marker):].startswith(pid_tag):
+                        announced = True
+                        break
+                    idx = head.find(marker, idx + 1)
+                if announced:
+                    break
+            if announced:
                 break
         if not alive:
             break

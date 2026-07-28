@@ -415,16 +415,45 @@ class GovernedExecutionSpine:
         if expires_at and time.time() >= expires_at:
             return f"authorization {auth_ref} expired"
 
-        # Scope-hash must match (immutable authorized scope).
-        env_hash = getattr(envelope, "authorized_scope_hash", "")
+        # An authorization-bound action must PROVE the exact authority it
+        # consumes. Both checks below used to read `if env_hash and grant_hash
+        # and env_hash != grant_hash` — so an envelope that simply OMITTED its
+        # scope hash (or its subject ids) short-circuited past the comparison
+        # and was admitted having proven nothing. A mismatch refused, but an
+        # omission passed: the guard only fired when the caller volunteered the
+        # evidence against itself. Presence of the evidence is now REQUIRED, and
+        # the comparison is unconditional.
         grant_hash = getattr(grant, "authorized_scope_hash", "")
-        if env_hash and grant_hash and env_hash != grant_hash:
+        if not grant_hash:
+            return (
+                f"authorization {auth_ref} carries no authorized_scope_hash — "
+                f"cannot prove scope, fail closed"
+            )
+        env_hash = getattr(envelope, "authorized_scope_hash", "")
+        if not env_hash:
+            return (
+                f"authorization {auth_ref}: action declares no authorized_scope_hash — "
+                f"an authorization-bound action must prove its exact authority"
+            )
+        if env_hash != grant_hash:
             return f"authorization {auth_ref} scope hash mismatch (out of scope)"
 
-        # Authorized subjects must be a subset of the grant's task frontier.
-        env_subjects = set(getattr(envelope, "authorized_subject_ids", []) or [])
+        # Authorized subjects must be a NONEMPTY subset of the grant's frontier.
+        # An empty declared subject set is not "no subjects to check" — it is a
+        # missing proof of WHICH Tasks this action acts on.
         grant_frontier = set(getattr(grant, "task_frontier", []) or [])
-        if env_subjects and not env_subjects.issubset(grant_frontier):
+        if not grant_frontier:
+            return (
+                f"authorization {auth_ref} has an empty task frontier — "
+                f"authorizes nothing, fail closed"
+            )
+        env_subjects = set(getattr(envelope, "authorized_subject_ids", []) or [])
+        if not env_subjects:
+            return (
+                f"authorization {auth_ref}: action declares no authorized_subject_ids — "
+                f"an authorization-bound action must name the Tasks it acts on"
+            )
+        if not env_subjects.issubset(grant_frontier):
             out_of_scope = sorted(env_subjects - grant_frontier)
             return f"authorization {auth_ref}: subjects {out_of_scope} not in authorized frontier"
 

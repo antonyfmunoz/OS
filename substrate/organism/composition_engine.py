@@ -44,13 +44,32 @@ def _reject_if_objective_plan_accepted(objective_id: str) -> None:
     try:
         from substrate.execution.planning.records import ObjectivePlanStatus
         from substrate.execution.planning.store import PlanningStore
+    except Exception as exc:  # noqa: BLE001
+        # The planning module itself is unavailable. There is no canonical
+        # Objective authority in this process at all, so a bound composition
+        # cannot be adjudicated.
+        raise CompositionAuthorityError(
+            f"objective {objective_id}: planning authority unavailable ({exc}) — "
+            f"cannot prove this Objective has no accepted Plan, fail closed"
+        ) from exc
 
+    try:
         latest = PlanningStore().latest_version_of(objective_id)
-    except Exception as exc:  # store unavailable → composition is unbound, allow
-        logger.debug("composition authority check skipped for %s: %s", objective_id, exc)
-        return
+    except Exception as exc:  # noqa: BLE001
+        # FAIL CLOSED. This used to `return`, treating "the store could not be
+        # read" exactly like "this Objective has no Plan" — so a store outage,
+        # corrupt record, or schema error silently GRANTED permission to compose
+        # a second canonical Plan for an Objective that may already have an
+        # accepted one. Confirmed absence and unreadable state are different
+        # answers and must not share a branch: only the first may permit
+        # composition. The caller sees a governed authority error it can surface
+        # and retry once the store recovers.
+        raise CompositionAuthorityError(
+            f"objective {objective_id}: planning store unreadable ({exc}) — "
+            f"cannot prove absence of an accepted Plan, fail closed"
+        ) from exc
     if latest is None:
-        return
+        return  # CONFIRMED absence — the only state that permits composition
     blocked = {
         ObjectivePlanStatus.APPROVED.value,
         ObjectivePlanStatus.AWAITING_APPROVAL.value,

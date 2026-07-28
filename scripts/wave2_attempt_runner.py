@@ -38,6 +38,14 @@ _INFLIGHT_RECOVERY_SECONDS = 1200.0
 # Log an idle cycle every N iterations so a stall is visible without flooding.
 _IDLE_LOG_EVERY = 30
 
+# BOUNDED control-plane failure policy. A driver fault used to be logged
+# "(continuing)" with no bound at all, so a permanently broken control plane
+# burned the whole run budget while the process looked healthy. Consecutive
+# failures catch a hard-down driver fast; the cumulative bound catches one
+# that flaps just often enough to keep resetting the consecutive counter.
+_CP_MAX_CONSECUTIVE_ERRORS = 5
+_CP_MAX_TOTAL_ERRORS = 20
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
@@ -247,11 +255,26 @@ def run_loop(
     register_resource(run_root, kind="run_owner", ident=str(os.getpid()), detail="runner_owner")
 
     spool = DispatchSpool(spool_root, secret)
-    _log(f"runner up: spool={spool_root} primitive={prim} max_workers={max_workers}")
+    # PROCESS STARTUP, NOT OPERATIONAL READINESS. The launcher must NOT accept
+    # this as "started" — the control-plane driver is built further below and
+    # can still fail, and a runner without its driver produces no governed
+    # progress. The authoritative readiness marker is "control-plane driver up"
+    # (or the explicit worker-only declaration), emitted only after that
+    # construction succeeds. Both markers carry the pid + run root so a stale
+    # log from a previous launch cannot satisfy a new one.
+    _log(
+        f"runner starting: pid={os.getpid()} run_root={run_root} "
+        f"spool={spool_root} primitive={prim} max_workers={max_workers}"
+    )
 
     # In-flight attempt ids, so the run-teardown finally can terminalize workers
     # that a signal interrupted mid-execution before sweeping their homes.
     inflight_attempts: set[str] = set()
+
+    # Bounded control-plane failure accounting (see _CP_MAX_* above).
+    cp_consecutive_errors = 0
+    cp_total_errors = 0
+    cp_last_error = ""
 
     # (1b) build the control-plane driver if the fixture + targets are wired.
     # This is the HOST half that turns an ACTIVE grant in the shared candidate
@@ -267,7 +290,10 @@ def run_loop(
                 targets_dir=targets_dir,
                 leases_dir=leases_dir or os.path.join(targets_dir, "leases"),
             )
-            _log(f"control-plane driver up: fixture={fixture_repo} targets={targets_dir}")
+            _log(
+                f"control-plane driver up: pid={os.getpid()} run_root={run_root} "
+                f"fixture={fixture_repo} targets={targets_dir}"
+            )
         except Exception as exc:
             # FAIL CLOSED when this run DECLARED a lane decomposition. The
             # pre-quota graph-shape gate is armed inside the driver
@@ -285,6 +311,10 @@ def run_loop(
                 )
                 return 2
             _log(f"control-plane driver unavailable ({exc}) — worker-only mode")
+            _log(
+                f"runner ready worker-only: pid={os.getpid()} run_root={run_root} "
+                f"reason={type(exc).__name__}"
+            )
             driver = None
 
     def _run_teardown(reason: str) -> None:
@@ -344,8 +374,34 @@ def run_loop(
                                 )
                         elif iterations % _IDLE_LOG_EVERY == 1:
                             _log(f"control-plane idle: grant={c.grant_ref[:32]} no eligible work")
-                except Exception as exc:  # never let a control-plane fault kill the worker
-                    _log(f"control-plane cycle error (continuing): {exc}")
+                    # A cycle that completed resets the consecutive-failure
+                    # budget: transient faults are tolerated, a BROKEN driver is
+                    # not.
+                    cp_consecutive_errors = 0
+                except Exception as exc:  # a control-plane fault must be BOUNDED
+                    cp_consecutive_errors += 1
+                    cp_total_errors += 1
+                    cp_last_error = f"{type(exc).__name__}: {exc}"
+                    _log(
+                        f"control-plane cycle error "
+                        f"({cp_consecutive_errors}/{_CP_MAX_CONSECUTIVE_ERRORS} consecutive, "
+                        f"{cp_total_errors}/{_CP_MAX_TOTAL_ERRORS} total): {exc}"
+                    )
+                    # This used to log "(continuing)" forever with no bound, so a
+                    # permanently broken driver consumed the entire run budget
+                    # while the loop reported liveness and produced ZERO governed
+                    # progress. Process liveness is not control-plane health.
+                    if (
+                        cp_consecutive_errors >= _CP_MAX_CONSECUTIVE_ERRORS
+                        or cp_total_errors >= _CP_MAX_TOTAL_ERRORS
+                    ):
+                        _log(
+                            f"FATAL: control-plane driver failed "
+                            f"{cp_consecutive_errors} consecutive / {cp_total_errors} total "
+                            f"cycles — terminal bound reached, refusing to consume the run "
+                            f"budget without governed progress. last_error={cp_last_error}"
+                        )
+                        return 3
 
             # (3) reap stale UNCLAIMED envelopes and recover crashed inflight work.
             # Nothing previously did either: an expired envelope stranded its attempt
