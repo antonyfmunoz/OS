@@ -1933,8 +1933,29 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
         # raising a traceback the operator has to decode (finding R15-1).
         _raw_stdout = getattr(pre, "stdout", "")
         stdout = _raw_stdout if isinstance(_raw_stdout, str) else ""
+        # stderr coercion is NOT symmetric with stdout, and the asymmetry is the
+        # point. Blanking a non-str stderr DISCARDS a diagnostic and lets the
+        # contradiction check pass — the exact fail-OPEN this block exists to
+        # prevent (a first attempt at this coercion did precisely that: a
+        # `bytes` stderr from a text=False caller was silently dropped and a
+        # worker launched, finding R16 F-1). Empty-ish values mean "silent";
+        # ANYTHING else carries content and is therefore a contradiction, so it
+        # is rendered rather than discarded.
         _raw_stderr = getattr(pre, "stderr", "")
-        stderr = (_raw_stderr if isinstance(_raw_stderr, str) else "").strip()
+        if isinstance(_raw_stderr, str):
+            stderr = _raw_stderr.strip()
+        elif isinstance(_raw_stderr, (bytes, bytearray)):
+            # Decode-then-strip, so whitespace-only bytes count as SILENCE exactly
+            # as whitespace-only str does. Rendering them with repr() instead would
+            # make b"  " a contradiction while "  " is not — an inconsistency the
+            # string rule already settled.
+            stderr = _raw_stderr.decode("utf-8", "replace").strip()
+        elif _raw_stderr is None:
+            stderr = ""
+        else:
+            # Anything else (int, list, arbitrary object) carries content that is
+            # not a recognised stream: a contradiction, never silence.
+            stderr = repr(_raw_stderr)
         if rc != 0:
             isolation_detail = f"preflight exited {rc} — isolation not proven"
         elif stderr:

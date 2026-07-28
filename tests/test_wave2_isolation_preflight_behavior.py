@@ -503,27 +503,78 @@ def test_a_result_with_a_non_string_stdout_fails_closed(tmp_path, bad_stdout):
     assert out.popen_calls == 0, "worker launched on a preflight with unusable stdout"
 
 
-@pytest.mark.parametrize("bad_stderr", [None, 0, False, 12345])
-def test_a_result_with_a_non_string_stderr_fails_closed(tmp_path, bad_stderr):
-    """The stderr coercion carries the SAME hazard as stdout and is pinned identically.
+@pytest.mark.parametrize("silent_stderr", [None, "", b"", b"   ", bytearray(b" ")])
+def test_an_empty_non_string_stderr_is_still_silence(tmp_path, silent_stderr):
+    """An EMPTY non-str stderr means the preflight said nothing — isolation may pass.
 
-    Found while closing R15-1: `(getattr(pre, "stderr", "") or "").strip()` rescues only
-    FALSY non-strings. A TRUTHY non-string (an int, or bytes from a `text=False` caller)
-    passes the `or ""` and crashes on `.strip()` — in PRODUCTION, not merely under
-    mutation. Fixing stdout without fixing its sibling would leave exactly the
-    inconsistency R15 flagged, one line over.
+    `None`/`""`/`b""` all mean "no diagnostic". They must not be treated as a
+    contradiction, or a healthy host with a slightly unusual result object would be
+    refused.
     """
 
-    class _OddStderr:
+    class _Silent:
         returncode = 0
         stdout = AFFIRMATIVE
 
-    result = _OddStderr()
-    result.stderr = bad_stderr
+    result = _Silent()
+    result.stderr = silent_stderr
 
     out = _start(result, tmp_path)
-    assert out.popen_calls <= 1  # a healthy affirmative may legitimately launch
-    assert out.get("isolation_ok") is not None, f"launcher crashed on stderr={bad_stderr!r}"
+    assert out.get("isolation_ok") is True, (
+        f"empty stderr {silent_stderr!r} was misread as a contradiction: {out}"
+    )
+
+
+@pytest.mark.parametrize(
+    "noisy_stderr", [b"bwrap: permission denied", bytearray(b"denied"), 12345, ["err"]]
+)
+def test_a_non_string_stderr_carrying_content_fails_closed(tmp_path, noisy_stderr):
+    """A non-str stderr that CARRIES CONTENT is a contradiction, never silence.
+
+    This pins finding R16 F-1, a fail-OPEN this file's own author introduced. The first
+    attempt at type-coercing stderr blanked every non-str value, which DISCARDED a real
+    diagnostic: with `stderr=b"boom"` the launcher reported `isolation_ok=True` and
+    LAUNCHED A WORKER (popen=1), where the prior code had correctly refused. Blanking is
+    worse than crashing — the crash was at least fail-closed.
+
+    The earlier version of this test asserted only `popen_calls <= 1` and
+    `isolation_ok is not None`, which is vacuous: independent review confirmed it passes
+    against the UNCORRECTED parent. These assertions are the real contract.
+    """
+
+    class _Noisy:
+        returncode = 0
+        stdout = AFFIRMATIVE
+
+    result = _Noisy()
+    result.stderr = noisy_stderr
+
+    out = _start(result, tmp_path)
+    assert out["isolation_ok"] is False, (
+        f"a non-string stderr carrying {noisy_stderr!r} was discarded rather than "
+        f"treated as a contradiction — isolation was affirmed on a noisy preflight: {out}"
+    )
+    assert out["started"] is False, out
+    assert out.popen_calls == 0, "worker launched despite a real stderr diagnostic"
+
+
+def test_a_result_with_no_stdout_attribute_at_all_fails_closed(tmp_path):
+    """A result object lacking `stdout` entirely must default to NO evidence.
+
+    Pins finding R16 F-2: the `getattr(pre, "stdout", "")` DEFAULT was unpinned, so a
+    mutant defaulting it to affirmative JSON survived the suite. The default is the
+    value used when the attribute is absent — defaulting it to anything that could
+    read as proof would fabricate isolation from a result that never carried any.
+    """
+
+    class _NoStdoutAttr:
+        returncode = 0
+        stderr = ""
+
+    out = _start(_NoStdoutAttr(), tmp_path)
+    assert out["isolation_ok"] is False, f"absent stdout defaulted to proof: {out}"
+    assert out["started"] is False, out
+    assert out.popen_calls == 0, "worker launched on a result with no stdout at all"
 
 
 def test_a_result_without_a_usable_returncode_fails_closed(tmp_path):
