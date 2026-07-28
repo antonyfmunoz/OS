@@ -13,6 +13,7 @@ if REPO not in sys.path:
 
 from substrate.execution.attempts.host_isolation import isolation_primitive  # noqa: E402
 from substrate.execution.attempts.spool import DispatchEnvelope, DispatchSpool  # noqa: E402
+from tests.wave2_script_import import load_wave2_script  # noqa: E402
 
 
 def test_runner_preflight_requires_isolation():
@@ -24,7 +25,7 @@ def test_runner_processes_dispatch_and_writes_signed_result(tmp_path, monkeypatc
     """The runner claims a signed dispatch, runs the (stubbed) worker in the lease
     worktree, and writes a SIGNED result to the outbox — without touching the
     attempt ledger (the control-plane poller owns transitions)."""
-    import scripts.wave2_attempt_runner as runner
+    runner = load_wave2_script("wave2_attempt_runner")
 
     # Stub the real worker so the test doesn't spend Claude CLI quota, but keep
     # the runner's spool + isolation-preflight logic real.
@@ -124,7 +125,7 @@ def test_host_control_plane_governs_attempt_create_not_degraded(tmp_path, monkey
     layers 1-4). This pins the production path: _register_host_control_plane
     builds + registers a REAL host-side spine so a governed execution mutation
     runs non-degraded."""
-    import scripts.wave2_attempt_runner as runner
+    runner = load_wave2_script("wave2_attempt_runner")
     from substrate.execution.attempts.store import ExecutionAttemptStore
     from substrate.execution.intent.loop import _substrate_native_governed_mutation
     from substrate.sockets import organism_port

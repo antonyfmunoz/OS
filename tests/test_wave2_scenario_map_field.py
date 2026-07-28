@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.wave2_script_import import load_wave2_script
+
 from substrate.execution.attempts.field_failure_policy import (
     arming_is_valid_for_run,
     disallowed_tools_for,
@@ -453,7 +455,7 @@ def test_M_no_global_singleton_grant_inference_remains():
     """Source-level: the dispatcher must NOT resolve the run's grant by 'the only
     ACTIVE grant'. The removed helper (_active_grant_binding) must not exist, and
     the binding must be captured by run identity."""
-    import scripts.wave2_field_dispatch as wd
+    wd = load_wave2_script("wave2_field_dispatch")
 
     assert not hasattr(wd, "_active_grant_binding"), (
         "global-singleton grant inference (_active_grant_binding) must be removed"
@@ -467,7 +469,7 @@ def test_M_capture_is_exact_correlation_scoped():
     """The capture helper selects the grant by THIS run's EXACT correlation_id
     (w2-<run_id>), so a legitimate ACTIVE grant from another run is not picked up,
     and a non-canonical run_tag/base-tag is NOT a selection path."""
-    import scripts.wave2_field_dispatch as wd
+    wd = load_wave2_script("wave2_field_dispatch")
 
     this_run = _grant_record(correlation_id="w2-run-1")
     other_run = _grant_record(
@@ -489,7 +491,7 @@ def test_M_capture_rejects_run_tag_and_base_tag_selection():
     """A grant that carries only a non-canonical run_tag (or matches only the base
     tag before -p) is NOT selected — run_tag is not part of the grant identity
     contract, and there is no base-pass fallback."""
-    import scripts.wave2_field_dispatch as wd
+    wd = load_wave2_script("wave2_field_dispatch")
 
     # grant carries run_tag but the WRONG correlation → must not be selected
     tag_only = _grant_record(correlation_id="w2-somethingelse")
