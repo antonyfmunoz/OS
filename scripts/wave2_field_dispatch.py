@@ -1926,8 +1926,15 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
     isolation_detail = "preflight produced no result (CPU gate or launch failure)"
     if pre is not None:
         rc = getattr(pre, "returncode", None)
-        stdout = getattr(pre, "stdout", "") or ""
-        stderr = (getattr(pre, "stderr", "") or "").strip()
+        # `or ""` alone only rescues FALSY non-strings (None/0/False); a TRUTHY
+        # non-string (an int, a bytes object from a text=False caller) sails past
+        # it and crashes the launcher on `.strip()`. Coerce on TYPE, not on
+        # truthiness, so a duck-typed result refuses diagnosably instead of
+        # raising a traceback the operator has to decode (finding R15-1).
+        _raw_stdout = getattr(pre, "stdout", "")
+        stdout = _raw_stdout if isinstance(_raw_stdout, str) else ""
+        _raw_stderr = getattr(pre, "stderr", "")
+        stderr = (_raw_stderr if isinstance(_raw_stderr, str) else "").strip()
         if rc != 0:
             isolation_detail = f"preflight exited {rc} — isolation not proven"
         elif stderr:

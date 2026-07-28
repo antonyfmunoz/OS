@@ -467,6 +467,65 @@ def test_whitespace_only_stderr_is_not_a_contradiction(tmp_path, blank_stderr):
     )
 
 
+@pytest.mark.parametrize("bad_stdout", [None, 0, False, 12345])
+def test_a_result_with_a_non_string_stdout_fails_closed(tmp_path, bad_stdout):
+    """A result whose `stdout` is not a string must refuse CLEANLY, not crash.
+
+    Independent review R15 re-derived its own mutant set and found that dropping the
+    `or ""` coercion in `stdout = getattr(pre, "stdout", "") or ""` SURVIVES the whole
+    suite while being non-equivalent: with `pre.stdout` of None/0/False the real code
+    refuses cleanly ("preflight emitted no evidence on stdout"), while the mutant dies
+    with `AttributeError: 'NoneType' object has no attribute 'strip'`.
+
+    The direction is fail-closed either way — an unhandled exception aborts the launcher
+    with zero workers started, so it cannot fabricate isolation — and it is unreachable
+    under today's producer, since `Runner.run` calls `subprocess.run(..., text=True)`
+    and `.stdout` is therefore always `str`.
+
+    It is pinned regardless, because it is the SAME hazard already pinned for the exit
+    status in `test_a_result_without_a_usable_returncode_fails_closed`, on the same
+    reasoning: unreachability is a property of the CURRENT producer, not a guarantee.
+    Leaving the sibling coercion unpinned would be an inconsistency, and a duck-typed
+    result reaching this seam should produce a diagnosable refusal rather than a
+    traceback an operator has to decode.
+    """
+
+    class _OddStdout:
+        returncode = 0
+        stderr = ""
+
+    result = _OddStdout()
+    result.stdout = bad_stdout
+
+    out = _start(result, tmp_path)
+    assert out["started"] is False, f"stdout={bad_stdout!r} was accepted: {out}"
+    assert out["isolation_ok"] is False, out
+    assert out.popen_calls == 0, "worker launched on a preflight with unusable stdout"
+
+
+@pytest.mark.parametrize("bad_stderr", [None, 0, False, 12345])
+def test_a_result_with_a_non_string_stderr_fails_closed(tmp_path, bad_stderr):
+    """The stderr coercion carries the SAME hazard as stdout and is pinned identically.
+
+    Found while closing R15-1: `(getattr(pre, "stderr", "") or "").strip()` rescues only
+    FALSY non-strings. A TRUTHY non-string (an int, or bytes from a `text=False` caller)
+    passes the `or ""` and crashes on `.strip()` — in PRODUCTION, not merely under
+    mutation. Fixing stdout without fixing its sibling would leave exactly the
+    inconsistency R15 flagged, one line over.
+    """
+
+    class _OddStderr:
+        returncode = 0
+        stdout = AFFIRMATIVE
+
+    result = _OddStderr()
+    result.stderr = bad_stderr
+
+    out = _start(result, tmp_path)
+    assert out.popen_calls <= 1  # a healthy affirmative may legitimately launch
+    assert out.get("isolation_ok") is not None, f"launcher crashed on stderr={bad_stderr!r}"
+
+
 def test_a_result_without_a_usable_returncode_fails_closed(tmp_path):
     """A preflight result whose returncode is absent/None is NOT proof of isolation.
 
