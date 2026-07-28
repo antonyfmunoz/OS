@@ -1906,18 +1906,55 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
         ],
         timeout=60,
     )
+    # FAIL CLOSED on every signal, not just stdout. A preflight may prove
+    # confinement ONLY when it ran to completion, exited with the success code
+    # its own contract defines, said nothing on stderr, and emitted an
+    # affirmative BOOLEAN verdict.
+    #
+    # Reading stdout alone was a fail-open on the Amendment v1 clause 4 control:
+    # `wave2_attempt_runner.py --preflight-only` returns `0 if (prim and ok)
+    # else 2`, so a nonzero code is the preflight itself saying "do not trust
+    # this" — yet a process that PRINTED an affirmative verdict and then failed
+    # (nonzero exit, or a bwrap diagnostic on stderr) was accepted, and the
+    # worker was launched unconfined. The real success path is verified silent:
+    # rc=0, affirmative JSON on stdout, exactly zero bytes of stderr — so any
+    # stderr is a contradiction, not a warning channel.
+    #
+    # `isolation_ok` must be the literal `True`, never merely truthy: a string
+    # or number in that field is malformed evidence, not proof of confinement.
     isolation_ok = False
-    if pre is not None and getattr(pre, "stdout", ""):
-        try:
-            isolation_ok = bool(json.loads(pre.stdout).get("isolation_ok", False))
-        except (ValueError, AttributeError):
-            isolation_ok = False
+    isolation_detail = "preflight produced no result (CPU gate or launch failure)"
+    if pre is not None:
+        rc = getattr(pre, "returncode", None)
+        stdout = getattr(pre, "stdout", "") or ""
+        stderr = (getattr(pre, "stderr", "") or "").strip()
+        if rc != 0:
+            isolation_detail = f"preflight exited {rc} — isolation not proven"
+        elif stderr:
+            isolation_detail = f"preflight wrote to stderr — isolation not proven: {stderr[:200]!r}"
+        elif not stdout.strip():
+            isolation_detail = "preflight emitted no evidence on stdout"
+        else:
+            try:
+                parsed = json.loads(stdout)
+            except ValueError:
+                isolation_detail = "preflight evidence was not parseable JSON"
+            else:
+                if not isinstance(parsed, dict):
+                    isolation_detail = "preflight evidence was not a JSON object"
+                elif parsed.get("isolation_ok") is not True:
+                    isolation_detail = (
+                        f"preflight did not affirm isolation: {parsed.get('detail', parsed)!r}"
+                    )
+                else:
+                    isolation_ok = True
+                    isolation_detail = str(parsed.get("detail", "isolation verified"))
     if not isolation_ok and not runner.dry_run:
         return {
             "started": False,
             "isolation_ok": False,
             "reason": "enforced host isolation (bwrap) preflight failed — refusing "
-            "to run workers unconfined (Amendment v1 clause 4)",
+            f"to run workers unconfined (Amendment v1 clause 4): {isolation_detail}",
         }
 
     if runner.dry_run:
