@@ -440,6 +440,99 @@ def test_caller_refuses_worker_execution_unless_isolation_is_proven(tmp_path):
         assert out.popen_calls == 0, f"worker launched despite {out}"
 
 
+def test_a_result_without_a_usable_returncode_fails_closed(tmp_path):
+    """A preflight result whose returncode is absent/None is NOT proof of isolation.
+
+    Independent review R14 mutated `if rc != 0:` to `if rc not in (0, None):` and it
+    SURVIVED — nothing pinned what happens when the result object carries no usable
+    exit status. Today that is unreachable (the seam's only producer is `Runner.run`,
+    typed `CompletedProcess | None`, and the `None` case is caught by the
+    `pre is not None` guard), but "unreachable" is a property of the CURRENT
+    producer, not a guarantee. If a future seam returns a duck-typed result — a
+    wrapper, a cached record, a mesh-relayed verdict — `rc` becomes None and the
+    mutated form would treat a preflight with NO exit status as success.
+
+    Pinning it costs one test and removes the survivor rather than arguing it away.
+    """
+
+    class _NoReturnCode:
+        """A result object that carries evidence but no exit status."""
+
+        stdout = AFFIRMATIVE
+        stderr = ""
+
+    out = _start(_NoReturnCode(), tmp_path)
+    assert out["started"] is False, f"a result with no returncode was accepted: {out}"
+    assert out["isolation_ok"] is False, out
+    assert out.popen_calls == 0, "worker launched on a preflight with no exit status"
+
+
+def test_dry_run_never_fabricates_a_real_isolation_verdict(tmp_path):
+    """`dry_run` must not be able to short-circuit the refusal on a REAL run.
+
+    R14 mutated the gate to `not getattr(runner, "dry_run", True)` and it SURVIVED:
+    with the default flipped to True, any runner object lacking an explicit
+    `dry_run` attribute would skip the refusal entirely and proceed to launch. The
+    production `Runner` always sets `dry_run`, so this is unreachable today — but the
+    failure mode (a missing attribute silently meaning "don't enforce") is exactly
+    the fail-open shape this whole correction exists to remove.
+    """
+
+    class _NoDryRunAttr:
+        """A runner-like object that never declares dry_run."""
+
+        def __init__(self):
+            self.log: list[str] = []
+            self.preflight_calls = 0
+
+        def run(self, cmd, *, timeout=120, check=False, capture=True):
+            if any(str(p) == "--preflight-only" for p in cmd):
+                self.preflight_calls += 1
+                return _completed(1, AFFIRMATIVE, "")
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+        def shell(self, cmd_str, *, timeout=120):
+            return subprocess.CompletedProcess(args=cmd_str, returncode=0, stdout="", stderr="")
+
+    mod = _dispatch_mod()
+    state = tmp_path / "state"
+    (state / "spool").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "targets").mkdir(parents=True, exist_ok=True)
+    secret = state / "secret"
+    secret.write_text("s", encoding="utf-8")
+
+    popen_calls: list = []
+
+    class _FakePopen:
+        def __init__(self, *a, **k):
+            popen_calls.append(1)
+            self.pid = 4242
+
+        def poll(self):
+            return 0
+
+    monkey = pytest.MonkeyPatch()
+    try:
+        monkey.setattr(mod, "_spool_root", lambda sha, rid: state / "spool")
+        monkey.setattr(mod, "_state_dir", lambda sha: state)
+        monkey.setattr(mod, "_targets_dir", lambda sha, rid: tmp_path / "targets")
+        monkey.setattr(mod, "_mint_run_secret", lambda r, sha: secret)
+        monkey.setattr(mod, "subprocess", _PopenShim(mod.subprocess, _FakePopen))
+        runner = _NoDryRunAttr()
+        try:
+            out = mod.start_runner(runner, "c" * 40, "rid", 1)
+        except AttributeError:
+            # Refusing by raising on a malformed runner is also fail-closed.
+            assert not popen_calls, "worker launched before the dry_run AttributeError"
+            return
+    finally:
+        monkey.undo()
+
+    assert out["isolation_ok"] is False, f"dry_run default fabricated isolation: {out}"
+    assert out["started"] is False, out
+    assert not popen_calls, "worker launched on a failed preflight via the dry_run default"
+
+
 def test_seam_is_load_bearing_not_an_unused_name(tmp_path):
     """The patched dependency must be the one production actually calls.
 
