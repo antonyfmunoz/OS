@@ -334,27 +334,291 @@ def test_b1_readiness_markers_are_emitted_only_after_driver_resolution():
 
 def test_b1_readiness_is_bound_to_the_exact_process():
     """A stale log from a previous launch in the same targets dir must not
-    satisfy a new one."""
-    runner = open(
-        os.path.join(REPO, "scripts", "wave2_attempt_runner.py"), encoding="utf-8"
-    ).read()
-    launcher = open(
-        os.path.join(REPO, "scripts", "wave2_field_dispatch.py"), encoding="utf-8"
-    ).read()
-    assert "control-plane driver up: pid={os.getpid()}" in runner
-    assert 'pid_tag = f"pid={proc.pid} "' in launcher
+    satisfy a new one. Asserted through the REAL function (the old version
+    string-matched `pid_tag = f"pid={proc.pid} "`, which M6 defeated by rebinding
+    pid_tag on a later line while leaving that exact string in place)."""
+    f = _dispatch_mod().runner_readiness_announced
+    stale = "control-plane driver up: pid=111 run_root=/r\n"
+    assert f(stale, 111) is True
+    assert f(stale, 222) is False, "a stale log satisfied a different process"
 
 
 def test_b2_control_plane_failure_is_bounded():
-    """Exceptions from driver.run_cycle() were logged "(continuing)" with NO
-    bound, so a permanently broken control plane consumed the entire run budget
-    while the process looked healthy. Process liveness is not control-plane
-    health."""
+    """The unbounded `(continuing)` log must not return, and the policy must be
+    real state rather than an inline counter a mutant can silently break."""
     src = open(
         os.path.join(REPO, "scripts", "wave2_attempt_runner.py"), encoding="utf-8"
     ).read()
-    assert "_CP_MAX_CONSECUTIVE_ERRORS" in src
-    assert "_CP_MAX_TOTAL_ERRORS" in src
     assert "control-plane cycle error (continuing)" not in src, "the unbounded log survives"
-    # a successful cycle must reset the consecutive budget
-    assert "cp_consecutive_errors = 0" in src
+    mod = _runner_mod()
+    assert hasattr(mod, "ControlPlaneFailureBudget")
+
+
+# ── R9 independent-review findings (NEW-1/2/3) ───────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "bad_key", ["a/b", "../../etc/passwd", "x\ny", "..", "/abs/path"]
+)
+def test_new1_a_malformed_record_cannot_steer_its_own_quarantine_path(tmp_path, bad_key):
+    """NEW-1, introduced BY the B5 fix and found by independent review.
+
+    `_quarantine` built the destination as `f"{name}.{reason}"` with only spaces
+    replaced. B5 started embedding the raw exception text, and
+    `DispatchEnvelope(**record)` puts the attacker-supplied KEY NAME verbatim
+    into the TypeError. A key containing "/" produced a destination whose parent
+    does not exist; os.replace raised FileNotFoundError, which was SWALLOWED, so
+    the function logged "quarantined" and did nothing. The record cycled
+    inflight<->inbox forever and the evidence trail was destroyed.
+    """
+    import json
+
+    sp = _spool(tmp_path)
+    inbox = os.path.join(str(tmp_path), "inbox")
+    os.makedirs(inbox, exist_ok=True)
+    with open(os.path.join(inbox, "00000000-poison.json"), "w", encoding="utf-8") as f:
+        json.dump({"envelope": {"dispatch_id": "p", bad_key: 1}, "signature": "x"}, f)
+
+    assert sp.claim_next() is None
+    quarantined = os.listdir(os.path.join(str(tmp_path), "quarantine"))
+    assert quarantined, f"key {bad_key!r} escaped quarantine — evidence lost"
+    leftover = [
+        n for n in os.listdir(os.path.join(str(tmp_path), "inflight"))
+        if n.endswith(".json")
+    ]
+    assert not leftover, f"key {bad_key!r} left the record stuck in inflight"
+    for q in quarantined:
+        assert "/" not in q
+
+
+def test_new1_the_reason_slug_is_bounded_and_safe():
+    from substrate.execution.attempts.spool import DispatchSpool as _S
+
+    slug = _S._reason_slug("a/b ../c\nd" + "z" * 500)  # noqa: SLF001
+    assert "/" not in slug and "\n" not in slug and " " not in slug
+    assert len(slug) <= 120
+    assert _S._reason_slug("") == "unspecified"  # noqa: SLF001
+
+
+def test_new2_the_runner_actually_calls_heartbeat_claim():
+    """NEW-2: heartbeat_claim() had ZERO production callers, so a worker running
+    longer than the recovery threshold still had its claim re-queued underneath
+    it — the B4 duplicate-dispatch outcome on a longer fuse."""
+    import ast
+
+    path = os.path.join(REPO, "scripts", "wave2_attempt_runner.py")
+    src = open(path, encoding="utf-8").read()
+    tree = ast.parse(src, filename=path)
+
+    reachable_calls = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and n.func.attr == "heartbeat_claim"
+    ]
+    assert reachable_calls, "heartbeat_claim is still a dead API"
+
+    def _statically_false(node) -> bool:
+        """More than ast.Constant: R9's surviving mutant was
+        `if False and not spool.heartbeat_claim(tok):` — an ast.BoolOp that
+        short-circuits the call away while a Constant-only check called it live."""
+        if isinstance(node, ast.Constant):
+            return not node.value
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+            return any(_statically_false(v) for v in node.values)
+        if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+            return all(_statically_false(v) for v in node.values)
+        return False
+
+    dead = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.If) and _statically_false(node.test):
+            for part in [node.test, *node.body]:
+                for sub in ast.walk(part):
+                    if isinstance(sub, ast.Call):
+                        dead.add(id(sub))
+    live = [c for c in reachable_calls if id(c) not in dead]
+    assert live, "every heartbeat_claim call sits under a statically-false guard"
+
+
+def test_new3_a_failed_claim_stamp_refuses_the_claim(tmp_path, monkeypatch):
+    """NEW-3: if os.utime fails the claim keeps the INBOX mtime and we are back
+    to the pre-fix CRITICAL. The degradation mode of a Critical fix must fail
+    closed, not hand a worker an unstamped claim."""
+    sp = _spool(tmp_path)
+    sp.enqueue(_envelope())
+    import substrate.execution.attempts.spool as spool_mod
+
+    real_utime = os.utime
+
+    def boom(path, times=None):
+        if "inflight" in str(path):
+            raise OSError("stamp failed")
+        return real_utime(path, times)
+
+    monkeypatch.setattr(spool_mod.os, "utime", boom)
+    assert sp.claim_next() is None, "an unstamped claim was handed to a worker"
+
+
+# ── NEW-4 (round 2): tests that call the REAL code, not a replay ─────────────
+#
+# Round 1 of this section replayed the launcher/runner logic inside the test.
+# Independent review (R9) then killed 6 of 9 mutants against it:
+#   M1 `_CP_MAX_* = 10**9`        -- the regex `(\d+)` matched "10", not "10**9"
+#   M2 launcher body -> `if True:` -- a replay cannot see the real body change
+#   M3 `cp_consecutive_errors += 0` -- a replay never runs the real accounting
+#   M4 reset moved into `except`   -- ditto
+#   M6 `pid_tag` rebound after the asserted line
+#   M9 `if False and not spool.heartbeat_claim(tok):` -- a BoolOp, not a Constant
+#
+# All six are real gaps: observable behavior differs (bound fires at cycle 5 vs
+# 20; any pid accepted; a live claim stolen). The fix is structural — the
+# decisions now live in named, importable units (`runner_readiness_announced`,
+# `ControlPlaneFailureBudget`) and these tests drive THOSE. Values are read by
+# importing the module, so a non-decimal literal cannot slip past a regex.
+
+
+def _dispatch_mod():
+    from tests.wave2_script_import import load_wave2_script
+
+    return load_wave2_script("wave2_field_dispatch")
+
+
+def _runner_mod():
+    from tests.wave2_script_import import load_wave2_script
+
+    return load_wave2_script("wave2_attempt_runner")
+
+
+@pytest.mark.parametrize(
+    "name,body,pid,expected",
+    [
+        ("driver up for THIS pid", "control-plane driver up: pid=4242 run_root=/r\n", 4242, True),
+        ("worker-only for THIS pid", "runner ready worker-only: pid=4242 run_root=/r\n", 4242, True),
+        ("stale log from ANOTHER pid", "control-plane driver up: pid=999 run_root=/r\n", 4242, False),
+        ("legacy pre-driver marker", "runner up: spool=/s primitive=bwrap\n", 4242, False),
+        ("startup marker only", "runner starting: pid=4242 run_root=/r\n", 4242, False),
+        ("driver FAILED, nothing after", "runner starting: pid=4242\nFATAL: driver unavailable\n", 4242, False),
+        ("pid prefix collision", "control-plane driver up: pid=42424 run_root=/r\n", 4242, False),
+        ("stale then ours", "control-plane driver up: pid=999\ncontrol-plane driver up: pid=4242 r\n", 4242, True),
+        ("empty log", "", 4242, False),
+    ],
+)
+def test_b1_the_real_launcher_decision(name, body, pid, expected):
+    """Calls the launcher's OWN function. Gutting its body to `if True:` or
+    rebinding pid_tag now fails here (M2, M6)."""
+    assert _dispatch_mod().runner_readiness_announced(body, pid) is expected, name
+
+
+def test_b1_start_runner_uses_that_function():
+    """Pin that start_runner actually delegates to it — an extracted helper that
+    nothing calls would be the NEW-2 mistake all over again."""
+    import ast
+
+    path = os.path.join(REPO, "scripts", "wave2_field_dispatch.py")
+    tree = ast.parse(open(path, encoding="utf-8").read(), filename=path)
+    fn = next(
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "start_runner"
+    )
+    calls = [
+        n for n in ast.walk(fn)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Name)
+        and n.func.id == "runner_readiness_announced"
+    ]
+    assert calls, "start_runner no longer uses runner_readiness_announced"
+
+
+def test_b2_the_real_budget_bounds_a_hard_down_driver():
+    """Drives the runner's OWN accounting object. `+= 0` (M3) now fails here."""
+    mod = _runner_mod()
+    b = mod.ControlPlaneFailureBudget(
+        mod._CP_MAX_CONSECUTIVE_ERRORS, mod._CP_MAX_TOTAL_ERRORS
+    )
+    fired_at = None
+    for cycle in range(1, 5000):
+        b.record_failure(RuntimeError("driver down"))
+        if b.exhausted:
+            fired_at = cycle
+            break
+    assert fired_at == mod._CP_MAX_CONSECUTIVE_ERRORS, (
+        f"hard-down driver terminated at cycle {fired_at}, "
+        f"expected {mod._CP_MAX_CONSECUTIVE_ERRORS}"
+    )
+
+
+def test_b2_the_real_budget_bounds_a_flapping_driver():
+    """Alternating success/failure keeps resetting the consecutive counter, so
+    only the TOTAL bound can stop it. A reset placed in the wrong branch (M4)
+    changes when this fires."""
+    mod = _runner_mod()
+    b = mod.ControlPlaneFailureBudget(
+        mod._CP_MAX_CONSECUTIVE_ERRORS, mod._CP_MAX_TOTAL_ERRORS
+    )
+    failures = 0
+    fired = False
+    for cycle in range(20000):
+        if cycle % 2:
+            b.record_success()
+        else:
+            b.record_failure(RuntimeError("flap"))
+            failures += 1
+        if b.exhausted:
+            fired = True
+            break
+    assert fired, "a flapping driver never terminated"
+    assert failures == mod._CP_MAX_TOTAL_ERRORS, (
+        f"flapping driver stopped after {failures} failures, "
+        f"expected {mod._CP_MAX_TOTAL_ERRORS}"
+    )
+
+
+def test_b2_a_success_never_clears_the_total_budget():
+    """record_success() must clear ONLY the consecutive counter — otherwise a
+    driver that succeeds once per N failures is unbounded forever."""
+    mod = _runner_mod()
+    b = mod.ControlPlaneFailureBudget(5, 20)
+    b.record_failure(RuntimeError("x"))
+    b.record_success()
+    assert b.consecutive == 0
+    assert b.total == 1, "a success wrongly cleared the cumulative budget"
+
+
+def test_b2_a_healthy_run_never_exhausts_the_budget():
+    mod = _runner_mod()
+    b = mod.ControlPlaneFailureBudget(5, 20)
+    for _ in range(10000):
+        b.record_success()
+    assert not b.exhausted
+
+
+def test_b2_the_bounds_are_actually_reachable():
+    """Read by IMPORT, not regex: `_CP_MAX_* = 10**9` (M1) is caught here,
+    where a decimal-only regex scrape read it as 10 and passed."""
+    mod = _runner_mod()
+    assert 0 < mod._CP_MAX_CONSECUTIVE_ERRORS <= 20
+    assert 0 < mod._CP_MAX_TOTAL_ERRORS <= 200
+    assert mod._HEARTBEAT_SECONDS < mod._INFLIGHT_RECOVERY_SECONDS / 2
+
+
+def test_b2_the_terminal_return_reaches_the_teardown():
+    """`return 3` must unwind through the try whose finally sweeps credentials."""
+    import ast
+
+    path = os.path.join(REPO, "scripts", "wave2_attempt_runner.py")
+    tree = ast.parse(open(path, encoding="utf-8").read(), filename=path)
+    guarded = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Try) and node.finalbody:
+            returns_3 = [
+                n for n in ast.walk(node)
+                if isinstance(n, ast.Return)
+                and isinstance(n.value, ast.Constant)
+                and n.value.value == 3
+            ]
+            if returns_3 and "_run_teardown" in " ".join(
+                ast.dump(f) for f in node.finalbody
+            ):
+                guarded = True
+    assert guarded, "the bounded-failure return 3 does not unwind through the teardown"

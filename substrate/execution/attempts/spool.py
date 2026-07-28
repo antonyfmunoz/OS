@@ -141,8 +141,19 @@ class DispatchSpool:
             # worker". Recorded via the runner heartbeat below as well.
             try:
                 os.utime(claimed, None)  # now = claim instant
-            except OSError as exc:  # pragma: no cover - fs-level failure
-                logger.debug("[DispatchSpool] could not stamp claim %s: %s", name, exc)
+            except OSError as exc:
+                # NEW-3: if the stamp fails we are back to the pre-fix CRITICAL —
+                # the claim keeps the inbox mtime and the next recovery sweep can
+                # re-queue it under a live worker. The degradation mode of a
+                # Critical fix must be LOUD, not a debug line: log at ERROR and
+                # refuse the claim rather than proceed on an unstamped one. The
+                # envelope stays in inflight and is recovered normally.
+                logger.error(
+                    "[DispatchSpool] could not stamp claim %s (%s) — refusing the "
+                    "claim; an unstamped claim can be recovered under a live worker",
+                    name, exc,
+                )
+                continue
             # PARSE **AND** SCHEMA-CONSTRUCT INSIDE THE QUARANTINE BOUNDARY.
             # DispatchEnvelope(**record) used to sit OUTSIDE this try, so a
             # record that was valid JSON but schema-invalid (unknown key, wrong
@@ -395,15 +406,56 @@ class DispatchSpool:
                     continue  # moved concurrently
         return reconciled
 
+    @staticmethod
+    def _reason_slug(reason: str) -> str:
+        """A filesystem-safe, bounded slug for a quarantine reason (NEW-1).
+
+        The reason used to be interpolated into the destination FILENAME with
+        only spaces replaced. Once the B5 fix started embedding the raw
+        exception text, a malformed record could steer its own quarantine path:
+        ``DispatchEnvelope(**record)`` puts the attacker-supplied KEY NAME
+        verbatim into the TypeError message, so a key containing ``/`` produced
+        a destination whose parent directory does not exist. ``os.replace`` then
+        raised FileNotFoundError, which was silently swallowed — the function
+        logged "quarantined" and returned having done nothing. The record cycled
+        inflight↔inbox forever and the operator's evidence trail was LOST,
+        contradicting the whole point of quarantining it.
+        """
+        safe = "".join(c if (c.isalnum() or c in "-_.") else "_" for c in reason)
+        return safe[:120] or "unspecified"
+
     def _quarantine(self, name: str, reason: str) -> None:
         for sub in (_INFLIGHT, _INBOX):
             p = os.path.join(self._dir(sub), name)
             if os.path.exists(p):
-                dst = os.path.join(self._dir(_QUARANTINE), f"{name}.{reason.replace(' ', '_')}")
+                os.makedirs(self._dir(_QUARANTINE), exist_ok=True)
+                dst = os.path.join(
+                    self._dir(_QUARANTINE), f"{name}.{self._reason_slug(reason)}"
+                )
                 try:
                     os.replace(p, dst)
-                except FileNotFoundError:
-                    pass
+                except OSError as exc:
+                    # NEVER claim a quarantine that did not happen. The old code
+                    # swallowed FileNotFoundError and logged success anyway, so a
+                    # record that was never set aside looked handled. Fall back to
+                    # a name that cannot fail, and if even that fails, say so.
+                    fallback = os.path.join(
+                        self._dir(_QUARANTINE), f"{name}.quarantine_reason_unencodable"
+                    )
+                    try:
+                        os.replace(p, fallback)
+                    except OSError as exc2:
+                        logger.error(
+                            "[DispatchSpool] FAILED to quarantine %s (%s / %s) — "
+                            "record left in place, NOT quarantined",
+                            name, exc, exc2,
+                        )
+                        return
+                    logger.warning(
+                        "[DispatchSpool] quarantined %s under a fallback name (%s): %s",
+                        name, exc, reason,
+                    )
+                    return
                 logger.warning("[DispatchSpool] quarantined %s: %s", name, reason)
                 return
 
@@ -456,8 +508,11 @@ class DispatchSpool:
     def _quarantine_outbox(self, name: str, reason: str) -> None:
         p = os.path.join(self._dir(_OUTBOX), name)
         if os.path.exists(p):
+            # Same slug rule as _quarantine (NEW-1): a reason must never be able
+            # to steer the destination path.
+            os.makedirs(self._dir(_QUARANTINE), exist_ok=True)
             os.replace(
-                p, os.path.join(self._dir(_QUARANTINE), f"{name}.{reason.replace(' ', '_')}")
+                p, os.path.join(self._dir(_QUARANTINE), f"{name}.{self._reason_slug(reason)}")
             )
             logger.warning("[DispatchSpool] quarantined result %s: %s", name, reason)
 

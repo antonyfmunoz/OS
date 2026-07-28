@@ -1847,6 +1847,37 @@ def seed_fixture(runner: Runner, sha: str, run_id: str, variant: str) -> dict[st
     }
 
 
+# Operational-readiness markers the runner emits AFTER its control-plane driver
+# construction resolves. "runner up:" is deliberately NOT here: the runner emits
+# that BEFORE building the driver, so accepting it returned started=True for a
+# run whose control plane never came up (finding B1).
+RUNNER_READY_MARKERS = ("control-plane driver up: ", "runner ready worker-only: ")
+
+
+def runner_readiness_announced(log_body: str, pid: int) -> bool:
+    """True if *log_body* shows THIS pid reaching operational readiness.
+
+    Module-level and named so the regression tests exercise THIS function rather
+    than a copy of its logic. Independent review (R9) defeated an earlier test by
+    gutting the inline loop to `if True:` while leaving every asserted source
+    string in place — all 12 tests still passed. A test that replays a
+    re-implementation cannot see that; a test that calls this can.
+
+    The pid tag keeps its TRAILING SPACE deliberately: without it `pid=4242`
+    prefix-matches `pid=42424`. Every occurrence of each marker is scanned, so a
+    stale line from a previous launch followed by ours still succeeds, while a
+    log containing only another pid's readiness does not.
+    """
+    pid_tag = f"pid={pid} "
+    for marker in RUNNER_READY_MARKERS:
+        idx = log_body.find(marker)
+        while idx != -1:
+            if log_body[idx + len(marker):].startswith(pid_tag):
+                return True
+            idx = log_body.find(marker, idx + 1)
+    return False
+
+
 def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> dict[str, Any]:
     """Start the run-scoped host attempt runner over this run's signed spool.
 
@@ -1981,24 +2012,7 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
                 head = launch_log.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 head = ""
-            # OPERATIONAL readiness, not process startup. This used to accept
-            # "runner up:", which the runner emits BEFORE it builds the
-            # control-plane driver — so a run whose driver construction failed
-            # still returned started=True and then produced no governed progress
-            # at all. Accept only a marker the runner emits AFTER that
-            # construction resolves, and require it to name THIS pid so a stale
-            # log from a previous launch in the same targets dir cannot satisfy
-            # a new one.
-            pid_tag = f"pid={proc.pid} "
-            for marker in ("control-plane driver up: ", "runner ready worker-only: "):
-                idx = head.find(marker)
-                while idx != -1:
-                    if head[idx + len(marker):].startswith(pid_tag):
-                        announced = True
-                        break
-                    idx = head.find(marker, idx + 1)
-                if announced:
-                    break
+            announced = runner_readiness_announced(head, proc.pid)
             if announced:
                 break
         if not alive:

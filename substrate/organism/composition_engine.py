@@ -36,10 +36,20 @@ class CompositionAuthorityError(RuntimeError):
 
 
 def _reject_if_objective_plan_accepted(objective_id: str) -> None:
-    """Fail closed if ``objective_id`` has an APPROVED/AWAITING_APPROVAL plan.
+    """Fail closed unless absence of an accepted Plan is CONFIRMED.
 
-    Read-only; tolerant of a missing planning store (unbound composition still
-    works). Only an accepted/pending-acceptance plan blocks re-composition.
+    Read-only. This function is NOT tolerant of a missing or unreadable planning
+    store — an earlier docstring claimed it was, and that claim was false once
+    the fail-closed branches landed (independent review R9). What protects
+    unbound composition is the CALLER's guard (``if intent.objective_id:``), not
+    any tolerance here: a composition with no ``objective_id`` never reaches this
+    function. Once bound, an unreadable store, a corrupt record, or an absent
+    planning module all REFUSE, because "cannot tell" must not share a branch
+    with "no plan exists" — that shared branch is what let a second canonical
+    Plan be minted for an Objective that may already have an accepted one.
+
+    Only ``latest is None`` (confirmed absence) permits composition; an
+    APPROVED/AWAITING_APPROVAL plan blocks re-composition.
     """
     try:
         from substrate.execution.planning.records import ObjectivePlanStatus

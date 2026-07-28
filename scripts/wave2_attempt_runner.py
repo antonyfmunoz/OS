@@ -7,8 +7,13 @@ field dispatcher for the duration of one qualification run. It:
 1. verifies enforced host isolation is available (bwrap) — refuses to run
    otherwise (Amendment v1 clause 4);
 2. claims signed dispatch envelopes from the spool (bad/expired → quarantined);
-3. verifies each envelope's authorization is an ACTIVE grant and its scope hash
-   matches (defense in depth over the spine's own check);
+3. does NOT itself verify grant status or scope hash. That claim used to be
+   here and was false: independent review (R9) grepped this file and found no
+   such check. The real authority is `attempts/admission.py` (attempt↔grant
+   binding, task-in-frontier, tenant, plan+version, TOCTOU packet recheck),
+   which gates lease + dispatch before an envelope is ever enqueued, and
+   `attempts/dispatch.py`, which seals authorization_ref / authorized_scope_hash
+   / authorized_tasks into the package hash the worker is bound to;
 4. runs the real Claude-CLI worker in the lease worktree under bwrap isolation;
 5. writes a SIGNED result to the spool outbox — never mutates the attempt ledger
    directly (the control-plane poller owns canonical transitions);
@@ -27,13 +32,18 @@ import os
 import signal
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from typing import Any
 
 # An INFLIGHT claim older than this with no result is treated as abandoned by a
 # crashed worker and returned to the inbox. Generously above the 600s execution
 # budget so a slow-but-live worker is never stolen from.
 _INFLIGHT_RECOVERY_SECONDS = 1200.0
+
+# How often a live claimant tends its own claims while waiting on workers.
+# Must be comfortably under _INFLIGHT_RECOVERY_SECONDS so a long-running but
+# HEALTHY worker is never declared abandoned (finding NEW-2).
+_HEARTBEAT_SECONDS = 60.0
 
 # Log an idle cycle every N iterations so a stall is visible without flooding.
 _IDLE_LOG_EVERY = 30
@@ -49,6 +59,39 @@ _CP_MAX_TOTAL_ERRORS = 20
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
+
+
+
+class ControlPlaneFailureBudget:
+    """The bounded control-plane failure policy, as executable state.
+
+    Extracted to module scope so the regression tests drive THIS accounting
+    rather than a replay of it. Independent review (R9) killed the replay-style
+    tests with two mutants a simulation cannot see -- a counter that never
+    increments (`+= 0`) and a reset moved into the `except` branch (so it always
+    resets). Both leave the constants and the algorithm's *description* intact
+    while changing when the bound fires, from cycle 5 to cycle 20.
+    """
+
+    def __init__(self, max_consecutive: int, max_total: int) -> None:
+        self.max_consecutive = max_consecutive
+        self.max_total = max_total
+        self.consecutive = 0
+        self.total = 0
+        self.last_error = ""
+
+    def record_success(self) -> None:
+        """A completed cycle clears the consecutive budget (never the total)."""
+        self.consecutive = 0
+
+    def record_failure(self, exc: BaseException) -> None:
+        self.consecutive += 1
+        self.total += 1
+        self.last_error = f"{type(exc).__name__}: {exc}"
+
+    @property
+    def exhausted(self) -> bool:
+        return self.consecutive >= self.max_consecutive or self.total >= self.max_total
 
 
 def _log(msg: str) -> None:
@@ -136,9 +179,18 @@ def _register_host_control_plane(store: Any) -> Any:
         execution_mode=mode,
         mutation_registry=registry,
         journal=journal,
-        # clause 5: resolve authorization_ref → grant from the shared store,
-        # fresh each call. Without this, the HIGH execution_attempt_dispatch
-        # (which carries an authorization_ref) fails closed "no lookup".
+        # clause 5 lookup, wired for correctness but INERT on the field path.
+        # The previous comment claimed execution_attempt_dispatch "carries an
+        # authorization_ref" — it does not. Independent review (R9) enumerated
+        # every ActionEnvelope/MutationRequest producer in the tree: only
+        # mutation_router forwards these fields, and BOTH production
+        # MutationRequest producers on the Wave 2 path
+        # (intent/loop.py, transports/api/governed.py) leave authorization_ref
+        # empty, so governed_spine._check_authorization_scope returns at its
+        # `if not auth_ref` early-out and this lookup is never invoked.
+        # Kept because it is free and correct the moment an authorization-bound
+        # envelope exists; NOT counted as an operational Wave 2 control. The
+        # live equivalent invariant is in attempts/admission.py.
         authorization_lookup=store.get_grant,
     )
 
@@ -272,9 +324,9 @@ def run_loop(
     inflight_attempts: set[str] = set()
 
     # Bounded control-plane failure accounting (see _CP_MAX_* above).
-    cp_consecutive_errors = 0
-    cp_total_errors = 0
-    cp_last_error = ""
+    cp_budget = ControlPlaneFailureBudget(
+        _CP_MAX_CONSECUTIVE_ERRORS, _CP_MAX_TOTAL_ERRORS
+    )
 
     # (1b) build the control-plane driver if the fixture + targets are wired.
     # This is the HOST half that turns an ACTIVE grant in the shared candidate
@@ -377,29 +429,24 @@ def run_loop(
                     # A cycle that completed resets the consecutive-failure
                     # budget: transient faults are tolerated, a BROKEN driver is
                     # not.
-                    cp_consecutive_errors = 0
+                    cp_budget.record_success()
                 except Exception as exc:  # a control-plane fault must be BOUNDED
-                    cp_consecutive_errors += 1
-                    cp_total_errors += 1
-                    cp_last_error = f"{type(exc).__name__}: {exc}"
+                    cp_budget.record_failure(exc)
                     _log(
                         f"control-plane cycle error "
-                        f"({cp_consecutive_errors}/{_CP_MAX_CONSECUTIVE_ERRORS} consecutive, "
-                        f"{cp_total_errors}/{_CP_MAX_TOTAL_ERRORS} total): {exc}"
+                        f"({cp_budget.consecutive}/{cp_budget.max_consecutive} consecutive, "
+                        f"{cp_budget.total}/{cp_budget.max_total} total): {exc}"
                     )
                     # This used to log "(continuing)" forever with no bound, so a
                     # permanently broken driver consumed the entire run budget
                     # while the loop reported liveness and produced ZERO governed
                     # progress. Process liveness is not control-plane health.
-                    if (
-                        cp_consecutive_errors >= _CP_MAX_CONSECUTIVE_ERRORS
-                        or cp_total_errors >= _CP_MAX_TOTAL_ERRORS
-                    ):
+                    if cp_budget.exhausted:
                         _log(
                             f"FATAL: control-plane driver failed "
-                            f"{cp_consecutive_errors} consecutive / {cp_total_errors} total "
+                            f"{cp_budget.consecutive} consecutive / {cp_budget.total} total "
                             f"cycles — terminal bound reached, refusing to consume the run "
-                            f"budget without governed progress. last_error={cp_last_error}"
+                            f"budget without governed progress. last_error={cp_budget.last_error}"
                         )
                         return 3
 
@@ -477,14 +524,31 @@ def run_loop(
                     ): env
                     for token, env in claims
                 }
-                for fut in as_completed(futures):
-                    env = futures[fut]
-                    try:
-                        fut.result()
-                    except Exception as exc:  # a worker fault must not kill the pool
-                        _log(f"worker for {env.attempt_id} raised: {exc}")
-                    finally:
-                        inflight_attempts.discard(str(env.attempt_id))
+                # HEARTBEAT EVERY LIVE CLAIM WHILE WE WAIT (finding NEW-2).
+                # `spool.heartbeat_claim()` existed but had ZERO production
+                # callers, so it protected nothing: a worker legitimately running
+                # longer than _INFLIGHT_RECOVERY_SECONDS still had its claim
+                # declared abandoned and re-queued underneath it — the same
+                # duplicate-dispatch outcome the B4 claim-stamp fix was meant to
+                # close, just on a longer fuse. Staleness must measure how long a
+                # claim has gone UNTENDED, so the claimant has to tend it.
+                pending = set(futures)
+                while pending:
+                    done, pending = wait(
+                        pending, timeout=_HEARTBEAT_SECONDS, return_when=FIRST_COMPLETED
+                    )
+                    for tok, _e in claims:
+                        if not spool.heartbeat_claim(tok):
+                            # the claim is gone (completed/recovered) — nothing to tend
+                            continue
+                    for fut in done:
+                        env = futures[fut]
+                        try:
+                            fut.result()
+                        except Exception as exc:  # a worker fault must not kill the pool
+                            _log(f"worker for {env.attempt_id} raised: {exc}")
+                        finally:
+                            inflight_attempts.discard(str(env.attempt_id))
 
             if max_iterations and iterations >= max_iterations:
                 return 0
