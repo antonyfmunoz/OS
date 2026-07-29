@@ -637,6 +637,8 @@ class FieldControlPlaneDriver:
         # ``(missing)`` — the grant activates, the task is APPROVED on disk, and
         # yet no worker is ever dispatched. Reloading each cycle makes the queue
         # match the store's fresh-read contract.
+        from substrate.execution.attempts.field_failure_policy import pause_state
+
         self._reload_queue()
         grants = [g for g in self._store.active_grants() if getattr(g, "status", "") == "active"]
         for grant in grants:
@@ -649,6 +651,31 @@ class FieldControlPlaneDriver:
                 # already run (field run 20260726T025143Z-p1: one umbrella Task,
                 # quota spent, then a guaranteed failure at the two-concurrent-
                 # Tasks assertion). Refusing here costs zero quota.
+                # SAME-RUN PRE-DISPATCH PAUSE (qualification only). Suppresses
+                # ADMISSION exactly like the graph-shape gate below, and for the
+                # same reason: this is the last point before an ACTIVE grant
+                # becomes signed dispatches, so refusing here costs zero quota
+                # and creates no attempt, lease, or assignment to unwind.
+                #
+                # It must gate ADMISSION, not the dispatch fn. The scheduler
+                # transitions an attempt to DISPATCHED *before* invoking dispatch,
+                # and DISPATCHED may only go to RUNNING/FAILED/CANCELLED — never
+                # back to BLOCKED — so refusing inside the dispatch fn (by return
+                # OR by raise) strands the attempt in DISPATCHED forever with no
+                # envelope. Gating admission means no attempt is ever created.
+                #
+                # Result draining is deliberately NOT suppressed, matching the
+                # graph-shape gate's precedent: a pause must never strand an
+                # already-dispatched worker's result or its lease.
+                paused, pause_reason = pause_state(self._targets_dir)
+                if paused:
+                    report.errors.append(f"paused_before_dispatch: {pause_reason}")
+                    logger.info(
+                        "field control-plane PAUSED before dispatch (zero quota spent) "
+                        "for grant %s — %s",
+                        getattr(grant, "decision_ref", ""),
+                        pause_reason,
+                    )
                 shape = self._graph_shape_verdict(grant)
                 shape_ok = shape is None or shape.get("ok", False)
                 if not shape_ok:
@@ -669,13 +696,19 @@ class FieldControlPlaneDriver:
                 # packet-visibility race _reload_queue exists for) would strand
                 # already-dispatched workers: their results never applied, their
                 # leases never released.
-                pass_report = poller.run_pass(run_scheduler=shape_ok)
+                pass_report = poller.run_pass(run_scheduler=shape_ok and not paused)
                 report.results_drained = pass_report.results_drained
                 report.succeeded = list(pass_report.succeeded)
                 report.failed = list(pass_report.failed)
                 report.admitted = list(pass_report.scheduler_admitted)
+                # A PAUSED cycle is never idle. Idle means "this grant has no
+                # work left to do"; paused means "work is deliberately withheld".
+                # Conflating them would report a false idle state to the operator
+                # and to reconciliation — the run looks finished while its whole
+                # frontier is still waiting to be admitted.
                 report.idle = (
-                    report.results_drained == 0
+                    not paused
+                    and report.results_drained == 0
                     and not report.admitted
                     and not self._has_live_attempts(grant)
                 )

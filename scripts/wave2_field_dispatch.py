@@ -18,7 +18,9 @@ Subcommands:
   start-runner     start the run-scoped host attempt runner + control-plane poller
   smoke            one collector pass, smoke scenario
   run              N collector passes, full scenario
+  pause-before-dispatch  arm the same-run ADMISSION pause (zero quota)
   inject-failure   arm a genuine worker failure variant for one pass
+  resume           release the admission pause; scheduling resumes
   reconcile        score collected evidence against candidate state + logs
   teardown         stop containers, stop runner, shred run secret, restore serve
 
@@ -1872,7 +1874,7 @@ def runner_readiness_announced(log_body: str, pid: int) -> bool:
     for marker in RUNNER_READY_MARKERS:
         idx = log_body.find(marker)
         while idx != -1:
-            if log_body[idx + len(marker):].startswith(pid_tag):
+            if log_body[idx + len(marker) :].startswith(pid_tag):
                 return True
             idx = log_body.find(marker, idx + 1)
     return False
@@ -2276,6 +2278,88 @@ def inject_failure(runner: Runner, sha: str, run_id: str, variant: str) -> dict[
     }
 
 
+def pause_before_dispatch(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
+    """Arm the same-run ADMISSION pause so the failure policy can be bound.
+
+    The window this opens did not previously exist: the control plane turned a
+    freshly-ACTIVE grant into signed dispatches on the same cycle, so there was
+    no point at which `write-scenario-map` + `inject-failure` could run against
+    THIS run's grant (cross-run binding reuse is correctly refused, so preparing
+    the binding in an earlier pass is not available either).
+
+    Armed AFTER the grant + `execution_binding.json` are durable and BEFORE any
+    Task is admitted. While armed, scheduler admission is suppressed — zero
+    Attempts, leases, assignments, envelopes, or quota — while result draining
+    for already-dispatched work continues untouched.
+    """
+    targets = _targets_dir(sha, run_id)
+    if runner.dry_run:
+        print(f"[dry-run] arm admission pause → {targets}/.pause_before_dispatch")
+        return {"paused": True, "dry_run": True}
+
+    sys.path.insert(0, str(_WORKTREE))
+    from substrate.execution.attempts.field_failure_policy import (
+        arm_pause_before_dispatch,
+        pause_state,
+    )
+    from substrate.execution.attempts.field_scenario_map import read_execution_binding
+
+    binding = read_execution_binding(targets)
+    if binding is None:
+        return {
+            "paused": False,
+            "refused": "no execution_binding.json for this run — binding not captured",
+            "remediation": (
+                "run `wave2_field_dispatch.py write-scenario-map` for THIS run AFTER "
+                "the execution authorization is granted, then arm the pause"
+            ),
+        }
+    marker = arm_pause_before_dispatch(str(targets))
+    paused, reason = pause_state(str(targets))
+    return {
+        "paused": paused,
+        "marker": str(marker),
+        "reason": reason,
+        "run_id": binding.run_id,
+        "grant_id": binding.grant_id,
+        "decision_ref": binding.decision_ref,
+        "candidate_sha": binding.candidate_sha,
+    }
+
+
+def resume_after_pause(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
+    """Release THIS run's admission pause exactly once; normal scheduling resumes.
+
+    Refuses a second release, a foreign/malformed marker, and an unreadable
+    state — a duplicate `resume` must never look like it re-authorized a run
+    that is already running.
+    """
+    targets = _targets_dir(sha, run_id)
+    if runner.dry_run:
+        print(f"[dry-run] release admission pause ← {targets}/.pause_before_dispatch")
+        return {"released": True, "dry_run": True}
+
+    sys.path.insert(0, str(_WORKTREE))
+    from substrate.execution.attempts.field_failure_policy import (
+        arming_is_valid_for_run,
+        release_pause_before_dispatch,
+    )
+
+    # Releasing before the failure policy is armed would waste the whole window
+    # the pause exists to create: the run would proceed unarmed and the failure
+    # pass would silently run clean. Report it rather than releasing blindly.
+    records = _read_state_records(sha)
+    arm_ok, arm_reason = arming_is_valid_for_run(str(targets), records=records)
+
+    released, detail = release_pause_before_dispatch(str(targets))
+    return {
+        "released": released,
+        "detail": detail,
+        "arming_valid": arm_ok,
+        "arming": arm_reason,
+    }
+
+
 def _capture_execution_binding(
     records: list[dict[str, Any]], *, sha: str, run_id: str
 ) -> tuple[Any, str]:
@@ -2386,7 +2470,9 @@ def main(argv: list[str] | None = None) -> int:
         "smoke",
         "run",
         "write-scenario-map",
+        "pause-before-dispatch",
         "inject-failure",
+        "resume",
         "reconcile",
         "teardown",
     ):
@@ -2423,8 +2509,12 @@ def main(argv: list[str] | None = None) -> int:
         out = run_passes(runner, sha=sha, scenario=args.scenario, passes=args.passes)
     elif args.cmd == "write-scenario-map":
         out = write_scenario_map(runner, sha, run_id)
+    elif args.cmd == "pause-before-dispatch":
+        out = pause_before_dispatch(runner, sha, run_id)
     elif args.cmd == "inject-failure":
         out = inject_failure(runner, sha, run_id, args.variant)
+    elif args.cmd == "resume":
+        out = resume_after_pause(runner, sha, run_id)
     elif args.cmd == "reconcile":
         out = reconcile(runner, sha)
     elif args.cmd == "teardown":
