@@ -3,8 +3,13 @@
 import sys
 import os
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/c4-6-cockpit-finalization")
-os.environ.setdefault("UMH_ROOT", "/opt/OS/.claude/worktrees/c4-6-cockpit-finalization")
+# Repo root is DERIVED from the active checkout, never hardcoded. The previous
+# module-scope `sys.path.insert(...)` + `os.environ.setdefault("UMH_ROOT", ...)`
+# pinned a foreign campaign worktree at IMPORT time and never restored it, so it
+# leaked into every module collected afterwards and hard-aborted whole shards.
+from tests.repo_root import ensure_repo_on_path
+
+ensure_repo_on_path()
 
 import pytest
 from dataclasses import dataclass, field

@@ -7,7 +7,10 @@ work→goal tracing (the C8 acceptance test), and orphan detection.
 import sys
 import time
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/c4-6-cockpit-finalization")
+# Repo root DERIVED from the active checkout — never a hardcoded worktree path.
+from tests.repo_root import ensure_repo_on_path
+
+ensure_repo_on_path()
 
 import pytest
 

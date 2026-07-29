@@ -5,11 +5,38 @@ import os
 import json
 import tempfile
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/c4-6-cockpit-finalization")
-os.environ.setdefault("UMH_ROOT", "/opt/OS/.claude/worktrees/c4-6-cockpit-finalization")
+# Repo root is DERIVED from the active checkout, never hardcoded. The previous
+# module-scope `sys.path.insert(...)` + `os.environ.setdefault("UMH_ROOT", ...)`
+# pinned a foreign campaign worktree at IMPORT time and never restored it, so it
+# leaked into every module collected afterwards and hard-aborted whole shards.
+from tests.repo_root import ensure_repo_on_path
+
+ensure_repo_on_path()
 
 import pytest
-from substrate.organism.work_portfolio_runtime import (
+
+
+@pytest.fixture(autouse=True)
+def _isolated_runtime_state(tmp_path, monkeypatch):
+    """Point runtime state at a per-test tmp dir — never the live tree.
+
+    Most constructions here omit ``velocity_store_path``, so the runtime falls
+    back to ``runtime_state_dir("work_portfolio")``, which resolves relative to
+    ``UMH_ROOT``. While this module pinned ``UMH_ROOT`` to a retired campaign
+    worktree, that near-empty directory ACCIDENTALLY shielded the live tree.
+    Deriving the root correctly removed the shield and exposed the real defect:
+    these tests were reading (and appending to) the REAL
+    ``data/runtime/umh/work_portfolio/velocity.jsonl`` — 34k+ lines of live
+    production state — which made ``health()`` hang and let tests mutate runtime
+    data.
+
+    ``monkeypatch.setenv`` is restored automatically, so this isolates without
+    reintroducing the module-scope leak that caused the shard aborts.
+    """
+    monkeypatch.setenv("UMH_ROOT", str(tmp_path))
+
+
+from substrate.organism.work_portfolio_runtime import (  # noqa: E402
     WorkPortfolioHealth,
     WorkDriftType,
     WorkDriftWarning,
@@ -56,8 +83,9 @@ class _MockReadinessRuntime:
 
 
 class _MockDelegationSnapshot:
-    def __init__(self, total_assessed=0, delegatable=0, not_delegatable=0,
-                 top_missing_capabilities=None):
+    def __init__(
+        self, total_assessed=0, delegatable=0, not_delegatable=0, top_missing_capabilities=None
+    ):
         self.total_assessed = total_assessed
         self.delegatable = delegatable
         self.not_delegatable = not_delegatable
@@ -256,6 +284,7 @@ class TestVelocityTracker:
 
     def test_completions_per_day(self, tmp_path):
         import time
+
         store_path = str(tmp_path / "velocity.jsonl")
         now = time.time()
         events = [
@@ -272,6 +301,7 @@ class TestVelocityTracker:
 
     def test_block_rate_change(self, tmp_path):
         import time
+
         store_path = str(tmp_path / "velocity.jsonl")
         now = time.time()
         events = [
@@ -291,6 +321,7 @@ class TestVelocityTracker:
 
     def test_block_rate_decrease(self, tmp_path):
         import time
+
         store_path = str(tmp_path / "velocity.jsonl")
         now = time.time()
         events = [
@@ -317,12 +348,16 @@ class TestWorkPortfolioRuntime:
                     total=10,
                     by_status={"ready": 6, "blocked": 2, "waiting_approval": 2},
                     ready_work=[_MockReadinessAssessment(f"wp-{i}") for i in range(6)],
-                    blocked_work=[_MockReadinessAssessment(f"wp-b-{i}", "blocked") for i in range(4)],
+                    blocked_work=[
+                        _MockReadinessAssessment(f"wp-b-{i}", "blocked") for i in range(4)
+                    ],
                 ),
             ),
             delegation_readiness=_MockDelegationRuntime(
                 snapshot=_MockDelegationSnapshot(
-                    total_assessed=10, delegatable=7, not_delegatable=3,
+                    total_assessed=10,
+                    delegatable=7,
+                    not_delegatable=3,
                 ),
             ),
             work_graph=_MockWorkGraph(_MockWGSnapshot(completed=5)),
@@ -340,17 +375,22 @@ class TestWorkPortfolioRuntime:
 
     def test_health_classification_thriving(self, tmp_path):
         import time
+
         vel_path = str(tmp_path / "velocity.jsonl")
         now = time.time()
         with open(vel_path, "w") as f:
-            f.write(json.dumps({"ts": now - 86400, "completed": 0, "blocked": 0, "total": 10}) + "\n")
+            f.write(
+                json.dumps({"ts": now - 86400, "completed": 0, "blocked": 0, "total": 10}) + "\n"
+            )
             f.write(json.dumps({"ts": now, "completed": 5, "blocked": 0, "total": 10}) + "\n")
         rt = WorkPortfolioRuntime(
             work_readiness=_MockReadinessRuntime(
                 snapshot=_MockReadinessSnapshot(
                     total=10,
                     ready_work=[_MockReadinessAssessment(f"wp-{i}") for i in range(8)],
-                    blocked_work=[_MockReadinessAssessment(f"wp-b-{i}", "blocked") for i in range(2)],
+                    blocked_work=[
+                        _MockReadinessAssessment(f"wp-b-{i}", "blocked") for i in range(2)
+                    ],
                 ),
             ),
             delegation_readiness=_MockDelegationRuntime(),
@@ -366,7 +406,9 @@ class TestWorkPortfolioRuntime:
                 snapshot=_MockReadinessSnapshot(
                     total=10,
                     ready_work=[],
-                    blocked_work=[_MockReadinessAssessment(f"wp-{i}", "blocked") for i in range(10)],
+                    blocked_work=[
+                        _MockReadinessAssessment(f"wp-{i}", "blocked") for i in range(10)
+                    ],
                 ),
             ),
             velocity_store_path=str(tmp_path / "velocity.jsonl"),
@@ -388,7 +430,9 @@ class TestWorkPortfolioRuntime:
             work_readiness=_MockReadinessRuntime(),
             delegation_readiness=_MockDelegationRuntime(
                 snapshot=_MockDelegationSnapshot(
-                    total_assessed=10, delegatable=3, not_delegatable=7,
+                    total_assessed=10,
+                    delegatable=3,
+                    not_delegatable=7,
                 ),
             ),
             velocity_store_path=str(tmp_path / "velocity.jsonl"),
@@ -496,7 +540,9 @@ class TestWorkPortfolioRuntime:
                 snapshot=_MockReadinessSnapshot(
                     total=10,
                     ready_work=[_MockReadinessAssessment(f"wp-{i}") for i in range(3)],
-                    blocked_work=[_MockReadinessAssessment(f"wp-b-{i}", "blocked") for i in range(4)],
+                    blocked_work=[
+                        _MockReadinessAssessment(f"wp-b-{i}", "blocked") for i in range(4)
+                    ],
                 ),
             ),
             velocity_store_path=str(tmp_path / "velocity.jsonl"),
