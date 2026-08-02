@@ -53,9 +53,18 @@ Group A test was shown to depend on them. They are out of scope here rather than
 silently assumed fixed.
 
 It also does not fix ``tests/test_stage1_acceptance_e2e.py``, whose stall is an
-unbounded HTTP call to a live service (see ``tests/bounded_http.py``), nor
-``tests/test_strategic_context_runtime.py`` (Group B), which is finite and fails
-a deterministic key-set assertion identically on the accepted baseline.
+unbounded HTTP call to a live service (see ``tests/bounded_http.py``).
+
+For ``tests/test_strategic_context_runtime.py`` this seam closes the file's
+LIVE-STATE coupling only. That file additionally drives a strategic-context read
+cascade in which ~10 production modules each construct their own
+``WorkPortfolioRuntime`` (and beneath it another ``WorkReadinessRuntime`` and
+``WorkGraph``), re-deriving the same immutable persisted generation. A census on
+an isolated deterministic 1,132-packet store measured ~96 ``assess_all()``
+passes and ~82,000 node classifications per 90s of a single ``context()`` call.
+That cascade is a real production inefficiency, is NOT fixed here, and is
+tracked separately — this manifest entry makes the file bounded against an empty
+isolated store, which is what the whole-tree gate requires.
 """
 
 from __future__ import annotations
@@ -94,10 +103,22 @@ _RELATIVE_STORE_DIRS = (
 )
 
 # ── The exact Group A manifest ───────────────────────────────────────────────
-# 28 unique files. Reconciled disposition under isolation at the time of this
-# correction: 22 CLEAN_PASS, 5 FINITE_FAILURE (pre-existing, identical on the
-# accepted baseline 5f3c0d64c), 1 TIMEOUT (test_stage1_acceptance_e2e.py, an
-# external-service dependency corrected separately in tests/bounded_http.py).
+# 29 unique files.
+#
+# 28 at the original isolation correction. Reconciled disposition under
+# isolation at that time: 22 CLEAN_PASS, 5 FINITE_FAILURE (pre-existing,
+# identical on the accepted baseline 5f3c0d64c), 1 TIMEOUT
+# (test_stage1_acceptance_e2e.py, an external-service dependency corrected
+# separately in tests/bounded_http.py).
+#
+# +1 — test_strategic_context_runtime.py. This file was originally classified
+# "Group B": a genuinely different root cause (an O(N^2) strategic-context read
+# cascade), correctly excluded because isolating it would not have fixed that
+# cascade. That classification was right about the cascade and INCOMPLETE about
+# the file: it also resolves the live work-packet store, so it is live-state
+# coupled in exactly the Group A way as well. Two independent causes, and this
+# manifest entry closes the second. The cascade remains open and separately
+# ledgered — this entry does not claim to have fixed it.
 GROUP_A_FILES: frozenset[str] = frozenset(
     {
         "test_agent_workforce_runtime.py",
@@ -127,6 +148,7 @@ GROUP_A_FILES: frozenset[str] = frozenset(
         "test_resource_allocation_runtime.py",
         "test_scenario_intelligence_engine.py",
         "test_stage1_acceptance_e2e.py",
+        "test_strategic_context_runtime.py",
         "test_type_divergence.py",
     }
 )

@@ -54,9 +54,18 @@ def _run(args: list[str], **kw) -> subprocess.CompletedProcess:
 # ── manifest integrity ───────────────────────────────────────────────────────
 
 
-def test_manifest_has_exactly_28_unique_files():
-    """The reconciled Group A manifest is 28 unique files — no drift, no dupes."""
-    assert len(GROUP_A_FILES) == 28
+def test_manifest_has_exactly_29_unique_files():
+    """The reconciled Group A manifest is 29 unique files — no drift, no dupes.
+
+    28 at the original isolation correction, +1 for
+    test_strategic_context_runtime.py (live-state coupled in the same way,
+    though its separate read cascade is not addressed by isolation).
+
+    The literal is deliberate. The manifest is an EXACT reviewed list, so a file
+    joining or leaving it must be a visible, intentional edit here rather than
+    an incidental side effect of some other change.
+    """
+    assert len(GROUP_A_FILES) == 29
 
 
 def test_every_manifest_file_exists_on_disk():
@@ -65,9 +74,35 @@ def test_every_manifest_file_exists_on_disk():
     assert missing == [], f"manifest names files that do not exist: {missing}"
 
 
-def test_group_b_is_not_in_group_a():
-    """Group B is a different root cause and must not inherit the fixture."""
-    assert "test_strategic_context_runtime.py" not in GROUP_A_FILES
+def test_strategic_context_file_is_bound_to_the_isolation_manifest():
+    """The blocking file must stay isolated — removing it fails here.
+
+    This assertion previously read ``not in GROUP_A_FILES``, on the reasoning
+    that the file's root cause (a strategic-context read cascade) was distinct
+    from Group A's live-state coupling. That reasoning was correct about the
+    cascade and incomplete about the file: it is ALSO live-state coupled, and
+    that coupling alone is enough to make it non-terminating under whole-tree.
+
+    Inverting the assertion rather than deleting it is deliberate — it is the
+    adversarial binding. If the entry is ever dropped from the manifest, this
+    fails loudly instead of the file silently resuming live reads and the gate
+    silently regressing to a timeout.
+    """
+    assert "test_strategic_context_runtime.py" in GROUP_A_FILES
+
+
+def test_manifest_binding_actually_drives_the_fixture():
+    """Membership must be what the fixture consults — not a decorative list.
+
+    Guards the mutation "manifest entry present but selector ignores it": the
+    entry is only meaningful if ``is_group_a`` resolves it, since that is the
+    predicate the autouse fixture branches on.
+    """
+    assert is_group_a("tests/test_strategic_context_runtime.py")
+    assert is_group_a(Path(REPO_ROOT) / "tests" / "test_strategic_context_runtime.py")
+    # And a file deliberately outside the manifest still resolves False, so the
+    # predicate is discriminating rather than universally true.
+    assert not is_group_a("tests/test_live_state_isolation.py")
 
 
 def test_is_group_a_matches_by_filename_not_path_prefix():
