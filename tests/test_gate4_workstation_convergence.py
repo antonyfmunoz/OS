@@ -384,18 +384,50 @@ class TestOperatorAttentionEngine:
                 assert sev_order.get(items[i].severity, 4) <= sev_order.get(items[i + 1].severity, 4)
 
     def test_with_intent_conflicts(self, tmp_dir):
+        """Active work that does not align with stated intent raises a misalignment.
+
+        Both collaborators are supplied explicitly. ``_misalignments()`` scores
+        each ACTIVE work item's description against the captured intents, so the
+        test must arrange BOTH sides itself: the intents (via an isolated
+        IntentRuntime) and the active work (via the injected work runtime). It
+        must never depend on whatever happens to be in the live production work
+        store — that ambient dependency is exactly what made this assertion
+        unreliable.
+        """
         from substrate.operator.intent_runtime import IntentRuntime, IntentScope
         from substrate.operator.operator_attention_engine import OperatorAttentionEngine
+
         ir = IntentRuntime(
             intents_path=os.path.join(tmp_dir, "intents.jsonl"),
             conflicts_path=os.path.join(tmp_dir, "conflicts.jsonl"),
         )
         ir.capture("Do the thing one way", IntentScope.PRODUCT)
         ir.capture("Do the thing one way differently", IntentScope.PRODUCT)
-        engine = OperatorAttentionEngine(intent_runtime=ir)
+
+        class _IsolatedWorkRuntime:
+            """Deterministic stand-in for the governed work runtime.
+
+            Returns exactly one ACTIVE work item whose vocabulary is disjoint
+            from every captured intent, so alignment_score() is driven to 0.0
+            (well under the 0.3 misalignment threshold) by construction.
+            """
+
+            def active(self):
+                return [
+                    {
+                        "work_id": "wp-isolated-misaligned",
+                        "description": "Refactor unrelated telemetry serialization buffers",
+                    }
+                ]
+
+        engine = OperatorAttentionEngine(
+            intent_runtime=ir,
+            work_runtime=_IsolatedWorkRuntime(),
+        )
         items = engine.compute()
         misalignment = [i for i in items if i.category == "misalignment"]
         assert len(misalignment) >= 1
+        assert any(i.source_id == "wp-isolated-misaligned" for i in misalignment)
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

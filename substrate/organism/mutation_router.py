@@ -388,3 +388,44 @@ def route_mutation_degraded(
         status="completed_degraded",
         degraded=True,
     )
+
+
+def route_mutation_governed(request: MutationRequest) -> Any:
+    """Canonical substrate-native entry point: live spine when up, else fail-closed.
+
+    This is the sibling of :func:`route_mutation_degraded` and the ONE place the
+    daemon-backed router is constructed for substrate-native callers. Callers ask
+    for governed routing; they never assemble a mutation runtime themselves.
+
+    Resolution order:
+
+    1. A live organism daemon registered on the canonical organism port
+       (``substrate.sockets.organism_port``) → route through the full
+       daemon-backed :class:`MutationRouter` → ``GovernedExecutionSpine``. This
+       is what lets a HIGH-risk, degraded-disallowed mutation (e.g.
+       ``execution_authorization_decision``) actually execute: the control plane
+       is present, so the mutation is NOT degraded.
+    2. No daemon → :func:`route_mutation_degraded`, the fail-closed gate that
+       rejects any non-eligible mutation and only runs low-risk / LOCAL /
+       degraded-opted-in specs, always audited.
+
+    Router construction lives HERE rather than in the caller so that no caller
+    builds a parallel mutation runtime of its own (the substrate-native loop
+    invariant). Everything referenced is in-substrate: substrate never imports
+    transports/.
+    """
+    # Resolved through module globals so a caller's monkeypatch of either symbol
+    # (spine branch or degraded branch) is honoured at call time.
+    try:
+        from substrate.sockets.organism_port import get_organism
+
+        daemon = get_organism()
+        if daemon is not None:
+            spine = getattr(daemon, "governed_spine", None)
+            registry = getattr(daemon, "mutation_registry", None)
+            if spine is not None and registry is not None:
+                return globals()["MutationRouter"](spine=spine, registry=registry).execute(request)
+    except Exception:  # noqa: BLE001 — never fail a mutation on router resolution; degrade below
+        logger.debug("governed routing unavailable; falling back to degraded gate", exc_info=True)
+
+    return globals()["route_mutation_degraded"](request)
