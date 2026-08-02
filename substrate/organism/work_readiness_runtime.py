@@ -239,6 +239,30 @@ class WorkReadinessRuntime:
             logger.debug("Failed to get work nodes")
             return []
 
+    def _operation_snapshot(self) -> dict[str, Any] | None:
+        """One WorkGraph view for the duration of ONE batch operation.
+
+        Returns ``None`` — meaning "no snapshot, use the original per-call
+        fresh-read path" — whenever a snapshot cannot be built. That covers a
+        missing graph, a graph that predates ``operation_snapshot`` (test
+        doubles and any external implementation of the interface), and any
+        read failure. Falling back to the ORIGINAL behavior rather than to an
+        empty dict is deliberate: an empty snapshot would silently classify
+        every dependency as missing, turning a read problem into a wrong
+        governance answer.
+        """
+        if self.work_graph is None:
+            return None
+        snap = getattr(self.work_graph, "operation_snapshot", None)
+        if not callable(snap):
+            return None
+        try:
+            result = snap()
+            return result if isinstance(result, dict) else None
+        except Exception:
+            logger.debug("Failed to build work-graph operation snapshot")
+            return None
+
     def _get_goal_ids_for_work(self, work_id: str) -> list[str]:
         """Get goal IDs linked to a work item via GoalAlignmentEngine."""
         if self.goal_alignment is None:
@@ -304,25 +328,54 @@ class WorkReadinessRuntime:
             logger.debug("Failed to get pending approvals for %s", work_id)
             return []
 
-    def _get_unresolved_deps(self, node: Any) -> list[str]:
-        """Get unresolved dependency IDs for a work node."""
+    def _get_unresolved_deps(
+        self, node: Any, snapshot: dict[str, Any] | None = None
+    ) -> list[str]:
+        """Get unresolved dependency IDs for a work node.
+
+        ``snapshot`` is the caller's operation-scoped WorkGraph view. When one
+        is supplied (batch paths like ``assess_all``), BOTH store reads below
+        resolve against it, so a pass over N nodes performs one collection
+        rather than N x (1 + deps) full-store parses. Without it the behavior is
+        unchanged: fresh reads per call, for independent callers.
+        """
         deps: list[str] = []
         if self.work_graph is None:
             return deps
         try:
-            dep_ids = self.work_graph.dependencies_of(
-                getattr(node, "node_id", "")
-            )
+            node_id = getattr(node, "node_id", "")
+            if snapshot is not None:
+                dep_ids = self.work_graph.dependencies_of(node_id, snapshot)
+            else:
+                dep_ids = self.work_graph.dependencies_of(node_id)
             if not isinstance(dep_ids, list):
                 return deps
             for dep_id in dep_ids:
                 dep_nodes = []
                 try:
-                    all_nodes = self.work_graph.all_work()
-                    dep_nodes = [
-                        n for n in (all_nodes or [])
-                        if getattr(n, "node_id", "") == dep_id
-                    ]
+                    if snapshot is not None:
+                        # Same immutable view — no second store read. The
+                        # comparison is deliberately IDENTICAL to the uncached
+                        # branch below (``node_id == dep_id``), including when
+                        # ``dep_id`` is a node object rather than a string:
+                        # ``dependencies_of`` returns WorkGraphNode objects, so
+                        # that equality is generally False for real nodes and
+                        # the dep falls through as unresolved. That is a
+                        # PRE-EXISTING behavior of this function and correcting
+                        # it is out of scope here — this cycle removes the
+                        # repeated store reads WITHOUT altering what the
+                        # function decides. Matching the original comparison
+                        # exactly is what makes the change semantics-preserving.
+                        dep_nodes = [
+                            n for n in snapshot.values()
+                            if getattr(n, "node_id", "") == dep_id
+                        ]
+                    else:
+                        all_nodes = self.work_graph.all_work()
+                        dep_nodes = [
+                            n for n in (all_nodes or [])
+                            if getattr(n, "node_id", "") == dep_id
+                        ]
                 except Exception:
                     pass
                 if dep_nodes:
@@ -356,8 +409,16 @@ class WorkReadinessRuntime:
         except Exception:
             return False
 
-    def _classify_node(self, node: Any) -> ReadinessAssessment:
-        """Classify a single work node's readiness."""
+    def _classify_node(
+        self, node: Any, snapshot: dict[str, Any] | None = None
+    ) -> ReadinessAssessment:
+        """Classify a single work node's readiness.
+
+        ``snapshot`` is the operation-scoped WorkGraph view owned by the calling
+        batch operation; it is threaded down to dependency resolution so the
+        whole pass sees ONE point-in-time state. Single-node callers omit it and
+        keep the original fresh-read behavior.
+        """
         node_id = getattr(node, "node_id", "")
         title = getattr(node, "description", "")
         status_str = getattr(node, "status", "")
@@ -405,7 +466,7 @@ class WorkReadinessRuntime:
             )
 
         # Check dependencies
-        unresolved_deps = self._get_unresolved_deps(node)
+        unresolved_deps = self._get_unresolved_deps(node, snapshot)
         if unresolved_deps:
             blocking_reasons.append(
                 f"{len(unresolved_deps)} unresolved dependencies"
@@ -508,8 +569,22 @@ class WorkReadinessRuntime:
         return self._classify_node(node)
 
     def assess_all(self) -> list[ReadinessAssessment]:
-        """Batch readiness assessment for all active work."""
+        """Batch readiness assessment for all active work.
+
+        Reads fresh persisted state at the START of the pass, then classifies
+        every node against that ONE immutable snapshot. This is
+        operation-scoped consistency, not caching: the snapshot is a local
+        owned by this frame, it is never stored on the instance, and it is
+        dropped when the call returns — a later call reads current state again
+        and observes anything committed since.
+
+        Before this, dependency resolution re-read every source store once per
+        node (and again per dependency), so a pass over N nodes performed
+        O(N^2) full-store parses. At ~1,100 packets over a 2.8 MB store that
+        does not terminate, which is what blocked whole-tree validation.
+        """
         nodes = self._get_work_nodes()
+        snapshot = self._operation_snapshot()
         results: list[ReadinessAssessment] = []
         for node in nodes:
             status_str = getattr(node, "status", "")
@@ -518,7 +593,7 @@ class WorkReadinessRuntime:
             if status_str in _TERMINAL:
                 continue
             try:
-                results.append(self._classify_node(node))
+                results.append(self._classify_node(node, snapshot))
             except Exception:
                 logger.debug(
                     "Failed to classify node %s",
