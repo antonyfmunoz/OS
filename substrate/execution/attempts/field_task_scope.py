@@ -49,6 +49,16 @@ import os
 from pathlib import Path
 from typing import Any
 
+
+class ScopeResolutionError(RuntimeError):
+    """A semantic Task or its path scope could not be resolved. Fail closed.
+
+    Defined BEFORE its first use: the accessors below reference it at module
+    scope, and a definition placed after them would raise ``NameError`` (masking
+    the real fail-closed error) if any accessor ran during module import.
+    """
+
+
 # ── the fixture's semantic Tasks ────────────────────────────────────────────
 # Keys are the SEMANTIC labels the harness reasons about; values are the plan
 # node titles the fixture plan uses. Titles are matched EXACTLY (casefolded and
@@ -230,10 +240,6 @@ def forbidden_paths_for(semantic_label: str) -> list[str]:
             if path not in mine and path not in others:
                 others.append(path)
     return others
-
-
-class ScopeResolutionError(RuntimeError):
-    """A semantic Task or its path scope could not be resolved. Fail closed."""
 
 
 # ── plan-node → packet lineage ──────────────────────────────────────────────

@@ -246,17 +246,16 @@ def _declared_lanes_json() -> str:
     def _lane(key: str, title: str, label: str, depends_on: list[str]) -> dict[str, Any]:
         allowed = list(FIXTURE_ALLOWED_PATHS[label])
         forbidden = forbidden_paths_for(label)
+        # The path boundaries are declared ONCE, as structured fields
+        # (``writable_path_scope`` / ``forbidden_path_scope``); the compiler
+        # renders them into worker-visible constraint lines. Restating them here
+        # as prose made each boundary reachable by two independent sources, so
+        # deleting either one left the other in place and the mutation survived
+        # — a boundary with a silent backup is a boundary nothing verifies.
         constraints = [
-            f"You may change ONLY these paths: {allowed}",
             "Implement ONLY this Task's slice — do NOT solve the complete objective.",
             FIXTURE_PRECEDENCE_NOTE,
         ]
-        if forbidden:
-            constraints.insert(
-                1,
-                "These paths belong to a DIFFERENT Task and are FORBIDDEN to you: "
-                f"{forbidden}",
-            )
         return {
             "lane_key": key,
             "title": title,

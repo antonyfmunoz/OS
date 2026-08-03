@@ -130,6 +130,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "ObjectivePlanRecord": ["substrate.execution.planning.records"],
     "ObjectivePlanNode": ["substrate.execution.planning.records"],
     "ObjectiveLane": ["substrate.execution.planning.records"],
+    "LaneDeclarationError": ["substrate.execution.planning.records"],
     "DecompositionMode": ["substrate.execution.planning.records"],
     "ObjectivePlanStatus": ["substrate.execution.planning.records"],
     "IntentAssessment": ["substrate.execution.planning.records"],

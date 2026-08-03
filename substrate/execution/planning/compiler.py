@@ -77,6 +77,44 @@ class PlanCompilationError(RuntimeError):
 # ── Caller-declared lane decomposition ───────────────────────────────────────
 
 
+def _declared_intent(raw: dict[str, Any]) -> str:
+    """This node's DECLARED intent, or "" when the lane declared none.
+
+    Kept as one accessor so the fallback decision is made in exactly one place:
+    a declared contract wins, an absent one falls back to title-derived text.
+    """
+    return str(raw.get("intent") or "").strip()
+
+
+_ALLOWED_PREFIX = "You may change ONLY these paths:"
+_FORBIDDEN_PREFIX = "These paths belong to a DIFFERENT Task and are FORBIDDEN to you:"
+
+
+def _node_constraints(raw: dict[str, Any]) -> list[str]:
+    """This node's worker-visible constraints, derived from its STRUCTURED scope.
+
+    The path boundaries have exactly ONE declared source — the node's
+    ``writable_path_scope`` and ``forbidden_path_scope`` — and this function is
+    the single place they become prose the worker reads. A caller that also
+    stated them as free text would give each boundary a silent backup: deleting
+    either source left the other standing, so no test could detect the loss.
+
+    The rendered lines lead, because a worker that stops reading early must
+    still have seen its boundaries; the caller's own constraints follow in
+    declared order. Deduplicated defensively so a legacy caller that still
+    states a boundary in prose does not produce it twice.
+    """
+    declared = [str(c) for c in (raw.get("constraints") or [])]
+    allowed = [str(p) for p in (raw.get("writable_path_scope") or [])]
+    forbidden = [str(p) for p in (raw.get("forbidden_path_scope") or [])]
+    rendered: list[str] = []
+    if allowed and not any(_ALLOWED_PREFIX in c for c in declared):
+        rendered.append(f"{_ALLOWED_PREFIX} " + ", ".join(allowed))
+    if forbidden and not any(_FORBIDDEN_PREFIX in c for c in declared):
+        rendered.append(f"{_FORBIDDEN_PREFIX} " + ", ".join(forbidden))
+    return rendered + declared
+
+
 def _lane_gaps(lanes: list[Any]) -> list[dict[str, Any]]:
     """Turn a caller's declared lanes into gaps with resolved dependencies.
 
@@ -178,6 +216,14 @@ def _lane_gaps(lanes: list[Any]) -> list[dict[str, Any]]:
                 "dependencies": [f"gap-lane-{d}" for d in lane.depends_on],
                 "writable_path_scope": [str(p) for p in lane.writable_path_scope],
                 "semantic_label": lane.semantic_label,
+                # The lane's declared task CONTRACT travels with its authority.
+                # Dropping these here left the correction dead: the lane
+                # declared them, this dict discarded them, and the compiler
+                # then rebuilt intent/end-state from the title (review F-1).
+                "intent": lane.intent,
+                "desired_end_state": lane.desired_end_state,
+                "constraints": [str(c) for c in (lane.constraints or [])],
+                "forbidden_path_scope": [str(p) for p in (lane.forbidden_path_scope or [])],
             }
         )
     return gaps
@@ -509,6 +555,12 @@ def compile_plan(
             writable_path_scope=[str(p) for p in (declared_scope or [])],
             scope_declared=declared_scope is not None,
             semantic_label=str(gap.get("semantic_label", "") or ""),
+            # Declared task contract (empty for derived/umbrella gaps, which
+            # carry no lane declaration — their behavior is unchanged).
+            intent=str(gap.get("intent", "") or ""),
+            desired_end_state=str(gap.get("desired_end_state", "") or ""),
+            constraints=[str(c) for c in (gap.get("constraints") or [])],
+            forbidden_path_scope=[str(p) for p in (gap.get("forbidden_path_scope") or [])],
         )
         packet_nodes.append(node)
 
@@ -685,8 +737,25 @@ def materialize_packets(
             # user_intent must be UNIQUE per node: UniversalWorkQueue dedupes
             # ingests by user_intent, and a shared objective text would
             # collapse a multi-Task plan into one packet (caught by test AJ).
-            user_intent=f"{raw.get('title', '')[:160]} — {plan.objective_text[:120]}",
-            desired_end_state=raw.get("title", ""),
+            # A DECLARED lane contract is the authority on what this Task is;
+            # the title-derived text is the fallback for lanes (and derived /
+            # umbrella gaps) that declare none. Previously the declared value
+            # was overwritten unconditionally, so the worker was handed a bare
+            # title and had to find its real spec in the shared OBJECTIVE.md —
+            # the w16 concurrency failure (review F-1, claim 3).
+            #
+            # user_intent stays UNIQUE per node either way: UniversalWorkQueue
+            # dedupes ingests by user_intent, and a shared objective text would
+            # collapse a multi-Task plan into one packet (test AJ). The declared
+            # intent is per-lane by construction; the node title is appended so
+            # two lanes that declare identical intent text still differ.
+            user_intent=(
+                f"{_declared_intent(raw)[:400]} [{raw.get('title', '')[:160]}]"
+                if _declared_intent(raw)
+                else f"{raw.get('title', '')[:160]} — {plan.objective_text[:120]}"
+            ),
+            desired_end_state=str(raw.get("desired_end_state") or "") or raw.get("title", ""),
+            constraints=_node_constraints(raw),
             intent_summary=f"{archetype.archetype_id} node of plan {plan.plan_record_id}",
             domain=archetype.archetype_id,
             source_type="objective_plan",

@@ -184,12 +184,35 @@ def _render_context_payload(payload: Any) -> str:
         for key, value in payload.items():
             if value in ("", None, [], {}):
                 continue
-            if isinstance(value, (list, tuple)):
-                value = "; ".join(str(v) for v in value if str(v))
-                if not value:
-                    continue
             label = str(key).replace("_", " ")
-            lines.append(f"- {label}: {value}")
+            if isinstance(value, (list, tuple)):
+                # A LIST is a list of separate obligations (constraints, the
+                # precedence order). Joining with "; " collapsed an ordered,
+                # multi-clause contract into one run-on line, where a numbered
+                # precedence rule stops reading as an order and the last
+                # constraint hides mid-sentence (review F-5). Render one bullet
+                # per item and keep their declared order.
+                items = [str(v).strip() for v in value if str(v).strip()]
+                if not items:
+                    continue
+                lines.append(f"- {label}:")
+                for item in items:
+                    # An item may itself be multi-line (a task contract or the
+                    # precedence note). Indent every line so the block stays
+                    # visually subordinate to its bullet instead of dedenting
+                    # back to the top level and reading as a new section.
+                    first, *rest = item.split("\n")
+                    lines.append(f"  - {first}")
+                    lines.extend(f"    {line}" if line.strip() else "" for line in rest)
+                continue
+            text = str(value)
+            if "\n" in text:
+                # Same reason for a multi-line scalar: preserve its structure
+                # rather than letting it collapse onto the label line.
+                lines.append(f"- {label}:")
+                lines.extend(f"  {line}" if line.strip() else "" for line in text.split("\n"))
+                continue
+            lines.append(f"- {label}: {text}")
         return "\n".join(lines)
     text = str(payload).strip()
     return text if text else ""

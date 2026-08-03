@@ -33,6 +33,37 @@ def _from_dict(cls: type, d: dict[str, Any]) -> Any:
     return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
+class LaneDeclarationError(ValueError):
+    """A declared lane carries a key this record cannot represent.
+
+    Raised INSTEAD of silently dropping it. ``_from_dict`` filters unknown keys
+    by design — harmless for records rebuilt from their own ``to_dict()``, but
+    catastrophic for a CALLER-AUTHORED lane: a task contract declared as
+    ``intent``/``constraints`` was accepted without error and then discarded
+    before any worker saw it, so the correction was dead code that still passed
+    its own tests (independent review F-1). A caller-authored shape must fail
+    CLOSED on a key it cannot carry — a misspelled ``constraint`` must be a
+    loud error, never a silently unenforced boundary.
+    """
+
+
+def _from_dict_strict(cls: type, d: dict[str, Any]) -> Any:
+    """``_from_dict`` for CALLER-AUTHORED shapes: unknown keys raise.
+
+    Used only where a value crosses from outside the planning runtime into it.
+    Records rebuilt from their own serialization keep the lenient path so a
+    forward-compatible reread of a newer on-disk record still loads.
+    """
+    unknown = sorted(set(d) - set(cls.__dataclass_fields__))
+    if unknown:
+        raise LaneDeclarationError(
+            f"{cls.__name__} cannot carry declared key(s) {unknown} — "
+            f"known keys: {sorted(cls.__dataclass_fields__)}. A declared "
+            "boundary that cannot be carried must fail closed, not vanish."
+        )
+    return cls(**dict(d))
+
+
 # ── Intent assessment ────────────────────────────────────────────────────────
 
 
@@ -295,6 +326,16 @@ class ObjectivePlanNode:
     # diagnostics. NEVER used to derive authority — the persisted
     # writable_path_scope is the only mutation authority.
     semantic_label: str = ""
+    # ── Declared task contract, carried from the lane (empty = legacy) ───────
+    # Planning-time owner of the node's INSTRUCTION content, mirroring how
+    # writable_path_scope is the planning-time owner of its AUTHORITY. The
+    # compiler seeds these onto the materialized WorkPacket's canonical
+    # user_intent / desired_end_state / constraints fields. Empty preserves the
+    # pre-correction title-derived behavior exactly.
+    intent: str = ""
+    desired_end_state: str = ""
+    constraints: list[str] = field(default_factory=list)
+    forbidden_path_scope: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -362,13 +403,40 @@ class ObjectiveLane:
     # the independent-verification lane). Carried onto the node for read
     # surfaces and the verifier contract; never used to DERIVE authority.
     semantic_label: str = ""
+    # ── Task contract (optional; empty = legacy lane, behavior unchanged) ────
+    # The lane's own INSTRUCTION content, as distinct from its AUTHORITY
+    # (``writable_path_scope``). Declaring the right paths is not enough: the
+    # w16 field failure had correct scopes on both lanes and still refused both
+    # workers, because the only substantive spec either could find was the
+    # fixture's single all-tasks OBJECTIVE.md, so BOTH implemented the WHOLE
+    # objective and BOTH were correctly refused on ``diff_scope``.
+    #
+    # These are DECLARED by the runtime that owns the workspace — the same seam
+    # that declares writable paths — and are never inferred from titles or
+    # diffs. Empty values are legal and preserve pre-correction behavior
+    # exactly (the compiler falls back to title-derived text only when the lane
+    # declares nothing).
+    intent: str = ""
+    desired_end_state: str = ""
+    constraints: list[str] = field(default_factory=list)
+    # Paths this lane must NOT touch. DISTINCT from writable_path_scope: that
+    # is the enforced grant, this is the explicit prohibition the worker is
+    # shown. Never used to derive authority — verification enforces the
+    # writable scope, exactly as before.
+    forbidden_path_scope: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ObjectiveLane:
-        return _from_dict(cls, d)
+        """Build a lane from a CALLER-AUTHORED dict — unknown keys fail closed.
+
+        Strict by design: a lane is the one shape in this module authored
+        OUTSIDE the planning runtime, so a key it cannot carry is a caller
+        error, not forward compatibility. See ``LaneDeclarationError``.
+        """
+        return _from_dict_strict(cls, d)
 
 
 @dataclass
