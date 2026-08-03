@@ -219,45 +219,71 @@ def _declared_lanes_json() -> str:
                                                 ├→ C → D
                                              B ─┘
     Setting this env var also arms the runner's pre-quota graph-shape gate.
+
+    Each lane also carries its own SELF-SUFFICIENT contract (``intent``,
+    ``desired_end_state``, ``constraints``). Field run 20260803T002300Z-p1 proved
+    a title alone is not enough: the lanes carried only a short title, so the
+    only substantive spec a worker could find was the fixture repo's
+    ``OBJECTIVE.md`` -- one document holding ALL FOUR task contracts. Both
+    workers read it, implemented the whole objective, changed the same six
+    files, and were correctly refused with ``diff_scope``. Binding the contract
+    to the lane (and declaring the global objective subordinate) is what keeps
+    each worker inside its authorized surface.
     """
     sys.path.insert(0, str(_WORKTREE))
     from substrate.execution.attempts.field_task_scope import (
         BACKEND,
         FIXTURE_ALLOWED_PATHS,
+        FIXTURE_PRECEDENCE_NOTE,
         FRONTEND,
         INTEGRATION,
         VERIFICATION,
+        forbidden_paths_for,
+        task_contract_for,
+        task_intent_for,
     )
 
+    def _lane(key: str, title: str, label: str, depends_on: list[str]) -> dict[str, Any]:
+        allowed = list(FIXTURE_ALLOWED_PATHS[label])
+        forbidden = forbidden_paths_for(label)
+        constraints = [
+            f"You may change ONLY these paths: {allowed}",
+            "Implement ONLY this Task's slice — do NOT solve the complete objective.",
+            FIXTURE_PRECEDENCE_NOTE,
+        ]
+        if forbidden:
+            constraints.insert(
+                1,
+                "These paths belong to a DIFFERENT Task and are FORBIDDEN to you: "
+                f"{forbidden}",
+            )
+        return {
+            "lane_key": key,
+            "title": title,
+            "intent": task_intent_for(label),
+            "desired_end_state": task_contract_for(label),
+            "constraints": constraints,
+            "writable_path_scope": allowed,
+            "forbidden_path_scope": forbidden,
+            "depends_on": depends_on,
+            "semantic_label": label,
+        }
+
     lanes = [
-        {
-            "lane_key": "backend",
-            "title": "Add the note-search backend endpoint",
-            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[BACKEND]),
-            "depends_on": [],
-            "semantic_label": BACKEND,
-        },
-        {
-            "lane_key": "frontend",
-            "title": "Add the note-search frontend UI",
-            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[FRONTEND]),
-            "depends_on": [],
-            "semantic_label": FRONTEND,
-        },
-        {
-            "lane_key": "integration",
-            "title": "Integrate and reconcile the search branches",
-            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[INTEGRATION]),
-            "depends_on": ["backend", "frontend"],
-            "semantic_label": INTEGRATION,
-        },
-        {
-            "lane_key": "verification",
-            "title": "Independently verify note search",
-            "writable_path_scope": list(FIXTURE_ALLOWED_PATHS[VERIFICATION]),
-            "depends_on": ["integration"],
-            "semantic_label": VERIFICATION,
-        },
+        _lane("backend", "Add the note-search backend endpoint", BACKEND, []),
+        _lane("frontend", "Add the note-search frontend UI", FRONTEND, []),
+        _lane(
+            "integration",
+            "Integrate and reconcile the search branches",
+            INTEGRATION,
+            ["backend", "frontend"],
+        ),
+        _lane(
+            "verification",
+            "Independently verify note search",
+            VERIFICATION,
+            ["integration"],
+        ),
     ]
     return json.dumps(lanes)
 

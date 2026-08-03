@@ -98,6 +98,140 @@ FIXTURE_ALLOWED_PATHS: dict[str, list[str]] = {
 }
 
 
+# ── Task-LOCAL instruction contracts ─────────────────────────────────────────
+#
+# Field run 20260803T002300Z-p1 failed at ``w16_ab_running_concurrent``: BOTH
+# workers changed the SAME six files (the complete objective) and BOTH were
+# correctly refused with ``diff_scope``. The scopes above were already declared
+# correctly and ``render_prompt`` already named them — the defect was the task
+# CONTENT the worker received.
+#
+# Each lane carried only a short TITLE ("Add the note-search backend endpoint"),
+# so the only substantive specification available to the worker was the fixture
+# repo's ``OBJECTIVE.md`` — a single document containing the full contracts for
+# Tasks A, B, C AND D. A narrow title cannot compete with a detailed four-task
+# spec sitting in the working tree, so each worker read all four contracts and
+# implemented the whole objective.
+#
+# The correction is to give each Task its own COMPLETE, self-sufficient contract
+# and to state precedence explicitly, so the worker never has to infer its slice
+# from file names, titles, repo structure, another Task, or the global objective.
+# Nothing about scheduler, grant, WorkPacket, verification, diff-scope, retry, or
+# Proof semantics changes — this is instruction content only.
+FIXTURE_TASK_INTENT: dict[str, str] = {
+    BACKEND: (
+        "Implement the note-search BACKEND endpoint ONLY. This Task is the "
+        "backend slice of a larger objective; another Task owns the frontend and "
+        "is being implemented CONCURRENTLY by a different worker."
+    ),
+    FRONTEND: (
+        "Implement the note-search FRONTEND UI ONLY. This Task is the frontend "
+        "slice of a larger objective; another Task owns the backend endpoint and "
+        "is being implemented CONCURRENTLY by a different worker."
+    ),
+    INTEGRATION: (
+        "Reconcile the already-verified backend and frontend branches. Do not "
+        "re-implement either slice; both are complete and verified."
+    ),
+    VERIFICATION: (
+        "Independently verify the integrated result. You are a VERIFIER, not an "
+        "implementer. Produce ZERO file changes."
+    ),
+}
+
+# The exact, self-sufficient contract for each Task. Written so a worker can
+# complete its slice WITHOUT reading OBJECTIVE.md — the necessary context is
+# here, so subordinating the global objective hides nothing the worker needs.
+FIXTURE_TASK_CONTRACT: dict[str, str] = {
+    BACKEND: (
+        "Implement `GET /api/notes/search?q=<str>` in `app/main.py` (helper logic "
+        "may go in `app/store.py`):\n"
+        "- case-insensitive substring match over each note's `title` AND `body`;\n"
+        '- response JSON: `{"query": "<q>", "results": [<note>, ...]}` where each '
+        "note is the full `{id, title, body}` object;\n"
+        "- an empty or missing `q` returns HTTP 400.\n"
+        "Add tests in `tests/test_search_api.py`.\n"
+        "Do NOT create or edit any frontend file. Do NOT touch `app/static/` or "
+        "`tests/test_ui_search.py` — another Task owns them. Do NOT implement the "
+        "search box, the UI, or the end-to-end integration."
+    ),
+    FRONTEND: (
+        "Add to `app/static/index.html`:\n"
+        '- a search input with `data-testid="note-search-input"`;\n'
+        '- a results list with `data-testid="note-search-results"`.\n'
+        "Wire `app/static/app.js` to call `GET /api/notes/search?q=<value>` on "
+        "input and render the results. The backend endpoint is being implemented "
+        "concurrently by another Task — code against this contract, do NOT wait "
+        "for it and do NOT implement it yourself.\n"
+        "Add `tests/test_ui_search.py` asserting the served HTML contains BOTH "
+        "testids (this test must NOT require the backend endpoint to exist).\n"
+        "Do NOT create or edit any backend file. Do NOT touch `app/main.py`, "
+        "`app/store.py`, or `tests/test_search_api.py` — another Task owns them."
+    ),
+    INTEGRATION: (
+        "Reconcile the backend and frontend branches into one integration branch, "
+        "resolve any conflicts, and make the FULL test suite pass (base + backend "
+        "tests + frontend tests). Do NOT re-implement either slice."
+    ),
+    VERIFICATION: (
+        "Validate the API contract, the served UI testids, the live browser check, "
+        "and the source diff scope, then produce Proof. Inspect and report ONLY: "
+        "you must not create, edit, or delete any file."
+    ),
+}
+
+# Precedence, rendered into every generated package. Lower-priority material may
+# never authorize a broader edit than the WorkPacket allows.
+FIXTURE_PRECEDENCE_NOTE: str = (
+    "## Authorization Precedence (binding)\n"
+    "1. The grant and WorkPacket authorization for THIS Task.\n"
+    "2. This Task's instructions and its declared writable file scope.\n"
+    "3. Shared architectural context.\n"
+    "4. `OBJECTIVE.md` and any other repository document — INFORMATIONAL ONLY.\n"
+    "\n"
+    "`OBJECTIVE.md` in this repository describes the COMPLETE multi-task "
+    "objective, including contracts owned by OTHER Tasks being executed "
+    "concurrently by other workers. It is background context and it does NOT "
+    "authorize you to widen your change surface. It cannot grant permission to "
+    "edit a file outside your declared writable scope.\n"
+    "\n"
+    "Implement ONLY your Task's slice. Do NOT solve the complete objective. If "
+    "completing your slice appears to require editing a file outside your "
+    "declared writable scope, STOP and report that instead of editing it — an "
+    "out-of-scope edit fails verification and wastes the attempt."
+)
+
+
+def task_intent_for(semantic_label: str) -> str:
+    """Task-local intent line for one semantic Task. Fail closed on unknown."""
+    if semantic_label not in FIXTURE_TASK_INTENT:
+        raise ScopeResolutionError(f"no task intent for semantic label {semantic_label!r}")
+    return FIXTURE_TASK_INTENT[semantic_label]
+
+
+def task_contract_for(semantic_label: str) -> str:
+    """Self-sufficient contract text for one semantic Task. Fail closed."""
+    if semantic_label not in FIXTURE_TASK_CONTRACT:
+        raise ScopeResolutionError(f"no task contract for semantic label {semantic_label!r}")
+    return FIXTURE_TASK_CONTRACT[semantic_label]
+
+
+def forbidden_paths_for(semantic_label: str) -> list[str]:
+    """Paths owned by OTHER Tasks — named explicitly so the boundary is stated,
+    never inferred from file names or repository structure."""
+    if semantic_label not in FIXTURE_ALLOWED_PATHS:
+        raise ScopeResolutionError(f"no path scope for semantic label {semantic_label!r}")
+    mine = set(FIXTURE_ALLOWED_PATHS[semantic_label])
+    others: list[str] = []
+    for label in (BACKEND, FRONTEND):
+        if label == semantic_label:
+            continue
+        for path in FIXTURE_ALLOWED_PATHS[label]:
+            if path not in mine and path not in others:
+                others.append(path)
+    return others
+
+
 class ScopeResolutionError(RuntimeError):
     """A semantic Task or its path scope could not be resolved. Fail closed."""
 
