@@ -430,6 +430,34 @@ class FieldControlPlaneDriver:
                     max_turns=int(getattr(attempt, "max_turns", 30) or 30),
                     timeout_seconds=int(getattr(attempt, "timeout_seconds", 600) or 600),
                     payload_hash=getattr(package, "package_hash", ""),
+                    # ── CANONICAL AUTHORITY ACROSS THE TRANSPORT (finding F-2) ──
+                    # `package` here IS the sealed ModelExecutionPackage from
+                    # compile_attempt_package — it already carries the Task's
+                    # `writable_path_scope=` constraint, sealed under
+                    # package_hash. It was in scope all along and never read:
+                    # the runner rebuilt a stand-in on the far side, so the
+                    # scope died in transit and the launcher fail-closed on
+                    # every real dispatch. Carrying these fields is what makes
+                    # the proven barrier reachable in the shipped path.
+                    #
+                    # These are covered by the envelope HMAC (signable() uses
+                    # asdict), so a scope cannot be widened in transit, and the
+                    # worker — which never holds the secret — cannot forge one.
+                    governance_constraints=[
+                        str(c) for c in (getattr(package, "governance_constraints", []) or [])
+                    ],
+                    role_instructions=str(getattr(package, "role_instructions", "") or ""),
+                    operation_instructions=str(
+                        getattr(package, "operation_instructions", "") or ""
+                    ),
+                    ordered_context=[
+                        c for c in (getattr(package, "ordered_context", []) or [])
+                        if isinstance(c, dict)
+                    ],
+                    operation_identity=dict(getattr(package, "operation_identity", {}) or {}),
+                    verification_requirements=[
+                        str(v) for v in (getattr(package, "verification_requirements", []) or [])
+                    ],
                 )
             )
 

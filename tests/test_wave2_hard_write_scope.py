@@ -84,9 +84,16 @@ def _worktree() -> str:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(body)
-    os.makedirs(os.path.join(root, ".git", "refs"), exist_ok=True)
+    # A realistic .git: the barrier is computed from paths that EXIST, so a
+    # fixture missing `hooks/` cannot prove hooks are locked — and hooks are the
+    # highest-value surface (executable code git runs on the worker's behalf).
+    os.makedirs(os.path.join(root, ".git", "refs", "heads"), exist_ok=True)
+    os.makedirs(os.path.join(root, ".git", "hooks"), exist_ok=True)
+    os.makedirs(os.path.join(root, ".git", "objects"), exist_ok=True)
     with open(os.path.join(root, ".git", "config"), "w", encoding="utf-8") as fh:
         fh.write("[core]\n")
+    with open(os.path.join(root, ".git", "HEAD"), "w", encoding="utf-8") as fh:
+        fh.write("ref: refs/heads/main\n")
     return root
 
 
@@ -334,34 +341,84 @@ class _Recorder:
         return SimpleNamespace(returncode=0, stdout="{}", stderr="")
 
 
+def _git(root: str, *args: str):
+    """Run a real git command in ``root`` (tests use REAL git, never a stub)."""
+    return subprocess.run(
+        ["git", *args], cwd=root, capture_output=True, text=True, timeout=60
+    )
+
+
+def _git_worktree(root: str) -> str:
+    """Make ``root`` a REAL git repo with one base commit; return the base sha.
+
+    Finding F-4. The launcher harness used to stub ``make_lease_selfcontained``
+    and ``_capture_git`` and hand it a ``SimpleNamespace`` package — a shape
+    production never constructs — so the suite proved the launcher works on
+    input the field cannot produce and never exercised the git lifecycle at all.
+    That is the same stand-in-bypass class as the earlier defect, moved from the
+    object level down to the data level. These tests now use a real repository
+    and the real git functions.
+    """
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "test@umh.local")
+    _git(root, "config", "user.name", "test")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "fixture base")
+    return _git(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def _canonical_package(scope_constraint: str | None, *, task_id: str = "wp-backend"):
+    """A package built the way the SHIPPED path builds it.
+
+    Mirrors what ``compile_attempt_package`` seals and what the runner
+    reconstructs from the signed envelope: the same attribute set, in particular
+    ``governance_constraints`` carrying ``writable_path_scope=``.
+    """
+    constraints = [] if scope_constraint is None else [scope_constraint]
+    return SimpleNamespace(
+        operation_identity={"task_id": task_id},
+        ordered_context=[{"section": "context_frame", "payload": {"intent": "BACKEND ONLY"}}],
+        governance_constraints=constraints,
+        role_instructions="",
+        operation_instructions="",
+        verification_requirements=[],
+    )
+
+
 def _drive_launcher(monkeypatch, root: str, scope_constraint: str | None):
-    """Run the SHIPPED run_worker_in_lease with the CLI replaced by a recorder."""
+    """Run the SHIPPED run_worker_in_lease against a REAL git lease.
+
+    Only the model CLI itself is replaced (by a recorder that captures the argv
+    the launcher builds). Git self-containment, the trusted projection commit,
+    the attempt git capability, bind computation and artifact capture are all
+    production code running for real.
+    """
     import substrate.execution.attempts.worker_claude_cli as wcl
 
     rec = _Recorder()
     monkeypatch.setattr(wcl, "_resolve_cli_path", lambda: "/bin/true")
-    monkeypatch.setattr(wcl, "make_lease_selfcontained", lambda _p: None)
-    monkeypatch.setattr(wcl, "_capture_git", lambda *_a, **_k: ([], [], ""))
     # run_worker_in_lease imports gated_subprocess_run INSIDE the function, so
     # the patch must land on the source module, not on a module-level alias.
+    # NOTE: the recorder must let REAL git run — the launcher performs genuine
+    # git work (rev-parse/add/commit) through this same gate. Only the model CLI
+    # invocation is captured; everything else is delegated to the real function.
     import substrate.execution.cpu_gate as _cg
 
-    monkeypatch.setattr(_cg, "gated_subprocess_run", rec)
-    constraints = [] if scope_constraint is None else [scope_constraint]
-    package = SimpleNamespace(
-        operation_identity={"task_id": "wp-backend"},
-        ordered_context=[
-            {"section": "context_frame", "payload": {"intent": "BACKEND ONLY"}}
-        ],
-        governance_constraints=constraints,
-        role_instructions="",
-        operation_instructions="",
-    )
-    lease = SimpleNamespace(
-        worktree_path=root, base_commit="HEAD~1", snapshot_ref="HEAD~1"
-    )
+    real_gated = _cg.gated_subprocess_run
+
+    def _dispatch(cmd, **kwargs):
+        if cmd and str(cmd[0]).endswith("bwrap"):
+            return rec(cmd, **kwargs)
+        return real_gated(cmd, **kwargs)
+
+    monkeypatch.setattr(_cg, "gated_subprocess_run", _dispatch)
+    base = _git_worktree(root)
+    lease = SimpleNamespace(worktree_path=root, base_commit=base, snapshot_ref=base)
     result = wcl.run_worker_in_lease(
-        package=package, lease=lease, attempt_id="ea-test", run_root=tempfile.mkdtemp()
+        package=_canonical_package(scope_constraint),
+        lease=lease,
+        attempt_id="ea-test",
+        run_root=tempfile.mkdtemp(),
     )
     return rec, result
 
@@ -377,10 +434,24 @@ def test_launcher_applies_readonly_binds_for_the_declared_scope(monkeypatch):
     ro_targets = {
         rec.cmd[i + 1] for i, a in enumerate(rec.cmd) if a == "--ro-bind" and i + 1 < len(rec.cmd)
     }
-    for forbidden in ("app/static", "tests/test_ui_search.py", ".git"):
+    # Forbidden SOURCE paths, plus each git AUTHORITY surface individually.
+    # `.git` as a whole is deliberately NOT locked (finding F-1): a read-only
+    # `.git` makes `index.lock` uncreatable, so `git add` fails with rc=128 and
+    # no worker can ever commit. Its dangerous subpaths are locked instead.
+    for forbidden in (
+        "app/static",
+        "tests/test_ui_search.py",
+        ".git/hooks",
+        ".git/config",
+        ".git/refs",
+        ".git/HEAD",
+    ):
         assert os.path.join(root, forbidden) in ro_targets, (
             f"launcher must re-bind {forbidden} read-only"
         )
+    assert os.path.join(root, ".git") not in ro_targets, (
+        ".git must NOT be locked wholesale — that is what made commits impossible"
+    )
     for allowed in FIXTURE_ALLOWED_PATHS[BACKEND]:
         assert os.path.join(root, allowed) not in ro_targets
 
@@ -445,8 +516,13 @@ def test_launcher_zero_write_scope_locks_every_source_path(monkeypatch):
     ro_targets = {
         rec.cmd[i + 1] for i, a in enumerate(rec.cmd) if a == "--ro-bind" and i + 1 < len(rec.cmd)
     }
-    for rel in ("app", "tests", "OBJECTIVE.md", ".git"):
+    for rel in ("app", "tests", "OBJECTIVE.md", ".git/hooks", ".git/config", ".git/refs"):
         assert os.path.join(root, rel) in ro_targets, f"zero-write lane must lock {rel}"
+    # Even the zero-write (verifier) lane keeps `.git` itself bindable, because
+    # the verifier still runs git READ commands and a wholesale lock is what
+    # broke commits for the implementer lanes (F-1). Authority surfaces above
+    # are locked individually in every lane.
+    assert os.path.join(root, ".git") not in ro_targets
 
 
 def test_launcher_refuses_when_bind_resolution_fails(monkeypatch):
@@ -517,7 +593,17 @@ def test_readonly_binds_cover_every_unauthorized_existing_path():
     assert "app/static" in rel, "the frontend directory must be read-only"
     assert "tests/test_ui_search.py" in rel
     assert "OBJECTIVE.md" in rel
-    assert ".git" in rel, ".git is an authorization surface, never task content"
+    # ONE call returns the COMPLETE barrier — forbidden source paths AND the git
+    # authority surfaces. It was briefly two functions, and a test that called
+    # only this one let `echo H > .git/config` succeed; completeness is now the
+    # default so a caller cannot obtain a partial barrier by forgetting a step.
+    assert ".git/hooks" in rel, "hooks are executable code run on the worker's behalf"
+    assert ".git/config" in rel, "core.hooksPath in config redirects hook execution"
+    assert ".git/refs" in rel, "the ref namespace is an authorization surface"
+    assert ".git" not in rel, (
+        ".git must NOT be locked wholesale — index.lock lives inside it, so a "
+        "read-only .git makes `git add` impossible and no worker can commit (F-1)"
+    )
     for allowed in FIXTURE_ALLOWED_PATHS[BACKEND]:
         assert allowed not in rel, f"{allowed} is authorized and must stay writable"
 

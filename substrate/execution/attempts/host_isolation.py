@@ -64,6 +64,18 @@ class IsolationProfile:
     # allow rename-over, delete-and-recreate, or parent-directory replacement.
     # An out-of-scope write fails with EROFS/EBUSY *before* the target changes.
     readonly_subpaths: list[str] = field(default_factory=list)
+    # Paths re-opened WRITABLE on top of the read-only layer above (finding F-1).
+    # The only member today is the attempt's private git ref namespace
+    # (`.git/refs/attempt/<attempt_id>/`): `.git/refs` as a whole is read-only,
+    # so a worker cannot touch `refs/heads`, a sibling attempt's ref, or
+    # `packed-refs` — but it CAN create its own ref plus the `.lock` file git
+    # requires beside it, which is what makes `git commit` possible at all.
+    #
+    # Ordering is load-bearing: these are applied LAST because bwrap resolves
+    # binds left-to-right and the final bind on a path wins. Applying them before
+    # readonly_subpaths would let `--ro-bind .git/refs` mask the attempt's own
+    # namespace and break commits again.
+    writable_subpaths: list[str] = field(default_factory=list)
     # True when readonly_subpaths was derived from a real declared scope. A
     # profile built without a scope must never silently run unconstrained.
     scope_enforced: bool = False
@@ -127,6 +139,12 @@ def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list
     # rather than running with a forbidden path silently left writable.
     for ro_sub in profile.readonly_subpaths:
         cmd += ["--ro-bind", ro_sub, ro_sub]
+    # RE-OPEN the narrow writable exceptions LAST so they win over the read-only
+    # layer above (finding F-1). `--bind` (not `--bind-try`): if the attempt's
+    # own ref namespace cannot be bound, bwrap must abort rather than start a
+    # worker that will fail every commit for an invisible reason.
+    for rw_sub in profile.writable_subpaths:
+        cmd += ["--bind", rw_sub, rw_sub]
     # This attempt's PRIVATE home only. Binding the parent `worker-homes/` dir
     # would make every sibling attempt's credential enumerable from inside the
     # sandbox — bind the single home, never its parent (R1 / SEC-C2).

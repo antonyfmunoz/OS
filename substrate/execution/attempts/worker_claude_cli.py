@@ -26,6 +26,7 @@ from substrate.execution.attempts.host_isolation import (
 )
 from substrate.execution.attempts.field_task_scope import (
     ScopeResolutionError,
+    prepare_attempt_git_capability,
     readonly_binds_for_scope,
 )
 from substrate.execution.attempts.worker_credential_boundary import (
@@ -134,6 +135,17 @@ _GLOBAL_OBJECTIVE = "OBJECTIVE.md"
 _SHARED_CONTEXT = "SHARED_CONTEXT.md"
 
 
+class LeaseGitError(RuntimeError):
+    """The lease worktree's git state could not be prepared.
+
+    Defined ABOVE its first use (``_commit_trusted_projection``). Python resolves
+    the name at call time, so a later definition would still work — but the same
+    shape (an exception class declared after the function that raises it) already
+    produced one real defect in this module, and reading order should not depend
+    on knowing that rule.
+    """
+
+
 def project_task_local_objective(package: Any, worktree_path: str) -> dict[str, Any]:
     """Replace the all-Tasks objective in the lease with THIS Task's contract.
 
@@ -195,6 +207,71 @@ def project_task_local_objective(package: Any, worktree_path: str) -> dict[str, 
         logger.warning("task-local objective projection failed: %s", exc)
         result["error"] = str(exc)
         return result
+
+
+# Files the TRUSTED phase owns. The worker is never authorized to write these
+# (they are outside every Task's writable scope and mounted read-only), and the
+# verifier must not attribute them to the worker.
+TRUSTED_PROJECTION_PATHS = (_GLOBAL_OBJECTIVE, _SHARED_CONTEXT)
+
+
+def _commit_trusted_projection(worktree_path: str, base_commit: str, projection: dict) -> str:
+    """Commit the trusted projection and return the attempt's NEW base commit.
+
+    Finding F-3. The projection is a SYSTEM write, not a worker write, but it
+    landed in the working tree while the attempt was still anchored at the
+    fixture base — so `git diff <base>..HEAD` reported OBJECTIVE.md and
+    SHARED_CONTEXT.md as worker output and the verifier rejected the attempt for
+    an out-of-scope diff. Measured directly: with the worker writing nothing at
+    all, `git status` showed `M OBJECTIVE.md` + `?? SHARED_CONTEXT.md`.
+
+    Committing the projection in the trusted phase and re-anchoring the attempt
+    to that commit makes the two authorities causally separate: the system write
+    becomes an ANCESTOR of the worker's base, so it cannot appear in the worker's
+    diff, cannot be credited to the worker, and (being read-only in phase 2)
+    cannot be silently altered by it.
+
+    Only the projection's own paths are staged — never `git add -A`, which would
+    sweep unrelated tree state into a trusted, worker-attributed-free commit.
+    """
+    from substrate.execution.cpu_gate import gated_subprocess_run
+
+    if not projection.get("projected"):
+        return base_commit
+
+    def _git(args: list[str], *, check: bool = True):
+        r = gated_subprocess_run(
+            ["git", *args], caller="trusted_projection", timeout=60, cwd=worktree_path
+        )
+        if r is None:
+            raise LeaseGitError("git refused by CPU gate while committing trusted projection")
+        if check and r.returncode != 0:
+            raise LeaseGitError(f"git {' '.join(args)} failed: {r.stderr}")
+        return r
+
+    staged = [p for p in TRUSTED_PROJECTION_PATHS if os.path.exists(os.path.join(worktree_path, p))]
+    if not staged:
+        return base_commit
+    _git(["add", "--", *staged])
+    # Nothing to commit (identical projection on a retry) is success, not failure.
+    if _git(["diff", "--cached", "--quiet"], check=False).returncode == 0:
+        return base_commit
+    _git(
+        [
+            "-c",
+            "user.email=system@umh.local",
+            "-c",
+            "user.name=UMH trusted phase",
+            "commit",
+            "-q",
+            "-m",
+            "trusted: task-local objective projection (system write, not worker output)",
+        ]
+    )
+    new_base = (_git(["rev-parse", "HEAD"]).stdout or "").strip()
+    if not new_base:
+        raise LeaseGitError("trusted projection commit produced no resolvable HEAD")
+    return new_base
 
 
 def _render_task_local_objective(package: Any) -> str:
@@ -351,10 +428,6 @@ def _render_context_payload(payload: Any) -> str:
         return "\n".join(lines)
     text = str(payload).strip()
     return text if text else ""
-
-
-class LeaseGitError(RuntimeError):
-    """The lease worktree could not be made a self-contained git repo."""
 
 
 def make_lease_selfcontained(worktree_path: str) -> None:
@@ -545,12 +618,39 @@ def run_worker_in_lease(
     # are computed (it rewrites OBJECTIVE.md, which is outside every Task's
     # writable scope and therefore about to become read-only). Fail closed: a
     # worker must never run against the all-Tasks objective.
+    # PHASE 1 — TRUSTED SYSTEM PHASE (finding F-3). This runs in the ORCHESTRATOR
+    # process, BEFORE the worker sandbox exists, and its writes are committed and
+    # made the attempt's new base. Previously the projection wrote OBJECTIVE.md +
+    # SHARED_CONTEXT.md into the tree while the attempt stayed anchored at the
+    # fixture base, so those two system files sat inside `<base>..HEAD` and the
+    # verifier rejected the attempt for an out-of-scope diff — even when the
+    # worker wrote nothing at all.
+    #
+    # Committing them and re-anchoring separates the two authorities cleanly:
+    # system bookkeeping is an ANCESTOR of the worker's base, so it can never be
+    # attributed to the worker, and the worker can never silently alter it (the
+    # files are outside its writable scope and mounted read-only in phase 2).
     projection = project_task_local_objective(package, worktree_path)
     if not projection.get("ok"):
         _close_home_or_fail(attempt_home)
         return WorkerResult(
             error=f"task-local objective projection failed: {projection.get('error', 'unknown')}"
         )
+    try:
+        base_commit = _commit_trusted_projection(worktree_path, base_commit, projection)
+    except LeaseGitError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"trusted projection could not be committed: {exc}")
+
+    # GIT COMMIT CAPABILITY (finding F-1). Give this attempt a PRIVATE ref
+    # namespace it alone may write, so `git add`/`git commit` work while every
+    # shared git authority surface stays read-only. Without this the barrier made
+    # `.git` wholly read-only and no worker could commit at all.
+    try:
+        attempt_ref_dir = prepare_attempt_git_capability(worktree_path, attempt_id)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"attempt git capability unavailable: {exc}")
 
     try:
         declared_scope = _sealed_writable_scope(package)
@@ -567,6 +667,10 @@ def run_worker_in_lease(
             "a worker whose write authority cannot be enforced"
         )
     try:
+        # Returns the COMPLETE barrier: unauthorized source paths AND the git
+        # authority surfaces (hooks/config/HEAD/refs/packed-refs/...). One call,
+        # one canonical answer — see the note in readonly_binds_for_scope on why
+        # this is not two functions.
         readonly_subpaths = readonly_binds_for_scope(declared_scope, lease_root=worktree_path)
     except ScopeResolutionError as exc:
         _close_home_or_fail(attempt_home)
@@ -578,6 +682,10 @@ def run_worker_in_lease(
         tmp_path=attempt_home.tmp_path,
         env_overrides=attempt_home.env_overrides(),
         readonly_subpaths=readonly_subpaths,
+        # Re-opened AFTER every read-only bind (bwrap applies left-to-right, so
+        # the last bind on a path wins). This is the ONE writable ref location:
+        # the attempt's own namespace. `refs` as a whole is read-only above.
+        writable_subpaths=[attempt_ref_dir],
         scope_enforced=True,
     )
     try:

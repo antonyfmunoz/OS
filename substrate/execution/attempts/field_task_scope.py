@@ -458,6 +458,7 @@ def readonly_binds_for_scope(
     allowed_paths: list[str],
     *,
     lease_root: str,
+    include_git_authority: bool = True,
 ) -> list[str]:
     """Absolute in-worktree paths to re-bind READ-ONLY for this Task.
 
@@ -478,8 +479,10 @@ def readonly_binds_for_scope(
     Returns every EXISTING top-level entry of the worktree that is not itself
     inside the allowed set, walking down into directories that partially
     overlap the scope so a permitted file is never masked by its own parent.
-    ``.git`` is always read-only: worktree metadata, hooks, and refs are
-    authorization surfaces, not task content.
+    ``.git`` is SKIPPED here and handled by ``git_readonly_subpaths()`` instead:
+    it holds both authorization surfaces (hooks, config, refs) and the object/
+    index storage a commit must write, so it needs per-subpath treatment rather
+    than one verdict (finding F-1).
 
     An EMPTY ``allowed_paths`` (the zero-write verifier lane) makes every
     existing path read-only — the strongest form, not the weakest.
@@ -507,11 +510,15 @@ def readonly_binds_for_scope(
             raise ScopeResolutionError(f"cannot enumerate {abs_dir!r}: {exc}") from exc
         for name in entries:
             rel = f"{rel_dir}/{name}" if rel_dir else name
-            # `.git` is never task content. A writable .git lets a worker rewrite
-            # refs/hooks/worktree metadata — i.e. edit the authorization surface
-            # the verifier and lease depend on.
+            # `.git` is never task content, but it is NOT handled here: locking
+            # it wholesale is what made `git add` impossible (finding F-1 —
+            # `index.lock` is created inside `.git`, so a read-only `.git` means
+            # no worker can ever commit). Its authority surfaces are re-locked
+            # individually by `git_readonly_subpaths()`, which the launcher
+            # applies alongside this list. Skipping it here — rather than
+            # appending it — is deliberate: two functions must not both claim
+            # authority over the same path with different verdicts.
             if rel == ".git":
-                binds.append(os.path.join(root, rel))
                 continue
             if _is_allowed(rel):
                 continue  # authorized — leave it writable
@@ -524,7 +531,138 @@ def readonly_binds_for_scope(
             binds.append(abs_path)
 
     _walk("")
+    # The git authority surfaces are part of THE SAME barrier, returned by the
+    # same call. They were briefly a separate function the caller had to remember
+    # to add; a test that called only this one immediately proved the hazard by
+    # letting `echo H > .git/config` succeed. A barrier that is only complete when
+    # you remember a second call is not a barrier — so completeness is the
+    # default and opting out is explicit.
+    if include_git_authority:
+        binds.extend(git_readonly_subpaths(root))
     return binds
+
+
+ATTEMPT_REF_NAMESPACE = "refs/attempt"
+
+
+def attempt_ref_name(attempt_id: str) -> str:
+    """The one ref this attempt is allowed to move: ``refs/attempt/<id>/work``."""
+    ident = str(attempt_id or "").strip().strip("/")
+    if not ident or "/" in ident or ident in (".", ".."):
+        raise ScopeResolutionError(f"attempt_id {attempt_id!r} is not a usable ref component")
+    return f"{ATTEMPT_REF_NAMESPACE}/{ident}/work"
+
+
+def prepare_attempt_git_capability(worktree_path: str, attempt_id: str) -> str:
+    """Give this attempt a PRIVATE, writable ref namespace and point HEAD at it.
+
+    Finding F-1. The write barrier made ``.git`` read-only, which is correct for
+    every authorization surface but also made ``git add``/``git commit``
+    impossible (``Unable to create '.git/index.lock': Read-only file system``,
+    rc=128) — so no worker could ever succeed. A worker that cannot commit
+    produces no artifacts and burns quota for nothing.
+
+    Restoring commit capability WITHOUT restoring dangerous authority took four
+    measured attempts (see the design note); the first three each failed:
+
+    - re-binding only the FILES git writes fails, because git creates its
+      ``*.lock`` beside the target, so it needs the *directory* writable;
+    - leaving ``refs/heads`` writable is a real escape: a worker can create a
+      LOOSE ref that shadows a packed one and thereby move any branch
+      (measured: ``update-ref refs/heads/protected-main`` succeeded);
+    - locking ``refs`` and re-binding only the attempt's own branch FILE fails
+      again on ``<branch>.lock`` inside the locked directory.
+
+    What works is a private namespace DIRECTORY per attempt: git writes its ref
+    and its lock inside a directory that belongs to this attempt alone, while
+    ``refs/heads``, ``packed-refs``, ``HEAD``, ``config`` and ``hooks`` all stay
+    read-only. Commit identity is bound to the Attempt by construction — the ref
+    name contains the attempt id, so an attempt cannot move another's ref even
+    by name.
+
+    Returns the absolute path of the writable ref directory. Raises
+    ScopeResolutionError on any failure: a lease that cannot give the worker a
+    private ref must fail closed rather than fall back to a writable ``.git``.
+    """
+    ref_name = attempt_ref_name(attempt_id)
+    git_dir = os.path.join(worktree_path, ".git")
+    if not os.path.isdir(git_dir):
+        raise ScopeResolutionError(
+            f"lease {worktree_path!r} has no .git DIRECTORY — the lease must be made "
+            "self-contained before a private attempt ref can be prepared"
+        )
+    priv_dir = os.path.join(git_dir, *ref_name.split("/")[:-1])
+    head_file = os.path.join(git_dir, "HEAD")
+    try:
+        from substrate.execution.cpu_gate import gated_subprocess_run
+
+        resolved = gated_subprocess_run(
+            ["git", "rev-parse", "HEAD"],
+            caller="attempt_git_capability",
+            timeout=30,
+            cwd=worktree_path,
+        )
+        if resolved is None or resolved.returncode != 0:
+            raise ScopeResolutionError(
+                f"cannot resolve HEAD in lease {worktree_path!r}: "
+                f"{getattr(resolved, 'stderr', 'cpu gate refused')}"
+            )
+        head_sha = (resolved.stdout or "").strip()
+        if not head_sha:
+            raise ScopeResolutionError(f"lease {worktree_path!r} resolved an empty HEAD")
+        os.makedirs(priv_dir, exist_ok=True)
+        with open(os.path.join(priv_dir, "work"), "w", encoding="utf-8") as fh:
+            fh.write(head_sha + "\n")
+        # Point HEAD at the private ref so the worker's commits land there. HEAD
+        # itself is then mounted READ-ONLY, so the worker cannot re-point it at a
+        # shared branch and commit onto that instead.
+        with open(head_file, "w", encoding="utf-8") as fh:
+            fh.write(f"ref: {ref_name}\n")
+    except OSError as exc:
+        raise ScopeResolutionError(
+            f"cannot prepare attempt ref namespace in {worktree_path!r}: {exc}"
+        ) from exc
+    return priv_dir
+
+
+def git_readonly_subpaths(worktree_path: str) -> list[str]:
+    """Dangerous ``.git`` subpaths to re-lock READ-ONLY, given a writable ``.git``.
+
+    Finding F-1. ``.git`` as a whole can no longer be read-only (the worker could
+    not commit), so every surface inside it that confers AUTHORITY rather than
+    holding task content is individually re-locked. Measured against real git:
+    ``add`` + ``commit`` write only ``objects``, ``refs`` (its own), ``logs``,
+    ``index`` and ``COMMIT_EDITMSG`` — and never touch any path below.
+
+    - ``hooks``  — executable code git runs on the worker's behalf
+    - ``config`` — ``core.hooksPath`` redirects hooks; aliases run commands
+    - ``HEAD``   — re-pointing it would commit onto a shared branch
+    - ``refs``   — every ref namespace; the attempt's own dir is re-opened ON TOP
+    - ``packed-refs`` — the packed form of the same authority
+    - ``info``, ``branches``, ``description`` — no task content, no reason to write
+
+    The returned list is applied AFTER the writable bind, so these mask it; the
+    attempt's private ref directory is bound after THESE, so it wins. Ordering is
+    load-bearing and is asserted by the isolation tests.
+    """
+    git_dir = os.path.join(worktree_path, ".git")
+    if not os.path.isdir(git_dir):
+        return []
+    out: list[str] = []
+    for name in (
+        "hooks",
+        "config",
+        "info",
+        "branches",
+        "description",
+        "packed-refs",
+        "HEAD",
+        "refs",
+    ):
+        path = os.path.join(git_dir, name)
+        if os.path.exists(path):
+            out.append(path)
+    return out
 
 
 def paths_outside(changed: list[str], allowed: list[str]) -> list[str]:
@@ -574,4 +712,12 @@ __all__ = [
     "allowed_paths_for",
     "paths_outside",
     "write_scenario_map_file",
+    # Execution-side enforcement (finding F-6: these were public in practice —
+    # the launcher imports them — but absent from __all__, so the module's
+    # declared surface disagreed with its real one).
+    "readonly_binds_for_scope",
+    "git_readonly_subpaths",
+    "prepare_attempt_git_capability",
+    "attempt_ref_name",
+    "ATTEMPT_REF_NAMESPACE",
 ]

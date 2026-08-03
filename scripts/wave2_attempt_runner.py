@@ -592,11 +592,29 @@ def _run_one_claim(
         # files and no commits. The worker now refuses an unanchored lease.
         snapshot_ref = envelope.base_commit
 
+    # THE CANONICAL PACKAGE, RECONSTRUCTED FROM THE SIGNED ENVELOPE (finding F-2).
+    #
+    # This used to be a hand-built 4-attribute stand-in with an invented
+    # instruction string and NO ``governance_constraints``. The consequence was
+    # not cosmetic: ``compile_attempt_package`` sealed the Task's
+    # ``writable_path_scope`` correctly, and the runner then threw it away on the
+    # far side of the spool. The launcher's fail-closed guard therefore refused
+    # 100% of real dispatches, so the hard write barrier — proven against 36
+    # adversarial vectors — was unreachable in the shipped path. A correction
+    # that never reaches production is the exact defect class this campaign
+    # exists to eliminate.
+    #
+    # Every field below is now carried on the HMAC-signed envelope, so the worker
+    # runs the instructions the control plane compiled, under the scope the
+    # control plane sealed. Nothing here is invented by the runner, and nothing
+    # worker-controlled can reach it: the runner reads only the signed envelope.
     class _Package:
-        role_instructions = ""
-        operation_instructions = f"Execute task {envelope.task_id} per the objective contract."
-        ordered_context: list = []
-        operation_identity = {"task_id": envelope.task_id}
+        role_instructions = envelope.role_instructions
+        operation_instructions = envelope.operation_instructions
+        ordered_context = list(envelope.ordered_context or [])
+        operation_identity = dict(envelope.operation_identity or {})
+        governance_constraints = list(envelope.governance_constraints or [])
+        verification_requirements = list(envelope.verification_requirements or [])
 
     # SEC-C1: durably register the worktree AND the worker home the instant before
     # the worker populates them, so a signal/crash mid-run leaves enough manifest

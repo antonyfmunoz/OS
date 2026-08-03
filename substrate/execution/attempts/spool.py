@@ -66,10 +66,62 @@ class DispatchEnvelope:
     max_turns: int = 30
     timeout_seconds: int = 600
     payload_hash: str = ""  # sha256 of the sealed ModelExecutionPackage
+    # ── Governance authority carried across the transport (finding F-2) ──────
+    # The sealed package's ``governance_constraints`` — including the
+    # ``writable_path_scope=`` declaration that IS the worker's write authority.
+    # Before this existed, the runner rebuilt a 4-attribute stand-in package on
+    # the far side of the spool, so the scope was minted correctly by
+    # ``compile_attempt_package`` and then DISCARDED in transit. The launcher's
+    # fail-closed guard then refused every real dispatch: the barrier was
+    # mechanically correct and mechanically unreachable.
+    #
+    # These fields are inside ``asdict(self)``, so they are covered by the
+    # envelope HMAC automatically — a scope cannot be widened in transit without
+    # invalidating the signature, and the worker never holds the secret.
+    governance_constraints: list[str] = field(default_factory=list)
+    # The canonical instruction body + context, carried so the far side renders
+    # the SAME prompt the control plane compiled rather than inventing one.
+    role_instructions: str = ""
+    operation_instructions: str = ""
+    ordered_context: list[dict[str, Any]] = field(default_factory=list)
+    operation_identity: dict[str, Any] = field(default_factory=dict)
+    verification_requirements: list[str] = field(default_factory=list)
 
     def signable(self) -> str:
         d = asdict(self)
         return json.dumps(d, sort_keys=True, separators=(",", ":"))
+
+
+def _governance_defect(envelope: DispatchEnvelope) -> str:
+    """Reason this envelope's governance authority is unusable, or "" if usable.
+
+    Finding F-2. The transport must not deliver an envelope whose write authority
+    cannot be enforced. This is a SEMANTIC check layered on top of authenticity
+    (HMAC) and freshness (nonce): a correctly-signed envelope carrying no
+    enforceable scope is still refused, because the alternative — running it — is
+    exactly the default-open behaviour the barrier exists to eliminate.
+
+    It reuses the launcher's canonical parser (``_sealed_writable_scope``) rather
+    than re-deriving the meaning of ``writable_path_scope=``, so the transport
+    gate and the execution gate can never disagree about what a scope IS. An
+    explicitly EMPTY scope is valid (the zero-write verifier lane); only a
+    missing or unparseable one is a defect.
+    """
+    from substrate.execution.attempts.worker_claude_cli import (
+        ScopeResolutionError,
+        _sealed_writable_scope,
+    )
+
+    class _View:
+        governance_constraints = list(envelope.governance_constraints or [])
+
+    try:
+        scope = _sealed_writable_scope(_View())
+    except ScopeResolutionError as exc:
+        return str(exc)
+    if scope is None:
+        return "no writable_path_scope= constraint present"
+    return ""
 
 
 def _sign(payload: str, secret: str) -> str:
@@ -187,6 +239,16 @@ class DispatchSpool:
             # runner restart cannot forget it.
             if not self._consume_nonce(envelope):
                 self._quarantine(name, "replayed dispatch (nonce already consumed)")
+                continue
+            # GOVERNANCE VALIDATION (finding F-2). Authenticity and freshness are
+            # now proven; this proves the envelope actually CARRIES enforceable
+            # write authority. An envelope whose scope is missing or malformed is
+            # not a lesser dispatch to run permissively — it is an unenforceable
+            # one, and running it is precisely the failure the barrier exists to
+            # prevent. Quarantine (never normalize, never default-open).
+            problem = _governance_defect(envelope)
+            if problem:
+                self._quarantine(name, f"governance constraints unusable: {problem}")
                 continue
             return name, envelope
         return None
