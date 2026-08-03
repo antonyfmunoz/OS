@@ -24,6 +24,10 @@ from substrate.execution.attempts.host_isolation import (
     build_isolated_command,
     scrub_worker_env,
 )
+from substrate.execution.attempts.field_task_scope import (
+    ScopeResolutionError,
+    readonly_binds_for_scope,
+)
 from substrate.execution.attempts.worker_credential_boundary import (
     CredentialBoundaryError,
     close_attempt_credential_home,
@@ -124,6 +128,137 @@ def render_prompt(package: Any) -> str:
             "the task scope."
         )
     return "\n\n".join(p for p in parts if p)
+
+
+_GLOBAL_OBJECTIVE = "OBJECTIVE.md"
+_SHARED_CONTEXT = "SHARED_CONTEXT.md"
+
+
+def project_task_local_objective(package: Any, worktree_path: str) -> dict[str, Any]:
+    """Replace the all-Tasks objective in the lease with THIS Task's contract.
+
+    Correction A. The fixture ships one ``OBJECTIVE.md`` holding the substantive
+    contracts for Tasks A, B, C AND D. In field run ``20260803T191345Z-fail``
+    both workers read it and implemented the complete objective, even though
+    each had received a correct, self-sufficient, task-local contract naming its
+    exact allowed and forbidden paths. A document in the working tree that
+    describes a small, obviously-completable feature outcompetes instructions.
+
+    So the worker's operative objective document is now DERIVED from the same
+    canonical package that defines its scope and its verification:
+
+    - ``OBJECTIVE.md`` is rewritten to contain only this Task's contract;
+    - the original multi-Task text is preserved as ``SHARED_CONTEXT.md``,
+      explicitly non-authoritative and (because it is outside the writable
+      scope) mounted READ-ONLY, so nothing is hidden from a worker that needs
+      cross-lane interface detail;
+    - Task A's and Task B's views are mutually exclusive by construction, since
+      each is rendered from its own package.
+
+    This is a PROJECTION of the canonical contract, not a second contract model:
+    every line comes from ``package.ordered_context`` / the sealed constraints.
+
+    Returns a dict describing what was written (for the attempt record). Never
+    raises: a projection failure must not silently run the worker against the
+    global objective, so the caller checks ``ok``.
+    """
+    result: dict[str, Any] = {"ok": False, "projected": False, "shared_context": False}
+    try:
+        global_path = os.path.join(worktree_path, _GLOBAL_OBJECTIVE)
+        body = _render_task_local_objective(package)
+        if not body.strip():
+            result["error"] = "package produced an empty task-local objective"
+            return result
+        if os.path.exists(global_path):
+            # Preserve the global text as clearly-subordinate context rather
+            # than deleting it: a worker that genuinely needs the cross-lane
+            # interface contract must still be able to read it.
+            with open(global_path, encoding="utf-8") as fh:
+                original = fh.read()
+            shared_path = os.path.join(worktree_path, _SHARED_CONTEXT)
+            with open(shared_path, "w", encoding="utf-8") as fh:
+                fh.write(
+                    "# Shared context — NOT AUTHORITATIVE\n\n"
+                    "This is background describing the COMPLETE multi-Task objective, "
+                    "including contracts owned by OTHER Tasks running concurrently. It "
+                    "does NOT authorize you to widen your change surface and it is NOT "
+                    "your assignment. Your assignment is `OBJECTIVE.md`.\n\n---\n\n"
+                    + original
+                )
+            result["shared_context"] = True
+        with open(global_path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        result["ok"] = True
+        result["projected"] = True
+        return result
+    except OSError as exc:
+        logger.warning("task-local objective projection failed: %s", exc)
+        result["error"] = str(exc)
+        return result
+
+
+def _render_task_local_objective(package: Any) -> str:
+    """Render THIS Task's contract as its operative objective document."""
+    identity = getattr(package, "operation_identity", {}) or {}
+    lines = ["# Your Task", ""]
+    task_id = identity.get("task_id", "")
+    if task_id:
+        lines += [f"Task: `{task_id}`", ""]
+    for ctx in getattr(package, "ordered_context", []) or []:
+        if not isinstance(ctx, dict):
+            continue
+        rendered = _render_context_payload(ctx.get("payload", ctx))
+        if rendered:
+            section = str(ctx.get("section", "context")).replace("_", " ").title()
+            lines += [f"## {section}", rendered, ""]
+    scope_line = _declared_scope_line(package)
+    if scope_line:
+        lines += [scope_line, ""]
+    lines += [
+        "## Boundary",
+        "",
+        "Implement ONLY this Task's slice. Other Tasks are being implemented "
+        "CONCURRENTLY by other workers and own the paths outside your writable "
+        "scope — those paths are mounted READ-ONLY and a write to them will fail. "
+        "`SHARED_CONTEXT.md`, if present, is background only and cannot widen "
+        "your change surface.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _sealed_writable_scope(package: Any) -> list[str] | None:
+    """The declared writable scope sealed into the package, or None if absent.
+
+    Reads the SAME ``writable_path_scope=`` governance constraint that
+    ``_declared_scope_line`` renders for the worker and that the verifier
+    enforces — the constraint list is covered by ``package_hash``, so a worker
+    cannot widen its own authority by editing anything it can reach.
+
+    An explicitly declared EMPTY list is a real policy (zero-write verifier) and
+    returns ``[]``; only a MISSING constraint returns ``None``.
+    """
+    for constraint in getattr(package, "governance_constraints", []) or []:
+        text = str(constraint)
+        if not text.startswith("writable_path_scope="):
+            continue
+        raw = text.split("=", 1)[1].strip()
+        try:
+            import ast
+
+            parsed = ast.literal_eval(raw)
+        except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError) as exc:
+            raise ScopeResolutionError(
+                f"sealed writable_path_scope is unparseable ({raw[:60]!r}): {exc}"
+            ) from exc
+        if not isinstance(parsed, (list, tuple)):
+            # A bare string would iterate CHARACTER BY CHARACTER and produce
+            # nonsense one-character "paths" — fail closed instead.
+            raise ScopeResolutionError(
+                f"sealed writable_path_scope is not a list (got {type(parsed).__name__})"
+            )
+        return [str(p) for p in parsed]
+    return None
 
 
 def _is_zero_write(package: Any) -> bool:
@@ -395,11 +530,55 @@ def run_worker_in_lease(
         # Fail closed: never run a worker without its own credential boundary.
         return WorkerResult(error=f"credential boundary unavailable: {exc}")
 
+    # HARD WRITE-SCOPE ENFORCEMENT. Turn the Task's declared writable scope into
+    # an actual capability: every other existing path in the lease is re-bound
+    # READ-ONLY, so an out-of-scope write fails at the mount before the target
+    # changes. The scope is read from the SEALED package (its
+    # `writable_path_scope=` governance constraint is covered by package_hash),
+    # so no worker-controlled input can widen it, and it is the SAME declaration
+    # the verifier reads — one authority, two enforcement points.
+    #
+    # Field run 20260803T191345Z-fail is why this exists: correct, distinct,
+    # self-sufficient contracts naming exact allowed AND forbidden paths did not
+    # stop either worker from writing the complete six-file objective.
+    # CORRECTION A — project the task-local objective BEFORE the read-only binds
+    # are computed (it rewrites OBJECTIVE.md, which is outside every Task's
+    # writable scope and therefore about to become read-only). Fail closed: a
+    # worker must never run against the all-Tasks objective.
+    projection = project_task_local_objective(package, worktree_path)
+    if not projection.get("ok"):
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=f"task-local objective projection failed: {projection.get('error', 'unknown')}"
+        )
+
+    try:
+        declared_scope = _sealed_writable_scope(package)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"write-scope enforcement unavailable: {exc}")
+    if declared_scope is None:
+        # No sealed scope at all — refuse rather than run with a fully writable
+        # worktree. An unenforceable scope is a governance failure, not a
+        # default-open condition.
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error="sealed package declares no writable_path_scope — refusing to run "
+            "a worker whose write authority cannot be enforced"
+        )
+    try:
+        readonly_subpaths = readonly_binds_for_scope(declared_scope, lease_root=worktree_path)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"write-scope enforcement could not be built: {exc}")
+
     profile = IsolationProfile(
         worktree_path=worktree_path,
         worker_home=attempt_home.home_path,
         tmp_path=attempt_home.tmp_path,
         env_overrides=attempt_home.env_overrides(),
+        readonly_subpaths=readonly_subpaths,
+        scope_enforced=True,
     )
     try:
         cmd = build_isolated_command(inner, profile)

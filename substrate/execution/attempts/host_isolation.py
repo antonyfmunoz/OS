@@ -40,13 +40,33 @@ class IsolationProfile:
     which would make sibling homes enumerable.
     """
 
-    worktree_path: str  # the ONE writable root
+    worktree_path: str  # the worktree root (writable EXCEPT the ro overlay below)
     worker_home: str  # attempt-PRIVATE HOME (holds only this attempt's ~/.claude)
     ro_paths: list[str] = field(default_factory=list)  # read-only binds (bins, libs)
     allow_network: bool = True  # the model CLI needs network; egress bound is DECLARED
     primitive: str = "bwrap"
     tmp_path: str = ""  # attempt-private TMPDIR (bound rw when set)
     env_overrides: dict[str, str] = field(default_factory=dict)  # HOME/XDG/CLAUDE_CONFIG_DIR
+    # ── Hard write-scope enforcement (worktree-relative, from the WorkPacket) ──
+    # Every existing tracked path in the worktree that this Task may NOT modify,
+    # re-bound READ-ONLY *inside* the writable worktree bind. bwrap applies binds
+    # in order, so a later --ro-bind masks the earlier rw bind for that subtree.
+    #
+    # This is what makes ``writable_path_scope`` an actual CAPABILITY rather
+    # than a request. Field run 20260803T191345Z-fail proved instruction text is
+    # not enough: both workers received correct, distinct, self-sufficient
+    # contracts naming their exact allowed AND forbidden paths, and both still
+    # wrote the complete six-file objective. The declared scope existed only as
+    # a prompt before the work and a ``diff_scope`` check after it, so nothing
+    # stood between the worker and the file.
+    #
+    # The denial comes from the MOUNT, not from permissions: chmod would still
+    # allow rename-over, delete-and-recreate, or parent-directory replacement.
+    # An out-of-scope write fails with EROFS/EBUSY *before* the target changes.
+    readonly_subpaths: list[str] = field(default_factory=list)
+    # True when readonly_subpaths was derived from a real declared scope. A
+    # profile built without a scope must never silently run unconstrained.
+    scope_enforced: bool = False
 
 
 class IsolationUnavailable(RuntimeError):
@@ -97,6 +117,16 @@ def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list
         cmd += ["--ro-bind-try", ro, ro]
     # Writable worktree.
     cmd += ["--bind", profile.worktree_path, profile.worktree_path]
+    # HARD WRITE-SCOPE ENFORCEMENT. Order matters: bwrap applies binds
+    # left-to-right, so these read-only binds must come AFTER the rw worktree
+    # bind to mask it. Each entry is an absolute path inside the worktree that
+    # this Task's WorkPacket does not authorize it to modify.
+    #
+    # ``--ro-bind`` (not ``--ro-bind-try``): a listed path that cannot be bound
+    # is a FAIL-CLOSED condition — bwrap aborts and the worker never starts,
+    # rather than running with a forbidden path silently left writable.
+    for ro_sub in profile.readonly_subpaths:
+        cmd += ["--ro-bind", ro_sub, ro_sub]
     # This attempt's PRIVATE home only. Binding the parent `worker-homes/` dir
     # would make every sibling attempt's credential enumerable from inside the
     # sandbox — bind the single home, never its parent (R1 / SEC-C2).

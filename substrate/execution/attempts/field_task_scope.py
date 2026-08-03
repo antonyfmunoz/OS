@@ -454,6 +454,79 @@ def seed_scope_from_label(requirements: Any, semantic_label: str) -> Any:
     )
 
 
+def readonly_binds_for_scope(
+    allowed_paths: list[str],
+    *,
+    lease_root: str,
+) -> list[str]:
+    """Absolute in-worktree paths to re-bind READ-ONLY for this Task.
+
+    This is the EXECUTION half of the one canonical scope authority: the
+    verifier calls ``allowed_paths_for`` + ``normalize_allowed_paths`` to judge a
+    diff, and this function turns the SAME normalized list into the mount
+    barrier that prevents the out-of-scope write in the first place. Both read
+    the Task's persisted ``writable_path_scope``; neither derives its own.
+
+    Why a mount barrier and not permissions: field run ``20260803T191345Z-fail``
+    proved instruction text cannot enforce scope (both workers received correct,
+    distinct, self-sufficient contracts naming their exact allowed and forbidden
+    paths, and both wrote the complete six-file objective anyway). A chmod-based
+    barrier is also insufficient — it still permits rename-over, delete-and-
+    recreate, and parent-directory replacement. A read-only BIND denies those at
+    the mount layer, before the target is modified.
+
+    Returns every EXISTING top-level entry of the worktree that is not itself
+    inside the allowed set, walking down into directories that partially
+    overlap the scope so a permitted file is never masked by its own parent.
+    ``.git`` is always read-only: worktree metadata, hooks, and refs are
+    authorization surfaces, not task content.
+
+    An EMPTY ``allowed_paths`` (the zero-write verifier lane) makes every
+    existing path read-only — the strongest form, not the weakest.
+    """
+    root = os.path.realpath(lease_root)
+    if not os.path.isdir(root):
+        raise ScopeResolutionError(f"lease root {lease_root!r} is not a directory — refusing")
+    allowed = {p.strip("/") for p in allowed_paths if str(p).strip("/")}
+
+    def _is_allowed(rel: str) -> bool:
+        """True when ``rel`` is inside (or equal to) a declared allowed path."""
+        return any(rel == a or rel.startswith(a + "/") for a in allowed)
+
+    def _contains_allowed(rel: str) -> bool:
+        """True when some allowed path lives BELOW ``rel`` (partial overlap)."""
+        return any(a.startswith(rel + "/") for a in allowed)
+
+    binds: list[str] = []
+
+    def _walk(rel_dir: str) -> None:
+        abs_dir = os.path.join(root, rel_dir) if rel_dir else root
+        try:
+            entries = sorted(os.listdir(abs_dir))
+        except OSError as exc:  # unreadable dir — fail closed, never skip silently
+            raise ScopeResolutionError(f"cannot enumerate {abs_dir!r}: {exc}") from exc
+        for name in entries:
+            rel = f"{rel_dir}/{name}" if rel_dir else name
+            # `.git` is never task content. A writable .git lets a worker rewrite
+            # refs/hooks/worktree metadata — i.e. edit the authorization surface
+            # the verifier and lease depend on.
+            if rel == ".git":
+                binds.append(os.path.join(root, rel))
+                continue
+            if _is_allowed(rel):
+                continue  # authorized — leave it writable
+            abs_path = os.path.join(abs_dir, name)
+            if os.path.isdir(abs_path) and not os.path.islink(abs_path) and _contains_allowed(rel):
+                # This directory holds an allowed path deeper down: descend so
+                # the permitted child stays writable while its siblings do not.
+                _walk(rel)
+                continue
+            binds.append(abs_path)
+
+    _walk("")
+    return binds
+
+
 def paths_outside(changed: list[str], allowed: list[str]) -> list[str]:
     """Changed paths not under any allowed prefix (both worktree-relative).
 
