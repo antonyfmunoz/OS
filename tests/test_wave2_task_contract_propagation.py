@@ -402,6 +402,46 @@ def test_7b_neither_prompt_leaks_the_other_task_as_its_own_work(field):
     )
 
 
+@pytest.mark.parametrize("lane_key", ["backend", "frontend", "integration"])
+def test_7d_every_writing_lane_is_told_its_allowed_paths_as_a_constraint(field, lane_key):
+    """The allowed-path line must reach EVERY lane that may write.
+
+    Regression for a mutant that survived the first adversarial pass: changing
+    the dedup guard to ``if allowed and not declared`` silenced this line on
+    every real lane (which all declare constraints) while the suite stayed
+    green — the only assertion on it lived in the LEGACY test, where
+    ``declared`` is empty and the mutant is inert. The sealed
+    ``## Writable Scope`` section is rendered from a different source, so it
+    masked the loss. Pin the CONSTRAINT-level line on real declared lanes.
+    """
+    packet = field["packets"][lane_key]
+    joined = "\n".join(packet.constraints)
+    assert "You may change ONLY these paths" in joined, (
+        f"{lane_key}: writing lane must be told its allowed paths as a constraint"
+    )
+    for path in packet.requirements["writable_path_scope"]:
+        assert path in joined, f"{lane_key}: allowed-path constraint must name {path}"
+    assert "You may change ONLY these paths" in field["prompts"][lane_key]
+
+
+def test_7e_constraint_order_puts_boundaries_before_prose(field):
+    """Rendered boundaries lead; declared prose follows.
+
+    A worker that stops reading early must still have seen its path
+    boundaries, so the derived lines must not be pushed below a multi-line
+    precedence note.
+    """
+    for lane_key in ("backend", "frontend"):
+        constraints = field["packets"][lane_key].constraints
+        allowed_at = next(
+            i for i, c in enumerate(constraints) if "You may change ONLY these paths" in c
+        )
+        prose_at = next(
+            i for i, c in enumerate(constraints) if "Authorization Precedence" in c
+        )
+        assert allowed_at < prose_at, f"{lane_key}: boundaries must precede declared prose"
+
+
 def test_7c_forbidden_prohibition_appears_exactly_once(field):
     """A duplicated prohibition reads as two rules and buries the contract."""
     for lane_key in ("backend", "frontend"):
