@@ -107,3 +107,89 @@ asserts on what it observed.
   first-frontier assumption is correct, and removing the redundant direct pass
   eliminated the lease-conflict path.
 - Runner never mutates the ledger; no status inferred from file presence.
+
+## Harness correction — stale `signed_spool` self-check (2026-08-04)
+
+**Not a candidate defect.** The write-barrier repair (F-2, commit `55c57c472`)
+made the transport refuse any envelope whose write authority cannot be enforced:
+`spool._governance_defect` quarantines an envelope carrying no
+`writable_path_scope=` constraint *even when its HMAC is valid*. That is the
+barrier working as designed.
+
+`scripts/wave2_harness_selfcheck.py::check_spool` had never been updated to match.
+It built `DispatchEnvelope(dispatch_id="d1", attempt_id="ea1", …)` with **no**
+`governance_constraints`, so the production gate correctly quarantined it and the
+check reported `delivered=False` → `harness_runnable=False`. The harness was
+stale; the candidate was right. The real dispatch path always seals the scope
+(`dispatch.py:110`), and the 11 control-plane rehearsal tests over that path were
+green throughout.
+
+### The correction
+
+The synthetic envelope is now minted by the **canonical path**, not a literal:
+
+```
+compile_attempt_package(...)      # production compiler — seals writable_path_scope=
+    → governance_envelope_fields(package)   # production projector used at the
+                                            # dispatch site (field_control_plane.py:469)
+    → DispatchEnvelope(**fields) → spool.enqueue → claim_next
+```
+
+`governance_envelope_fields`' own docstring states the requirement this satisfies:
+*"A test that inlines the same dict proves nothing about the dispatch path."*
+Inlining `governance_constraints=["writable_path_scope=[...]"]` would keep passing
+after the compiler stopped sealing the scope — precisely the blindness removed.
+
+Fail-closed behaviour is **unchanged and still asserted**, now across four
+controls rather than two:
+
+| Control | Assertion |
+|---|---|
+| positive | canonically compiled envelope is DELIVERED |
+| signature | wrong-secret reader quarantines it |
+| governance (F-2) | **no** `writable_path_scope=` → quarantined despite a VALID signature |
+| widening | scope widened on disk after signing → quarantined (constraints are inside the HMAC) |
+
+`scope_declared=False` remains refused inside the real compiler
+(`DispatchBlocked`), asserted by the new test file.
+
+### Files changed (harness + tests only — zero production files)
+
+- `scripts/wave2_harness_selfcheck.py` — `canonical_governance_fields()` added;
+  `check_spool()` rewritten to drive the real path; `_widen_scope_on_disk()`
+  probe added (returns `False` when no inbox record exists, so a relocated spool
+  layout fails rather than passing vacuously).
+- `tests/test_wave2_harness_selfcheck_spool.py` — **new**, 8 tests pinning the
+  correction.
+
+### Mutation results — 4 / 4 killed, 0 survivors
+
+Each mutant was applied to production, measured, then reverted (`git diff` on
+`substrate/` empty afterwards):
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | `dispatch.py` stops appending `writable_path_scope=` | **KILLED** — `signed_spool` FAILs "canonical compiler emitted no writable_path_scope="; 4 of 8 new tests fail |
+| M2 | `_governance_defect` returns `""` for a missing scope | **KILLED** — `no_scope_rejected=False`; 2 of 8 new tests fail |
+| M3 | HMAC verification returns `True` unconditionally | **KILLED** — `bad_sig_rejected=False` |
+| M4 | `governance_constraints` popped from `signable()` | **KILLED** — `widened_scope_rejected=False` |
+
+M1 is the load-bearing one: it proves the positive case is bound to the real
+compiler and not to a hard-coded string.
+
+### Qualification after the correction
+
+```
+wave2_harness_selfcheck.py   PASS=8  OWNER_GATED=1  FAIL=0  → harness_runnable=True
+Wave 2 suite (-k "wave2 and not phase14")   1203 passed, 0 failed
+All 15 pre-commit gates                     PASS
+ruff                                        no new findings (2 pre-existing E741 untouched)
+```
+
+`tests/test_phase14_8b_wave2.py` / `test_phase14_7a_wave2.py` show 16 failed /
+26 errors from hard-coded `/opt/OS` paths under a worktree. Measured **identical
+with this change stashed** — pre-existing, unrelated to the Wave 2 execution
+slice, not introduced here.
+
+`oauth_token` remains the single OWNER_GATED item; no field quota was spent, no
+worker launched, and no field residue was produced by this correction.

@@ -29,6 +29,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 _ROOT = Path(os.environ.get("UMH_ROOT", "/opt/OS"))
@@ -97,26 +98,166 @@ def check_fixture(tmp: Path) -> dict:
         return _result("fixture_generation", "FAIL", str(exc))
 
 
+def canonical_governance_fields(writable_path_scope: list[str]) -> dict:
+    """Governance envelope fields minted by the REAL dispatch path, not a literal.
+
+    Drives ``compile_attempt_package`` (the production compiler) and then
+    ``governance_envelope_fields`` (the production projector the field control
+    plane calls at the dispatch site). Nothing here re-derives what a
+    ``writable_path_scope=`` constraint IS: the scope is declared on the Task
+    contract exactly as materialization declares it, and the canonical compiler
+    is the only thing that turns it into a sealed constraint string.
+
+    This is why the self-check may not inline ``governance_constraints=[...]``:
+    ``governance_envelope_fields`` documents that "a test that inlines the same
+    dict proves nothing about the dispatch path". A hard-coded string would keep
+    passing after the real compiler stopped emitting the scope — the precise
+    regression the signed-spool gate exists to catch.
+    """
+    from types import SimpleNamespace as _NS
+
+    from substrate.execution.attempts.dispatch import compile_attempt_package
+    from substrate.execution.attempts.field_control_plane import governance_envelope_fields
+
+    attempt = _NS(
+        attempt_id="ea-selfcheck",
+        task_id="wp-selfcheck",
+        plan_record_id="pr-selfcheck",
+        plan_version=1,
+        execution_authorization_ref="auth-selfcheck",
+        timeout_seconds=600,
+        max_turns=30,
+    )
+    packet = _NS(
+        packet_id="wp-selfcheck",
+        title="selfcheck",
+        user_intent="prove the signed transport carries real authority",
+        desired_end_state="envelope delivered",
+        constraints=[],
+        validation_plan="pytest -q",
+        # scope_declared=True is the Task-contract precondition the dispatcher
+        # enforces; with it False, compile_attempt_package raises DispatchBlocked.
+        requirements={
+            "scope_declared": True,
+            "writable_path_scope": list(writable_path_scope),
+        },
+    )
+    assignment = _NS(
+        role_contract_id="role-impl-op",
+        skill_requirement_refs=[],
+        tool_profile=["shell"],
+        environment_class="container",
+        model_profile={"model": "claude-opus-5"},
+    )
+    grant = _NS(
+        decision_ref="dec-selfcheck",
+        authorized_scope_hash="scope-hash-selfcheck",
+        risk_ceiling="reversible_write",
+        task_frontier=["wp-selfcheck"],
+        tenant_id="ten-selfcheck",
+        verification_obligations=["fixture tests pass"],
+        cost_limit_usd=1.0,
+        cost_enforceable=True,
+    )
+    package = compile_attempt_package(
+        attempt=attempt, packet=packet, assignment=assignment, grant=grant
+    )
+    fields = governance_envelope_fields(package)
+    fields["package_hash"] = getattr(package, "package_hash", "")
+    fields["payload_hash"] = getattr(package, "package_hash", "")
+    return fields
+
+
 def check_spool(tmp: Path) -> dict:
+    """Signed-spool transport: authenticity AND enforceable governance authority.
+
+    Exercises the real write→sign→read→verify path (``enqueue``/``claim_next``),
+    never a stand-in object, across four cases:
+
+    * positive — a canonically compiled envelope is DELIVERED;
+    * negative (signature) — a wrong-secret reader quarantines it;
+    * negative (governance) — an envelope with NO ``writable_path_scope=`` is
+      quarantined even though its signature is VALID (finding F-2);
+    * negative (widening) — a scope widened after signing is quarantined,
+      because the constraints sit inside the HMAC.
+    """
     try:
         from substrate.execution.attempts.spool import DispatchEnvelope, DispatchSpool
 
-        root = str(tmp / "spool")
-        good = DispatchSpool(root, "s1")
-        good.enqueue(
-            DispatchEnvelope(dispatch_id="d1", attempt_id="ea1", sequence=1, worktree_path=str(tmp))
-        )
+        gov = canonical_governance_fields(["app/main.py"])
+        if not any(
+            str(c).startswith("writable_path_scope=") for c in gov["governance_constraints"]
+        ):
+            return _result(
+                "signed_spool", "FAIL", "canonical compiler emitted no writable_path_scope="
+            )
+
+        def _envelope(n: int, **over) -> DispatchEnvelope:
+            base = dict(
+                dispatch_id=f"d{n}",
+                attempt_id=f"ea{n}",
+                task_id="wp-selfcheck",
+                nonce=f"nonce-selfcheck-{n}",
+                sequence=n,
+                worktree_path=str(tmp),
+                expires_at=time.time() + 1800.0,
+                **gov,
+            )
+            base.update(over)
+            return DispatchEnvelope(**base)
+
+        # positive — canonical envelope survives the real transport
+        good = DispatchSpool(str(tmp / "spool"), "s1")
+        good.enqueue(_envelope(1))
         claimed = good.claim_next()
         delivered = claimed is not None
-        bad = DispatchSpool(root + "2", "s2")
-        bad.enqueue(
-            DispatchEnvelope(dispatch_id="d2", attempt_id="ea2", sequence=1, worktree_path=str(tmp))
+
+        # negative — valid shape, wrong reader secret
+        badsig = DispatchSpool(str(tmp / "spool2"), "s2")
+        badsig.enqueue(_envelope(2))
+        rejected = DispatchSpool(str(tmp / "spool2"), "WRONG").claim_next() is None
+
+        # negative — signed correctly, but carries NO enforceable write authority
+        nogov = DispatchSpool(str(tmp / "spool3"), "s3")
+        nogov.enqueue(_envelope(3, governance_constraints=[]))
+        gov_rejected = DispatchSpool(str(tmp / "spool3"), "s3").claim_next() is None
+
+        # negative — scope widened after signing (HMAC must not cover a rewrite)
+        widened = DispatchSpool(str(tmp / "spool4"), "s4")
+        widened.enqueue(_envelope(4))
+        widen_rejected = _widen_scope_on_disk(Path(str(tmp / "spool4")))
+
+        ok = delivered and rejected and gov_rejected and widen_rejected
+        return _result(
+            "signed_spool",
+            "PASS" if ok else "FAIL",
+            f"delivered={delivered} bad_sig_rejected={rejected} "
+            f"no_scope_rejected={gov_rejected} widened_scope_rejected={widen_rejected}",
         )
-        rejected = DispatchSpool(root + "2", "WRONG").claim_next() is None
-        status = "PASS" if (delivered and rejected) else "FAIL"
-        return _result("signed_spool", status, f"delivered={delivered} bad_sig_rejected={rejected}")
     except Exception as exc:  # noqa: BLE001
         return _result("signed_spool", "FAIL", str(exc))
+
+
+def _widen_scope_on_disk(spool_root: Path) -> bool:
+    """Widen a signed envelope's scope on disk; True if the spool refuses it.
+
+    Tamper AFTER signing (the real attack): the constraints live inside
+    ``signable()``, so a widened scope must invalidate the HMAC rather than be
+    silently honoured. Returns False if no inbox record was found, so a
+    relocated spool layout fails the check instead of passing vacuously.
+    """
+    from substrate.execution.attempts.spool import DispatchSpool
+
+    inbox = spool_root / "inbox"
+    records = sorted(inbox.glob("*.json")) if inbox.is_dir() else []
+    if not records:
+        return False
+    for path in records:
+        record = json.loads(path.read_text())
+        env = record.get("envelope", {})
+        env["governance_constraints"] = ["writable_path_scope=['/']"]
+        path.write_text(json.dumps(record))
+    return DispatchSpool(str(spool_root), "s4").claim_next() is None
 
 
 def check_rehearsal() -> dict:
@@ -266,7 +407,7 @@ def check_beast() -> dict:
         # Reachable — now require mesh registration (the layer the old check missed).
         node_ids: list[str] = []
         try:
-            from scripts.wave2_beast_reconciler import _mesh_health, _MESH_NODE_ID
+            from scripts.wave2_beast_reconciler import _MESH_NODE_ID, _mesh_health
 
             node_ids = list(_mesh_health().get("node_ids", []) or [])
         except Exception:  # noqa: BLE001 — fall back to name below
