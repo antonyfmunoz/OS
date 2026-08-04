@@ -7,9 +7,9 @@ field evidence: per-stage screenshots + DOM snapshots + a network log + a
 result.json, then ships the pass directory to the VPS proof dir over scp.
 
 Doctrine this collector enforces (learned from the p4s31c false-positive):
-  * UI-ONLY interactions — click / press_sequentially / press. page.evaluate is
-    used ONLY for read-only DOM snapshots and read-only fetch() reconciliation
-    reads that ride the page's OWN Clerk session. Never to mutate state.
+  * UI-ONLY interactions — click / fill / press. page.evaluate is used ONLY
+    for read-only DOM snapshots and read-only fetch() reconciliation reads
+    that ride the page's OWN Clerk session. Never to mutate state.
   * Every wait is a CONDITION — wait_for_selector(state=...), expect_response on
     a /api/umh/ predicate. Bare sleeps appear only as short bounded debounces.
   * Every typed objective embeds a unique run tag `[w1-<run>-p<N>]`, and every
