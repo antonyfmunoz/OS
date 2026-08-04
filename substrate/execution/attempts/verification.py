@@ -434,6 +434,13 @@ def _diff_scope_verdict(
     except ScopeResolutionError as exc:
         return False, f"unusable path scope: {exc}"
 
+    changed_paths, diff_source, independent = _actual_changed_paths(lease, worker_result)
+    if not independent:
+        return False, (
+            f"changed paths could not be computed independently ({diff_source}) — "
+            f"a diff-scope verdict may not rest on the worker's own report"
+        )
+
     # THE AUTHORIZED BASE MUST STILL BE AN ANCESTOR OF HEAD.
     #
     # Phase separation puts the trusted projection commit at the attempt's base,
@@ -447,16 +454,16 @@ def _diff_scope_verdict(
     # An unchecked invariant is not an invariant. This makes it load-bearing:
     # if the base is no longer reachable from HEAD, the attempt's history is not
     # the one that was authorized, whatever its diff happens to say.
+    #
+    # ORDERED AFTER the independence check on purpose. Both refuse the same
+    # cases, but a missing snapshot_ref / uninspectable worktree is FIRST a
+    # "cannot observe" problem, and reporting it as "not an ancestor" tells the
+    # operator to look at git history when the real fault is the lease. The
+    # diagnostic is part of the contract: whoever reads this verdict has to be
+    # able to act on it.
     ancestry_ok, ancestry_detail = _base_is_ancestor_of_head(lease)
     if not ancestry_ok:
         return False, f"authorized base is not an ancestor of HEAD: {ancestry_detail}"
-
-    changed_paths, diff_source, independent = _actual_changed_paths(lease, worker_result)
-    if not independent:
-        return False, (
-            f"changed paths could not be computed independently ({diff_source}) — "
-            f"a diff-scope verdict may not rest on the worker's own report"
-        )
 
     outside = paths_outside(changed_paths, allowed)
     detail = (
