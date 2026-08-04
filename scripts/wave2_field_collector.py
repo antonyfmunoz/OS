@@ -57,6 +57,7 @@ def _redact(text: str) -> str:
     """Redact bearer/JWT/password patterns from a captured string."""
     return _SECRET_REDACT_RE.sub("<redacted>", text)
 
+
 # ── Chat input: the primary Cockpit chat rail input. RightRail.tsx renders it
 # with placeholder `Message <aiName>...` (aiName from get_ai_name()), so the
 # instance-agnostic prefix selector is the stable anchor — same one the proven
@@ -220,7 +221,9 @@ APPROVED_BANNER = "PLAN APPROVED — EXECUTION NOT STARTED"
 # data-source-type="execution_authorization" + w2-execution-decision), and the
 # Work overlay. Anchors verified present in cockpit/src/renderer 2026-07-23.
 W2_EXECUTION_ROOT = '[data-testid="w2-execution-root"]'
-W2_EXECUTION_ATTEMPT = '[data-testid="w2-execution-attempt"]'  # data-attempt-id, data-status; task_id as text
+W2_EXECUTION_ATTEMPT = (
+    '[data-testid="w2-execution-attempt"]'  # data-attempt-id, data-status; task_id as text
+)
 W2_EXECUTION_DECISION = '[data-testid="w2-execution-decision"]'  # HUD row, data-decision-ref
 W2_EXEC_APPROVE_BTN = '[data-testid="w2-exec-approve-btn"]'
 W2_EXEC_REJECT_BTN = '[data-testid="w2-exec-reject-btn"]'
@@ -1117,34 +1120,54 @@ class FieldCollector:
         """Just the packet ids (compat shim over _read_packets)."""
         return [p["packet_id"] for p in FieldCollector._read_packets(page) if p.get("packet_id")]
 
-    # ── typing with human jitter ─────────────────────────────────────────────
+    # ── reliable text entry ──────────────────────────────────────────────────
     @staticmethod
     def _type_objective(page: Any, chat: Any, text: str) -> None:
+        # (1) Wait for the input to be stable and interactable
+        chat.first.wait_for(state="visible", timeout=10000)
         chat.first.click()
-        # RESIDUAL-TEXT GUARD: if a previous Enter was swallowed (the input
-        # ignores submit while a reply is streaming), stale text would be
-        # CONCATENATED with this message — pass 20260722T172506Z shipped
-        # "Cancel it. [tag] Approve that plan. [tag]" as ONE message. Clear
-        # any residue first, and after Enter verify the input actually emptied
-        # (retry the submit on a bounded loop).
+        page.wait_for_timeout(150)
+
+        # (2) Clear residual text (swallowed Enter from a prior streaming reply)
         try:
             if (chat.first.input_value() or "").strip():
                 chat.first.fill("")
-        except Exception:  # noqa: BLE001 — non-input element; typing continues
+                page.wait_for_timeout(100)
+        except Exception:  # noqa: BLE001
             pass
-        # press_sequentially with per-key jitter (40-90ms) — human cadence, and
-        # exercises the real input handler rather than a bulk fill().
-        import random
 
-        delay = random.randint(40, 90)
-        # The action timeout must scale with the text: the ~540-char dogfood
-        # objective at >=56ms/key exceeds playwright's 30s default MID-TYPING
-        # (observed run 20260722T163403Z — pass/fail depended on the jitter
-        # roll). Budget = worst-case keystroke time + 15s actionability slack.
-        budget_ms = len(text) * (delay + 30) + 15000
-        chat.first.press_sequentially(text, delay=delay, timeout=budget_ms)
+        # (3) Focus explicitly and verify focus landed
+        chat.first.focus()
+        page.wait_for_timeout(100)
+
+        # (4) Fill the text in one shot — 17ms vs 27-56s for press_sequentially.
+        # fill() triggers React's onChange via native input-value setter +
+        # InputEvent dispatch, same as a user paste. Probe confirmed this
+        # produces value_matches=True on the real cockpit (20260804 probe).
+        chat.first.fill(text)
+
+        # (5) Verify the value was accepted by the React-controlled input
+        actual = ""
+        for _ in range(5):
+            try:
+                actual = chat.first.input_value() or ""
+            except Exception:  # noqa: BLE001 — input may re-render
+                page.wait_for_timeout(200)
+                continue
+            if actual == text:
+                break
+            page.wait_for_timeout(200)
+
+        if actual != text:
+            raise RuntimeError(
+                f"chat input rejected fill: expected {len(text)} chars, "
+                f"got {len(actual)} chars; first divergence at "
+                f"pos {next((i for i, (a, b) in enumerate(zip(actual, text)) if a != b), min(len(actual), len(text)))}"
+            )
+
+        # (6) Submit and verify the input cleared
         chat.first.press("Enter")
-        for _ in range(10):  # bounded submit-verify loop (max ~5s)
+        for _ in range(10):
             try:
                 if not (chat.first.input_value() or "").strip():
                     return
@@ -1424,6 +1447,7 @@ class FieldCollector:
                     "ms": int((time.time() - self._start) * 1000),
                 }
             )
+
     # ── full scenario (w01→w30) ──────────────────────────────────────────────
     def _scenario_full(
         self, page: Any, context: Any, browser: Any, state_path: str, chat: Any
@@ -1500,9 +1524,7 @@ class FieldCollector:
         True ONLY when the endpoint answered 200 with a well-formed body. A
         negative "zero attempts" gate must require ok AND rows == [] (review C2)."""
         pid = plan_record_id or str(self._last_plan_id or "")
-        path = (
-            f"/api/umh/execution/by-plan/{pid}" if pid else "/api/umh/execution/attempts"
-        )
+        path = f"/api/umh/execution/by-plan/{pid}" if pid else "/api/umh/execution/attempts"
         resp = self._authed_get(page, path)
         if not isinstance(resp, dict):
             return [], False, None
@@ -1525,9 +1547,7 @@ class FieldCollector:
         rows, _ok, _status = self._read_authorizations_checked(page)
         return rows
 
-    def _read_authorizations_checked(
-        self, page: Any
-    ) -> tuple[list[dict[str, Any]], bool, Any]:
+    def _read_authorizations_checked(self, page: Any) -> tuple[list[dict[str, Any]], bool, Any]:
         """Read-only fetch of execution-authorization grants + pending decisions,
         with read-success status (review C2)."""
         resp = self._authed_get(page, "/api/umh/execution/authorizations")
@@ -1651,7 +1671,9 @@ class FieldCollector:
         )
         self.stage(
             "w07_inspect_plan",
-            opened and detail_visible and (page.locator(WG_WORK_DETAIL_CONTEXT).count() > 0 or has_scope),
+            opened
+            and detail_visible
+            and (page.locator(WG_WORK_DETAIL_CONTEXT).count() > 0 or has_scope),
             f"work_detail={detail_visible} server_has_scope={has_scope}",
         )
         self.shot(page, "w07_plan_detail")
@@ -1781,7 +1803,8 @@ class FieldCollector:
         auths, auths_ok, auths_status = self._read_authorizations_checked(page)
         # A pending execution authorization: a decision surfaced but not granted.
         pending = [
-            a for a in auths
+            a
+            for a in auths
             if str(a.get("status", "")).lower() in ("", "pending", "activating")
             and str(a.get("state", "")).lower() not in ("active",)
         ]
@@ -1789,9 +1812,7 @@ class FieldCollector:
         # returning [] (review C2). The authorizations read must also have
         # succeeded so a broken surface can't masquerade as "no pending".
         ok = attempts_ok and len(attempts) == 0 and auths_ok
-        detail = (
-            f"attempts={len(attempts)} authorizations={len(auths)} pending_like={len(pending)}"
-        )
+        detail = f"attempts={len(attempts)} authorizations={len(auths)} pending_like={len(pending)}"
         if not attempts_ok:
             detail = (
                 f"attempts read FAILED (status={attempts_status}) — cannot confirm zero; " + detail
@@ -1956,7 +1977,8 @@ class FieldCollector:
             c_specific_blocked = len(c_tasks) >= 1
             # No task outside {A,B} may be running or succeeded before A∧B verify.
             advanced_non_ab = [
-                a for a in attempts
+                a
+                for a in attempts
                 if self._attempt_task(a) not in running_tasks
                 and self._attempt_status(a) in ("running", "succeeded")
             ]
@@ -2029,7 +2051,11 @@ class FieldCollector:
                 if tid in blocked_tasks or st in ("running", "succeeded"):
                     # ordering: C must not have started before ab_verified_at.
                     started = a.get("started_at") or a.get("running_at") or 0
-                    if started and ctx.get("ab_verified_at") and started < ctx["ab_verified_at"] - 5:
+                    if (
+                        started
+                        and ctx.get("ab_verified_at")
+                        and started < ctx["ab_verified_at"] - 5
+                    ):
                         c_started_after = False
                     c_task, c_status = tid, st
             if c_status == "succeeded":
@@ -2087,8 +2113,10 @@ class FieldCollector:
         attempts = self._read_attempts(page)
         d_advanced = any(
             self._attempt_status(a) in ("verifying", "succeeded")
-            and ("verif" in self._attempt_task(a).lower()
-                 or "verif" in str(a.get("verifier_role_id", "")).lower())
+            and (
+                "verif" in self._attempt_task(a).lower()
+                or "verif" in str(a.get("verifier_role_id", "")).lower()
+            )
             for a in attempts
         )
         self.stage(
@@ -2120,9 +2148,7 @@ class FieldCollector:
             search = fpage.locator('[data-testid="note-search-input"]')
             results = fpage.locator('[data-testid="note-search-results"]')
             if search.count() > 0:
-                with fpage.expect_response(
-                    lambda r: "/api/notes/search" in r.url, timeout=15000
-                ):
+                with fpage.expect_response(lambda r: "/api/notes/search" in r.url, timeout=15000):
                     search.first.fill("alpha")
                 fpage.wait_for_timeout(1000)
                 rendered = results.count() > 0 and bool((results.first.inner_text() or "").strip())
