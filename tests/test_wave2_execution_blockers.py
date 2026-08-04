@@ -43,6 +43,8 @@ def _envelope(**kw) -> DispatchEnvelope:
         dispatch_id="d1", attempt_id="ea-1", task_id="wp-a",
         authorization_ref="ref", package_hash="h", lease_id="l1",
         nonce="n1", sequence=1, expires_at=time.time() + 3600, payload_hash="p",
+        # The sealed writable scope every real dispatch carries (finding F-2).
+        governance_constraints=["writable_path_scope=['app/main.py']"],
     )
     base.update(kw)
     return DispatchEnvelope(**base)

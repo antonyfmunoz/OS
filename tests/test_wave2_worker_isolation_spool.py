@@ -94,6 +94,11 @@ def _env(seq=1, dispatch_id="d1", **kw):
         nonce="n1",
         sequence=seq,
         payload_hash="p1",
+        # Every real dispatch carries the sealed writable scope (finding F-2);
+        # the transport quarantines an envelope that cannot express enforceable
+        # write authority. A fixture without it is not a "simpler" dispatch — it
+        # is one production can no longer produce.
+        governance_constraints=["writable_path_scope=['app/main.py']"],
     )
     base.update(kw)
     return DispatchEnvelope(**base)

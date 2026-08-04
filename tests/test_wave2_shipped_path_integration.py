@@ -53,6 +53,26 @@ BACKEND_SCOPE = ["app/main.py", "tests/test_search_api.py"]
 FRONTEND_SCOPE = ["app/static", "tests/test_ui_search.py"]
 
 
+def _runner_module():
+    """Import ``scripts/wave2_attempt_runner.py`` as a module.
+
+    The runner is a script, not a package member, so tests load it by path. This
+    is deliberate: the F-2 boundary lives in the runner, and a test that cannot
+    reach the runner's real code can only reimplement it.
+    """
+    import importlib.util
+
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "scripts",
+        "wave2_attempt_runner.py",
+    )
+    spec = importlib.util.spec_from_file_location("wave2_attempt_runner_under_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def _git(cwd: str, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=60)
 
@@ -264,6 +284,9 @@ def test_5_trusted_projection_is_not_attributed_to_the_worker():
 
     Before the fix this was the failure even when the worker wrote NOTHING:
     ``M OBJECTIVE.md`` + ``?? SHARED_CONTEXT.md`` sat inside <base>..HEAD.
+
+    The launcher performs the trusted phase itself — this test must NOT do it
+    first, or a mutant that removes the launcher's own commit survives (m11/m12).
     """
     root = tempfile.mkdtemp()
     lease, base = _build_fixture_lease(root)
@@ -282,17 +305,36 @@ def test_5_trusted_projection_is_not_attributed_to_the_worker():
     body = open(os.path.join(lease, "OBJECTIVE.md"), encoding="utf-8").read()
     assert "# Your Task" in body, "the task-local projection must be in effect"
     assert os.path.exists(os.path.join(lease, "SHARED_CONTEXT.md"))
+    # THE F-3 ASSERTION: the projection must be COMMITTED and be an ANCESTOR of
+    # the worker's base, not loose in the tree. If it were merely written, the
+    # two files would sit in `git status` and the verifier would reject the
+    # attempt. `status --porcelain` must show nothing left over.
+    assert _git(lease, "status", "--porcelain").stdout.strip() == "", (
+        "the trusted phase must COMMIT its writes — anything left uncommitted is "
+        "attributed to the worker and fails diff_scope (F-3)"
+    )
+    log = _git(lease, "log", "--oneline").stdout
+    assert "trusted:" in log, "the trusted projection must be its own commit"
 
 
 @_needs_bwrap
 def test_6_zero_write_lane_produces_an_empty_worker_diff():
-    """Proof 12. The verifier lane writes nothing — including no projection."""
+    """Proof 12 + 13. The verifier lane writes nothing — including no projection.
+
+    This is the exact case F-3 broke: with the worker writing NOTHING, the
+    projection alone produced `M OBJECTIVE.md` + `?? SHARED_CONTEXT.md`, so a
+    correct zero-write verifier failed its own scope check.
+    """
     root = tempfile.mkdtemp()
     lease, base = _build_fixture_lease(root)
     result = _run_worker(lease, base, _canonical_package([], task_id="wp-verify"), "echo noop")
     assert result.files_changed == [], (
         f"a zero-write lane must produce an empty diff, got {result.files_changed}"
     )
+    assert _git(lease, "status", "--porcelain").stdout.strip() == "", (
+        "a zero-write lane must leave NOTHING uncommitted in the tree"
+    )
+    assert not result.commits, "a zero-write lane must produce no worker commit"
 
 
 @_needs_bwrap
@@ -353,21 +395,59 @@ def test_8_governance_constraints_survive_the_spool(tmp_path):
 def test_9_runner_package_reconstruction_preserves_the_sealed_scope(tmp_path):
     """Proof 6 + 11. What the runner rebuilds must resolve to the SAME scope.
 
-    This is the boundary F-2 lived at: the runner used to substitute a package
-    with no governance_constraints at all.
+    Drives the RUNNER'S OWN ``package_from_envelope``. An earlier version of this
+    test rebuilt that shape inline and therefore could not see a mutation in the
+    runner — mutants m05/m06 (the original F-2 defect, reintroduced) survived it.
+    A test that reimplements the code under test proves only that the test works.
     """
     _, claimed = _spool_roundtrip(tmp_path)
     _, envelope = claimed
+    package = _runner_module().package_from_envelope(envelope)
+    assert W._sealed_writable_scope(package) == sorted(BACKEND_SCOPE)
+    assert package.operation_identity == {"task_id": "wp-backend"}
+    assert package.ordered_context == [{"section": "contract", "payload": "x"}]
 
-    class _Package:  # verbatim shape from scripts/wave2_attempt_runner.py
-        role_instructions = envelope.role_instructions
-        operation_instructions = envelope.operation_instructions
-        ordered_context = list(envelope.ordered_context or [])
-        operation_identity = dict(envelope.operation_identity or {})
-        governance_constraints = list(envelope.governance_constraints or [])
-        verification_requirements = list(envelope.verification_requirements or [])
 
-    assert W._sealed_writable_scope(_Package()) == sorted(BACKEND_SCOPE)
+def test_9b_control_plane_puts_the_sealed_scope_on_the_envelope():
+    """Proof 6. The DISPATCH side of the same boundary.
+
+    Drives the control plane's real ``governance_envelope_fields``: the sealed
+    package's scope must reach the envelope. Without this, the runner could
+    reconstruct perfectly and still receive nothing (mutant m06).
+    """
+    from substrate.execution.attempts.field_control_plane import governance_envelope_fields
+
+    fields = governance_envelope_fields(_canonical_package(BACKEND_SCOPE))
+    assert fields["governance_constraints"] == [
+        f"writable_path_scope={sorted(BACKEND_SCOPE)}"
+    ], "the control plane must carry the sealed scope onto the envelope"
+    assert fields["operation_identity"] == {"task_id": "wp-backend"}
+
+
+def test_9c_dispatch_to_launcher_round_trip_preserves_authority(tmp_path):
+    """The two halves joined: package -> envelope -> spool -> runner -> launcher.
+
+    This is the whole of F-2 in one assertion chain, using only shipped code at
+    every hop.
+    """
+    from substrate.execution.attempts.field_control_plane import governance_envelope_fields
+
+    spool = DispatchSpool(str(tmp_path), "secret-under-test")
+    spool.enqueue(
+        DispatchEnvelope(
+            dispatch_id="d-1",
+            attempt_id="ea-1",
+            task_id="wp-backend",
+            nonce=os.urandom(8).hex(),
+            sequence=1,
+            **governance_envelope_fields(_canonical_package(BACKEND_SCOPE)),
+        )
+    )
+    claimed = spool.claim_next()
+    assert claimed is not None, "the dispatch built by the control plane must be claimable"
+    _, envelope = claimed
+    package = _runner_module().package_from_envelope(envelope)
+    assert W._sealed_writable_scope(package) == sorted(BACKEND_SCOPE)
 
 
 @pytest.mark.parametrize(
@@ -462,3 +542,108 @@ def test_16_git_capability_fails_closed_without_a_git_directory():
     root = tempfile.mkdtemp()
     with pytest.raises(ScopeResolutionError):
         prepare_attempt_git_capability(root, "ea-1")
+
+
+def test_17_trusted_projection_paths_are_declared_and_committed():
+    """The trusted phase must OWN the projection paths.
+
+    ``TRUSTED_PROJECTION_PATHS`` is what ``_commit_trusted_projection`` stages.
+    Emptying it (mutant m14) silently returns the projection to worker-attributed
+    status: the files are written, nothing commits them, and they reappear in the
+    worker's diff — F-3 all over again.
+    """
+    assert set(W.TRUSTED_PROJECTION_PATHS) == {"OBJECTIVE.md", "SHARED_CONTEXT.md"}
+
+    root = tempfile.mkdtemp()
+    lease, base = _build_fixture_lease(root)
+    package = _canonical_package(BACKEND_SCOPE)
+    projection = W.project_task_local_objective(package, lease)
+    assert projection.get("ok")
+    new_base = W._commit_trusted_projection(lease, base, projection)
+    assert new_base != base, "the trusted phase must re-anchor the attempt base"
+    assert _git(lease, "status", "--porcelain").stdout.strip() == "", (
+        "every trusted-phase write must be committed, leaving a clean tree"
+    )
+    changed = _git(lease, "diff", "--name-only", f"{base}..{new_base}").stdout.split()
+    assert set(changed) == {"OBJECTIVE.md", "SHARED_CONTEXT.md"}, (
+        f"the trusted commit must contain exactly the projection paths, got {changed}"
+    )
+
+
+@_needs_bwrap
+def test_18_writable_ref_reopen_comes_after_the_readonly_layer():
+    """Bind ORDER is load-bearing (mutant m15).
+
+    bwrap resolves binds left-to-right, so the attempt's writable ref namespace
+    must be re-opened AFTER ``--ro-bind .git/refs``. Reversed, the read-only refs
+    bind masks the attempt's own directory and every commit fails again — the
+    exact F-1 symptom, reintroduced through ordering rather than through policy.
+    """
+    from substrate.execution.attempts.host_isolation import (
+        IsolationProfile,
+        build_bwrap_command,
+    )
+
+    root = tempfile.mkdtemp()
+    refs = os.path.join(root, ".git", "refs")
+    priv = os.path.join(refs, "attempt", "ea-1")
+    os.makedirs(priv)
+    cmd = build_bwrap_command(
+        ["/bin/true"],
+        IsolationProfile(
+            worktree_path=root,
+            worker_home=tempfile.mkdtemp(),
+            tmp_path=tempfile.mkdtemp(),
+            readonly_subpaths=[refs],
+            writable_subpaths=[priv],
+            scope_enforced=True,
+        ),
+    )
+    ro_at = [i for i, a in enumerate(cmd) if a == "--ro-bind" and cmd[i + 1] == refs]
+    rw_at = [i for i, a in enumerate(cmd) if a == "--bind" and cmd[i + 1] == priv]
+    assert ro_at and rw_at, "both binds must be present"
+    assert min(rw_at) > max(ro_at), (
+        "the writable ref re-open must come AFTER the read-only refs bind, or the "
+        "ro bind masks it and no worker can commit"
+    )
+
+
+@_needs_bwrap
+def test_19_reversed_bind_order_actually_breaks_commits():
+    """Prove the ordering above is load-bearing rather than merely asserted.
+
+    Builds the reversed order explicitly and shows a real `git commit` fails —
+    so the ordering test is anchored to observed behaviour, not to a convention.
+    """
+    root = tempfile.mkdtemp()
+    lease, _ = _build_fixture_lease(root)
+    priv = prepare_attempt_git_capability(lease, "ea-1")
+    refs = os.path.join(lease, ".git", "refs")
+    base_cmd = [
+        "bwrap", "--die-with-parent", "--unshare-all",
+        "--proc", "/proc", "--dev", "/dev",
+        "--ro-bind", "/usr", "/usr", "--ro-bind", "/bin", "/bin",
+        "--ro-bind", "/lib", "/lib", "--ro-bind", "/etc", "/etc",
+    ]
+    if os.path.isdir("/lib64"):
+        base_cmd += ["--ro-bind", "/lib64", "/lib64"]
+    script = (
+        "echo x >> app/main.py && git add app/main.py && "
+        "git -c user.email=w@w -c user.name=w commit -q -m t"
+    )
+    reversed_cmd = base_cmd + [
+        "--bind", lease, lease,
+        "--bind", priv, priv,      # WRONG: re-open first...
+        "--ro-bind", refs, refs,   # ...then the ro layer masks it
+        "--chdir", lease, "/bin/bash", "-c", script,
+    ]
+    correct_cmd = base_cmd + [
+        "--bind", lease, lease,
+        "--ro-bind", refs, refs,
+        "--bind", priv, priv,      # RIGHT: re-open last
+        "--chdir", lease, "/bin/bash", "-c", script,
+    ]
+    bad = subprocess.run(reversed_cmd, capture_output=True, text=True, timeout=120)
+    good = subprocess.run(correct_cmd, capture_output=True, text=True, timeout=120)
+    assert bad.returncode != 0, "reversed order must make the commit FAIL"
+    assert good.returncode == 0, f"correct order must allow the commit: {good.stderr}"

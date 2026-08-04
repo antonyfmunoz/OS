@@ -28,6 +28,7 @@ import pytest
 from substrate.execution.attempts.poller import ControlPlanePoller
 from substrate.execution.attempts.records import ExecutionAttemptStatus
 from substrate.execution.attempts.scheduler import AttemptScheduler
+from substrate.execution.attempts.field_control_plane import governance_envelope_fields
 from substrate.execution.attempts.spool import DispatchEnvelope, DispatchSpool
 from substrate.execution.attempts.store import ExecutionAttemptStore
 from substrate.organism.universal_work_queue import UniversalWorkQueue
@@ -209,6 +210,10 @@ def _spool_dispatch_fn(spool: DispatchSpool):
                 nonce=f"n{seq['n']}",
                 sequence=seq["n"],
                 payload_hash=package.package_hash,
+                # The rehearsal mirrors the real dispatch site: carry the
+                # sealed governance authority via the SAME production helper
+                # the field control plane uses (finding F-2).
+                **governance_envelope_fields(package),
             )
         )
 
@@ -403,7 +408,8 @@ def test_signature_rejection_quarantines_bad_dispatch(tmp_path):
     producer = DispatchSpool(root, _RUN_SECRET)
     producer.enqueue(
         DispatchEnvelope(
-            dispatch_id="d1", attempt_id="ea-1", sequence=1, worktree_path=str(tmp_path)
+            dispatch_id="d1", attempt_id="ea-1", sequence=1, worktree_path=str(tmp_path),
+            governance_constraints=["writable_path_scope=['app/main.py']"],
         )
     )
     # A worker (or runner) with the WRONG secret cannot claim it.

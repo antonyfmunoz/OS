@@ -94,6 +94,41 @@ class ControlPlaneFailureBudget:
         return self.consecutive >= self.max_consecutive or self.total >= self.max_total
 
 
+def package_from_envelope(envelope: Any) -> Any:
+    """Rebuild the canonical execution package from a SIGNED dispatch envelope.
+
+    Finding F-2. This used to be a hand-built 4-attribute stand-in with an
+    invented instruction string and NO ``governance_constraints``. The effect was
+    not cosmetic: ``compile_attempt_package`` sealed the Task's
+    ``writable_path_scope`` correctly and the runner then threw it away on the
+    far side of the spool, so the launcher's fail-closed guard refused 100% of
+    real dispatches. The hard write barrier — proven against 36 adversarial
+    vectors — was mechanically unreachable in the shipped path.
+
+    Every field comes from the HMAC-signed envelope, so the worker runs the
+    instructions the control plane compiled under the scope the control plane
+    sealed. Nothing is invented here, and nothing worker-controlled can reach it:
+    the runner reads only the signed envelope, and the worker never holds the
+    signing secret.
+
+    Module-level (not a closure inside ``_run_one_claim``) so tests can drive the
+    REAL reconstruction. A test that rebuilds this shape inline proves nothing
+    about the runner — that is how the original defect survived a green suite.
+    """
+
+    class _Package:
+        role_instructions = getattr(envelope, "role_instructions", "")
+        operation_instructions = getattr(envelope, "operation_instructions", "")
+        ordered_context = list(getattr(envelope, "ordered_context", None) or [])
+        operation_identity = dict(getattr(envelope, "operation_identity", None) or {})
+        governance_constraints = list(getattr(envelope, "governance_constraints", None) or [])
+        verification_requirements = list(
+            getattr(envelope, "verification_requirements", None) or []
+        )
+
+    return _Package()
+
+
 def _log(msg: str) -> None:
     print(f"[wave2-runner] {msg}", flush=True)
 
@@ -593,28 +628,11 @@ def _run_one_claim(
         snapshot_ref = envelope.base_commit
 
     # THE CANONICAL PACKAGE, RECONSTRUCTED FROM THE SIGNED ENVELOPE (finding F-2).
-    #
-    # This used to be a hand-built 4-attribute stand-in with an invented
-    # instruction string and NO ``governance_constraints``. The consequence was
-    # not cosmetic: ``compile_attempt_package`` sealed the Task's
-    # ``writable_path_scope`` correctly, and the runner then threw it away on the
-    # far side of the spool. The launcher's fail-closed guard therefore refused
-    # 100% of real dispatches, so the hard write barrier — proven against 36
-    # adversarial vectors — was unreachable in the shipped path. A correction
-    # that never reaches production is the exact defect class this campaign
-    # exists to eliminate.
-    #
-    # Every field below is now carried on the HMAC-signed envelope, so the worker
-    # runs the instructions the control plane compiled, under the scope the
-    # control plane sealed. Nothing here is invented by the runner, and nothing
-    # worker-controlled can reach it: the runner reads only the signed envelope.
-    class _Package:
-        role_instructions = envelope.role_instructions
-        operation_instructions = envelope.operation_instructions
-        ordered_context = list(envelope.ordered_context or [])
-        operation_identity = dict(envelope.operation_identity or {})
-        governance_constraints = list(envelope.governance_constraints or [])
-        verification_requirements = list(envelope.verification_requirements or [])
+    # Built by the module-level `package_from_envelope` so the regression tests
+    # drive THIS construction rather than a copy of it — a test that rebuilds the
+    # package inline cannot see a mutation here, which is exactly how the
+    # original defect survived a passing suite.
+    package = package_from_envelope(envelope)
 
     # SEC-C1: durably register the worktree AND the worker home the instant before
     # the worker populates them, so a signal/crash mid-run leaves enough manifest
@@ -631,7 +649,7 @@ def _run_one_claim(
 
     started_at = time.time()
     result = run_worker(
-        package=_Package(),
+        package=package,
         lease=_Lease(),
         timeout=float(envelope.timeout_seconds or 600),
         max_turns=int(envelope.max_turns or 30),

@@ -41,6 +41,9 @@ def _envelope(n: int, *, expires_in: float = 1800.0, timeout: int = 600) -> Disp
         sequence=n,
         expires_at=time.time() + expires_in,
         timeout_seconds=timeout,
+        # The sealed writable scope every real dispatch carries (finding F-2).
+        # Without it the transport fail-closes, as it must.
+        governance_constraints=["writable_path_scope=['app/main.py']"],
     )
 
 
@@ -307,7 +310,10 @@ def test_dispatch_id_is_unique_per_dispatch(tmp_path):
         assert did not in seen, "dispatch ids must not collide"
         seen.add(did)
         spool.enqueue(
-            DispatchEnvelope(dispatch_id=did, attempt_id="ea-1", sequence=1, nonce=uuid4().hex)
+            DispatchEnvelope(
+                dispatch_id=did, attempt_id="ea-1", sequence=1, nonce=uuid4().hex,
+                governance_constraints=["writable_path_scope=['app/main.py']"],
+            )
         )
     inbox = os.listdir(os.path.join(str(tmp_path / "spool"), "inbox"))
     assert len(inbox) == 50, f"every dispatch must persist its own file, got {len(inbox)}"

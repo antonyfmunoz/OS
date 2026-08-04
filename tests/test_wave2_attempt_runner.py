@@ -90,6 +90,7 @@ def test_runner_processes_dispatch_and_writes_signed_result(tmp_path, monkeypatc
             nonce="n",
             sequence=1,
             payload_hash="p",
+            governance_constraints=["writable_path_scope=['app/main.py']"],
         )
     )
 
@@ -173,7 +174,8 @@ def test_runner_quarantines_bad_signature(tmp_path):
     producer = DispatchSpool(spool_root, "real-secret")
     producer.enqueue(
         DispatchEnvelope(
-            dispatch_id="d1", attempt_id="ea-1", sequence=1, worktree_path=str(tmp_path)
+            dispatch_id="d1", attempt_id="ea-1", sequence=1, worktree_path=str(tmp_path),
+            governance_constraints=["writable_path_scope=['app/main.py']"],
         )
     )
     # A runner with the WRONG secret cannot claim it (signature check fails).

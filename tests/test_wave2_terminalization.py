@@ -484,6 +484,7 @@ def _enqueue(spool, *, attempt_id, dispatch_id):
             sequence=1,
             worktree_path="/x",
             base_commit="b",
+            governance_constraints=["writable_path_scope=['app/main.py']"],
         )
     )
 
