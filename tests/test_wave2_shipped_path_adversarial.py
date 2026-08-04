@@ -494,6 +494,61 @@ def test_recovery_refuses_to_resign_a_tampered_inflight_record(tmp_path):
     assert os.listdir(os.path.join(root, "quarantine")), "it must be quarantined"
 
 
+def test_an_uninspectable_commit_range_fails_closed(monkeypatch):
+    """Mutation m22: "the commit range could not be read" must not mean "empty".
+
+    The CRITICAL-1 fix reads `<base>..HEAD` to catch index-smuggled paths. If
+    that command fails and the code carried on with whatever the worktree diff
+    said, the smuggling window reopens exactly when git is least healthy — and a
+    failure to observe would silently read as an observation of nothing. That is
+    the fail-open shape this campaign keeps rediscovering, so it gets a real
+    test rather than an equivalence argument.
+    """
+    import substrate.execution.cpu_gate as cg
+    from substrate.execution.attempts.verification import _actual_changed_paths
+
+    root = tempfile.mkdtemp()
+    lease, base = _lease_with_secret(root)
+    real = cg.gated_subprocess_run
+
+    def fail_commit_range(cmd, **kwargs):
+        # Only the commit-range probe fails; every other git call is real.
+        if list(cmd)[:3] == ["git", "diff", "--name-only"] and ".." in str(cmd[-1]):
+            return type("R", (), {"returncode": 128, "stdout": "", "stderr": "boom"})()
+        return real(cmd, **kwargs)
+
+    monkeypatch.setattr(cg, "gated_subprocess_run", fail_commit_range)
+    lease_obj = type("L", (), {"worktree_path": lease, "snapshot_ref": base})()
+    result = type("R", (), {"files_changed": [], "commits": []})()
+    paths, source, independent = _actual_changed_paths(lease_obj, result)
+    assert not independent, (
+        "an uninspectable commit range must NOT yield an independent verdict — "
+        f"got independent={independent} via {source!r}"
+    )
+    assert paths == []
+
+
+def test_an_unanswerable_ancestry_question_fails_closed(monkeypatch):
+    """Mutation m24: "cannot tell" must never mean "yes".
+
+    The HIGH-1 fix asks git whether the authorized base is still an ancestor of
+    HEAD. If the CPU gate refuses (returns None) and the code treated that as a
+    pass, a worker could detach the trusted commit precisely when the host is
+    loaded — a defect whose reachability depends on machine load.
+    """
+    import substrate.execution.cpu_gate as cg
+    from substrate.execution.attempts.verification import _base_is_ancestor_of_head
+
+    root = tempfile.mkdtemp()
+    lease, base = _lease_with_secret(root)
+    monkeypatch.setattr(cg, "gated_subprocess_run", lambda *a, **k: None)
+    ok, detail = _base_is_ancestor_of_head(
+        type("L", (), {"worktree_path": lease, "snapshot_ref": base})()
+    )
+    assert not ok, f"an unanswerable ancestry check must fail closed, got: {detail}"
+    assert "cpu gate" in detail.lower() or "refused" in detail.lower(), detail
+
+
 def test_a_primitive_that_cannot_enforce_scope_refuses_to_run(monkeypatch):
     """Independent review MEDIUM-1.
 
