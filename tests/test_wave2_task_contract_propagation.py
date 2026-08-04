@@ -301,6 +301,33 @@ def test_4c_user_intent_stays_unique_per_task(field):
     assert len(set(intents)) == len(intents), "each Task needs a UNIQUE user_intent"
 
 
+def test_4d_each_lane_receives_its_own_intent_and_not_a_siblings(field):
+    """Closes the open MEDIUM: cross-lane intent DISTINCTNESS in the PROMPT.
+
+    ``test_4c`` proves the packets carry unique ``user_intent`` values, but
+    uniqueness of a stored field is not the property that failed in the field.
+    What failed was the WORKER'S VIEW: both workers implemented the complete
+    six-file objective because what reached each prompt did not confine it to its
+    own slice. So the assertion has to be made where the worker actually reads —
+    each lane's declared intent must appear in ITS prompt and must NOT appear in
+    any sibling's.
+    """
+    for lane_key in _LANE_ORDER:
+        declared = field["lanes"][lane_key]["intent"].split(".")[0].strip()
+        assert declared, f"{lane_key}: precondition — the lane declares an intent"
+        assert declared in field["prompts"][lane_key], (
+            f"{lane_key}: its own declared intent must reach its worker"
+        )
+        for other in _LANE_ORDER:
+            if other == lane_key:
+                continue
+            assert declared not in field["prompts"][other], (
+                f"{other}'s prompt leaks {lane_key}'s intent — a worker that can read a "
+                "sibling's assignment can implement it, which is exactly how both "
+                "workers wrote the complete objective in field run 20260803T002300Z-p1"
+            )
+
+
 # ── 5. dropping any one field causes failure ─────────────────────────────────
 
 
