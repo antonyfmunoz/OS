@@ -197,13 +197,26 @@ def _smoke_workspace_scope() -> str:
     the full field graph still materializes distinct Tasks with the distinct
     per-lane scopes from the same map.
     """
-    sys.path.insert(0, str(_WORKTREE))
-    from substrate.execution.attempts.field_task_scope import (
-        FIXTURE_ALLOWED_PATHS,
-        INTEGRATION,
-    )
+    fts = _import_field_task_scope()
+    return ",".join(fts.FIXTURE_ALLOWED_PATHS[fts.INTEGRATION])
 
-    return ",".join(FIXTURE_ALLOWED_PATHS[INTEGRATION])
+
+def _import_field_task_scope():
+    """Import field_task_scope from the WORKTREE via importlib.
+
+    When run_passes() calls start_runner() in the same process, substrate may
+    already be cached from the main checkout (via _mesh_read → mesh_dispatch_port).
+    A plain sys.path.insert + from-import resolves against the cached package path
+    (/opt/OS/substrate) which lacks execution/attempts/. importlib bypasses the
+    cache and loads from the worktree's file path directly.
+    """
+    import importlib.util
+
+    mod_path = _WORKTREE / "substrate" / "execution" / "attempts" / "field_task_scope.py"
+    spec = importlib.util.spec_from_file_location("field_task_scope", str(mod_path))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def _declared_lanes_json() -> str:
@@ -230,22 +243,11 @@ def _declared_lanes_json() -> str:
     to the lane (and declaring the global objective subordinate) is what keeps
     each worker inside its authorized surface.
     """
-    sys.path.insert(0, str(_WORKTREE))
-    from substrate.execution.attempts.field_task_scope import (
-        BACKEND,
-        FIXTURE_ALLOWED_PATHS,
-        FIXTURE_PRECEDENCE_NOTE,
-        FRONTEND,
-        INTEGRATION,
-        VERIFICATION,
-        forbidden_paths_for,
-        task_contract_for,
-        task_intent_for,
-    )
+    fts = _import_field_task_scope()
 
     def _lane(key: str, title: str, label: str, depends_on: list[str]) -> dict[str, Any]:
-        allowed = list(FIXTURE_ALLOWED_PATHS[label])
-        forbidden = forbidden_paths_for(label)
+        allowed = list(fts.FIXTURE_ALLOWED_PATHS[label])
+        forbidden = fts.forbidden_paths_for(label)
         # The path boundaries are declared ONCE, as structured fields
         # (``writable_path_scope`` / ``forbidden_path_scope``); the compiler
         # renders them into worker-visible constraint lines. Restating them here
@@ -254,13 +256,13 @@ def _declared_lanes_json() -> str:
         # — a boundary with a silent backup is a boundary nothing verifies.
         constraints = [
             "Implement ONLY this Task's slice — do NOT solve the complete objective.",
-            FIXTURE_PRECEDENCE_NOTE,
+            fts.FIXTURE_PRECEDENCE_NOTE,
         ]
         return {
             "lane_key": key,
             "title": title,
-            "intent": task_intent_for(label),
-            "desired_end_state": task_contract_for(label),
+            "intent": fts.task_intent_for(label),
+            "desired_end_state": fts.task_contract_for(label),
             "constraints": constraints,
             "writable_path_scope": allowed,
             "forbidden_path_scope": forbidden,
@@ -269,18 +271,18 @@ def _declared_lanes_json() -> str:
         }
 
     lanes = [
-        _lane("backend", "Add the note-search backend endpoint", BACKEND, []),
-        _lane("frontend", "Add the note-search frontend UI", FRONTEND, []),
+        _lane("backend", "Add the note-search backend endpoint", fts.BACKEND, []),
+        _lane("frontend", "Add the note-search frontend UI", fts.FRONTEND, []),
         _lane(
             "integration",
             "Integrate and reconcile the search branches",
-            INTEGRATION,
+            fts.INTEGRATION,
             ["backend", "frontend"],
         ),
         _lane(
             "verification",
             "Independently verify note search",
-            VERIFICATION,
+            fts.VERIFICATION,
             ["integration"],
         ),
     ]
