@@ -662,6 +662,47 @@ def git_readonly_subpaths(worktree_path: str) -> list[str]:
         path = os.path.join(git_dir, name)
         if os.path.exists(path):
             out.append(path)
+    # `objects/` stays WRITABLE (a commit writes objects) but `objects/info/`
+    # holds `alternates`, which names an EXTERNAL object store git resolves
+    # objects from. A self-directed probe of the surface THIS correction opened
+    # found it writable and measured the impact: inside the sandbox git could not
+    # normalize the path (nothing outside the lease is bound, so isolation held),
+    # but the FILE PERSISTED TO THE HOST, and on the host `git cat-file` then
+    # read a blob out of an unrelated repository and printed its contents. That
+    # is a persistence primitive — a worker plants a file during confinement that
+    # changes how the HOST resolves objects afterwards, where the verifier and
+    # every later git command run with the real filesystem visible. Denying the
+    # write is the fix; a post-hoc check would be the "detect after the fact"
+    # shape this barrier exists to replace.
+    #
+    # CREATED when absent rather than skipped: `--ro-bind` needs an existing
+    # path, and "the directory does not exist yet" must never degrade into "the
+    # worker may create it". An empty `objects/info` is inert for git.
+    objects_info = os.path.join(git_dir, "objects", "info")
+    if os.path.isdir(os.path.join(git_dir, "objects")):
+        try:
+            os.makedirs(objects_info, exist_ok=True)
+        except OSError as exc:  # cannot create it -> cannot lock it -> fail closed
+            raise ScopeResolutionError(
+                f"cannot create {objects_info!r} to lock it read-only: {exc}"
+            ) from exc
+        out.append(objects_info)
+    # `.git/worktrees` — the linked-worktree REGISTRY. `make_lease_selfcontained`
+    # deliberately does not copy it, so it did not exist, so nothing locked it and
+    # `git worktree add` inside the sandbox CREATED it: measured, the host's
+    # `git worktree list` went 1 -> 2 and `.git/worktrees/` appeared on the host
+    # even though the new worktree's own path (sandbox tmpfs) did not survive.
+    # Registry pollution that outlives confinement violates the
+    # zero-worktree-residue requirement. Created-then-locked for the same reason
+    # as `objects/info` above.
+    worktrees_dir = os.path.join(git_dir, "worktrees")
+    try:
+        os.makedirs(worktrees_dir, exist_ok=True)
+    except OSError as exc:
+        raise ScopeResolutionError(
+            f"cannot create {worktrees_dir!r} to lock it read-only: {exc}"
+        ) from exc
+    out.append(worktrees_dir)
     return out
 
 

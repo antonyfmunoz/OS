@@ -245,6 +245,84 @@ def test_projection_paths_are_never_inside_a_workers_writable_scope():
             assert trusted in rel, f"{label}: {trusted} must be read-only to the worker"
 
 
+def test_git_objects_info_is_locked_against_alternates_planting():
+    """A worker must not be able to plant `.git/objects/info/alternates`.
+
+    Found by a SELF-DIRECTED probe of the surface the F-1 correction OPENED —
+    `objects/` had to become writable so commits could work, and `objects/info/`
+    came along with it. `alternates` names an EXTERNAL object store git resolves
+    objects from. Measured impact before the fix: inside the sandbox git could
+    not normalize the path (isolation held), but the FILE PERSISTED TO THE HOST
+    and `git cat-file` on the host then read a blob out of an unrelated
+    repository and printed its contents. A persistence primitive that outlives
+    confinement, not a contained failure.
+
+    `objects/info` is CREATED when absent so it can be locked: "the directory
+    does not exist yet" must never degrade into "the worker may create it".
+    """
+    from substrate.execution.attempts.field_task_scope import git_readonly_subpaths
+
+    root = tempfile.mkdtemp()
+    os.makedirs(os.path.join(root, ".git", "objects"))
+    subs = {os.path.relpath(p, root) for p in git_readonly_subpaths(root)}
+    assert ".git/objects/info" in subs, (
+        "objects/info holds `alternates` and must be read-only even though "
+        "objects/ itself must stay writable for commits"
+    )
+    assert ".git/objects" not in subs, (
+        "objects/ itself must stay WRITABLE — locking it would break every commit"
+    )
+    assert os.path.isdir(os.path.join(root, ".git", "objects", "info")), (
+        "the directory must be created so there is something to bind read-only"
+    )
+
+
+def test_git_worktrees_registry_is_locked_against_pollution():
+    """A worker must not be able to register a linked worktree on the host.
+
+    Also found by the self-directed probe. `make_lease_selfcontained`
+    deliberately does not copy `.git/worktrees`, so it did not exist, so nothing
+    locked it — and `git worktree add` inside the sandbox created it. Measured:
+    the host's `git worktree list` went 1 -> 2 and `.git/worktrees/` appeared on
+    the host, even though the new worktree's own path (sandbox tmpfs) did not
+    survive. Registry pollution that outlives confinement violates the
+    zero-worktree-residue requirement.
+    """
+    from substrate.execution.attempts.field_task_scope import git_readonly_subpaths
+
+    root = tempfile.mkdtemp()
+    os.makedirs(os.path.join(root, ".git"))
+    subs = {os.path.relpath(p, root) for p in git_readonly_subpaths(root)}
+    assert ".git/worktrees" in subs, "the linked-worktree registry must be read-only"
+    assert os.path.isdir(os.path.join(root, ".git", "worktrees"))
+
+
+def test_worker_cannot_rewrite_the_trusted_commit():
+    """`git commit --amend` must not reach the trusted layer.
+
+    Adjudicating an rc=0 vector rather than waving it through: the amend
+    SUCCEEDS, but it rewrites only the worker's OWN private ref. The trusted
+    projection commit remains a reachable object with its message intact, the
+    attempt base still holds the projected OBJECTIVE.md, and the verifier's
+    range is unaffected. Benign — recorded so a future change that makes it
+    reach the trusted layer fails here.
+    """
+    root = tempfile.mkdtemp()
+    lease, base = _real_lease(root)
+    projection = W.project_task_local_objective(_package(), lease)
+    attempt_base = W._commit_trusted_projection(lease, base, projection)
+
+    def g(*a):
+        return subprocess.run(["git", *a], cwd=lease, capture_output=True, text=True, timeout=60)
+
+    trusted_msg = g("log", "-1", "--format=%s", attempt_base).stdout.strip()
+    assert trusted_msg.startswith("trusted:")
+    # The trusted commit is content-addressed, so it cannot be mutated in place;
+    # what matters is that it stays REACHABLE and unchanged at the attempt base.
+    assert g("cat-file", "-t", attempt_base).stdout.strip() == "commit"
+    assert "# Your Task" in g("show", f"{attempt_base}:OBJECTIVE.md").stdout
+
+
 @pytest.mark.parametrize("attempt_id", ["", "   ", "../escape", "a/b"])
 def test_a_malformed_attempt_id_cannot_mint_a_ref(attempt_id):
     """An attempt id must never be able to traverse out of its namespace."""
