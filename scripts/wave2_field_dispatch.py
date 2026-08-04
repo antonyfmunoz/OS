@@ -1246,10 +1246,10 @@ def _poll_status(
     return last
 
 
-def dispatch_pass(
+def _dispatch_collector(
     runner: Runner, *, run_id: str, pass_num: int, scenario: str, sha: str
 ) -> dict[str, Any]:
-    """Dispatch one collector pass (governed write-class) and poll to terminal."""
+    """Dispatch the collector to Beast (non-blocking). Returns dispatch result."""
     command = _build_start_command(
         run_id=run_id,
         pass_num=pass_num,
@@ -1260,8 +1260,7 @@ def dispatch_pass(
     if runner.dry_run:
         print(f"[dry-run] mesh_dispatch(shell, write-class) node={_MESH_NODE_ID}")
         print(f"[dry-run]   detached start: {_SECRET_REDACT_RE.sub('<redacted>', command)}")
-        _poll_status(runner, run_id, pass_num)
-        return {"dry_run": True, "run_id": run_id, "pass_num": pass_num}
+        return {"ok": True, "dry_run": True, "run_id": run_id, "pass_num": pass_num}
 
     sys.path.insert(0, str(_ROOT))
     from substrate.sockets.mesh_dispatch_port import mesh_dispatch
@@ -1275,6 +1274,63 @@ def dispatch_pass(
     )
     if not result.get("ok"):
         return {"ok": False, "error": result.get("error"), "run_id": run_id, "pass_num": pass_num}
+    return {"ok": True, "run_id": run_id, "pass_num": pass_num}
+
+
+def _wait_collector_authorization(
+    runner: Runner,
+    run_id: str,
+    pass_num: int,
+    *,
+    timeout_min: int = 25,
+) -> bool:
+    """Poll status.json until the collector reaches w15 (execution authorized).
+
+    The runner must NOT start creating workers until the collector has navigated
+    the cockpit through w15_authorize_execution — otherwise workers complete
+    before the collector reaches w16_ab_running_concurrent and w16 observes
+    dom_running=0. This gate was the root cause of EVERY w16 failure after the
+    runner was wired into run_passes (workers complete in ~100s; the collector
+    takes ~15-19 min to reach w16 from dispatch).
+    """
+    status_path = f"{_BEAST_EVIDENCE_DIR}\\{run_id}\\pass{pass_num}\\status.json"
+    read_cmd = f"type {status_path}"
+    deadline = time.time() + timeout_min * 60
+    while time.time() < deadline:
+        if runner.dry_run:
+            print(f"[dry-run] wait for collector to reach w15 (poll {status_path})")
+            return True
+        res = _mesh_read(runner, read_cmd, max_len=65536)
+        if res.get("ok", False):
+            try:
+                status = json.loads(res.get("stdout", ""))
+                stages = status.get("stages_done", 0)
+                if stages >= 15:
+                    print(f"[runner-gate] collector reached stage {stages} — starting runner")
+                    return True
+                state = status.get("state", "")
+                if state in ("passed", "failed"):
+                    print(f"[runner-gate] collector terminal ({state}) before w15 — aborting runner start")
+                    return False
+            except (json.JSONDecodeError, TypeError):
+                pass
+        time.sleep(15)
+    print(f"[runner-gate] timed out waiting for collector to reach w15 ({timeout_min}m)")
+    return False
+
+
+def dispatch_pass(
+    runner: Runner, *, run_id: str, pass_num: int, scenario: str, sha: str
+) -> dict[str, Any]:
+    """Dispatch one collector pass (governed write-class) and poll to terminal."""
+    dispatched = _dispatch_collector(
+        runner, run_id=run_id, pass_num=pass_num, scenario=scenario, sha=sha,
+    )
+    if not dispatched.get("ok"):
+        return dispatched
+    if runner.dry_run:
+        _poll_status(runner, run_id, pass_num)
+        return {"dry_run": True, "run_id": run_id, "pass_num": pass_num}
     terminal = _poll_status(runner, run_id, pass_num)
     return {"ok": terminal.get("state") == "passed", "terminal": terminal, "run_id": run_id}
 
@@ -1339,12 +1395,21 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
             # impact but a hard reconciliation failure).
             _wait_candidate_ready(runner)
 
-        # FULL SCENARIO RUNNER LIFECYCLE (root cause of 16 consecutive w16
-        # failures): the host-side attempt runner drives the control plane loop
-        # (scheduler → admit → dispatch → poll → verify). Without it, execution
-        # authorization creates a grant but no scheduler ever runs, so zero
-        # Attempts are created and the collector observes dom_running=0. Smoke
-        # scenarios do not reach w16, so no runner is needed.
+        # FULL SCENARIO RUNNER LIFECYCLE
+        #
+        # Root cause of ALL w16 failures: the runner must NOT create workers
+        # before the collector reaches w15 (execution authorization). If the
+        # runner starts immediately, it finds stale authorized plans (from the
+        # smoke pass or a previous full pass) and creates workers that complete
+        # in ~100s — long before the collector reaches w16 (~15-19 min after
+        # dispatch). w16 then observes dom_running=0 and fails.
+        #
+        # Correct sequence:
+        #   1. seed_fixture (prepare the fixture workspace)
+        #   2. dispatch collector to Beast (non-blocking mesh dispatch)
+        #   3. wait for collector to reach w15 (stages_done >= 15)
+        #   4. start_runner (workers are created AFTER collector is ready)
+        #   5. poll for collector completion
         runner_started: dict[str, Any] = {}
         if scenario == "full":
             fixture = seed_fixture(runner, sha, run_id, variant="clean")
@@ -1358,6 +1423,27 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
                     }
                 )
                 continue
+
+            # Step 2: dispatch collector FIRST (it needs ~15-19 min to reach w15)
+            dispatched = _dispatch_collector(
+                runner, run_id=run_id, pass_num=i, scenario=scenario, sha=sha,
+            )
+            if not dispatched.get("ok"):
+                results.append(dispatched)
+                continue
+
+            # Step 3: wait for collector to reach w15 before starting workers
+            if not _wait_collector_authorization(runner, run_id, i):
+                results.append(
+                    {
+                        "ok": False,
+                        "error": "collector did not reach w15 — runner not started",
+                        "run_id": run_id,
+                    }
+                )
+                continue
+
+            # Step 4: NOW start the runner — collector is ready for workers
             runner_started = start_runner(runner, sha, run_id, max_iterations=0)
             if not runner_started.get("started", runner_started.get("dry_run", False)):
                 results.append(
@@ -1370,13 +1456,23 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
                 )
                 continue
 
+            # Step 5: poll for collector completion
+            try:
+                terminal = _poll_status(runner, run_id, i)
+                results.append(
+                    {"ok": terminal.get("state") == "passed", "terminal": terminal, "run_id": run_id}
+                )
+            finally:
+                if runner_started.get("started", False):
+                    stop_runner(runner, sha, run_id)
+            continue
+
         try:
             results.append(
                 dispatch_pass(runner, run_id=run_id, pass_num=i, scenario=scenario, sha=sha)
             )
         finally:
-            if scenario == "full" and runner_started.get("started", False):
-                stop_runner(runner, sha, run_id)
+            pass
     return {"scenario": scenario, "passes": passes, "results": results}
 
 
