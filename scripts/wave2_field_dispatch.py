@@ -1277,6 +1277,31 @@ def _dispatch_collector(
     return {"ok": True, "run_id": run_id, "pass_num": pass_num}
 
 
+def _mesh_read_fast(runner: Runner, command: str, *, max_len: int = 65536) -> dict[str, Any]:
+    """Low-latency mesh read with 15s timeout (vs 90s in _mesh_read).
+
+    Used by the collector-authorization gate where every second counts: a slow
+    mesh read can eat into w16's 240-second polling window.
+    """
+    if runner.dry_run:
+        return {"dry_run": True, "command": command, "ok": True, "stdout": "{}"}
+    sys.path.insert(0, str(_ROOT))
+    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
+
+    result = mesh_dispatch(
+        node_id=_MESH_NODE_ID,
+        capability="shell",
+        params={"command": command, "timeout": 10},
+        risk_class="reversible_write",
+        timeout=15,
+    )
+    rd = result.get("result_data", {}) if isinstance(result, dict) else {}
+    return {
+        "ok": bool(result.get("ok")),
+        "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stdout", ""))[:max_len]),
+    }
+
+
 def _wait_collector_authorization(
     runner: Runner,
     run_id: str,
@@ -1292,19 +1317,31 @@ def _wait_collector_authorization(
     dom_running=0. This gate was the root cause of EVERY w16 failure after the
     runner was wired into run_passes (workers complete in ~100s; the collector
     takes ~15-19 min to reach w16 from dispatch).
+
+    CRITICAL: w16 has only a 240-second polling window. This gate must detect
+    stages_done >= 15 within seconds, not minutes. Uses _mesh_read_fast (15s
+    timeout) and 3-second poll interval to avoid missing the window.
     """
     status_path = f"{_BEAST_EVIDENCE_DIR}\\{run_id}\\pass{pass_num}\\status.json"
     read_cmd = f"type {status_path}"
     deadline = time.time() + timeout_min * 60
+    consecutive_failures = 0
+    last_stages = 0
     while time.time() < deadline:
         if runner.dry_run:
             print(f"[dry-run] wait for collector to reach w15 (poll {status_path})")
             return True
-        res = _mesh_read(runner, read_cmd, max_len=65536)
+        t0 = time.time()
+        res = _mesh_read_fast(runner, read_cmd)
+        elapsed = time.time() - t0
         if res.get("ok", False):
+            consecutive_failures = 0
             try:
                 status = json.loads(res.get("stdout", ""))
                 stages = status.get("stages_done", 0)
+                if stages != last_stages:
+                    print(f"[runner-gate] collector at stage {stages} ({elapsed:.1f}s mesh)")
+                    last_stages = stages
                 if stages >= 15:
                     print(f"[runner-gate] collector reached stage {stages} — starting runner")
                     return True
@@ -1314,7 +1351,11 @@ def _wait_collector_authorization(
                     return False
             except (json.JSONDecodeError, TypeError):
                 pass
-        time.sleep(15)
+        else:
+            consecutive_failures += 1
+            if consecutive_failures % 5 == 0:
+                print(f"[runner-gate] {consecutive_failures} consecutive mesh failures ({elapsed:.1f}s)")
+        time.sleep(3)
     print(f"[runner-gate] timed out waiting for collector to reach w15 ({timeout_min}m)")
     return False
 
