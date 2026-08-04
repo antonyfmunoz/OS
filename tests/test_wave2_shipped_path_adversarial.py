@@ -323,6 +323,198 @@ def test_worker_cannot_rewrite_the_trusted_commit():
     assert "# Your Task" in g("show", f"{attempt_base}:OBJECTIVE.md").stdout
 
 
+def _lease_with_secret(root: str) -> tuple[str, str]:
+    """A lease whose scope is ONLY `app/main.py`; `secret/` is forbidden."""
+    repo = os.path.join(root, "fixture")
+    os.makedirs(os.path.join(repo, "app"))
+    os.makedirs(os.path.join(repo, "secret"))
+
+    def g(*a):
+        return subprocess.run(["git", *a], cwd=repo, capture_output=True, text=True, timeout=60)
+
+    for rel, body in (
+        ("app/main.py", "# base\n"),
+        ("secret/key.txt", "REAL SECRET\n"),
+        ("OBJECTIVE.md", "# ALL TASKS\n"),
+    ):
+        with open(os.path.join(repo, rel), "w", encoding="utf-8") as fh:
+            fh.write(body)
+    g("init", "-q", "-b", "main")
+    g("config", "user.email", "t@t.t")
+    g("config", "user.name", "t")
+    g("add", "-A")
+    g("commit", "-qm", "base")
+    lease = os.path.join(root, "lease")
+    g("worktree", "add", "-q", "-b", "b", lease, "HEAD")
+    W.make_lease_selfcontained(lease)
+    projection = W.project_task_local_objective(_package(["app/main.py"]), lease)
+    attempt_base = W._commit_trusted_projection(
+        lease, subprocess.run(["git", "rev-parse", "HEAD"], cwd=lease,
+                              capture_output=True, text=True, timeout=60).stdout.strip(),
+        projection,
+    )
+    return lease, attempt_base
+
+
+def _verdict(lease: str, base: str):
+    from substrate.execution.attempts.verification import _diff_scope_verdict
+
+    class _Packet:
+        packet_id = "wp-test"
+        requirements = {"writable_path_scope": ["app/main.py"], "scope_declared": True}
+
+    lease_obj = type("L", (), {"worktree_path": lease, "snapshot_ref": base})()
+    result = type("R", (), {"files_changed": ["app/main.py"], "commits": ["x"]})()
+    return _diff_scope_verdict(lease=lease_obj, packet=_Packet(), worker_result=result)
+
+
+def _run_git(lease: str, script: str):
+    return subprocess.run(
+        ["bash", "-c", script], cwd=lease, capture_output=True, text=True, timeout=120
+    )
+
+
+def test_index_smuggled_paths_are_caught_by_the_verifier():
+    """Independent review CRITICAL-1.
+
+    The mount barrier protects the WORKING TREE. `.git/objects` and `.git/index`
+    must be writable for `git add` to work, so `git hash-object -w` +
+    `git update-index --cacheinfo` write a tree entry for ANY path without ever
+    touching the file — the mount never fires. Reproduced against the shipped
+    launcher: with scope `['app/main.py']`, a worker committed `OBJECTIVE.md` and
+    `secret/key.txt` as "SMUGGLED" while both worktree copies stayed
+    byte-identical, and the worktree-vs-base diff reported exactly
+    `['app/main.py']`. The attempt PASSED containment.
+
+    A barrier that is reachable but bypassable is worse than one that is
+    unreachable: it looks enforced. The verdict therefore covers the COMMIT
+    RANGE, not just the worktree.
+    """
+    root = tempfile.mkdtemp()
+    lease, base = _lease_with_secret(root)
+    _run_git(
+        lease,
+        "set -e\n"
+        "B=$(echo SMUGGLED | git hash-object -w --stdin)\n"
+        "git update-index --add --cacheinfo 100644,$B,OBJECTIVE.md\n"
+        "git update-index --add --cacheinfo 100644,$B,secret/key.txt\n"
+        "echo work >> app/main.py; git add app/main.py\n"
+        "git -c user.email=w@w -c user.name=w commit -q -m work\n",
+    )
+    ok, detail = _verdict(lease, base)
+    assert not ok, f"smuggled commit paths must be refused, got: {detail}"
+    assert "OBJECTIVE.md" in detail and "secret/key.txt" in detail, detail
+    # ...and the worktree copies really were untouched, which is why only the
+    # commit range could see it.
+    with open(os.path.join(lease, "secret", "key.txt"), encoding="utf-8") as fh:
+        assert fh.read().strip() == "REAL SECRET"
+
+
+def test_detaching_the_trusted_commit_is_caught_by_the_verifier():
+    """Independent review HIGH-1.
+
+    Phase separation puts the trusted projection at the attempt's base so system
+    writes are an ANCESTOR of the worker's history. But the worker owns its own
+    ref, so `git reset --soft HEAD~1` (or `--amend`) detaches that commit and
+    lets the worker re-commit the trusted paths with content of its choosing —
+    touching no protected file, so the barrier stays silent.
+
+    The invariant was asserted in a comment and never checked. Now it is checked.
+    """
+    root = tempfile.mkdtemp()
+    lease, base = _lease_with_secret(root)
+    _run_git(
+        lease,
+        "set -e\n"
+        "git reset --soft HEAD~1\n"
+        "B=$(echo REWROTE | git hash-object -w --stdin)\n"
+        "git update-index --add --cacheinfo 100644,$B,OBJECTIVE.md\n"
+        "echo work >> app/main.py; git add app/main.py\n"
+        "git -c user.email=w@w -c user.name=w commit -q -m attempt\n",
+    )
+    ok, detail = _verdict(lease, base)
+    assert not ok, f"a detached trusted base must be refused, got: {detail}"
+    assert "ancestor" in detail.lower(), detail
+
+
+def test_an_honest_in_scope_worker_still_passes():
+    """The two fixes above must not refuse legitimate work.
+
+    Without this, "refuse everything" would satisfy both tests above and break
+    every real attempt.
+    """
+    root = tempfile.mkdtemp()
+    lease, base = _lease_with_secret(root)
+    _run_git(
+        lease,
+        "set -e\n"
+        "echo 'def search(): pass' >> app/main.py\n"
+        "git add app/main.py\n"
+        "git -c user.email=w@w -c user.name=w commit -q -m legit\n",
+    )
+    ok, detail = _verdict(lease, base)
+    assert ok, f"an honest in-scope worker must still pass, got: {detail}"
+
+
+def test_recovery_refuses_to_resign_a_tampered_inflight_record(tmp_path):
+    """Independent review HIGH-2.
+
+    Stale-inflight recovery refreshes a claim deadline and re-signs. It used to
+    re-sign whatever was on disk, so an attacker with spool filesystem access
+    could widen the scope in an inflight record, wait for recovery, and have the
+    spool mint a VALID signature over the tampered envelope. The HMAC is sound
+    everywhere else; this was the one place it was applied to unverified input.
+    """
+    import time
+
+    root = str(tmp_path)
+    spool = DispatchSpool(root, SECRET)
+    spool.enqueue(
+        DispatchEnvelope(
+            dispatch_id="d-1", attempt_id="ea-1", task_id="wp-a",
+            nonce=os.urandom(8).hex(), sequence=1, expires_at=time.time() + 3600,
+            governance_constraints=["writable_path_scope=['app/main.py']"],
+        )
+    )
+    assert spool.claim_next() is not None, "precondition: honest envelope claimable"
+
+    inflight = os.path.join(root, "inflight")
+    name = sorted(f for f in os.listdir(inflight) if f.endswith(".json"))[0]
+    path = os.path.join(inflight, name)
+    with open(path, encoding="utf-8") as fh:
+        record = json.load(fh)
+    record["envelope"]["governance_constraints"] = ["writable_path_scope=['/']"]
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(record, fh)
+    stale = time.time() - 99999
+    os.utime(path, (stale, stale))
+
+    spool.recover_stale_inflight(older_than_seconds=60.0)
+    assert spool.claim_next() is None, "a tampered record must never be re-signed"
+    assert os.listdir(os.path.join(root, "quarantine")), "it must be quarantined"
+
+
+def test_a_primitive_that_cannot_enforce_scope_refuses_to_run(monkeypatch):
+    """Independent review MEDIUM-1.
+
+    Only the bwrap branch can express per-path binds; systemd-run and nsjail
+    ignore them. On a host without bwrap a profile carrying scope_enforced=True
+    would have run with the flag set and NOTHING enforced. A barrier that
+    silently becomes advisory is worse than an absent one — the absence is at
+    least visible.
+    """
+    from substrate.execution.attempts import host_isolation as hi
+
+    monkeypatch.setattr(hi, "isolation_primitive", lambda: "systemd-run")
+    profile = hi.IsolationProfile(
+        worktree_path="/tmp/wt", worker_home="/tmp/home", tmp_path="/tmp/t",
+        readonly_subpaths=["/tmp/wt/secret"], writable_subpaths=[], scope_enforced=True,
+    )
+    with pytest.raises(hi.IsolationUnavailable) as exc:
+        hi.build_isolated_command(["/bin/true"], profile)
+    assert "cannot enforce per-path write scope" in str(exc.value)
+
+
 @pytest.mark.parametrize("attempt_id", ["", "   ", "../escape", "a/b"])
 def test_a_malformed_attempt_id_cannot_mint_a_ref(attempt_id):
     """An attempt id must never be able to traverse out of its namespace."""

@@ -321,11 +321,79 @@ def _actual_changed_paths(lease: Any, worker_result: Any) -> tuple[list[str], st
                 paths.update(
                     ln.strip() for ln in (untracked.stdout or "").splitlines() if ln.strip()
                 )
-            return sorted(paths), "git diff + untracked (independent)", True
+            # THE COMMIT RANGE. `git diff <base>` compares the WORKING TREE to the
+            # base, so it sees only what is on disk. The write barrier makes
+            # out-of-scope files unwritable on disk — but `.git/objects` and
+            # `.git/index` MUST be writable for `git add` to work at all, and
+            # `git hash-object -w` + `git update-index --cacheinfo` write a tree
+            # entry for ANY path without ever touching the file. The mount never
+            # fires, so the barrier holds and the change is still committed.
+            #
+            # Reproduced against the shipped launcher: with scope ['app/main.py'],
+            # a worker committed `OBJECTIVE.md` and `secret/key.txt` as "SMUGGLED"
+            # while the worktree copies stayed byte-identical; the worktree diff
+            # reported exactly ['app/main.py'] and the attempt PASSED containment.
+            # The barrier was reachable but bypassable, which is worse than
+            # unreachable: it looks enforced.
+            #
+            # The committed range is therefore part of the verdict, not a
+            # diagnostic. A path is out of scope whether it reached the commit
+            # through the filesystem or through the index.
+            committed = gated_subprocess_run(
+                ["git", "diff", "--name-only", f"{base}..HEAD"],
+                caller="wave2_verify_diff_scope_committed",
+                timeout=60,
+                cwd=worktree,
+            )
+            if committed is None or committed.returncode != 0:
+                # Fail closed: an uninspectable commit range is not an empty one.
+                return [], "git commit-range diff unavailable", False
+            paths.update(ln.strip() for ln in (committed.stdout or "").splitlines() if ln.strip())
+            return sorted(paths), "git worktree diff + commit range + untracked (independent)", True
         except Exception as exc:  # noqa: BLE001 - diagnostics only
             logger.debug("independent diff failed for %s: %s", worktree, exc)
     reported = [str(p) for p in (getattr(worker_result, "files_changed", []) or [])]
     return reported, "worker self-report (worktree not inspectable)", False
+
+
+def _base_is_ancestor_of_head(lease: Any) -> tuple[bool, str]:
+    """Is the lease's authorized base still reachable from HEAD?
+
+    The worker owns its own attempt ref (that is what makes committing possible
+    at all), so it can move that ref anywhere — including off the trusted
+    projection commit that phase separation placed at its base. `reset --soft`
+    and `commit --amend` both do this, and neither touches a protected file, so
+    the write barrier is silent and the scope diff still reads clean.
+
+    Checking ancestry converts "system writes are an ancestor of the worker's
+    base" from a comment into an enforced property. Fails closed: an ancestry
+    question that cannot be answered is not an answer of yes.
+    """
+    worktree = str(getattr(lease, "worktree_path", "") or "")
+    base = str(getattr(lease, "snapshot_ref", "") or "").strip()
+    if not base:
+        return False, "lease has no snapshot_ref"
+    if not worktree or not os.path.isdir(worktree):
+        return False, f"lease worktree not inspectable: {worktree!r}"
+    try:
+        from substrate.execution.cpu_gate import gated_subprocess_run
+
+        result = gated_subprocess_run(
+            ["git", "merge-base", "--is-ancestor", base, "HEAD"],
+            caller="wave2_verify_base_ancestry",
+            timeout=60,
+            cwd=worktree,
+        )
+    except Exception as exc:  # noqa: BLE001 - an unanswerable check fails closed
+        return False, f"ancestry check failed: {exc}"
+    if result is None:
+        return False, "ancestry check refused by CPU gate"
+    if result.returncode == 0:
+        return True, f"base {base[:12]} is an ancestor of HEAD"
+    return False, (
+        f"base {base[:12]} is NOT an ancestor of HEAD (rc={result.returncode}) — "
+        "the attempt's history is not the one that was authorized"
+    )
 
 
 def _diff_scope_verdict(
@@ -365,6 +433,23 @@ def _diff_scope_verdict(
         allowed = normalize_allowed_paths(declared, lease_root=worktree_path)
     except ScopeResolutionError as exc:
         return False, f"unusable path scope: {exc}"
+
+    # THE AUTHORIZED BASE MUST STILL BE AN ANCESTOR OF HEAD.
+    #
+    # Phase separation puts the trusted projection commit at the attempt's base,
+    # so system writes are an ANCESTOR of the worker's history and can never be
+    # attributed to the worker. That invariant was ASSERTED but never CHECKED —
+    # and the worker owns its own ref, so `git reset --soft HEAD~1` or
+    # `git commit --amend` detaches the trusted commit from HEAD entirely. The
+    # worker then re-commits the trusted paths with content of its choosing while
+    # the scope verdict still reads clean.
+    #
+    # An unchecked invariant is not an invariant. This makes it load-bearing:
+    # if the base is no longer reachable from HEAD, the attempt's history is not
+    # the one that was authorized, whatever its diff happens to say.
+    ancestry_ok, ancestry_detail = _base_is_ancestor_of_head(lease)
+    if not ancestry_ok:
+        return False, f"authorized base is not an ancestor of HEAD: {ancestry_detail}"
 
     changed_paths, diff_source, independent = _actual_changed_paths(lease, worker_result)
     if not independent:

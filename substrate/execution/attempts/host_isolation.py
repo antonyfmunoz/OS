@@ -176,6 +176,26 @@ def build_isolated_command(inner_cmd: list[str], profile: IsolationProfile) -> l
         )
     if prim == "bwrap":
         return build_bwrap_command(inner_cmd, profile)
+    # NO SILENT DOWNGRADE OF THE WRITE BARRIER (independent review MEDIUM-1).
+    #
+    # Only the bwrap branch can express per-path binds. The systemd-run and
+    # nsjail branches below ignore `readonly_subpaths` and `writable_subpaths`
+    # entirely, so on a host without bwrap a profile carrying `scope_enforced=True`
+    # would run with the flag set and NOTHING enforced — the worker unconfined
+    # with respect to its Task scope while every record says otherwise.
+    #
+    # A coarser sandbox is an acceptable fallback for CREDENTIAL isolation, which
+    # is what these branches were written for. It is not an acceptable fallback
+    # for WRITE-SCOPE enforcement: a barrier that silently becomes advisory is
+    # worse than one that is absent, because the absence is visible. Fail closed
+    # and say exactly which primitive could not honor the binds.
+    if profile.scope_enforced or profile.readonly_subpaths or profile.writable_subpaths:
+        raise IsolationUnavailable(
+            f"host-isolation primitive {prim!r} cannot enforce per-path write scope "
+            f"({len(profile.readonly_subpaths)} read-only, "
+            f"{len(profile.writable_subpaths)} writable binds required) — only bwrap "
+            "can. Refusing to run a worker whose declared scope would be unenforced."
+        )
     if prim == "systemd-run":
         # Transient unit with a private tmp + restricted home; a coarser fallback.
         return [

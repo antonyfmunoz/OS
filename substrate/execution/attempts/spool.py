@@ -363,9 +363,33 @@ class DispatchSpool:
                     record = json.load(f)
                 env = record.get("envelope", {})
                 if env.get("expires_at"):
-                    env["expires_at"] = now + max(60.0, older_than_seconds)
-                    record["envelope"] = env
-                    record["signature"] = _sign(DispatchEnvelope(**env).signable(), self._secret)
+                    # VERIFY BEFORE RE-SIGNING (independent review HIGH-2).
+                    # This used to re-sign whatever was on disk, so an attacker
+                    # with spool filesystem access could widen the scope in an
+                    # inflight record, wait for recovery, and have the spool mint
+                    # a VALID signature over the tampered envelope — laundering
+                    # unauthorized authority through the recovery path. The HMAC
+                    # is sound everywhere else; this was the one place it was
+                    # applied to unverified input.
+                    #
+                    # Recovery may refresh a CLAIM DEADLINE. It may not bless a
+                    # record it has not first authenticated, and it re-signs from
+                    # the VERIFIED envelope object with only `expires_at`
+                    # replaced — never from the raw dict — so a field the
+                    # attacker added cannot ride along.
+                    existing = record.get("signature", "")
+                    verified = DispatchEnvelope(**env)
+                    if not _verify(verified.signable(), self._secret, existing):
+                        # `_quarantine` already searches inflight then inbox.
+                        self._quarantine(
+                            name,
+                            "inflight record failed signature verification at recovery "
+                            "(tampered while claimed) — refusing to re-sign",
+                        )
+                        continue
+                    verified.expires_at = now + max(60.0, older_than_seconds)
+                    record["envelope"] = asdict(verified)
+                    record["signature"] = _sign(verified.signable(), self._secret)
                     tmp = path + ".tmp"
                     with open(tmp, "w", encoding="utf-8") as f:
                         json.dump(record, f, separators=(",", ":"))
