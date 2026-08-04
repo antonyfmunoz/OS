@@ -1291,7 +1291,15 @@ def _verify_beast_collector_commit(runner: Runner, sha: str) -> dict[str, Any]:
 
 
 def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[str, Any]:
-    """Run N collector passes with fresh run-ids; restart candidate before pass 1."""
+    """Run N collector passes with fresh run-ids; restart candidate before pass 1.
+
+    For ``full`` scenario passes, the host-side attempt runner (control plane +
+    worker loop) is started before and stopped after each pass. Without it, no
+    scheduler runs after the operator authorizes execution, so zero Attempts are
+    created and w16_ab_running_concurrent always fails. The runner is run-scoped:
+    its spool and targets dir are keyed (sha, run_id), so each pass gets its own
+    runner instance.
+    """
     # READINESS GATE (finding SEC-C3): refuse to dispatch anything against a
     # candidate that is not answering. A failed gate consumes ZERO worker quota
     # because no dispatch is written, and it returns a non-zero exit via main().
@@ -1328,7 +1336,45 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
             # device/register + execution-summary, both at ms~10000, zero journey
             # impact but a hard reconciliation failure).
             _wait_candidate_ready(runner)
-        results.append(dispatch_pass(runner, run_id=run_id, pass_num=i, scenario=scenario, sha=sha))
+
+        # FULL SCENARIO RUNNER LIFECYCLE (root cause of 16 consecutive w16
+        # failures): the host-side attempt runner drives the control plane loop
+        # (scheduler → admit → dispatch → poll → verify). Without it, execution
+        # authorization creates a grant but no scheduler ever runs, so zero
+        # Attempts are created and the collector observes dom_running=0. Smoke
+        # scenarios do not reach w16, so no runner is needed.
+        runner_started: dict[str, Any] = {}
+        if scenario == "full":
+            fixture = seed_fixture(runner, sha, run_id, variant="clean")
+            if not fixture.get("dest"):
+                results.append(
+                    {
+                        "ok": False,
+                        "error": "seed_fixture failed",
+                        "fixture": fixture,
+                        "run_id": run_id,
+                    }
+                )
+                continue
+            runner_started = start_runner(runner, sha, run_id, max_iterations=0)
+            if not runner_started.get("started", runner_started.get("dry_run", False)):
+                results.append(
+                    {
+                        "ok": False,
+                        "error": "start_runner failed",
+                        "runner": runner_started,
+                        "run_id": run_id,
+                    }
+                )
+                continue
+
+        try:
+            results.append(
+                dispatch_pass(runner, run_id=run_id, pass_num=i, scenario=scenario, sha=sha)
+            )
+        finally:
+            if scenario == "full" and runner_started.get("started", False):
+                stop_runner(runner, sha, run_id)
     return {"scenario": scenario, "passes": passes, "results": results}
 
 
