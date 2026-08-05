@@ -183,6 +183,7 @@ def try_chat_planning_rail(
     client_message_id: str = "",
     user_id: str = "",
     _depth: int = 0,
+    correlation_id: str = "",
 ) -> dict | None:
     """Route one Cockpit chat/voice message through the canonical protocol.
 
@@ -262,6 +263,12 @@ def try_chat_planning_rail(
                     client_message_id=client_message_id or session.client_message_id,
                     user_id=user_id,
                     _depth=1,
+                    # Carry the caller's correlation across the clarification
+                    # re-entry. Dropping it here would mint the grant under the
+                    # intent fallback whenever the journey asked a clarifying
+                    # question — the same unbindable-grant defect, on a path
+                    # that only shows up when clarification happens.
+                    correlation_id=correlation_id,
                 )
             return None  # nothing held — let the conversation answer
 
@@ -431,7 +438,20 @@ def try_chat_planning_rail(
                     principal_id=principal.principal_id,
                     membership_id=principal.membership_id,
                     conversation_id=conv_id,
-                    correlation_id=resolution.intent_id,
+                    # The CALLER's correlation wins when supplied. The field
+                    # collector stamps `X-Correlation-ID: w2-<run_id>` on every
+                    # candidate-origin request precisely so the grant it causes
+                    # is uniquely identifiable as THIS run's; the exact-
+                    # correlation binding in wave2_field_dispatch.py refuses
+                    # anything else (fail-closed, by design — a parallel run's
+                    # ACTIVE grant must stay irrelevant).
+                    #
+                    # This previously hardcoded `resolution.intent_id`, so every
+                    # grant carried an `intent_*` correlation and NO grant this
+                    # system could mint would ever satisfy the gate. The intent
+                    # id remains the fallback for ordinary chat, which sends no
+                    # correlation header.
+                    correlation_id=correlation_id or resolution.intent_id,
                     requested_by=user_id or "cockpit_chat_operator",
                     mutation_runner=protocol._runner(),
                 )

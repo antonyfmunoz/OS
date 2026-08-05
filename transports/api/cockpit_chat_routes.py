@@ -303,11 +303,22 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
     # ── Advisor / DEX conversation endpoints ─────────────────────────────────
 
     @r.post("/advisor/converse")
-    def advisor_converse(payload: dict):
+    def advisor_converse(payload: dict, request: Request = None):  # noqa: B008
         """Multi-turn conversational endpoint for the advisor right rail."""
         content = payload.get("content", "")
         if not content:
             return {"error": "content required"}
+        # The field collector stamps `X-Correlation-ID: w2-<run_id>` on every
+        # candidate-origin request so the execution-authorization grant its
+        # journey causes is uniquely bindable to THAT run. Read it here and
+        # thread it to the planning rail; ordinary chat sends no such header
+        # and keeps the intent-derived fallback.
+        correlation_id = ""
+        if request is not None:
+            try:
+                correlation_id = request.headers.get("x-correlation-id", "") or ""
+            except Exception:  # noqa: BLE001 - a header read must never break chat
+                correlation_id = ""
 
         # Wave 1 planning rail — the ONE conversational work seam (§23.5
         # cutover). Work-bearing messages route through the canonical
@@ -320,6 +331,7 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             content,
             payload.get("conversation_id", ""),
             client_message_id=payload.get("client_message_id", ""),
+            correlation_id=correlation_id,
         )
         if rail is not None:
             return rail
@@ -736,7 +748,11 @@ def _build_router(require_operator_dep: Any) -> APIRouter:
             # short alnum suffix only. Falls back to the content-type map, else ".bin".
             raw_ext = Path(file.filename or "upload").suffix
             safe_ext = "".join(c for c in raw_ext if c.isalnum() or c == ".")[:12]
-            ext = safe_ext if safe_ext.startswith(".") and len(safe_ext) > 1 else _ext_from_content_type(base_ct)
+            ext = (
+                safe_ext
+                if safe_ext.startswith(".") and len(safe_ext) > 1
+                else _ext_from_content_type(base_ct)
+            )
             file_id = (
                 f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
                 f"_{uuid.uuid4().hex[:8]}{ext}"

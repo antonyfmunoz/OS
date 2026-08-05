@@ -499,7 +499,18 @@ class FieldCollector:
         self.ship_to = ship_to
         self.fixture_url = fixture_url
         self.run_tag = f"[w2-{run_id}-p{pass_num}]"
-        self.correlation_id = f"w2-{run_id}-p{pass_num}"
+        # THE grant-binding correlation. It must match, byte for byte, what
+        # `_capture_execution_binding` looks for in wave2_field_dispatch.py:
+        # `f"w2-{run_id}"`. `run_id` ALREADY carries the pass suffix (the
+        # dispatcher mints `<stamp>-p<N>`), so appending `-p{pass_num}` here
+        # produced `w2-<stamp>-p1-p1` — a doubled suffix the consumer could
+        # never match, and the exact-correlation binding therefore refused
+        # every field run it was asked to bind (run 20260805T062433Z-p1).
+        #
+        # `run_tag` keeps the historical shape: it is a log/evidence tag, is
+        # NOT part of the ExecutionAuthorizationGrant identity contract, and
+        # nothing binds on it.
+        self.correlation_id = f"w2-{run_id}"
 
         self.pass_dir = evidence_dir / run_id / f"pass{pass_num}"
         self.pass_dir.mkdir(parents=True, exist_ok=True)
