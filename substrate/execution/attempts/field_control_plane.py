@@ -605,7 +605,7 @@ class FieldControlPlaneDriver:
 
         control_plane = self
 
-        def _checks(att: Any) -> tuple[list[Any], Any]:
+        def _checks(att: Any, *, effective_base: str = "") -> tuple[list[Any], Any]:
             from substrate.execution.attempts.verifier_isolation import (
                 run_confined_verifier_checks,
             )
@@ -616,10 +616,18 @@ class FieldControlPlaneDriver:
             lease = control_plane._lease_lookup(getattr(att, "lease_id", "") or "")
             worktree = str(getattr(lease, "worktree_path", "") or "") if lease else ""
             source = worktree if worktree and os.path.isdir(worktree) else fixture
-            # base_commit is the AUTHORIZED diff base (lease.snapshot_ref) — the
-            # verifier reads the actual worktree HEAD itself as verified_commit
-            # (C-4a). They are never conflated.
-            base_commit = str(getattr(lease, "snapshot_ref", "") or "") if lease else ""
+            # base_commit is the AUTHORIZED diff base — the verifier reads the
+            # actual worktree HEAD itself as verified_commit (C-4a). They are
+            # never conflated.
+            #
+            # ``effective_base`` is the base the poller actually ENFORCED for this
+            # attempt (the authorized trusted-projection re-anchor, when one was
+            # allowed). This lookup returns a FRESH lease record carrying the
+            # ledger's original snapshot_ref, so without the passed-in value the
+            # Proof would attest to a base that was not the one enforced.
+            base_commit = effective_base or (
+                str(getattr(lease, "snapshot_ref", "") or "") if lease else ""
+            )
             worker_identity = getattr(att, "worker_identity", "") or ""
 
             # Returns (checks, VerifierEvidence). The evidence is threaded through

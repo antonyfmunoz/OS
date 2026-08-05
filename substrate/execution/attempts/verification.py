@@ -396,6 +396,109 @@ def _base_is_ancestor_of_head(lease: Any) -> tuple[bool, str]:
     )
 
 
+def reanchor_is_authorized(*, worktree: str, original_base: str, new_base: str) -> tuple[bool, str]:
+    """May the attempt's diff base move from ``original_base`` to ``new_base``?
+
+    Moving a diff base FORWARD monotonically shrinks the observed change set, so
+    an unvalidated re-anchor is a scope-check bypass, not a bookkeeping detail.
+    Anchoring at the worker's own HEAD yields ``changed=0`` and PASSES with
+    out-of-scope files sitting in the tree — reproduced directly against this
+    module: with scope ``['app/']`` and a smuggled ``secret/key.txt``, base C0
+    rejected, the trusted base C1 correctly rejected (catching the smuggle), and
+    a forward base at the worker's commit returned ``changed=0 outside=[]``.
+
+    ``_base_is_ancestor_of_head`` does NOT constrain this. It asks only whether
+    the base is reachable from HEAD, which every commit on the branch satisfies —
+    including the worker's own. It guards the base moving OFF the branch
+    (``reset --soft``), never the base moving forward along it.
+
+    So the re-anchor is authorized only when all three hold:
+
+    1. ``new_base`` resolves to a real commit named by its FULL SHA (a branch
+       name like ``main`` resolves and is an ancestor of HEAD, and a ref can be
+       moved after the fact);
+    2. ``original_base`` is an ancestor of ``new_base`` — the base may only move
+       FORWARD from the authorized one, never sideways onto another history;
+    3. the commits being skipped touch ONLY ``TRUSTED_PROJECTION_PATHS``. This is
+       the load-bearing one: it bounds what the re-anchor may hide to exactly the
+       system writes the trusted phase is permitted to make. Any worker-authored
+       path in that range means the re-anchor would erase a change the scope
+       check exists to see.
+
+    Fails CLOSED — an unanswerable question is never an answer of yes. The caller
+    keeps the original base on refusal, which is a scope rejection (the pre-fix
+    behaviour), never a pass.
+    """
+    from substrate.execution.attempts.worker_claude_cli import TRUSTED_PROJECTION_PATHS
+
+    original_base = (original_base or "").strip()
+    new_base = (new_base or "").strip()
+    if not new_base:
+        return False, "no trusted_base supplied"
+    if not original_base:
+        return False, "lease has no original snapshot_ref to move from"
+    if new_base == original_base:
+        return True, "base unchanged"
+    if not worktree or not os.path.isdir(worktree):
+        return False, f"lease worktree not inspectable: {worktree!r}"
+
+    try:
+        from substrate.execution.cpu_gate import gated_subprocess_run
+
+        def _git(args: list[str]):
+            return gated_subprocess_run(
+                ["git", *args],
+                caller="wave2_verify_reanchor_authorized",
+                timeout=60,
+                cwd=worktree,
+            )
+
+        # (1) a real commit, named by its full SHA — never a movable ref.
+        resolved = _git(["rev-parse", "--verify", f"{new_base}^{{commit}}"])
+        if resolved is None:
+            return False, "re-anchor check refused by CPU gate"
+        if resolved.returncode != 0:
+            return False, f"trusted_base {new_base[:12]} does not resolve to a commit"
+        resolved_sha = (resolved.stdout or "").strip()
+        if resolved_sha != new_base:
+            return False, (
+                f"trusted_base {new_base!r} is not a full commit SHA (resolves to "
+                f"{resolved_sha[:12]}) — a movable ref may not anchor a scope diff"
+            )
+
+        # (2) forward-only along the authorized history.
+        fwd = _git(["merge-base", "--is-ancestor", original_base, new_base])
+        if fwd is None:
+            return False, "re-anchor ancestry check refused by CPU gate"
+        if fwd.returncode != 0:
+            return False, (
+                f"original base {original_base[:12]} is NOT an ancestor of "
+                f"trusted_base {new_base[:12]} — the re-anchor leaves the "
+                f"authorized history"
+            )
+
+        # (3) the skipped range contains ONLY trusted system writes.
+        skipped = _git(["diff", "--name-only", f"{original_base}..{new_base}"])
+        if skipped is None:
+            return False, "re-anchor range diff refused by CPU gate"
+        if skipped.returncode != 0:
+            return False, "re-anchor range diff unavailable — refusing to move the base"
+        changed = [ln.strip() for ln in (skipped.stdout or "").splitlines() if ln.strip()]
+        outside = [p for p in changed if p not in TRUSTED_PROJECTION_PATHS]
+        if outside:
+            return False, (
+                f"re-anchor would skip non-trusted paths {sorted(outside)[:5]} — only "
+                f"{sorted(TRUSTED_PROJECTION_PATHS)} may be moved past the worker's base"
+            )
+    except Exception as exc:  # noqa: BLE001 - an unanswerable check fails closed
+        return False, f"re-anchor authorization failed: {exc}"
+
+    return True, (
+        f"re-anchor {original_base[:12]}..{new_base[:12]} authorized "
+        f"({len(changed)} trusted path(s))"
+    )
+
+
 def _diff_scope_verdict(
     *, lease: Any, packet: Any, worker_result: Any, semantic_label: str = ""
 ) -> tuple[bool, str]:

@@ -225,9 +225,42 @@ class ControlPlanePoller:
         # attempt's diff base PAST them. The lease record still carries the
         # original fixture base. Without re-anchoring, `git diff <old_base>..HEAD`
         # includes the system writes and diff_scope rejects every attempt.
+        #
+        # The move is AUTHORIZED, never assumed. Moving a base forward shrinks
+        # the observed change set, so an unchecked re-anchor is a scope-check
+        # bypass: anchoring at the worker's own HEAD returns `changed=0` and
+        # passes with out-of-scope files in the tree. `_base_is_ancestor_of_head`
+        # does not stop that — every commit on the branch is an ancestor of HEAD.
+        # `reanchor_is_authorized` requires a full SHA, forward-only movement
+        # from the authorized base, and a skipped range touching ONLY trusted
+        # projection paths.
+        #
+        # Fails CLOSED to the ORIGINAL base: a refused re-anchor yields the
+        # pre-fix scope rejection, never a pass.
         trusted_base = str(raw.get("trusted_base", "") or "").strip()
         if trusted_base and lease is not None:
-            if hasattr(lease, "_d") and isinstance(lease._d, dict):  # noqa: SLF001
+            from substrate.execution.attempts.verification import reanchor_is_authorized
+
+            original_base = str(getattr(lease, "snapshot_ref", "") or "").strip()
+            allowed, why = reanchor_is_authorized(
+                worktree=str(getattr(lease, "worktree_path", "") or ""),
+                original_base=original_base,
+                new_base=trusted_base,
+            )
+            if not allowed:
+                logger.warning(
+                    "REFUSING trusted-base re-anchor for attempt %s (task %s): "
+                    "%s -> %s: %s — verifying against the ORIGINAL base",
+                    getattr(attempt, "attempt_id", "?"),
+                    getattr(attempt, "task_id", ""),
+                    original_base[:12],
+                    trusted_base[:12],
+                    why,
+                )
+                report.errors.append(
+                    f"{getattr(attempt, 'attempt_id', '?')}: re-anchor refused: {why}"
+                )
+            elif hasattr(lease, "_d") and isinstance(lease._d, dict):  # noqa: SLF001
                 lease._d["snapshot_ref"] = trusted_base  # noqa: SLF001
             elif isinstance(lease, dict):
                 lease["snapshot_ref"] = trusted_base
@@ -265,7 +298,15 @@ class ControlPlanePoller:
             # authorized to write, and the scope check fails closed rather than
             # falling back to "the whole worktree is fine".
             packet=self._packet_lookup(getattr(attempt, "task_id", "")),
-            independent_checks=self._independent_checks_for(attempt),
+            # The EFFECTIVE base is derived once, here, and threaded to the
+            # checks builder. The builder re-resolves the lease from the store
+            # to find the worktree, and that fresh record carries the ORIGINAL
+            # snapshot_ref (the re-anchor is deliberately in-memory — the ledger's
+            # authorized base stays canonical). Without threading it, diff_scope
+            # would enforce the re-anchored base while the persisted Proof
+            # recorded the stale one: a Proof attesting to a base that was not
+            # the one enforced.
+            independent_checks=self._build_independent_checks(attempt, lease),
             proof_runtime=self._proof_runtime,
         )
 
@@ -309,6 +350,31 @@ class ControlPlanePoller:
             # verification_rejected is a terminal reason: release the lease so the
             # retry is admissible, and destroy the credential home.
             self._terminalize(updated or attempt, "verification_rejected", report)
+
+    def _build_independent_checks(self, attempt: Any, lease: Any) -> Any:
+        """Build the independent-checks callable for THIS attempt's effective base.
+
+        The checks builder resolves its own lease record from the store to find
+        the worktree; that record carries the ORIGINAL snapshot_ref, because the
+        re-anchor is in-memory by design (the ledger's authorized base must stay
+        canonical — persisting a run-derived base into durable state would be
+        worse than the divergence it fixes).
+
+        So the base the verifier ENFORCES and the base the Proof RECORDS must be
+        reconciled here, at the one place that knows both. Builders that accept
+        ``effective_base`` receive it; older single-argument builders keep
+        working unchanged.
+        """
+        effective_base = str(getattr(lease, "snapshot_ref", "") or "").strip()
+        builder = self._independent_checks_for
+        if not effective_base:
+            return builder(attempt)
+        try:
+            return builder(attempt, effective_base=effective_base)
+        except TypeError:
+            # A builder that does not accept the base (test doubles, older
+            # wiring) is still valid — it simply reports the ledger base.
+            return builder(attempt)
 
     def _terminalize(self, attempt: Any, reason: str, report: PollerPassReport) -> None:
         """Run the ONE terminalization authority for a just-terminalized attempt.

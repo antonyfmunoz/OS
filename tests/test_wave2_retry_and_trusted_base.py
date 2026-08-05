@@ -192,7 +192,7 @@ def test_blocked_reason_includes_check_detail_not_just_id(store):
 # ── test: trusted_base re-anchors lease for verifier ────────────────────────
 
 
-def test_trusted_base_reanchors_lease_snapshot_ref(store):
+def test_trusted_base_reanchors_lease_snapshot_ref(store, real_repo):
     """When the spool result carries a trusted_base, the poller must update
     the lease's snapshot_ref BEFORE passing it to the verifier. This is the
     F-3 fix: the trusted projection commits system writes past the original
@@ -217,7 +217,7 @@ def test_trusted_base_reanchors_lease_snapshot_ref(store):
             {
                 "attempt_id": a.attempt_id,
                 "task_id": a.task_id,
-                "trusted_base": "aaaa1111bbbb2222cccc3333dddd4444eeee5555",
+                "trusted_base": real_repo["trusted"],
                 "worker_result": {
                     "ok": True,
                     "status": "succeeded",
@@ -232,8 +232,8 @@ def test_trusted_base_reanchors_lease_snapshot_ref(store):
         def __init__(self):
             self._d = {
                 "lease_id": "l-1",
-                "snapshot_ref": "0000000000000000000000000000000000000000",
-                "worktree_path": "/tmp/test-lease",
+                "snapshot_ref": real_repo["base"],
+                "worktree_path": real_repo["path"],
                 "status": "active",
             }
 
@@ -255,13 +255,13 @@ def test_trusted_base_reanchors_lease_snapshot_ref(store):
 
     poller.run_pass()
 
-    assert captured_lease_ref.get("ref") == "aaaa1111bbbb2222cccc3333dddd4444eeee5555", (
+    assert captured_lease_ref.get("ref") == real_repo["trusted"], (
         "the poller must re-anchor lease.snapshot_ref to the trusted_base "
         "before passing to the verifier"
     )
 
 
-def test_trusted_base_reanchors_on_retry_attempts_too(store):
+def test_trusted_base_reanchors_on_retry_attempts_too(store, real_repo):
     """A RETRY attempt must be re-anchored exactly like a first attempt.
 
     Mutation survivor M5. Every trusted-base test used attempt_number=1, so
@@ -288,7 +288,7 @@ def test_trusted_base_reanchors_on_retry_attempts_too(store):
             {
                 "attempt_id": a.attempt_id,
                 "task_id": a.task_id,
-                "trusted_base": "beef1111beef2222beef3333beef4444beef5555",
+                "trusted_base": real_repo["trusted"],
                 "worker_result": {"ok": True, "status": "succeeded", "files_changed": []},
             }
         ]
@@ -298,8 +298,8 @@ def test_trusted_base_reanchors_on_retry_attempts_too(store):
         def __init__(self):
             self._d = {
                 "lease_id": "l-1",
-                "snapshot_ref": "0000000000000000000000000000000000000000",
-                "worktree_path": "/tmp/test-lease",
+                "snapshot_ref": real_repo["base"],
+                "worktree_path": real_repo["path"],
                 "status": "active",
             }
 
@@ -318,7 +318,7 @@ def test_trusted_base_reanchors_on_retry_attempts_too(store):
     ).run_pass()
 
     assert captured.get("attempt_number") == 3, "fixture must actually be a retry attempt"
-    assert captured.get("ref") == "beef1111beef2222beef3333beef4444beef5555", (
+    assert captured.get("ref") == real_repo["trusted"], (
         "a retry attempt must be re-anchored to its trusted_base exactly like a "
         "first attempt — gating the re-anchor on attempt_number resurrects the "
         f"stale-base defect on every retry. Got: {captured.get('ref')!r}"
@@ -825,3 +825,258 @@ def test_diff_scope_still_enforces_ancestry_after_reanchor(real_repo):
         f"rejection must come from the ANCESTRY check so the operator is told the "
         f"history is not the authorized one. Got: {detail!r}"
     )
+
+
+# ── the re-anchor must be AUTHORIZED, never assumed ─────────────────────────
+
+
+def test_forward_reanchor_to_worker_head_is_refused(real_repo):
+    """A base moved FORWARD onto the worker's own commit must be REFUSED.
+
+    Adversarial review finding (HIGH). Moving a diff base forward monotonically
+    shrinks the observed change set, so anchoring at the worker's HEAD makes
+    diff_scope return ``changed=0`` and PASS with out-of-scope files sitting in
+    the tree. Reproduced against this very module: scope ['app/'] with a
+    smuggled secret/key.txt — original base rejects, trusted base rejects
+    (catching the smuggle), worker-HEAD base returns ``changed=0 outside=[]``.
+
+    ``_base_is_ancestor_of_head`` does NOT catch this: every commit on the
+    branch is an ancestor of HEAD, including the worker's own. It guards the
+    base leaving the branch, never the base sliding forward along it.
+    """
+    from substrate.execution.attempts.verification import reanchor_is_authorized
+
+    repo = real_repo["path"]
+    worker_head = _git(repo, "rev-parse", "HEAD")
+
+    ok, why = reanchor_is_authorized(
+        worktree=repo, original_base=real_repo["base"], new_base=real_repo["trusted"]
+    )
+    assert ok, f"the legitimate trusted-projection re-anchor must be allowed: {why}"
+
+    ok, why = reanchor_is_authorized(
+        worktree=repo, original_base=real_repo["base"], new_base=worker_head
+    )
+    assert not ok, (
+        "re-anchoring forward onto the worker's own commit hides every worker "
+        "change from the scope check and must be REFUSED"
+    )
+    assert "non-trusted paths" in why, (
+        f"refusal must name the non-trusted paths the re-anchor would skip. Got: {why!r}"
+    )
+
+
+def test_reanchor_requires_a_full_sha_not_a_movable_ref(real_repo):
+    """A resolvable branch NAME must not anchor a scope diff.
+
+    ``main`` resolves and is an ancestor of HEAD, so without an explicit full-SHA
+    check it would be accepted — and a ref can be moved after the fact.
+    """
+    from substrate.execution.attempts.verification import reanchor_is_authorized
+
+    repo = real_repo["path"]
+    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+
+    ok, why = reanchor_is_authorized(
+        worktree=repo, original_base=real_repo["base"], new_base=branch
+    )
+    assert not ok, "a movable ref name must not be accepted as a diff base"
+    assert "full commit SHA" in why
+
+
+def test_reanchor_refuses_a_base_on_a_different_history(real_repo):
+    """Sideways movement onto an unrelated history is refused."""
+    from substrate.execution.attempts.verification import reanchor_is_authorized
+
+    repo = real_repo["path"]
+    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    _git(repo, "checkout", "-q", "--orphan", "elsewhere")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "unrelated")
+    orphan = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", branch)
+
+    ok, why = reanchor_is_authorized(
+        worktree=repo, original_base=real_repo["base"], new_base=orphan
+    )
+    assert not ok and "NOT an ancestor" in why
+
+
+def test_reanchor_fails_closed_on_unanswerable_input(real_repo):
+    """Empty, nonexistent and uninspectable inputs all REFUSE."""
+    from substrate.execution.attempts.verification import reanchor_is_authorized
+
+    repo = real_repo["path"]
+    base = real_repo["base"]
+
+    assert not reanchor_is_authorized(worktree=repo, original_base=base, new_base="")[0]
+    assert not reanchor_is_authorized(worktree=repo, original_base="", new_base=base)[0]
+    assert not reanchor_is_authorized(
+        worktree="/nonexistent/xyz", original_base=base, new_base=real_repo["trusted"]
+    )[0]
+    assert not reanchor_is_authorized(worktree=repo, original_base=base, new_base="0" * 40)[0], (
+        "a nonexistent SHA must be REFUSED, not passed"
+    )
+
+    # Identical base is a legitimate no-op, not a refusal.
+    assert reanchor_is_authorized(worktree=repo, original_base=base, new_base=base)[0]
+
+
+def test_poller_keeps_original_base_when_reanchor_is_refused(store, real_repo):
+    """End-to-end: a refused re-anchor leaves the ORIGINAL base in place.
+
+    Fail-closed means the attempt gets the pre-fix scope verdict (a rejection),
+    never a pass — and the refusal is surfaced on the report, never swallowed.
+    """
+    repo = real_repo["path"]
+    worker_head = _git(repo, "rev-parse", "HEAD")
+    captured = {}
+
+    def _capturing_verify(**kw):
+        captured["ref"] = getattr(kw.get("lease"), "snapshot_ref", None)
+        return _Verdict(passed=False, checks=[{"check_id": "t", "ok": False, "detail": "t"}])
+
+    class _LeaseRecord:
+        def __init__(self):
+            self._d = {
+                "lease_id": "l-1",
+                "snapshot_ref": real_repo["base"],
+                "worktree_path": repo,
+                "status": "active",
+            }
+
+        def __getattr__(self, name):
+            try:
+                return self._d[name]
+            except KeyError as exc:
+                raise AttributeError(name) from exc
+
+    a = _dispatched_attempt(store)
+    report = ControlPlanePoller(
+        store=store,
+        spool=_StubSpool(
+            [
+                {
+                    "attempt_id": a.attempt_id,
+                    "task_id": a.task_id,
+                    # a forward base onto the worker's own commit
+                    "trusted_base": worker_head,
+                    "worker_result": {"ok": True, "status": "succeeded", "files_changed": []},
+                }
+            ]
+        ),
+        scheduler=_StubScheduler(),
+        verify_fn=_capturing_verify,
+        lease_lookup=lambda _lid: _LeaseRecord(),
+    ).run_pass()
+
+    assert captured.get("ref") == real_repo["base"], (
+        "a REFUSED re-anchor must leave the original authorized base in place, "
+        f"not the forward base. Got: {captured.get('ref')!r}"
+    )
+    assert any("re-anchor refused" in e for e in report.errors), (
+        f"the refusal must be surfaced on the report, never swallowed. Got: {report.errors}"
+    )
+
+
+def test_poller_threads_effective_base_to_the_checks_builder(store, real_repo):
+    """The Proof must record the base that was actually ENFORCED.
+
+    The checks builder re-resolves the lease from the store and gets the LEDGER's
+    original snapshot_ref (the re-anchor is in-memory by design). Without
+    threading the effective base, diff_scope enforces the re-anchored base while
+    the persisted Proof records the stale one — a Proof attesting to a base that
+    was not the one enforced.
+    """
+    seen = {}
+
+    def _builder(att, *, effective_base=""):
+        seen["effective_base"] = effective_base
+        return None
+
+    class _LeaseRecord:
+        def __init__(self):
+            self._d = {
+                "lease_id": "l-1",
+                "snapshot_ref": real_repo["base"],
+                "worktree_path": real_repo["path"],
+                "status": "active",
+            }
+
+        def __getattr__(self, name):
+            try:
+                return self._d[name]
+            except KeyError as exc:
+                raise AttributeError(name) from exc
+
+    a = _dispatched_attempt(store)
+    ControlPlanePoller(
+        store=store,
+        spool=_StubSpool(
+            [
+                {
+                    "attempt_id": a.attempt_id,
+                    "task_id": a.task_id,
+                    "trusted_base": real_repo["trusted"],
+                    "worker_result": {"ok": True, "status": "succeeded", "files_changed": []},
+                }
+            ]
+        ),
+        scheduler=_StubScheduler(),
+        verify_fn=lambda **kw: _Verdict(
+            passed=False, checks=[{"check_id": "t", "ok": False, "detail": "t"}]
+        ),
+        lease_lookup=lambda _lid: _LeaseRecord(),
+        independent_checks_for=_builder,
+    ).run_pass()
+
+    assert seen.get("effective_base") == real_repo["trusted"], (
+        "the checks builder must receive the ENFORCED base so the Proof records "
+        f"it. Got: {seen.get('effective_base')!r}"
+    )
+
+
+def test_legacy_single_arg_checks_builder_still_works(store, real_repo):
+    """A builder that does not accept effective_base keeps working."""
+    called = {}
+
+    def _legacy_builder(att):
+        called["yes"] = True
+        return None
+
+    class _LeaseRecord:
+        def __init__(self):
+            self._d = {
+                "lease_id": "l-1",
+                "snapshot_ref": real_repo["base"],
+                "worktree_path": real_repo["path"],
+                "status": "active",
+            }
+
+        def __getattr__(self, name):
+            try:
+                return self._d[name]
+            except KeyError as exc:
+                raise AttributeError(name) from exc
+
+    a = _dispatched_attempt(store)
+    ControlPlanePoller(
+        store=store,
+        spool=_StubSpool(
+            [
+                {
+                    "attempt_id": a.attempt_id,
+                    "task_id": a.task_id,
+                    "trusted_base": real_repo["trusted"],
+                    "worker_result": {"ok": True, "status": "succeeded", "files_changed": []},
+                }
+            ]
+        ),
+        scheduler=_StubScheduler(),
+        verify_fn=lambda **kw: _Verdict(
+            passed=False, checks=[{"check_id": "t", "ok": False, "detail": "t"}]
+        ),
+        lease_lookup=lambda _lid: _LeaseRecord(),
+        independent_checks_for=_legacy_builder,
+    ).run_pass()
+
+    assert called.get("yes"), "a single-argument checks builder must still be invoked"
