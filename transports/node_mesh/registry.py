@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 from pathlib import Path
@@ -70,10 +71,21 @@ class NodeRegistry:
             return len(self._nodes)
 
     def _write_snapshot(self) -> None:
+        """Persist the node list atomically.
+
+        Written via a temp file + os.replace so a concurrent reader can never
+        observe a truncated document. `write_text` truncates in place, which was
+        a latent race; binary-frame heartbeat refreshes raised the write rate by
+        roughly 500x, and 10+ consumers read this file
+        (compute_fabric_runtime, grounding_registry, cockpit workspace/bootstrap
+        routes, continuity_engine), so the race had to be closed here.
+        """
         try:
             with self._lock:
                 data = [n.to_api_dict() for n in self._nodes.values()]
             _SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
-            _SNAPSHOT_PATH.write_text(json.dumps(data, default=str), encoding="utf-8")
+            tmp = _SNAPSHOT_PATH.with_suffix(".json.tmp")
+            tmp.write_text(json.dumps(data, default=str), encoding="utf-8")
+            os.replace(tmp, _SNAPSHOT_PATH)  # atomic on POSIX
         except Exception:
             logger.debug("snapshot write failed", exc_info=True)

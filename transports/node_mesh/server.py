@@ -367,7 +367,33 @@ class NodeMeshServer:
                             _binary_count,
                         )
                     if node_id and len(raw) > 6:
-                        self._handle_binary_frame(node_id, raw)
+                        # A node that streams ONLY binary frames (desktop/camera
+                        # capture) sends no JSON heartbeat, so the registry used
+                        # to evict it after heartbeat_timeout_s while its socket
+                        # stayed ESTABLISHED — and because the socket never
+                        # dropped, the daemon never reconnected or re-registered.
+                        # Dispatch then refused a demonstrably live node with
+                        # "node not connected" (Beast, 2026-08-05 00:41:30).
+                        #
+                        # Refresh ONLY on a frame the normal handler ACCEPTED,
+                        # and only for THIS connection's authenticated node_id
+                        # (node_id is None until node.hello binds it, so an
+                        # unauthenticated or unregistered socket can never reach
+                        # here). update_heartbeat() is the authoritative
+                        # registry write and returns False for an unknown node —
+                        # that refusal is surfaced, never swallowed.
+                        proves_liveness = self._frame_proves_liveness(raw)
+                        forwarded = self._handle_binary_frame(node_id, raw)
+                        # BOTH gates: the frame must prove a working capture
+                        # pipeline (unforgeable) AND be accepted by the normal
+                        # handler. Forwarding tolerance alone is NOT proof of
+                        # life — b"\x00" * 7 forwards fine but proves nothing.
+                        if proves_liveness and forwarded:
+                            if not self._registry.update_heartbeat(node_id):
+                                logger.warning(
+                                    "binary-frame heartbeat refused: %s not in registry",
+                                    node_id,
+                                )
                     continue
 
                 msg = json.loads(raw)
@@ -410,17 +436,58 @@ class NodeMeshServer:
             if node_id:
                 self._unregister_node(node_id)
 
-    def _handle_binary_frame(self, node_id: str, raw: bytes) -> None:
+    @staticmethod
+    def _frame_proves_liveness(raw: bytes) -> bool:
+        """Strict predicate: does this frame PROVE a working capture pipeline?
+
+        Deliberately separate from forwarding acceptance. Forwarding is
+        permissive by design — a frame whose meta is unparseable is still
+        relayed with ``meta = {}``. Liveness is the opposite: it must be
+        impossible to forge, because it decides whether dispatch will route real
+        work to this node.
+
+        Reusing forwarding-tolerance as proof of life is what made
+        ``b"\\x00" * 7`` a valid heartbeat: ``meta_len == 0`` clears both bounds
+        checks, ``json.loads(raw[4:4])`` raises, degrades to ``{}``, and the
+        frame "succeeds". A node whose capture thread is dead but whose socket
+        still emits padding would then be advertised as live forever — a
+        fail-OPEN inversion of the eviction bug this path exists to fix.
+
+        Requires: a non-empty meta block that parses to a JSON object, plus a
+        non-empty payload after it.
+        """
+        import struct as _struct
+
+        if len(raw) < 8:
+            return False
+        try:
+            meta_len = _struct.unpack(">I", raw[:4])[0]
+        except Exception:
+            return False
+        if meta_len == 0 or meta_len > 65536 or 4 + meta_len >= len(raw):
+            return False
+        try:
+            meta = json.loads(raw[4 : 4 + meta_len])
+        except Exception:
+            return False
+        return isinstance(meta, dict)
+
+    def _handle_binary_frame(self, node_id: str, raw: bytes) -> bool:
         """Handle binary camera frame from Beast — forward to relay queue.
 
         Wire format: [4-byte meta_len][JSON meta][JPEG bytes]
         Same format as the relay ingest WS, so forward directly.
+
+        Returns True when the frame was well-formed enough to FORWARD. This is
+        NOT the liveness signal — see ``_frame_proves_liveness`` for that, and do
+        not conflate the two: forwarding is intentionally tolerant, liveness must
+        be unforgeable.
         """
         import struct as _struct
 
         meta_len = _struct.unpack(">I", raw[:4])[0]
         if meta_len > 65536 or 4 + meta_len > len(raw):
-            return
+            return False
         try:
             meta = json.loads(raw[4 : 4 + meta_len])
         except Exception:
@@ -449,6 +516,10 @@ class NodeMeshServer:
             payload["image_base64"] = _b64.b64encode(jpeg_bytes).decode("ascii")
             loop = asyncio.get_running_loop()
             loop.run_in_executor(None, self._frame_callback, node_id, payload)
+
+        # The frame parsed and was routed (or dropped as queue backpressure —
+        # still a VALID frame from a live node, which is what liveness means).
+        return True
 
     def _resolve_pending_dispatch(self, msg: dict[str, Any]) -> None:
         """Route JSON-RPC responses back to pending HTTP dispatch futures."""
