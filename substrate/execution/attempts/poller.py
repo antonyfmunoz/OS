@@ -49,6 +49,32 @@ logger = logging.getLogger(__name__)
 _MAX_REPORTED_ITEMS = 500
 
 
+def _accepts_effective_base(builder: Any) -> bool:
+    """Does ``builder`` accept an ``effective_base`` keyword?
+
+    Answered by signature, not by calling and catching TypeError: the builder
+    has real side effects (it spawns a confined verifier), so a speculative call
+    that fails must never be retried with different arguments. An
+    unintrospectable callable (C builtin, exotic wrapper) is treated as NOT
+    accepting it — the conservative answer, since the legacy single-argument
+    form is always valid.
+    """
+    import inspect
+
+    try:
+        sig = inspect.signature(builder)
+    except (TypeError, ValueError):
+        return False
+    params = sig.parameters
+    if any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values()):
+        return True
+    param = params.get("effective_base")
+    return param is not None and param.kind in (
+        inspect.Parameter.KEYWORD_ONLY,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+    )
+
+
 @dataclass
 class PollerPassReport:
     """What one poller pass did — a truthful, side-effect-free summary."""
@@ -369,12 +395,16 @@ class ControlPlanePoller:
         builder = self._independent_checks_for
         if not effective_base:
             return builder(attempt)
-        try:
-            return builder(attempt, effective_base=effective_base)
-        except TypeError:
-            # A builder that does not accept the base (test doubles, older
-            # wiring) is still valid — it simply reports the ledger base.
+        # Decide by SIGNATURE, never by catching TypeError. A builder that
+        # accepts the kwarg can itself raise TypeError from its body — catching
+        # it here would swallow a real error and re-invoke the builder a SECOND
+        # time with a different base. The production builder spawns a confined
+        # verifier, so that is a duplicated side effect AND a Proof recorded
+        # against the wrong base. Verified: the try/except form invoked the
+        # builder twice.
+        if not _accepts_effective_base(builder):
             return builder(attempt)
+        return builder(attempt, effective_base=effective_base)
 
     def _terminalize(self, attempt: Any, reason: str, report: PollerPassReport) -> None:
         """Run the ONE terminalization authority for a just-terminalized attempt.

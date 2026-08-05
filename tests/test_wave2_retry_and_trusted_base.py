@@ -1080,3 +1080,85 @@ def test_legacy_single_arg_checks_builder_still_works(store, real_repo):
     ).run_pass()
 
     assert called.get("yes"), "a single-argument checks builder must still be invoked"
+
+
+def test_checks_builder_is_never_invoked_twice_on_internal_typeerror():
+    """A TypeError from INSIDE the builder must propagate, not re-invoke it.
+
+    Regression. Dispatching on ``try: builder(att, effective_base=…) except
+    TypeError: builder(att)`` cannot distinguish "this callable rejects the
+    kwarg" from "this callable raised TypeError from its own body". The
+    production builder (``field_control_plane._checks``) spawns a CONFINED
+    VERIFIER, so a swallowed TypeError means the verifier runs twice — the
+    second time with the ledger's stale base, which is also the base the Proof
+    would then record. Verified against the try/except form: two invocations.
+
+    Dispatch is by signature, so a builder that accepts the kwarg is called
+    exactly once and its error propagates.
+    """
+    calls = []
+
+    def _accepts_but_raises(att, *, effective_base=""):
+        calls.append(effective_base)
+        raise TypeError("raised from inside the builder body")
+
+    poller = ControlPlanePoller.__new__(ControlPlanePoller)
+    poller._independent_checks_for = _accepts_but_raises
+
+    class _L:
+        snapshot_ref = "abc123"
+
+    with pytest.raises(TypeError):
+        poller._build_independent_checks(object(), _L())
+
+    assert len(calls) == 1, (
+        f"a builder that ACCEPTS effective_base must be invoked exactly once; "
+        f"re-invoking it duplicates verifier side effects. Got {len(calls)} calls: {calls}"
+    )
+
+
+def test_effective_base_dispatch_handles_every_builder_shape():
+    """Signature dispatch must be right for each realistic builder shape."""
+    from substrate.execution.attempts.poller import _accepts_effective_base
+
+    def kwonly(att, *, effective_base=""):
+        return None
+
+    def positional_or_kw(att, effective_base=""):
+        return None
+
+    def var_kw(att, **kw):
+        return None
+
+    def legacy(att):
+        return None
+
+    assert _accepts_effective_base(kwonly)
+    assert _accepts_effective_base(positional_or_kw)
+    assert _accepts_effective_base(var_kw)
+    assert not _accepts_effective_base(legacy)
+    assert not _accepts_effective_base(lambda att: None)
+    # An unintrospectable callable falls back to the always-valid legacy form.
+    assert not _accepts_effective_base(len)
+
+
+def test_production_checks_builder_accepts_the_effective_base():
+    """The REAL field builder must be on the kwarg path, not the legacy path.
+
+    Otherwise the Proof silently records the ledger base while diff_scope
+    enforces the re-anchored one — the exact divergence this threading fixes.
+    """
+    import inspect
+
+    from substrate.execution.attempts import field_control_plane as fcp
+
+    cls = next(
+        c
+        for c in vars(fcp).values()
+        if isinstance(c, type) and hasattr(c, "_independent_checks_for")
+    )
+    src = inspect.getsource(cls._independent_checks_for)
+    assert "effective_base" in src, (
+        "the production checks builder must accept effective_base so the Proof "
+        "records the base that was actually enforced"
+    )
