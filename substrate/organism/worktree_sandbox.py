@@ -276,7 +276,24 @@ class SandboxManager:
         agent_type: str = "developer_agent",
         affected_files: list[str] | None = None,
         cleanup_policy: SandboxCleanupPolicy = SandboxCleanupPolicy.ON_MERGE,
+        base_commit: str = "",
     ) -> WorktreeSandbox:
+        """Create one worktree sandbox.
+
+        ``base_commit`` is the TRUSTED EXPLICIT BASE. Omitted (the default), the
+        sandbox branches from the repository's current ``HEAD`` — the historical
+        behaviour, unchanged. Supplied, the sandbox branches from exactly that
+        commit, which is how a dependent Task receives the verified content of
+        its predecessors (a retained commit or a composition commit) instead of a
+        stale HEAD that predates them.
+
+        The base is never worker-selectable: it reaches here only from trusted
+        control-plane code that resolved it from the protected ref namespace. It
+        is validated to be a real commit in THIS repository and the created
+        worktree is PROVEN to sit on it before the sandbox is returned — a
+        recorded base that differs from the launched base is precisely the
+        divergence a Proof must never attest to.
+        """
         if len(self.active_sandboxes) >= self._max_parallel:
             raise RuntimeError(
                 f"Max parallel sandboxes ({self._max_parallel}) reached. "
@@ -293,18 +310,50 @@ class SandboxManager:
         branch_name = make_branch_name(candidate_slug, short_id)
         worktree_path = os.path.join(self._worktree_base, f"auto-{short_id}")
 
-        result = _run_git(["rev-parse", "HEAD"], cwd=self._repo_root)
-        if result.returncode != 0:
-            raise RuntimeError(f"git rev-parse failed: {result.stderr}")
-        base_commit = result.stdout.strip()
+        requested_base = str(base_commit or "").strip()
+        if requested_base:
+            # Fail CLOSED on a base that is missing, stale, or not a commit in
+            # this repository. Branching from an unresolvable base would silently
+            # fall back to HEAD — the exact defect this parameter exists to fix.
+            probe = _run_git(
+                ["rev-parse", "--verify", "--quiet", f"{requested_base}^{{commit}}"],
+                cwd=self._repo_root,
+            )
+            resolved = probe.stdout.strip()
+            if probe.returncode != 0 or not resolved:
+                raise RuntimeError(
+                    f"explicit base {requested_base!r} does not resolve to a commit in "
+                    f"{self._repo_root} — refusing to fall back to HEAD"
+                )
+            base_commit = resolved
+        else:
+            result = _run_git(["rev-parse", "HEAD"], cwd=self._repo_root)
+            if result.returncode != 0:
+                raise RuntimeError(f"git rev-parse failed: {result.stderr}")
+            base_commit = result.stdout.strip()
 
         os.makedirs(self._worktree_base, exist_ok=True)
-        result = _run_git(
-            ["worktree", "add", "-b", branch_name, worktree_path],
-            cwd=self._repo_root,
-        )
+        add_args = ["worktree", "add", "-b", branch_name, worktree_path]
+        if requested_base:
+            add_args.append(base_commit)
+        result = _run_git(add_args, cwd=self._repo_root)
         if result.returncode != 0:
             raise RuntimeError(f"git worktree add failed: {result.stderr}")
+
+        # PROVE the worktree actually sits on the recorded base. Recording one
+        # base while launching from another is a mutation-listed defect: the
+        # verifier diffs against the recorded base, so a divergence here would
+        # make every scope verdict meaningless.
+        check = _run_git(["rev-parse", "HEAD"], cwd=worktree_path)
+        actual = check.stdout.strip()
+        if check.returncode != 0 or actual != base_commit:
+            _run_git(["worktree", "remove", "--force", worktree_path], cwd=self._repo_root)
+            _run_git(["branch", "-D", branch_name], cwd=self._repo_root)
+            raise RuntimeError(
+                f"worktree {worktree_path} is on {actual[:12] or '?'} but the sandbox "
+                f"records base {base_commit[:12]} — refusing a sandbox whose recorded "
+                f"base is not its launched base"
+            )
 
         sandbox = WorktreeSandbox(
             sandbox_id=sandbox_id,

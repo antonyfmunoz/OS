@@ -100,6 +100,9 @@ class TerminalizationResult:
     reason: str = ""
     already_terminal: bool = False
     lease_released: bool = False
+    # Verifier-approved commit pinned under the trusted namespace before the
+    # lease was released. "" for every non-SUCCEEDED terminalization.
+    retained_commit: str = ""
     home_destroyed: bool = False
     spool_reconciled: bool = False
     credential_residue: list[str] = field(default_factory=list)
@@ -132,6 +135,7 @@ class TerminalizationResult:
             "reason": self.reason,
             "already_terminal": self.already_terminal,
             "lease_released": self.lease_released,
+            "retained_commit": self.retained_commit,
             "home_destroyed": self.home_destroyed,
             "spool_reconciled": self.spool_reconciled,
             "credential_residue": list(self.credential_residue),
@@ -193,6 +197,16 @@ def terminalize(
             raise TerminalizationError(result.errors[-1])
         return result
 
+    # (2b) RETAIN the verified commit BEFORE the lease is released. Release runs
+    # cleanup_sandbox → `git branch -D`, which makes the worker's commit
+    # unreachable; a dependent Task leased milliseconds later then branches from
+    # a stale HEAD and cannot see content it was told to integrate. Measured in
+    # field run 20260805T182714Z-p1: backend SUCCEEDED at …665.640, the
+    # integration lease was created at …665.696, and the backend commit no longer
+    # existed as an object. Retention is ordered here, and only for a SUCCEEDED
+    # attempt, so failed/unverified work is never retained.
+    _retain_verified(result, attempt, lease_manager, reason)
+
     # (3) Release/revoke the lease so it is no longer ACTIVE. This is what
     # unblocks retry admission (acquire() refuses while a task has an active
     # lease). Idempotent: releasing an already-released lease is a no-op.
@@ -219,6 +233,91 @@ def terminalize(
 
 
 _TERMINAL_STATUSES = frozenset({"succeeded", "failed", "cancelled", "rolled_back"})
+
+
+def _retain_verified(
+    result: TerminalizationResult, attempt: Any, lease_manager: Any, reason: str
+) -> None:
+    """Pin a SUCCEEDED attempt's verifier-approved commit under a trusted ref.
+
+    Ordered before ``_release_lease`` because release destroys the worker branch.
+
+    Only ``reason == "succeeded"`` retains: a failed, cancelled, revoked, or
+    verification-rejected attempt must contribute NOTHING to any dependent's
+    base. A retry that later succeeds retains its own commit under its own
+    attempt ref, so retry-success lineage supersedes the failed attempt without
+    any special case — the failed attempt simply has no ref to find.
+
+    Non-fatal by construction for runs that do not use composition: a repo
+    without the run/candidate binding, or an attempt with nothing committed,
+    records a step and moves on. A genuine retention FAILURE is an error, which
+    ``result.ok`` already treats as terminalization failure.
+    """
+    if reason != "succeeded":
+        result.steps.append(f"no retention (reason={reason})")
+        return
+
+    lease = None
+    lease_id = result.lease_id
+    if lease_manager is not None and lease_id:
+        getter = getattr(getattr(lease_manager, "_store", None), "get_lease", None)
+        if callable(getter):
+            try:
+                lease = getter(lease_id)
+            except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+                logger.debug("retain: lease lookup failed for %s: %s", lease_id, exc)
+    if not lease:
+        result.steps.append("no lease record — nothing to retain")
+        return
+
+    def _f(name: str, default: str = "") -> str:
+        if isinstance(lease, dict):
+            return str(lease.get(name, default) or default)
+        return str(getattr(lease, name, default) or default)
+
+    worktree = _f("worktree_path")
+    source = lease.get("source_ref", {}) if isinstance(lease, dict) else getattr(
+        lease, "source_ref", {}
+    )
+    repo = str((source or {}).get("repo_root", "") or "")
+    if not repo or not worktree:
+        result.steps.append("no repo/worktree on lease — nothing to retain")
+        return
+
+    candidate = str(os.environ.get("UMH_W2_CANDIDATE_SHA", "") or "").strip()
+    run_id = str(os.environ.get("UMH_W2_RUN_ID", "") or "").strip()
+    if not candidate or not run_id:
+        # Retention is namespaced by candidate+run so refs from different runs can
+        # never collide or be mistaken for one another. Without that binding we
+        # do not retain at all rather than write an ambiguous ref.
+        result.steps.append("no candidate/run binding — retention skipped")
+        return
+
+    from substrate.execution.attempts.verified_commit_retention import (
+        RetentionError,
+        retain_verified_commit,
+    )
+
+    try:
+        commit = retain_verified_commit(
+            repo=repo,
+            worktree=worktree,
+            candidate=candidate,
+            run_id=run_id,
+            task_id=result.task_id,
+            attempt_id=result.attempt_id,
+            # The lease's authorized base. An attempt whose HEAD is still its
+            # base produced no commit, so there is nothing verified to retain.
+            base_commit=str((source or {}).get("base_commit", "") or ""),
+        )
+    except RetentionError as exc:
+        result.errors.append(f"trusted retention failed: {exc}")
+        logger.warning("retain failed for %s: %s", result.attempt_id, exc)
+        return
+    result.retained_commit = commit
+    result.steps.append(
+        f"retained verified commit {commit[:12]}" if commit else "nothing to retain (no commit)"
+    )
 
 
 def _release_lease(

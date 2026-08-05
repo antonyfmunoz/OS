@@ -140,7 +140,19 @@ class LeaseManager:
         grant: Any,
         ttl_seconds: float = 3600.0,
         now: float | None = None,
+        base_commit: str = "",
     ) -> ExecutionEnvironmentLease:
+        """Acquire one environment lease for an attempt.
+
+        ``base_commit`` is the TRUSTED EXPLICIT BASE for a dependent Task — the
+        composition commit (or a single retained predecessor commit) resolved by
+        control-plane code from the protected ref namespace. Omitted, the sandbox
+        branches from repository HEAD exactly as before.
+
+        It is threaded to ``create_sandbox`` AND recorded as the lease's
+        ``snapshot_ref``, so the verifier's authorized diff base and the base the
+        worktree was actually created from are the same value by construction.
+        """
         now = time.time() if now is None else now
         task_id = getattr(attempt, "task_id", "")
 
@@ -148,22 +160,68 @@ class LeaseManager:
         if self._store.active_lease_for_task(task_id) is not None:
             raise LeaseError(f"task {task_id} already has an active lease")
 
+        # Captured BEFORE the local `resolved_base` shadows anything: the local
+        # accumulator below must never overwrite the caller's requested base.
+        # (It did, in the first version of this change — the parameter was read
+        # after `base_commit = ""` reset it, so an explicit trusted base was
+        # silently dropped and every lease branched from HEAD anyway. Caught by
+        # test_lease_snapshot_ref_equals_the_explicit_base.)
+        requested_base = str(base_commit or "").strip()
+
         worktree_path = ""
         branch = ""
-        base_commit = ""
+        resolved_base = ""
         sandbox_id = ""
         source_repo_root = ""
         if self._sandbox is not None:
             source_repo_root = getattr(self._sandbox, "_repo_root", "")
-            sandbox = self._sandbox.create_sandbox(
-                candidate_id=attempt.attempt_id,
-                candidate_slug=f"attempt-{attempt.attempt_id[:8]}",
-                agent_type=getattr(assignment, "worker_agent_type", "") or "developer_agent",
-            )
+            sandbox_kwargs: dict[str, Any] = {
+                "candidate_id": attempt.attempt_id,
+                "candidate_slug": f"attempt-{attempt.attempt_id[:8]}",
+                "agent_type": getattr(assignment, "worker_agent_type", "")
+                or "developer_agent",
+            }
+            # Pass the explicit base ONLY when one was requested, and decide by
+            # SIGNATURE rather than by catching TypeError: a sandbox manager can
+            # raise TypeError from its own body, and swallowing that would hide a
+            # real fault while silently branching from HEAD. A sandbox
+            # implementation that predates the parameter keeps working unchanged;
+            # one that cannot honour an explicit base FAILS CLOSED rather than
+            # quietly ignoring it.
+            if requested_base:
+                import inspect
+
+                try:
+                    accepts = "base_commit" in inspect.signature(
+                        self._sandbox.create_sandbox
+                    ).parameters
+                except (TypeError, ValueError):  # builtin / unintrospectable
+                    accepts = False
+                if not accepts:
+                    raise LeaseError(
+                        f"sandbox manager {type(self._sandbox).__name__} cannot honour an "
+                        f"explicit trusted base — refusing to branch from HEAD instead"
+                    )
+                sandbox_kwargs["base_commit"] = requested_base
+            sandbox = self._sandbox.create_sandbox(**sandbox_kwargs)
             worktree_path = getattr(sandbox, "worktree_path", "")
             branch = getattr(sandbox, "branch_name", "")
-            base_commit = getattr(sandbox, "base_commit", "")
+            resolved_base = getattr(sandbox, "base_commit", "")
             sandbox_id = getattr(sandbox, "sandbox_id", "") or getattr(sandbox, "branch_name", "")
+
+            # The sandbox must have honoured the requested base EXACTLY. Recording
+            # one base while the worktree sits on another is the divergence that
+            # makes every downstream scope verdict and Proof meaningless.
+            if requested_base and resolved_base != requested_base:
+                try:
+                    self._sandbox.cleanup_sandbox(sandbox_id)  # type: ignore[attr-defined]
+                except Exception as exc:  # noqa: BLE001 - logged, not swallowed
+                    logger.debug("cleanup after base mismatch failed: %s", exc)
+                raise LeaseError(
+                    f"sandbox reports base {resolved_base[:12] or '?'} but the lease "
+                    f"requested trusted base {requested_base[:12]} — refusing a lease "
+                    f"whose recorded base is not the one it was created from"
+                )
 
             reason = _is_forbidden_workspace(worktree_path, source_repo_root)
             if reason:
@@ -183,7 +241,7 @@ class LeaseManager:
             environment_type=getattr(assignment, "environment_class", "git_worktree"),
             source_ref={
                 "repo_root": source_repo_root,
-                "base_commit": base_commit,
+                "base_commit": resolved_base,
                 "branch": branch,
             },
             worktree_path=worktree_path,
@@ -192,7 +250,7 @@ class LeaseManager:
             credential_refs=list(getattr(grant, "credential_scope_refs", []) or []),
             expires_at=now + ttl_seconds,
             last_heartbeat_at=now,
-            snapshot_ref=base_commit,
+            snapshot_ref=resolved_base,
             sandbox_id=sandbox_id,
         )
 
