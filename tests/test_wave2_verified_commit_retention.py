@@ -269,9 +269,15 @@ def test_cpu_gate_refusal_never_reads_as_a_git_answer(monkeypatch):
         m.release_trusted_refs(repo="/tmp", candidate="C", run_id="R")
 
 
-def test_terminalize_fails_closed_when_retention_is_refused(tmp_path, monkeypatch, repo, mgr):
-    """6,7: a refused retention must FAIL the terminalization — otherwise the
-    lease is released, the branch is deleted, and the commit is lost."""
+def test_refused_retention_blocks_destructive_cleanup(tmp_path, monkeypatch, repo, mgr):
+    """6,7: a refused retention must BLOCK destructive cleanup.
+
+    The invariant is the COMMIT, not a status flag. An earlier version of this
+    test asserted only ``not result.ok`` and ``"retention" in errors`` — both
+    were already true while the lease was still released, the branch deleted, and
+    the verified commit destroyed. The reporting had been fixed; the outcome had
+    not. Assert what the docstring actually promises.
+    """
     from substrate.execution.attempts.leases import LeaseManager
     from substrate.execution.attempts.terminalization import terminalize
 
@@ -287,6 +293,7 @@ def test_terminalize_fails_closed_when_retention_is_refused(tmp_path, monkeypatc
         fh.write("def search(): ...\n")
     _git(["add", "-A"], lease.worktree_path)
     _git(["commit", "-qm", "backend"], lease.worktree_path)
+    verified = _git(["rev-parse", "HEAD"], lease.worktree_path).stdout.strip()
 
     import substrate.execution.attempts.verified_commit_retention as m
 
@@ -297,8 +304,85 @@ def test_terminalize_fails_closed_when_retention_is_refused(tmp_path, monkeypatc
         attempt=attempt, reason="succeeded", lease_manager=lm,
         run_root=str(tmp_path / "run"), raise_on_security_failure=False,
     )
+
     assert not result.ok, "a refused retention must fail the terminalization"
     assert any("retention" in e for e in result.errors), result.errors
+
+    # THE INVARIANT — everything above is reporting; these are the outcome.
+    assert not result.lease_released, (
+        "the lease must NOT be released: releasing runs cleanup_sandbox → "
+        "git branch -D, which destroys the verified commit"
+    )
+    assert os.path.isdir(lease.worktree_path), "the worker worktree must survive"
+    _git(["reflog", "expire", "--expire=now", "--all"], repo)
+    _git(["gc", "--prune=now", "-q"], repo)
+    assert _git(["cat-file", "-e", f"{verified}^{{commit}}"], repo).returncode == 0, (
+        "the verifier-approved commit must still exist — a refused retention that "
+        "still deletes the branch reproduces field run 20260805T182714Z-p1 exactly"
+    )
+
+
+def test_refused_retention_raises_when_the_caller_wants_it_to(tmp_path, monkeypatch, repo, mgr):
+    """The default (``raise_on_security_failure=True``) surfaces the refusal
+    rather than returning a quietly-degraded result."""
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.terminalization import TerminalizationError, terminalize
+
+    monkeypatch.setenv("UMH_W2_CANDIDATE_SHA", CAND)
+    monkeypatch.setenv("UMH_W2_RUN_ID", RUN)
+    lm = LeaseManager(_store(tmp_path, "raise"), mgr, mutation_runner=_direct_runner)
+    attempt = ExecutionAttempt(
+        attempt_id="ea-raise", task_id="wp-be", status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host",
+    )
+    lease = lm.acquire(attempt=attempt, assignment=ASSIGNMENT, grant=GRANT)
+    with open(os.path.join(lease.worktree_path, "app/main.py"), "a") as fh:
+        fh.write("work\n")
+    _git(["add", "-A"], lease.worktree_path)
+    _git(["commit", "-qm", "w"], lease.worktree_path)
+
+    import substrate.execution.attempts.verified_commit_retention as m
+
+    monkeypatch.setattr(m, "gated_subprocess_run", lambda *a, **k: None)
+    attempt.status = _S.SUCCEEDED.value
+    attempt.lease_id = lease.lease_id
+    with pytest.raises(TerminalizationError, match="lease NOT released"):
+        terminalize(
+            attempt=attempt, reason="succeeded", lease_manager=lm,
+            run_root=str(tmp_path / "run"),
+        )
+    assert os.path.isdir(lease.worktree_path), "the worktree must survive the raise"
+
+
+def test_successful_retention_still_completes_full_cleanup(tmp_path, monkeypatch, repo, mgr):
+    """The new gate must not block the HAPPY path: when retention succeeds,
+    every downstream step still runs."""
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.terminalization import terminalize
+
+    monkeypatch.setenv("UMH_W2_CANDIDATE_SHA", CAND)
+    monkeypatch.setenv("UMH_W2_RUN_ID", RUN)
+    lm = LeaseManager(_store(tmp_path, "happy"), mgr, mutation_runner=_direct_runner)
+    attempt = ExecutionAttempt(
+        attempt_id="ea-ok", task_id="wp-be", status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host",
+    )
+    lease = lm.acquire(attempt=attempt, assignment=ASSIGNMENT, grant=GRANT)
+    with open(os.path.join(lease.worktree_path, "app/main.py"), "a") as fh:
+        fh.write("work\n")
+    _git(["add", "-A"], lease.worktree_path)
+    _git(["commit", "-qm", "w"], lease.worktree_path)
+
+    attempt.status = _S.SUCCEEDED.value
+    attempt.lease_id = lease.lease_id
+    result = terminalize(
+        attempt=attempt, reason="succeeded", lease_manager=lm,
+        run_root=str(tmp_path / "run"), raise_on_security_failure=False,
+    )
+    assert result.retained_commit, "retention must have succeeded"
+    assert result.lease_released, "the happy path must still release the lease"
+    assert not os.path.isdir(lease.worktree_path), "and still destroy the worktree"
+    assert result.home_destroyed, "and still destroy the credential home"
 
 
 # ── the REAL terminalize() ordering ─────────────────────────────────────────

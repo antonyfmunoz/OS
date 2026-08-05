@@ -32,6 +32,14 @@ Invariant (strict order — each step must complete before the next):
 
     1. terminalize ONCE          — idempotent; a second call is a verified no-op
     2. persist terminal state    — the attempt reaches its terminal status first
+    2b. retain the verified commit (SUCCEEDED only) under a trusted ref, BEFORE
+        release — release deletes the worker branch, so this is the last moment
+        the commit is reachable
+    2c. STOP if retention failed — every step below is destructive, and running
+        them after a failed retention DESTROYS the verified commit. Recording the
+        error and continuing is not "fail closed": it changes the reporting, not
+        the outcome. The lease is deliberately left ACTIVE — a stuck lease is
+        recoverable, a destroyed verifier-approved commit is not.
     3. release / revoke lease     — the lease is no longer ACTIVE
     4. destroy attempt-private home + remove credential material
     5. reconcile spool ownership  — drop any inflight claim for this attempt
@@ -207,6 +215,34 @@ def terminalize(
     # attempt, so failed/unverified work is never retained.
     _retain_verified(result, attempt, lease_manager, reason)
 
+    # (2c) A FAILED retention MUST stop here. Recording the error and continuing
+    # is not "fail closed" — it changes the reporting, not the outcome: the very
+    # next step deletes the worker branch, so the verified commit is destroyed
+    # exactly as it was in field run 20260805T182714Z-p1, on the precise trigger
+    # (host load → CPU gate refusal) this module exists to survive. Measured:
+    # with the gate refusing, result.ok was False AND the commit was gone.
+    #
+    # The trade is deliberate. Returning early leaves the lease ACTIVE, which
+    # blocks retry admission for this Task (acquire() refuses a second active
+    # lease) until an operator revokes it or `recover_stale_runs` reclaims it.
+    # A stuck lease is recoverable; a destroyed verifier-approved commit is not.
+    if _retention_failed(result):
+        result.steps.append("destructive cleanup SKIPPED — retention failed")
+        logger.error(
+            "terminalize(%s): retention failed, refusing to release the lease — "
+            "releasing would delete the worker branch and destroy the verified "
+            "commit. Lease %s stays ACTIVE until revoked/recovered. %s",
+            result.attempt_id,
+            result.lease_id or "(none)",
+            result.errors[-1] if result.errors else "",
+        )
+        if raise_on_security_failure:
+            raise TerminalizationError(
+                f"terminalize({result.attempt_id}, {reason}): {result.errors[-1]} — "
+                f"lease NOT released (releasing would destroy the verified commit)"
+            )
+        return result
+
     # (3) Release/revoke the lease so it is no longer ACTIVE. This is what
     # unblocks retry admission (acquire() refuses while a task has an active
     # lease). Idempotent: releasing an already-released lease is a no-op.
@@ -233,6 +269,16 @@ def terminalize(
 
 
 _TERMINAL_STATUSES = frozenset({"succeeded", "failed", "cancelled", "rolled_back"})
+
+#: Stable marker for a retention failure. The gate below keys on THIS, not on a
+#: free-text message, so reworded errors cannot silently re-enable destructive
+#: cleanup after a failed retention.
+_RETENTION_FAILED_PREFIX = "trusted retention failed: "
+
+
+def _retention_failed(result: TerminalizationResult) -> bool:
+    """True when retention raised — destructive cleanup must not proceed."""
+    return any(e.startswith(_RETENTION_FAILED_PREFIX) for e in result.errors)
 
 
 def _retain_verified(
@@ -311,7 +357,7 @@ def _retain_verified(
             base_commit=str((source or {}).get("base_commit", "") or ""),
         )
     except RetentionError as exc:
-        result.errors.append(f"trusted retention failed: {exc}")
+        result.errors.append(f"{_RETENTION_FAILED_PREFIX}{exc}")
         logger.warning("retain failed for %s: %s", result.attempt_id, exc)
         return
     result.retained_commit = commit

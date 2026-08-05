@@ -45,7 +45,7 @@ byte-identical to before.
 | `substrate/execution/attempts/terminalization.py` | `_retain_verified` ordered **before** `_release_lease`; `retained_commit` on the result |
 | `substrate/execution/attempts/leases.py` | `acquire(base_commit=…)` → sandbox + `snapshot_ref`; signature-checked capability; divergence refused |
 | `substrate/organism/worktree_sandbox.py` | `create_sandbox(base_commit=…)`, fail-closed resolve, launched-base proof |
-| `tests/test_wave2_verified_commit_retention.py` | **new** — 21 tests on the real shipped path |
+| `tests/test_wave2_verified_commit_retention.py` | **new** — 24 tests on the real shipped path |
 
 **Reverted byte-identically to the committed base** (composition removal):
 `substrate/execution/attempts/lifecycle.py`, `substrate/execution/attempts/records.py`,
@@ -105,8 +105,10 @@ Rules:
 - **immutable**: re-retaining the same commit is a no-op, rewriting to a different
   commit is refused; `update-ref <ref> <new> ""` (CAS against must-not-exist) makes
   concurrent terminalization race-free;
-- a retention failure is a real error, so `TerminalizationResult.ok` is False and
-  destructive cleanup is blocked.
+- a retention failure returns from `terminalize` BEFORE `_release_lease`, so the
+  worker branch is never deleted and the verified commit survives. The lease is
+  deliberately left ACTIVE (recoverable) rather than destroying an unrecoverable
+  commit.
 
 ## Explicit-base design
 
@@ -130,9 +132,12 @@ Two of the three adversarial-review findings apply to retention and are kept:
   made every `rc != 0` consumer read "no commit to retain" / "no such ref" /
   "nothing to delete" — so on a loaded host the commit was **not retained**, the
   lease was released, `branch -D` ran, and the original defect returned *silently*.
-  Now raises `CpuGateRefused` (subclass of `RetentionError`, so terminalization
-  fails closed), matching the existing `worktree_sandbox.CpuGatedGitError`
-  discipline. A failed ref **listing** also no longer reports a release that did not
+  Now raises `CpuGateRefused` (subclass of `RetentionError`), matching the
+  existing `worktree_sandbox.CpuGatedGitError` discipline — **and
+  `terminalize` returns before `_release_lease` when retention failed**.
+  Raising alone was NOT enough: an earlier version recorded the error and
+  fell through to release, so the branch was still deleted and the verified
+  commit still destroyed. That changed the *reporting*, not the *outcome*. A failed ref **listing** also no longer reports a release that did not
   happen.
 - **Sandbox-base divergence refused** (recorded ≠ launched).
 
@@ -143,7 +148,7 @@ It is recorded in the composition work packet as a mandatory requirement.
 
 ## Verification
 
-**Behavioural: 22/22** on the real `SandboxManager`, real git, real `LeaseManager`,
+**Behavioural: 24/24** on the real `SandboxManager`, real git, real `LeaseManager`,
 real `terminalize()`.
 
 **Mutation: 14 mutants, all crossing real boundaries** (git, sandbox, lease,
@@ -176,6 +181,29 @@ two of my fixes. Sweeps now run alone.
 7. CPU-gate refusal failing open (above);
 8. retention ordered after release survived the first mutation sweep because no
    test drove the real `terminalize()` — fixed by adding one that does.
+
+9. **"fail closed" was cosmetic** — the most serious of the eight. `_retain_verified`
+   recorded the error and control fell straight through to `_release_lease`, so a
+   refused retention still ran `git branch -D` and destroyed the verified commit.
+   Raising `CpuGateRefused` had fixed the *reporting*, not the *outcome*: on a
+   loaded host this reproduced field run `20260805T182714Z-p1` **exactly, on the
+   precise trigger this module exists to survive**. Reproduced through the real
+   `terminalize()`/`LeaseManager`/`SandboxManager` (`result.ok=False` **and**
+   `COMMIT REACHABLE: False`). Found by the final independent review.
+
+   My own test was named `test_terminalize_fails_closed_when_retention_is_refused`
+   and its docstring stated the correct invariant — but it asserted only
+   `not result.ok` and `"retention" in errors`, both of which were already true
+   while the commit was being destroyed. **A test that asserts the status flag
+   instead of the outcome its docstring names is worse than no test: it certifies
+   the wrong thing.** Fixed by returning before `_release_lease` (keyed on a stable
+   `_RETENTION_FAILED_PREFIX` marker, not a message substring) and by asserting the
+   commit's survival, the un-released lease, and the surviving worktree.
+
+   Deliberate trade, stated explicitly: the lease is left **ACTIVE**, which blocks
+   retry admission for that Task until an operator revokes it or
+   `recover_stale_runs` reclaims it. A stuck lease is recoverable; a destroyed
+   verifier-approved commit is not.
 
 ## Composition work packet (NOT implemented)
 
