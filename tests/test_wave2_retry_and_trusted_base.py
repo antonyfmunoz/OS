@@ -261,6 +261,70 @@ def test_trusted_base_reanchors_lease_snapshot_ref(store):
     )
 
 
+def test_trusted_base_reanchors_on_retry_attempts_too(store):
+    """A RETRY attempt must be re-anchored exactly like a first attempt.
+
+    Mutation survivor M5. Every trusted-base test used attempt_number=1, so
+    gating the re-anchor on ``attempt_number <= 1`` passed the whole suite —
+    while every retry in the field would silently verify against the stale
+    fixture base and fail diff_scope forever. That is the ORIGINAL defect,
+    surviving on precisely the path that is supposed to recover from it: the
+    first attempt would pass and its retry could never.
+
+    The re-anchor depends only on the spool result, never on attempt_number.
+    """
+    captured = {}
+
+    def _capturing_verify(**kw):
+        lease = kw.get("lease")
+        captured["ref"] = getattr(lease, "snapshot_ref", None)
+        captured["attempt_number"] = getattr(kw.get("attempt"), "attempt_number", None)
+        return _Verdict(passed=False, checks=[{"check_id": "t", "ok": False, "detail": "t"}])
+
+    # attempt_number=3 — a second retry, the deepest realistic retry depth.
+    a = _dispatched_attempt(store, attempt_number=3)
+    spool = _StubSpool(
+        [
+            {
+                "attempt_id": a.attempt_id,
+                "task_id": a.task_id,
+                "trusted_base": "beef1111beef2222beef3333beef4444beef5555",
+                "worker_result": {"ok": True, "status": "succeeded", "files_changed": []},
+            }
+        ]
+    )
+
+    class _LeaseRecord:
+        def __init__(self):
+            self._d = {
+                "lease_id": "l-1",
+                "snapshot_ref": "0000000000000000000000000000000000000000",
+                "worktree_path": "/tmp/test-lease",
+                "status": "active",
+            }
+
+        def __getattr__(self, name):
+            try:
+                return self._d[name]
+            except KeyError as exc:
+                raise AttributeError(name) from exc
+
+    ControlPlanePoller(
+        store=store,
+        spool=spool,
+        scheduler=_StubScheduler(),
+        verify_fn=_capturing_verify,
+        lease_lookup=lambda _lid: _LeaseRecord(),
+    ).run_pass()
+
+    assert captured.get("attempt_number") == 3, "fixture must actually be a retry attempt"
+    assert captured.get("ref") == "beef1111beef2222beef3333beef4444beef5555", (
+        "a retry attempt must be re-anchored to its trusted_base exactly like a "
+        "first attempt — gating the re-anchor on attempt_number resurrects the "
+        f"stale-base defect on every retry. Got: {captured.get('ref')!r}"
+    )
+
+
 def test_no_trusted_base_leaves_lease_unchanged(store):
     """When the spool result has no trusted_base (empty or absent), the lease
     snapshot_ref is passed to the verifier unchanged."""
@@ -610,3 +674,154 @@ def test_scheduler_does_not_retry_when_exhausted(tmp_path, monkeypatch):
         "scheduler must NOT create a retry when max_attempts_per_task is exhausted"
     )
     assert "wp-exhausted" in report.attempts_blocked
+
+
+# ── the control that makes the re-anchor SAFE ───────────────────────────────
+
+
+def _git(repo, *args):
+    """Run git in ``repo``, asserting success. Test-local (not gated code)."""
+    import subprocess
+
+    r = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, f"git {' '.join(args)} failed: {r.stderr}"
+    return (r.stdout or "").strip()
+
+
+@pytest.fixture()
+def real_repo(tmp_path):
+    """A real git repo: base commit → trusted commit → worker commit."""
+    repo = tmp_path / "wt"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "t@t.local")
+    _git(repo, "config", "user.name", "t")
+    (repo / "app").mkdir()
+    (repo / "app" / "main.py").write_text("print('base')\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "base")
+    base = _git(repo, "rev-parse", "HEAD")
+
+    (repo / "OBJECTIVE.md").write_text("# trusted system write\n")
+    _git(repo, "add", "--", "OBJECTIVE.md")
+    _git(repo, "commit", "-q", "-m", "trusted: projection")
+    trusted = _git(repo, "rev-parse", "HEAD")
+
+    (repo / "app" / "main.py").write_text("print('worker change')\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "worker")
+    return {"path": str(repo), "base": base, "trusted": trusted}
+
+
+class _Lease:
+    def __init__(self, worktree_path, snapshot_ref):
+        self.worktree_path = worktree_path
+        self.snapshot_ref = snapshot_ref
+
+
+def test_base_ancestry_check_rejects_a_base_detached_from_head(real_repo):
+    """The ancestry check is the control that makes the re-anchor SAFE.
+
+    Mutation survivor M7: deleting `_base_is_ancestor_of_head` from
+    `_diff_scope_verdict` broke NO test. That control is load-bearing — the
+    worker owns its own attempt ref, so `git reset --soft` / `commit --amend`
+    moves HEAD off the trusted projection commit. The worker can then re-commit
+    the trusted paths with content of its choosing while the scope diff still
+    reads clean. Without ancestry, the re-anchor would hand the verifier a base
+    the worker had already detached from.
+
+    Fails CLOSED: a base not reachable from HEAD is a rejection.
+    """
+    from substrate.execution.attempts.verification import _base_is_ancestor_of_head
+
+    repo = real_repo["path"]
+
+    ok, detail = _base_is_ancestor_of_head(_Lease(repo, real_repo["trusted"]))
+    assert ok, f"the trusted base IS an ancestor of HEAD, must pass: {detail}"
+
+    ok, detail = _base_is_ancestor_of_head(_Lease(repo, real_repo["base"]))
+    assert ok, f"the original base is also an ancestor of HEAD: {detail}"
+
+    # A commit on a DISCONNECTED history — exactly what `reset --soft` off the
+    # trusted commit leaves behind.
+    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    _git(repo, "checkout", "-q", "--orphan", "sneak")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "detached")
+    orphan = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", branch)
+
+    ok, detail = _base_is_ancestor_of_head(_Lease(repo, orphan))
+    assert not ok, "a base NOT reachable from HEAD must be REJECTED"
+    assert "not an ancestor" in detail.lower()
+
+
+def test_base_ancestry_check_fails_closed_on_unanswerable_input(real_repo):
+    """An ancestry question that cannot be answered is never an answer of yes."""
+    from substrate.execution.attempts.verification import _base_is_ancestor_of_head
+
+    ok, detail = _base_is_ancestor_of_head(_Lease(real_repo["path"], ""))
+    assert not ok and "snapshot_ref" in detail
+
+    ok, detail = _base_is_ancestor_of_head(_Lease("/nonexistent/path/xyz", "abc123"))
+    assert not ok and "not inspectable" in detail
+
+    ok, _ = _base_is_ancestor_of_head(
+        _Lease(real_repo["path"], "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+    )
+    assert not ok, "a base SHA that does not exist must be REJECTED, not passed"
+
+
+def test_diff_scope_still_enforces_ancestry_after_reanchor(real_repo):
+    """End-to-end: `_diff_scope_verdict` itself must reject a detached base.
+
+    Kills M7 at the call site, not just the helper — deleting the ancestry call
+    from `_diff_scope_verdict` must fail a test.
+    """
+    from substrate.execution.attempts.verification import _diff_scope_verdict
+
+    repo = real_repo["path"]
+
+    class _Packet:
+        def __init__(self):
+            # The real contract: allowed_paths_for reads WorkRequirements
+            # writable_path_scope + scope_declared, and fails closed without
+            # the flag. Mirror it exactly — a stub that skips scope_declared
+            # tests a scope resolution that cannot happen in the field.
+            self.requirements = {
+                "writable_path_scope": ["app/main.py"],
+                "scope_declared": True,
+            }
+
+    class _WR:
+        files_changed = ["app/main.py"]
+        commits = []
+
+    # Re-anchored to the trusted commit: only the worker's in-scope change is
+    # in range, so this is the PASSING shape the fix is supposed to produce.
+    ok, detail = _diff_scope_verdict(
+        lease=_Lease(repo, real_repo["trusted"]), packet=_Packet(), worker_result=_WR()
+    )
+    assert ok, f"re-anchored to trusted base, only app/main.py changed — expected pass: {detail}"
+
+    # Anchored at the ORIGINAL base: OBJECTIVE.md is in range → the defect.
+    ok, detail = _diff_scope_verdict(
+        lease=_Lease(repo, real_repo["base"]), packet=_Packet(), worker_result=_WR()
+    )
+    assert not ok, "stale base pulls OBJECTIVE.md into range — must reject"
+    assert "OBJECTIVE.md" in detail
+
+    # A detached base must be rejected BY ANCESTRY, not by path scope.
+    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    _git(repo, "checkout", "-q", "--orphan", "sneak2")
+    _git(repo, "commit", "-q", "--allow-empty", "-m", "detached")
+    orphan = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", branch)
+
+    ok, detail = _diff_scope_verdict(
+        lease=_Lease(repo, orphan), packet=_Packet(), worker_result=_WR()
+    )
+    assert not ok, "a base detached from HEAD must be rejected"
+    assert "ancestor" in detail.lower(), (
+        f"rejection must come from the ANCESTRY check so the operator is told the "
+        f"history is not the authorized one. Got: {detail!r}"
+    )
