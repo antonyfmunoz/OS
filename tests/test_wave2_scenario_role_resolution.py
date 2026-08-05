@@ -105,6 +105,51 @@ def test_canonical_label_binds_even_with_completely_unrelated_titles():
     assert m[BACKEND] == "wp-0" and m[VERIFICATION] == "wp-3"
 
 
+# ── the canonical path is EXACT: near-miss labels must never bind ───────────
+#
+# Found by adversarial review: the primary path had no test distinguishing
+# `==` from `in`/normalized comparison, so a substring mutant survived a green
+# suite AND was exploitable — a decoy node labelled "legacy_backend_task_id_v2"
+# would bind `backend_task_id`, targeting the wrong packet while reporting
+# exactly one match. That is the threat model: a green run that proved nothing.
+
+
+@pytest.mark.parametrize(
+    "decoy_label,why",
+    [
+        ("legacy_backend_task_id_v2", "role is a SUBSTRING of the decoy label"),
+        ("backend_task_id_v2", "decoy has the role as a prefix"),
+        ("old_backend_task_id", "decoy has the role as a suffix"),
+        ("BACKEND_TASK_ID", "case must NOT be folded on the canonical path"),
+        ("backend task id", "spaces must NOT be folded on the canonical path"),
+        ("backend-task-id", "hyphens must NOT be folded on the canonical path"),
+        ("the backend_task_id", "articles must NOT be stripped on the canonical path"),
+    ],
+)
+def test_near_miss_semantic_label_never_binds(decoy_label, why):
+    """The canonical key is compared EXACTLY — never by substring or normalization."""
+    nodes, packets = _canonical_plan()
+    # remove the true backend node; leave a decoy carrying a near-miss label
+    nodes = [n for n in nodes if n.get("semantic_label") != BACKEND]
+    nodes.append(_node("node-decoy", "Decoy task", decoy_label))
+    packets.append(_packet("wp-decoy", "node-decoy"))
+    with pytest.raises(ScopeResolutionError) as exc:
+        resolve_scenario_map(plan_nodes=nodes, packets=packets)
+    msg = str(exc.value)
+    assert "wp-decoy" not in msg, "the decoy packet must never be bound"
+    assert BACKEND in msg, why
+
+
+def test_semantic_label_whitespace_is_stripped_but_not_otherwise_folded():
+    """`.strip()` is intended; any further folding is not."""
+    nodes, packets = _canonical_plan()
+    for n in nodes:
+        if n.get("semantic_label") == BACKEND:
+            n["semantic_label"] = f"  {BACKEND}  "
+    m = resolve_scenario_map(plan_nodes=nodes, packets=packets)
+    assert m[BACKEND] == "wp-0", "padded canonical labels must still bind"
+
+
 # ── 2, 3, 4, 6: legacy fallback folds ONLY cosmetic variation ───────────────
 
 
@@ -327,6 +372,90 @@ def test_normalize_folds_only_cosmetics(a, b):
 )
 def test_normalize_keeps_substantive_differences(a, b):
     assert normalize_title(a) != normalize_title(b)
+
+
+def test_vacuous_normalized_title_is_refused():
+    """A configured title normalizing to '' must not bind by empty equality.
+
+    Found by adversarial review: node_titles={BACKEND: "a"} against a node
+    titled "The" made both sides normalize to "" — exactly one match, so the
+    collision guard never fired, and two unrelated strings bound a role.
+    """
+    nodes, packets = _legacy_plan(dict(FIXTURE_NODE_TITLES))
+    nodes[0]["title"] = "The"
+    with pytest.raises(ScopeResolutionError) as exc:
+        resolve_scenario_map(
+            plan_nodes=nodes, packets=packets, node_titles={**FIXTURE_NODE_TITLES, BACKEND: "a"}
+        )
+    msg = str(exc.value)
+    assert "empty string" in msg or "matched 0" in msg
+    assert "wp-0" not in msg, "a vacuous match must never bind a packet"
+
+
+def test_node_with_empty_normalized_title_is_never_a_candidate():
+    """A node whose own title normalizes to '' must not satisfy any role."""
+    nodes, packets = _legacy_plan(dict(FIXTURE_NODE_TITLES))
+    nodes[0]["title"] = "the"  # normalizes to ""
+    with pytest.raises(ScopeResolutionError) as exc:
+        resolve_scenario_map(plan_nodes=nodes, packets=packets)
+    assert "matched 0 plan nodes" in str(exc.value)
+
+
+def test_every_bind_is_logged_with_all_required_fields(caplog):
+    """Observability is a contract, not a courtesy — deleting it must fail."""
+    import logging
+
+    nodes, packets = _canonical_plan()
+    with caplog.at_level(logging.INFO, logger="substrate.execution.attempts.field_task_scope"):
+        resolve_scenario_map(plan_nodes=nodes, packets=packets)
+    binds = [r.getMessage() for r in caplog.records if "scenario-map bind:" in r.getMessage()]
+    assert len(binds) == 4, f"expected one log line per role, got {len(binds)}"
+    for role, packet in ((BACKEND, "wp-0"), (VERIFICATION, "wp-3")):
+        line = next(b for b in binds if f"role={role}" in b)
+        for field in (
+            "method=",
+            "node_id=",
+            "packet_id=",
+            "candidates=",
+            "raw_title=",
+            "normalized=",
+        ):
+            assert field in line, f"{role} bind log missing {field}"
+        assert f"packet_id={packet}" in line
+        assert "candidates=1" in line
+
+
+def test_logged_candidate_count_is_computed_not_hardcoded(caplog, monkeypatch):
+    """Pin that the count comes from the real match list.
+
+    Asserting `candidates=1` alone cannot distinguish a computed value from a
+    literal, since every successful bind resolves exactly one node. Patch the
+    formatter to capture the ARGUMENT actually passed.
+    """
+    import logging
+
+    import substrate.execution.attempts.field_task_scope as fts
+
+    seen: list[object] = []
+    real_info = fts.logger.info
+
+    def _spy(msg, *args, **kwargs):
+        if isinstance(msg, str) and "scenario-map bind" in msg:
+            seen.append(args)
+        return real_info(msg, *args, **kwargs)
+
+    monkeypatch.setattr(fts.logger, "info", _spy)
+    nodes, packets = _canonical_plan()
+    with caplog.at_level(logging.INFO):
+        resolve_scenario_map(plan_nodes=nodes, packets=packets)
+
+    assert len(seen) == 4, "one bind log per role"
+    for args in seen:
+        # (label, method, node_id, packet_id, candidates, raw_title, normalized)
+        assert isinstance(args[4], int), (
+            f"candidate count must be a computed int, got {type(args[4]).__name__}"
+        )
+        assert args[4] == 1
 
 
 def test_normalize_drops_articles_as_whole_words_only():

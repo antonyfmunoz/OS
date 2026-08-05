@@ -394,10 +394,20 @@ def resolve_scenario_map(
             if not wanted_raw:
                 raise ScopeResolutionError(f"no node title configured for {label!r}")
             wanted = normalize_title(wanted_raw)
+            if not wanted:
+                # A configured title that normalizes to nothing (e.g. "a", "The")
+                # would match every node that also normalizes to "" — binding a
+                # role by vacuous equality. Refuse rather than resolve on emptiness.
+                raise ScopeResolutionError(
+                    f"configured title {wanted_raw!r} for {label!r} normalizes to the "
+                    f"empty string — refusing to resolve a role by vacuous equality"
+                )
             method = "normalized_title"
             normalized = wanted
             candidates = [
-                n for n in (plan_nodes or []) if normalize_title(_node_title(n)) == wanted
+                n
+                for n in (plan_nodes or [])
+                if normalize_title(_node_title(n)) and normalize_title(_node_title(n)) == wanted
             ]
             if len(candidates) > 1:
                 collided = sorted(_node_id(n) for n in candidates)
@@ -428,11 +438,12 @@ def resolve_scenario_map(
             )
         logger.info(
             "scenario-map bind: role=%s method=%s node_id=%s packet_id=%s "
-            "candidates=1 raw_title=%r normalized=%r",
+            "candidates=%d raw_title=%r normalized=%r",
             label,
             method,
             node_id,
             packet_id,
+            len(matches),  # the REAL count, not a literal — a literal proves nothing
             raw_title,
             normalized,
         )
