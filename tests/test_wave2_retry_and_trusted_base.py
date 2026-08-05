@@ -348,6 +348,45 @@ def test_worker_result_trusted_base_defaults_empty():
     assert r.to_dict()["trusted_base"] == ""
 
 
+def test_runner_serializes_trusted_base_without_attribute_access():
+    """A worker result WITHOUT ``trusted_base`` must degrade, never crash.
+
+    Regression caught during requalification. The runner originally read
+    ``result.trusted_base`` directly, so any worker result predating the field
+    (a stub, an older worker, a partially-constructed result) raised
+    AttributeError inside ``_run_one_claim``. The dispatch then died between
+    claim and ``spool.complete()``: no signed result reached the outbox, the
+    attempt stayed inflight, and run teardown reported an unprocessed dispatch.
+
+    Degrading to "" is the correct failure mode — the poller then simply leaves
+    the lease's base untouched (the pre-fix behaviour), which is a scope
+    rejection, not a corrupted verdict.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "_w2runner_ser", os.path.join(REPO, "scripts", "wave2_attempt_runner.py")
+    )
+    assert spec and spec.loader
+    src = open(spec.origin, encoding="utf-8").read()
+
+    assert 'getattr(result, "trusted_base"' in src, (
+        "the runner must read trusted_base defensively via getattr — direct "
+        "attribute access strands the dispatch when the field is absent"
+    )
+    assert "result.trusted_base" not in src, (
+        "direct attribute access to result.trusted_base reintroduces the "
+        "AttributeError that kills the dispatch mid-claim"
+    )
+
+    # And the degradation itself: a result object with no such attribute
+    # serializes to "" rather than raising.
+    class _NoTrustedBase:
+        pass
+
+    assert str(getattr(_NoTrustedBase(), "trusted_base", "") or "") == ""
+
+
 # ── mutation tests: retry path guards ───────────────────────────────────────
 
 

@@ -671,7 +671,12 @@ def _run_one_claim(
             # committed. The verifier needs this base — the lease record still
             # carries the original fixture base, and diffing from there includes
             # trusted system writes in the worker's scope verdict.
-            "trusted_base": result.trusted_base or "",
+            #
+            # getattr, not attribute access: a worker result that predates this
+            # field must degrade to "no re-anchor" (the poller then leaves the
+            # lease base untouched), never crash the runner mid-dispatch and
+            # strand the attempt in the spool.
+            "trusted_base": str(getattr(result, "trusted_base", "") or ""),
             # Real wall-clock bounds, so reconciliation can PROVE overlap:
             # max(started) < min(completed) across A and B.
             "started_at": started_at,
