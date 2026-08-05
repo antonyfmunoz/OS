@@ -45,9 +45,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 class ScopeResolutionError(RuntimeError):
@@ -60,10 +63,17 @@ class ScopeResolutionError(RuntimeError):
 
 
 # ── the fixture's semantic Tasks ────────────────────────────────────────────
-# Keys are the SEMANTIC labels the harness reasons about; values are the plan
-# node titles the fixture plan uses. Titles are matched EXACTLY (casefolded and
-# stripped) — never by substring or regex, so a title drift fails closed rather
-# than silently binding the wrong Task.
+# Keys are the SEMANTIC labels the harness reasons about. These labels are the
+# CANONICAL machine identity: the planner persists `semantic_label` on each plan
+# node alongside `writable_path_scope`, so role resolution never depends on
+# display text.
+#
+# FIXTURE_NODE_TITLES below is a LEGACY-COMPATIBILITY fallback only, consulted
+# solely when a plan record carries no canonical label at all. Field run
+# 20260805T172351Z-p1 failed because titles were the primary key: the planner
+# emitted "Add the note-search backend endpoint" where the constant said
+# "add note search backend endpoint", and exact equality matched 0 nodes. A
+# machine role must not hinge on an article or a hyphen an LLM chose.
 BACKEND = "backend_task_id"
 FRONTEND = "frontend_task_id"
 INTEGRATION = "integration_task_id"
@@ -277,6 +287,51 @@ def _node_id(node: Any) -> str:
     return str(raw or "")
 
 
+def _node_semantic_label(node: Any) -> str:
+    """The node's CANONICAL machine role, or '' when the record predates it.
+
+    This is the authority for role resolution. Titles are LLM-authored display
+    text and must never decide which Task an injection targets.
+    """
+    raw = (
+        node.get("semantic_label", "")
+        if isinstance(node, dict)
+        else getattr(node, "semantic_label", "")
+    )
+    return str(raw or "").strip()
+
+
+_ARTICLES = frozenset({"the", "a", "an"})
+
+
+def normalize_title(raw: str) -> str:
+    """Fold ONLY cosmetic variation. Substantive words are never removed.
+
+    Legacy-compatibility fallback for plan records written before nodes carried
+    ``semantic_label``. Handles exactly the drift an LLM introduces in display
+    text — capitalization, a leading article, hyphen-vs-space, repeated
+    whitespace, surrounding punctuation, Unicode form.
+
+    Deliberately NOT substring, fuzzy, stemmed, embedded, or token-overlap
+    matching: every one of those can bind a role to the wrong Task, and a
+    wrongly-targeted injection produces a green run that proved nothing.
+    """
+    import re
+    import unicodedata
+
+    text = unicodedata.normalize("NFKC", str(raw or "")).strip().casefold()
+    text = text.replace("-", " ").replace("_", " ")
+    text = re.sub(r"[^\w\s]", " ", text)  # drop punctuation, keep word chars
+    # Drop articles as STANDALONE words. The planner inserts them anywhere
+    # ("Add THE note-search backend endpoint"), not only in front, so a
+    # leading-only rule cannot fold the drift that actually occurred. An article
+    # is never a substantive distinguishing term for these roles; every other
+    # word is preserved verbatim — no stemming, no stop-word list, no synonyms,
+    # no substring or fuzzy matching.
+    words = [w for w in text.split() if w and w not in _ARTICLES]
+    return " ".join(words).strip()
+
+
 def resolve_scenario_map(
     *,
     plan_nodes: list[Any],
@@ -313,22 +368,74 @@ def resolve_scenario_map(
 
     resolved: dict[str, str] = {}
     for label in SEMANTIC_LABELS:
-        wanted = titles.get(label, "").strip().casefold()
-        if not wanted:
-            raise ScopeResolutionError(f"no node title configured for {label!r}")
-        matches = [n for n in (plan_nodes or []) if _node_title(n) == wanted]
+        # ── 1. CANONICAL: the node's persisted machine role. ────────────────
+        # semantic_label is written by the planner alongside writable_path_scope
+        # and is not display text, so it cannot drift with LLM phrasing.
+        matches = [n for n in (plan_nodes or []) if _node_semantic_label(n) == label]
+        method = "semantic_label"
+        raw_title = ""
+        normalized = ""
+
+        if not matches:
+            # ── 2. LEGACY FALLBACK: cosmetic-only title normalization. ──────
+            # Reached ONLY when no node carries the canonical key at all (a
+            # pre-semantic_label plan record). A node that carries a DIFFERENT
+            # canonical label is never eligible — a conflicting machine role
+            # outranks any title resemblance.
+            labelled = {_node_semantic_label(n) for n in (plan_nodes or [])} - {""}
+            if labelled:
+                raise ScopeResolutionError(
+                    f"{label!r} matched 0 plan nodes by canonical semantic_label, and "
+                    f"the plan DOES carry canonical labels {sorted(labelled)!r} — "
+                    f"refusing to fall back to title matching against a plan that "
+                    f"declares machine roles"
+                )
+            wanted_raw = titles.get(label, "").strip()
+            if not wanted_raw:
+                raise ScopeResolutionError(f"no node title configured for {label!r}")
+            wanted = normalize_title(wanted_raw)
+            method = "normalized_title"
+            normalized = wanted
+            candidates = [
+                n for n in (plan_nodes or []) if normalize_title(_node_title(n)) == wanted
+            ]
+            if len(candidates) > 1:
+                collided = sorted(_node_id(n) for n in candidates)
+                raise ScopeResolutionError(
+                    f"{label!r} (normalized title {wanted!r}) collapsed {len(candidates)} "
+                    f"distinct plan nodes {collided!r} to one identity — refusing an "
+                    f"ambiguous target"
+                )
+            matches = candidates
+
         if len(matches) != 1:
             raise ScopeResolutionError(
-                f"{label!r} (title {wanted!r}) matched {len(matches)} plan nodes — "
+                f"{label!r} matched {len(matches)} plan nodes via {method} — "
                 f"expected exactly 1; refusing an ambiguous target"
             )
-        node_id = _node_id(matches[0])
+
+        node = matches[0]
+        node_id = _node_id(node)
+        raw_title = str(
+            node.get("title", "") if isinstance(node, dict) else getattr(node, "title", "")
+        )
         packet_id = by_node.get(node_id, "")
         if not packet_id:
             raise ScopeResolutionError(
-                f"{label!r} resolved to plan node {node_id!r} which materialized no "
-                f"WorkPacket — the injection would target a nonexistent Task"
+                f"{label!r} resolved to plan node {node_id!r} (via {method}) which "
+                f"materialized no WorkPacket — the injection would target a "
+                f"nonexistent Task"
             )
+        logger.info(
+            "scenario-map bind: role=%s method=%s node_id=%s packet_id=%s "
+            "candidates=1 raw_title=%r normalized=%r",
+            label,
+            method,
+            node_id,
+            packet_id,
+            raw_title,
+            normalized,
+        )
         resolved[label] = packet_id
     return resolved
 

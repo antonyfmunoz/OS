@@ -277,10 +277,18 @@ def test_scenario_map_fails_closed_when_a_node_materialized_no_packet():
 
 
 def test_scenario_map_fails_closed_on_ambiguous_titles():
+    """Two nodes claiming one role must fail closed, never pick the first.
+
+    These fixture nodes carry no canonical ``semantic_label``, so resolution
+    takes the legacy title-normalization path. The refusal now names BOTH
+    colliding node ids (it previously only reported a count).
+    """
     nodes, packets = _fixture_plan()
     nodes.append(_node("node-9", "Add note search backend endpoint"))
-    with pytest.raises(ScopeResolutionError, match="matched 2 plan nodes"):
+    with pytest.raises(ScopeResolutionError, match="refusing an ambiguous target") as exc:
         resolve_scenario_map(plan_nodes=nodes, packets=packets)
+    msg = str(exc.value)
+    assert "node-1" in msg and "node-9" in msg, "both colliding nodes must be named"
 
 
 def test_scenario_map_never_pattern_matches_ids():
