@@ -429,13 +429,41 @@ class ControlPlanePoller:
                 report.errors.append(
                     f"terminalize({attempt.attempt_id},{reason}) SECURITY: {result.errors}"
                 )
-            # RV-HIGH-2: a lease-release fault leaves the task's lease ACTIVE, and
+            # A WITHHELD lease is not a release FAULT. When terminalization
+            # deliberately keeps the lease active to preserve the only copy of a
+            # verifier-approved commit, healing it here destroys exactly what the
+            # withhold protected: `revoke()` also runs `cleanup_sandbox` →
+            # `git branch -D`. Measured — the healer silently reversed the
+            # protection one frame above `terminalize`, and the field defect
+            # reproduced end to end.
+            #
+            # `lease_released == False` alone cannot distinguish the two cases, so
+            # the withhold is stated explicitly on the result. Surface it as a
+            # BLOCKING error (the task's retry stays blocked until an operator
+            # acts) rather than trading an unrecoverable commit for a recoverable
+            # stall.
+            withheld = str(getattr(result, "lease_withheld_reason", "") or "").strip()
+            if withheld:
+                report.errors.append(
+                    f"terminalize({attempt.attempt_id},{reason}): lease "
+                    f"{result.lease_id} WITHHELD to preserve the verified commit — "
+                    f"{withheld}. Retry for this task is blocked until the "
+                    f"retention condition is resolved; do NOT revoke this lease, "
+                    f"revoking destroys the commit."
+                )
+                logger.error(
+                    "poller: lease %s withheld for attempt %s — not force-revoking: %s",
+                    result.lease_id,
+                    attempt.attempt_id,
+                    withheld,
+                )
+            # RV-HIGH-2: a lease-release FAULT leaves the task's lease ACTIVE, and
             # `acquire()` refuses a second active lease per task — so the next
             # attempt deadlocks BLOCKED↔READY forever. terminalize does not raise
             # on a non-security error, so heal it HERE at the authoritative terminal
             # transition: re-drive a revoke for the stranded lease so retry admission
             # can proceed. Idempotent — revoking an already-revoked lease is a no-op.
-            if not result.lease_released and result.lease_id and self._lease_manager is not None:
+            elif not result.lease_released and result.lease_id and self._lease_manager is not None:
                 try:
                     self._lease_manager.revoke(
                         result.lease_id, f"terminalize_release_retry:{reason}"

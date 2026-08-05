@@ -60,7 +60,7 @@ frozen driver, the deployed mesh hotfix.
 
 | Function | Production callers | Status |
 |---|---|---|
-| `retain_verified_commit` | `terminalization.py:298,302` | **wired** — runs on every SUCCEEDED terminalization |
+| `retain_verified_commit` | `terminalization.py` `_retain_verified` (call site line ~437) | **wired** — reached on every SUCCEEDED terminalization through `poller._terminalize`, verified by a production-path test |
 | `resolve_trusted_commit` | 0 outside the module | read-side API; used internally by `retain_verified_commit`'s immutability check |
 | `release_trusted_refs` | 0 | **owner-controlled cleanup entry point** |
 | `trusted_ref` | 0 outside the module | path constructor; used internally |
@@ -200,10 +200,54 @@ two of my fixes. Sweeps now run alone.
    `_RETENTION_FAILED_PREFIX` marker, not a message substring) and by asserting the
    commit's survival, the un-released lease, and the surviving worktree.
 
-   Deliberate trade, stated explicitly: the lease is left **ACTIVE**, which blocks
-   retry admission for that Task until an operator revokes it or
-   `recover_stale_runs` reclaims it. A stuck lease is recoverable; a destroyed
-   verifier-approved commit is not.
+   Deliberate trade: the lease is left **ACTIVE**, which blocks retry admission
+   for that Task. **Correction — an earlier version of this ledger called that
+   'recoverable' by pointing at an operator revoke or `recover_stale_runs`.
+   That was false**: both call `LeaseManager.revoke()`, which runs
+   `cleanup_sandbox` → `git branch -D` and destroys the very commit the
+   withhold protects. `recover_stale_runs` additionally only runs at process
+   START against prior dead runs, never the live one. The honest statement is:
+   the withhold **defers** destruction and blocks the Task until the retention
+   condition itself is resolved. Bounded retry of retention before release is
+   the real durable answer and is NOT implemented — recorded as open.
+
+
+## Production-nullification defects (found at 66f327b6a, fixed here)
+
+Both were invisible to every test that called `terminalize()` directly, and both
+were found by an independent review that executed the **real production caller**.
+
+**CRITICAL A — retention never ran in production.** The candidate/run binding was
+read from `UMH_W2_CANDIDATE_SHA` / `UMH_W2_RUN_ID`. A whole-tree grep found those
+names in exactly two files: the reader, and this suite's `monkeypatch.setenv`.
+**Nothing in production set them.** The absent binding took a `steps.append(...)`
+early return, so on a perfectly healthy host: `result.ok=True`, `errors=[]`,
+`retained_commit=''`, and the verified commit destroyed by the next step. Field run
+`20260805T182714Z-p1` reproducing on EVERY normal run, silently.
+
+Fixed by deriving the binding from records the control plane already owns:
+`run_id` ← `attempt.correlation_id` (`w2-<run_id>`, confirmed against real field
+records) and `candidate` ← the lease's `repo_root`
+(`.../candidates/<lane>/<sha>/targets/<run-id>/…`), with a path-only fallback.
+A missing binding is now a retention **failure**, not a skip — but only when a
+commit is actually at risk (`_commit_above_base`), so the other ten terminal paths
+that `terminalize` serves are not blocked for nothing.
+
+**CRITICAL B — the poller reversed the fix one frame up.** `poller._terminalize` is
+the only production caller. Its RV-HIGH-2 healer keys on `lease_released == False`
+and force-revokes to unblock retry — and `revoke()` also runs `cleanup_sandbox` →
+`git branch -D`. So the gate held inside `terminalize()` and was undone immediately
+after. Two fixes from different cycles reading the same boolean with opposite
+intent.
+
+Fixed with an explicit `TerminalizationResult.lease_withheld_reason`. The healer
+now runs only for a genuine release fault; a deliberate withhold is surfaced as a
+blocking report error that names the hazard ("do NOT revoke this lease, revoking
+destroys the commit").
+
+**The lesson, stated plainly:** the previous cycle proved its fix at the function
+boundary and never executed the production caller — the same category of error it
+was written to correct. The suite now drives `poller._terminalize` directly.
 
 ## Composition work packet (NOT implemented)
 

@@ -38,8 +38,13 @@ Invariant (strict order — each step must complete before the next):
     2c. STOP if retention failed — every step below is destructive, and running
         them after a failed retention DESTROYS the verified commit. Recording the
         error and continuing is not "fail closed": it changes the reporting, not
-        the outcome. The lease is deliberately left ACTIVE — a stuck lease is
-        recoverable, a destroyed verifier-approved commit is not.
+        the outcome. The lease is deliberately left ACTIVE and the withhold is
+        stated on ``result.lease_withheld_reason`` so no consumer mistakes it for
+        a release fault and "heals" it (the poller's RV-HIGH-2 healer revokes,
+        and revoke also deletes the branch). Truthfully: this DEFERS destruction
+        and blocks the Task until the retention condition is resolved — it is not
+        a self-healing state. Bounded retry of retention before release is the
+        durable answer and is not implemented.
     3. release / revoke lease     — the lease is no longer ACTIVE
     4. destroy attempt-private home + remove credential material
     5. reconcile spool ownership  — drop any inflight claim for this attempt
@@ -111,6 +116,13 @@ class TerminalizationResult:
     # Verifier-approved commit pinned under the trusted namespace before the
     # lease was released. "" for every non-SUCCEEDED terminalization.
     retained_commit: str = ""
+    # NON-EMPTY when the lease was DELIBERATELY left active to preserve the only
+    # verified commit. A bare ``lease_released == False`` cannot express this: the
+    # poller's RV-HIGH-2 healer reads that flag as "release faulted" and force-
+    # revokes, which runs cleanup_sandbox → `git branch -D` and destroys the very
+    # commit the withhold protected. Measured before this field existed. Any
+    # consumer that reacts to an unreleased lease MUST check this first.
+    lease_withheld_reason: str = ""
     home_destroyed: bool = False
     spool_reconciled: bool = False
     credential_residue: list[str] = field(default_factory=list)
@@ -144,6 +156,7 @@ class TerminalizationResult:
             "already_terminal": self.already_terminal,
             "lease_released": self.lease_released,
             "retained_commit": self.retained_commit,
+            "lease_withheld_reason": self.lease_withheld_reason,
             "home_destroyed": self.home_destroyed,
             "spool_reconciled": self.spool_reconciled,
             "credential_residue": list(self.credential_residue),
@@ -227,6 +240,13 @@ def terminalize(
     # lease) until an operator revokes it or `recover_stale_runs` reclaims it.
     # A stuck lease is recoverable; a destroyed verifier-approved commit is not.
     if _retention_failed(result):
+        # EXPLICIT withhold reason. The poller's RV-HIGH-2 healer force-revokes on
+        # `lease_released == False`, and revoke() also runs cleanup_sandbox — so a
+        # bare boolean would let the healer undo this protection one frame up.
+        # Measured: it did. Consumers must key on this field, not the flag.
+        result.lease_withheld_reason = (
+            f"{LEASE_WITHHELD_RETENTION}{result.errors[-1] if result.errors else 'unknown'}"
+        )
         result.steps.append("destructive cleanup SKIPPED — retention failed")
         logger.error(
             "terminalize(%s): retention failed, refusing to release the lease — "
@@ -281,6 +301,90 @@ def _retention_failed(result: TerminalizationResult) -> bool:
     return any(e.startswith(_RETENTION_FAILED_PREFIX) for e in result.errors)
 
 
+#: Marker prefix for the "lease deliberately withheld" reason. The poller keys on
+#: ``result.lease_withheld_reason`` being non-empty; this prefix is for logs.
+LEASE_WITHHELD_RETENTION = "verified-commit retention failed: "
+
+#: Path segment that anchors a candidate directory, e.g.
+#: ``/var/lib/umh/candidates/wave2/<sha>/targets/<run-id>/fixture``.
+_CANDIDATE_ANCHOR = "candidates"
+
+
+def _commit_above_base(worktree: str, base_commit: str) -> str:
+    """The attempt's own commit, or "" when it produced none.
+
+    Answers "is anything actually destroyed if we proceed?" — the question that
+    decides whether an unresolvable binding is fatal or merely uninteresting.
+    A CPU-gate refusal here is NOT "no commit": it means we cannot tell, and
+    "cannot tell" must be treated as at-risk.
+    """
+    from substrate.execution.attempts.verified_commit_retention import (
+        CpuGateRefused,
+        _git,
+    )
+
+    try:
+        rc, head, _err = _git(worktree, ["rev-parse", "HEAD"], caller="at_risk_probe")
+    except CpuGateRefused:
+        # Cannot observe → assume at risk. Failing open here would reintroduce the
+        # exact silent-destruction defect under load.
+        return "unknown"
+    if rc != 0 or not head:
+        return ""
+    base = str(base_commit or "").strip()
+    if not base:
+        # No AUTHORIZED base recorded on the lease → we cannot say whether HEAD is
+        # this attempt's own work or the pre-existing base. Retention itself
+        # refuses to publish in that state (it would pin the base as "verified
+        # output"), so there is nothing this gate can protect either. Reporting
+        # "at risk" here would block every lease whose sandbox records no base,
+        # for a commit retention would decline to keep anyway.
+        return ""
+    if head == base:
+        return ""
+    return head
+
+
+def _resolve_retention_binding(attempt: Any, repo: str) -> tuple[str, str, str]:
+    """Derive (candidate, run_id, detail) from AUTHORITATIVE persisted records.
+
+    Never reads process environment. Returns empty strings when the binding
+    cannot be established — the caller then treats that as a retention FAILURE,
+    not as "nothing to retain".
+
+    ``run_id``   comes from ``attempt.correlation_id``, which the control plane
+                 writes as ``w2-<run_id>`` (verified against real field records:
+                 ``w2-20260805T182714Z-p1``). The prefix is stripped when present
+                 so the ref path matches the run's own identity.
+    ``candidate`` comes from the lease's ``repo_root``, whose canonical shape is
+                 ``.../candidates/<lane>/<candidate-sha>/targets/<run-id>/...``.
+                 The segment AFTER the lane segment is the candidate.
+    """
+    run_id = str(getattr(attempt, "correlation_id", "") or "").strip()
+    if run_id.startswith("w2-"):
+        run_id = run_id[3:]
+
+    candidate = ""
+    parts = [p for p in str(repo or "").split(os.sep) if p]
+    if _CANDIDATE_ANCHOR in parts:
+        i = parts.index(_CANDIDATE_ANCHOR)
+        # <anchor>/<lane>/<candidate>/...  — the candidate is two past the anchor.
+        if len(parts) > i + 2:
+            candidate = parts[i + 2]
+
+    # Fall back to the run's own targets/<run-id> segment when correlation_id is
+    # absent but the path still names the run — the path is equally authoritative.
+    if not run_id and "targets" in parts:
+        j = parts.index("targets")
+        if len(parts) > j + 1:
+            run_id = parts[j + 1]
+
+    detail = f"correlation_id={getattr(attempt, 'correlation_id', '')!r} repo={repo!r}"
+    if not candidate or not run_id:
+        return "", "", detail
+    return candidate, run_id, detail
+
+
 def _retain_verified(
     result: TerminalizationResult, attempt: Any, lease_manager: Any, reason: str
 ) -> None:
@@ -330,19 +434,55 @@ def _retain_verified(
         result.steps.append("no repo/worktree on lease — nothing to retain")
         return
 
-    candidate = str(os.environ.get("UMH_W2_CANDIDATE_SHA", "") or "").strip()
-    run_id = str(os.environ.get("UMH_W2_RUN_ID", "") or "").strip()
-    if not candidate or not run_id:
-        # Retention is namespaced by candidate+run so refs from different runs can
-        # never collide or be mistaken for one another. Without that binding we
-        # do not retain at all rather than write an ambiguous ref.
-        result.steps.append("no candidate/run binding — retention skipped")
-        return
+    # AUTHORITATIVE binding — derived from persisted records, never process env.
+    #
+    # This read used to be `os.environ["UMH_W2_CANDIDATE_SHA"/"UMH_W2_RUN_ID"]`,
+    # and NOTHING in production ever set them (only tests did, via monkeypatch).
+    # The absent binding took an early `steps.append(...)` return, so on a
+    # perfectly healthy host retention silently never ran: `result.ok=True`,
+    # `errors=[]`, and the verified commit was destroyed by the very next step.
+    # That is field run 20260805T182714Z-p1 reproducing on EVERY normal run.
+    #
+    # Both anchors already exist on records the control plane owns:
+    #   run_id    ← attempt.correlation_id ("w2-<run_id>"), verified against real
+    #               field data: "w2-20260805T182714Z-p1"
+    #   candidate ← the lease's repo_root path, which is
+    #               .../candidates/wave2/<candidate-sha>/targets/<run-id>/fixture
+    candidate, run_id, binding_detail = _resolve_retention_binding(attempt, repo)
 
     from substrate.execution.attempts.verified_commit_retention import (
         RetentionError,
         retain_verified_commit,
     )
+
+    if not candidate or not run_id:
+        # "The binding is missing" and "there is nothing to retain" are DIFFERENT
+        # facts, and the old code conflated them — it skipped silently and the
+        # next step destroyed verified work.
+        #
+        # But failing closed unconditionally is also wrong: `terminalize` is the
+        # C-2 authority for ELEVEN terminal paths, not just Wave 2 field runs, and
+        # a caller whose repo is not laid out as a candidate would be blocked
+        # forever with nothing at stake. So ask the question that actually
+        # matters: IS there a commit above the lease's authorized base? Only then
+        # is anything destroyed by proceeding.
+        at_risk = _commit_above_base(worktree, str((source or {}).get("base_commit", "") or ""))
+        if at_risk:
+            result.errors.append(
+                f"{_RETENTION_FAILED_PREFIX}cannot resolve the candidate/run binding "
+                f"({binding_detail}) while a verified commit {at_risk[:12]} exists — "
+                f"refusing to destroy a commit that cannot be retained"
+            )
+            logger.error(
+                "retain: no authoritative binding for %s (%s) and commit %s is at "
+                "risk — destructive cleanup blocked",
+                result.attempt_id,
+                binding_detail,
+                at_risk[:12],
+            )
+        else:
+            result.steps.append(f"no binding and no commit above base — nothing at risk ({binding_detail})")
+        return
 
     try:
         commit = retain_verified_commit(

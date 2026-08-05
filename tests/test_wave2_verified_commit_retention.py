@@ -47,7 +47,10 @@ def _git(args: list[str], cwd: str) -> subprocess.CompletedProcess:
 @pytest.fixture
 def repo(tmp_path):
     """A real fixture repo shaped like the field fixture."""
-    r = str(tmp_path / "fixture")
+    # CANONICAL candidate layout — production always uses
+    # .../candidates/<lane>/<candidate-sha>/targets/<run-id>/fixture, and the
+    # authoritative retention binding is derived from exactly this path.
+    r = str(tmp_path / "candidates" / "wave2" / CAND / "targets" / RUN / "fixture")
     os.makedirs(r)
     _git(["init", "-q", "-b", "master"], r)
     _git(["config", "user.email", "t@t"], r)
@@ -594,6 +597,272 @@ def test_legacy_sandbox_manager_without_base_support_still_works(tmp_path, repo)
             attempt=ExecutionAttempt(attempt_id="ea-2", task_id="wp-2", status=_S.LEASED.value),
             assignment=ASSIGNMENT, grant=GRANT, base_commit="a" * 40,
         )
+
+
+# ── PRODUCTION PATH: the real ControlPlanePoller._terminalize ───────────────
+#
+# Every test above drives `terminalize()` directly. That is one call-frame deep,
+# and it is exactly how two CRITICALs shipped: (1) retention never ran in
+# production because its binding came from env vars nothing set, and (2) the
+# poller's RV-HIGH-2 healer force-revoked the withheld lease and destroyed the
+# commit the withhold protected. Neither was reachable from a direct
+# `terminalize()` test. These drive the REAL production caller.
+
+
+@pytest.fixture
+def candidate_repo(tmp_path):
+    """A fixture repo at the CANONICAL candidate path, so the authoritative
+    binding (candidate sha + run id) is derivable from the lease's repo_root:
+
+        .../candidates/<lane>/<candidate-sha>/targets/<run-id>/fixture
+    """
+    r = str(tmp_path / "candidates" / "wave2" / CAND / "targets" / RUN / "fixture")
+    os.makedirs(r)
+    _git(["init", "-q", "-b", "master"], r)
+    _git(["config", "user.email", "t@t"], r)
+    _git(["config", "user.name", "t"], r)
+    os.makedirs(f"{r}/app")
+    open(f"{r}/app/main.py", "w").write("base\n")
+    _git(["add", "-A"], r)
+    _git(["commit", "-qm", "fixture base"], r)
+    return r
+
+
+def _production_terminalize(
+    tmp_path, repo, *, tag, correlation_id=f"w2-{RUN}", refuse_gate=False,
+    monkeypatch=None, reason="succeeded",
+):
+    """Run ONE attempt through the REAL ControlPlanePoller._terminalize."""
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.poller import ControlPlanePoller, PollerPassReport
+
+    mgr = SandboxManager(
+        repo_root=repo, worktree_base=str(tmp_path / f"l{tag}"),
+        store_dir=str(tmp_path / f"sb{tag}"), max_parallel=8,
+    )
+    store = _store(tmp_path, tag)
+    lm = LeaseManager(store, mgr, mutation_runner=_direct_runner)
+    attempt = ExecutionAttempt(
+        attempt_id=f"ea-{tag}", task_id="wp-be", status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host", correlation_id=correlation_id,
+    )
+    lease = lm.acquire(attempt=attempt, assignment=ASSIGNMENT, grant=GRANT)
+    with open(os.path.join(lease.worktree_path, "app/main.py"), "a") as fh:
+        fh.write("VERIFIED WORK\n")
+    _git(["add", "-A"], lease.worktree_path)
+    _git(["commit", "-qm", "verified"], lease.worktree_path)
+    verified = _git(["rev-parse", "HEAD"], lease.worktree_path).stdout.strip()
+
+    poller = ControlPlanePoller(
+        store=store, spool=None, scheduler=None, verify_fn=lambda **kw: None,
+        lease_manager=lm, run_root=str(tmp_path / f"run{tag}"),
+    )
+    attempt.status = _S.SUCCEEDED.value if reason == "succeeded" else _S.FAILED.value
+    attempt.lease_id = lease.lease_id
+    if refuse_gate:
+        import substrate.execution.attempts.verified_commit_retention as m
+
+        monkeypatch.setattr(m, "gated_subprocess_run", lambda *a, **k: None)
+    report = PollerPassReport()
+    poller._terminalize(attempt, reason, report)  # noqa: SLF001 — THE production caller
+    return report, verified, lease, store
+
+
+def test_production_retention_runs_without_any_env_stub(tmp_path, candidate_repo, monkeypatch):
+    """CRITICAL 2: retention must run on a HEALTHY production run with NO
+    environment variables set.
+
+    It did not: the binding was read from `UMH_W2_CANDIDATE_SHA` /
+    `UMH_W2_RUN_ID`, which NOTHING in production sets. The absent binding took a
+    `steps.append(...)` early return, so `result.ok` was True, `errors` was
+    empty, and the verified commit was destroyed by the very next step — on every
+    normal run, silently.
+    """
+    monkeypatch.delenv("UMH_W2_CANDIDATE_SHA", raising=False)
+    monkeypatch.delenv("UMH_W2_RUN_ID", raising=False)
+    _report, verified, lease, _st = _production_terminalize(
+        tmp_path, candidate_repo, tag="prodok"
+    )
+
+    refs = _git(
+        ["for-each-ref", "--format=%(refname)", TRUSTED_ROOT], candidate_repo
+    ).stdout.strip()
+    assert refs, "retention must have written a trusted ref with NO env vars set"
+    assert CAND in refs and RUN in refs, (
+        f"the ref must carry the AUTHORITATIVE candidate+run binding, got {refs}"
+    )
+    _git(["reflog", "expire", "--expire=now", "--all"], candidate_repo)
+    _git(["gc", "--prune=now", "-q"], candidate_repo)
+    assert _git(["cat-file", "-e", f"{verified}^{{commit}}"], candidate_repo).returncode == 0, (
+        "the verified commit must survive a full production terminalization"
+    )
+    assert not os.path.isdir(lease.worktree_path), "the worktree must still be destroyed"
+
+
+def test_production_poller_does_not_reverse_a_withheld_lease(
+    tmp_path, candidate_repo, monkeypatch
+):
+    """CRITICAL 1: the poller's RV-HIGH-2 healer must NOT force-revoke a lease
+    that terminalization deliberately withheld.
+
+    It did: the healer keys on `lease_released == False`, and `revoke()` also runs
+    `cleanup_sandbox` → `git branch -D`. The gate held inside `terminalize()` and
+    was reversed one frame up, so the field defect reproduced end to end.
+    """
+    report, verified, lease, store = _production_terminalize(
+        tmp_path, candidate_repo, tag="withheld", refuse_gate=True, monkeypatch=monkeypatch
+    )
+
+    row = store.get_lease(lease.lease_id) or {}
+    assert row.get("status") == "active", (
+        f"the withheld lease must NOT be revoked, got status={row.get('status')!r}"
+    )
+    assert os.path.isdir(lease.worktree_path), "the worktree must survive"
+    _git(["reflog", "expire", "--expire=now", "--all"], candidate_repo)
+    _git(["gc", "--prune=now", "-q"], candidate_repo)
+    assert _git(["cat-file", "-e", f"{verified}^{{commit}}"], candidate_repo).returncode == 0, (
+        "the verified commit must survive the poller — this is the whole point"
+    )
+    assert any("WITHHELD" in e for e in report.errors), (
+        f"the withhold must be surfaced as a BLOCKING report error, got {report.errors}"
+    )
+    assert not any("force-revoked" in e for e in report.errors), (
+        "the RV-HIGH-2 healer must not have run on a deliberate withhold"
+    )
+
+
+def test_production_missing_binding_fails_closed_and_visibly(
+    tmp_path, candidate_repo, monkeypatch
+):
+    """CRITICAL 2 (other half): when the binding genuinely cannot be resolved,
+    retention must FAIL — visibly — not skip silently and destroy the commit."""
+    monkeypatch.delenv("UMH_W2_CANDIDATE_SHA", raising=False)
+    monkeypatch.delenv("UMH_W2_RUN_ID", raising=False)
+    plain = str(tmp_path / "plain")
+    os.makedirs(f"{plain}/app")
+    _git(["init", "-q", "-b", "master"], plain)
+    _git(["config", "user.email", "t@t"], plain)
+    _git(["config", "user.name", "t"], plain)
+    open(f"{plain}/app/main.py", "w").write("base\n")
+    _git(["add", "-A"], plain)
+    _git(["commit", "-qm", "base"], plain)
+
+    report, verified, lease, store = _production_terminalize(
+        tmp_path, plain, tag="nobind", correlation_id=""
+    )
+
+    assert any("cannot resolve the candidate/run binding" in e for e in report.errors), (
+        f"an unresolvable binding must be VISIBLE, got {report.errors}"
+    )
+    row = store.get_lease(lease.lease_id) or {}
+    assert row.get("status") == "active", "the lease must be withheld, not released"
+    _git(["reflog", "expire", "--expire=now", "--all"], plain)
+    _git(["gc", "--prune=now", "-q"], plain)
+    assert _git(["cat-file", "-e", f"{verified}^{{commit}}"], plain).returncode == 0, (
+        "a commit that cannot be retained must not be destroyed"
+    )
+
+
+def test_production_ordinary_terminal_cleanup_is_unchanged(tmp_path, candidate_repo):
+    """A non-SUCCEEDED terminal reason must still fully clean up."""
+    report, _verified, lease, store = _production_terminalize(
+        tmp_path, candidate_repo, tag="failed", reason="verification_rejected"
+    )
+    row = store.get_lease(lease.lease_id) or {}
+    assert row.get("status") == "released", "a rejected attempt must release normally"
+    assert not os.path.isdir(lease.worktree_path), "and destroy the worktree"
+    assert not any("WITHHELD" in e for e in report.errors)
+    refs = _git(
+        ["for-each-ref", "--format=%(refname)", TRUSTED_ROOT], candidate_repo
+    ).stdout.strip()
+    assert refs == "", "a rejected attempt must leave no trusted ref"
+
+
+def test_unobservable_head_counts_as_at_risk(tmp_path, monkeypatch):
+    """When the binding is unresolvable AND the CPU gate refuses, we cannot tell
+    whether a commit exists. "Cannot tell" must count as AT RISK.
+
+    Reading it as "no commit" would fail open exactly under load — the same
+    condition that produced the original defect. Mutation R20.
+    """
+    from substrate.execution.attempts.terminalization import _commit_above_base
+
+    import substrate.execution.attempts.verified_commit_retention as m
+
+    monkeypatch.setattr(m, "gated_subprocess_run", lambda *a, **k: None)
+    assert _commit_above_base(str(tmp_path), "abc123") == "unknown", (
+        "an unobservable HEAD must report at-risk, never 'nothing to protect'"
+    )
+
+
+def test_unobservable_head_blocks_cleanup_when_binding_is_unresolvable(
+    tmp_path, monkeypatch
+):
+    """End-to-end companion to the above, through the REAL terminalize(): an
+    unresolvable binding plus an unobservable worktree must fail closed."""
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.terminalization import terminalize
+
+    plain = str(tmp_path / "plain")
+    os.makedirs(f"{plain}/app")
+    _git(["init", "-q", "-b", "master"], plain)
+    _git(["config", "user.email", "t@t"], plain)
+    _git(["config", "user.name", "t"], plain)
+    open(f"{plain}/app/main.py", "w").write("base\n")
+    _git(["add", "-A"], plain)
+    _git(["commit", "-qm", "base"], plain)
+
+    mgr = SandboxManager(
+        repo_root=plain, worktree_base=str(tmp_path / "lu"),
+        store_dir=str(tmp_path / "sbu"), max_parallel=4,
+    )
+    lm = LeaseManager(_store(tmp_path, "unobs"), mgr, mutation_runner=_direct_runner)
+    attempt = ExecutionAttempt(
+        attempt_id="ea-unobs", task_id="wp-be", status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host", correlation_id="",
+    )
+    lease = lm.acquire(attempt=attempt, assignment=ASSIGNMENT, grant=GRANT)
+    with open(os.path.join(lease.worktree_path, "app/main.py"), "a") as fh:
+        fh.write("work\n")
+    _git(["add", "-A"], lease.worktree_path)
+    _git(["commit", "-qm", "w"], lease.worktree_path)
+
+    import substrate.execution.attempts.verified_commit_retention as m
+
+    monkeypatch.setattr(m, "gated_subprocess_run", lambda *a, **k: None)
+    attempt.status = _S.SUCCEEDED.value
+    attempt.lease_id = lease.lease_id
+    result = terminalize(
+        attempt=attempt, reason="succeeded", lease_manager=lm,
+        run_root=str(tmp_path / "runu"), raise_on_security_failure=False,
+    )
+    assert not result.lease_released, (
+        "an unobservable worktree with no binding must block destructive cleanup"
+    )
+    assert result.lease_withheld_reason, "the withhold must be explicit"
+    assert os.path.isdir(lease.worktree_path), "the worktree must survive"
+
+
+def test_binding_resolves_from_authoritative_records_not_env(monkeypatch):
+    """The binding resolver must read persisted records, never process env."""
+    from substrate.execution.attempts.terminalization import _resolve_retention_binding
+
+    monkeypatch.setenv("UMH_W2_CANDIDATE_SHA", "ENV-SHOULD-BE-IGNORED")
+    monkeypatch.setenv("UMH_W2_RUN_ID", "ENV-SHOULD-BE-IGNORED")
+    attempt = SimpleNamespace(correlation_id=f"w2-{RUN}")
+    repo = f"/var/lib/umh/candidates/wave2/{CAND}/targets/{RUN}/fixture"
+    cand, run, _detail = _resolve_retention_binding(attempt, repo)
+    assert cand == CAND, "candidate must come from the lease repo path"
+    assert run == RUN, "run must come from correlation_id (w2- prefix stripped)"
+    assert "ENV-SHOULD-BE-IGNORED" not in (cand + run)
+
+    cand2, run2, _d2 = _resolve_retention_binding(SimpleNamespace(correlation_id=""), repo)
+    assert (cand2, run2) == (CAND, RUN), "path-only fallback must still resolve"
+
+    assert _resolve_retention_binding(SimpleNamespace(correlation_id=""), "/tmp/plain")[:2] == (
+        "",
+        "",
+    ), "an unresolvable binding must return empty so the caller fails closed"
 
 
 # ── 14: authorized cleanup ──────────────────────────────────────────────────
