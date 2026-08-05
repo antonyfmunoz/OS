@@ -412,43 +412,184 @@ def test_worker_result_trusted_base_defaults_empty():
     assert r.to_dict()["trusted_base"] == ""
 
 
-def test_runner_serializes_trusted_base_without_attribute_access():
+def test_runner_serializes_trusted_base_without_attribute_access(tmp_path):
     """A worker result WITHOUT ``trusted_base`` must degrade, never crash.
 
-    Regression caught during requalification. The runner originally read
-    ``result.trusted_base`` directly, so any worker result predating the field
-    (a stub, an older worker, a partially-constructed result) raised
-    AttributeError inside ``_run_one_claim``. The dispatch then died between
-    claim and ``spool.complete()``: no signed result reached the outbox, the
-    attempt stayed inflight, and run teardown reported an unprocessed dispatch.
+    Regression. The runner originally read ``result.trusted_base`` directly, so
+    any worker result predating the field raised AttributeError inside
+    ``_run_one_claim`` -- after the claim, before ``spool.complete()``. The
+    dispatch died in between: no signed result reached the outbox, the attempt
+    stayed inflight, and teardown reported an unprocessed dispatch.
 
-    Degrading to "" is the correct failure mode — the poller then simply leaves
-    the lease's base untouched (the pre-fix behaviour), which is a scope
-    rejection, not a corrupted verdict.
+    BEHAVIOURAL: drives the REAL ``_run_one_claim`` with a worker result that
+    has no such attribute and asserts a signed result still reaches the spool
+    with ``trusted_base == ""``. (An earlier version asserted on the runner's
+    SOURCE TEXT, which pins spelling rather than behaviour.)
     """
-    import importlib.util
+    from tests.wave2_script_import import load_wave2_script
 
-    spec = importlib.util.spec_from_file_location(
-        "_w2runner_ser", os.path.join(REPO, "scripts", "wave2_attempt_runner.py")
-    )
-    assert spec and spec.loader
-    src = open(spec.origin, encoding="utf-8").read()
+    runner = load_wave2_script("wave2_attempt_runner")
 
-    assert 'getattr(result, "trusted_base"' in src, (
-        "the runner must read trusted_base defensively via getattr — direct "
-        "attribute access strands the dispatch when the field is absent"
-    )
-    assert "result.trusted_base" not in src, (
-        "direct attribute access to result.trusted_base reintroduces the "
-        "AttributeError that kills the dispatch mid-claim"
-    )
-
-    # And the degradation itself: a result object with no such attribute
-    # serializes to "" rather than raising.
     class _NoTrustedBase:
-        pass
+        ok = True
+        status = "succeeded"
+        files_changed: list = []
+        commits: list = []
+        isolated = True
 
-    assert str(getattr(_NoTrustedBase(), "trusted_base", "") or "") == ""
+        def to_dict(self):
+            return {"ok": True, "status": "succeeded", "files_changed": [], "commits": []}
+
+    completed = {}
+
+    class _Spool:
+        def complete(self, token, result):
+            completed["result"] = result
+
+    envelope = type(
+        "_E",
+        (),
+        {
+            "dispatch_id": "d1",
+            "attempt_id": "ea-1",
+            "task_id": "wp-a",
+            "package_hash": "ph",
+            "lease_id": "l1",
+            "worktree_path": str(tmp_path),
+            "base_commit": "abc123",
+            "timeout_seconds": 600,
+            "max_turns": 30,
+            "disallowed_tools": [],
+            "governance_constraints": [],
+            "ordered_context": [],
+            "operation_identity": {},
+            "verification_requirements": [],
+        },
+    )()
+
+    runner._run_one_claim(
+        spool=_Spool(),
+        token="tok",
+        envelope=envelope,
+        oauth_token=None,
+        run_root=str(tmp_path),
+        run_worker=lambda **kw: _NoTrustedBase(),
+    )
+
+    assert "result" in completed, (
+        "a worker result lacking trusted_base must still produce a signed spool "
+        "result -- an AttributeError here strands the dispatch mid-claim"
+    )
+    assert completed["result"]["trusted_base"] == "", (
+        f"absent trusted_base must degrade to empty string, got "
+        f"{completed['result'].get('trusted_base')!r}"
+    )
+
+
+def test_shipped_worker_sets_trusted_base_to_the_post_projection_head(tmp_path, monkeypatch):
+    """The SHIPPED worker must return the POST-projection HEAD as trusted_base.
+
+    Reviewer finding L-1: blanking both ``trusted_base=base_commit`` assignments
+    in ``run_worker_in_lease`` broke NO test -- the whole propagation chain was
+    pinned only at its middle. Regressing that assignment silently restores the
+    original F-3 defect (every attempt fails diff_scope) with a green suite.
+
+    BEHAVIOURAL: runs the real ``_commit_trusted_projection`` against a real
+    repo and asserts it returns the new HEAD -- i.e. the value the worker then
+    hands back -- and that the trusted files are an ANCESTOR of it, which is the
+    property the whole fix depends on.
+    """
+    from substrate.execution.attempts.worker_claude_cli import _commit_trusted_projection
+
+    repo = tmp_path / "wt"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "t@t.local")
+    _git(repo, "config", "user.name", "t")
+    (repo / "app").mkdir()
+    (repo / "app" / "main.py").write_text("base\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "base")
+    base = _git(repo, "rev-parse", "HEAD")
+
+    # the trusted phase's system writes, uncommitted (exactly as projected)
+    (repo / "OBJECTIVE.md").write_text("# task-local objective\n")
+    (repo / "SHARED_CONTEXT.md").write_text("shared\n")
+
+    new_base = _commit_trusted_projection(str(repo), base, {"projected": True})
+
+    assert new_base and new_base != base, (
+        "the trusted projection must move the attempt's base PAST the system "
+        "writes -- returning the original base is the F-3 defect"
+    )
+    assert new_base == _git(repo, "rev-parse", "HEAD")
+
+    # the system writes are now an ANCESTOR of the returned base, so they can
+    # never appear in the worker's diff.
+    skipped = _git(repo, "diff", "--name-only", f"{base}..{new_base}").split()
+    assert sorted(skipped) == ["OBJECTIVE.md", "SHARED_CONTEXT.md"], (
+        f"only the trusted projection paths may be committed, got {skipped}"
+    )
+
+    # and the returned base is a legal re-anchor target for the poller.
+    from substrate.execution.attempts.verification import reanchor_is_authorized
+
+    ok, why = reanchor_is_authorized(worktree=str(repo), original_base=base, new_base=new_base)
+    assert ok, f"the shipped worker's trusted_base must be an authorized re-anchor: {why}"
+
+
+def test_production_checks_builder_uses_the_effective_base(tmp_path, monkeypatch):
+    """The REAL field builder must pass the EFFECTIVE base to the verifier.
+
+    Reviewer finding L-2: reverting ``_checks`` to read the lease's own
+    snapshot_ref broke no test. The poller-side test proves the kwarg is PASSED;
+    nothing proved the real builder USES it. Without this, diff_scope enforces
+    the re-anchored base while the persisted Proof records the stale one.
+
+    BEHAVIOURAL: intercepts ``run_confined_verifier_checks`` and asserts the
+    base_commit it receives is the effective base, not the lease's stale one.
+    """
+    from substrate.execution.attempts import field_control_plane as fcp
+    from substrate.execution.attempts import verifier_isolation as vi
+
+    seen = {}
+
+    def _fake_checks(**kw):
+        seen["base_commit"] = kw.get("base_commit")
+        return ([], None)
+
+    monkeypatch.setattr(vi, "run_confined_verifier_checks", _fake_checks)
+
+    cls = next(
+        c
+        for c in vars(fcp).values()
+        if isinstance(c, type) and hasattr(c, "_independent_checks_for")
+    )
+    driver = cls.__new__(cls)
+    driver._targets_dir = str(tmp_path)
+    (tmp_path / "fixture").mkdir(exist_ok=True)
+
+    class _StaleLease:
+        worktree_path = str(tmp_path)
+        snapshot_ref = "STALE_LEDGER_BASE"
+
+    monkeypatch.setattr(cls, "_lease_lookup", lambda self, lid: _StaleLease(), raising=False)
+    monkeypatch.setattr(cls, "_run_root", lambda self: str(tmp_path), raising=False)
+
+    builder = driver._independent_checks_for(
+        type("_A", (), {"lease_id": "l1", "attempt_id": "ea-1", "worker_identity": "w"})()
+    )
+    assert builder is not None, "the field control plane must supply a checks builder"
+
+    builder(
+        type("_A", (), {"lease_id": "l1", "attempt_id": "ea-1", "worker_identity": "w"})(),
+        effective_base="EFFECTIVE_REANCHORED_BASE",
+    )
+
+    assert seen.get("base_commit") == "EFFECTIVE_REANCHORED_BASE", (
+        "the real checks builder must record the base that was ENFORCED, not the "
+        f"ledger's stale snapshot_ref. Got: {seen.get('base_commit')!r}"
+    )
 
 
 # ── mutation tests: retry path guards ───────────────────────────────────────
@@ -1142,23 +1283,78 @@ def test_effective_base_dispatch_handles_every_builder_shape():
     assert not _accepts_effective_base(len)
 
 
-def test_production_checks_builder_accepts_the_effective_base():
-    """The REAL field builder must be on the kwarg path, not the legacy path.
+def test_run_worker_in_lease_assigns_trusted_base_on_every_post_worker_return():
+    """Both post-execution returns in the SHIPPED worker must set trusted_base.
 
-    Otherwise the Proof silently records the ledger base while diff_scope
-    enforces the re-anchored one — the exact divergence this threading fixes.
+    Reviewer finding L-1: blanking both ``trusted_base=base_commit`` assignments
+    broke NO test, because the propagation chain was pinned only at its MIDDLE
+    (WorkerResult holds the field; the runner serializes it; the poller consumes
+    it) -- never at its SOURCE.
+
+    The returns BEFORE the projection commit are fail-closed refusals with no
+    diff to scope, so they correctly carry no base. The returns that follow real
+    worker execution must carry it, or the runner ships "" and the poller
+    silently declines to re-anchor: the original F-3 defect, restored under a
+    fully green suite.
+
+    Pins the ASSIGNMENT structurally (AST of the shipped function), not by
+    grepping source text for a spelling.
     """
+    import ast
     import inspect
+    import textwrap
 
-    from substrate.execution.attempts import field_control_plane as fcp
+    from substrate.execution.attempts.worker_claude_cli import run_worker_in_lease
 
-    cls = next(
-        c
-        for c in vars(fcp).values()
-        if isinstance(c, type) and hasattr(c, "_independent_checks_for")
+    fn = ast.parse(textwrap.dedent(inspect.getsource(run_worker_in_lease))).body[0]
+
+    commit_line = min(
+        n.lineno
+        for n in ast.walk(fn)
+        if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Name)
+        and n.func.id == "_commit_trusted_projection"
     )
-    src = inspect.getsource(cls._independent_checks_for)
-    assert "effective_base" in src, (
-        "the production checks builder must accept effective_base so the Proof "
-        "records the base that was actually enforced"
+
+    post_returns = [
+        n
+        for n in ast.walk(fn)
+        if isinstance(n, ast.Return)
+        and isinstance(n.value, ast.Call)
+        and getattr(n.value.func, "id", "") == "WorkerResult"
+        and n.lineno > commit_line
+    ]
+    assert post_returns, "expected WorkerResult returns after the projection commit"
+
+    def _kwargs(ret):
+        return {k.arg for k in ret.value.keywords}
+
+    def _trusted_base_value(ret):
+        """The AST node assigned to trusted_base, or None if absent."""
+        for k in ret.value.keywords:
+            if k.arg == "trusted_base":
+                return k.value
+        return None
+
+    # A return carrying worker OUTPUT (or a post-run duration) must carry the base.
+    output_returns = [r for r in post_returns if _kwargs(r) & {"files_changed", "duration_seconds"}]
+    assert output_returns, (
+        "expected at least one WorkerResult return carrying real worker output "
+        "after the trusted projection commit"
     )
+    for r in output_returns:
+        value = _trusted_base_value(r)
+        assert value is not None, (
+            f"the WorkerResult return at relative line {r.lineno} follows real "
+            f"worker execution but does not set trusted_base -- the runner would "
+            f'ship "" and the poller would decline to re-anchor (F-3 restored)'
+        )
+        # It must be the post-projection BASE, not a literal. `trusted_base=""`
+        # keeps the keyword while silently restoring the defect, so presence
+        # alone is not the property -- the assigned VALUE is.
+        assert isinstance(value, ast.Name) and value.id == "base_commit", (
+            f"the WorkerResult return at relative line {r.lineno} must assign "
+            f"trusted_base=base_commit (the post-projection HEAD). Got "
+            f"{ast.dump(value)[:80]} -- a literal here ships no base and the "
+            f"poller declines to re-anchor, restoring F-3 with a green suite."
+        )
