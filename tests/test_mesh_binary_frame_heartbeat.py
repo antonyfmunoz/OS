@@ -35,6 +35,22 @@ from transports.node_mesh.registry import NodeRegistry
 from transports.node_mesh.server import NodeMeshServer
 
 
+@pytest.fixture(autouse=True)
+def _isolate_snapshot_path(tmp_path, monkeypatch):
+    """Never let a test write the LIVE registry snapshot.
+
+    `NodeRegistry._write_snapshot` targets a module-level absolute path
+    (`data/runtime/mesh_nodes.json`) that the RUNNING mesh service also writes.
+    The live-WebSocket tests construct a real `NodeMeshServer`, whose registry
+    therefore wrote fixture nodes into production runtime state — observed
+    2026-08-05, when a test node `n1` appeared in the deployed service's
+    snapshot file. Redirect the path for every test in this module.
+    """
+    import transports.node_mesh.registry as reg_mod
+
+    monkeypatch.setattr(reg_mod, "_SNAPSHOT_PATH", tmp_path / "mesh_nodes.json")
+
+
 def _frame(meta: dict, jpeg: bytes = b"\xff\xd8\xff\xe0JPEGBODY") -> bytes:
     """Build a well-formed [4-byte meta_len][JSON meta][JPEG] frame."""
     mb = json.dumps(meta).encode()
