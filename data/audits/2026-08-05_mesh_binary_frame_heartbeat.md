@@ -183,6 +183,40 @@ Live-WebSocket integration (real `NodeMeshServer`, real client, real frames):
 (`stale_after_streaming: True`); with the fix applied it passes. The test
 observes the real defect, not a restatement of the patch.
 
+### Differential regression proof (baseline vs candidate)
+
+A raw pass/fail count from `pytest tests/` is not evidence on its own: the repo
+carries substantial pre-existing failure debt (523 failed / 56 errors across all
+17,693 tests, present before this change). So the candidate was compared against
+its own base commit under an identical selector, in a separate worktree checked
+out at `8f4f42c58`:
+
+```
+pytest tests/ -k "mesh or node or transport or dispatch or relay or
+                  registry or workspace or fabric or grounding or continuity"
+```
+
+| SHA | failed | passed |
+|---|---|---|
+| baseline `8f4f42c58` | **51** | 1765 |
+| candidate `e3e20f52b` | **51** | 1794 (**+29**) |
+
+**Identical failure count; +29 passing, exactly the 29 tests added here.**
+
+Counts alone could mask one regression plus one accidental fix, so the failing
+**node-ID sets** were captured on both sides and diffed:
+
+```
+comm -13 BASE_ids NEW_ids   → (empty)   # regressions introduced: NONE
+comm -23 BASE_ids NEW_ids   → (empty)   # failures fixed/moved: NONE
+base=51  new=51
+```
+
+Both directions empty — the 51 failures are the **same** 51. No regression
+introduced. The 51 failures are pre-existing (workspace panel nav,
+continuity resume, voice turn assembly) and unrelated to mesh transport — none
+of them touch `node_mesh`, `mesh_auth`, `mesh_dispatch`, or `binary_frame`.
+
 ### Regression — existing mesh suites: **68 passed**
 
 `test_node_mesh.py`, `test_node_mesh_ws.py`, `test_mesh_auth_binding.py`,
