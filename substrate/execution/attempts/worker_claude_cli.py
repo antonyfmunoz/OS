@@ -58,6 +58,7 @@ class WorkerResult:
     isolated: bool = False
     cost_usd: float | None = None
     cost_status: str = "unknown"
+    trusted_base: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = dict(self.__dict__)
@@ -119,8 +120,7 @@ def render_prompt(package: Any) -> str:
         # the closing instruction would contradict its own scope declaration and
         # invite the exact diff that fails it closed.
         parts.append(
-            "Do NOT modify anything. Inspect and report only. Do not commit, "
-            "push, or create PRs."
+            "Do NOT modify anything. Inspect and report only. Do not commit, push, or create PRs."
         )
     else:
         parts.append(
@@ -194,8 +194,7 @@ def project_task_local_objective(package: Any, worktree_path: str) -> dict[str, 
                     "This is background describing the COMPLETE multi-Task objective, "
                     "including contracts owned by OTHER Tasks running concurrently. It "
                     "does NOT authorize you to widen your change surface and it is NOT "
-                    "your assignment. Your assignment is `OBJECTIVE.md`.\n\n---\n\n"
-                    + original
+                    "your assignment. Your assignment is `OBJECTIVE.md`.\n\n---\n\n" + original
                 )
             result["shared_context"] = True
         with open(global_path, "w", encoding="utf-8") as fh:
@@ -732,6 +731,7 @@ def run_worker_in_lease(
                 error="worker skipped by CPU gate (blocked_cpu)",
                 isolated=isolated,
                 duration_seconds=duration,
+                trusted_base=base_commit,
             )
 
         files, commits, diff = _capture_git(worktree_path, base_commit)
@@ -751,6 +751,7 @@ def run_worker_in_lease(
             isolated=isolated,
             cost_usd=None,  # clause 8: no trustworthy USD figure available
             cost_status="unknown",
+            trusted_base=base_commit,
         )
     finally:
         # EVERY terminal path destroys the attempt's credential home: success,

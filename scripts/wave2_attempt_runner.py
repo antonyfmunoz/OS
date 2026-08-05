@@ -61,7 +61,6 @@ if REPO not in sys.path:
     sys.path.insert(0, REPO)
 
 
-
 class ControlPlaneFailureBudget:
     """The bounded control-plane failure policy, as executable state.
 
@@ -122,9 +121,7 @@ def package_from_envelope(envelope: Any) -> Any:
         ordered_context = list(getattr(envelope, "ordered_context", None) or [])
         operation_identity = dict(getattr(envelope, "operation_identity", None) or {})
         governance_constraints = list(getattr(envelope, "governance_constraints", None) or [])
-        verification_requirements = list(
-            getattr(envelope, "verification_requirements", None) or []
-        )
+        verification_requirements = list(getattr(envelope, "verification_requirements", None) or [])
 
     return _Package()
 
@@ -359,9 +356,7 @@ def run_loop(
     inflight_attempts: set[str] = set()
 
     # Bounded control-plane failure accounting (see _CP_MAX_* above).
-    cp_budget = ControlPlaneFailureBudget(
-        _CP_MAX_CONSECUTIVE_ERRORS, _CP_MAX_TOTAL_ERRORS
-    )
+    cp_budget = ControlPlaneFailureBudget(_CP_MAX_CONSECUTIVE_ERRORS, _CP_MAX_TOTAL_ERRORS)
 
     # (1b) build the control-plane driver if the fixture + targets are wired.
     # This is the HOST half that turns an ACTIVE grant in the shared candidate
@@ -671,6 +666,12 @@ def _run_one_claim(
             "task_id": envelope.task_id,
             "package_hash": envelope.package_hash,
             "worker_result": result.to_dict(),
+            # The trusted projection commit (finding F-3) re-anchors the diff
+            # base AFTER system writes (OBJECTIVE.md, SHARED_CONTEXT.md) are
+            # committed. The verifier needs this base — the lease record still
+            # carries the original fixture base, and diffing from there includes
+            # trusted system writes in the worker's scope verdict.
+            "trusted_base": result.trusted_base or "",
             # Real wall-clock bounds, so reconciliation can PROVE overlap:
             # max(started) < min(completed) across A and B.
             "started_at": started_at,

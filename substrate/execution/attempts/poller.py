@@ -220,6 +220,17 @@ class ControlPlanePoller:
     ) -> None:
         assignment = self._assignment_lookup(getattr(attempt, "assignment_id", "") or "")
         lease = self._lease_lookup(getattr(attempt, "lease_id", "") or "")
+        # TRUSTED BASE RE-ANCHOR (finding F-3 fix). The trusted projection
+        # commits system files (OBJECTIVE.md, SHARED_CONTEXT.md) and moves the
+        # attempt's diff base PAST them. The lease record still carries the
+        # original fixture base. Without re-anchoring, `git diff <old_base>..HEAD`
+        # includes the system writes and diff_scope rejects every attempt.
+        trusted_base = str(raw.get("trusted_base", "") or "").strip()
+        if trusted_base and lease is not None:
+            if hasattr(lease, "_d") and isinstance(lease._d, dict):  # noqa: SLF001
+                lease._d["snapshot_ref"] = trusted_base  # noqa: SLF001
+            elif isinstance(lease, dict):
+                lease["snapshot_ref"] = trusted_base
         # Verifier identity is the assignment's verifier role — deterministically
         # distinct from the worker (SoD enforced at placement + here + in the guard).
         verifier_role = (
@@ -276,9 +287,16 @@ class ControlPlanePoller:
             reason = "verification refused"
             fails = [c for c in getattr(verdict, "checks", []) if not c.get("ok", False)]
             if fails:
-                reason = "verification refused: " + ", ".join(
-                    c.get("check_id", "?") for c in fails[:4]
+                reason = "verification refused: " + "; ".join(
+                    f"{c.get('check_id', '?')}: {(c.get('detail', '') or '')[:80]}"
+                    for c in fails[:4]
                 )
+            logger.warning(
+                "verification FAILED for attempt %s (task %s): %s",
+                attempt.attempt_id,
+                getattr(attempt, "task_id", ""),
+                reason,
+            )
             updated = self._transition(
                 attempt,
                 _S.FAILED.value,

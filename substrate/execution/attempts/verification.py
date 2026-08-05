@@ -435,6 +435,13 @@ def _diff_scope_verdict(
         return False, f"unusable path scope: {exc}"
 
     changed_paths, diff_source, independent = _actual_changed_paths(lease, worker_result)
+    logger.debug(
+        "diff_scope: paths=%s source=%r independent=%s lease_wt=%r",
+        changed_paths[:10],
+        diff_source,
+        independent,
+        str(getattr(lease, "worktree_path", "")),
+    )
     if not independent:
         return False, (
             f"changed paths could not be computed independently ({diff_source}) — "
