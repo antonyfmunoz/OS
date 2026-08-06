@@ -1,0 +1,7 @@
+withhold w1: withheld=True active_sandboxes=1
+withhold w2: withheld=True active_sandboxes=2
+THIRD TASK BLOCKED: Max parallel sandboxes (2) reached. Active: 2
+expire_stale cleared: 2
+active_sandboxes after expire: 2
+BOTH PRESERVED COMMITS SURVIVE GC: True
+VERDICT: FAIL

@@ -1,0 +1,13 @@
+retain failed for ea-w1: git rev-parse HEAD refused by the CPU gate (host overloaded) — refusing to treat an infrastructure refusal as a git answer
+terminalize(ea-w1): retention failed, refusing to release the lease — releasing would delete the worker branch and destroy the verified commit. Lease lease-c0408f09ad45 stays ACTIVE until revoked/recovered. trusted retention failed: git rev-parse HEAD refused by the CPU gate (host overloaded) — refusing to treat an infrastructure refusal as a git answer
+poller: lease lease-c0408f09ad45 withheld for attempt ea-w1 — not force-revoking: verified-commit retention failed: trusted retention failed: git rev-parse HEAD refused by the CPU gate (host overloaded) — refusing to treat an infrastructure refusal as a git answer
+retain failed for ea-w2: git rev-parse HEAD refused by the CPU gate (host overloaded) — refusing to treat an infrastructure refusal as a git answer
+terminalize(ea-w2): retention failed, refusing to release the lease — releasing would delete the worker branch and destroy the verified commit. Lease lease-bab286d71476 stays ACTIVE until revoked/recovered. trusted retention failed: git rev-parse HEAD refused by the CPU gate (host overloaded) — refusing to treat an infrastructure refusal as a git answer
+poller: lease lease-bab286d71476 withheld for attempt ea-w2 — not force-revoking: verified-commit retention failed: trusted retention failed: git rev-parse HEAD refused by the CPU gate (host overloaded) — refusing to treat an infrastructure refusal as a git answer
+withhold w1: withheld=True active_sandboxes=0
+withhold w2: withheld=True active_sandboxes=0
+THIRD TASK ADMITTED: /tmp/starve-c7it6j0c/wt/auto-94e1801f
+expire_stale cleared: 3
+active_sandboxes after expire: 1
+BOTH PRESERVED COMMITS SURVIVE GC: True
+VERDICT: PASS

@@ -42,25 +42,30 @@ byte-identical to before.
 | File | Change |
 |---|---|
 | `substrate/execution/attempts/verified_commit_retention.py` | **new** — retention, resolution, authorized release |
-| `substrate/execution/attempts/terminalization.py` | `_retain_verified` ordered **before** `_release_lease`; `retained_commit` on the result |
+| `substrate/execution/attempts/terminalization.py` | `_retain_verified` ordered **before** `_release_lease`; retention gate blocks destructive cleanup; authoritative binding from persisted records; `retained_commit` / `lease_withheld_reason` / `sandbox_slot_freed` on the result; `_preserve_sandbox_slot` frees the concurrency slot on a withhold |
+| `substrate/execution/attempts/poller.py` | `_terminalize` distinguishes a **deliberate withhold** from a release fault, so the RV-HIGH-2 healer no longer force-revokes (revoke → `cleanup_sandbox` → `git branch -D` destroyed the commit the withhold protected) |
 | `substrate/execution/attempts/leases.py` | `acquire(base_commit=…)` → sandbox + `snapshot_ref`; signature-checked capability; divergence refused |
-| `substrate/organism/worktree_sandbox.py` | `create_sandbox(base_commit=…)`, fail-closed resolve, launched-base proof |
-| `tests/test_wave2_verified_commit_retention.py` | **new** — 24 tests on the real shipped path |
+| `substrate/organism/worktree_sandbox.py` | `create_sandbox(base_commit=…)`, fail-closed resolve, launched-base proof; `cleanup_sandbox(preserve_branch=…)` slot-release seam (default unchanged) |
+| `tests/test_wave2_verified_commit_retention.py` | **new** — 54 tests on the real shipped path, incl. the production `poller._terminalize` caller |
 
 **Reverted byte-identically to the committed base** (composition removal):
 `substrate/execution/attempts/lifecycle.py`, `substrate/execution/attempts/records.py`,
 `substrate/canonical_types.py`. **Deleted**: `fan_in_composition.py`,
 `tests/test_wave2_fan_in_composition.py`.
 
-Not modified: `verification.py`, `poller.py`, `scheduler.py`,
-`field_control_plane.py`, WorkPacket/Proof schemas, field fixture semantics, the
-frozen driver, the deployed mesh hotfix.
+Not modified: `verification.py`, `scheduler.py`, `field_control_plane.py`,
+WorkPacket/Proof schemas, field fixture semantics, the frozen driver, the
+deployed mesh hotfix.
+
+> **Correction.** An earlier revision of this ledger listed `poller.py` as "not
+> modified". That was false in the commit that made the claim, which changed 32
+> lines of it. `poller.py` is an authorized, modified file — see the row above.
 
 ## Wiring status (measured, per function)
 
 | Function | Production callers | Status |
 |---|---|---|
-| `retain_verified_commit` | `terminalization.py` `_retain_verified` (call site line ~437) | **wired** — reached on every SUCCEEDED terminalization through `poller._terminalize`, verified by a production-path test |
+| `retain_verified_commit` | `terminalization.py` `_retain_verified` (call site `terminalization.py:544`) | **wired** — reached on every SUCCEEDED terminalization through `poller._terminalize`, verified by a production-path test that sets **no** environment variables |
 | `resolve_trusted_commit` | 0 outside the module | read-side API; used internally by `retain_verified_commit`'s immutability check |
 | `release_trusted_refs` | 0 | **owner-controlled cleanup entry point** |
 | `trusted_ref` | 0 outside the module | path constructor; used internally |
@@ -198,18 +203,35 @@ two of my fixes. Sweeps now run alone.
    instead of the outcome its docstring names is worse than no test: it certifies
    the wrong thing.** Fixed by returning before `_release_lease` (keyed on a stable
    `_RETENTION_FAILED_PREFIX` marker, not a message substring) and by asserting the
-   commit's survival, the un-released lease, and the surviving worktree.
+   commit's survival, the un-released lease, and the surviving **branch**.
 
    Deliberate trade: the lease is left **ACTIVE**, which blocks retry admission
-   for that Task. **Correction — an earlier version of this ledger called that
-   'recoverable' by pointing at an operator revoke or `recover_stale_runs`.
-   That was false**: both call `LeaseManager.revoke()`, which runs
-   `cleanup_sandbox` → `git branch -D` and destroys the very commit the
-   withhold protects. `recover_stale_runs` additionally only runs at process
-   START against prior dead runs, never the live one. The honest statement is:
-   the withhold **defers** destruction and blocks the Task until the retention
-   condition itself is resolved. Bounded retry of retention before release is
-   the real durable answer and is NOT implemented — recorded as open.
+   for that Task.
+
+   **Correction 1 — the recovery story was wrong in BOTH directions.** An early
+   version called the withhold 'recoverable' via an operator revoke or
+   `recover_stale_runs`; that was false, because both call `LeaseManager.revoke()`,
+   which runs `cleanup_sandbox` → `git branch -D` and destroys the very commit the
+   withhold protects (`recover_stale_runs` additionally only runs at process START
+   against prior dead runs, never the live one). The correction then over-swung to
+   "not a self-healing state", which is *also* false: `LeaseManager.expire_stale`
+   runs **every poller cycle** (`scripts/wave2_attempt_runner.py:511`), only flips
+   `status` to `expired`, and touches neither the sandbox nor any branch. The lease
+   therefore self-heals at TTL with the commit intact — measured
+   (`test_expire_stale_does_not_destroy_a_preserved_commit`).
+
+   **Correction 2 — the blast radius was understated.** An early version said the
+   withhold "blocks retry admission for that Task". A withheld lease also held its
+   **sandbox concurrency slot**, and at the production `max_parallel=2`
+   (`scripts/wave2_attempt_runner.py:256`) two withholds blocked `create_sandbox`
+   for *every* subsequent Task — a whole-run halt, not a per-Task stall — while
+   `expire_stale` cleared the leases but never the slots. Reproduced, then fixed:
+   the withhold now frees the slot with the branch preserved
+   (`cleanup_sandbox(preserve_branch=True)`), proven by
+   `test_two_withholds_do_not_starve_a_third_task_at_production_max_parallel`.
+
+   Bounded retry of retention before release would avoid the withhold entirely and
+   is still NOT implemented — recorded as open.
 
 
 ## Production-nullification defects (found at 66f327b6a, fixed here)
@@ -311,3 +333,91 @@ and a new composition module.
 Worker **stdout, stderr, and exit status are not persisted** in durable run evidence
 (`WorkerResult` carries them; nothing writes them). Untouched by this cycle —
 recorded for separate disposition.
+
+## Correction cycle — HIGH-1 / HIGH-2 (after the exact-head production-path review)
+
+Both were found by an independent review that exercised the **real** production
+caller and the **production** concurrency limit. Both are fixed here.
+
+### HIGH-1 — a withheld lease starved the whole run
+
+`terminalize()` deliberately withholds a lease to keep a verified commit
+reachable. The withhold also kept the **sandbox concurrency slot**. At the
+production `max_parallel=2` (`scripts/wave2_attempt_runner.py:256`), two
+withholds — one transient CPU-gate spike hitting two SUCCEEDED attempts — made
+`create_sandbox` raise `Max parallel sandboxes (2) reached` for every subsequent
+Task. `expire_stale` (every poller cycle) cleared the *leases* but never the
+*slots*, so the run never recovered. Reproduced before the fix:
+
+```
+withhold 1: withheld=True  active_sandboxes=1
+withhold 2: withheld=True  active_sandboxes=2
+THIRD TASK BLOCKED: Max parallel sandboxes (2) reached. Active: 2
+expire_stale cleared: 2 leases → active_sandboxes STILL 2 → still blocked
+```
+
+**Fix.** `SandboxManager.cleanup_sandbox(sandbox_id, *, preserve_branch=False)`.
+With `preserve_branch=True` the worktree is removed (slot returns) and the branch
+ref is kept, so every commit on it stays reachable and survives `git gc`. The
+withhold path calls it via `_preserve_sandbox_slot`, which **fails closed**: if
+the sandbox manager is missing, or its `cleanup_sandbox` has no `preserve_branch`
+parameter (signature-checked with `inspect.signature`), it does **nothing** — it
+never falls back to the destructive call. The default is unchanged, so ordinary
+cleanup still deletes the branch.
+
+The lease itself is untouched: it stays ACTIVE, so retry for **that Task** remains
+blocked (the intended trade), and it self-heals at TTL through `expire_stale`,
+which is non-destructive.
+
+### HIGH-2 — an empty `base_commit` failed open
+
+`_commit_above_base` returned `""` ("nothing at risk", → proceed to destroy) when
+the lease recorded no base. Unreachable today — the real `SandboxManager` always
+resolves a base or raises — but the safety rested on an invariant that function
+does not own, so any future sandbox returning an empty base would silently
+reopen the destruction defect with `ok=True, errors=[]`.
+
+**Fix.** An empty/unresolved base now returns `"unknown"`, the same at-risk answer
+already used for a CPU-gate refusal. Valid bases are unchanged.
+
+### Binding resolver — wrong-but-plausible outputs (found by hostile probing here)
+
+Last-occurrence anchoring alone still emitted **silently wrong** bindings:
+
+| repo path | before | after |
+|---|---|---|
+| `/a/candidates/candidates/candidates/targets/R/f` | candidate `R` (the run id) | refused |
+| `/candidates/candidates/x/targets/R/f` | candidate `targets` | refused |
+| `/a/candidates/wave2/candidates/targets/R/f` | candidate `R` | refused |
+| `/var/lib/umh/candidates/wave2/S/targets/R/fixture` | `S`, `R` | `S`, `R` (unchanged) |
+
+A ref written under another run's namespace is worse than no ref — it silently
+misattributes verified work. The candidate is now accepted **only** when the full
+canonical shape is present (`<anchor>/<lane>/<candidate>/targets/<run>/…`).
+
+### Coverage added
+
+`tests/test_wave2_verified_commit_retention.py` (54 tests, all on the real path):
+
+| Test | Proves |
+|---|---|
+| `test_two_withholds_do_not_starve_a_third_task_at_production_max_parallel` | at `max_parallel=2`, two withholds still admit a third Task; both leases stay ACTIVE; both commits survive `gc` |
+| `test_expire_stale_does_not_destroy_a_preserved_commit` | the self-heal path is non-destructive |
+| `test_preserve_branch_keeps_the_branch_and_frees_the_slot` | the seam: worktree gone, slot freed, branch kept |
+| `test_default_cleanup_still_deletes_the_branch` | `preserve_branch` is opt-in; default unchanged |
+| `test_slot_preserve_refuses_a_sandbox_without_preserve_branch_support` | no destructive fallback, ever |
+| `test_empty_base_commit_fails_closed` | empty/blank/None base → at risk; valid base unchanged |
+| `test_empty_base_blocks_destruction_end_to_end` | through `poller._terminalize`, with the base erased from the **persisted** lease |
+| `test_no_commit_attempt_does_not_publish_its_base_as_verified` | closes the `base_commit`-dropped mutant: a no-commit attempt retains nothing |
+| `test_binding_resolver_refuses_ambiguous_or_hostile_input` | 6 new hostile path shapes, plus the canonical shape still resolving |
+
+### Mutation results
+
+**20 mutants, 20 killed, 0 survivors** — covering slot preservation (8), empty-base
+fail-closed (2), retention reachability and binding (7), and the poller's
+withhold distinction (3).
+
+Two earlier survivors were investigated rather than papered over: one was a
+**proven equivalent mutant** (disabling a log-only `elif` branch), and the other
+(`base_commit=""`) exposed a genuine coverage gap that is now closed by
+`test_no_commit_attempt_does_not_publish_its_base_as_verified`.

@@ -74,11 +74,19 @@ class _RealSandbox:
             ("commit", "-q", "-m", "b"),
         ):
             subprocess.run(["git", *a], cwd=wt, capture_output=True, check=True)
+        # Record the REAL base. The real SandboxManager always resolves one (it
+        # raises otherwise), and reporting "" here made the stub claim a state no
+        # production sandbox can produce: a worktree holding a commit whose origin
+        # is unknowable. Terminalization now (correctly) refuses to destroy that,
+        # so an honest stub is required to exercise the ordinary cleanup path.
+        base = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=wt, capture_output=True, text=True
+        ).stdout.strip()
         return SimpleNamespace(
-            worktree_path=wt, branch_name=f"b{self._i}", base_commit="", sandbox_id=f"sb{self._i}"
+            worktree_path=wt, branch_name=f"b{self._i}", base_commit=base, sandbox_id=f"sb{self._i}"
         )
 
-    def cleanup_sandbox(self, sandbox_id):
+    def cleanup_sandbox(self, sandbox_id, *, preserve_branch=False):
         pass
 
 
@@ -193,7 +201,6 @@ def test_residue_scoping_is_path_boundary_not_substring(store, tmp_path):
     attempt's residue whose id has `ea-1` as a prefix (`ea-11`). The old
     `home_path in p` substring match flagged the wrong attempt; a path-boundary
     match (`== or startswith(home_path + sep)`) does not."""
-    from substrate.execution.attempts.records import ExecutionAttempt
 
     lm = _lease_manager(store, tmp_path)
     # ea-1 with a CLEAN home (its own credential destroyed).

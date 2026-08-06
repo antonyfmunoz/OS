@@ -42,9 +42,14 @@ Invariant (strict order — each step must complete before the next):
         stated on ``result.lease_withheld_reason`` so no consumer mistakes it for
         a release fault and "heals" it (the poller's RV-HIGH-2 healer revokes,
         and revoke also deletes the branch). Truthfully: this DEFERS destruction
-        and blocks the Task until the retention condition is resolved — it is not
-        a self-healing state. Bounded retry of retention before release is the
-        durable answer and is not implemented.
+        and blocks retry FOR THIS TASK until the retention condition is resolved.
+        It does NOT stall the run — the sandbox concurrency slot is freed with the
+        branch preserved (see ``_preserve_sandbox_slot``), so unrelated Tasks keep
+        being admitted at the production ``max_parallel=2``. The lease itself
+        self-heals: ``LeaseManager.expire_stale`` runs every poller cycle and is
+        non-destructive, so the lease expires (TTL) with the commit intact.
+        Bounded retry of retention before release would avoid the withhold
+        entirely and is not implemented.
     3. release / revoke lease     — the lease is no longer ACTIVE
     4. destroy attempt-private home + remove credential material
     5. reconcile spool ownership  — drop any inflight claim for this attempt
@@ -123,6 +128,11 @@ class TerminalizationResult:
     # commit the withhold protected. Measured before this field existed. Any
     # consumer that reacts to an unreleased lease MUST check this first.
     lease_withheld_reason: str = ""
+    # True when a withhold freed the sandbox CONCURRENCY SLOT (worktree removed)
+    # while PRESERVING the branch, so unrelated Tasks keep running. False on the
+    # withhold path means the slot is still held — recoverable, but at
+    # max_parallel=2 two such holds stall the run.
+    sandbox_slot_freed: bool = False
     home_destroyed: bool = False
     spool_reconciled: bool = False
     credential_residue: list[str] = field(default_factory=list)
@@ -157,6 +167,7 @@ class TerminalizationResult:
             "lease_released": self.lease_released,
             "retained_commit": self.retained_commit,
             "lease_withheld_reason": self.lease_withheld_reason,
+            "sandbox_slot_freed": self.sandbox_slot_freed,
             "home_destroyed": self.home_destroyed,
             "spool_reconciled": self.spool_reconciled,
             "credential_residue": list(self.credential_residue),
@@ -236,9 +247,10 @@ def terminalize(
     # with the gate refusing, result.ok was False AND the commit was gone.
     #
     # The trade is deliberate. Returning early leaves the lease ACTIVE, which
-    # blocks retry admission for this Task (acquire() refuses a second active
-    # lease) until an operator revokes it or `recover_stale_runs` reclaims it.
-    # A stuck lease is recoverable; a destroyed verifier-approved commit is not.
+    # blocks retry admission for THIS Task (acquire() refuses a second active
+    # lease) until the lease expires or an operator revokes it. It does NOT stall
+    # the run: the concurrency slot is freed below with the branch preserved.
+    # A blocked Task is recoverable; a destroyed verifier-approved commit is not.
     if _retention_failed(result):
         # EXPLICIT withhold reason. The poller's RV-HIGH-2 healer force-revokes on
         # `lease_released == False`, and revoke() also runs cleanup_sandbox — so a
@@ -248,6 +260,13 @@ def terminalize(
             f"{LEASE_WITHHELD_RETENTION}{result.errors[-1] if result.errors else 'unknown'}"
         )
         result.steps.append("destructive cleanup SKIPPED — retention failed")
+        # Free the CONCURRENCY SLOT without destroying anything. Holding the slot
+        # is not what protects the commit — the intact branch ref is. At the
+        # production max_parallel=2 two withholds otherwise halt the entire run
+        # (measured), and `expire_stale` clears leases but never slots, so the run
+        # never recovers. The lease itself stays ACTIVE: retry for THIS Task stays
+        # blocked, which is the intended trade.
+        _preserve_sandbox_slot(result, lease_manager)
         logger.error(
             "terminalize(%s): retention failed, refusing to release the lease — "
             "releasing would delete the worker branch and destroy the verified "
@@ -309,6 +328,12 @@ LEASE_WITHHELD_RETENTION = "verified-commit retention failed: "
 #: ``/var/lib/umh/candidates/wave2/<sha>/targets/<run-id>/fixture``.
 _CANDIDATE_ANCHOR = "candidates"
 
+#: Path segment that separates the candidate from the run in the canonical
+#: layout ``.../candidates/<lane>/<candidate>/targets/<run-id>/...``. Requiring
+#: it is what distinguishes a real candidate path from any path that merely
+#: happens to contain the anchor word.
+_TARGETS_ANCHOR = "targets"
+
 
 def _commit_above_base(worktree: str, base_commit: str) -> str:
     """The attempt's own commit, or "" when it produced none.
@@ -333,13 +358,17 @@ def _commit_above_base(worktree: str, base_commit: str) -> str:
         return ""
     base = str(base_commit or "").strip()
     if not base:
-        # No AUTHORIZED base recorded on the lease → we cannot say whether HEAD is
-        # this attempt's own work or the pre-existing base. Retention itself
-        # refuses to publish in that state (it would pin the base as "verified
-        # output"), so there is nothing this gate can protect either. Reporting
-        # "at risk" here would block every lease whose sandbox records no base,
-        # for a commit retention would decline to keep anyway.
-        return ""
+        # FAIL CLOSED. An absent base means we cannot tell whether HEAD is this
+        # attempt's own verified work or the pre-existing base — the same
+        # "cannot tell" as a gate refusal, and it must get the same answer.
+        #
+        # The previous "" (→ proceed to destroy) rested on an invariant this
+        # function does not own: that the real SandboxManager always records a
+        # resolved base. That is true TODAY (`create_sandbox` resolves or
+        # raises), which is precisely why returning "" was invisible — and why
+        # any future sandbox returning an empty base would silently reopen the
+        # destruction defect with `ok=True, errors=[]`.
+        return "unknown"
     if head == base:
         return ""
     return head
@@ -366,20 +395,47 @@ def _resolve_retention_binding(attempt: Any, repo: str) -> tuple[str, str, str]:
 
     candidate = ""
     parts = [p for p in str(repo or "").split(os.sep) if p]
+    # Anchor on the LAST occurrence: a path may legitimately contain the segment
+    # more than once (e.g. /a/candidates/x/candidates/wave2/<sha>/...), and
+    # `parts.index` would then take the first and resolve the candidate to the
+    # literal "candidates" — a WRONG-but-plausible binding, which is worse than
+    # failing because it writes a ref under a namespace that is not this run's.
+    # Measured before this fix.
     if _CANDIDATE_ANCHOR in parts:
-        i = parts.index(_CANDIDATE_ANCHOR)
-        # <anchor>/<lane>/<candidate>/...  — the candidate is two past the anchor.
-        if len(parts) > i + 2:
+        i = len(parts) - 1 - parts[::-1].index(_CANDIDATE_ANCHOR)
+        # <anchor>/<lane>/<candidate>/targets/<run-id>/...  — the candidate is
+        # two past the anchor. Accept it ONLY when the full canonical shape is
+        # present: the segment after the candidate must be the "targets" marker.
+        #
+        # Without that check the resolver emits WRONG-BUT-PLAUSIBLE bindings with
+        # no error — measured on `/a/candidates/wave2/candidates/targets/<run>/f`
+        # (candidate resolved to the run id) and on
+        # `/candidates/candidates/x/targets/<run>/f` (candidate resolved to the
+        # literal "targets"). A ref written under another namespace is worse than
+        # no ref: it silently misattributes verified work.
+        if len(parts) > i + 3 and parts[i + 3] == _TARGETS_ANCHOR:
             candidate = parts[i + 2]
 
     # Fall back to the run's own targets/<run-id> segment when correlation_id is
-    # absent but the path still names the run — the path is equally authoritative.
-    if not run_id and "targets" in parts:
-        j = parts.index("targets")
+    # absent OR degenerate (e.g. exactly "w2-", which strips to empty) but the
+    # path still names the run — the path is equally authoritative.
+    if not run_id and _TARGETS_ANCHOR in parts:
+        j = len(parts) - 1 - parts[::-1].index(_TARGETS_ANCHOR)
         if len(parts) > j + 1:
             run_id = parts[j + 1]
 
     detail = f"correlation_id={getattr(attempt, 'correlation_id', '')!r} repo={repo!r}"
+
+    # When BOTH sources name a run and they DISAGREE, we cannot tell which is
+    # authoritative. Picking one would write the ref under a namespace that may
+    # belong to another run; refuse instead. (The caller then treats this as a
+    # retention failure when a commit is at risk, which is the safe direction.)
+    if run_id and _TARGETS_ANCHOR in parts:
+        j = len(parts) - 1 - parts[::-1].index(_TARGETS_ANCHOR)
+        path_run = parts[j + 1] if len(parts) > j + 1 else ""
+        if path_run and path_run != run_id:
+            return "", "", f"{detail} (run mismatch: correlation={run_id!r} path={path_run!r})"
+
     if not candidate or not run_id:
         return "", "", detail
     return candidate, run_id, detail
@@ -426,8 +482,8 @@ def _retain_verified(
         return str(getattr(lease, name, default) or default)
 
     worktree = _f("worktree_path")
-    source = lease.get("source_ref", {}) if isinstance(lease, dict) else getattr(
-        lease, "source_ref", {}
+    source = (
+        lease.get("source_ref", {}) if isinstance(lease, dict) else getattr(lease, "source_ref", {})
     )
     repo = str((source or {}).get("repo_root", "") or "")
     if not repo or not worktree:
@@ -481,7 +537,9 @@ def _retain_verified(
                 at_risk[:12],
             )
         else:
-            result.steps.append(f"no binding and no commit above base — nothing at risk ({binding_detail})")
+            result.steps.append(
+                f"no binding and no commit above base — nothing at risk ({binding_detail})"
+            )
         return
 
     try:
@@ -503,6 +561,78 @@ def _retain_verified(
     result.retained_commit = commit
     result.steps.append(
         f"retained verified commit {commit[:12]}" if commit else "nothing to retain (no commit)"
+    )
+
+
+def _preserve_sandbox_slot(result: TerminalizationResult, lease_manager: Any) -> None:
+    """Free the sandbox concurrency slot while KEEPING the branch (and its commits).
+
+    Called only on the withhold path. Removes the worktree so an unrelated Task
+    can be admitted, and preserves the branch ref so the verified commit stays
+    reachable and survives ``git gc``.
+
+    FAIL CLOSED on any doubt: if the sandbox manager cannot be reached, or does
+    not support ``preserve_branch``, do NOTHING. Calling the plain
+    ``cleanup_sandbox`` here would delete the branch — the precise destruction
+    the withhold exists to prevent. A held slot is recoverable; a destroyed
+    commit is not.
+    """
+    import inspect
+
+    sandbox = getattr(lease_manager, "_sandbox", None)
+    if sandbox is None:
+        result.steps.append("slot NOT freed: no sandbox manager on the lease manager")
+        return
+
+    cleanup = getattr(sandbox, "cleanup_sandbox", None)
+    if not callable(cleanup):
+        result.steps.append("slot NOT freed: sandbox manager has no cleanup_sandbox")
+        return
+
+    try:
+        supports = "preserve_branch" in inspect.signature(cleanup).parameters
+    except (TypeError, ValueError) as exc:  # noqa: BLE001 - recorded, not swallowed
+        logger.debug("slot preserve: cannot inspect cleanup_sandbox: %s", exc)
+        supports = False
+    if not supports:
+        # Never fall back to the destructive call.
+        result.steps.append(
+            "slot NOT freed: cleanup_sandbox does not support preserve_branch — "
+            "refusing the destructive variant"
+        )
+        return
+
+    sandbox_id = ""
+    lease_id = result.lease_id
+    getter = getattr(getattr(lease_manager, "_store", None), "get_lease", None)
+    if callable(getter) and lease_id:
+        try:
+            row = getter(lease_id)
+        except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+            logger.debug("slot preserve: lease lookup failed for %s: %s", lease_id, exc)
+            row = None
+        if row is not None:
+            sandbox_id = (
+                str(row.get("sandbox_id", "") or "")
+                if isinstance(row, dict)
+                else str(getattr(row, "sandbox_id", "") or "")
+            )
+    if not sandbox_id:
+        result.steps.append("slot NOT freed: no sandbox_id on the lease record")
+        return
+
+    try:
+        freed = bool(cleanup(sandbox_id, preserve_branch=True))
+    except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+        logger.warning("slot preserve failed for sandbox %s: %s", sandbox_id, exc)
+        result.steps.append(f"slot NOT freed: cleanup raised for {sandbox_id}: {exc}")
+        return
+
+    result.sandbox_slot_freed = freed
+    result.steps.append(
+        f"sandbox slot {sandbox_id} freed with branch PRESERVED"
+        if freed
+        else f"slot NOT freed: cleanup_sandbox({sandbox_id}) returned False"
     )
 
 

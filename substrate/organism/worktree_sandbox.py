@@ -15,7 +15,6 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -27,6 +26,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 from uuid import uuid4
+
+from substrate.execution.cpu_gate import gated_subprocess_run
 
 logger = logging.getLogger(__name__)
 
@@ -426,7 +427,21 @@ class SandboxManager:
         sb.validation_results.append(result)
         self._persist()
 
-    def cleanup_sandbox(self, sandbox_id: str) -> bool:
+    def cleanup_sandbox(self, sandbox_id: str, *, preserve_branch: bool = False) -> bool:
+        """Free the sandbox slot. Deletes the branch unless ``preserve_branch``.
+
+        ``preserve_branch=True`` removes the worktree and frees the concurrency
+        slot but leaves the branch ref intact, so every commit on it stays
+        REACHABLE (and therefore survives ``git gc``). It exists for exactly one
+        caller: terminalization deliberately withholding a lease because the
+        verified commit could not be retained. Without it, a withheld lease holds
+        its slot forever — at the production ``max_parallel=2`` two withholds
+        halt the WHOLE run, not just the affected Task, and ``expire_stale``
+        clears the leases but never the slots. Measured before this parameter
+        existed.
+
+        The default is unchanged: branch deleted, historical behaviour.
+        """
         sb = self._sandboxes.get(sandbox_id)
         if not sb:
             return False
@@ -442,11 +457,21 @@ class SandboxManager:
                 except OSError as e:
                     logger.warning("Worktree cleanup failed for %s: %s", sandbox_id, e)
                     return False
+                # `worktree remove` failed but the directory is gone: git still
+                # holds the administrative registration, which keeps the branch
+                # checked out and makes it undeletable/unreusable. Prune it.
+                _run_git(["worktree", "prune"], cwd=self._repo_root)
 
-        if sb.branch_name:
+        if sb.branch_name and not preserve_branch:
             _run_git(
                 ["branch", "-D", sb.branch_name],
                 cwd=self._repo_root,
+            )
+        elif sb.branch_name:
+            logger.info(
+                "Preserving branch %s for sandbox %s (slot freed, commits kept reachable)",
+                sb.branch_name,
+                sandbox_id,
             )
 
         for fp in sb.affected_files:
