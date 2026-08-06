@@ -116,12 +116,16 @@ class WorktreeSandbox:
     # revoking the withheld lease — ran an ordinary `cleanup_sandbox` on the same
     # sandbox_id and destroyed the very commit the withhold protected. Measured.
     branch_preserved: bool = False
+    # Set by ``emergency_free_slot`` to record that git worktree administrative
+    # metadata is stale and requires a deferred ``git worktree prune``.
+    needs_worktree_prune: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "sandbox_id": self.sandbox_id,
             "branch_name": self.branch_name,
             "branch_preserved": self.branch_preserved,
+            "needs_worktree_prune": self.needs_worktree_prune,
             "worktree_path": self.worktree_path,
             "base_commit": self.base_commit,
             "head_commit": self.head_commit,
@@ -227,6 +231,7 @@ class SandboxManager:
                     # commit, and a restart that forgot the flag would let the
                     # next cleanup delete it.
                     branch_preserved=bool(entry.get("branch_preserved", False)),
+                    needs_worktree_prune=bool(entry.get("needs_worktree_prune", False)),
                 )
                 self._sandboxes[sb.sandbox_id] = sb
                 for fp in sb.affected_files:
@@ -511,6 +516,85 @@ class SandboxManager:
         sb.completed_at = time.time()
         self._persist()
         logger.info("Cleaned sandbox %s", sandbox_id)
+        return True
+
+    def emergency_free_slot(self, sandbox_id: str) -> bool:
+        """Filesystem-only slot release for the withhold path — NO git subprocesses.
+
+        Called only when the CPU gate is refusing and the normal
+        ``cleanup_sandbox`` path is unreachable. Removes the worktree directory
+        with ``shutil.rmtree`` (reducing load, not increasing it) and frees the
+        concurrency slot. The branch ref is preserved so the verified commit
+        stays reachable. Git worktree administrative metadata is left stale and
+        must be cleaned by a later ``git worktree prune`` when the host recovers.
+
+        Safety checks (fail closed on ANY doubt):
+        1. The sandbox must exist in the registry.
+        2. The worktree path must be a real directory (not a symlink).
+        3. The path must be strictly beneath the managed worktree root.
+        4. The path must not be the repository root.
+        5. No path component may escape the managed root (symlink traversal).
+
+        Returns True if the slot was freed, False if safety checks prevented it.
+        """
+        sb = self._sandboxes.get(sandbox_id)
+        if not sb:
+            return False
+
+        wt = sb.worktree_path
+        if not wt or not os.path.isdir(wt):
+            # Already gone — mark it cleaned so the slot returns.
+            if not sb.branch_preserved:
+                sb.branch_preserved = True
+            sb.needs_worktree_prune = True
+            sb.status = SandboxStatus.CLEANED
+            sb.completed_at = time.time()
+            for fp in sb.affected_files:
+                if self._file_locks.get(fp) == sandbox_id:
+                    del self._file_locks[fp]
+            self._persist()
+            return True
+
+        # --- safety checks ---
+        real_wt = os.path.realpath(wt)
+        real_root = os.path.realpath(self._worktree_base)
+        real_repo = os.path.realpath(self._repo_root)
+
+        if os.path.islink(wt):
+            logger.error("emergency_free_slot: %s is a symlink — refusing", wt)
+            return False
+        if real_wt == real_repo:
+            logger.error("emergency_free_slot: %s is the repo root — refusing", wt)
+            return False
+        if not real_wt.startswith(real_root + os.sep):
+            logger.error(
+                "emergency_free_slot: %s (real: %s) not under managed root %s — refusing",
+                wt, real_wt, real_root,
+            )
+            return False
+
+        try:
+            shutil.rmtree(wt)
+        except OSError as exc:
+            logger.error("emergency_free_slot: rmtree(%s) failed: %s", wt, exc)
+            return False
+
+        # Mark preservation STICKY before updating status.
+        if not sb.branch_preserved:
+            sb.branch_preserved = True
+        sb.needs_worktree_prune = True
+
+        for fp in sb.affected_files:
+            if self._file_locks.get(fp) == sandbox_id:
+                del self._file_locks[fp]
+
+        sb.status = SandboxStatus.CLEANED
+        sb.completed_at = time.time()
+        self._persist()
+        logger.info(
+            "emergency_free_slot: slot %s freed (filesystem only, branch preserved, prune deferred)",
+            sandbox_id,
+        )
         return True
 
     def cleanup_expired(self) -> list[str]:

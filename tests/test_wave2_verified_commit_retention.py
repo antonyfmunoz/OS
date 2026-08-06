@@ -1183,7 +1183,9 @@ def test_slot_preserve_refuses_a_sandbox_without_preserve_branch_support(tmp_pat
 
     assert calls == [], "the destructive cleanup must NEVER be called as a fallback"
     assert result.sandbox_slot_freed is False
-    assert any("does not support preserve_branch" in s for s in result.steps), (
+    assert any(
+        "preserve_branch" in s or "emergency_free_slot" in s for s in result.steps
+    ), (
         f"the refusal must be stated, got {result.steps}"
     )
 
@@ -1225,8 +1227,8 @@ def test_slot_freed_is_never_reported_when_cleanup_did_not_free_it(outcome):
     )
 
 
-def test_slot_freed_is_not_reported_when_cleanup_raises():
-    """A raising cleanup must also report the slot as NOT freed."""
+def test_slot_freed_is_not_reported_when_both_paths_fail():
+    """When cleanup raises AND emergency also fails, the slot must not be freed."""
     from substrate.execution.attempts.terminalization import (
         TerminalizationResult,
         _preserve_sandbox_slot,
@@ -1235,6 +1237,9 @@ def test_slot_freed_is_not_reported_when_cleanup_raises():
     class _Sandbox:
         def cleanup_sandbox(self, sandbox_id, *, preserve_branch=False):
             raise RuntimeError("boom")
+
+        def emergency_free_slot(self, sandbox_id):
+            raise RuntimeError("emergency boom")
 
     class _LM:
         _sandbox = _Sandbox()
@@ -1248,7 +1253,7 @@ def test_slot_freed_is_not_reported_when_cleanup_raises():
     _preserve_sandbox_slot(result, _LM())
 
     assert result.sandbox_slot_freed is False
-    assert any("cleanup raised" in s for s in result.steps), result.steps
+    assert any("emergency" in s.lower() for s in result.steps), result.steps
 
 
 def test_empty_base_commit_fails_closed(tmp_path):
@@ -1697,3 +1702,610 @@ def test_restart_preserves_retained_commits(mgr, repo):
         ).stdout.strip()
         == sha
     )
+
+
+# ── CRITICAL-1: filesystem-only emergency slot release ─────────────────────
+#
+# The previous _preserve_sandbox_slot routed through cleanup_sandbox →
+# _run_git → gated_subprocess_run. Under CPU-gate refusal (the exact trigger
+# for the withhold), the slot was never freed. emergency_free_slot bypasses
+# git subprocesses entirely: shutil.rmtree + record.
+
+
+def test_emergency_free_slot_frees_slot_without_git_subprocess(tmp_path, repo):
+    """CRITICAL-1: the emergency path must free the slot using only filesystem
+    operations, with no git subprocesses."""
+    git_calls = []
+    import substrate.organism.worktree_sandbox as ws
+
+    real_run_git = ws._run_git
+
+    def _tracking_run_git(args, cwd=None):
+        git_calls.append(args)
+        return real_run_git(args, cwd=cwd)
+
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "em-wt"),
+        store_dir=str(tmp_path / "em-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    open(os.path.join(sb.worktree_path, "f.txt"), "w").write("x\n")
+    _git(["add", "-A"], sb.worktree_path)
+    _git(["commit", "-qm", "work"], sb.worktree_path)
+    sha = _git(["rev-parse", "HEAD"], sb.worktree_path).stdout.strip()
+
+    git_calls.clear()
+    old_run_git = ws._run_git
+    ws._run_git = _tracking_run_git
+    try:
+        freed = mgr.emergency_free_slot(sb.sandbox_id)
+    finally:
+        ws._run_git = old_run_git
+
+    assert freed, "the emergency path must succeed"
+    assert not os.path.isdir(sb.worktree_path), "the worktree directory must be gone"
+    assert len(mgr.active_sandboxes) == 0, "the concurrency slot must be freed"
+    assert git_calls == [], "emergency_free_slot must not invoke ANY git subprocess"
+
+    branches = _git(["branch", "--list", sb.branch_name], repo).stdout
+    assert sb.branch_name in branches, "the branch must be PRESERVED"
+    assert mgr.get_sandbox(sb.sandbox_id).branch_preserved is True
+    assert mgr.get_sandbox(sb.sandbox_id).needs_worktree_prune is True
+
+    _git(["reflog", "expire", "--expire=now", "--all"], repo)
+    _git(["gc", "--prune=now", "-q"], repo)
+    assert _git(["cat-file", "-e", f"{sha}^{{commit}}"], repo).returncode == 0
+
+
+def test_emergency_free_slot_refuses_symlink(tmp_path, repo):
+    """Safety: a symlinked worktree path must be refused."""
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "sym-wt"),
+        store_dir=str(tmp_path / "sym-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    real_wt = sb.worktree_path
+    # Replace the worktree with a symlink
+    import shutil as _shutil
+
+    target = str(tmp_path / "real-target")
+    os.makedirs(target, exist_ok=True)
+    _shutil.rmtree(real_wt)
+    os.symlink(target, real_wt)
+    assert os.path.islink(real_wt), "sanity: path must be a symlink"
+
+    freed = mgr.emergency_free_slot(sb.sandbox_id)
+    assert freed is False, "a symlinked worktree must be REFUSED"
+    assert len(mgr.active_sandboxes) == 1, "the slot must NOT be freed"
+
+
+def test_emergency_free_slot_refuses_repo_root(tmp_path, repo):
+    """Safety: the repo root path must be refused."""
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "root-wt"),
+        store_dir=str(tmp_path / "root-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    # Rewrite the worktree_path to be the repo root
+    sb.worktree_path = repo
+    freed = mgr.emergency_free_slot(sb.sandbox_id)
+    assert freed is False, "the repo root must NEVER be deleted"
+    assert os.path.isdir(repo), "the repo must still exist"
+
+
+def test_emergency_free_slot_refuses_path_outside_managed_root(tmp_path, repo):
+    """Safety: a path not under the managed worktree root must be refused."""
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "out-wt"),
+        store_dir=str(tmp_path / "out-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    escaped = str(tmp_path / "outside" / "rogue")
+    os.makedirs(escaped, exist_ok=True)
+    sb.worktree_path = escaped
+    freed = mgr.emergency_free_slot(sb.sandbox_id)
+    assert freed is False, "a path outside managed root must be REFUSED"
+    assert os.path.isdir(escaped), "the escaped directory must still exist"
+
+
+def test_emergency_free_slot_handles_already_removed_worktree(tmp_path, repo):
+    """Idempotent: if the worktree is already gone, the slot should still free."""
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "gone-wt"),
+        store_dir=str(tmp_path / "gone-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    import shutil as _shutil
+
+    _shutil.rmtree(sb.worktree_path)
+    assert not os.path.isdir(sb.worktree_path), "sanity: already gone"
+
+    freed = mgr.emergency_free_slot(sb.sandbox_id)
+    assert freed, "already-gone worktree must succeed (idempotent)"
+    assert len(mgr.active_sandboxes) == 0
+
+
+def test_emergency_free_slot_persists_across_restart(tmp_path, repo):
+    """The needs_worktree_prune and branch_preserved flags must survive restart."""
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "pers-wt"),
+        store_dir=str(tmp_path / "pers-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    mgr.emergency_free_slot(sb.sandbox_id)
+
+    restarted = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "pers-wt"),
+        store_dir=str(tmp_path / "pers-sb"),
+        max_parallel=2,
+    )
+    rsb = restarted.get_sandbox(sb.sandbox_id)
+    assert rsb.branch_preserved is True, "branch_preserved must persist"
+    assert rsb.needs_worktree_prune is True, "needs_worktree_prune must persist"
+
+
+def test_two_withholds_use_emergency_when_gate_refuses_both_layers(
+    tmp_path, candidate_repo, monkeypatch
+):
+    """CRITICAL-1 end-to-end: when BOTH the retention gate AND the sandbox gate
+    refuse, the emergency path frees slots and the third Task is admitted.
+
+    This is the exact reproduction that failed before emergency_free_slot:
+    _preserve_sandbox_slot called cleanup_sandbox → _run_git →
+    gated_subprocess_run → None, the same gate that triggered the withhold.
+    """
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.poller import ControlPlanePoller, PollerPassReport
+
+    mgr = SandboxManager(
+        repo_root=candidate_repo,
+        worktree_base=str(tmp_path / "ef-wt"),
+        store_dir=str(tmp_path / "ef-sb"),
+        max_parallel=2,
+    )
+    store = _store(tmp_path, "ef")
+    lm = LeaseManager(store, mgr, mutation_runner=_direct_runner)
+    poller = ControlPlanePoller(
+        store=store,
+        spool=None,
+        scheduler=None,
+        verify_fn=lambda **kw: None,
+        lease_manager=lm,
+        run_root=str(tmp_path / "ef-run"),
+    )
+
+    commits = []
+    for tag in ("ef1", "ef2"):
+        attempt = ExecutionAttempt(
+            attempt_id=f"ea-{tag}",
+            task_id=f"wp-{tag}",
+            status=_S.LEASED.value,
+            worker_identity="cc-cli@vps-host",
+            correlation_id=f"w2-{RUN}",
+        )
+        lease = lm.acquire(attempt=attempt, assignment=ASSIGNMENT, grant=GRANT)
+        with open(os.path.join(lease.worktree_path, "app/main.py"), "a") as fh:
+            fh.write(f"VERIFIED {tag}\n")
+        _git(["add", "-A"], lease.worktree_path)
+        _git(["commit", "-qm", f"verified {tag}"], lease.worktree_path)
+        verified = _git(["rev-parse", "HEAD"], lease.worktree_path).stdout.strip()
+
+        attempt.status = _S.SUCCEEDED.value
+        attempt.lease_id = lease.lease_id
+
+        # Refuse BOTH gates: retention AND sandbox git calls
+        import substrate.execution.attempts.verified_commit_retention as vcr
+        import substrate.organism.worktree_sandbox as ws
+
+        monkeypatch.setattr(vcr, "gated_subprocess_run", lambda *a, **k: None)
+        monkeypatch.setattr(ws, "gated_subprocess_run", lambda *a, **k: None)
+        report = PollerPassReport()
+        poller._terminalize(attempt, "succeeded", report)  # noqa: SLF001
+        monkeypatch.undo()
+
+        assert any("WITHHELD" in e for e in report.errors), (
+            f"attempt {tag} must withhold, got {report.errors}"
+        )
+        commits.append(verified)
+
+    # Both slots freed via emergency path
+    assert len(mgr.active_sandboxes) == 0, (
+        f"CRITICAL-1: both slots must be freed via emergency path, "
+        f"{len(mgr.active_sandboxes)} still held"
+    )
+
+    # Third Task admitted
+    third = ExecutionAttempt(
+        attempt_id="ea-ef3",
+        task_id="wp-ef3",
+        status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host",
+        correlation_id=f"w2-{RUN}",
+    )
+    lease3 = lm.acquire(attempt=third, assignment=ASSIGNMENT, grant=GRANT)
+    assert os.path.isdir(lease3.worktree_path), "the third Task must be admitted"
+
+    # Both commits reachable
+    _git(["reflog", "expire", "--expire=now", "--all"], candidate_repo)
+    _git(["gc", "--prune=now", "-q"], candidate_repo)
+    for sha in commits:
+        assert _git(["cat-file", "-e", f"{sha}^{{commit}}"], candidate_repo).returncode == 0, (
+            f"preserved commit {sha[:12]} must survive emergency slot release + gc"
+        )
+
+
+def test_deferred_prune_cleans_git_worktree_metadata(tmp_path, repo):
+    """After emergency_free_slot, a deferred `git worktree prune` cleans the
+    stale administrative registration."""
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "dp-wt"),
+        store_dir=str(tmp_path / "dp-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    wt_path = sb.worktree_path
+    assert wt_path in _git(["worktree", "list"], repo).stdout
+
+    mgr.emergency_free_slot(sb.sandbox_id)
+    # The worktree metadata is stale — the directory is gone but git still
+    # lists it.
+    assert not os.path.isdir(wt_path)
+    assert mgr.get_sandbox(sb.sandbox_id).needs_worktree_prune is True
+
+    # Deferred prune cleans it.
+    _git(["worktree", "prune"], repo)
+    assert wt_path not in _git(["worktree", "list"], repo).stdout, (
+        "deferred prune must clean stale worktree metadata"
+    )
+
+
+# ── CRITICAL-2: no-raise contract under missing worktree ──────────────────
+
+
+def test_missing_worktree_does_not_raise_under_no_raise_mode(tmp_path, monkeypatch):
+    """CRITICAL-2: terminalize(raise_on_security_failure=False) must never raise
+    FileNotFoundError when the worktree directory is already gone.
+
+    The previous code let FileNotFoundError escape both except RetentionError
+    and except CpuGateRefused, violating the no-raise contract. The slot stayed
+    occupied and no withheld reason was persisted.
+    """
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.terminalization import terminalize
+
+    plain = str(tmp_path / "fnf")
+    os.makedirs(f"{plain}/app")
+    _git(["init", "-q", "-b", "master"], plain)
+    _git(["config", "user.email", "t@t"], plain)
+    _git(["config", "user.name", "t"], plain)
+    open(f"{plain}/app/main.py", "w").write("base\n")
+    _git(["add", "-A"], plain)
+    _git(["commit", "-qm", "base"], plain)
+
+    mgr = SandboxManager(
+        repo_root=plain,
+        worktree_base=str(tmp_path / "fnf-wt"),
+        store_dir=str(tmp_path / "fnf-sb"),
+        max_parallel=2,
+    )
+    lm = LeaseManager(_store(tmp_path, "fnf"), mgr, mutation_runner=_direct_runner)
+    attempt = ExecutionAttempt(
+        attempt_id="ea-fnf",
+        task_id="wp-fnf",
+        status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host",
+        correlation_id="",
+    )
+    lease = lm.acquire(attempt=attempt, assignment=ASSIGNMENT, grant=GRANT)
+    with open(os.path.join(lease.worktree_path, "app/main.py"), "a") as fh:
+        fh.write("work\n")
+    _git(["add", "-A"], lease.worktree_path)
+    _git(["commit", "-qm", "w"], lease.worktree_path)
+
+    # Remove the worktree directory before terminalization
+    import shutil as _shutil
+
+    _shutil.rmtree(lease.worktree_path)
+    assert not os.path.isdir(lease.worktree_path), "sanity: worktree must be gone"
+
+    attempt.status = _S.SUCCEEDED.value
+    attempt.lease_id = lease.lease_id
+
+    # This MUST NOT raise. Before the fix it raised FileNotFoundError.
+    result = terminalize(
+        attempt=attempt,
+        reason="succeeded",
+        lease_manager=lm,
+        run_root=str(tmp_path / "fnf-run"),
+        raise_on_security_failure=False,
+    )
+
+    # It should have a structured blocking result, not an escaped exception.
+    assert not result.ok, "a missing worktree is a retention failure"
+    assert result.lease_withheld_reason, "the withhold reason must be persisted"
+    assert any("retention" in e.lower() for e in result.errors), result.errors
+
+
+def test_repeated_cleanup_is_idempotent(tmp_path, repo):
+    """Repeated emergency_free_slot on the same sandbox is safe."""
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "idem-wt"),
+        store_dir=str(tmp_path / "idem-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    assert mgr.emergency_free_slot(sb.sandbox_id)
+    assert mgr.emergency_free_slot(sb.sandbox_id)  # second call
+    assert mgr.emergency_free_slot(sb.sandbox_id)  # third call
+    assert len(mgr.active_sandboxes) == 0
+
+
+# ── HIGH: CAS old-value protects concurrent retention ──────────────────────
+
+
+def test_cas_old_value_prevents_concurrent_retention_overwrite(mgr, repo):
+    """HIGH (CAS): the empty-string old-value in update-ref is a real
+    compare-and-swap against "must not exist". When two concurrent
+    terminalizations race, only one succeeds; the loser gets a clear error and
+    cannot falsely report success.
+
+    Before this test, removing the "" argument from `update-ref ref new ""` →
+    `update-ref ref new` survived the entire suite (28/28 mutants killed, but
+    the CAS was never mutated). The second writer overwrites the first silently.
+    """
+    # Create two sandboxes writing to the SAME ref path (same task+attempt)
+    sb1 = mgr.create_sandbox(candidate_id="c-race1", candidate_slug="race1")
+    open(os.path.join(sb1.worktree_path, "f.txt"), "w").write("worker-1\n")
+    _git(["add", "-A"], sb1.worktree_path)
+    _git(["commit", "-qm", "worker 1"], sb1.worktree_path)
+    sha1 = _git(["rev-parse", "HEAD"], sb1.worktree_path).stdout.strip()
+
+    sb2 = mgr.create_sandbox(candidate_id="c-race2", candidate_slug="race2")
+    open(os.path.join(sb2.worktree_path, "f.txt"), "w").write("worker-2\n")
+    _git(["add", "-A"], sb2.worktree_path)
+    _git(["commit", "-qm", "worker 2"], sb2.worktree_path)
+    sha2 = _git(["rev-parse", "HEAD"], sb2.worktree_path).stdout.strip()
+    assert sha1 != sha2, "two different commits are needed"
+
+    kw = dict(candidate=CAND, run_id=RUN, task_id="wp-cas", attempt_id="ea-cas")
+
+    # First retention succeeds
+    first = retain_verified_commit(repo=repo, worktree=sb1.worktree_path, base_commit=sb1.base_commit, **kw)
+    assert first == sha1
+
+    # Second retention with a DIFFERENT commit must FAIL (immutable ref)
+    with pytest.raises(RetentionError, match="immutable once retained"):
+        retain_verified_commit(repo=repo, worktree=sb2.worktree_path, base_commit=sb2.base_commit, **kw)
+
+    # The winner's commit is the one that survives
+    assert resolve_trusted_commit(repo=repo, **kw) == sha1, (
+        "the first writer's commit must survive — the loser cannot overwrite"
+    )
+    mgr.cleanup_sandbox(sb1.sandbox_id)
+    mgr.cleanup_sandbox(sb2.sandbox_id)
+
+    _git(["reflog", "expire", "--expire=now", "--all"], repo)
+    _git(["gc", "--prune=now", "-q"], repo)
+    assert _git(["cat-file", "-e", f"{sha1}^{{commit}}"], repo).returncode == 0
+
+
+def test_missing_worktree_in_commit_above_base_returns_unknown(tmp_path, monkeypatch):
+    """CRITICAL-2 (unit): _commit_above_base must catch FileNotFoundError from
+    _git and return "unknown" (at-risk), not let the exception escape.
+
+    gated_subprocess_run swallows FileNotFoundError as a gate refusal (returning
+    None → CpuGateRefused), so the FileNotFoundError handler in _commit_above_base
+    is defense-in-depth. This test monkeypatches _git to raise FileNotFoundError
+    directly, proving the handler is load-bearing if the gate's swallowing changes.
+    """
+    from substrate.execution.attempts import terminalization as _term_mod
+    from substrate.execution.attempts.verified_commit_retention import _git as _real_git
+
+    def _git_raises_fnf(worktree, args, *, caller=""):
+        raise FileNotFoundError(f"[Errno 2] No such file or directory: '{worktree}'")
+
+    monkeypatch.setattr(
+        "substrate.execution.attempts.verified_commit_retention._git", _git_raises_fnf
+    )
+    from substrate.execution.attempts.terminalization import _commit_above_base
+
+    result = _commit_above_base(str(tmp_path / "nonexistent"), "abc123")
+    assert result == "unknown", (
+        "a FileNotFoundError from _git must be caught and return 'unknown'"
+    )
+
+
+def test_missing_worktree_in_retain_verified_produces_retention_error(tmp_path, repo, mgr, monkeypatch):
+    """CRITICAL-2 (integration): _retain_verified must catch FileNotFoundError
+    from retain_verified_commit and record a retention failure (not let the
+    exception escape), and the withhold path must engage.
+
+    gated_subprocess_run swallows FileNotFoundError as a gate refusal, so the
+    handler in _retain_verified is defense-in-depth. This test monkeypatches
+    retain_verified_commit to raise FileNotFoundError directly.
+    """
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.terminalization import terminalize
+
+    mgr2 = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "mr-wt"),
+        store_dir=str(tmp_path / "mr-sb"),
+        max_parallel=2,
+    )
+    lm = LeaseManager(_store(tmp_path, "mr"), mgr2, mutation_runner=_direct_runner)
+    attempt = ExecutionAttempt(
+        attempt_id="ea-mr",
+        task_id="wp-mr",
+        status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host",
+        correlation_id=f"w2-{RUN}",
+    )
+    r = str(tmp_path / "candidates" / "wave2" / CAND / "targets" / RUN / "fixture2")
+    os.makedirs(r)
+    _git(["init", "-q", "-b", "master"], r)
+    _git(["config", "user.email", "t@t"], r)
+    _git(["config", "user.name", "t"], r)
+    open(f"{r}/f.txt", "w").write("base\n")
+    _git(["add", "-A"], r)
+    _git(["commit", "-qm", "base"], r)
+
+    mgr3 = SandboxManager(
+        repo_root=r,
+        worktree_base=str(tmp_path / "mr-wt2"),
+        store_dir=str(tmp_path / "mr-sb2"),
+        max_parallel=2,
+    )
+    lm2 = LeaseManager(_store(tmp_path, "mr2"), mgr3, mutation_runner=_direct_runner)
+    attempt2 = ExecutionAttempt(
+        attempt_id="ea-mr2",
+        task_id="wp-mr2",
+        status=_S.LEASED.value,
+        worker_identity="cc-cli@vps-host",
+        correlation_id=f"w2-{RUN}",
+    )
+    lease = lm2.acquire(attempt=attempt2, assignment=ASSIGNMENT, grant=GRANT)
+    with open(os.path.join(lease.worktree_path, "f.txt"), "a") as fh:
+        fh.write("work\n")
+    _git(["add", "-A"], lease.worktree_path)
+    _git(["commit", "-qm", "work"], lease.worktree_path)
+
+    attempt2.status = _S.SUCCEEDED.value
+    attempt2.lease_id = lease.lease_id
+
+    def _raise_fnf(**kwargs):
+        raise FileNotFoundError("[Errno 2] worktree gone")
+
+    monkeypatch.setattr(
+        "substrate.execution.attempts.verified_commit_retention.retain_verified_commit",
+        _raise_fnf,
+    )
+    result = terminalize(
+        attempt=attempt2,
+        reason="succeeded",
+        lease_manager=lm2,
+        run_root=str(tmp_path / "mr-run"),
+        raise_on_security_failure=False,
+    )
+    assert not result.ok
+    assert result.lease_withheld_reason, "missing worktree must produce a withhold"
+    assert any("retention" in e.lower() for e in result.errors)
+
+
+def test_emergency_symlink_under_managed_root_is_refused(tmp_path, repo, caplog):
+    """Safety: a symlink INSIDE the managed worktree root must still be refused
+    by the EARLY islink check, not by rmtree's own symlink guard."""
+    managed_root = str(tmp_path / "sym2-wt")
+    os.makedirs(managed_root, exist_ok=True)
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=managed_root,
+        store_dir=str(tmp_path / "sym2-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    real_wt = sb.worktree_path
+
+    target = os.path.join(managed_root, "real-target-inside")
+    os.makedirs(target, exist_ok=True)
+    import shutil as _shutil
+
+    _shutil.rmtree(real_wt)
+    os.symlink(target, real_wt)
+    assert os.path.islink(real_wt)
+
+    import logging
+
+    with caplog.at_level(logging.ERROR, logger="substrate.organism.worktree_sandbox"):
+        freed = mgr.emergency_free_slot(sb.sandbox_id)
+    assert freed is False, "a symlinked worktree must be REFUSED even inside managed root"
+    assert os.path.isdir(target), "the target must not be deleted"
+    assert len(mgr.active_sandboxes) == 1
+    assert any("is a symlink" in r.message for r in caplog.records), (
+        "the EARLY symlink guard must fire (not rmtree's own guard)"
+    )
+
+
+def test_emergency_repo_root_under_managed_root_is_refused(tmp_path):
+    """Safety: even if repo root is under the managed root, refuse deletion."""
+    managed_root = str(tmp_path / "root2-wt")
+    repo_inside = os.path.join(managed_root, "repo")
+    os.makedirs(repo_inside)
+    _git(["init", "-q", "-b", "master"], repo_inside)
+    _git(["config", "user.email", "t@t"], repo_inside)
+    _git(["config", "user.name", "t"], repo_inside)
+    open(os.path.join(repo_inside, "f.txt"), "w").write("x\n")
+    _git(["add", "-A"], repo_inside)
+    _git(["commit", "-qm", "init"], repo_inside)
+
+    mgr = SandboxManager(
+        repo_root=repo_inside,
+        worktree_base=managed_root,
+        store_dir=str(tmp_path / "root2-sb"),
+        max_parallel=2,
+    )
+    sb = mgr.create_sandbox(candidate_id="c1", candidate_slug="s1")
+    # Overwrite worktree_path to point to repo root
+    sb.worktree_path = repo_inside
+
+    freed = mgr.emergency_free_slot(sb.sandbox_id)
+    assert freed is False, "repo root must NEVER be deleted"
+    assert os.path.isdir(repo_inside)
+
+
+def test_cas_old_value_in_retain_verified_commit_blocks_race(repo, mgr, monkeypatch):
+    """HIGH (CAS): the empty-string old-value in update-ref is a real
+    compare-and-swap. When two concurrent terminalizations race past the
+    pre-flight check, only one succeeds at the git level.
+
+    The pre-flight `resolve_trusted_commit` returning "" is the window: in that
+    interval another writer can create the ref. This test simulates the race by
+    creating the ref externally, then monkeypatching `resolve_trusted_commit` to
+    return "" so the production code reaches `update-ref` with the CAS argument.
+    Without the "" old-value, `update-ref` silently overwrites.
+    """
+    import substrate.execution.attempts.verified_commit_retention as vcr
+
+    sb1 = mgr.create_sandbox(candidate_id="c-cas1", candidate_slug="cas1")
+    open(os.path.join(sb1.worktree_path, "f.txt"), "w").write("w1\n")
+    _git(["add", "-A"], sb1.worktree_path)
+    _git(["commit", "-qm", "c1"], sb1.worktree_path)
+    sha1 = _git(["rev-parse", "HEAD"], sb1.worktree_path).stdout.strip()
+
+    sb2 = mgr.create_sandbox(candidate_id="c-cas2", candidate_slug="cas2")
+    open(os.path.join(sb2.worktree_path, "f.txt"), "w").write("w2\n")
+    _git(["add", "-A"], sb2.worktree_path)
+    _git(["commit", "-qm", "c2"], sb2.worktree_path)
+    sha2 = _git(["rev-parse", "HEAD"], sb2.worktree_path).stdout.strip()
+
+    kw = dict(candidate=CAND, run_id=RUN, task_id="wp-cas2", attempt_id="ea-cas2")
+
+    first = retain_verified_commit(repo=repo, worktree=sb1.worktree_path, base_commit=sb1.base_commit, **kw)
+    assert first == sha1
+
+    # Simulate the TOCTOU race: monkeypatch resolve_trusted_commit to return ""
+    # so the second writer bypasses the pre-flight check and reaches update-ref
+    monkeypatch.setattr(vcr, "resolve_trusted_commit", lambda **kw: "")
+
+    with pytest.raises(RetentionError, match="could not write trusted ref"):
+        retain_verified_commit(repo=repo, worktree=sb2.worktree_path, base_commit=sb2.base_commit, **kw)
+
+    monkeypatch.undo()
+    assert resolve_trusted_commit(repo=repo, **kw) == sha1
+    mgr.cleanup_sandbox(sb1.sandbox_id)
+    mgr.cleanup_sandbox(sb2.sandbox_id)

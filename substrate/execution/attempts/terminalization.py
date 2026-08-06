@@ -354,6 +354,10 @@ def _commit_above_base(worktree: str, base_commit: str) -> str:
         # Cannot observe → assume at risk. Failing open here would reintroduce the
         # exact silent-destruction defect under load.
         return "unknown"
+    except (FileNotFoundError, OSError):
+        # The worktree directory is gone (already removed, or never materialized).
+        # Cannot observe HEAD → same "cannot tell" as a gate refusal.
+        return "unknown"
     if rc != 0 or not head:
         return ""
     base = str(base_commit or "").strip()
@@ -558,10 +562,36 @@ def _retain_verified(
         result.errors.append(f"{_RETENTION_FAILED_PREFIX}{exc}")
         logger.warning("retain failed for %s: %s", result.attempt_id, exc)
         return
+    except (FileNotFoundError, OSError) as exc:
+        result.errors.append(f"{_RETENTION_FAILED_PREFIX}worktree missing or inaccessible: {exc}")
+        logger.warning("retain: worktree gone for %s: %s", result.attempt_id, exc)
+        return
     result.retained_commit = commit
     result.steps.append(
         f"retained verified commit {commit[:12]}" if commit else "nothing to retain (no commit)"
     )
+
+
+def _resolve_sandbox_id(result: TerminalizationResult, lease_manager: Any) -> str:
+    """Look up the sandbox_id from the lease record. Returns "" on failure."""
+    sandbox_id = ""
+    lease_id = result.lease_id
+    getter = getattr(getattr(lease_manager, "_store", None), "get_lease", None)
+    if callable(getter) and lease_id:
+        try:
+            row = getter(lease_id)
+        except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+            logger.debug("slot preserve: lease lookup failed for %s: %s", lease_id, exc)
+            row = None
+        if row is not None:
+            sandbox_id = (
+                str(row.get("sandbox_id", "") or "")
+                if isinstance(row, dict)
+                else str(getattr(row, "sandbox_id", "") or "")
+            )
+    if not sandbox_id:
+        result.steps.append("slot NOT freed: no sandbox_id on the lease record")
+    return sandbox_id
 
 
 def _preserve_sandbox_slot(result: TerminalizationResult, lease_manager: Any) -> None:
@@ -602,37 +632,43 @@ def _preserve_sandbox_slot(result: TerminalizationResult, lease_manager: Any) ->
         )
         return
 
-    sandbox_id = ""
-    lease_id = result.lease_id
-    getter = getattr(getattr(lease_manager, "_store", None), "get_lease", None)
-    if callable(getter) and lease_id:
-        try:
-            row = getter(lease_id)
-        except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
-            logger.debug("slot preserve: lease lookup failed for %s: %s", lease_id, exc)
-            row = None
-        if row is not None:
-            sandbox_id = (
-                str(row.get("sandbox_id", "") or "")
-                if isinstance(row, dict)
-                else str(getattr(row, "sandbox_id", "") or "")
-            )
+    sandbox_id = _resolve_sandbox_id(result, lease_manager)
     if not sandbox_id:
-        result.steps.append("slot NOT freed: no sandbox_id on the lease record")
         return
 
+    # --- Tier 1: normal cleanup with preserve_branch (uses git subprocesses) ---
     try:
         freed = bool(cleanup(sandbox_id, preserve_branch=True))
     except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
-        logger.warning("slot preserve failed for sandbox %s: %s", sandbox_id, exc)
-        result.steps.append(f"slot NOT freed: cleanup raised for {sandbox_id}: {exc}")
+        logger.warning("slot preserve (tier 1) failed for sandbox %s: %s", sandbox_id, exc)
+        freed = False
+
+    if freed:
+        result.sandbox_slot_freed = True
+        result.steps.append(f"sandbox slot {sandbox_id} freed with branch PRESERVED")
+        return
+
+    # --- Tier 2: filesystem-only emergency release (no git subprocesses) ---
+    emergency = getattr(sandbox, "emergency_free_slot", None)
+    if not callable(emergency):
+        result.steps.append(
+            "slot NOT freed: sandbox manager supports neither preserve_branch "
+            "nor emergency_free_slot — refusing the destructive variant"
+        )
+        return
+
+    try:
+        freed = bool(emergency(sandbox_id))
+    except Exception as exc:  # noqa: BLE001 - recorded, not swallowed
+        logger.warning("emergency slot free failed for sandbox %s: %s", sandbox_id, exc)
+        result.steps.append(f"slot NOT freed: emergency_free_slot raised for {sandbox_id}: {exc}")
         return
 
     result.sandbox_slot_freed = freed
     result.steps.append(
-        f"sandbox slot {sandbox_id} freed with branch PRESERVED"
+        f"sandbox slot {sandbox_id} freed via emergency path (filesystem only, prune deferred)"
         if freed
-        else f"slot NOT freed: cleanup_sandbox({sandbox_id}) returned False"
+        else f"slot NOT freed: emergency_free_slot({sandbox_id}) returned False"
     )
 
 

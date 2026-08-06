@@ -518,3 +518,62 @@ Both components now come from a single anchor match (`candidates/<lane>/<candida
 a component that is itself a structural marker is refused, and two *different*
 canonical matches in one path are refused as ambiguous. Escape/injection was
 already closed by `_validate_component`; this closes silent **misattribution**.
+
+## Correction cycle 2 — CRITICAL-1, CRITICAL-2, HIGH (CAS) (70f3c0ee2)
+
+Three confirmed production defects at SHA `f8171cf3b`, fixed in one bounded cycle.
+
+### CRITICAL-1 — sandbox starvation under real CPU-gate refusal
+
+`_preserve_sandbox_slot` called `cleanup_sandbox` → `_run_git` → `gated_subprocess_run`,
+the same gate whose refusal caused the withhold. At production `max_parallel=2`
+(`scripts/wave2_attempt_runner.py:256`), two withheld attempts fill all slots and
+unrelated Tasks starve permanently. `expire_stale` clears leases but not occupied
+sandbox slots.
+
+**Fix:** Two-tier `_preserve_sandbox_slot`:
+- Tier 1: `cleanup_sandbox(preserve_branch=True)` — normal git path
+- Tier 2: `emergency_free_slot(sandbox_id)` — filesystem-only (`shutil.rmtree`),
+  no git subprocesses, branch preserved, `needs_worktree_prune=True` recorded for
+  deferred admin cleanup
+
+`emergency_free_slot` enforces 9 safety checks: sandbox exists, worktree path is
+a real directory, NOT a symlink (`os.path.islink`), NOT the repo root
+(`real_wt == real_repo`), strictly under the managed worktree root
+(`real_wt.startswith(real_root + os.sep)`) using `os.path.realpath` to resolve
+traversal. `branch_preserved` is set STICKY before status update.
+
+**Proof:** `test_two_withholds_use_emergency_when_gate_refuses_both_layers` —
+both retention AND sandbox gates refuse, emergency frees slots, third Task admitted.
+
+### CRITICAL-2 — no-raise contract violation (FileNotFoundError)
+
+When the worktree is already absent, `_commit_above_base` and `_retain_verified`
+did not catch `FileNotFoundError` / `OSError`. `terminalize()` raised even with
+`raise_on_security_failure=False`. No stable withheld reason was persisted; the
+slot remained occupied.
+
+**Fix:** `except (FileNotFoundError, OSError)` handlers in both functions.
+Defense-in-depth: `gated_subprocess_run` currently swallows `FileNotFoundError`
+as a gate refusal (returns `None` → `CpuGateRefused`), so these handlers fire
+only if the gate's swallowing behavior changes. Tests monkeypatch `_git` /
+`retain_verified_commit` to raise `FileNotFoundError` directly, proving the
+handlers are load-bearing independently of the gate's internal behavior.
+
+### HIGH — CAS old-value is load-bearing
+
+`git update-ref ref head ""` — the `""` is a compare-and-swap against "must not
+exist". Removing it would let concurrent terminalizations both succeed while one
+overwrites the other's retained commit.
+
+**Proof:** `test_cas_old_value_in_retain_verified_commit_blocks_race` monkeypatches
+`resolve_trusted_commit` to return `""` (simulating a TOCTOU race past the
+pre-flight check), then proves the second writer fails at the git CAS level.
+
+### Verification
+
+- 83 retention tests + 34 terminalization tests = **117 pass**
+- **22/22 mutation sweep mutants killed**, 0 survivors
+- All 15 pre-commit gates pass
+- Field quota: **37/42 untouched** (no field dispatch in this cycle)
+- PR #313: OPEN/DRAFT/UNMERGED
