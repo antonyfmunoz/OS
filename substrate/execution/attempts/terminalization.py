@@ -72,6 +72,7 @@ import os
 from dataclasses import dataclass, field
 from typing import Any
 
+from substrate.execution.attempts.records import AttemptExecutionKind as _K
 from substrate.execution.attempts.worker_credential_boundary import (
     CredentialBoundaryError,
     assert_no_credential_residue,
@@ -463,6 +464,32 @@ def _retain_verified(
     records a step and moves on. A genuine retention FAILURE is an error, which
     ``result.ok`` already treats as terminalization failure.
     """
+    # A CONTROL-PLANE COMPOSITION attempt never uses worker-commit retention.
+    #
+    # `retain_verified_commit` reads the commit from the LEASE WORKTREE HEAD
+    # (verified_commit_retention.py: `git rev-parse HEAD` in the worktree). A
+    # composition commit is built with `commit-tree` and is never checked out, so
+    # that HEAD is still the pre-composition base. Retaining it would either
+    # publish the base as if it were this Task's verified output, or mint a
+    # second refs/umh/verified ref competing with refs/umh/composed for authority
+    # over the same Task. The composed ref is already durable (CAS-pinned before
+    # verification), so there is nothing here to protect.
+    #
+    # Keyed on the PERSISTED, IMMUTABLE execution_kind — deliberately NOT on
+    # "worker_identity is empty". In real field data every attempt carries
+    # `worker_identity='cc-cli@vps-host'`, so emptiness discriminates nothing.
+    #
+    # This returns WITHOUT a retention error, so terminalize proceeds to the real
+    # lease release, home destruction and spool reconcile — none of which are
+    # faked for composition.
+    kind = str(getattr(attempt, "execution_kind", "") or _K.WORKER.value)
+    if kind == _K.CONTROL_PLANE_COMPOSITION.value:
+        result.steps.append(
+            "composition attempt: authority is refs/umh/composed (already durable) — "
+            "worker verified-commit retention skipped by persisted execution_kind"
+        )
+        return
+
     if reason != "succeeded":
         result.steps.append(f"no retention (reason={reason})")
         return

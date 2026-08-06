@@ -38,12 +38,26 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
+from substrate.execution.attempts.records import ExecutionAttemptStatus
+
 logger = logging.getLogger(__name__)
+
+_S = ExecutionAttemptStatus
+
+
+def _git_read(repo: str, args: list[str]) -> tuple[int, str, str]:
+    """Read-only git under the CPU gate. Shared by the composition closures."""
+    from substrate.execution.attempts.composition import _git
+
+    return _git(repo, args, caller="control_plane_read")
+
 
 # Deterministic role identities. The implementer role is distinct from the
 # verifier role by construction (separation of duty; the placement + lifecycle
@@ -501,6 +515,14 @@ class FieldControlPlaneDriver:
             mutation_runner=self._mutation_runner,
             lock_dir=self._lock_dir,
             latest_plan_lookup=self._latest_plan_lookup,
+            # Governed fan-in composition. Each is a closure capturing the repo /
+            # candidate / run / store / proof-runtime this driver already owns,
+            # so the scheduler stays free of repository and proof concerns. All
+            # three return None when the run is not candidate-shaped, which turns
+            # composition off cleanly rather than leaving it half-wired.
+            composition_task_predicate=self._composition_task_predicate(),
+            composition_producer=self._composition_producer(),
+            downstream_base_resolver=self._downstream_base_resolver(),
         )
 
     def _build_poller(self, scheduler: Any, grant: Any) -> Any:
@@ -584,6 +606,429 @@ class FieldControlPlaneDriver:
         if not task_id:
             return None
         return self._queue.get_packet(task_id)
+
+    def _composition_producer(self) -> Callable[..., Any] | None:
+        """Perform + verify + settle ONE control-plane composition attempt.
+
+        Called by the scheduler in place of compile+dispatch when the persisted
+        ``execution_kind`` says this attempt is a composition. No worker is
+        launched, no instruction package is sealed, no spool envelope is written
+        — so no model quota is spent.
+
+        Restart safety: every step below either validates existing durable state
+        or is CAS-protected, so the SAME attempt resumes rather than a second one
+        being minted. Composition reuses an existing composed ref; the Proof is
+        searched before it is created.
+        """
+        repo, candidate, run_id = self._composition_binding()
+        if not (repo and candidate and run_id):
+            return None
+        accept = self._composition_acceptance_verifier()
+        if accept is None:
+            return None
+        control_plane = self
+
+        def _produce(*, attempt: Any, packet: Any, lease: Any, grant: Any) -> Any:
+            from substrate.execution.attempts.composition import (
+                CompositionConflict,
+                CompositionError,
+                compose_predecessors,
+                composition_proof_action,
+                mint_composition_proof,
+                resolve_predecessor_commits,
+            )
+
+            store = control_plane._store
+            task_id = str(getattr(attempt, "task_id", ""))
+            deps = [str(d) for d in (getattr(packet, "dependencies", []) or [])]
+            verifier_identity = f"verifier:{_INTEGRATOR_ROLE_ID}"
+
+            def _block(reason: str) -> Any:
+                fresh = store.get_attempt(attempt.attempt_id) or attempt
+                try:
+                    return store.transition_cas(
+                        fresh.attempt_id,
+                        _S.BLOCKED.value,
+                        fresh.record_version,
+                        (_S.LEASED.value, _S.READY.value, _S.VERIFYING.value),
+                        "scheduler",
+                        reason[:200],
+                        updates={"blocked_reason": reason[:200]},
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    logger.error("could not block composition %s: %s", fresh.attempt_id, exc)
+                    return fresh
+
+            try:
+                predecessors = resolve_predecessor_commits(
+                    repo=repo,
+                    candidate=candidate,
+                    run_id=run_id,
+                    store=store,
+                    dependency_task_ids=deps,
+                )
+                result = compose_predecessors(
+                    repo=repo,
+                    candidate=candidate,
+                    run_id=run_id,
+                    task_id=task_id,
+                    attempt_id=attempt.attempt_id,
+                    predecessor_commits=predecessors,
+                )
+            except CompositionConflict as exc:
+                logger.error("composition CONFLICT for %s: %s", attempt.attempt_id, exc)
+                return _block(f"composition conflict: {exc}")
+            except CompositionError as exc:
+                logger.error("composition FAILED for %s: %s", attempt.attempt_id, exc)
+                return _block(f"composition failed: {exc}")
+
+            # LEASED → VERIFYING. Legal only because the PERSISTED execution_kind
+            # is the composition kind and no worker identity is set.
+            attempt_v = store.transition_cas(
+                attempt.attempt_id,
+                _S.VERIFYING.value,
+                attempt.record_version,
+                (_S.LEASED.value,),
+                "composer:control-plane",
+                "composition produced — verifying",
+                updates={"commits": [result.composed_commit]},
+            )
+
+            try:
+                checks, evidence = accept(
+                    attempt_v,
+                    composed_commit=result.composed_commit,
+                    predecessor_commits=result.predecessor_commits,
+                    packet=packet,
+                )
+            except Exception as exc:  # noqa: BLE001 - a verifier fault is not a pass
+                logger.error("composition acceptance raised for %s: %s", attempt.attempt_id, exc)
+                return _block(f"composition acceptance error: {exc}")
+
+            passed = bool(checks) and all(bool(getattr(c, "ok", False)) for c in checks)
+            if not passed:
+                failed = [
+                    getattr(c, "check_id", "?") for c in checks if not getattr(c, "ok", False)
+                ]
+                return _block(f"composition acceptance failed: {failed}")
+
+            predecessor_proofs = {
+                t: str(getattr(a, "proof_id", ""))
+                for t in deps
+                for a in store.attempts_for_task(t)
+                if str(getattr(a, "status", "")) == "succeeded"
+            }
+            action = composition_proof_action(
+                attempt=attempt_v, result=result, predecessor_proofs=predecessor_proofs
+            )
+            try:
+                proof = mint_composition_proof(
+                    proof_runtime=control_plane._proof_runtime,
+                    attempt=attempt_v,
+                    action=action,
+                    verifier_identity=verifier_identity,
+                )
+            except CompositionError as exc:
+                return _block(f"composition proof conflict: {exc}")
+
+            settled = store.transition_cas(
+                attempt_v.attempt_id,
+                _S.SUCCEEDED.value,
+                attempt_v.record_version,
+                (_S.VERIFYING.value,),
+                verifier_identity,
+                "composition verified",
+                updates={
+                    "proof_id": proof.proof_id,
+                    "verifier_identity": verifier_identity,
+                    "verifier_role_id": _INTEGRATOR_ROLE_ID,
+                    "commits": [result.composed_commit],
+                },
+            )
+            logger.info(
+                "composition %s SUCCEEDED: commit=%s proof=%s",
+                settled.attempt_id,
+                result.composed_commit[:12],
+                proof.proof_id,
+            )
+            return settled
+
+        return _produce
+
+    # ── governed fan-in composition seam ─────────────────────────────────────
+    def _composition_binding(self) -> tuple[str, str, str]:
+        """(repo, candidate, run_id) for this run, from the targets path alone.
+
+        Canonical layout: ``.../candidates/<lane>/<candidate>/targets/<run>/``.
+        Both components come from ONE anchor match — resolving them from
+        independent anchors is what previously produced silently misattributed
+        refs. Returns ("", "", "") when the path is not candidate-shaped, which
+        disables composition rather than guessing a binding.
+        """
+        parts = [p for p in str(self._targets_dir or "").split(os.sep) if p]
+        for i, seg in enumerate(parts):
+            if seg != "candidates" or len(parts) <= i + 4 or parts[i + 3] != "targets":
+                continue
+            cand, run = parts[i + 2], parts[i + 4]
+            if cand in ("candidates", "targets") or run in ("candidates", "targets"):
+                continue
+            return os.path.join(self._targets_dir, "fixture"), cand, run
+        return "", "", ""
+
+    def _validated_integration_packet_id(self) -> str:
+        """The canonical integration packet id, or "" — via the FULL authority path.
+
+        This is deliberately NOT a read of ``scenario_map.json``. It calls
+        ``validate_against_run``, the same gate failure-injection arming uses,
+        which rereads the run's captured ``execution_binding.json`` and the
+        canonical stores and fails closed on: wrong run, tampered/stale binding
+        digest (which covers ``candidate_sha``), unresolvable or non-ACTIVE or
+        expired grant, a role id that is not a real persisted WorkPacket, a role
+        id outside the grant's authorized frontier, and ambiguous cardinality.
+
+        So a scenario map copied from another run or another candidate can never
+        promote an ordinary packet into the composition lifecycle.
+        """
+        from substrate.execution.attempts.field_scenario_map import (
+            read_scenario_map,
+            validate_against_run,
+        )
+
+        records = self._canonical_records()
+        ok, reason = validate_against_run(self._targets_dir, records=records)
+        if not ok:
+            logger.warning(
+                "scenario map INVALID for this run (%s) — no composition authority granted",
+                reason,
+            )
+            return ""
+        return str(read_scenario_map(self._targets_dir).get("integration_task_id", "") or "")
+
+    def _canonical_records(self) -> list[dict[str, Any]]:
+        """Canonical plan/packet/grant records for scenario-map validation."""
+        from substrate.execution.attempts.field_scenario_map import _read_jsonl
+
+        records: list[dict[str, Any]] = []
+        state = os.path.join(os.path.dirname(os.path.dirname(self._targets_dir)), "state")
+        for rel in (
+            ("umh", "operator", "objective_planning", "objective_plans.jsonl"),
+            ("umh", "universal_work", "work_packets.jsonl"),
+            ("umh", "operator", "execution_attempts", "execution_grants.jsonl"),
+        ):
+            path = Path(state).joinpath(*rel)
+            try:
+                records.extend(_read_jsonl(path))
+            except Exception as exc:  # noqa: BLE001 - absence is handled by the gate
+                logger.debug("canonical record read failed for %s: %s", path, exc)
+        return records
+
+    def _composition_task_predicate(self) -> Callable[[Any], bool] | None:
+        """Is THIS packet the run's canonical, grant-authorized integration Task?
+
+        Returns None when the run has no candidate binding, so composition is
+        simply off rather than half-wired.
+        """
+        repo, candidate, run_id = self._composition_binding()
+        if not (repo and candidate and run_id):
+            return None
+        control_plane = self
+
+        def _is_composition(packet: Any) -> bool:
+            target = control_plane._validated_integration_packet_id()
+            if not target:
+                return False
+            return str(getattr(packet, "packet_id", "")) == target
+
+        return _is_composition
+
+    def _downstream_base_resolver(self) -> Callable[[Any, list], str] | None:
+        """The exact verified composition commit a dependent Task must build on."""
+        repo, candidate, run_id = self._composition_binding()
+        if not (repo and candidate and run_id):
+            return None
+        control_plane = self
+
+        def _resolve(packet: Any, dependency_task_ids: list) -> str:
+            from substrate.execution.attempts.composition import resolve_downstream_base
+
+            return resolve_downstream_base(
+                repo=repo,
+                candidate=candidate,
+                run_id=run_id,
+                store=control_plane._store,
+                proof_runtime=control_plane._proof_runtime,
+                dependency_task_ids=[str(d) for d in (dependency_task_ids or [])],
+            )
+
+        return _resolve
+
+    def _composition_acceptance_verifier(
+        self,
+    ) -> Callable[..., tuple[list[Any], Any]] | None:
+        """Task C's REAL acceptance contract, run against the composed commit.
+
+        The persisted contract says "make the FULL test suite pass (base +
+        backend tests + frontend tests)". That sentence is never PARSED to pick
+        behavior — prose is not control-plane authority. Instead the canonical
+        contract text is hash-matched for equality, and the acceptance itself is
+        the existing confined full-suite verifier.
+
+        Three conjuncts, all required:
+          1. the confined pytest run exits 0;
+          2. the COLLECTION FLOOR holds — every predecessor-authored file is
+             present. Bare pytest collects whatever happens to be there, so a
+             composed tree missing both lanes' test files would go green on the
+             6 base tests and prove nothing;
+          3. the composed commit descends from BOTH predecessors.
+        """
+        repo, candidate, run_id = self._composition_binding()
+        if not (repo and candidate and run_id):
+            return None
+        control_plane = self
+
+        def _accept(
+            attempt: Any, *, composed_commit: str, predecessor_commits: dict, packet: Any
+        ) -> tuple[list[Any], Any]:
+            import hashlib
+            import tempfile
+
+            from substrate.execution.attempts import field_task_scope as fts
+            from substrate.execution.attempts.composition import (
+                assert_descends_from_all,
+                remove_verification_worktree,
+                verification_worktree,
+                verify_predecessor_content,
+            )
+            from substrate.execution.attempts.verification import VerificationCheck
+            from substrate.execution.attempts.verifier_isolation import (
+                run_confined_verifier_checks,
+            )
+
+            checks: list[Any] = []
+
+            # (1) Exact integration packet identity, via the validated map.
+            target = control_plane._validated_integration_packet_id()
+            packet_id = str(getattr(packet, "packet_id", ""))
+            ident_ok = bool(target) and packet_id == target
+            checks.append(
+                VerificationCheck(
+                    check_id="composition_packet_identity",
+                    kind="policy",
+                    ok=ident_ok,
+                    detail=(
+                        f"packet {packet_id} is the grant-authorized integration Task"
+                        if ident_ok
+                        else f"packet {packet_id} is NOT the validated integration Task "
+                        f"({target!r}) — refusing composition acceptance"
+                    ),
+                )
+            )
+
+            # (2) Canonical contract equality — hash-match, never prose parsing.
+            canonical = fts.task_contract_for(fts.INTEGRATION)
+            persisted = str(getattr(packet, "desired_end_state", "") or "")
+            want = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+            got = hashlib.sha256(persisted.encode("utf-8")).hexdigest()
+            contract_ok = want == got
+            checks.append(
+                VerificationCheck(
+                    check_id="composition_contract_match",
+                    kind="policy",
+                    ok=contract_ok,
+                    detail=(
+                        "persisted Task C contract equals the canonical contract"
+                        if contract_ok
+                        else f"persisted contract digest {got[:12]} ≠ canonical {want[:12]} "
+                        f"— refusing to accept a drifted or foreign contract"
+                    ),
+                )
+            )
+
+            # (3) Ancestry from BOTH predecessors.
+            missing = assert_descends_from_all(
+                repo=repo,
+                composed_commit=composed_commit,
+                predecessor_commits=predecessor_commits,
+            )
+            checks.append(
+                VerificationCheck(
+                    check_id="composition_ancestry",
+                    kind="commits",
+                    ok=not missing,
+                    detail=(
+                        "composed commit descends from every predecessor"
+                        if not missing
+                        else f"composed commit does NOT descend from {missing}"
+                    ),
+                )
+            )
+
+            # (4) Confined full-suite acceptance at the EXACT composed commit,
+            #     plus the predecessor-derived collection floor.
+            work = tempfile.mkdtemp(prefix="umh-compverify-", dir=control_plane._run_root())
+            checkout = os.path.join(work, "tree")
+            evidence: Any = None
+            try:
+                verification_worktree(repo, composed_commit, checkout)
+
+                base_rc, base_sha, _e = _git_read(
+                    repo, ["merge-base", *predecessor_commits.values()]
+                )
+                content_ok, violations, produced = verify_predecessor_content(
+                    repo=repo,
+                    base=base_sha,
+                    composed_tree=composed_commit,
+                    predecessor_commits=predecessor_commits,
+                )
+                checks.append(
+                    VerificationCheck(
+                        check_id="composition_content_equivalence",
+                        kind="diff",
+                        ok=content_ok,
+                        detail=(
+                            f"all {len(produced)} predecessor effects survive"
+                            if content_ok
+                            else f"predecessor content lost: {violations[:5]}"
+                        ),
+                    )
+                )
+
+                # COLLECTION FLOOR — derived from what the predecessors actually
+                # produced, never from a hardcoded fixture filename.
+                absent = [p for p in produced if not os.path.exists(os.path.join(checkout, p))]
+                floor_ok = bool(produced) and not absent
+                checks.append(
+                    VerificationCheck(
+                        check_id="composition_collection_floor",
+                        kind="artifact",
+                        ok=floor_ok,
+                        detail=(
+                            f"all {len(produced)} predecessor-authored files present in the "
+                            f"verified checkout"
+                            if floor_ok
+                            else f"predecessor-authored files ABSENT from the composed "
+                            f"checkout: {absent[:5]} — a green suite here would prove nothing"
+                        ),
+                    )
+                )
+
+                suite_checks, evidence = run_confined_verifier_checks(
+                    attempt=attempt,
+                    run_root=control_plane._run_root(),
+                    source_path=checkout,
+                    verifier_role_id=_INTEGRATOR_ROLE_ID,
+                    worker_identity="",
+                    base_commit=base_sha,
+                    expected_result_commit=composed_commit,
+                )
+                checks.extend(suite_checks)
+            finally:
+                remove_verification_worktree(repo, checkout)
+                shutil.rmtree(work, ignore_errors=True)
+
+            return checks, evidence
+
+        return _accept
 
     def _independent_checks_for(self, attempt: Any) -> Callable[[Any], list[Any]] | None:
         """Independent checks the VERIFIER runs itself for this attempt.

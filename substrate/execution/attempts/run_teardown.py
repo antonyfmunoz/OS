@@ -227,8 +227,30 @@ class RunSweepResult:
     verifier_home_residue: list[str] = field(default_factory=list)
     spool_inflight_residue: int = 0
     unsafe_paths: list[str] = field(default_factory=list)
+    #: Trusted/composed git refs for this run that still EXIST after the sweep.
+    #: Deliberately NOT part of ``ok``: a host that cannot delete a ref must
+    #: still be able to finish operational teardown (stop containers, shred the
+    #: secret, destroy homes). Qualification is a SEPARATE, stricter question —
+    #: see ``zero_ref_residue``.
+    ref_residue: list[str] = field(default_factory=list)
+    #: Refs that could not be deleted and were recorded for recovery instead.
+    #: ALWAYS a subset of ``ref_residue``: quarantine preserves evidence and
+    #: accounts for a leftover, it NEVER converts one into "clean".
+    quarantined_refs: list[str] = field(default_factory=list)
+    refs_deleted: list[str] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+
+    @property
+    def zero_ref_residue(self) -> bool:
+        """The FIELD-QUALIFICATION bar: every trusted/composed ref is gone.
+
+        Separate from ``ok`` on purpose. ``ok`` answers "did teardown do its job
+        on this host"; this answers "may the run claim zero residue". A
+        quarantined ref satisfies the first and fails the second — otherwise
+        "we wrote down that we leaked it" would read as "we did not leak it".
+        """
+        return not self.ref_residue
 
     @property
     def ok(self) -> bool:
@@ -262,6 +284,10 @@ class RunSweepResult:
             "verifier_home_residue": list(self.verifier_home_residue),
             "spool_inflight_residue": self.spool_inflight_residue,
             "unsafe_paths": list(self.unsafe_paths),
+            "ref_residue": list(self.ref_residue),
+            "quarantined_refs": list(self.quarantined_refs),
+            "refs_deleted": list(self.refs_deleted),
+            "zero_ref_residue": self.zero_ref_residue,
             "steps": list(self.steps),
             "errors": list(self.errors),
             "ok": self.ok,
@@ -279,6 +305,9 @@ def sweep_run(
     secret_path: str = "",
     preview_pids: list[int] | None = None,
     kill_process: Any | None = None,
+    repo_root: str = "",
+    candidate: str = "",
+    run_id: str = "",
 ) -> RunSweepResult:
     """Destroy every resource a run created and PROVE zero residue.
 
@@ -320,6 +349,19 @@ def sweep_run(
             f"{len(lease_ids)} recorded lease(s) not swept here — poller owns runtime "
             f"release; pass a lease_manager for crash-recovery revoke"
         )
+
+    # (1b) Release the run's protected git refs. Trusted (refs/umh/verified) and
+    # composed (refs/umh/composed) refs exist to keep a verified commit reachable
+    # while a DEPENDENT still needs it; once the run is over they are residue.
+    #
+    # Ordering: refs are released BEFORE worktrees are removed, so a failure here
+    # leaves the commits still reachable rather than orphaned.
+    #
+    # A deletion failure does NOT fail teardown (result.ok is untouched) — the
+    # host must still be able to destroy credentials and shred the secret. It
+    # DOES record the survivor in ``ref_residue`` + ``quarantined_refs``, which
+    # is what field qualification keys on. Quarantine never means clean.
+    _release_run_refs(result, repo_root=repo_root, candidate=candidate, run_id=run_id)
 
     # (2) Remove recorded worktrees that survived lease release (defense in depth).
     for wt in _dedup(e["ident"] for e in manifest if e.get("kind") == "worktree"):
@@ -397,6 +439,73 @@ def sweep_run(
         f"secret_shredded={result.secret_shredded}"
     )
     return result
+
+
+def _release_run_refs(
+    result: RunSweepResult, *, repo_root: str, candidate: str, run_id: str
+) -> None:
+    """Delete every trusted + composed ref for one completed run.
+
+    Idempotent and retryable: both release helpers return [] when the namespace
+    is already empty, so a second sweep is a clean no-op.
+
+    Truthfulness rule: what could not be deleted is enumerated and QUARANTINED —
+    recorded with its sha so the leftover is recoverable and accounted for — but
+    it stays in ``ref_residue``, so no report can claim zero residue on the
+    strength of having written the leak down.
+    """
+    if not (repo_root and candidate and run_id):
+        # Not a candidate-shaped run (e.g. a unit-test sweep). Nothing to do —
+        # and NOT an error: this sweep is the C-2 authority for many callers.
+        result.steps.append("no repo/candidate/run binding — no protected refs to release")
+        return
+    if not os.path.isdir(repo_root):
+        result.steps.append(f"repo {repo_root} absent — no protected refs to release")
+        return
+
+    from substrate.execution.attempts.composition import (
+        list_composed_refs,
+        list_trusted_refs,
+        release_composed_refs,
+    )
+    from substrate.execution.attempts.verified_commit_retention import release_trusted_refs
+
+    for label, release_fn, list_fn in (
+        ("trusted", release_trusted_refs, list_trusted_refs),
+        ("composed", release_composed_refs, list_composed_refs),
+    ):
+        try:
+            deleted = release_fn(repo=repo_root, candidate=candidate, run_id=run_id)
+            result.refs_deleted.extend(deleted)
+            result.steps.append(f"released {len(deleted)} {label} ref(s)")
+        except Exception as exc:  # noqa: BLE001 - accounted, never swallowed
+            logger.warning("%s ref release failed for run %s: %s", label, run_id, exc)
+            result.steps.append(f"{label} ref release FAILED: {exc}")
+
+        # AUTHORITATIVE re-read: "deleted" is a claim, the surviving set is the
+        # proof. Anything still present is residue whether or not the call above
+        # raised.
+        try:
+            survivors = list_fn(repo=repo_root, candidate=candidate, run_id=run_id)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("%s ref enumeration failed for run %s: %s", label, run_id, exc)
+            result.steps.append(f"{label} ref enumeration FAILED: {exc} — residue UNKNOWN")
+            # Unknown is not clean. Record a sentinel so qualification fails.
+            sentinel = f"{label}:<enumeration-failed>"
+            result.ref_residue.append(sentinel)
+            result.quarantined_refs.append(sentinel)
+            continue
+        for ref in survivors:
+            if ref not in result.ref_residue:
+                result.ref_residue.append(ref)
+            if ref not in result.quarantined_refs:
+                result.quarantined_refs.append(ref)
+
+    if result.ref_residue:
+        result.steps.append(
+            f"QUARANTINED {len(result.ref_residue)} surviving ref(s): {result.ref_residue} "
+            f"— teardown may complete, but zero-residue qualification FAILS"
+        )
 
 
 def _shred_secret(secret_path: str, result: RunSweepResult) -> bool:

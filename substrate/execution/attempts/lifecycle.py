@@ -29,15 +29,29 @@ from __future__ import annotations
 
 from typing import Any
 
-from substrate.execution.attempts.records import ExecutionAttempt, ExecutionAttemptStatus
+from substrate.execution.attempts.records import (
+    AttemptExecutionKind,
+    ExecutionAttempt,
+    ExecutionAttemptStatus,
+)
 
 _S = ExecutionAttemptStatus
+_K = AttemptExecutionKind
 
 # Legal forward transitions. ``failed`` is terminal-except-rollback.
 TRANSITIONS: dict[str, tuple[str, ...]] = {
     _S.CREATED.value: (_S.READY.value, _S.BLOCKED.value, _S.CANCELLED.value),
     _S.READY.value: (_S.LEASED.value, _S.BLOCKED.value, _S.CANCELLED.value),
-    _S.LEASED.value: (_S.DISPATCHED.value, _S.BLOCKED.value, _S.CANCELLED.value),
+    # LEASED → VERIFYING is the CONTROL-PLANE COMPOSITION path only: a fan-in
+    # attempt has no worker to dispatch and nothing to run, so it goes straight
+    # from its lease to verification. The guard below makes it unreachable for a
+    # worker attempt, which still must traverse DISPATCHED → RUNNING.
+    _S.LEASED.value: (
+        _S.DISPATCHED.value,
+        _S.VERIFYING.value,
+        _S.BLOCKED.value,
+        _S.CANCELLED.value,
+    ),
     _S.DISPATCHED.value: (_S.RUNNING.value, _S.FAILED.value, _S.CANCELLED.value),
     _S.RUNNING.value: (_S.VERIFYING.value, _S.FAILED.value, _S.CANCELLED.value),
     _S.VERIFYING.value: (_S.SUCCEEDED.value, _S.FAILED.value),
@@ -87,6 +101,30 @@ def validate_transition(
         if not assignment_id:
             raise AttemptLifecycleError(
                 f"attempt {attempt.attempt_id}: ready→leased requires an assignment_id"
+            )
+
+    # leased → verifying: CONTROL-PLANE COMPOSITION ONLY.
+    #
+    # Both checks read the PERSISTED record, never ``updates``. That is the whole
+    # point: ``updates`` is caller-supplied, so a guard that consulted it could be
+    # satisfied by the very call it is meant to restrain — a worker attempt could
+    # pass `execution_kind=...` (or blank its own worker_identity) in `updates`
+    # and skip DISPATCHED/RUNNING entirely. ``execution_kind`` is additionally in
+    # ATTEMPT_IMMUTABLE_FIELDS, so the store rejects such an update outright,
+    # before this guard even runs.
+    if to_status == _S.VERIFYING.value and from_status == _S.LEASED.value:
+        kind = str(getattr(attempt, "execution_kind", "") or _K.WORKER.value)
+        if kind != _K.CONTROL_PLANE_COMPOSITION.value:
+            raise AttemptLifecycleError(
+                f"attempt {attempt.attempt_id}: leased→verifying requires persisted "
+                f"execution_kind={_K.CONTROL_PLANE_COMPOSITION.value!r}, found {kind!r} — "
+                f"a worker attempt must go through dispatched→running"
+            )
+        if attempt.worker_identity:
+            raise AttemptLifecycleError(
+                f"attempt {attempt.attempt_id}: a composition attempt is performed by the "
+                f"control plane and carries NO worker identity, found "
+                f"{attempt.worker_identity!r} — refusing to compose under a worker identity"
             )
 
     # leased → dispatched: sealed package + lease + worker must be present.

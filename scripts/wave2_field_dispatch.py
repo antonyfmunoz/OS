@@ -1959,7 +1959,16 @@ def _sweep_run_homes(sha: str, run_id: str) -> dict[str, Any]:
     from substrate.execution.attempts.run_teardown import sweep_run
 
     run_root = str(_targets_dir(sha, run_id))
-    res = sweep_run(run_root)
+    # The run's protected git refs (refs/umh/verified + refs/umh/composed) live
+    # in the FIXTURE repo, not the run root. Passing the binding here is what
+    # makes ref cleanup reachable in production at all — without it
+    # release_composed_refs would ship as an unreachable helper.
+    res = sweep_run(
+        run_root,
+        repo_root=str(_targets_dir(sha, run_id) / "fixture"),
+        candidate=sha,
+        run_id=run_id,
+    )
     return res.to_dict()
 
 
@@ -2898,6 +2907,26 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
         if not homes_ok:
             detail = homes.get("errors") if isinstance(homes, dict) else "no homes_swept result"
             reasons.append(f"credential homes not proven clean: {detail}")
+        # ZERO-RESIDUE REF GATE. Deliberately SEPARATE from `homes_swept.ok`:
+        # a host that cannot delete a protected ref still completes operational
+        # teardown (ok stays True) and QUARANTINES the survivor with a durable
+        # record. That preserves evidence and accounts for the leftover — but it
+        # is NOT clean. Field qualification requires the refs to be actually
+        # GONE, so "we wrote down that we leaked it" can never read as "we did
+        # not leak it".
+        #
+        # A missing key is treated as FAILURE (same rule as homes_swept): an
+        # older teardown result must not let ref residue hide behind absence.
+        ref_residue = homes.get("ref_residue") if isinstance(homes, dict) else None
+        zero_refs = isinstance(homes, dict) and homes.get("zero_ref_residue") is True
+        mandatory["teardown:zero_ref_residue"] = zero_refs
+        if not zero_refs:
+            quarantined = homes.get("quarantined_refs") if isinstance(homes, dict) else None
+            reasons.append(
+                f"trusted/composed refs still present after teardown: residue={ref_residue} "
+                f"quarantined={quarantined} — quarantine accounts for a leak, it does not "
+                f"make the run clean"
+            )
 
     ok = all(mandatory.values()) if mandatory else True
     return QualificationVerdict(command=command, ok=ok, reasons=tuple(reasons), mandatory=mandatory)

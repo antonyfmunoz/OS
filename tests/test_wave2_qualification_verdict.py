@@ -185,7 +185,9 @@ def test_teardown_clean_passes():
         "torn_down": ["c1", "c2"],
         "run_secret_shredded": True,
         "serve_restored": True,
-        "homes_swept": {"ok": True},  # SEC-C1: residue proof required
+        # SEC-C1 residue proof + the zero-ref-residue proof: a CLEAN teardown
+        # must show BOTH. Omitting zero_ref_residue is treated as unproven.
+        "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
     }
     v = wd.qualification_verdict("teardown", out)
     assert v.ok is True
@@ -240,7 +242,11 @@ def test_teardown_after_failure_cannot_greenwash():
     )
     tear = wd.qualification_verdict(
         "teardown",
-        {"run_secret_shredded": True, "serve_restored": True, "homes_swept": {"ok": True}},
+        {
+            "run_secret_shredded": True,
+            "serve_restored": True,
+            "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+        },
     )
     assert recon.ok is False
     assert tear.ok is True  # teardown ran cleanly...
@@ -291,7 +297,11 @@ def test_main_returns_0_on_clean_teardown(monkeypatch):
     rc = _run_main(
         monkeypatch,
         "teardown",
-        {"run_secret_shredded": True, "serve_restored": True, "homes_swept": {"ok": True}},
+        {
+            "run_secret_shredded": True,
+            "serve_restored": True,
+            "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+        },
     )
     assert rc == 0
 
@@ -366,7 +376,11 @@ def test_backcompat_wrapper_agrees_with_verdict():
         ("teardown", {"run_secret_shredded": True, "serve_restored": True}),
         (
             "teardown",
-            {"run_secret_shredded": True, "serve_restored": True, "homes_swept": {"ok": True}},
+            {
+            "run_secret_shredded": True,
+            "serve_restored": True,
+            "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+        },
         ),
         ("preflight", {"ready": True}),
         ("deploy-candidate", {"deploy_ok": False}),

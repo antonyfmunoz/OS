@@ -40,6 +40,33 @@ def _from_dict(cls: type, d: dict[str, Any]) -> Any:
 # ── ExecutionAttempt ─────────────────────────────────────────────────────────
 
 
+class AttemptExecutionKind(str, Enum):
+    """WHO executes an attempt — the persisted composition authority.
+
+    An attempt is either performed by a model WORKER in a dispatched sandbox, or
+    it is a CONTROL-PLANE COMPOSITION: a deterministic git-plumbing fan-in that
+    the control plane performs itself, with no worker, no dispatch and no
+    instruction package.
+
+    This exists because nothing else on the record could carry that fact. The
+    semantic label ("integration_task_id") lives on the ObjectivePlanNode and in
+    the run's scenario map — it is NEVER copied onto the WorkPacket, so
+    ``lifecycle.py`` (which receives only the attempt) cannot see it. And the
+    absence of a worker cannot stand in for it: in real field data EVERY attempt
+    carries ``worker_identity == 'cc-cli@vps-host'`` (run 20260805T182714Z-p1,
+    all five attempts including the failed ones), so "empty worker" discriminates
+    nothing and would be an inference over a field that never varies.
+
+    Assigned once at attempt creation from the VALIDATED scenario map, then
+    immutable (see ``ATTEMPT_IMMUTABLE_FIELDS``): ``transition_cas`` raises on any
+    attempt to write it through ``updates``, so no caller can promote an ordinary
+    worker attempt into the composition lifecycle after the fact.
+    """
+
+    WORKER = "worker"
+    CONTROL_PLANE_COMPOSITION = "control_plane_composition"
+
+
 class ExecutionAttemptStatus(str, Enum):
     """The one canonical execution-attempt lifecycle (directive §IV)."""
 
@@ -102,6 +129,9 @@ class ExecutionAttempt:
     membership_id: str = ""
     # conversation_id → … → plan_record_id → task_id → attempt_id chain anchor.
     correlation_id: str = ""
+    # WHO executes this attempt. Immutable after creation; a legacy record with
+    # no such key deserializes to WORKER, so existing behavior is unchanged.
+    execution_kind: str = AttemptExecutionKind.WORKER.value
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
     status: str = ExecutionAttemptStatus.CREATED.value
@@ -180,6 +210,10 @@ ATTEMPT_IMMUTABLE_FIELDS: frozenset[str] = frozenset(
         "correlation_id",
         "previous_attempt_id",
         "created_at",
+        # Composition authority. Immutable so a caller cannot flip an ordinary
+        # worker attempt into the composition lifecycle (which skips DISPATCHED /
+        # RUNNING) through a binding update.
+        "execution_kind",
     }
 )
 

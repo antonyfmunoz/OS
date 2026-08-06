@@ -156,6 +156,10 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # WorkReadinessRuntime.ReadinessAssessment (a legacy read-surface), and from
     # planning.readiness.DecisionReadinessAssessment (plan-acceptance readiness).
     "GraphShapeVerdict": ["substrate.execution.attempts.graph_shape_gate"],
+    "AttemptExecutionKind": ["substrate.execution.attempts.records"],
+    "CompositionConflict": ["substrate.execution.attempts.composition"],
+    "CompositionError": ["substrate.execution.attempts.composition"],
+    "CompositionResult": ["substrate.execution.attempts.composition"],
     "ExecutionAttempt": ["substrate.execution.attempts.records"],
     "ExecutionAttemptStatus": ["substrate.execution.attempts.records"],
     "AttemptTransition": ["substrate.execution.attempts.records"],

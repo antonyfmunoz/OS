@@ -39,6 +39,7 @@ from substrate.execution.attempts.admission import authorize_admission
 from substrate.execution.attempts.events import emit_execution_event
 from substrate.execution.attempts.lifecycle import AttemptLifecycleError
 from substrate.execution.attempts.records import (
+    AttemptExecutionKind,
     ExecutionAttempt,
     ExecutionAttemptStatus,
 )
@@ -80,6 +81,9 @@ class AttemptScheduler:
         mutation_runner: Callable[..., Any] | None = None,
         lock_dir: str | None = None,
         latest_plan_lookup: Callable[[str], Any] | None = None,
+        composition_task_predicate: Callable[[Any], bool] | None = None,
+        composition_producer: Callable[..., Any] | None = None,
+        downstream_base_resolver: Callable[[Any, list], str] | None = None,
     ) -> None:
         self._store = store
         self._queue = work_queue
@@ -90,6 +94,14 @@ class AttemptScheduler:
         self._dep_lookup = dep_success_lookup or self._default_dep_lookup
         self._max_concurrency = max_concurrency
         self._mutation_runner = mutation_runner
+        # Fan-in composition seam. All three are INJECTED so the scheduler never
+        # grows repository, candidate, run or proof-runtime state of its own —
+        # the driver captures those in closures (the same shape as dispatch_fn).
+        # Left None, every attempt is an ordinary worker attempt and nothing here
+        # changes: composition is opt-in per deployment, never inferred.
+        self._composition_task_predicate = composition_task_predicate
+        self._composition_producer = composition_producer
+        self._downstream_base_resolver = downstream_base_resolver
         if lock_dir is None:
             from substrate.state.runtime_paths import runtime_state_dir
 
@@ -246,9 +258,7 @@ class AttemptScheduler:
             # while the plan was v1 kept admitting, leasing and dispatching after
             # the operator revised to v2, because the scheduler is the component
             # that runs every pass and it never asked the question.
-            valid, why = is_authorization_valid(
-                grant, latest_plan_lookup=self._latest_plan_lookup
-            )
+            valid, why = is_authorization_valid(grant, latest_plan_lookup=self._latest_plan_lookup)
             if not valid:
                 report.reason = f"authorization invalid: {why}"
                 return report
@@ -313,15 +323,9 @@ class AttemptScheduler:
                 # Task; the comment claiming the next pass retries it was false
                 # until this branch existed. Promoting it here is the retry.
                 stuck_created = [
-                    a
-                    for a in existing
-                    if a.status == _S.CREATED.value and not a.is_terminal()
+                    a for a in existing if a.status == _S.CREATED.value and not a.is_terminal()
                 ]
-                live = [
-                    a
-                    for a in existing
-                    if not a.is_terminal() and a.status != _S.CREATED.value
-                ]
+                live = [a for a in existing if not a.is_terminal() and a.status != _S.CREATED.value]
                 if not live and stuck_created:
                     for orphan in stuck_created:
                         try:
@@ -476,8 +480,27 @@ class AttemptScheduler:
         self, grant: Any, packet: Any, attempt_number: int, prior_failed: list
     ) -> ExecutionAttempt | None:
         runner = self._mutation_runner or self._native_runner()
+        # Composition authority is stamped ONCE, here, and is immutable
+        # thereafter. The predicate is the driver's grant-gated, digest-sealed
+        # scenario-map check — never a name, a prefix, or an empty-field
+        # inference. It fails CLOSED: any error resolving the authority leaves
+        # the attempt an ordinary worker attempt.
+        execution_kind = AttemptExecutionKind.WORKER.value
+        if self._composition_task_predicate is not None:
+            try:
+                if self._composition_task_predicate(packet):
+                    execution_kind = AttemptExecutionKind.CONTROL_PLANE_COMPOSITION.value
+            except Exception as exc:  # noqa: BLE001 - recorded, never a silent promotion
+                logger.warning(
+                    "composition predicate failed for task %s: %s — creating an ordinary "
+                    "worker attempt (fail closed)",
+                    getattr(packet, "packet_id", ""),
+                    exc,
+                )
+
         attempt = ExecutionAttempt(
             task_id=getattr(packet, "packet_id", ""),
+            execution_kind=execution_kind,
             objective_id=getattr(grant, "objective_id", ""),
             plan_record_id=getattr(grant, "plan_record_id", ""),
             plan_version=getattr(grant, "plan_version", 0),
@@ -595,9 +618,8 @@ class AttemptScheduler:
                 for a in self._store.active_attempts()
                 if a.status == _S.READY.value
                 and a.task_id in frontier_ids
-                and str(getattr(a, "execution_authorization_ref", "")) == str(
-                    getattr(grant, "decision_ref", "")
-                )
+                and str(getattr(a, "execution_authorization_ref", ""))
+                == str(getattr(grant, "decision_ref", ""))
             ],
             key=lambda a: (a.task_id, a.attempt_number),
         )
@@ -677,7 +699,36 @@ class AttemptScheduler:
                         store=self._store,
                         mutation_runner=self._mutation_runner,
                     )
-                    lease = self._leases.acquire(attempt=attempt, assignment=assignment, grant=grant)
+                    # TRUSTED EXPLICIT BASE for a dependent Task. The resolver
+                    # is injected and owns repository/candidate/run/proof access;
+                    # the scheduler passes only packet + dependency identities.
+                    # "" means "no composed predecessor" → default HEAD, exactly
+                    # as before this packet.
+                    base_commit = ""
+                    if self._downstream_base_resolver is not None:
+                        deps = list(getattr(packet, "dependencies", []) or [])
+                        base_commit = (
+                            str(self._downstream_base_resolver(packet, deps) or "") if deps else ""
+                        )
+                    # Pass base_commit ONLY when one was actually resolved. An
+                    # unconditional kwarg breaks every lease manager whose
+                    # acquire() predates the parameter (measured: it broke the
+                    # admission-failure regression, which then leaked a lease
+                    # because the pass aborted BEFORE acquiring one). Absent a
+                    # composed predecessor the call is byte-identical to before
+                    # this packet.
+                    lease = (
+                        self._leases.acquire(
+                            attempt=attempt,
+                            assignment=assignment,
+                            grant=grant,
+                            base_commit=base_commit,
+                        )
+                        if base_commit
+                        else self._leases.acquire(
+                            attempt=attempt, assignment=assignment, grant=grant
+                        )
+                    )
                     attempt = self._transition(
                         attempt,
                         _S.LEASED.value,
@@ -690,6 +741,32 @@ class AttemptScheduler:
                             "verifier_role_id": assignment.verifier_role_id,
                         },
                     )
+                    # ── CONTROL-PLANE COMPOSITION FORK ───────────────────────
+                    # A composition attempt has no worker to dispatch: the
+                    # control plane performs the fan-in itself, verifies it, and
+                    # settles the attempt. It NEVER compiles an instruction
+                    # package and NEVER enters the spool, so no quota is spent
+                    # and no model is invoked.
+                    #
+                    # The kind is read from the PERSISTED record (stamped
+                    # immutably at creation), not from the packet or from any
+                    # local inference.
+                    if (
+                        str(getattr(attempt, "execution_kind", ""))
+                        == AttemptExecutionKind.CONTROL_PLANE_COMPOSITION.value
+                    ):
+                        if self._composition_producer is None:
+                            raise RuntimeError(
+                                f"attempt {attempt.attempt_id} is a control-plane composition "
+                                f"but no composition_producer is wired — refusing to dispatch "
+                                f"it as an ordinary worker attempt"
+                            )
+                        attempt = self._composition_producer(
+                            attempt=attempt, packet=packet, lease=lease, grant=grant
+                        )
+                        report.attempts_admitted.append(attempt.attempt_id)
+                        continue
+
                     package = self._compile(
                         attempt=attempt, packet=packet, assignment=assignment, grant=grant
                     )
