@@ -1521,9 +1521,350 @@ def test_merge_tree_rc1_without_tree_oid_is_error_not_conflict(repo):
         _merge_tree(repo, base=base, left=a, right=c)
 
 
-def test_sweep_without_repo_binding_cannot_claim_zero_refs(repo, tmp_path):
-    """The production caller MUST pass repo/candidate/run. Without them the
-    sweep cannot see the refs at all — and must not report them released."""
+def test_real_driver_producer_terminalizes_the_composition_attempt(repo, tmp_path, monkeypatch):
+    """Drive the REAL FieldControlPlaneDriver._composition_producer.
+
+    This exists because the E2E test injects a behaviorally-equivalent local
+    producer, and that substitution hid a CRITICAL wiring defect: nothing called
+    ``terminalize()`` on a composition attempt. A composition never enters the
+    spool, so the poller — the only OTHER production terminalize caller — can
+    never see it. The lease stayed ACTIVE forever, its sandbox slot was never
+    freed (at the production ``max_parallel=2`` that starves the rest of the
+    run), and the credential home was never destroyed.
+
+    So this test drives the driver's own closure and asserts the RESOURCE
+    OUTCOME, not merely that the attempt succeeded.
+    """
+    from substrate.execution.attempts.field_control_plane import FieldControlPlaneDriver
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.organism.worktree_sandbox import SandboxManager
+
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    targets = str(tmp_path / "candidates" / "wave2" / CAND / "targets" / RUN)
+    os.makedirs(targets, exist_ok=True)
+
+    store = _store(tmp_path, "drv")
+    sandbox = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "leases"),
+        store_dir=str(tmp_path / "sandboxes"),
+        max_parallel=2,
+    )
+
+    driver = FieldControlPlaneDriver.__new__(FieldControlPlaneDriver)
+    driver._targets_dir = targets
+    driver._store = store
+    driver._sandbox = sandbox
+    driver._spool = None
+    driver._mutation_runner = _permit
+    driver._lease_mgr = LeaseManager(store, sandbox, mutation_runner=_permit)
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    driver._proof_runtime = ProofRuntime()
+
+    # The driver's binding + acceptance closure must both resolve for a
+    # candidate-shaped path; otherwise the producer is None and this test is
+    # vacuous. Assert that explicitly.
+    assert driver._composition_binding() == (os.path.join(targets, "fixture"), CAND, RUN)
+    produce = driver._composition_producer()
+    assert produce is not None, "the real driver must build a producer"
+
+    # Predecessors: real lanes, real SUCCEEDED attempts, real retained refs.
+    _base, a_sha, b_sha = _two_lanes(repo)
+    _succeeded(store, TASK_A, "ea-dA", commits=[a_sha])
+    _succeeded(store, TASK_B, "ea-dB", commits=[b_sha])
+    for task, aid, sha in ((TASK_A, "ea-dA", a_sha), (TASK_B, "ea-dB", b_sha)):
+        _git(["update-ref", f"refs/umh/verified/{CAND}/{RUN}/{task}/{aid}", sha], repo)
+
+    packet = _prod_packet(TASK_C, [TASK_A, TASK_B], ["app", "tests"])
+    att = ExecutionAttempt(
+        attempt_id="ea-drv-c",
+        task_id=TASK_C,
+        execution_kind=_K.CONTROL_PLANE_COMPOSITION.value,
+        status=_S.CREATED.value,
+    )
+    created, _ = store.create_attempt_idempotent(att)
+    created = store.transition_cas(
+        created.attempt_id,
+        _S.READY.value,
+        created.record_version,
+        (_S.CREATED.value,),
+        "scheduler",
+        "ready",
+    )
+    assignment = SimpleNamespace(
+        assignment_id="asn-drv",
+        worker_identity="",
+        verifier_role_id="role-verifier-op",
+        compute_node_id="node-1",
+        environment_class="git_worktree",
+        worker_agent_type="developer_agent",
+        tool_profile=[],
+    )
+    grant = _prod_grant(tmp_path, [TASK_C])
+    lease = driver._lease_mgr.acquire(attempt=created, assignment=assignment, grant=grant)
+    leased = store.transition_cas(
+        created.attempt_id,
+        _S.LEASED.value,
+        created.record_version,
+        (_S.READY.value,),
+        "scheduler",
+        "leased",
+        updates={"assignment_id": "asn-drv", "lease_id": lease.lease_id},
+    )
+    assert store.active_lease_for_task(TASK_C) is not None, "precondition: lease is ACTIVE"
+
+    # The acceptance verifier runs a CONFINED pytest, which needs bwrap and the
+    # fixture; unavailable here. Substitute ONLY that boundary — every other
+    # step (composition, lifecycle CAS, Proof, terminalization) stays real.
+    monkeypatch.setattr(
+        driver,
+        "_composition_acceptance_verifier",
+        lambda: lambda attempt, **kw: ([SimpleNamespace(check_id="stub", ok=True)], None),
+    )
+    produce = driver._composition_producer()
+
+    settled = produce(attempt=leased, packet=packet, lease=lease, grant=grant)
+
+    assert settled.status == _S.SUCCEEDED.value, settled.blocked_reason
+    assert settled.commits and settled.commits[0]
+
+    # THE ASSERTION THAT WAS MISSING: the composition terminalized itself.
+    assert store.active_lease_for_task(TASK_C) is None, (
+        "the composition lease is STILL ACTIVE — it leaked, and at "
+        "max_parallel=2 that starves the rest of the run"
+    )
+    row = store.get_lease(lease.lease_id)
+    assert row["status"] in ("released", "revoked"), row["status"]
+    assert not os.path.isdir(row["worktree_path"]), "the composition worktree leaked"
+
+
+def _driver_for(repo, tmp_path, store, sandbox):
+    """A real FieldControlPlaneDriver over a candidate-shaped targets dir."""
+    from substrate.execution.attempts.field_control_plane import FieldControlPlaneDriver
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.organism.proof_runtime import ProofRuntime
+
+    targets = str(tmp_path / "candidates" / "wave2" / CAND / "targets" / RUN)
+    os.makedirs(targets, exist_ok=True)
+    d = FieldControlPlaneDriver.__new__(FieldControlPlaneDriver)
+    d._targets_dir = targets
+    d._store = store
+    d._sandbox = sandbox
+    d._spool = None
+    d._mutation_runner = _permit
+    d._lease_mgr = LeaseManager(store, sandbox, mutation_runner=_permit)
+    d._proof_runtime = ProofRuntime()
+    return d
+
+
+def _leased_composition(repo, tmp_path, store, driver):
+    """A real LEASED composition attempt with real verified predecessors."""
+    _base, a_sha, b_sha = _two_lanes(repo)
+    _succeeded(store, TASK_A, "ea-nA", commits=[a_sha])
+    _succeeded(store, TASK_B, "ea-nB", commits=[b_sha])
+    for task, aid, sha in ((TASK_A, "ea-nA", a_sha), (TASK_B, "ea-nB", b_sha)):
+        _git(["update-ref", f"refs/umh/verified/{CAND}/{RUN}/{task}/{aid}", sha], repo)
+
+    packet = _prod_packet(TASK_C, [TASK_A, TASK_B], ["app", "tests"])
+    created, _ = store.create_attempt_idempotent(
+        ExecutionAttempt(
+            attempt_id="ea-neg-c",
+            task_id=TASK_C,
+            execution_kind=_K.CONTROL_PLANE_COMPOSITION.value,
+            status=_S.CREATED.value,
+        )
+    )
+    created = store.transition_cas(
+        created.attempt_id,
+        _S.READY.value,
+        created.record_version,
+        (_S.CREATED.value,),
+        "scheduler",
+        "ready",
+    )
+    assignment = SimpleNamespace(
+        assignment_id="asn-neg",
+        worker_identity="",
+        verifier_role_id="role-verifier-op",
+        compute_node_id="node-1",
+        environment_class="git_worktree",
+        worker_agent_type="developer_agent",
+        tool_profile=[],
+    )
+    grant = _prod_grant(tmp_path, [TASK_C])
+    lease = driver._lease_mgr.acquire(attempt=created, assignment=assignment, grant=grant)
+    leased = store.transition_cas(
+        created.attempt_id,
+        _S.LEASED.value,
+        created.record_version,
+        (_S.READY.value,),
+        "scheduler",
+        "leased",
+        updates={"assignment_id": "asn-neg", "lease_id": lease.lease_id},
+    )
+    return leased, packet, lease, grant
+
+
+@pytest.mark.parametrize(
+    "verifier,why",
+    [
+        (lambda attempt, **kw: ([], None), "EMPTY checks — all([]) is vacuously True"),
+        (
+            lambda attempt, **kw: (
+                [SimpleNamespace(check_id="x", ok=False)],
+                None,
+            ),
+            "a FAILING check",
+        ),
+        (None, "the verifier RAISES"),
+    ],
+)
+def test_real_producer_refuses_to_succeed_without_real_acceptance(
+    repo, tmp_path, monkeypatch, verifier, why
+):
+    """The PRODUCTION acceptance gate, driven through the real driver closure.
+
+    Without this, `passed = True` (acceptance disabled entirely) and dropping the
+    `bool(checks)` guard (so an EMPTY check list passes vacuously) both survived a
+    fully green suite — the E2E test substitutes its own producer, so ~445 lines
+    of driver wiring were dead to the tests. A Task C could then reach SUCCEEDED
+    with a durable Proof and pin refs/umh/composed with ZERO verification, and
+    Task D would lease from that unverified commit as a trusted base.
+    """
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    from substrate.organism.worktree_sandbox import SandboxManager
+
+    store = _store(tmp_path, "neg")
+    sandbox = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "leases"),
+        store_dir=str(tmp_path / "sandboxes"),
+        max_parallel=2,
+    )
+    driver = _driver_for(repo, tmp_path, store, sandbox)
+    leased, packet, lease, grant = _leased_composition(repo, tmp_path, store, driver)
+
+    def _raises(attempt, **kw):
+        raise RuntimeError("verifier exploded")
+
+    monkeypatch.setattr(driver, "_composition_acceptance_verifier", lambda: verifier or _raises)
+    produce = driver._composition_producer()
+    assert produce is not None
+
+    settled = produce(attempt=leased, packet=packet, lease=lease, grant=grant)
+
+    assert settled.status != _S.SUCCEEDED.value, (
+        f"composition SUCCEEDED despite {why} — the acceptance gate is not enforcing"
+    )
+    # VERIFYING has no BLOCKED target, so a rejected acceptance settles FAILED —
+    # the same terminal the poller uses for verification_rejected. Either way it
+    # is terminal and its lease must be gone.
+    assert settled.status in (_S.FAILED.value, _S.BLOCKED.value), settled.status
+    assert not settled.proof_id, "no Proof may be minted without real acceptance"
+    assert store.active_lease_for_task(TASK_C) is None, (
+        "a refused composition must not hold its lease/sandbox slot"
+    )
+
+
+def test_real_acceptance_verifier_refuses_out_of_scope_composition(repo, tmp_path, monkeypatch):
+    """Drive the REAL `_composition_acceptance_verifier` check assembly.
+
+    The union-scope check is the only thing preventing composition — a
+    control-plane-performed mutation — from putting content into the trusted
+    downstream base that a WORKER attempt would have been refused for. It shipped
+    dead (zero callers of `verify_composed_scope`) until this test forced it to
+    be wired.
+
+    The confined pytest run needs bwrap + the fixture, so only THAT boundary is
+    stubbed; the packet-identity, contract hash-match, ancestry, content
+    equivalence, collection-floor and scope-union checks are all real.
+    """
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
+    from substrate.execution.attempts import verifier_isolation as vi
+    from substrate.organism.worktree_sandbox import SandboxManager
+
+    store = _store(tmp_path, "scope")
+    sandbox = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "leases"),
+        store_dir=str(tmp_path / "sandboxes"),
+        max_parallel=2,
+    )
+    driver = _driver_for(repo, tmp_path, store, sandbox)
+    leased, packet, lease, grant = _leased_composition(repo, tmp_path, store, driver)
+
+    # Stub ONLY the confined suite boundary (needs bwrap + fixture).
+    monkeypatch.setattr(
+        vi,
+        "run_confined_verifier_checks",
+        lambda **kw: ([SimpleNamespace(check_id="confined_suite", ok=True)], None),
+    )
+    # The persisted contract must hash-match the canonical Task C contract.
+    from substrate.execution.attempts import field_task_scope as fts
+
+    packet.desired_end_state = fts.task_contract_for(fts.INTEGRATION)
+    # And the validated map must name THIS packet as the integration Task.
+    monkeypatch.setattr(driver, "_validated_integration_packet_id", lambda: TASK_C)
+
+    accept = driver._composition_acceptance_verifier()
+    assert accept is not None
+
+    composed = (
+        resolve_composed_commit(
+            repo=repo, candidate=CAND, run_id=RUN, task_id=TASK_C, attempt_id=leased.attempt_id
+        )
+        or compose_predecessors(
+            repo=repo,
+            candidate=CAND,
+            run_id=RUN,
+            task_id=TASK_C,
+            attempt_id=leased.attempt_id,
+            predecessor_commits=resolve_predecessor_commits(
+                repo=repo,
+                candidate=CAND,
+                run_id=RUN,
+                store=store,
+                dependency_task_ids=[TASK_A, TASK_B],
+            ),
+        ).composed_commit
+    )
+    preds = resolve_predecessor_commits(
+        repo=repo,
+        candidate=CAND,
+        run_id=RUN,
+        store=store,
+        dependency_task_ids=[TASK_A, TASK_B],
+    )
+
+    # (1) In-scope: every real check passes.
+    checks, _ev = accept(leased, composed_commit=composed, predecessor_commits=preds, packet=packet)
+    ids = {c.check_id for c in checks}
+    assert "composition_scope_union" in ids, "the scope-union check must actually run"
+    assert all(c.ok for c in checks), [c.detail for c in checks if not c.ok]
+
+    # (2) NARROW the persisted scope so the composed delta falls outside it.
+    packet.requirements = {"writable_path_scope": ["docs"], "scope_declared": True}
+    checks2, _ev2 = accept(
+        leased, composed_commit=composed, predecessor_commits=preds, packet=packet
+    )
+    scope_check = next(c for c in checks2 if c.check_id == "composition_scope_union")
+    assert not scope_check.ok, (
+        "a composed delta outside the declared union scope must FAIL — otherwise "
+        "composition can write where a worker would have been refused"
+    )
+    assert not all(c.ok for c in checks2)
+
+
+def test_sweep_derives_the_binding_when_the_caller_omits_it(repo, tmp_path):
+    """A caller that does NOT pass repo/candidate/run must STILL release refs.
+
+    Two of the three production callers (`wave2_attempt_runner._run_teardown`,
+    the run's own authoritative teardown, and `recover_stale_runs`) do not know
+    the candidate sha. An explicit-args-only design left them reporting
+    `zero_ref_residue=True` over refs they never looked at — a leak reported as
+    clean. The run root already encodes the binding, so the sweep derives it.
+    """
     from substrate.execution.attempts.run_teardown import sweep_run
 
     _base, a, b = _two_lanes(repo)
@@ -1537,15 +1878,34 @@ def test_sweep_without_repo_binding_cannot_claim_zero_refs(repo, tmp_path):
     )
     run_root = str(tmp_path / "candidates" / "wave2" / CAND / "targets" / RUN)
 
-    unbound = sweep_run(run_root)  # the pre-packet call shape
-    assert unbound.refs_deleted == [], "an unbound sweep cannot delete refs"
-    assert list_composed_refs(repo=repo, candidate=CAND, run_id=RUN), (
-        "the composed ref must still be present — an unbound sweep leaked it"
-    )
+    unbound = sweep_run(run_root)  # the OLD call shape the runner still uses
+    assert unbound.refs_deleted, "the sweep must derive the binding and delete the refs"
+    assert unbound.zero_ref_residue is True
+    assert list_composed_refs(repo=repo, candidate=CAND, run_id=RUN) == []
 
-    bound = sweep_run(run_root, repo_root=repo, candidate=CAND, run_id=RUN)
-    assert bound.refs_deleted, "the BOUND sweep must actually delete the refs"
-    assert bound.zero_ref_residue is True
+
+def test_sweep_on_a_non_candidate_path_is_a_clean_noop(tmp_path):
+    """A genuinely non-candidate run root has no protected refs — not an error."""
+    from substrate.execution.attempts.run_teardown import sweep_run
+
+    res = sweep_run(str(tmp_path / "plain" / "run"))
+    assert res.refs_deleted == []
+    assert res.ref_residue == []
+    assert res.zero_ref_residue is True
+
+
+def test_run_binding_resolution_refuses_ambiguity():
+    """Both components must come from ONE anchor match — resolving them from
+    independent anchors is what produced silently misattributed refs."""
+    from substrate.execution.attempts.composition import resolve_run_binding
+
+    repo, cand, run = resolve_run_binding(f"/var/lib/umh/candidates/wave2/{CAND}/targets/{RUN}")
+    assert (cand, run) == (CAND, RUN)
+    assert repo.endswith("fixture")
+
+    ambiguous = f"/x/candidates/wave2/{CAND}/targets/runA/candidates/wave2/other/targets/runB"
+    assert resolve_run_binding(ambiguous) == ("", "", "")
+    assert resolve_run_binding("/not/a/candidate/path") == ("", "", "")
     assert list_composed_refs(repo=repo, candidate=CAND, run_id=RUN) == []
 
 

@@ -637,6 +637,7 @@ class FieldControlPlaneDriver:
                 mint_composition_proof,
                 resolve_predecessor_commits,
             )
+            from substrate.execution.attempts.terminalization import terminalize
 
             store = control_plane._store
             task_id = str(getattr(attempt, "task_id", ""))
@@ -644,20 +645,55 @@ class FieldControlPlaneDriver:
             verifier_identity = f"verifier:{_INTEGRATOR_ROLE_ID}"
 
             def _block(reason: str) -> Any:
+                """Refuse this composition, choosing the LEGAL terminal for the
+                state it is actually in, then release its resources.
+
+                VERIFYING has no BLOCKED target — ``TRANSITIONS['verifying']`` is
+                ``('succeeded','failed')`` — so a single hardcoded BLOCKED left a
+                failed acceptance STRANDED in VERIFYING with an ACTIVE lease and
+                its sandbox slot held (measured: `illegal transition
+                'verifying' → 'blocked'`, swallowed by the handler below). A
+                rejected verification is a FAILED attempt, which is exactly the
+                terminal the poller uses for `verification_rejected`.
+                """
                 fresh = store.get_attempt(attempt.attempt_id) or attempt
+                to_status = (
+                    _S.FAILED.value if fresh.status == _S.VERIFYING.value else _S.BLOCKED.value
+                )
                 try:
-                    return store.transition_cas(
+                    settled_fail = store.transition_cas(
                         fresh.attempt_id,
-                        _S.BLOCKED.value,
+                        to_status,
                         fresh.record_version,
-                        (_S.LEASED.value, _S.READY.value, _S.VERIFYING.value),
-                        "scheduler",
+                        (fresh.status,),
+                        "composer:control-plane",
                         reason[:200],
-                        updates={"blocked_reason": reason[:200]},
+                        updates={"blocked_reason": reason[:200], "error": reason[:200]},
                     )
-                except Exception as exc:  # noqa: BLE001
-                    logger.error("could not block composition %s: %s", fresh.attempt_id, exc)
+                except Exception as exc:  # noqa: BLE001 - recorded, never swallowed
+                    logger.error("could not refuse composition %s: %s", fresh.attempt_id, exc)
                     return fresh
+
+                # FAILED is terminal, so its lease/worktree must be released or
+                # the slot is held for the rest of the run. BLOCKED is not
+                # terminal (retry may re-admit), so terminalize would refuse it.
+                if to_status == _S.FAILED.value:
+                    try:
+                        terminalize(
+                            attempt=settled_fail,
+                            reason="verification_rejected",
+                            lease_manager=control_plane._lease_manager(),
+                            run_root=control_plane._run_root(),
+                            spool=control_plane._spool,
+                            raise_on_security_failure=False,
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        logger.error(
+                            "composition %s failure-terminalization raised: %s",
+                            settled_fail.attempt_id,
+                            exc,
+                        )
+                return settled_fail
 
             try:
                 predecessors = resolve_predecessor_commits(
@@ -751,6 +787,51 @@ class FieldControlPlaneDriver:
                 result.composed_commit[:12],
                 proof.proof_id,
             )
+
+            # TERMINALIZE. The composition attempt NEVER enters the spool, so the
+            # poller — the only other production terminalize caller — can never
+            # see it. Without this call the lease stays ACTIVE forever, its
+            # sandbox slot is never freed (at the production max_parallel=2 that
+            # starves the rest of the run), and the attempt's credential home is
+            # never destroyed. Composition is the ONE terminal path that has to
+            # terminalize itself, because it is the one attempt the spool does
+            # not carry.
+            #
+            # The composed ref is already durable, and `_retain_verified` skips
+            # worker retention for this kind, so this is a pure resource release.
+            # It is deliberately non-fatal: a cleanup fault must not un-succeed a
+            # verified composition, but it IS recorded (never silently dropped),
+            # and the lease-withheld path is surfaced loudly because it blocks
+            # retry admission for this Task.
+            try:
+                term = terminalize(
+                    attempt=settled,
+                    reason="succeeded",
+                    lease_manager=control_plane._lease_manager(),
+                    run_root=control_plane._run_root(),
+                    spool=control_plane._spool,
+                    raise_on_security_failure=False,
+                )
+                if not term.ok:
+                    logger.error(
+                        "composition %s terminalization left errors: %s residue=%s",
+                        settled.attempt_id,
+                        term.errors,
+                        term.credential_residue,
+                    )
+                if term.lease_withheld_reason:
+                    logger.error(
+                        "composition %s lease WITHHELD (%s) — lease %s stays ACTIVE",
+                        settled.attempt_id,
+                        term.lease_withheld_reason,
+                        term.lease_id or "(none)",
+                    )
+            except Exception as exc:  # noqa: BLE001 - recorded, never swallowed
+                logger.error(
+                    "composition %s terminalization raised: %s — lease/home may leak",
+                    settled.attempt_id,
+                    exc,
+                )
             return settled
 
         return _produce
@@ -897,6 +978,7 @@ class FieldControlPlaneDriver:
                 assert_descends_from_all,
                 remove_verification_worktree,
                 verification_worktree,
+                verify_composed_scope,
                 verify_predecessor_content,
             )
             from substrate.execution.attempts.verification import VerificationCheck
@@ -989,6 +1071,34 @@ class FieldControlPlaneDriver:
                             f"all {len(produced)} predecessor effects survive"
                             if content_ok
                             else f"predecessor content lost: {violations[:5]}"
+                        ),
+                    )
+                )
+
+                # UNION-SCOPE containment. Every composed delta must be inside the
+                # Task's PERSISTED writable_path_scope, judged by the same
+                # `paths_outside` authority the worker diff-scope check uses.
+                # Without it, composition could introduce content into the trusted
+                # downstream base that a worker attempt would have been refused
+                # for — the one bypass a control-plane-performed mutation could
+                # otherwise open.
+                from substrate.execution.attempts.field_task_scope import allowed_paths_for
+
+                scope_ok, outside = verify_composed_scope(
+                    repo=repo,
+                    base=base_sha,
+                    composed_tree=composed_commit,
+                    allowed_paths=allowed_paths_for(packet),
+                )
+                checks.append(
+                    VerificationCheck(
+                        check_id="composition_scope_union",
+                        kind="diff",
+                        ok=scope_ok,
+                        detail=(
+                            "every composed delta is inside the declared union scope"
+                            if scope_ok
+                            else f"composed delta OUTSIDE the declared scope: {outside[:5]}"
                         ),
                     )
                 )

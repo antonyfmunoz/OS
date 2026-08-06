@@ -454,9 +454,26 @@ def _release_run_refs(
     it stays in ``ref_residue``, so no report can claim zero residue on the
     strength of having written the leak down.
     """
+    from substrate.execution.attempts.composition import resolve_run_binding
+
     if not (repo_root and candidate and run_id):
-        # Not a candidate-shaped run (e.g. a unit-test sweep). Nothing to do —
-        # and NOT an error: this sweep is the C-2 authority for many callers.
+        # DERIVE the binding from the run root rather than skipping.
+        #
+        # Skipping here is how a leak becomes a green zero-residue claim: two of
+        # the three production callers (the runner's own `_run_teardown` and
+        # `recover_stale_runs`) do not know the candidate sha, so an
+        # explicit-args-only design left them reporting `zero_ref_residue=True`
+        # over refs they never looked at. The run root already encodes the
+        # binding, so derive it and only give up when the path genuinely is not
+        # candidate-shaped (e.g. a unit-test sweep).
+        derived_repo, derived_cand, derived_run = resolve_run_binding(result.run_root)
+        repo_root = repo_root or derived_repo
+        candidate = candidate or derived_cand
+        run_id = run_id or derived_run
+
+    if not (repo_root and candidate and run_id):
+        # Genuinely not a candidate-shaped run. NOT an error: this sweep is the
+        # C-2 authority for many callers, most of which have no protected refs.
         result.steps.append("no repo/candidate/run binding — no protected refs to release")
         return
     if not os.path.isdir(repo_root):

@@ -311,6 +311,40 @@ def release_composed_refs(*, repo: str, candidate: str, run_id: str) -> list[str
     return deleted
 
 
+def resolve_run_binding(run_root: str) -> tuple[str, str, str]:
+    """``(repo, candidate, run_id)`` for a run root, or ``("", "", "")``.
+
+    Canonical layout: ``.../candidates/<lane>/<candidate>/targets/<run>/``, and
+    the run's protected refs live in ``<run_root>/fixture``.
+
+    BOTH components come from ONE anchor match. Resolving them from independent
+    anchors is what previously produced silently misattributed refs: on
+    ``.../candidates/wave2/<sha>/targets/A/targets/B/f`` the candidate came from
+    the last ``candidates`` while the run came from the last ``targets``, so the
+    two named different levels of the same path. Ambiguity is refused, never
+    guessed.
+
+    This is the ONE binding resolver every teardown caller uses, so a caller
+    cannot accidentally sweep with a partial binding and then report zero
+    residue over refs it never looked at.
+    """
+    parts = [p for p in str(run_root or "").split(os.sep) if p]
+    found: tuple[str, str] | None = None
+    for i, seg in enumerate(parts):
+        if seg != "candidates" or len(parts) <= i + 4 or parts[i + 3] != "targets":
+            continue
+        cand, run = parts[i + 2], parts[i + 4]
+        if cand in ("candidates", "targets") or run in ("candidates", "targets"):
+            continue
+        if found is not None and found != (cand, run):
+            logger.warning("ambiguous candidate/run binding in %r — refusing to guess", run_root)
+            return "", "", ""
+        found = (cand, run)
+    if found is None:
+        return "", "", ""
+    return os.path.join(run_root, "fixture"), found[0], found[1]
+
+
 def _list_refs_under(
     repo: str, root: str, candidate: str, run_id: str, *, caller: str
 ) -> list[str]:

@@ -190,25 +190,120 @@ invocation.
 
 ---
 
+## Independent review round (two reviewers) — 4 real defects found and fixed
+
+Both reviewers ran against `86904563e`. **Every finding was reproduced against
+source before being accepted**; none was taken on assertion. The composition
+*logic* (git semantics, persisted-kind authority, lifecycle guards, proof
+idempotency, immutability, ref-namespace validation, CPU gating, base resolution)
+was independently attacked — 25+ concrete attacks in the security review, all
+refused — and held. **All four defects were in the WIRING**, and all four were
+masked by the same root cause: the E2E test substituted its own producer, so ~445
+lines of driver seam were dead to the suite.
+
+### CRITICAL-1 — a composition attempt was never terminalized
+
+**Reproduced:** the only production `terminalize()` callers are `poller.py:352`
+and `:378`, both driven exclusively by `spool.drain_results()`. A composition
+never enters the spool, so the poller can never see it. The lease stayed **ACTIVE
+forever**, its sandbox slot was never freed (at the production `max_parallel=2`
+that starves the rest of the run), and the credential home was never destroyed.
+
+**Fixed:** `_produce` now terminalizes its own SUCCEEDED attempt
+(`field_control_plane.py`). Composition is the one terminal path that must
+terminalize itself, precisely because it is the one attempt the spool does not
+carry. Non-fatal but loudly recorded — a cleanup fault must not un-succeed a
+verified composition.
+
+### CRITICAL-2 — two of three `sweep_run` callers reported clean over live refs
+
+**Reproduced:** `wave2_attempt_runner.py:417` (the run's OWN authoritative
+teardown, on every exit path) and `run_teardown.py:595` (`recover_stale_runs`)
+both call `sweep_run` without the binding. The explicit-args-only design took the
+early return and reported `zero_ref_residue=True` over refs it never looked at.
+Measured: 2 live refs surviving, result claiming clean.
+
+**Fixed:** `sweep_run` now DERIVES the binding from the run root via the one
+canonical `resolve_run_binding()` when a caller omits it. This closes all three
+callers **without touching `wave2_attempt_runner.py`, which is not in the
+authorized surface**. Verified against the runner's exact call shape
+(`sweep_run(run_root, spool=spool)`): 2 refs → 0.
+
+### CRITICAL-3 — the production acceptance gate was never exercised
+
+**Reproduced:** `passed = True` (acceptance disabled entirely) and dropping the
+`bool(checks)` guard (so an EMPTY check list passes vacuously) BOTH survived a
+fully green suite. A Task C could reach SUCCEEDED with a durable Proof and pin
+`refs/umh/composed` with **zero verification**, and Task D would lease from that
+unverified commit as a trusted base.
+
+**Fixed:** new parametrized test drives the REAL
+`_composition_producer` against empty checks / a failing check / a raising
+verifier, asserting the attempt does NOT succeed and mints no Proof. Both
+reviewer mutations now die.
+
+### CRITICAL-4 — found by the new tests: a refused composition stranded in VERIFYING
+
+`TRANSITIONS['verifying']` is `('succeeded','failed')` — there is **no BLOCKED
+target**. `_block()` hardcoded BLOCKED, so a failed acceptance raised `illegal
+transition 'verifying' → 'blocked'`, which the handler swallowed, leaving the
+attempt stranded in VERIFYING with an ACTIVE lease and its slot held.
+
+**Fixed:** `_block()` selects the legal terminal for the state it is actually in
+(FAILED from VERIFYING — the same terminal the poller uses for
+`verification_rejected`) and terminalizes it, so a refused composition releases
+its resources.
+
+### HIGH — `verify_composed_scope` shipped dead
+
+Zero callers of any kind. It is the ONLY check preventing composition — a
+control-plane-performed mutation — from putting content into the trusted
+downstream base that a WORKER attempt would have been refused for. **Fixed:**
+wired into the acceptance check list as `composition_scope_union`, with a test
+that narrows the persisted scope and asserts the check fails.
+
+### Post-review verification
+
+| Item | Before review | After fixes |
+|---|---|---|
+| Fan-in tests | 43 | **50** |
+| Mutations | 29 killed / 0 survived — **but the acceptance layer was never covered** | **38 killed / 0 survived / 0 unapplied** |
+| Reviewer Mutation A (`bool(checks)` removed) | **SURVIVED** | **KILLED** |
+| Reviewer Mutation B (`passed = True`) | **SURVIVED** | **KILLED** |
+
+The pre-review commit message's "29 mutations across all 10 layers, 0 survivors"
+was true as stated but **misleading**: the production acceptance layer had no
+mutation coverage at all. That is corrected here rather than left standing.
+
+---
+
 ## Bounded residuals (stated, not hidden)
 
-1. **The driver's own `_composition_producer` is not exercised end-to-end by an
-   automated test.** The production-shaped A+B→C→D test drives the real scheduler
-   with a behaviorally equivalent local producer, because the driver's closure
-   requires a full candidate state tree (`execution_binding.json`, canonical plan /
-   packet / grant JSONL) that only a real field run materializes. What IS proven
-   automatically: all four closures construct correctly for a candidate-shaped path
-   and return `None` cleanly for a non-candidate path; the producer is wired into
-   `_build_scheduler`; and the scheduler's composition fork, base threading and
-   predicate are each mutation-killed through the production path. First field run
-   is the remaining proof.
+1. **`_validated_integration_packet_id` is not exercised end-to-end.** The
+   scenario-map gate (`validate_against_run`) needs a full candidate state tree
+   (`execution_binding.json` plus canonical plan / packet / grant JSONL) that only
+   a real field run materializes, so the real-driver tests stub that one lookup.
+   What IS proven automatically: the gate is CALLED (not a bare mapping read), the
+   binding resolver refuses ambiguity, all four closures construct for a
+   candidate-shaped path and return `None` cleanly otherwise, and the producer,
+   acceptance gate, scope union, terminalization and failure paths are each
+   mutation-killed through the real driver. First field run is the remaining proof.
 
-2. **`_composition_acceptance_verifier` runs a confined full-suite pytest against an
-   isolated checkout of the composed commit.** Its three conjuncts (suite exit code,
-   predecessor-derived collection floor, both-parent ancestry) are individually
-   tested, but the bwrap-confined execution itself is only reachable on a host with
-   the verifier fixture present — same first-field-run caveat.
+2. **The bwrap-confined suite execution inside the acceptance verifier is stubbed
+   in tests** (it needs bwrap + the seeded fixture). Every other check in that
+   assembly — packet identity, contract hash-match, ancestry, content equivalence,
+   collection floor, scope union — runs for real, and the confined seam itself is
+   already covered by the existing verifier-isolation suite.
 
 3. **`LeaseManager.expire_stale` still has zero production callers.** Not introduced
    by this packet and not in its authorized surface; recorded because the recovery
    design depends on knowing it.
+
+4. **`field_control_plane.py:454` has a pre-existing `except Exception: pass`** on a
+   manifest write (flagged by the security review). It predates this packet and is
+   outside its scope; recorded rather than silently widened into.
+
+5. **`worker_identity` is not in `ATTEMPT_IMMUTABLE_FIELDS`.** Safe today because the
+   composition guard reads the PERSISTED value before `updates` are applied, so a
+   caller cannot blank it to slip through. Defense-in-depth note, not an exploit;
+   `records.py` hardening is out of this packet's scope.
