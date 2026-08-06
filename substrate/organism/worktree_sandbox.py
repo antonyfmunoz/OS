@@ -109,11 +109,19 @@ class WorktreeSandbox:
     head_commit: str = ""
     error: str = ""
     completed_at: float = 0.0
+    # Set when this sandbox's slot was released with its branch DELIBERATELY
+    # preserved (a verified commit could not be retained and must stay
+    # reachable). It is STICKY and PERSISTED: once true, no later cleanup may
+    # delete the branch. Without it, the documented operator recovery action —
+    # revoking the withheld lease — ran an ordinary `cleanup_sandbox` on the same
+    # sandbox_id and destroyed the very commit the withhold protected. Measured.
+    branch_preserved: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "sandbox_id": self.sandbox_id,
             "branch_name": self.branch_name,
+            "branch_preserved": self.branch_preserved,
             "worktree_path": self.worktree_path,
             "base_commit": self.base_commit,
             "head_commit": self.head_commit,
@@ -215,6 +223,10 @@ class SandboxManager:
                     pr_number=entry.get("pr_number", 0),
                     error=entry.get("error", ""),
                     completed_at=entry.get("completed_at", 0),
+                    # Must survive restart: a preserved branch protects a verified
+                    # commit, and a restart that forgot the flag would let the
+                    # next cleanup delete it.
+                    branch_preserved=bool(entry.get("branch_preserved", False)),
                 )
                 self._sandboxes[sb.sandbox_id] = sb
                 for fp in sb.affected_files:
@@ -440,7 +452,15 @@ class SandboxManager:
         clears the leases but never the slots. Measured before this parameter
         existed.
 
-        The default is unchanged: branch deleted, historical behaviour.
+        Preservation is STICKY and PERSISTED (``WorktreeSandbox.branch_preserved``):
+        once a branch has been preserved, EVERY later cleanup of that sandbox
+        refuses to delete it, including a call that passes the default. Without
+        that, the documented operator recovery — revoking the withheld lease —
+        ran an ordinary cleanup on the same ``sandbox_id`` and destroyed the
+        commit the withhold existed to protect. Measured.
+
+        The default is unchanged for every sandbox that was never preserved:
+        branch deleted, historical behaviour.
         """
         sb = self._sandboxes.get(sandbox_id)
         if not sb:
@@ -462,7 +482,16 @@ class SandboxManager:
                 # checked out and makes it undeletable/unreusable. Prune it.
                 _run_git(["worktree", "prune"], cwd=self._repo_root)
 
-        if sb.branch_name and not preserve_branch:
+        # STICKY. Once a branch has been preserved, no later cleanup may delete
+        # it — not an operator revoke, not a teardown sweep, not a second call
+        # with the default argument. Measured before this flag existed: after a
+        # withhold, `LeaseManager.revoke()` (the documented operator recovery)
+        # ran an ordinary cleanup on the same sandbox_id, deleted the branch, and
+        # the verified commit did not survive `git gc`.
+        if preserve_branch and not sb.branch_preserved:
+            sb.branch_preserved = True
+
+        if sb.branch_name and not sb.branch_preserved:
             _run_git(
                 ["branch", "-D", sb.branch_name],
                 cwd=self._repo_root,

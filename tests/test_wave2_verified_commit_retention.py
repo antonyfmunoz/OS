@@ -1019,6 +1019,98 @@ def test_default_cleanup_still_deletes_the_branch(mgr, repo):
     assert sb.branch_name not in branches, "ordinary cleanup must still delete the branch"
 
 
+def test_preservation_is_sticky_across_later_cleanups_and_restart(tmp_path, repo):
+    """A preserved branch must survive EVERY later cleanup of that sandbox.
+
+    Preservation was initially per-CALL, so a second `cleanup_sandbox(sandbox_id)`
+    with the default argument deleted the branch and the commit did not survive
+    `gc`. That is reachable in production: `LeaseManager.revoke()` — the
+    documented operator recovery for a withheld lease — calls exactly that.
+    """
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "sticky-wt"),
+        store_dir=str(tmp_path / "sticky-sb"),
+        max_parallel=4,
+    )
+    sb = mgr.create_sandbox(candidate_id="c3", candidate_slug="s3")
+    open(os.path.join(sb.worktree_path, "f.txt"), "w").write("x\n")
+    _git(["add", "-A"], sb.worktree_path)
+    _git(["commit", "-qm", "verified"], sb.worktree_path)
+    sha = _git(["rev-parse", "HEAD"], sb.worktree_path).stdout.strip()
+
+    mgr.cleanup_sandbox(sb.sandbox_id, preserve_branch=True)
+    mgr.cleanup_sandbox(sb.sandbox_id)  # default
+    mgr.cleanup_sandbox(sb.sandbox_id, preserve_branch=False)  # EXPLICIT False
+
+    # ...and after a full restart, which re-reads the persisted index.
+    restarted = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "sticky-wt"),
+        store_dir=str(tmp_path / "sticky-sb"),
+        max_parallel=4,
+    )
+    assert restarted.get_sandbox(sb.sandbox_id).branch_preserved is True, (
+        "the preserve flag must be PERSISTED — a restart that forgot it would let "
+        "the next cleanup delete the branch"
+    )
+    restarted.cleanup_sandbox(sb.sandbox_id)
+
+    _git(["reflog", "expire", "--expire=now", "--all"], repo)
+    _git(["gc", "--prune=now", "-q"], repo)
+    assert sb.branch_name in _git(["branch", "--list", sb.branch_name], repo).stdout, (
+        "no later cleanup may delete a preserved branch"
+    )
+    assert _git(["cat-file", "-e", f"{sha}^{{commit}}"], repo).returncode == 0, (
+        "the verified commit must survive every later cleanup + gc"
+    )
+
+
+def test_operator_revoke_after_a_withhold_does_not_destroy_the_commit(
+    tmp_path, candidate_repo, monkeypatch
+):
+    """THE reachable trigger, end to end through the production caller.
+
+    A withheld lease is recovered by an operator revoke (or expiry then revoke).
+    `LeaseManager.revoke()` runs `cleanup_sandbox` → `git branch -D`, so before
+    preservation was sticky this destroyed the verified commit the withhold had
+    just protected — the original field defect, reached by the documented
+    recovery action instead of by ordinary release.
+    """
+    from substrate.execution.attempts.leases import LeaseManager
+    from substrate.execution.attempts.poller import ControlPlanePoller
+
+    mgr = SandboxManager(
+        repo_root=candidate_repo,
+        worktree_base=str(tmp_path / "rev-wt"),
+        store_dir=str(tmp_path / "rev-sb"),
+        max_parallel=2,
+    )
+    store = _store(tmp_path, "revoke")
+    lm = LeaseManager(store, mgr, mutation_runner=_direct_runner)
+    poller = ControlPlanePoller(
+        store=store,
+        spool=None,
+        scheduler=None,
+        verify_fn=lambda **kw: None,
+        lease_manager=lm,
+        run_root=str(tmp_path / "rev-run"),
+    )
+    _r, verified, lease = _withhold_one(
+        mgr, store, lm, poller, candidate_repo, tag="rv", monkeypatch=monkeypatch
+    )
+
+    lm.expire_stale(now=time.time() + 10_000)
+    lm.revoke(lease.lease_id, "operator cleanup")
+    lm.release(lease.lease_id)
+
+    _git(["reflog", "expire", "--expire=now", "--all"], candidate_repo)
+    _git(["gc", "--prune=now", "-q"], candidate_repo)
+    assert _git(["cat-file", "-e", f"{verified}^{{commit}}"], candidate_repo).returncode == 0, (
+        "an operator revoke after a withhold must NOT destroy the preserved commit"
+    )
+
+
 def test_slot_preserve_refuses_a_sandbox_without_preserve_branch_support(tmp_path, repo):
     """FAIL CLOSED: a sandbox manager whose cleanup_sandbox lacks preserve_branch
     must NOT get the destructive call as a fallback."""

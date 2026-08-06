@@ -45,8 +45,8 @@ byte-identical to before.
 | `substrate/execution/attempts/terminalization.py` | `_retain_verified` ordered **before** `_release_lease`; retention gate blocks destructive cleanup; authoritative binding from persisted records; `retained_commit` / `lease_withheld_reason` / `sandbox_slot_freed` on the result; `_preserve_sandbox_slot` frees the concurrency slot on a withhold |
 | `substrate/execution/attempts/poller.py` | `_terminalize` distinguishes a **deliberate withhold** from a release fault, so the RV-HIGH-2 healer no longer force-revokes (revoke → `cleanup_sandbox` → `git branch -D` destroyed the commit the withhold protected) |
 | `substrate/execution/attempts/leases.py` | `acquire(base_commit=…)` → sandbox + `snapshot_ref`; signature-checked capability; divergence refused |
-| `substrate/organism/worktree_sandbox.py` | `create_sandbox(base_commit=…)`, fail-closed resolve, launched-base proof; `cleanup_sandbox(preserve_branch=…)` slot-release seam (default unchanged) |
-| `tests/test_wave2_verified_commit_retention.py` | **new** — 54 tests on the real shipped path, incl. the production `poller._terminalize` caller |
+| `substrate/organism/worktree_sandbox.py` | `create_sandbox(base_commit=…)`, fail-closed resolve, launched-base proof; `cleanup_sandbox(preserve_branch=…)` slot-release seam (default unchanged); `WorktreeSandbox.branch_preserved` sticky+persisted so no later cleanup can delete a preserved branch |
+| `tests/test_wave2_verified_commit_retention.py` | **new** — 56 tests on the real shipped path, incl. the production `poller._terminalize` caller |
 
 **Reverted byte-identically to the committed base** (composition removal):
 `substrate/execution/attempts/lifecycle.py`, `substrate/execution/attempts/records.py`,
@@ -397,7 +397,7 @@ canonical shape is present (`<anchor>/<lane>/<candidate>/targets/<run>/…`).
 
 ### Coverage added
 
-`tests/test_wave2_verified_commit_retention.py` (54 tests, all on the real path):
+`tests/test_wave2_verified_commit_retention.py` (56 tests, all on the real path):
 
 | Test | Proves |
 |---|---|
@@ -413,11 +413,69 @@ canonical shape is present (`<anchor>/<lane>/<candidate>/targets/<run>/…`).
 
 ### Mutation results
 
-**20 mutants, 20 killed, 0 survivors** — covering slot preservation (8), empty-base
-fail-closed (2), retention reachability and binding (7), and the poller's
-withhold distinction (3).
+**20 mutants, 20 killed, 0 survivors** at this point in the cycle — slot
+preservation (8), empty-base fail-closed (2), retention reachability and binding
+(7), the poller's withhold distinction (3). Four more were added for sticky
+preservation below; the final count is **24/24**.
 
 Two earlier survivors were investigated rather than papered over: one was a
 **proven equivalent mutant** (disabling a log-only `elif` branch), and the other
 (`base_commit=""`) exposed a genuine coverage gap that is now closed by
 `test_no_commit_attempt_does_not_publish_its_base_as_verified`.
+
+### Follow-on within the same cycle — preservation must be STICKY
+
+Found by my own hostile probing of the HIGH-1 fix **before** the independent
+review returned, and reachable in production today.
+
+Preservation was initially per-CALL. A **later** `cleanup_sandbox(sandbox_id)`
+with the default argument therefore deleted the preserved branch:
+
+```
+after preserve:  branch = auto/low-risk/s-25964c0e
+2nd ordinary cleanup returned: True | branch now: ''
+commit survives after 2nd cleanup: False
+```
+
+The trigger is not hypothetical — it is the **documented operator recovery** for a
+withheld lease. `LeaseManager.revoke()` (and `release()`) call exactly that
+cleanup, so recovering a withheld lease destroyed the very commit the withhold
+had just protected. End-to-end before the fix, through `poller._terminalize`:
+
+```
+withheld, lease status: active
+after expire, lease status: expired
+commit survives an operator revoke AFTER the withhold: False
+```
+
+**Fix.** `WorktreeSandbox.branch_preserved` — a sticky, **persisted** flag. Once a
+branch has been preserved, every later cleanup of that sandbox refuses to delete
+it: the default argument, an explicit `preserve_branch=False`, and a cleanup
+issued after a full process restart (the flag is written to and re-read from the
+sandbox index). Behaviour is unchanged for any sandbox that was never preserved.
+
+After the fix, the same end-to-end sequence:
+
+```
+commit survives operator revoke + release AFTER withhold: True
+branches: 'auto/low-risk/attempt-ea-1-02d4c1f5\n* master'
+```
+
+Pinned by `test_preservation_is_sticky_across_later_cleanups_and_restart` and
+`test_operator_revoke_after_a_withhold_does_not_destroy_the_commit`.
+
+### Acknowledged residual — preserved branches are not auto-collected
+
+A preserved branch is deliberately immune to cleanup, so preserved branches
+**accumulate** for the life of the fixture repo, one per withheld attempt. This is
+the same disposition as the retained refs above: bounded (one per withhold, each
+pinning one small commit) and owner-collectable, but not automatic. Reclaiming
+them safely requires knowing the retention condition was resolved, which is the
+bounded-retry work packet — outside this cycle's authorized surface. Recorded,
+not silently accepted.
+
+### Final mutation results
+
+**24 mutants, 24 killed, 0 survivors** — slot preservation (8), sticky
+preservation and its persistence (4), empty-base fail-closed (2), retention
+reachability and binding (7), poller withhold distinction (3).
