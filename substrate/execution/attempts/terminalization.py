@@ -393,52 +393,52 @@ def _resolve_retention_binding(attempt: Any, repo: str) -> tuple[str, str, str]:
     if run_id.startswith("w2-"):
         run_id = run_id[3:]
 
-    candidate = ""
     parts = [p for p in str(repo or "").split(os.sep) if p]
-    # Anchor on the LAST occurrence: a path may legitimately contain the segment
-    # more than once (e.g. /a/candidates/x/candidates/wave2/<sha>/...), and
-    # `parts.index` would then take the first and resolve the candidate to the
-    # literal "candidates" — a WRONG-but-plausible binding, which is worse than
-    # failing because it writes a ref under a namespace that is not this run's.
-    # Measured before this fix.
-    if _CANDIDATE_ANCHOR in parts:
-        i = len(parts) - 1 - parts[::-1].index(_CANDIDATE_ANCHOR)
-        # <anchor>/<lane>/<candidate>/targets/<run-id>/...  — the candidate is
-        # two past the anchor. Accept it ONLY when the full canonical shape is
-        # present: the segment after the candidate must be the "targets" marker.
-        #
-        # Without that check the resolver emits WRONG-BUT-PLAUSIBLE bindings with
-        # no error — measured on `/a/candidates/wave2/candidates/targets/<run>/f`
-        # (candidate resolved to the run id) and on
-        # `/candidates/candidates/x/targets/<run>/f` (candidate resolved to the
-        # literal "targets"). A ref written under another namespace is worse than
-        # no ref: it silently misattributes verified work.
-        if len(parts) > i + 3 and parts[i + 3] == _TARGETS_ANCHOR:
-            candidate = parts[i + 2]
-
-    # Fall back to the run's own targets/<run-id> segment when correlation_id is
-    # absent OR degenerate (e.g. exactly "w2-", which strips to empty) but the
-    # path still names the run — the path is equally authoritative.
-    if not run_id and _TARGETS_ANCHOR in parts:
-        j = len(parts) - 1 - parts[::-1].index(_TARGETS_ANCHOR)
-        if len(parts) > j + 1:
-            run_id = parts[j + 1]
-
     detail = f"correlation_id={getattr(attempt, 'correlation_id', '')!r} repo={repo!r}"
 
-    # When BOTH sources name a run and they DISAGREE, we cannot tell which is
-    # authoritative. Picking one would write the ref under a namespace that may
-    # belong to another run; refuse instead. (The caller then treats this as a
-    # retention failure when a commit is at risk, which is the safe direction.)
-    if run_id and _TARGETS_ANCHOR in parts:
-        j = len(parts) - 1 - parts[::-1].index(_TARGETS_ANCHOR)
-        path_run = parts[j + 1] if len(parts) > j + 1 else ""
-        if path_run and path_run != run_id:
-            return "", "", f"{detail} (run mismatch: correlation={run_id!r} path={path_run!r})"
+    # ONE anchor match yields BOTH components. Resolving `candidate` and the
+    # path's run from INDEPENDENT anchors is what produced silently misattributed
+    # refs: the candidate was taken from the last `candidates` while the run came
+    # from the last `targets`, so on `.../candidates/wave2/<sha>/targets/A/targets/B/f`
+    # the two named different levels of the same path and the ref landed under
+    # run B with errors=0. Measured. Both now come from the same match, or the
+    # binding is refused.
+    #
+    # Canonical shape, indices relative to the anchor at i:
+    #   candidates / <lane> / <candidate> / targets / <run-id> / ...
+    #      i          i+1        i+2          i+3       i+4
+    path_candidate = ""
+    path_run = ""
+    for i in (idx for idx, p in enumerate(parts) if p == _CANDIDATE_ANCHOR):
+        if len(parts) <= i + 4 or parts[i + 3] != _TARGETS_ANCHOR:
+            continue
+        cand, prun = parts[i + 2], parts[i + 4]
+        # A component that is itself one of the structural markers means the path
+        # does not have the canonical shape — refuse rather than guess.
+        if cand in (_CANDIDATE_ANCHOR, _TARGETS_ANCHOR):
+            continue
+        if prun in (_CANDIDATE_ANCHOR, _TARGETS_ANCHOR):
+            continue
+        if path_candidate and (cand, prun) != (path_candidate, path_run):
+            # More than one DIFFERENT canonical match in one path: ambiguous.
+            return "", "", f"{detail} (ambiguous: multiple candidate/run matches)"
+        path_candidate, path_run = cand, prun
 
-    if not candidate or not run_id:
+    if not path_candidate:
         return "", "", detail
-    return candidate, run_id, detail
+
+    # The path names the run too. When correlation_id also names one and they
+    # DISAGREE, we cannot tell which is authoritative — picking either could write
+    # into another run's namespace. Refuse. When correlation_id is absent or
+    # degenerate (e.g. exactly "w2-", which strips to empty), the path is equally
+    # authoritative and supplies the run.
+    if run_id and path_run != run_id:
+        return "", "", f"{detail} (run mismatch: correlation={run_id!r} path={path_run!r})"
+    run_id = run_id or path_run
+
+    if not run_id:
+        return "", "", detail
+    return path_candidate, run_id, detail
 
 
 def _retain_verified(

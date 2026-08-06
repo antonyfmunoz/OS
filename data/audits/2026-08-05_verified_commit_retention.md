@@ -46,7 +46,7 @@ byte-identical to before.
 | `substrate/execution/attempts/poller.py` | `_terminalize` distinguishes a **deliberate withhold** from a release fault, so the RV-HIGH-2 healer no longer force-revokes (revoke → `cleanup_sandbox` → `git branch -D` destroyed the commit the withhold protected) |
 | `substrate/execution/attempts/leases.py` | `acquire(base_commit=…)` → sandbox + `snapshot_ref`; signature-checked capability; divergence refused |
 | `substrate/organism/worktree_sandbox.py` | `create_sandbox(base_commit=…)`, fail-closed resolve, launched-base proof; `cleanup_sandbox(preserve_branch=…)` slot-release seam (default unchanged); `WorktreeSandbox.branch_preserved` sticky+persisted so no later cleanup can delete a preserved branch |
-| `tests/test_wave2_verified_commit_retention.py` | **new** — 56 tests on the real shipped path, incl. the production `poller._terminalize` caller |
+| `tests/test_wave2_verified_commit_retention.py` | **new** — 67 tests on the real shipped path, incl. the production `poller._terminalize` caller |
 
 **Reverted byte-identically to the committed base** (composition removal):
 `substrate/execution/attempts/lifecycle.py`, `substrate/execution/attempts/records.py`,
@@ -476,6 +476,45 @@ not silently accepted.
 
 ### Final mutation results
 
-**24 mutants, 24 killed, 0 survivors** — slot preservation (8), sticky
+**28 mutants, 28 killed, 0 survivors** — slot preservation (8), sticky
 preservation and its persistence (4), empty-base fail-closed (2), retention
-reachability and binding (7), poller withhold distinction (3).
+reachability and binding (8), poller withhold distinction (3), plus the three
+raised by the independent review (see below).
+
+## Independent review disposition (reviewed `a374748a7`, fixed at head)
+
+The review executed the real production caller at the production concurrency
+limit. Its verdicts on the two authorized HIGHs: **HIGH-1 genuinely closed**
+(third Task admitted, both commits survive `gc`, both leases stay ACTIVE),
+**HIGH-2 genuinely closed** (empty / whitespace / `None` / nonexistent / garbage
+base all withhold with the commit alive). It also confirmed the
+`test_wave2_terminalization.py` stub change was **legitimate, not a weakening**
+— `create_sandbox` resolves a base or raises on both branches, so the old stub
+asserted a state production cannot reach.
+
+| Finding | Disposition |
+|---|---|
+| **CRITICAL-1** — a preserved branch is destroyed by every later cleanup, incl. `LeaseManager.revoke()` | **Already fixed** at `a301dafbd` (sticky `branch_preserved`), which the review did not see — it reviewed the parent commit. Its independent reproduction matches mine exactly. |
+| **HIGH-1** — binding resolver still emits wrong-but-plausible refs on two shapes | **Fixed here.** Confirmed reproducible at `a301dafbd` before fixing. |
+| **MEDIUM-1** — `worktree prune` mutant survives (zero coverage) | **Fixed here** — test added; the mutant now dies. |
+| **MEDIUM-2** — `sandbox_slot_freed` can always lie (no production reader) | **Fixed here** — tests now assert the OUTCOME (`active_sandboxes == 0`) and that a cleanup returning `False`/`None`/`0` or raising is never reported as freed. |
+
+### HIGH-1 — one anchor must yield BOTH components
+
+`candidate` was resolved from the last `candidates` anchor while the path's run
+came from the last `targets` anchor — **independent** anchors that can name
+different levels of the same path. Two shapes therefore wrote a real trusted ref
+into the wrong namespace with `errors=0`:
+
+| repo path | before | after |
+|---|---|---|
+| `…/candidates/wave2/targets/targets/<RUN>/fixture` | candidate `targets` | refused |
+| `…/candidates/wave2/aaaa/targets/RUN_A/targets/RUN_B/f` (correlation `RUN_B`) | `aaaa` / **`RUN_B`** — run read from a deeper level than the candidate | refused (run mismatch) |
+| the same path read consistently (correlation `RUN_A`) | — | `aaaa` / `RUN_A` |
+| `/candidates/candidates/x/targets/R/f` | candidate `targets` | `x` / `R` — a genuine canonical match, now read correctly |
+| canonical | `SHA1` / `<RUN>` | unchanged |
+
+Both components now come from a single anchor match (`candidates/<lane>/<candidate>/targets/<run>`),
+a component that is itself a structural marker is refused, and two *different*
+canonical matches in one path are refused as ambiguous. Escape/injection was
+already closed by `_validate_component`; this closes silent **misattribution**.

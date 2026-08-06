@@ -348,7 +348,14 @@ def test_refused_retention_blocks_destructive_cleanup(tmp_path, monkeypatch, rep
     assert _git(["branch", "--list"], repo).stdout.strip(), (
         "the worker branch must survive a refused retention"
     )
-    assert result.sandbox_slot_freed, "the withhold must free the concurrency slot"
+    # Assert the OUTCOME, not the flag. `sandbox_slot_freed` is reporting-only —
+    # it has no production reader, so a mutant hardcoding it True survives any
+    # test that asserts the field alone (found by the independent review). What
+    # must be true is that the slot actually returned.
+    assert len(mgr.active_sandboxes) == 0, (
+        f"the withhold must free the concurrency slot, {len(mgr.active_sandboxes)} still held"
+    )
+    assert result.sandbox_slot_freed, "and the result must report it truthfully"
     _git(["reflog", "expire", "--expire=now", "--all"], repo)
     _git(["gc", "--prune=now", "-q"], repo)
     assert _git(["cat-file", "-e", f"{verified}^{{commit}}"], repo).returncode == 0, (
@@ -1019,6 +1026,43 @@ def test_default_cleanup_still_deletes_the_branch(mgr, repo):
     assert sb.branch_name not in branches, "ordinary cleanup must still delete the branch"
 
 
+def test_cleanup_prunes_the_registration_when_worktree_remove_fails(tmp_path, repo):
+    """The rmtree fallback must also drop git's administrative registration.
+
+    When `git worktree remove` fails and the directory is removed directly, git
+    still holds the worktree registration — which keeps the branch checked out,
+    hence undeletable, hence a concurrency slot that never returns. Uncovered
+    until the independent review's mutation sweep found the `worktree prune` line
+    survives deletion.
+    """
+    mgr = SandboxManager(
+        repo_root=repo,
+        worktree_base=str(tmp_path / "prune-wt"),
+        store_dir=str(tmp_path / "prune-sb"),
+        max_parallel=4,
+    )
+    sb = mgr.create_sandbox(candidate_id="cp", candidate_slug="sp")
+    assert sb.branch_name in _git(["worktree", "list"], repo).stdout
+
+    # Corrupt the worktree's .git link so `git worktree remove` refuses (rc 128)
+    # and the rmtree fallback is the path actually taken.
+    with open(os.path.join(sb.worktree_path, ".git"), "w") as fh:
+        fh.write("gitdir: /nonexistent/broken\n")
+    assert _git(["worktree", "remove", "--force", sb.worktree_path], repo).returncode != 0, (
+        "sanity: the corrupted worktree must actually make `worktree remove` fail"
+    )
+
+    assert mgr.cleanup_sandbox(sb.sandbox_id) is True
+    assert not os.path.isdir(sb.worktree_path)
+    assert sb.worktree_path not in _git(["worktree", "list"], repo).stdout, (
+        "the stale registration must be pruned — otherwise the branch stays "
+        "checked out and the slot never returns"
+    )
+    assert sb.branch_name not in _git(["branch", "--list", sb.branch_name], repo).stdout, (
+        "and the branch must actually be deletable afterwards"
+    )
+
+
 def test_preservation_is_sticky_across_later_cleanups_and_restart(tmp_path, repo):
     """A preserved branch must survive EVERY later cleanup of that sandbox.
 
@@ -1142,6 +1186,69 @@ def test_slot_preserve_refuses_a_sandbox_without_preserve_branch_support(tmp_pat
     assert any("does not support preserve_branch" in s for s in result.steps), (
         f"the refusal must be stated, got {result.steps}"
     )
+
+
+@pytest.mark.parametrize("outcome", [False, None, 0])
+def test_slot_freed_is_never_reported_when_cleanup_did_not_free_it(outcome):
+    """`sandbox_slot_freed` must reflect the CLEANUP's answer, not be asserted.
+
+    The field has no production reader, so a mutant hardcoding it True survives
+    every test that only asserts it is truthy on the happy path (found by the
+    independent review). A slot that was NOT freed must never be reported as
+    freed — that is the direction that would hide a starving run.
+    """
+    from substrate.execution.attempts.terminalization import (
+        TerminalizationResult,
+        _preserve_sandbox_slot,
+    )
+
+    class _Sandbox:
+        def cleanup_sandbox(self, sandbox_id, *, preserve_branch=False):
+            return outcome
+
+    class _LM:
+        _sandbox = _Sandbox()
+
+        class _store:  # noqa: N801
+            @staticmethod
+            def get_lease(lease_id):
+                return {"sandbox_id": "sb-x"}
+
+    result = TerminalizationResult(attempt_id="ea-x", lease_id="lease-x")
+    _preserve_sandbox_slot(result, _LM())
+
+    assert result.sandbox_slot_freed is False, (
+        f"cleanup returned {outcome!r} — the slot was NOT freed and must not be reported as freed"
+    )
+    assert any("slot NOT freed" in s for s in result.steps), (
+        f"the failure must be stated, got {result.steps}"
+    )
+
+
+def test_slot_freed_is_not_reported_when_cleanup_raises():
+    """A raising cleanup must also report the slot as NOT freed."""
+    from substrate.execution.attempts.terminalization import (
+        TerminalizationResult,
+        _preserve_sandbox_slot,
+    )
+
+    class _Sandbox:
+        def cleanup_sandbox(self, sandbox_id, *, preserve_branch=False):
+            raise RuntimeError("boom")
+
+    class _LM:
+        _sandbox = _Sandbox()
+
+        class _store:  # noqa: N801
+            @staticmethod
+            def get_lease(lease_id):
+                return {"sandbox_id": "sb-x"}
+
+    result = TerminalizationResult(attempt_id="ea-x", lease_id="lease-x")
+    _preserve_sandbox_slot(result, _LM())
+
+    assert result.sandbox_slot_freed is False
+    assert any("cleanup raised" in s for s in result.steps), result.steps
 
 
 def test_empty_base_commit_fails_closed(tmp_path):
@@ -1450,7 +1557,32 @@ def test_binding_resolves_from_authoritative_records_not_env(monkeypatch):
         # Was ("R", "R") — the candidate resolved to the RUN ID.
         ("w2-R", "/a/candidates/candidates/candidates/targets/R/f", ("", "")),
         # Was ("targets", "R") — the candidate resolved to the marker itself.
-        ("w2-R", "/candidates/candidates/x/targets/R/f", ("", "")),
+        # Now a GENUINE canonical match (lane "candidates", candidate "x", run
+        # "R") read from ONE anchor, so it correctly resolves.
+        ("w2-R", "/candidates/candidates/x/targets/R/f", ("x", "R")),
+        # --- found by the independent review at a374748a7 ---
+        # Candidate segment is literally the targets marker. Previously wrote
+        # refs/umh/verified/targets/<run>/... with errors=0.
+        ("w2-R", "/root/candidates/wave2/targets/targets/R/f", ("", "")),
+        # NESTED targets with TWO runs. candidate came from the last "candidates"
+        # while run came from the last "targets" — two INDEPENDENT anchors naming
+        # different levels of one path, so the ref landed under RUN_B. Both
+        # components now come from the same anchor match, so a correlation_id
+        # naming the deeper run no longer agrees and the binding is refused.
+        ("w2-RUN_B", "/root/candidates/wave2/aaaa/targets/RUN_A/targets/RUN_B/f", ("", "")),
+        # The same path read consistently (correlation agrees with the canonical
+        # match) still resolves — the guard is not a blanket refusal.
+        (
+            "w2-RUN_A",
+            "/root/candidates/wave2/aaaa/targets/RUN_A/targets/RUN_B/f",
+            ("aaaa", "RUN_A"),
+        ),
+        # A run segment that is itself a structural marker → refuse.
+        ("", "/root/candidates/wave2/S/targets/targets/f", ("", "")),
+        # Two DIFFERENT canonical matches in one path → genuinely ambiguous.
+        ("", "/a/candidates/w/S1/targets/R1/b/candidates/w/S2/targets/R2/f", ("", "")),
+        # The SAME canonical match repeated is not ambiguous.
+        ("w2-R", "/a/candidates/w/S/targets/R/x/candidates/w/S/targets/R/f", ("S", "R")),
         # Was ("R", "R") again, via a candidate segment named "candidates".
         ("w2-R", "/a/candidates/wave2/candidates/targets/R/f", ("", "")),
         # No "targets" marker at all → not a candidate path. Refuse.
