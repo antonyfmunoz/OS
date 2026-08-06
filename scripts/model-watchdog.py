@@ -448,29 +448,87 @@ class ModelWatchdog:
         return True
 
     def _send_discord_alert(self, msg: str) -> bool:
-        if not DISCORD_BOT_TOKEN or not DISCORD_CHANNEL_ID:
+        if not DISCORD_CHANNEL_ID:
             return False
 
         self._health.discord_alert_attempts += 1
-        try:
-            import urllib.request
 
-            payload = json.dumps({"content": msg[:2000]}).encode("utf-8")
-            req = urllib.request.Request(
-                f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages",
-                data=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bot {DISCORD_BOT_TOKEN}",
-                },
-                method="POST",
-            )
-            resp = urllib.request.urlopen(req, timeout=10)
-            return resp.status in (200, 201)
-        except Exception as e:
-            self._health.discord_alert_failures += 1
-            logger.debug(f"Discord alert failed: {e}")
+        if self._send_via_docker(msg):
+            return True
+
+        if DISCORD_BOT_TOKEN:
+            try:
+                import urllib.request
+
+                payload = json.dumps({"content": msg[:2000]}).encode("utf-8")
+                req = urllib.request.Request(
+                    f"https://discord.com/api/v10/channels/{DISCORD_CHANNEL_ID}/messages",
+                    data=payload,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bot {DISCORD_BOT_TOKEN}",
+                    },
+                    method="POST",
+                )
+                resp = urllib.request.urlopen(req, timeout=10)
+                if resp.status in (200, 201):
+                    return True
+            except Exception as e:
+                logger.debug(f"Discord HTTP API fallback failed: {e}")
+
+        self._health.discord_alert_failures += 1
+        return False
+
+    @staticmethod
+    def _send_via_docker(msg: str) -> bool:
+        msg_file = os.path.join(STATE_DIR, "discord_msg.txt")
+        try:
+            with open(msg_file, "w") as f:
+                f.write(msg[:1900])
+        except Exception:
             return False
+
+        script = (
+            "import discord,asyncio,os\n"
+            "async def s():\n"
+            " intents=discord.Intents.default()\n"
+            " c=discord.Client(intents=intents)\n"
+            " @c.event\n"
+            " async def on_ready():\n"
+            f"  ch=c.get_channel({DISCORD_CHANNEL_ID})\n"
+            "  if ch:\n"
+            "   with open('/app/data/runtime/model_watchdog/discord_msg.txt') as f:\n"
+            "    m=f.read()\n"
+            "   await ch.send(m)\n"
+            "  await c.close()\n"
+            " t=os.environ.get('DISCORD_BOT_TOKEN','')\n"
+            " if t: await c.start(t)\n"
+            "asyncio.run(s())\n"
+        )
+        try:
+            result = subprocess.run(
+                ["docker", "exec", "os-discord", "python3", "-c", script],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode != 0:
+                logger.debug(
+                    f"Docker discord send failed: rc={result.returncode} "
+                    f"stderr={result.stderr.strip()[:200]}"
+                )
+            return result.returncode == 0
+        except subprocess.TimeoutExpired:
+            logger.debug("Docker discord send timed out (30s)")
+            return False
+        except Exception as e:
+            logger.debug(f"Docker discord send error: {e}")
+            return False
+        finally:
+            try:
+                os.unlink(msg_file)
+            except OSError:
+                pass
 
     def _handle_observations(
         self,
