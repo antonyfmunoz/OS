@@ -31,9 +31,13 @@ from substrate.execution.attempts.lifecycle import validate_transition
 from substrate.execution.attempts.records import (
     ATTEMPT_IMMUTABLE_FIELDS,
     GRANT_IMMUTABLE_FIELDS,
+    AttemptExecutionKind,
     AttemptTransition,
+    DeclarationOutcome,
+    DeclarationResult,
     ExecutionAttempt,
     ExecutionAuthorizationGrant,
+    VerifiedExecutionDeclaration,
 )
 
 try:  # fcntl is POSIX-only; the store degrades to thread-locking elsewhere.
@@ -52,12 +56,65 @@ def _resolve(filename: str) -> str:
     return str(runtime_state_path(_SUBSYSTEM, filename, create_parent=False))
 
 
+# The ONE canonical filename of the execution-authorization grant ledger.
+# Separate from _DEFAULT_GRANTS_PATH because that path is a TEST-ISOLATION seam
+# (monkeypatched to tmp files), so its basename is not a truthful production
+# filename. Any component that must know where grants really live reads THIS —
+# never its own literal. Restating the name elsewhere is what silently
+# de-authorized the integration Task in field run 20260807T005250Z-p1.
+_CANONICAL_GRANTS_FILENAME = "execution_authorization_grants.jsonl"
+
 # Test-isolation seam: suites monkeypatch these module attributes to tmp paths.
 _DEFAULT_ATTEMPTS_PATH = _resolve("execution_attempts.jsonl")
-_DEFAULT_GRANTS_PATH = _resolve("execution_authorization_grants.jsonl")
+_DEFAULT_GRANTS_PATH = _resolve(_CANONICAL_GRANTS_FILENAME)
 _DEFAULT_READINESS_PATH = _resolve("readiness_assessments.jsonl")
 _DEFAULT_LEASES_PATH = _resolve("environment_leases.jsonl")
 _DEFAULT_ASSIGNMENTS_PATH = _resolve("execution_assignments.jsonl")
+
+
+# The governed-candidate ledger layout. A store whose attempts file lives under
+# ``<root>/candidates/<lane>/<candidate>/state/...`` IS a governed candidate
+# ledger, and that fact is intrinsic to the path — it cannot be asserted away by
+# a caller. ``run_id`` is deliberately NOT here: it is not encoded in the store
+# path (it lives under ``targets/<run>/``), so the store must never pretend to
+# know it. See ``governed_subject``.
+_CANDIDATES_SEGMENT = "candidates"
+_STATE_SEGMENT = "state"
+
+
+def governed_subject(attempts_path: str) -> tuple[str, str] | None:
+    """(lane, candidate_sha) this ledger intrinsically belongs to, or None.
+
+    THE PERSISTENCE BOUNDARY MUST OWN THE IDENTITY OF THE SUBJECT IT PROTECTS.
+
+    Round 12 reproduced the consequence of not owning it: the store's ledger came
+    from ``UMH_STATE_DIR`` while the declaration came from an independently
+    supplied ``--targets-dir``. Point the latter at any ordinary directory and a
+    NO_COMPOSITION proven about THAT directory unsealed the governed candidate's
+    ledger, persisting an immutable ``Task C + worker`` row. The proof was valid;
+    it was about the wrong subject.
+
+    Production happens to derive both from one SHA today, so the two agree by
+    CONVENTION. This function makes it an INVARIANT: the store derives what it
+    can know from its own path and refuses any authority that disagrees.
+
+    Uses pure lexical segments of an ABSOLUTE, normalized path — never
+    ``dirname(dirname(...))``, whose answer changes with a trailing slash (a
+    reproduced divergence). Returns None for any non-candidate ledger (tmp test
+    stores, the ordinary runtime root), which leaves those callers unchanged.
+    """
+    try:
+        parts = os.path.normpath(os.path.abspath(str(attempts_path))).split(os.sep)
+    except (TypeError, ValueError):
+        return None
+    for i, seg in enumerate(parts):
+        # Require the FULL shape: candidates/<lane>/<candidate>/state
+        if seg == _CANDIDATES_SEGMENT and len(parts) > i + 3 and parts[i + 3] == _STATE_SEGMENT:
+            lane, candidate = parts[i + 1], parts[i + 2]
+            _reserved = (_CANDIDATES_SEGMENT, _STATE_SEGMENT)
+            if lane and candidate and lane not in _reserved and candidate not in _reserved:
+                return lane, candidate
+    return None
 
 
 def _is_active_status(status: Any) -> bool:
@@ -99,6 +156,22 @@ def _is_active_status(status: Any) -> bool:
     return encoded == "active"
 
 
+def _encoded_kind(value: Any) -> Any:
+    """What ``_append_line`` will actually persist for ``value``.
+
+    ``json.dumps(..., default=str)`` writes a str (or str subclass) verbatim, an
+    Enum member as its VALUE, and anything else through ``str()``. Comparing
+    guard inputs after this round-trip means the guard can never disagree with
+    the row it is guarding.
+    """
+    try:
+        return json.loads(json.dumps(value, default=str))
+    except (TypeError, ValueError, RecursionError):
+        # Unencodable: ``_append_line`` would raise too, so no row can result.
+        # Return a sentinel that equals nothing, so the guard refuses.
+        return object()
+
+
 class AttemptStoreConflict(RuntimeError):
     """Raised when a compare-and-swap write loses to a concurrent writer, or a
     lifecycle guard rejects the transition."""
@@ -116,12 +189,60 @@ class ExecutionAttemptStore:
         readiness_path: str | None = None,
         leases_path: str | None = None,
         assignments_path: str | None = None,
+        *,
+        declaration_result: DeclarationResult | None = None,
+        governed_run: bool = False,
     ) -> None:
+        # THE STRUCTURAL INVARIANT (see create_attempt_idempotent).
+        #
+        # A VERIFIED, IMMUTABLE run-scoped declaration — never a filename, never
+        # a callable that re-reads mutable state on each call, and never a second
+        # way for the store to decide what the integration Task is. The store
+        # must not learn to read scenario_map.json, fixture literals, task names,
+        # or infer from missing fields; that would move the pointwise defect down
+        # a layer instead of removing it.
+        #
+        # It is a VALUE, not an accessor, deliberately. An accessor re-derives on
+        # every call, so a file mutated after validation still changes the answer
+        # — which is exactly the bypass the seventh review reproduced. A frozen
+        # snapshot cannot be retargeted by any later write.
+        self._verified_declaration: VerifiedExecutionDeclaration | None = None
+        self._declaration_outcome: DeclarationOutcome | None = None
+
+        # SEALED BY DEFAULT — but only for a GOVERNED Wave 2 run.
+        #
+        # `governed_run=True` means "this store belongs to a candidate run whose
+        # execution declaration must be proven before anything is created". It
+        # starts UNANSWERABLE and only `apply_declaration_result` with a
+        # positively verified outcome can open it. Round 8 defaulted to
+        # permissive-when-unarmed, and every one of the five reproduced bypasses
+        # went through exactly that default.
+        #
+        # Non-Wave-2 callers (grant/read surfaces, legacy tooling) are unchanged:
+        # they construct with `governed_run=False` (the default) and never enter
+        # the sealed model at all. Defaulting THEM to sealed would be a broad
+        # redesign of unrelated callers, which is out of scope — and unnecessary,
+        # because source proves none of them can create Attempts.
+        self._creation_sealed = (
+            "governed run: no verified execution declaration has been applied yet "
+            "(sealed by default — UNKNOWN MUST NEVER MEAN WORKER)"
+            if governed_run
+            else ""
+        )
         self._attempts_path = attempts_path or _DEFAULT_ATTEMPTS_PATH
         self._grants_path = grants_path or _DEFAULT_GRANTS_PATH
         self._readiness_path = readiness_path or _DEFAULT_READINESS_PATH
         self._leases_path = leases_path or _DEFAULT_LEASES_PATH
         self._assignments_path = assignments_path or _DEFAULT_ASSIGNMENTS_PATH
+        # THE SUBJECT THIS BOUNDARY PROTECTS — owned, not received.
+        # Derived from our OWN ledger path, so no caller can substitute another
+        # run's identity. None for ordinary (non-candidate) stores.
+        self._governed_subject = governed_subject(self._attempts_path)
+        # Applied AFTER the paths exist: the subject check reads _attempts_path,
+        # and an ordering that armed before the path was set would have verified
+        # against the wrong (default) ledger.
+        if declaration_result is not None:
+            self.apply_declaration_result(declaration_result)
         for p in (
             self._attempts_path,
             self._grants_path,
@@ -130,6 +251,190 @@ class ExecutionAttemptStore:
             self._assignments_path,
         ):
             os.makedirs(os.path.dirname(p), exist_ok=True)
+
+    def apply_declaration_result(
+        self,
+        result: DeclarationResult,
+        *,
+        run_id: str = "",
+        candidate_sha: str = "",
+    ) -> None:
+        """THE ONLY transition out of the sealed state.
+
+        Sealed→usable requires a POSITIVELY VERIFIED declaration result whose
+        candidate/run binding matches this store's run context. There is
+        deliberately no public ``unseal()`` an arbitrary caller can invoke, and
+        no way to reach the permissive state by passing ``None``.
+
+        The three outcomes map to exactly three behaviours:
+
+          * DECLARED       — enforce the authenticated task→class mapping.
+          * NO_COMPOSITION — unseal for ordinary worker-only execution. This is a
+            POSITIVE PROOF that the run has no composition Task, never an
+            absence.
+          * UNANSWERABLE   — stay sealed. UNKNOWN MUST NEVER MEAN WORKER.
+
+        Round 8 encoded the last two as the same ``None`` and three builder exits
+        returned "cannot tell" while the store read "nothing to enforce": five
+        reproduced bypasses persisted an immutable ``Task C + worker`` row.
+
+        Single-shot, as before: re-applying an identical result is idempotent
+        wiring; anything else raises, so no later call can retarget or disarm.
+        """
+        # EXACT type, not ``isinstance``. A subclass inherits the tag but not the
+        # guarantees: ``Evil(DeclarationResult)`` (or a
+        # ``VerifiedExecutionDeclaration`` subclass overriding
+        # ``execution_class_for`` to lie) passed an isinstance check and unsealed
+        # the store — reproduced. The sealed state may only be left on a value
+        # this module itself defines.
+        if type(result) is not DeclarationResult:
+            raise AttemptStoreConflict(
+                f"declaration result must be exactly a DeclarationResult, got "
+                f"{type(result).__name__!r} — refusing to leave the sealed state on an "
+                f"untyped or subclassed value (a subclass inherits the tag, not the "
+                f"guarantees)"
+            )
+        # Re-validate the construction invariants that __post_init__ enforces.
+        # A frozen dataclass can still be mutated via object.__setattr__ after
+        # construction, bypassing __post_init__. This re-check closes that gap.
+        if result.outcome is DeclarationOutcome.NO_COMPOSITION and result.declaration is not None:
+            raise AttemptStoreConflict(
+                "NO_COMPOSITION result carries a declaration payload — "
+                "structurally incoherent (possible post-construction mutation)"
+            )
+        if result.outcome is DeclarationOutcome.DECLARED and result.declaration is None:
+            raise AttemptStoreConflict(
+                "DECLARED result carries no declaration payload — "
+                "structurally incoherent (possible post-construction mutation)"
+            )
+        # ── SUBJECT BINDING — the store proves the authority is about ITSELF ──
+        #
+        # Round 12's reproduced bypass: the ledger came from UMH_STATE_DIR while
+        # the declaration came from an independently supplied --targets-dir, so a
+        # NO_COMPOSITION proven about an ordinary tmp directory unsealed a
+        # governed candidate's ledger and persisted an immutable C+worker row.
+        # Every prior round had the same shape — a valid proof about the wrong
+        # subject — so this is checked ONCE here, for every outcome, rather than
+        # per-branch.
+        #
+        # The store verifies every component it CAN know (lane+candidate, both
+        # intrinsic to its path) and requires the run context for the rest.
+        # run_id is NOT store-derivable (it lives under targets/<run>/), so it is
+        # supplied — but it must arrive with a candidate that matches what the
+        # store derived independently.
+        subject = self._governed_subject
+        if subject is not None and result.outcome is not DeclarationOutcome.UNANSWERABLE:
+            lane, candidate = subject
+            claimed = (
+                result.declaration.candidate_sha
+                if result.declaration is not None
+                else result.candidate_sha
+            )
+            if str(claimed) != candidate:
+                self._creation_sealed = (
+                    f"this ledger belongs to governed candidate {candidate!r} (lane "
+                    f"{lane!r}, derived from its own path), but the authority is about "
+                    f"{claimed!r} — a proof about another subject cannot unseal this "
+                    f"ledger; staying SEALED"
+                )
+                return
+            if str(candidate_sha) != candidate:
+                self._creation_sealed = (
+                    f"this ledger belongs to governed candidate {candidate!r} but was "
+                    f"armed with run context candidate {candidate_sha!r} — the caller's "
+                    f"claimed subject disagrees with the store's own; staying SEALED"
+                )
+                return
+
+        if result.outcome is DeclarationOutcome.UNANSWERABLE:
+            self._creation_sealed = (
+                result.reason or "the run's execution declaration is UNANSWERABLE"
+            )
+            return
+
+        if result.outcome is DeclarationOutcome.DECLARED:
+            declaration = result.declaration
+            if declaration is None:
+                # A DECLARED outcome with no declaration is a malformed result;
+                # anything unexpected is UNANSWERABLE, never permissive.
+                self._creation_sealed = (
+                    "declaration result claims DECLARED but carries no declaration — "
+                    "treating as UNANSWERABLE"
+                )
+                return
+            # THE DECLARATION MUST GOVERN *THIS* RUN.
+            #
+            # A declaration built for candidate X / run X must never arm
+            # candidate Y / run Y. Without this a correctly-built declaration can
+            # certify a store it has nothing to do with — "built but not
+            # governing", which is not protection.
+            #
+            # The run context is MANDATORY, never optional. It was previously
+            # checked only ``if (run_id or candidate_sha)``, so a caller that
+            # omitted both silently SKIPPED the check and any declaration armed
+            # any governed store (reproduced). Treating absence as "skip" is the
+            # same absence-means-two-things defect this whole round exists to
+            # remove, one layer up: missing context must SEAL, not wave through.
+            if not (run_id and candidate_sha):
+                self._creation_sealed = (
+                    f"declaration for run {declaration.run_id!r} was applied without a "
+                    f"run context (run_id={run_id!r}, candidate_sha={candidate_sha!r}) — "
+                    f"there is nothing to verify it against, so it cannot be shown to "
+                    f"govern THIS store; staying SEALED"
+                )
+                return
+            if not declaration.matches_run(run_id=run_id, candidate_sha=candidate_sha):
+                self._creation_sealed = (
+                    f"declaration is bound to run {declaration.run_id!r} candidate "
+                    f"{declaration.candidate_sha!r} but this store's run context is "
+                    f"{run_id!r}/{candidate_sha!r} — refusing to arm a store with a "
+                    f"foreign declaration; staying SEALED"
+                )
+                return
+            existing = self._verified_declaration
+            if existing is not None and existing != declaration:
+                raise AttemptStoreConflict(
+                    f"refusing to REPLACE the installed verified execution declaration "
+                    f"(run {existing.run_id!r} candidate {existing.candidate_sha!r}) with "
+                    f"a different one (run {declaration.run_id!r} candidate "
+                    f"{declaration.candidate_sha!r}) — a replaceable declaration is a "
+                    f"mutable truth source and would re-open the retargeting bypass"
+                )
+            self._verified_declaration = declaration
+            self._creation_sealed = ""
+            self._declaration_outcome = DeclarationOutcome.DECLARED
+            return
+
+        # NO_COMPOSITION — positively proven; ordinary worker execution only.
+        #
+        # VERIFIED IDENTICALLY TO DECLARED. Asymmetric verification across the
+        # branches of one enum was itself the defect: DECLARED required a
+        # matching run context while NO_COMPOSITION ignored it entirely, so a
+        # result that provably governs NOTHING unsealed any governed store
+        # (reproduced). The proof must name the run it is a proof about.
+        if not (run_id and candidate_sha):
+            self._creation_sealed = (
+                f"a NO_COMPOSITION result was applied without a run context "
+                f"(run_id={run_id!r}, candidate_sha={candidate_sha!r}) — there is "
+                f"nothing to verify it against; staying SEALED"
+            )
+            return
+        if result.run_id != run_id or result.candidate_sha != candidate_sha:
+            self._creation_sealed = (
+                f"NO_COMPOSITION was proven for run {result.run_id!r} candidate "
+                f"{result.candidate_sha!r}, but this store's run context is "
+                f"{run_id!r}/{candidate_sha!r} — a proof about another run cannot "
+                f"unseal this one; staying SEALED"
+            )
+            return
+        if self._verified_declaration is not None:
+            raise AttemptStoreConflict(
+                f"refusing to downgrade an installed DECLARED declaration (run "
+                f"{self._verified_declaration.run_id!r}) to NO_COMPOSITION — that "
+                f"would disarm the structural write-boundary invariant"
+            )
+        self._creation_sealed = ""
+        self._declaration_outcome = DeclarationOutcome.NO_COMPOSITION
 
     # ── Locking ──────────────────────────────────────────────────────────────
 
@@ -227,15 +532,54 @@ class ExecutionAttemptStore:
 
     # ── Attempts: writes ─────────────────────────────────────────────────────
 
-    def create_attempt_idempotent(
-        self, attempt: ExecutionAttempt
-    ) -> tuple[ExecutionAttempt, bool]:
+    def create_attempt_idempotent(self, attempt: ExecutionAttempt) -> tuple[ExecutionAttempt, bool]:
         """Create an attempt, or return the existing one for the same logical
         key. The idempotency key is
         ``(task_id, execution_authorization_ref, attempt_number)`` — a duplicate
         request (browser retry, queue reload, duplicate message) returns the
         EXISTING attempt and ``created=False``; it never mints a second one.
+
+        STRUCTURAL INVARIANT — a Task DECLARED as the control-plane composition
+        Task may never become durable as ``execution_kind="worker"``.
+
+        This is the single authoritative write boundary: exactly one production
+        path constructs an attempt (``AttemptScheduler._create_attempt``) and it
+        persists through here, so a check placed here cannot be bypassed by a
+        caller that forgets to behave. Six successive review rounds each found a
+        NEW pointwise route to the same end state — wrong grant filename, an
+        incomplete required-source set, an empty ledger read as authority, a
+        DENIED verdict arriving after the pass's single grant re-read, an
+        unparsed run binding, and a sibling exception type escaping the
+        scheduler's handler. Every one produced the same durable outcome: Task C
+        persisted as a worker, immutably (``execution_kind`` is in
+        ``ATTEMPT_IMMUTABLE_FIELDS``), so no later healthy pass can correct it,
+        and it is then dispatched to a real model worker.
+
+        Defending that invariant at each decision point requires every future
+        path to remember it. Enforcing it HERE makes the bad state unreachable.
+
+        The declaration is a VERIFIED, IMMUTABLE run-scoped snapshot
+        (``VerifiedExecutionDeclaration``), never a filename and never a callable
+        that re-reads mutable state: the seventh review round moved the
+        declaration itself (``integration_task_id`` is an unauthenticated field
+        while the authority path digest-verifies that same field), which
+        silently disarmed every gate keyed off it. A frozen snapshot built from
+        recomputed lineage cannot be retargeted by any later write.
+
+        Declaration and authority stay separate concerns — "this Task IS the
+        composition Task" is durable, while "may composition run right now?" is
+        the grant question. A denied or unresolved grant therefore yields NO
+        attempt, never a worker attempt.
+
+        The invariant applies to BOTH outcomes of this call: a NEW insert and an
+        idempotent return of an EXISTING row. Idempotency must never legitimize
+        an invalid historical record — a pre-existing ``C + worker`` row returned
+        as success would be dispatched to a model worker exactly as if it had
+        just been created, and ``execution_kind`` is immutable so it can never be
+        repaired.
         """
+        self._assert_declared_kind(attempt.task_id, attempt.execution_kind, origin="this attempt")
+
         with self._file_lock(self._attempts_path):
             rows = self._read_lines(self._attempts_path)
             for row in rows:
@@ -245,9 +589,74 @@ class ExecutionAttemptStore:
                     == attempt.execution_authorization_ref
                     and int(row.get("attempt_number", -1)) == attempt.attempt_number
                 ):
-                    return ExecutionAttempt.from_dict(row), False
+                    existing = ExecutionAttempt.from_dict(row)
+                    # The EXISTING row is validated against the SAME declaration.
+                    # A corrupt row is preserved on disk as evidence — never
+                    # returned as success, never dispatched, and never mutated
+                    # into composition (that would forge a clean history over a
+                    # real corruption).
+                    self._assert_declared_kind(
+                        existing.task_id,
+                        existing.execution_kind,
+                        origin=f"the EXISTING durable row {existing.attempt_id!r}",
+                    )
+                    return existing, False
             self._append_line(self._attempts_path, attempt.to_dict())
             return attempt, True
+
+    def _assert_declared_kind(self, task_id: str, execution_kind: Any, *, origin: str) -> None:
+        """Refuse any execution_kind that contradicts the verified declaration.
+
+        Shared by the INSERT and IDEMPOTENT-RETURN paths of
+        ``create_attempt_idempotent`` so the two can never diverge — a guard that
+        exists on only one of them is a guard with a door next to it.
+        """
+        if self._creation_sealed:
+            raise AttemptStoreConflict(
+                f"attempt creation is SEALED for this run — {self._creation_sealed}. "
+                f"Refusing {origin} for task {task_id}: with no verified declaration "
+                f"the execution class of this Task cannot be established, and an "
+                f"unarmed write boundary would let the integration Task persist as a "
+                f"worker (immutably, and it would then dispatch)"
+            )
+        declaration = self._verified_declaration
+        if declaration is None:
+            return
+        # Read the frozen tuple DIRECTLY rather than calling the accessor: a
+        # ``VerifiedExecutionDeclaration`` subclass overriding
+        # ``execution_class_for`` to return None disarmed the guard (reproduced).
+        # The data is immutable; the method is not.
+        declared = None
+        for _tid, _kind in declaration.execution_classes:
+            if _tid == task_id:
+                declared = _kind
+                break
+        # The check is BIDIRECTIONAL. A declared Task must match its declaration,
+        # AND an UNDECLARED Task may not be promoted into the composition
+        # lifecycle. A one-directional check ("declared ⇒ must match") would let a
+        # future producer mint a composition attempt for an arbitrary Task — the
+        # mirror image of the defect this guard exists to prevent, and equally
+        # unrecoverable because ``execution_kind`` is immutable.
+        expected = declared if declared is not None else AttemptExecutionKind.WORKER.value
+        # Compare what the SERIALIZER will write, not what ``str()`` renders.
+        #
+        # ``_is_active_status`` above already reached this conclusion for lease
+        # status, verbatim: "only the serializer decides what lands on disk".
+        # This guard was left on ``str(x)``, so a ``str`` subclass overriding
+        # ``__str__`` passed the check while ``json.dumps`` wrote its real value
+        # — the guard and the row disagreeing about what was persisted
+        # (reproduced). Round-tripping through the exact ``_append_line`` call
+        # removes the approximation instead of patching one shape of it.
+        if _encoded_kind(execution_kind) != _encoded_kind(expected):
+            raise AttemptStoreConflict(
+                f"task {task_id} is DECLARED as execution class {expected!r}"
+                f"{'' if declared is not None else ' (undeclared ⇒ ordinary worker)'} "
+                f"by the verified declaration for run {declaration.run_id!r} "
+                f"(candidate {declaration.candidate_sha!r}), but {origin} carries "
+                f"execution_kind={execution_kind!r} — refusing. execution_kind is "
+                f"immutable, so a wrong class here is permanent and would send the "
+                f"declared composition Task to a model worker"
+            )
 
     def transition_cas(
         self,
@@ -296,6 +705,22 @@ class ExecutionAttemptStore:
                         f"{list(expected_statuses)}"
                     )
                 attempt = ExecutionAttempt.from_dict(row)
+                # THE DECLARATION GOVERNS THE LIFECYCLE TOO.
+                #
+                # `create_attempt_idempotent` guards both insert and idempotent
+                # return, but this is the OTHER durable write path. Without the
+                # check, a poisoned `Task C + worker` row already on disk (legacy
+                # data, a restored backup, a concurrent writer) can be advanced
+                # through the lifecycle toward a real model worker without ever
+                # calling the guarded method — reproduced to LEASED. Refusing at
+                # creation while permitting advancement is a guard with a door
+                # next to it.
+                self._assert_declared_kind(
+                    attempt.task_id,
+                    attempt.execution_kind,
+                    origin=f"the lifecycle transition {on_disk_status!r}→{to_status!r} of "
+                    f"row {attempt_id!r}",
+                )
                 # Validate the transition + guards against the on-disk state,
                 # with the pending binding updates in view.
                 validate_transition(attempt, to_status, actor, updates)
@@ -337,7 +762,9 @@ class ExecutionAttemptStore:
 
     def grants_for_plan(self, plan_record_id: str) -> list[ExecutionAuthorizationGrant]:
         rows = [
-            r for r in self._read_lines(self._grants_path) if r.get("plan_record_id") == plan_record_id
+            r
+            for r in self._read_lines(self._grants_path)
+            if r.get("plan_record_id") == plan_record_id
         ]
         return [ExecutionAuthorizationGrant.from_dict(r) for r in rows]
 
@@ -490,8 +917,7 @@ class ExecutionAttemptStore:
             for row in latest_by_id.values():
                 if row.get("status") == "active":
                     raise AttemptStoreConflict(
-                        f"task {task_id} already has an active lease "
-                        f"({row.get('lease_id', '')})"
+                        f"task {task_id} already has an active lease ({row.get('lease_id', '')})"
                     )
             self._append_line(self._leases_path, payload)
 

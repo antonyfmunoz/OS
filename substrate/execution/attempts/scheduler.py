@@ -40,6 +40,7 @@ from substrate.execution.attempts.events import emit_execution_event
 from substrate.execution.attempts.lifecycle import AttemptLifecycleError
 from substrate.execution.attempts.records import (
     AttemptExecutionKind,
+    CompositionAuthorityUnresolved,
     ExecutionAttempt,
     ExecutionAttemptStatus,
 )
@@ -63,6 +64,14 @@ class SchedulerPassReport:
     attempts_admitted: list[str] = field(default_factory=list)
     attempts_blocked: list[str] = field(default_factory=list)
     retries_created: list[str] = field(default_factory=list)
+    # Tasks whose COMPOSITION AUTHORITY could not be resolved. A strict subset of
+    # attempts_blocked, reported separately because the two mean different things
+    # to an operator: an ordinary block is "not admissible right now", while this
+    # is "the authority ledger could not be read, so we refused rather than
+    # running the integration Task as an ordinary worker". Without this the
+    # refusal would exist only in a log line and would be indistinguishable from
+    # "the Task never reached the frontier".
+    authority_unresolved: list[str] = field(default_factory=list)
     reason: str = ""
 
 
@@ -370,7 +379,61 @@ class AttemptScheduler:
                     report.attempts_blocked.append(task_id)
                     continue
 
-                attempt = self._create_attempt(grant, packet, attempt_number, prior_failed)
+                try:
+                    attempt = self._create_attempt(grant, packet, attempt_number, prior_failed)
+                except AttemptStoreConflict as exc:
+                    # THE STRUCTURAL WRITE-BOUNDARY REFUSAL (store's verified
+                    # declaration guard) — a TASK-LOCAL failure, classified as
+                    # such.
+                    #
+                    # Left uncaught this escaped `_create_attempt`, escaped the
+                    # frontier loop, and ABORTED THE WHOLE SCHEDULER PASS,
+                    # killing work for every other Task in the frontier
+                    # (reproduced). One Task's refused write must not become a
+                    # fleet-wide outage — the same trade this module's own
+                    # comments forbid twice elsewhere.
+                    #
+                    # RUN-AUTHORITY corruption is different and still fails the
+                    # whole pass: it is raised as CompositionAuthorityUnresolved
+                    # from declaration construction, before any Task is created.
+                    logger.error(
+                        "attempt creation REFUSED for task %s at the write boundary: %s "
+                        "— refusing this Task, NOT downgrading it to a worker; other "
+                        "Tasks in the frontier are unaffected",
+                        task_id,
+                        exc,
+                    )
+                    report.attempts_blocked.append(task_id)
+                    report.authority_unresolved.append(task_id)
+                    continue
+                except CompositionAuthorityUnresolved as exc:
+                    # Composition authority for the DECLARED integration Task
+                    # could not be RESOLVED. Two things must both hold, and they
+                    # pull in opposite directions:
+                    #
+                    #  * the Task must NOT be created as an ordinary worker
+                    #    attempt (field run 20260807T005250Z-p1 — a real model
+                    #    worker was dispatched for Task C and failed twice); and
+                    #  * one Task's authority failure must NOT abort the pass and
+                    #    drop every other Task in the frontier, which is the
+                    #    fleet-wide outage this function's own comments forbid
+                    #    twice (see (3) below and _create_attempt).
+                    #
+                    # Refusing HERE satisfies both: this Task is refused and
+                    # recorded, the loop continues, and step (5) still admits
+                    # everyone else. The refusal is durable in the report rather
+                    # than only in a log line, so an operator auditing the run
+                    # can tell "authority unresolved" apart from "never reached".
+                    logger.error(
+                        "composition authority unresolved for task %s: %s — refusing "
+                        "this Task, NOT downgrading it to a worker; other Tasks in "
+                        "the frontier are unaffected",
+                        task_id,
+                        exc,
+                    )
+                    report.attempts_blocked.append(task_id)
+                    report.authority_unresolved.append(task_id)
+                    continue
                 if attempt is None:
                     continue
                 report.attempts_created.append(attempt.attempt_id)
@@ -490,6 +553,16 @@ class AttemptScheduler:
             try:
                 if self._composition_task_predicate(packet):
                     execution_kind = AttemptExecutionKind.CONTROL_PLANE_COMPOSITION.value
+            except CompositionAuthorityUnresolved:
+                # NOT swallowed. The predicate raises this ONLY for the packet the
+                # run DECLARES as its integration Task, and only when composition
+                # authority could not be RESOLVED (as opposed to legitimately
+                # denied). "Unknown authority" must never resolve to "run it as an
+                # ordinary worker": in field run 20260807T005250Z-p1 that fallback
+                # dispatched a real model worker for Task C, which then failed
+                # twice with no commits. Refuse admission and let the caller
+                # surface the authority failure.
+                raise
             except Exception as exc:  # noqa: BLE001 - recorded, never a silent promotion
                 logger.warning(
                     "composition predicate failed for task %s: %s — creating an ordinary "
@@ -516,18 +589,45 @@ class AttemptScheduler:
         created_holder: dict[str, Any] = {}
 
         def _apply() -> tuple[str, bool]:
-            created, is_new = self._store.create_attempt_idempotent(attempt)
+            try:
+                created, is_new = self._store.create_attempt_idempotent(attempt)
+            except AttemptStoreConflict as exc:
+                # A STRUCTURAL REFUSAL MUST NOT BE SWALLOWED BY THE SPINE.
+                #
+                # `runner` is the governed mutation path, and it does not
+                # necessarily propagate an exception raised inside `execute_fn`
+                # — under the degraded/fail-closed gate it returns a
+                # MutationResponse and the caller sees only "nothing was
+                # created", which is indistinguishable from an ordinary
+                # not-admissible Task. That would make the store's refusal
+                # silent: no operator-visible signal that the integration Task's
+                # write was rejected.
+                #
+                # So the refusal is captured here and re-raised below, outside
+                # the runner, where the frontier loop classifies it as a
+                # Task-local authority refusal and records it in
+                # `authority_unresolved`.
+                created_holder["refusal"] = exc
+                raise
             created_holder["attempt"] = created
             created_holder["is_new"] = is_new
             return (f"attempt {'created' if is_new else 'exists'}: {created.attempt_id}", True)
 
-        runner(
-            mutation_name="execution_attempt_create",
-            intent=f"create attempt for task {attempt.task_id}",
-            execute_fn=_apply,
-            source="execution_attempts_scheduler",
-            metadata={"task_id": attempt.task_id, "attempt_number": attempt_number},
-        )
+        try:
+            runner(
+                mutation_name="execution_attempt_create",
+                intent=f"create attempt for task {attempt.task_id}",
+                execute_fn=_apply,
+                source="execution_attempts_scheduler",
+                metadata={"task_id": attempt.task_id, "attempt_number": attempt_number},
+            )
+        except AttemptStoreConflict:
+            raise  # already the refusal; the frontier loop classifies it
+        refusal = created_holder.get("refusal")
+        if refusal is not None:
+            # The runner absorbed it. Re-raise so the refusal reaches the report
+            # instead of degrading into a generic empty result.
+            raise refusal
         created = created_holder.get("attempt")
         if created is None or not created_holder.get("is_new"):
             return None

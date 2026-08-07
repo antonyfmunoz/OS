@@ -157,9 +157,21 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     # planning.readiness.DecisionReadinessAssessment (plan-acceptance readiness).
     "GraphShapeVerdict": ["substrate.execution.attempts.graph_shape_gate"],
     "AttemptExecutionKind": ["substrate.execution.attempts.records"],
+    "CanonicalRecordSourceError": ["substrate.execution.attempts.field_control_plane"],
+    "CompositionAuthorityUnresolved": ["substrate.execution.attempts.records"],
     "CompositionConflict": ["substrate.execution.attempts.composition"],
     "CompositionError": ["substrate.execution.attempts.composition"],
     "CompositionResult": ["substrate.execution.attempts.composition"],
+    # THE single declaration authority: what execution class each Task of one
+    # run is. Built once from canonical lineage, immutable for the run, carried
+    # into Attempt creation. Never re-derived from a mutable file by a consumer.
+    "VerifiedExecutionDeclaration": ["substrate.execution.attempts.records"],
+    # The THREE-STATE declaration outcome. DECLARED / NO_COMPOSITION /
+    # UNANSWERABLE must stay distinguishable: collapsing the last two into one
+    # absence is what let five reproduced bypasses persist an immutable
+    # `Task C + worker` row. UNKNOWN MUST NEVER MEAN WORKER.
+    "DeclarationOutcome": ["substrate.execution.attempts.records"],
+    "DeclarationResult": ["substrate.execution.attempts.records"],
     "ExecutionAttempt": ["substrate.execution.attempts.records"],
     "ExecutionAttemptStatus": ["substrate.execution.attempts.records"],
     "AttemptTransition": ["substrate.execution.attempts.records"],

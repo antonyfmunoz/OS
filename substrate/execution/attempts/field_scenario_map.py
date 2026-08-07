@@ -58,12 +58,15 @@ never grants eligibility, scope, tools or authority.
 from __future__ import annotations
 
 import json
+import logging
 import os
+import stat
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from substrate.execution.attempts.field_task_scope import (
+    INTEGRATION,
     SEMANTIC_LABELS,
     ScopeResolutionError,
     _node_id_for_packet,
@@ -71,6 +74,8 @@ from substrate.execution.attempts.field_task_scope import (
     scenario_map_digest,
 )
 from substrate.execution.planning.records import ObjectivePlanStatus
+
+logger = logging.getLogger(__name__)
 
 _SCENARIO_NAME = "scenario_map.json"
 _BINDING_NAME = "execution_binding.json"
@@ -80,6 +85,19 @@ _BINDING_NAME = "execution_binding.json"
 # statuses pass as "live accepted". ObjectivePlanStatus is the canonical status
 # owner (substrate.execution.planning.records) — never a duplicated literal.
 _PLAN_APPROVED = ObjectivePlanStatus.APPROVED.value
+
+# Plan states in which a plan VERSION legitimately describes a run's immutable
+# execution structure. Deliberately WIDER than the grant path's APPROVED-only
+# allowlist (a plan may be structurally authoritative without being currently
+# execution-authorized) and deliberately EXCLUDING the states a decision has
+# positively rejected. See build_verified_declaration for the full rationale.
+_DECLARATION_PLAN_STATES = frozenset(
+    {
+        ObjectivePlanStatus.APPROVED.value,
+        ObjectivePlanStatus.AWAITING_APPROVAL.value,
+        ObjectivePlanStatus.DRAFT.value,
+    }
+)
 
 # The identifier fields that constitute a run's exact grant binding. Every one
 # must match between the captured binding and the canonical grant record.
@@ -140,6 +158,39 @@ class ExecutionBinding:
         }
 
 
+def _read_regular_authority_file(path: Path) -> str | None:
+    """Read an authority file, or None — but NEVER block on a special file.
+
+    An ``except OSError`` cannot fail closed on an operation that never returns.
+    ``open()`` on a FIFO with no writer blocks in the kernel BEFORE any exception
+    can be raised, so a named pipe called ``execution_binding.json`` hangs the
+    production runner forever: it never seals, never reports, never dispatches.
+    A hang is not fail-closed; it is no-answer-ever (reproduced, both reviewers).
+
+    Authority files are regular files. Anything else — FIFO, socket, device,
+    directory — is refused by type BEFORE opening, consistent with the
+    ``lexists`` rule that a present-but-unusable name is evidence of a mutated
+    run rather than absence. Symlinks are followed to their target and the
+    TARGET must be regular, so a link to a FIFO is refused too.
+    """
+    try:
+        st = os.stat(path)  # follows symlinks; the TARGET must be regular
+    except (OSError, ValueError):
+        return None
+    if not stat.S_ISREG(st.st_mode):
+        logger.warning(
+            "authority file %s is not a regular file (mode %o) — refusing to read it; "
+            "a special file cannot be read fail-closed",
+            path,
+            stat.S_IFMT(st.st_mode),
+        )
+        return None
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return None
+
+
 def scenario_map_path(targets_dir: str | os.PathLike[str]) -> Path:
     return Path(targets_dir) / _SCENARIO_NAME
 
@@ -166,9 +217,12 @@ def read_execution_binding(
     A missing binding is a hard failure at the call site (fail closed): without
     it there is no run identity to resolve the exact grant against.
     """
+    raw = _read_regular_authority_file(execution_binding_path(targets_dir))
+    if raw is None:
+        return None
     try:
-        data = json.loads(execution_binding_path(targets_dir).read_text(encoding="utf-8"))
-    except (FileNotFoundError, OSError, ValueError):
+        data = json.loads(raw)
+    except ValueError:
         return None
     if not isinstance(data, dict):
         return None
@@ -627,6 +681,134 @@ def build_from_records(
     return payload
 
 
+def build_verified_declaration(
+    records: list[dict[str, Any]],
+    *,
+    binding: ExecutionBinding,
+    now: float | None = None,
+) -> Any:
+    """THE one constructor of a run's verified execution declaration.
+
+    Derives the declaration by RECOMPUTING the semantic mapping from the
+    canonical plan/packet/grant records (``build_from_records``, which gates on
+    ``resolve_canonical_grant`` first), never by reading ``scenario_map.json``'s
+    ``integration_task_id`` field. That distinction is the whole point: a
+    retargeted field cannot move a declaration that was derived from lineage.
+
+    The returned object is immutable and carries the ``binding_digest`` covering
+    both the run/candidate/plan/grant binding and the full semantic mapping, so a
+    consumer can prove the declaration belongs to the run it is executing.
+
+    DECLARATION IS NOT AUTHORIZATION — and this function must never conflate
+    them. It resolves the mapping from PLAN/PACKET LINEAGE only, and deliberately
+    does NOT gate on ``resolve_canonical_grant``.
+
+    That is not a weakened check; it is the correct separation. Lineage is
+    durable — a plan node's WorkPacket is the integration Task for the whole run
+    — while grant validity is transient: it expires, it can be revoked, it can be
+    unreadable. An earlier version of this function called
+    ``build_from_records`` (which gates on the grant) and was measured against
+    the real field fixture: the grant was ACTIVE but 0.1 days past
+    ``expires_at``, so declaration construction failed, the integration Task
+    became UNDECLARED, and a ``C + worker`` row persisted — the identical end
+    state as the original defect, reached through the expiry door.
+
+    A transient authority failure must never be able to change a Task's durable
+    execution CLASS. Composition still cannot RUN without a valid grant: the
+    authority question is asked separately, and DENIED/UNRESOLVED yields no
+    Attempt at all rather than a worker Attempt.
+
+    Raises ``ScenarioMapError`` (fail closed) when the mapping cannot be
+    recomputed — an unanswerable declaration is a refusal, never an empty one.
+    """
+    from substrate.execution.attempts.records import (
+        AttemptExecutionKind,
+        VerifiedExecutionDeclaration,
+    )
+
+    plan = select_plan(
+        records, plan_record_id=binding.plan_record_id, plan_version=binding.plan_version
+    )
+
+    # DECLARATION-SIDE PLAN ACCEPTANCE — derived from source, not copied from the
+    # grant path's allowlist.
+    #
+    # ``select_plan`` refuses only SUPERSEDED. The ``status == approved`` check
+    # lived in ``resolve_canonical_grant``, and removing the grant gate (the
+    # correct DECLARATION ≠ AUTHORIZATION fix) removed it too — so a binding
+    # naming the fixture's REAL rejected prior revision built a declaration from
+    # the WRONG plan, whose integration node is a DIFFERENT packet
+    # (wp-5deae4d21c6a vs wp-7c7ffd5be3fc). The real Task C then read as
+    # UNDECLARED and persisted as a worker (reproduced).
+    #
+    # The principle the owner set: a plan may be STRUCTURALLY AUTHORITATIVE
+    # without being currently EXECUTION-AUTHORIZED. So this is NOT the grant's
+    # allowlist. It is the set of states in which a plan version legitimately
+    # describes this run's immutable structure:
+    #
+    #   APPROVED           — the live accepted structure. Accepted.
+    #   AWAITING_APPROVAL  — a real revisable version (PlanningStore treats it as
+    #                        revisable alongside APPROVED/DRAFT). Structurally
+    #                        real; execution is separately gated by the grant.
+    #   DRAFT              — same: a real version awaiting decision.
+    #
+    #   REJECTED / CANCELLED — a decision positively determined this structure is
+    #                        NOT the run's. Never structural authority.
+    #   SUPERSEDED         — a stale prior version; already refused by select_plan.
+    #
+    # This does not turn rejected/superseded history into executable authority:
+    # execution still requires a valid grant bound to an APPROVED plan
+    # (resolve_canonical_grant, unchanged).
+    plan_status = str(plan.get("status", "")).lower()
+    if plan_status not in _DECLARATION_PLAN_STATES:
+        raise ScenarioMapError(
+            f"plan {binding.plan_record_id!r} v{binding.plan_version} has status "
+            f"{plan_status!r}, which is not a structurally authoritative state "
+            f"{sorted(_DECLARATION_PLAN_STATES)} — a rejected/cancelled/unknown plan "
+            f"version may not declare this run's execution structure"
+        )
+
+    nodes = [n for n in (plan.get("nodes") or []) if isinstance(n, dict)]
+    packets = _canonical_packets(records)
+    try:
+        mapping = resolve_scenario_map(plan_nodes=nodes, packets=packets)
+    except ScopeResolutionError as exc:
+        raise ScenarioMapError(f"declaration lineage resolution failed: {exc}") from exc
+
+    # Same node↔packet agreement cross-check build_from_records applies: a node
+    # and the packet its lineage resolves to must name each other.
+    node_by_id = {str(n.get("node_id", "")): n for n in nodes}
+    for label, packet_id in mapping.items():
+        packet = next((p for p in packets if str(p.get("packet_id", "")) == packet_id), None)
+        if packet is None:
+            raise ScenarioMapError(
+                f"{label}: resolved packet {packet_id!r} has no canonical record"
+            )
+        node = node_by_id.get(_node_id_for_packet(packet))
+        if node is None:
+            raise ScenarioMapError(f"{label}: packet {packet_id!r} names a node absent from plan")
+        declared_wp = str(node.get("workpacket_id", "") or "")
+        if declared_wp and declared_wp != packet_id:
+            raise ScenarioMapError(
+                f"{label}: plan node declares workpacket_id {declared_wp!r} but lineage "
+                f"resolved {packet_id!r} — node and packet disagree"
+            )
+
+    integration_task_id = str(mapping.get(INTEGRATION, "") or "")
+    classes: tuple[tuple[str, str], ...] = ()
+    if integration_task_id:
+        classes = ((integration_task_id, AttemptExecutionKind.CONTROL_PLANE_COMPOSITION.value),)
+    return VerifiedExecutionDeclaration(
+        run_id=binding.run_id,
+        candidate_sha=binding.candidate_sha,
+        # Computed over the RECOMPUTED lineage mapping and the run's captured
+        # binding — the same digest the authority path compares against, so the
+        # declaration and the authority provably speak about the same mapping.
+        digest=binding_digest(mapping, binding),
+        execution_classes=classes,
+    )
+
+
 def write_scenario_map(targets_dir: str | os.PathLike[str], payload: dict[str, Any]) -> Path:
     """Persist the run+plan-bound scenario map atomically."""
     path = scenario_map_path(targets_dir)
@@ -639,9 +821,12 @@ def write_scenario_map(targets_dir: str | os.PathLike[str], payload: dict[str, A
 
 def read_scenario_map(targets_dir: str | os.PathLike[str]) -> dict[str, Any]:
     """Return the persisted map ({} when absent/unreadable)."""
+    raw = _read_regular_authority_file(scenario_map_path(targets_dir))
+    if raw is None:
+        return {}
     try:
-        data = json.loads(scenario_map_path(targets_dir).read_text(encoding="utf-8"))
-    except (FileNotFoundError, OSError, ValueError):
+        data = json.loads(raw)
+    except ValueError:
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -908,6 +1093,7 @@ __all__ = [
     "select_plan",
     "binding_digest",
     "build_from_records",
+    "build_verified_declaration",
     "resolve_canonical_grant",
     "resolve_authorized_frontier",
     "write_scenario_map",

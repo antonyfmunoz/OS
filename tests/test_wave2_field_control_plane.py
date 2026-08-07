@@ -18,6 +18,7 @@ failure, never a false green).
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -97,9 +98,7 @@ class _FakeSandbox:
         pass
 
 
-def _add_approved_packet(
-    queue, pid, deps=None, allowed_paths=("app", "tests"), plan_record_id=""
-):
+def _add_approved_packet(queue, pid, deps=None, allowed_paths=("app", "tests"), plan_record_id=""):
     """An APPROVED packet carrying a DECLARED path scope (finding C-1): the
     canonical WorkPacket is the diff-scope authority, and a packet declaring no
     scope now fails verification closed instead of authorizing everything."""
@@ -234,6 +233,92 @@ def _driver(store, queue, spool, tmp_path, targets_dir="", enforce_graph_shape=F
     )
 
 
+def _make_declarable_run(targets):
+    """Make ``targets`` a COMPLETE, DECLARABLE governed run.
+
+    Round 9 made "a scenario map present with no resolvable candidate/run
+    binding" UNANSWERABLE, which SEALS the attempt-creation boundary. That rule
+    is production-correct — ``--targets-dir`` is free-form, so path shape alone
+    can never prove "no composition", and reading an unevaluable composition
+    claim as "no composition" is exactly how a real Wave 2 run persists
+    ``C + worker``.
+
+    So a fixture that writes a failure-targeting scenario map must also supply
+    what a governed run really has: a candidate-shaped path, a matching
+    execution binding, and resolvable plan/packet lineage. This helper writes
+    the binding + lineage for the A/B/C/D packets this suite already seeds.
+    """
+    import json
+
+    from substrate.execution.attempts.field_scenario_map import (
+        ExecutionBinding,
+        write_execution_binding,
+    )
+    from substrate.execution.attempts.field_task_scope import SEMANTIC_LABELS
+
+    parts = [p for p in str(targets).split(os.sep) if p]
+    cand = parts[parts.index("candidates") + 2]
+    run = parts[-1]
+    write_execution_binding(
+        targets,
+        ExecutionBinding(
+            run_id=run,
+            candidate_sha=cand,
+            plan_record_id="opr-fixture",
+            plan_version=1,
+            grant_id="exgrant-fixture",
+            decision_ref="objective_plan:opr-fixture:execution_authorization:v1",
+        ),
+    )
+    state = Path(targets).parent.parent / "state" / "umh"
+    (state / "operator" / "objective_planning").mkdir(parents=True, exist_ok=True)
+    (state / "universal_work").mkdir(parents=True, exist_ok=True)
+    ids = {
+        "backend_task_id": "A",
+        "frontend_task_id": "B",
+        "integration_task_id": "C",
+        "verification_task_id": "D",
+    }
+    nodes, packets = [], []
+    for label in SEMANTIC_LABELS:
+        pid = ids[label]
+        nodes.append(
+            {
+                "node_id": f"node-{pid}",
+                "kind": "packet",
+                "workpacket_id": pid,
+                "semantic_label": label,
+                "title": f"node {pid}",
+            }
+        )
+        packets.append(
+            {
+                "packet_id": pid,
+                # Real shape: a LIST of evidence entries, as the field fixture
+                # persists it — not a dict.
+                "source_evidence": [
+                    {"type": "plan_node", "node_id": f"node-{pid}", "evidence_refs": []}
+                ],
+            }
+        )
+    (state / "operator" / "objective_planning" / "objective_plans.jsonl").write_text(
+        json.dumps(
+            {
+                "plan_record_id": "opr-fixture",
+                "graph_version": 1,
+                "status": "approved",
+                "nodes": nodes,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (state / "universal_work" / "work_packets.jsonl").write_text(
+        "".join(json.dumps(p) + "\n" for p in packets), encoding="utf-8"
+    )
+    return targets
+
+
 def _seed_active_grant(store, grant):
     """Persist the grant as ACTIVE so the driver's active_grants() sees it."""
     from substrate.execution.attempts.records import ExecutionAuthorizationGrant
@@ -274,9 +359,7 @@ def test_driver_admits_independent_frontier_first(store, queue, tmp_path):
     assert not any(a.task_id == "C" for a in store.active_attempts())
 
 
-def test_graph_shape_gate_refuses_single_umbrella_task_before_any_dispatch(
-    store, queue, tmp_path
-):
+def test_graph_shape_gate_refuses_single_umbrella_task_before_any_dispatch(store, queue, tmp_path):
     """The exact field failure: ONE combined Task instead of the four-lane graph.
 
     The gate must refuse BEFORE a dispatch envelope is written, so the wrong
@@ -303,7 +386,9 @@ def test_graph_shape_gate_admits_the_correct_four_lane_graph(store, queue, tmp_p
     """The gate is not merely restrictive: the right shape proceeds normally."""
     _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
     _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
-    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
+    _add_approved_packet(
+        queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1"
+    )
     _add_approved_packet(queue, "D", deps=["C"], allowed_paths=(), plan_record_id="opr-1")
     _seed_active_grant(store, _grant(["A", "B", "C", "D"]))
 
@@ -321,8 +406,12 @@ def test_graph_shape_gate_refuses_write_authorized_verifier(store, queue, tmp_pa
     """D holding write authority is the dangerous shape — refuse before dispatch."""
     _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
     _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
-    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
-    _add_approved_packet(queue, "D", deps=["C"], allowed_paths=("app/main.py",), plan_record_id="opr-1")
+    _add_approved_packet(
+        queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1"
+    )
+    _add_approved_packet(
+        queue, "D", deps=["C"], allowed_paths=("app/main.py",), plan_record_id="opr-1"
+    )
     _seed_active_grant(store, _grant(["A", "B", "C", "D"]))
 
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
@@ -334,9 +423,7 @@ def test_graph_shape_gate_refuses_write_authorized_verifier(store, queue, tmp_pa
     assert not store.active_attempts(), "zero quota spent on a write-authorized verifier"
 
 
-def test_graph_shape_gate_is_off_by_default_for_single_task_objectives(
-    store, queue, tmp_path
-):
+def test_graph_shape_gate_is_off_by_default_for_single_task_objectives(store, queue, tmp_path):
     """A legitimate single-Task smoke objective must not be misreported."""
     _add_approved_packet(queue, "A")
     _seed_active_grant(store, _grant(["A"]))
@@ -389,8 +476,16 @@ def test_driver_dispatch_fn_consults_failure_marker(store, queue, tmp_path):
     _add_approved_packet(queue, "C", deps=["A", "B"])
     _seed_active_grant(store, _grant(["A", "B", "C"]))
 
-    targets = tmp_path / "targets"
-    targets.mkdir()
+    # A scenario map present without a resolvable candidate/run binding is
+    # UNANSWERABLE (round 9): the run CLAIMS a composition structure that cannot
+    # be evaluated, and `--targets-dir` is free-form, so reading that as "no
+    # composition" would let a real Wave 2 run persist `C + worker`.
+    #
+    # The failure policy and the declaration read the SAME targets dir, so this
+    # fixture cannot separate them — it must be a COMPLETE governed run.
+    targets = tmp_path / "candidates" / "wave2" / "cand0" / "targets" / "run-1"
+    targets.mkdir(parents=True)
+    _make_declarable_run(targets)
     (targets / ".inject_failure").write_text("tools-revoked-backend", encoding="utf-8")
     # Targeting resolves through the scenario map (finding C2) — an exact id the
     # harness recorded, never a guessed pattern.
@@ -502,7 +597,6 @@ def test_failed_gate_still_drains_worker_results(store, queue, tmp_path):
     assert reports[0].results_drained == 1, "failed gate did not drain the outbox"
 
 
-
 def _fixture_plan_lookup(plan_record_id="opr-1"):
     """A lookup returning the APPROVED plan the grant names.
 
@@ -516,9 +610,8 @@ def _fixture_plan_lookup(plan_record_id="opr-1"):
     """
     from types import SimpleNamespace
 
-    return lambda _objective_id: SimpleNamespace(
-        plan_record_id=plan_record_id, status="approved"
-    )
+    return lambda _objective_id: SimpleNamespace(plan_record_id=plan_record_id, status="approved")
+
 
 def test_admission_failure_releases_the_lease(store, queue, tmp_path):
     """CRITICAL-B: the lease is acquired BEFORE package compilation, which can
@@ -687,12 +780,17 @@ def test_runner_loop_actually_reaps_stale_leases(tmp_path, monkeypatch):
 
     fixture = tmp_path / "fixture"
     fixture.mkdir()
+    # A scenario map present without a resolvable candidate/run binding is
+    # UNANSWERABLE (round 9): the run CLAIMS a composition structure that cannot
+    # be evaluated, and `--targets-dir` is free-form, so reading that as "no
+    # composition" would let a real Wave 2 run persist `C + worker`.
+    #
+    # The failure policy and the declaration read the SAME targets dir, so this
+    # fixture cannot separate them — it must be a COMPLETE governed run.
     targets = tmp_path / "targets"
     targets.mkdir()
     monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
-    monkeypatch.setattr(
-        runner_mod, "_build_control_plane_driver", lambda **_kw: _SpyDriver()
-    )
+    monkeypatch.setattr(runner_mod, "_build_control_plane_driver", lambda **_kw: _SpyDriver())
 
     rc = runner_mod.run_loop(
         spool_root=str(tmp_path / "spool"),
@@ -713,8 +811,7 @@ def test_runner_loop_actually_reaps_stale_leases(tmp_path, monkeypatch):
     )
 
 
-
-def test_stale_lease_is_actually_expired(store, queue, tmp_path):
+def test_stale_lease_is_expired_via_the_driver_cycle(store, queue, tmp_path):
     """End-to-end: a lease past its expires_at is reaped, freeing the task."""
     spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
     driver = _driver(store, queue, spool, tmp_path)
@@ -748,7 +845,9 @@ def test_runner_reaps_leases_through_the_lazy_accessor(tmp_path, monkeypatch):
 
     spec = importlib.util.spec_from_file_location(
         "_w2_runner_reap",
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "wave2_attempt_runner.py"),
+        os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), "scripts", "wave2_attempt_runner.py"
+        ),
     )
     runner_mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(runner_mod)
@@ -794,7 +893,9 @@ def test_gate_arms_the_zero_attempt_check_on_the_first_admission(store, queue, t
     """
     _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
     _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
-    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
+    _add_approved_packet(
+        queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1"
+    )
     _add_approved_packet(queue, "D", deps=["C"], allowed_paths=(), plan_record_id="opr-1")
     grant = _grant(["A", "B", "C", "D"])
     _seed_active_grant(store, grant)
@@ -811,15 +912,15 @@ def test_gate_arms_the_zero_attempt_check_on_the_first_admission(store, queue, t
     assert verdict["ok"], verdict["failures"]
 
 
-def test_gate_disarms_the_zero_attempt_check_after_the_first_attempt_exists(
-    store, queue, tmp_path
-):
+def test_gate_disarms_the_zero_attempt_check_after_the_first_attempt_exists(store, queue, tmp_path):
     """Control: the check is FIRST-CYCLE-ONLY by design — a poll loop must not
     refuse the run the moment its own first worker starts. Without this the
     'fix' for the arming gap would deadlock every real run after cycle one."""
     _add_approved_packet(queue, "A", allowed_paths=("app/main.py",), plan_record_id="opr-1")
     _add_approved_packet(queue, "B", allowed_paths=("app/static",), plan_record_id="opr-1")
-    _add_approved_packet(queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1")
+    _add_approved_packet(
+        queue, "C", deps=["A", "B"], allowed_paths=("app",), plan_record_id="opr-1"
+    )
     _add_approved_packet(queue, "D", deps=["C"], allowed_paths=(), plan_record_id="opr-1")
     grant = _grant(["A", "B", "C", "D"])
     _seed_active_grant(store, grant)

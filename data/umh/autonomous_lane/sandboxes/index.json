@@ -3,6 +3,7 @@
     {
       "sandbox_id": "sb-pr43prod",
       "branch_name": "worktree-phase9-8-production-truth",
+      "branch_preserved": false,
       "worktree_path": "",
       "base_commit": "d1543edf",
       "head_commit": "dbafd0be",
@@ -23,6 +24,7 @@
     {
       "sandbox_id": "sb-pr47cse",
       "branch_name": "auto/low-risk/audit-gap--runtime-template-st-ed2e7b56",
+      "branch_preserved": false,
       "worktree_path": "",
       "base_commit": "83f1da82",
       "head_commit": "03fe81d86fd6092338a3e9388649abbc9f2f7b00",
@@ -46,6 +48,7 @@
     {
       "sandbox_id": "sb-pr51-github-trinity",
       "branch_name": "auto/low-risk/stale-docstring-github-trinity",
+      "branch_preserved": false,
       "worktree_path": "",
       "base_commit": "f9ea2b96",
       "head_commit": "52e2876c1af6eb77c7dd1cb615ebbb681f3918c9",
@@ -68,6 +71,7 @@
     {
       "sandbox_id": "sb-pr52-init-py",
       "branch_name": "auto/low-risk/missing-init-py-tests-substrate",
+      "branch_preserved": false,
       "worktree_path": "",
       "base_commit": "52e2876c",
       "head_commit": "198569df3dd5cd594d17d22da621d063c657a544",
@@ -90,6 +94,7 @@
     {
       "sandbox_id": "sb-pr53-stale-paths",
       "branch_name": "auto/low-risk/stale-worktree-syspath-test-files",
+      "branch_preserved": false,
       "worktree_path": "",
       "base_commit": "198569df",
       "head_commit": "78ebf1bbab3326372096a791a15675fe96d7aec0",
@@ -119,13 +124,14 @@
     {
       "sandbox_id": "sb-val-test",
       "branch_name": "test-branch",
+      "branch_preserved": false,
       "worktree_path": "/tmp/fake-worktree",
       "base_commit": "",
       "head_commit": "",
       "candidate_id": "test-pkt-002",
       "template_id": "",
       "agent_type": "operator_loop",
-      "created_at": 1784570641.618927,
+      "created_at": 1785976360.9195693,
       "status": "created",
       "affected_files": [],
       "locks": [],
@@ -137,7 +143,7 @@
           "stderr": "",
           "exit_code": 0,
           "duration_seconds": 0.1,
-          "validated_at": 1784570641.6189356
+          "validated_at": 1785976360.9195762
         },
         {
           "passed": false,
@@ -146,7 +152,7 @@
           "stderr": "error",
           "exit_code": 1,
           "duration_seconds": 0.2,
-          "validated_at": 1784570641.6193953
+          "validated_at": 1785976360.9199443
         }
       ],
       "cleanup_policy": "on_merge",
@@ -158,6 +164,7 @@
     {
       "sandbox_id": "sb-0cecbcd9",
       "branch_name": "auto/low-risk/implementation--fix-a-typescri-0cecbcd9",
+      "branch_preserved": false,
       "worktree_path": "/opt/OS/.claude/worktrees/OS-mvp-wave0-truth-stabilization/.claude/worktrees/auto-0cecbcd9",
       "base_commit": "778f2b9d0248d48f254011da8e15553bf6ddca98",
       "head_commit": "",
@@ -177,5 +184,5 @@
     }
   ],
   "file_locks": {},
-  "updated_at": 1784570641.6194565
+  "updated_at": 1785976360.9199839
 }

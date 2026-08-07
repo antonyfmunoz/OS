@@ -86,6 +86,13 @@ class PollerPassReport:
     failed: list[str] = field(default_factory=list)
     ignored: list[str] = field(default_factory=list)
     scheduler_admitted: list[str] = field(default_factory=list)
+    # Tasks the scheduler REFUSED because their composition authority could not
+    # be resolved. Carried through because the refusal must not exist only as a
+    # log line: the original field defect (run 20260807T005250Z-p1) was invisible
+    # precisely because an authority loss was swallowed to a log, and a refused
+    # integration Task creates no attempt record — so without this the run looks
+    # IDLE/complete while its integration Task never ran.
+    authority_unresolved: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -97,6 +104,7 @@ class PollerPassReport:
             "failed": list(self.failed),
             "ignored": list(self.ignored),
             "scheduler_admitted": list(self.scheduler_admitted),
+            "authority_unresolved": list(self.authority_unresolved),
             "errors": list(self.errors),
         }
 
@@ -178,6 +186,15 @@ class ControlPlanePoller:
                 sched_report = self._scheduler.run_scheduler_pass(**self._pass_kwargs)
                 admitted = getattr(sched_report, "attempts_admitted", None) or []
                 report.scheduler_admitted = list(admitted)
+                # Carry the authority refusal forward. Reading ONLY `admitted`
+                # discarded it at the first production frame, so a Task refused
+                # for unresolvable composition authority left no trace anywhere
+                # an operator looks — and, creating no attempt record, the run
+                # then reported idle/complete with its integration Task never
+                # run. That is the same invisibility that made the original
+                # field defect take a full qualification pass to surface.
+                unresolved = getattr(sched_report, "authority_unresolved", None) or []
+                report.authority_unresolved = list(unresolved)
             except Exception as exc:
                 report.errors.append(f"scheduler_pass: {exc}")
                 logger.debug("poller: scheduler pass failed: %s", exc, exc_info=True)

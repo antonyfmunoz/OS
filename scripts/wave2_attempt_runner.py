@@ -247,7 +247,12 @@ def _build_control_plane_driver(
     from substrate.organism.universal_work_queue import UniversalWorkQueue
     from substrate.organism.worktree_sandbox import SandboxManager
 
-    store = ExecutionAttemptStore()  # honors UMH_STATE_DIR (shared candidate state)
+    # SEALED BY DEFAULT. This is the governed Wave 2 run entry point, so the
+    # attempt-creation boundary starts closed and is opened only by a positively
+    # verified execution declaration (FieldControlPlaneDriver applies it below).
+    # Without this flag the store would start permissive, which is exactly the
+    # default that five reproduced bypasses walked through.
+    store = ExecutionAttemptStore(governed_run=True)  # honors UMH_STATE_DIR
     queue = UniversalWorkQueue()  # honors UMH_STATE_DIR
     sandbox = SandboxManager(
         repo_root=fixture_repo,
@@ -446,6 +451,21 @@ def run_loop(
                             # Surface the CAUSE, not just a count (review W8).
                             for err in c.errors:
                                 _log(f"control-plane ERROR: {err}")
+                        elif getattr(c, "authority_unresolved", None):
+                            # A Task REFUSED because its composition authority
+                            # could not be resolved must never read as "no
+                            # eligible work". The refusal creates no attempt
+                            # record, so without this branch the run's only
+                            # human-facing signal was "control-plane idle" —
+                            # the exact false-completion the field defect
+                            # produced (run 20260807T005250Z-p1). The cycle
+                            # already reports idle=False; this makes the
+                            # operator log agree with it.
+                            _log(
+                                f"control-plane REFUSED: grant={c.grant_ref[:32]} could not "
+                                f"resolve composition authority for: {c.authority_unresolved} "
+                                f"— NOT idle; no worker was dispatched for these tasks"
+                            )
                         elif getattr(c, "skipped_not_approved", None):
                             # A stall with a known cause must never look like
                             # "waiting for work" (review W5).

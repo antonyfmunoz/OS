@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
 import pytest
 
@@ -124,11 +125,81 @@ def _binding(**over):
 
 
 def _targets(tmp_path, *, binding=None):
-    """A per-run targets dir with a durable execution binding, like the field run."""
-    d = tmp_path / "targets" / _RUN_ID
+    """A per-run targets dir with a durable execution binding, like the field run.
+
+    CANDIDATE-SHAPED, as every real field run is. An execution binding written
+    into a non-candidate-shaped dir is now UNANSWERABLE (round 10): Wave 2
+    evidence with no resolvable candidate/run binding means the run may be
+    governed and cannot be evaluated, so the boundary seals. Reviewer A
+    reproduced the permissive reading — deleting a single file yielded
+    NO_COMPOSITION and persisted a durable `C + worker` row.
+    """
+    d = tmp_path / "candidates" / "wave2" / _SHA / "targets" / _RUN_ID
     d.mkdir(parents=True, exist_ok=True)
     write_execution_binding(str(d), binding or _binding())
+    _write_declarable_lineage(d, binding or _binding())
     return str(d)
+
+
+def _write_declarable_lineage(targets, binding):
+    """The scenario map + plan/packet lineage a governed run really has.
+
+    This suite exercises ADMISSION PAUSING, not composition, but a
+    candidate-shaped run must still be DECLARABLE or the attempt-creation
+    boundary seals (round 10) — Wave 2 evidence that cannot be evaluated is
+    UNANSWERABLE, never "no composition".
+    """
+    import json as _json
+
+    from substrate.execution.attempts.field_task_scope import SEMANTIC_LABELS
+
+    ids = {
+        "backend_task_id": "wp-backend",
+        "frontend_task_id": "wp-frontend",
+        "integration_task_id": "wp-integration",
+        "verification_task_id": "wp-verify",
+    }
+    (Path(targets) / "scenario_map.json").write_text(
+        _json.dumps({label: ids[label] for label in SEMANTIC_LABELS}), encoding="utf-8"
+    )
+    state = Path(targets).parent.parent / "state" / "umh"
+    (state / "operator" / "objective_planning").mkdir(parents=True, exist_ok=True)
+    (state / "universal_work").mkdir(parents=True, exist_ok=True)
+    nodes, packets = [], []
+    for label in SEMANTIC_LABELS:
+        pid = ids[label]
+        nodes.append(
+            {
+                "node_id": f"node-{pid}",
+                "kind": "packet",
+                "workpacket_id": pid,
+                "semantic_label": label,
+                "title": f"node {pid}",
+            }
+        )
+        packets.append(
+            {
+                "packet_id": pid,
+                "source_evidence": [
+                    {"type": "plan_node", "node_id": f"node-{pid}", "evidence_refs": []}
+                ],
+            }
+        )
+    (state / "operator" / "objective_planning" / "objective_plans.jsonl").write_text(
+        _json.dumps(
+            {
+                "plan_record_id": binding.plan_record_id,
+                "graph_version": int(binding.plan_version),
+                "status": "approved",
+                "nodes": nodes,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (state / "universal_work" / "work_packets.jsonl").write_text(
+        "".join(_json.dumps(p) + "\n" for p in packets), encoding="utf-8"
+    )
 
 
 def _spool(tmp_path):

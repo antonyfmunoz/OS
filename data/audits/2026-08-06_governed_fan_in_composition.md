@@ -277,6 +277,128 @@ mutation coverage at all. That is corrected here rather than left standing.
 
 ---
 
+## Pre-field exact-SHA reconciliation (2026-08-06)
+
+Performed after the implementation cycle closed. **No field execution, no quota.**
+
+### Beast executor worktree
+
+The designated Wave 2 executor is **`C:\dev\wave2_wt`** — a deliberately DETACHED
+git worktree (`scripts/wave2_field_dispatch.py:68`, `_BEAST_WT`), NOT the Beast's
+main checkout. The harness contract at `:57-66` is explicit: *"C:\dev\dev\OS stays
+on main because the node daemon runs from it, and main predates this branch — the
+collector doesn't even exist there."*
+
+An earlier reconciliation attempt in this session targeted `C:\dev\dev\OS` and was
+correctly blocked by the permission classifier. That directory is **not** the
+executor and was never advanced; the one untracked file moved aside during that
+attempt (`scripts/wave2_chat_input_probe.py`) has been **restored to its original
+name** — no user work was lost.
+
+| | |
+|---|---|
+| Executor path | `C:\dev\wave2_wt` |
+| HEAD before | `9a8c4a30620cfde5cec7b05e7a54d625ee6cd450` |
+| HEAD after | `131549ee4d1775a55953ecb9ff5d30fc720d20b1` |
+| Method | `git -C C:\dev\wave2_wt checkout --detach <SHA>` — the harness's own documented update command (`:64`) |
+| Clean before | `git status --porcelain --untracked-files=all` → **empty** (zero tracked, zero untracked) |
+| Detached after | `git symbolic-ref -q HEAD` → **empty** (detached, as intended) |
+| Processes using it | **none** — only the node daemon, which runs from `C:\dev\dev\OS` |
+
+No reset, clean, merge, rebase, cherry-pick or force operation was used.
+
+**Object identity proven before mutation** — Beast's copy of the commit is
+byte-identical to VPS/origin:
+
+| | VPS | Beast |
+|---|---|---|
+| type | `commit` | `commit` |
+| tree | `bf713ecc8505594696daf1f4552ae6fc4dd5b71b` | same |
+| parent | `7eae13bc1e95302670a3049bff38c45077c34707` | same |
+| full commit-object sha256 | `209fe6376fdbc2d12712d12612aa66d7a7827964cef14bfc0aaa942bc922011c` | same |
+
+### Four-way SHA agreement
+
+VPS worktree = origin = PR #313 head = Beast executor =
+`131549ee4d1775a55953ecb9ff5d30fc720d20b1`.
+
+### Frozen driver re-freeze
+
+| | |
+|---|---|
+| File | `data/audits/proof/2026-08-05_wave2_field/frozen_driver/failpass_frozen.py` |
+| Old digest | `20699e81a996eecf2014203caf18354dd4614ff7ce399adf35c997ba2499c1bc` (pinned `9a8c4a306`) |
+| New digest | `0b48b6ad213099444b144ba48a999fc80a37f869fd9f4172e9d6f3588b7a933a` (pinned `131549ee4`) |
+| Exact diff | one line — `SHA = "9a8c4a306…"` → `SHA = "131549ee4…"`. No logic, ordering, waits, assertions or gates changed. |
+| Mode | `0444` (immutable) |
+| Prior preserved | `failpass_frozen.prior-9a8c4a306.py` (0444) |
+| Candidate source touched | **none** — `git status` clean, HEAD unchanged |
+
+Truthfulness note: the previous `DIGEST.md` header named `4b0a9ae9…` as current
+while the on-disk file was already `20699e81…` — an earlier re-freeze whose record
+was never written. Recorded rather than silently overwritten.
+
+**In-repo dispatcher drift** (`scripts/wave2_field_dispatch.py`, a separate
+artifact) since the last field-authorized SHA: **exactly 2 hunks in 1 commit
+(`86904563e`)**, both inside authorized functions — `_sweep_run_homes` (ref-cleanup
+binding) and `qualification_verdict` (zero-residue gate). `git log` lists one
+commit; `git diff | grep -c '^@@'` = 2. No unrelated drift.
+
+### Zero-quota preflight — QUALIFIED
+
+`wave2_field_dispatch.py preflight` → `ok: true`, zero mandatory failures. Start
+command was **echoed only, never executed**.
+
+| Check | Result |
+|---|---|
+| mesh_health | `{"status":"healthy","connected_nodes":1,"node_ids":["windows-desktop"]}` |
+| schtasks (node daemon) | `Status: Running` |
+| interactive session | `1` |
+| beast_to_origin | `200` |
+| start command | echoed, not run |
+
+A first preflight attempt reported NOT QUALIFIED on `mesh_health`. Diagnosed to a
+**leaked `UMH_ROOT` from a prior pytest run** in the invoking shell, which pointed
+the driver at a deleted temp dir for `mesh.env.tpl`. Re-run with a clean env:
+QUALIFIED. Not a system condition — recorded rather than passed over.
+
+### Final readiness review — READY FOR FIELD AUTHORIZATION
+
+An independent read-only review verified all 30 checklist items by direct
+observation: four-way SHA agreement, Beast executor clean + detached (and the
+Beast MAIN checkout correctly NOT advanced, still at `e4ac95fe0` with its own
+state), frozen-driver digest/mode/pin/diff, dispatcher drift (1 commit, 2 hunks,
+2 authorized functions, no unrelated drift), **1512** wave2 tests, **50** fan-in
+tests, all governance gates, zero residue, live mesh + Beast Session 1, all five
+prior review findings still closed, PR OPEN/DRAFT/UNMERGED, Wave 3 not started.
+
+It also independently proved the 42 pre-existing failures are unrelated: all are
+`tests/test_phase14_{7a,8b}_wave2.py`, caused by a `FileNotFoundError` on a
+**deleted sibling worktree**, and grepping every one of this packet's 13 changed
+files across both test files returns **zero matches**.
+
+**Zero new Critical or High.** One LOW, reproduced and fixed:
+
+- `failpass_frozen.sha256` recorded `0eb386e5…` — the digest of
+  `failpass_frozen.prior-8f4f42c58.py`, three re-freezes ago. Verified
+  **pre-existing** (it was already stale before this session's re-freeze), mode
+  `0644`, and with **zero consumers** — `DIGEST.md` is the authority, the sidecar
+  was orphaned evidence, never a consumed integrity check. Refreshed to
+  `0b48b6ad…`; `sha256sum -c` now passes. Evidence hygiene only; no source change.
+
+### Residue at reconciliation
+
+| Item | State |
+|---|---|
+| Protected refs (worktree + `/opt/OS`) | **0 / 0** |
+| Active leases (all wave2 candidates) | **0** |
+| Stale runners / dispatchers / collectors | **none** |
+| Candidate dir for `131549ee4` | **does not exist** — zero quota consumed at this SHA |
+| Field quota | **37/42, unchanged** |
+| Tracked source | clean |
+
+---
+
 ## Bounded residuals (stated, not hidden)
 
 1. **`_validated_integration_packet_id` is not exercised end-to-end.** The

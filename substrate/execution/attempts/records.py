@@ -5,7 +5,10 @@ convention of ``substrate.execution.planning.records`` (``asdict`` +
 field-filtered ``from_dict`` + ``_new_id``) so the store layer is a faithful
 mirror of ``PlanningStore``.
 
-Two record types live here:
+Two record types live here (plus :class:`CompositionAuthorityUnresolved`, an
+authority-outcome signal that lives here only because both the scheduler and the
+field control plane must name it and the control plane already imports the
+scheduler — see its docstring):
 
 - :class:`ExecutionAttempt` — the ONE canonical concrete execution lifecycle
   object. One Task (WorkPacket) has zero, one, or many attempts. An attempt
@@ -40,6 +43,26 @@ def _from_dict(cls: type, d: dict[str, Any]) -> Any:
 # ── ExecutionAttempt ─────────────────────────────────────────────────────────
 
 
+class CompositionAuthorityUnresolved(RuntimeError):
+    """Composition authority for the DECLARED integration Task could not be RESOLVED.
+
+    Strictly distinct from "this packet is not the integration Task" (a normal
+    False) and from "authority was legitimately DENIED" (also False, refused by
+    the scenario-map gate). This means the question could not be answered at all
+    — e.g. the authorization ledger is present but unreadable.
+
+    It lives here, on the records module, because both the scheduler and the
+    field control plane must name it and the control plane already imports the
+    scheduler (a module-level import the other way would be a cycle).
+
+    The scheduler deliberately does NOT swallow this one: unknown authority must
+    never resolve to "run the integration Task as an ordinary worker". In field
+    run 20260807T005250Z-p1 exactly that fallback dispatched a real model worker
+    for Task C, which failed twice with no commits, while the composition path
+    never ran.
+    """
+
+
 class AttemptExecutionKind(str, Enum):
     """WHO executes an attempt — the persisted composition authority.
 
@@ -65,6 +88,161 @@ class AttemptExecutionKind(str, Enum):
 
     WORKER = "worker"
     CONTROL_PLANE_COMPOSITION = "control_plane_composition"
+
+
+@dataclass(frozen=True)
+class VerifiedExecutionDeclaration:
+    """WHAT execution class each Task of ONE run is — built once, then immutable.
+
+    THE SINGLE DECLARATION AUTHORITY. Seven successive review rounds each closed
+    a different consumer of "which Task is the integration Task", and the seventh
+    showed why that could never converge: AUTHORITY was integrity-checked while
+    the DECLARATION identifying what that authority governs was re-read from
+    mutable state at every consumer. Move ``integration_task_id`` in
+    ``scenario_map.json`` and the declaration moves with it, so every gate keyed
+    off it silently skips — including the write-boundary guard — and a worker row
+    becomes durable for the real integration Task (reproduced end to end).
+
+    This type removes the re-read. It is created ONCE per run, from
+    ``build_from_records`` — which RECOMPUTES the semantic mapping from the
+    canonical plan/packet/grant records after ``resolve_canonical_grant`` — and
+    is then carried into Attempt creation. The persisted map's own
+    ``integration_task_id`` field is never the source: a retargeted field cannot
+    move a declaration that was derived from lineage rather than read.
+
+    DECLARATION IS NOT AUTHORIZATION, and the two must never be conflated:
+
+      * DECLARATION (this type) answers "what execution class is this Task
+        allowed to be?" — durable for the run's lifetime.
+      * AUTHORIZATION (the grant) answers "may that execution happen NOW?" —
+        transient, and legitimately DENIED or UNRESOLVED.
+
+    Grant state may stop composition from running; it may NEVER transform the
+    integration Task into a worker Task. Every one of the six pointwise defects
+    came from letting a transient authority failure decide a durable class.
+
+    ``binding_digest`` covers the full semantic Task-id mapping together with the
+    run/candidate/plan/grant binding, so ``digest`` here authenticates both the
+    identity of the run and the mapping this declaration asserts.
+    """
+
+    run_id: str
+    candidate_sha: str
+    digest: str
+    execution_classes: tuple[tuple[str, str], ...] = ()
+
+    def execution_class_for(self, task_id: str) -> str | None:
+        """The DECLARED class of ``task_id``, or None when undeclared.
+
+        None means "ordinary Task" — A/B/D are undeclared and behave exactly as
+        before. It never means "unknown"; an unanswerable declaration is a
+        refusal raised at construction, never a None returned here.
+        """
+        if not task_id:
+            return None
+        for tid, kind in self.execution_classes:
+            if tid == task_id:
+                return kind
+        return None
+
+    def matches_run(self, *, run_id: str, candidate_sha: str) -> bool:
+        """Is this declaration for exactly this run AND candidate?"""
+        return self.run_id == run_id and self.candidate_sha == candidate_sha
+
+
+class DeclarationOutcome(str, Enum):
+    """The THREE distinguishable answers to "what execution classes does this run declare?".
+
+    Round 8 collapsed two of these into one absence — ``None`` meant BOTH "this
+    run positively has no composition Task" AND "the declaration could not be
+    determined" — and three builder exits returned the second while the store
+    read it as the first. Five bypasses followed (binding truncated/deleted/
+    non-dict, scenario map deleted, binding naming a REJECTED plan): the store
+    was left neither armed nor sealed, and ``Task C + worker`` persisted
+    immutably through the real scheduler.
+
+    THE LAW: **UNKNOWN MUST NEVER MEAN WORKER.** An absence that encodes two
+    meanings is what produced eight rounds of pointwise fixes; this enum makes
+    the ambiguity unrepresentable.
+    """
+
+    DECLARED = "declared"
+    NO_COMPOSITION = "no_composition"
+    UNANSWERABLE = "unanswerable"
+
+
+@dataclass(frozen=True)
+class DeclarationResult:
+    """The tagged outcome of building a run's verified execution declaration.
+
+    Exactly one of three states, never a bare ``None``/``""``/``{}``/side-channel
+    error string. ``UNANSWERABLE`` is the DEFAULT for anything unexpected —
+    including a builder exception — so a new failure mode cannot silently become
+    "no composition".
+
+    ``NO_COMPOSITION`` is a POSITIVE PROOF, not an absence: it is only produced
+    when the run's lineage resolved successfully and genuinely contained no
+    composition Task. "I could not read the inputs" is never this state.
+    """
+
+    outcome: DeclarationOutcome
+    declaration: VerifiedExecutionDeclaration | None = None
+    reason: str = ""
+    # NO_COMPOSITION is a POSITIVE PROOF about a SPECIFIC run, so it carries the
+    # run it proves — exactly like DECLARED. An unbound "nothing here" tag is an
+    # unseal-everything token: it provably governs nothing yet opens any store
+    # (reproduced). Empty for DECLARED (which binds through `declaration`) and
+    # for UNANSWERABLE (which never unseals).
+    run_id: str = ""
+    candidate_sha: str = ""
+
+    def __post_init__(self) -> None:
+        if self.outcome is DeclarationOutcome.NO_COMPOSITION and self.declaration is not None:
+            raise ValueError(
+                "a NO_COMPOSITION result must not carry a declaration payload — "
+                "it is a positive proof of ABSENCE, not an assertion about a "
+                "specific Task; the declaration field must be None"
+            )
+        if self.outcome is DeclarationOutcome.DECLARED and self.declaration is None:
+            raise ValueError(
+                "a DECLARED result must carry a declaration — "
+                "DECLARED with no payload is structurally incoherent"
+            )
+
+    @property
+    def is_declared(self) -> bool:
+        return self.outcome is DeclarationOutcome.DECLARED
+
+    @property
+    def is_sealed(self) -> bool:
+        """Does this outcome REQUIRE the write boundary to stay sealed?"""
+        return self.outcome is DeclarationOutcome.UNANSWERABLE
+
+    @classmethod
+    def declared(cls, declaration: VerifiedExecutionDeclaration) -> DeclarationResult:
+        return cls(DeclarationOutcome.DECLARED, declaration=declaration)
+
+    @classmethod
+    def no_composition(
+        cls, reason: str, *, run_id: str = "", candidate_sha: str = ""
+    ) -> DeclarationResult:
+        """Positively proven: THIS run contains no composition Task.
+
+        The run it proves is part of the proof. A NO_COMPOSITION that names no
+        run cannot be verified against the store it is arming, and an
+        unverifiable unseal is indistinguishable from a forged one.
+        """
+        return cls(
+            DeclarationOutcome.NO_COMPOSITION,
+            reason=reason,
+            run_id=run_id,
+            candidate_sha=candidate_sha,
+        )
+
+    @classmethod
+    def unanswerable(cls, reason: str) -> DeclarationResult:
+        """The declaration cannot be safely determined. The boundary stays SEALED."""
+        return cls(DeclarationOutcome.UNANSWERABLE, reason=reason)
 
 
 class ExecutionAttemptStatus(str, Enum):
@@ -333,8 +511,13 @@ GRANT_IMMUTABLE_FIELDS: frozenset[str] = frozenset(
 
 
 __all__ = [
+    "AttemptExecutionKind",
+    "DeclarationOutcome",
+    "DeclarationResult",
     "AttemptTransition",
+    "CompositionAuthorityUnresolved",
     "ExecutionAttempt",
+    "VerifiedExecutionDeclaration",
     "ExecutionAttemptStatus",
     "ExecutionAuthorizationGrant",
     "ExecutionAuthorizationGrantStatus",

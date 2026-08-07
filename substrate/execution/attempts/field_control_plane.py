@@ -36,6 +36,7 @@ transports/services/adapters.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -45,11 +46,123 @@ from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
-from substrate.execution.attempts.records import ExecutionAttemptStatus
+from substrate.execution.attempts.records import (
+    CompositionAuthorityUnresolved,
+    DeclarationResult,
+    ExecutionAttemptStatus,
+)
 
 logger = logging.getLogger(__name__)
 
+# The run-scope token for a positively-ordinary (non-Wave-2) run. Such a run has
+# no candidate/run identity, so its NO_COMPOSITION proof is bound to this literal
+# plus its targets dir — enough for the store's binding check to still run, so a
+# proof about one ordinary run cannot unseal another's store.
+_ORDINARY_RUN_SCOPE = "ordinary-non-wave2-run"
+
 _S = ExecutionAttemptStatus
+
+
+class CanonicalRecordSourceError(CompositionAuthorityUnresolved):
+    """A REQUIRED canonical authority ledger exists but could not be read.
+
+    Raised instead of degrading to an incomplete record set. An incomplete set
+    makes the scenario-map gate report "no composition authority", which is
+    indistinguishable from a legitimately unauthorized run — and in field run
+    20260807T005250Z-p1 that ambiguity dispatched a real model worker for the
+    integration Task.
+
+    SUBCLASSES ``CompositionAuthorityUnresolved`` deliberately. The two were
+    siblings under ``RuntimeError``, and that gap was a third door into the very
+    defect this packet exists to close: ``_authority_records_present()`` reads
+    the ledger again, OUTSIDE the try/except that guards authority resolution,
+    purely to decide whether the cause is UNRESOLVED or DENIED. If the ledger is
+    truncated or corrupted by a concurrent writer between the gate's read and
+    that re-read, this error escaped the scheduler's specific
+    ``except CompositionAuthorityUnresolved`` handler, fell into its generic
+    ``except Exception``, and the declared integration Task was stamped with the
+    IMMUTABLE ``execution_kind="worker"`` — permanently, and invisibly.
+    Reproduced with a real mid-pass ledger truncation.
+
+    An unreadable required authority source IS an unresolved authority, so the
+    type hierarchy now says so and no handler can treat one as the other.
+    """
+
+
+def _read_required_jsonl(path: Path) -> list[dict[str, Any]]:
+    """Read a REQUIRED authority record source, or RAISE.
+
+    Deliberately NOT ``field_scenario_map._read_jsonl``. That reader is correct
+    for its own callers but is lenient by design: it catches
+    ``(FileNotFoundError, OSError)`` and returns ``[]``, and it silently skips a
+    malformed line. Both behaviours convert an authority-record LOSS into a
+    smaller-but-plausible record set.
+
+    That leniency is exactly what made field run 20260807T005250Z-p1 fail
+    silently, and a guard wrapped around the lenient reader is dead code — no
+    exception ever reaches it (adversarial review finding F1, reproduced with a
+    real permission fault as a non-root user: 10 records, 0 grants, no raise).
+    So the strictness has to live at the frame that actually performs the I/O.
+
+    Absence is handled by the CALLER (a not-yet-written ledger is legitimate);
+    everything else — unreadable, undecodable, malformed — raises.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError, NOT an OSError — a corrupt/binary
+        # ledger would otherwise escape as a bare decode error rather than a
+        # typed authority failure, and the scheduler's generic handler would
+        # then downgrade the integration Task to a worker.
+        raise CanonicalRecordSourceError(
+            f"required canonical record source {path} is present but unreadable "
+            f"({type(exc).__name__}: {exc}) — refusing to evaluate composition "
+            f"authority against an incomplete record set"
+        ) from exc
+
+    out: list[dict[str, Any]] = []
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError as exc:
+            raise CanonicalRecordSourceError(
+                f"required canonical record source {path} has a malformed record at "
+                f"line {lineno} ({exc}) — refusing to evaluate composition authority "
+                f"against a partially-parsed record set"
+            ) from exc
+        if not isinstance(rec, dict):
+            # Well-formed JSON that is not an object (`[1,2]`, `null`) would
+            # otherwise be dropped silently — the same "shrink the record set
+            # without saying so" shape this reader exists to eliminate, just
+            # one syntax layer up.
+            raise CanonicalRecordSourceError(
+                f"required canonical record source {path} has a non-object record at "
+                f"line {lineno} (got {type(rec).__name__}) — refusing to evaluate "
+                f"composition authority against a partially-parsed record set"
+            )
+        out.append(rec)
+    return out
+
+
+def _canonical_grants_filename() -> str:
+    """Basename of the execution-authorization grant ledger, from its ONE home.
+
+    Derived from the store's own canonical resolver rather than restated as a
+    literal here, so this loader can never again diverge from the file the store
+    actually writes (the defect in field run 20260807T005250Z-p1).
+
+    Deliberately NOT read from ``store._DEFAULT_GRANTS_PATH``: that module
+    attribute is a documented TEST-ISOLATION seam that suites monkeypatch to a
+    tmp file (e.g. ``g.jsonl``). Its basename is therefore not a truthful
+    production filename. This resolves the constant the store computes, which
+    is the same value in tests and production.
+    """
+    from substrate.execution.attempts.store import _CANONICAL_GRANTS_FILENAME
+
+    return _CANONICAL_GRANTS_FILENAME
 
 
 def _git_read(repo: str, args: list[str]) -> tuple[int, str, str]:
@@ -183,6 +296,13 @@ class ControlPlaneCycleReport:
     # happened — so an activation that never transitioned the packets presented
     # as a HEALTHY-looking process doing nothing, forever.
     skipped_not_approved: list[str] = field(default_factory=list)
+    # Tasks REFUSED because their composition authority could not be RESOLVED
+    # (records absent from the canonical location, unreadable, or holding no
+    # grant). Distinct from a DENIED authority, which is a real answer. Surfaced
+    # here — and excluded from `idle` — because a refused Task creates no
+    # attempt record, so it is otherwise indistinguishable from a Task that
+    # never reached the frontier, and the run reads as finished.
+    authority_unresolved: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -194,6 +314,7 @@ class ControlPlaneCycleReport:
             "admitted": list(self.admitted),
             "idle": self.idle,
             "skipped_not_approved": list(self.skipped_not_approved),
+            "authority_unresolved": list(self.authority_unresolved),
             "errors": list(self.errors),
         }
 
@@ -391,6 +512,49 @@ class FieldControlPlaneDriver:
         self._targets_dir = targets_dir
         self._mutation_runner = mutation_runner
         self._lock_dir = lock_dir
+        # STRUCTURAL INVARIANT WIRING. The driver is the component that holds the
+        # validated scenario-map authority, so it — not the store — supplies the
+        # DECLARATION of what execution class a task_id has. The store then
+        # refuses to persist any attempt whose kind contradicts it, at the one
+        # durable write boundary, so the invariant no longer depends on every
+        # decision path remembering to defend it.
+        #
+        # THE RESULT IS THREE-STATE, never an absence. DECLARED / NO_COMPOSITION
+        # / UNANSWERABLE are distinguishable, and anything unexpected — including
+        # an exception from the builder — is UNANSWERABLE, which keeps the store
+        # SEALED. Round 8 collapsed the last two into one `None`, and every one of
+        # the five reproduced bypasses walked through that collapse.
+        self._declaration_result: Any = None
+        try:
+            self._declaration_result = self._build_declaration_result()
+        except Exception as exc:  # noqa: BLE001 — DEFAULTS TO SEALED, never open
+            self._declaration_result = DeclarationResult.unanswerable(
+                f"declaration builder raised {type(exc).__name__}: {exc}"
+            )
+        if self._declaration_result.is_sealed:
+            logger.error(
+                "execution declaration UNANSWERABLE (%s) — the attempt-creation "
+                "boundary stays SEALED; no governed Attempt may be created",
+                self._declaration_result.reason,
+            )
+        # The declaration this driver built must govern THIS run's store. Passing
+        # the run context makes the store verify that binding, so a declaration
+        # that was built correctly but belongs to another candidate/run cannot
+        # silently certify this one ("built but not governing" is not protection).
+        # The context comes from the RESULT, which is what the store verifies
+        # against. A DECLARED result binds through its declaration's
+        # run/candidate; a NO_COMPOSITION result binds through its own. Deriving
+        # it from the path instead would hand the store ("", "") for an ordinary
+        # run, and "absence skips the check" is the defect this round removes.
+        _run, _cand = self._declaration_store_context()
+        _apply = getattr(store, "apply_declaration_result", None)
+        if _apply is not None:
+            _apply(self._declaration_result, run_id=_run, candidate_sha=_cand)
+        else:
+            logger.warning(
+                "attempt store does not support verified-declaration enforcement; "
+                "the integration Task's structural guard is NOT active"
+            )
         # The verifying→succeeded lifecycle guard requires a real AttemptProof
         # (proof_id). Wire the ONE canonical ProofRuntime (honors UMH_STATE_DIR →
         # the shared candidate proof store) so a passing verification actually
@@ -856,6 +1020,66 @@ class FieldControlPlaneDriver:
             return os.path.join(self._targets_dir, "fixture"), cand, run
         return "", "", ""
 
+    def _required_record_sources(self) -> tuple[Path, ...]:
+        """The REQUIRED authority record sources for this run — the ONE list.
+
+        Both the loader and the UNRESOLVED/DENIED discriminator derive from this
+        so they can never answer different questions about "the required
+        sources". They previously did not: the discriminator checked only the
+        grants file while the loader declared three, so an absent plan or packet
+        ledger read as DENIED and drove the integration Task to a worker
+        (adversarial review CRITICAL-1, reproduced on both shapes).
+        """
+        state = os.path.join(os.path.dirname(os.path.dirname(self._targets_dir)), "state")
+        return tuple(
+            Path(state).joinpath(*rel)
+            for rel in (
+                ("umh", "operator", "objective_planning", "objective_plans.jsonl"),
+                ("umh", "universal_work", "work_packets.jsonl"),
+                ("umh", "operator", "execution_attempts", _canonical_grants_filename()),
+            )
+        )
+
+    def _authority_records_present(self) -> bool:
+        """Can this run's composition authority be ANSWERED at all?
+
+        Separates the two ways composition authority can fail to be granted:
+
+          * DENIED — the records are all there and the gate answered "no"
+            (revoked, expired, not-yet-valid, tampered binding, wrong
+            run/candidate). A real, resolved answer; composition is simply not
+            authorized.
+          * UNRESOLVABLE — the records needed to answer are not where the
+            canonical loader reads them, so NO answer exists. This is the
+            field-defect class and must never read as "ordinary worker task".
+
+        BOTH refuse admission for a declared integration Task — an earlier
+        version refused only for UNRESOLVED, and a DENIED verdict arriving after
+        the scheduler's single upstream grant re-read then stamped an immutable
+        worker kind. This method therefore no longer decides WHETHER to refuse;
+        it selects only which CAUSE the operator is told, which is what keeps
+        "the ledger is missing" distinguishable from "the grant was revoked".
+
+        Two things are checked, because both were reproduced driving the
+        integration Task to ``execution_kind="worker"``:
+
+          1. EVERY required source exists — not just the grant ledger. A missing
+             plan or packet ledger is equally an inability to answer.
+          2. The grant ledger actually CONTAINS at least one grant record. A
+             present-but-empty ledger (truncation, an interrupted first write, a
+             touched file) is unanswerable, not a denial — and produced the
+             verbatim field signature "10 records, 0 grants, no raise, worker".
+
+        Read failures are NOT swallowed here: an unreadable required source
+        raises out of ``_read_required_jsonl``, which is itself the
+        unresolvable answer.
+        """
+        sources = self._required_record_sources()
+        if not all(p.exists() for p in sources):
+            return False
+        grants_path = sources[-1]
+        return any(rec.get("grant_id") for rec in _read_required_jsonl(grants_path))
+
     def _validated_integration_packet_id(self) -> str:
         """The canonical integration packet id, or "" — via the FULL authority path.
 
@@ -863,18 +1087,29 @@ class FieldControlPlaneDriver:
         ``validate_against_run``, the same gate failure-injection arming uses,
         which rereads the run's captured ``execution_binding.json`` and the
         canonical stores and fails closed on: wrong run, tampered/stale binding
-        digest (which covers ``candidate_sha``), unresolvable or non-ACTIVE or
+        digest (which covers the BINDING's ``candidate_sha`` from
+        ``execution_binding.json`` — the scenario map's own ``candidate_sha``
+        field is not part of the compared key set, and no consumer reads it),
+        unresolvable or non-ACTIVE or
         expired grant, a role id that is not a real persisted WorkPacket, a role
         id outside the grant's authorized frontier, and ambiguous cardinality.
 
         So a scenario map copied from another run or another candidate can never
         promote an ordinary packet into the composition lifecycle.
-        """
-        from substrate.execution.attempts.field_scenario_map import (
-            read_scenario_map,
-            validate_against_run,
-        )
 
+        AUTHORITY is asked here; IDENTITY comes from the verified declaration.
+        This deliberately does NOT re-read ``integration_task_id`` from disk
+        after validating. Re-reading it was the seventh bypass: the field is
+        unauthenticated, so a retarget moved the identity while validation
+        passed on the recomputed mapping. The identity therefore projects from
+        the immutable snapshot, and this method answers only "may composition
+        run now?".
+        """
+        from substrate.execution.attempts.field_scenario_map import validate_against_run
+
+        declared = self._declared_integration_packet_id()
+        if not declared:
+            return ""
         records = self._canonical_records()
         ok, reason = validate_against_run(self._targets_dir, records=records)
         if not ok:
@@ -883,44 +1118,487 @@ class FieldControlPlaneDriver:
                 reason,
             )
             return ""
-        return str(read_scenario_map(self._targets_dir).get("integration_task_id", "") or "")
+        return declared
 
     def _canonical_records(self) -> list[dict[str, Any]]:
-        """Canonical plan/packet/grant records for scenario-map validation."""
-        from substrate.execution.attempts.field_scenario_map import _read_jsonl
+        """Canonical plan/packet/grant records for scenario-map validation.
 
+        Every source here is REQUIRED authority: ``resolve_canonical_grant``
+        needs the grant record, the exact Plan version it references, AND every
+        frontier WorkPacket. Losing any one silently degrades the record set
+        into "0 grants matched", which the validator correctly refuses — but the
+        refusal then reads as "no composition authority" rather than "the
+        authority ledger could not be read". Field run 20260807T005250Z-p1 lost
+        the integration Task to exactly that: the grant ledger was read under a
+        filename this system never persists
+        (``execution_grants.jsonl``; the canonical name is owned by
+        ``store._CANONICAL_GRANTS_FILENAME``), the miss was swallowed to
+        ``logger.debug``, and Task C fell back to ``execution_kind="worker"``
+        and was dispatched to a real model worker.
+
+        So the filename comes from the ONE canonical home (the store's default
+        paths — never a second literal), and an unreadable REQUIRED source
+        raises instead of degrading. Absence of the FILE is not an error here
+        (a run legitimately has no records before they are written); the
+        validator fails closed on the resulting empty set, and
+        ``_validated_integration_packet_id`` refuses composition authority
+        without ever dispatching a worker for the integration packet.
+        """
         records: list[dict[str, Any]] = []
-        state = os.path.join(os.path.dirname(os.path.dirname(self._targets_dir)), "state")
-        for rel in (
-            ("umh", "operator", "objective_planning", "objective_plans.jsonl"),
-            ("umh", "universal_work", "work_packets.jsonl"),
-            ("umh", "operator", "execution_attempts", "execution_grants.jsonl"),
-        ):
-            path = Path(state).joinpath(*rel)
-            try:
-                records.extend(_read_jsonl(path))
-            except Exception as exc:  # noqa: BLE001 - absence is handled by the gate
-                logger.debug("canonical record read failed for %s: %s", path, exc)
+        # ONE list, shared with the UNRESOLVED/DENIED discriminator, so the two
+        # can never again disagree about what "the required sources" are.
+        for path in self._required_record_sources():
+            if not path.exists():
+                # Not-yet-written is a legitimate state; the gate fails closed on
+                # the empty set. Recorded so an absent ledger is never invisible.
+                # A DECLARED integration Task with a missing source is separately
+                # caught as UNRESOLVED by `_authority_records_present`.
+                logger.info("canonical record source absent (not yet written): %s", path)
+                continue
+            records.extend(_read_required_jsonl(path))
         return records
+
+    def _declared_execution_class_for(self, task_id: str) -> str | None:
+        """The DECLARED execution class of ``task_id``, or None if undeclared.
+
+        The structural invariant's authority (see
+        ``ExecutionAttemptStore.create_attempt_idempotent``). Deliberately
+        answers the DECLARATION question — "is this Task the composition Task?"
+        — and NEVER the authority question — "may composition run right now?".
+
+        Those must stay separate. If this consulted grant validity, a revoked or
+        unreadable grant would change the Task's execution CLASS, which is
+        exactly the conflation that produced six pointwise defects: a Task's
+        identity would depend on transient authority state, and every failure of
+        that state would re-open the worker door. So a declared integration Task
+        is ALWAYS declared, whatever the grant says; when authority is denied or
+        unresolved the correct outcome is NO attempt, not a worker attempt.
+
+        Returns None for every ordinary Task, leaving A/B/D behaviour untouched.
+        Reads the run's IMMUTABLE VERIFIED DECLARATION — built once at
+        construction from recomputed canonical lineage — so no file re-read and
+        no second way to decide what the integration Task is enters the system.
+        """
+        if not task_id:
+            return None
+        # NO try/except around the refusal. If the declaration could not be
+        # built, the refusal must reach the caller — swallowing it to None
+        # disarms the structural guard for the real integration Task, which is
+        # precisely the bypass a retargeted declaration exploited: the
+        # declaration moved, this returned None, and the store then accepted a
+        # worker row for the real Task C. An unanswerable declaration is a
+        # refusal, never an absence.
+        result = self._declaration_result
+        if result is None or result.is_sealed:
+            raise CompositionAuthorityUnresolved(self._declaration_refusal())
+        if result.declaration is None:
+            return None  # POSITIVELY PROVEN: this run declares no composition
+        return result.declaration.execution_class_for(task_id)
+
+    def _declaration_refusal(self) -> str:
+        """The refusal message for an UNANSWERABLE declaration.
+
+        Always UNRESOLVED by construction: the declaration is built from lineage
+        alone and never consults the grant, so it cannot fail because authority
+        said "no" — only because the inputs needed to ANSWER are missing,
+        unreadable, foreign, or structurally non-authoritative. Saying so keeps
+        the operator's UNRESOLVED-vs-DENIED distinction intact on this path.
+        """
+        result = self._declaration_result
+        reason = getattr(result, "reason", "") or "no declaration result was produced"
+        # Carries BOTH the operator verdict word (UNRESOLVED — the term the
+        # scheduler/poller surfaces and operators grep for) and the internal
+        # state name (UNANSWERABLE). The verdict word appears exactly once and
+        # its counterpart (DENIED) never appears, so a log filter searching for
+        # a verdict cannot match both.
+        return (
+            f"the run's execution declaration is UNANSWERABLE — composition authority "
+            f"is UNRESOLVED ({reason}). Run-structure corruption, not a grant verdict: "
+            f"the declaration never consults grant validity. No Task can be classified, "
+            f"so the attempt-creation boundary stays SEALED rather than risking a worker "
+            f"dispatch for the integration Task"
+        )
 
     def _composition_task_predicate(self) -> Callable[[Any], bool] | None:
         """Is THIS packet the run's canonical, grant-authorized integration Task?
 
-        Returns None when the run has no candidate binding, so composition is
-        simply off rather than half-wired.
+        Returns None ONLY when the run has no candidate binding AND declares no
+        integration Task — composition is genuinely off, not half-wired.
+
+        A run that DOES declare an integration Task but whose targets dir is not
+        candidate-shaped is NOT "composition off": it is a misconfigured run
+        whose authority cannot be evaluated. Returning None there was the last
+        remaining door to the field defect — the scheduler's
+        ``if self._composition_task_predicate is not None`` guard skips the
+        authority check entirely, and the declared integration Task is stamped
+        with the IMMUTABLE ``execution_kind="worker"`` while
+        ``authority_unresolved`` stays empty. Reproduced from a real scenario map
+        declaring Task C under a non-candidate-shaped path, which
+        ``scripts/wave2_attempt_runner.py`` accepts as a free-form
+        ``--targets-dir``. So that case returns a predicate that REFUSES the
+        declared Task instead of a None that silently disables the check.
         """
         repo, candidate, run_id = self._composition_binding()
-        if not (repo and candidate and run_id):
-            return None
         control_plane = self
+        if not (repo and candidate and run_id):
+            try:
+                declared_without_binding = self._declared_integration_packet_id()
+            except CompositionAuthorityUnresolved:
+                # No run binding AND an unreadable/unauthenticatable map.
+                #
+                # Refusing every packet here is WRONG: with no candidate binding
+                # there is no Wave 2 composition run at all, so there is no
+                # integration Task to protect — this is an ordinary non-field
+                # scheduler with a stray file in its targets dir. Refusing the
+                # whole frontier for that starves unrelated worker Tasks (caught
+                # by test_driver_dispatch_fn_consults_failure_marker).
+                #
+                # Composition is simply OFF. The candidate-shaped path — where a
+                # real run DOES declare an integration Task — is where an
+                # unauthenticatable declaration refuses, and that is unchanged.
+                logger.warning(
+                    "scenario map present but unreadable/unauthenticated AND the targets "
+                    "dir is not candidate-shaped — treating this as a run with no "
+                    "composition; no integration Task can be declared without a binding"
+                )
+                return None
+            if not declared_without_binding:
+                return None  # genuinely no composition in this run
+
+            def _refuse_declared(packet: Any) -> bool:
+                if str(getattr(packet, "packet_id", "")) == declared_without_binding:
+                    raise CompositionAuthorityUnresolved(
+                        f"the run declares {declared_without_binding!r} as its integration "
+                        f"Task, but its targets dir {control_plane._targets_dir!r} is not "
+                        f"candidate-shaped so no run/candidate binding resolves and "
+                        f"composition authority cannot be evaluated — refusing admission "
+                        f"rather than dispatching a worker for the integration Task"
+                    )
+                return False
+
+            return _refuse_declared
 
         def _is_composition(packet: Any) -> bool:
-            target = control_plane._validated_integration_packet_id()
-            if not target:
+            packet_id = str(getattr(packet, "packet_id", ""))
+            # Identify the declared integration Task FIRST. A PRESENT-but-
+            # unreadable scenario map raises out of here for EVERY packet, and
+            # that breadth is deliberate, not an oversight:
+            #
+            # The reviewer proposed narrowing the raise to "only the declared
+            # Task". That is not implementable — when the map is unparseable
+            # there IS no declared Task to compare against. The grant's
+            # `task_frontier` is an unordered id list and does not say which
+            # member is the integration Task (verified against the real field
+            # grant), so nothing else in the run can identify it. Any packet
+            # might be the integration Task, and guessing wrong is precisely a
+            # model-worker dispatch of Task C — the field defect.
+            #
+            # So a corrupt map refuses the whole frontier. That is an
+            # availability cost (Tasks A/B are refused too), accepted because
+            # the alternative risks the safety invariant. It is fail-closed,
+            # fully reported in `authority_unresolved`, does not abort the pass,
+            # creates no attempts, and clears the moment the map is repaired.
+            declared = control_plane._declared_integration_packet_id()
+            try:
+                target = control_plane._validated_integration_packet_id()
+            except Exception as exc:
+                # Authority could not be RESOLVED (unreadable ledger, etc.). This
+                # is not "this packet is an ordinary worker task" — it is "we do
+                # not know". Returning False here would let the scheduler's
+                # fail-closed-to-worker branch dispatch a real model worker for
+                # the integration Task, which is exactly what happened in field
+                # run 20260807T005250Z-p1. Re-raise for the DECLARED integration
+                # packet so admission refuses instead of downgrading it.
+                if packet_id and packet_id == declared:
+                    raise CompositionAuthorityUnresolved(
+                        f"composition authority for the declared integration packet "
+                        f"{packet_id!r} could not be resolved ({type(exc).__name__}: {exc}) "
+                        f"— refusing admission rather than dispatching a worker"
+                    ) from exc
+                logger.warning(
+                    "composition authority unresolved (%s) while classifying %s — "
+                    "treating as ordinary worker task",
+                    exc,
+                    packet_id,
+                )
                 return False
-            return str(getattr(packet, "packet_id", "")) == target
+            if not target:
+                # THE DEFECT CLASS, not just the one instance (review A CRITICAL-1).
+                #
+                # A run that DECLARES an integration Task must be able to resolve
+                # that Task's authority. If it cannot, the honest reading is "the
+                # authority records are not where we look" — which is LITERALLY
+                # what happened in field run 20260807T005250Z-p1 — not "this is an
+                # ordinary worker task". Returning False here is what stamped
+                # execution_kind="worker" on Task C and sent it to a real model
+                # worker that failed twice with no commits.
+                #
+                # Fixing only the filename hardens ONE instance of the class. Any
+                # future divergence (a schema move, a subsystem rename, a writer
+                # emitting elsewhere) presents as ABSENT records and reproduces
+                # the same silent downgrade. So the invariant is stated
+                # affirmatively and checked on every classification: declared ⇒
+                # resolvable, else refuse.
+                #
+                # A run with NO declared integration Task is untouched: `declared`
+                # is "" and every packet classifies as an ordinary worker.
+                #
+                # The DECLARED integration Task is never classified as an
+                # ordinary worker — for ANY reason, not only an unresolvable one.
+                #
+                # An earlier version refused only when the authority records were
+                # UNRESOLVABLE, reasoning that a revoked/expired/tampered grant is
+                # a real answer the scheduler "already refuses upstream via
+                # `is_authorization_valid`". THAT REASONING WAS WRONG, and the
+                # adversarial review reproduced it: `run_scheduler_pass` re-reads
+                # and validates the grant EXACTLY ONCE (scheduler.py, before the
+                # frontier loop), while this predicate re-derives authority
+                # independently and later, from the ledger on disk. Any authority
+                # that is denied at predicate time but was valid at that single
+                # re-read — an operator revoke, an expiry crossing, a tampered
+                # binding written mid-pass — fell through `return False` and
+                # stamped `execution_kind="worker"` on the integration Task.
+                # Because `execution_kind` is immutable, that stamp is permanent:
+                # a later, fully healthy pass leaves the Task a model-worker Task
+                # forever and the composition producer is never called. Same end
+                # state as field run 20260807T005250Z-p1, reached through the
+                # DENIED door instead of the UNRESOLVED one — and invisible,
+                # since `authority_unresolved` stayed empty.
+                #
+                # So the discriminator is no longer "was the authority readable?"
+                # but the invariant itself: DECLARED ⇒ we must be able to say YES.
+                # Anything else refuses admission. DENIED and UNRESOLVED remain
+                # distinguishable to the operator through the message, but they
+                # produce the SAME safe outcome for this one Task: never a worker.
+                #
+                # A run with NO declared integration Task is untouched: `declared`
+                # is "" and every packet classifies as an ordinary worker.
+                if declared and packet_id == declared:
+                    resolvable = control_plane._authority_records_present()
+                    cause = (
+                        "the authority records are absent, empty or unreadable at the "
+                        "canonical location (UNRESOLVED)"
+                        if not resolvable
+                        else "the authority records were read and the gate DENIED this run "
+                        "(revoked, expired, not-yet-valid, ambiguous, or a tampered/stale "
+                        "binding) — note the pass validated its grant only once, before "
+                        "the frontier loop, so this denial may postdate that check"
+                    )
+                    raise CompositionAuthorityUnresolved(
+                        f"the run declares {declared!r} as its integration Task, but its "
+                        f"composition authority does not resolve: {cause} — refusing "
+                        f"admission rather than dispatching a worker for the integration Task"
+                    )
+                return False
+            return packet_id == target
 
         return _is_composition
+
+    def _declaration_binding(self) -> tuple[str, str]:
+        """(candidate_sha, run_id) for this run — the authenticated run context.
+
+        Derived from the canonical candidate-shaped targets path, the same ONE
+        anchor match ``_composition_binding`` uses. Returns ("", "") when the
+        path is not candidate-shaped.
+        """
+        _repo, cand, run = self._composition_binding()
+        return cand, run
+
+    def _declaration_store_context(self) -> tuple[str, str]:
+        """(run_id, candidate_sha) this run's store must be armed with.
+
+        Taken from the RESULT, never re-derived from the path: the store's
+        binding check exists to prove the result governs THIS store, so the two
+        must be two views of one value.
+        """
+        result = self._declaration_result
+        if result is None:
+            return "", ""
+        if result.declaration is not None:
+            return result.declaration.run_id, result.declaration.candidate_sha
+        return result.run_id, result.candidate_sha
+
+    def _build_declaration_result(self) -> DeclarationResult:
+        """Build this run's THREE-STATE execution declaration result.
+
+        THE SINGLE DECLARATION AUTHORITY, created once at driver construction.
+
+        Returns exactly one of:
+
+          * ``DECLARED``       — lineage resolved and names a composition Task.
+          * ``NO_COMPOSITION`` — lineage RESOLVED and positively contains no
+            composition Task. A proof, never an absence.
+          * ``UNANSWERABLE``   — the declaration cannot be safely determined.
+            The store stays SEALED.
+
+        Round 8 returned a bare ``None`` for the last two, and three of its exits
+        took the "cannot tell" path while the store read "nothing to enforce".
+        Five bypasses followed. Every failure shape here is UNANSWERABLE, so a
+        new one cannot silently become NO_COMPOSITION.
+
+        Derived by RECOMPUTING the mapping from canonical PLAN and PACKET
+        lineage, never by reading the persisted map's ``integration_task_id``.
+        The GRANT ledger is deliberately not consulted: lineage answers "what
+        type of execution is this Task?", the grant answers "may it happen now?".
+        Coupling them let an expired grant undeclare Task C (measured on the real
+        fixture, whose grant is ~0.1 days past ``expires_at``).
+        """
+        from substrate.execution.attempts.field_scenario_map import (
+            build_verified_declaration,
+            execution_binding_path,
+            read_execution_binding,
+            scenario_map_path,
+        )
+
+        # ``lexists``, NOT ``exists``. The question here is "does this run PRESENT
+        # a Wave 2 name?", not "does that name resolve to readable content?".
+        #
+        # ``os.path.exists`` FOLLOWS symlinks, so a dangling link reports False
+        # for a file the directory plainly lists. A targets dir visibly holding
+        # ``scenario_map.json`` and ``execution_binding.json`` was therefore
+        # classified as presenting NO Wave 2 evidence, took the NO_COMPOSITION
+        # branch, unsealed the store, and persisted an immutable
+        # ``Task C + worker`` row (reproduced end to end).
+        #
+        # The comment below already named a dangling symlink as the case to
+        # defend against — ``exists`` is the one primitive that cannot see it.
+        # A name that is present but does NOT resolve is the STRONGEST evidence
+        # of a mutated governed run, so it must weigh toward UNANSWERABLE.
+        map_present = os.path.lexists(scenario_map_path(self._targets_dir))
+        binding_present = os.path.lexists(execution_binding_path(self._targets_dir))
+        candidate_sha, run_id = self._declaration_binding()
+        if not (candidate_sha and run_id):
+            # NEITHER PATH SHAPE NOR FILE ABSENCE IS PROOF.
+            #
+            # ``--targets-dir`` is a free-form string, so path shape cannot show
+            # a run is not governed. And absence is what an rsync, a cleanup, a
+            # dangling symlink, or an attacker produces — the destructive
+            # mutation must never be the permissive one. Deleting the map alone
+            # previously yielded NO_COMPOSITION here and persisted a durable
+            # ``C + worker`` row through the real scheduler (reproduced).
+            #
+            # A run is positively ordinary only when it presents NO Wave 2
+            # evidence at all: no scenario map AND no execution binding. Any
+            # residue of a governed run, with no binding to evaluate it against,
+            # is UNANSWERABLE.
+            if map_present or binding_present:
+                return DeclarationResult.unanswerable(
+                    f"targets dir {self._targets_dir!r} is not candidate-shaped, so no "
+                    f"candidate/run binding resolves — yet Wave 2 evidence is present "
+                    f"(scenario_map={map_present}, execution_binding={binding_present}). "
+                    f"This run may be governed and cannot be evaluated; refusing rather "
+                    f"than treating unevaluable evidence as 'no composition'"
+                )
+            return DeclarationResult.no_composition(
+                f"targets dir {self._targets_dir!r} is not candidate-shaped and presents "
+                f"no Wave 2 evidence (no scenario map, no execution binding) — "
+                f"positively an ordinary non-Wave-2 scheduler",
+                # An ordinary run has no candidate/run identity of its own, so the
+                # proof is bound to the ONLY identity it has: this targets dir.
+                # The store is armed with the same value, so the binding check
+                # still runs — a NO_COMPOSITION proven for one directory cannot
+                # unseal a store belonging to another.
+                run_id=_ORDINARY_RUN_SCOPE,
+                candidate_sha=str(self._targets_dir or ""),
+            )
+
+        # From here the run IS a governed candidate run, so every input must be
+        # readable. Absence is no longer "no composition" — it is UNANSWERABLE.
+        binding = read_execution_binding(self._targets_dir)
+        if binding is None:
+            return DeclarationResult.unanswerable(
+                f"governed run {run_id!r} (candidate {candidate_sha!r}) has no readable "
+                f"execution binding — absent, unparseable, non-object, or a field that "
+                f"failed coercion (``read_execution_binding`` collapses all of these to "
+                f"None). The run's declaration cannot be determined"
+            )
+        if binding.run_id != run_id or binding.candidate_sha != candidate_sha:
+            return DeclarationResult.unanswerable(
+                f"execution binding claims run {binding.run_id!r} candidate "
+                f"{binding.candidate_sha!r} but this run is {run_id!r}/{candidate_sha!r} "
+                f"— a foreign or replayed binding cannot declare this run"
+            )
+        if not map_present:
+            return DeclarationResult.unanswerable(
+                f"governed run {run_id!r} has no scenario map — its composition "
+                f"structure cannot be determined. (A run that genuinely has no "
+                f"composition is proven so by resolved lineage, not by a missing file: "
+                f"file absence is exactly what an rsync, a cleanup, or an attacker "
+                f"produces.)"
+            )
+        try:
+            declaration = build_verified_declaration(self._lineage_records(), binding=binding)
+        except Exception as exc:  # noqa: BLE001 — DEFAULTS TO SEALED
+            return DeclarationResult.unanswerable(
+                f"lineage could not be resolved for governed run {run_id!r} "
+                f"({type(exc).__name__}: {exc})"
+            )
+        if not declaration.execution_classes:
+            # POSITIVE ABSENCE: lineage RESOLVED and declared no composition Task.
+            #
+            # TRUTHFULLY: unreachable for the CURRENT Wave 2 graph.
+            # ``resolve_scenario_map`` requires exactly one node for EVERY entry of
+            # SEMANTIC_LABELS — including ``integration_task_id`` — so a governed
+            # Wave 2 run structurally always declares a composition Task, and a
+            # run missing that node raises above rather than arriving here.
+            #
+            # It is kept because it is the only SAFE reading of "lineage resolved
+            # and named nothing": the alternative (falling through to DECLARED
+            # with an empty mapping) would arm the store with a declaration that
+            # classifies nothing, which is indistinguishable from unarmed. If a
+            # future graph shape makes label sets optional, this branch is
+            # already correct rather than being discovered as a gap.
+            return DeclarationResult.no_composition(
+                f"governed run {run_id!r} lineage resolved and declares no composition "
+                f"Task — ordinary worker execution only"
+            )
+        return DeclarationResult.declared(declaration)
+
+    def _lineage_records(self) -> list[dict[str, Any]]:
+        """PLAN + PACKET records only — the declaration's inputs.
+
+        Strictly narrower than ``_canonical_records`` (which additionally loads
+        the grant ledger for the AUTHORITY question). Keeping the grant out of
+        the declaration's input set is what makes DECLARATION ≠ AUTHORIZATION
+        structural rather than merely documented.
+        """
+        grants_filename = _canonical_grants_filename()
+        records: list[dict[str, Any]] = []
+        for path in self._required_record_sources():
+            # Selected by NAME, not by list position: an index slice would break
+            # silently the moment a source is added or reordered, and the failure
+            # mode would be "the declaration quietly reads the grant again".
+            if path.name == grants_filename:
+                continue
+            if not path.exists():
+                logger.info("lineage record source absent (not yet written): %s", path)
+                continue
+            records.extend(_read_required_jsonl(path))
+        return records
+
+    def _declared_integration_packet_id(self) -> str:
+        """The integration packet id this run's VERIFIED DECLARATION names.
+
+        A pure read of the immutable snapshot — no file access, no digest
+        recomputation, no authority question. Used to recognise which packet an
+        authority-resolution FAILURE is about, so that failure can refuse
+        admission instead of silently downgrading the integration Task to a
+        worker. Never used to GRANT composition: that remains
+        ``_validated_integration_packet_id``.
+
+        Returns "" when the run declares no composition.
+        """
+        from substrate.execution.attempts.records import AttemptExecutionKind
+
+        result = self._declaration_result
+        if result is None or result.is_sealed:
+            raise CompositionAuthorityUnresolved(self._declaration_refusal())
+        if result.declaration is None:
+            return ""  # POSITIVELY PROVEN: no composition Task in this run
+        for tid, kind in result.declaration.execution_classes:
+            if kind == AttemptExecutionKind.CONTROL_PLANE_COMPOSITION.value:
+                return tid
+        return ""
 
     def _downstream_base_resolver(self) -> Callable[[Any, list], str] | None:
         """The exact verified composition commit a dependent Task must build on."""
@@ -1305,8 +1983,18 @@ class FieldControlPlaneDriver:
                 # Conflating them would report a false idle state to the operator
                 # and to reconciliation — the run looks finished while its whole
                 # frontier is still waiting to be admitted.
+                report.authority_unresolved = list(pass_report.authority_unresolved)
+                # A cycle that REFUSED a Task for unresolvable composition
+                # authority is not idle either. Idle means "no work left"; an
+                # authority refusal means "work exists and we could not decide
+                # whether we may run it". A refused Task creates no attempt
+                # record, so without this term the run reports IDLE — i.e.
+                # finished — while its integration Task never ran at all. That is
+                # the same false-completion shape the paused/idle split above
+                # exists to prevent.
                 report.idle = (
                     not paused
+                    and not report.authority_unresolved
                     and report.results_drained == 0
                     and not report.admitted
                     and not self._has_live_attempts(grant)
