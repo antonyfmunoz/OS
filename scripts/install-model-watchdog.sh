@@ -32,9 +32,7 @@ fi
 cat > /etc/systemd/system/umh-model-watchdog.service << EOF
 [Unit]
 Description=UMH Model Watchdog — governed model-provenance primitive
-After=network.target
-# Prevent duplicate instances
-Conflicts=umh-model-watchdog.service
+After=network.target docker.service
 
 [Service]
 Type=simple
@@ -57,6 +55,19 @@ StandardError=journal
 # Graceful shutdown
 TimeoutStopSec=10
 KillSignal=SIGTERM
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/OS/data/runtime/model_watchdog /opt/OS/logs
+ReadWritePaths=/root/.claude
+PrivateTmp=true
+ProtectHome=false
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=true
 
 [Install]
 WantedBy=multi-user.target

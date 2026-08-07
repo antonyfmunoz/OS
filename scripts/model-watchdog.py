@@ -37,7 +37,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Optional
 
-WATCHDOG_VERSION = "2.0.0"
+WATCHDOG_VERSION = "2.1.0"
 
 UMH_ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
 LOG_FILE = os.path.join(UMH_ROOT, "logs", "model_watchdog.log")
@@ -49,6 +49,7 @@ CURSOR_FILE = os.path.join(STATE_DIR, "cursors.json")
 PROVENANCE_FILE = os.path.join(STATE_DIR, "provenance.jsonl")
 HEALTH_FILE = os.path.join(STATE_DIR, "health.json")
 SETTINGS_LOCK = os.path.join(STATE_DIR, "settings.lock")
+PAUSE_FILE = os.path.join(STATE_DIR, "PAUSE")
 
 POLL_INTERVAL = 5
 COOLDOWN_BASE = 60
@@ -349,6 +350,9 @@ class ModelWatchdog:
 
         return observations
 
+    def _is_paused(self) -> bool:
+        return os.path.exists(PAUSE_FILE)
+
     def _is_target_model(self, model: str) -> bool:
         return model.startswith(TARGET_MODEL)
 
@@ -579,36 +583,59 @@ class ModelWatchdog:
         if not deviations_this_batch:
             return
 
-        changed, detail = self._ensure_settings_model()
-        self._health.remediation_attempts += 1
-        ss.remediation_attempts += 1
-
-        if changed:
-            self._health.remediation_successes += 1
-            ss.remediation_successes += 1
-        elif "already correct" in detail:
-            self._health.remediation_successes += 1
-            ss.remediation_successes += 1
+        paused = self._is_paused()
+        if paused:
+            logger.info("PAUSED — recording provenance without remediation")
+            for event in deviations_this_batch:
+                event.remediation_attempted = False
+                event.remediation_succeeded = False
+                self._append_provenance(event)
         else:
-            self._health.remediation_failures += 1
-            ss.remediation_failures += 1
+            changed, detail = self._ensure_settings_model()
+            self._health.remediation_attempts += 1
+            ss.remediation_attempts += 1
 
-        for event in deviations_this_batch:
-            event.remediation_attempted = True
-            event.remediation_succeeded = changed or "already correct" in detail
-            self._append_provenance(event)
+            if changed:
+                self._health.remediation_successes += 1
+                ss.remediation_successes += 1
+            elif "already correct" in detail:
+                self._health.remediation_successes += 1
+                ss.remediation_successes += 1
+            elif "lock held" in detail:
+                try:
+                    with open(SETTINGS_FILE, "r") as f:
+                        current = json.load(f).get("model", "")
+                    if self._is_target_model(current):
+                        self._health.remediation_successes += 1
+                        ss.remediation_successes += 1
+                        detail = "already correct (checked after lock contention)"
+                    else:
+                        self._health.remediation_failures += 1
+                        ss.remediation_failures += 1
+                except Exception:
+                    self._health.remediation_failures += 1
+                    ss.remediation_failures += 1
+            else:
+                self._health.remediation_failures += 1
+                ss.remediation_failures += 1
+
+            for event in deviations_this_batch:
+                event.remediation_attempted = True
+                event.remediation_succeeded = changed or "already correct" in detail
+                self._append_provenance(event)
 
         last_deviation = deviations_this_batch[-1]
         short_id = session_id[:8]
         count = len(deviations_this_batch)
+        detail_msg = "PAUSED" if paused else detail
 
         logger.info(
             f"DEVIATION: session {short_id} | "
             f"{count} turn(s) using {last_deviation.observed_model} "
-            f"(target: {TARGET_MODEL}) | remediation: {detail}"
+            f"(target: {TARGET_MODEL}) | remediation: {detail_msg}"
         )
 
-        if self._should_alert(session_id):
+        if not paused and self._should_alert(session_id):
             now = time.time()
             self._global_alerts.append(now)
             ss.last_alert_time = now
@@ -626,7 +653,7 @@ class ModelWatchdog:
                 f"`{last_deviation.observed_model}` "
                 f"(policy: `{TARGET_MODEL}`)\n"
                 f"Substitution rate: {sub_rate}\n"
-                f"Remediation: {detail}"
+                f"Remediation: {detail_msg}"
             )
             self._send_discord_alert(msg)
 
@@ -646,7 +673,9 @@ class ModelWatchdog:
             transcripts_found += 1
             try:
                 observations = self._check_transcript(path, sid)
-                self._handle_observations(sid, path, observations)
+                if observations:
+                    self._handle_observations(sid, path, observations)
+                    self._save_cursors()
             except Exception as e:
                 logger.error(f"Error processing session {sid[:8]}: {e}")
 
@@ -654,7 +683,7 @@ class ModelWatchdog:
         self._health.successful_polls += 1
         self._health.last_successful_poll_at = self._now()
 
-        if observations_exist := any(ss.total_observed > 0 for ss in self._sessions.values()):
+        if any(ss.total_observed > 0 for ss in self._sessions.values()):
             self._health.last_observation_at = self._now()
 
     def run(self) -> None:
@@ -725,7 +754,7 @@ def generate_summary(
                     event = json.loads(line)
                 except json.JSONDecodeError:
                     continue
-                if session_id and event.get("session_id", "")[: len(session_id)] != session_id:
+                if session_id and not event.get("session_id", "").startswith(session_id):
                     continue
                 if since and event.get("timestamp", "") < since:
                     continue
@@ -796,9 +825,25 @@ def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "health":
         if os.path.exists(HEALTH_FILE):
             with open(HEALTH_FILE, "r") as f:
-                print(f.read())
+                data = json.load(f)
+            data["paused"] = os.path.exists(PAUSE_FILE)
+            print(json.dumps(data, indent=2))
         else:
-            print('{"status": "no health data"}')
+            print(json.dumps({"status": "no health data", "paused": os.path.exists(PAUSE_FILE)}, indent=2))
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "pause":
+        with open(PAUSE_FILE, "w") as f:
+            f.write(f"Paused at {time.strftime('%Y-%m-%dT%H:%M:%S')}\n")
+        print(f"Model watchdog PAUSED — remediation suppressed. Remove {PAUSE_FILE} to resume.")
+        return
+
+    if len(sys.argv) > 1 and sys.argv[1] == "resume":
+        try:
+            os.unlink(PAUSE_FILE)
+            print("Model watchdog RESUMED — remediation active.")
+        except FileNotFoundError:
+            print("Model watchdog was not paused.")
         return
 
     watchdog = ModelWatchdog()

@@ -38,6 +38,7 @@ def _patch_constants():
     mw.PROVENANCE_FILE = os.path.join(mw.STATE_DIR, "provenance.jsonl")
     mw.HEALTH_FILE = os.path.join(mw.STATE_DIR, "health.json")
     mw.SETTINGS_LOCK = os.path.join(mw.STATE_DIR, "settings.lock")
+    mw.PAUSE_FILE = os.path.join(mw.STATE_DIR, "PAUSE")
     mw.LOG_FILE = os.path.join(_test_tmpdir, "watchdog.log")
     mw.DISCORD_BOT_TOKEN = ""
     mw.DISCORD_CHANNEL_ID = ""
@@ -693,6 +694,123 @@ class TestIntentionalTargetChange:
             assert wd._is_target_model("claude-fable-5") is False
         finally:
             mw.TARGET_MODEL = old_target
+
+
+class TestPauseMechanism:
+    def test_pause_suppresses_remediation(self):
+        """When PAUSE file exists, deviations are recorded but not remediated."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_settings = mw.SETTINGS_FILE
+            old_lock = mw.SETTINGS_LOCK
+            old_pause = mw.PAUSE_FILE
+
+            mw.SETTINGS_FILE = _make_settings(tmpdir, "claude-opus-4-6[1m]")
+            mw.SETTINGS_LOCK = os.path.join(tmpdir, "settings.lock")
+            mw.PAUSE_FILE = os.path.join(tmpdir, "PAUSE")
+
+            # Create the PAUSE file
+            with open(mw.PAUSE_FILE, "w") as f:
+                f.write("paused\n")
+
+            try:
+                wd = mw.ModelWatchdog()
+                wd._handle_observations("s1", "/t.jsonl", [("claude-opus-4-6", "m1")])
+
+                # Settings must NOT have been corrected
+                with open(mw.SETTINGS_FILE) as f:
+                    data = json.load(f)
+                assert data["model"] == "claude-opus-4-6[1m]"
+
+                # Provenance must still be recorded
+                with open(mw.PROVENANCE_FILE) as f:
+                    events = [json.loads(l) for l in f if l.strip()]
+                assert len(events) == 1
+                assert events[0]["observed_model"] == "claude-opus-4-6"
+                assert events[0]["remediation_attempted"] is False
+                assert events[0]["remediation_succeeded"] is False
+            finally:
+                mw.SETTINGS_FILE = old_settings
+                mw.SETTINGS_LOCK = old_lock
+                mw.PAUSE_FILE = old_pause
+
+    def test_resume_enables_remediation(self):
+        """After PAUSE file removed, remediation resumes."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_settings = mw.SETTINGS_FILE
+            old_lock = mw.SETTINGS_LOCK
+            old_pause = mw.PAUSE_FILE
+
+            mw.SETTINGS_FILE = _make_settings(tmpdir, "claude-opus-4-6[1m]")
+            mw.SETTINGS_LOCK = os.path.join(tmpdir, "settings.lock")
+            mw.PAUSE_FILE = os.path.join(tmpdir, "PAUSE")
+
+            try:
+                # No PAUSE file — remediation should work
+                wd = mw.ModelWatchdog()
+                assert wd._is_paused() is False
+                wd._handle_observations("s1", "/t.jsonl", [("claude-opus-4-6", "m1")])
+
+                with open(mw.SETTINGS_FILE) as f:
+                    data = json.load(f)
+                assert data["model"] == "claude-fable-5[1m]"
+            finally:
+                mw.SETTINGS_FILE = old_settings
+                mw.SETTINGS_LOCK = old_lock
+                mw.PAUSE_FILE = old_pause
+
+    def test_pause_no_alerts_sent(self):
+        """While paused, no Discord alerts are triggered."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_settings = mw.SETTINGS_FILE
+            old_lock = mw.SETTINGS_LOCK
+            old_pause = mw.PAUSE_FILE
+
+            mw.SETTINGS_FILE = _make_settings(tmpdir, "claude-opus-4-6[1m]")
+            mw.SETTINGS_LOCK = os.path.join(tmpdir, "settings.lock")
+            mw.PAUSE_FILE = os.path.join(tmpdir, "PAUSE")
+
+            with open(mw.PAUSE_FILE, "w") as f:
+                f.write("paused\n")
+
+            try:
+                wd = mw.ModelWatchdog()
+                wd._handle_observations("s1", "/t.jsonl", [("claude-opus-4-6", "m1")])
+
+                # No alerts should have been attempted
+                assert wd._health.discord_alert_attempts == 0
+            finally:
+                mw.SETTINGS_FILE = old_settings
+                mw.SETTINGS_LOCK = old_lock
+                mw.PAUSE_FILE = old_pause
+
+
+class TestLockContention:
+    def test_lock_contention_reads_current_state(self):
+        """If lock is held but settings already correct, count as success."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_settings = mw.SETTINGS_FILE
+            old_lock = mw.SETTINGS_LOCK
+
+            mw.SETTINGS_FILE = _make_settings(tmpdir, "claude-fable-5[1m]")
+            mw.SETTINGS_LOCK = os.path.join(tmpdir, "settings.lock")
+
+            lock_fd = os.open(mw.SETTINGS_LOCK, os.O_CREAT | os.O_RDWR, 0o600)
+            import fcntl
+
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+
+            try:
+                wd = mw.ModelWatchdog()
+                wd._handle_observations("s1", "/t.jsonl", [("claude-opus-4-6", "m1")])
+
+                # Remediation should report success because settings already correct
+                assert wd._health.remediation_successes == 1
+                assert wd._health.remediation_failures == 0
+            finally:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                os.close(lock_fd)
+                mw.SETTINGS_FILE = old_settings
+                mw.SETTINGS_LOCK = old_lock
 
 
 class TestAdversarial:
