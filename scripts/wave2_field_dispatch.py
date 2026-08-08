@@ -219,6 +219,73 @@ def _import_field_task_scope():
     return mod
 
 
+def _preseed_worktree_substrate() -> None:
+    """Make the candidate WORKTREE own the ``substrate`` package identity.
+
+    THE HARNESS INVARIANT: a qualification run for candidate worktree ``W`` MUST
+    import qualification-facing candidate modules from ``W`` — never from
+    ``/opt/OS`` merely because ``/opt/OS`` was imported earlier in the same
+    process.
+
+    The green ``run_passes`` path first drives ``_mesh_read`` (candidate
+    readiness + Beast commit binding), which does ``sys.path.insert(0, _ROOT)``
+    and ``import substrate.sockets.mesh_dispatch_port``. That caches the
+    ``substrate`` and ``substrate.execution`` packages resolved against
+    ``/opt/OS`` — the MAIN checkout, which has no ``execution/attempts/`` (that
+    directory exists only on this branch's worktree). A later plain
+    ``sys.path.insert(0, _WORKTREE)`` + ``from substrate.execution.attempts...``
+    then resolves ``substrate.execution.attempts`` as a subpackage of the
+    already-cached ``/opt/OS``-rooted ``substrate.execution`` → the path does not
+    exist → ``ModuleNotFoundError: No module named 'substrate.execution.attempts'``.
+
+    A pointwise fix (importlib leaf-load of one module) is INSUFFICIENT and was
+    proven so: the leaf's own internal ``from substrate.execution.attempts...``
+    imports still resolve against the stale parent. The whole
+    ``substrate.execution*`` subtree — the package IDENTITY — must resolve from
+    the worktree. So this helper:
+
+      1. puts ``_WORKTREE`` first on ``sys.path`` (worktree wins path resolution);
+      2. evicts every ``substrate`` / ``substrate.*`` module already cached from a
+         root OTHER than the worktree, so the next import re-resolves the whole
+         subtree from ``_WORKTREE``.
+
+    It is idempotent (a second call is a clean no-op once the worktree owns the
+    cache) and it NEVER silently falls back to ``/opt/OS`` — a missing worktree
+    ``substrate`` package raises on the subsequent import, fail-closed, rather
+    than being masked. The already-imported mesh-dispatch port re-resolves from
+    the worktree on its next use; that module is byte-identical to main, so the
+    mesh path is behaviour-preserved.
+    """
+    wt = str(_WORKTREE.resolve())
+    # 1) worktree wins path resolution — remove any stale copies, then front-load.
+    while wt in sys.path:
+        sys.path.remove(wt)
+    sys.path.insert(0, wt)
+    # 2) evict substrate modules cached from outside the worktree so the whole
+    #    package subtree re-resolves from _WORKTREE on the next import.
+    #    Boundary: a module counts as "inside the worktree" ONLY when its
+    #    resolved anchor is exactly ``wt`` or is under ``wt`` + os.sep — a bare
+    #    ``startswith(wt)`` would wrongly retain a SIBLING worktree whose path is
+    #    a string-prefix superset (e.g. ``<wt>-other``). A substrate module with
+    #    NO anchor at all (neither __file__ nor __path__) cannot be PROVEN to
+    #    come from the worktree, so it is evicted (fail-closed toward re-resolve),
+    #    never silently retained.
+    wt_prefix = wt + os.sep
+    for name in list(sys.modules):
+        if name != "substrate" and not name.startswith("substrate."):
+            continue
+        mod = sys.modules.get(name)
+        anchor = getattr(mod, "__file__", None) or ""
+        if not anchor:
+            # namespace package (no __file__) — use its first __path__ entry.
+            paths = list(getattr(mod, "__path__", []) or [])
+            anchor = paths[0] if paths else ""
+        resolved = str(Path(anchor).resolve()) if anchor else ""
+        inside_worktree = resolved == wt or resolved.startswith(wt_prefix)
+        if not inside_worktree:
+            del sys.modules[name]
+
+
 def _declared_lanes_json() -> str:
     """The A/B/C/D lane DECLARATION for the full field protocol, as JSON.
 
@@ -1518,6 +1585,22 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
             # marker exists). Adding pause/resume to green would be incidental
             # injection scaffolding, not a required step (verified in source:
             # field_failure_policy.pause_state / resume_after_pause arming check).
+            #
+            # PRESEED THE WORKTREE SUBSTRATE FIRST. Everything above this point
+            # (_wait_candidate_ready, _verify_beast_collector_commit) drove
+            # `_mesh_read` → `mesh_dispatch_port`, which cached `substrate` /
+            # `substrate.execution` from `/opt/OS` (no `execution/attempts/`).
+            # The binding wait imports `substrate.execution.attempts.*`; without
+            # this preseed, that import resolves against the stale `/opt/OS`
+            # parent and the whole green pass crashes with ModuleNotFoundError
+            # BEFORE any Attempt is created (run 20260808T213735Z-p1). The
+            # failure/recovery driver's CLI subcommands never hit this because
+            # each runs in a fresh process with no prior mesh read. Making the
+            # candidate worktree own the `substrate` package identity here — the
+            # one boundary green first needs it — keeps green and
+            # failure/recovery resolving the SAME candidate implementation.
+            if not runner.dry_run:
+                _preseed_worktree_substrate()
             binding, berr = _wait_for_bindable_grant(runner, sha=sha, run_id=run_id)
             if not runner.dry_run and binding is None:
                 results.append(

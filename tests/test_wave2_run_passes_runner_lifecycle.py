@@ -507,6 +507,7 @@ def _order_tracking_patches(dispatch_mod, order, **overrides):
             {"ok": True, "run_id": "r1", "pass_num": 1},
         )[1],
         "_wait_collector_authorization": lambda *a, **kw: (order.append("wait_w15"), True)[1],
+        "_preseed_worktree_substrate": lambda *a, **kw: order.append("preseed"),
         "_wait_for_bindable_grant": lambda *a, **kw: (order.append("grant_wait"), (object(), ""))[
             1
         ],
@@ -768,3 +769,325 @@ def test_failure_recovery_primitives_still_present(dispatch_mod):
         assert hasattr(dispatch_mod, fn), f"failure/recovery primitive {fn} missing"
     # and the green path uses the SAME binding writer as failure/recovery
     assert hasattr(dispatch_mod, "_wait_for_bindable_grant")
+
+
+# ── Worktree-substrate preseed (green sys.path race) ─────────────────────────
+#
+# Root-cause regression: the green `run_passes` path first drives `_mesh_read`
+# (candidate readiness + Beast commit binding), which imports
+# `substrate.sockets.mesh_dispatch_port` from `/opt/OS` — caching `substrate` /
+# `substrate.execution` against the MAIN checkout, which has no
+# `execution/attempts/`. The later binding wait imports
+# `substrate.execution.attempts.*`; without a preseed it resolves against that
+# stale parent and the whole green pass crashes with ModuleNotFoundError BEFORE
+# any Attempt is created (field run 20260808T213735Z-p1, invocation #51).
+
+
+def _reset_substrate_cache_to_root():
+    """Simulate the green-path pollution: /opt/OS substrate cached first.
+
+    Evicts any worktree-rooted substrate from sys.modules, ensures `/opt/OS` is
+    on the path, and imports the mesh port exactly as `_mesh_read` does — so the
+    process enters the test with `substrate.execution` cached from the MAIN
+    checkout, which is the precondition the preseed must overcome.
+    """
+    root = "/opt/OS"
+    for name in list(sys.modules):
+        if name == "substrate" or name.startswith("substrate."):
+            del sys.modules[name]
+    if root not in sys.path:
+        sys.path.append(root)
+    # Front-load /opt/OS so the FIRST substrate import resolves against main.
+    sys.path.insert(0, root)
+    import substrate.sockets.mesh_dispatch_port  # noqa: F401
+
+    return sys.modules["substrate.execution"].__file__
+
+
+@pytest.fixture
+def _polluted_then_restore(dispatch_mod):
+    """Enter with /opt/OS substrate cached; restore a clean cache on exit."""
+    saved_path = list(sys.path)
+    saved_mods = {
+        n: m for n, m in sys.modules.items() if n == "substrate" or n.startswith("substrate.")
+    }
+    exec_file = _reset_substrate_cache_to_root()
+    try:
+        yield exec_file
+    finally:
+        # Restore whatever substrate modules the process legitimately had.
+        for name in list(sys.modules):
+            if name == "substrate" or name.startswith("substrate."):
+                del sys.modules[name]
+        sys.modules.update(saved_mods)
+        sys.path[:] = saved_path
+
+
+def _opt_os_has_attempts() -> bool:
+    return (Path("/opt/OS") / "substrate" / "execution" / "attempts").exists()
+
+
+def test_preseed_precondition_opt_os_lacks_attempts(_polluted_then_restore):
+    """T1/T5: the failure is real only when /opt/OS is cached first AND lacks attempts.
+
+    This pins the environment the preseed exists for. If /opt/OS ever gains
+    execution/attempts/ (a merged branch), the crash disappears — but the
+    invariant (candidate imports come from the worktree) must still hold, which
+    the resolution tests below assert independently.
+    """
+    exec_file = _polluted_then_restore
+    assert exec_file.startswith("/opt/OS/substrate"), (
+        "precondition: substrate.execution must be cached from /opt/OS"
+    )
+
+
+@pytest.mark.skipif(
+    _opt_os_has_attempts(),
+    reason="/opt/OS already carries execution/attempts (merged) — the crash is not reproducible",
+)
+def test_plain_import_crashes_without_preseed(_polluted_then_restore):
+    """T5: WITHOUT the preseed, the crashing import reproduces deterministically."""
+    sys.path.insert(0, str(_WORKTREE))
+    with pytest.raises(ModuleNotFoundError, match=r"substrate\.execution\.attempts"):
+        # exact line the dispatcher crashed on (field_scenario_map import)
+        import importlib
+
+        importlib.import_module("substrate.execution.attempts.field_scenario_map")
+
+
+def test_preseed_resolves_worktree_attempts_after_pollution(dispatch_mod, _polluted_then_restore):
+    """T2/T3/T5: after preseed, substrate.execution.attempts resolves from the WORKTREE."""
+    dispatch_mod._preseed_worktree_substrate()
+    import substrate  # noqa
+    import substrate.execution  # noqa
+    import substrate.execution.attempts  # noqa
+
+    wt = str(_WORKTREE.resolve())
+    for name in ("substrate", "substrate.execution", "substrate.execution.attempts"):
+        f = sys.modules[name].__file__
+        assert f.startswith(wt), f"{name} resolved from {f}, not the worktree {wt}"
+
+
+def test_preseed_capture_binding_import_resolves(dispatch_mod, _polluted_then_restore):
+    """T3: the exact import _capture_execution_binding performs resolves from the worktree."""
+    dispatch_mod._preseed_worktree_substrate()
+    from substrate.execution.attempts.field_scenario_map import ExecutionBinding
+
+    assert ExecutionBinding.__module__ == "substrate.execution.attempts.field_scenario_map"
+    assert sys.modules["substrate.execution.attempts.field_scenario_map"].__file__.startswith(
+        str(_WORKTREE.resolve())
+    )
+
+
+def test_preseed_resolves_internal_leaf_dependency(dispatch_mod, _polluted_then_restore):
+    """T7: the leaf's OWN internal substrate.* imports also resolve from the worktree.
+
+    This is the proof a pointwise leaf-load is insufficient: field_scenario_map
+    imports substrate.execution.attempts.field_task_scope internally, which would
+    still resolve against the stale /opt/OS parent under a leaf-only fix.
+    """
+    dispatch_mod._preseed_worktree_substrate()
+    import substrate.execution.attempts.field_scenario_map  # noqa
+    import substrate.execution.attempts.field_task_scope as fts
+
+    assert fts.__file__.startswith(str(_WORKTREE.resolve())), (
+        "internal dependency field_task_scope must resolve from the worktree, not /opt/OS"
+    )
+
+
+def test_preseed_is_idempotent(dispatch_mod, _polluted_then_restore):
+    """T7: calling the preseed twice is a clean no-op (worktree already owns the cache)."""
+    dispatch_mod._preseed_worktree_substrate()
+    import substrate  # noqa
+
+    first = sys.modules["substrate"].__file__
+    dispatch_mod._preseed_worktree_substrate()
+    import substrate  # noqa
+
+    second = sys.modules["substrate"].__file__
+    assert first == second == sys.modules["substrate"].__file__
+    assert first.startswith(str(_WORKTREE.resolve()))
+
+
+def test_preseed_puts_worktree_first_on_syspath(dispatch_mod, _polluted_then_restore):
+    """T5: the worktree wins path resolution; a single copy, front-loaded."""
+    dispatch_mod._preseed_worktree_substrate()
+    wt = str(_WORKTREE.resolve())
+    assert sys.path[0] == wt, f"worktree must be sys.path[0], got {sys.path[0]}"
+    assert sys.path.count(wt) == 1, "worktree must appear exactly once (no accumulation)"
+
+
+def test_preseed_evicts_sibling_worktree_prefix_superset(dispatch_mod, _polluted_then_restore):
+    """Boundary: a SIBLING worktree whose path is a string-prefix superset is evicted.
+
+    A bare `startswith(wt)` would wrongly RETAIN a module loaded from
+    `<wt>-other/...` because that path starts with the worktree string. The
+    os.sep boundary must treat it as OUTSIDE and evict it.
+    """
+    import types
+
+    wt = str(_WORKTREE.resolve())
+    sibling = types.ModuleType("substrate.execution._sibling_probe")
+    sibling.__file__ = wt + "-other/substrate/execution/_sibling_probe.py"
+    sys.modules["substrate.execution._sibling_probe"] = sibling
+    dispatch_mod._preseed_worktree_substrate()
+    assert "substrate.execution._sibling_probe" not in sys.modules, (
+        "a sibling-worktree module (prefix superset) must be evicted, not retained"
+    )
+
+
+def test_preseed_evicts_anchorless_substrate_module(dispatch_mod, _polluted_then_restore):
+    """Fail-closed: a substrate.* module with no __file__/__path__ is evicted.
+
+    It cannot be PROVEN to come from the worktree, so it must be evicted (forcing
+    a clean re-resolve), never silently retained.
+    """
+    import types
+
+    ghost = types.ModuleType("substrate.execution._anchorless_probe")
+    # no __file__, no __path__
+    sys.modules["substrate.execution._anchorless_probe"] = ghost
+    dispatch_mod._preseed_worktree_substrate()
+    assert "substrate.execution._anchorless_probe" not in sys.modules, (
+        "an anchorless substrate.* module must be evicted (fail-closed), not retained"
+    )
+
+
+def test_preseed_no_cross_worktree_accumulation(dispatch_mod, _polluted_then_restore):
+    """T8: repeated fresh green passes do not accumulate stale substrate identities.
+
+    After N preseeds interleaved with re-pollution, there is exactly ONE
+    substrate identity resident and it is the worktree's.
+    """
+    for _ in range(3):
+        _reset_substrate_cache_to_root()  # re-pollute with /opt/OS
+        dispatch_mod._preseed_worktree_substrate()
+        import substrate.execution.attempts.field_scenario_map  # noqa
+    wt = str(_WORKTREE.resolve())
+    resident = {
+        n: sys.modules[n].__file__
+        for n in sys.modules
+        if (n == "substrate" or n.startswith("substrate."))
+        and getattr(sys.modules[n], "__file__", None)
+    }
+    off_worktree = {n: f for n, f in resident.items() if not f.startswith(wt)}
+    assert not off_worktree, f"stale non-worktree substrate modules accumulated: {off_worktree}"
+
+
+def test_green_preseeds_before_binding_wait(dispatch_mod):
+    """MOST IMPORTANT ordering: green preseeds the worktree substrate BEFORE the binding wait.
+
+    The binding wait imports substrate.execution.attempts.*; the preseed MUST run
+    first, or the whole green pass crashes before any Attempt is created.
+    """
+    order: list[str] = []
+    with _apply(_order_tracking_patches(dispatch_mod, order)):
+        dispatch_mod.run_passes(_NonDryRunner(), sha="abc123", scenario="full", passes=1)
+    assert "preseed" in order, "green path must preseed the worktree substrate"
+    assert order.index("preseed") < order.index("grant_wait"), (
+        f"preseed must precede the binding wait. Order: {order}"
+    )
+    assert order.index("preseed") < order.index("write_binding"), (
+        f"preseed must precede write_scenario_map. Order: {order}"
+    )
+
+
+def test_green_full_lifecycle_order_includes_preseed(dispatch_mod):
+    """T12: full green order is w15 → preseed → grant_wait → write_binding → runner."""
+    order: list[str] = []
+    with _apply(_order_tracking_patches(dispatch_mod, order)):
+        dispatch_mod.run_passes(_NonDryRunner(), sha="abc123", scenario="full", passes=1)
+    green = [
+        s for s in order if s in {"wait_w15", "preseed", "grant_wait", "write_binding", "runner"}
+    ]
+    assert green == ["wait_w15", "preseed", "grant_wait", "write_binding", "runner"], (
+        f"green lifecycle order wrong: {green}"
+    )
+
+
+def test_mutation_remove_preseed_reproduces_crash(dispatch_mod, _polluted_then_restore):
+    """Mutation `remove _preseed_worktree_substrate call`: the crash returns.
+
+    Directly proves the preseed is load-bearing: with /opt/OS cached and NOT
+    preseeded, the binding import that run_passes performs fails closed.
+    """
+    if _opt_os_has_attempts():
+        pytest.skip("/opt/OS carries attempts — crash not reproducible in this tree")
+    # No preseed call. The dispatcher's binding import must fail.
+    sys.path.insert(0, str(_WORKTREE))
+    with pytest.raises(ModuleNotFoundError, match=r"substrate\.execution\.attempts"):
+        import importlib
+
+        importlib.import_module("substrate.execution.attempts.field_scenario_map")
+
+
+def test_mutation_preseed_wrong_root_leaves_stale(dispatch_mod, _polluted_then_restore):
+    """Mutation `preseed points at /opt/OS instead of the worktree`: attempts still missing.
+
+    A preseed that front-loads the wrong root and evicts nothing leaves the stale
+    parent resident — the import still fails. This pins that the preseed must
+    target the WORKTREE, not merely 'some root'.
+    """
+    if _opt_os_has_attempts():
+        pytest.skip("/opt/OS carries attempts — crash not reproducible in this tree")
+
+    # Emulate the mutated preseed: front-load /opt/OS, evict nothing.
+    sys.path.insert(0, "/opt/OS")
+    with pytest.raises(ModuleNotFoundError, match=r"substrate\.execution\.attempts"):
+        import importlib
+
+        importlib.import_module("substrate.execution.attempts.field_scenario_map")
+
+
+def test_failure_recovery_import_path_unchanged(dispatch_mod):
+    """T9: the failure/recovery CLI subcommands still guard their own imports.
+
+    The green fix adds a preseed to run_passes ONLY; it must not have removed the
+    per-subcommand `sys.path.insert(0, str(_WORKTREE))` guards the frozen
+    failure/recovery driver relies on (each subcommand runs in a fresh process
+    with no prior mesh read, so it needs its own guard). This asserts the EXACT
+    guard line is still present — asserting merely that the string `_WORKTREE`
+    appears is too weak (these functions reference it elsewhere), so a mutation
+    that strips only the guard line would survive.
+    """
+    import inspect
+
+    guard = "sys.path.insert(0, str(_WORKTREE))"
+    for fn_name in (
+        "write_scenario_map",
+        "inject_failure",
+        "pause_before_dispatch",
+        "resume_after_pause",
+        "_capture_execution_binding",
+    ):
+        src = inspect.getsource(getattr(dispatch_mod, fn_name))
+        assert guard in src, (
+            f"{fn_name} lost its worktree-guarded import ({guard!r} missing) — "
+            f"the failure/recovery CLI path would resolve stale /opt/OS substrate"
+        )
+
+
+def test_capture_binding_import_not_swallowed(dispatch_mod, _polluted_then_restore):
+    """M7-killer: _capture_execution_binding must NOT catch ModuleNotFoundError and continue.
+
+    Under the green-path pollution (/opt/OS substrate cached, no preseed), the
+    real function's `from substrate.execution.attempts.field_scenario_map import
+    ExecutionBinding` must RAISE — a mutation that wraps it in try/except and
+    returns a benign refusal would hide a real harness defect behind a fail-closed
+    string. The green path's preseed is what makes this import succeed in
+    production; here we prove the import is load-bearing and never swallowed.
+    """
+    if _opt_os_has_attempts():
+        pytest.skip("/opt/OS carries attempts — the import cannot fail in this tree")
+    # Records that would pass the correlation filter IF the import succeeded, so
+    # the function reaches the import line rather than short-circuiting earlier.
+    records = [
+        {
+            "grant_id": "g1",
+            "task_frontier": ["wp-a"],
+            "correlation_id": "w2-r1",
+            "status": "active",
+        }
+    ]
+    with pytest.raises(ModuleNotFoundError, match=r"substrate\.execution\.attempts"):
+        dispatch_mod._capture_execution_binding(records, sha="abc", run_id="r1")
