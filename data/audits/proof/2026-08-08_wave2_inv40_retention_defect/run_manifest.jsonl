@@ -1,0 +1,10 @@
+{"kind": "run_owner", "ident": "345718", "owner_pid": 345718, "detail": "runner_owner", "ts": 1786146445.2070036}
+{"kind": "lease", "ident": "lease-9697faf855e5", "owner_pid": 345718, "detail": "", "ts": 1786146447.3876164}
+{"kind": "lease", "ident": "lease-e4f76628890c", "owner_pid": 345718, "detail": "", "ts": 1786146447.4316585}
+{"kind": "worker_home", "ident": "/var/lib/umh/candidates/wave2/9fa480d106a09e985788c5d11cd4ee9dadf39516/targets/20260807T234550Z-p1/worker-homes/ea-112cd869e5a0", "owner_pid": 345718, "detail": "", "ts": 1786146447.4361513}
+{"kind": "worker_home", "ident": "/var/lib/umh/candidates/wave2/9fa480d106a09e985788c5d11cd4ee9dadf39516/targets/20260807T234550Z-p1/worker-homes/ea-5237f45c4c71", "owner_pid": 345718, "detail": "", "ts": 1786146447.4366713}
+{"kind": "worktree", "ident": "/var/lib/umh/candidates/wave2/9fa480d106a09e985788c5d11cd4ee9dadf39516/targets/20260807T234550Z-p1/leases/auto-def1c5f9", "owner_pid": 345718, "detail": "", "ts": 1786146447.4391608}
+{"kind": "worktree", "ident": "/var/lib/umh/candidates/wave2/9fa480d106a09e985788c5d11cd4ee9dadf39516/targets/20260807T234550Z-p1/leases/auto-00d0ba13", "owner_pid": 345718, "detail": "", "ts": 1786146447.442791}
+{"kind": "lease", "ident": "lease-b418e7c936e3", "owner_pid": 345718, "detail": "", "ts": 1786146542.693006}
+{"kind": "worker_home", "ident": "/var/lib/umh/candidates/wave2/9fa480d106a09e985788c5d11cd4ee9dadf39516/targets/20260807T234550Z-p1/worker-homes/ea-e626792e7f7a", "owner_pid": 345718, "detail": "", "ts": 1786146542.6985915}
+{"kind": "worktree", "ident": "/var/lib/umh/candidates/wave2/9fa480d106a09e985788c5d11cd4ee9dadf39516/targets/20260807T234550Z-p1/leases/auto-ed6de39a", "owner_pid": 345718, "detail": "", "ts": 1786146542.7007399}

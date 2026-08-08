@@ -307,6 +307,124 @@ class ControlPlanePoller:
                 lease._d["snapshot_ref"] = trusted_base  # noqa: SLF001
             elif isinstance(lease, dict):
                 lease["snapshot_ref"] = trusted_base
+        # ── DURABLE OBJECT PROMOTION (invocation 40) ─────────────────────────
+        #
+        # The lease is a SELF-CONTAINED repo, so the worker's commit objects
+        # exist only in the lease's private object store. Left there, the
+        # verifier proves an object whose durability ends with the lease, and
+        # retention later fails with "nonexistent object" (measured: every
+        # succeeded worker attempt of runs 20260807T005250Z-p1 and
+        # 20260807T234550Z-p1). The control plane therefore imports the
+        # attempt's complete reachable closure into the durable repo NOW —
+        # before verification settles — so the object the verifier proves
+        # already durably exists, and retention pins that same object.
+        #
+        # The promoted commit is derived from the attempt's own private ref by
+        # trusted code, never from worker_result.commits. Promotion failure
+        # fails the attempt CLOSED: verification is not allowed to mint a Proof
+        # for an object that cannot outlive the sandbox.
+        #
+        # Scoped exactly like retention: only a lease whose repo_root resolves
+        # to a candidate/run binding promotes. Ordinary non-candidate callers
+        # (unit stores, legacy paths) skip both promotion and retention.
+        kind = str(getattr(attempt, "execution_kind", "") or "worker")
+        if kind == "worker" and lease is not None:
+            import os as _os
+
+            from substrate.execution.attempts.terminalization import (
+                _commit_above_base,
+                _resolve_retention_binding,
+            )
+            from substrate.execution.attempts.verified_commit_retention import (
+                RetentionError,
+                promote_attempt_objects,
+            )
+
+            def _at_risk_commit(worktree: str, snap: str) -> bool:
+                # A commit above the authorized base whose durability we cannot
+                # establish. A missing worktree cannot hold an at-risk commit
+                # (nothing to lose), so it is NOT at risk here — the promotion
+                # path itself raises on a missing worktree when it IS reachable.
+                if not worktree or not _os.path.isdir(worktree):
+                    return False
+                return bool(_commit_above_base(worktree, snap))
+
+            _src = (
+                lease.get("source_ref", {})
+                if isinstance(lease, dict)
+                else getattr(lease, "source_ref", {})
+            )
+            _repo = str((_src or {}).get("repo_root", "") or "")
+            _worktree = str(
+                (lease.get("worktree_path", "") if isinstance(lease, dict) else "")
+                or getattr(lease, "worktree_path", "")
+                or ""
+            )
+            _snap = str(
+                (lease.get("snapshot_ref", "") if isinstance(lease, dict) else "")
+                or getattr(lease, "snapshot_ref", "")
+                or ""
+            )
+            _promote_reason = ""
+            # Promotion applies to a GOVERNED field run — one whose lease carries a
+            # candidate-shaped repo_root. When repo_root is present, an
+            # unresolvable candidate/run binding WITH a commit at risk fails closed
+            # (Finding 2): a governed run whose durability cannot be established
+            # must not mint a Proof for a lease-only commit.
+            #
+            # Independent review MEDIUM (poller outer-guard consistency): a lease
+            # with a worktree but NO repo_root is deliberately NOT failed here. A
+            # missing repo_root is not "a governed run with lost durability" — it
+            # is "not a promotion-governed run at all" (retry/trusted-base and
+            # other non-field callers of this poller legitimately carry
+            # worktree+snapshot_ref with no source_ref.repo_root, and MUST reach
+            # verification). Reviewer A confirmed the outer case is unreachable for
+            # a real field worker lease (repo_root is always set when a worktree
+            # is). Failing it would break legitimate non-field verification for a
+            # state that cannot occur in the field — so the inconsistency is
+            # DISPOSITIONED, not "aligned" into a false-positive.
+            if _repo and _worktree:
+                _cand, _run, _detail = _resolve_retention_binding(attempt, _repo)
+                if _cand and _run:
+                    try:
+                        promote_attempt_objects(
+                            repo=_repo,
+                            worktree=_worktree,
+                            candidate=_cand,
+                            run_id=_run,
+                            task_id=str(getattr(attempt, "task_id", "") or ""),
+                            attempt_id=str(attempt.attempt_id),
+                            base_commit=_snap,
+                        )
+                    except RetentionError as exc:
+                        _promote_reason = f"object promotion failed: {exc}"
+                elif _at_risk_commit(_worktree, _snap):
+                    _promote_reason = (
+                        f"object promotion skipped: candidate/run binding unresolved "
+                        f"({_detail}) while a commit exists above base — cannot establish "
+                        f"durability; refusing to verify a lease-only commit"
+                    )
+
+            if _promote_reason:
+                logger.warning(
+                    "PROMOTION failed for attempt %s (task %s): %s",
+                    attempt.attempt_id,
+                    getattr(attempt, "task_id", ""),
+                    _promote_reason,
+                )
+                report.errors.append(f"{attempt.attempt_id}: {_promote_reason}")
+                updated = self._transition(
+                    attempt,
+                    _S.FAILED.value,
+                    (_S.VERIFYING.value,),
+                    actor="poller:promotion",
+                    reason=_promote_reason[:200],
+                    updates={"blocked_reason": _promote_reason[:200]},
+                )
+                report.failed.append(attempt.attempt_id)
+                self._terminalize(updated or attempt, "verification_rejected", report)
+                return
+
         # Verifier identity is the assignment's verifier role — deterministically
         # distinct from the worker (SoD enforced at placement + here + in the guard).
         verifier_role = (

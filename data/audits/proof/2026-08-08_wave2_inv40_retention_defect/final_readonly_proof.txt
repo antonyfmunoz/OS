@@ -1,0 +1,14 @@
+=== FINAL READ-ONLY EPHEMERAL-COMMIT PROOF (2026-08-08T00:06:15Z) ===
+--- fixture repo refs/umh/** (expect EMPTY) ---
+(empty above = zero retained refs)
+--- fixture repo: worker-reported objects exist? ---
+80bee6cef135ce5abd99a213d5b801b40048adf1 MISSING
+d4e80a4764e0e83670b0243f39301d116d59f02d MISSING
+--- surviving lease worktree auto-5ad90794 ---
+40ca58fb65fc821f1c5ea388f316b9177be69334
+40ca58f fixture: base notes app (green)
+--- lease worktrees on disk ---
+auto-5ad90794
+--- withheld leases (from ledger) ---
+lease-bf67fd197e50 (B ea-112cd869e5a0) ACTIVE-WITHHELD: terminalize refused release, retention failed, releasing would destroy the (already-nonexistent) verified commit
+lease-b418e7c936e3 (A2 ea-e626792e7f7a) ACTIVE-WITHHELD: same; its worktree auto-ed6de39a already absent from disk

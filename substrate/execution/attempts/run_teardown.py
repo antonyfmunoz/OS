@@ -485,11 +485,16 @@ def _release_run_refs(
         list_trusted_refs,
         release_composed_refs,
     )
-    from substrate.execution.attempts.verified_commit_retention import release_trusted_refs
+    from substrate.execution.attempts.verified_commit_retention import (
+        list_promoted_refs,
+        release_promoted_refs,
+        release_trusted_refs,
+    )
 
     for label, release_fn, list_fn in (
         ("trusted", release_trusted_refs, list_trusted_refs),
         ("composed", release_composed_refs, list_composed_refs),
+        ("promoted", release_promoted_refs, list_promoted_refs),
     ):
         try:
             deleted = release_fn(repo=repo_root, candidate=candidate, run_id=run_id)

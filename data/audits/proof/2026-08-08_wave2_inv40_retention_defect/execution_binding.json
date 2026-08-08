@@ -1,0 +1,13 @@
+{
+  "candidate_sha": "9fa480d106a09e985788c5d11cd4ee9dadf39516",
+  "conversation_id": "conv-612c7388d2a1",
+  "correlation_id": "w2-20260807T234550Z-p1",
+  "decision_ref": "objective_plan:opr-fdb9fe55bc60:execution_authorization:v1",
+  "grant_id": "exgrant-18ecece8a1f9",
+  "membership_id": "mem-f368fdcd323ab20c",
+  "plan_record_id": "opr-fdb9fe55bc60",
+  "plan_version": 1,
+  "principal_id": "cockpit_chat_operator",
+  "run_id": "20260807T234550Z-p1",
+  "tenant_id": "tenant-72727be3-e24d-48f2-bcea-de760ecb4c23"
+}

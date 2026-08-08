@@ -773,13 +773,33 @@ def git_readonly_subpaths(worktree_path: str) -> list[str]:
         "info",
         "branches",
         "description",
-        "packed-refs",
         "HEAD",
         "refs",
     ):
         path = os.path.join(git_dir, name)
         if os.path.exists(path):
             out.append(path)
+    # `packed-refs` — CREATE-then-lock, exactly like `objects/info` and
+    # `worktrees` below, NOT skip-if-absent. A freshly self-contained lease has
+    # no packed-refs file, so a plain `if os.path.exists` skips it and leaves it
+    # WRITABLE. Independent review (invocation-40 fix) measured the consequence:
+    # a real bwrap worker appended one garbage line (rc=0), which made every
+    # later `git rev-parse` in that lease return rc=128 ("unexpected line in
+    # .git/packed-refs"). promote_attempt_objects then read that as "no HEAD" and
+    # the attempt still SUCCEEDED with a durable Proof while its commit existed
+    # only in the (now-corrupt) lease — the invocation-40 defect class, reached
+    # by the sandboxed worker itself. An empty packed-refs file is inert for git;
+    # `--ro-bind` needs it to exist, so create it or fail closed.
+    packed_refs = os.path.join(git_dir, "packed-refs")
+    if not os.path.exists(packed_refs):
+        try:
+            with open(packed_refs, "a", encoding="utf-8"):
+                pass
+        except OSError as exc:  # cannot create it -> cannot lock it -> fail closed
+            raise ScopeResolutionError(
+                f"cannot create {packed_refs!r} to lock it read-only: {exc}"
+            ) from exc
+    out.append(packed_refs)
     # `objects/` stays WRITABLE (a commit writes objects) but `objects/info/`
     # holds `alternates`, which names an EXTERNAL object store git resolves
     # objects from. A self-directed probe of the surface THIS correction opened
@@ -821,6 +841,49 @@ def git_readonly_subpaths(worktree_path: str) -> list[str]:
             f"cannot create {worktrees_dir!r} to lock it read-only: {exc}"
         ) from exc
     out.append(worktrees_dir)
+    # `.git/commondir` — the pointer to the COMMON git dir git reads refs (incl.
+    # HEAD's target) from. Independent review (invocation-40 fix) proved the hole:
+    # a self-contained lease has no commondir, so a skip-if-absent barrier leaves
+    # it WRITABLE, and a worker can point it at an evil git dir it builds inside
+    # its own writable lease. HEAD is a LOCKED symref, but refs are resolved
+    # through the common dir, so `rev-parse HEAD` then follows the locked symref
+    # into the redirected dir and returns a FRESHLY FABRICATED foreign commit —
+    # brand-new to the durable repo, so it slips past even the authorship
+    # pre-existence scan. Measured end-to-end with real bwrap: it promoted+pinned
+    # the forged commit. Create-then-lock closes it — but the packed-refs recipe
+    # (empty file) does NOT transfer: an EMPTY commondir is fatal ("failed to
+    # read commondir"). The inert STANDALONE value is `.` (this dir is its own
+    # common dir); with `.` written, rev-parse/status/commit all succeed and the
+    # redirect is blocked. Verified.
+    commondir = os.path.join(git_dir, "commondir")
+    if not os.path.exists(commondir):
+        try:
+            with open(commondir, "w", encoding="utf-8") as fh:
+                fh.write(".\n")
+        except OSError as exc:  # cannot create it -> cannot lock it -> fail closed
+            raise ScopeResolutionError(
+                f"cannot create {commondir!r} to lock it read-only: {exc}"
+            ) from exc
+    out.append(commondir)
+    # `.git/config.worktree` — the per-worktree config git reads WHEN
+    # ``extensions.worktreeConfig`` is set. Independent review proved it writable
+    # and host-persisting but BENIGN today: the main config (read-only above)
+    # leaves that extension unset, so git never reads config.worktree, and it can
+    # only set ``core.worktree`` (relocate the checkout), never the git-dir,
+    # object store, or refs — so it forges/corrupts nothing. Locked create-then-
+    # lock anyway, for defense-in-depth symmetry with the other honored-redirect
+    # files: an empty config.worktree is inert. This closes the surface before a
+    # future change that turns the extension on could make it load-bearing.
+    config_worktree = os.path.join(git_dir, "config.worktree")
+    if not os.path.exists(config_worktree):
+        try:
+            with open(config_worktree, "w", encoding="utf-8"):
+                pass
+        except OSError as exc:  # cannot create it -> cannot lock it -> fail closed
+            raise ScopeResolutionError(
+                f"cannot create {config_worktree!r} to lock it read-only: {exc}"
+            ) from exc
+    out.append(config_worktree)
     return out
 
 
