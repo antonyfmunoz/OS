@@ -1347,14 +1347,18 @@ def _wait_collector_authorization(
                     return True
                 state = status.get("state", "")
                 if state in ("passed", "failed"):
-                    print(f"[runner-gate] collector terminal ({state}) before w15 — aborting runner start")
+                    print(
+                        f"[runner-gate] collector terminal ({state}) before w15 — aborting runner start"
+                    )
                     return False
             except (json.JSONDecodeError, TypeError):
                 pass
         else:
             consecutive_failures += 1
             if consecutive_failures % 5 == 0:
-                print(f"[runner-gate] {consecutive_failures} consecutive mesh failures ({elapsed:.1f}s)")
+                print(
+                    f"[runner-gate] {consecutive_failures} consecutive mesh failures ({elapsed:.1f}s)"
+                )
         time.sleep(3)
     print(f"[runner-gate] timed out waiting for collector to reach w15 ({timeout_min}m)")
     return False
@@ -1365,7 +1369,11 @@ def dispatch_pass(
 ) -> dict[str, Any]:
     """Dispatch one collector pass (governed write-class) and poll to terminal."""
     dispatched = _dispatch_collector(
-        runner, run_id=run_id, pass_num=pass_num, scenario=scenario, sha=sha,
+        runner,
+        run_id=run_id,
+        pass_num=pass_num,
+        scenario=scenario,
+        sha=sha,
     )
     if not dispatched.get("ok"):
         return dispatched
@@ -1467,7 +1475,11 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
 
             # Step 2: dispatch collector FIRST (it needs ~15-19 min to reach w15)
             dispatched = _dispatch_collector(
-                runner, run_id=run_id, pass_num=i, scenario=scenario, sha=sha,
+                runner,
+                run_id=run_id,
+                pass_num=i,
+                scenario=scenario,
+                sha=sha,
             )
             if not dispatched.get("ok"):
                 results.append(dispatched)
@@ -1484,7 +1496,56 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
                 )
                 continue
 
-            # Step 4: NOW start the runner — collector is ready for workers
+            # Step 3b: MATERIALIZE THE RUN'S AUTHENTICATED EXECUTION BINDING
+            # BEFORE the runner is admitted.
+            #
+            # w15 grants execution authorization, but the runner's attempt-
+            # creation boundary reads `execution_binding.json` (via
+            # read_execution_binding) to classify each Task. Without it,
+            # read_execution_binding returns None → the declaration is
+            # UNANSWERABLE → the store stays SEALED ("UNKNOWN MUST NEVER MEAN
+            # WORKER") → zero Attempts are ever created and the whole A+B→C→D
+            # graph fails. A green pass therefore runs the SAME authenticated
+            # pre-run lifecycle the qualified failure/recovery driver runs —
+            # grant-durability wait → write_scenario_map — differing ONLY by the
+            # absence of deliberate failure injection.
+            #
+            # No admission pause/resume here: pause_before_dispatch exists solely
+            # to open the window inject_failure binds into, and resume_after_pause
+            # refuses to release an UNARMED pause. A green pass injects nothing,
+            # so it must NOT arm the pause — the runner admits Attempts naturally
+            # once the binding is durable (dispatch_is_paused is False when no
+            # marker exists). Adding pause/resume to green would be incidental
+            # injection scaffolding, not a required step (verified in source:
+            # field_failure_policy.pause_state / resume_after_pause arming check).
+            binding, berr = _wait_for_bindable_grant(runner, sha=sha, run_id=run_id)
+            if not runner.dry_run and binding is None:
+                results.append(
+                    {
+                        "ok": False,
+                        "error": f"execution binding never became durable: {berr}",
+                        "run_id": run_id,
+                    }
+                )
+                continue
+            smap = write_scenario_map(runner, sha, run_id)
+            if not runner.dry_run and not smap.get("written"):
+                # FAIL CLOSED: no binding on disk → the runner would refuse every
+                # Task. Never start the runner against a run with no readable
+                # execution binding. write_scenario_map's contract returns
+                # {"written": True|False} — that single key is the authority.
+                results.append(
+                    {
+                        "ok": False,
+                        "error": "write_scenario_map refused — no execution binding for run",
+                        "scenario_map": smap,
+                        "run_id": run_id,
+                    }
+                )
+                continue
+
+            # Step 4: NOW start the runner — collector is ready AND the run's
+            # authenticated execution binding is durable on disk.
             runner_started = start_runner(runner, sha, run_id, max_iterations=0)
             if not runner_started.get("started", runner_started.get("dry_run", False)):
                 results.append(
@@ -1501,7 +1562,11 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
             try:
                 terminal = _poll_status(runner, run_id, i)
                 results.append(
-                    {"ok": terminal.get("state") == "passed", "terminal": terminal, "run_id": run_id}
+                    {
+                        "ok": terminal.get("state") == "passed",
+                        "terminal": terminal,
+                        "run_id": run_id,
+                    }
                 )
             finally:
                 if runner_started.get("started", False):
@@ -2353,6 +2418,48 @@ def stop_runner(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
         return {"stopped": True, "pid": pid}
     except (ValueError, ProcessLookupError, OSError) as exc:
         return {"stopped": False, "note": str(exc)}
+
+
+def _wait_for_bindable_grant(
+    runner: Runner,
+    *,
+    sha: str,
+    run_id: str,
+    timeout_s: float = 300.0,
+    interval_s: float = 3.0,
+) -> tuple[Any, str]:
+    """Block until THIS run's grant is durable + bindable, or refuse (fail-closed).
+
+    `_wait_collector_authorization` returns when the collector REACHES stage 15,
+    NOT when the grant its journey causes is durable on disk (observed ~14s race:
+    run 20260805T070430Z-p1). So poll the REAL binding consumer —
+    `_capture_execution_binding`, the exact function `write_scenario_map` uses —
+    until it binds. Reusing the consumer (never re-implementing its predicate)
+    means this wait can never accept something the binding gate would reject:
+    durable AND unique AND ACTIVE AND exact-correlation are all proven by the
+    gate itself, not by a copy of its rules. This is the identical proven pattern
+    the qualified failure/recovery driver uses; sharing the one authority
+    function here keeps the green and failure/recovery paths on ONE binding
+    derivation (no copy/paste divergence).
+
+    Returns (binding, "") on success, or (None, reason) on timeout — fail-closed,
+    never retrying past the bound. In dry-run there is no state to read, so it
+    reports a planned wait and returns (None, "dry-run") without blocking; the
+    dry-run caller does not gate on a real binding.
+    """
+    if runner.dry_run:
+        print(f"[dry-run] wait for run {run_id} grant to become durable + bindable")
+        return None, "dry-run"
+    deadline = time.monotonic() + timeout_s
+    last = "no attempt made"
+    while time.monotonic() < deadline:
+        records = _read_state_records(sha)
+        binding, err = _capture_execution_binding(records, sha=sha, run_id=run_id)
+        if binding is not None:
+            return binding, ""
+        last = err or "unknown refusal"
+        time.sleep(interval_s)
+    return None, f"grant not bindable within {timeout_s:.0f}s: {last}"
 
 
 def write_scenario_map(runner: Runner, sha: str, run_id: str) -> dict[str, Any]:
