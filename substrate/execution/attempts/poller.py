@@ -263,11 +263,13 @@ class ControlPlanePoller:
     ) -> None:
         assignment = self._assignment_lookup(getattr(attempt, "assignment_id", "") or "")
         lease = self._lease_lookup(getattr(attempt, "lease_id", "") or "")
-        # TRUSTED BASE RE-ANCHOR (finding F-3 fix). The trusted projection
-        # commits system files (OBJECTIVE.md, SHARED_CONTEXT.md) and moves the
-        # attempt's diff base PAST them. The lease record still carries the
-        # original fixture base. Without re-anchoring, `git diff <old_base>..HEAD`
-        # includes the system writes and diff_scope rejects every attempt.
+        # TRUSTED BASE RE-ANCHOR (finding F-3; invocation-41 correction). The
+        # worker reports its authorized diff base. On the shipped path the
+        # projection is EXECUTION CONTEXT (skip-worktree / info-exclude, never a
+        # commit), so the reported base equals the lease's snapshot_ref and this
+        # validated re-anchor is a no-op. The guarded machinery stays: any
+        # reported base still has to pass the forward-only authorization below,
+        # so a tampered or foreign base is refused, never silently adopted.
         #
         # The move is AUTHORIZED, never assumed. Moving a base forward shrinks
         # the observed change set, so an unchecked re-anchor is a scope-check

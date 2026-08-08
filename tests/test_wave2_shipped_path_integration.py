@@ -124,16 +124,19 @@ def _canonical_package(scope: list[str], *, task_id: str = "wp-backend"):
 def _prepare_like_production(lease: str, base: str, package, attempt_id: str = "ea-1") -> str:
     """Run the TRUSTED phase exactly as ``run_worker_in_lease`` does.
 
-    Returns the attempt's re-anchored base commit. Used by tests that need to
-    observe git state as it stands when the WORKER starts — i.e. after the
-    system's own authorized writes, so those are never mistaken for an escape.
-    Calling it twice is harmless: both steps are idempotent.
+    Returns the attempt's base commit — UNCHANGED since the invocation-41
+    correction: the projection is execution context (skip-worktree /
+    info-exclude), never a commit, so the attempt stays anchored at the
+    canonical base. Used by tests that need to observe git state as it stands
+    when the WORKER starts — i.e. after the system's own authorized writes, so
+    those are never mistaken for an escape. Calling it twice is harmless: both
+    steps are idempotent.
     """
     projection = W.project_task_local_objective(package, lease)
     assert projection.get("ok"), projection
-    new_base = W._commit_trusted_projection(lease, base, projection)
+    W._mark_projection_execution_context(lease, projection)
     W.prepare_attempt_git_capability(lease, attempt_id)
-    return new_base
+    return base
 
 
 def _run_worker(lease: str, base: str, package, script: str, attempt_id: str = "ea-1"):
@@ -237,7 +240,10 @@ def test_3_forbidden_file_cannot_be_edited_staged_or_committed():
         ("packed_refs_rewrite", "echo x > .git/packed-refs"),
         ("head_repoint", 'echo "ref: refs/heads/main" > .git/HEAD'),
         ("refs_tree_replace", "rm -rf .git/refs"),
-        ("sibling_attempt_ref", "mkdir -p .git/refs/attempt/other && echo x > .git/refs/attempt/other/work"),
+        (
+            "sibling_attempt_ref",
+            "mkdir -p .git/refs/attempt/other && echo x > .git/refs/attempt/other/work",
+        ),
     ],
 )
 def test_4_git_authority_surfaces_cannot_be_modified(label, script):
@@ -305,16 +311,28 @@ def test_5_trusted_projection_is_not_attributed_to_the_worker():
     body = open(os.path.join(lease, "OBJECTIVE.md"), encoding="utf-8").read()
     assert "# Your Task" in body, "the task-local projection must be in effect"
     assert os.path.exists(os.path.join(lease, "SHARED_CONTEXT.md"))
-    # THE F-3 ASSERTION: the projection must be COMMITTED and be an ANCESTOR of
-    # the worker's base, not loose in the tree. If it were merely written, the
-    # two files would sit in `git status` and the verifier would reject the
-    # attempt. `status --porcelain` must show nothing left over.
+    # THE F-3 ASSERTION (invocation-41 form): the projection must be
+    # git-INVISIBLE — on disk for the worker, but absent from `git status`, so
+    # nothing uncommitted is attributed to the worker and the verifier's
+    # diff_scope stays clean.
     assert _git(lease, "status", "--porcelain").stdout.strip() == "", (
-        "the trusted phase must COMMIT its writes — anything left uncommitted is "
-        "attributed to the worker and fails diff_scope (F-3)"
+        "the trusted phase must make its writes git-invisible — anything visible "
+        "is attributed to the worker and fails diff_scope (F-3)"
     )
+    # ...and the invocation-41 assertion: the projection must NOT be a commit in
+    # the attempt's lineage. A committed projection diverges per Task and makes
+    # every fan-in composition conflict on OBJECTIVE.md (field run
+    # 20260808T014829Z-p1). The worker's history above base carries ONLY the
+    # worker's own commit.
     log = _git(lease, "log", "--oneline").stdout
-    assert "trusted:" in log, "the trusted projection must be its own commit"
+    assert "trusted:" not in log, (
+        "the projection must never enter git history — a committed projection "
+        "poisons every retained predecessor with a divergent OBJECTIVE.md"
+    )
+    lineage_files = _git(lease, "diff", "--name-only", f"{base}..HEAD").stdout.split()
+    assert "OBJECTIVE.md" not in lineage_files and "SHARED_CONTEXT.md" not in lineage_files, (
+        f"projection paths leaked into the attempt lineage: {lineage_files}"
+    )
 
 
 @_needs_bwrap
@@ -387,9 +405,7 @@ def test_8_governance_constraints_survive_the_spool(tmp_path):
     _, claimed = _spool_roundtrip(tmp_path)
     assert claimed is not None, "a well-formed envelope must be claimable"
     _, envelope = claimed
-    assert envelope.governance_constraints == [
-        f"writable_path_scope={sorted(BACKEND_SCOPE)}"
-    ]
+    assert envelope.governance_constraints == [f"writable_path_scope={sorted(BACKEND_SCOPE)}"]
 
 
 def test_9_runner_package_reconstruction_preserves_the_sealed_scope(tmp_path):
@@ -418,9 +434,9 @@ def test_9b_control_plane_puts_the_sealed_scope_on_the_envelope():
     from substrate.execution.attempts.field_control_plane import governance_envelope_fields
 
     fields = governance_envelope_fields(_canonical_package(BACKEND_SCOPE))
-    assert fields["governance_constraints"] == [
-        f"writable_path_scope={sorted(BACKEND_SCOPE)}"
-    ], "the control plane must carry the sealed scope onto the envelope"
+    assert fields["governance_constraints"] == [f"writable_path_scope={sorted(BACKEND_SCOPE)}"], (
+        "the control plane must carry the sealed scope onto the envelope"
+    )
     assert fields["operation_identity"] == {"task_id": "wp-backend"}
 
 
@@ -544,13 +560,15 @@ def test_16_git_capability_fails_closed_without_a_git_directory():
         prepare_attempt_git_capability(root, "ea-1")
 
 
-def test_17_trusted_projection_paths_are_declared_and_committed():
-    """The trusted phase must OWN the projection paths.
+def test_17_trusted_projection_paths_are_declared_and_git_invisible():
+    """The trusted phase must OWN the projection paths as EXECUTION CONTEXT.
 
-    ``TRUSTED_PROJECTION_PATHS`` is what ``_commit_trusted_projection`` stages.
-    Emptying it (mutant m14) silently returns the projection to worker-attributed
-    status: the files are written, nothing commits them, and they reappear in the
-    worker's diff — F-3 all over again.
+    ``TRUSTED_PROJECTION_PATHS`` is what ``_mark_projection_execution_context``
+    hides from git. Emptying it (mutant m14) silently returns the projection to
+    worker-attributed status: the files are written, nothing hides them, and
+    they reappear in the worker's diff — F-3 all over again. Committing them
+    instead (the pre-invocation-41 design) poisons fan-in composition with a
+    divergent per-Task OBJECTIVE.md.
     """
     assert set(W.TRUSTED_PROJECTION_PATHS) == {"OBJECTIVE.md", "SHARED_CONTEXT.md"}
 
@@ -559,15 +577,32 @@ def test_17_trusted_projection_paths_are_declared_and_committed():
     package = _canonical_package(BACKEND_SCOPE)
     projection = W.project_task_local_objective(package, lease)
     assert projection.get("ok")
-    new_base = W._commit_trusted_projection(lease, base, projection)
-    assert new_base != base, "the trusted phase must re-anchor the attempt base"
+    W._mark_projection_execution_context(lease, projection)
+    # The base does NOT move: HEAD is still the canonical base commit.
+    head = _git(lease, "rev-parse", "HEAD").stdout.strip()
+    assert head == base, "the trusted phase must not move the attempt base"
+    # The projected content is in effect on disk...
+    body = open(os.path.join(lease, "OBJECTIVE.md"), encoding="utf-8").read()
+    assert "# Your Task" in body
+    # ...but git sees a clean tree: no status entry, no untracked listing.
     assert _git(lease, "status", "--porcelain").stdout.strip() == "", (
-        "every trusted-phase write must be committed, leaving a clean tree"
+        "projection paths must be git-invisible after execution-context marking"
     )
-    changed = _git(lease, "diff", "--name-only", f"{base}..{new_base}").stdout.split()
-    assert set(changed) == {"OBJECTIVE.md", "SHARED_CONTEXT.md"}, (
-        f"the trusted commit must contain exactly the projection paths, got {changed}"
+    others = _git(lease, "ls-files", "--others", "--exclude-standard").stdout.strip()
+    assert "SHARED_CONTEXT.md" not in others, (
+        "the untracked projection file must be excluded from the verifier's listing"
     )
+    # The mechanism is explicit: skip-worktree on the tracked path, an
+    # info/exclude entry for the untracked one.
+    flagged = _git(lease, "ls-files", "-v", "--", "OBJECTIVE.md").stdout.strip()
+    assert flagged.startswith("S"), f"OBJECTIVE.md must carry skip-worktree, got {flagged!r}"
+    exclude = open(os.path.join(lease, ".git", "info", "exclude"), encoding="utf-8").read()
+    assert "/SHARED_CONTEXT.md" in exclude
+    # Idempotent: a second marking changes nothing and stays clean.
+    W._mark_projection_execution_context(lease, projection)
+    assert _git(lease, "status", "--porcelain").stdout.strip() == ""
+    exclude2 = open(os.path.join(lease, ".git", "info", "exclude"), encoding="utf-8").read()
+    assert exclude2 == exclude, "re-marking must not duplicate exclude entries"
 
 
 @_needs_bwrap
@@ -620,10 +655,25 @@ def test_19_reversed_bind_order_actually_breaks_commits():
     priv = prepare_attempt_git_capability(lease, "ea-1")
     refs = os.path.join(lease, ".git", "refs")
     base_cmd = [
-        "bwrap", "--die-with-parent", "--unshare-all",
-        "--proc", "/proc", "--dev", "/dev",
-        "--ro-bind", "/usr", "/usr", "--ro-bind", "/bin", "/bin",
-        "--ro-bind", "/lib", "/lib", "--ro-bind", "/etc", "/etc",
+        "bwrap",
+        "--die-with-parent",
+        "--unshare-all",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--ro-bind",
+        "/usr",
+        "/usr",
+        "--ro-bind",
+        "/bin",
+        "/bin",
+        "--ro-bind",
+        "/lib",
+        "/lib",
+        "--ro-bind",
+        "/etc",
+        "/etc",
     ]
     if os.path.isdir("/lib64"):
         base_cmd += ["--ro-bind", "/lib64", "/lib64"]
@@ -632,18 +682,80 @@ def test_19_reversed_bind_order_actually_breaks_commits():
         "git -c user.email=w@w -c user.name=w commit -q -m t"
     )
     reversed_cmd = base_cmd + [
-        "--bind", lease, lease,
-        "--bind", priv, priv,      # WRONG: re-open first...
-        "--ro-bind", refs, refs,   # ...then the ro layer masks it
-        "--chdir", lease, "/bin/bash", "-c", script,
+        "--bind",
+        lease,
+        lease,
+        "--bind",
+        priv,
+        priv,  # WRONG: re-open first...
+        "--ro-bind",
+        refs,
+        refs,  # ...then the ro layer masks it
+        "--chdir",
+        lease,
+        "/bin/bash",
+        "-c",
+        script,
     ]
     correct_cmd = base_cmd + [
-        "--bind", lease, lease,
-        "--ro-bind", refs, refs,
-        "--bind", priv, priv,      # RIGHT: re-open last
-        "--chdir", lease, "/bin/bash", "-c", script,
+        "--bind",
+        lease,
+        lease,
+        "--ro-bind",
+        refs,
+        refs,
+        "--bind",
+        priv,
+        priv,  # RIGHT: re-open last
+        "--chdir",
+        lease,
+        "/bin/bash",
+        "-c",
+        script,
     ]
     bad = subprocess.run(reversed_cmd, capture_output=True, text=True, timeout=120)
     good = subprocess.run(correct_cmd, capture_output=True, text=True, timeout=120)
     assert bad.returncode != 0, "reversed order must make the commit FAIL"
     assert good.returncode == 0, f"correct order must allow the commit: {good.stderr}"
+
+
+@pytest.mark.parametrize(
+    "spelling",
+    [
+        "OBJECTIVE.md",  # canonical
+        "./OBJECTIVE.md",  # dot-slash — normalizes to OBJECTIVE.md
+        "OBJECTIVE.md/",  # trailing slash — normalizes to OBJECTIVE.md
+        "app/../OBJECTIVE.md",  # traversal-that-stays-in-root — normalizes to OBJECTIVE.md
+    ],
+)
+def test_19_scope_naming_a_projection_path_refuses_before_the_worker_runs(spelling):
+    """SYSTEM-OWNED PATH LAW (invocation 41): projection paths are never scope.
+
+    A sealed package whose writable_path_scope names a projection-owned path
+    would let the worker legitimately version control-plane execution context —
+    the exact contamination the invocation-41 correction removed. The launcher
+    must refuse it as a declaration error before any sandbox exists; the
+    stand-in CLI proves the worker never ran.
+
+    Reviewer-B MEDIUM: the guard NORMALIZES the scope exactly as the diff-scope
+    verifier does, so a NON-canonical spelling (``./OBJECTIVE.md``,
+    ``OBJECTIVE.md/``, ``app/../OBJECTIVE.md`` — all normalize to
+    ``OBJECTIVE.md``) must be refused too. Without normalization the launcher
+    would ADMIT such a scope while the verifier (which normalizes) would then
+    ACCEPT a committed, divergent ``OBJECTIVE.md`` under it — re-arming the
+    invocation-41 fan-in poison. This drives the REAL ``run_worker_in_lease``
+    (not the helpers in isolation), which is what kills the raw-scope mutant.
+    """
+    root = tempfile.mkdtemp()
+    lease, base = _build_fixture_lease(root)
+    marker = os.path.join(lease, ".git", "worker-ran")
+    result = _run_worker(
+        lease,
+        base,
+        _canonical_package([spelling, *BACKEND_SCOPE]),
+        f"touch {marker}\n",
+    )
+    assert not result.ok, f"scope spelled {spelling!r} must be refused by the launcher"
+    assert "projection" in result.error, result.error
+    assert "OBJECTIVE.md" in result.error, result.error
+    assert not os.path.exists(marker), "the worker must never have started"

@@ -686,11 +686,11 @@ def _run_one_claim(
             "task_id": envelope.task_id,
             "package_hash": envelope.package_hash,
             "worker_result": result.to_dict(),
-            # The trusted projection commit (finding F-3) re-anchors the diff
-            # base AFTER system writes (OBJECTIVE.md, SHARED_CONTEXT.md) are
-            # committed. The verifier needs this base — the lease record still
-            # carries the original fixture base, and diffing from there includes
-            # trusted system writes in the worker's scope verdict.
+            # The worker reports its authorized diff base (finding F-3, corrected
+            # by invocation 41: the projection is execution context, never a
+            # commit, so this is the CANONICAL un-moved base). The poller
+            # validates it through the forward-only re-anchor guard; on the
+            # shipped path it equals the lease's snapshot_ref.
             #
             # getattr, not attribute access: a worker result that predates this
             # field must degrade to "no re-anchor" (the poller then leaves the

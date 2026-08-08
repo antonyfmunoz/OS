@@ -360,10 +360,10 @@ def _base_is_ancestor_of_head(lease: Any) -> tuple[bool, str]:
     """Is the lease's authorized base still reachable from HEAD?
 
     The worker owns its own attempt ref (that is what makes committing possible
-    at all), so it can move that ref anywhere — including off the trusted
-    projection commit that phase separation placed at its base. `reset --soft`
-    and `commit --amend` both do this, and neither touches a protected file, so
-    the write barrier is silent and the scope diff still reads clean.
+    at all), so it can move that ref anywhere — including BELOW the authorized
+    base. `reset --soft` and `commit --amend` both do this, and neither touches
+    a protected file, so the write barrier is silent and the scope diff still
+    reads clean.
 
     Checking ancestry converts "system writes are an ancestor of the worker's
     base" from a comment into an enforced property. Fails closed: an ancestry
@@ -553,13 +553,14 @@ def _diff_scope_verdict(
 
     # THE AUTHORIZED BASE MUST STILL BE AN ANCESTOR OF HEAD.
     #
-    # Phase separation puts the trusted projection commit at the attempt's base,
-    # so system writes are an ANCESTOR of the worker's history and can never be
-    # attributed to the worker. That invariant was ASSERTED but never CHECKED —
-    # and the worker owns its own ref, so `git reset --soft HEAD~1` or
-    # `git commit --amend` detaches the trusted commit from HEAD entirely. The
-    # worker then re-commits the trusted paths with content of its choosing while
-    # the scope verdict still reads clean.
+    # The authorized base anchors everything the diff verdict attributes to the
+    # worker. That invariant was ASSERTED but never CHECKED — and the worker
+    # owns its own ref, so `git reset --soft HEAD~1` or `git commit --amend`
+    # moves its history below the base entirely. The worker then re-commits any
+    # path with content of its choosing while the scope verdict still reads
+    # clean. (Since invocation 41 the base is the CANONICAL governed base — the
+    # projection is execution context, never a commit — but the detach vector is
+    # base-independent.)
     #
     # An unchecked invariant is not an invariant. This makes it load-bearing:
     # if the base is no longer reachable from HEAD, the attempt's history is not

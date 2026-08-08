@@ -18,16 +18,16 @@ import shutil
 from dataclasses import dataclass, field
 from typing import Any
 
+from substrate.execution.attempts.field_task_scope import (
+    ScopeResolutionError,
+    prepare_attempt_git_capability,
+    readonly_binds_for_scope,
+)
 from substrate.execution.attempts.host_isolation import (
     IsolationProfile,
     IsolationUnavailable,
     build_isolated_command,
     scrub_worker_env,
-)
-from substrate.execution.attempts.field_task_scope import (
-    ScopeResolutionError,
-    prepare_attempt_git_capability,
-    readonly_binds_for_scope,
 )
 from substrate.execution.attempts.worker_credential_boundary import (
     CredentialBoundaryError,
@@ -138,7 +138,7 @@ _SHARED_CONTEXT = "SHARED_CONTEXT.md"
 class LeaseGitError(RuntimeError):
     """The lease worktree's git state could not be prepared.
 
-    Defined ABOVE its first use (``_commit_trusted_projection``). Python resolves
+    Defined ABOVE its first use (``_mark_projection_execution_context``). Python resolves
     the name at call time, so a later definition would still work — but the same
     shape (an exception class declared after the function that raises it) already
     produced one real defect in this module, and reading order should not depend
@@ -214,63 +214,106 @@ def project_task_local_objective(package: Any, worktree_path: str) -> dict[str, 
 TRUSTED_PROJECTION_PATHS = (_GLOBAL_OBJECTIVE, _SHARED_CONTEXT)
 
 
-def _commit_trusted_projection(worktree_path: str, base_commit: str, projection: dict) -> str:
-    """Commit the trusted projection and return the attempt's NEW base commit.
+def _mark_projection_execution_context(worktree_path: str, projection: dict) -> None:
+    """Make the projected files EXECUTION CONTEXT, invisible to git entirely.
 
-    Finding F-3. The projection is a SYSTEM write, not a worker write, but it
-    landed in the working tree while the attempt was still anchored at the
-    fixture base — so `git diff <base>..HEAD` reported OBJECTIVE.md and
-    SHARED_CONTEXT.md as worker output and the verifier rejected the attempt for
-    an out-of-scope diff. Measured directly: with the worker writing nothing at
-    all, `git status` showed `M OBJECTIVE.md` + `?? SHARED_CONTEXT.md`.
+    Invocation-41 field defect. The previous design (`_commit_trusted_projection`)
+    committed the task-local ``OBJECTIVE.md`` + ``SHARED_CONTEXT.md`` and
+    re-anchored the attempt to that commit. That kept the projection out of the
+    WORKER's diff — but put it into the worker's retained LINEAGE: every
+    predecessor commit carried a *different* system-projected ``OBJECTIVE.md``,
+    so fan-in composition met a genuine merge conflict on a file no worker ever
+    touched, and the graph could never complete. System-projected task context
+    must not become versioned work product.
 
-    Committing the projection in the trusted phase and re-anchoring the attempt
-    to that commit makes the two authorities causally separate: the system write
-    becomes an ANCESTOR of the worker's base, so it cannot appear in the worker's
-    diff, cannot be credited to the worker, and (being read-only in phase 2)
-    cannot be silently altered by it.
+    So the projection now never enters git history at all. The files stay on
+    disk (the worker reads its task-local objective exactly as before, and the
+    scope barrier still mounts them read-only), but git is told they are not
+    content:
 
-    Only the projection's own paths are staged — never `git add -A`, which would
-    sweep unrelated tree state into a trusted, worker-attributed-free commit.
+    - tracked projection paths get the ``skip-worktree`` index bit — measured on
+      git 2.43: ``status --porcelain``, ``diff <base>`` and ``diff <base>..HEAD``
+      all report nothing, and a worker's ``git add OBJECTIVE.md`` is REFUSED by
+      git itself (sparse-checkout guard), while ``add -A``/``commit -am`` skip it;
+    - untracked projection paths are registered in ``.git/info/exclude`` —
+      measured: absent from ``ls-files --others --exclude-standard`` (the exact
+      untracked listing the verifier runs) and a plain ``git add`` refuses them.
+
+    ``.git/info`` is locked read-only by the scope barrier before the worker
+    starts, so the worker cannot edit the exclusion registry. The one remaining
+    write channel — clearing skip-worktree via the (necessarily writable) index
+    and committing projected content — puts the path into ``<base>..HEAD``,
+    where the existing out-of-scope check refuses the attempt. Fail closed on
+    every edge: a projection that cannot be made git-invisible raises, because
+    running the worker would attribute system writes to it.
+
+    The attempt's base is NOT moved: the retained worker commit parents from the
+    canonical governed base, so two disjoint predecessors share identical system
+    metadata and compose cleanly.
     """
     from substrate.execution.cpu_gate import gated_subprocess_run
 
     if not projection.get("projected"):
-        return base_commit
+        return
 
     def _git(args: list[str], *, check: bool = True):
         r = gated_subprocess_run(
             ["git", *args], caller="trusted_projection", timeout=60, cwd=worktree_path
         )
         if r is None:
-            raise LeaseGitError("git refused by CPU gate while committing trusted projection")
+            raise LeaseGitError("git refused by CPU gate while marking execution context")
         if check and r.returncode != 0:
             raise LeaseGitError(f"git {' '.join(args)} failed: {r.stderr}")
         return r
 
-    staged = [p for p in TRUSTED_PROJECTION_PATHS if os.path.exists(os.path.join(worktree_path, p))]
-    if not staged:
-        return base_commit
-    _git(["add", "--", *staged])
-    # Nothing to commit (identical projection on a retry) is success, not failure.
-    if _git(["diff", "--cached", "--quiet"], check=False).returncode == 0:
-        return base_commit
-    _git(
-        [
-            "-c",
-            "user.email=system@umh.local",
-            "-c",
-            "user.name=UMH trusted phase",
-            "commit",
-            "-q",
-            "-m",
-            "trusted: task-local objective projection (system write, not worker output)",
-        ]
-    )
-    new_base = (_git(["rev-parse", "HEAD"]).stdout or "").strip()
-    if not new_base:
-        raise LeaseGitError("trusted projection commit produced no resolvable HEAD")
-    return new_base
+    present = [
+        p for p in TRUSTED_PROJECTION_PATHS if os.path.exists(os.path.join(worktree_path, p))
+    ]
+    if not present:
+        return
+
+    to_exclude: list[str] = []
+    for path in present:
+        tracked = _git(["ls-files", "--error-unmatch", "--", path], check=False).returncode == 0
+        if tracked:
+            _git(["update-index", "--skip-worktree", "--", path])
+        else:
+            to_exclude.append(path)
+
+    if to_exclude:
+        info_dir = os.path.join(worktree_path, ".git", "info")
+        exclude_path = os.path.join(info_dir, "exclude")
+        try:
+            os.makedirs(info_dir, exist_ok=True)
+            existing = ""
+            if os.path.exists(exclude_path):
+                with open(exclude_path, encoding="utf-8") as fh:
+                    existing = fh.read()
+            lines = {ln.strip() for ln in existing.splitlines()}
+            missing = [f"/{p}" for p in to_exclude if f"/{p}" not in lines]
+            if missing:
+                with open(exclude_path, "a", encoding="utf-8") as fh:
+                    if existing and not existing.endswith("\n"):
+                        fh.write("\n")
+                    fh.write("\n".join(missing) + "\n")
+        except OSError as exc:
+            raise LeaseGitError(f"cannot register projection exclusions: {exc}") from exc
+
+    # PROVE invisibility before any worker runs — never assume the bits took.
+    status = (_git(["status", "--porcelain", "--", *present]).stdout or "").strip()
+    if status:
+        raise LeaseGitError(
+            f"projection paths still visible to git after execution-context marking: "
+            f"{status!r} — refusing to run a worker that would be blamed for system writes"
+        )
+    untracked = (
+        _git(["ls-files", "--others", "--exclude-standard", "--", *present]).stdout or ""
+    ).strip()
+    if untracked:
+        raise LeaseGitError(
+            f"projection paths still listed as untracked changes: {untracked!r} — "
+            f"refusing to run a worker that would be blamed for system writes"
+        )
 
 
 def _render_task_local_objective(package: Any) -> str:
@@ -617,18 +660,17 @@ def run_worker_in_lease(
     # are computed (it rewrites OBJECTIVE.md, which is outside every Task's
     # writable scope and therefore about to become read-only). Fail closed: a
     # worker must never run against the all-Tasks objective.
-    # PHASE 1 — TRUSTED SYSTEM PHASE (finding F-3). This runs in the ORCHESTRATOR
-    # process, BEFORE the worker sandbox exists, and its writes are committed and
-    # made the attempt's new base. Previously the projection wrote OBJECTIVE.md +
-    # SHARED_CONTEXT.md into the tree while the attempt stayed anchored at the
-    # fixture base, so those two system files sat inside `<base>..HEAD` and the
-    # verifier rejected the attempt for an out-of-scope diff — even when the
-    # worker wrote nothing at all.
-    #
-    # Committing them and re-anchoring separates the two authorities cleanly:
-    # system bookkeeping is an ANCESTOR of the worker's base, so it can never be
-    # attributed to the worker, and the worker can never silently alter it (the
-    # files are outside its writable scope and mounted read-only in phase 2).
+    # PHASE 1 — TRUSTED SYSTEM PHASE (finding F-3, corrected by invocation 41).
+    # This runs in the ORCHESTRATOR process, BEFORE the worker sandbox exists.
+    # The projection is EXECUTION CONTEXT, not versioned work product: the files
+    # land on disk for the worker to read, but they are made git-invisible
+    # (skip-worktree / info-exclude) instead of committed. Committing them (the
+    # F-3 fix) kept the projection out of the worker's DIFF but pushed it into
+    # the worker's retained LINEAGE — every predecessor then carried a different
+    # system OBJECTIVE.md and fan-in composition conflicted on a file no worker
+    # touched (field run 20260808T014829Z-p1). The attempt therefore stays
+    # anchored at the canonical governed base, and the retained commit is
+    # canonical base + authorized worker delta, nothing else.
     projection = project_task_local_objective(package, worktree_path)
     if not projection.get("ok"):
         _close_home_or_fail(attempt_home)
@@ -636,10 +678,10 @@ def run_worker_in_lease(
             error=f"task-local objective projection failed: {projection.get('error', 'unknown')}"
         )
     try:
-        base_commit = _commit_trusted_projection(worktree_path, base_commit, projection)
+        _mark_projection_execution_context(worktree_path, projection)
     except LeaseGitError as exc:
         _close_home_or_fail(attempt_home)
-        return WorkerResult(error=f"trusted projection could not be committed: {exc}")
+        return WorkerResult(error=f"projection could not be made execution-context: {exc}")
 
     # GIT COMMIT CAPABILITY (finding F-1). Give this attempt a PRIVATE ref
     # namespace it alone may write, so `git add`/`git commit` work while every
@@ -664,6 +706,43 @@ def run_worker_in_lease(
         return WorkerResult(
             error="sealed package declares no writable_path_scope — refusing to run "
             "a worker whose write authority cannot be enforced"
+        )
+    # SYSTEM-OWNED PATH LAW. The projection paths are control-plane execution
+    # context; a sealed scope that grants the worker write authority over one is
+    # a governance contradiction (the worker could then legitimately version a
+    # system file and re-poison fan-in composition). Refuse it outright — this
+    # is a declaration error, never a runnable configuration.
+    #
+    # NORMALIZE the scope FIRST, exactly as the diff-scope verifier does
+    # (`normalize_allowed_paths`), so a scope spelled `./OBJECTIVE.md` or
+    # `OBJECTIVE.md/` cannot slip past this guard while the verifier would still
+    # accept a committed `OBJECTIVE.md` under it. An un-normalizable scope is a
+    # governance failure too, not a default-open condition, so any raise here
+    # fails closed.
+    from substrate.execution.attempts.field_task_scope import (
+        normalize_allowed_paths as _normalize_allowed_paths,
+    )
+    from substrate.execution.attempts.field_task_scope import paths_outside as _paths_outside
+
+    try:
+        _normalized_scope = _normalize_allowed_paths(declared_scope, lease_root=worktree_path)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=f"sealed writable_path_scope could not be normalized for the "
+            f"system-owned-path check: {exc}"
+        )
+    contradicted = [
+        p for p in TRUSTED_PROJECTION_PATHS if not _paths_outside([p], _normalized_scope)
+    ]
+    if contradicted:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=(
+                f"sealed writable_path_scope grants worker authority over system "
+                f"projection path(s) {contradicted!r} — refusing a scope that lets a "
+                f"worker version control-plane execution context"
+            )
         )
     try:
         # Returns the COMPLETE barrier: unauthorized source paths AND the git

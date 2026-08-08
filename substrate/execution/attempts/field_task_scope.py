@@ -757,7 +757,9 @@ def git_readonly_subpaths(worktree_path: str) -> list[str]:
     - ``HEAD``   — re-pointing it would commit onto a shared branch
     - ``refs``   — every ref namespace; the attempt's own dir is re-opened ON TOP
     - ``packed-refs`` — the packed form of the same authority
-    - ``info``, ``branches``, ``description`` — no task content, no reason to write
+    - ``info`` — created-then-locked: ``info/exclude`` carries the trusted
+      phase's projection exclusions and is an authority surface
+    - ``branches``, ``description`` — no task content, no reason to write
 
     The returned list is applied AFTER the writable bind, so these mask it; the
     attempt's private ref directory is bound after THESE, so it wins. Ordering is
@@ -770,7 +772,6 @@ def git_readonly_subpaths(worktree_path: str) -> list[str]:
     for name in (
         "hooks",
         "config",
-        "info",
         "branches",
         "description",
         "HEAD",
@@ -779,6 +780,22 @@ def git_readonly_subpaths(worktree_path: str) -> list[str]:
         path = os.path.join(git_dir, name)
         if os.path.exists(path):
             out.append(path)
+    # `.git/info` — CREATE-then-lock, not skip-if-absent. The trusted phase
+    # registers untracked projection paths (SHARED_CONTEXT.md) in
+    # `info/exclude`, which makes that file part of the projection AUTHORITY
+    # surface: a worker that could edit it could re-expose (or hide) untracked
+    # paths from the verifier's `ls-files --others --exclude-standard` listing.
+    # A self-contained lease may not have copied `info/`, and "the directory
+    # does not exist yet" must never degrade into "the worker may create it" —
+    # the same reasoning as `objects/info` and `worktrees` below.
+    info_dir = os.path.join(git_dir, "info")
+    try:
+        os.makedirs(info_dir, exist_ok=True)
+    except OSError as exc:  # cannot create it -> cannot lock it -> fail closed
+        raise ScopeResolutionError(
+            f"cannot create {info_dir!r} to lock it read-only: {exc}"
+        ) from exc
+    out.append(info_dir)
     # `packed-refs` — CREATE-then-lock, exactly like `objects/info` and
     # `worktrees` below, NOT skip-if-absent. A freshly self-contained lease has
     # no packed-refs file, so a plain `if os.path.exists` skips it and leaves it

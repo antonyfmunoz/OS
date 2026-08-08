@@ -1,0 +1,12 @@
+=== PASS 1 (inv 41) run 20260808T014829Z-p1 @ 69f9fe272 ===
+--- promoted refs (invocation-40 fix PROVEN in field) ---
+--- verified refs (durable, retained) ---
+--- composed refs (empty = C blocked) ---
+(empty above)
+--- OBJECTIVE.md divergence (root cause of conflict) ---
+merge-base:
+# Objective: Add note search to the fixture app
+A OBJECTIVE.md:
+# Your Task
+B OBJECTIVE.md:
+# Your Task

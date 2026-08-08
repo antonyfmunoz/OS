@@ -6,10 +6,12 @@ Proves three properties that the wave-2 diff_scope defect exposed:
    retry path at scheduler.py:361-374 is correct).
 2. The poller's ``blocked_reason`` includes check DETAIL strings, not
    just check IDs (so the operator can diagnose WHY diff_scope failed).
-3. When the spool result carries a ``trusted_base`` (from the trusted
-   projection commit), the poller re-anchors the lease's
-   ``snapshot_ref`` before the verifier runs, so system writes
-   (OBJECTIVE.md, SHARED_CONTEXT.md) are excluded from the scope diff.
+3. When the spool result carries a ``trusted_base``, the poller validates
+   and re-anchors the lease's ``snapshot_ref`` before the verifier runs.
+   Since the invocation-41 correction the shipped worker reports the
+   CANONICAL, un-moved base (the projection is execution context, never a
+   commit), so the re-anchor is a validated no-op on the field path — but
+   the guarded forward-only machinery itself remains load-bearing.
 
 No Claude CLI quota spent — worker results are plain dicts and
 verification is a deterministic stub.
@@ -486,20 +488,23 @@ def test_runner_serializes_trusted_base_without_attribute_access(tmp_path):
     )
 
 
-def test_shipped_worker_sets_trusted_base_to_the_post_projection_head(tmp_path, monkeypatch):
-    """The SHIPPED worker must return the POST-projection HEAD as trusted_base.
+def test_shipped_worker_keeps_projection_out_of_git_and_base_unmoved(tmp_path, monkeypatch):
+    """The SHIPPED trusted phase must hide the projection WITHOUT moving the base.
 
-    Reviewer finding L-1: blanking both ``trusted_base=base_commit`` assignments
-    in ``run_worker_in_lease`` broke NO test -- the whole propagation chain was
-    pinned only at its middle. Regressing that assignment silently restores the
-    original F-3 defect (every attempt fails diff_scope) with a green suite.
+    Invocation-41 correction. The previous design committed the projection and
+    returned a moved base; that kept the projection out of the worker's diff but
+    put a DIVERGENT per-Task ``OBJECTIVE.md`` into every retained predecessor,
+    so fan-in composition always conflicted (field run 20260808T014829Z-p1).
 
-    BEHAVIOURAL: runs the real ``_commit_trusted_projection`` against a real
-    repo and asserts it returns the new HEAD -- i.e. the value the worker then
-    hands back -- and that the trusted files are an ANCESTOR of it, which is the
-    property the whole fix depends on.
+    BEHAVIOURAL: runs the real ``_mark_projection_execution_context`` against a
+    real repo. The projection must be on disk, git-invisible (status, working
+    diff, untracked listing), the base UNMOVED — and ``OBJECTIVE.md`` must be
+    tracked at its CANONICAL blob, so two lanes retain identical system
+    metadata and compose cleanly.
     """
-    from substrate.execution.attempts.worker_claude_cli import _commit_trusted_projection
+    from substrate.execution.attempts.worker_claude_cli import (
+        _mark_projection_execution_context,
+    )
 
     repo = tmp_path / "wt"
     repo.mkdir()
@@ -508,34 +513,39 @@ def test_shipped_worker_sets_trusted_base_to_the_post_projection_head(tmp_path, 
     _git(repo, "config", "user.name", "t")
     (repo / "app").mkdir()
     (repo / "app" / "main.py").write_text("base\n")
+    (repo / "OBJECTIVE.md").write_text("# canonical all-tasks objective\n")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "base")
     base = _git(repo, "rev-parse", "HEAD")
+    canonical_blob = _git(repo, "rev-parse", f"{base}:OBJECTIVE.md")
 
     # the trusted phase's system writes, uncommitted (exactly as projected)
     (repo / "OBJECTIVE.md").write_text("# task-local objective\n")
     (repo / "SHARED_CONTEXT.md").write_text("shared\n")
 
-    new_base = _commit_trusted_projection(str(repo), base, {"projected": True})
+    _mark_projection_execution_context(str(repo), {"projected": True})
 
-    assert new_base and new_base != base, (
-        "the trusted projection must move the attempt's base PAST the system "
-        "writes -- returning the original base is the F-3 defect"
+    # the base does NOT move: HEAD is still the canonical base commit.
+    assert _git(repo, "rev-parse", "HEAD") == base, (
+        "the trusted phase must not move the attempt base — a projection commit "
+        "poisons fan-in composition with a divergent OBJECTIVE.md"
     )
-    assert new_base == _git(repo, "rev-parse", "HEAD")
+    # git-invisible on every channel the verifier reads:
+    assert _git(repo, "status", "--porcelain") == ""
+    assert _git(repo, "diff", "--name-only", base) == ""
+    assert _git(repo, "ls-files", "--others", "--exclude-standard") == ""
+    # the projected content is in effect on disk for the worker...
+    assert (repo / "OBJECTIVE.md").read_text() == "# task-local objective\n"
+    # ...while the TRACKED blob stays canonical: the retained commit's tree will
+    # carry this blob, identical across all lanes.
+    assert _git(repo, "rev-parse", "HEAD:OBJECTIVE.md") == canonical_blob
 
-    # the system writes are now an ANCESTOR of the returned base, so they can
-    # never appear in the worker's diff.
-    skipped = _git(repo, "diff", "--name-only", f"{base}..{new_base}").split()
-    assert sorted(skipped) == ["OBJECTIVE.md", "SHARED_CONTEXT.md"], (
-        f"only the trusted projection paths may be committed, got {skipped}"
-    )
-
-    # and the returned base is a legal re-anchor target for the poller.
+    # trusted_base == the unmoved base is trivially a legal re-anchor value for
+    # the poller (self-ancestor), so the reporting chain stays valid.
     from substrate.execution.attempts.verification import reanchor_is_authorized
 
-    ok, why = reanchor_is_authorized(worktree=str(repo), original_base=base, new_base=new_base)
-    assert ok, f"the shipped worker's trusted_base must be an authorized re-anchor: {why}"
+    ok, why = reanchor_is_authorized(worktree=str(repo), original_base=base, new_base=base)
+    assert ok, f"the unmoved base must remain an authorized re-anchor value: {why}"
 
 
 def test_production_checks_builder_uses_the_effective_base(tmp_path, monkeypatch):
@@ -1291,11 +1301,11 @@ def test_run_worker_in_lease_assigns_trusted_base_on_every_post_worker_return():
     (WorkerResult holds the field; the runner serializes it; the poller consumes
     it) -- never at its SOURCE.
 
-    The returns BEFORE the projection commit are fail-closed refusals with no
+    The returns BEFORE the projection phase are fail-closed refusals with no
     diff to scope, so they correctly carry no base. The returns that follow real
-    worker execution must carry it, or the runner ships "" and the poller
-    silently declines to re-anchor: the original F-3 defect, restored under a
-    fully green suite.
+    worker execution must carry it (the CANONICAL, un-moved base since the
+    invocation-41 correction), or the runner ships "" and the poller loses the
+    validated base-reporting channel under a fully green suite.
 
     Pins the ASSIGNMENT structurally (AST of the shipped function), not by
     grepping source text for a spelling.
@@ -1313,7 +1323,7 @@ def test_run_worker_in_lease_assigns_trusted_base_on_every_post_worker_return():
         for n in ast.walk(fn)
         if isinstance(n, ast.Call)
         and isinstance(n.func, ast.Name)
-        and n.func.id == "_commit_trusted_projection"
+        and n.func.id == "_mark_projection_execution_context"
     )
 
     post_returns = [
@@ -1324,7 +1334,7 @@ def test_run_worker_in_lease_assigns_trusted_base_on_every_post_worker_return():
         and getattr(n.value.func, "id", "") == "WorkerResult"
         and n.lineno > commit_line
     ]
-    assert post_returns, "expected WorkerResult returns after the projection commit"
+    assert post_returns, "expected WorkerResult returns after the projection phase"
 
     def _kwargs(ret):
         return {k.arg for k in ret.value.keywords}
@@ -1340,7 +1350,7 @@ def test_run_worker_in_lease_assigns_trusted_base_on_every_post_worker_return():
     output_returns = [r for r in post_returns if _kwargs(r) & {"files_changed", "duration_seconds"}]
     assert output_returns, (
         "expected at least one WorkerResult return carrying real worker output "
-        "after the trusted projection commit"
+        "after the trusted projection phase"
     )
     for r in output_returns:
         value = _trusted_base_value(r)
@@ -1354,7 +1364,7 @@ def test_run_worker_in_lease_assigns_trusted_base_on_every_post_worker_return():
         # alone is not the property -- the assigned VALUE is.
         assert isinstance(value, ast.Name) and value.id == "base_commit", (
             f"the WorkerResult return at relative line {r.lineno} must assign "
-            f"trusted_base=base_commit (the post-projection HEAD). Got "
+            f"trusted_base=base_commit (the canonical, un-moved base). Got "
             f"{ast.dump(value)[:80]} -- a literal here ships no base and the "
             f"poller declines to re-anchor, restoring F-3 with a green suite."
         )

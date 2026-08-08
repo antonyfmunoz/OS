@@ -190,30 +190,36 @@ def _real_lease(root: str) -> tuple[str, str]:
     return lease, base
 
 
-def test_trusted_writes_precede_the_worker_and_are_committed():
+def test_trusted_writes_precede_the_worker_and_are_git_invisible():
     """Proof: the trusted phase completes BEFORE worker confinement begins.
 
     Ordering is the whole of F-3. If the projection were written after the
     worker's base was anchored, its two files would be attributed to the worker;
     if it were written INSIDE the sandbox, it would need worker write authority
     over paths the worker must never hold.
+
+    Invocation-41 form: the projection is EXECUTION CONTEXT — on disk, git
+    hidden, and the base UNMOVED, so the retained commit carries no per-Task
+    system delta and fan-in composition cannot conflict on it.
     """
     root = tempfile.mkdtemp()
     lease, base = _real_lease(root)
     projection = W.project_task_local_objective(_package(), lease)
     assert projection.get("ok")
-    new_base = W._commit_trusted_projection(lease, base, projection)
+    W._mark_projection_execution_context(lease, projection)
 
-    assert new_base != base, "the trusted phase must re-anchor the attempt base"
-    ancestry = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", base, new_base],
-        cwd=lease, capture_output=True, timeout=60,
+    def g(*a):
+        return subprocess.run(["git", *a], cwd=lease, capture_output=True, text=True, timeout=60)
+
+    assert g("rev-parse", "HEAD").stdout.strip() == base, (
+        "the trusted phase must NOT move the attempt base — a projection commit "
+        "poisons every retained predecessor with a divergent OBJECTIVE.md"
     )
-    assert ancestry.returncode == 0, "the fixture base must remain an ancestor"
-    status = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=lease, capture_output=True, text=True, timeout=60
-    ).stdout.strip()
-    assert status == "", f"the trusted phase must leave a clean tree, got: {status!r}"
+    assert g("status", "--porcelain").stdout.strip() == "", (
+        "the trusted phase must leave a git-clean tree"
+    )
+    with open(os.path.join(lease, "OBJECTIVE.md"), encoding="utf-8") as fh:
+        assert "# Your Task" in fh.read(), "the projected content must be in effect on disk"
 
 
 def test_projection_paths_are_never_inside_a_workers_writable_scope():
@@ -237,9 +243,7 @@ def test_projection_paths_are_never_inside_a_workers_writable_scope():
 
     for label, scope in FIXTURE_ALLOWED_PATHS.items():
         for trusted in W.TRUSTED_PROJECTION_PATHS:
-            assert trusted not in scope, (
-                f"{label} must not hold write authority over {trusted}"
-            )
+            assert trusted not in scope, f"{label} must not hold write authority over {trusted}"
         rel = {os.path.relpath(b, root) for b in readonly_binds_for_scope(scope, lease_root=root)}
         for trusted in W.TRUSTED_PROJECTION_PATHS:
             assert trusted in rel, f"{label}: {trusted} must be read-only to the worker"
@@ -297,30 +301,35 @@ def test_git_worktrees_registry_is_locked_against_pollution():
     assert os.path.isdir(os.path.join(root, ".git", "worktrees"))
 
 
-def test_worker_cannot_rewrite_the_trusted_commit():
-    """`git commit --amend` must not reach the trusted layer.
+def test_worker_cannot_version_the_projection_through_the_index():
+    """The one remaining index channel is adjudicated, not waved through.
 
-    Adjudicating an rc=0 vector rather than waving it through: the amend
-    SUCCEEDS, but it rewrites only the worker's OWN private ref. The trusted
-    projection commit remains a reachable object with its message intact, the
-    attempt base still holds the projected OBJECTIVE.md, and the verifier's
-    range is unaffected. Benign — recorded so a future change that makes it
-    reach the trusted layer fails here.
+    ``.git/index`` must stay writable (`git add` needs it), so a worker CAN run
+    ``git update-index --no-skip-worktree OBJECTIVE.md`` (rc=0), stage the
+    projected content, and commit it. That is the only way projection content
+    can enter git history after the invocation-41 correction — and it puts
+    ``OBJECTIVE.md`` squarely into ``<base>..HEAD``, where the diff-scope
+    verdict refuses the attempt. rc=0 on the update-index is benign; a SUCCEEDED
+    attempt carrying projection content would not be.
     """
     root = tempfile.mkdtemp()
     lease, base = _real_lease(root)
     projection = W.project_task_local_objective(_package(), lease)
-    attempt_base = W._commit_trusted_projection(lease, base, projection)
+    W._mark_projection_execution_context(lease, projection)
+    W.prepare_attempt_git_capability(lease, "ea-adv")
 
-    def g(*a):
-        return subprocess.run(["git", *a], cwd=lease, capture_output=True, text=True, timeout=60)
-
-    trusted_msg = g("log", "-1", "--format=%s", attempt_base).stdout.strip()
-    assert trusted_msg.startswith("trusted:")
-    # The trusted commit is content-addressed, so it cannot be mutated in place;
-    # what matters is that it stays REACHABLE and unchanged at the attempt base.
-    assert g("cat-file", "-t", attempt_base).stdout.strip() == "commit"
-    assert "# Your Task" in g("show", f"{attempt_base}:OBJECTIVE.md").stdout
+    res = _run_git(
+        lease,
+        "set -e\n"
+        "git update-index --no-skip-worktree OBJECTIVE.md\n"
+        "git add OBJECTIVE.md\n"
+        "echo work >> app/main.py; git add app/main.py\n"
+        "git -c user.email=w@w -c user.name=w commit -q -m 'claim projection as work'\n",
+    )
+    assert res.returncode == 0, f"the vector itself must be reproducible: {res.stderr}"
+    ok, detail = _verdict(lease, base)
+    assert not ok, f"projection content committed as worker output must be refused, got: {detail}"
+    assert "OBJECTIVE.md" in detail, detail
 
 
 def _lease_with_secret(root: str) -> tuple[str, str]:
@@ -343,16 +352,21 @@ def _lease_with_secret(root: str) -> tuple[str, str]:
     g("config", "user.email", "t@t.t")
     g("config", "user.name", "t")
     g("add", "-A")
+    g("commit", "-qm", "seed")
+    # A second commit so the authorized base has a parent: the detach vector
+    # (`reset --soft HEAD~1`) needs somewhere below the base to land.
+    with open(os.path.join(repo, "app", "main.py"), "a", encoding="utf-8") as fh:
+        fh.write("# evolved\n")
+    g("add", "-A")
     g("commit", "-qm", "base")
     lease = os.path.join(root, "lease")
     g("worktree", "add", "-q", "-b", "b", lease, "HEAD")
     W.make_lease_selfcontained(lease)
     projection = W.project_task_local_objective(_package(["app/main.py"]), lease)
-    attempt_base = W._commit_trusted_projection(
-        lease, subprocess.run(["git", "rev-parse", "HEAD"], cwd=lease,
-                              capture_output=True, text=True, timeout=60).stdout.strip(),
-        projection,
-    )
+    W._mark_projection_execution_context(lease, projection)
+    attempt_base = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=lease, capture_output=True, text=True, timeout=60
+    ).stdout.strip()
     return lease, attempt_base
 
 
@@ -410,14 +424,14 @@ def test_index_smuggled_paths_are_caught_by_the_verifier():
         assert fh.read().strip() == "REAL SECRET"
 
 
-def test_detaching_the_trusted_commit_is_caught_by_the_verifier():
-    """Independent review HIGH-1.
+def test_detaching_the_authorized_base_is_caught_by_the_verifier():
+    """Independent review HIGH-1 (invocation-41 form).
 
-    Phase separation puts the trusted projection at the attempt's base so system
-    writes are an ANCESTOR of the worker's history. But the worker owns its own
-    ref, so `git reset --soft HEAD~1` (or `--amend`) detaches that commit and
-    lets the worker re-commit the trusted paths with content of its choosing —
-    touching no protected file, so the barrier stays silent.
+    The worker owns its own ref, so `git reset --soft HEAD~1` moves its history
+    BELOW the authorized base and lets it re-commit any path with content of its
+    choosing — touching no protected file, so the mount barrier stays silent.
+    The base-ancestry check must refuse a history the authorized base is no
+    longer an ancestor of.
 
     The invariant was asserted in a comment and never checked. Now it is checked.
     """
@@ -471,8 +485,12 @@ def test_recovery_refuses_to_resign_a_tampered_inflight_record(tmp_path):
     spool = DispatchSpool(root, SECRET)
     spool.enqueue(
         DispatchEnvelope(
-            dispatch_id="d-1", attempt_id="ea-1", task_id="wp-a",
-            nonce=os.urandom(8).hex(), sequence=1, expires_at=time.time() + 3600,
+            dispatch_id="d-1",
+            attempt_id="ea-1",
+            task_id="wp-a",
+            nonce=os.urandom(8).hex(),
+            sequence=1,
+            expires_at=time.time() + 3600,
             governance_constraints=["writable_path_scope=['app/main.py']"],
         )
     )
@@ -562,8 +580,12 @@ def test_a_primitive_that_cannot_enforce_scope_refuses_to_run(monkeypatch):
 
     monkeypatch.setattr(hi, "isolation_primitive", lambda: "systemd-run")
     profile = hi.IsolationProfile(
-        worktree_path="/tmp/wt", worker_home="/tmp/home", tmp_path="/tmp/t",
-        readonly_subpaths=["/tmp/wt/secret"], writable_subpaths=[], scope_enforced=True,
+        worktree_path="/tmp/wt",
+        worker_home="/tmp/home",
+        tmp_path="/tmp/t",
+        readonly_subpaths=["/tmp/wt/secret"],
+        writable_subpaths=[],
+        scope_enforced=True,
     )
     with pytest.raises(hi.IsolationUnavailable) as exc:
         hi.build_isolated_command(["/bin/true"], profile)
