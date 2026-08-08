@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-
 from types import SimpleNamespace
 
 import pytest
@@ -200,6 +199,193 @@ def test_no_artifacts_fails_verification(tmp_path):
     )
     assert verdict.passed is False
     assert verdict.proof_id == ""  # no success proof for a failed verification
+
+
+# ── zero-write verifier contract (invocation-42 correction) ──────────────────
+
+
+def _zero_write_packet():
+    """A packet with the sealed zero-write verifier contract: declared, empty."""
+    return SimpleNamespace(
+        packet_id="wp-verify",
+        requirements={"writable_path_scope": [], "scope_declared": True},
+    )
+
+
+def _artifacts_check(verdict):
+    for c in verdict.checks:
+        if c.get("check_id") == "artifacts":
+            return c
+    return None
+
+
+def test_zero_write_verifier_accepts_zero_artifacts(tmp_path):
+    """A declared zero-write verifier (scope_declared=True, scope=[]) that
+    produces zero files and zero commits PASSES the artifacts check — the
+    inverse of the worker requirement. Uses a real UNCHANGED worktree so
+    diff-scope legitimately sees an empty diff, and a real trusted base."""
+    rt = _ProofRT(tmp_path)
+    wt, lease, _ = _scoped(tmp_path, allowed=("app",), name="verifywt")
+    # zero-write: the worktree is left byte-identical (no edit)
+    verdict = verify_attempt(
+        attempt=_attempt(pkg_hash="h1"),
+        assignment=_assignment(),
+        lease=lease,
+        worker_result=_worker_result(files=(), commits=()),
+        package_hash="h1",
+        verifier_identity="verifier-1",
+        verifier_role_id="role-verify-op",
+        packet=_zero_write_packet(),
+        proof_runtime=rt,
+    )
+    art = _artifacts_check(verdict)
+    assert art is not None and art["ok"] is True, art
+    assert "zero-write verifier contract" in art["detail"]
+    # and the trusted-base binding check is present and satisfied (real base)
+    tb = next((c for c in verdict.checks if c["check_id"] == "verifier_trusted_base"), None)
+    assert tb is not None and tb["ok"] is True, tb
+
+
+def test_zero_write_verifier_producing_a_commit_fails(tmp_path):
+    """A zero-write verifier is FORBIDDEN to write. If it produces a file or a
+    commit, the artifacts check refuses it (a commit here is a scope violation)."""
+    rt = _ProofRT(tmp_path)
+    _, lease, _ = _scoped(tmp_path, allowed=("app",), name="verifywt2")
+    verdict = verify_attempt(
+        attempt=_attempt(pkg_hash="h1"),
+        assignment=_assignment(),
+        lease=lease,
+        worker_result=_worker_result(files=("app/main.py",), commits=("abc def",)),
+        package_hash="h1",
+        verifier_identity="verifier-1",
+        verifier_role_id="role-verify-op",
+        packet=_zero_write_packet(),
+        proof_runtime=rt,
+    )
+    art = _artifacts_check(verdict)
+    assert art is not None and art["ok"] is False, art
+    assert verdict.passed is False
+
+
+def test_empty_output_alone_is_not_verifier_authority(tmp_path):
+    """The DECISIVE separation: empty output does NOT make an attempt a verifier.
+
+    An ARTIFACT-PRODUCING worker (scope_declared=True, NON-empty scope) that
+    produced zero artifacts is still REFUSED — the empty output is a failure, not
+    a zero-write pass. Only the persisted, sealed empty-scope contract grants the
+    zero-write requirement."""
+    rt = _ProofRT(tmp_path)
+    wt, lease, worker_packet = _scoped(tmp_path, allowed=("app",), name="workerwt")
+    verdict = verify_attempt(
+        attempt=_attempt(pkg_hash="h1"),
+        assignment=_assignment(),
+        lease=lease,
+        worker_result=_worker_result(files=(), commits=()),  # nothing produced
+        package_hash="h1",
+        verifier_identity="verifier-1",
+        verifier_role_id="role-verify-op",
+        packet=worker_packet,  # NON-empty declared scope → artifact-producing
+        proof_runtime=rt,
+    )
+    art = _artifacts_check(verdict)
+    assert art is not None and art["ok"] is False, art
+    assert "zero-write" not in art["detail"], (
+        "a non-empty-scope worker must not gain verifier semantics"
+    )
+    assert verdict.passed is False
+
+
+def test_malformed_empty_scope_without_declaration_is_not_a_verifier(tmp_path):
+    """scope_declared=False with an empty scope is a governance failure, NOT a
+    verifier. `allowed_paths_for` raises → the artifacts check falls back to the
+    artifact-producing requirement (fail closed), so zero output is refused."""
+    rt = _ProofRT(tmp_path)
+    _, lease, _ = _scoped(tmp_path, allowed=("app",), name="malformedwt")
+    malformed = SimpleNamespace(
+        packet_id="wp-malformed",
+        requirements={"writable_path_scope": [], "scope_declared": False},
+    )
+    verdict = verify_attempt(
+        attempt=_attempt(pkg_hash="h1"),
+        assignment=_assignment(),
+        lease=lease,
+        worker_result=_worker_result(files=(), commits=()),
+        package_hash="h1",
+        verifier_identity="verifier-1",
+        verifier_role_id="role-verify-op",
+        packet=malformed,
+        proof_runtime=rt,
+    )
+    art = _artifacts_check(verdict)
+    assert art is not None and art["ok"] is False, art
+    assert "zero-write" not in art["detail"]
+
+
+def test_zero_write_verifier_without_trusted_base_fails(tmp_path):
+    """A zero-write verifier that inspected NO authorized input (empty
+    snapshot_ref) is refused — it cannot attest to anything. Empty output +
+    empty base must never be a vacuous pass."""
+    rt = _ProofRT(tmp_path)
+    baseless = SimpleNamespace(worktree_path="", snapshot_ref="", writable_paths=[])
+    verdict = verify_attempt(
+        attempt=_attempt(pkg_hash="h1"),
+        assignment=_assignment(),
+        lease=baseless,
+        worker_result=_worker_result(files=(), commits=()),
+        package_hash="h1",
+        verifier_identity="verifier-1",
+        verifier_role_id="role-verify-op",
+        packet=_zero_write_packet(),
+        proof_runtime=rt,
+    )
+    tb = next((c for c in verdict.checks if c["check_id"] == "verifier_trusted_base"), None)
+    assert tb is not None and tb["ok"] is False, tb
+    assert verdict.passed is False
+
+
+def test_zero_write_verifier_still_fails_if_independent_checks_fail(tmp_path):
+    """NOT green-on-nothing: a zero-write verifier whose independent domain
+    checks FAIL is refused, even with the correct zero artifacts + trusted base.
+    Its success authority is the verification itself, not merely 'wrote nothing'."""
+    rt = _ProofRT(tmp_path)
+    _, lease, _ = _scoped(tmp_path, allowed=("app",), name="failcheckwt")
+    verdict = verify_attempt(
+        attempt=_attempt(pkg_hash="h1"),
+        assignment=_assignment(),
+        lease=lease,
+        worker_result=_worker_result(files=(), commits=()),
+        package_hash="h1",
+        verifier_identity="verifier-1",
+        verifier_role_id="role-verify-op",
+        packet=_zero_write_packet(),
+        independent_checks=lambda _a: [
+            VerificationCheck(check_id="suite", kind="test", ok=False, detail="suite RED")
+        ],
+        proof_runtime=rt,
+    )
+    art = _artifacts_check(verdict)
+    assert art is not None and art["ok"] is True, "artifacts still ok (zero-write)"
+    assert verdict.passed is False, "a failing independent check must sink the verifier"
+    assert verdict.proof_id == ""
+
+
+def test_worker_with_files_but_no_commit_still_fails(tmp_path):
+    """Ordinary worker artifact safety unchanged: files>0 but commits=0 → refused."""
+    rt = _ProofRT(tmp_path)
+    _, lease, worker_packet = _scoped(tmp_path, allowed=("app",), name="fnowt")
+    verdict = verify_attempt(
+        attempt=_attempt(pkg_hash="h1"),
+        assignment=_assignment(),
+        lease=lease,
+        worker_result=_worker_result(files=("app/main.py",), commits=()),
+        package_hash="h1",
+        verifier_identity="verifier-1",
+        verifier_role_id="role-verify-op",
+        packet=worker_packet,
+        proof_runtime=rt,
+    )
+    art = _artifacts_check(verdict)
+    assert art is not None and art["ok"] is False, art
 
 
 def test_package_hash_mismatch_fails():

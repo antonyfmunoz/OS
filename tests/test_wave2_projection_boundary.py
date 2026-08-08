@@ -293,6 +293,53 @@ def test_full_projection_boundary_a_b_c_d_real_isolation(tmp_path):
     assert (d_lease / "app" / "search_api.py").read_text() == "slice for wp-laneA\n"
     assert (d_lease / "app" / "search_ui.py").read_text() == "slice for wp-laneB\n"
 
+    # Behaviors from the invocation-42 correction: Task D is the ZERO-WRITE
+    # verifier. It runs against the EXACT composed base, produces ZERO source
+    # artifacts (its contract forbids writes), and MUST still be accepted — the
+    # generic artifacts gate that failed invocation 42 must not refuse it.
+    from types import SimpleNamespace
+
+    from substrate.execution.attempts.verification import VerificationCheck, verify_attempt
+
+    d_packet = SimpleNamespace(
+        packet_id="wp-laneD",
+        requirements={"writable_path_scope": [], "scope_declared": True},  # sealed zero-write
+    )
+    d_attempt = SimpleNamespace(
+        attempt_id="ea-proj000000d",
+        task_id="wp-laneD",
+        instruction_package_hash="pkg-d",
+        tenant_id="tenant-A",
+        worker_identity="cc-cli@vps-host",
+    )
+    # D's lease is anchored at C's EXACT composed commit (its trusted input).
+    d_lease_obj = SimpleNamespace(worktree_path=str(d_lease), snapshot_ref=composed)
+
+    verdict = verify_attempt(
+        attempt=d_attempt,
+        assignment=SimpleNamespace(worker_identity="cc-cli@vps-host"),
+        lease=d_lease_obj,
+        # A real zero-write verifier makes no change: zero files, zero commits.
+        worker_result=SimpleNamespace(files_changed=[], commits=[]),
+        package_hash="pkg-d",
+        verifier_identity="verifier:role-verifier-op",  # ≠ worker
+        verifier_role_id="role-verifier-op",
+        packet=d_packet,
+        # A passing independent domain check stands in for the confined pytest
+        # (which needs its own verifier lease); the acceptance-shape under test is
+        # the artifacts contract, not the pytest harness (covered elsewhere).
+        independent_checks=lambda _a: [
+            VerificationCheck(check_id="suite", kind="test", ok=True, detail="composed suite green")
+        ],
+    )
+    checks = {c["check_id"]: c for c in verdict.checks}
+    assert checks["artifacts"]["ok"] is True, checks["artifacts"]
+    assert "zero-write verifier contract" in checks["artifacts"]["detail"]
+    assert checks["verifier_trusted_base"]["ok"] is True, checks["verifier_trusted_base"]
+    assert composed[:12] in checks["verifier_trusted_base"]["detail"]
+    assert checks["diff_scope"]["ok"] is True, checks["diff_scope"]  # zero diff over empty scope
+    assert verdict.passed is True, [c for c in verdict.checks if not c["ok"]]
+
 
 @_needs_bwrap
 def test_genuine_overlapping_conflict_still_blocks(tmp_path):

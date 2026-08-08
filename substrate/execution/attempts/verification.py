@@ -131,18 +131,104 @@ def verify_attempt(
         )
     )
 
-    # 2. real artifacts exist (a diff + at least one commit). The worker's
-    #    narrative is NOT trusted; we require concrete git evidence.
+    # 2. artifacts match the attempt's DECLARED execution contract.
+    #
+    #    Invocation-42 field defect. A single artifact-production predicate
+    #    (`files>0 AND commits>0`) was applied to EVERY attempt. The zero-write
+    #    verification lane (Task D) is contractually forbidden to write — its
+    #    sealed WorkPacket declares `scope_declared=True, writable_path_scope=[]`,
+    #    "you must not create, edit, or delete any file" — so it can NEVER produce
+    #    an artifact, and the generic gate made it structurally impossible to
+    #    satisfy. It was unreachable in the field until composition first
+    #    succeeded (invocation 41 fix) and Task D finally ran.
+    #
+    #    The contract is read from the SAME persisted, package_hash-sealed
+    #    authority the diff-scope check uses (`allowed_paths_for` → the
+    #    WorkRequirements `writable_path_scope` + `scope_declared`), NEVER inferred
+    #    from empty output, the task name, or worker prose. The authenticating
+    #    condition for the zero-write lane is a SUCCESSFUL scope resolution that
+    #    returns `[]` — which `allowed_paths_for` grants only when
+    #    `scope_declared==True`. A packet with no declared scope raises there and
+    #    reaches the fallback branch as an artifact-producing worker (fail
+    #    closed): an accidentally malformed empty-scope task never acquires
+    #    verifier semantics.
+    #
+    #    Composition attempts never reach verify_attempt's artifacts path — they
+    #    are settled through the composition verifier + composition Proof — so
+    #    only the two model-executed shapes are distinguished here.
     files = list(getattr(worker_result, "files_changed", []) or [])
     commits = list(getattr(worker_result, "commits", []) or [])
+    zero_write_contract = False
+    if packet is not None:
+        from substrate.execution.attempts.field_task_scope import (
+            ScopeResolutionError,
+            allowed_paths_for,
+        )
+
+        try:
+            # A declared, undeclared, or malformed scope resolves through the
+            # SAME `allowed_paths_for` authority the diff-scope check uses. Catch
+            # ONLY `ScopeResolutionError` — the expected "no/invalid declared
+            # scope" outcome → artifact-producing worker (fail closed). This
+            # mirrors `_diff_scope_verdict`'s own narrow catch, so an UNEXPECTED
+            # error is not silently reclassified as a worker but propagates to
+            # the poller's containment (attempt → FAILED, never a false pass).
+            zero_write_contract = allowed_paths_for(packet, semantic_label=semantic_label) == []
+        except ScopeResolutionError:
+            zero_write_contract = False
+    if zero_write_contract:
+        # ZERO-WRITE VERIFIER: zero files AND zero commits is the REQUIRED
+        # outcome, not a defect. A file or commit here is a scope violation
+        # (also caught independently by diff_scope). Success authority is the
+        # independent confined-verifier checks + zero-diff + Attempt-bound Proof
+        # + exact trusted-base binding — proven by the other checks below, never
+        # by an artifact. This is NOT green-on-nothing: every other check still
+        # runs and must pass.
+        artifacts_ok = not files and not commits
+        artifacts_detail = (
+            f"zero-write verifier contract: files={len(files)} commits={len(commits)} "
+            f"(both must be 0)"
+        )
+    else:
+        # ARTIFACT-PRODUCING WORKER (unchanged): concrete git evidence required.
+        # The worker's narrative is NOT trusted.
+        artifacts_ok = bool(files) and bool(commits)
+        artifacts_detail = f"files={len(files)} commits={len(commits)}"
     checks.append(
         VerificationCheck(
             check_id="artifacts",
             kind="artifact",
-            ok=bool(files) and bool(commits),
-            detail=f"files={len(files)} commits={len(commits)}",
+            ok=artifacts_ok,
+            detail=artifacts_detail,
         )
     )
+
+    # 2b. TRUSTED-BASE BINDING for the zero-write verifier (invocation-42 field
+    #     hardening + TASK D INPUT AUTHORITY law). A zero-write verifier's only
+    #     authority is its verification of a specific trusted input — for Task D
+    #     that is Task C's exact composed commit, resolved by
+    #     `resolve_downstream_base` and threaded onto the lease's `snapshot_ref`.
+    #     Without this, a verifier could "pass on nothing": run against an
+    #     empty/absent base, produce zero diff, and be accepted. Require a
+    #     resolvable, non-empty trusted base. (Artifact-producing workers already
+    #     have this enforced transitively by the diff-scope check, which fails
+    #     closed on a missing snapshot_ref; the explicit check makes the
+    #     zero-write lane's input authority first-class rather than implied.)
+    if zero_write_contract:
+        trusted_base = str(getattr(lease, "snapshot_ref", "") or "").strip()
+        checks.append(
+            VerificationCheck(
+                check_id="verifier_trusted_base",
+                kind="policy",
+                ok=bool(trusted_base),
+                detail=(
+                    f"verifier inspected trusted base {trusted_base[:12]}"
+                    if trusted_base
+                    else "zero-write verifier has no trusted base — a verifier that "
+                    "inspected no authorized input cannot attest to anything"
+                ),
+            )
+        )
 
     # 3. diff-scope: changes confined to the Task's AUTHORIZED paths, computed
     #    from the ACTUAL changed paths in the lease worktree.
