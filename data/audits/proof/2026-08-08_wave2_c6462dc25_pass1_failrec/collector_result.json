@@ -1,0 +1,258 @@
+{
+  "pass": false,
+  "run_id": "20260808T233546Z-p1",
+  "pass_num": 1,
+  "scenario": "full",
+  "candidate_commit": "c6462dc25c51e70d1a41fefd591f10c770696f58",
+  "target_url": "https://srv1500858.tail6b4aa2.ts.net:10443",
+  "correlation_id": "w2-20260808T233546Z-p1",
+  "run_tag": "[w2-20260808T233546Z-p1-p1]",
+  "session_proof": {
+    "ok": true,
+    "reason": "",
+    "active_console_session": 1,
+    "collector_session": 1,
+    "daemon_processes": [
+      {
+        "pid": 1432,
+        "session_id": 1,
+        "cmd": "\"C:\\Users\\antonys beast pc\\AppData\\Local\\Python\\bin\\pythonw.exe\" C:\\dev\\dev\\OS\\nodes\\windows\\umh_node\\launcher.py"
+      }
+    ],
+    "daemon_in_active_session": 1,
+    "schtasks_query": "\nFolder: \\\nHostName:                             DESKTOP-LVGUIQ9\nTaskName:                             \\UMH Node Daemon\nNext Run Time:                        N/A\nStatus:                               Ready\nLogon Mode:                           Interactive only\nLast Run Time:                        8/5/2026 10:06:37 AM\nLast Result:                          267014\nAuthor:                               DESKTOP-LVGUIQ9\\antonys beast pc\nTask To Run:                          op run --env-file=C:\\ProgramData\\UMH\\.env.op.tpl -- \"C:\\Users\\antonys beast pc\\AppData\\Local\\Python\\bin\\pythonw.exe\" C:\\dev\\dev\\OS\\nodes\\windows\\umh_node\\launcher.py\nStart In:                             C:\\dev\\dev\\OS\nComment:                              N/A\nScheduled Task State:                 Enabled\nIdle Time:                            Disabled\nPower Management:                     Stop On Battery Mode, No Start On Batteries\nRun As User:                          antonys beast pc\nDelete Task If Not Rescheduled:       Disabled\nStop Task If Runs X Hours and X Mins: 72:00:00\nSchedule:                             Scheduling data is not available in this format.\nSchedule Type:                        At logon time\nStart Time:                           N/A\nStart Date:                           N/A\nEnd Date:                             N/A\nDays:                                 N/A\nMonths:                               N/A\nRepeat: Every:                        N/A\nRepeat: Until: Time:                  N/A\nRepeat: Until: Duration:              N/A\nRepeat: Stop If Still Running:        N/A\n",
+    "platform": "win32"
+  },
+  "stages": [
+    {
+      "stage": "session_proof",
+      "ok": true,
+      "ms": 1163,
+      "detail": ""
+    },
+    {
+      "stage": "clerk_auth",
+      "ok": true,
+      "ms": 2412,
+      "detail": "clerk auth state ready"
+    },
+    {
+      "stage": "fresh_context",
+      "ok": true,
+      "ms": 15775,
+      "detail": "conversation_binding_cleared=True cleared=2ls; history_plan_cards_visible=0"
+    },
+    {
+      "stage": "chrome_pids",
+      "ok": true,
+      "ms": 16672,
+      "detail": ""
+    },
+    {
+      "stage": "listeners_wired",
+      "ok": true,
+      "ms": 16673,
+      "detail": "network+console+correlation header active"
+    },
+    {
+      "stage": "chat_input_found",
+      "ok": true,
+      "ms": 17621,
+      "detail": "input[placeholder^=\"Message \"]"
+    },
+    {
+      "stage": "w01_session_proof",
+      "ok": true,
+      "ms": 17622,
+      "detail": "active_session=1 daemon_in_active=1"
+    },
+    {
+      "stage": "w02_zero_attempts_fresh",
+      "ok": true,
+      "ms": 19568,
+      "detail": "ledger_attempts=0 dom_attempts=0 cleared=2ls"
+    },
+    {
+      "stage": "w03_clerk_auth",
+      "ok": true,
+      "ms": 19654,
+      "detail": "clerk_session=True"
+    },
+    {
+      "stage": "w04_principal_tenant",
+      "ok": true,
+      "ms": 19833,
+      "detail": "objective_plan_status=200"
+    },
+    {
+      "stage": "w05_type_fixture_objective",
+      "ok": true,
+      "ms": 21556,
+      "detail": "fixture objective sent"
+    },
+    {
+      "stage": "w06_plan_compiles",
+      "ok": true,
+      "ms": 22204,
+      "detail": "state=awaiting_approval plan_record_id=opr-7264f2b95df4"
+    },
+    {
+      "stage": "w07_inspect_plan",
+      "ok": true,
+      "ms": 23041,
+      "detail": "work_detail=True server_has_scope=True"
+    },
+    {
+      "stage": "w08_tasks_non_executable",
+      "ok": true,
+      "ms": 23990,
+      "detail": "plan_packets=4 non_executable=True attempts=0 dom_attempts=0"
+    },
+    {
+      "stage": "w09_approve_plan_hud",
+      "ok": true,
+      "ms": 26851,
+      "detail": "clicked=True server_status=approved decision_response=200 {\"approval_id\":\"objective_plan:opr-7264f2b95df4:plan_acceptance:v1\",\"source_type\":\"objective_pla"
+    },
+    {
+      "stage": "w10_approved_banner_zero_attempts",
+      "ok": true,
+      "ms": 29031,
+      "detail": "banner=True attempts_after_plan_approval=0"
+    },
+    {
+      "stage": "w11_type_execute",
+      "ok": true,
+      "ms": 30746,
+      "detail": "execute request sent"
+    },
+    {
+      "stage": "w12_chat_surfaces_decision",
+      "ok": true,
+      "ms": 33157,
+      "detail": "exec_card=True authorize_in_card=0 attempts=0"
+    },
+    {
+      "stage": "w13_zero_attempts_pre_hud",
+      "ok": true,
+      "ms": 33546,
+      "detail": "attempts=0 authorizations=1 pending_like=1"
+    },
+    {
+      "stage": "w14_hud_execution_row",
+      "ok": true,
+      "ms": 37752,
+      "detail": "execution_decision_rows=1 decision_ref=objective_plan:opr-7264f2b95df4:"
+    },
+    {
+      "stage": "w15_authorize_execution",
+      "ok": true,
+      "ms": 42524,
+      "detail": "authorized=True decision_response=200 {\"approval_id\":\"objective_plan:opr-7264f2b95df4:execution_authorization:v1\",\"source_type\":\"execution_authorization\","
+    },
+    {
+      "stage": "w16_ab_running_concurrent",
+      "ok": false,
+      "ms": 283741,
+      "detail": "concurrent_running_tasks=[] dom_running=0 execution_surface=False"
+    },
+    {
+      "stage": "w17_c_blocked",
+      "ok": false,
+      "ms": 284157,
+      "detail": "blocked_tasks=[] c_specific_blocked=False dom_blocked=0 advanced_non_ab=3"
+    },
+    {
+      "stage": "w18_ab_verified",
+      "ok": false,
+      "ms": 645498,
+      "detail": "succeeded_ab=[] proofs=[]"
+    },
+    {
+      "stage": "w19_c_reconverges",
+      "ok": true,
+      "ms": 646066,
+      "detail": "c_task=wp-d87f2198112e c_status=succeeded started_after_ab_verified=True"
+    },
+    {
+      "stage": "w20_preview_live",
+      "ok": true,
+      "ms": 646709,
+      "detail": "preview_surfaced=False"
+    },
+    {
+      "stage": "w21_d_distinct_verifier",
+      "ok": true,
+      "ms": 646935,
+      "detail": "separation_of_duty=True d_task=wp-d87f2198112e"
+    },
+    {
+      "stage": "w22_d_browser_probe",
+      "ok": true,
+      "ms": 647345,
+      "detail": "d_reached_verify_or_succeed=True"
+    },
+    {
+      "stage": "w23_fixture_witness",
+      "ok": true,
+      "ms": 647408,
+      "detail": "SKIPPED \u2014 no --fixture-url provided (fixture reachability is dispatcher-wired)"
+    },
+    {
+      "stage": "w24_proof",
+      "ok": true,
+      "ms": 648010,
+      "detail": "proof_link=0 proof_id=proof-200cb922c9"
+    },
+    {
+      "stage": "w25_complete_only_after_proof",
+      "ok": true,
+      "ms": 648711,
+      "detail": "succeeded=4 succeeded_without_proof=0"
+    },
+    {
+      "stage": "w26_same_thread_report",
+      "ok": false,
+      "ms": 648999,
+      "detail": "conversation_id=conv-b106f6e7e8e report_in_thread=False"
+    },
+    {
+      "stage": "w27_work_detail_lineage",
+      "ok": false,
+      "ms": 650239,
+      "detail": "opened=True assignment=False lease=False verification=False overlay=False worker_status=False cancel_ctrl=0 retry_ctrl=0 reject_ctrl=0"
+    },
+    {
+      "stage": "w28_refresh_restart_persistence",
+      "ok": true,
+      "ms": 658234,
+      "detail": "attempts_before=5 attempts_after=5 persisted=True proofs_intact=True"
+    },
+    {
+      "stage": "w29_zero_deploy_no_secrets",
+      "ok": true,
+      "ms": 659290,
+      "detail": "prod_cred_or_deploy_names_in_attempt_env=[] (authoritative zero-deploy check is dispatcher reconcile)"
+    },
+    {
+      "stage": "w30_cleanup",
+      "ok": true,
+      "ms": 659416,
+      "detail": "leftover pending decisions rejected"
+    }
+  ],
+  "bonus_stages": {
+    "w20_preview_live": true,
+    "w22_d_browser_probe": true,
+    "w23_fixture_witness": true,
+    "w29_zero_deploy_no_secrets": true
+  },
+  "continuity": {},
+  "correlation_ids": [
+    "w2-20260808T233546Z-p1"
+  ],
+  "asset_files_seen": [],
+  "error": null,
+  "failed_stage": "w16_ab_running_concurrent",
+  "generated_at": "2026-08-08T23:47:07.127084+00:00"
+}
