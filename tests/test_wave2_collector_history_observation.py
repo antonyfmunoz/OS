@@ -136,12 +136,33 @@ def _make_collector(
     col.stage = lambda name, ok, detail="": stages.__setitem__(name, (ok, detail))
     col.shot = lambda *a, **k: None
     col.dom = lambda *a, **k: None
+    # inv #54: surface checks now EXPLICITLY navigate (?panel=... deep-link) and
+    # bounded-wait for the panel root. The fake page models that contract:
+    # `surface` counts selectors only after navigation; surface=0 models a
+    # genuinely missing/unmountable execution surface (wait raises → fail closed).
+    col.url = "https://cockpit.test"
 
     class _Loc:
         def count(self):
             return surface
 
+        @property
+        def first(self):
+            return self
+
+        def click(self):
+            return None
+
     class _Page:
+        current_url = ""
+
+        def goto(self, url, **k):
+            self.current_url = url
+
+        def wait_for_selector(self, sel, timeout=0):
+            if surface <= 0:
+                raise TimeoutError(f"selector {sel} never mounted")
+
         def locator(self, sel):
             return _Loc()
 

@@ -116,14 +116,62 @@ verified · w20 preview live *(non-gating — reconcile-owned)* · w21 D distinc
 verifier role · w22 D browser probe *(non-gating — Beast-probe-owned)* · w23
 collector's own visible-Chrome fixture witness *(non-gating — needs
 `--fixture-url`)* · **w24** Proof (`w2-proof-link`, PlanExecutionProof) · **w25**
-tasks complete only after Proof · **w26** same-thread report in the ORIGINAL
-conversation · w27 Work Detail lineage (`w2-assignment`/`w2-environment-lease`/
-`w2-verification-status`) · w28 refresh + full Chrome restart persistence · w29
-zero prod deploy + `/opt/OS` unchanged + no secrets *(non-gating —
-reconcile-owned)* · w30 cleanup.
+tasks complete only after Proof · **w26** Task D terminal VERIFIED — the full
+bound verification chain from durable canonical evidence (exact run-bound D
+attempt · candidate+run path binding · C's exact composed base consumed ·
+authenticated zero-write verifier executed · Attempt-bound Proof · terminal
+success; any wrong/missing element fails closed; see the qualification-contract
+correction below) · w27 Work Detail lineage (explicit `?panel=execution`
+navigation → `w2-assignment`/`w2-environment-lease`/`w2-verification-status`) ·
+w28 refresh + full Chrome restart persistence · w29 zero prod deploy +
+`/opt/OS` unchanged + no secrets *(non-gating — reconcile-owned)* · w30 cleanup.
 
 Load-bearing execution-semantics gates (STRICT): w16, w17, w18, w19, w24, w25,
 w26 (+ w01–w15, w21, w27, w28).
+
+### Qualification-contract correction — w26 (owner ruling 2026-08-09)
+
+- **Old requirement:** "same-thread report in the ORIGINAL conversation" — a
+  STRICT gate asserting a completion report is posted back to the driving
+  conversation thread, checked by scanning the rendered page body for report
+  text.
+- **Why it was impossible/stale:** the candidate does not implement the
+  capability. Measured evidence (inv #54 correction cycle, independently
+  verified by two review passes): no producer anywhere in the tree emits
+  `execution_state='complete'`; nothing posts a completion-report message to
+  a conversation; the cockpit's only completion string
+  (`ChatExecutionCard` `EXECUTION COMPLETE — PROOF ATTACHED`) renders solely
+  for a state nothing sets; three of the stage's four historical text
+  markers could never match that string; and the stage failed in 100% of
+  recorded field runs (#52 `20260808T233546Z-p1`, #54 `20260809T144154Z-p1`)
+  including runs whose governed execution property completed correctly.
+- **New authoritative w26 semantic:** `w26_task_d_terminal_verified` — Task D
+  reaches the required terminal VERIFIED outcome, proven from durable
+  canonical execution evidence: (1) the exact run-bound D attempt (task
+  outside the concurrent pair and the composition task; highest
+  `attempt_number` decides) terminalizes SUCCEEDED with a Proof inside the
+  proven latency envelope; (2) `correlation_id == w2-<run_id>`; (3) the
+  lease's read-only `source_ref.repo_root` lies under
+  `<candidate_sha>/targets/<run_id>/`; (4) `source_ref.base_commit` equals
+  Task C's `composed_commit` from the composition Proof; (5) a
+  verifying→succeeded transition by a `verifier:*` actor with a Proof-recorded
+  verifier identity distinct from the worker identity; (6) the Proof's action
+  binds this `attempt_id`/`task_id`/`plan_record_id`/`lease_id`; (7) the
+  lease's `diff_scope_post_hoc` enforcement is `enforced` and the succeeded
+  attempt reports zero `files_changed`/`commits`. Timeout, failure, missing
+  or foreign Proof, wrong base, foreign run, unauthenticated zero-write, or
+  source mutation all fail closed.
+- **Exact durable evidence used:** by-plan attempt rows + attempt-detail
+  (transitions, assignment, environment lease with `source_ref` and
+  `enforcement`, `files_changed`, `commits`, `correlation_id`) +
+  proof-inspector Proof action (canonical `ProofRuntime` source) + the w16
+  composition anchor.
+- **Same-thread reporting:** deferred capability. If still desired, it
+  belongs to later cockpit / operator-experience roadmap work — Wave 2 must
+  not absorb new UI/product features because an obsolete qualification gate
+  named them. The collector retains the report scan as NON-GATING
+  corroboration, explicitly labeled "capability not yet implemented by
+  candidate"; re-gate it only when a producer ships.
 
 ## Qualification bar (the authoritative bar)
 

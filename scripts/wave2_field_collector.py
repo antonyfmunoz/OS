@@ -239,6 +239,25 @@ W2_OPEN_TASK_BTN = '[data-testid="w2-open-task-btn"]'
 W2_WORK_OVERLAY = '[data-testid="w2-work-overlay"]'
 W2_WORKER_STATUS = '[data-testid="w2-worker-status"]'
 
+# ── observation latency envelope (inv #54, run 20260809T144154Z-p1) ──────────
+# The REAL end-to-end worker chain A-fail(97s) → A-retry(111s) → C-composition
+# landed the composition proof ~236s after w15, and Task D takes ~100-110s from
+# dispatch. Observation bounds must EXCEED the proven envelope with headroom:
+# a bound below it fails correct-but-slow runs and consumes field quota.
+# Every timeout below fails CLOSED — a stage NEVER passes on timeout.
+PROVEN_WORKER_LATENCY_ENVELOPE_S = 240  # observed 236s w15→composition, rounded up
+W16_COMPOSITION_WAIT_S = 420  # must stay > PROVEN_WORKER_LATENCY_ENVELOPE_S
+W26_D_TERMINALIZE_WAIT_S = 300  # must stay > observed D latency (~110s) with headroom
+# Non-gating corroboration only: the same-thread completion-report POST is a
+# capability the candidate does not yet implement (verified: no producer emits
+# execution_state='complete' or posts a report message; w26's report scan has
+# failed in 100% of recorded field runs). Gating on it would make w26
+# unpassable. The gate is D terminalization from durable evidence (owner
+# directive 2026-08-09); the report scan is recorded evidence for the day the
+# capability ships.
+W26_REPORT_CORROBORATION_WAIT_S = 20
+W27_DRAWER_WAIT_S = 60
+
 # w05 — the fixture (note-search) objective. Decomposes into Tasks A (backend
 # search endpoint), B (frontend search box), C (integration), D (verification).
 # Mirrors infra/fixture/make_fixture_app.py OBJECTIVE.md so the plan's tasks map
@@ -531,6 +550,7 @@ class FieldCollector:
         self._execution_decision_ref = ""  # execution-auth decision ref (w14)
         self._attempt_ids: dict[str, str] = {}  # task_id -> attempt_id (w16+)
         self._proof_id = ""  # PlanExecutionProof id (w24)
+        self._last_nav_error = ""  # why the latest _goto_panel/goto failed (diagnosable detail)
 
     # ── heartbeat + status ──────────────────────────────────────────────────
     def _status(self, state: str) -> None:
@@ -1208,6 +1228,30 @@ class FieldCollector:
         except Exception:  # noqa: BLE001
             return False
 
+    def _goto_panel(
+        self, page: Any, panel: str, ready_selector: str, timeout_ms: int = 30000
+    ) -> bool:
+        """Deep-link navigate to a canonical cockpit panel and bounded-wait for
+        its root element to mount.
+
+        ``?panel=<id>`` is the cockpit's single navigation authority (App.tsx →
+        cockpitStore.setPanel). A surface check must NEVER rely on the page
+        coincidentally being on the right view — that structural assumption
+        consumed field invocation #54 (w16 execution_surface=False on the
+        approvals view). Fails CLOSED: navigation error or mount timeout → False.
+        """
+        self._last_nav_error = (
+            ""  # per-attempt: never leak a stale error into a later stage's detail
+        )
+        try:
+            sep = "&" if "?" in self.url else "?"
+            page.goto(f"{self.url}{sep}panel={panel}", wait_until="load", timeout=45000)
+            page.wait_for_selector(ready_selector, timeout=timeout_ms)
+            return page.locator(ready_selector).count() > 0
+        except Exception as exc:  # noqa: BLE001
+            self._last_nav_error = str(exc)[:120]
+            return False
+
     def _find_chat_input(self, page: Any) -> Any:
         """Locate the chat rail input, opening the right drawer if closed.
 
@@ -1506,7 +1550,7 @@ class FieldCollector:
         self._w23_fixture_witness(page, context, ctx)
         self._w24_proof(page, ctx)
         self._w25_complete_only_after_proof(page, ctx)
-        self._w26_same_thread_report(page, ctx)
+        self._w26_task_d_terminal_verified(page, ctx)
         self._w27_work_detail_lineage(page, ctx)
         page = self._w28_refresh_restart_persistence(page, browser, state_path, ctx)
         self._w29_zero_deploy_no_secrets(page, ctx)
@@ -2051,7 +2095,7 @@ class FieldCollector:
         task's own predecessor_commits name exactly these two task ids, which is
         the run-bound, candidate-bound anchor tying this stage to THIS graph.
         """
-        deadline = time.time() + 240
+        deadline = time.time() + W16_COMPOSITION_WAIT_S
         comp: dict[str, Any] = {}
         impl_first: dict[str, dict[str, Any]] = {}
         # Bounded-wait until BOTH implementation attempts have a durable dispatched
@@ -2101,17 +2145,22 @@ class FieldCollector:
         if both_ran:
             (ia, ib) = list(ivals.values())
             overlap_s = self._intervals_overlap(ia, ib)
-        # The canonical execution surface must be mounted (structural corroboration).
-        exec_surface = page.locator(W2_EXECUTION_ROOT).count() > 0
+        # The canonical execution surface must be mounted (structural
+        # corroboration) — EXPLICITLY navigated to, never sampled from whatever
+        # view the page happens to be on (inv #54: the page sits on the
+        # approvals view after w15, so a point-in-time count here is
+        # structurally False for a fully correct run).
+        exec_surface = self._goto_panel(page, "execution", W2_EXECUTION_ROOT)
         # PASS requires: exactly two distinct predecessor tasks, both with a real
         # dispatched interval, GENUINE temporal overlap (> 0), and the surface
         # mounted. Sequential A-then-B yields overlap 0 → fails.
         ok = len(pred_tasks) == 2 and both_ran and overlap_s > 0.0 and exec_surface
+        nav_note = "" if exec_surface else f" nav_err={self._last_nav_error or 'mount_timeout'}"
         self.stage(
             "w16_ab_running_concurrent",
             ok,
             f"concurrent_tasks={pred_tasks} dispatched_overlap_s={overlap_s:.1f} "
-            f"both_dispatched={both_ran} execution_surface={exec_surface}",
+            f"both_dispatched={both_ran} execution_surface={exec_surface}" + nav_note,
         )
         self.shot(page, "w16_ab_running")
         self.dom(page, "w16_ab_running")
@@ -2483,47 +2532,221 @@ class FieldCollector:
         )
         self.shot(page, "w25_proof_gated")
 
-    # ── w26 — same-thread completion report ───────────────────────────────────
-    def _w26_same_thread_report(self, page: Any, ctx: dict[str, Any]) -> None:
-        """A completion report is posted back to the ORIGINAL conversation thread
-        (the same conversation the operator drove the execution from)."""
-        conv = ctx.get("execution_conversation_id", "")
+    # ── w26 — Task D terminal VERIFIED (full bound chain) ─────────────────────
+    def _w26_task_d_terminal_verified(self, page: Any, ctx: dict[str, Any]) -> None:
+        """Task D — the verification task — reaches the required terminal
+        VERIFIED outcome, proven from durable canonical execution evidence.
+
+        OWNER RULING 2026-08-09 (inv #54): this stage was formerly
+        ``w26_same_thread_report`` and gated on a same-thread completion
+        report — a capability the candidate does not implement (no producer
+        emits execution_state='complete' or posts a report message; the scan
+        failed in 100% of recorded field runs). The name was semantically
+        false and has been corrected. The report scan survives ONLY as
+        non-gating corroboration at the end of this stage.
+
+        Gate conjuncts (ALL required; ANY failure fails closed — final graph
+        success alone is insufficient):
+          terminalized  — every verification task (outside the concurrent
+                          pair and the composition task; deciding attempt =
+                          HIGHEST attempt_number) settles within the latency
+                          envelope; timeout fails closed;
+          succeeded     — final attempt succeeded WITH a Proof id;
+          run_bound     — attempt.correlation_id == 'w2-<run_id>' (foreign /
+                          stale-run evidence fails);
+          candidate_bound — the lease's read-only source_ref.repo_root lies
+                          under <candidate_sha>/targets/<run_id>/;
+          composed_base — lease.source_ref.base_commit equals Task C's
+                          composed_commit from the w16 composition anchor
+                          (wrong or missing base fails);
+          verifier_ran  — a verifying→succeeded transition by a 'verifier:*'
+                          actor exists AND the Proof records a verifier
+                          identity distinct from the worker identity;
+          proof_bound   — the Proof's action binds THIS attempt_id, task_id,
+                          plan_record_id and lease_id (missing or foreign
+                          Proof fails);
+          zero_write    — the lease's diff-scope enforcement is 'enforced'
+                          and the succeeded attempt reports zero
+                          files_changed and zero commits (source mutation
+                          where forbidden fails).
+        """
+        pair = set(ctx.get("concurrent_running_tasks", []))
+        comp = ctx.get("composition") or {}
+        comp_task = str(comp.get("task_id", ""))
+        composed_commit = str(comp.get("composed_commit", ""))
+
+        def _d_rows() -> dict[str, tuple[int, dict[str, Any]]]:
+            # DECIDING attempt per task = HIGHEST attempt_number (a retried D
+            # is judged by its final attempt, never by API row order).
+            rows: dict[str, tuple[int, dict[str, Any]]] = {}
+            for a in self._read_attempts(page):
+                tid = self._attempt_task(a)
+                if not tid or tid in pair or tid == comp_task:
+                    continue
+                n = int(a.get("attempt_number", 0) or 0)
+                if tid not in rows or n >= rows[tid][0]:
+                    rows[tid] = (n, a)
+            return rows
+
+        d_rows = _d_rows()
+        if not d_rows:
+            # No verification task exists outside the pair/composition — a
+            # structural graph mismatch. Fail IMMEDIATELY (no 300s stall).
+            self.stage(
+                "w26_task_d_terminal_verified",
+                False,
+                f"no verification task outside pair={sorted(pair)} "
+                f"composition={comp_task or '-'} (fail closed)",
+            )
+            self.shot(page, "w26_d_terminal")
+            self.dom(page, "w26_d_terminal")
+            return
+        deadline = time.time() + W26_D_TERMINALIZE_WAIT_S
+        d_settled = False
+        while time.time() < deadline:
+            if d_rows and all(
+                self._attempt_status(a) in ("succeeded", "failed", "cancelled")
+                for _, a in d_rows.values()
+            ):
+                d_settled = True
+                break
+            time.sleep(5)
+            d_rows = _d_rows()
+
+        checks: dict[str, bool] = {
+            "terminalized": d_settled,
+            "succeeded": True,
+            "run_bound": True,
+            "candidate_bound": True,
+            "composed_base": True,
+            "verifier_ran": True,
+            "proof_bound": True,
+            "zero_write": True,
+        }
+        expect_corr = f"w2-{self.run_id}"
+        expect_path = f"/{self.candidate_commit}/targets/{self.run_id}/"
+        summary: list[str] = []
+        for tid, (n, a) in sorted(d_rows.items()):
+            aid = str(a.get("attempt_id", ""))
+            st = self._attempt_status(a)
+            proof_id = str(a.get("proof_id", ""))
+            summary.append(f"{tid}:#{n}:{st}{'+proof' if proof_id else ''}")
+            if st != "succeeded" or not proof_id:
+                checks["succeeded"] = False
+                continue
+            detail = self._attempt_detail(page, aid) or {}
+            lease = detail.get("environment_lease") or {}
+            src = lease.get("source_ref") or {}
+            if str(detail.get("correlation_id", "")) != expect_corr:
+                checks["run_bound"] = False
+            if expect_path not in str(src.get("repo_root", "")):
+                checks["candidate_bound"] = False
+            if not composed_commit or str(src.get("base_commit", "")) != composed_commit:
+                checks["composed_base"] = False
+            verifier_transition = any(
+                t.get("from_status") == "verifying"
+                and t.get("to_status") == "succeeded"
+                and str(t.get("actor", "")).startswith("verifier:")
+                for t in (detail.get("transitions") or [])
+            )
+            action = self._composition_proof(page, proof_id) or {}
+            verifier_id = str(action.get("verifier_identity", "") or "")
+            worker_id = str(action.get("worker_identity", "") or "")
+            if not verifier_transition or not verifier_id or verifier_id == worker_id:
+                checks["verifier_ran"] = False
+            if not (
+                action
+                and str(action.get("attempt_id", "")) == aid
+                and str(action.get("task_id", "")) == tid
+                and str(action.get("plan_record_id", "")) == str(detail.get("plan_record_id", ""))
+                and str(action.get("lease_id", "")) == str(detail.get("lease_id", ""))
+            ):
+                checks["proof_bound"] = False
+            enforcement = lease.get("enforcement") or {}
+            # Forward-guard: 'enforced' is today's dataclass default for the
+            # diff-scope ledger — the load-bearing mutation check is the empty
+            # files/commits conjunct below; this guard exists so a future
+            # 'declared'-only lease can never silently qualify.
+            if str(enforcement.get("diff_scope_post_hoc", "")) != "enforced":
+                checks["zero_write"] = False
+            if (detail.get("files_changed") or []) or (detail.get("commits") or []):
+                checks["zero_write"] = False
+
+        d_ok = all(checks.values())
+
+        # NON-GATING corroboration — read the chat surface explicitly and
+        # record whether a completion report rendered in the original thread.
+        # The candidate does not implement this capability today; presence or
+        # absence NEVER decides qualification.
+        try:
+            page.goto(self.url, wait_until="load", timeout=45000)
+        except Exception as exc:  # noqa: BLE001
+            self._last_nav_error = str(exc)[:120]
         report_present = False
-        detail = ""
-        if conv:
-            # The report is a message in the same conversation — read the plan/
-            # conversation surface and look for an execution-complete signal.
-            body_has = (
-                self._body_contains(page, "Execution complete")
+        deadline = time.time() + W26_REPORT_CORROBORATION_WAIT_S
+        while time.time() < deadline:
+            if (
+                self._body_contains(page, "EXECUTION COMPLETE")
                 or self._body_contains(page, "COMPLETE — PROOF")
                 or self._body_contains(page, "PlanExecutionProof")
-                or self._body_contains(page, "execution report")
-            )
-            report_present = body_has
-            detail = f"conversation_id={conv[:16]} report_in_thread={body_has}"
-        else:
-            detail = "no execution conversation id captured"
-        self.stage("w26_same_thread_report", report_present, detail)
-        self.shot(page, "w26_report")
-        self.dom(page, "w26_report")
+            ):
+                report_present = True
+                break
+            time.sleep(3)
+        conjuncts = " ".join(f"{k}={v}" for k, v in checks.items())
+        self.stage(
+            "w26_task_d_terminal_verified",
+            d_ok,
+            f"d=[{','.join(summary) or '-'}] {conjuncts} "
+            f"report_in_thread={report_present}"
+            + (
+                ""
+                if report_present
+                else " (non-gating: completion-report capability not yet implemented by candidate)"
+            ),
+        )
+        self.shot(page, "w26_d_terminal")
+        self.dom(page, "w26_d_terminal")
 
     # ── w27 — Work Detail shows execution lineage ─────────────────────────────
     def _w27_work_detail_lineage(self, page: Any, ctx: dict[str, Any]) -> None:
         """Work Detail exposes the execution lineage: attempt → assignment →
-        environment lease → verification/proof."""
-        # Open a task's execution detail via the overlay / open-task affordance.
+        environment lease → verification/proof.
+
+        EXPLICIT NAVIGATION (inv #54 fix): the lineage drawer (AttemptsView)
+        lives on the canonical execution panel; the old implementation clicked
+        the chat-card affordance from whatever view was mounted and sampled the
+        drawer 1s later — structurally False on a correct run. Now: navigate to
+        the execution panel, select an attempt row (the drawer's real open
+        affordance), and bounded-wait for the drawer's lineage sections to
+        render (the drawer fetches attempt detail). Timeout fails CLOSED.
+        """
+        on_surface = self._goto_panel(page, "execution", W2_EXECUTION_ROOT)
         opened = False
-        if page.locator(W2_OPEN_TASK_BTN).count() > 0:
-            page.locator(W2_OPEN_TASK_BTN).first.click()
-            page.wait_for_timeout(1000)
-            opened = True
-        elif page.locator(W2_OPEN_EXECUTION_BTN).count() > 0:
-            page.locator(W2_OPEN_EXECUTION_BTN).first.click()
-            page.wait_for_timeout(1000)
-            opened = True
-        assignment = page.locator(W2_ASSIGNMENT).count() > 0
-        lease = page.locator(W2_ENVIRONMENT_LEASE).count() > 0
-        verification = page.locator(W2_VERIFICATION_STATUS).count() > 0
+        assignment = lease = verification = False
+        if on_surface:
+            deadline = time.time() + W27_DRAWER_WAIT_S
+            while time.time() < deadline:
+                rows = page.locator(W2_EXECUTION_ATTEMPT)
+                if rows.count() > 0:
+                    if not opened:
+                        # AttemptsView repolls every 4s — a count()-then-click()
+                        # straddling a re-render can raise on a detached node.
+                        # A transient click failure retries in-loop; it must
+                        # NEVER abort the whole journey (that would lose
+                        # w28-w30 and the entire pass to a stale handle).
+                        try:
+                            rows.first.click()
+                            opened = True
+                        except Exception as exc:  # noqa: BLE001
+                            self._last_nav_error = str(exc)[:120]
+                    if opened:
+                        assignment = page.locator(W2_ASSIGNMENT).count() > 0
+                        lease = page.locator(W2_ENVIRONMENT_LEASE).count() > 0
+                        verification = page.locator(W2_VERIFICATION_STATUS).count() > 0
+                        if assignment and lease and verification:
+                            break
+                time.sleep(2)
         overlay = page.locator(W2_WORK_OVERLAY).count() > 0
         worker = page.locator(W2_WORKER_STATUS).count() > 0
         # The governed cancel/retry affordances render on the drawer (they route
@@ -2532,15 +2755,18 @@ class FieldCollector:
         cancel_ctrl = page.locator(W2_EXECUTION_CANCEL).count()
         retry_ctrl = page.locator(W2_EXECUTION_RETRY).count()
         reject_ctrl = page.locator(W2_EXEC_REJECT_BTN).count()
-        # Lineage is proven when the drawer shows assignment + lease + verification;
-        # the overlay/worker-status/governed-controls are corroborating surfaces.
-        ok = assignment and lease and verification
+        # Lineage is proven when the drawer shows assignment + lease + verification
+        # ON the explicitly-navigated execution surface with a genuinely opened
+        # attempt; the overlay/worker-status/governed-controls are corroborating.
+        ok = on_surface and opened and assignment and lease and verification
+        nav_note = "" if on_surface else f" nav_err={self._last_nav_error or 'mount_timeout'}"
         self.stage(
             "w27_work_detail_lineage",
             ok,
-            f"opened={opened} assignment={assignment} lease={lease} "
-            f"verification={verification} overlay={overlay} worker_status={worker} "
-            f"cancel_ctrl={cancel_ctrl} retry_ctrl={retry_ctrl} reject_ctrl={reject_ctrl}",
+            f"on_surface={on_surface} opened={opened} assignment={assignment} "
+            f"lease={lease} verification={verification} overlay={overlay} "
+            f"worker_status={worker} cancel_ctrl={cancel_ctrl} "
+            f"retry_ctrl={retry_ctrl} reject_ctrl={reject_ctrl}" + nav_note,
         )
         self.shot(page, "w27_lineage")
         self.dom(page, "w27_lineage")
