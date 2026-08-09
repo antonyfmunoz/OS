@@ -1594,6 +1594,111 @@ class FieldCollector:
     def _attempt_task(self, attempt: dict[str, Any]) -> str:
         return str(attempt.get("task_id", ""))
 
+    # ── durable history-backed observation (w16/w17/w18) ──────────────────────
+    #
+    # w16/w17/w18 must verify that a required lifecycle TRANSITION OCCURRED during
+    # this run — not that the system is STILL in that transient state when the
+    # collector happens to poll. A correct fast graph reconverges in seconds; a
+    # point-in-time "is X currently running/blocked?" check then observes nothing
+    # and falsely fails (field invocation #52). These helpers read the durable
+    # canonical evidence — the per-attempt ``transitions`` ledger and the
+    # composition Proof's ``predecessor_commits`` — so the required truths are
+    # reconstructable AFTER the graph has advanced.
+
+    def _attempt_detail(self, page: Any, attempt_id: str) -> dict[str, Any]:
+        """Full attempt record INCLUDING ``transitions`` (the by-plan row omits it).
+
+        GET /api/umh/execution/attempts/{attempt_id} → the canonical attempt with
+        its timestamped lifecycle transitions. Returns {} on any non-200.
+        """
+        if not attempt_id:
+            return {}
+        resp = self._authed_get(page, f"/api/umh/execution/attempts/{attempt_id}")
+        if not isinstance(resp, dict) or resp.get("__status") != 200 or resp.get("__error"):
+            return {}
+        if resp.get("error"):
+            return {}
+        return resp
+
+    def _transition_at(
+        self, transitions: list[dict[str, Any]], *, to_status: str = "", from_status: str = ""
+    ) -> float | None:
+        """Timestamp of the FIRST transition matching to_status and/or from_status."""
+        for t in transitions or []:
+            if to_status and str(t.get("to_status", "")) != to_status:
+                continue
+            if from_status and str(t.get("from_status", "")) != from_status:
+                continue
+            at = t.get("at")
+            if isinstance(at, (int, float)):
+                return float(at)
+        return None
+
+    def _dispatched_interval(self, transitions: list[dict[str, Any]]) -> tuple[float, float] | None:
+        """The real worker-execution window: [leased→dispatched, dispatched→running].
+
+        The ``running`` STATUS is a zero-width instant in the ledger (the poller
+        stamps ``dispatched→running`` and ``running→verifying`` at the same time
+        when the worker RESULT arrives), so it cannot express overlap. The
+        ``dispatched`` PHASE — from ``leased→dispatched`` until the result is
+        received (``dispatched→running``) — is the actual interval a worker was
+        executing. Returns (enter, exit) or None if the attempt never dispatched.
+        """
+        enter = self._transition_at(transitions, to_status="dispatched")
+        exit_ = self._transition_at(transitions, from_status="dispatched")
+        if enter is None or exit_ is None or exit_ < enter:
+            return None
+        return (enter, exit_)
+
+    @staticmethod
+    def _intervals_overlap(a: tuple[float, float], b: tuple[float, float]) -> float:
+        """Seconds of temporal overlap between two [enter, exit] intervals (0 if none)."""
+        return max(0.0, min(a[1], b[1]) - max(a[0], b[0]))
+
+    def _composition_proof(self, page: Any, proof_id: str) -> dict[str, Any]:
+        """A composition Proof's ``action`` (predecessor_commits / composed_commit).
+
+        GET /api/umh/proof-inspector/packages/{proof_id} → pkg.to_dict(). The
+        composition action carries ``predecessor_commits`` (task_id → commit),
+        which is how Task C is identified from durable evidence alone (no
+        execution_kind field is exposed on any read surface). Returns the action
+        dict, or {} on any non-200 / missing action.
+        """
+        if not proof_id:
+            return {}
+        resp = self._authed_get(page, f"/api/umh/proof-inspector/packages/{proof_id}")
+        if not isinstance(resp, dict) or resp.get("__status") != 200:
+            return {}
+        action = resp.get("action")
+        if isinstance(action, dict):
+            return action
+        # some serializers nest the package under __body
+        body = resp.get("__body")
+        if isinstance(body, dict) and isinstance(body.get("action"), dict):
+            return body["action"]
+        return {}
+
+    def _identify_composition(self, page: Any, attempts: list[dict[str, Any]]) -> dict[str, Any]:
+        """Task C, identified from DURABLE evidence: the attempt whose Proof carries
+        ``predecessor_commits``. Returns
+        {task_id, attempt_id, proof_id, predecessor_commits, composed_commit} or {}.
+        """
+        for a in attempts:
+            proof_id = str(a.get("proof_id", ""))
+            if not proof_id:
+                continue
+            action = self._composition_proof(page, proof_id)
+            preds = action.get("predecessor_commits")
+            if isinstance(preds, dict) and preds:
+                return {
+                    "task_id": self._attempt_task(a),
+                    "attempt_id": str(a.get("attempt_id", "")),
+                    "proof_id": proof_id,
+                    "predecessor_commits": dict(preds),
+                    "composed_commit": str(action.get("composed_commit", "")),
+                }
+        return {}
+
     # ── w01 — session + single-daemon proof ──────────────────────────────────
     def _w01_session_proof(self, page: Any, ctx: dict[str, Any]) -> None:
         """Re-assert the Stage-0 session proof under the w01 id (visible Chrome,
@@ -1929,114 +2034,270 @@ class FieldCollector:
 
     # ── w16 — A + B RUNNING concurrently ──────────────────────────────────────
     def _w16_ab_running_concurrent(self, page: Any, ctx: dict[str, Any]) -> None:
-        """Exactly TWO implementation attempts (A, B) run concurrently with
-        DISTINCT task ids — proving parallel dispatch of the independent tasks."""
+        """Exactly TWO implementation attempts (A, B) executed CONCURRENTLY with
+        DISTINCT task ids — proven from DURABLE history, not a live snapshot.
+
+        HISTORY-BACKED (field #52 fix): the ``running`` status is a zero-width
+        instant in the ledger, so a fast graph never shows two "running" at once.
+        Instead we reconstruct each implementation attempt's real worker-execution
+        window — the ``dispatched`` phase ([leased→dispatched, dispatched→running])
+        — from its durable ``transitions`` and require genuine TEMPORAL OVERLAP of
+        the two independent first-attempts (A1 ∥ B). This passes for both fast and
+        slow correct graphs and cannot be satisfied by two sequential dispatches.
+
+        The implementation attempts are the two ``attempt_number == 1`` attempts
+        that are NOT the composition task (identified via its Proof's
+        predecessor_commits) and NOT the verification task (D). The composed
+        task's own predecessor_commits name exactly these two task ids, which is
+        the run-bound, candidate-bound anchor tying this stage to THIS graph.
+        """
         deadline = time.time() + 240
-        running_tasks: set[str] = set()
-        dom_running = 0
+        comp: dict[str, Any] = {}
+        impl_first: dict[str, dict[str, Any]] = {}
+        # Bounded-wait until BOTH implementation attempts have a durable dispatched
+        # interval AND the composition proof exists (so we can name the true A/B
+        # pair from predecessor_commits — never a DOM guess).
         while time.time() < deadline:
             attempts = self._read_attempts(page)
-            running = [a for a in attempts if self._attempt_status(a) == "running"]
-            running_tasks = {self._attempt_task(a) for a in running if self._attempt_task(a)}
-            dom_running = self._attempts_dom(page, "running").count()
-            # Record every attempt id we see for later steps.
             for a in attempts:
                 tid, aid = self._attempt_task(a), a.get("attempt_id")
                 if tid and aid:
                     self._attempt_ids[tid] = aid
-            if len(running_tasks) >= 2:
-                break
+            comp = self._identify_composition(page, attempts) or comp
+            pred_tasks = set((comp.get("predecessor_commits") or {}).keys())
+            if pred_tasks:
+                # First attempt (attempt_number==1) of each predecessor task = the
+                # concurrent implementation pair. (A2 retry is sequential recovery.)
+                impl_first = {}
+                for a in attempts:
+                    tid = self._attempt_task(a)
+                    if tid in pred_tasks and int(a.get("attempt_number", 0) or 0) == 1:
+                        impl_first[tid] = a
+                if len(impl_first) == 2:
+                    intervals = {
+                        tid: self._dispatched_interval(
+                            self._attempt_detail(page, str(a.get("attempt_id", ""))).get(
+                                "transitions", []
+                            )
+                        )
+                        for tid, a in impl_first.items()
+                    }
+                    if all(intervals.values()):
+                        break
             time.sleep(3)
-        ctx["concurrent_running_tasks"] = sorted(running_tasks)
-        # The canonical execution surface must be mounted while attempts run.
+
+        pred_tasks = sorted((comp.get("predecessor_commits") or {}).keys())
+        ctx["concurrent_running_tasks"] = pred_tasks
+        ctx["composition"] = comp
+        # Reconstruct the two dispatched intervals and prove real overlap.
+        ivals = {
+            tid: self._dispatched_interval(
+                self._attempt_detail(page, str(a.get("attempt_id", ""))).get("transitions", [])
+            )
+            for tid, a in impl_first.items()
+        }
+        overlap_s = 0.0
+        both_ran = len(ivals) == 2 and all(ivals.values())
+        if both_ran:
+            (ia, ib) = list(ivals.values())
+            overlap_s = self._intervals_overlap(ia, ib)
+        # The canonical execution surface must be mounted (structural corroboration).
         exec_surface = page.locator(W2_EXECUTION_ROOT).count() > 0
-        # Exactly-2 concurrency: two distinct implementation tasks running at once.
-        # BOTH the ledger and the DOM must show EXACTLY two — dom_running == 2, not
-        # >= 2, so a 3-way over-dispatch cannot slip through the DOM half (review W7).
-        ok = len(running_tasks) == 2 and dom_running == 2 and exec_surface
+        # PASS requires: exactly two distinct predecessor tasks, both with a real
+        # dispatched interval, GENUINE temporal overlap (> 0), and the surface
+        # mounted. Sequential A-then-B yields overlap 0 → fails.
+        ok = len(pred_tasks) == 2 and both_ran and overlap_s > 0.0 and exec_surface
         self.stage(
             "w16_ab_running_concurrent",
             ok,
-            f"concurrent_running_tasks={sorted(running_tasks)} dom_running={dom_running} "
-            f"execution_surface={exec_surface}",
+            f"concurrent_tasks={pred_tasks} dispatched_overlap_s={overlap_s:.1f} "
+            f"both_dispatched={both_ran} execution_surface={exec_surface}",
         )
         self.shot(page, "w16_ab_running")
         self.dom(page, "w16_ab_running")
 
     # ── w17 — C blocked until A and B verified ────────────────────────────────
     def _w17_c_blocked(self, page: Any, ctx: dict[str, Any]) -> None:
-        """The integration task C must NOT run before A and B are verified. This
-        gate is bounded-wait (like w16/w18/w19, not a single snapshot — review
-        W6): it polls until a fan-in task appears-and-is-blocked, and enforces
-        that no task outside the two running implementation tasks has advanced to
-        running/succeeded. The blocked fan-in task is the SPECIFIC integration
-        task (neither of the two concurrent A/B tasks)."""
-        running_tasks = set(ctx.get("concurrent_running_tasks", []))
-        deadline = time.time() + 120
-        blocked_tasks: set[str] = set()
-        dom_blocked = 0
-        advanced_non_ab: list[dict[str, Any]] = []
-        c_specific_blocked = False
+        """The integration task C was correctly WITHHELD until A and B completed —
+        proven from DURABLE history, valid even after C has already composed.
+
+        HISTORY-BACKED (field #52 fix): the live "is C currently blocked?" snapshot
+        is gone the instant C composes. Instead we establish, from durable
+        ``transitions``, that C did not begin its own work until BOTH predecessors
+        reached a terminal-good (verified/succeeded) state:
+
+          - C exists and is the composition task (Proof carries predecessor_commits);
+          - C's earliest own-work transition (``created→ready`` — the moment the
+            scheduler admitted C to the frontier) is AT/AFTER both predecessors'
+            ``verifying→succeeded`` time — i.e. C was held while they ran;
+          - NO non-A/B/D task advanced to running/succeeded before the predecessors
+            verified (nothing jumped the dependency gate).
+
+        This distinguishes "C correctly withheld pending dependencies" from "C
+        never ran for an unrelated authority failure": a real C attempt with a
+        composition Proof must exist AND its admission must post-date predecessor
+        success. A missing C, or a C admitted before predecessors verified, fails.
+        """
+        pred_tasks = set(ctx.get("concurrent_running_tasks", []))
+        comp = ctx.get("composition") or {}
+        c_task = str(comp.get("task_id", ""))
+        c_attempt_id = str(comp.get("attempt_id", ""))
+        deadline = time.time() + 360
+        c_admit_at: float | None = None
+        pred_verified_at: dict[str, float] = {}
+        advanced_non_ab_early = False
         while time.time() < deadline:
             attempts = self._read_attempts(page)
-            blocked = [a for a in attempts if self._attempt_status(a) == "blocked"]
-            blocked_tasks = {self._attempt_task(a) for a in blocked if self._attempt_task(a)}
-            dom_blocked = self._attempts_dom(page, "blocked").count()
-            # The SPECIFIC integration task = a blocked task that is NOT one of the
-            # two concurrent implementation tasks (A, B).
-            c_tasks = {t for t in blocked_tasks if t not in running_tasks}
-            c_specific_blocked = len(c_tasks) >= 1
-            # No task outside {A,B} may be running or succeeded before A∧B verify.
-            advanced_non_ab = [
-                a
-                for a in attempts
-                if self._attempt_task(a) not in running_tasks
-                and self._attempt_status(a) in ("running", "succeeded")
-            ]
-            # Terminal-good once we've positively seen a non-A/B task blocked with
-            # nothing advanced; keep waiting for the blocked attempt to materialize.
-            if (c_specific_blocked or dom_blocked >= 1) and not advanced_non_ab:
-                # Give a beat to catch a late over-dispatch before declaring OK.
-                if c_specific_blocked:
-                    break
-            if advanced_non_ab:
-                break  # a violation is terminal — report it immediately
+            # predecessor success times (each predecessor's verifying→succeeded)
+            pred_verified_at = {}
+            for a in attempts:
+                tid = self._attempt_task(a)
+                if tid in pred_tasks and self._attempt_status(a) == "succeeded":
+                    det = self._attempt_detail(page, str(a.get("attempt_id", "")))
+                    t = self._transition_at(det.get("transitions", []), to_status="succeeded")
+                    if t is not None:
+                        # keep the LATEST success across retries of this task
+                        pred_verified_at[tid] = max(pred_verified_at.get(tid, 0.0), t)
+            # C's admission time (created→ready)
+            if c_attempt_id:
+                cdet = self._attempt_detail(page, c_attempt_id)
+                c_admit_at = self._transition_at(cdet.get("transitions", []), to_status="ready")
+            # dependency-gate violation: any task that is NOT a predecessor and NOT
+            # the composition/verification lane that entered running before both
+            # predecessors verified.
+            if len(pred_verified_at) == 2:
+                gate = max(pred_verified_at.values())
+                for a in attempts:
+                    tid = self._attempt_task(a)
+                    if tid in pred_tasks or tid == c_task:
+                        continue
+                    det = self._attempt_detail(page, str(a.get("attempt_id", "")))
+                    ran = self._transition_at(det.get("transitions", []), to_status="dispatched")
+                    if ran is not None and ran < gate - 1.0:
+                        advanced_non_ab_early = True
+            # terminal-good once both predecessors verified and C is admitted after
+            if len(pred_verified_at) == 2 and c_admit_at is not None:
+                break
             time.sleep(3)
-        ctx["blocked_tasks"] = sorted(blocked_tasks)
-        # Prefer the specific-C proof; fall back to "≥1 blocked" only if the task
-        # id can't be distinguished, but ALWAYS require nothing advanced past A,B.
-        ok = (c_specific_blocked or len(blocked_tasks) >= 1 or dom_blocked >= 1) and len(
-            advanced_non_ab
-        ) == 0
+        ctx["blocked_tasks"] = [c_task] if c_task else []
+        both_verified = len(pred_verified_at) == 2
+        gate = max(pred_verified_at.values()) if both_verified else 0.0
+        # C admitted AT/AFTER both predecessors verified (allow 1s clock slack).
+        c_withheld = (
+            bool(c_task) and c_admit_at is not None and both_verified and c_admit_at >= gate - 1.0
+        )
+        ok = c_withheld and not advanced_non_ab_early
         self.stage(
             "w17_c_blocked",
             ok,
-            f"blocked_tasks={sorted(blocked_tasks)} c_specific_blocked={c_specific_blocked} "
-            f"dom_blocked={dom_blocked} advanced_non_ab={len(advanced_non_ab)}",
+            f"c_task={c_task} c_admit_at={c_admit_at} pred_verified={both_verified} "
+            f"gate={gate:.3f} c_withheld={c_withheld} early_advance={advanced_non_ab_early}",
         )
         self.shot(page, "w17_c_blocked")
 
     # ── w18 — A and B verified (AttemptProof) ─────────────────────────────────
     def _w18_ab_verified(self, page: Any, ctx: dict[str, Any]) -> None:
-        """A and B reach succeeded, each with an AttemptProof (w2-proof-link)."""
-        running_tasks = set(ctx.get("concurrent_running_tasks", []))
+        """A and B each SUCCEEDED with a durable Proof BEFORE C consumed them, and
+        C's composition binds exactly their commits — proven from DURABLE evidence,
+        valid even after C and D have already succeeded.
+
+        HISTORY-BACKED (field #52 fix): rather than requiring A/B to be *currently*
+        shown succeeded, we establish from durable state that:
+
+          - for EACH predecessor task, its qualifying SUCCEEDED attempt (the retry
+            that succeeded, not the failed A1) has a non-empty ``proof_id`` and a
+            ``verifying→succeeded`` transition;
+          - both predecessors succeeded BEFORE C's composition began
+            (C's ``created→ready`` / composition transition post-dates them);
+          - C's composition Proof ``predecessor_commits`` names exactly these two
+            predecessor task ids AND binds each to that task's succeeded commit.
+
+        A predecessor that only ever FAILED (e.g. A1) cannot satisfy this — only a
+        task's succeeded attempt with a Proof does. Wrong predecessor bindings in
+        C's Proof fail the stage.
+        """
+        pred_tasks = set(ctx.get("concurrent_running_tasks", []))
+        comp = ctx.get("composition") or {}
+        comp_preds: dict[str, str] = dict(comp.get("predecessor_commits") or {})
         deadline = time.time() + 360
-        succeeded_ab: dict[str, str] = {}
+        verified: dict[str, dict[str, Any]] = {}
         while time.time() < deadline:
             attempts = self._read_attempts(page)
+            verified = {}
             for a in attempts:
                 tid = self._attempt_task(a)
-                if tid in running_tasks and self._attempt_status(a) == "succeeded":
-                    succeeded_ab[tid] = str(a.get("proof_id", ""))
-            if len(succeeded_ab) >= 2 and all(succeeded_ab.values()):
+                if tid not in pred_tasks or self._attempt_status(a) != "succeeded":
+                    continue
+                proof_id = str(a.get("proof_id", ""))
+                if not proof_id:
+                    continue
+                det = self._attempt_detail(page, str(a.get("attempt_id", "")))
+                succ_at = self._transition_at(det.get("transitions", []), to_status="succeeded")
+                commit = ""
+                commits = det.get("commits") or a.get("commits") or []
+                if commits:
+                    # commit sha is the leading token of the row ("<sha> <msg>")
+                    commit = str(commits[0]).split()[0]
+                verified[tid] = {"proof_id": proof_id, "succeeded_at": succ_at, "commit": commit}
+            if len(verified) == 2 and all(
+                v["proof_id"] and v["succeeded_at"] for v in verified.values()
+            ):
                 break
             time.sleep(3)
-        ctx["ab_verified_at"] = time.time()
-        all_have_proof = len(succeeded_ab) >= 2 and all(succeeded_ab.values())
+
+        # latest predecessor success time → the "before C composed" anchor
+        ab_verified_at = max(
+            (v["succeeded_at"] for v in verified.values() if v["succeeded_at"]), default=0.0
+        )
+        ctx["ab_verified_at"] = ab_verified_at or time.time()
+
+        # C composition must post-date both predecessor successes.
+        c_attempt_id = str(comp.get("attempt_id", ""))
+        c_compose_at: float | None = None
+        if c_attempt_id:
+            cdet = self._attempt_detail(page, c_attempt_id)
+            # composition begins at leased→verifying (composer) or created→ready
+            c_compose_at = self._transition_at(
+                cdet.get("transitions", []), from_status="leased", to_status="verifying"
+            ) or self._transition_at(cdet.get("transitions", []), to_status="ready")
+
+        both_proofed = len(verified) == 2 and all(
+            v["proof_id"] and v["succeeded_at"] for v in verified.values()
+        )
+        composed_after = (
+            c_compose_at is not None
+            and ab_verified_at > 0.0
+            and c_compose_at >= ab_verified_at - 1.0
+        )
+
+        # C's Proof predecessor set must be EXACTLY the two predecessor tasks, and
+        # EACH predecessor commit must match that task's succeeded-attempt commit.
+        # STRICT: every predecessor must resolve to a verified attempt with a
+        # commit that binds to C's predecessor_commits — no vacuous skip (a
+        # missing/foreign predecessor must FAIL, never pass by omission).
+        def _commit_binds(tid: str) -> bool:
+            v = verified.get(tid, {})
+            vc = str(v.get("commit", ""))
+            pc = str(comp_preds.get(tid, ""))
+            if not vc or not pc:
+                return False
+            return vc.startswith(pc[:12]) or pc.startswith(vc[:12])
+
+        # ONE load-bearing binding check (no redundant set-equality term whose
+        # mutation would be equivalent): exactly 2 predecessors, the set equals
+        # the concurrent pair, and every predecessor binds to a verified commit.
+        preds_bound = (
+            len(comp_preds) == 2
+            and set(comp_preds.keys()) == pred_tasks
+            and len(pred_tasks) == 2
+            and all(_commit_binds(tid) for tid in pred_tasks)
+        )
+        ok = both_proofed and composed_after and preds_bound
         self.stage(
             "w18_ab_verified",
-            all_have_proof,
-            f"succeeded_ab={sorted(succeeded_ab)} proofs={[p[:12] for p in succeeded_ab.values()]}",
+            ok,
+            f"verified={sorted(verified)} both_proofed={both_proofed} "
+            f"composed_after={composed_after} preds_bound={preds_bound}",
         )
         self.shot(page, "w18_ab_verified")
         self.dom(page, "w18_ab_verified")
