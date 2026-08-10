@@ -182,8 +182,8 @@ Subject: `Last check on your storm claim`
 Last time we'll reach out about {{estimate.address}}.
 
 If your claim is still open, we can still help — reply and we'll pick
-it back up. If it's handled or you've gone another direction, no
-problem at all.
+it back up. If it's handled or you've gone another direction, that's
+completely fine.
 
 {{location.name}}
 {{location.phone}}

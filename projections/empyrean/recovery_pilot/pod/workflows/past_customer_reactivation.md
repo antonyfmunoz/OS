@@ -185,8 +185,8 @@ whatever we find either way.
 
 ```
 Following up on the storm check for {{job.address}}. If you've
-already had someone out, no problem — just let us know and we'll
-leave you be.
+already had someone out, that's completely fine — just let us know
+and we'll leave you be.
 
 Reply STOP to opt out.
 ```

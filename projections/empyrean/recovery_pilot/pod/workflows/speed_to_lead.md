@@ -140,7 +140,7 @@ Subject: `Still want us to take a look?`
 {{contact.first_name}},
 
 Checking in one more time about your roof. If the timing isn't right,
-no problem — just reply and tell us when to check back.
+no trouble at all — just reply and tell us when to check back.
 
 If you'd rather talk, call {{location.phone}}.
 
