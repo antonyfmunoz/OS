@@ -1,0 +1,94 @@
+<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>The Job Pipeline Audit</title><style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0A0A0B; color: #F5F5F4;
+  font-family: Inter, system-ui, sans-serif; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 800px; margin: 0 auto; padding: 48px 28px; }
+.wordmark {
+  font-family: Archivo, Inter, system-ui, sans-serif; font-weight: 700; font-size: 13px;
+  letter-spacing: 0.3em; color: #F5F5F4; text-transform: uppercase;
+}
+h1, h2, h3 { font-family: Archivo, Inter, system-ui, sans-serif; font-weight: 700; }
+h1 { font-size: 30px; line-height: 1.15; margin: 18px 0 6px; }
+h2 { font-size: 19px; margin: 34px 0 12px; }
+.muted { color: #8E8E93; }
+.accent { color: #6D28D9; }
+.rule { height: 2px; background: #6D28D9; width: 56px; margin: 18px 0; border: 0; }
+.card {
+  background: #121214; border: 1px solid #1F1F23;
+  border-radius: 6px; padding: 20px 22px; margin: 12px 0;
+}
+.big-number {
+  font-family: Archivo, Inter, system-ui, sans-serif; font-weight: 700; font-size: 44px;
+  color: #8B5CF6; letter-spacing: -0.01em;
+}
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid #1F1F23; font-size: 14px; }
+th { color: #8E8E93; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
+.verdict { display: inline-block; font-family: Archivo, Inter, system-ui, sans-serif; font-weight: 700;
+  padding: 4px 14px; border-radius: 4px; font-size: 14px; letter-spacing: 0.05em; }
+.verdict.pass { background: rgba(34,197,94,.12); color: #22C55E; border: 1px solid #22C55E; }
+.verdict.prorate { background: rgba(234,179,8,.12); color: #EAB308; border: 1px solid #EAB308; }
+.verdict.fail { background: rgba(239,68,68,.12); color: #EF4444; border: 1px solid #EF4444; }
+.bar { background: #1F1F23; border-radius: 3px; height: 8px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: #8B5CF6; }
+.cta {
+  display: inline-block; background: #6D28D9; color: #F5F5F4;
+  font-family: Archivo, Inter, system-ui, sans-serif; font-weight: 700; font-size: 15px;
+  padding: 13px 30px; border-radius: 6px; text-decoration: none; border: 0;
+}
+.footnote { font-size: 12px; color: #8E8E93; margin-top: 26px;
+  border-top: 1px solid #1F1F23; padding-top: 14px; }
+@media print {
+  body { background: #ffffff; color: #111113; }
+  .card { background: #fafafa; border-color: #e4e4e7; }
+  .wordmark, h1, h2, h3 { color: #111113; }
+  .cta { display: none; }
+}
+</style></head><body><div class='page'><div class='wordmark'>EMPYREAN STUDIOS</div><h1>The Job Pipeline Audit</h1><div class="muted" style="font-size:14px">Cascade Summit Roofing (SYNTHETIC) &middot; Confidential</div><hr class='rule'>
+    <div class="card">
+      <h2 style="margin-top:0">1. Guarantee eligibility</h2>
+      <table>
+        <tr><th>Requirement</th><th>Yours</th><th>Status</th></tr>
+        <tr><td>Reachable past customers &ge; 200</td><td>230</td><td>&#9989;</td></tr>
+        <tr><td>Open estimates &le; 12 months &ge; 50</td><td>58</td><td>&#9989;</td></tr>
+      </table>
+      <div style="margin-top:10px">Guarantee status:
+        <span class="verdict pass">PASS</span>
+        <span class='muted'>&middot; 20&ndash;25 booked-job opportunities guaranteed in 30 days</span></div>
+    </div>
+    <div class="card"><h2 style="margin-top:0">Pool 1 — Estimates waiting on an answer</h2>
+        <div>Records: <strong>58</strong> &middot; Combined value: <strong>$1,202,395</strong></div>
+        <div class="muted" style="margin:6px 0">Conversations we expect to reopen: <strong>5&ndash;14</strong></div>
+        <div class="bar"><span style="width:18%"></span></div></div><div class="card"><h2 style="margin-top:0">Pool 2 — Past customers</h2>
+        <div>Records: <strong>230</strong> &middot; Combined value: <strong>$4,993,179</strong></div>
+        <div class="muted" style="margin:6px 0">Conversations we expect to reopen: <strong>11&ndash;34</strong></div>
+        <div class="bar"><span style="width:74%"></span></div></div><div class="card"><h2 style="margin-top:0">Pool 3 — Calls that never got a call back</h2>
+        <div>Records: <strong>26</strong> &middot; Combined value: <strong>$468,000</strong></div>
+        <div class="muted" style="margin:6px 0">Conversations we expect to reopen: <strong>5&ndash;10</strong></div>
+        <div class="bar"><span style="width:7%"></span></div></div>
+    <div class="card" style="text-align:center">
+      <div class="muted">Total estimated pipeline waiting in your system</div>
+      <div class="big-number">$6,663,574</div>
+      <div>Homeowner conversations we expect to reopen in 30 days:
+        <strong>21&ndash;58</strong></div>
+      <div class="muted" style="font-size:13px;margin-top:6px">
+        At your close rate, an estimated $162,224&ndash;$432,871 in booked work.</div>
+    </div>
+    <h2>The 30-day plan</h2>
+    <table>
+      <tr><th>Week</th><th>What happens</th></tr>
+      <tr><td>Days 1&ndash;2</td><td>You approve every message &middot; system goes live &middot; every unanswered call gets an immediate text back</td></tr>
+      <tr><td>Week 1</td><td>Estimates &le; 90 days old get worked. First homeowner responses.</td></tr>
+      <tr><td>Week 2</td><td>Older estimates &middot; re-quote offers where prices moved</td></tr>
+      <tr><td>Week 3</td><td>Past customers &middot; oldest roofs first</td></tr>
+      <tr><td>Week 4</td><td>Follow-up wave &middot; full scoreboard &middot; results review</td></tr>
+    </table>
+    <h2>What we need from you</h2>
+    <p>Approvals within 48 hours &middot; about 10 minutes weekly &middot; your service
+    area declared &middot; job types confirmed. <strong>Nothing else changes for your crew.</strong></p>
+    <div class="footnote">Estimates. Assumptions: open-estimate response 10-25%, past-customer response 5-15%, unanswered-call callback 20-40%, average job value $18,000, your close rate 35%. We guarantee activated opportunities, not revenue - your team closes them.</div>
+    </div></body></html>

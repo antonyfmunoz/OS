@@ -1,0 +1,36 @@
+{
+ "kind": "scoreboard",
+ "data": {
+  "company": "Cascade Summit Roofing (SYNTHETIC)",
+  "progress": {
+   "day": 13,
+   "window_days": 30,
+   "activated": 12,
+   "guaranteed_low": 20,
+   "guaranteed_high": 25,
+   "on_pace": true,
+   "appointments": 6,
+   "booked_jobs": 3,
+   "attributed_revenue": 58500.0,
+   "client_close_rate": 0.25,
+   "by_pool": {
+    "missed call": {
+     "worked": 11,
+     "activated": 4,
+     "booked": 1
+    },
+    "open estimate": {
+     "worked": 12,
+     "activated": 4,
+     "booked": 1
+    },
+    "past customer": {
+     "worked": 11,
+     "activated": 4,
+     "booked": 1
+    }
+   }
+  },
+  "week_of": "August 10, 2026"
+ }
+}

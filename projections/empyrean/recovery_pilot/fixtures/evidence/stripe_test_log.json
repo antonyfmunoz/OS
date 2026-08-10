@@ -1,0 +1,86 @@
+[
+ {
+  "run_at": "2026-08-10T22:47:06.940564+00:00",
+  "mode": "TEST",
+  "result": "SIMULATED \u2014 no STRIPE_TEST_KEY available"
+ },
+ {
+  "call": "create_product_activation",
+  "method": "POST",
+  "path": "/products",
+  "params": {
+   "name": "The Job Pipeline System \u2014 Activation",
+   "description": "Activation + month one"
+  },
+  "simulated": true
+ },
+ {
+  "call": "create_price_activation",
+  "method": "POST",
+  "path": "/prices",
+  "params": {
+   "unit_amount": 500000,
+   "currency": "usd",
+   "product": "{prod_activation}"
+  },
+  "simulated": true
+ },
+ {
+  "call": "create_product_monthly",
+  "method": "POST",
+  "path": "/products",
+  "params": {
+   "name": "The Job Pipeline System \u2014 Monthly"
+  },
+  "simulated": true
+ },
+ {
+  "call": "create_price_monthly",
+  "method": "POST",
+  "path": "/prices",
+  "params": {
+   "unit_amount": 250000,
+   "currency": "usd",
+   "recurring[interval]": "month",
+   "product": "{prod_monthly}"
+  },
+  "simulated": true
+ },
+ {
+  "call": "charge_success",
+  "method": "POST",
+  "path": "/payment_intents",
+  "params": {
+   "amount": 500000,
+   "currency": "usd",
+   "confirm": "true",
+   "payment_method": "pm_card_visa",
+   "automatic_payment_methods[enabled]": "true",
+   "automatic_payment_methods[allow_redirects]": "never"
+  },
+  "simulated": true
+ },
+ {
+  "call": "charge_declined",
+  "method": "POST",
+  "path": "/payment_intents",
+  "params": {
+   "amount": 500000,
+   "currency": "usd",
+   "confirm": "true",
+   "payment_method": "pm_card_visa_chargeDeclined",
+   "automatic_payment_methods[enabled]": "true",
+   "automatic_payment_methods[allow_redirects]": "never"
+  },
+  "simulated": true
+ },
+ {
+  "call": "refund_success_charge",
+  "method": "POST",
+  "path": "/refunds",
+  "params": {
+   "payment_intent": "{pi_success}"
+  },
+  "simulated": true
+ }
+]

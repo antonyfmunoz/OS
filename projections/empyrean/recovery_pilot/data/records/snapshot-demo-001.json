@@ -1,0 +1,70 @@
+{
+ "kind": "snapshot",
+ "data": {
+  "answers": {
+   "company": "Cascade Roofing & Restoration",
+   "service_area": "Portland metro",
+   "estimates_open": 43,
+   "past_customers": 260,
+   "missed_calls_month": 28,
+   "avg_job_value": 18000,
+   "close_rate_pct": 35
+  },
+  "projection": {
+   "eligibility": {
+    "verdict": "PRO-RATE",
+    "past_customers": 260,
+    "past_customers_required": 200,
+    "open_estimates": 43,
+    "open_estimates_required": 50,
+    "guaranteed_low": 17,
+    "guaranteed_high": 21
+   },
+   "pools": [
+    {
+     "pool": "open estimate",
+     "count": 43,
+     "opportunities_low": 4,
+     "opportunities_high": 10,
+     "pipeline_value": 774000.0,
+     "est_recoverable_value_low": 27090.0,
+     "est_recoverable_value_high": 67725.0
+    },
+    {
+     "pool": "past customer",
+     "count": 260,
+     "opportunities_low": 13,
+     "opportunities_high": 39,
+     "pipeline_value": 4680000.0,
+     "est_recoverable_value_low": 81900.0,
+     "est_recoverable_value_high": 245700.0
+    },
+    {
+     "pool": "missed call",
+     "count": 28,
+     "opportunities_low": 5,
+     "opportunities_high": 11,
+     "pipeline_value": 504000.0,
+     "est_recoverable_value_low": 35280.0,
+     "est_recoverable_value_high": 70560.0
+    }
+   ],
+   "total_pipeline_value": 5958000.0,
+   "total_opportunities_low": 22,
+   "total_opportunities_high": 60,
+   "total_recoverable_low": 144270.0,
+   "total_recoverable_high": 383985.0,
+   "assumptions": "Estimates. Assumptions: open-estimate response 10-25%, past-customer response 5-15%, missed-call recovery 20-40%, average job value $18,000.0, your close rate 35%. We guarantee activated opportunities, not revenue - your team closes them.",
+   "config": {
+    "avg_job_value": 18000.0,
+    "estimate_response_low": 0.1,
+    "estimate_response_high": 0.25,
+    "past_customer_response_low": 0.05,
+    "past_customer_response_high": 0.15,
+    "missed_call_recovery_low": 0.2,
+    "missed_call_recovery_high": 0.4,
+    "close_rate": 0.35
+   }
+  }
+ }
+}

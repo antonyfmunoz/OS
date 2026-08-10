@@ -1,0 +1,36 @@
+{
+ "kind": "scoreboard",
+ "data": {
+  "company": "Cascade Roofing & Restoration",
+  "progress": {
+   "day": 13,
+   "window_days": 30,
+   "activated": 18,
+   "guaranteed_low": 20,
+   "guaranteed_high": 25,
+   "on_pace": true,
+   "appointments": 9,
+   "booked_jobs": 4,
+   "attributed_revenue": 84000.0,
+   "client_close_rate": 0.222,
+   "by_pool": {
+    "missed call": {
+     "worked": 14,
+     "activated": 6,
+     "booked": 2
+    },
+    "open estimate": {
+     "worked": 13,
+     "activated": 6,
+     "booked": 1
+    },
+    "past customer": {
+     "worked": 13,
+     "activated": 6,
+     "booked": 1
+    }
+   }
+  },
+  "week_of": "August 10, 2026"
+ }
+}

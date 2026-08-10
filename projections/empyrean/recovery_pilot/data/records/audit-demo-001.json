@@ -1,0 +1,2067 @@
+{
+ "kind": "audit",
+ "data": {
+  "company": "Cascade Roofing & Restoration",
+  "classified": {
+   "pools": {
+    "open estimate": [
+     {
+      "contact": "Prospect 60",
+      "date": "2025-08-07",
+      "amount": 10397.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 47",
+      "date": "2026-01-22",
+      "amount": 22563.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 51",
+      "date": "2026-03-22",
+      "amount": 15802.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 24",
+      "date": "2026-07-03",
+      "amount": 25369.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 14",
+      "date": "2026-02-13",
+      "amount": 20958.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 50",
+      "date": "2026-06-01",
+      "amount": 22528.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 62",
+      "date": "2025-12-24",
+      "amount": 10735.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 38",
+      "date": "2025-12-21",
+      "amount": 10880.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 23",
+      "date": "2026-06-09",
+      "amount": 28747.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 16",
+      "date": "2025-11-19",
+      "amount": 15608.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 43",
+      "date": "2026-03-08",
+      "amount": 29782.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 65",
+      "date": "2026-05-21",
+      "amount": 30186.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 69",
+      "date": "2026-03-08",
+      "amount": 13026.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 11",
+      "date": "2025-12-30",
+      "amount": 22779.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 67",
+      "date": "2025-12-05",
+      "amount": 26674.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 9",
+      "date": "2026-03-11",
+      "amount": 9988.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 7",
+      "date": "2025-09-19",
+      "amount": 12231.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 41",
+      "date": "2026-01-27",
+      "amount": 20365.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 45",
+      "date": "2026-07-04",
+      "amount": 20790.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 46",
+      "date": "2026-04-21",
+      "amount": 26076.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 30",
+      "date": "2026-03-17",
+      "amount": 10174.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 32",
+      "date": "2025-12-24",
+      "amount": 17570.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 10",
+      "date": "2026-02-13",
+      "amount": 26567.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 40",
+      "date": "2026-05-08",
+      "amount": 28986.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 53",
+      "date": "2026-03-14",
+      "amount": 11725.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 35",
+      "date": "2025-11-07",
+      "amount": 11564.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 31",
+      "date": "2026-04-30",
+      "amount": 20380.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 8",
+      "date": "2025-08-18",
+      "amount": 31789.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 18",
+      "date": "2025-12-08",
+      "amount": 31308.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 48",
+      "date": "2026-05-01",
+      "amount": 20021.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 1",
+      "date": "2026-01-16",
+      "amount": 25364.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 52",
+      "date": "2025-08-06",
+      "amount": 23995.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 21",
+      "date": "2026-01-01",
+      "amount": 30878.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 37",
+      "date": "2026-03-30",
+      "amount": 25458.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 36",
+      "date": "2026-03-01",
+      "amount": 24763.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 27",
+      "date": "2026-03-28",
+      "amount": 14616.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 34",
+      "date": "2026-02-11",
+      "amount": 31662.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 0",
+      "date": "2026-05-28",
+      "amount": 13465.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 4",
+      "date": "2025-12-09",
+      "amount": 18033.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 54",
+      "date": "2025-11-24",
+      "amount": 10937.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 63",
+      "date": "2025-10-12",
+      "amount": 28421.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 6",
+      "date": "2025-11-11",
+      "amount": 12849.0,
+      "status": "open"
+     },
+     {
+      "contact": "Prospect 59",
+      "date": "2025-11-13",
+      "amount": 14649.0,
+      "status": "open"
+     }
+    ],
+    "past customer": [
+     {
+      "contact": "Homeowner 250",
+      "date": "2021-03-25",
+      "amount": 10705.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 20",
+      "date": "2025-12-19",
+      "amount": 16987.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 140",
+      "date": "2025-04-26",
+      "amount": 22595.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 18",
+      "date": "2022-10-13",
+      "amount": 15658.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 253",
+      "date": "2022-06-28",
+      "amount": 23912.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 24",
+      "date": "2022-07-17",
+      "amount": 19650.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 74",
+      "date": "2021-10-26",
+      "amount": 28058.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 178",
+      "date": "2023-10-19",
+      "amount": 9732.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 96",
+      "date": "2025-07-25",
+      "amount": 12522.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 98",
+      "date": "2025-06-12",
+      "amount": 10504.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 14",
+      "date": "2025-08-18",
+      "amount": 13617.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 85",
+      "date": "2024-07-02",
+      "amount": 20117.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 203",
+      "date": "2021-08-29",
+      "amount": 31436.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 232",
+      "date": "2023-03-23",
+      "amount": 34560.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 170",
+      "date": "2025-08-18",
+      "amount": 26974.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 239",
+      "date": "2023-10-08",
+      "amount": 34952.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 33",
+      "date": "2021-05-17",
+      "amount": 31709.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 76",
+      "date": "2024-03-19",
+      "amount": 29578.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 221",
+      "date": "2023-08-12",
+      "amount": 32149.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 231",
+      "date": "2023-12-08",
+      "amount": 19485.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 155",
+      "date": "2021-09-14",
+      "amount": 28920.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 41",
+      "date": "2022-03-26",
+      "amount": 20383.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 105",
+      "date": "2023-03-13",
+      "amount": 13590.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 205",
+      "date": "2024-12-27",
+      "amount": 15224.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 254",
+      "date": "2024-01-07",
+      "amount": 29502.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 119",
+      "date": "2022-01-20",
+      "amount": 33074.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 4",
+      "date": "2024-10-07",
+      "amount": 14059.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 13",
+      "date": "2025-04-20",
+      "amount": 19039.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 7",
+      "date": "2023-09-06",
+      "amount": 13157.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 229",
+      "date": "2021-04-20",
+      "amount": 8327.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 86",
+      "date": "2021-10-10",
+      "amount": 12644.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 219",
+      "date": "2024-11-04",
+      "amount": 14155.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 89",
+      "date": "2023-09-30",
+      "amount": 28202.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 92",
+      "date": "2022-06-02",
+      "amount": 19538.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 133",
+      "date": "2023-05-29",
+      "amount": 30147.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 198",
+      "date": "2022-09-21",
+      "amount": 8166.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 244",
+      "date": "2023-07-26",
+      "amount": 34895.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 32",
+      "date": "2025-11-13",
+      "amount": 34526.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 82",
+      "date": "2026-01-12",
+      "amount": 24895.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 54",
+      "date": "2021-04-25",
+      "amount": 33794.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 238",
+      "date": "2021-11-20",
+      "amount": 15672.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 118",
+      "date": "2025-04-12",
+      "amount": 32667.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 99",
+      "date": "2023-02-04",
+      "amount": 20228.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 71",
+      "date": "2026-04-08",
+      "amount": 24546.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 43",
+      "date": "2022-07-30",
+      "amount": 23283.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 230",
+      "date": "2022-12-03",
+      "amount": 19358.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 67",
+      "date": "2024-05-03",
+      "amount": 16004.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 255",
+      "date": "2021-03-01",
+      "amount": 32114.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 60",
+      "date": "2023-11-27",
+      "amount": 27562.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 134",
+      "date": "2021-08-15",
+      "amount": 33912.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 64",
+      "date": "2021-09-24",
+      "amount": 22025.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 208",
+      "date": "2023-10-02",
+      "amount": 17205.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 183",
+      "date": "2025-10-23",
+      "amount": 28744.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 218",
+      "date": "2026-04-14",
+      "amount": 27212.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 12",
+      "date": "2023-06-23",
+      "amount": 12655.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 182",
+      "date": "2025-04-28",
+      "amount": 29917.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 27",
+      "date": "2022-03-04",
+      "amount": 18061.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 84",
+      "date": "2025-02-22",
+      "amount": 15315.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 80",
+      "date": "2021-06-23",
+      "amount": 8807.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 45",
+      "date": "2023-07-16",
+      "amount": 15342.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 44",
+      "date": "2023-08-31",
+      "amount": 15498.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 162",
+      "date": "2023-09-25",
+      "amount": 14562.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 130",
+      "date": "2022-08-10",
+      "amount": 15238.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 165",
+      "date": "2022-07-02",
+      "amount": 22313.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 173",
+      "date": "2023-10-22",
+      "amount": 8745.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 226",
+      "date": "2023-04-07",
+      "amount": 8463.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 123",
+      "date": "2023-07-09",
+      "amount": 9355.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 107",
+      "date": "2023-02-14",
+      "amount": 22503.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 210",
+      "date": "2022-09-10",
+      "amount": 10081.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 75",
+      "date": "2025-01-23",
+      "amount": 23269.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 103",
+      "date": "2024-10-11",
+      "amount": 21379.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 257",
+      "date": "2024-11-19",
+      "amount": 27259.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 185",
+      "date": "2023-02-20",
+      "amount": 34949.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 109",
+      "date": "2021-07-08",
+      "amount": 23658.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 66",
+      "date": "2021-02-14",
+      "amount": 21851.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 154",
+      "date": "2025-06-30",
+      "amount": 29889.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 115",
+      "date": "2025-12-21",
+      "amount": 33486.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 196",
+      "date": "2025-04-30",
+      "amount": 16904.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 145",
+      "date": "2025-11-23",
+      "amount": 11012.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 39",
+      "date": "2021-02-26",
+      "amount": 10766.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 79",
+      "date": "2022-06-03",
+      "amount": 12972.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 179",
+      "date": "2024-07-16",
+      "amount": 23910.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 247",
+      "date": "2023-11-15",
+      "amount": 22887.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 110",
+      "date": "2025-09-29",
+      "amount": 11645.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 206",
+      "date": "2023-09-07",
+      "amount": 15311.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 11",
+      "date": "2026-02-27",
+      "amount": 12154.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 40",
+      "date": "2021-05-11",
+      "amount": 11326.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 225",
+      "date": "2025-10-09",
+      "amount": 15415.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 52",
+      "date": "2024-03-01",
+      "amount": 10764.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 126",
+      "date": "2025-05-21",
+      "amount": 12316.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 184",
+      "date": "2022-07-13",
+      "amount": 16778.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 42",
+      "date": "2021-09-03",
+      "amount": 22105.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 95",
+      "date": "2022-06-19",
+      "amount": 26950.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 29",
+      "date": "2024-05-18",
+      "amount": 27704.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 142",
+      "date": "2023-09-26",
+      "amount": 22011.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 171",
+      "date": "2023-09-03",
+      "amount": 30078.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 204",
+      "date": "2023-04-20",
+      "amount": 9223.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 46",
+      "date": "2025-09-21",
+      "amount": 28335.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 49",
+      "date": "2025-01-25",
+      "amount": 16132.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 168",
+      "date": "2024-12-20",
+      "amount": 16955.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 77",
+      "date": "2024-08-24",
+      "amount": 11600.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 148",
+      "date": "2025-01-15",
+      "amount": 12601.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 22",
+      "date": "2024-07-09",
+      "amount": 13512.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 50",
+      "date": "2024-04-06",
+      "amount": 31399.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 248",
+      "date": "2025-11-18",
+      "amount": 32566.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 19",
+      "date": "2021-03-20",
+      "amount": 22600.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 193",
+      "date": "2025-08-05",
+      "amount": 26648.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 222",
+      "date": "2025-05-06",
+      "amount": 18763.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 15",
+      "date": "2022-04-14",
+      "amount": 15789.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 141",
+      "date": "2021-08-24",
+      "amount": 10722.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 166",
+      "date": "2023-11-16",
+      "amount": 18173.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 144",
+      "date": "2022-04-19",
+      "amount": 18452.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 195",
+      "date": "2025-10-19",
+      "amount": 12022.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 220",
+      "date": "2025-04-12",
+      "amount": 22485.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 36",
+      "date": "2022-11-19",
+      "amount": 13441.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 242",
+      "date": "2025-08-03",
+      "amount": 17865.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 61",
+      "date": "2022-07-31",
+      "amount": 26918.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 236",
+      "date": "2021-09-14",
+      "amount": 16499.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 201",
+      "date": "2021-03-27",
+      "amount": 23866.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 94",
+      "date": "2025-04-07",
+      "amount": 30087.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 259",
+      "date": "2024-04-24",
+      "amount": 27540.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 63",
+      "date": "2024-11-22",
+      "amount": 31027.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 194",
+      "date": "2022-06-20",
+      "amount": 13266.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 62",
+      "date": "2025-02-28",
+      "amount": 33993.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 199",
+      "date": "2022-06-04",
+      "amount": 34648.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 251",
+      "date": "2022-09-13",
+      "amount": 13474.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 125",
+      "date": "2023-03-07",
+      "amount": 21127.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 200",
+      "date": "2025-11-05",
+      "amount": 25258.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 65",
+      "date": "2023-08-01",
+      "amount": 15118.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 121",
+      "date": "2025-08-01",
+      "amount": 8586.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 111",
+      "date": "2021-09-30",
+      "amount": 15883.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 245",
+      "date": "2024-07-19",
+      "amount": 31896.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 104",
+      "date": "2025-03-10",
+      "amount": 30770.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 213",
+      "date": "2021-03-14",
+      "amount": 16053.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 48",
+      "date": "2023-04-05",
+      "amount": 21801.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 124",
+      "date": "2024-06-13",
+      "amount": 23188.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 187",
+      "date": "2026-03-06",
+      "amount": 8752.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 78",
+      "date": "2023-04-30",
+      "amount": 25902.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 1",
+      "date": "2025-07-28",
+      "amount": 8932.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 139",
+      "date": "2025-12-29",
+      "amount": 32138.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 37",
+      "date": "2021-03-15",
+      "amount": 17228.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 6",
+      "date": "2026-03-05",
+      "amount": 34662.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 38",
+      "date": "2023-08-13",
+      "amount": 17100.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 0",
+      "date": "2021-06-22",
+      "amount": 21621.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 122",
+      "date": "2021-11-21",
+      "amount": 29260.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 3",
+      "date": "2024-03-08",
+      "amount": 18518.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 180",
+      "date": "2024-03-21",
+      "amount": 24315.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 249",
+      "date": "2024-09-15",
+      "amount": 30533.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 132",
+      "date": "2025-09-22",
+      "amount": 17456.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 217",
+      "date": "2024-04-05",
+      "amount": 19093.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 58",
+      "date": "2022-02-20",
+      "amount": 8769.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 202",
+      "date": "2023-08-14",
+      "amount": 11422.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 31",
+      "date": "2024-10-22",
+      "amount": 22439.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 158",
+      "date": "2023-01-28",
+      "amount": 22559.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 5",
+      "date": "2023-06-03",
+      "amount": 24175.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 211",
+      "date": "2023-05-14",
+      "amount": 14515.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 214",
+      "date": "2023-09-27",
+      "amount": 14277.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 161",
+      "date": "2026-01-30",
+      "amount": 12868.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 233",
+      "date": "2026-02-23",
+      "amount": 23093.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 256",
+      "date": "2023-06-20",
+      "amount": 33685.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 90",
+      "date": "2026-03-22",
+      "amount": 17403.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 100",
+      "date": "2021-09-10",
+      "amount": 11325.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 108",
+      "date": "2024-01-19",
+      "amount": 12416.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 191",
+      "date": "2025-08-24",
+      "amount": 13866.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 215",
+      "date": "2025-06-15",
+      "amount": 31418.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 101",
+      "date": "2026-03-01",
+      "amount": 32552.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 117",
+      "date": "2022-11-19",
+      "amount": 21949.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 91",
+      "date": "2024-10-12",
+      "amount": 16082.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 69",
+      "date": "2021-09-07",
+      "amount": 21838.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 17",
+      "date": "2023-02-12",
+      "amount": 29900.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 137",
+      "date": "2022-03-04",
+      "amount": 17048.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 116",
+      "date": "2024-08-03",
+      "amount": 20762.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 146",
+      "date": "2025-08-07",
+      "amount": 29404.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 207",
+      "date": "2021-06-11",
+      "amount": 26412.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 143",
+      "date": "2022-04-12",
+      "amount": 12586.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 164",
+      "date": "2024-10-21",
+      "amount": 14694.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 159",
+      "date": "2022-07-09",
+      "amount": 24674.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 258",
+      "date": "2021-10-11",
+      "amount": 9928.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 186",
+      "date": "2024-08-12",
+      "amount": 22724.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 192",
+      "date": "2024-10-15",
+      "amount": 25179.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 177",
+      "date": "2024-03-29",
+      "amount": 22373.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 234",
+      "date": "2025-01-27",
+      "amount": 19257.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 81",
+      "date": "2026-03-02",
+      "amount": 13972.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 153",
+      "date": "2024-01-08",
+      "amount": 21040.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 176",
+      "date": "2024-10-18",
+      "amount": 15798.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 102",
+      "date": "2023-11-08",
+      "amount": 14089.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 127",
+      "date": "2025-07-05",
+      "amount": 18602.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 30",
+      "date": "2023-03-04",
+      "amount": 23888.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 157",
+      "date": "2023-05-06",
+      "amount": 9881.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 135",
+      "date": "2024-12-21",
+      "amount": 33286.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 150",
+      "date": "2024-06-26",
+      "amount": 26457.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 160",
+      "date": "2023-09-18",
+      "amount": 10885.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 16",
+      "date": "2021-06-20",
+      "amount": 30562.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 147",
+      "date": "2025-09-15",
+      "amount": 16029.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 228",
+      "date": "2023-10-13",
+      "amount": 11923.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 209",
+      "date": "2024-02-04",
+      "amount": 17857.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 163",
+      "date": "2024-08-01",
+      "amount": 16515.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 106",
+      "date": "2025-03-28",
+      "amount": 25653.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 172",
+      "date": "2022-02-07",
+      "amount": 34925.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 47",
+      "date": "2023-10-21",
+      "amount": 21594.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 167",
+      "date": "2023-06-29",
+      "amount": 8297.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 35",
+      "date": "2024-11-14",
+      "amount": 13473.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 25",
+      "date": "2022-11-27",
+      "amount": 20927.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 55",
+      "date": "2025-12-21",
+      "amount": 25512.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 23",
+      "date": "2023-05-31",
+      "amount": 19017.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 181",
+      "date": "2024-05-25",
+      "amount": 12532.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 34",
+      "date": "2021-07-28",
+      "amount": 23670.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 83",
+      "date": "2023-09-14",
+      "amount": 12225.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 57",
+      "date": "2023-12-08",
+      "amount": 8282.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 28",
+      "date": "2021-11-25",
+      "amount": 13497.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 240",
+      "date": "2025-09-06",
+      "amount": 28166.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 188",
+      "date": "2024-09-29",
+      "amount": 27319.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 10",
+      "date": "2023-08-22",
+      "amount": 11928.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 243",
+      "date": "2023-09-11",
+      "amount": 23831.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 223",
+      "date": "2021-04-20",
+      "amount": 27026.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 152",
+      "date": "2023-07-13",
+      "amount": 8712.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 138",
+      "date": "2022-06-22",
+      "amount": 17827.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 9",
+      "date": "2022-01-12",
+      "amount": 30017.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 237",
+      "date": "2022-10-07",
+      "amount": 21896.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 93",
+      "date": "2025-10-09",
+      "amount": 29898.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 189",
+      "date": "2025-11-15",
+      "amount": 34684.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 56",
+      "date": "2025-02-05",
+      "amount": 11319.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 129",
+      "date": "2022-06-25",
+      "amount": 15211.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 241",
+      "date": "2021-04-28",
+      "amount": 34814.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 156",
+      "date": "2023-04-27",
+      "amount": 16633.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 70",
+      "date": "2021-10-22",
+      "amount": 24405.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 252",
+      "date": "2021-02-15",
+      "amount": 30186.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 72",
+      "date": "2024-03-08",
+      "amount": 28893.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 26",
+      "date": "2024-01-18",
+      "amount": 18512.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 149",
+      "date": "2022-11-07",
+      "amount": 8177.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 227",
+      "date": "2023-10-17",
+      "amount": 10810.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 87",
+      "date": "2024-07-18",
+      "amount": 11335.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 131",
+      "date": "2024-04-25",
+      "amount": 24176.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 136",
+      "date": "2021-04-26",
+      "amount": 15124.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 73",
+      "date": "2025-09-07",
+      "amount": 23875.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 51",
+      "date": "2025-02-05",
+      "amount": 25325.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 21",
+      "date": "2024-06-03",
+      "amount": 8132.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 113",
+      "date": "2023-07-04",
+      "amount": 21114.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 169",
+      "date": "2023-11-13",
+      "amount": 29400.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 246",
+      "date": "2021-09-18",
+      "amount": 29312.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 175",
+      "date": "2022-08-18",
+      "amount": 16210.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 68",
+      "date": "2025-05-26",
+      "amount": 34302.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 114",
+      "date": "2022-05-13",
+      "amount": 33633.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 151",
+      "date": "2022-01-25",
+      "amount": 26956.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 8",
+      "date": "2025-06-08",
+      "amount": 26802.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 190",
+      "date": "2022-02-14",
+      "amount": 20374.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 97",
+      "date": "2022-06-22",
+      "amount": 10354.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 2",
+      "date": "2022-11-08",
+      "amount": 20788.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 216",
+      "date": "2024-04-20",
+      "amount": 15044.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 174",
+      "date": "2024-05-28",
+      "amount": 8454.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 197",
+      "date": "2023-05-04",
+      "amount": 17447.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 224",
+      "date": "2021-07-12",
+      "amount": 18292.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 53",
+      "date": "2021-03-17",
+      "amount": 18143.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 120",
+      "date": "2024-11-22",
+      "amount": 32922.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 88",
+      "date": "2025-03-02",
+      "amount": 23082.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 235",
+      "date": "2021-08-12",
+      "amount": 19407.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 212",
+      "date": "2023-04-11",
+      "amount": 11410.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 59",
+      "date": "2022-03-05",
+      "amount": 26189.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 112",
+      "date": "2021-03-31",
+      "amount": 16630.0,
+      "status": "closed"
+     },
+     {
+      "contact": "Homeowner 128",
+      "date": "2021-03-22",
+      "amount": 22084.0,
+      "status": "closed"
+     }
+    ],
+    "missed call": [
+     {
+      "contact": "Caller 17",
+      "date": "2026-07-05",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 16",
+      "date": "2026-07-15",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 25",
+      "date": "2026-07-30",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 4",
+      "date": "2026-07-18",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 22",
+      "date": "2026-07-28",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 3",
+      "date": "2026-07-22",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 1",
+      "date": "2026-07-13",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 9",
+      "date": "2026-07-19",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 0",
+      "date": "2026-07-23",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 21",
+      "date": "2026-07-28",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 27",
+      "date": "2026-07-28",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 18",
+      "date": "2026-07-10",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 13",
+      "date": "2026-07-17",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 15",
+      "date": "2026-07-12",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 12",
+      "date": "2026-07-11",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 7",
+      "date": "2026-07-16",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 24",
+      "date": "2026-07-31",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 6",
+      "date": "2026-07-03",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 14",
+      "date": "2026-07-20",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 26",
+      "date": "2026-07-23",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 2",
+      "date": "2026-07-26",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 23",
+      "date": "2026-07-31",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 5",
+      "date": "2026-07-21",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 19",
+      "date": "2026-07-31",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 11",
+      "date": "2026-07-30",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 20",
+      "date": "2026-07-13",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 10",
+      "date": "2026-07-07",
+      "amount": null,
+      "status": ""
+     },
+     {
+      "contact": "Caller 8",
+      "date": "2026-07-08",
+      "amount": null,
+      "status": ""
+     }
+    ]
+   },
+   "columns": {
+    "type": "Record Type",
+    "date": "Created Date",
+    "amount": "Total Amount",
+    "status": "Status",
+    "contact": "Customer Name"
+   },
+   "skipped": 0,
+   "as_of": "2026-08-10"
+  },
+  "projection": {
+   "eligibility": {
+    "verdict": "PRO-RATE",
+    "past_customers": 260,
+    "past_customers_required": 200,
+    "open_estimates": 43,
+    "open_estimates_required": 50,
+    "guaranteed_low": 17,
+    "guaranteed_high": 21
+   },
+   "pools": [
+    {
+     "pool": "open estimate",
+     "count": 43,
+     "opportunities_low": 4,
+     "opportunities_high": 10,
+     "pipeline_value": 880658.0,
+     "est_recoverable_value_low": 30823.03,
+     "est_recoverable_value_high": 77057.57
+    },
+    {
+     "pool": "past customer",
+     "count": 260,
+     "opportunities_low": 13,
+     "opportunities_high": 39,
+     "pipeline_value": 5361623.0,
+     "est_recoverable_value_low": 93828.4,
+     "est_recoverable_value_high": 281485.21
+    },
+    {
+     "pool": "missed call",
+     "count": 28,
+     "opportunities_low": 5,
+     "opportunities_high": 11,
+     "pipeline_value": 504000,
+     "est_recoverable_value_low": 35280.0,
+     "est_recoverable_value_high": 70560.0
+    }
+   ],
+   "total_pipeline_value": 6746281.0,
+   "total_opportunities_low": 22,
+   "total_opportunities_high": 60,
+   "total_recoverable_low": 159931.43,
+   "total_recoverable_high": 429102.78,
+   "assumptions": "Estimates. Assumptions: open-estimate response 10-25%, past-customer response 5-15%, missed-call recovery 20-40%, average job value $18,000, your close rate 35%. We guarantee activated opportunities, not revenue - your team closes them.",
+   "config": {
+    "avg_job_value": 18000,
+    "estimate_response_low": 0.1,
+    "estimate_response_high": 0.25,
+    "past_customer_response_low": 0.05,
+    "past_customer_response_high": 0.15,
+    "missed_call_recovery_low": 0.2,
+    "missed_call_recovery_high": 0.4,
+    "close_rate": 0.35
+   }
+  }
+ }
+}

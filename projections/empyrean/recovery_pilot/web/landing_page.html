@@ -1,0 +1,452 @@
+<!doctype html>
+<!--
+  Empyrean Studios — The Job Pipeline System (roofing).
+  DEPLOY TARGET: go.<domain> subdomain (the intake form lives on go., never www.).
+  Self-contained: all CSS inline, no CDN, no external fonts or scripts.
+  TEST MODE: form submit is client-side only — confirmation + console.log(JSON).
+  Copy base: Notion "LANDING PAGE COPY — Roofing Recovery v1"
+  (3b8da8b9-6e4f-8194-a8cf-f12a66ab05e4), renamed to final product names.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Job Pipeline System — Empyrean Studios</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0A0A0B;
+    --surface: #121214;
+    --border: #1F1F23;
+    --text: #F5F5F4;
+    --muted: #8E8E93;
+    --accent: #6D28D9;
+    --accent-soft: #8B5CF6;
+    --headline: Archivo, Inter, system-ui, sans-serif;
+    --body: Inter, system-ui, sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--body); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+  h1, h2, h3 { font-family: var(--headline); font-weight: 700; }
+  .muted { color: var(--muted); }
+  .accent { color: var(--accent-soft); }
+
+  /* --- top bar --- */
+  .topbar {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky; top: 0; background: rgba(10,10,11,.92);
+    backdrop-filter: blur(8px); z-index: 20;
+  }
+  .wordmark {
+    font-family: var(--headline); font-weight: 700; font-size: 13px;
+    letter-spacing: 0.3em; text-transform: uppercase; color: var(--text);
+  }
+
+  /* --- sections --- */
+  section { padding: 68px 0; border-bottom: 1px solid var(--border); }
+  section:last-of-type { border-bottom: 0; }
+  .eyebrow {
+    font-family: var(--headline); font-weight: 700; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent-soft);
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 46px; line-height: 1.08; letter-spacing: -0.02em; }
+  h2 { font-size: 30px; line-height: 1.15; letter-spacing: -0.015em; margin-bottom: 14px; }
+  h3 { font-size: 17px; margin-bottom: 6px; }
+  .lede { font-size: 19px; color: var(--muted); margin-top: 20px; max-width: 40em; }
+  p { max-width: 42em; }
+  p + p { margin-top: 14px; }
+  .rule { height: 2px; width: 56px; background: var(--accent); border: 0; margin: 22px 0; }
+
+  /* --- hero --- */
+  .hero { padding: 92px 0 78px; }
+  .positioning {
+    font-family: var(--headline); font-weight: 700;
+    font-size: 21px; line-height: 1.4; margin-top: 28px;
+    border-left: 3px solid var(--accent); padding-left: 20px;
+    max-width: 34em;
+  }
+
+  /* --- cta --- */
+  .cta {
+    display: inline-block; background: var(--accent); color: var(--text);
+    font-family: var(--headline); font-weight: 700; font-size: 16px;
+    padding: 16px 34px; border-radius: 6px; text-decoration: none;
+    border: 0; cursor: pointer; transition: background .15s ease;
+  }
+  .cta:hover { background: var(--accent-soft); }
+  .cta-row { margin-top: 34px; }
+  .micro { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+  /* --- cards --- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 26px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 22px 24px;
+  }
+  .card p { color: var(--muted); font-size: 15px; }
+
+  /* --- numbered steps --- */
+  ol.steps { list-style: none; counter-reset: s; margin-top: 26px; }
+  ol.steps li {
+    counter-increment: s; position: relative;
+    padding: 0 0 22px 52px; border-left: 1px solid var(--border);
+    margin-left: 15px;
+  }
+  ol.steps li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.steps li::before {
+    content: counter(s); position: absolute; left: -15px; top: -2px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--accent);
+    color: var(--accent-soft); font-family: var(--headline); font-weight: 700;
+    font-size: 13px; display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps li p { color: var(--muted); font-size: 15px; }
+
+  /* --- guarantee --- */
+  .guarantee {
+    background: var(--surface); border: 1px solid var(--accent);
+    border-radius: 8px; padding: 34px 32px;
+  }
+
+  /* --- promise list --- */
+  ul.promise { list-style: none; margin-top: 22px; }
+  ul.promise li {
+    padding: 14px 0 14px 30px; border-bottom: 1px solid var(--border);
+    position: relative; font-size: 15px; color: var(--muted);
+  }
+  ul.promise li:last-child { border-bottom: 0; }
+  ul.promise li::before {
+    content: ""; position: absolute; left: 4px; top: 21px;
+    width: 7px; height: 7px; background: var(--accent-soft); border-radius: 2px;
+  }
+  ul.promise strong { color: var(--text); font-weight: 600; }
+
+  /* --- form --- */
+  .form-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 32px; margin-top: 30px;
+  }
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block; font-size: 12px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    font-weight: 600; margin-bottom: 7px;
+  }
+  .field input, .field select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 13px 14px; color: var(--text);
+    font-family: var(--body); font-size: 15px;
+  }
+  .field input:focus, .field select:focus {
+    outline: 0; border-color: var(--accent-soft);
+  }
+  .field .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .confirm {
+    display: none; background: var(--surface);
+    border: 1px solid var(--accent); border-radius: 8px;
+    padding: 34px 32px; margin-top: 30px;
+  }
+  .confirm.show { display: block; }
+
+  footer { padding: 44px 0 60px; font-size: 13px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 33px; }
+    h2 { font-size: 24px; }
+    .lede { font-size: 17px; }
+    .positioning { font-size: 18px; }
+    .hero { padding: 56px 0 48px; }
+    section { padding: 48px 0; }
+    .field-row { grid-template-columns: 1fr; }
+    .cta { display: block; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap"><span class="wordmark">Empyrean Studios</span></div>
+</div>
+
+<!-- 1. HERO -->
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">For established roofing companies</div>
+    <h1>Book the jobs<br>you already paid for.</h1>
+    <p class="lede">
+      We put 20&ndash;25 booked-job opportunities back on your calendar in 30 days
+      &mdash; from homeowners already sitting in your system. Or we keep working
+      at no charge until you have them.
+    </p>
+    <p class="positioning">
+      You don't have a lead problem. You have a follow-up problem. Before you
+      spend another dollar on new leads, let's go get the ones you already
+      paid for.
+    </p>
+    <div class="cta-row">
+      <a class="cta" href="#snapshot">Get your free Pipeline Snapshot</a>
+      <div class="micro">Free. Takes 3 minutes. You keep the Snapshot either way.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. OUTCOME -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">The outcome</div>
+    <h2>Fill your calendar without buying a single new job request.</h2>
+    <hr class="rule">
+    <p class="muted">
+      Most established roofing companies aren't short on demand. They're short on
+      follow-up. Calls come in while crews are on roofs. Estimates go out and never
+      get worked to a yes or a no. Hundreds of past customers sit in the system
+      nobody has contacted in years. That's demand you already paid for &mdash; and
+      it's still yours to book.
+    </p>
+  </div>
+</section>
+
+<!-- 3. THE THREE PLACES -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Where the work is</div>
+    <h2>Three places jobs are sitting right now.</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Unanswered calls</h3>
+        <p>Homeowners who called while your crew was on a roof &mdash; and called
+           someone else next.</p>
+      </div>
+      <div class="card">
+        <h3>Estimates without an answer</h3>
+        <p>Every quote from the last 12 months that never got a yes or a no.</p>
+      </div>
+      <div class="card">
+        <h3>Past customers</h3>
+        <p>People who already trusted you once. Their roofs are aging.
+           Nobody has called.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. HOW THE SYSTEM WORKS -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">The Job Pipeline System</div>
+    <h2>How it works.</h2>
+    <ol class="steps">
+      <li>
+        <h3>You approve everything</h3>
+        <p>Nothing reaches your homeowners without your sign-off. You read it
+           before they do, every time.</p>
+      </li>
+      <li>
+        <h3>Ten minutes a week</h3>
+        <p>That's your whole time commitment. You approve, we run it.</p>
+      </li>
+      <li>
+        <h3>Nothing changes for your crew</h3>
+        <p>No new software to learn, no hires, no standing meetings. The trucks
+           roll exactly the way they roll today.</p>
+      </li>
+      <li>
+        <h3>First conversations within 7 days</h3>
+        <p>Homeowners talking to your office inside the first week &mdash; not
+           after a month of onboarding.</p>
+      </li>
+      <li>
+        <h3>A weekly scoreboard</h3>
+        <p>Conversations opened, estimates revived, appointments set, jobs booked.
+           Names and numbers. You see exactly what the week produced.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- 5. GUARANTEE -->
+<section>
+  <div class="wrap">
+    <div class="guarantee">
+      <div class="eyebrow">The guarantee</div>
+      <h2>20&ndash;25 booked-job opportunities in 30 days.<br>Or we keep working at no charge.</h2>
+      <p class="muted">
+        If your system holds at least 200 contactable past customers and 50 open
+        estimates from the last year, we guarantee 20&ndash;25 activated
+        opportunities in your first 30 days. Miss it, and we keep working at no
+        additional fee until you have them.
+      </p>
+      <div class="cta-row">
+        <a class="cta" href="#snapshot">Get your free Pipeline Snapshot</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6. DATA PROMISE -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Data promise</div>
+    <h2>Your customer list never leaves your control.</h2>
+    <ul class="promise">
+      <li><strong>Read-only access, technically enforced.</strong> We can't change,
+          delete, or write anything in your system. The permission itself makes it
+          impossible &mdash; not a policy, a technical limit.</li>
+      <li><strong>Sole-purpose use.</strong> Your data is used to build your
+          Snapshot and run your work. Never shared, never sold, never used for
+          another company.</li>
+      <li><strong>Deleted in 7 days on a no-go.</strong> If you decide not to move
+          forward, everything is deleted within 7 days and we send you written
+          confirmation that it's gone.</li>
+      <li><strong>A standing NDA.</strong> Signed before we look at anything, and
+          it stays in force whether or not we ever work together.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 7. SCARCITY -->
+<section>
+  <div class="wrap">
+    <div class="eyebrow">Availability</div>
+    <h2>Five companies a month. Rain season doesn't wait.</h2>
+    <hr class="rule">
+    <p class="muted">
+      We take on five roofing companies a month &mdash; that's what we can run at
+      this standard without thinning it out. And every estimate in your system has
+      a shelf life. Once the weather turns, homeowners tarp, panic-hire, or take
+      somebody else's re-quote.
+    </p>
+    <p class="muted">
+      One roofing company per service area. When we take your market, it's yours.
+    </p>
+  </div>
+</section>
+
+<!-- 8. THE SNAPSHOT FORM -->
+<section id="snapshot">
+  <div class="wrap">
+    <div class="eyebrow">Your free Pipeline Snapshot</div>
+    <h2>See exactly what's sitting there &mdash; before you spend a dollar.</h2>
+    <p class="muted">
+      Answer eight questions and we'll send back a one-page Pipeline Snapshot:
+      what's bookable in your system right now, in dollars, and what we'd do in
+      the first 30 days. Free. Yours to keep whether we work together or not.
+    </p>
+
+    <form class="form-card" id="snapshot-form" novalidate>
+      <div class="field">
+        <label for="company">Company name</label>
+        <input type="text" id="company" name="company" required
+               autocomplete="organization" placeholder="Summit Roofing Co.">
+      </div>
+
+      <div class="field">
+        <label for="service_area">Service area</label>
+        <input type="text" id="service_area" name="service_area" required
+               placeholder="Counties or metro you serve">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="estimates_12mo">Estimates written, last 12 months</label>
+          <input type="number" id="estimates_12mo" name="estimates_12mo"
+                 min="0" step="1" required placeholder="450">
+        </div>
+        <div class="field">
+          <label for="estimates_unresolved">Estimates never resolved</label>
+          <input type="number" id="estimates_unresolved" name="estimates_unresolved"
+                 min="0" step="1" required placeholder="120">
+          <div class="hint">No yes, no no &mdash; just silence.</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="past_customers">Reachable past customers</label>
+          <input type="number" id="past_customers" name="past_customers"
+                 min="0" step="1" required placeholder="800">
+          <div class="hint">Anyone you have a phone number or email for.</div>
+        </div>
+        <div class="field">
+          <label for="unanswered_calls_monthly">Unanswered calls per month</label>
+          <input type="number" id="unanswered_calls_monthly" name="unanswered_calls_monthly"
+                 min="0" step="1" required placeholder="40">
+          <div class="hint">Your best estimate is fine.</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="avg_job_value">Average job value</label>
+          <input type="number" id="avg_job_value" name="avg_job_value"
+                 min="0" step="1" required placeholder="12000">
+        </div>
+        <div class="field">
+          <label for="close_rate">Close rate on estimates (%)</label>
+          <input type="number" id="close_rate" name="close_rate"
+                 min="0" max="100" step="1" required placeholder="35">
+        </div>
+      </div>
+
+      <button type="submit" class="cta">Get your free Pipeline Snapshot</button>
+      <div class="micro">
+        Free. Takes 3 minutes. You keep the Snapshot either way.
+      </div>
+    </form>
+
+    <div class="confirm" id="snapshot-confirm">
+      <div class="eyebrow">Received</div>
+      <h2>Your Pipeline Snapshot is being built.</h2>
+      <p class="muted">
+        We respond within 5 minutes. Watch your phone and your inbox &mdash;
+        your one-page Snapshot comes back the same way you'd want us to treat
+        your own homeowners.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="wordmark">Empyrean Studios</span>
+    <p style="margin-top:10px">Empyrean Creative LLC dba Empyrean Studios.</p>
+  </div>
+</footer>
+
+<script>
+  // TEST MODE — client-side only. No network call is made.
+  // Client Zero doctrine: we respond within 5 minutes, so the confirmation
+  // promises exactly that and nothing more.
+  (function () {
+    var form = document.getElementById('snapshot-form');
+    var confirm = document.getElementById('snapshot-confirm');
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      var data = {};
+      new FormData(form).forEach(function (value, key) {
+        data[key] = value;
+      });
+      data.submitted_at = new Date().toISOString();
+      data.mode = 'TEST';
+
+      console.log('[Pipeline Snapshot intake]', JSON.stringify(data, null, 2));
+
+      form.style.display = 'none';
+      confirm.classList.add('show');
+      confirm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  })();
+</script>
+
+</body>
+</html>
