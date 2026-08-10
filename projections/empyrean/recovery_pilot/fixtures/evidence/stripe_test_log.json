@@ -1,86 +1,162 @@
-[
- {
-  "run_at": "2026-08-10T22:47:06.940564+00:00",
-  "mode": "TEST",
-  "result": "SIMULATED \u2014 no STRIPE_TEST_KEY available"
- },
- {
-  "call": "create_product_activation",
-  "method": "POST",
-  "path": "/products",
-  "params": {
-   "name": "The Job Pipeline System \u2014 Activation",
-   "description": "Activation + month one"
+{
+  "artifact": "C6 Stripe test-mode fixture",
+  "offer": "The Job Pipeline System",
+  "mode": "SIMULATION",
+  "started_at": "2026-08-10T22:49:30.708634+00:00",
+  "finished_at": "2026-08-10T22:49:30.708755+00:00",
+  "summary": {
+    "simulated": true,
+    "reason": "--simulate flag passed",
+    "calls_planned": 7,
+    "activation_price_usd": 5000.0,
+    "monthly_price_usd": 2500.0,
+    "to_run_for_real": "export STRIPE_TEST_KEY=sk_test_... && python3 stripe_test.py"
   },
-  "simulated": true
- },
- {
-  "call": "create_price_activation",
-  "method": "POST",
-  "path": "/prices",
-  "params": {
-   "unit_amount": 500000,
-   "currency": "usd",
-   "product": "{prod_activation}"
-  },
-  "simulated": true
- },
- {
-  "call": "create_product_monthly",
-  "method": "POST",
-  "path": "/products",
-  "params": {
-   "name": "The Job Pipeline System \u2014 Monthly"
-  },
-  "simulated": true
- },
- {
-  "call": "create_price_monthly",
-  "method": "POST",
-  "path": "/prices",
-  "params": {
-   "unit_amount": 250000,
-   "currency": "usd",
-   "recurring[interval]": "month",
-   "product": "{prod_monthly}"
-  },
-  "simulated": true
- },
- {
-  "call": "charge_success",
-  "method": "POST",
-  "path": "/payment_intents",
-  "params": {
-   "amount": 500000,
-   "currency": "usd",
-   "confirm": "true",
-   "payment_method": "pm_card_visa",
-   "automatic_payment_methods[enabled]": "true",
-   "automatic_payment_methods[allow_redirects]": "never"
-  },
-  "simulated": true
- },
- {
-  "call": "charge_declined",
-  "method": "POST",
-  "path": "/payment_intents",
-  "params": {
-   "amount": 500000,
-   "currency": "usd",
-   "confirm": "true",
-   "payment_method": "pm_card_visa_chargeDeclined",
-   "automatic_payment_methods[enabled]": "true",
-   "automatic_payment_methods[allow_redirects]": "never"
-  },
-  "simulated": true
- },
- {
-  "call": "refund_success_charge",
-  "method": "POST",
-  "path": "/refunds",
-  "params": {
-   "payment_intent": "{pi_success}"
-  },
-  "simulated": true
- }
-]
+  "calls": [
+    {
+      "step": "1. create activation product",
+      "request": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/products",
+        "params": {
+          "name": "The Job Pipeline System - Activation",
+          "description": "Activation + month one. 3-month initial term."
+        }
+      },
+      "response": {
+        "simulated": true,
+        "note": "no request sent; no key available"
+      },
+      "http_status": null,
+      "error": null,
+      "at": "2026-08-10T22:49:30.708663+00:00"
+    },
+    {
+      "step": "2. create activation price ($5,000 one-time)",
+      "request": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/prices",
+        "params": {
+          "unit_amount": 500000,
+          "currency": "usd",
+          "product": "<activation_product_id>"
+        }
+      },
+      "response": {
+        "simulated": true,
+        "note": "no request sent; no key available"
+      },
+      "http_status": null,
+      "error": null,
+      "at": "2026-08-10T22:49:30.708669+00:00"
+    },
+    {
+      "step": "3. create monthly product",
+      "request": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/products",
+        "params": {
+          "name": "The Job Pipeline System - Monthly",
+          "description": "Ongoing delivery. $2,500/mo."
+        }
+      },
+      "response": {
+        "simulated": true,
+        "note": "no request sent; no key available"
+      },
+      "http_status": null,
+      "error": null,
+      "at": "2026-08-10T22:49:30.708673+00:00"
+    },
+    {
+      "step": "4. create monthly price ($2,500/mo recurring)",
+      "request": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/prices",
+        "params": {
+          "unit_amount": 250000,
+          "currency": "usd",
+          "product": "<monthly_product_id>",
+          "recurring": {
+            "interval": "month"
+          }
+        }
+      },
+      "response": {
+        "simulated": true,
+        "note": "no request sent; no key available"
+      },
+      "http_status": null,
+      "error": null,
+      "at": "2026-08-10T22:49:30.708676+00:00"
+    },
+    {
+      "step": "5. successful PaymentIntent ($5,000, confirmed)",
+      "request": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/payment_intents",
+        "params": {
+          "amount": 500000,
+          "currency": "usd",
+          "payment_method": "pm_card_visa",
+          "confirm": true,
+          "description": "The Job Pipeline System - Activation - test charge",
+          "automatic_payment_methods": {
+            "enabled": true,
+            "allow_redirects": "never"
+          }
+        }
+      },
+      "response": {
+        "simulated": true,
+        "note": "no request sent; no key available"
+      },
+      "http_status": null,
+      "error": null,
+      "at": "2026-08-10T22:49:30.708679+00:00"
+    },
+    {
+      "step": "6. declined PaymentIntent (expected to fail)",
+      "request": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/payment_intents",
+        "params": {
+          "amount": 500000,
+          "currency": "usd",
+          "payment_method": "pm_card_visa_chargeDeclined",
+          "confirm": true,
+          "description": "The Job Pipeline System - Activation - decline path",
+          "automatic_payment_methods": {
+            "enabled": true,
+            "allow_redirects": "never"
+          }
+        }
+      },
+      "response": {
+        "simulated": true,
+        "note": "no request sent; no key available"
+      },
+      "http_status": null,
+      "error": null,
+      "at": "2026-08-10T22:49:30.708682+00:00"
+    },
+    {
+      "step": "7. refund the successful charge",
+      "request": {
+        "method": "POST",
+        "url": "https://api.stripe.com/v1/refunds",
+        "params": {
+          "payment_intent": "<successful_payment_intent_id>",
+          "reason": "requested_by_customer"
+        }
+      },
+      "response": {
+        "simulated": true,
+        "note": "no request sent; no key available"
+      },
+      "http_status": null,
+      "error": null,
+      "at": "2026-08-10T22:49:30.708685+00:00"
+    }
+  ]
+}
