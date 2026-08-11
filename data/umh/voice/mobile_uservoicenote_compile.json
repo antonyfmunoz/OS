@@ -1,0 +1,152 @@
+{
+  "record": "P4S-MOBILE-VOICE-SURFACE-001 — mobile UserVoiceNote rail feasibility + adapter plan",
+  "compiled": "2026-07-07",
+  "mode": "compile_only — no activation authorized",
+  "compile_only": true,
+  "activation": "NOT AUTHORIZED — this artifact plans how the shipped desktop UserVoiceNote rail (P4S-31D1-B) would ADAPT to mobile Safari, mobile Chrome, native iOS, and native Android. It implements nothing, wires nothing, and authorizes no rollout. The mobile packets remain hard-held behind their sequence; this file only DEEPENS data/umh/voice/mobile_voice_compile.json for the specific record->draft->bubble->transcript->review->send rail.",
+  "extends": {
+    "mobile_voice_compile": "data/umh/voice/mobile_voice_compile.json",
+    "feasibility_matrix": "data/umh/voice/platform_voice_feasibility_matrix.json",
+    "voice_message_contract": "docs/VOICE_MESSAGE_CONTRACT.md + data/umh/voice/voice_message_contract.json",
+    "mobile_browser_evidence": "data/audits/2026-07-07_p4s31d5_mobile_browser_evidence.md",
+    "statement": "This is NOT a restatement of mobile_voice_compile.json. That artifact covers the generic capture->transcript->rail seam and the push-to-talk-per-surface / ambient / permission verdicts. THIS artifact deepens ONE thing: the UserVoiceNote DRAFT rail — MediaRecorder capture -> VoiceMessageDraft -> audio bubble + transcript-underneath -> review (send/retry/edit/delete) -> explicit send -> Cockpit Chat — as it maps onto each mobile surface. Where the two overlap (verdicts, consent, ambient), this file repeats the merged verdict verbatim and never contradicts it."
+  },
+  "desktop_reference_impl": {
+    "store": "cockpit/src/renderer/stores/voiceMessageStore.ts (VoiceMessageDraft type, RecordingSessionState machine, VAD_CONFIG, sendDraft/retryDraft/deleteDraft)",
+    "controller": "cockpit/src/renderer/api/voice-controller.ts (MediaRecorder lifecycle, _pickRecorderMime, _finalizeRecording, _onAudioLevel VAD, retryDraftTranscription, sendDraft upload via /chat/upload)",
+    "contract": "docs/VOICE_MESSAGE_CONTRACT.md — UserVoiceNote category; partial-never-committed; pause != send; draft-before-chat; audio-preserved; operator-send-is-the-confidence-gate; storage law; rail unchanged",
+    "statement": "The mobile surfaces adapt THIS shipped desktop rail. The adapter shape is the desktop store + controller plus mobile lifecycle handling and codec/upload handling. No new draft model, no new state machine, no new send path is invented for mobile."
+  },
+  "central_thesis": {
+    "claim": "The UserVoiceNote DRAFT model SUITS mobile better than live push-to-talk does.",
+    "why": "Live PTT on mobile is CONSTRAINED (per the matrix: mobile browser drops the mic on background/lock; native app capture ends on backgrounding). The draft rail is tap-to-talk-then-REVIEW: the operator taps to record, the recording finalizes to a REVIEW draft (never auto-sends — VoiceMessageDraft.auto_send is false and no mode permits true), and the operator reads the transcript and taps send. A dropped mic mid-capture on mobile is therefore not a lost turn — it finalizes the partial capture into a recoverable draft (audio preserved, retry available), exactly the desktop failure path. Review-before-send tolerates STT jitter over a mobile radio, tolerates a lock-screen interruption, and tolerates low-confidence transcripts, because nothing enters Cockpit Chat until the explicit send. This is a strictly BETTER fit for mobile than a hands-free/live model would be.",
+    "does_not_upgrade_verdict": "This thesis does NOT promote any matrix verdict. Mobile browser PTT stays CONSTRAINED; native app PTT stays LIKELY; mobile ambient/background stays NOT_FEASIBLE (iOS background) / CONSTRAINED (Android FGS). The draft model makes the CONSTRAINED surface pleasant to use inside its constraint — it does not remove the constraint."
+  },
+  "owner_observation_2026_07_07": {
+    "event": "Recorded in data/audits/2026-07-07_p4s31d5_mobile_browser_evidence.md: the owner opened the deployed cockpit on a MOBILE BROWSER, tapped the mic, and received the typed CONSENT_REQUIRED refusal (the mic never opened, the UMH consent layer refused BEFORE the browser permission prompt — correct two-layer ordering).",
+    "reading": "Fail-closed behavior working as designed. Capture must not open without an active VoiceConsentGrant(push_to_talk) for that device. The refusal is the P4S-31D-1 security contract behaving correctly on an unproven surface, not a bug.",
+    "gap": "The refusal was a dead-end on a small viewport with no inline grant path. Lane A closes this with an inline 'Enable Push-to-Talk for this device' control that renders on any served surface. Granting consent does NOT make mobile browser PTT a proven surface.",
+    "implication_for_this_rail": "For the UserVoiceNote rail specifically: the CONSENT_REQUIRED outcome must render its inline grant affordance in the SAME small-viewport region the draft bubble/review controls occupy, so the operator resolves consent and then immediately records — one thumb-reachable column, no desktop settings rail. The refusal, the enable control, the recording indicator, the draft bubble, the transcript, and the send/retry/edit/delete controls all live in one vertical, thumb-reachable stack.",
+    "not_reached": "Browser mic-permission behavior was NOT reached (consent refused first). Mobile browser mic semantics (per-origin, HTTPS-only, iOS Safari ephemeral re-prompt) remain to be characterized when the rail is actually exercised on the surface — recorded here as an open item, not a claim."
+  },
+  "uservoicenote_rail_per_surface": {
+    "native_ios": {
+      "verdict": "LIKELY",
+      "matrix_row": "mobile_app.push_to_talk",
+      "capture": "AVAudioEngine tap on inputNode (PCM16 16kHz mono) under AVAudioSession .playAndRecord. The captured audio is retained as the draft's audio artifact (the native analog of the desktop MediaRecorder blob) so the audio-preserved and retry laws hold. On-device SFSpeechRecognizer produces the transcript from the same buffer where the locale supports requiresOnDeviceRecognition.",
+      "draft_model_fit": "Tap-to-talk toggle: tap opens capture (after consent + TCC), tap again or VAD end-of-speech FINALIZES to a REVIEW draft — never an auto-send. The desktop RecordingSessionState machine (idle -> requesting_consent -> requesting_permission -> recording -> paused_speech_gap -> finalizing -> transcribing -> review -> sending -> sent) maps 1:1; only the capture/STT primitives change (AVAudioEngine + SFSpeechRecognizer instead of getUserMedia + WS STT).",
+      "codec": "No MediaRecorder, no browser codec problem. On-device capture is raw PCM; the retained artifact is encoded to a chosen container (m4a/AAC is the natural iOS choice) only for the /chat/upload artifact. content_type is set from the actual encoder, never assumed audio/webm.",
+      "breaks_on_background_lock": "App backgrounded or device locked -> AVAudioSession is interrupted and capture ends (NO 'audio' UIBackgroundMode is claimed — that would be an App Review rejection risk for a non-audio utility app and would contradict the matrix ios_background NOT_FEASIBLE verdict). The adapter treats the interruption exactly as the desktop treats a manual stop mid-recording: finalize the captured-so-far audio into a REVIEW draft (attach audio, mark recoverable), never discard, never silently drop. Resume = a fresh tap in the foreground. The draft survives; the turn is not lost.",
+      "on_device_stt": "SFSpeechRecognizer preferred (requiresOnDeviceRecognition where locale supports) — audio never leaves the device on this path. Server STT fallback ONLY over the authenticated wss channel for unsupported locales.",
+      "review_controls": "send / retry / edit / delete render as native controls on the draft cell; semantics identical to the desktop store (send gated on transcript_status in {final, edited} and status == ready; delete leaves no chat trace; retry re-runs STT on the preserved audio)."
+    },
+    "native_android": {
+      "verdict": "LIKELY",
+      "matrix_row": "mobile_app.push_to_talk",
+      "capture": "AudioRecord (PCM16 16kHz mono) retained as the draft artifact, or android.speech.SpeechRecognizer directly for the transcript. Foreground activity only; behind consent + RECORD_AUDIO runtime grant requested on the FIRST tap (never at install/launch).",
+      "draft_model_fit": "Same tap-to-talk toggle -> REVIEW draft as iOS. Same RecordingSessionState machine. auto_send stays false.",
+      "codec": "No browser codec problem. Retained artifact encoded to a chosen container (m4a/AAC or ogg/opus, whichever the platform encoder gives) for /chat/upload; content_type set from the encoder.",
+      "breaks_on_background_lock": "Activity pause / screen lock -> capture stops. Android 10+ blocks mic for backgrounded apps without a microphone-type foreground service, and this rail ships NO foreground service — capture is strictly foreground. On stop-by-background the adapter finalizes captured-so-far audio into a REVIEW draft (recoverable, retry available), same as desktop manual-stop; it NEVER auto-sends and NEVER loses the turn. Fresh tap required to resume.",
+      "on_device_stt": "android.speech.SpeechRecognizer preferred (EXTRA_PREFER_OFFLINE where supported); server STT fallback over the authenticated wss channel only.",
+      "review_controls": "send / retry / edit / delete native controls; identical semantics to the desktop store."
+    },
+    "mobile_safari": {
+      "verdict": "CONSTRAINED",
+      "matrix_row": "mobile_browser.push_to_talk",
+      "capture": "web getUserMedia -> MediaRecorder for the audio artifact + PCM16 16kHz over the EXISTING authenticated voice WS (cockpit/src/renderer/api/voice-ws.ts, mic_start/mic_stop control frames, binary PCM16 up, transcript events down) for STT. This is the shipped desktop voice-controller capture path; the mobile-Safari adapter is that controller plus mobile lifecycle + codec handling.",
+      "draft_model_fit": "The draft rail is why mobile Safari is USABLE despite the CONSTRAINED PTT verdict. Tap-to-talk TOGGLE (never press-and-hold — long-press fires iOS text-selection/callout; getUserMedia and AudioContext.resume() must run inside the direct user gesture). Recording finalizes to a REVIEW draft; the operator reviews the transcript and taps send. Because nothing enters chat until send, a dropped mic or a jittery mobile-radio transcript costs a retry, not a lost turn.",
+      "codec_break": "THE central mobile-browser break for THIS rail. The desktop controller's _pickRecorderMime() tries ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/wav'] in order. iOS WebKit MediaRecorder does NOT support audio/webm or audio/ogg/opus — it produces audio/mp4 (AAC). On iOS every one of the desktop candidates fails MediaRecorder.isTypeSupported, _pickRecorderMime() returns '' and the recorder is constructed with the browser default, which on WebKit is audio/mp4. The mobile adapter MUST: (1) add 'audio/mp4' to the candidate list so isTypeSupported succeeds explicitly on iOS; (2) NOT assume audio/webm anywhere — _normalizeAudioContentType() currently defaults unknown types to 'audio/webm' and the upload filename picks '.wav' or '.webm' only, so an audio/mp4 blob would be mislabeled. The adapter derives content_type and extension from the ACTUAL recorder.mimeType / blob.type (audio/mp4 -> '.m4a'), never from a webm assumption. The /chat/upload seam and the AudioArtifactRef.content_type carry the true type so the audio bubble plays back correctly.",
+      "breaks_on_background_lock": "Tab background or screen lock -> WebKit ends the MediaStreamTrack immediately, freezes JS timers, and the WS may be dropped by proxy idle timeout. For THIS rail: treat MediaStreamTrack 'ended' (and visibilitychange-to-hidden) as a manual-stop-equivalent that FINALIZES the in-flight recording into a REVIEW draft — attach whatever audio the MediaRecorder flushed, mark the draft recoverable, run STT (or mark NO_SPEECH / STT_FAILED and keep the audio for retry). NEVER auto-send on background. NEVER auto-reacquire the mic — a fresh user gesture is required on return to foreground. This is the graceful-refusal requirement of the mobile-browser packet expressed for the draft rail: a background/lock event produces a saved draft, not a dropped turn and not an accidental send.",
+      "on_device_stt": "NONE in the browser today (no on-device WebGPU Whisper on mobile Safari at usable quality). STT is server-side over the authenticated wss channel only — same voice_server the desktop rail uses. This is the one surface with no on-device STT option.",
+      "review_controls": "send / retry / edit / delete render in one thumb-reachable vertical stack under the audio bubble; retry re-runs server STT over the preserved blob via the existing retryDraftTranscription WS path (decode -> resample to 16kHz PCM16 -> mic_start/chunks/mic_stop -> collect final). The desktop retry decode path uses AudioContext.decodeAudioData, which on iOS must decode audio/mp4 — the adapter must not assume the blob is webm here either.",
+      "note": "All iOS browsers (Chrome/Firefox/Edge on iOS) are WebKit — the codec and background/lock constraints apply to every browser on iOS, not just Safari-branded."
+    },
+    "mobile_chrome": {
+      "verdict": "CONSTRAINED",
+      "matrix_row": "mobile_browser.push_to_talk",
+      "capture": "Same as mobile Safari: getUserMedia -> MediaRecorder artifact + PCM16 over the existing authenticated voice WS for STT.",
+      "draft_model_fit": "Same tap-to-talk toggle -> REVIEW draft for cross-surface parity. Mic permission is per-origin and persistable on Android Chrome, so re-prompts are rarer than iOS — but the draft model and send gate are identical.",
+      "codec": "Android Chrome MediaRecorder DOES support audio/webm;codecs=opus, so _pickRecorderMime() returns the first desktop candidate and the existing path works unchanged. The adapter still derives content_type from the actual recorder.mimeType (never a hardcode) so the same code is correct on both Android-Chrome-webm and iOS-mp4 without branching on user-agent.",
+      "breaks_on_background_lock": "Backgrounded tab is throttled and capture is suspended/stopped shortly after; screen lock stops capture. Android Chrome is more permissive than WebKit, but the adapter applies the SAME policy as mobile Safari: track 'ended' or visibilitychange-to-hidden FINALIZES the in-flight recording into a REVIEW draft — no background capture attempted, no auto-send, fresh gesture to resume.",
+      "on_device_stt": "NONE reliably in the browser today; server STT over the authenticated wss channel only.",
+      "review_controls": "identical to mobile Safari."
+    }
+  },
+  "shipped_rail_adaptation_deltas": {
+    "statement": "Concrete deltas between the shipped desktop UserVoiceNote rail (voiceMessageStore.ts + voice-controller.ts) and a conforming mobile adapter. Each delta is a documented ADAPTATION requirement, not a code change authorized by this compile.",
+    "codec_candidate_list": "voice-controller.ts::_pickRecorderMime() candidate list ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/wav'] must include 'audio/mp4' for iOS WebKit, else MediaRecorder falls to an implicit default and the code path that assumes a known mime is bypassed.",
+    "content_type_normalization": "voiceMessageStore.ts::_normalizeAudioContentType() defaults unknown types to 'audio/webm' and sendDraft picks extension '.wav' vs '.webm' only. Mobile must map audio/mp4 -> '.m4a' (and keep audio/webm, audio/wav) and derive content_type from the real blob.type, never from the webm default. The AudioArtifactRef.content_type must be the true container so playback in the audio bubble works on iOS.",
+    "finalize_on_lifecycle_event": "Desktop finalizes on manual tap-stop, VAD silence, or max-duration. Mobile ADDS lifecycle-driven finalize: MediaStreamTrack 'ended' and document visibilitychange-to-hidden both call the finalize path (equivalent to _finalizeRecording('manual_stop')) so a background/lock event produces a REVIEW draft rather than a stuck recording or a lost turn. This is additive to the existing state machine; it introduces no new state.",
+    "no_auto_reacquire": "On return to foreground the adapter must NOT auto-reacquire the mic or auto-resume a WS. A fresh user gesture is required (iOS getUserMedia + AudioContext.resume() gesture rule). The existing 'sending is only ever explicit operator action' law extends to 'capturing is only ever explicit operator gesture'.",
+    "ws_reconnect_lazy": "The desktop controller reconnects the voice WS on demand (ensureClient). On mobile, a backgrounded tab freezes timers so ping/pong stops and the nginx proxy idle-times the socket. Policy (unchanged from mobile_voice_compile.json ws_keepalive): do NOT fight it — end the capture session cleanly on visibility loss, reconnect lazily on the next user gesture, and NEVER buffer or replay audio across a reconnect. A retry re-streams the PRESERVED blob, it does not replay a live session.",
+    "audio_unlock_gesture": "voice-controller.ts already calls unlockAudioForIOS() on the mic gesture for TTS output. On mobile this same first gesture must also serve as the getUserMedia capture gesture and the AudioContext.resume() for STT decode — one gesture chain, consistent with the matrix autoplay-policy risk note.",
+    "sha256_availability": "voiceMessageStore.ts::_sha256Hex() uses crypto.subtle, which is unavailable in a non-secure context. Mobile cockpit is HTTPS-only (matrix mic_policy: HTTPS required), so crypto.subtle is available — the existing empty-string fallback stays as defensive code but should not trigger on a correctly served mobile surface.",
+    "review_ui_viewport": "The desktop review controls (send/retry/edit/delete under the bubble) must reflow to a single thumb-reachable vertical column on a small viewport, co-located with the inline consent-enable control from Lane A, so the CONSENT_REQUIRED -> enable -> record -> review -> send flow is one continuous thumb column (per owner_observation_2026_07_07)."
+  },
+  "draft_lifecycle_on_mobile_interruptions": {
+    "statement": "The UserVoiceNote failure/interruption paths, mapped to mobile events. Every path preserves audio and produces a recoverable draft — none produces a chat message and none produces an auto-send.",
+    "background_or_lock_mid_record": "MediaStreamTrack 'ended' / visibilitychange-hidden (browser) or AVAudioSession interruption / Activity pause (native) -> finalize captured-so-far audio into a REVIEW draft; attach audio; run STT or mark STT_FAILED/NO_SPEECH keeping the audio. Never auto-send. Resume = fresh gesture.",
+    "no_speech": "Under-threshold or too-short capture -> markNoSpeech(): recoverable draft with a retry affordance, never a chat message (identical to desktop).",
+    "stt_failed_over_radio": "Server STT failure over a flaky mobile radio -> markTranscriptFailed('STT_FAILED'): draft kept, audio kept (no revoke, no discard); retry re-runs STT over the preserved blob (retryDraftTranscription).",
+    "ws_dropped_by_proxy": "Backgrounded-tab idle timeout drops the WS -> the in-flight capture finalizes to a draft (audio preserved); a later retry lazily reconnects the WS and re-streams the preserved blob. No live-session replay across the reconnect.",
+    "upload_failed_on_send": "sendDraft's /chat/upload fails on a mobile radio -> draft marked failed, audio preserved for retry (identical to desktop send_upload_failed path). No chat trace.",
+    "delete": "Explicit delete revokes the object URL and removes the draft with no chat trace — the ONLY path that discards audio. Every failure path above preserves it."
+  },
+  "consent_ux_small_viewport": {
+    "statement": "The consent UX for the draft rail on a small viewport, deepening the owner observation.",
+    "inline_enable_on_refusal": "The typed CONSENT_REQUIRED outcome renders the inline 'Enable Push-to-Talk for this device' control (Lane A) IN the same thumb-reachable column the draft bubble/review controls occupy — the mic affordance, the refusal text, the enable control, and (after grant) the recording indicator and draft all stack vertically with no desktop settings rail.",
+    "two_layer_ordering": "UMH VoiceConsentGrant is checked and refused fail-closed BEFORE the browser/OS mic-permission prompt (proven correct in the 2026-07-07 evidence). Grant round-trips the same governed /voice/consent surface the desktop adapter uses; a push_to_talk grant never authorizes wake_word or always_on.",
+    "grant_does_not_prove_surface": "Granting consent removes the dead-end; it does NOT promote mobile browser PTT above CONSTRAINED. The surface is proven only by an actual tap -> record -> draft -> review -> send -> same-rail proof on the real device."
+  },
+  "audio_upload_over_mobile_radio": {
+    "seam": "The EXISTING /chat/upload media seam (voiceMessageStore.sendDraft) — no new upload endpoint. content_type carried truthfully (audio/mp4 on iOS, audio/webm on Android Chrome, audio/wav fallback).",
+    "size_and_radio": "Draft artifacts are short utterances (max_recording_ms 120000 hard cap). Upload happens ONLY on explicit send, not during capture, so a flaky radio never corrupts an in-progress recording — it can only fail a send, which preserves the audio for retry. No chunked-during-capture upload, no background upload.",
+    "retry_over_radio": "STT retry re-streams the preserved PCM16 blob over the authenticated WS; upload retry re-POSTs the preserved blob to /chat/upload. Both operate on stored audio, never on a live session.",
+    "no_persistence_beyond_seam": "Audio bytes cross only the storage + STT seams behind the authenticated session; transcript never logged at INFO (<=40-char DEBUG previews); no audio persisted on device or server by default beyond the tenant/user/session-scoped artifact (storage law, docs/VOICE_MESSAGE_CONTRACT.md)."
+  },
+  "on_device_vs_server_stt": {
+    "native_ios": "SFSpeechRecognizer on-device preferred (requiresOnDeviceRecognition where locale supports) — audio never leaves the device. NSSpeechRecognitionUsageDescription mandatory; Microphone and Speech Recognition are SEPARATE TCC prompts, both required for the on-device path, either denied -> typed refusal + Settings deep link, no silent retry.",
+    "native_android": "android.speech.SpeechRecognizer on-device preferred (EXTRA_PREFER_OFFLINE where supported).",
+    "mobile_browser": "NO on-device STT today (both Safari and Chrome). Server STT over the authenticated wss channel ONLY — the existing voice_server (Groq Whisper + faster-whisper fallback). No unauthenticated audio endpoint, ever.",
+    "server_fallback_channel": "Where on-device STT is unavailable (unsupported locale on native; the entire mobile-browser surface) the server-STT fallback speaks the same PCM16 WS protocol over the authenticated wss channel under the operator's session. Provider credentials stay server-side in the existing secret runtime (1Password op run); no provider key ever ships in a mobile client or this artifact.",
+    "cloud_transcription": "DEFERRED to a privacy review, unchanged from docs/VOICE_MESSAGE_CONTRACT.md. This plan does not decide it."
+  },
+  "adapter_into_cockpit_chat": {
+    "interface": "The ONE PlatformVoiceAdapter contract. The mobile UserVoiceNote adapter is the desktop voice-controller.ts + voiceMessageStore.ts rail plus mobile lifecycle/codec handling. No new interface, no new store, no new send path.",
+    "output_seam": "Adapter output is ONLY a chat message on explicit send: voiceMessageStore.sendDraft -> chatStore.addVoiceTranscript -> sendMessage(text, source='voice', routing, voice_turn_id) -> POST /advisor/converse — the SAME endpoint and body typed text uses. The draft carries the audio artifact ref and duration in message meta; the transcript text is the chat content.",
+    "never_calls": ["classify_intent", "intent_loop_submit", "governed_mutation", "any LLM/provider call", "/intent-loop/submit"],
+    "identity": "The mobile Clerk session principal, resolved SERVER-SIDE at /advisor/converse — identical to the principal that stamps decided_by on the ProofRecord. The adapter stamps no identity and cannot spoof one.",
+    "consent": "VoiceConsentGrant per-mode per-device: (operator_principal, device_registry_id, activation_mode='push_to_talk'). Mobile devices register in infra/device_registry.json as controller-role entries; the grant is read fail-closed from the governed /voice/consent surface before any capture. Missing/revoked/unreadable -> typed CONSENT_REQUIRED refusal with the inline grant affordance. A push_to_talk grant never authorizes wake_word or always_on.",
+    "device_role": "Mobile surfaces are controller role only — never executor, never orchestrator. The orchestrator-role node never has a microphone.",
+    "send_is_the_only_ingress": "Per docs/VOICE_MESSAGE_CONTRACT.md intent-ingress law: the transcript enters Cockpit Chat / IntentSpec / gate / proof ONLY on the explicit operator send. Partial transcripts are provisional display only and never committed. Pause finalizes to review, never sends (auto_send false). Delete leaves no chat trace.",
+    "proof_requirements": "Class-A proof for this rail on a mobile surface = tap -> record -> REVIEW draft (audio bubble + transcript) -> explicit send -> transcript enters the SAME rail -> held gate -> approve -> PROOF_RECORDED with decided_by = mobile Clerk principal; PLUS the graceful-refusal proof: a background/lock event during capture produces a recoverable REVIEW draft (audio preserved) and NEVER an auto-send or a lost turn. UI rendering alone is not proof; server-truth confirmation of the proof chain is required."
+  },
+  "background_ambient_feasibility": {
+    "statement": "This rail PROMISES NO mobile ambient or background listening. The UserVoiceNote rail is explicitly foreground-only, tap-initiated, review-before-send. The verdicts below restate platform_voice_feasibility_matrix.json verbatim; any mobile ambient work is deferred behind a platform spike + privacy review + explicit owner sign-off.",
+    "ios_background": {
+      "verdict": "NOT_FEASIBLE",
+      "why": "iOS does not permit continuous background microphone for a non-audio utility app; background audio mode + App Review policy block it. The draft rail never attempts it — capture ends on background and finalizes to a review draft."
+    },
+    "android_background": {
+      "verdict": "CONSTRAINED",
+      "why": "Possible only via a microphone-type foreground service (persistent notification, Android 14 FGS type declaration), user-visible and battery-costly. This rail ships NO foreground service; capture is strictly foreground. Deferred and owner-gated."
+    },
+    "mobile_browser_wake_word": {
+      "verdict": "NOT_FEASIBLE",
+      "why": "No background execution; tabs are suspended and the mic is released; iOS WebKit has no service-worker background audio and no wake-word API. The draft rail is tap-initiated only."
+    },
+    "mobile_browser_ambient": {
+      "verdict": "NOT_FEASIBLE",
+      "why": "Same as wake word: no background mic, tab suspension, screen lock releases capture. Explicitly NOT promised."
+    }
+  },
+  "verdict_consistency": {
+    "note": "Machine-checkable cross-reference against data/umh/voice/platform_voice_feasibility_matrix.json — validated by tests/test_p4s_mobile_uservoicenote_compile_artifacts.py, which loads both files and asserts agreement.",
+    "mobile_app_push_to_talk": "LIKELY",
+    "mobile_browser_push_to_talk": "CONSTRAINED",
+    "mobile_browser_wake_word": "NOT_FEASIBLE",
+    "mobile_browser_ambient": "NOT_FEASIBLE",
+    "mobile_app_ios_background_ambient": "NOT_FEASIBLE",
+    "mobile_app_android_background_ambient": "CONSTRAINED"
+  }
+}
