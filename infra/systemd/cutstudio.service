@@ -41,6 +41,8 @@ After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=300
 StartLimitBurst=5
+# No-op until the CutStudio code lands on main in /opt/OS (PR #315).
+ConditionPathExists=/opt/OS/services/cutstudio_api.py
 
 [Service]
 Type=simple
