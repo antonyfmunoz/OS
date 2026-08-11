@@ -1,0 +1,58 @@
+# CutStudio API — transcript-based video editor backend (127.0.0.1:8931).
+#
+# Host process on purpose (same precedent as the voice server on :8096 and
+# the mesh server on :8094): whisper `small` plus ffmpeg render jobs must not
+# contend with the Docker runtime containers, and the CPU/memory caps below
+# are the enforcement.
+#
+# Install (STAGED FILE — this is not the live unit):
+#   cp /opt/OS/infra/systemd/cutstudio.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now cutstudio
+#
+# Verify:
+#   systemctl status cutstudio
+#   journalctl -u cutstudio -n 50 --no-pager
+#   curl -fsS http://127.0.0.1:8931/health
+#   -> {"ok":true,"jobs_running":0,"disk_free_gb":...,"uploads_accepted":true}
+#
+# Exposure: binds 127.0.0.1 ONLY. Reach it through the edge the way every
+# other surface is reached — a Caddy `handle /api/cut/*` block with
+# `reverse_proxy localhost:8931`, or a `tailscale serve` mapping. Never bind
+# the Tailscale IP directly; nothing else in UMH does.
+#
+# Resource profile: faster-whisper `small` int8 loads ~500-900MB RSS and
+# bursts 1-1.5 cores while decoding; ffmpeg renders are shorter but equally
+# CPU-hungry. CPUQuota=150% / MemoryMax=2G bound exactly that worst case.
+# The voice unit uses 1G because it runs `base`; do NOT lower this to match
+# it, and do not raise it without measuring. Nice=10 keeps interactive
+# services (voice turns, cockpit API) ahead of a long render.
+#
+# CPU Gate Law: every ffmpeg and whisper invocation also passes through
+# substrate/execution/cpu_gate.py, so a hot host defers jobs (state stays
+# `queued`, detail "host busy, retrying") rather than saturating the VPS.
+#
+# Secrets: cutstudio_api.py loads /opt/OS/services/.env itself (the 1Password
+# op-injected file) — CUTSTUDIO_API_KEY and LINK_TOKEN_SECRET live there,
+# never as plaintext Environment= lines here.
+
+[Unit]
+Description=CutStudio API (transcript video editor on 127.0.0.1:8931)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/OS
+ExecStart=/usr/bin/python3 /opt/OS/services/cutstudio_api.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=UMH_ROOT=/opt/OS
+Nice=10
+CPUQuota=150%
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target
