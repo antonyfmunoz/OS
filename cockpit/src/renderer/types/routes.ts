@@ -49,6 +49,7 @@ import {
   Shield,
   MonitorDot,
   LayoutPanelTop,
+  Scissors,
 } from 'lucide-react'
 import type { Panel } from '../stores/cockpitStore'
 
@@ -169,6 +170,9 @@ export const ROUTES: RouteEntry[] = [
   // M1 — Operator MVP Closure (G10 + G11)
   { id: 'proofinspector', label: 'Proof Inspector', icon: ShieldCheck, group: 'primary', visibility: 'dev', key: '#' },
   { id: 'recoverydashboard', label: 'Recovery Dashboard', icon: RotateCcw, group: 'primary', visibility: 'dev', key: '$' },
+
+  // CutStudio — transcript-based video editing instrument
+  { id: 'cutstudio', label: 'CutStudio', icon: Scissors, group: 'primary', visibility: 'dev', key: '*' },
 
   // Planned (searchable with [PLANNED] badge)
   { id: 'analytics', label: 'Analytics', icon: BarChart3, group: 'primary', visibility: 'planned', key: '6' },

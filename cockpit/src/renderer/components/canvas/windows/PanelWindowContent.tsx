@@ -84,6 +84,7 @@ const PANEL_COMPONENTS: Record<string, React.LazyExoticComponent<React.Component
   intentloop: lazy(() => import('../../../panels/IntentLoopPanel').then(m => ({ default: m.IntentLoopPanel }))),
   workdetail: lazy(() => import('../../../panels/WorkDetailPanel').then(m => ({ default: m.WorkDetailPanel }))),
   objectiveplan: lazy(() => import('../../../panels/WorkDetailPanel').then(m => ({ default: m.WorkDetailPanel }))),
+  cutstudio: lazy(() => import('../../cutstudio/CutStudioPanel').then(m => ({ default: m.CutStudioPanel }))),
 }
 
 interface Props {

@@ -49,6 +49,8 @@ export const CANONICAL_PANEL_IDS = [
   'operations',
   'proofinspector',
   'recoverydashboard',
+  // CutStudio — transcript-based video editing instrument
+  'cutstudio',
 ] as const
 
 export type CanonicalPanelId = (typeof CANONICAL_PANEL_IDS)[number]
