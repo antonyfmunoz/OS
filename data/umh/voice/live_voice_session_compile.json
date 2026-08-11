@@ -1,0 +1,191 @@
+{
+  "record": "P4S-LIVE-VOICE-SESSION-001 — LiveVoiceSession runtime compile artifact",
+  "compiled": "2026-07-07",
+  "mode": "compile_only — no activation authorized; no live-session runtime, no live-mode default-voice response, no auto-execute path, and no new consent mode ships with this artifact",
+  "compile_only": true,
+  "activation_gate": {
+    "activation_authorized": false,
+    "gate": "This artifact defines the target shape ONLY. LiveVoiceSession is voice taxonomy category 2 (per docs/VOICE_MESSAGE_CONTRACT.md) and is explicitly NOT this-packet in the shipped UserVoiceNote rail (P4S-31D1-B). It belongs to a future implementation packet that is hard-held. Nothing in this artifact starts, schedules, enables a flag for, or permits a live voice session.",
+    "who_gates": "the owner explicitly calls the LiveVoiceSession implementation packet in sequence, after the push-to-talk rail (P4S-31D-1) and its browser proof (P4S-31D-2) are proved; this artifact cannot self-authorize.",
+    "sequencing_dependency": "LiveVoiceSession builds on the proven push-to-talk transcript-into-chat rail. It is NOT scheduled before that rail's server-truth proof exists."
+  },
+  "taxonomy_binding": {
+    "category": "LiveVoiceSession",
+    "canonical_definition": "Real-time conversation with DEX/Jarvis; voice is the DEFAULT response during live mode; transcript AND events are STILL recorded in the Cockpit Chat ledger; actions STILL require governance (hold-at-AWAITING_APPROVAL, proof). Grounded in docs/VOICE_MESSAGE_CONTRACT.md and data/umh/voice/voice_message_contract.json (voice_taxonomy.categories.LiveVoiceSession).",
+    "is": [
+      "live real-time back-and-forth spoken conversation with DEX",
+      "voice-default response WHILE live mode is engaged",
+      "fully ledger-recorded — every operator turn and every DEX turn hits the Cockpit Chat ledger via the existing _save_turn path",
+      "fully governed — any ACTION a live turn implies routes to the held intent-loop gate exactly like a typed message"
+    ],
+    "is_not": [
+      "NOT dictation (that is UserVoiceNote / P4S-31D1-B — record → review → send a draft)",
+      "NOT ambient / wake-word activation (that is AmbientActivation / P4S-AMBIENT-ACTIVATION-001, held)",
+      "NOT outbound AI voice rendered in the operator's authorized voice (that is AIOutboundVoiceMessage / P4S-AI-OUTBOUND-VOICE-MESSAGE-001, compile-only, not built)",
+      "NOT a second way to reach the runtime — it remains an adapter into Cockpit Chat and the governed intent loop"
+    ]
+  },
+  "grounding": {
+    "extends": "data/umh/voice/voice_intent_contract_types.json (VoiceSession, TranscriptEvent, VoiceConsentGrant)",
+    "binds_to_contracts": [
+      "docs/VOICE_INTENT_CONTRACT.md (voice is a first-class adapter into Cockpit Chat; non-bypass invariants)",
+      "docs/VOICE_MESSAGE_CONTRACT.md (voice taxonomy — LiveVoiceSession is category 2)"
+    ],
+    "reuses": {
+      "capture_transport": "voice-ws.ts PCM16 @16kHz -> umh/voice_server.py (unchanged WS protocol on ws://:8096/voice)",
+      "stt_path": "server STT via umh/voice_server.py — Groq whisper-large-v3-turbo, faster-whisper fallback (transcript-only transit; audio never persisted by the server)",
+      "tts_path": "server TTS via umh/voice_server.py tts_request — Kokoro on the instance GPU node, espeak fallback (existing 'tts_request'/'tts_status'/'tts_error' messages)",
+      "chat_entry": "chatStore.sendMessage(text, 'voice', routing, voice_turn_id) -> POST /advisor/converse (SAME endpoint text uses)",
+      "ledger_write": "substrate/organism/advisor_conversation.py::DEXConversation.converse() persists BOTH the operator turn and the assistant turn via _save_turn() — the live session writes through this same path, no separate ledger",
+      "held_gate": "transports/api/cockpit_chat_routes.py::try_chat_intent_rail -> governed_intent_submit -> IntentLoop.submit (held at AWAITING_APPROVAL; advances only via IntentLoop.decide)",
+      "barge_in": "cockpit/src/renderer/api/voice-controller.ts vad_status handler — when VAD active AND ttsState=='speaking', client.cancelTts() + cancelPlayback() + micState='interrupted'. LiveVoiceSession REUSES this exact barge-in; it does not invent a new one.",
+      "turn_correlation": "voice-turn-assembler.ts voice_turn_id (vt-<uuid>) threads capture -> transcript -> chat -> loop",
+      "presentation_envelope": "voiceStore.ts OrganismResponseEnvelope + heldEnvelope hold text+audio until ready-to-commit together (existing held-message presentation)"
+    }
+  },
+  "session_lifecycle": {
+    "description": "Explicit lifecycle for one live voice session on one surface. Extends VoiceSession (voice_intent_contract_types.json) — it does NOT redefine VoiceSession fields.",
+    "reference_only_for_voice_session": true,
+    "voice_session_binds_to": "data/umh/voice/voice_intent_contract_types.json (types[].name == 'VoiceSession')",
+    "states": [
+      "closed",
+      "opening",
+      "listening",
+      "capturing",
+      "transcribing",
+      "responding",
+      "ledger_write",
+      "closing"
+    ],
+    "transitions": [
+      {"from": "closed", "to": "opening", "on": "operator engages live mode with an ACTIVE consent grant for the live mode + OS mic permission + feature flag ON"},
+      {"from": "opening", "to": "listening", "on": "voice_server WS connected; mic open; session bound to the operator Clerk principal (resolved server-side) and the DeviceSession"},
+      {"from": "listening", "to": "capturing", "on": "speech detected above VAD threshold (reuses voice-controller audio_level threshold)"},
+      {"from": "capturing", "to": "transcribing", "on": "utterance boundary reached — server STT produces the TranscriptEvent (final=true)"},
+      {"from": "transcribing", "to": "responding", "on": "final transcript enters chat verbatim via sendMessage(source='voice') -> /advisor/converse; DEX composes a response; voice is the DEFAULT response modality in live mode"},
+      {"from": "responding", "to": "ledger_write", "on": "converse() persists BOTH the operator transcript turn and the assistant response turn to the Cockpit Chat ledger via _save_turn — this is not optional and is not a separate store"},
+      {"from": "ledger_write", "to": "listening", "on": "response committed (text+audio via the held presentation envelope); session re-opens the mic for the next turn — a live session is a loop of turns"},
+      {"from": "responding", "to": "listening", "on": "barge-in: operator speaks while DEX is talking -> cancelTts() -> interrupted -> mic re-opens (reuses existing voice-controller barge-in)"},
+      {"from": "any", "to": "closing", "on": "operator ends live mode, consent revoked, feature flag OFF, WS lost, or inactivity timeout"},
+      {"from": "closing", "to": "closed", "on": "mic released, WS closed, TTS cancelled; no residual capture"}
+    ],
+    "turn_is_the_unit": "A live session is a sequence of turns. Each turn is: listen -> capture -> transcribe -> (chat ledger) -> respond -> (chat ledger). Ending a turn does NOT end the session; ending the session releases the mic.",
+    "reuse_note": "This is a session-loop composed of the already-proven single-turn seam; it does not introduce a parallel capture or transcript pipeline."
+  },
+  "turn_taking_and_barge_in": {
+    "model": "half-duplex with barge-in override. DEX speaks (TTS) OR the operator speaks; the operator may interrupt DEX at any time.",
+    "barge_in_reuse": "REUSES the existing barge-in in cockpit/src/renderer/api/voice-controller.ts: on vad_status active while ttsState=='speaking', the client calls cancelTts(), cancelPlayback(), sets ttsState idle and micState 'interrupted'. LiveVoiceSession does NOT define a new barge-in mechanism.",
+    "no_new_barge_in": true,
+    "operator_always_wins": "The operator can always interrupt DEX mid-utterance; DEX never talks over a speaking operator.",
+    "turn_end_detection": "utterance boundary from the existing VAD/silence detection in voice-controller.ts + voice_server.py (SILENCE_END_UTTERANCE_S). A silence ends the OPERATOR turn; it never triggers an action and never sends anything ungoverned."
+  },
+  "voice_default_response_rule": {
+    "rule": "WHILE live mode is engaged, DEX's default response modality is voice (TTS via the existing tts_request seam) in addition to the text that always lands in the ledger. Voice-default applies ONLY inside an active live session; outside live mode the default is text.",
+    "text_is_never_skipped": "Voice is the default PRESENTATION, not a replacement for the text turn. Every DEX response still produces a text turn written to the Cockpit Chat ledger. Voice is rendered FROM that text via TTS; the ledger record is the text.",
+    "commit_together": "Text and audio commit together via the existing held presentation envelope (voiceStore OrganismResponseEnvelope / heldEnvelope) so the operator never sees text without its spoken form lagging incoherently.",
+    "degradation": "If TTS fails (tts_error), the text turn still commits to the ledger and is shown — voice-default degrades to text, never to silence-plus-lost-turn (Deterministic-First Principle)."
+  },
+  "ledger_recording": {
+    "rule": "Transcript AND events are STILL recorded in the Cockpit Chat ledger. A live session has NO private, unlogged channel.",
+    "operator_turn": "each finalized operator transcript is written to the ledger as a chat message with source='voice' and the voice_turn_id, via converse()/_save_turn — identical to a typed message's persistence.",
+    "assistant_turn": "each DEX response is written to the ledger as an assistant turn via _save_turn — identical to a typed conversation's persistence.",
+    "events": "session lifecycle events (session opened, turn started, barge-in, held-at-approval, proof recorded, session closed) are recorded as chat/loop events in the same thread the operator sees; a live turn that implies an action produces the SAME AWAITING_APPROVAL event a typed action produces.",
+    "verbatim": "the ledger's operator message content equals the final TranscriptEvent.text, unmodified — voice does not pre-interpret (VoiceIntentContract invariant 6).",
+    "no_separate_store": "the live session writes through DEXConversation.converse()/_save_turn — there is no second ledger, no bypass, no in-memory-only transcript."
+  },
+  "governance_boundary": {
+    "principle": "Conversational turns are chat. Any ACTION a live turn implies routes to the held intent-loop gate. A live session NEVER auto-executes.",
+    "two_paths_same_endpoint": {
+      "conversational_turn": "reaches DEX via /advisor/converse and is answered conversationally + written to the ledger. No action, no mutation.",
+      "action_implying_turn": "the SAME /advisor/converse call runs try_chat_intent_rail -> deterministic classify_intent(text) -> if INTENT_CAPTURE, governed_intent_submit -> IntentLoop.submit -> HELD at AWAITING_APPROVAL. The live session surfaces the held item in-thread and waits for explicit operator approval; only IntentLoop.decide advances it to PROOF_RECORDED."
+    },
+    "never_auto_executes": true,
+    "no_live_mode_auto_advance": "Being in live/voice mode grants NO extra authority. A spoken action is classified identically to a typed one (classify_intent ignores source) and holds at AWAITING_APPROVAL exactly the same. There is no 'voice confirms by voice-and-executes' path in this artifact.",
+    "approval_is_explicit": "approval of a held live-turn action still requires an explicit governed approve (intent_loop_approval_decision); decided_by is the authenticated Clerk principal resolved server-side, never spoofed by a voice payload.",
+    "same_proof_chain": "a live-origin INTENT_CAPTURE produces a ProofRecord under the registered intent_loop_approval_decision MutationSpec — the P4S-31C proof chain, one hop further back (spoken word instead of typed).",
+    "non_bypass_invariants_inherited": [
+      "same endpoint: a live utterance reaches the runtime ONLY through POST /advisor/converse with source='voice' — no voice-specific submit route",
+      "same classifier: classify_intent receives text only; source is never passed to it",
+      "same gate: a live-origin INTENT_CAPTURE holds at AWAITING_APPROVAL with proof is None; no auto-advance",
+      "same identity: decided_by is the authenticated Clerk operator principal, server-resolved",
+      "transcript-only transit: /advisor/converse carries text, never audio bytes"
+    ]
+  },
+  "consent_model": {
+    "principle": "Consent is PER-MODE (VoiceIntentContract). A push_to_talk grant does NOT authorize a live session, and a live-session grant does NOT authorize wake_word or always_on.",
+    "required_grant_future": "VoiceConsentGrant(live_session) — a NEW consent mode.",
+    "grantable_now": false,
+    "future_grantable_note": "The 'live_session' consent mode is DECLARED here as future-grantable, NOT grantable now. No grant of this mode may be created, no UI to grant it may ship, and no code path may treat a push_to_talk grant as sufficient for a live session, until the LiveVoiceSession implementation packet is owner-authorized.",
+    "fail_closed": "Absent an ACTIVE VoiceConsentGrant(live_session), live mode refuses to open — fail-closed, a typed VoiceOutcome (CONSENT_REQUIRED), never a degraded ungoverned path.",
+    "revocation": {
+      "rule": "revoking the live_session grant (revoked_at set) stops capture and closes the session immediately; the mic is released at once.",
+      "immediate": true
+    },
+    "two_layers": "OS/browser microphone permission AND the UMH VoiceConsentGrant(live_session) are BOTH required; either missing = refusal.",
+    "orchestrator_exclusion": "the orchestrator-role node (infra/device_registry.json) NEVER opens a live session — DeviceCapabilityProfile.has_microphone=false for that role, always. No mic on the orchestrator."
+  },
+  "stt_tts_path": {
+    "stt": {
+      "engine": "server STT via umh/voice_server.py — Groq whisper-large-v3-turbo (default, network-bound), faster-whisper fallback (local CPU)",
+      "transit": "transcript-only — audio bytes never cross the chat seam; the server writes utterance PCM to a temp WAV only for the STT call and unlinks it immediately (success or failure)",
+      "logging_law": "transcript text is never logged at INFO or above; bounded <=40-char DEBUG previews only"
+    },
+    "tts": {
+      "engine": "server TTS via umh/voice_server.py tts_request — Kokoro on the instance GPU node, espeak fallback",
+      "trigger": "DEX response text -> tts_request -> Kokoro synthesis -> audio streamed to the browser -> tts_status(speaking)",
+      "no_outbound_voice": "TTS here renders DEX's response for the operator IN the live session ONLY. It NEVER renders the operator's authorized voice, never sends voice to a third party, and never clones any voice — that is AIOutboundVoiceMessage (P4S-AI-OUTBOUND-VOICE-MESSAGE-001), NOT this artifact."
+    },
+    "protocol_unchanged": "the voice_server WS protocol (mic_start/mic_stop/tts_request/tts_cancel + binary PCM16 in, transcript/tts_status/audio out) is UNCHANGED — LiveVoiceSession composes existing messages, it does not add a new wire protocol."
+  },
+  "state_store_shape": {
+    "description": "State the live session needs, expressed against the EXISTING voiceStore — it does NOT fork a parallel store.",
+    "reuses_from_voiceStore": [
+      "micState (idle|requesting_permission|connecting_voice_ws|listening|recording|transcribing|processing|interrupted)",
+      "ttsState (idle|generating_tts|ready_to_speak|speaking|tts_failed)",
+      "vadActive, audioLevel, lastTranscript",
+      "consentState (unknown|required|granting|active) — extended in the future packet to cover the live_session mode; NOT changed here",
+      "voicePresentationStatus + heldEnvelope (OrganismResponseEnvelope) for commit-together presentation",
+      "lastOutcome (VoiceOutcome) for typed fail-closed refusals"
+    ],
+    "future_fields_declared_not_added": {
+      "note": "These are the SHAPE a future implementation would add. This artifact does NOT add them to voiceStore.ts (compile-only).",
+      "liveSessionState": "enum mirroring session_lifecycle.states (closed|opening|listening|capturing|transcribing|responding|ledger_write|closing)",
+      "liveSessionId": "string | null — DeviceSession-correlated live session id, server-bound to the Clerk principal",
+      "liveModeEngaged": "bool — true only while a live session is open; drives the voice-default-response rule",
+      "turnIndex": "int — monotonic turn counter within the session (for event ordering in the ledger)"
+    },
+    "identity_never_client_stamped": "the session's operator principal is resolved server-side (Clerk); the store never stamps identity."
+  },
+  "cpu_gate_budget": {
+    "law": "CPU Gate Law (CLAUDE.md) — a live session must NEVER saturate CPU on any host.",
+    "server_stt_tts": "the STT/TTS server is bound by the existing umh-voice-server.service unit (CPUQuota=150% / MemoryMax=1G, measured worst case with faster-whisper fallback). LiveVoiceSession adds NO new server process and MUST NOT raise these bounds without re-measuring.",
+    "cpu_bounds": {
+      "server_sustained_pct_single_core_max": 150,
+      "server_sustained_pct_single_core_target": 20,
+      "session_client_overhead_note": "the live-session loop is orchestration over the existing per-turn seam; it adds bounded client-side event handling, not a new compute worker"
+    },
+    "memory_bounds": {
+      "server_resident_mb_max": 1024
+    },
+    "self_disarm": "on sustained budget breach the session degrades: TTS is dropped first (text-only turns still commit to the ledger), then the session closes fail-closed rather than saturating the host.",
+    "no_always_on": "a live session is operator-engaged and bounded by an inactivity timeout — it is NOT an always-on mic and does NOT keep the STT engine hot when closed."
+  },
+  "rollback_plan": {
+    "flag_off": "the live-mode feature flag defaults OFF; with it OFF, no live session can open — there is no live mode. This is the primary rollback.",
+    "revoke": "revoking VoiceConsentGrant(live_session) stops capture and closes any open session immediately.",
+    "no_activation_no_rollback_needed": "because this artifact activates nothing, rollback of the artifact itself is a no-op: deleting the compile artifacts removes documentation only, no runtime behavior changes.",
+    "artifact_rollback": "revert the commit that added data/umh/voice/live_voice_session_compile.json, docs/LIVE_VOICE_SESSION_COMPILE.md, and tests/test_p4s_live_voice_compile_artifacts.py — nothing else is touched."
+  },
+  "forbidden_in_this_packet": [
+    "implementation code for any live-session runtime (no session loop, no live-mode wiring)",
+    "activation of live mode or any live feature flag",
+    "auto-execute of any action implied by a voice turn — actions ALWAYS hold at AWAITING_APPROVAL",
+    "creating or granting a VoiceConsentGrant(live_session) — the mode is future-grantable, not grantable now",
+    "provider execution or live projection DB writes",
+    "outbound AI voice, voice cloning, or rendering the operator's voice",
+    "a separate voice execution path that bypasses Cockpit Chat / the intent loop",
+    "ambient / wake-word / always-on activation (that is P4S-AMBIENT-ACTIVATION-001, held)",
+    "adding any new server process or raising the umh-voice-server CPU/memory bounds"
+  ],
+  "device_binding_note": "devices are referenced by infra/device_registry.json role/id only — never hostnames or device-name literals; the operator identity is the Clerk principal resolved server-side."
+}
