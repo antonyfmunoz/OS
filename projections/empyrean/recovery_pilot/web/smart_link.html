@@ -1,0 +1,112 @@
+<!doctype html>
+<!--
+  Empyrean Studios — permanent smart link (/live).
+  THIS URL NEVER CHANGES. Every piece of content — bio links, email footers,
+  printed material, ad creative, DM replies — points here forever. What sits
+  behind it changes; the link does not. Never publish the stream or webinar
+  URL directly.
+  Self-contained: all CSS inline, no CDN, no external fonts or scripts.
+  TEST MODE: LIVE_NOW is false, so this routes to webinar registration.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Empyrean Studios — Live</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0A0A0B;
+    --surface: #121214;
+    --border: #1F1F23;
+    --text: #F5F5F4;
+    --muted: #8E8E93;
+    --accent: #6D28D9;
+    --accent-soft: #8B5CF6;
+    --headline: Archivo, Inter, system-ui, sans-serif;
+    --body: Inter, system-ui, sans-serif;
+  }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--body); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .interstitial { text-align: center; max-width: 420px; }
+  .wordmark {
+    font-family: var(--headline); font-weight: 700; font-size: 13px;
+    letter-spacing: 0.3em; text-transform: uppercase; color: var(--text);
+  }
+  .spinner {
+    width: 38px; height: 38px; margin: 34px auto 0;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-soft);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner { animation-duration: 2.4s; }
+  }
+  .status {
+    font-family: var(--headline); font-weight: 700;
+    font-size: 19px; margin-top: 26px; letter-spacing: -0.01em;
+  }
+  .sub { color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .fallback {
+    margin-top: 30px; padding-top: 22px;
+    border-top: 1px solid var(--border);
+    font-size: 14px; color: var(--muted);
+  }
+  .fallback a {
+    color: var(--accent-soft); font-weight: 600; text-decoration: none;
+    border-bottom: 1px solid var(--accent);
+  }
+  .fallback a:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="interstitial">
+  <div class="wordmark">Empyrean Studios</div>
+  <div class="spinner"></div>
+  <div class="status" id="status">Taking you there&hellip;</div>
+  <div class="sub" id="sub">One moment.</div>
+  <div class="fallback">
+    Not moving? <a id="manual" href="#">Tap here to continue</a>.
+  </div>
+</div>
+
+<script>
+  // ---- Routing constants. Flip LIVE_NOW to true when the stream goes up. ----
+  var LIVE_NOW    = false;                              // TEST MODE
+  var STREAM_URL  = 'https://example.invalid/stream';   // placeholder
+  var WEBINAR_URL = 'https://example.invalid/webinar';  // placeholder
+
+  (function () {
+    var destination = LIVE_NOW ? STREAM_URL : WEBINAR_URL;
+
+    document.getElementById('status').textContent =
+      LIVE_NOW ? 'We are live right now.' : 'Save your seat.';
+    document.getElementById('sub').textContent =
+      LIVE_NOW ? 'Taking you to the stream.' : 'Taking you to registration.';
+
+    // Manual fallback is wired FIRST, so it works even if the redirect is
+    // blocked by the browser or the script is interrupted after this point.
+    var manual = document.getElementById('manual');
+    manual.href = destination;
+    manual.textContent = LIVE_NOW ? 'Watch the stream' : 'Register now';
+
+    window.location.replace(destination);
+  })();
+</script>
+
+<noscript>
+  <div style="text-align:center;margin-top:22px;color:#8E8E93;font-size:14px">
+    JavaScript is off. Use the link above to continue.
+  </div>
+</noscript>
+
+</body>
+</html>

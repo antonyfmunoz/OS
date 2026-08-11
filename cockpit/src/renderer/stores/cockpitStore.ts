@@ -88,6 +88,7 @@ export type Panel =
   | 'projectionmirrors'
   | 'intentloop'
   | 'objectiveplan'
+  | 'cutstudio'
 
 export type WindowMode = 'maximized' | 'large-fab' | 'medium-fab' | 'small-fab' | 'invisible'
 

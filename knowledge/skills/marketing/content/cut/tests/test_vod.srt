@@ -1,0 +1,7 @@
+1
+00:00:00,000 --> 00:00:07,920
+welcome to the pipeline test. This first sentence is the hook, and we want to keep it. This middle section is rumbling
+
+2
+00:00:07,920 --> 00:00:15,440
+feel a heart or dead it or will remove entirely from the final cut. A closing line lands for message, and stays in.

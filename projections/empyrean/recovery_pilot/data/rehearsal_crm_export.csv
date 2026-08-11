@@ -1,0 +1,330 @@
+Record Type,Customer Name,Created Date,Total Amount,Status
+Completed Job,Hank Reed,08/25/2023,17449,closed won
+Completed Job,Ted Thompson,03/22/2023,13575,closed won
+Completed Job,Maria Chandler,01/14/2021,21597,closed won
+Completed Job,Carl Olsen,02/18/2026,12471,closed won
+Completed Job,Jim Hansen,04/23/2024,20607,closed won
+Completed Job,Jim Miller,04/06/2020,20567,closed won
+Completed Job,Rosa Ortiz,10/30/2024,16130,closed won
+Missed Call,Hank Reed,08/04/2026,,
+Estimate,Hank Olsen,07/03/2026,18107,open - no response
+Completed Job,Rosa Ortiz,11/11/2022,15876,closed won
+Completed Job,Donna Nguyen,12/08/2022,30666,closed won
+Completed Job,Hank Olsen,06/23/2020,9138,closed won
+Estimate,Sandra Nguyen,11/04/2025,18571,open - no response
+Completed Job,Luis Miller,04/13/2020,20283,closed won
+Completed Job,Hank Olsen,09/20/2020,19845,closed won
+Missed Call,Maria Garcia,07/21/2026,,
+Completed Job,Maria Foster,05/20/2022,9148,closed won
+Completed Job,Nina Baker,11/18/2022,33458,closed won
+Completed Job,Ray Miller,01/06/2023,18760,closed won
+Completed Job,Maria Foster,09/20/2021,18537,closed won
+Completed Job,Nina Nguyen,01/12/2025,30871,closed won
+Estimate,Jim Hansen,03/30/2026,11986,open - no response
+Completed Job,Pat Foster,04/16/2022,10473,closed won
+Completed Job,Kevin Reed,08/25/2024,29962,closed won
+Missed Call,Sandra Baker,07/26/2026,,
+Completed Job,Kevin Reed,07/14/2021,24141,closed won
+Completed Job,Jim Miller,09/28/2022,10594,closed won
+Completed Job,Ray Hansen,08/22/2025,32070,closed won
+Estimate,Kevin Weber,05/28/2024,29350,lost
+Completed Job,Dale Olsen,06/27/2024,17995,closed won
+Estimate,Jim Miller,04/01/2026,22358,open - no response
+Completed Job,Ted Hansen,04/10/2022,32453,closed won
+Estimate,Rosa Ortiz,07/08/2026,23389,open - no response
+Completed Job,Pat Foster,03/14/2025,19733,closed won
+Completed Job,Kevin Reed,09/20/2024,22808,closed won
+Completed Job,Nina Nguyen,01/09/2026,13045,closed won
+Completed Job,Beth Garcia,01/19/2025,30473,closed won
+Completed Job,Dale Weber,09/05/2023,25019,closed won
+Estimate,Donna Nguyen,02/20/2026,28615,open - no response
+Completed Job,Nina Nguyen,08/27/2020,25860,closed won
+Completed Job,Pat Garcia,07/30/2021,11961,closed won
+Completed Job,Hank Reed,12/28/2020,30302,closed won
+Estimate,Kevin Reed,01/17/2026,20259,open - no response
+Estimate,Sandra Ortiz,03/08/2026,11944,open - no response
+Estimate,Ted Miller,10/23/2025,29718,open - no response
+Completed Job,Hank Weber,04/10/2021,12028,closed won
+Completed Job,Donna Nguyen,01/05/2022,31525,closed won
+Estimate,Ted Thompson,08/03/2024,25363,lost
+Estimate,Pat Foster,07/21/2026,15336,open - no response
+Estimate,Sandra Nguyen,03/16/2025,27866,lost
+Completed Job,Dale Weber,12/27/2025,30192,closed won
+Completed Job,Maria Garcia,12/16/2021,20870,closed won
+Estimate,Beth Foster,05/17/2024,12363,lost
+Missed Call,Pat Garcia,07/25/2026,,
+Completed Job,Luis Hansen,04/27/2025,20737,closed won
+Estimate,Gloria Chandler,12/29/2025,20789,open - no response
+Completed Job,Rosa Ortiz,03/27/2022,9436,closed won
+Completed Job,Luis Miller,06/08/2024,25016,closed won
+Estimate,Pat Chandler,05/19/2026,18940,open - no response
+Missed Call,Ted Thompson,08/01/2026,,
+Completed Job,Hank Olsen,02/03/2023,33950,closed won
+Estimate,Rosa Nguyen,10/03/2025,15277,open - no response
+Completed Job,Carl Olsen,10/15/2024,19419,closed won
+Completed Job,Hank Olsen,02/25/2025,16477,closed won
+Completed Job,Ted Hansen,09/22/2024,26876,closed won
+Completed Job,Luis Miller,05/14/2020,15757,closed won
+Completed Job,Pat Garcia,05/31/2020,19965,closed won
+Completed Job,Luis Thompson,05/10/2026,22685,closed won
+Completed Job,Beth Foster,01/15/2021,28394,closed won
+Completed Job,Beth Garcia,10/29/2020,15509,closed won
+Completed Job,Pat Garcia,05/24/2020,11145,closed won
+Estimate,Beth Foster,02/04/2026,23255,open - no response
+Estimate,Maria Chandler,03/04/2026,13604,open - no response
+Missed Call,Ray Thompson,08/02/2026,,
+Completed Job,Jim Miller,07/07/2022,18009,closed won
+Estimate,Jim Thompson,05/27/2024,15870,lost
+Estimate,Gloria Garcia,01/31/2026,27217,open - no response
+Completed Job,Beth Garcia,04/25/2022,20981,closed won
+Completed Job,Carl Olsen,12/18/2021,14072,closed won
+Completed Job,Kevin Weber,06/22/2023,25835,closed won
+Completed Job,Ray Miller,11/11/2021,20160,closed won
+Estimate,Jim Thompson,01/13/2026,15803,open - no response
+Estimate,Ray Miller,05/19/2026,14681,open - no response
+Missed Call,Beth Chandler,08/05/2026,,
+Completed Job,Dale Olsen,04/02/2024,11249,closed won
+Completed Job,Pat Foster,02/06/2026,27229,closed won
+Estimate,Rosa Baker,10/28/2025,12721,open - no response
+Completed Job,Rosa Baker,06/23/2022,31719,closed won
+Completed Job,Gloria Garcia,06/18/2021,29007,closed won
+Completed Job,Donna Baker,08/12/2023,29333,closed won
+Completed Job,Beth Chandler,04/11/2022,32457,closed won
+Completed Job,Dale Reed,02/22/2023,10441,closed won
+Estimate,Hank Reed,10/04/2025,28173,open - no response
+Completed Job,Dale Reed,10/04/2024,11238,closed won
+Completed Job,Donna Baker,02/07/2022,10918,closed won
+Completed Job,Beth Chandler,08/22/2021,13689,closed won
+Completed Job,Sandra Nguyen,08/22/2025,28006,closed won
+Completed Job,Luis Hansen,10/22/2021,12875,closed won
+Completed Job,Rosa Baker,01/02/2022,22734,closed won
+Completed Job,Luis Miller,02/15/2022,21778,closed won
+Completed Job,Jim Hansen,05/12/2026,29972,closed won
+Completed Job,Rosa Nguyen,01/17/2023,10364,closed won
+Completed Job,Dale Weber,06/18/2021,17151,closed won
+Completed Job,Carl Reed,06/18/2024,33270,closed won
+Estimate,Carl Olsen,09/17/2025,24105,open - no response
+Completed Job,Pat Foster,07/24/2025,20388,closed won
+Completed Job,Carl Reed,07/24/2024,10671,closed won
+Estimate,Maria Foster,10/30/2025,28924,open - no response
+Completed Job,Hank Weber,04/09/2021,10811,closed won
+Completed Job,Rosa Ortiz,10/17/2023,21071,closed won
+Completed Job,Jim Thompson,07/30/2020,11169,closed won
+Completed Job,Ray Thompson,12/07/2023,9905,closed won
+Completed Job,Ted Thompson,05/06/2023,15025,closed won
+Estimate,Donna Baker,04/10/2025,25231,lost
+Estimate,Donna Baker,03/02/2026,20668,open - no response
+Completed Job,Dale Weber,01/09/2021,23565,closed won
+Missed Call,Kevin Weber,07/26/2026,,
+Completed Job,Pat Chandler,09/22/2022,18667,closed won
+Completed Job,Hank Reed,05/22/2025,27230,closed won
+Estimate,Gloria Foster,05/18/2026,16732,open - no response
+Completed Job,Carl Olsen,01/19/2026,32239,closed won
+Estimate,Gloria Chandler,03/26/2024,27303,lost
+Estimate,Luis Hansen,03/26/2026,15458,open - no response
+Estimate,Pat Garcia,12/10/2024,25675,lost
+Estimate,Hank Reed,07/31/2024,19961,lost
+Estimate,Carl Olsen,07/17/2024,12633,lost
+Completed Job,Beth Chandler,03/01/2023,22452,closed won
+Completed Job,Luis Hansen,05/24/2021,12646,closed won
+Completed Job,Dale Olsen,01/11/2021,10774,closed won
+Estimate,Luis Hansen,04/26/2026,19278,open - no response
+Completed Job,Sandra Nguyen,07/26/2020,27849,closed won
+Completed Job,Ray Hansen,06/03/2020,28604,closed won
+Completed Job,Kevin Weber,09/01/2023,30991,closed won
+Completed Job,Sandra Nguyen,01/01/2023,25886,closed won
+Completed Job,Rosa Nguyen,06/28/2023,14292,closed won
+Completed Job,Kevin Olsen,08/10/2025,23138,closed won
+Completed Job,Pat Foster,04/10/2021,30893,closed won
+Estimate,Beth Garcia,04/18/2026,26018,open - no response
+Completed Job,Beth Garcia,07/20/2025,18312,closed won
+Estimate,Gloria Foster,11/05/2025,27518,open - no response
+Completed Job,Ted Miller,03/21/2021,24448,closed won
+Estimate,Ray Hansen,01/09/2026,18907,open - no response
+Completed Job,Luis Thompson,08/15/2024,28667,closed won
+Missed Call,Carl Olsen,08/05/2026,,
+Completed Job,Kevin Olsen,01/31/2026,23812,closed won
+Estimate,Luis Miller,06/13/2026,20065,open - no response
+Missed Call,Donna Baker,07/23/2026,,
+Completed Job,Ray Miller,08/30/2022,33851,closed won
+Completed Job,Ted Thompson,10/03/2020,31745,closed won
+Completed Job,Carl Weber,06/07/2025,32792,closed won
+Completed Job,Donna Ortiz,08/17/2023,27708,closed won
+Estimate,Nina Ortiz,05/03/2024,29076,lost
+Estimate,Dale Reed,05/30/2025,28078,lost
+Completed Job,Maria Chandler,01/29/2025,29930,closed won
+Completed Job,Maria Garcia,10/12/2021,33619,closed won
+Estimate,Nina Baker,05/04/2026,27658,open - no response
+Completed Job,Jim Thompson,10/02/2020,10161,closed won
+Completed Job,Ted Hansen,10/16/2023,31862,closed won
+Estimate,Luis Hansen,11/19/2024,29371,lost
+Completed Job,Carl Weber,02/25/2022,17254,closed won
+Missed Call,Beth Foster,07/18/2026,,
+Missed Call,Donna Ortiz,07/18/2026,,
+Completed Job,Donna Nguyen,12/10/2020,24072,closed won
+Completed Job,Dale Reed,12/07/2021,25659,closed won
+Completed Job,Sandra Nguyen,12/28/2021,13181,closed won
+Completed Job,Donna Baker,11/26/2024,21596,closed won
+Completed Job,Maria Foster,05/03/2023,29200,closed won
+Completed Job,Pat Chandler,08/14/2022,28469,closed won
+Completed Job,Nina Baker,05/09/2022,16165,closed won
+Missed Call,Rosa Nguyen,07/27/2026,,
+Completed Job,Pat Chandler,02/18/2025,21581,closed won
+Completed Job,Sandra Ortiz,06/22/2024,20227,closed won
+Completed Job,Beth Foster,01/18/2026,17465,closed won
+Completed Job,Sandra Baker,02/27/2024,22370,closed won
+Missed Call,Kevin Olsen,08/04/2026,,
+Completed Job,Donna Baker,02/20/2025,32658,closed won
+Completed Job,Maria Garcia,04/11/2025,22086,closed won
+Completed Job,Sandra Ortiz,01/14/2022,33060,closed won
+Completed Job,Pat Chandler,04/29/2021,12773,closed won
+Completed Job,Nina Ortiz,08/26/2024,10019,closed won
+Completed Job,Kevin Reed,10/10/2021,15629,closed won
+Completed Job,Jim Miller,02/03/2023,10421,closed won
+Completed Job,Rosa Ortiz,02/28/2020,22722,closed won
+Completed Job,Nina Ortiz,08/20/2024,26448,closed won
+Completed Job,Ted Hansen,03/17/2024,18562,closed won
+Completed Job,Gloria Foster,07/03/2024,20072,closed won
+Completed Job,Luis Hansen,06/04/2024,27553,closed won
+Completed Job,Donna Nguyen,05/23/2023,13999,closed won
+Completed Job,Carl Weber,04/30/2023,23681,closed won
+Estimate,Donna Ortiz,06/18/2026,24936,open - no response
+Estimate,Kevin Olsen,07/08/2026,13382,open - no response
+Estimate,Sandra Baker,07/07/2026,16909,open - no response
+Completed Job,Nina Ortiz,12/21/2022,32574,closed won
+Completed Job,Hank Olsen,06/21/2020,27678,closed won
+Completed Job,Rosa Nguyen,01/13/2026,29062,closed won
+Completed Job,Hank Weber,07/15/2024,32963,closed won
+Estimate,Pat Garcia,10/17/2025,19547,open - no response
+Completed Job,Gloria Garcia,08/31/2024,25178,closed won
+Completed Job,Luis Hansen,06/18/2020,21557,closed won
+Completed Job,Gloria Chandler,11/01/2022,30282,closed won
+Missed Call,Carl Reed,08/07/2026,,
+Completed Job,Gloria Foster,01/07/2023,32611,closed won
+Completed Job,Gloria Chandler,11/14/2022,31290,closed won
+Completed Job,Donna Nguyen,09/08/2023,25948,closed won
+Completed Job,Gloria Garcia,01/06/2021,30567,closed won
+Missed Call,Luis Hansen,07/24/2026,,
+Completed Job,Hank Reed,11/21/2024,25028,closed won
+Estimate,Maria Chandler,01/29/2026,17555,open - no response
+Completed Job,Gloria Chandler,12/28/2025,19689,closed won
+Completed Job,Sandra Baker,11/02/2023,23100,closed won
+Estimate,Nina Ortiz,05/06/2026,21980,open - no response
+Completed Job,Carl Reed,09/24/2020,24377,closed won
+Completed Job,Jim Miller,05/31/2020,16459,closed won
+Estimate,Dale Weber,12/14/2025,21398,open - no response
+Completed Job,Ray Miller,11/16/2023,17692,closed won
+Missed Call,Nina Nguyen,07/14/2026,,
+Missed Call,Luis Miller,07/31/2026,,
+Completed Job,Kevin Weber,11/18/2022,30650,closed won
+Completed Job,Rosa Baker,09/16/2024,15398,closed won
+Completed Job,Ted Thompson,09/24/2023,28291,closed won
+Completed Job,Nina Baker,06/02/2021,14328,closed won
+Missed Call,Ray Miller,07/27/2026,,
+Completed Job,Sandra Baker,05/09/2020,20545,closed won
+Completed Job,Beth Foster,09/14/2023,32660,closed won
+Completed Job,Sandra Baker,03/12/2025,33657,closed won
+Completed Job,Jim Hansen,10/31/2024,23763,closed won
+Completed Job,Maria Chandler,11/08/2020,14486,closed won
+Completed Job,Jim Hansen,01/24/2021,10081,closed won
+Completed Job,Beth Garcia,02/26/2021,15844,closed won
+Completed Job,Nina Ortiz,04/05/2024,28148,closed won
+Completed Job,Beth Foster,04/11/2024,29505,closed won
+Completed Job,Ray Hansen,07/17/2025,20618,closed won
+Completed Job,Carl Weber,02/14/2023,9091,closed won
+Completed Job,Kevin Weber,05/22/2024,15908,closed won
+Completed Job,Kevin Weber,02/26/2023,16715,closed won
+Estimate,Dale Reed,04/09/2026,29314,open - no response
+Estimate,Kevin Weber,04/23/2026,28699,open - no response
+Estimate,Beth Chandler,01/10/2026,19465,open - no response
+Completed Job,Rosa Nguyen,12/22/2020,10182,closed won
+Estimate,Luis Thompson,10/07/2025,25114,open - no response
+Completed Job,Kevin Reed,04/30/2023,10465,closed won
+Completed Job,Luis Thompson,02/19/2022,33867,closed won
+Completed Job,Ray Thompson,12/03/2022,22332,closed won
+Missed Call,Ted Hansen,07/20/2026,,
+Completed Job,Pat Garcia,10/12/2021,14999,closed won
+Completed Job,Ray Thompson,08/21/2021,14200,closed won
+Completed Job,Ray Miller,04/30/2020,12614,closed won
+Missed Call,Gloria Chandler,08/05/2026,,
+Estimate,Sandra Nguyen,12/04/2025,27663,open - no response
+Estimate,Ted Thompson,05/07/2026,15152,open - no response
+Completed Job,Donna Ortiz,03/31/2025,24987,closed won
+Completed Job,Hank Reed,12/26/2025,20875,closed won
+Estimate,Dale Olsen,02/13/2026,20330,open - no response
+Completed Job,Ted Miller,06/29/2025,15842,closed won
+Estimate,Carl Weber,12/04/2025,28875,open - no response
+Completed Job,Jim Hansen,12/30/2023,31450,closed won
+Completed Job,Donna Baker,08/25/2021,18471,closed won
+Completed Job,Ted Miller,12/18/2020,18423,closed won
+Completed Job,Nina Ortiz,07/11/2021,11857,closed won
+Estimate,Maria Garcia,03/17/2026,14146,open - no response
+Completed Job,Rosa Baker,08/31/2023,21767,closed won
+Missed Call,Nina Ortiz,08/05/2026,,
+Estimate,Hank Olsen,01/18/2026,21864,open - no response
+Completed Job,Gloria Chandler,06/23/2025,15167,closed won
+Completed Job,Dale Reed,12/02/2023,11857,closed won
+Estimate,Nina Nguyen,05/23/2026,20443,open - no response
+Estimate,Pat Garcia,07/15/2026,24410,open - no response
+Completed Job,Carl Weber,03/02/2020,31848,closed won
+Estimate,Rosa Ortiz,11/10/2025,17654,open - no response
+Completed Job,Sandra Ortiz,08/22/2021,12130,closed won
+Completed Job,Pat Garcia,12/30/2024,29473,closed won
+Missed Call,Jim Hansen,08/06/2026,,
+Estimate,Ray Thompson,02/05/2026,15330,open - no response
+Completed Job,Gloria Chandler,02/12/2021,27673,closed won
+Completed Job,Pat Chandler,01/14/2025,16804,closed won
+Completed Job,Kevin Olsen,09/20/2023,30188,closed won
+Completed Job,Gloria Garcia,12/19/2024,17928,closed won
+Completed Job,Dale Olsen,10/01/2020,10079,closed won
+Completed Job,Beth Chandler,08/12/2021,30020,closed won
+Completed Job,Maria Chandler,07/11/2022,22882,closed won
+Completed Job,Ted Miller,12/21/2025,20222,closed won
+Completed Job,Sandra Ortiz,04/06/2023,33017,closed won
+Completed Job,Nina Baker,04/27/2025,20530,closed won
+Completed Job,Sandra Nguyen,04/27/2026,23120,closed won
+Completed Job,Jim Thompson,07/07/2025,19009,closed won
+Missed Call,Dale Weber,07/14/2026,,
+Completed Job,Gloria Foster,04/24/2021,14365,closed won
+Completed Job,Jim Thompson,05/09/2023,9154,closed won
+Estimate,Ted Miller,09/24/2025,22098,open - no response
+Completed Job,Ray Thompson,09/07/2022,27719,closed won
+Completed Job,Hank Weber,06/09/2025,23336,closed won
+Estimate,Hank Weber,05/06/2026,23759,open - no response
+Completed Job,Carl Olsen,05/28/2024,24457,closed won
+Completed Job,Rosa Nguyen,03/05/2026,26306,closed won
+Completed Job,Maria Garcia,03/25/2022,26368,closed won
+Completed Job,Maria Foster,05/17/2021,25041,closed won
+Completed Job,Luis Miller,03/16/2021,24341,closed won
+Completed Job,Sandra Ortiz,10/08/2024,33678,closed won
+Estimate,Carl Reed,05/28/2026,13154,open - no response
+Estimate,Maria Chandler,01/03/2025,17506,lost
+Completed Job,Kevin Olsen,01/14/2020,17111,closed won
+Completed Job,Ray Hansen,12/27/2022,11408,closed won
+Completed Job,Luis Thompson,05/13/2024,29653,closed won
+Completed Job,Nina Baker,10/19/2022,16960,closed won
+Completed Job,Beth Foster,01/25/2025,29662,closed won
+Completed Job,Carl Reed,05/22/2020,33076,closed won
+Completed Job,Gloria Foster,02/04/2021,26525,closed won
+Completed Job,Maria Foster,09/06/2020,30854,closed won
+Completed Job,Nina Nguyen,11/26/2023,17022,closed won
+Completed Job,Donna Ortiz,06/20/2020,26361,closed won
+Completed Job,Maria Garcia,01/01/2023,21786,closed won
+Estimate,Jim Thompson,12/27/2025,19895,open - no response
+Completed Job,Ted Thompson,11/25/2021,16534,closed won
+Estimate,Ted Hansen,06/25/2026,28611,open - no response
+Completed Job,Ray Hansen,12/29/2022,13337,closed won
+Completed Job,Gloria Foster,01/07/2024,15860,closed won
+Completed Job,Maria Chandler,01/13/2024,19665,closed won
+Completed Job,Ted Miller,05/04/2022,13173,closed won
+Completed Job,Luis Thompson,01/09/2024,21200,closed won
+Estimate,Ray Miller,07/03/2024,14934,lost
+Missed Call,Pat Foster,07/20/2026,,
+Completed Job,Dale Weber,10/22/2022,30161,closed won
+Estimate,Dale Reed,02/15/2026,14638,open - no response
+Completed Job,Dale Reed,11/12/2024,22949,closed won
+Completed Job,Donna Ortiz,10/23/2024,19232,closed won
+Missed Call,Gloria Garcia,08/03/2026,,
+Completed Job,Dale Olsen,02/21/2020,19907,closed won
+Completed Job,Jim Thompson,05/18/2020,26290,closed won
+Completed Job,Sandra Baker,07/22/2024,9237,closed won

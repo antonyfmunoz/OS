@@ -1,0 +1,359 @@
+Record Type,Customer Name,Created Date,Total Amount,Status
+Completed Job,Homeowner 250,03/25/2021,10705,closed
+Estimate,Prospect 60,08/07/2025,10397,open
+Missed Call,Caller 17,07/05/2026,,
+Completed Job,Homeowner 20,12/19/2025,16987,closed
+Completed Job,Homeowner 140,04/26/2025,22595,closed
+Completed Job,Homeowner 18,10/13/2022,15658,closed
+Completed Job,Homeowner 253,06/28/2022,23912,closed
+Completed Job,Homeowner 24,07/17/2022,19650,closed
+Missed Call,Caller 16,07/15/2026,,
+Completed Job,Homeowner 74,10/26/2021,28058,closed
+Completed Job,Homeowner 178,10/19/2023,9732,closed
+Completed Job,Homeowner 96,07/25/2025,12522,closed
+Completed Job,Homeowner 98,06/12/2025,10504,closed
+Completed Job,Homeowner 14,08/18/2025,13617,closed
+Completed Job,Homeowner 85,07/02/2024,20117,closed
+Completed Job,Homeowner 203,08/29/2021,31436,closed
+Completed Job,Homeowner 232,03/23/2023,34560,closed
+Estimate,Prospect 47,01/22/2026,22563,open
+Completed Job,Homeowner 170,08/18/2025,26974,closed
+Completed Job,Homeowner 239,10/08/2023,34952,closed
+Completed Job,Homeowner 33,05/17/2021,31709,closed
+Completed Job,Homeowner 76,03/19/2024,29578,closed
+Completed Job,Homeowner 221,08/12/2023,32149,closed
+Completed Job,Homeowner 231,12/08/2023,19485,closed
+Missed Call,Caller 25,07/30/2026,,
+Completed Job,Homeowner 155,09/14/2021,28920,closed
+Completed Job,Homeowner 41,03/26/2022,20383,closed
+Completed Job,Homeowner 105,03/13/2023,13590,closed
+Completed Job,Homeowner 205,12/27/2024,15224,closed
+Missed Call,Caller 4,07/18/2026,,
+Completed Job,Homeowner 254,01/07/2024,29502,closed
+Completed Job,Homeowner 119,01/20/2022,33074,closed
+Estimate,Prospect 51,03/22/2026,15802,open
+Completed Job,Homeowner 4,10/07/2024,14059,closed
+Completed Job,Homeowner 13,04/20/2025,19039,closed
+Completed Job,Homeowner 7,09/06/2023,13157,closed
+Completed Job,Homeowner 229,04/20/2021,8327,closed
+Completed Job,Homeowner 86,10/10/2021,12644,closed
+Missed Call,Caller 22,07/28/2026,,
+Estimate,Prospect 39,07/29/2025,12334,open
+Completed Job,Homeowner 219,11/04/2024,14155,closed
+Completed Job,Homeowner 89,09/30/2023,28202,closed
+Missed Call,Caller 3,07/22/2026,,
+Completed Job,Homeowner 92,06/02/2022,19538,closed
+Completed Job,Homeowner 133,05/29/2023,30147,closed
+Completed Job,Homeowner 198,09/21/2022,8166,closed
+Missed Call,Caller 1,07/13/2026,,
+Completed Job,Homeowner 244,07/26/2023,34895,closed
+Missed Call,Caller 9,07/19/2026,,
+Estimate,Prospect 24,07/03/2026,25369,open
+Completed Job,Homeowner 32,11/13/2025,34526,closed
+Completed Job,Homeowner 82,01/12/2026,24895,closed
+Completed Job,Homeowner 54,04/25/2021,33794,closed
+Completed Job,Homeowner 238,11/20/2021,15672,closed
+Completed Job,Homeowner 118,04/12/2025,32667,closed
+Missed Call,Caller 0,07/23/2026,,
+Estimate,Prospect 14,02/13/2026,20958,open
+Completed Job,Homeowner 99,02/04/2023,20228,closed
+Completed Job,Homeowner 71,04/08/2026,24546,closed
+Completed Job,Homeowner 43,07/30/2022,23283,closed
+Completed Job,Homeowner 230,12/03/2022,19358,closed
+Completed Job,Homeowner 67,05/03/2024,16004,closed
+Completed Job,Homeowner 255,03/01/2021,32114,closed
+Completed Job,Homeowner 60,11/27/2023,27562,closed
+Completed Job,Homeowner 134,08/15/2021,33912,closed
+Completed Job,Homeowner 64,09/24/2021,22025,closed
+Estimate,Prospect 50,06/01/2026,22528,open
+Estimate,Prospect 62,12/24/2025,10735,open
+Completed Job,Homeowner 208,10/02/2023,17205,closed
+Completed Job,Homeowner 183,10/23/2025,28744,closed
+Completed Job,Homeowner 218,04/14/2026,27212,closed
+Completed Job,Homeowner 12,06/23/2023,12655,closed
+Completed Job,Homeowner 182,04/28/2025,29917,closed
+Estimate,Prospect 64,04/26/2025,22185,lost
+Completed Job,Homeowner 27,03/04/2022,18061,closed
+Completed Job,Homeowner 84,02/22/2025,15315,closed
+Completed Job,Homeowner 80,06/23/2021,8807,closed
+Completed Job,Homeowner 45,07/16/2023,15342,closed
+Completed Job,Homeowner 44,08/31/2023,15498,closed
+Completed Job,Homeowner 162,09/25/2023,14562,closed
+Estimate,Prospect 38,12/21/2025,10880,open
+Completed Job,Homeowner 130,08/10/2022,15238,closed
+Completed Job,Homeowner 165,07/02/2022,22313,closed
+Completed Job,Homeowner 173,10/22/2023,8745,closed
+Completed Job,Homeowner 226,04/07/2023,8463,closed
+Completed Job,Homeowner 123,07/09/2023,9355,closed
+Estimate,Prospect 23,06/09/2026,28747,open
+Estimate,Prospect 12,06/21/2025,17913,lost
+Estimate,Prospect 5,04/16/2025,22774,lost
+Completed Job,Homeowner 107,02/14/2023,22503,closed
+Estimate,Prospect 16,11/19/2025,15608,open
+Completed Job,Homeowner 210,09/10/2022,10081,closed
+Completed Job,Homeowner 75,01/23/2025,23269,closed
+Completed Job,Homeowner 103,10/11/2024,21379,closed
+Estimate,Prospect 43,03/08/2026,29782,open
+Completed Job,Homeowner 257,11/19/2024,27259,closed
+Estimate,Prospect 65,05/21/2026,30186,open
+Estimate,Prospect 69,03/08/2026,13026,open
+Completed Job,Homeowner 185,02/20/2023,34949,closed
+Estimate,Prospect 11,12/30/2025,22779,open
+Completed Job,Homeowner 109,07/08/2021,23658,closed
+Estimate,Prospect 67,12/05/2025,26674,open
+Completed Job,Homeowner 66,02/14/2021,21851,closed
+Completed Job,Homeowner 154,06/30/2025,29889,closed
+Estimate,Prospect 28,06/09/2025,22868,lost
+Completed Job,Homeowner 115,12/21/2025,33486,closed
+Completed Job,Homeowner 196,04/30/2025,16904,closed
+Completed Job,Homeowner 145,11/23/2025,11012,closed
+Completed Job,Homeowner 39,02/26/2021,10766,closed
+Completed Job,Homeowner 79,06/03/2022,12972,closed
+Completed Job,Homeowner 179,07/16/2024,23910,closed
+Completed Job,Homeowner 247,11/15/2023,22887,closed
+Completed Job,Homeowner 110,09/29/2025,11645,closed
+Missed Call,Caller 21,07/28/2026,,
+Completed Job,Homeowner 206,09/07/2023,15311,closed
+Estimate,Prospect 49,06/29/2025,9738,open
+Completed Job,Homeowner 11,02/27/2026,12154,closed
+Completed Job,Homeowner 40,05/11/2021,11326,closed
+Completed Job,Homeowner 225,10/09/2025,15415,closed
+Completed Job,Homeowner 52,03/01/2024,10764,closed
+Estimate,Prospect 9,03/11/2026,9988,open
+Estimate,Prospect 2,06/01/2025,16649,lost
+Estimate,Prospect 7,09/19/2025,12231,open
+Completed Job,Homeowner 126,05/21/2025,12316,closed
+Completed Job,Homeowner 184,07/13/2022,16778,closed
+Completed Job,Homeowner 42,09/03/2021,22105,closed
+Completed Job,Homeowner 95,06/19/2022,26950,closed
+Completed Job,Homeowner 29,05/18/2024,27704,closed
+Completed Job,Homeowner 142,09/26/2023,22011,closed
+Estimate,Prospect 15,03/19/2025,25986,lost
+Estimate,Prospect 41,01/27/2026,20365,open
+Completed Job,Homeowner 171,09/03/2023,30078,closed
+Completed Job,Homeowner 204,04/20/2023,9223,closed
+Completed Job,Homeowner 46,09/21/2025,28335,closed
+Completed Job,Homeowner 49,01/25/2025,16132,closed
+Estimate,Prospect 68,07/22/2025,20242,open
+Estimate,Prospect 45,07/04/2026,20790,open
+Estimate,Prospect 46,04/21/2026,26076,open
+Completed Job,Homeowner 168,12/20/2024,16955,closed
+Completed Job,Homeowner 77,08/24/2024,11600,closed
+Estimate,Prospect 30,03/17/2026,10174,open
+Completed Job,Homeowner 148,01/15/2025,12601,closed
+Completed Job,Homeowner 22,07/09/2024,13512,closed
+Missed Call,Caller 27,07/28/2026,,
+Completed Job,Homeowner 50,04/06/2024,31399,closed
+Completed Job,Homeowner 248,11/18/2025,32566,closed
+Completed Job,Homeowner 19,03/20/2021,22600,closed
+Estimate,Prospect 32,12/24/2025,17570,open
+Estimate,Prospect 10,02/13/2026,26567,open
+Completed Job,Homeowner 193,08/05/2025,26648,closed
+Completed Job,Homeowner 222,05/06/2025,18763,closed
+Completed Job,Homeowner 15,04/14/2022,15789,closed
+Completed Job,Homeowner 141,08/24/2021,10722,closed
+Completed Job,Homeowner 166,11/16/2023,18173,closed
+Completed Job,Homeowner 144,04/19/2022,18452,closed
+Completed Job,Homeowner 195,10/19/2025,12022,closed
+Estimate,Prospect 40,05/08/2026,28986,open
+Completed Job,Homeowner 220,04/12/2025,22485,closed
+Completed Job,Homeowner 36,11/19/2022,13441,closed
+Completed Job,Homeowner 242,08/03/2025,17865,closed
+Completed Job,Homeowner 61,07/31/2022,26918,closed
+Completed Job,Homeowner 236,09/14/2021,16499,closed
+Missed Call,Caller 18,07/10/2026,,
+Completed Job,Homeowner 201,03/27/2021,23866,closed
+Completed Job,Homeowner 94,04/07/2025,30087,closed
+Completed Job,Homeowner 259,04/24/2024,27540,closed
+Completed Job,Homeowner 63,11/22/2024,31027,closed
+Completed Job,Homeowner 194,06/20/2022,13266,closed
+Completed Job,Homeowner 62,02/28/2025,33993,closed
+Completed Job,Homeowner 199,06/04/2022,34648,closed
+Completed Job,Homeowner 251,09/13/2022,13474,closed
+Completed Job,Homeowner 125,03/07/2023,21127,closed
+Estimate,Prospect 17,07/04/2025,26493,open
+Completed Job,Homeowner 200,11/05/2025,25258,closed
+Estimate,Prospect 53,03/14/2026,11725,open
+Completed Job,Homeowner 65,08/01/2023,15118,closed
+Completed Job,Homeowner 121,08/01/2025,8586,closed
+Estimate,Prospect 35,11/07/2025,11564,open
+Completed Job,Homeowner 111,09/30/2021,15883,closed
+Completed Job,Homeowner 245,07/19/2024,31896,closed
+Completed Job,Homeowner 104,03/10/2025,30770,closed
+Completed Job,Homeowner 213,03/14/2021,16053,closed
+Completed Job,Homeowner 48,04/05/2023,21801,closed
+Missed Call,Caller 13,07/17/2026,,
+Missed Call,Caller 15,07/12/2026,,
+Completed Job,Homeowner 124,06/13/2024,23188,closed
+Completed Job,Homeowner 187,03/06/2026,8752,closed
+Completed Job,Homeowner 78,04/30/2023,25902,closed
+Estimate,Prospect 31,04/30/2026,20380,open
+Completed Job,Homeowner 1,07/28/2025,8932,closed
+Completed Job,Homeowner 139,12/29/2025,32138,closed
+Completed Job,Homeowner 37,03/15/2021,17228,closed
+Completed Job,Homeowner 6,03/05/2026,34662,closed
+Completed Job,Homeowner 38,08/13/2023,17100,closed
+Completed Job,Homeowner 0,06/22/2021,21621,closed
+Completed Job,Homeowner 122,11/21/2021,29260,closed
+Completed Job,Homeowner 3,03/08/2024,18518,closed
+Completed Job,Homeowner 180,03/21/2024,24315,closed
+Estimate,Prospect 8,08/18/2025,31789,open
+Missed Call,Caller 12,07/11/2026,,
+Missed Call,Caller 7,07/16/2026,,
+Estimate,Prospect 26,04/28/2025,20423,lost
+Estimate,Prospect 18,12/08/2025,31308,open
+Estimate,Prospect 57,04/05/2025,11413,lost
+Completed Job,Homeowner 249,09/15/2024,30533,closed
+Completed Job,Homeowner 132,09/22/2025,17456,closed
+Estimate,Prospect 48,05/01/2026,20021,open
+Completed Job,Homeowner 217,04/05/2024,19093,closed
+Completed Job,Homeowner 58,02/20/2022,8769,closed
+Completed Job,Homeowner 202,08/14/2023,11422,closed
+Estimate,Prospect 55,04/16/2025,14059,lost
+Completed Job,Homeowner 31,10/22/2024,22439,closed
+Completed Job,Homeowner 158,01/28/2023,22559,closed
+Completed Job,Homeowner 5,06/03/2023,24175,closed
+Completed Job,Homeowner 211,05/14/2023,14515,closed
+Estimate,Prospect 1,01/16/2026,25364,open
+Completed Job,Homeowner 214,09/27/2023,14277,closed
+Completed Job,Homeowner 161,01/30/2026,12868,closed
+Completed Job,Homeowner 233,02/23/2026,23093,closed
+Completed Job,Homeowner 256,06/20/2023,33685,closed
+Estimate,Prospect 52,08/06/2025,23995,open
+Completed Job,Homeowner 90,03/22/2026,17403,closed
+Missed Call,Caller 24,07/31/2026,,
+Estimate,Prospect 21,01/01/2026,30878,open
+Completed Job,Homeowner 100,09/10/2021,11325,closed
+Completed Job,Homeowner 108,01/19/2024,12416,closed
+Completed Job,Homeowner 191,08/24/2025,13866,closed
+Estimate,Prospect 3,06/23/2025,28711,lost
+Completed Job,Homeowner 215,06/15/2025,31418,closed
+Completed Job,Homeowner 101,03/01/2026,32552,closed
+Completed Job,Homeowner 117,11/19/2022,21949,closed
+Completed Job,Homeowner 91,10/12/2024,16082,closed
+Estimate,Prospect 37,03/30/2026,25458,open
+Completed Job,Homeowner 69,09/07/2021,21838,closed
+Completed Job,Homeowner 17,02/12/2023,29900,closed
+Completed Job,Homeowner 137,03/04/2022,17048,closed
+Completed Job,Homeowner 116,08/03/2024,20762,closed
+Completed Job,Homeowner 146,08/07/2025,29404,closed
+Completed Job,Homeowner 207,06/11/2021,26412,closed
+Completed Job,Homeowner 143,04/12/2022,12586,closed
+Estimate,Prospect 61,05/26/2025,27824,lost
+Completed Job,Homeowner 164,10/21/2024,14694,closed
+Completed Job,Homeowner 159,07/09/2022,24674,closed
+Completed Job,Homeowner 258,10/11/2021,9928,closed
+Estimate,Prospect 36,03/01/2026,24763,open
+Completed Job,Homeowner 186,08/12/2024,22724,closed
+Estimate,Prospect 27,03/28/2026,14616,open
+Completed Job,Homeowner 192,10/15/2024,25179,closed
+Completed Job,Homeowner 177,03/29/2024,22373,closed
+Completed Job,Homeowner 234,01/27/2025,19257,closed
+Completed Job,Homeowner 81,03/02/2026,13972,closed
+Completed Job,Homeowner 153,01/08/2024,21040,closed
+Completed Job,Homeowner 176,10/18/2024,15798,closed
+Completed Job,Homeowner 102,11/08/2023,14089,closed
+Completed Job,Homeowner 127,07/05/2025,18602,closed
+Completed Job,Homeowner 30,03/04/2023,23888,closed
+Completed Job,Homeowner 157,05/06/2023,9881,closed
+Completed Job,Homeowner 135,12/21/2024,33286,closed
+Estimate,Prospect 58,06/26/2025,30145,lost
+Completed Job,Homeowner 150,06/26/2024,26457,closed
+Completed Job,Homeowner 160,09/18/2023,10885,closed
+Completed Job,Homeowner 16,06/20/2021,30562,closed
+Missed Call,Caller 6,07/03/2026,,
+Completed Job,Homeowner 147,09/15/2025,16029,closed
+Missed Call,Caller 14,07/20/2026,,
+Completed Job,Homeowner 228,10/13/2023,11923,closed
+Completed Job,Homeowner 209,02/04/2024,17857,closed
+Estimate,Prospect 29,07/03/2025,11213,open
+Completed Job,Homeowner 163,08/01/2024,16515,closed
+Completed Job,Homeowner 106,03/28/2025,25653,closed
+Completed Job,Homeowner 172,02/07/2022,34925,closed
+Missed Call,Caller 26,07/23/2026,,
+Completed Job,Homeowner 47,10/21/2023,21594,closed
+Completed Job,Homeowner 167,06/29/2023,8297,closed
+Estimate,Prospect 34,02/11/2026,31662,open
+Estimate,Prospect 44,05/11/2025,12849,lost
+Completed Job,Homeowner 35,11/14/2024,13473,closed
+Estimate,Prospect 25,07/27/2025,16157,open
+Completed Job,Homeowner 25,11/27/2022,20927,closed
+Completed Job,Homeowner 55,12/21/2025,25512,closed
+Completed Job,Homeowner 23,05/31/2023,19017,closed
+Missed Call,Caller 2,07/26/2026,,
+Completed Job,Homeowner 181,05/25/2024,12532,closed
+Completed Job,Homeowner 34,07/28/2021,23670,closed
+Estimate,Prospect 0,05/28/2026,13465,open
+Completed Job,Homeowner 83,09/14/2023,12225,closed
+Estimate,Prospect 33,04/22/2025,26267,lost
+Completed Job,Homeowner 57,12/08/2023,8282,closed
+Completed Job,Homeowner 28,11/25/2021,13497,closed
+Estimate,Prospect 22,06/07/2025,9129,lost
+Completed Job,Homeowner 240,09/06/2025,28166,closed
+Estimate,Prospect 66,03/21/2025,9557,lost
+Completed Job,Homeowner 188,09/29/2024,27319,closed
+Completed Job,Homeowner 10,08/22/2023,11928,closed
+Completed Job,Homeowner 243,09/11/2023,23831,closed
+Completed Job,Homeowner 223,04/20/2021,27026,closed
+Estimate,Prospect 4,12/09/2025,18033,open
+Completed Job,Homeowner 152,07/13/2023,8712,closed
+Missed Call,Caller 23,07/31/2026,,
+Completed Job,Homeowner 138,06/22/2022,17827,closed
+Completed Job,Homeowner 9,01/12/2022,30017,closed
+Completed Job,Homeowner 237,10/07/2022,21896,closed
+Estimate,Prospect 42,04/12/2025,17848,lost
+Missed Call,Caller 5,07/21/2026,,
+Completed Job,Homeowner 93,10/09/2025,29898,closed
+Completed Job,Homeowner 189,11/15/2025,34684,closed
+Completed Job,Homeowner 56,02/05/2025,11319,closed
+Completed Job,Homeowner 129,06/25/2022,15211,closed
+Completed Job,Homeowner 241,04/28/2021,34814,closed
+Completed Job,Homeowner 156,04/27/2023,16633,closed
+Completed Job,Homeowner 70,10/22/2021,24405,closed
+Estimate,Prospect 54,11/24/2025,10937,open
+Completed Job,Homeowner 252,02/15/2021,30186,closed
+Completed Job,Homeowner 72,03/08/2024,28893,closed
+Completed Job,Homeowner 26,01/18/2024,18512,closed
+Completed Job,Homeowner 149,11/07/2022,8177,closed
+Completed Job,Homeowner 227,10/17/2023,10810,closed
+Missed Call,Caller 19,07/31/2026,,
+Completed Job,Homeowner 87,07/18/2024,11335,closed
+Completed Job,Homeowner 131,04/25/2024,24176,closed
+Completed Job,Homeowner 136,04/26/2021,15124,closed
+Completed Job,Homeowner 73,09/07/2025,23875,closed
+Missed Call,Caller 11,07/30/2026,,
+Missed Call,Caller 20,07/13/2026,,
+Completed Job,Homeowner 51,02/05/2025,25325,closed
+Estimate,Prospect 56,05/24/2025,29271,lost
+Estimate,Prospect 63,10/12/2025,28421,open
+Missed Call,Caller 10,07/07/2026,,
+Completed Job,Homeowner 21,06/03/2024,8132,closed
+Missed Call,Caller 8,07/08/2026,,
+Completed Job,Homeowner 113,07/04/2023,21114,closed
+Estimate,Prospect 13,07/25/2025,30083,open
+Completed Job,Homeowner 169,11/13/2023,29400,closed
+Estimate,Prospect 6,11/11/2025,12849,open
+Completed Job,Homeowner 246,09/18/2021,29312,closed
+Completed Job,Homeowner 175,08/18/2022,16210,closed
+Estimate,Prospect 20,05/25/2025,10689,lost
+Estimate,Prospect 59,11/13/2025,14649,open
+Completed Job,Homeowner 68,05/26/2025,34302,closed
+Completed Job,Homeowner 114,05/13/2022,33633,closed
+Completed Job,Homeowner 151,01/25/2022,26956,closed
+Completed Job,Homeowner 8,06/08/2025,26802,closed
+Completed Job,Homeowner 190,02/14/2022,20374,closed
+Completed Job,Homeowner 97,06/22/2022,10354,closed
+Estimate,Prospect 19,07/05/2025,12283,open
+Completed Job,Homeowner 2,11/08/2022,20788,closed
+Completed Job,Homeowner 216,04/20/2024,15044,closed
+Completed Job,Homeowner 174,05/28/2024,8454,closed
+Completed Job,Homeowner 197,05/04/2023,17447,closed
+Completed Job,Homeowner 224,07/12/2021,18292,closed
+Completed Job,Homeowner 53,03/17/2021,18143,closed
+Completed Job,Homeowner 120,11/22/2024,32922,closed
+Completed Job,Homeowner 88,03/02/2025,23082,closed
+Completed Job,Homeowner 235,08/12/2021,19407,closed
+Completed Job,Homeowner 212,04/11/2023,11410,closed
+Completed Job,Homeowner 59,03/05/2022,26189,closed
+Completed Job,Homeowner 112,03/31/2021,16630,closed
+Completed Job,Homeowner 128,03/22/2021,22084,closed

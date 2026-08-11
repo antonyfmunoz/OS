@@ -1,0 +1,1 @@
+{"version": 1, "source": "tests/test_vod.mp4", "clips": [{"start": 0.0, "end": 4.6, "label": "hook"}, {"start": 11.4, "end": 15.44, "label": "closer"}], "captions": true, "vertical": true, "output": "test_cut_vertical.mp4"}

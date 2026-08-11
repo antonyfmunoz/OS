@@ -1,0 +1,170 @@
+{
+ "company": "Cascade Summit Roofing (SYNTHETIC)",
+ "mode": "TEST",
+ "exit_code": 0,
+ "rescues": 0,
+ "stages": [
+  {
+   "stage": "run_start",
+   "status": "ok",
+   "detail": "TEST MODE - zero external sends",
+   "at": "2026-08-10T22:44:36.560562+00:00",
+   "elapsed_s": 0.0
+  },
+  {
+   "stage": "prospect_sourced",
+   "status": "ok",
+   "detail": "synthetic roofer, 329 CRM rows",
+   "at": "2026-08-10T22:44:36.563464+00:00",
+   "elapsed_s": 0.003
+  },
+  {
+   "stage": "snapshot_rendered",
+   "status": "ok",
+   "detail": "verdict PASS, alert simulated <5min",
+   "at": "2026-08-10T22:44:36.964128+00:00",
+   "elapsed_s": 0.404
+  },
+  {
+   "stage": "outreach_drafted",
+   "status": "ok",
+   "detail": "approval requested apr-rehearsal-harness-1",
+   "at": "2026-08-10T22:44:37.397394+00:00",
+   "elapsed_s": 0.837
+  },
+  {
+   "stage": "approval_rejected",
+   "status": "injected",
+   "detail": "deliberate: subject line revision requested",
+   "at": "2026-08-10T22:44:37.397629+00:00",
+   "elapsed_s": 0.837
+  },
+  {
+   "stage": "outreach_approved_sent",
+   "status": "ok",
+   "detail": "rev 2 approved, send simulated",
+   "at": "2026-08-10T22:44:38.052996+00:00",
+   "elapsed_s": 1.493
+  },
+  {
+   "stage": "audit_delivered",
+   "status": "ok",
+   "detail": "verdict PASS (230 pc / 58 oe), 0.0000h vs 2h par",
+   "at": "2026-08-10T22:44:38.069281+00:00",
+   "elapsed_s": 1.509
+  },
+  {
+   "stage": "agreement_sent",
+   "status": "ok",
+   "detail": "DocuSign simulated - template fixtures/docusign_template.md",
+   "at": "2026-08-10T22:44:38.069304+00:00",
+   "elapsed_s": 1.509
+  },
+  {
+   "stage": "agreement_signed",
+   "status": "ok",
+   "detail": "simulated signature, all clauses present",
+   "at": "2026-08-10T22:44:38.069310+00:00",
+   "elapsed_s": 1.509
+  },
+  {
+   "stage": "payment_attempt_1",
+   "status": "injected",
+   "detail": "deliberate: card declined (test)",
+   "at": "2026-08-10T22:44:38.069345+00:00",
+   "elapsed_s": 1.509
+  },
+  {
+   "stage": "payment_rollback",
+   "status": "ok",
+   "detail": "client state restored to agreement_signed",
+   "at": "2026-08-10T22:44:38.476580+00:00",
+   "elapsed_s": 1.916
+  },
+  {
+   "stage": "payment_succeeded",
+   "status": "ok",
+   "detail": "$5,000 activation + $2,500/mo subscription (simulated; live path = fixtures/stripe_test.py)",
+   "at": "2026-08-10T22:44:38.476616+00:00",
+   "elapsed_s": 1.916
+  },
+  {
+   "stage": "activation_pod_cloned",
+   "status": "ok",
+   "detail": "pod snapshot applied (docs-first)",
+   "at": "2026-08-10T22:44:38.801443+00:00",
+   "elapsed_s": 2.241
+  },
+  {
+   "stage": "activation_ledger_init",
+   "status": "ok",
+   "detail": "A3 ledger initialized",
+   "at": "2026-08-10T22:44:38.801485+00:00",
+   "elapsed_s": 2.241
+  },
+  {
+   "stage": "activation_complete",
+   "status": "ok",
+   "detail": "kickoff doc + What-Happens-Next issued, 0 meetings",
+   "at": "2026-08-10T22:44:38.801491+00:00",
+   "elapsed_s": 2.241
+  },
+  {
+   "stage": "send_blocked_unapproved",
+   "status": "injected",
+   "detail": "gate held: outbound action blocked: approval apr-rehearsal-harness-3 is pending",
+   "at": "2026-08-10T22:44:39.132360+00:00",
+   "elapsed_s": 2.572
+  },
+  {
+   "stage": "sequences_live",
+   "status": "ok",
+   "detail": "approved templates only, sends simulated",
+   "at": "2026-08-10T22:44:39.505782+00:00",
+   "elapsed_s": 2.945
+  },
+  {
+   "stage": "ledger_accrued",
+   "status": "ok",
+   "detail": "13 simulated days of touches",
+   "at": "2026-08-10T22:44:39.506379+00:00",
+   "elapsed_s": 2.946
+  },
+  {
+   "stage": "scoreboard_rendered",
+   "status": "ok",
+   "detail": "12 activated (pace vs 20-25), 3 booked, $58,500",
+   "at": "2026-08-10T22:44:39.507976+00:00",
+   "elapsed_s": 2.948
+  },
+  {
+   "stage": "health_scored",
+   "status": "ok",
+   "detail": "4.90 / 5.0 (alert threshold 3.0)",
+   "at": "2026-08-10T22:44:39.508004+00:00",
+   "elapsed_s": 2.948
+  },
+  {
+   "stage": "run_complete",
+   "status": "ok",
+   "detail": "rescues=0 defects=3",
+   "at": "2026-08-10T22:44:39.508012+00:00",
+   "elapsed_s": 2.948
+  }
+ ],
+ "par_deltas": {
+  "audit_hours": {
+   "par": 2.0,
+   "measured": 0.00041916666666666665
+  },
+  "access_to_live_hours": {
+   "par": 24.0,
+   "measured": 0.000399
+  }
+ },
+ "deliberate_injections": [
+  "approval_rejected",
+  "payment_attempt_1",
+  "send_blocked_unapproved"
+ ]
+}

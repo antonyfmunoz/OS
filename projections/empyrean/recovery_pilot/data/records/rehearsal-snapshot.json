@@ -1,0 +1,70 @@
+{
+ "kind": "snapshot",
+ "data": {
+  "answers": {
+   "company": "Cascade Summit Roofing (SYNTHETIC)",
+   "service_area": "Portland metro",
+   "estimates_open": 58,
+   "past_customers": 230,
+   "missed_calls_month": 26,
+   "avg_job_value": 18000,
+   "close_rate_pct": 35
+  },
+  "projection": {
+   "eligibility": {
+    "verdict": "PASS",
+    "past_customers": 230,
+    "past_customers_required": 200,
+    "open_estimates": 58,
+    "open_estimates_required": 50,
+    "guaranteed_low": 20,
+    "guaranteed_high": 25
+   },
+   "pools": [
+    {
+     "pool": "open estimate",
+     "count": 58,
+     "opportunities_low": 5,
+     "opportunities_high": 14,
+     "pipeline_value": 1044000.0,
+     "est_recoverable_value_low": 36540.0,
+     "est_recoverable_value_high": 91350.0
+    },
+    {
+     "pool": "past customer",
+     "count": 230,
+     "opportunities_low": 11,
+     "opportunities_high": 34,
+     "pipeline_value": 4140000.0,
+     "est_recoverable_value_low": 72450.0,
+     "est_recoverable_value_high": 217350.0
+    },
+    {
+     "pool": "missed call",
+     "count": 26,
+     "opportunities_low": 5,
+     "opportunities_high": 10,
+     "pipeline_value": 468000.0,
+     "est_recoverable_value_low": 32760.0,
+     "est_recoverable_value_high": 65520.0
+    }
+   ],
+   "total_pipeline_value": 5652000.0,
+   "total_opportunities_low": 21,
+   "total_opportunities_high": 58,
+   "total_recoverable_low": 141750.0,
+   "total_recoverable_high": 374220.0,
+   "assumptions": "Estimates. Assumptions: open-estimate response 10-25%, past-customer response 5-15%, unanswered-call callback 20-40%, average job value $18,000.0, your close rate 35%. We guarantee activated opportunities, not revenue - your team closes them.",
+   "config": {
+    "avg_job_value": 18000.0,
+    "estimate_response_low": 0.1,
+    "estimate_response_high": 0.25,
+    "past_customer_response_low": 0.05,
+    "past_customer_response_high": 0.15,
+    "missed_call_recovery_low": 0.2,
+    "missed_call_recovery_high": 0.4,
+    "close_rate": 0.35
+   }
+  }
+ }
+}
