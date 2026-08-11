@@ -55,6 +55,9 @@ machine-readable: `_manifest.json`
 | [vision-alignment.md](vision-alignment.md) | Master-doc vision ↔ codebase alignment: what UMH is (industry terms), maturity tiers, composition gap, bridge roadmap |
 | [canonical-registry.md](canonical-registry.md) | The essentialist master taxonomy: every law, layer, loop, registry, role, mode from the master doc — one entry, one home |
 | [build-doctrine.md](build-doctrine.md) | Build doctrine + six-lens verified gap map: 82 ranked gaps across security, data, ML-ops, distributed systems, product, org/legal |
+| [fractal-capability.md](fractal-capability.md) | **First-principles theory** — UMH as a governed ASGI / cybernetic organism: 9 principles (isomorphic modeling, governed semi-autonomy, composed identity, Law of Correspondence, mimicry-then-transcendence, total essentialism, the optimum-intersection, self-governance, asymptotic correspondence), the Capability Cell primitive, and the born-once→ambient lifecycle |
+| [role-composition.md](role-composition.md) | The employee model: Role primitive + Composition Engine + Workflow — Anthropic's agent-orchestration pattern applied to UMH; the four missing bindings on organs that already run |
+| [terminal-fabric.md](terminal-fabric.md) | How the organism stays alive — persistent 24/7 workforce, tmux terminal fabric, A2A delivery, recovery, the `claude_code_pty` keystone; born-once-not-daily; dependency-ordered fix |
 
 ## Directory pages
 
