@@ -93,7 +93,9 @@ class ModelTerminalResult:
 class ModelExecutor(Protocol):
     """Adapter protocol implemented by every production or test executor."""
 
-    def readiness(self) -> ModelExecutorReadiness:
+    identity: ModelExecutorIdentity
+
+    def readiness(self, *, env: dict[str, str] | None = None) -> ModelExecutorReadiness:
         """Return authenticated readiness without consuming task quota."""
 
     def build_invocation(self, packet: ModelWorkPacketInput) -> ModelInvocation:

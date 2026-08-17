@@ -24,7 +24,7 @@ class DeterministicConformanceExecutor:
             adapter=type(self).__name__,
         )
 
-    def readiness(self) -> ModelExecutorReadiness:
+    def readiness(self, *, env: dict[str, str] | None = None) -> ModelExecutorReadiness:
         return ModelExecutorReadiness(
             ok=self.mode != "not_ready",
             authenticated=self.mode != "not_ready",

@@ -670,6 +670,25 @@ class _WorkerResultView:
     def isolated(self) -> bool:
         return bool(self._d.get("isolated", False))
 
+    @property
+    def executor(self) -> dict[str, Any]:
+        raw = self._d.get("executor", {}) or {}
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    @property
+    def usage(self) -> dict[str, Any]:
+        raw = self._d.get("usage", {}) or {}
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    @property
+    def proof_binding(self) -> dict[str, Any]:
+        raw = self._d.get("proof_binding", {}) or {}
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    @property
+    def retry_class(self) -> str:
+        return str(self._d.get("retry_class", "") or "")
+
     def to_dict(self) -> dict[str, Any]:
         return dict(self._d)
 

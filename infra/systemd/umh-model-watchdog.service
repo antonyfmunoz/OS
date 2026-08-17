@@ -1,0 +1,44 @@
+[Unit]
+Description=UMH Model Watchdog - governed model-provenance primitive
+After=network.target docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/umh/runtime/model-watchdog/current/model_watchdog.py
+Restart=always
+RestartSec=15
+Nice=19
+
+Environment=HOME=/root
+Environment=UMH_ROOT=/opt/OS
+EnvironmentFile=-/opt/OS/services/.env
+EnvironmentFile=-/opt/OS/data/runtime/model_watchdog/env
+WorkingDirectory=/opt/umh/runtime/model-watchdog/current
+
+StandardOutput=journal
+StandardError=journal
+
+TimeoutStopSec=10
+KillSignal=SIGTERM
+
+NoNewPrivileges=true
+UMask=0077
+ProtectSystem=strict
+ReadWritePaths=/opt/OS/data/runtime/model_watchdog /opt/OS/logs
+ReadWritePaths=/root/.claude
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=false
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

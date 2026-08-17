@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -27,6 +28,16 @@ _ERROR_SIGNATURES = (
     "billing",
     "invalid_request",
 )
+_SECRET_PATTERNS = (
+    re.compile(r"(?i)(authorization:\s*bearer\s+)[^\s]+"),
+    re.compile(r"(?i)(api[_-]?key\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(token\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(password\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(secret(?:[_-]?key)?\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(credential\s*[:=]\s*)[^\s]+"),
+    re.compile(r"op" + r"://[^\s\"')]+"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
+)
 
 
 def _resolve_codex() -> str:
@@ -37,11 +48,36 @@ def _sanitize(text: str) -> str:
     redacted = []
     for line in (text or "").splitlines():
         lowered = line.lower()
-        if "token" in lowered or "api_key" in lowered or "authorization" in lowered:
+        if any(
+            marker in lowered
+            for marker in (
+                "authorization",
+                "api_key",
+                "apikey",
+                "token",
+                "password",
+                "secret",
+                "credential",
+                "op://",
+            )
+        ):
             redacted.append("[redacted credential-bearing line]")
         else:
-            redacted.append(line)
+            clean = line
+            for pattern in _SECRET_PATTERNS:
+                clean = pattern.sub(lambda m: (m.group(1) if m.groups() else "") + "[redacted]", clean)
+            redacted.append(clean)
     return "\n".join(redacted)
+
+
+def _object_field(event: dict, key: str, line_no: int, errors: list[str]) -> dict:
+    raw = event.get(key, {})
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        errors.append(f"line {line_no}: {key} is not an object")
+        return {}
+    return raw
 
 
 def _classify_failure(*, timed_out: bool, returncode: int | None, stderr: str, stdout: str) -> str:
@@ -57,36 +93,61 @@ def _classify_failure(*, timed_out: bool, returncode: int | None, stderr: str, s
     return "malformed_output"
 
 
-def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str]:
+def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str]]:
     parts: list[str] = []
     usage = {"input_tokens": 0, "output_tokens": 0}
     model = ""
-    for line in (stdout or "").splitlines():
+    errors: list[str] = []
+    terminal_events = 0
+    for n, line in enumerate((stdout or "").splitlines(), start=1):
+        if not line.strip():
+            continue
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
+            errors.append(f"line {n}: malformed json")
+            continue
+        if not isinstance(event, dict):
+            errors.append(f"line {n}: json event is not an object")
             continue
         typ = str(event.get("type", ""))
         if typ == "item.completed":
-            item = event.get("item", {}) or {}
+            item = _object_field(event, "item", n, errors)
             text = item.get("text", "")
+            if text and not isinstance(text, str):
+                errors.append(f"line {n}: item.text is not a string")
+                continue
             if text:
-                parts.append(str(text))
+                parts.append(_sanitize(text))
         elif typ == "turn.completed":
-            raw = event.get("usage", {}) or {}
-            usage["input_tokens"] = int(raw.get("input_tokens", 0) or 0)
-            usage["output_tokens"] = int(raw.get("output_tokens", 0) or 0)
+            terminal_events += 1
+            raw = _object_field(event, "usage", n, errors)
+            try:
+                usage["input_tokens"] = int(raw.get("input_tokens", 0) or 0)
+                usage["output_tokens"] = int(raw.get("output_tokens", 0) or 0)
+            except (TypeError, ValueError):
+                errors.append(f"line {n}: usage token counts are not integers")
             model = str(event.get("model") or model)
         elif typ == "agent_message":
-            msg = event.get("message", {}) or {}
+            msg = _object_field(event, "message", n, errors)
             text = msg.get("content", "")
-            if isinstance(text, str) and text:
-                parts.append(text)
-    return "\n".join(parts).strip(), usage, model
+            if text and not isinstance(text, str):
+                errors.append(f"line {n}: message.content is not a string")
+                continue
+            if text:
+                parts.append(_sanitize(text))
+    if terminal_events == 0:
+        errors.append("missing terminal turn.completed event")
+    elif terminal_events > 1:
+        errors.append("multiple terminal turn.completed events")
+    return "\n".join(parts).strip(), usage, model, errors
 
 
 class CodexModelExecutor:
-    def __init__(self, *, model: str | None = None, sandbox: str = "workspace-write") -> None:
+    def __init__(self, *, model: str | None = None, sandbox: str = "danger-full-access") -> None:
+        # UMH's outer bwrap sandbox is the authoritative write/credential/process
+        # boundary. Codex's nested workspace-write sandbox makes .git read-only,
+        # which prevents legitimate attempt commits (`.git/index.lock`).
         self.model = model or os.environ.get("UMH_CODEX_MODEL", _DEFAULT_MODEL)
         self.sandbox = sandbox
         self.identity = ModelExecutorIdentity(
@@ -106,7 +167,7 @@ class CodexModelExecutor:
             return ""
         return (r.stdout or r.stderr or "").strip() if r else ""
 
-    def readiness(self) -> ModelExecutorReadiness:
+    def readiness(self, *, env: dict[str, str] | None = None) -> ModelExecutorReadiness:
         cli = _resolve_codex()
         if not cli:
             return ModelExecutorReadiness(False, self.identity, "codex CLI not found", False)
@@ -117,6 +178,7 @@ class CodexModelExecutor:
                 timeout=20,
                 capture_output=True,
                 text=True,
+                env=env,
             )
         except Exception as exc:  # noqa: BLE001
             return ModelExecutorReadiness(False, self.identity, f"codex status failed: {exc}", False)
@@ -168,13 +230,17 @@ class CodexModelExecutor:
                 duration_seconds=duration_seconds,
             )
         proc = completed
-        parsed, usage, model_seen = _parse_jsonl(getattr(proc, "stdout", "") or "")
+        parsed, usage, model_seen, parse_errors = _parse_jsonl(getattr(proc, "stdout", "") or "")
         stdout = parsed or _sanitize(getattr(proc, "stdout", "") or "")
         stderr = _sanitize(getattr(proc, "stderr", "") or "")
+        if parse_errors:
+            stderr = "\n".join([stderr, *parse_errors]).strip()
         returncode = getattr(proc, "returncode", None)
         terminal = ModelTerminalResult(
-            ok=returncode == 0 and bool(parsed.strip()),
-            status="succeeded" if returncode == 0 and bool(parsed.strip()) else "failed",
+            ok=returncode == 0 and bool(parsed.strip()) and not parse_errors,
+            status="succeeded"
+            if returncode == 0 and bool(parsed.strip()) and not parse_errors
+            else "failed",
             stdout=stdout,
             stderr=stderr,
             summary=stdout[-500:],

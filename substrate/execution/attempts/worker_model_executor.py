@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
+import subprocess
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -56,6 +58,51 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT = 600.0
 _DEFAULT_MAX_TURNS = 30
+
+
+def _run_isolated_with_tree_timeout(
+    cmd: list[str],
+    *,
+    caller: str,
+    timeout: float,
+    cwd: str,
+    env: dict[str, str],
+    input_text: str,
+) -> subprocess.CompletedProcess[str] | None:
+    """Run the isolated worker command with owned process-tree cancellation."""
+
+    from substrate.execution.cpu_gate import gated_popen
+
+    proc = gated_popen(
+        cmd,
+        caller=caller,
+        cwd=cwd,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    if proc is None:
+        return None
+    try:
+        stdout, stderr = proc.communicate(input=input_text, timeout=timeout)
+        return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            stdout, stderr = proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            stdout, stderr = proc.communicate()
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout, output=stdout, stderr=stderr)
 
 
 @dataclass
@@ -133,14 +180,7 @@ def run_worker_in_lease(
         executor = build_model_executor(provider)
     except ValueError as exc:
         return WorkerResult(error=str(exc), retry_class="configuration")
-    readiness = executor.readiness()
-    if not readiness.ok:
-        return WorkerResult(
-            error=f"model executor not ready: {readiness.reason}",
-            executor=readiness.identity.proof_metadata(),
-            retry_class="owner_auth_or_provider",
-            trusted_base=base_commit,
-        )
+    executor_identity = executor.identity
 
     try:
         make_lease_selfcontained(worktree_path)
@@ -152,9 +192,29 @@ def run_worker_in_lease(
     if not run_root:
         return WorkerResult(error="run_root is required to place a credential home")
     try:
-        attempt_home = open_attempt_credential_home(attempt_id=attempt_id, run_root=run_root)
+        attempt_home = open_attempt_credential_home(
+            attempt_id=attempt_id,
+            run_root=run_root,
+            provider=executor_identity.provider,
+        )
     except CredentialBoundaryError as exc:
         return WorkerResult(error=f"credential boundary unavailable: {exc}")
+
+    extra_allow: dict[str, str] = {}
+    if oauth_token:
+        extra_allow[_credential_env_key(executor_identity.provider)] = oauth_token
+    env = scrub_worker_env(dict(os.environ), extra_allow=extra_allow)
+    env.update(attempt_home.env_overrides())
+
+    readiness = executor.readiness(env=env)
+    if not readiness.ok:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=f"model executor not ready: {readiness.reason}",
+            executor=readiness.identity.proof_metadata(),
+            retry_class="owner_auth_or_provider",
+            trusted_base=base_commit,
+        )
 
     projection = project_task_local_objective(package, worktree_path)
     if not projection.get("ok"):
@@ -229,12 +289,6 @@ def run_worker_in_lease(
         scope_enforced=True,
     )
 
-    extra_allow: dict[str, str] = {}
-    if oauth_token:
-        extra_allow[_credential_env_key(readiness.identity.provider)] = oauth_token
-    env = scrub_worker_env(dict(os.environ), extra_allow=extra_allow)
-    env.update(attempt_home.env_overrides())
-
     binding = _proof_binding(package, base_commit, readiness.identity.provider)
     packet = ModelWorkPacketInput(
         prompt=prompt,
@@ -274,19 +328,16 @@ def run_worker_in_lease(
     start = _time.monotonic()
     try:
         from subprocess import TimeoutExpired
-        from substrate.execution.cpu_gate import gated_subprocess_run
 
         timed_out = False
         try:
-            completed = gated_subprocess_run(
+            completed = _run_isolated_with_tree_timeout(
                 cmd,
                 caller=f"wave2_model_executor_{readiness.identity.provider}",
                 timeout=float(timeout),
                 cwd=invocation.cwd or worktree_path,
                 env=env,
-                input=invocation.stdin,
-                capture_output=True,
-                text=True,
+                input_text=invocation.stdin,
             )
         except TimeoutExpired:
             completed = None

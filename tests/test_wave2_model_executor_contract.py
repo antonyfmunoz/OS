@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import os
 import subprocess
+import time
 from types import SimpleNamespace
+
+import pytest
 
 from substrate.execution.attempts.host_isolation import scrub_worker_env
 from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
@@ -54,10 +57,18 @@ def test_deterministic_adapter_satisfies_terminal_contract(tmp_path):
 
 def test_provider_selection_defaults_to_codex_and_can_select_deterministic(monkeypatch):
     monkeypatch.delenv("UMH_MODEL_EXECUTOR_PROVIDER", raising=False)
+    monkeypatch.delenv("UMH_ALLOW_TEST_MODEL_EXECUTOR", raising=False)
     assert selected_provider_name() == "codex"
     assert type(build_model_executor()).__name__ == "CodexModelExecutor"
 
     monkeypatch.setenv("UMH_MODEL_EXECUTOR_PROVIDER", "deterministic")
+    try:
+        build_model_executor()
+    except ValueError as exc:
+        assert "test-only" in str(exc)
+    else:
+        raise AssertionError("deterministic executor must not be selectable without a test-only gate")
+    monkeypatch.setenv("UMH_ALLOW_TEST_MODEL_EXECUTOR", "1")
     assert isinstance(build_model_executor(), DeterministicConformanceExecutor)
 
 
@@ -87,7 +98,9 @@ def test_attempt_home_has_private_codex_config_without_shared_home(tmp_path, mon
     monkeypatch.setenv("HOME", str(tmp_path))
     os.rename(src, tmp_path / ".codex")
 
-    home = open_attempt_credential_home(attempt_id="ea-1", run_root=str(tmp_path / "run"))
+    home = open_attempt_credential_home(
+        attempt_id="ea-1", run_root=str(tmp_path / "run"), provider="codex"
+    )
     try:
         assert home.codex_dir.endswith(".codex")
         assert home.env_overrides()["CODEX_HOME"] == home.codex_dir
@@ -97,6 +110,27 @@ def test_attempt_home_has_private_codex_config_without_shared_home(tmp_path, mon
     finally:
         close_attempt_credential_home(home)
     assert not os.path.exists(home.home_path)
+
+
+def test_codex_attempt_home_does_not_copy_claude_credentials(tmp_path, monkeypatch):
+    (tmp_path / ".codex").mkdir()
+    (tmp_path / ".codex" / "auth.json").write_text('{"redacted":true}', encoding="utf-8")
+    (tmp_path / ".claude").mkdir()
+    (tmp_path / ".claude" / ".credentials.json").write_text("CLAUDE-SECRET", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+    home = open_attempt_credential_home(
+        attempt_id="ea-codex-only", run_root=str(tmp_path / "run"), provider="codex"
+    )
+    try:
+        assert os.path.isfile(os.path.join(home.codex_dir, "auth.json"))
+        assert not os.listdir(home.claude_dir)
+        for dirpath, _dirs, files in os.walk(home.home_path):
+            for name in files:
+                body = open(os.path.join(dirpath, name), encoding="utf-8").read()
+                assert "CLAUDE-SECRET" not in body
+    finally:
+        close_attempt_credential_home(home)
 
 
 def test_codex_adapter_invokes_exec_with_prompt_on_stdin(tmp_path, monkeypatch):
@@ -131,6 +165,7 @@ def test_codex_adapter_invokes_exec_with_prompt_on_stdin(tmp_path, monkeypatch):
 
     cmd, kwargs = calls[-1]
     assert cmd[:3] == ["/usr/bin/codex", "exec", "--json"]
+    assert cmd[cmd.index("--sandbox") + 1] == "danger-full-access"
     assert cmd[-1] == "-"
     assert "secret-free prompt" not in cmd
     assert kwargs["input"] == "secret-free prompt"
@@ -153,6 +188,219 @@ def test_codex_adapter_rejects_empty_output(tmp_path, monkeypatch):
     result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
     assert not result.ok
     assert result.retry_class == "malformed_output"
+
+
+def test_codex_adapter_rejects_malformed_jsonl_even_with_content(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"real content"}}\n'
+                'not-json\n'
+                '{"type":"turn.completed","usage":{},"model":"gpt-test"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "malformed json" in result.stderr
+
+
+def test_codex_adapter_rejects_truncated_jsonl_without_terminal_event(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout='{"type":"item.completed","item":{"text":"real content"}}\n',
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "missing terminal" in result.stderr
+
+
+def test_codex_adapter_rejects_multiple_terminal_events(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"real content"}}\n'
+                '{"type":"turn.completed","usage":{},"model":"gpt-test"}\n'
+                '{"type":"turn.completed","usage":{},"model":"gpt-test"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "multiple terminal" in result.stderr
+
+
+def test_codex_adapter_rejects_wrong_json_field_shapes_without_crashing(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":"not-an-object"}\n'
+                '{"type":"agent_message","message":"not-an-object"}\n'
+                '{"type":"turn.completed","usage":"not-an-object","model":"gpt-test"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "item is not an object" in result.stderr
+    assert "message is not an object" in result.stderr
+    assert "usage is not an object" in result.stderr
+
+
+def test_codex_adapter_rejects_non_string_message_content(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":{"leak":"structured"}}}\n'
+                '{"type":"agent_message","message":{"content":["not","text"]}}\n'
+                '{"type":"turn.completed","usage":{},"model":"gpt-test"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "item.text is not a string" in result.stderr
+    assert "message.content is not a string" in result.stderr
+
+
+def test_codex_adapter_sanitizes_credential_bearing_output(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="Authorization: Bearer secret-token\nordinary error",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert "secret-token" not in result.stderr
+    assert "[redacted credential-bearing line]" in result.stderr
+    assert "ordinary error" in result.stderr
+
+
+def test_codex_adapter_sanitizes_successful_model_content(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"OPENAI_API_KEY=sk-secretsecret"}}\n'
+                '{"type":"turn.completed","usage":{},"model":"gpt-test"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert result.ok
+    assert "sk-secretsecret" not in result.stdout
+    assert "[redacted credential-bearing line]" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "secret_text",
+    [
+        "password=hunter2",
+        "secret=my-secret-value",
+        "credential=session-cookie",
+        "op" + "://UMH-Production/Service/password",
+    ],
+)
+def test_codex_adapter_sanitizes_common_secret_shapes(tmp_path, monkeypatch, secret_text):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                f'{{"type":"item.completed","item":{{"text":"{secret_text}"}}}}\n'
+                '{"type":"turn.completed","usage":{},"model":"gpt-test"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert result.ok
+    assert secret_text not in result.stdout
+    assert "[redacted credential-bearing line]" in result.stdout
+
+
+def test_terminal_result_binds_executor_identity_and_proof_metadata(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"real content"}}\n'
+                '{"type":"turn.completed","usage":{"input_tokens":3,"output_tokens":5},'
+                '"model":"gpt-proof"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    packet = _packet(tmp_path)
+    result = CodexModelExecutor(model="gpt-test").invoke(packet, env={})
+    assert result.ok
+    assert result.identity is not None
+    assert result.identity.proof_metadata()["provider"] == "codex"
+    assert result.identity.proof_metadata()["model"] == "gpt-proof"
+    assert result.usage == {"input_tokens": 3, "output_tokens": 5}
+    assert result.proof_binding == packet.proof_binding
 
 
 def test_codex_adapter_classifies_timeout(tmp_path, monkeypatch):
@@ -178,7 +426,8 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
     class FakeExecutor:
         identity = ModelExecutorIdentity("fake", "model", "v", "FakeExecutor")
 
-        def readiness(self):
+        def readiness(self, *, env=None):
+            seen["readiness_env"] = dict(env or {})
             return ModelExecutorReadiness(True, self.identity, authenticated=True)
 
         def build_invocation(self, packet):
@@ -208,7 +457,12 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
     seen = {}
     monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
     monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
-    monkeypatch.setattr(worker, "open_attempt_credential_home", lambda **kw: FakeHome())
+    seen_home = {}
+    monkeypatch.setattr(
+        worker,
+        "open_attempt_credential_home",
+        lambda **kw: seen_home.setdefault("kwargs", kw) and FakeHome(),
+    )
     monkeypatch.setattr(worker, "close_attempt_credential_home", lambda home: None)
     monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
     monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True, "projected": True})
@@ -225,11 +479,11 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
     def fake_run(cmd, **kwargs):
         seen["cmd"] = list(cmd)
         seen["env"] = dict(kwargs["env"])
-        seen["input"] = kwargs["input"]
+        seen["input"] = kwargs["input_text"]
         return SimpleNamespace(returncode=0, stdout="{}", stderr="")
 
     monkeypatch.setattr(worker, "build_isolated_command", fake_wrap)
-    monkeypatch.setattr("substrate.execution.cpu_gate.gated_subprocess_run", fake_run)
+    monkeypatch.setattr(worker, "_run_isolated_with_tree_timeout", fake_run)
 
     wt = tmp_path / "wt"
     wt.mkdir()
@@ -253,3 +507,44 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
     assert seen["readonly"] == ["secret.txt"]
     assert seen["input"]
     assert "CODEX_HOME" in seen["env"]
+    assert seen["readiness_env"]["CODEX_HOME"] == str(tmp_path / "home" / ".codex")
+    assert seen_home["kwargs"]["provider"] == "fake"
+
+
+def test_isolated_worker_timeout_terminates_child_process_tree(tmp_path):
+    from substrate.execution.attempts.worker_model_executor import _run_isolated_with_tree_timeout
+
+    pidfile = tmp_path / "child.pid"
+    code = (
+        "import os,subprocess,time\n"
+        "p=subprocess.Popen(['sleep','60'])\n"
+        f"open({str(pidfile)!r}, 'w').write(str(p.pid))\n"
+        "time.sleep(60)\n"
+    )
+    started = time.monotonic()
+    try:
+        _run_isolated_with_tree_timeout(
+            ["python3", "-c", code],
+            caller="test_model_executor_timeout",
+            timeout=0.2,
+            cwd=str(tmp_path),
+            env={"PATH": os.environ.get("PATH", "")},
+            input_text="",
+        )
+    except subprocess.TimeoutExpired:
+        pass
+    else:
+        raise AssertionError("timeout path did not raise")
+    elapsed = time.monotonic() - started
+    assert elapsed < 8, f"timeout cancellation waited for child lifetime: {elapsed:.2f}s"
+
+    child_pid = int(pidfile.read_text(encoding="utf-8"))
+    deadline = time.time() + 3
+    while time.time() < deadline:
+        try:
+            os.kill(child_pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        raise AssertionError(f"child process {child_pid} survived timeout cancellation")

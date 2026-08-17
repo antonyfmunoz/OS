@@ -9,7 +9,7 @@ This module is the single seam that owns the boundary:
 
     open_attempt_credential_home(attempt_id, run_root, ...) -> AttemptHome
         <run-root>/worker-homes/<attempt-id>/          0700, unique per attempt
-        <run-root>/worker-homes/<attempt-id>/.claude/  0700
+        <run-root>/worker-homes/<attempt-id>/<provider config>/  0700
         ...<credential file>                            0600
         <run-root>/worker-homes/<attempt-id>/tmp/       0700, private TMPDIR
 
@@ -17,13 +17,12 @@ This module is the single seam that owns the boundary:
 
 Two authority domains, never joined
 -----------------------------------
-The candidate CONTROL PLANE holds ``ANTHROPIC_API_KEY`` (its own env file). The
-host WORKER holds only a Claude Code subscription credential. They are separate
+The candidate CONTROL PLANE holds its own service credentials. The host WORKER
+holds only the selected model executor's credential material. They are separate
 authority domains: a worker must never receive the control-plane API key merely
 because both take part in the same run. ``scrub_worker_env`` is an allowlist and
-``ANTHROPIC_API_KEY`` is additionally in ``FORBIDDEN_ENV_PREFIXES``; this module
-re-asserts the boundary at the home level (the key is never written into an
-attempt home) and the accompanying tests pin it adversarially.
+credential-bearing prefixes are additionally denied; this module re-asserts the
+boundary at the home level and the accompanying tests pin it adversarially.
 
 Cleanup failure is a SECURITY FAILURE, not a warning: if credential material
 cannot be destroyed, the caller is told so explicitly and the attempt is failed.
@@ -47,7 +46,7 @@ _CRED_MODE = 0o600
 # Credential filenames copied from the operator's real ~/.claude into the
 # attempt-private home. Deliberately minimal: the CLI needs its credentials file
 # (and optionally its config); nothing else may cross the boundary.
-_CREDENTIAL_FILES = (".credentials.json", "config.json")
+_CLAUDE_CREDENTIAL_FILES = (".credentials.json", "config.json")
 _CODEX_CREDENTIAL_FILES = ("auth.json", "config.toml")
 
 # Never copied into an attempt home, even if present in the source directory —
@@ -146,7 +145,9 @@ def open_attempt_credential_home(
     *,
     attempt_id: str,
     run_root: str,
+    provider: str = "claude",
     source_claude_dir: str | None = None,
+    source_codex_dir: str | None = None,
     copy_credentials: bool = True,
 ) -> AttemptHome:
     """Create this attempt's private home and place the minimum credential in it.
@@ -164,6 +165,10 @@ def open_attempt_credential_home(
     codex_dir = os.path.join(home, ".codex")
     tmp_dir = os.path.join(home, "tmp")
 
+    provider_name = (provider or "").strip().lower()
+    if provider_name not in {"claude", "codex", "none"}:
+        raise CredentialBoundaryError(f"unsupported credential provider: {provider!r}")
+
     try:
         _mkdir_private(worker_homes_root(run_root))
         _mkdir_private(home)
@@ -177,39 +182,12 @@ def open_attempt_credential_home(
 
     placed: list[str] = []
     if copy_credentials:
-        src_dir = source_claude_dir or os.path.expanduser("~/.claude")
-        for fname in _CREDENTIAL_FILES:
-            if fname in _NEVER_COPY:
-                continue
-            src = os.path.join(src_dir, fname)
-            if not os.path.isfile(src):
-                continue
-            dst = os.path.join(claude_dir, fname)
-            try:
-                shutil.copyfile(src, dst)
-                os.chmod(dst, _CRED_MODE)
-            except OSError as exc:
-                # A credential we could not place at 0600 must not linger.
-                _best_effort_unlink(dst)
-                raise CredentialBoundaryError(
-                    f"cannot place credential {fname} at 0600 in {claude_dir}: {exc}"
-                ) from exc
-            placed.append(dst)
-        codex_src_dir = os.path.expanduser("~/.codex")
-        for fname in _CODEX_CREDENTIAL_FILES:
-            src = os.path.join(codex_src_dir, fname)
-            if not os.path.isfile(src):
-                continue
-            dst = os.path.join(codex_dir, fname)
-            try:
-                shutil.copyfile(src, dst)
-                os.chmod(dst, _CRED_MODE)
-            except OSError as exc:
-                _best_effort_unlink(dst)
-                raise CredentialBoundaryError(
-                    f"cannot place codex credential {fname} at 0600 in {codex_dir}: {exc}"
-                ) from exc
-            placed.append(dst)
+        if provider_name == "claude":
+            src_dir = source_claude_dir or os.path.expanduser("~/.claude")
+            placed.extend(_copy_provider_credentials(src_dir, claude_dir, _CLAUDE_CREDENTIAL_FILES))
+        elif provider_name == "codex":
+            src_dir = source_codex_dir or os.path.expanduser("~/.codex")
+            placed.extend(_copy_provider_credentials(src_dir, codex_dir, _CODEX_CREDENTIAL_FILES))
 
     _assert_private(home)
     for dst in placed:
@@ -223,6 +201,29 @@ def open_attempt_credential_home(
         codex_dir=codex_dir,
         credential_files=placed,
     )
+
+
+def _copy_provider_credentials(
+    src_dir: str, dst_dir: str, filenames: tuple[str, ...]
+) -> list[str]:
+    placed: list[str] = []
+    for fname in filenames:
+        if fname in _NEVER_COPY:
+            continue
+        src = os.path.join(src_dir, fname)
+        if not os.path.isfile(src):
+            continue
+        dst = os.path.join(dst_dir, fname)
+        try:
+            shutil.copyfile(src, dst)
+            os.chmod(dst, _CRED_MODE)
+        except OSError as exc:
+            _best_effort_unlink(dst)
+            raise CredentialBoundaryError(
+                f"cannot place credential {fname} at 0600 in {dst_dir}: {exc}"
+            ) from exc
+        placed.append(dst)
+    return placed
 
 
 def verifier_homes_root(run_root: str) -> str:
@@ -361,7 +362,7 @@ def assert_no_credential_residue(run_root: str) -> list[str]:
         return residue
     for dirpath, _dirnames, filenames in os.walk(root):
         for name in filenames:
-            if name in _CREDENTIAL_FILES:
+            if name in _CLAUDE_CREDENTIAL_FILES or name in _CODEX_CREDENTIAL_FILES:
                 residue.append(os.path.join(dirpath, name))
     return residue
 

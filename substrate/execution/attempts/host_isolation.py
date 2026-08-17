@@ -8,7 +8,7 @@ namespace exposing ONLY:
 
 - the assigned writable worktree (read-write),
 - required read-only runtime files (the CLI binary dir, minimal system libs),
-- the minimal model-credential path (the worker's HOME with only ~/.claude).
+- the selected provider's minimal credential path inside the worker's private HOME.
 
 Everything else is absent from the namespace, so the confinement is by
 construction, not by allowlist-checking. Post-hoc diff validation (in the
@@ -41,12 +41,12 @@ class IsolationProfile:
     """
 
     worktree_path: str  # the worktree root (writable EXCEPT the ro overlay below)
-    worker_home: str  # attempt-PRIVATE HOME (holds only this attempt's ~/.claude)
+    worker_home: str  # attempt-PRIVATE HOME for this provider's credential/config
     ro_paths: list[str] = field(default_factory=list)  # read-only binds (bins, libs)
     allow_network: bool = True  # the model CLI needs network; egress bound is DECLARED
     primitive: str = "bwrap"
     tmp_path: str = ""  # attempt-private TMPDIR (bound rw when set)
-    env_overrides: dict[str, str] = field(default_factory=dict)  # HOME/XDG/CLAUDE_CONFIG_DIR
+    env_overrides: dict[str, str] = field(default_factory=dict)  # HOME/XDG/provider config dirs
     # ── Hard write-scope enforcement (worktree-relative, from the WorkPacket) ──
     # Every existing tracked path in the worktree that this Task may NOT modify,
     # re-bound READ-ONLY *inside* the writable worktree bind. bwrap applies binds
@@ -106,8 +106,8 @@ def _default_ro_paths() -> list[str]:
 def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list[str]:
     """Wrap ``inner_cmd`` in a bubblewrap sandbox per ``profile``.
 
-    The namespace exposes ONLY the worktree (rw), the worker HOME (rw, holds
-    ~/.claude), and the declared read-only system paths. /opt/OS, candidate
+    The namespace exposes ONLY the worktree (rw), the worker HOME (rw, holding
+    the selected provider's minimal config), and the declared read-only system paths. /opt/OS, candidate
     state, and all other credential stores are simply not bound, so they do not
     exist inside the sandbox.
     """
@@ -154,8 +154,8 @@ def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list
     # under a predictable name.
     if profile.tmp_path:
         cmd += ["--bind", profile.tmp_path, profile.tmp_path]
-    # HOME plus every config/state path the CLI honours, so no lookup escapes
-    # the attempt boundary (XDG_*, CLAUDE_CONFIG_DIR, TMPDIR).
+    # HOME plus every config/state path the selected CLI honours, so no lookup
+    # escapes the attempt boundary (XDG_*, provider config dirs, TMPDIR).
     overrides = dict(profile.env_overrides or {})
     overrides.setdefault("HOME", profile.worker_home)
     for key in sorted(overrides):

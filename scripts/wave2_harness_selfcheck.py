@@ -29,6 +29,7 @@ import argparse
 import json
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -438,20 +439,37 @@ def check_model_executor_readiness() -> dict:
     """Selected provider-neutral model executor is authenticated and ready."""
     try:
         from substrate.execution.attempts.model_executor_selection import build_model_executor
+        from substrate.execution.attempts.host_isolation import scrub_worker_env
+        from substrate.execution.attempts.worker_credential_boundary import (
+            close_attempt_credential_home,
+            open_attempt_credential_home,
+        )
 
-        ready = build_model_executor().readiness()
-        if ready.ok:
-            ident = ready.identity.proof_metadata()
+        executor = build_model_executor()
+        home = open_attempt_credential_home(
+            attempt_id="selfcheck-model-executor",
+            run_root=str(Path(tempfile.mkdtemp(prefix="w2_model_executor_readiness_"))),
+            provider=executor.identity.provider,
+        )
+        try:
+            env = scrub_worker_env(dict(os.environ))
+            env.update(home.env_overrides())
+            ready = executor.readiness(env=env)
+            if ready.ok:
+                ident = ready.identity.proof_metadata()
+                return _result(
+                    "model_executor_readiness",
+                    "PASS",
+                    f"provider={ident.get('provider')} model={ident.get('model')} "
+                    "attempt-private authenticated",
+                )
             return _result(
                 "model_executor_readiness",
-                "PASS",
-                f"provider={ident.get('provider')} model={ident.get('model')} authenticated",
+                "OWNER_GATED",
+                ready.reason or "selected model executor is not authenticated in attempt-private home",
             )
-        return _result(
-            "model_executor_readiness",
-            "OWNER_GATED",
-            ready.reason or "selected model executor is not authenticated",
-        )
+        finally:
+            close_attempt_credential_home(home)
     except Exception as exc:  # noqa: BLE001
         return _result("model_executor_readiness", "OWNER_GATED", str(exc))
 

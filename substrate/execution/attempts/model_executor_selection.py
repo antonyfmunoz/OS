@@ -7,6 +7,7 @@ import os
 from substrate.execution.attempts.model_executor_contract import ModelExecutor
 
 _DEFAULT_PROVIDER = "codex"
+_TEST_ONLY_PROVIDERS = {"deterministic", "conformance"}
 
 
 def selected_provider_name() -> str:
@@ -19,7 +20,12 @@ def build_model_executor(provider: str | None = None) -> ModelExecutor:
         from substrate.execution.attempts.model_executors.codex import CodexModelExecutor
 
         return CodexModelExecutor()
-    if name in {"deterministic", "conformance"}:
+    if name in _TEST_ONLY_PROVIDERS:
+        if os.environ.get("UMH_ALLOW_TEST_MODEL_EXECUTOR") != "1":
+            raise ValueError(
+                f"test-only model executor provider {name!r} requires "
+                "UMH_ALLOW_TEST_MODEL_EXECUTOR=1"
+            )
         from substrate.execution.attempts.model_executors.deterministic import (
             DeterministicConformanceExecutor,
         )

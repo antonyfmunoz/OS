@@ -708,6 +708,10 @@ def _persist_proof(
                 data={
                     "files_changed": list(getattr(worker_result, "files_changed", []) or []),
                     "commits": list(getattr(worker_result, "commits", []) or []),
+                    "executor": dict(getattr(worker_result, "executor", {}) or {}),
+                    "usage": dict(getattr(worker_result, "usage", {}) or {}),
+                    "proof_binding": dict(getattr(worker_result, "proof_binding", {}) or {}),
+                    "retry_class": str(getattr(worker_result, "retry_class", "") or ""),
                 },
             )
         )
