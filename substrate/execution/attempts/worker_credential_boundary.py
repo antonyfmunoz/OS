@@ -48,6 +48,7 @@ _CRED_MODE = 0o600
 # attempt-private home. Deliberately minimal: the CLI needs its credentials file
 # (and optionally its config); nothing else may cross the boundary.
 _CREDENTIAL_FILES = (".credentials.json", "config.json")
+_CODEX_CREDENTIAL_FILES = ("auth.json", "config.toml")
 
 # Never copied into an attempt home, even if present in the source directory —
 # these belong to other authority domains or are unnecessary for a worker.
@@ -79,6 +80,7 @@ class AttemptHome:
     home_path: str
     tmp_path: str
     claude_dir: str
+    codex_dir: str = ""
     credential_files: list[str] = field(default_factory=list)
     closed: bool = False
 
@@ -94,6 +96,7 @@ class AttemptHome:
             "XDG_CACHE_HOME": os.path.join(self.home_path, ".cache"),
             "XDG_DATA_HOME": os.path.join(self.home_path, ".local", "share"),
             "CLAUDE_CONFIG_DIR": self.claude_dir,
+            "CODEX_HOME": self.codex_dir or os.path.join(self.home_path, ".codex"),
             "TMPDIR": self.tmp_path,
         }
 
@@ -104,6 +107,7 @@ class AttemptHome:
             "home_path": self.home_path,
             "tmp_path": self.tmp_path,
             "credential_file_count": len(self.credential_files),
+            "codex_dir": self.codex_dir,
             "closed": self.closed,
         }
 
@@ -157,12 +161,14 @@ def open_attempt_credential_home(
 
     home = attempt_home_path(run_root, attempt_id)
     claude_dir = os.path.join(home, ".claude")
+    codex_dir = os.path.join(home, ".codex")
     tmp_dir = os.path.join(home, "tmp")
 
     try:
         _mkdir_private(worker_homes_root(run_root))
         _mkdir_private(home)
         _mkdir_private(claude_dir)
+        _mkdir_private(codex_dir)
         _mkdir_private(tmp_dir)
         _mkdir_private(os.path.join(home, ".config"))
         _mkdir_private(os.path.join(home, ".cache"))
@@ -189,6 +195,21 @@ def open_attempt_credential_home(
                     f"cannot place credential {fname} at 0600 in {claude_dir}: {exc}"
                 ) from exc
             placed.append(dst)
+        codex_src_dir = os.path.expanduser("~/.codex")
+        for fname in _CODEX_CREDENTIAL_FILES:
+            src = os.path.join(codex_src_dir, fname)
+            if not os.path.isfile(src):
+                continue
+            dst = os.path.join(codex_dir, fname)
+            try:
+                shutil.copyfile(src, dst)
+                os.chmod(dst, _CRED_MODE)
+            except OSError as exc:
+                _best_effort_unlink(dst)
+                raise CredentialBoundaryError(
+                    f"cannot place codex credential {fname} at 0600 in {codex_dir}: {exc}"
+                ) from exc
+            placed.append(dst)
 
     _assert_private(home)
     for dst in placed:
@@ -199,6 +220,7 @@ def open_attempt_credential_home(
         home_path=home,
         tmp_path=tmp_dir,
         claude_dir=claude_dir,
+        codex_dir=codex_dir,
         credential_files=placed,
     )
 
@@ -234,11 +256,13 @@ def open_verifier_home(*, attempt_id: str, run_root: str) -> AttemptHome:
 
     home = verifier_home_path(run_root, attempt_id)
     claude_dir = os.path.join(home, ".claude")  # present but EMPTY (no credential)
+    codex_dir = os.path.join(home, ".codex")  # present but EMPTY (no credential)
     tmp_dir = os.path.join(home, "tmp")
     try:
         _mkdir_private(verifier_homes_root(run_root))
         _mkdir_private(home)
         _mkdir_private(claude_dir)
+        _mkdir_private(codex_dir)
         _mkdir_private(tmp_dir)
         _mkdir_private(os.path.join(home, ".config"))
         _mkdir_private(os.path.join(home, ".cache"))
@@ -253,6 +277,7 @@ def open_verifier_home(*, attempt_id: str, run_root: str) -> AttemptHome:
         home_path=home,
         tmp_path=tmp_dir,
         claude_dir=claude_dir,
+        codex_dir=codex_dir,
         credential_files=[],
     )
 

@@ -439,14 +439,14 @@ def _verifier_role_resolver(packet: Any) -> str:
 
 
 def _worker_candidates() -> list[dict[str, Any]]:
-    """The single real worker candidate: the host Claude-CLI worker.
+    """The single real worker candidate: the governed host model executor.
 
     Its capabilities cover the fixture Tasks' required capabilities. The
     placement ranker is deterministic (single candidate → stable winner).
     """
     return [
         {
-            "worker_identity": "cc-cli@vps-host",
+            "worker_identity": "model-executor@vps-host",
             "agent_type": "developer_agent",
             "capabilities": [
                 "code_write",
@@ -457,8 +457,8 @@ def _worker_candidates() -> list[dict[str, Any]]:
                 "integration",
             ],
             "reliability": 0.9,
-            "model_profile": {"model": "claude-opus", "harness": "cc_cli_worktree"},
-            "harness_profile": {"harness": "cc_cli_worktree"},
+            "model_profile": {"model": "policy-selected", "executor_contract": "ModelExecutor"},
+            "harness_profile": {"harness": "governed_model_executor"},
         }
     ]
 

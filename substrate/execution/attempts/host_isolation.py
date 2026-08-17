@@ -367,6 +367,7 @@ FORBIDDEN_ENV_PREFIXES = (
     "GH_",
     "OP_",
     "ANTHROPIC_API_KEY",
+    "CODEX_",
     "AWS_",
     "OPENAI_",
     "GOOGLE_",
@@ -400,7 +401,8 @@ def scrub_worker_env(
             continue
         if k in keep_keys:
             out[k] = v
-    # The single allowed model credential (OAuth token) is injected explicitly.
+    # Any allowed model credential is injected explicitly via extra_allow after
+    # the denylist scrub. No provider credential prefix is inherited by default.
     if extra_allow:
         out.update(extra_allow)
     return out

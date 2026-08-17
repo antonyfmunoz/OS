@@ -210,7 +210,7 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "AttemptScheduler": ["substrate.execution.attempts.scheduler"],
     "SchedulerPassReport": ["substrate.execution.attempts.scheduler"],
     # C4 part 2: real worker, enforced host isolation, signed dispatch spool.
-    "WorkerResult": ["substrate.execution.attempts.worker_claude_cli"],
+    "WorkerResult": ["substrate.execution.attempts.worker_model_executor"],
     "IsolationProfile": ["substrate.execution.attempts.host_isolation"],
     "IsolationUnavailable": ["substrate.execution.attempts.host_isolation"],
     "DispatchEnvelope": ["substrate.execution.attempts.spool"],

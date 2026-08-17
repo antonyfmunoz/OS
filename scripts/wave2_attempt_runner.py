@@ -14,7 +14,7 @@ field dispatcher for the duration of one qualification run. It:
    which gates lease + dispatch before an envelope is ever enqueued, and
    `attempts/dispatch.py`, which seals authorization_ref / authorized_scope_hash
    / authorized_tasks into the package hash the worker is bound to;
-4. runs the real Claude-CLI worker in the lease worktree under bwrap isolation;
+4. runs the policy-selected model worker in the lease worktree under bwrap isolation;
 5. writes a SIGNED result to the spool outbox — never mutates the attempt ledger
    directly (the control-plane poller owns canonical transitions);
 6. receives NO signing secret in the worker subprocess env.
@@ -59,6 +59,8 @@ _CP_MAX_TOTAL_ERRORS = 20
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO not in sys.path:
     sys.path.insert(0, REPO)
+
+from substrate.execution.attempts.worker_model_executor import run_worker_in_lease  # noqa: E402
 
 
 class ControlPlaneFailureBudget:
@@ -304,7 +306,6 @@ def run_loop(
         sweep_run,
     )
     from substrate.execution.attempts.spool import DispatchSpool
-    from substrate.execution.attempts.worker_claude_cli import run_worker_in_lease
 
     # (1) enforced host isolation preflight — fail closed.
     prim = isolation_primitive()
@@ -762,7 +763,11 @@ def main() -> int:
     if not secret:
         _log(f"FATAL: {args.secret_env} not set — the runner needs the per-run dispatch secret")
         return 2
-    oauth = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN") or None
+    oauth = (
+        os.environ.get("MODEL_EXECUTOR_TOKEN")
+        or os.environ.get("CODEX_ACCESS_TOKEN")
+        or None
+    )
     return run_loop(
         spool_root=args.spool_root,
         secret=secret,

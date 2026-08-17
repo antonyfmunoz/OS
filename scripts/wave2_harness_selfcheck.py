@@ -147,7 +147,7 @@ def canonical_governance_fields(writable_path_scope: list[str]) -> dict:
         skill_requirement_refs=[],
         tool_profile=["shell"],
         environment_class="container",
-        model_profile={"model": "claude-opus-5"},
+        model_profile={"model": "policy-selected", "executor_contract": "ModelExecutor"},
     )
     grant = _NS(
         decision_ref="dec-selfcheck",
@@ -434,26 +434,26 @@ def check_beast() -> dict:
         return _result("beast_reachable", "OWNER_GATED", str(exc))
 
 
-def check_oauth() -> dict:
-    """OAuth token resolvable via the approved path (ancestor process walk)."""
+def check_model_executor_readiness() -> dict:
+    """Selected provider-neutral model executor is authenticated and ready."""
     try:
-        from adapters.models.cc_sdk import _get_subprocess_env
+        from substrate.execution.attempts.model_executor_selection import build_model_executor
 
-        env = _get_subprocess_env()
-        tok = env.get("CLAUDE_CODE_OAUTH_TOKEN", "")
-        if tok:
-            return _result("oauth_token", "PASS", f"resolved via approved path (len={len(tok)})")
-        # Not resolvable in THIS process — the runner resolves it at worker time
-        # from its own ancestry. Classify honestly.
+        ready = build_model_executor().readiness()
+        if ready.ok:
+            ident = ready.identity.proof_metadata()
+            return _result(
+                "model_executor_readiness",
+                "PASS",
+                f"provider={ident.get('provider')} model={ident.get('model')} authenticated",
+            )
         return _result(
-            "oauth_token",
+            "model_executor_readiness",
             "OWNER_GATED",
-            "not resolvable in this process's ancestry — the host runner "
-            "resolves it at worker-invocation time from its own CC ancestor; "
-            "verify at start-runner",
+            ready.reason or "selected model executor is not authenticated",
         )
     except Exception as exc:  # noqa: BLE001
-        return _result("oauth_token", "OWNER_GATED", str(exc))
+        return _result("model_executor_readiness", "OWNER_GATED", str(exc))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -473,7 +473,7 @@ def main(argv: list[str] | None = None) -> int:
         check_run_secret(tmp),
         check_clerk_origin(),
         check_beast(),
-        check_oauth(),
+        check_model_executor_readiness(),
     ]
     import shutil
 

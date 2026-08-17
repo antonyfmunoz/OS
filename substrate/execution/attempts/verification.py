@@ -515,7 +515,7 @@ def reanchor_is_authorized(*, worktree: str, original_base: str, new_base: str) 
     keeps the original base on refusal, which is a scope rejection (the pre-fix
     behaviour), never a pass.
     """
-    from substrate.execution.attempts.worker_claude_cli import TRUSTED_PROJECTION_PATHS
+    from substrate.execution.attempts.scope_contract import TRUSTED_PROJECTION_PATHS
 
     original_base = (original_base or "").strip()
     new_base = (new_base or "").strip()

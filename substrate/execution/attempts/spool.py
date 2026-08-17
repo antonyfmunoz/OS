@@ -107,16 +107,14 @@ def _governance_defect(envelope: DispatchEnvelope) -> str:
     explicitly EMPTY scope is valid (the zero-write verifier lane); only a
     missing or unparseable one is a defect.
     """
-    from substrate.execution.attempts.worker_claude_cli import (
-        ScopeResolutionError,
-        _sealed_writable_scope,
-    )
+    from substrate.execution.attempts.field_task_scope import ScopeResolutionError
+    from substrate.execution.attempts.scope_contract import sealed_writable_scope
 
     class _View:
         governance_constraints = list(envelope.governance_constraints or [])
 
     try:
-        scope = _sealed_writable_scope(_View())
+        scope = sealed_writable_scope(_View())
     except ScopeResolutionError as exc:
         return str(exc)
     if scope is None:

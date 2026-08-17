@@ -2256,9 +2256,9 @@ def start_runner(runner: Runner, sha: str, run_id: str, max_iterations: int) -> 
     RUN-SCOPED component — started here, stopped at teardown — NOT a persistent
     supervisor (that is Wave 3).
 
-    On the VPS host the runner's OAuth token is resolved by the approved path
-    (cc_sdk `_find_ancestor_oauth`) at worker-invocation time; this launcher just
-    verifies isolation + spins the loop.
+    On the VPS host the runner resolves the selected provider's credential only
+    through the governed model-executor boundary. This launcher verifies
+    isolation + spins the loop; it never logs or passes credentials on argv.
     """
     secret_path = _mint_run_secret(runner, sha)
     spool_root = _spool_root(sha, run_id)
