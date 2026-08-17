@@ -63,3 +63,6 @@ ALLOWED_CLERK_USER_IDS=user_3EHDsQSiGJUVF5FdLVkGflrwFlu
 
 # ── Beast SSH (browser verification) ──────────────────────────────────────
 UMH_BEAST_SSH=op://UMH-Production/Beast SSH/connection-string
+
+# WP-P0-004: bearer token for the CC webhook receiver (fail-closed if unset)
+CC_WEBHOOK_TOKEN=op://UMH-Production/CC-Webhook/token
