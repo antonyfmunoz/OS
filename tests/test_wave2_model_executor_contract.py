@@ -511,6 +511,33 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
     assert seen_home["kwargs"]["provider"] == "fake"
 
 
+def test_worker_env_preserves_windows_process_runtime_without_user_profile() -> None:
+    from substrate.execution.attempts.host_isolation import scrub_worker_env
+
+    env = scrub_worker_env(
+        {
+            "PATH": "C:\\bin",
+            "SystemRoot": "C:\\Windows",
+            "WINDIR": "C:\\Windows",
+            "ComSpec": "C:\\Windows\\System32\\cmd.exe",
+            "PATHEXT": ".COM;.EXE;.BAT;.CMD",
+            "USERPROFILE": "C:\\Users\\real",
+            "APPDATA": "C:\\Users\\real\\AppData\\Roaming",
+            "LOCALAPPDATA": "C:\\Users\\real\\AppData\\Local",
+            "CODEX_HOME": "C:\\Users\\real\\.codex",
+        }
+    )
+
+    assert env["SystemRoot"] == "C:\\Windows"
+    assert env["WINDIR"] == "C:\\Windows"
+    assert env["ComSpec"].endswith("cmd.exe")
+    assert env["PATHEXT"]
+    assert "USERPROFILE" not in env
+    assert "APPDATA" not in env
+    assert "LOCALAPPDATA" not in env
+    assert "CODEX_HOME" not in env
+
+
 def test_isolated_worker_timeout_terminates_child_process_tree(tmp_path):
     from substrate.execution.attempts.worker_model_executor import _run_isolated_with_tree_timeout
 

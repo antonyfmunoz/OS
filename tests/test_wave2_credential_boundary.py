@@ -17,6 +17,7 @@ import os
 import shutil
 import stat
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -141,6 +142,31 @@ def test_windows_attempt_home_uses_private_acl_not_posix_mode(tmp_path, monkeypa
             for call in calls
         )
         assert any("desktop-lvguiq9\\antonys beast pc" in part for call in calls for part in call)
+    finally:
+        close_attempt_credential_home(home)
+
+
+def test_windows_attempt_home_maps_profile_and_temp_to_private_home(tmp_path, monkeypatch):
+    monkeypatch.setattr(wcb, "_IS_WINDOWS", True)
+    monkeypatch.setattr(wcb, "_set_windows_private_acl", lambda *args, **kwargs: None)
+    monkeypatch.setattr(wcb, "_assert_windows_private_acl", lambda *args, **kwargs: None)
+    home = open_attempt_credential_home(
+        attempt_id="win-codex",
+        run_root=str(tmp_path),
+        provider="codex",
+        copy_credentials=False,
+    )
+
+    try:
+        env = home.env_overrides()
+
+        assert env["USERPROFILE"] == home.home_path
+        assert env["APPDATA"].startswith(home.home_path)
+        assert env["LOCALAPPDATA"].startswith(home.home_path)
+        assert env["TEMP"] == home.tmp_path
+        assert env["TMP"] == home.tmp_path
+        assert Path(env["APPDATA"]).is_dir()
+        assert Path(env["LOCALAPPDATA"]).is_dir()
     finally:
         close_attempt_credential_home(home)
 

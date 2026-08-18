@@ -394,6 +394,12 @@ def scrub_worker_env(
         "GIT_COMMITTER_NAME",
         "GIT_COMMITTER_EMAIL",
         "FIXTURE_VENV",
+        "SystemRoot",
+        "WINDIR",
+        "ComSpec",
+        "PATHEXT",
+        "PROCESSOR_ARCHITECTURE",
+        "NUMBER_OF_PROCESSORS",
     }
     out: dict[str, str] = {}
     for k, v in base_env.items():

@@ -91,7 +91,7 @@ class AttemptHome:
         HOME alone is not sufficient: the CLI also honours XDG_CONFIG_HOME and
         CLAUDE_CONFIG_DIR, and a shared TMPDIR is a cross-worker channel.
         """
-        return {
+        env = {
             "HOME": self.home_path,
             "XDG_CONFIG_HOME": os.path.join(self.home_path, ".config"),
             "XDG_CACHE_HOME": os.path.join(self.home_path, ".cache"),
@@ -100,6 +100,17 @@ class AttemptHome:
             "CODEX_HOME": self.codex_dir or os.path.join(self.home_path, ".codex"),
             "TMPDIR": self.tmp_path,
         }
+        if _IS_WINDOWS:
+            env.update(
+                {
+                    "USERPROFILE": self.home_path,
+                    "APPDATA": os.path.join(self.home_path, "AppData", "Roaming"),
+                    "LOCALAPPDATA": os.path.join(self.home_path, "AppData", "Local"),
+                    "TEMP": self.tmp_path,
+                    "TMP": self.tmp_path,
+                }
+            )
+        return env
 
     def to_dict(self) -> dict[str, Any]:
         """Auditable description — paths and booleans only, never contents."""
@@ -181,6 +192,9 @@ def open_attempt_credential_home(
         _mkdir_private(tmp_dir)
         _mkdir_private(os.path.join(home, ".config"))
         _mkdir_private(os.path.join(home, ".cache"))
+        if _IS_WINDOWS:
+            _mkdir_private(os.path.join(home, "AppData", "Roaming"))
+            _mkdir_private(os.path.join(home, "AppData", "Local"))
     except OSError as exc:
         raise CredentialBoundaryError(f"cannot create private attempt home {home}: {exc}") from exc
 
