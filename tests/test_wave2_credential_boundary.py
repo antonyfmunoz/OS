@@ -35,6 +35,7 @@ from substrate.execution.attempts.worker_credential_boundary import (
     open_attempt_credential_home,
     worker_homes_root,
 )
+from substrate.execution.attempts import worker_credential_boundary as wcb
 
 _HAVE_BWRAP = isolation_primitive() == "bwrap"
 _needs_bwrap = pytest.mark.skipif(_HAVE_BWRAP is False, reason="bwrap not available")
@@ -95,6 +96,59 @@ def test_home_and_credential_modes_are_private(tmp_path):
         mode = stat.S_IMODE(os.stat(cred).st_mode)
         assert mode == 0o600, f"{cred} must be 0600, got {mode:o}"
     close_attempt_credential_home(home)
+
+
+def test_windows_attempt_home_uses_private_acl_not_posix_mode(tmp_path, monkeypatch):
+    calls = []
+
+    class Result:
+        returncode = 0
+        stdout = (
+            "C:\\tmp\\home DESKTOP-LVGUIQ9\\antonys beast pc:(F)\n"
+            "            NT AUTHORITY\\SYSTEM:(F)\n"
+            "Successfully processed 1 files; Failed processing 0 files"
+        )
+        stderr = ""
+
+    def fake_acl(args):
+        calls.append(args)
+        return Result()
+
+    src = tmp_path / "real-codex"
+    src.mkdir()
+    (src / "auth.json").write_text('{"account":"test"}', encoding="utf-8")
+    monkeypatch.setattr(wcb, "_IS_WINDOWS", True)
+    monkeypatch.setattr(wcb, "_run_acl_command", fake_acl)
+    monkeypatch.setenv("USERDOMAIN", "DESKTOP-LVGUIQ9")
+    monkeypatch.setenv("USERNAME", "antonys beast pc")
+
+    home = open_attempt_credential_home(
+        attempt_id="ea-windows",
+        run_root=str(tmp_path / "run"),
+        provider="codex",
+        source_codex_dir=str(src),
+    )
+
+    try:
+        assert home.credential_files
+        assert any(call[:3] == ["icacls", home.home_path, "/inheritance:r"] for call in calls)
+        assert any(str(call[1]).endswith("auth.json") for call in calls)
+        assert any("DESKTOP-LVGUIQ9\\antonys beast pc" in part for call in calls for part in call)
+    finally:
+        close_attempt_credential_home(home)
+
+
+def test_windows_acl_assertion_rejects_broad_access(monkeypatch):
+    class Result:
+        returncode = 0
+        stdout = "C:\\tmp\\home BUILTIN\\Users:(I)(RX)\n"
+        stderr = ""
+
+    monkeypatch.setattr(wcb, "_IS_WINDOWS", True)
+    monkeypatch.setattr(wcb, "_run_acl_command", lambda args: Result())
+
+    with pytest.raises(CredentialBoundaryError, match="broad Windows access"):
+        wcb._assert_private("C:\\tmp\\home")
 
 
 def test_env_overrides_are_all_attempt_private(tmp_path):

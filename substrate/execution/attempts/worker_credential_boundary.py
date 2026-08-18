@@ -31,6 +31,7 @@ cannot be destroyed, the caller is told so explicitly and the attempt is failed.
 from __future__ import annotations
 
 import errno
+import getpass
 import logging
 import os
 import shutil
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 _HOME_MODE = 0o700
 _CRED_MODE = 0o600
+_IS_WINDOWS = os.name == "nt"
 
 # Credential filenames copied from the operator's real ~/.claude into the
 # attempt-private home. Deliberately minimal: the CLI needs its credentials file
@@ -139,6 +141,8 @@ def _mkdir_private(path: str) -> None:
     os.makedirs(path, mode=_HOME_MODE, exist_ok=True)
     # makedirs applies the mode only on creation and is umask-subject — enforce.
     os.chmod(path, _HOME_MODE)
+    if _IS_WINDOWS:
+        _set_windows_private_acl(path, directory=True)
 
 
 def open_attempt_credential_home(
@@ -217,6 +221,8 @@ def _copy_provider_credentials(
         try:
             shutil.copyfile(src, dst)
             os.chmod(dst, _CRED_MODE)
+            if _IS_WINDOWS:
+                _set_windows_private_acl(dst, directory=False)
         except OSError as exc:
             _best_effort_unlink(dst)
             raise CredentialBoundaryError(
@@ -292,6 +298,9 @@ def assert_no_verifier_home_residue(run_root: str) -> list[str]:
 
 
 def _assert_private(path: str) -> None:
+    if _IS_WINDOWS:
+        _assert_windows_private_acl(path)
+        return
     mode = stat.S_IMODE(os.stat(path).st_mode)
     if mode & 0o077:
         raise CredentialBoundaryError(
@@ -300,9 +309,57 @@ def _assert_private(path: str) -> None:
 
 
 def _assert_credential_mode(path: str) -> None:
+    if _IS_WINDOWS:
+        _assert_windows_private_acl(path)
+        return
     mode = stat.S_IMODE(os.stat(path).st_mode)
     if mode & 0o177:
         raise CredentialBoundaryError(f"credential {path} is not 0600 (mode {mode:o})")
+
+
+def _windows_acl_principal() -> str:
+    domain = os.environ.get("USERDOMAIN", "").strip()
+    user = os.environ.get("USERNAME", "").strip() or getpass.getuser()
+    return f"{domain}\\{user}" if domain and "\\" not in user else user
+
+
+def _run_acl_command(args: list[str]):
+    from substrate.execution.cpu_gate import gated_subprocess_run
+
+    return gated_subprocess_run(
+        args,
+        caller="worker_credential_boundary_acl",
+        timeout=10,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _set_windows_private_acl(path: str, *, directory: bool) -> None:
+    principal = _windows_acl_principal()
+    grants = [f"{principal}:(OI)(CI)F", "SYSTEM:(OI)(CI)F"] if directory else [
+        f"{principal}:F",
+        "SYSTEM:F",
+    ]
+    result = _run_acl_command(["icacls", path, "/inheritance:r", "/grant:r", *grants])
+    if result is None or getattr(result, "returncode", 1) != 0:
+        detail = "" if result is None else (getattr(result, "stderr", "") or getattr(result, "stdout", ""))
+        raise CredentialBoundaryError(
+            f"cannot set private Windows ACL on {path}: {str(detail)[:200]}"
+        )
+
+
+def _assert_windows_private_acl(path: str) -> None:
+    result = _run_acl_command(["icacls", path])
+    if result is None or getattr(result, "returncode", 1) != 0:
+        detail = "" if result is None else (getattr(result, "stderr", "") or getattr(result, "stdout", ""))
+        raise CredentialBoundaryError(
+            f"cannot inspect Windows ACL on {path}: {str(detail)[:200]}"
+        )
+    acl = f"{getattr(result, 'stdout', '')}\n{getattr(result, 'stderr', '')}".lower()
+    forbidden = ("everyone:", "builtin\\users:", "authenticated users:")
+    if any(marker in acl for marker in forbidden):
+        raise CredentialBoundaryError(f"attempt path {path} grants broad Windows access")
 
 
 def _best_effort_unlink(path: str) -> None:
