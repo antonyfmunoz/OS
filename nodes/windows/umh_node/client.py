@@ -290,6 +290,20 @@ class NodeClient:
 
     async def stop(self) -> None:
         self._shutdown.set()
+        for name, adapter in list(self._adapters.items()):
+            try:
+                if name == "camera":
+                    adapter.execute("camera.stream_stop", {})
+                elif hasattr(adapter, "shutdown"):
+                    adapter.shutdown()
+                elif hasattr(adapter, "stop"):
+                    adapter.stop()
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("adapter shutdown failed for %s: %s", name, exc)
+        if self._media_drain_task:
+            self._media_drain_task.cancel()
+            self._media_drain_task = None
+        self._camera_executor.shutdown(wait=False, cancel_futures=True)
         if self._ws:
             await self._ws.close()
 

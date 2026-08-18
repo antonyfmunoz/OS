@@ -9,6 +9,7 @@ STOPPER = ROOT / "nodes" / "windows" / "umh_node" / "stop_daemon.ps1"
 INSTALLER = ROOT / "nodes" / "windows" / "umh_node" / "install_task.ps1"
 SERVICE = ROOT / "nodes" / "windows" / "umh_node" / "service.py"
 RECONCILER = ROOT / "scripts" / "wave2_beast_reconciler.py"
+CLIENT = ROOT / "nodes" / "windows" / "umh_node" / "client.py"
 
 
 def _text(path: Path) -> str:
@@ -75,6 +76,19 @@ def test_service_stops_when_governed_parent_wrapper_exits() -> None:
     assert "umh-parent-exit" in body
     assert "governed parent wrapper exited" in body
     assert "client.stop()" in body
+
+
+def test_node_client_stop_drains_adapter_threads_and_executor() -> None:
+    body = _text(CLIENT)
+    stop_body = body.split("    async def stop(self) -> None:", 1)[1].split(
+        "    async def _connect_and_serve", 1
+    )[0]
+
+    assert 'adapter.execute("camera.stream_stop", {})' in stop_body
+    assert 'hasattr(adapter, "shutdown")' in stop_body
+    assert 'hasattr(adapter, "stop")' in stop_body
+    assert "self._media_drain_task.cancel()" in stop_body
+    assert "self._camera_executor.shutdown" in stop_body
 
 
 def test_reconciler_uses_canonical_stop_helper_not_pid_force_kill() -> None:
