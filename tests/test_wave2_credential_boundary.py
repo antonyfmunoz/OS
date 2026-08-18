@@ -102,17 +102,21 @@ def test_windows_attempt_home_uses_private_acl_not_posix_mode(tmp_path, monkeypa
     calls = []
 
     class Result:
-        returncode = 0
-        stdout = (
+        stderr = ""
+
+        def __init__(self, stdout):
+            self.returncode = 0
+            self.stdout = stdout
+
+    def fake_acl(args):
+        calls.append(args)
+        if args == ["whoami"]:
+            return Result("desktop-lvguiq9\\antonys beast pc\n")
+        return Result(
             "C:\\tmp\\home DESKTOP-LVGUIQ9\\antonys beast pc:(F)\n"
             "            NT AUTHORITY\\SYSTEM:(F)\n"
             "Successfully processed 1 files; Failed processing 0 files"
         )
-        stderr = ""
-
-    def fake_acl(args):
-        calls.append(args)
-        return Result()
 
     src = tmp_path / "real-codex"
     src.mkdir()
@@ -132,8 +136,11 @@ def test_windows_attempt_home_uses_private_acl_not_posix_mode(tmp_path, monkeypa
     try:
         assert home.credential_files
         assert any(call[:3] == ["icacls", home.home_path, "/inheritance:r"] for call in calls)
-        assert any(str(call[1]).endswith("auth.json") for call in calls)
-        assert any("DESKTOP-LVGUIQ9\\antonys beast pc" in part for call in calls for part in call)
+        assert any(
+            call and call[0] == "icacls" and str(call[1]).endswith("auth.json")
+            for call in calls
+        )
+        assert any("desktop-lvguiq9\\antonys beast pc" in part for call in calls for part in call)
     finally:
         close_attempt_credential_home(home)
 

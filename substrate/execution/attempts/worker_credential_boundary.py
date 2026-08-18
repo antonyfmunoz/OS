@@ -318,6 +318,11 @@ def _assert_credential_mode(path: str) -> None:
 
 
 def _windows_acl_principal() -> str:
+    whoami = _run_acl_command(["whoami"])
+    if whoami is not None and getattr(whoami, "returncode", 1) == 0:
+        name = (getattr(whoami, "stdout", "") or "").strip()
+        if "\\" in name:
+            return name
     domain = os.environ.get("USERDOMAIN", "").strip()
     user = os.environ.get("USERNAME", "").strip() or getpass.getuser()
     return f"{domain}\\{user}" if domain and "\\" not in user else user
