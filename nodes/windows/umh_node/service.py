@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import signal
 import sys
+import threading
 from pathlib import Path
 
 _service_dir = Path(__file__).resolve().parent.parent.parent
@@ -41,6 +43,44 @@ def _setup_logging() -> None:
     root.addHandler(console)
 
 
+def _install_windows_stop_event_handler(
+    loop: asyncio.AbstractEventLoop,
+    client: NodeClient,
+) -> None:
+    """Bridge the task supervisor's named event into the async shutdown path."""
+    if sys.platform != "win32":
+        return
+    event_name = os.environ.get("UMH_DAEMON_STOP_EVENT")
+    if not event_name:
+        return
+
+    try:
+        import ctypes
+    except Exception as exc:  # noqa: BLE001
+        logger.error("cannot install Windows stop event handler: %s", exc)
+        return
+
+    SYNCHRONIZE = 0x00100000
+    WAIT_OBJECT_0 = 0
+    INFINITE = 0xFFFFFFFF
+
+    handle = ctypes.windll.kernel32.OpenEventW(SYNCHRONIZE, False, event_name)
+    if not handle:
+        logger.error("cannot open UMH daemon stop event: %s", event_name)
+        return
+
+    def _wait_for_stop_event() -> None:
+        try:
+            result = ctypes.windll.kernel32.WaitForSingleObject(handle, INFINITE)
+            if result == WAIT_OBJECT_0:
+                logger.info("governed Windows stop event received")
+                loop.call_soon_threadsafe(lambda: asyncio.ensure_future(client.stop()))
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+
+    threading.Thread(target=_wait_for_stop_event, name="umh-stop-event", daemon=True).start()
+
+
 def run_foreground() -> None:
     """Run the node client as a foreground process (Linux/dev mode)."""
     _setup_logging()
@@ -58,6 +98,8 @@ def run_foreground() -> None:
 
     client = NodeClient(config)
     loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    _install_windows_stop_event_handler(loop, client)
 
     def _shutdown(*_: object) -> None:
         logger.info("shutdown signal received")

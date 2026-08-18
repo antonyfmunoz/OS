@@ -65,6 +65,7 @@ _KNOWN_RIVAL_TASKS = ("UMH_NodeDaemon", "UMH Node Daemon Temp")
 _TASK_KEYWORDS = ("UMH", "mesh", "node", "daemon", "Beast", "desktop")
 
 _LAUNCHER_MARK = "launcher.py"
+_BEAST_PRIMARY = r"C:\dev\dev\OS"
 
 
 @dataclass
@@ -387,7 +388,7 @@ def reconcile(*, dry_run: bool = False, prove: bool = True) -> dict:
         out["ok"] = None
         out["planned"] = [
             f"disable rival tasks {_KNOWN_RIVAL_TASKS}",
-            "terminate every launcher.py process",
+            "stop canonical task through nodes\\windows\\umh_node\\stop_daemon.ps1",
             f"start canonical task {_CANONICAL_TASK!r}",
             "verify one launcher in console session + one stable mesh identity",
         ]
@@ -397,12 +398,13 @@ def reconcile(*, dry_run: bool = False, prove: bool = True) -> dict:
         r = _mesh_shell(f'schtasks /Change /TN "{rival}" /DISABLE', timeout=40)
         out["actions"].append({"disable_task": rival, "ok": r["ok"]})
 
-    _mesh_shell(f'schtasks /End /TN "{_CANONICAL_TASK}"', timeout=40)
-    for p in before.launcher_pids:
-        pid = p.get("pid")
-        if pid:
-            r = _mesh_shell(f"taskkill /PID {pid} /F", timeout=30)
-            out["actions"].append({"kill_pid": pid, "ok": r["ok"]})
+    stop_script = rf"{_BEAST_PRIMARY}\nodes\windows\umh_node\stop_daemon.ps1"
+    r = _mesh_shell(
+        f'powershell -NoProfile -ExecutionPolicy Bypass -File "{stop_script}" '
+        f'-TaskName "{_CANONICAL_TASK}"',
+        timeout=70,
+    )
+    out["actions"].append({"stop_task": _CANONICAL_TASK, "ok": r["ok"], "stdout": r["stdout"][:300]})
 
     time.sleep(3)
     r = _mesh_shell(f'schtasks /Run /TN "{_CANONICAL_TASK}"', timeout=40)
