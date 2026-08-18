@@ -36,7 +36,6 @@ if (-not (Test-Path -LiteralPath $EnvTemplate)) {
 }
 
 $op = (Get-Command "op.exe" -ErrorAction Stop).Source
-$pythonw = (Get-Command "pythonw.exe" -ErrorAction Stop).Source
 
 function Quote-Arg([string]$Value) {
     if ($Value -notmatch '[\s"]') {
@@ -44,6 +43,35 @@ function Quote-Arg([string]$Value) {
     }
     return '"' + ($Value -replace '"', '\"') + '"'
 }
+
+function Resolve-RealPythonw {
+    $candidates = @()
+    if ($env:UMH_PYTHONW_PATH) {
+        $candidates += $env:UMH_PYTHONW_PATH
+    }
+    $coreRoot = Join-Path $env:LOCALAPPDATA "Python"
+    if (Test-Path -LiteralPath $coreRoot) {
+        $candidates += @(
+            Get-ChildItem -LiteralPath $coreRoot -Filter "pythonw.exe" -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -notmatch "\\WindowsApps\\" } |
+                Sort-Object FullName -Descending |
+                ForEach-Object { $_.FullName }
+        )
+    }
+    $cmd = Get-Command "pythonw.exe" -ErrorAction SilentlyContinue
+    if ($cmd) {
+        $candidates += $cmd.Source
+    }
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate) -and $candidate -notmatch "\\WindowsApps\\") {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+    throw "no real pythonw.exe found outside WindowsApps; set UMH_PYTHONW_PATH"
+}
+
+$pythonw = Resolve-RealPythonw
 
 $native = @"
 using System;

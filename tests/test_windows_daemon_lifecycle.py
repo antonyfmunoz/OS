@@ -26,6 +26,9 @@ def test_task_supervisor_owns_op_run_in_kill_on_close_job() -> None:
     assert "run" in body
     assert "--env-file=$EnvTemplate" in body
     assert "Quote-Arg" in body
+    assert "Resolve-RealPythonw" in body
+    assert "WindowsApps" in body
+    assert "UMH_PYTHONW_PATH" in body
     assert "pythonw.exe" in body
     assert "launcher.py" in body
     assert "taskkill /IM" not in body
@@ -61,6 +64,16 @@ def test_service_listens_for_supervisor_stop_event() -> None:
     assert "UMH_DAEMON_STOP_EVENT" in body
     assert "OpenEventW" in body
     assert "WaitForSingleObject" in body
+    assert "client.stop()" in body
+
+
+def test_service_stops_when_governed_parent_wrapper_exits() -> None:
+    body = _text(SERVICE)
+
+    assert "os.getppid()" in body
+    assert "OpenProcess" in body
+    assert "umh-parent-exit" in body
+    assert "governed parent wrapper exited" in body
     assert "client.stop()" in body
 
 

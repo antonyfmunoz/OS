@@ -81,6 +81,44 @@ def _install_windows_stop_event_handler(
     threading.Thread(target=_wait_for_stop_event, name="umh-stop-event", daemon=True).start()
 
 
+def _install_windows_parent_exit_handler(
+    loop: asyncio.AbstractEventLoop,
+    client: NodeClient,
+) -> None:
+    """Stop gracefully if the governed parent wrapper exits first."""
+    if sys.platform != "win32":
+        return
+    parent_pid = os.getppid()
+    if parent_pid <= 0:
+        return
+
+    try:
+        import ctypes
+    except Exception as exc:  # noqa: BLE001
+        logger.error("cannot install Windows parent-exit handler: %s", exc)
+        return
+
+    SYNCHRONIZE = 0x00100000
+    WAIT_OBJECT_0 = 0
+    INFINITE = 0xFFFFFFFF
+
+    handle = ctypes.windll.kernel32.OpenProcess(SYNCHRONIZE, False, parent_pid)
+    if not handle:
+        logger.warning("cannot monitor governed parent pid=%s", parent_pid)
+        return
+
+    def _wait_for_parent_exit() -> None:
+        try:
+            result = ctypes.windll.kernel32.WaitForSingleObject(handle, INFINITE)
+            if result == WAIT_OBJECT_0:
+                logger.info("governed parent wrapper exited; stopping daemon")
+                loop.call_soon_threadsafe(lambda: asyncio.ensure_future(client.stop()))
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+
+    threading.Thread(target=_wait_for_parent_exit, name="umh-parent-exit", daemon=True).start()
+
+
 def run_foreground() -> None:
     """Run the node client as a foreground process (Linux/dev mode)."""
     _setup_logging()
@@ -100,6 +138,7 @@ def run_foreground() -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     _install_windows_stop_event_handler(loop, client)
+    _install_windows_parent_exit_handler(loop, client)
 
     def _shutdown(*_: object) -> None:
         logger.info("shutdown signal received")
