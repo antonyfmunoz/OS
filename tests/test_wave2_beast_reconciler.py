@@ -130,3 +130,186 @@ def test_daemon_count_excludes_wrapper_and_observer(monkeypatch) -> None:
     st = _healthy_state()  # exactly one pythonw
     assert len(st.launcher_pids) == 1
     assert st.condition == "HEALTHY"
+
+
+def test_observation_error_fails_closed_before_no_session() -> None:
+    st = NodeState(reachable=True, observation_error="access denied")
+    assert st.condition == "OBSERVATION_UNAVAILABLE"
+
+
+def test_parse_observation_payload_rejects_malformed_json() -> None:
+    doc, err = R._parse_observation_payload("not-json")
+    assert doc == {}
+    assert "malformed observation JSON" in err
+
+
+def test_parse_observation_payload_rejects_non_object_json() -> None:
+    doc, err = R._parse_observation_payload("[1, 2, 3]")
+    assert doc == {}
+    assert err == "observation JSON is not an object"
+
+
+def test_apply_observation_doc_proves_real_session_and_single_launcher() -> None:
+    st = NodeState(reachable=True, connected_node_ids=[R._MESH_NODE_ID])
+    R._apply_observation_doc(
+        st,
+        {
+            "console": 1,
+            "explorer_session": 1,
+            "explorer_user": "antonys beast pc",
+            "launchers": {
+                "pid": 21980,
+                "session": 1,
+                "name": "pythonw.exe",
+                "parent_pid": 22212,
+                "parent_name": "op.exe",
+                "executable": "C:\\Users\\antonys beast pc\\AppData\\Local\\Python\\bin\\pythonw.exe",
+                "launcher_script": "C:\\dev\\dev\\OS\\nodes\\windows\\umh_node\\launcher.py",
+                "parent_uses_env_tpl": True,
+            },
+            "task": "TaskName: \\UMH Node Daemon\nStatus: Running\n",
+        },
+    )
+    assert st.interactive_session_exists is True
+    assert st.live_tasks == [R._CANONICAL_TASK]
+    assert st.launcher_pids == [
+        {
+            "pid": 21980,
+            "session": 1,
+            "name": "pythonw.exe",
+            "parent_pid": 22212,
+            "parent_name": "op.exe",
+            "executable": "C:\\Users\\antonys beast pc\\AppData\\Local\\Python\\bin\\pythonw.exe",
+            "launcher_script": "C:\\dev\\dev\\OS\\nodes\\windows\\umh_node\\launcher.py",
+            "parent_uses_env_tpl": True,
+        }
+    ]
+    assert st.condition == "HEALTHY"
+
+
+def test_apply_observation_doc_zero_launcher_is_dead() -> None:
+    st = NodeState(reachable=True, connected_node_ids=[R._MESH_NODE_ID])
+    R._apply_observation_doc(
+        st,
+        {
+            "console": 1,
+            "explorer_session": 1,
+            "launchers": [],
+            "task": "TaskName: \\UMH Node Daemon\nStatus: Running\n",
+        },
+    )
+    assert st.condition == "DEAD"
+
+
+def test_apply_observation_doc_duplicate_launchers_refuses() -> None:
+    st = NodeState(reachable=True, connected_node_ids=[R._MESH_NODE_ID])
+    R._apply_observation_doc(
+        st,
+        {
+            "console": 1,
+            "explorer_session": 1,
+            "launchers": [
+                {"pid": 21980, "session": 1, "name": "pythonw.exe"},
+                {"pid": 14240, "session": 1, "name": "pythonw.exe"},
+            ],
+            "task": "TaskName: \\UMH Node Daemon\nStatus: Running\n",
+        },
+    )
+    assert st.condition == "DUPLICATE"
+
+
+def test_observe_uses_ssh_when_mesh_node_absent(monkeypatch) -> None:
+    payload = {
+        "console": 1,
+        "explorer_session": 1,
+        "launchers": {"pid": 21980, "session": 1, "name": "pythonw.exe"},
+        "task": "TaskName: \\UMH Node Daemon\nStatus: Running\n",
+    }
+    monkeypatch.setattr(R, "_tailscale_reachable", lambda: True)
+    monkeypatch.setattr(R, "_mesh_health", lambda: {"node_ids": []})
+    monkeypatch.setattr(
+        R,
+        "_mesh_shell",
+        lambda *args, **kwargs: {
+            "ok": False,
+            "stdout": "",
+            "stderr": "",
+            "error": "node windows-desktop not connected",
+        },
+    )
+    monkeypatch.setattr(
+        R,
+        "_ssh_shell",
+        lambda *args, **kwargs: {"ok": True, "stdout": R.json.dumps(payload), "stderr": ""},
+    )
+
+    st = R.observe()
+
+    assert st.observation_channel == "ssh"
+    assert st.interactive_session_exists is True
+    assert st.launcher_pids == [
+        {
+            "pid": 21980,
+            "session": 1,
+            "name": "pythonw.exe",
+            "parent_pid": None,
+            "parent_name": None,
+            "executable": None,
+            "launcher_script": None,
+            "parent_uses_env_tpl": None,
+        }
+    ]
+    assert st.condition == "ABSENT"
+
+
+def test_observe_reports_observation_unavailable_when_mesh_and_ssh_fail(monkeypatch) -> None:
+    monkeypatch.setattr(R, "_tailscale_reachable", lambda: True)
+    monkeypatch.setattr(R, "_mesh_health", lambda: {"node_ids": []})
+    monkeypatch.setattr(
+        R,
+        "_mesh_shell",
+        lambda *args, **kwargs: {"ok": False, "stderr": "command not found", "error": ""},
+    )
+    monkeypatch.setattr(
+        R,
+        "_ssh_shell",
+        lambda *args, **kwargs: {"ok": False, "stderr": "Access is denied.", "error": ""},
+    )
+
+    st = R.observe()
+
+    assert st.condition == "OBSERVATION_UNAVAILABLE"
+    assert "command not found" in st.observation_error
+    assert "Access is denied" in st.observation_error
+
+
+def test_reconciler_observer_does_not_depend_on_query_or_qwinsta() -> None:
+    assert "query.exe" not in R._PS_OBSERVE_BODY.lower()
+    assert "qwinsta" not in R._PS_OBSERVE_BODY.lower()
+    assert "command=$_.commandline" not in R._PS_OBSERVE_BODY.lower()
+    assert "parent_command" not in R._PS_OBSERVE_BODY.lower()
+
+
+def test_field_dispatch_session_probe_does_not_depend_on_query_or_qwinsta() -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    source = dispatch.Path(dispatch.__file__).read_text(encoding="utf-8")
+    query_session_block = source.split('out["query_session"] = _mesh_read(', 1)[1].split(
+        "# Beast", 1
+    )[0]
+    assert "getcurrentprocess().sessionid" in query_session_block.lower()
+    assert "query.exe" not in query_session_block.lower()
+    assert "qwinsta" not in query_session_block.lower()
+
+
+def test_reconcile_observation_unavailable_does_not_repair(monkeypatch) -> None:
+    calls = []
+    st = NodeState(reachable=True, observation_error="command unavailable")
+    monkeypatch.setattr(R, "observe", lambda: st)
+    monkeypatch.setattr(R, "_mesh_shell", lambda *args, **kwargs: calls.append(args) or {})
+
+    v = reconcile(dry_run=False, prove=False)
+
+    assert v["ok"] is False
+    assert v["condition"] == "OBSERVATION_UNAVAILABLE"
+    assert v["actions"] == []
+    assert calls == []

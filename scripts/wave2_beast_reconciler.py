@@ -37,8 +37,10 @@ All remote administration flows over the governed mesh (signed verdict, same as
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
+import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
@@ -55,6 +57,8 @@ _ROOT = Path(os.environ.get("UMH_ROOT", "/opt/OS"))
 # discovered/migrated here rather than assumed elsewhere.
 _MESH_NODE_ID = "windows-desktop"
 _CANONICAL_TASK = "UMH Node Daemon"
+_BEAST_TAILSCALE_HOST = os.environ.get("UMH_BEAST_TAILSCALE_HOST", "100.74.199.102")
+_BEAST_SSH_USER = os.environ.get("UMH_BEAST_SSH_USER", "antonys beast pc")
 # Rival tasks reconciled away (disabled, XML preserved by caller before running).
 # Discovery still enumerates by keyword so an unknown rival is reported, not missed.
 _KNOWN_RIVAL_TASKS = ("UMH_NodeDaemon", "UMH Node Daemon Temp")
@@ -73,12 +77,16 @@ class NodeState:
     live_tasks: list[str] = field(default_factory=list)
     connected_node_ids: list[str] = field(default_factory=list)
     interactive_session_exists: bool = False
+    observation_channel: str = ""
+    observation_error: str = ""
     detail: str = ""
 
     @property
     def condition(self) -> str:
         if not self.reachable:
             return "UNREACHABLE"
+        if self.observation_error:
+            return "OBSERVATION_UNAVAILABLE"
         if not self.interactive_session_exists:
             return "NO_INTERACTIVE_SESSION"
         n_launch = len(self.launcher_pids)
@@ -134,6 +142,7 @@ def _mesh_shell(command: str, *, timeout: int = 60) -> dict:
     rd = result.get("result_data", {}) if isinstance(result, dict) else {}
     return {
         "ok": bool(result.get("ok")) if isinstance(result, dict) else False,
+        "error": str(result.get("error", "")) if isinstance(result, dict) else "invalid mesh result",
         "stdout": str(rd.get("stdout", "")),
         "stderr": str(rd.get("stderr", "")),
     }
@@ -157,8 +166,6 @@ def _mesh_health() -> dict:
 
 
 def _tailscale_reachable() -> bool:
-    import subprocess
-
     try:
         r = subprocess.run(["tailscale", "status"], capture_output=True, text=True, timeout=15)
         for line in (r.stdout or "").splitlines():
@@ -171,18 +178,106 @@ def _tailscale_reachable() -> bool:
 
 # ── observation ─────────────────────────────────────────────────────────────
 
-_PS_OBSERVE = (
-    "powershell -NoProfile -Command "
-    '"$ErrorActionPreference=0;'
+_PS_OBSERVE_BODY = (
+    "$ProgressPreference='SilentlyContinue';"
+    "$ErrorActionPreference='Stop';"
     "Add-Type -Namespace RC -Name S -MemberDefinition "
-    "'[DllImport(\\\"kernel32.dll\\\")]public static extern int WTSGetActiveConsoleSessionId();';"
+    "'[DllImport(\"kernel32.dll\")]public static extern int WTSGetActiveConsoleSessionId();';"
     "$cs=[RC.S]::WTSGetActiveConsoleSessionId();"
-    "$exp=(Get-Process explorer -ErrorAction SilentlyContinue | Select-Object -First 1).SessionId;"
-    "$l=Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'launcher.py' } | "
-    "ForEach-Object { [pscustomobject]@{pid=$_.ProcessId;session=$_.SessionId;name=$_.Name} };"
-    "$o=[pscustomobject]@{console=$cs;explorer=$exp;launchers=@($l)};"
-    "$o | ConvertTo-Json -Depth 4 -Compress\""
+    "$exp=Get-WmiObject Win32_Process -Filter \"Name = 'explorer.exe'\" | "
+    "Where-Object { $_.SessionId -eq $cs } | Select-Object -First 1;"
+    "$l=Get-WmiObject Win32_Process | Where-Object { "
+    "$_.CommandLine -match 'launcher.py' -and $_.Name -match '^pythonw?\\.exe$' } | "
+    "ForEach-Object { "
+    "$p=Get-WmiObject Win32_Process -Filter \"ProcessId=$($_.ParentProcessId)\";"
+    "$script=[regex]::Match($_.CommandLine, '(?i)([A-Z]:\\\\[^\"<>|]*\\\\launcher\\.py)').Value;"
+    "[pscustomobject]@{pid=$_.ProcessId;session=$_.SessionId;name=$_.Name;"
+    "user=$_.GetOwner().User;executable=$_.ExecutablePath;launcher_script=$script;"
+    "parent_pid=$_.ParentProcessId;parent_name=$p.Name;"
+    "parent_uses_env_tpl=($p.CommandLine -match 'ProgramData\\\\UMH\\\\\\.env\\.op\\.tpl')} };"
+    "$task=(schtasks /query /tn \"UMH Node Daemon\" /v /fo LIST 2>&1) -join \"`n\";"
+    "$o=[pscustomobject]@{console=$cs;explorer_session=$exp.SessionId;"
+    "explorer_user=$exp.GetOwner().User;launchers=@($l);task=$task};"
+    "$o | ConvertTo-Json -Depth 6 -Compress"
 )
+
+def _ps_encoded_command(script: str) -> str:
+    encoded = base64.b64encode(script.encode("utf-16le")).decode("ascii")
+    return f"powershell -NoProfile -NonInteractive -EncodedCommand {encoded}"
+
+
+_PS_OBSERVE = _ps_encoded_command(_PS_OBSERVE_BODY)
+
+
+def _ssh_shell(command: str, *, timeout: int = 30) -> dict:
+    """Run a bounded read-only PowerShell observation over the approved SSH path."""
+    target = f"{_BEAST_SSH_USER}@{_BEAST_TAILSCALE_HOST}"
+    try:
+        r = subprocess.run(
+            [
+                "ssh",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=5",
+                "-o",
+                "StrictHostKeyChecking=accept-new",
+                target,
+                command,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "stdout": "", "stderr": "", "error": f"{type(exc).__name__}: {exc}"}
+    return {
+        "ok": r.returncode == 0,
+        "stdout": r.stdout or "",
+        "stderr": r.stderr or "",
+        "exit_code": r.returncode,
+    }
+
+
+def _parse_observation_payload(raw: str) -> tuple[dict, str]:
+    try:
+        doc = json.loads((raw or "").strip() or "{}")
+    except json.JSONDecodeError as exc:
+        return {}, f"malformed observation JSON: {exc}"
+    if not isinstance(doc, dict):
+        return {}, "observation JSON is not an object"
+    return doc, ""
+
+
+def _apply_observation_doc(st: NodeState, doc: dict) -> None:
+    console = doc.get("console")
+    explorer = doc.get("explorer_session")
+    st.console_session = console if isinstance(console, int) else None
+    st.interactive_session_exists = bool(
+        isinstance(explorer, int)
+        and isinstance(console, int)
+        and explorer not in (0, None)
+        and explorer == console
+    )
+    launchers = doc.get("launchers") or []
+    if isinstance(launchers, dict):
+        launchers = [launchers]
+    st.launcher_pids = [
+        {
+            "pid": p.get("pid"),
+            "session": p.get("session"),
+            "name": p.get("name"),
+            "parent_pid": p.get("parent_pid"),
+            "parent_name": p.get("parent_name"),
+            "executable": p.get("executable"),
+            "launcher_script": p.get("launcher_script"),
+            "parent_uses_env_tpl": p.get("parent_uses_env_tpl"),
+        }
+        for p in launchers
+        if isinstance(p, dict)
+    ]
+    task_text = str(doc.get("task", ""))
+    st.live_tasks = [_CANONICAL_TASK] if "Status:" in task_text and "Running" in task_text else []
 
 
 def observe() -> NodeState:
@@ -197,41 +292,31 @@ def observe() -> NodeState:
     st.connected_node_ids = list(health.get("node_ids", []) or [])
 
     r = _mesh_shell(_PS_OBSERVE, timeout=40)
-    try:
-        doc = json.loads((r.get("stdout") or "").strip() or "{}")
-    except json.JSONDecodeError:
-        doc = {}
-    console = doc.get("console")
-    explorer = doc.get("explorer")
-    st.console_session = console if isinstance(console, int) else None
-    # An interactive session exists iff Explorer runs in the nonzero console session.
-    st.interactive_session_exists = bool(
-        isinstance(explorer, int) and explorer not in (0, None) and explorer == console
-    )
-    launchers = doc.get("launchers") or []
-    if isinstance(launchers, dict):  # ConvertTo-Json emits a bare object for one item
-        launchers = [launchers]
-    # Count only the LOGICAL daemon: the python[w].exe process actually running
-    # launcher.py. Exclude (a) the `op run` wrapper (op.exe) whose child IS the
-    # counted python process, and (b) the observer's own cmd.exe/powershell.exe,
-    # which match because 'launcher.py' appears as a literal in the query itself.
-    _daemon_names = ("python.exe", "pythonw.exe")
-    st.launcher_pids = [
-        {"pid": p.get("pid"), "session": p.get("session"), "name": p.get("name")}
-        for p in launchers
-        if isinstance(p, dict) and str(p.get("name", "")).lower() in _daemon_names
-    ]
+    if r.get("ok"):
+        doc, err = _parse_observation_payload(r.get("stdout", ""))
+        if err:
+            st.observation_error = err
+        else:
+            st.observation_channel = "mesh"
+            _apply_observation_doc(st, doc)
+        return st
 
-    tasks = _mesh_shell(
-        "schtasks /query /fo LIST | findstr /I \"TaskName\"", timeout=40
-    )
-    live = []
-    for line in (tasks.get("stdout") or "").splitlines():
-        for kw in _TASK_KEYWORDS:
-            if kw.lower() in line.lower() and "\\" in line:
-                live.append(line.split(":", 1)[-1].strip())
-                break
-    st.live_tasks = live
+    # If the command node is absent, mesh dispatch cannot observe Windows truth.
+    # Fall back to the approved read-only SSH path so session/launcher truth is
+    # not conflated with command-plane registration truth.
+    ssh = _ssh_shell(_PS_OBSERVE, timeout=30)
+    if not ssh.get("ok"):
+        st.observation_error = (
+            f"mesh observation failed: {r.get('error') or r.get('stderr')}; "
+            f"ssh observation failed: {ssh.get('error') or ssh.get('stderr')}"
+        )[:500]
+        return st
+    doc, err = _parse_observation_payload(ssh.get("stdout", ""))
+    if err:
+        st.observation_error = err
+        return st
+    st.observation_channel = "ssh"
+    _apply_observation_doc(st, doc)
     return st
 
 
@@ -280,6 +365,12 @@ def reconcile(*, dry_run: bool = False, prove: bool = True) -> dict:
             "runs unattended. Rollback: remove Autologon secret + disable task.",
         }
         out["reason"] = "no interactive session; unattended bootstrap is a security-policy decision"
+        return out
+
+    if before.condition == "OBSERVATION_UNAVAILABLE":
+        out["ok"] = False
+        out["needs_owner_decision"] = False
+        out["reason"] = "Windows observation unavailable; refusing repair without authoritative session/task/process truth"
         return out
 
     if before.condition == "HEALTHY":
