@@ -16,6 +16,7 @@ from transports.api.governed import governed_mutation
 logger = logging.getLogger(__name__)
 
 _approval_runtime: Any = None
+_SOURCE_OWNED_GOVERNED_APPROVALS = {"objective_plan", "execution_authorization"}
 
 
 def _get_approval_runtime() -> Any:
@@ -55,6 +56,18 @@ def _get_approval_runtime() -> Any:
 def configure(runtime: Any) -> None:
     global _approval_runtime
     _approval_runtime = runtime
+
+
+def _source_owns_governed_decision(source_type: str) -> bool:
+    """True when the routed source already performs the canonical governed write.
+
+    Objective-plan acceptance and Wave 2 execution authorization each have their
+    own source-specific mutation (`objective_plan_decision` and
+    `execution_authorization_decision`). Wrapping them in the generic
+    `approval_decide` mutation adds a second gate in front of the real authority
+    and can block the source before its fail-closed contract runs.
+    """
+    return source_type in _SOURCE_OWNED_GOVERNED_APPROVALS
 
 
 # Request models live at MODULE scope. With `from __future__ import
@@ -135,6 +148,10 @@ def _build_router() -> Any:
             captured.update(action.to_dict())
             return f"approved {req.approval_id}", True
 
+        if _source_owns_governed_decision(req.source_type):
+            _out, _ok = _do_approve()
+            return captured
+
         resp = governed_mutation(
             mutation_name="approval_decide",
             intent=f"unified approve {req.approval_id}",
@@ -173,6 +190,10 @@ def _build_router() -> Any:
                 pass
             captured.update(action.to_dict())
             return f"rejected {req.approval_id}", True
+
+        if _source_owns_governed_decision(req.source_type):
+            _out, _ok = _do_reject()
+            return captured
 
         resp = governed_mutation(
             mutation_name="approval_decide",

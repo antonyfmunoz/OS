@@ -37,9 +37,11 @@ import json
 import os
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from dataclasses import dataclass
@@ -1127,12 +1129,14 @@ def preflight(runner: Runner) -> dict[str, Any]:
     print("start-command shape (echo only):")
     print(f"  {out['start_command_shape']}")
 
+    out["authority_contract_probe"] = _authority_contract_probe(runner)
+
     # PREFLIGHT VERDICT (finding SEC-C3): mesh relay, the executor daemon in an
     # interactive session, and Beast->origin reachability are all REQUIRED. A
     # preflight that records a failure must exit non-zero rather than reporting
     # a green shape. (beast_to_origin legitimately fails before deploy — it is
     # only asserted once an origin is expected to exist.)
-    required = ("mesh_health", "schtasks_query", "query_session")
+    required = ("mesh_health", "schtasks_query", "query_session", "authority_contract_probe")
     failed = [k for k in required if isinstance(out.get(k), dict) and out[k].get("ok") is False]
     mesh = out.get("mesh_health") or {}
     if isinstance(mesh, dict) and mesh.get("returncode") not in (0, None):
@@ -1141,6 +1145,245 @@ def preflight(runner: Runner) -> dict[str, Any]:
     if failed:
         out["failure_reason"] = f"preflight checks failed: {sorted(set(failed))}"
     return out
+
+
+def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
+    """Non-field probe for the grant producer/consumer authority contract.
+
+    The probe uses a temporary UMH_STATE_DIR outside candidate runtime state. It
+    exercises the real source defaults that the HUD path relies on:
+    plan acceptance source -> execution authorization request -> execution
+    authorization decision -> persisted active grant -> approved WorkPackets.
+    It never writes to a field run's state and deletes its temp namespace.
+    """
+    if runner.dry_run:
+        return {"dry_run": True, "ok": True}
+
+    old_state = os.environ.get("UMH_STATE_DIR")
+    old_root = os.environ.get("UMH_ROOT")
+    previous_runtime: Any = None
+    previous_governed: Any = None
+    approval_routes: Any = None
+    tmp = tempfile.mkdtemp(prefix="umh-wave2-auth-preflight-")
+    correlation = "preflight-authority-contract"
+    try:
+        os.environ["UMH_STATE_DIR"] = os.path.join(tmp, "state")
+        os.environ["UMH_ROOT"] = str(_WORKTREE)
+
+        sys.path.insert(0, str(_WORKTREE))
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        import transports.api.cockpit_unified_approval_routes as approval_routes
+        from substrate.execution.attempts.decisions import (
+            ExecutionAuthorizationDecisionSource,
+            execution_decision_ref,
+            request_execution_authorization,
+        )
+        from substrate.execution.attempts.records import ExecutionAuthorizationGrantStatus
+        from substrate.execution.attempts.store import ExecutionAttemptStore
+        from substrate.execution.planning.decisions import (
+            ObjectivePlanDecisionSource,
+            plan_decision_ref,
+        )
+        from substrate.execution.planning.records import ObjectivePlanRecord
+        from substrate.execution.planning.store import PlanningStore
+        from substrate.organism.universal_work_queue import UniversalWorkQueue
+        from substrate.organism.work_packet import PacketLifecycleStatus, WorkPacket
+        from substrate.workstation.unified_approval_runtime import UnifiedApprovalRuntime
+
+        def _runner(**kw: Any) -> Any:
+            fn = kw.get("execute_fn")
+            output, success = fn() if fn else ("", True)
+
+            class _Response:
+                pass
+
+            resp = _Response()
+            resp.success = bool(success)
+            resp.output = output
+            return resp
+
+        probe_state = Path(os.environ["UMH_STATE_DIR"])
+        planning_dir = probe_state / "operator" / "objective_planning"
+        planning = PlanningStore(
+            sessions_path=str(planning_dir / "planning_sessions.jsonl"),
+            plans_path=str(planning_dir / "objective_plans.jsonl"),
+            grounding_path=str(planning_dir / "grounding_snapshots.jsonl"),
+            current_path=str(planning_dir / "current_states.jsonl"),
+            desired_path=str(planning_dir / "desired_states.jsonl"),
+            gaps_path=str(planning_dir / "gap_models.jsonl"),
+        )
+        plan = ObjectivePlanRecord(
+            plan_record_id="opr-preflight-auth",
+            objective_id="goal-preflight-auth",
+            graph_version=1,
+            status="awaiting_approval",
+            conversation_id="conv-preflight-auth",
+            workpacket_ids=["wp-preflight-a", "wp-preflight-b"],
+            objective_text="preflight authority contract probe",
+            work_scope={"tenant_id": "tenant-preflight"},
+        )
+        planning.append_plan(plan)
+
+        queue = UniversalWorkQueue()
+        for packet_id in plan.workpacket_ids:
+            packet = WorkPacket(
+                title=packet_id,
+                user_intent=f"probe {packet_id}",
+                approval_gates=["execution_authorization_required"],
+                work_scope={"tenant_id": "tenant-preflight"},
+                status=PacketLifecycleStatus.PLANNED,
+            )
+            packet.packet_id = packet_id
+            queue.ingest_work_packet(packet)
+
+        store = ExecutionAttemptStore(
+            attempts_path=str(
+                probe_state / "operator" / "execution_attempts" / "execution_attempts.jsonl"
+            ),
+            grants_path=str(
+                probe_state
+                / "operator"
+                / "execution_attempts"
+                / "execution_authorization_grants.jsonl"
+            ),
+            readiness_path=str(
+                probe_state
+                / "operator"
+                / "execution_attempts"
+                / "readiness_assessments.jsonl"
+            ),
+            leases_path=str(
+                probe_state / "operator" / "execution_attempts" / "environment_leases.jsonl"
+            ),
+            assignments_path=str(
+                probe_state
+                / "operator"
+                / "execution_attempts"
+                / "execution_assignments.jsonl"
+            ),
+        )
+
+        objective_source = ObjectivePlanDecisionSource(
+            store=planning,
+            mutation_runner=_runner,
+        )
+        execution_source = ExecutionAuthorizationDecisionSource(
+            store=store,
+            latest_plan_lookup=lambda _objective_id: planning.get_plan(plan.plan_record_id),
+            mutation_runner=_runner,
+        )
+        runtime = UnifiedApprovalRuntime(
+            objective_plan=objective_source,
+            execution_auth=execution_source,
+        )
+        app = FastAPI()
+        app.include_router(approval_routes._build_router())
+        client = TestClient(app)
+        previous_runtime = getattr(approval_routes, "_approval_runtime", None)
+        previous_governed = approval_routes.governed_mutation
+
+        def _blocked_outer(**_kw: Any) -> Any:
+            raise AssertionError("source-owned approval used generic approval_decide")
+
+        approval_routes.configure(runtime)
+        approval_routes.governed_mutation = _blocked_outer
+
+        plan_res = client.post(
+            "/unified-approval/approve",
+            json={
+                "approval_id": plan_decision_ref(plan),
+                "source_type": "objective_plan",
+                "decided_by": "preflight",
+            },
+        )
+        if plan_res.status_code != 200:
+            return {
+                "ok": False,
+                "reason": f"plan approval route returned {plan_res.status_code}",
+            }
+        plan_body = plan_res.json()
+        if plan_body.get("action") != "approved":
+            return {"ok": False, "reason": f"plan approval route failed: {plan_body}"}
+        approved_plan = planning.get_plan(plan.plan_record_id)
+        if approved_plan is None or approved_plan.status != "approved":
+            return {"ok": False, "reason": "plan approval was not persisted"}
+
+        grant, approval = request_execution_authorization(
+            store,
+            plan=approved_plan,
+            task_frontier=list(approved_plan.workpacket_ids),
+            tenant_id="tenant-preflight",
+            principal_id="principal-preflight",
+            membership_id="membership-preflight",
+            conversation_id=approved_plan.conversation_id,
+            correlation_id=correlation,
+            requested_by="preflight",
+            mutation_runner=_runner,
+        )
+        if grant.correlation_id != correlation:
+            return {"ok": False, "reason": "correlation_id was not preserved"}
+        if approval.decision_ref != execution_decision_ref(approved_plan):
+            return {"ok": False, "reason": "approval decision_ref does not match plan"}
+
+        exec_res = client.post(
+            "/unified-approval/approve",
+            json={
+                "approval_id": grant.decision_ref,
+                "source_type": "execution_authorization",
+                "decided_by": "preflight",
+            },
+        )
+        if exec_res.status_code != 200:
+            return {
+                "ok": False,
+                "reason": f"execution approval route returned {exec_res.status_code}",
+            }
+        exec_body = exec_res.json()
+        if exec_body.get("action") != "approved":
+            return {"ok": False, "reason": f"execution approval route failed: {exec_body}"}
+
+        active = store.get_grant(grant.decision_ref)
+        if active is None or active.status != ExecutionAuthorizationGrantStatus.ACTIVE.value:
+            return {"ok": False, "reason": "active grant was not persisted"}
+        if active.correlation_id != correlation:
+            return {"ok": False, "reason": "active grant correlation mismatch"}
+        if any(g.correlation_id == "foreign-run" for g in store.active_grants()):
+            return {"ok": False, "reason": "foreign correlation unexpectedly matched"}
+        verified_queue = UniversalWorkQueue()
+        unapproved = [
+            pid
+            for pid in plan.workpacket_ids
+            if verified_queue.get_packet(pid).status != PacketLifecycleStatus.APPROVED
+        ]
+        if unapproved:
+            return {"ok": False, "reason": f"task activation incomplete: {unapproved}"}
+        return {
+            "ok": True,
+            "correlation_id": correlation,
+            "decision_ref": active.decision_ref,
+            "grant_status": active.status,
+            "task_frontier": list(active.task_frontier),
+            "plan_approval_route": plan_body.get("action"),
+            "execution_approval_route": exec_body.get("action"),
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "reason": f"{type(exc).__name__}: {exc}"}
+    finally:
+        if approval_routes is not None:
+            approval_routes.configure(previous_runtime)
+            if previous_governed is not None:
+                approval_routes.governed_mutation = previous_governed
+        if old_state is None:
+            os.environ.pop("UMH_STATE_DIR", None)
+        else:
+            os.environ["UMH_STATE_DIR"] = old_state
+        if old_root is None:
+            os.environ.pop("UMH_ROOT", None)
+        else:
+            os.environ["UMH_ROOT"] = old_root
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _shell_summary(runner: Runner, r: subprocess.CompletedProcess | None) -> dict[str, Any]:

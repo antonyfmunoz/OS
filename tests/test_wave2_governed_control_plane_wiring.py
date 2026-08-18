@@ -20,7 +20,12 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from types import SimpleNamespace
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+import transports.api.cockpit_unified_approval_routes as approval_routes
 import transports.api.governed as governed
 from substrate.sockets import organism_port
 
@@ -141,3 +146,109 @@ def test_substrate_native_runner_degrades_when_no_daemon(monkeypatch) -> None:
         assert result == "DEGRADED" and calls["degraded"] == 1
     finally:
         _reset()
+
+
+def test_wave2_plan_approval_route_does_not_wrap_source_owned_decision(monkeypatch) -> None:
+    """Regression for run 20260818T192009Z-p1.
+
+    Source-owned plan/execution decisions already route through their canonical
+    governed mutations. A generic outer `approval_decide` wrapper can fail before
+    the source-specific path runs, leaving the plan unapproved and no grant
+    producible.
+    """
+    calls: list[tuple[str, str]] = []
+
+    class _Runtime:
+        def approve(self, approval_id: str, source_type: str, decided_by: str = "operator"):
+            calls.append((approval_id, source_type))
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "approval_id": approval_id,
+                    "source_type": source_type,
+                    "action": "approved",
+                    "decided_by": decided_by,
+                }
+            )
+
+    def _blocked_outer(**_kw):  # noqa: ANN001
+        raise AssertionError("source-owned approval must not use generic approval_decide")
+
+    approval_routes.configure(_Runtime())
+    monkeypatch.setattr(approval_routes, "governed_mutation", _blocked_outer)
+    app = FastAPI()
+    app.include_router(approval_routes._build_router())
+
+    try:
+        res = TestClient(app).post(
+            "/unified-approval/approve",
+            json={
+                "approval_id": "objective_plan:opr-1:plan_acceptance:v1",
+                "source_type": "objective_plan",
+                "decided_by": "field",
+            },
+        )
+        assert res.status_code == 200
+        assert res.json()["action"] == "approved"
+        assert calls == [("objective_plan:opr-1:plan_acceptance:v1", "objective_plan")]
+    finally:
+        approval_routes.configure(None)
+
+
+def test_generic_approval_route_still_uses_governed_wrapper(monkeypatch) -> None:
+    calls: list[str] = []
+
+    class _Runtime:
+        def approve(self, approval_id: str, source_type: str, decided_by: str = "operator"):
+            return SimpleNamespace(
+                to_dict=lambda: {"approval_id": approval_id, "source_type": source_type}
+            )
+
+    def _governed(**kw):  # noqa: ANN001
+        calls.append(kw["mutation_name"])
+        kw["execute_fn"]()
+        return SimpleNamespace(success=True)
+
+    approval_routes.configure(_Runtime())
+    monkeypatch.setattr(approval_routes, "governed_mutation", _governed)
+    app = FastAPI()
+    app.include_router(approval_routes._build_router())
+
+    try:
+        res = TestClient(app).post(
+            "/unified-approval/approve",
+            json={"approval_id": "tmpl-1", "source_type": "template"},
+        )
+        assert res.status_code == 200
+        assert calls == ["approval_decide"]
+    finally:
+        approval_routes.configure(None)
+
+
+def test_preflight_authority_contract_probe_issues_exact_correlated_grant() -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+
+    result = dispatch._authority_contract_probe(dispatch.Runner(dry_run=False))
+
+    assert result["ok"] is True
+    assert result["correlation_id"] == "preflight-authority-contract"
+    assert result["grant_status"] == "active"
+    assert result["task_frontier"] == ["wp-preflight-a", "wp-preflight-b"]
+    assert result["plan_approval_route"] == "approved"
+    assert result["execution_approval_route"] == "approved"
+
+
+def test_preflight_authority_contract_probe_fails_if_route_rewraps_source_decisions(
+    monkeypatch,
+) -> None:
+    """Mutation guard: restoring generic approval wrapping makes preflight red."""
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    monkeypatch.setattr(approval_routes, "_SOURCE_OWNED_GOVERNED_APPROVALS", set())
+
+    result = dispatch._authority_contract_probe(dispatch.Runner(dry_run=False))
+
+    assert result["ok"] is False
+    assert "source-owned approval used generic approval_decide" in result["reason"]
