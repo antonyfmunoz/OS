@@ -89,6 +89,9 @@ class ObjectDetector:
         self._tracker = None
         self._corrections_path = _DEFAULT_CORRECTIONS_PATH
         self._label_corrections: dict[str, str] = self._load_corrections()
+        self._model_asset_path = ""
+        self._model_asset_sha256 = ""
+        self._model_asset_source = ""
         self._last_error_log_at = 0.0
         self._consecutive_errors = 0
         self._nms_fallback_active = False
@@ -142,14 +145,25 @@ class ObjectDetector:
             if self._loaded:
                 return True
             try:
+                from nodes.windows.umh_node.model_assets import resolve_yolov8n_asset
                 from ultralytics import YOLO
                 import torch
+                asset = resolve_yolov8n_asset()
+                self._model_asset_path = str(asset.path)
+                self._model_asset_sha256 = asset.sha256
+                self._model_asset_source = asset.source
                 self._device = "cuda" if torch.cuda.is_available() else "cpu"
-                logger.info("loading YOLOv8n on %s (CUDA available: %s)...", self._device, torch.cuda.is_available())
+                logger.info(
+                    "loading YOLOv8n from %s sha256=%s on %s (CUDA available: %s)...",
+                    asset.path,
+                    asset.sha256,
+                    self._device,
+                    torch.cuda.is_available(),
+                )
                 if self._device == "cuda":
                     logger.info("GPU: %s", torch.cuda.get_device_name(0))
                 t0 = time.monotonic()
-                self._model = YOLO("yolov8n.pt")
+                self._model = YOLO(str(asset.path))
                 self._model.to(self._device)
                 load_time = (time.monotonic() - t0) * 1000
 
@@ -177,6 +191,12 @@ class ObjectDetector:
                 logger.warning("object detector: %s", self._load_error)
                 return False
             except Exception as exc:
+                from nodes.windows.umh_node.model_assets import ModelAssetError
+
+                if isinstance(exc, ModelAssetError):
+                    self._load_error = str(exc)
+                    logger.error("object detector model asset boundary failed: %s", self._load_error)
+                    return False
                 self._load_error = f"{type(exc).__name__}: {exc}"
                 logger.error("object detector load failed: %s", self._load_error)
                 return False
@@ -312,6 +332,9 @@ class ObjectDetector:
             "confidence_threshold": self._confidence_threshold,
             "tracker_active": self._tracker is not None,
             "consecutive_errors": self._consecutive_errors,
+            "model_asset_path": self._model_asset_path,
+            "model_asset_sha256": self._model_asset_sha256,
+            "model_asset_source": self._model_asset_source,
         }
         if self._tracker:
             ts = self._tracker.get_status()
