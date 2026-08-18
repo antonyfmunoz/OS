@@ -146,9 +146,9 @@ class ObjectDetector:
                 return True
             try:
                 from nodes.windows.umh_node.model_assets import resolve_yolov8n_asset
+                asset = resolve_yolov8n_asset()
                 from ultralytics import YOLO
                 import torch
-                asset = resolve_yolov8n_asset()
                 self._model_asset_path = str(asset.path)
                 self._model_asset_sha256 = asset.sha256
                 self._model_asset_source = asset.source

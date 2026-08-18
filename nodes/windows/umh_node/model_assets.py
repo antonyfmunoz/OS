@@ -50,22 +50,32 @@ def default_run_root() -> Path:
 def configure_process_runtime_environment() -> Path:
     """Pin mutable daemon state to governed runtime directories outside Git."""
     runtime_root = default_runtime_root()
+    model_root = default_model_root()
     cache_root = default_cache_root()
     run_root = default_run_root()
-    for path in (runtime_root, cache_root, run_root):
-        path.mkdir(parents=True, exist_ok=True)
+    tmp_root = Path(os.environ.get("UMH_TMP_ROOT", str(run_root / "tmp")))
 
-    os.environ.setdefault("UMH_RUNTIME_ROOT", str(runtime_root))
-    os.environ.setdefault("UMH_MODEL_ASSET_ROOT", str(default_model_root()))
-    os.environ.setdefault("UMH_CACHE_ROOT", str(cache_root))
-    os.environ.setdefault("UMH_RUN_ROOT", str(run_root))
-    os.environ.setdefault("YOLO_CONFIG_DIR", str(cache_root / "ultralytics"))
-    os.environ.setdefault("ULTRALYTICS_CONFIG_DIR", str(cache_root / "ultralytics"))
-    os.environ.setdefault("TORCH_HOME", str(cache_root / "torch"))
-    os.environ.setdefault("XDG_CACHE_HOME", str(cache_root / "xdg"))
-    os.environ.setdefault("TMP", str(run_root / "tmp"))
-    os.environ.setdefault("TEMP", str(run_root / "tmp"))
-    (run_root / "tmp").mkdir(parents=True, exist_ok=True)
+    managed_paths = {
+        "UMH_RUNTIME_ROOT": runtime_root,
+        "UMH_MODEL_ASSET_ROOT": model_root,
+        "UMH_CACHE_ROOT": cache_root,
+        "UMH_RUN_ROOT": run_root,
+        "YOLO_CONFIG_DIR": Path(os.environ.get("YOLO_CONFIG_DIR", str(cache_root / "ultralytics"))),
+        "ULTRALYTICS_CONFIG_DIR": Path(
+            os.environ.get("ULTRALYTICS_CONFIG_DIR", str(cache_root / "ultralytics"))
+        ),
+        "TORCH_HOME": Path(os.environ.get("TORCH_HOME", str(cache_root / "torch"))),
+        "XDG_CACHE_HOME": Path(os.environ.get("XDG_CACHE_HOME", str(cache_root / "xdg"))),
+        "TMP": Path(os.environ.get("TMP", str(tmp_root))),
+        "TEMP": Path(os.environ.get("TEMP", str(tmp_root))),
+    }
+
+    for key, path in managed_paths.items():
+        if path_is_inside_git_worktree(path):
+            raise ModelAssetError(f"mutable runtime path {key} is inside a Git worktree: {path}")
+        path.mkdir(parents=True, exist_ok=True)
+        os.environ[key] = str(path)
+
     return run_root
 
 
@@ -108,9 +118,8 @@ def yolo_model_path() -> Path:
     return default_model_root() / YOLOV8N_MODEL_ID / YOLOV8N_SHA256 / YOLOV8N_FILENAME
 
 
-def resolve_yolov8n_asset() -> ModelAsset:
+def _verified_yolov8n_asset(path: Path) -> ModelAsset:
     configure_process_runtime_environment()
-    path = yolo_model_path()
     _assert_not_git_path(path)
     if not path.exists():
         raise ModelAssetError(
@@ -129,6 +138,10 @@ def resolve_yolov8n_asset() -> ModelAsset:
         sha256=actual,
         source=YOLOV8N_SOURCE,
     )
+
+
+def resolve_yolov8n_asset() -> ModelAsset:
+    return _verified_yolov8n_asset(yolo_model_path())
 
 
 def install_yolov8n_asset(source: Path, model_root: Path | None = None) -> ModelAsset:
@@ -157,4 +170,4 @@ def install_yolov8n_asset(source: Path, model_root: Path | None = None) -> Model
         if tmp.exists():
             tmp.unlink()
 
-    return resolve_yolov8n_asset()
+    return _verified_yolov8n_asset(dest)
