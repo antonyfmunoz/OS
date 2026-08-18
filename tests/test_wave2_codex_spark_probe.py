@@ -9,6 +9,7 @@ SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "wave2_codex_spark_pr
 def test_probe_uses_provider_policy_and_spark_model_without_fallback() -> None:
     body = SCRIPT.read_text(encoding="utf-8")
 
+    assert "sys.path.insert(0, str(_WORKTREE))" in body
     assert 'UMH_MODEL_EXECUTOR_PROVIDER"] = "codex"' in body
     assert 'UMH_CODEX_MODEL"] = model' in body
     assert "gpt-5.3-codex-spark" in body

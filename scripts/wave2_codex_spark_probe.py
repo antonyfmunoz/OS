@@ -7,8 +7,13 @@ import argparse
 import json
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
+
+_WORKTREE = Path(__file__).resolve().parent.parent
+if str(_WORKTREE) not in sys.path:
+    sys.path.insert(0, str(_WORKTREE))
 
 from substrate.execution.attempts.host_isolation import scrub_worker_env
 from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
