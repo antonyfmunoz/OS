@@ -1171,6 +1171,7 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
         os.environ["UMH_ROOT"] = str(_WORKTREE)
 
         sys.path.insert(0, str(_WORKTREE))
+        _preseed_worktree_substrate()
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
 

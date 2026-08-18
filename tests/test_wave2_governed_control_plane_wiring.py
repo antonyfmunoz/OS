@@ -252,3 +252,17 @@ def test_preflight_authority_contract_probe_fails_if_route_rewraps_source_decisi
 
     assert result["ok"] is False
     assert "source-owned approval used generic approval_decide" in result["reason"]
+
+
+def test_preflight_authority_contract_probe_preseeds_candidate_substrate() -> None:
+    """Live preflight imports mesh helpers before the authority probe runs."""
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    src = Path(dispatch.__file__).read_text(encoding="utf-8")
+    body = src[src.index("def _authority_contract_probe") : src.index("def _shell_summary")]
+
+    assert "_preseed_worktree_substrate()" in body
+    assert body.index("_preseed_worktree_substrate()") < body.index(
+        "from substrate.execution.attempts.decisions import"
+    )
