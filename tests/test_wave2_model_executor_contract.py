@@ -521,6 +521,12 @@ def test_worker_env_preserves_windows_process_runtime_without_user_profile() -> 
             "WINDIR": "C:\\Windows",
             "ComSpec": "C:\\Windows\\System32\\cmd.exe",
             "PATHEXT": ".COM;.EXE;.BAT;.CMD",
+            "SystemDrive": "C:",
+            "ProgramData": "C:\\ProgramData",
+            "ProgramFiles": "C:\\Program Files",
+            "COMPUTERNAME": "DESKTOP-LVGUIQ9",
+            "USERNAME": "antonys beast pc",
+            "USERDOMAIN": "DESKTOP-LVGUIQ9",
             "USERPROFILE": "C:\\Users\\real",
             "APPDATA": "C:\\Users\\real\\AppData\\Roaming",
             "LOCALAPPDATA": "C:\\Users\\real\\AppData\\Local",
@@ -532,6 +538,12 @@ def test_worker_env_preserves_windows_process_runtime_without_user_profile() -> 
     assert env["WINDIR"] == "C:\\Windows"
     assert env["ComSpec"].endswith("cmd.exe")
     assert env["PATHEXT"]
+    assert env["SystemDrive"] == "C:"
+    assert env["ProgramData"] == "C:\\ProgramData"
+    assert env["ProgramFiles"] == "C:\\Program Files"
+    assert env["COMPUTERNAME"] == "DESKTOP-LVGUIQ9"
+    assert env["USERNAME"] == "antonys beast pc"
+    assert env["USERDOMAIN"] == "DESKTOP-LVGUIQ9"
     assert "USERPROFILE" not in env
     assert "APPDATA" not in env
     assert "LOCALAPPDATA" not in env
