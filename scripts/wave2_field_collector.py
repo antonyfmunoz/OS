@@ -2062,7 +2062,14 @@ class FieldCollector:
                 except Exception:  # noqa: BLE001
                     body = "<unreadable>"
                 status_body = f"{resp.status} {body}"
-                clicked = resp.status < 300
+                action = ""
+                try:
+                    parsed = json.loads(body)
+                    if isinstance(parsed, dict):
+                        action = str(parsed.get("action", ""))
+                except Exception:  # noqa: BLE001
+                    action = ""
+                clicked = resp.status < 300 and action == "approved"
             except Exception as exc:  # noqa: BLE001
                 status_body = f"no-response ({str(exc)[:80]})"
         else:

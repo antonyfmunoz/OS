@@ -194,6 +194,47 @@ def test_wave2_plan_approval_route_does_not_wrap_source_owned_decision(monkeypat
         approval_routes.configure(None)
 
 
+def test_source_owned_approval_error_returns_non_2xx(monkeypatch) -> None:
+    """A source-owned approval action with ``action=error`` is not authorized."""
+
+    class _Runtime:
+        def approve(self, approval_id: str, source_type: str, decided_by: str = "operator"):
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "approval_id": approval_id,
+                    "source_type": source_type,
+                    "action": "error",
+                    "reason": "Routing failed",
+                }
+            )
+
+    calls: list[str] = []
+
+    def _governed(**kw):  # noqa: ANN001
+        calls.append(kw["mutation_name"])
+        return SimpleNamespace(success=True)
+
+    approval_routes.configure(_Runtime())
+    monkeypatch.setattr(approval_routes, "governed_mutation", _governed)
+    app = FastAPI()
+    app.include_router(approval_routes._build_router())
+
+    try:
+        res = TestClient(app).post(
+            "/unified-approval/approve",
+            json={
+                "approval_id": "objective_plan:opr-1:execution_authorization:v1",
+                "source_type": "execution_authorization",
+                "decided_by": "field",
+            },
+        )
+        assert res.status_code == 409
+        assert res.json()["detail"]["action"] == "error"
+        assert calls == []
+    finally:
+        approval_routes.configure(None)
+
+
 def test_generic_approval_route_still_uses_governed_wrapper(monkeypatch) -> None:
     calls: list[str] = []
 

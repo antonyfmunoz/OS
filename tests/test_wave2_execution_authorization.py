@@ -32,7 +32,6 @@ from substrate.execution.attempts.store import ExecutionAttemptStore
 from substrate.organism.universal_work_queue import UniversalWorkQueue
 from substrate.organism.work_packet import PacketLifecycleStatus, WorkPacket
 
-
 # ── Test doubles ─────────────────────────────────────────────────────────────
 
 
@@ -179,6 +178,73 @@ def test_approve_activates_all_tasks_then_grant_active(store, queue):
     # Now the grant is valid.
     ok, _ = is_authorization_valid(grant, latest_plan_lookup=lambda oid: _plan())
     assert ok is True
+
+
+def test_activation_rejection_leaves_no_partial_packet_side_effect(store, queue):
+    """A governed-spine rejection must happen before WorkPacket mutation.
+
+    Regression for Campaign B pass 1: packet approvals were durably written but
+    the grant stayed ACTIVATING, so the runner correctly failed closed after a
+    quota-consuming dispatch. Activation is now one governed unit: if the
+    high-risk decision cannot execute, no task gate is half-closed.
+    """
+    ref = execution_decision_ref(_plan())
+    request_execution_authorization(
+        store,
+        plan=_plan(),
+        task_frontier=["wp-a", "wp-b"],
+        tenant_id="tenant-a",
+        mutation_runner=_runner(),
+    )
+    grant = store.get_grant(ref)
+
+    def rejecting_runner(**kw):
+        return SimpleNamespace(success=False, output="control plane unavailable")
+
+    with pytest.raises(RuntimeError, match="activation commit rejected"):
+        activate_authorized_tasks(store, grant, queue, mutation_runner=rejecting_runner)
+
+    reread = store.get_grant(ref)
+    assert reread.status == ExecutionAuthorizationGrantStatus.ACTIVATING.value
+    assert reread.activated_task_ids == []
+    assert queue.get_packet("wp-a").status == PacketLifecycleStatus.PLANNED
+    assert queue.get_packet("wp-b").status == PacketLifecycleStatus.PLANNED
+
+
+def test_activation_cas_failure_terminalizes_instead_of_stranding(store, queue, monkeypatch):
+    """If the in-unit ACTIVE CAS fails after packet writes, mark failed_activation."""
+    ref = execution_decision_ref(_plan())
+    request_execution_authorization(
+        store,
+        plan=_plan(),
+        task_frontier=["wp-a", "wp-b"],
+        tenant_id="tenant-a",
+        mutation_runner=_runner(),
+    )
+    grant = store.get_grant(ref)
+    real_update = store.update_grant_cas
+
+    def flaky_update(updated, *args, **kwargs):
+        if updated.status == ExecutionAuthorizationGrantStatus.ACTIVE.value:
+            raise RuntimeError("simulated active CAS failure")
+        return real_update(updated, *args, **kwargs)
+
+    def governed_runner(**kw):
+        try:
+            out, ok = kw["execute_fn"]()
+            return SimpleNamespace(success=ok, output=out)
+        except Exception as exc:  # noqa: BLE001
+            return SimpleNamespace(success=False, output=str(exc))
+
+    monkeypatch.setattr(store, "update_grant_cas", flaky_update)
+
+    with pytest.raises(RuntimeError, match="activation commit rejected"):
+        activate_authorized_tasks(store, grant, queue, mutation_runner=governed_runner)
+
+    reread = store.get_grant(ref)
+    assert reread.status == ExecutionAuthorizationGrantStatus.FAILED_ACTIVATION.value
+    assert queue.get_packet("wp-a").status == PacketLifecycleStatus.APPROVED
+    assert queue.get_packet("wp-b").status == PacketLifecycleStatus.APPROVED
 
 
 def test_default_decision_source_activate_fn_transitions_tasks(tmp_path, monkeypatch):

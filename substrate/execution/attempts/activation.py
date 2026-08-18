@@ -68,65 +68,53 @@ def activate_authorized_tasks(
     if packet_status_enum is None:
         from substrate.organism.work_packet import PacketLifecycleStatus as packet_status_enum
 
-    activated: list[str] = list(grant.activated_task_ids)
-    failures: list[str] = []
-
-    for task_id in grant.task_frontier:
-        if task_id in activated:
-            continue  # idempotent resume — already transitioned to APPROVED
-        packet = work_queue.get_packet(task_id)
-        if packet is None:
-            failures.append(f"{task_id}: packet not found")
-            continue
-        try:
-            _advance_packet_to_approved(
-                work_queue, packet, task_id, packet_status_enum, now
-            )
-            activated.append(task_id)
-            emit_execution_event(
-                "execution.task_authorization_gate_closed",
-                {"task_id": task_id, "decision_ref": grant.decision_ref},
-                correlation_id=grant.correlation_id,
-            )
-        except Exception as exc:  # a single Task failure fails the activation
-            logger.debug("activation of %s failed: %s", task_id, exc)
-            failures.append(f"{task_id}: {exc}")
-
-    # Persist activation progress on the grant (idempotent resume marker).
-    grant.activated_task_ids = activated
-
     runner = mutation_runner
     if runner is None:
         from substrate.execution.intent.loop import _substrate_native_governed_mutation
 
         runner = _substrate_native_governed_mutation
 
-    if failures:
-        # Partial failure → FAILED_ACTIVATION, NEVER ACTIVE.
-        def _fail() -> tuple[str, bool]:
+    def _activate_unit() -> tuple[str, bool]:
+        activated: list[str] = list(grant.activated_task_ids)
+        failures: list[str] = []
+
+        for task_id in grant.task_frontier:
+            if task_id in activated:
+                continue  # idempotent resume — already transitioned to APPROVED
+            packet = work_queue.get_packet(task_id)
+            if packet is None:
+                failures.append(f"{task_id}: packet not found")
+                continue
+            try:
+                _advance_packet_to_approved(
+                    work_queue, packet, task_id, packet_status_enum, now
+                )
+                activated.append(task_id)
+                emit_execution_event(
+                    "execution.task_authorization_gate_closed",
+                    {"task_id": task_id, "decision_ref": grant.decision_ref},
+                    correlation_id=grant.correlation_id,
+                )
+            except Exception as exc:  # a single Task failure fails the activation
+                logger.debug("activation of %s failed: %s", task_id, exc)
+                failures.append(f"{task_id}: {exc}")
+
+        # Persist activation progress on the grant (idempotent resume marker).
+        grant.activated_task_ids = activated
+
+        if failures:
             grant.status = _GRANT.FAILED_ACTIVATION.value
             grant.decision_log.append(
                 {"event": "activation_failed", "failures": failures, "at": now}
             )
-            store.update_grant_cas(grant, expected_record_version=grant.record_version)
+            store.update_grant_cas(
+                grant,
+                expected_record_version=grant.record_version,
+                expected_statuses=(_GRANT.ACTIVATING.value,),
+            )
             return (f"activation failed: {grant.decision_ref}", True)
 
-        runner(
-            mutation_name="execution_authorization_decision",
-            intent=f"fail activation for {grant.decision_ref}",
-            execute_fn=_fail,
-            source="execution_attempts_activation",
-            metadata={"decision_ref": grant.decision_ref, "failures": len(failures)},
-        )
-        emit_execution_event(
-            "execution.authorization_activation_failed",
-            {"decision_ref": grant.decision_ref, "failures": failures},
-            correlation_id=grant.correlation_id,
-        )
-        return grant
-
-    # Every required Task transition committed → mark ACTIVE.
-    def _activate() -> tuple[str, bool]:
+        # Every required Task transition committed → mark ACTIVE.
         grant.status = _GRANT.ACTIVE.value
         grant.decision_log.append(
             {"event": "activated", "activated_task_ids": activated, "at": now}
@@ -141,20 +129,87 @@ def activate_authorized_tasks(
     response = runner(
         mutation_name="execution_authorization_decision",
         intent=f"activate execution authorization {grant.decision_ref}",
-        execute_fn=_activate,
+        execute_fn=_activate_unit,
         source="execution_attempts_activation",
-        metadata={"decision_ref": grant.decision_ref, "task_count": len(activated)},
+        metadata={"decision_ref": grant.decision_ref, "task_count": len(grant.task_frontier)},
     )
     if not bool(getattr(response, "success", False)):
+        _record_activation_failure(
+            store,
+            grant.decision_ref,
+            f"activation commit rejected by governance: {getattr(response, 'output', '')}",
+            now,
+            runner,
+        )
         raise RuntimeError(
             f"activation commit rejected by governance: {getattr(response, 'output', '')}"
         )
-    emit_execution_event(
-        "execution.authorization_activated",
-        {"decision_ref": grant.decision_ref, "activated_task_ids": activated},
-        correlation_id=grant.correlation_id,
-    )
+    if grant.status == _GRANT.FAILED_ACTIVATION.value:
+        emit_execution_event(
+            "execution.authorization_activation_failed",
+            {"decision_ref": grant.decision_ref, "failures": [
+                entry.get("failures", [])
+                for entry in grant.decision_log
+                if entry.get("event") == "activation_failed"
+            ][-1]},
+            correlation_id=grant.correlation_id,
+        )
+    elif grant.status == _GRANT.ACTIVE.value:
+        emit_execution_event(
+            "execution.authorization_activated",
+            {"decision_ref": grant.decision_ref, "activated_task_ids": grant.activated_task_ids},
+            correlation_id=grant.correlation_id,
+        )
     return grant
+
+
+def _record_activation_failure(
+    store: ExecutionAttemptStore,
+    decision_ref: str,
+    reason: str,
+    now: float,
+    runner: Callable[..., Any],
+) -> None:
+    """Persist an explicit failed_activation state after an activation crash.
+
+    This is not a manual promotion or a fallback authority path: it is the same
+    governed ``execution_authorization_decision`` mutation, used only to turn a
+    stranded ACTIVATING grant into an explicit non-active terminal failure after
+    the activation unit reports failure. If the original mutation never executed
+    because governance was unavailable, this no-ops/fails closed and no packet
+    side effects should exist.
+    """
+
+    def _fail() -> tuple[str, bool]:
+        fresh = store.get_grant(decision_ref)
+        if fresh is None:
+            return (f"activation failure: grant {decision_ref} vanished", False)
+        if fresh.status != _GRANT.ACTIVATING.value:
+            return (f"activation failure observed after status {fresh.status}", True)
+        fresh.status = _GRANT.FAILED_ACTIVATION.value
+        fresh.decision_log.append(
+            {"event": "activation_failed", "reason": reason[:500], "at": now}
+        )
+        store.update_grant_cas(
+            fresh,
+            expected_record_version=fresh.record_version,
+            expected_statuses=(_GRANT.ACTIVATING.value,),
+        )
+        return (f"activation failed: {decision_ref}", True)
+
+    failure_response = runner(
+        mutation_name="execution_authorization_decision",
+        intent=f"fail activation for {decision_ref}",
+        execute_fn=_fail,
+        source="execution_attempts_activation",
+        metadata={"decision_ref": decision_ref, "reason": reason[:200]},
+    )
+    if bool(getattr(failure_response, "success", False)):
+        emit_execution_event(
+            "execution.authorization_activation_failed",
+            {"decision_ref": decision_ref, "reason": reason[:500]},
+            correlation_id=getattr(store.get_grant(decision_ref), "correlation_id", ""),
+        )
 
 
 def _advance_packet_to_approved(

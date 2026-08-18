@@ -121,6 +121,76 @@ def test_register_unknown_kind_is_ignored(tmp_path):
     assert rt.read_manifest(run_root) == []
 
 
+def test_dispatch_teardown_result_includes_collector_tree(monkeypatch):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        dispatch,
+        "_stop_remote_collector_tree",
+        lambda runner, *, run_id, pass_num=1: (
+            calls.append(f"collector:{run_id}:{pass_num}"),
+            {"stopped": True, "pid": 1234},
+        )[1],
+    )
+    monkeypatch.setattr(dispatch, "stop_runner", lambda runner, sha, run_id: {"stopped": True})
+    monkeypatch.setattr(dispatch, "_wait_for_runner_exit", lambda sha, run_id: None)
+    monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
+    monkeypatch.setattr(dispatch, "_sweep_run_homes", lambda sha, run_id: {"ok": True, "zero_ref_residue": True})
+    monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
+    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner: None)
+
+    out = dispatch.teardown(dispatch.Runner(dry_run=False), sha="s", run_id="r1")
+
+    assert calls == ["collector:r1:1"]
+    assert out["collector"] == {"stopped": True, "pid": 1234}
+
+
+def test_teardown_verdict_fails_when_collector_tree_not_stopped():
+    dispatch = load_wave2_script("wave2_field_dispatch")
+
+    verdict = dispatch.qualification_verdict(
+        "teardown",
+        {
+            "collector": {"stopped": False, "reason": "residue"},
+            "homes_swept": {"ok": True, "zero_ref_residue": True},
+            "run_secret_shredded": True,
+            "serve_restored": True,
+        },
+    )
+
+    assert verdict.ok is False
+    assert verdict.mandatory["teardown:collector_stopped"] is False
+    assert any("collector tree not proven stopped" in r for r in verdict.reasons)
+
+
+def test_remote_collector_teardown_missing_manifest_must_prove_zero_residue(monkeypatch):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    seen: list[str] = []
+
+    def fake_mesh_read(runner, command, *, max_len=0):  # noqa: ANN001
+        seen.append(command)
+        return {
+            "ok": True,
+            "stdout": json.dumps(
+                {
+                    "stopped": False,
+                    "note": "no collector pid manifest",
+                    "residue": [{"ProcessId": 99, "CommandLine": "wave2_field_collector.py r1"}],
+                }
+            ),
+        }
+
+    monkeypatch.setattr(dispatch, "_mesh_read", fake_mesh_read)
+
+    out = dispatch._stop_remote_collector_tree(dispatch.Runner(dry_run=False), run_id="r1")
+
+    assert out["stopped"] is False
+    assert out["note"] == "no collector pid manifest"
+    assert "Test-Path" in seen[0]
+    assert "residue.Count -eq 0" in seen[0]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 4 — scope-safe deletion: unsafe shapes FAIL CLOSED
 # ─────────────────────────────────────────────────────────────────────────────

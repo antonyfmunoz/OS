@@ -66,3 +66,10 @@ def test_w14_and_w15_share_the_same_async_render_tolerance() -> None:
     w15 = _method_source("W2FieldCollector", "_w15_authorize_execution")
     assert "while time.time() < deadline" in w14
     assert "while time.time() < deadline" in w15
+
+
+def test_w15_requires_approved_action_not_only_2xx_response() -> None:
+    """HTTP 200 with an error action must not count as execution authorization."""
+    src = _method_source("W2FieldCollector", "_w15_authorize_execution")
+    assert 'action == "approved"' in src
+    assert "resp.status < 300 and action" in src

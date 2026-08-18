@@ -47,6 +47,7 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 _ROOT = Path(os.environ.get("UMH_ROOT", "/opt/OS"))
@@ -1163,6 +1164,7 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
     old_root = os.environ.get("UMH_ROOT")
     previous_runtime: Any = None
     previous_governed: Any = None
+    previous_organism_accessor: Any = None
     approval_routes: Any = None
     tmp = tempfile.mkdtemp(prefix="umh-wave2-auth-preflight-")
     correlation = "preflight-authority-contract"
@@ -1189,23 +1191,42 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
         )
         from substrate.execution.planning.records import ObjectivePlanRecord
         from substrate.execution.planning.store import PlanningStore
+        from substrate.organism.event_spine import EventSpine
+        from substrate.organism.execution_journal import ExecutionJournal
+        from substrate.organism.execution_modes import ExecutionMode, ExecutionModeManager
+        from substrate.organism.governed_spine import GovernedExecutionSpine
+        from substrate.organism.mutation_registry import MutationRegistry
         from substrate.organism.universal_work_queue import UniversalWorkQueue
         from substrate.organism.work_packet import PacketLifecycleStatus, WorkPacket
+        from substrate.sockets import organism_port
         from substrate.workstation.unified_approval_runtime import UnifiedApprovalRuntime
 
-        def _runner(**kw: Any) -> Any:
-            fn = kw.get("execute_fn")
-            output, success = fn() if fn else ("", True)
-
-            class _Response:
-                pass
-
-            resp = _Response()
-            resp.success = bool(success)
-            resp.output = output
-            return resp
-
         probe_state = Path(os.environ["UMH_STATE_DIR"])
+        event_spine = EventSpine(
+            persist_path=str(probe_state / "events" / "organism_events.jsonl")
+        )
+        mutation_registry = MutationRegistry()
+        journal = ExecutionJournal(
+            persist_path=str(probe_state / "operator" / "mutation_journal.jsonl")
+        )
+        mode = ExecutionModeManager(
+            initial_mode=ExecutionMode.AUTONOMOUS,
+            event_spine=event_spine,
+        )
+        spine = GovernedExecutionSpine(
+            event_spine=event_spine,
+            execution_mode=mode,
+            mutation_registry=mutation_registry,
+            journal=journal,
+        )
+
+        previous_organism_accessor = getattr(organism_port, "_get_organism_fn", None)
+        probe_daemon = SimpleNamespace(
+            governed_spine=spine,
+            mutation_registry=mutation_registry,
+        )
+        organism_port.register_organism_accessor(lambda: probe_daemon)
+
         planning_dir = probe_state / "operator" / "objective_planning"
         planning = PlanningStore(
             sessions_path=str(planning_dir / "planning_sessions.jsonl"),
@@ -1268,12 +1289,10 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
 
         objective_source = ObjectivePlanDecisionSource(
             store=planning,
-            mutation_runner=_runner,
         )
         execution_source = ExecutionAuthorizationDecisionSource(
             store=store,
             latest_plan_lookup=lambda _objective_id: planning.get_plan(plan.plan_record_id),
-            mutation_runner=_runner,
         )
         runtime = UnifiedApprovalRuntime(
             objective_plan=objective_source,
@@ -1321,7 +1340,6 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
             conversation_id=approved_plan.conversation_id,
             correlation_id=correlation,
             requested_by="preflight",
-            mutation_runner=_runner,
         )
         if grant.correlation_id != correlation:
             return {"ok": False, "reason": "correlation_id was not preserved"}
@@ -1366,6 +1384,7 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
             "decision_ref": active.decision_ref,
             "grant_status": active.status,
             "task_frontier": list(active.task_frontier),
+            "governed_spine": "real",
             "plan_approval_route": plan_body.get("action"),
             "execution_approval_route": exec_body.get("action"),
         }
@@ -1384,6 +1403,12 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
             os.environ.pop("UMH_ROOT", None)
         else:
             os.environ["UMH_ROOT"] = old_root
+        try:
+            from substrate.sockets import organism_port as _organism_port
+
+            _organism_port._get_organism_fn = previous_organism_accessor
+        except Exception:
+            pass
         shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -1495,12 +1520,21 @@ def _build_start_command(
     # read over the mesh when status.json never appears (client-failure
     # observability law — instrument, don't guess).
     launch_log = rf"{_BEAST_EVIDENCE_DIR}\launch_{run_id}_p{pass_num}.log"
-    inner = f"/c md {_BEAST_EVIDENCE_DIR} 2>nul & {op_wrapped} 1> {launch_log} 2>&1"
+    pid_manifest = rf"{_BEAST_EVIDENCE_DIR}\collector_{run_id}_p{pass_num}.pid.json"
+    inner = (
+        f"/c md {_BEAST_EVIDENCE_DIR} 2>nul & "
+        f"{op_wrapped} 1> {launch_log} 2>&1"
+    )
     # Start-Process detaches; -WindowStyle Hidden keeps Session 1 clean.
     return (
         "powershell -NoProfile -Command "
-        f"\"Start-Process -WindowStyle Hidden -FilePath 'cmd.exe' "
-        f"-ArgumentList '{inner}'\""
+        "\"$p=Start-Process -WindowStyle Hidden -FilePath 'cmd.exe' "
+        f"-ArgumentList '{inner}' -PassThru; "
+        "$payload=[ordered]@{"
+        f"pid=$p.Id;run_id='{run_id}';pass_num={pass_num};"
+        f"candidate_commit='{candidate_commit}';command='{_BEAST_COLLECTOR}'"
+        "} | ConvertTo-Json -Compress; "
+        f"Set-Content -Path '{pid_manifest}' -Value $payload\""
     )
 
 
@@ -1586,6 +1620,85 @@ def _dispatch_collector(
     if not result.get("ok"):
         return {"ok": False, "error": result.get("error"), "run_id": run_id, "pass_num": pass_num}
     return {"ok": True, "run_id": run_id, "pass_num": pass_num}
+
+
+def _stop_remote_collector_tree(runner: Runner, *, run_id: str, pass_num: int = 1) -> dict[str, Any]:
+    """Stop the exact Beast collector tree recorded at dispatch.
+
+    The collector is detached on Beast so the VPS teardown cannot rely on a
+    local Popen handle. Dispatch writes a run-scoped manifest containing the
+    detached cmd.exe root PID; teardown revalidates that PID's command line
+    against this run before sending a signal. Escalation is exact-tree only.
+    """
+    pid_manifest = rf"{_BEAST_EVIDENCE_DIR}\collector_{run_id}_p{pass_num}.pid.json"
+    ps = rf"""
+$ErrorActionPreference = 'Stop'
+$manifestPath = '{pid_manifest}'
+if (-not (Test-Path -LiteralPath $manifestPath)) {{
+  $residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.CommandLine) -like '*{run_id}*' -and ([string]$_.CommandLine) -like '*wave2_field_collector.py*' }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
+  [pscustomobject]@{{
+    stopped = ($residue.Count -eq 0)
+    note = "no collector pid manifest"
+    residue = $residue
+  }} | ConvertTo-Json -Compress -Depth 4
+  exit 0
+}}
+$manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+$pid = [int]$manifest.pid
+$p = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+if ($null -eq $p) {{
+  $residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.CommandLine) -like '*{run_id}*' -and ([string]$_.CommandLine) -like '*wave2_field_collector.py*' }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
+  [pscustomobject]@{{
+    stopped = ($residue.Count -eq 0)
+    pid = $pid
+    note = "collector root already absent"
+    residue = $residue
+  }} | ConvertTo-Json -Compress -Depth 4
+  exit 0
+}}
+$cmd = [string]$p.CommandLine
+$expectedScript = '{_BEAST_COLLECTOR}'
+if ($cmd -notlike '*{run_id}*' -or $cmd -notlike '*wave2_field_collector.py*') {{
+  Write-Output ('{{"stopped":false,"pid":' + $pid + ',"reason":"pid identity mismatch","command":' + ($cmd | ConvertTo-Json -Compress) + '}}')
+  exit 2
+}}
+$childrenBefore = @(Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $pid }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
+taskkill /PID $pid /T | Out-Null
+Start-Sleep -Seconds 5
+$alive = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+$forced = $false
+if ($null -ne $alive) {{
+  $p2 = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+  $cmd2 = [string]$p2.CommandLine
+  if ($cmd2 -notlike '*{run_id}*' -or $cmd2 -notlike '*wave2_field_collector.py*') {{
+    Write-Output ('{{"stopped":false,"pid":' + $pid + ',"reason":"identity changed before force","command":' + ($cmd2 | ConvertTo-Json -Compress) + '}}')
+    exit 3
+  }}
+  taskkill /PID $pid /T /F | Out-Null
+  Start-Sleep -Seconds 2
+  $forced = $true
+}}
+$still = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+$residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.CommandLine) -like '*{run_id}*' -and ([string]$_.CommandLine) -like '*wave2_field_collector.py*' }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
+[pscustomobject]@{{
+  stopped = ($null -eq $still -and $residue.Count -eq 0)
+  pid = $pid
+  forced = $forced
+  children_before = $childrenBefore
+  residue = $residue
+}} | ConvertTo-Json -Compress -Depth 4
+"""
+    command = "powershell -NoProfile -Command " + json.dumps(ps)
+    res = _mesh_read(runner, command, max_len=65536)
+    if runner.dry_run:
+        return {"stopped": True, "dry_run": True}
+    if not res.get("ok"):
+        return {"stopped": False, "reason": res.get("error", "mesh dispatch failed")}
+    try:
+        parsed = json.loads(res.get("stdout", "") or "{}")
+    except ValueError:
+        return {"stopped": False, "reason": "collector teardown returned malformed JSON"}
+    return parsed if isinstance(parsed, dict) else {"stopped": False, "reason": "bad result"}
 
 
 def _mesh_read_fast(runner: Runner, command: str, *, max_len: int = 65536) -> dict[str, Any]:
@@ -2296,7 +2409,9 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
         }
 
     stopped = {}
+    collector_stopped = {"stopped": True, "note": "no run_id"}
     if run_id:
+        collector_stopped = _stop_remote_collector_tree(runner, run_id=run_id, pass_num=1)
         stopped = stop_runner(runner, sha, run_id)
         # Give the runner's signal-driven teardown a moment to unwind and sweep
         # its own homes before we run the authoritative sweep below.
@@ -2310,6 +2425,7 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
     _restore_tailscale_serve(runner)
     return {
         "torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER],
+        "collector": collector_stopped,
         "runner": stopped,
         "homes_swept": homes_swept,
         "run_secret_shredded": secret_shredded,
@@ -3323,6 +3439,12 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
                 reasons.append(f"all_passed is {all_passed!r}, not True")
 
     if command == "teardown":
+        collector = out.get("collector")
+        collector_ok = isinstance(collector, dict) and collector.get("stopped") is True
+        mandatory["teardown:collector_stopped"] = collector_ok
+        if not collector_ok:
+            detail = collector.get("reason") if isinstance(collector, dict) else "no collector result"
+            reasons.append(f"collector tree not proven stopped: {detail}")
         shredded = out.get("run_secret_shredded")
         mandatory["teardown:secret_shredded"] = shredded is not False
         if shredded is False:

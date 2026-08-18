@@ -106,7 +106,7 @@ class ResolveRequest(BaseModel):
 
 
 def _build_router() -> Any:
-    from fastapi import APIRouter
+    from fastapi import APIRouter, HTTPException
 
     router = APIRouter(prefix="/unified-approval", tags=["unified-approval"])
 
@@ -150,6 +150,8 @@ def _build_router() -> Any:
 
         if _source_owns_governed_decision(req.source_type):
             _out, _ok = _do_approve()
+            if captured.get("action") != "approved":
+                raise HTTPException(status_code=409, detail=captured)
             return captured
 
         resp = governed_mutation(
@@ -193,6 +195,8 @@ def _build_router() -> Any:
 
         if _source_owns_governed_decision(req.source_type):
             _out, _ok = _do_reject()
+            if captured.get("action") != "rejected":
+                raise HTTPException(status_code=409, detail=captured)
             return captured
 
         resp = governed_mutation(

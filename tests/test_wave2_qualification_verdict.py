@@ -29,8 +29,6 @@ Owner C-5 closure bar (each is a test below):
 
 from __future__ import annotations
 
-import importlib
-
 import pytest
 
 from tests.wave2_script_import import load_wave2_script
@@ -183,6 +181,7 @@ def test_teardown_serve_not_restored_fails():
 def test_teardown_clean_passes():
     out = {
         "torn_down": ["c1", "c2"],
+        "collector": {"stopped": True},
         "run_secret_shredded": True,
         "serve_restored": True,
         # SEC-C1 residue proof + the zero-ref-residue proof: a CLEAN teardown
@@ -243,6 +242,7 @@ def test_teardown_after_failure_cannot_greenwash():
     tear = wd.qualification_verdict(
         "teardown",
         {
+            "collector": {"stopped": True},
             "run_secret_shredded": True,
             "serve_restored": True,
             "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
@@ -298,6 +298,7 @@ def test_main_returns_0_on_clean_teardown(monkeypatch):
         monkeypatch,
         "teardown",
         {
+            "collector": {"stopped": True},
             "run_secret_shredded": True,
             "serve_restored": True,
             "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},

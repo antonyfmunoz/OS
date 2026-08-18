@@ -966,6 +966,7 @@ def test_qualification_gate_fails_on_ref_residue():
 
     clean = {
         "torn_down": [],
+        "collector": {"stopped": True},
         "run_secret_shredded": True,
         "serve_restored": True,
         "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
