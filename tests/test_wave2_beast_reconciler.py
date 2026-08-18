@@ -201,6 +201,27 @@ def test_apply_observation_doc_zero_launcher_is_dead() -> None:
     assert st.condition == "DEAD"
 
 
+def test_task_status_ready_is_not_live_when_last_run_time_contains_running() -> None:
+    st = NodeState(reachable=True, connected_node_ids=[])
+    R._apply_observation_doc(
+        st,
+        {
+            "console": 1,
+            "explorer_session": 1,
+            "launchers": [],
+            "task": (
+                "TaskName: \\UMH Node Daemon\n"
+                "Status: Ready\n"
+                "Last Run Time: 8/18/2026 2:43:36 PM\n"
+                "Task To Run: powershell.exe -File task_supervisor.ps1\n"
+            ),
+        },
+    )
+
+    assert st.live_tasks == []
+    assert st.condition == "DEAD"
+
+
 def test_apply_observation_doc_duplicate_launchers_refuses() -> None:
     st = NodeState(reachable=True, connected_node_ids=[R._MESH_NODE_ID])
     R._apply_observation_doc(

@@ -250,6 +250,13 @@ def _parse_observation_payload(raw: str) -> tuple[dict, str]:
     return doc, ""
 
 
+def _task_is_running(task_text: str) -> bool:
+    for line in task_text.splitlines():
+        if line.strip().lower().startswith("status:"):
+            return line.split(":", 1)[1].strip().lower() == "running"
+    return False
+
+
 def _apply_observation_doc(st: NodeState, doc: dict) -> None:
     console = doc.get("console")
     explorer = doc.get("explorer_session")
@@ -278,7 +285,7 @@ def _apply_observation_doc(st: NodeState, doc: dict) -> None:
         if isinstance(p, dict)
     ]
     task_text = str(doc.get("task", ""))
-    st.live_tasks = [_CANONICAL_TASK] if "Status:" in task_text and "Running" in task_text else []
+    st.live_tasks = [_CANONICAL_TASK] if _task_is_running(task_text) else []
 
 
 def observe() -> NodeState:
