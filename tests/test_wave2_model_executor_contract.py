@@ -550,6 +550,30 @@ def test_worker_env_preserves_windows_process_runtime_without_user_profile() -> 
     assert "CODEX_HOME" not in env
 
 
+def test_worker_env_keep_matching_is_case_insensitive_for_windows_keys() -> None:
+    from substrate.execution.attempts.host_isolation import scrub_worker_env
+
+    env = scrub_worker_env(
+        {
+            "SYSTEMROOT": "C:\\Windows",
+            "COMSPEC": "C:\\Windows\\System32\\cmd.exe",
+            "PROGRAMDATA": "C:\\ProgramData",
+            "PROGRAMFILES": "C:\\Program Files",
+            "systemdrive": "C:",
+            "APPDATA": "C:\\Users\\real\\AppData\\Roaming",
+            "codex_home": "C:\\Users\\real\\.codex",
+        }
+    )
+
+    assert env["SYSTEMROOT"] == "C:\\Windows"
+    assert env["COMSPEC"].endswith("cmd.exe")
+    assert env["PROGRAMDATA"] == "C:\\ProgramData"
+    assert env["PROGRAMFILES"] == "C:\\Program Files"
+    assert env["systemdrive"] == "C:"
+    assert "APPDATA" not in env
+    assert "codex_home" not in env
+
+
 def test_isolated_worker_timeout_terminates_child_process_tree(tmp_path):
     from substrate.execution.attempts.worker_model_executor import _run_isolated_with_tree_timeout
 

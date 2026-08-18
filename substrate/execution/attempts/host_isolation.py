@@ -420,11 +420,14 @@ def scrub_worker_env(
         "PROCESSOR_REVISION",
         "NUMBER_OF_PROCESSORS",
     }
+    keep_keys_upper = {k.upper() for k in keep_keys}
+    forbidden_upper = tuple(p.upper() for p in FORBIDDEN_ENV_PREFIXES)
     out: dict[str, str] = {}
     for k, v in base_env.items():
-        if any(k.startswith(p) or k == p for p in FORBIDDEN_ENV_PREFIXES):
+        key_upper = k.upper()
+        if any(key_upper.startswith(p) or key_upper == p for p in forbidden_upper):
             continue
-        if k in keep_keys:
+        if k in keep_keys or key_upper in keep_keys_upper:
             out[k] = v
     # Any allowed model credential is injected explicitly via extra_allow after
     # the denylist scrub. No provider credential prefix is inherited by default.
