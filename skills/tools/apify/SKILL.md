@@ -4,7 +4,7 @@ description: "Use when any agent needs web scraping, Instagram comment extractio
 allowed-tools: "Read, Bash"
 version: 1.1
 source_url: "https://docs.apify.com/api/v2"
-last_researched: "2026-07-27"
+last_researched: "2026-08-19"
 instantiated_from: templates/tools/_template/
 api_version: "Apify API v2"
 sdk_version: "apify-client (Python) / REST API direct (EOS)"

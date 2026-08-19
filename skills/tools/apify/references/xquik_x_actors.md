@@ -1,7 +1,7 @@
 # Xquik X Actors
 
 Source: Current Apify Store listings and Actor input schemas
-Last Verified: 2026-07-27
+Last Verified: 2026-08-19
 
 ## Scope
 
@@ -13,13 +13,16 @@ post and audience research:
 | X Tweet Scraper | [xquik/x-tweet-scraper](https://apify.com/xquik/x-tweet-scraper) | `xquik~x-tweet-scraper` |
 | X Follower Scraper | [xquik/x-follower-scraper](https://apify.com/xquik/x-follower-scraper) | `xquik~x-follower-scraper` |
 
-Both are paid Actors. The Apify pricing box is authoritative.
+Both current Actor builds use pay-per-event pricing. The Apify pricing box is
+authoritative. Keep `maxItems` and `maxItemsPerTarget` in Actor input. Send only
+`maxTotalChargeUsd` as the API run option. Stop and update this contract if the
+live pricing model changes.
 
 ## Approval Gate
 
 Before each run:
 
-1. Show the Actor, targets, global cap, per-target cap, and live Apify pricing.
+1. Show the Actor, targets, input caps, charge cap, and live Apify pricing.
 2. Obtain explicit approval for that exact run.
 3. Keep `maxItems` and `maxItemsPerTarget` positive and bounded.
 4. Keep approval metadata in the caller. Never send it to the Actor.
@@ -67,24 +70,24 @@ def start_paid_actor(
     actor_id: str,
     actor_input: dict[str, object],
     *,
-    max_items: int,
+    approved_input_max_items: int,
     max_total_charge_usd: float,
-    configured_max_items: int,
+    configured_input_max_items: int,
     configured_max_total_charge_usd: float,
     live_pricing: dict[str, object],
     approval_record: Mapping[str, object],
 ) -> str:
     if (
-        isinstance(max_items, bool)
-        or not isinstance(max_items, int)
-        or max_items <= 0
+        isinstance(approved_input_max_items, bool)
+        or not isinstance(approved_input_max_items, int)
+        or approved_input_max_items <= 0
     ):
         raise ValueError("Invalid item cap. Use a positive integer.")
     if (
-        isinstance(configured_max_items, bool)
-        or not isinstance(configured_max_items, int)
-        or configured_max_items <= 0
-        or max_items > configured_max_items
+        isinstance(configured_input_max_items, bool)
+        or not isinstance(configured_input_max_items, int)
+        or configured_input_max_items <= 0
+        or approved_input_max_items > configured_input_max_items
     ):
         raise ValueError("Item cap exceeds the configured maximum.")
     if (
@@ -102,7 +105,7 @@ def start_paid_actor(
         or max_total_charge_usd > configured_max_total_charge_usd
     ):
         raise ValueError("Run cap exceeds the configured maximum.")
-    if actor_input.get("maxItems") != max_items:
+    if actor_input.get("maxItems") != approved_input_max_items:
         raise ValueError("Actor input and approved global cap differ.")
     per_target_cap = actor_input.get("maxItemsPerTarget")
     if (
@@ -111,17 +114,14 @@ def start_paid_actor(
             isinstance(per_target_cap, bool)
             or not isinstance(per_target_cap, int)
             or per_target_cap <= 0
-            or per_target_cap > max_items
+            or per_target_cap > approved_input_max_items
         )
     ):
         raise ValueError("Invalid per-target cap. Keep it within the global cap.")
-    if not live_pricing:
-        raise ValueError("Live pricing snapshot required.")
+    if live_pricing.get("pricingModel") != "PAY_PER_EVENT":
+        raise ValueError("Expected current PAY_PER_EVENT pricing. Stop and recheck.")
 
-    run_options = {
-        "maxItems": max_items,
-        "maxTotalChargeUsd": max_total_charge_usd,
-    }
+    run_options = {"maxTotalChargeUsd": max_total_charge_usd}
     expected_fingerprint = canonical_request_fingerprint(
         actor_id,
         actor_input,
@@ -166,7 +166,7 @@ Compute the fingerprint from the exact request shown to the operator. Create
 the approval record only after confirmation:
 
 ```python
-run_options = {"maxItems": 50, "maxTotalChargeUsd": 5.0}
+run_options = {"maxTotalChargeUsd": 5.0}
 request_fingerprint = canonical_request_fingerprint(
     "xquik~x-tweet-scraper",
     tweet_input,

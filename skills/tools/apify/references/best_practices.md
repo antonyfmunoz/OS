@@ -2,7 +2,7 @@
 
 Source: Apify API v2 documentation + Actor Store schemas + EOS production experience
 Version: Apify API v2
-Last Researched: 2026-07-27
+Last Researched: 2026-08-19
 
 ---
 
@@ -368,9 +368,9 @@ run_actor(actor_id, input_data)
 run_id = start_paid_actor(
     "xquik~x-tweet-scraper",
     tweet_input,
-    max_items=50,
+    approved_input_max_items=50,
     max_total_charge_usd=5.0,
-    configured_max_items=100,
+    configured_input_max_items=100,
     configured_max_total_charge_usd=5.0,
     live_pricing=live_pricing,
     approval_record=approval_record,

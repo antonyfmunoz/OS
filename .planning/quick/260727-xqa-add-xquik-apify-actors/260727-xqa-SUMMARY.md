@@ -34,23 +34,40 @@ Refreshed Apify authentication, rate-limit, approval, and validation guidance.
 - Added strict result-shape and cap validation.
 - Added the exact Xquik independence notice.
 
-## Verification
+## Verification Record
 
-- Apify Skill verifier: pass
-- Tool Mastery quality audit: A
-- Frontmatter: 10/10
-- Required best-practice sections: 19/19
-- Content depth: 6/6
-- Quality warnings: 0
-- Python examples: parsed
-- Current Actor schemas: matched
-- Actor Store links: HTTP 200
-- Markdown links: resolved
-- Diff whitespace: clean
-- Simplify review: clean
-- Thermonuclear review: clean after reference split
-- Actor runs: 0
+Verified at `2026-08-19T05:18:27Z` after rebasing onto `c9ac68225`.
 
-The full pre-commit runner reaches its Linux firewall gate on macOS, where
-`iptables` is unavailable. All portable and change-relevant gates run
-separately before commit.
+| Command | Result |
+|---------|--------|
+| `UMH_ROOT="$PWD" python3 -m scripts.verify_tool_skill --skill apify` | Pass |
+| `UMH_ROOT="$PWD" python3 -m scripts.tme_quality_audit apify` | A, 10/10 frontmatter, 19/19 sections, 6/6 depth, 0 warnings |
+| `uv run --python 3.11 --with pytest --with pytest-asyncio --with requests python -m pytest tests/test_apify_xquik_docs.py -q` | 3 passed |
+| `uvx ruff check tests/test_apify_xquik_docs.py` | Pass |
+| `uvx ruff format --check tests/test_apify_xquik_docs.py` | Pass |
+| `git diff --check` | Pass |
+
+The committed regression at `tests/test_apify_xquik_docs.py` parses all 38
+Python examples. It executes the paid-run helper offline and proves the request
+sends only `maxTotalChargeUsd`. It also rejects pricing-model drift.
+
+Public Actor metadata checks returned these IDs with `PAY_PER_EVENT` pricing:
+
+- X Tweet Scraper: `wAusCMrm284Voaw86`
+- X Follower Scraper: `AaT0BcKU5GQh97wdt`
+
+Both Store listing checks returned HTTP 200. No Actor was run.
+
+### Partial Platform Gate
+
+The canonical command was:
+
+```bash
+uv run --python 3.11 --with pydantic --with pyyaml --with psutil \
+  --with pytest bash scripts/pre-commit
+```
+
+Gates 1 through 8 passed. Gate 9 stopped because macOS lacks Docker and
+`iptables`. Gates 10 through 14 then passed separately with the same Python
+3.11 environment. Overall canonical verification remains partial until the
+Linux firewall-state gate runs on a host with `iptables`.
