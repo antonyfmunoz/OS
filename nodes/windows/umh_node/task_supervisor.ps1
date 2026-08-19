@@ -235,7 +235,9 @@ if (-not [UMHJobNative]::SetHandleInformation($stopEvent, $HANDLE_FLAG_INHERIT, 
 [void][UMHJobNative]::ResetEvent($stopEvent)
 
 $limits = New-Object UMHJobNative+JOBOBJECT_EXTENDED_LIMIT_INFORMATION
-$limits.BasicLimitInformation.LimitFlags = $JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+$basicLimits = New-Object UMHJobNative+JOBOBJECT_BASIC_LIMIT_INFORMATION
+$basicLimits.LimitFlags = $JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+$limits.BasicLimitInformation = $basicLimits
 $size = [Runtime.InteropServices.Marshal]::SizeOf($limits)
 $ptr = [Runtime.InteropServices.Marshal]::AllocHGlobal($size)
 

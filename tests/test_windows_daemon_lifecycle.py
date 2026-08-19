@@ -51,6 +51,9 @@ def test_task_supervisor_creates_op_suspended_before_assignment() -> None:
 def test_task_supervisor_verifies_job_and_descendant_containment() -> None:
     body = _text(SUPERVISOR)
 
+    assert "$basicLimits.LimitFlags = $JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE" in body
+    assert "$limits.BasicLimitInformation = $basicLimits" in body
+    assert "$limits.BasicLimitInformation.LimitFlags =" not in body
     assert "SetHandleInformation($job, $HANDLE_FLAG_INHERIT, 0)" in body
     assert "SetHandleInformation($stopEvent, $HANDLE_FLAG_INHERIT, 0)" in body
     assert "QueryInformationJobObject" in body
