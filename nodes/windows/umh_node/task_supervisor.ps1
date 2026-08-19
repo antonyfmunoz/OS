@@ -215,6 +215,7 @@ $CREATE_SUSPENDED = 0x00000004
 $CREATE_NO_WINDOW = 0x08000000
 $HANDLE_FLAG_INHERIT = 0x00000001
 $PROCESS_QUERY_LIMITED_INFORMATION = 0x00001000
+$SYNCHRONIZE = 0x00100000
 $INFINITE = 0xFFFFFFFF
 
 $job = [UMHJobNative]::CreateJobObject([IntPtr]::Zero, "UMHNodeDaemon-$PID")
@@ -240,6 +241,7 @@ $basicLimits.LimitFlags = $JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 $limits.BasicLimitInformation = $basicLimits
 $size = [Runtime.InteropServices.Marshal]::SizeOf($limits)
 $ptr = [Runtime.InteropServices.Marshal]::AllocHGlobal($size)
+$launcherWaitHandle = [IntPtr]::Zero
 
 try {
     [Runtime.InteropServices.Marshal]::StructureToPtr($limits, $ptr, $false)
@@ -326,16 +328,22 @@ try {
             Select-Object -First 1
         if ($launcherProc) {
             $launcherPid = [int]$launcherProc.ProcessId
-            $launcherHandle = [UMHJobNative]::OpenProcess($PROCESS_QUERY_LIMITED_INFORMATION, $false, [uint32]$launcherPid)
+            $launcherHandle = [UMHJobNative]::OpenProcess(($PROCESS_QUERY_LIMITED_INFORMATION -bor $SYNCHRONIZE), $false, [uint32]$launcherPid)
             if ($launcherHandle -ne [IntPtr]::Zero) {
                 try {
                     $tmp = $false
                     if ([UMHJobNative]::IsProcessInJob($launcherHandle, $job, [ref]$tmp)) {
                         $launcherInJob = $tmp
                     }
+                    if ($launcherInJob) {
+                        $launcherWaitHandle = $launcherHandle
+                        $launcherHandle = [IntPtr]::Zero
+                    }
                 }
                 finally {
-                    [void][UMHJobNative]::CloseHandle($launcherHandle)
+                    if ($launcherHandle -ne [IntPtr]::Zero) {
+                        [void][UMHJobNative]::CloseHandle($launcherHandle)
+                    }
                 }
             }
             break
@@ -363,18 +371,22 @@ try {
             create_suspended = $true
             kill_on_job_close = $true
             handles_inheritable = $false
+            waits_for_launcher = $true
         }
         started_at = $stamp
     } | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path (Join-Path $runRoot "umh-node-supervisor.json") -Encoding UTF8
 
-    [void][UMHJobNative]::WaitForSingleObject($procInfo.hProcess, $INFINITE)
+    [void][UMHJobNative]::WaitForSingleObject($launcherWaitHandle, $INFINITE)
     $exitCode = [uint32]0
-    if (-not [UMHJobNative]::GetExitCodeProcess($procInfo.hProcess, [ref]$exitCode)) {
+    if (-not [UMHJobNative]::GetExitCodeProcess($launcherWaitHandle, [ref]$exitCode)) {
         $exitCode = 1
     }
     exit $exitCode
 }
 finally {
+    if ($launcherWaitHandle -ne [IntPtr]::Zero) {
+        [void][UMHJobNative]::CloseHandle($launcherWaitHandle)
+    }
     if ($procInfo.hThread -and $procInfo.hThread -ne [IntPtr]::Zero) {
         [void][UMHJobNative]::CloseHandle($procInfo.hThread)
     }

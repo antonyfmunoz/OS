@@ -62,6 +62,9 @@ def test_task_supervisor_verifies_job_and_descendant_containment() -> None:
     assert "launcher containment verification failed" in body
     assert "launcher_in_job" in body
     assert "handles_inheritable = $false" in body
+    assert "waits_for_launcher = $true" in body
+    assert "WaitForSingleObject($launcherWaitHandle" in body
+    assert "WaitForSingleObject($procInfo.hProcess" not in body
 
 
 def test_task_supervisor_fails_closed_on_native_launch_or_assignment_failure() -> None:
