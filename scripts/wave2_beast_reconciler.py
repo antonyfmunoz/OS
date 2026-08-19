@@ -132,24 +132,18 @@ def _ensure_secrets() -> None:
 
 
 def _mesh_shell(command: str, *, timeout: int = 60) -> dict:
-    """Run a shell command on the executor over the governed mesh (signed verdict)."""
+    """Run a shell command on the executor through durable governed transport."""
     _ensure_secrets()
-    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
+    from scripts.wave2_field_dispatch import _durable_remote_shell
 
-    result = mesh_dispatch(
-        node_id=_MESH_NODE_ID,
-        capability="shell",
-        params={"command": command, "timeout": timeout},
-        risk_class="reversible_write",
-        timeout=timeout + 30,
+    return _durable_remote_shell(
+        command,
+        max_len=65536,
+        command_timeout=timeout,
+        dispatch_timeout=timeout + 30,
+        operation_type="beast_reconciler_shell",
+        correlation_id="beast-reconciler",
     )
-    rd = result.get("result_data", {}) if isinstance(result, dict) else {}
-    return {
-        "ok": bool(result.get("ok")) if isinstance(result, dict) else False,
-        "error": str(result.get("error", "")) if isinstance(result, dict) else "invalid mesh result",
-        "stdout": str(rd.get("stdout", "")),
-        "stderr": str(rd.get("stderr", "")),
-    }
 
 
 def _mesh_health() -> dict:

@@ -7,6 +7,9 @@ one identity). Pure logic + mocked observe — no network, no quota.
 
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+
 from tests.wave2_script_import import load_wave2_script
 
 R = load_wave2_script("wave2_beast_reconciler")
@@ -334,3 +337,33 @@ def test_reconcile_observation_unavailable_does_not_repair(monkeypatch) -> None:
     assert v["condition"] == "OBSERVATION_UNAVAILABLE"
     assert v["actions"] == []
     assert calls == []
+
+
+def test_mesh_shell_uses_durable_remote_transport(monkeypatch) -> None:
+    calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(R, "_ensure_secrets", lambda: None)
+
+    def fake_durable(command: str, **kwargs: object) -> dict[str, object]:
+        calls.append({"command": command, **kwargs})
+        return {"ok": True, "stdout": "ok"}
+
+    monkeypatch.setitem(
+        sys.modules,
+        "scripts.wave2_field_dispatch",
+        SimpleNamespace(_durable_remote_shell=fake_durable),
+    )
+
+    out = R._mesh_shell("hostname", timeout=12)
+
+    assert out["ok"] is True
+    assert calls == [
+        {
+            "command": "hostname",
+            "max_len": 65536,
+            "command_timeout": 12,
+            "dispatch_timeout": 42,
+            "operation_type": "beast_reconciler_shell",
+            "correlation_id": "beast-reconciler",
+        }
+    ]
