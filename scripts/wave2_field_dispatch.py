@@ -21,6 +21,7 @@ Subcommands:
   pause-before-dispatch  arm the same-run ADMISSION pause (zero quota)
   inject-failure   arm a genuine worker failure variant for one pass
   activation-rehearsal  zero-quota deployed API grant activation rehearsal
+  collector-teardown-rehearsal  zero-quota inert Beast collector lifecycle rehearsal
   resume           release the admission pause; scheduling resumes
   reconcile        score collected evidence against candidate state + logs
   teardown         stop containers, stop runner, shred run secret, restore serve
@@ -33,6 +34,7 @@ the live host.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
@@ -114,6 +116,17 @@ def _operator_network() -> str:
         "cannot resolve the operator docker network from the live os-operator "
         "container — set UMH_CANDIDATE_NETWORK explicitly"
     )
+
+
+def _powershell_encoded_command(script: str) -> str:
+    encoded = base64.b64encode(script.encode("utf-16le")).decode("ascii")
+    return f"powershell -NoProfile -EncodedCommand {encoded}"
+
+
+def _powershell_command(script: str) -> str:
+    compact = "; ".join(line.strip() for line in script.splitlines() if line.strip())
+    compact = compact.replace("@{; ", "@{").replace("; }", " }")
+    return "powershell -NoProfile -Command " + json.dumps(compact)
 
 
 # Network + origin are module globals used by the inherited wave1 call sites as
@@ -1966,66 +1979,50 @@ def _stop_remote_collector_tree(runner: Runner, *, run_id: str, pass_num: int = 
     """
     pid_manifest = rf"{_BEAST_EVIDENCE_DIR}\collector_{run_id}_p{pass_num}.pid.json"
     ps = rf"""
-$ErrorActionPreference = 'Stop'
-$manifestPath = '{pid_manifest}'
-if (-not (Test-Path -LiteralPath $manifestPath)) {{
-  $residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.CommandLine) -like '*{run_id}*' -and ([string]$_.CommandLine) -like '*wave2_field_collector.py*' }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
-  [pscustomobject]@{{
-    stopped = ($residue.Count -eq 0)
-    note = "no collector pid manifest"
-    residue = $residue
-  }} | ConvertTo-Json -Compress -Depth 4
+$ErrorActionPreference = 'Continue'
+$m = '{pid_manifest}'
+$rid = '{run_id}'
+$pat = '*wave2_field_collector.py*'
+if (-not (Test-Path -LiteralPath $m)) {{
+  $r = @(gwmi Win32_Process | ? {{ ([string]$_.CommandLine) -like "*$rid*" -and ([string]$_.CommandLine) -like $pat }} | select ProcessId,ParentProcessId,Name,CommandLine)
+  [pscustomobject]@{{stopped=($r.Count -eq 0);note="no collector pid manifest";residue=$r}} | ConvertTo-Json -Compress -Depth 4
   exit 0
 }}
-$manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
-$pid = [int]$manifest.pid
-$p = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+$j = Get-Content -Raw -LiteralPath $m | ConvertFrom-Json
+$rootPid = [int]$j.pid
+$p = gwmi Win32_Process -Filter "ProcessId=$rootPid"
 if ($null -eq $p) {{
-  $residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.CommandLine) -like '*{run_id}*' -and ([string]$_.CommandLine) -like '*wave2_field_collector.py*' }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
-  [pscustomobject]@{{
-    stopped = ($residue.Count -eq 0)
-    pid = $pid
-    note = "collector root already absent"
-    residue = $residue
-  }} | ConvertTo-Json -Compress -Depth 4
+  $r = @(gwmi Win32_Process | ? {{ ([string]$_.CommandLine) -like "*$rid*" -and ([string]$_.CommandLine) -like $pat }} | select ProcessId,ParentProcessId,Name,CommandLine)
+  [pscustomobject]@{{stopped=($r.Count -eq 0);pid=$rootPid;note="collector root already absent";residue=$r}} | ConvertTo-Json -Compress -Depth 4
   exit 0
 }}
 $cmd = [string]$p.CommandLine
-$expectedScript = '{_BEAST_COLLECTOR}'
-if ($cmd -notlike '*{run_id}*' -or $cmd -notlike '*wave2_field_collector.py*') {{
-  Write-Output ('{{"stopped":false,"pid":' + $pid + ',"reason":"pid identity mismatch","command":' + ($cmd | ConvertTo-Json -Compress) + '}}')
+if ($cmd -notlike "*$rid*" -or $cmd -notlike $pat) {{
+  Write-Output ('{{"stopped":false,"pid":' + $rootPid + ',"reason":"pid identity mismatch","command":' + ($cmd | ConvertTo-Json -Compress) + '}}')
   exit 2
 }}
-$childrenBefore = @(Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $pid }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
-$gracefulOutput = (& cmd.exe /c "taskkill /PID $pid /T" 2>&1 | Out-String)
+$childrenBefore = @(gwmi Win32_Process | ? {{ $_.ParentProcessId -eq $rootPid }} | select ProcessId,ParentProcessId,Name,CommandLine)
+$gracefulOutput = (& cmd.exe /c "taskkill /PID $rootPid /T" 2>&1 | Out-String)
 Start-Sleep -Seconds 5
-$alive = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+$alive = gwmi Win32_Process -Filter "ProcessId=$rootPid"
 $forced = $false
 $forceOutput = ""
 if ($null -ne $alive) {{
-  $p2 = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
+  $p2 = gwmi Win32_Process -Filter "ProcessId=$rootPid"
   $cmd2 = [string]$p2.CommandLine
-  if ($cmd2 -notlike '*{run_id}*' -or $cmd2 -notlike '*wave2_field_collector.py*') {{
-    Write-Output ('{{"stopped":false,"pid":' + $pid + ',"reason":"identity changed before force","command":' + ($cmd2 | ConvertTo-Json -Compress) + '}}')
+  if ($cmd2 -notlike "*$rid*" -or $cmd2 -notlike $pat) {{
+    Write-Output ('{{"stopped":false,"pid":' + $rootPid + ',"reason":"identity changed before force","command":' + ($cmd2 | ConvertTo-Json -Compress) + '}}')
     exit 3
   }}
-  $forceOutput = (& cmd.exe /c "taskkill /PID $pid /T /F" 2>&1 | Out-String)
+  $forceOutput = (& cmd.exe /c "taskkill /PID $rootPid /T /F" 2>&1 | Out-String)
   Start-Sleep -Seconds 2
   $forced = $true
 }}
-$still = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
-$residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.CommandLine) -like '*{run_id}*' -and ([string]$_.CommandLine) -like '*wave2_field_collector.py*' }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
-[pscustomobject]@{{
-  stopped = ($null -eq $still -and $residue.Count -eq 0)
-  pid = $pid
-  forced = $forced
-  graceful_output = $gracefulOutput
-  force_output = $forceOutput
-  children_before = $childrenBefore
-  residue = $residue
-}} | ConvertTo-Json -Compress -Depth 4
+$still = gwmi Win32_Process -Filter "ProcessId=$rootPid"
+$r = @(gwmi Win32_Process | ? {{ ([string]$_.CommandLine) -like "*$rid*" -and ([string]$_.CommandLine) -like $pat }} | select ProcessId,ParentProcessId,Name,CommandLine)
+[pscustomobject]@{{stopped=($null -eq $still -and $r.Count -eq 0);pid=$rootPid;forced=$forced;graceful_output=$gracefulOutput;force_output=$forceOutput;children_before=$childrenBefore;residue=$r}} | ConvertTo-Json -Compress -Depth 4
 """
-    command = "powershell -NoProfile -Command " + json.dumps(ps)
+    command = _powershell_encoded_command(ps)
     res = _mesh_read(runner, command, max_len=65536)
     if runner.dry_run:
         return {"stopped": True, "dry_run": True}
@@ -2042,6 +2039,255 @@ $residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.Command
     except ValueError:
         return {"stopped": False, "reason": "collector teardown returned malformed JSON"}
     return parsed if isinstance(parsed, dict) else {"stopped": False, "reason": "bad result"}
+
+
+def _collector_residue_query(run_id: str, pass_num: int) -> str:
+    pid_manifest = rf"{_BEAST_EVIDENCE_DIR}\collector_{run_id}_p{pass_num}.pid.json"
+    launch_log = rf"{_BEAST_EVIDENCE_DIR}\launch_{run_id}_p{pass_num}.log"
+    ps = rf"""
+$ErrorActionPreference = 'Continue'
+$runId = '{run_id}'
+$manifestPath = '{pid_manifest}'
+$launchLog = '{launch_log}'
+function ChildrenOf([int]$root) {{
+  $seen = @{{}}
+  $queue = New-Object System.Collections.ArrayList
+  [void]$queue.Add($root)
+  $out = @()
+  while ($queue.Count -gt 0) {{
+    $parent = [int]$queue[0]
+    $queue.RemoveAt(0)
+    $kids = @(Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $parent }})
+    foreach ($kid in $kids) {{
+      $key = [string]$kid.ProcessId
+      if (-not $seen.ContainsKey($key)) {{
+        $seen[$key] = $true
+        $out += $kid
+        [void]$queue.Add([int]$kid.ProcessId)
+      }}
+    }}
+  }}
+  return $out
+}}
+$manifest = $null
+$root = $null
+$tree = @()
+if (Test-Path -LiteralPath $manifestPath) {{
+  $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+  $root = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$manifest.pid)
+  if ($null -ne $root) {{
+    $tree = @(ChildrenOf([int]$manifest.pid) | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate)
+  }}
+}}
+$broad = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.CommandLine) -like "*$runId*" -or ([string]$_.CommandLine) -like "*wave2_field_collector.py*" }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate)
+$logTail = ""
+if (Test-Path -LiteralPath $launchLog) {{
+  $logTail = (Get-Content -LiteralPath $launchLog -Tail 80 | Out-String)
+}}
+[pscustomobject]@{{
+  run_id = $runId
+  manifest_path = $manifestPath
+  launch_log = $launchLog
+  manifest_exists = (Test-Path -LiteralPath $manifestPath)
+  manifest = $manifest
+  root = if ($null -eq $root) {{ $null }} else {{ $root | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate }}
+  recorded_descendants = $tree
+  broad_residue = $broad
+  launch_log_tail = $logTail
+}} | ConvertTo-Json -Compress -Depth 6
+"""
+    return _powershell_encoded_command(ps)
+
+
+def _cleanup_collector_rehearsal_artifacts(
+    runner: Runner, *, run_id: str, pass_num: int
+) -> dict[str, Any]:
+    ps = rf"""
+$ErrorActionPreference = 'Continue'
+$paths = @(
+  '{_BEAST_EVIDENCE_DIR}\collector_{run_id}_p{pass_num}.pid.json',
+  '{_BEAST_EVIDENCE_DIR}\launch_{run_id}_p{pass_num}.log',
+  '{_BEAST_EVIDENCE_DIR}\inert_collector_{run_id}_p{pass_num}.py'
+)
+$removed = @()
+$errors = @()
+foreach ($path in $paths) {{
+  try {{
+    if (Test-Path -LiteralPath $path) {{
+      Remove-Item -LiteralPath $path -Force
+      $removed += $path
+    }}
+  }} catch {{
+    $errors += ([string]$_)
+  }}
+}}
+[pscustomobject]@{{ok=($errors.Count -eq 0);removed=$removed;errors=$errors}} | ConvertTo-Json -Compress -Depth 3
+"""
+    res = _mesh_read(runner, _powershell_encoded_command(ps), max_len=32768)
+    if runner.dry_run:
+        return {"ok": True, "dry_run": True}
+    if not res.get("ok"):
+        return {"ok": False, "reason": res.get("error"), "mesh": res}
+    try:
+        parsed = json.loads(res.get("stdout", "") or "{}")
+    except ValueError:
+        return {"ok": False, "reason": "cleanup returned malformed JSON", "mesh": res}
+    return parsed if isinstance(parsed, dict) else {"ok": False, "reason": "bad cleanup result"}
+
+
+def _launch_inert_collector_fixture(
+    runner: Runner, *, run_id: str, pass_num: int, sha: str
+) -> dict[str, Any]:
+    """Launch an inert process with the production collector command topology.
+
+    The Python command sleeps and never imports/executes the field collector.
+    ``wave2_field_collector.py`` is carried only as argv text so the same PID
+    manifest and identity checks bind to the rehearsal run ID.
+    """
+    launch_log = rf"{_BEAST_EVIDENCE_DIR}\launch_{run_id}_p{pass_num}.log"
+    pid_manifest = rf"{_BEAST_EVIDENCE_DIR}\collector_{run_id}_p{pass_num}.pid.json"
+    inert_py = rf"{_BEAST_EVIDENCE_DIR}\inert_collector_{run_id}_p{pass_num}.py"
+    inert_code = (
+        "import sys, time\n"
+        "print('inert collector rehearsal', sys.argv[1:])\n"
+        "sys.stdout.flush()\n"
+        "time.sleep(600)\n"
+    )
+    inert_code_b64 = base64.b64encode(inert_code.encode("utf-8")).decode("ascii")
+    inert = (
+        f"op run --env-file={_BEAST_ENV_TPL} -- python {inert_py} "
+        f"{_BEAST_COLLECTOR} --run-id {run_id} --pass-num {pass_num} "
+        f"--candidate-commit {sha} --inert-teardown-rehearsal"
+    )
+    inner = f"/c md {_BEAST_EVIDENCE_DIR} 2>nul & {inert} 1> {launch_log} 2>&1"
+    ps_command = (
+        "powershell -NoProfile -Command "
+        f"\"$code=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{inert_code_b64}')); "
+        f"Set-Content -Path '{inert_py}' -Value $code; "
+        "$p=Start-Process -WindowStyle Hidden -FilePath 'cmd.exe' "
+        f"-ArgumentList '{inner}' -PassThru; "
+        "$payload=[ordered]@{"
+        f"pid=$p.Id;run_id='{run_id}';pass_num={pass_num};"
+        f"candidate_commit='{sha}';command='{_BEAST_COLLECTOR}';inert=$true"
+        "} | ConvertTo-Json -Compress; "
+        f"Set-Content -Path '{pid_manifest}' -Value $payload; "
+        "$payload\""
+    )
+    res = _mesh_read(runner, ps_command, max_len=32768)
+    if runner.dry_run:
+        return {"ok": True, "dry_run": True, "command": ps_command}
+    if not res.get("ok"):
+        return {"ok": False, "reason": res.get("error"), "mesh": res}
+    try:
+        manifest = json.loads(res.get("stdout", "") or "{}")
+    except ValueError:
+        return {"ok": False, "reason": "launch returned malformed JSON", "mesh": res}
+    return {"ok": True, "manifest": manifest, "mesh": res}
+
+
+def collector_teardown_rehearsal(
+    runner: Runner, sha: str, *, iterations: int = 3
+) -> dict[str, Any]:
+    """Run zero-quota inert Beast collector lifecycle/teardown rehearsals."""
+    proof_dir = _proof_root() / "collector_teardown_rehearsal"
+    proof_dir.mkdir(parents=True, exist_ok=True)
+    if runner.dry_run:
+        return {"ok": True, "dry_run": True, "iterations": iterations}
+
+    results: list[dict[str, Any]] = []
+    for idx in range(1, iterations + 1):
+        run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-teardown-r{idx}"
+        pass_num = 1
+        item: dict[str, Any] = {"run_id": run_id, "pass_num": pass_num}
+        before = _mesh_read(runner, _collector_residue_query(run_id, pass_num), max_len=65536)
+        item["before"] = before
+        before_obj: dict[str, Any] = {}
+        try:
+            before_obj = json.loads(before.get("stdout", "") or "{}")
+        except ValueError:
+            item["ok"] = False
+            item["reason"] = "before residue query malformed"
+            results.append(item)
+            continue
+        if before_obj.get("broad_residue"):
+            item["ok"] = False
+            item["reason"] = "matching residue exists before launch"
+            results.append(item)
+            continue
+
+        launched = _launch_inert_collector_fixture(runner, run_id=run_id, pass_num=pass_num, sha=sha)
+        item["launch"] = launched
+        if not launched.get("ok"):
+            item["ok"] = False
+            item["reason"] = "launch failed"
+            results.append(item)
+            continue
+        time.sleep(2)
+
+        manifest = launched.get("manifest") or {}
+        manifest_ok = (
+            manifest.get("run_id") == run_id
+            and int(manifest.get("pass_num", -1)) == pass_num
+            and manifest.get("candidate_commit") == sha
+            and manifest.get("command") == _BEAST_COLLECTOR
+            and manifest.get("inert") is True
+        )
+        item["manifest_ok"] = manifest_ok
+        if not manifest_ok:
+            item["ok"] = False
+            item["reason"] = "manifest identity mismatch"
+            results.append(item)
+            continue
+
+        active = _mesh_read(runner, _collector_residue_query(run_id, pass_num), max_len=65536)
+        item["active"] = active
+        stopped = _stop_remote_collector_tree(runner, run_id=run_id, pass_num=pass_num)
+        item["teardown"] = stopped
+        after = _mesh_read(runner, _collector_residue_query(run_id, pass_num), max_len=65536)
+        item["after"] = after
+        second = _stop_remote_collector_tree(runner, run_id=run_id, pass_num=pass_num)
+        item["idempotent_teardown"] = second
+        final = _mesh_read(runner, _collector_residue_query(run_id, pass_num), max_len=65536)
+        item["final"] = final
+        cleanup = _cleanup_collector_rehearsal_artifacts(runner, run_id=run_id, pass_num=pass_num)
+        item["cleanup"] = cleanup
+
+        try:
+            active_obj = json.loads(active.get("stdout", "") or "{}")
+            after_obj = json.loads(after.get("stdout", "") or "{}")
+            final_obj = json.loads(final.get("stdout", "") or "{}")
+        except ValueError:
+            item["ok"] = False
+            item["reason"] = "residue query returned malformed JSON"
+            results.append(item)
+            continue
+        item["forced"] = bool(stopped.get("forced"))
+        item["ok"] = (
+            bool(stopped.get("stopped"))
+            and bool(second.get("stopped"))
+            and not after_obj.get("broad_residue")
+            and not final_obj.get("broad_residue")
+            and bool(cleanup.get("ok"))
+            and bool(active_obj.get("root"))
+            and bool(active_obj.get("recorded_descendants") or active_obj.get("broad_residue"))
+        )
+        if not item["ok"]:
+            item["reason"] = "teardown did not prove zero residue"
+        results.append(item)
+
+    out = {
+        "ok": len(results) == iterations and all(bool(r.get("ok")) for r in results),
+        "iterations": iterations,
+        "results": results,
+        "forced_count": sum(1 for r in results if r.get("forced")),
+        "evidence_dir": str(proof_dir),
+    }
+    evidence_path = proof_dir / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + ".json")
+    evidence_path.write_text(json.dumps(out, indent=2, default=str), encoding="utf-8")
+    if out["forced_count"] < 1:
+        out["ok"] = False
+        out["reason"] = "remote rehearsals did not exercise exact-force escalation"
+    return out
 
 
 def _mesh_read_fast(runner: Runner, command: str, *, max_len: int = 65536) -> dict[str, Any]:
@@ -3585,6 +3831,7 @@ def main(argv: list[str] | None = None) -> int:
         "pause-before-dispatch",
         "inject-failure",
         "activation-rehearsal",
+        "collector-teardown-rehearsal",
         "resume",
         "reconcile",
         "teardown",
@@ -3628,6 +3875,9 @@ def main(argv: list[str] | None = None) -> int:
         out = inject_failure(runner, sha, run_id, args.variant)
     elif args.cmd == "activation-rehearsal":
         out = activation_rehearsal(runner, sha, iterations=3)
+    elif args.cmd == "collector-teardown-rehearsal":
+        _ensure_mesh_secrets()
+        out = collector_teardown_rehearsal(runner, sha, iterations=3)
     elif args.cmd == "resume":
         out = resume_after_pause(runner, sha, run_id)
     elif args.cmd == "reconcile":

@@ -22,6 +22,7 @@ gone afterward — driven entirely by the runner's own signal→finally→sweep 
 from __future__ import annotations
 
 import importlib
+import base64
 import json
 import os
 import signal
@@ -38,6 +39,13 @@ rt = importlib.import_module("substrate.execution.attempts.run_teardown")
 wcb = importlib.import_module("substrate.execution.attempts.worker_credential_boundary")
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _decode_encoded_powershell(command: str) -> str:
+    marker = "-EncodedCommand "
+    assert marker in command
+    payload = command.split(marker, 1)[1].split()[0]
+    return base64.b64decode(payload).decode("utf-16le")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -187,8 +195,9 @@ def test_remote_collector_teardown_missing_manifest_must_prove_zero_residue(monk
 
     assert out["stopped"] is False
     assert out["note"] == "no collector pid manifest"
-    assert "Test-Path" in seen[0]
-    assert "residue.Count -eq 0" in seen[0]
+    ps = _decode_encoded_powershell(seen[0])
+    assert "Test-Path" in ps
+    assert "$r.Count -eq 0" in ps
 
 
 def test_remote_collector_teardown_captures_graceful_failure_before_force(monkeypatch):
@@ -221,8 +230,9 @@ def test_remote_collector_teardown_captures_graceful_failure_before_force(monkey
 
     assert out["stopped"] is True
     assert out["forced"] is True
-    assert "taskkill /PID $pid /T" in seen[0]
-    assert "taskkill /PID $pid /T /F" in seen[0]
+    ps = _decode_encoded_powershell(seen[0])
+    assert "taskkill /PID $rootPid /T" in ps
+    assert "taskkill /PID $rootPid /T /F" in ps
 
 
 def test_remote_collector_teardown_mesh_failure_preserves_diagnostics(monkeypatch):
