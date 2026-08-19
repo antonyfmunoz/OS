@@ -63,6 +63,7 @@ def test_task_supervisor_verifies_job_and_descendant_containment() -> None:
     assert "launcher_in_job" in body
     assert "handles_inheritable = $false" in body
     assert "waits_for_launcher = $true" in body
+    assert "supervisor_parent_pid = $PID" in body
     assert "WaitForSingleObject($launcherWaitHandle" in body
     assert "WaitForSingleObject($procInfo.hProcess" not in body
 
@@ -86,6 +87,7 @@ def test_task_supervisor_manifest_records_observed_ownership_boundary() -> None:
     assert "launcher_pid" in body
     assert "candidate_sha" in body
     assert "containment_verified" in body
+    assert "UMH_DAEMON_SUPERVISOR_PID" in body
 
 
 def test_installer_makes_powershell_supervisor_the_task_action() -> None:
@@ -124,9 +126,10 @@ def test_service_stops_when_governed_parent_wrapper_exits() -> None:
     body = _text(SERVICE)
 
     assert "os.getppid()" in body
+    assert "UMH_DAEMON_SUPERVISOR_PID" in body
     assert "OpenProcess" in body
     assert "umh-parent-exit" in body
-    assert "governed parent wrapper exited" in body
+    assert "governed %s exited; stopping daemon" in body
     assert "client.stop()" in body
 
 

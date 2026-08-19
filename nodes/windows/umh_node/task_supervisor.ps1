@@ -267,6 +267,7 @@ try {
 
     Set-Location -LiteralPath $runRoot
     $env:UMH_DAEMON_STOP_EVENT = $StopEventName
+    $env:UMH_DAEMON_SUPERVISOR_PID = "$PID"
 
     $args = @($op, "run", "--env-file=$EnvTemplate", "--", $pythonw, $launcher) |
         ForEach-Object { Quote-Arg $_ }
@@ -372,6 +373,7 @@ try {
             kill_on_job_close = $true
             handles_inheritable = $false
             waits_for_launcher = $true
+            supervisor_parent_pid = $PID
         }
         started_at = $stamp
     } | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path (Join-Path $runRoot "umh-node-supervisor.json") -Encoding UTF8

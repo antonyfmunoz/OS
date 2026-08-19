@@ -89,6 +89,14 @@ def _install_windows_parent_exit_handler(
     if sys.platform != "win32":
         return
     parent_pid = os.getppid()
+    parent_label = "parent wrapper"
+    supervisor_pid = os.environ.get("UMH_DAEMON_SUPERVISOR_PID", "").strip()
+    if supervisor_pid:
+        try:
+            parent_pid = int(supervisor_pid)
+            parent_label = "task supervisor"
+        except ValueError:
+            logger.warning("invalid UMH_DAEMON_SUPERVISOR_PID=%r", supervisor_pid)
     if parent_pid <= 0:
         return
 
@@ -111,7 +119,7 @@ def _install_windows_parent_exit_handler(
         try:
             result = ctypes.windll.kernel32.WaitForSingleObject(handle, INFINITE)
             if result == WAIT_OBJECT_0:
-                logger.info("governed parent wrapper exited; stopping daemon")
+                logger.info("governed %s exited; stopping daemon", parent_label)
                 loop.call_soon_threadsafe(lambda: asyncio.ensure_future(client.stop()))
         finally:
             ctypes.windll.kernel32.CloseHandle(handle)
@@ -158,7 +166,7 @@ def run_foreground() -> None:
 
 if sys.platform == "win32":
     try:
-        import servicemanager
+        import servicemanager  # noqa: F401 - imported for pywin32 service bootstrap side effects
         import win32event
         import win32service
         import win32serviceutil
