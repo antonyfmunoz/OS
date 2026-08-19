@@ -26,6 +26,9 @@ def test_task_supervisor_owns_op_run_in_kill_on_close_job() -> None:
     assert "op.exe" in body
     assert "run" in body
     assert "--env-file=$EnvTemplate" in body
+    assert "cmd.exe" in body
+    assert "/d" in body
+    assert "/c" in body
     assert "Quote-Arg" in body
     assert "Resolve-RealPythonw" in body
     assert "WindowsApps" in body
@@ -46,6 +49,14 @@ def test_task_supervisor_creates_op_suspended_before_assignment() -> None:
     assert body.index("CreateProcess") < body.index("AssignProcessToJobObject($job, $procInfo.hProcess)")
     assert body.index("AssignProcessToJobObject($job, $procInfo.hProcess)") < body.index("ResumeThread($procInfo.hThread)")
     assert "Start-Process -FilePath $op" not in body
+
+
+def test_task_supervisor_routes_spaceful_python_path_through_cmd() -> None:
+    body = _text(SUPERVISOR)
+
+    assert '$launcherCommand = "`"$pythonw`" `"$launcher`""' in body
+    assert '"cmd.exe", "/d", "/c", $launcherCommand' in body
+    assert "CommandLine -match [regex]::Escape($launcher)" in body
 
 
 def test_task_supervisor_verifies_job_and_descendant_containment() -> None:

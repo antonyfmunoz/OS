@@ -269,7 +269,8 @@ try {
     $env:UMH_DAEMON_STOP_EVENT = $StopEventName
     $env:UMH_DAEMON_SUPERVISOR_PID = "$PID"
 
-    $args = @($op, "run", "--env-file=$EnvTemplate", "--", $pythonw, $launcher) |
+    $launcherCommand = "`"$pythonw`" `"$launcher`""
+    $args = @($op, "run", "--env-file=$EnvTemplate", "--", "cmd.exe", "/d", "/c", $launcherCommand) |
         ForEach-Object { Quote-Arg $_ }
     $commandLine = $args -join " "
     $startup = New-Object UMHJobNative+STARTUPINFO
@@ -323,7 +324,6 @@ try {
         $launcherProc = Get-CimInstance Win32_Process |
             Where-Object {
                 $_.Name -match '^pythonw?\.exe$' -and
-                $_.ParentProcessId -eq [int]$procInfo.dwProcessId -and
                 $_.CommandLine -match [regex]::Escape($launcher)
             } |
             Select-Object -First 1
