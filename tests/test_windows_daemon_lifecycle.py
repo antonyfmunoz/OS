@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SUPERVISOR = ROOT / "nodes" / "windows" / "umh_node" / "task_supervisor.ps1"
+CHILD_SUPERVISOR = ROOT / "nodes" / "windows" / "umh_node" / "daemon_child.ps1"
 STOPPER = ROOT / "nodes" / "windows" / "umh_node" / "stop_daemon.ps1"
 INSTALLER = ROOT / "nodes" / "windows" / "umh_node" / "install_task.ps1"
 SERVICE = ROOT / "nodes" / "windows" / "umh_node" / "service.py"
@@ -26,9 +27,8 @@ def test_task_supervisor_owns_op_run_in_kill_on_close_job() -> None:
     assert "op.exe" in body
     assert "run" in body
     assert "--env-file=$EnvTemplate" in body
-    assert "cmd.exe" in body
-    assert "/d" in body
-    assert "/c" in body
+    assert "daemon_child.ps1" in body
+    assert "powershell.exe" in body
     assert "Quote-Arg" in body
     assert "Resolve-RealPythonw" in body
     assert "WindowsApps" in body
@@ -51,12 +51,25 @@ def test_task_supervisor_creates_op_suspended_before_assignment() -> None:
     assert "Start-Process -FilePath $op" not in body
 
 
-def test_task_supervisor_routes_spaceful_python_path_through_cmd() -> None:
+def test_task_supervisor_routes_spaceful_python_path_through_job_child() -> None:
     body = _text(SUPERVISOR)
 
-    assert '$launcherCommand = "`"$pythonw`" `"$launcher`""' in body
-    assert '"cmd.exe", "/d", "/c", $launcherCommand' in body
+    assert '$childSupervisor = Join-Path $RepoPath "nodes\\windows\\umh_node\\daemon_child.ps1"' in body
+    assert '"powershell.exe"' in body
+    assert '"-File"' in body
+    assert "$childSupervisor" in body
     assert "CommandLine -match [regex]::Escape($launcher)" in body
+
+
+def test_daemon_child_resolves_spaceful_pythonw_without_op_command_parsing() -> None:
+    body = _text(CHILD_SUPERVISOR)
+
+    assert "Resolve-RealPythonw" in body
+    assert "WindowsApps" in body
+    assert "$process.StartInfo.FileName = $pythonw" in body
+    assert "$process.StartInfo.Arguments" in body
+    assert "$process.StartInfo.UseShellExecute = $false" in body
+    assert "$process.WaitForExit()" in body
 
 
 def test_task_supervisor_verifies_job_and_descendant_containment() -> None:

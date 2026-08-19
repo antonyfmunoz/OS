@@ -6,7 +6,7 @@
     Task Scheduler must own a persistent process, not the transient 1Password
     wrapper. This supervisor starts:
 
-        op.exe run --env-file=<tpl> -- pythonw.exe <repo>\nodes\windows\umh_node\launcher.py
+        op.exe run --env-file=<tpl> -- powershell.exe -File <repo>\nodes\windows\umh_node\daemon_child.ps1
 
     inside a Windows Job Object with KILL_ON_JOB_CLOSE. If Task Scheduler ends
     the supervisor directly, Windows closes the job handle and removes the
@@ -28,8 +28,12 @@ $logRoot = Join-Path $runtimeRoot "logs"
 New-Item -ItemType Directory -Force -Path $runRoot, $logRoot | Out-Null
 
 $launcher = Join-Path $RepoPath "nodes\windows\umh_node\launcher.py"
+$childSupervisor = Join-Path $RepoPath "nodes\windows\umh_node\daemon_child.ps1"
 if (-not (Test-Path -LiteralPath $launcher)) {
     throw "launcher not found: $launcher"
+}
+if (-not (Test-Path -LiteralPath $childSupervisor)) {
+    throw "daemon child supervisor not found: $childSupervisor"
 }
 if (-not (Test-Path -LiteralPath $EnvTemplate)) {
     throw "1Password environment template not found: $EnvTemplate"
@@ -269,8 +273,22 @@ try {
     $env:UMH_DAEMON_STOP_EVENT = $StopEventName
     $env:UMH_DAEMON_SUPERVISOR_PID = "$PID"
 
-    $launcherCommand = "`"$pythonw`" `"$launcher`""
-    $args = @($op, "run", "--env-file=$EnvTemplate", "--", "cmd.exe", "/d", "/c", $launcherCommand) |
+    $args = @(
+        $op,
+        "run",
+        "--env-file=$EnvTemplate",
+        "--",
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        $childSupervisor,
+        "-RepoPath",
+        $RepoPath,
+        "-StopEventName",
+        $StopEventName
+    ) |
         ForEach-Object { Quote-Arg $_ }
     $commandLine = $args -join " "
     $startup = New-Object UMHJobNative+STARTUPINFO
