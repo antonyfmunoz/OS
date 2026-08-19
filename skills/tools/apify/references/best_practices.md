@@ -17,7 +17,7 @@ APIFY_API_TOKEN = os.environ["APIFY_API_TOKEN"]
 
 # Apify recommends bearer authentication.
 headers = {"Authorization": f"Bearer {APIFY_API_TOKEN}"}
-url = f"https://api.apify.com/v2/acts/{actor_id}/runs"
+url = f"https://api.apify.com/v2/actors/{actor_id}/runs"
 ```
 
 Token generated at: console.apify.com > Settings > Integrations.
@@ -49,7 +49,7 @@ client = ApifyClient(token=os.environ["APIFY_API_TOKEN"])
 
 ### Start actor run (REST API — EOS pattern)
 ```
-POST https://api.apify.com/v2/acts/{actorId}/runs
+POST https://api.apify.com/v2/actors/{actorId}/runs
 Authorization: Bearer {token}
 
 Request body:
@@ -144,10 +144,10 @@ items = client.dataset(run["defaultDatasetId"]).list_items().items
 
 ### Actor management
 ```
-GET  /v2/acts                                      # list actors
-GET  /v2/acts/{actorId}                            # actor details
-GET  /v2/acts/{actorId}/versions                   # version history
-POST /v2/acts/{actorId}/runs                       # start run
+GET  /v2/actors                                    # list actors
+GET  /v2/actors/{actorId}                          # actor details
+GET  /v2/actors/{actorId}/versions                 # version history
+POST /v2/actors/{actorId}/runs                     # start run
 GET  /v2/actor-runs/{runId}/log                    # run logs
 DELETE /v2/actor-runs/{runId}                      # abort run
 ```
@@ -237,20 +237,55 @@ is safe.
 MAX_RETRIES = 5
 BASE_BACKOFF = 2  # seconds
 
-def start_actor_with_reconciliation(actor_id, input_data):
+def start_actor_with_reconciliation(
+    actor_id,
+    input_data,
+    run_options,
+    expected_request_fingerprint,
+):
+    if not isinstance(run_options, dict):
+        raise ValueError("Run options must be an object.")
+    charge_cap = run_options.get("maxTotalChargeUsd")
+    if (
+        not isinstance(actor_id, str)
+        or not actor_id.strip()
+        or actor_id != actor_id.strip()
+    ):
+        raise ValueError("Actor ID required.")
+    if not isinstance(input_data, dict):
+        raise ValueError("Actor input must be an object.")
+    if (
+        set(run_options) != {"maxTotalChargeUsd"}
+        or isinstance(charge_cap, bool)
+        or not isinstance(charge_cap, (int, float))
+        or not 0 < charge_cap < float("inf")
+    ):
+        raise ValueError("A positive maxTotalChargeUsd run option is required.")
+    if (
+        not isinstance(expected_request_fingerprint, str)
+        or len(expected_request_fingerprint) != 64
+        or any(
+            character not in "0123456789abcdef"
+            for character in expected_request_fingerprint
+        )
+    ):
+        raise ValueError("Request fingerprint required.")
     attempt_started_at = time.time()
     for attempt in range(MAX_RETRIES):
         try:
             response = requests.post(
-                f"https://api.apify.com/v2/acts/{actor_id}/runs",
+                f"https://api.apify.com/v2/actors/{actor_id}/runs",
                 headers=headers,
                 json=input_data,
+                params=run_options,
                 timeout=30,
             )
         except requests.RequestException as error:
             return reconcile_run_or_raise(
                 actor_id,
                 input_data,
+                run_options,
+                expected_request_fingerprint,
                 attempt_started_at,
                 error,
             )
@@ -258,24 +293,42 @@ def start_actor_with_reconciliation(actor_id, input_data):
         if response.status_code == 429:
             time.sleep(retry_after_seconds(response, BASE_BACKOFF ** attempt))
             continue
-        if response.status_code >= 500:
+        if response.status_code == 408 or response.status_code >= 500:
             return reconcile_run_or_raise(
                 actor_id,
                 input_data,
+                run_options,
+                expected_request_fingerprint,
                 attempt_started_at,
                 RuntimeError(f"Run start returned {response.status_code}"),
             )
         response.raise_for_status()
-        return response.json()["data"]["id"]
+        try:
+            payload = response.json()
+            run_id = payload["data"]["id"]
+            if not isinstance(run_id, str):
+                raise ValueError("Run ID must be a string.")
+            return run_id
+        except (KeyError, TypeError, ValueError) as error:
+            return reconcile_run_or_raise(
+                actor_id,
+                input_data,
+                run_options,
+                expected_request_fingerprint,
+                attempt_started_at,
+                error,
+            )
 
     raise RuntimeError("Run start remained rate limited.")
 ```
 
-`reconcile_run_or_raise` must list runs for the exact Actor started after
-`attempt_started_at`, fetch each candidate's `INPUT` record, and compare its
-canonical JSON with `input_data`. Reuse the run ID only when exactly one match
-exists. If no unique match exists, stop for operator review. Never blindly
-repeat a paid POST after an uncertain outcome.
+Before submission, persist the canonical Actor ID, `input_data`, complete
+`run_options`, and `expected_request_fingerprint`. `reconcile_run_or_raise`
+must validate that saved envelope, list runs for the exact Actor started after
+`attempt_started_at`, and fetch each candidate's `INPUT` record. Reuse a run ID
+only when exactly one candidate matches every required field. If the saved
+envelope, run options, candidate input, or unique match is unavailable, stop
+for operator review. Never repeat a paid POST after an uncertain outcome.
 
 ---
 
@@ -614,11 +667,11 @@ EOS proxy is optional (`INSTAGRAM_USE_PROXY=true`) — default is direct.
 # No explicit version pinning — risk: breaking changes
 
 # To pin (recommended for production):
-POST /v2/acts/{actorId}/runs?version=1.2.3
+POST /v2/actors/{actorId}/runs?version=1.2.3
 Authorization: Bearer {token}
 
 # Check current version:
-GET /v2/acts/{actorId}
+GET /v2/actors/{actorId}
 Authorization: Bearer {token}
 → response.data.versions[].versionNumber
 ```

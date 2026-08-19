@@ -99,7 +99,7 @@ APIFY_API_TOKEN = os.environ["APIFY_API_TOKEN"]
 
 # Prefer bearer authentication. URLs can appear in logs and history.
 headers = {"Authorization": f"Bearer {APIFY_API_TOKEN}"}
-url = f"https://api.apify.com/v2/acts/{actor_id}/runs"
+url = f"https://api.apify.com/v2/actors/{actor_id}/runs"
 
 # Proxy auth uses separate password
 APIFY_PROXY_PASSWORD = os.getenv("APIFY_PROXY_PASSWORD")
@@ -115,7 +115,7 @@ Treat it as a secret. Never print, log, or persist it.
 import requests
 
 headers = {"Authorization": f"Bearer {APIFY_API_TOKEN}"}
-url = f"https://api.apify.com/v2/acts/{actor_id}/runs"
+url = f"https://api.apify.com/v2/actors/{actor_id}/runs"
 response = requests.post(url, headers=headers, json=input_data, timeout=30)
 response.raise_for_status()
 run_id = response.json()["data"]["id"]

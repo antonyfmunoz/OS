@@ -36,20 +36,21 @@ Refreshed Apify authentication, rate-limit, approval, and validation guidance.
 
 ## Verification Record
 
-Verified at `2026-08-19T05:18:27Z` after rebasing onto `c9ac68225`.
+Verified at `2026-08-19T05:34:57Z` after rebasing onto `c9ac68225`.
 
 | Command | Result |
 |---------|--------|
 | `UMH_ROOT="$PWD" python3 -m scripts.verify_tool_skill --skill apify` | Pass |
 | `UMH_ROOT="$PWD" python3 -m scripts.tme_quality_audit apify` | A, 10/10 frontmatter, 19/19 sections, 6/6 depth, 0 warnings |
-| `uv run --python 3.11 --with pytest --with pytest-asyncio --with requests python -m pytest tests/test_apify_xquik_docs.py -q` | 3 passed |
+| `uv run --python 3.11 --with pytest --with pytest-asyncio python -m pytest tests/test_apify_xquik_docs.py -q` | 12 passed |
 | `uvx ruff check tests/test_apify_xquik_docs.py` | Pass |
 | `uvx ruff format --check tests/test_apify_xquik_docs.py` | Pass |
 | `git diff --check` | Pass |
 
 The committed regression at `tests/test_apify_xquik_docs.py` parses all 38
-Python examples. It executes the paid-run helper offline and proves the request
-sends only `maxTotalChargeUsd`. It also rejects pricing-model drift.
+Python examples without executing Markdown. AST checks enforce the paid-run
+request and uncertainty contract. A trusted mirror matches the documented
+dataset helper's AST and tests target filtering, provenance, and both caps.
 
 Public Actor metadata checks returned these IDs with `PAY_PER_EVENT` pricing:
 
