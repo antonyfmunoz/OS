@@ -81,6 +81,7 @@ class NodeState:
     observation_channel: str = ""
     observation_error: str = ""
     detail: str = ""
+    task_process_diverged: bool = False
 
     @property
     def condition(self) -> str:
@@ -90,6 +91,8 @@ class NodeState:
             return "OBSERVATION_UNAVAILABLE"
         if not self.interactive_session_exists:
             return "NO_INTERACTIVE_SESSION"
+        if self.task_process_diverged:
+            return "TASK_PROCESS_DIVERGED"
         n_launch = len(self.launcher_pids)
         one_identity = self.connected_node_ids == [_MESH_NODE_ID]
         if n_launch == 0:
@@ -286,6 +289,10 @@ def _apply_observation_doc(st: NodeState, doc: dict) -> None:
     ]
     task_text = str(doc.get("task", ""))
     st.live_tasks = [_CANONICAL_TASK] if _task_is_running(task_text) else []
+    task_running = bool(st.live_tasks)
+    if bool(st.launcher_pids) and not task_running:
+        st.task_process_diverged = True
+        st.detail = "scheduled-task running state diverges from launcher process state"
 
 
 def observe() -> NodeState:
@@ -381,6 +388,15 @@ def reconcile(*, dry_run: bool = False, prove: bool = True) -> dict:
         out["reason"] = "Windows observation unavailable; refusing repair without authoritative session/task/process truth"
         return out
 
+    if before.condition == "TASK_PROCESS_DIVERGED":
+        out["ok"] = False
+        out["needs_owner_decision"] = False
+        out["reason"] = (
+            "scheduled task/process lifecycle diverged; refusing to classify a "
+            "Ready task with a live launcher, or a Running task with no launcher, as healthy"
+        )
+        return out
+
     if before.condition == "HEALTHY":
         out["ok"] = True
         out["reason"] = "already healthy: one launcher in console session, one mesh identity"
@@ -412,6 +428,10 @@ def reconcile(*, dry_run: bool = False, prove: bool = True) -> dict:
         timeout=70,
     )
     out["actions"].append({"stop_task": _CANONICAL_TASK, "ok": r["ok"], "stdout": r["stdout"][:300]})
+    if not r["ok"]:
+        out["ok"] = False
+        out["reason"] = "canonical stop helper failed; refusing to restart into duplicate launcher state"
+        return out
 
     time.sleep(3)
     r = _mesh_shell(f'schtasks /Run /TN "{_CANONICAL_TASK}"', timeout=40)

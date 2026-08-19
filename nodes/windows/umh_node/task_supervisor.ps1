@@ -111,26 +111,98 @@ public static class UMHJobNative {
     public UIntPtr PeakJobMemoryUsed;
   }
 
-  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+  [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+  public struct STARTUPINFO {
+    public UInt32 cb;
+    public string lpReserved;
+    public string lpDesktop;
+    public string lpTitle;
+    public UInt32 dwX;
+    public UInt32 dwY;
+    public UInt32 dwXSize;
+    public UInt32 dwYSize;
+    public UInt32 dwXCountChars;
+    public UInt32 dwYCountChars;
+    public UInt32 dwFillAttribute;
+    public UInt32 dwFlags;
+    public UInt16 wShowWindow;
+    public UInt16 cbReserved2;
+    public IntPtr lpReserved2;
+    public IntPtr hStdInput;
+    public IntPtr hStdOutput;
+    public IntPtr hStdError;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  public struct PROCESS_INFORMATION {
+    public IntPtr hProcess;
+    public IntPtr hThread;
+    public UInt32 dwProcessId;
+    public UInt32 dwThreadId;
+  }
+
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
   public static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName);
 
-  [DllImport("kernel32.dll")]
+  [DllImport("kernel32.dll", SetLastError = true)]
   public static extern bool SetInformationJobObject(
     IntPtr hJob,
     int JobObjectInfoClass,
     IntPtr lpJobObjectInfo,
     uint cbJobObjectInfoLength);
 
-  [DllImport("kernel32.dll")]
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern bool QueryInformationJobObject(
+    IntPtr hJob,
+    int JobObjectInfoClass,
+    IntPtr lpJobObjectInfo,
+    uint cbJobObjectInfoLength,
+    out uint lpReturnLength);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
   public static extern bool AssignProcessToJobObject(IntPtr hJob, IntPtr hProcess);
 
-  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern bool IsProcessInJob(IntPtr ProcessHandle, IntPtr JobHandle, out bool Result);
+
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  public static extern bool CreateProcess(
+    string lpApplicationName,
+    string lpCommandLine,
+    IntPtr lpProcessAttributes,
+    IntPtr lpThreadAttributes,
+    bool bInheritHandles,
+    UInt32 dwCreationFlags,
+    IntPtr lpEnvironment,
+    string lpCurrentDirectory,
+    ref STARTUPINFO lpStartupInfo,
+    out PROCESS_INFORMATION lpProcessInformation);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern UInt32 ResumeThread(IntPtr hThread);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern UInt32 WaitForSingleObject(IntPtr hHandle, UInt32 dwMilliseconds);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern bool GetExitCodeProcess(IntPtr hProcess, out UInt32 lpExitCode);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern IntPtr OpenProcess(UInt32 dwDesiredAccess, bool bInheritHandle, UInt32 dwProcessId);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern bool TerminateJobObject(IntPtr hJob, UInt32 uExitCode);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
+  public static extern bool SetHandleInformation(IntPtr hObject, UInt32 dwMask, UInt32 dwFlags);
+
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
   public static extern IntPtr CreateEvent(IntPtr lpEventAttributes, bool bManualReset, bool bInitialState, string lpName);
 
-  [DllImport("kernel32.dll")]
+  [DllImport("kernel32.dll", SetLastError = true)]
   public static extern bool ResetEvent(IntPtr hEvent);
 
-  [DllImport("kernel32.dll")]
+  [DllImport("kernel32.dll", SetLastError = true)]
   public static extern bool CloseHandle(IntPtr hObject);
 }
 "@
@@ -139,15 +211,26 @@ Add-Type -TypeDefinition $native
 
 $JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
 $JobObjectExtendedLimitInformation = 9
+$CREATE_SUSPENDED = 0x00000004
+$CREATE_NO_WINDOW = 0x08000000
+$HANDLE_FLAG_INHERIT = 0x00000001
+$PROCESS_QUERY_LIMITED_INFORMATION = 0x00001000
+$INFINITE = 0xFFFFFFFF
 
 $job = [UMHJobNative]::CreateJobObject([IntPtr]::Zero, "UMHNodeDaemon-$PID")
 if ($job -eq [IntPtr]::Zero) {
-    throw "CreateJobObject failed"
+    throw "CreateJobObject failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+}
+if (-not [UMHJobNative]::SetHandleInformation($job, $HANDLE_FLAG_INHERIT, 0)) {
+    throw "SetHandleInformation(job, non-inheritable) failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
 }
 
 $stopEvent = [UMHJobNative]::CreateEvent([IntPtr]::Zero, $true, $false, $StopEventName)
 if ($stopEvent -eq [IntPtr]::Zero) {
-    throw "CreateEvent failed"
+    throw "CreateEvent failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+}
+if (-not [UMHJobNative]::SetHandleInformation($stopEvent, $HANDLE_FLAG_INHERIT, 0)) {
+    throw "SetHandleInformation(stopEvent, non-inheritable) failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
 }
 [void][UMHJobNative]::ResetEvent($stopEvent)
 
@@ -159,36 +242,143 @@ $ptr = [Runtime.InteropServices.Marshal]::AllocHGlobal($size)
 try {
     [Runtime.InteropServices.Marshal]::StructureToPtr($limits, $ptr, $false)
     if (-not [UMHJobNative]::SetInformationJobObject($job, $JobObjectExtendedLimitInformation, $ptr, [uint32]$size)) {
-        throw "SetInformationJobObject(KILL_ON_JOB_CLOSE) failed"
+        throw "SetInformationJobObject(KILL_ON_JOB_CLOSE) failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+    }
+    $verifyPtr = [Runtime.InteropServices.Marshal]::AllocHGlobal($size)
+    try {
+        $returned = [uint32]0
+        if (-not [UMHJobNative]::QueryInformationJobObject($job, $JobObjectExtendedLimitInformation, $verifyPtr, [uint32]$size, [ref]$returned)) {
+            throw "QueryInformationJobObject(limits) failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+        }
+        $verifiedLimits = [Runtime.InteropServices.Marshal]::PtrToStructure($verifyPtr, [type][UMHJobNative+JOBOBJECT_EXTENDED_LIMIT_INFORMATION])
+        if (($verifiedLimits.BasicLimitInformation.LimitFlags -band $JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE) -eq 0) {
+            throw "Job limit verification failed: KILL_ON_JOB_CLOSE not active"
+        }
+    }
+    finally {
+        if ($verifyPtr -ne [IntPtr]::Zero) {
+            [Runtime.InteropServices.Marshal]::FreeHGlobal($verifyPtr)
+        }
     }
 
     Set-Location -LiteralPath $runRoot
     $env:UMH_DAEMON_STOP_EVENT = $StopEventName
 
-    $args = @("run", "--env-file=$EnvTemplate", "--", $pythonw, $launcher) |
+    $args = @($op, "run", "--env-file=$EnvTemplate", "--", $pythonw, $launcher) |
         ForEach-Object { Quote-Arg $_ }
-    $proc = Start-Process -FilePath $op -ArgumentList ($args -join " ") -WorkingDirectory $runRoot -WindowStyle Hidden -PassThru
-    if (-not [UMHJobNative]::AssignProcessToJobObject($job, $proc.Handle)) {
-        try { $proc.Kill() } catch {}
-        throw "AssignProcessToJobObject failed for op.exe pid=$($proc.Id)"
+    $commandLine = $args -join " "
+    $startup = New-Object UMHJobNative+STARTUPINFO
+    $startup.cb = [Runtime.InteropServices.Marshal]::SizeOf([type][UMHJobNative+STARTUPINFO])
+    $procInfo = New-Object UMHJobNative+PROCESS_INFORMATION
+
+    if (-not [UMHJobNative]::CreateProcess($op, $commandLine, [IntPtr]::Zero, [IntPtr]::Zero, $false, ($CREATE_SUSPENDED -bor $CREATE_NO_WINDOW), [IntPtr]::Zero, $runRoot, [ref]$startup, [ref]$procInfo)) {
+        throw "CreateProcess(op.exe suspended) failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+    }
+
+    $childAssigned = $false
+    try {
+        if (-not [UMHJobNative]::AssignProcessToJobObject($job, $procInfo.hProcess)) {
+            [void][UMHJobNative]::TerminateJobObject($job, 2)
+            throw "AssignProcessToJobObject failed for suspended op.exe pid=$($procInfo.dwProcessId) win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+        }
+        $inJob = $false
+        if (-not [UMHJobNative]::IsProcessInJob($procInfo.hProcess, $job, [ref]$inJob)) {
+            [void][UMHJobNative]::TerminateJobObject($job, 2)
+            throw "IsProcessInJob(op.exe) failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+        }
+        if (-not $inJob) {
+            [void][UMHJobNative]::TerminateJobObject($job, 2)
+            throw "op.exe pid=$($procInfo.dwProcessId) is not in supervisor Job"
+        }
+        $childAssigned = $true
+        $resumed = [UMHJobNative]::ResumeThread($procInfo.hThread)
+        if ($resumed -eq 0xFFFFFFFF) {
+            [void][UMHJobNative]::TerminateJobObject($job, 2)
+            throw "ResumeThread(op.exe) failed win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+        }
+    }
+    finally {
+        if (-not $childAssigned) {
+            try { [void][UMHJobNative]::TerminateJobObject($job, 2) } catch {}
+        }
     }
 
     $stamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    $candidateSha = ""
+    try {
+        $candidateSha = (& git -C $RepoPath rev-parse HEAD 2>$null | Select-Object -First 1).Trim()
+    } catch {
+        $candidateSha = ""
+    }
+    $launcherPid = $null
+    $launcherInJob = $false
+    $deadline = (Get-Date).AddSeconds(20)
+    do {
+        Start-Sleep -Milliseconds 500
+        $launcherProc = Get-CimInstance Win32_Process |
+            Where-Object {
+                $_.Name -match '^pythonw?\.exe$' -and
+                $_.ParentProcessId -eq [int]$procInfo.dwProcessId -and
+                $_.CommandLine -match [regex]::Escape($launcher)
+            } |
+            Select-Object -First 1
+        if ($launcherProc) {
+            $launcherPid = [int]$launcherProc.ProcessId
+            $launcherHandle = [UMHJobNative]::OpenProcess($PROCESS_QUERY_LIMITED_INFORMATION, $false, [uint32]$launcherPid)
+            if ($launcherHandle -ne [IntPtr]::Zero) {
+                try {
+                    $tmp = $false
+                    if ([UMHJobNative]::IsProcessInJob($launcherHandle, $job, [ref]$tmp)) {
+                        $launcherInJob = $tmp
+                    }
+                }
+                finally {
+                    [void][UMHJobNative]::CloseHandle($launcherHandle)
+                }
+            }
+            break
+        }
+    } while ((Get-Date) -lt $deadline)
+    if (-not $launcherPid -or -not $launcherInJob) {
+        [void][UMHJobNative]::TerminateJobObject($job, 2)
+        throw "launcher containment verification failed op_pid=$($procInfo.dwProcessId) launcher_pid=$launcherPid in_job=$launcherInJob"
+    }
+
     @{
         task = $TaskName
         supervisor_pid = $PID
-        op_pid = $proc.Id
+        job_name = "UMHNodeDaemon-$PID"
+        op_pid = [int]$procInfo.dwProcessId
+        launcher_pid = $launcherPid
+        candidate_sha = $candidateSha
         repo_path = $RepoPath
         launcher = $launcher
         env_template = $EnvTemplate
         stop_event = $StopEventName
+        containment_verified = @{
+            op_in_job = $true
+            launcher_in_job = $launcherInJob
+            create_suspended = $true
+            kill_on_job_close = $true
+            handles_inheritable = $false
+        }
         started_at = $stamp
     } | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path (Join-Path $runRoot "umh-node-supervisor.json") -Encoding UTF8
 
-    $proc.WaitForExit()
-    exit $proc.ExitCode
+    [void][UMHJobNative]::WaitForSingleObject($procInfo.hProcess, $INFINITE)
+    $exitCode = [uint32]0
+    if (-not [UMHJobNative]::GetExitCodeProcess($procInfo.hProcess, [ref]$exitCode)) {
+        $exitCode = 1
+    }
+    exit $exitCode
 }
 finally {
+    if ($procInfo.hThread -and $procInfo.hThread -ne [IntPtr]::Zero) {
+        [void][UMHJobNative]::CloseHandle($procInfo.hThread)
+    }
+    if ($procInfo.hProcess -and $procInfo.hProcess -ne [IntPtr]::Zero) {
+        [void][UMHJobNative]::CloseHandle($procInfo.hProcess)
+    }
     if ($ptr -ne [IntPtr]::Zero) {
         [Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)
     }

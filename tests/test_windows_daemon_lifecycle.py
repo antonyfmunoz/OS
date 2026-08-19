@@ -36,6 +36,52 @@ def test_task_supervisor_owns_op_run_in_kill_on_close_job() -> None:
     assert "Stop-Process -Name" not in body
 
 
+def test_task_supervisor_creates_op_suspended_before_assignment() -> None:
+    body = _text(SUPERVISOR)
+
+    assert "CreateProcess" in body
+    assert "CREATE_SUSPENDED" in body
+    assert "AssignProcessToJobObject($job, $procInfo.hProcess)" in body
+    assert "ResumeThread($procInfo.hThread)" in body
+    assert body.index("CreateProcess") < body.index("AssignProcessToJobObject($job, $procInfo.hProcess)")
+    assert body.index("AssignProcessToJobObject($job, $procInfo.hProcess)") < body.index("ResumeThread($procInfo.hThread)")
+    assert "Start-Process -FilePath $op" not in body
+
+
+def test_task_supervisor_verifies_job_and_descendant_containment() -> None:
+    body = _text(SUPERVISOR)
+
+    assert "SetHandleInformation($job, $HANDLE_FLAG_INHERIT, 0)" in body
+    assert "SetHandleInformation($stopEvent, $HANDLE_FLAG_INHERIT, 0)" in body
+    assert "QueryInformationJobObject" in body
+    assert "KILL_ON_JOB_CLOSE not active" in body
+    assert "IsProcessInJob($procInfo.hProcess, $job" in body
+    assert "launcher containment verification failed" in body
+    assert "launcher_in_job" in body
+    assert "handles_inheritable = $false" in body
+
+
+def test_task_supervisor_fails_closed_on_native_launch_or_assignment_failure() -> None:
+    body = _text(SUPERVISOR)
+
+    assert "CreateProcess(op.exe suspended) failed win32=" in body
+    assert "AssignProcessToJobObject failed for suspended op.exe" in body
+    assert "TerminateJobObject($job, 2)" in body
+    assert "ResumeThread(op.exe) failed win32=" in body
+    assert "GetLastWin32Error()" in body
+
+
+def test_task_supervisor_manifest_records_observed_ownership_boundary() -> None:
+    body = _text(SUPERVISOR)
+
+    assert "supervisor_pid" in body
+    assert "job_name" in body
+    assert "op_pid" in body
+    assert "launcher_pid" in body
+    assert "candidate_sha" in body
+    assert "containment_verified" in body
+
+
 def test_installer_makes_powershell_supervisor_the_task_action() -> None:
     body = _text(INSTALLER)
 
@@ -98,3 +144,23 @@ def test_reconciler_uses_canonical_stop_helper_not_pid_force_kill() -> None:
     assert "stop_task" in body
     assert "taskkill /PID" not in body
     assert "terminate every launcher.py process" not in body
+
+
+def test_reconciler_refuses_task_process_divergence_as_healthy() -> None:
+    body = _text(RECONCILER)
+    condition_body = body.split("def condition(self) -> str:", 1)[1].split(
+        "# \u2500\u2500 mesh admin plumbing", 1
+    )[0]
+
+    assert "task_process_diverged" in body
+    assert "TASK_PROCESS_DIVERGED" in body
+    assert "scheduled task/process lifecycle diverged" in body
+    assert condition_body.index("TASK_PROCESS_DIVERGED") < condition_body.index("HEALTHY")
+
+
+def test_reconciler_failed_stop_refuses_restart() -> None:
+    body = _text(RECONCILER)
+    repair_body = body.split("stop_task", 1)[1].split("start_task", 1)[0]
+
+    assert "canonical stop helper failed" in body
+    assert 'if not r["ok"]' in repair_body
