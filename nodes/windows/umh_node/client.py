@@ -70,6 +70,7 @@ class NodeClient:
         self._shutdown = asyncio.Event()
         self._msg_id = 0
         self._pending_rpc: dict[Any, asyncio.Future[dict[str, Any]]] = {}
+        self._ws_send_lock: asyncio.Lock | None = None
 
         self._adapters: dict[str, Any] = {}
         self._init_adapters()
@@ -180,7 +181,7 @@ class NodeClient:
                     self._media_queue.clear()
                     break
                 try:
-                    await self._ws.send(msg)
+                    await self._send_ws(msg)
                 except Exception as exc:
                     logger.debug("media send failed: %s", exc)
                     self._media_queue.clear()
@@ -189,6 +190,16 @@ class NodeClient:
     def _next_id(self) -> int:
         self._msg_id += 1
         return self._msg_id
+
+    async def _send_ws(self, payload: str | bytes) -> None:
+        if self._ws is None:
+            raise ConnectionError("node websocket not connected")
+        send_lock = self._ws_send_lock
+        if send_lock is None:
+            await self._ws.send(payload)
+            return
+        async with send_lock:
+            await self._ws.send(payload)
 
     def _build_capabilities(self) -> list[dict[str, str]]:
         caps = []
@@ -276,6 +287,7 @@ class NodeClient:
     async def run(self) -> None:
         """Main loop — connect with exponential backoff, handle messages."""
         self._loop = asyncio.get_running_loop()
+        self._ws_send_lock = asyncio.Lock()
         backoff = 1.0
         max_backoff = self._config.reconnect_max_backoff_s
 
@@ -371,7 +383,7 @@ class NodeClient:
             },
             "id": self._next_id(),
         }
-        await self._ws.send(json.dumps(msg))
+        await self._send_ws(json.dumps(msg))
         resp = json.loads(await self._ws.recv())
         result = resp.get("result", {})
         if result.get("accepted"):
@@ -395,7 +407,7 @@ class NodeClient:
         )
         if self._connected and self._ws is not None:
             try:
-                await self._ws.send(
+                await self._send_ws(
                     json.dumps(
                         {
                             "jsonrpc": "2.0",
@@ -426,7 +438,7 @@ class NodeClient:
                     "params": {"metrics": metrics},
                     "id": self._next_id(),
                 }
-                await self._ws.send(json.dumps(msg))
+                await self._send_ws(json.dumps(msg))
             except Exception as exc:
                 logger.warning("heartbeat send failed: %s", exc)
                 break
@@ -558,7 +570,7 @@ class NodeClient:
             msg_id = msg.get("id")
             if msg_id and self._ws:
                 try:
-                    await self._ws.send(
+                    await self._send_ws(
                         json.dumps(
                             {
                                 "jsonrpc": "2.0",
@@ -591,23 +603,26 @@ class NodeClient:
         if expect_ack:
             future = asyncio.get_running_loop().create_future()
             self._pending_rpc[msg_id] = future
-        await self._ws.send(
-            json.dumps(
-                {
-                    "jsonrpc": "2.0",
-                    "method": method,
-                    "params": payload,
-                    "id": msg_id,
-                }
-            )
+        message = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "method": method,
+                "params": payload,
+                "id": msg_id,
+            }
         )
-        if not expect_ack or future is None:
-            return None
         try:
+            await self._send_ws(message)
+            if not expect_ack or future is None:
+                return None
             return await asyncio.wait_for(future, timeout=timeout_s)
         except asyncio.TimeoutError:
             self._pending_rpc.pop(msg_id, None)
             return {"ok": False, "error": f"{method} acknowledgement timed out"}
+        except BaseException:
+            if expect_ack:
+                self._pending_rpc.pop(msg_id, None)
+            raise
 
     async def _handle_durable_command(self, msg: dict[str, Any]) -> None:
         params = msg.get("params", {})
@@ -979,7 +994,7 @@ class NodeClient:
                     cap_name,
                     verdict_reason,
                 )
-                await self._ws.send(
+                await self._send_ws(
                     json.dumps(
                         {
                             "jsonrpc": "2.0",
@@ -1003,7 +1018,7 @@ class NodeClient:
 
             if not allowed:
                 logger.warning("capability %s denied: %s", cap_name, reason)
-                await self._ws.send(
+                await self._send_ws(
                     json.dumps(
                         {
                             "jsonrpc": "2.0",
@@ -1019,7 +1034,7 @@ class NodeClient:
 
             adapter = self._adapters.get(adapter_key)
             if adapter is None:
-                await self._ws.send(
+                await self._send_ws(
                     json.dumps(
                         {
                             "jsonrpc": "2.0",
@@ -1060,7 +1075,7 @@ class NodeClient:
                 result = {"success": False, "error": f"{cap_name} timed out"}
             duration = (time.monotonic() - t0) * 1000
 
-            await self._ws.send(
+            await self._send_ws(
                 json.dumps(
                     {
                         "jsonrpc": "2.0",
@@ -1097,7 +1112,7 @@ class NodeClient:
             "id": self._next_id(),
         }
         try:
-            await self._ws.send(json.dumps(msg))
+            await self._send_ws(json.dumps(msg))
         except Exception as exc:
             logger.warning("signal emit failed: %s", exc)
 

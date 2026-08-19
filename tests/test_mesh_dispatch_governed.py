@@ -18,6 +18,7 @@ import asyncio
 import json
 import os
 import sys
+from collections import deque
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _REPO_ROOT)
@@ -314,8 +315,11 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     client._connected = True
     client._msg_id = 0
     client._pending_rpc = {}
+    client._ws_send_lock = asyncio.Lock()
     client._durable_store = DurableRemoteStore(tmp_path)
     client._durable_processes = {}
+    client._media_queue = deque(maxlen=4)
+    client._media_event = asyncio.Event()
     client._adapters = {}
     return client
 
@@ -483,6 +487,429 @@ def test_durable_node_does_not_run_adapter_when_running_ack_is_rejected(tmp_path
     assert result is not None
     assert result["state"] == "FAILED"
     assert "running acknowledgement rejected" in result["result"]["error"]
+
+
+def test_durable_control_send_waits_for_shared_ws_send_lock(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _Ws:
+        def __init__(self) -> None:
+            self.sent: list[dict[str, object]] = []
+
+        async def send(self, raw: str) -> None:
+            msg = json.loads(raw)
+            self.sent.append(msg)
+            await client._handle_message(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "result": {"ok": True, "error": ""},
+                        "id": msg.get("id"),
+                    }
+                )
+            )
+
+    async def _run() -> tuple[list[dict[str, object]], dict[str, object], bool]:
+        assert client._ws_send_lock is not None
+        await client._ws_send_lock.acquire()
+        client._ws = _Ws()
+        task = asyncio.create_task(
+            client._send_durable_event(
+                "durable_command.claimed",
+                {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+                expect_ack=True,
+                timeout_s=1.0,
+            )
+        )
+        await asyncio.sleep(0)
+        blocked_without_send = not client._ws.sent
+        client._ws_send_lock.release()
+        ack = await task
+        return client._ws.sent, ack or {}, blocked_without_send
+
+    sent, ack, blocked_without_send = asyncio.run(_run())
+    assert blocked_without_send is True
+    assert sent[0]["method"] == "durable_command.claimed"
+    assert ack["ok"] is True
+
+
+def test_node_client_has_no_ws_send_path_outside_shared_helper() -> None:
+    source = open(
+        os.path.join(_REPO_ROOT, "nodes", "windows", "umh_node", "client.py"),
+        encoding="utf-8",
+    ).read()
+    assert "async def _send_ws" in source
+    assert source.count("await self._ws.send(") == 2
+
+
+def test_durable_ack_delayed_inside_timeout_succeeds(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _Ws:
+        async def send(self, raw: str) -> None:
+            msg = json.loads(raw)
+
+            async def _respond() -> None:
+                await asyncio.sleep(0.02)
+                await client._handle_message(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "result": {"ok": True, "error": ""},
+                            "id": msg.get("id"),
+                        }
+                    )
+                )
+
+            asyncio.create_task(_respond())
+
+    async def _run() -> dict[str, object]:
+        client._ws = _Ws()
+        return await client._send_durable_event(
+            "durable_command.claimed",
+            {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+            expect_ack=True,
+            timeout_s=0.2,
+        ) or {}
+
+    assert asyncio.run(_run())["ok"] is True
+
+
+def test_durable_ack_timeout_is_bounded_and_next_send_can_proceed(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _Ws:
+        def __init__(self) -> None:
+            self.sent: list[dict[str, object]] = []
+            self.respond = False
+
+        async def send(self, raw: str) -> None:
+            msg = json.loads(raw)
+            self.sent.append(msg)
+            if self.respond:
+                await client._handle_message(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "result": {"ok": True, "error": ""},
+                            "id": msg.get("id"),
+                        }
+                    )
+                )
+
+    async def _run() -> tuple[dict[str, object], dict[str, object], int]:
+        ws = _Ws()
+        client._ws = ws
+        first = await client._send_durable_event(
+            "durable_command.claimed",
+            {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+            expect_ack=True,
+            timeout_s=0.01,
+        )
+        ws.respond = True
+        second = await client._send_durable_event(
+            "durable_command.claimed",
+            {"request_id": "req-2", "claim_id": "claim-2", "state": "CLAIMED"},
+            expect_ack=True,
+            timeout_s=0.2,
+        )
+        return first or {}, second or {}, len(ws.sent)
+
+    first, second, sent_count = asyncio.run(_run())
+    assert first["ok"] is False
+    assert "timed out" in str(first["error"])
+    assert second["ok"] is True
+    assert sent_count == 2
+
+
+def test_ws_send_exception_and_cancellation_do_not_deadlock(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _Ws:
+        def __init__(self) -> None:
+            self.fail_next = True
+            self.sent: list[str | bytes] = []
+
+        async def send(self, raw: str | bytes) -> None:
+            if self.fail_next:
+                self.fail_next = False
+                raise OSError("synthetic send failure")
+            self.sent.append(raw)
+
+    async def _run() -> list[str | bytes]:
+        assert client._ws_send_lock is not None
+        client._ws = _Ws()
+        try:
+            await client._send_ws("first")
+        except OSError:
+            pass
+        await client._send_ws("second")
+        await client._ws_send_lock.acquire()
+        blocked = asyncio.create_task(client._send_ws("cancelled"))
+        await asyncio.sleep(0)
+        blocked.cancel()
+        try:
+            await blocked
+        except asyncio.CancelledError:
+            pass
+        client._ws_send_lock.release()
+        await client._send_ws("third")
+        return client._ws.sent
+
+    assert asyncio.run(_run()) == ["second", "third"]
+
+
+def test_durable_event_send_exception_cleans_pending_rpc(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _FailingWs:
+        async def send(self, _raw: str) -> None:
+            raise OSError("synthetic durable send failure")
+
+    async def _run() -> dict[object, object]:
+        client._ws = _FailingWs()
+        try:
+            await client._send_durable_event(
+                "durable_command.claimed",
+                {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+                expect_ack=True,
+                timeout_s=0.2,
+            )
+        except OSError:
+            pass
+        return client._pending_rpc
+
+    assert asyncio.run(_run()) == {}
+
+
+def test_durable_event_cancellation_while_waiting_cleans_pending_rpc(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _SilentWs:
+        async def send(self, _raw: str) -> None:
+            return None
+
+    async def _run() -> dict[object, object]:
+        client._ws = _SilentWs()
+        task = asyncio.create_task(
+            client._send_durable_event(
+                "durable_command.claimed",
+                {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+                expect_ack=True,
+                timeout_s=10.0,
+            )
+        )
+        await asyncio.sleep(0)
+        assert client._pending_rpc
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+        return client._pending_rpc
+
+    assert asyncio.run(_run()) == {}
+
+
+def test_durable_event_late_ack_after_timeout_is_ignored(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _LateWs:
+        def __init__(self) -> None:
+            self.msg_id: object | None = None
+
+        async def send(self, raw: str) -> None:
+            self.msg_id = json.loads(raw).get("id")
+
+    async def _run() -> tuple[dict[str, object], dict[object, object]]:
+        ws = _LateWs()
+        client._ws = ws
+        first = await client._send_durable_event(
+            "durable_command.claimed",
+            {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+            expect_ack=True,
+            timeout_s=0.01,
+        )
+        await client._handle_message(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "result": {"ok": True, "error": ""},
+                    "id": ws.msg_id,
+                }
+            )
+        )
+        return first or {}, client._pending_rpc
+
+    first, pending = asyncio.run(_run())
+    assert first["ok"] is False
+    assert pending == {}
+
+
+def test_multiple_durable_control_sends_serialize_and_ack(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, raw: str) -> None:
+            msg = json.loads(raw)
+            self.sent.append(str(msg["params"]["request_id"]))
+            await asyncio.sleep(0.01)
+            await client._handle_message(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "result": {"ok": True, "error": ""},
+                        "id": msg.get("id"),
+                    }
+                )
+            )
+
+    async def _run() -> tuple[list[dict[str, object]], list[str]]:
+        client._ws = _Ws()
+        tasks = [
+            asyncio.create_task(
+                client._send_durable_event(
+                    "durable_command.claimed",
+                    {"request_id": f"req-{i}", "claim_id": f"claim-{i}", "state": "CLAIMED"},
+                    expect_ack=True,
+                    timeout_s=0.5,
+                )
+            )
+            for i in range(3)
+        ]
+        return [r or {} for r in await asyncio.gather(*tasks)], client._ws.sent
+
+    acks, sent = asyncio.run(_run())
+    assert [ack["ok"] for ack in acks] == [True, True, True]
+    assert sent == ["req-0", "req-1", "req-2"]
+
+
+def test_media_frame_and_durable_control_share_ws_send_lock(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    class _Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, raw: str | bytes) -> None:
+            if isinstance(raw, bytes):
+                self.sent.append("media")
+                await asyncio.sleep(0.02)
+                return
+            msg = json.loads(raw)
+            self.sent.append(str(msg.get("method")))
+            await client._handle_message(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "result": {"ok": True, "error": ""},
+                        "id": msg.get("id"),
+                    }
+                )
+            )
+
+    async def _run() -> tuple[list[str], dict[str, object]]:
+        client._ws = _Ws()
+        client._media_queue.append(b"frame")
+        client._media_event.set()
+        drain = asyncio.create_task(client._media_drain_loop())
+        await asyncio.sleep(0)
+        ack = await client._send_durable_event(
+            "durable_command.claimed",
+            {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+            expect_ack=True,
+            timeout_s=0.5,
+        )
+        drain.cancel()
+        try:
+            await drain
+        except asyncio.CancelledError:
+            pass
+        return client._ws.sent, ack or {}
+
+    sent, ack = asyncio.run(_run())
+    assert sent == ["media", "durable_command.claimed"]
+    assert ack["ok"] is True
+
+
+def test_heartbeat_and_durable_control_share_ws_send_lock(tmp_path, monkeypatch):
+    client = _durable_node_client(tmp_path)
+    client._config.signals.metrics_interval_s = 0
+    monkeypatch.setattr(
+        "nodes.windows.umh_node.client.collect_metrics",
+        lambda: {"cpu": 1, "memory": 2},
+    )
+
+    class _Ws:
+        def __init__(self) -> None:
+            self.sent: list[dict[str, object]] = []
+
+        async def send(self, raw: str) -> None:
+            msg = json.loads(raw)
+            self.sent.append(msg)
+            if msg.get("method") == "durable_command.claimed":
+                await client._handle_message(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "result": {"ok": True, "error": ""},
+                            "id": msg.get("id"),
+                        }
+                    )
+                )
+
+    async def _run() -> tuple[list[str], dict[str, object]]:
+        assert client._ws_send_lock is not None
+        client._ws = _Ws()
+        heartbeat = asyncio.create_task(client._heartbeat_loop())
+        durable = asyncio.create_task(
+            client._send_durable_event(
+                "durable_command.claimed",
+                {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+                expect_ack=True,
+                timeout_s=0.2,
+            )
+        )
+        ack = await durable
+        while not any(m.get("method") == "node.heartbeat" for m in client._ws.sent):
+            await asyncio.sleep(0)
+        heartbeat.cancel()
+        try:
+            await heartbeat
+        except asyncio.CancelledError:
+            pass
+        return [str(m.get("method", "<response>")) for m in client._ws.sent], ack or {}
+
+    methods, ack = asyncio.run(_run())
+    assert "durable_command.claimed" in methods
+    assert "node.heartbeat" in methods
+    assert ack["ok"] is True
+
+
+def test_duplicate_and_late_ack_do_not_mutate_completed_future(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    async def _run() -> tuple[dict[str, object], dict[object, object]]:
+        future: asyncio.Future[dict[str, object]] = asyncio.get_running_loop().create_future()
+        client._pending_rpc[7] = future
+        await client._handle_message(
+            json.dumps({"jsonrpc": "2.0", "result": {"ok": True}, "id": 7})
+        )
+        first = future.result()
+        await client._handle_message(
+            json.dumps({"jsonrpc": "2.0", "result": {"ok": False}, "id": 7})
+        )
+        await client._handle_message(
+            json.dumps({"jsonrpc": "2.0", "result": {"ok": False}, "id": 999})
+        )
+        return first, client._pending_rpc
+
+    first, pending = asyncio.run(_run())
+    assert first["ok"] is True
+    assert pending == {}
 
 
 def test_durable_shell_does_not_start_when_running_ack_is_rejected(tmp_path):
