@@ -14,6 +14,7 @@ Campaign 4.2. UMH substrate layer. Instance-agnostic.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -21,6 +22,21 @@ from typing import Any
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
+
+_SENSITIVE_TEXT_RE = re.compile(
+    r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+|"
+    r"([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|KEY|CREDENTIAL)[A-Z0-9_]*=)"
+    r"[^\\s,;]+"
+)
+
+
+def _safe_route_detail(component: str, method: str, exc: Exception) -> str:
+    raw = str(exc)[:240]
+    redacted = _SENSITIVE_TEXT_RE.sub(
+        lambda m: (m.group(1) or m.group(2) or "") + "<redacted>",
+        raw,
+    )
+    return f"{component}.{method}: {type(exc).__name__}: {redacted}"
 
 
 # ── Types ─────────────────────────────────────────────────────────────────
@@ -304,6 +320,7 @@ class UnifiedApprovalRuntime:
                 logger.debug("execution_auth decision source unavailable: %s", exc)
         self._execution_auth = execution_auth
         self._decisions: list[ApprovalAction] = []
+        self._last_route_error = ""
 
     # ── Query ─────────────────────────────────────────────────────────
 
@@ -444,6 +461,7 @@ class UnifiedApprovalRuntime:
                 break
 
         work_id = target.work_id if target else approval_id
+        self._last_route_error = ""
         success = self._route_approve(src, work_id, decided_by)
 
         action = ApprovalAction(
@@ -452,7 +470,7 @@ class UnifiedApprovalRuntime:
             action="approved" if success else "error",
             decided_by=decided_by,
             routed_to=src.value,
-            reason="" if success else "Routing failed",
+            reason="" if success else (self._last_route_error or "Routing failed"),
         )
         self._decisions.append(action)
         return action
@@ -481,6 +499,7 @@ class UnifiedApprovalRuntime:
                 break
 
         work_id = target.work_id if target else approval_id
+        self._last_route_error = ""
         success = self._route_reject(src, work_id, reason, decided_by)
 
         action = ApprovalAction(
@@ -488,7 +507,7 @@ class UnifiedApprovalRuntime:
             source_type=src,
             action="rejected" if success else "error",
             decided_by=decided_by,
-            reason=reason,
+            reason=reason if success else (self._last_route_error or reason or "Routing failed"),
             routed_to=src.value,
         )
         self._decisions.append(action)
@@ -553,7 +572,22 @@ class UnifiedApprovalRuntime:
         if not route:
             return False
         obj, method, kwargs = route
-        result = _safe_call(obj, method, **kwargs)
+        if obj is None:
+            self._last_route_error = f"{src.value}.{method}: source unavailable"
+            return False
+        fn = getattr(obj, method, None)
+        if fn is None:
+            self._last_route_error = f"{src.value}.{method}: method unavailable"
+            return False
+        try:
+            result = fn(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - returned as non-secret route diagnostics
+            self._last_route_error = _safe_route_detail(src.value, method, exc)
+            logger.warning("UnifiedApproval route approve failed: %s", self._last_route_error)
+            return False
+        if result is None or result is False:
+            self._last_route_error = f"{src.value}.{method}: returned {result!r}"
+            return False
         return result is not None and result is not False
 
     def _route_reject(
@@ -613,7 +647,22 @@ class UnifiedApprovalRuntime:
         if not route:
             return False
         obj, method, kwargs = route
-        result = _safe_call(obj, method, **kwargs)
+        if obj is None:
+            self._last_route_error = f"{src.value}.{method}: source unavailable"
+            return False
+        fn = getattr(obj, method, None)
+        if fn is None:
+            self._last_route_error = f"{src.value}.{method}: method unavailable"
+            return False
+        try:
+            result = fn(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - returned as non-secret route diagnostics
+            self._last_route_error = _safe_route_detail(src.value, method, exc)
+            logger.warning("UnifiedApproval route reject failed: %s", self._last_route_error)
+            return False
+        if result is None or result is False:
+            self._last_route_error = f"{src.value}.{method}: returned {result!r}"
+            return False
         return result is not None and result is not False
 
     # ── Snapshot ──────────────────────────────────────────────────────

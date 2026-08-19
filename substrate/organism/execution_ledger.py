@@ -11,18 +11,17 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from substrate.state.runtime_paths import runtime_state_path
+
 logger = logging.getLogger(__name__)
 
-_LEDGER_PATH = Path(
-    os.environ.get("UMH_ROOT", "/opt/OS")
-) / "data" / "runtime" / "execution_ledger.jsonl"
+_LEDGER_PATH = runtime_state_path("organism", "execution_ledger.jsonl", create_parent=False)
 
 
 @dataclass

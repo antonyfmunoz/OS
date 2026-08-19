@@ -12,11 +12,13 @@ UMH substrate subsystem.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+from substrate.state.runtime_paths import runtime_state_dir
 
 from .memory_identity_v1 import deterministic_id
 
@@ -76,8 +78,12 @@ class ConflictRecord:
 class ConflictGovernance:
     """Persists and manages memory conflict records."""
 
-    def __init__(self, store_dir: str | Path = "data/runtime/memory_conflicts"):
-        self.store_dir = Path(store_dir)
+    def __init__(self, store_dir: str | Path | None = None):
+        self.store_dir = (
+            Path(store_dir)
+            if store_dir is not None
+            else runtime_state_dir("memory/memory_conflicts")
+        )
         self.store_dir.mkdir(parents=True, exist_ok=True)
         self.conflicts_path = self.store_dir / "conflicts.jsonl"
 

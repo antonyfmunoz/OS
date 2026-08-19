@@ -20,6 +20,7 @@ Subcommands:
   run              N collector passes, full scenario
   pause-before-dispatch  arm the same-run ADMISSION pause (zero quota)
   inject-failure   arm a genuine worker failure variant for one pass
+  activation-rehearsal  zero-quota deployed API grant activation rehearsal
   resume           release the admission pause; scheduling resumes
   reconcile        score collected evidence against candidate state + logs
   teardown         stop containers, stop runner, shred run secret, restore serve
@@ -39,10 +40,12 @@ import re
 import shlex
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -1131,13 +1134,21 @@ def preflight(runner: Runner) -> dict[str, Any]:
     print(f"  {out['start_command_shape']}")
 
     out["authority_contract_probe"] = _authority_contract_probe(runner)
+    sha = _candidate_sha(runner)
+    out["activation_rehearsal"] = activation_rehearsal(runner, sha, iterations=3)
 
     # PREFLIGHT VERDICT (finding SEC-C3): mesh relay, the executor daemon in an
     # interactive session, and Beast->origin reachability are all REQUIRED. A
     # preflight that records a failure must exit non-zero rather than reporting
     # a green shape. (beast_to_origin legitimately fails before deploy — it is
     # only asserted once an origin is expected to exist.)
-    required = ("mesh_health", "schtasks_query", "query_session", "authority_contract_probe")
+    required = (
+        "mesh_health",
+        "schtasks_query",
+        "query_session",
+        "authority_contract_probe",
+        "activation_rehearsal",
+    )
     failed = [k for k in required if isinstance(out.get(k), dict) and out[k].get("ok") is False]
     mesh = out.get("mesh_health") or {}
     if isinstance(mesh, dict) and mesh.get("returncode") not in (0, None):
@@ -1412,6 +1423,326 @@ def _authority_contract_probe(runner: Runner) -> dict[str, Any]:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _free_local_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+def _run_state_json(state_dir: Path, code: str, *, timeout: int = 30) -> dict[str, Any]:
+    env = {
+        **os.environ,
+        "UMH_STATE_DIR": str(state_dir),
+        "UMH_ROOT": str(_WORKTREE),
+        "PYTHONPATH": str(_WORKTREE),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=str(_WORKTREE),
+        env=env,
+        text=True,
+        capture_output=True,
+        timeout=timeout,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"state subprocess failed rc={proc.returncode} "
+            f"stderr={_SECRET_REDACT_RE.sub('<redacted>', proc.stderr[-1000:])}"
+        )
+    lines = [line for line in proc.stdout.splitlines() if line.strip()]
+    if not lines:
+        raise RuntimeError("state subprocess produced no JSON")
+    return json.loads(lines[-1])
+
+
+def activation_rehearsal(runner: Runner, sha: str, *, iterations: int = 3) -> dict[str, Any]:
+    """Production-isomorphic, zero-quota execution-authorization rehearsal.
+
+    This is intentionally stronger than ``_authority_contract_probe``. It starts
+    the same candidate API image/entrypoint in a quarantined namespace, seeds a
+    canonical approved-plan + ACTIVATING grant into the mounted state store,
+    then POSTs through the real deployed HTTP approval route. No field collector,
+    runner, worker, model invocation, or dispatch envelope is started.
+    """
+    if runner.dry_run:
+        return {"ok": True, "dry_run": True, "iterations": iterations}
+
+    proof_dir = _proof_root() / "activation_rehearsal"
+    proof_dir.mkdir(parents=True, exist_ok=True)
+    results: list[dict[str, Any]] = []
+    image_id = _candidate_image_id(runner)
+
+    for idx in range(1, iterations + 1):
+        rehearse_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-r{idx}"
+        root = Path("/var/lib/umh/rehearsals/wave2_activation") / sha / rehearse_id
+        state_dir = root / "state" / "umh"
+        env_out = root / "candidate.env"
+        container = f"os-operator-candidate-w2-rehearsal-{idx}-{os.getpid()}"
+        port = _free_local_port()
+        summary: dict[str, Any] = {
+            "rehearsal_id": rehearse_id,
+            "container": container,
+            "port": port,
+            "state_dir": str(state_dir),
+        }
+        try:
+            runner.run(["mkdir", "-p", str(state_dir)], timeout=30)
+            _must(
+                runner,
+                "make_rehearsal_candidate_env",
+                runner.run(
+                    [
+                        sys.executable,
+                        str(_WORKTREE / "infra" / "candidate" / "make_candidate_env.py"),
+                        "--source",
+                        str(_ROOT / "services" / ".env"),
+                        "--source",
+                        str(_ROOT / "infra" / "docker" / "umh.env"),
+                        "--out",
+                        str(env_out),
+                        "--state-dir",
+                        "/state/umh",
+                        "--build-commit",
+                        sha,
+                    ],
+                    timeout=30,
+                ),
+            )
+
+            correlation = f"rehearsal-{rehearse_id}"
+            seed = _run_state_json(
+                state_dir,
+                f"""
+import json
+from pathlib import Path
+
+from substrate.execution.attempts.decisions import request_execution_authorization
+from substrate.execution.attempts.store import ExecutionAttemptStore
+from substrate.execution.planning.records import ObjectivePlanRecord
+from substrate.execution.planning.store import PlanningStore
+from substrate.organism.universal_work_queue import UniversalWorkQueue
+from substrate.organism.work_packet import PacketLifecycleStatus, WorkPacket
+
+state_dir = Path({str(state_dir)!r})
+(state_dir / "events").mkdir(parents=True, exist_ok=True)
+planning = PlanningStore(
+    sessions_path=str(state_dir / "operator" / "objective_planning" / "planning_sessions.jsonl"),
+    plans_path=str(state_dir / "operator" / "objective_planning" / "objective_plans.jsonl"),
+    grounding_path=str(state_dir / "operator" / "objective_planning" / "grounding_snapshots.jsonl"),
+    current_path=str(state_dir / "operator" / "objective_planning" / "current_states.jsonl"),
+    desired_path=str(state_dir / "operator" / "objective_planning" / "desired_states.jsonl"),
+    gaps_path=str(state_dir / "operator" / "objective_planning" / "gap_models.jsonl"),
+)
+plan = ObjectivePlanRecord(
+    plan_record_id={f"opr-rehearsal-{idx}"!r},
+    objective_id={f"goal-rehearsal-{idx}"!r},
+    graph_version=1,
+    status="approved",
+    conversation_id={f"conv-rehearsal-{idx}"!r},
+    workpacket_ids={[f"wp-rehearsal-{idx}-a", f"wp-rehearsal-{idx}-b"]!r},
+    objective_text="zero-quota activation rehearsal",
+    work_scope={{"tenant_id": "tenant-rehearsal"}},
+)
+planning.append_plan(plan)
+queue = UniversalWorkQueue()
+for packet_id in plan.workpacket_ids:
+    packet = WorkPacket(
+        title=packet_id,
+        user_intent=f"rehearsal {{packet_id}}",
+        approval_gates=["execution_authorization_required"],
+        work_scope={{"tenant_id": "tenant-rehearsal"}},
+        status=PacketLifecycleStatus.PLANNED,
+    )
+    packet.packet_id = packet_id
+    queue.ingest_work_packet(packet)
+store = ExecutionAttemptStore()
+grant, _approval = request_execution_authorization(
+    store,
+    plan=plan,
+    task_frontier=list(plan.workpacket_ids),
+    tenant_id="tenant-rehearsal",
+    principal_id="principal-rehearsal",
+    membership_id="membership-rehearsal",
+    conversation_id=plan.conversation_id,
+    correlation_id={correlation!r},
+    requested_by="activation_rehearsal",
+)
+print(json.dumps({{
+    "grant_id": grant.grant_id,
+    "decision_ref": grant.decision_ref,
+    "correlation_id": grant.correlation_id,
+    "workpacket_ids": list(plan.workpacket_ids),
+    "producer_store": str(store._grants_path),
+}}))
+""",
+            )
+            summary["seed"] = seed
+
+            _must(
+                runner,
+                "docker_run_activation_rehearsal",
+                runner.run(
+                    [
+                        "docker",
+                        "run",
+                        "-d",
+                        "--name",
+                        container,
+                        "--network",
+                        _OPERATOR_DOCKER_NETWORK,
+                        "-v",
+                        f"{_WORKTREE}:/app:ro",
+                        "-v",
+                        f"{state_dir}:/state/umh",
+                        "-e",
+                        "UMH_STATE_DIR=/state/umh",
+                        "-e",
+                        "PYTHONDONTWRITEBYTECODE=1",
+                        "-e",
+                        "PYTHONPATH=/app",
+                        "-e",
+                        "UMH_ROOT=/app",
+                        "-e",
+                        "UMH_DEV_BYPASS=true",
+                        "-e",
+                        f"UMH_BUILD_COMMIT={sha}",
+                        "--env-file",
+                        str(env_out),
+                        "-p",
+                        f"127.0.0.1:{port}:{_CANDIDATE_API_PORT}",
+                        image_id,
+                        "python3",
+                        "-m",
+                        "uvicorn",
+                        "services.operator_api:app",
+                        "--host",
+                        "0.0.0.0",
+                        "--port",
+                        str(_CANDIDATE_API_PORT),
+                    ],
+                    timeout=60,
+                ),
+            )
+            ready = _wait_http_ready(f"http://127.0.0.1:{port}/health", timeout_s=60.0)
+            summary["ready"] = ready
+            if not ready.get("ready"):
+                raise RuntimeError(f"rehearsal container not ready: {ready}")
+
+            body = json.dumps(
+                {
+                    "approval_id": seed["decision_ref"],
+                    "source_type": "execution_authorization",
+                    "decided_by": "activation_rehearsal",
+                }
+            ).encode("utf-8")
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/api/umh/unified-approval/approve",
+                data=body,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310 - local container
+                    response_body = resp.read().decode("utf-8", errors="replace")
+                    summary["http_status"] = resp.status
+                    summary["http_body"] = _SECRET_REDACT_RE.sub(
+                        "<redacted>", response_body[:2000]
+                    )
+            except urllib.error.HTTPError as exc:
+                response_body = exc.read().decode("utf-8", errors="replace")
+                summary["http_status"] = exc.code
+                summary["http_body"] = _SECRET_REDACT_RE.sub("<redacted>", response_body[:2000])
+
+            reread = _run_state_json(
+                state_dir,
+                f"""
+import json
+from substrate.execution.attempts.store import ExecutionAttemptStore
+from substrate.organism.universal_work_queue import UniversalWorkQueue
+
+store = ExecutionAttemptStore()
+grant = store.get_grant({seed["decision_ref"]!r})
+queue = UniversalWorkQueue()
+packets = {seed["workpacket_ids"]!r}
+print(json.dumps({{
+    "grant_status": getattr(grant, "status", ""),
+    "activated_task_ids": list(getattr(grant, "activated_task_ids", [])),
+    "correlation_id": getattr(grant, "correlation_id", ""),
+    "packet_statuses": {{
+        packet_id: getattr(queue.get_packet(packet_id), "status", "")
+        for packet_id in packets
+    }},
+    "consumer_store": str(store._grants_path),
+}}))
+""",
+            )
+            packet_statuses = dict(reread["packet_statuses"])
+            summary.update(
+                {
+                    "grant_id": seed["grant_id"],
+                    "decision_ref": seed["decision_ref"],
+                    "correlation_id": correlation,
+                    "grant_status": reread["grant_status"],
+                    "activated_task_ids": list(reread["activated_task_ids"]),
+                    "packet_statuses": packet_statuses,
+                    "producer_store": seed["producer_store"],
+                    "consumer_store": reread["consumer_store"],
+                }
+            )
+            summary["ok"] = (
+                summary["http_status"] == 200
+                and summary["grant_status"] == "active"
+                and set(summary["activated_task_ids"]) == set(seed["workpacket_ids"])
+                and all(str(v) == "approved" for v in packet_statuses.values())
+                and summary["producer_store"] == summary["consumer_store"]
+            )
+            logs = runner.run(["docker", "logs", "--tail", "1200", container], timeout=20, check=False)
+            if logs is not None:
+                summary["container_logs_tail"] = _SECRET_REDACT_RE.sub(
+                    "<redacted>", ((logs.stdout or "") + (logs.stderr or ""))[-12000:]
+                )
+        except Exception as exc:  # noqa: BLE001
+            summary["ok"] = False
+            summary["error"] = f"{type(exc).__name__}: {exc}"
+            logs = runner.run(["docker", "logs", "--tail", "1200", container], timeout=20, check=False)
+            if logs is not None:
+                summary["container_logs_tail"] = _SECRET_REDACT_RE.sub(
+                    "<redacted>", ((logs.stdout or "") + (logs.stderr or ""))[-12000:]
+                )
+        finally:
+            runner.run(["docker", "rm", "-f", container], timeout=30, check=False)
+            shutil.rmtree(root, ignore_errors=True)
+            summary["state_removed"] = not root.exists()
+            evidence = proof_dir / f"{rehearse_id}.json"
+            evidence.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+            results.append(summary)
+
+    return {
+        "ok": all(r.get("ok") and r.get("state_removed") for r in results),
+        "iterations": iterations,
+        "results": results,
+        "evidence_dir": str(proof_dir),
+    }
+
+
+def _wait_http_ready(url: str, *, timeout_s: float) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout_s
+    last = ""
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(url, timeout=3) as resp:  # noqa: S310 - local candidate
+                body = resp.read().decode("utf-8", errors="replace")
+                if resp.status == 200:
+                    return {"ready": True, "status": resp.status, "body": body[:200]}
+                last = f"status={resp.status} body={body[:200]}"
+        except Exception as exc:  # noqa: BLE001
+            last = f"{type(exc).__name__}: {exc}"
+        time.sleep(1)
+    return {"ready": False, "last": last}
+
+
 def _shell_summary(runner: Runner, r: subprocess.CompletedProcess | None) -> dict[str, Any]:
     if runner.dry_run or r is None:
         return {"dry_run": True}
@@ -1482,6 +1813,9 @@ def _mesh_read(runner: Runner, command: str, *, max_len: int = 400) -> dict[str,
     return {
         "ok": bool(result.get("ok")),
         "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stdout", ""))[:max_len]),
+        "stderr": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stderr", ""))[:max_len]),
+        "error": _SECRET_REDACT_RE.sub("<redacted>", str(result.get("error", ""))[:max_len]),
+        "raw_status": result.get("status"),
     }
 
 
@@ -1663,10 +1997,11 @@ if ($cmd -notlike '*{run_id}*' -or $cmd -notlike '*wave2_field_collector.py*') {
   exit 2
 }}
 $childrenBefore = @(Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq $pid }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine)
-taskkill /PID $pid /T | Out-Null
+$gracefulOutput = (& cmd.exe /c "taskkill /PID $pid /T" 2>&1 | Out-String)
 Start-Sleep -Seconds 5
 $alive = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
 $forced = $false
+$forceOutput = ""
 if ($null -ne $alive) {{
   $p2 = Get-CimInstance Win32_Process -Filter "ProcessId=$pid"
   $cmd2 = [string]$p2.CommandLine
@@ -1674,7 +2009,7 @@ if ($null -ne $alive) {{
     Write-Output ('{{"stopped":false,"pid":' + $pid + ',"reason":"identity changed before force","command":' + ($cmd2 | ConvertTo-Json -Compress) + '}}')
     exit 3
   }}
-  taskkill /PID $pid /T /F | Out-Null
+  $forceOutput = (& cmd.exe /c "taskkill /PID $pid /T /F" 2>&1 | Out-String)
   Start-Sleep -Seconds 2
   $forced = $true
 }}
@@ -1684,6 +2019,8 @@ $residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.Command
   stopped = ($null -eq $still -and $residue.Count -eq 0)
   pid = $pid
   forced = $forced
+  graceful_output = $gracefulOutput
+  force_output = $forceOutput
   children_before = $childrenBefore
   residue = $residue
 }} | ConvertTo-Json -Compress -Depth 4
@@ -1693,7 +2030,13 @@ $residue = @(Get-CimInstance Win32_Process | Where-Object {{ ([string]$_.Command
     if runner.dry_run:
         return {"stopped": True, "dry_run": True}
     if not res.get("ok"):
-        return {"stopped": False, "reason": res.get("error", "mesh dispatch failed")}
+        return {
+            "stopped": False,
+            "reason": res.get("error") or "mesh dispatch failed",
+            "stdout": res.get("stdout", ""),
+            "stderr": res.get("stderr", ""),
+            "raw_status": res.get("raw_status"),
+        }
     try:
         parsed = json.loads(res.get("stdout", "") or "{}")
     except ValueError:
@@ -3241,6 +3584,7 @@ def main(argv: list[str] | None = None) -> int:
         "write-scenario-map",
         "pause-before-dispatch",
         "inject-failure",
+        "activation-rehearsal",
         "resume",
         "reconcile",
         "teardown",
@@ -3282,6 +3626,8 @@ def main(argv: list[str] | None = None) -> int:
         out = pause_before_dispatch(runner, sha, run_id)
     elif args.cmd == "inject-failure":
         out = inject_failure(runner, sha, run_id, args.variant)
+    elif args.cmd == "activation-rehearsal":
+        out = activation_rehearsal(runner, sha, iterations=3)
     elif args.cmd == "resume":
         out = resume_after_pause(runner, sha, run_id)
     elif args.cmd == "reconcile":

@@ -16,6 +16,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from substrate.state.runtime_paths import runtime_state_dir
+
 
 class PromotionDecision(str, Enum):
     PROMOTED = "promoted"
@@ -109,8 +111,12 @@ def _deterministic_id(namespace: str, content: str) -> str:
 class CanonicalMemoryStore:
     """Append-only JSONL memory store with full provenance."""
 
-    def __init__(self, store_dir: str | Path = "data/runtime/canonical_memory_store"):
-        self.store_dir = Path(store_dir)
+    def __init__(self, store_dir: str | Path | None = None):
+        self.store_dir = (
+            Path(store_dir)
+            if store_dir is not None
+            else runtime_state_dir("memory/canonical_memory_store")
+        )
         self.store_dir.mkdir(parents=True, exist_ok=True)
         self.memories_path = self.store_dir / "memories.jsonl"
         self.receipts_path = self.store_dir / "promotion_receipts.jsonl"

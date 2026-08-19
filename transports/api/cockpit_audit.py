@@ -16,11 +16,14 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from substrate.state.runtime_paths import runtime_state_path
+
 logger = logging.getLogger(__name__)
 
-_ROOT = os.environ.get("UMH_ROOT") or "/opt/OS"
-_AUDIT_PATH = os.path.join(_ROOT, "data", "umh", "settings", "audit.jsonl")
-_MUTATION_LEDGER_PATH = os.path.join(_ROOT, "data", "umh", "audit", "mutation_ledger.jsonl")
+_AUDIT_PATH = str(runtime_state_path("audit/settings", "audit.jsonl", create_parent=False))
+_MUTATION_LEDGER_PATH = str(
+    runtime_state_path("audit", "mutation_ledger.jsonl", create_parent=False)
+)
 
 
 def emit_settings_audit(

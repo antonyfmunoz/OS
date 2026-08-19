@@ -11,13 +11,14 @@ UMH substrate subsystem.
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any
+
+from substrate.state.runtime_paths import runtime_state_dir
 
 from .memory_identity_v1 import (
     EntityReference,
@@ -173,14 +174,22 @@ class ReconciliationEngine:
 
     def __init__(
         self,
-        store_dir: str | Path = "data/runtime/canonical_memory_store",
-        receipts_dir: str | Path = "data/runtime/reconciliation_receipts",
+        store_dir: str | Path | None = None,
+        receipts_dir: str | Path | None = None,
         duplicate_fingerprint_threshold: float = 1.0,
         label_overlap_threshold: float = 0.6,
         content_overlap_threshold: float = 0.5,
     ):
-        self.store_dir = Path(store_dir)
-        self.receipts_dir = Path(receipts_dir)
+        self.store_dir = (
+            Path(store_dir)
+            if store_dir is not None
+            else runtime_state_dir("memory/canonical_memory_store")
+        )
+        self.receipts_dir = (
+            Path(receipts_dir)
+            if receipts_dir is not None
+            else runtime_state_dir("memory/reconciliation_receipts")
+        )
         self.receipts_dir.mkdir(parents=True, exist_ok=True)
         self.duplicate_fingerprint_threshold = duplicate_fingerprint_threshold
         self.label_overlap_threshold = label_overlap_threshold

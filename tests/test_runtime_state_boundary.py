@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import importlib
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,55 @@ class TestRuntimePathResolver:
         custom = tmp_path / "custom"
         store = OrganismStore(store_dir=custom)
         assert store._dir == custom
+
+    def test_default_runtime_writers_resolve_under_state_dir(self, monkeypatch, tmp_path):
+        """Default runtime writers must not target the source checkout.
+
+        This pins the production-container failure where OrganismDaemon startup
+        tried to create ``data/runtime/canonical_memory_store`` under read-only
+        ``UMH_ROOT=/app`` before the governed spine could register.
+        """
+        app_root = tmp_path / "app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        state_dir.mkdir(parents=True)
+        monkeypatch.setenv("UMH_ROOT", str(app_root))
+        monkeypatch.setenv("UMH_STATE_DIR", str(state_dir))
+
+        cms = importlib.reload(
+            importlib.import_module("substrate.state.memory.contracts.canonical_memory_store_v1")
+        )
+        cre = importlib.reload(
+            importlib.import_module(
+                "substrate.state.memory.contracts.canonical_memory_reconciliation_engine_v1"
+            )
+        )
+        mcg = importlib.reload(
+            importlib.import_module("substrate.state.memory.contracts.memory_conflict_governance_v1")
+        )
+        proof = importlib.reload(importlib.import_module("substrate.organism.proof_store"))
+        ledger = importlib.reload(importlib.import_module("substrate.organism.execution_ledger"))
+        audit = importlib.reload(importlib.import_module("transports.api.cockpit_audit"))
+        signals = importlib.reload(
+            importlib.import_module("substrate.control_plane.runtime.orchestrator.signals")
+        )
+        loop = importlib.reload(
+            importlib.import_module("substrate.control_plane.runtime.orchestrator.loop")
+        )
+
+        assert cms.CanonicalMemoryStore().store_dir == (
+            state_dir / "memory" / "canonical_memory_store"
+        )
+        assert cre.ReconciliationEngine().store_dir == (
+            state_dir / "memory" / "canonical_memory_store"
+        )
+        assert mcg.ConflictGovernance().store_dir == state_dir / "memory" / "memory_conflicts"
+        assert proof._STORE_PATH == state_dir / "organism" / "proof_packages.jsonl"
+        assert ledger._LEDGER_PATH == state_dir / "organism" / "execution_ledger.jsonl"
+        assert audit._MUTATION_LEDGER_PATH == str(state_dir / "audit" / "mutation_ledger.jsonl")
+        assert signals.SIGNALS_ROOT == str(state_dir / "logs" / "signals")
+        assert loop.HEARTBEAT_PATH == str(state_dir / "logs" / "orchestrator_heartbeat.json")
+        assert not (app_root / "data" / "runtime" / "canonical_memory_store").exists()
 
 
 def _run_migrate(args: list[str], repo: Path, backup: Path) -> subprocess.CompletedProcess:

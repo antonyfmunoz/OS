@@ -191,6 +191,66 @@ def test_remote_collector_teardown_missing_manifest_must_prove_zero_residue(monk
     assert "residue.Count -eq 0" in seen[0]
 
 
+def test_remote_collector_teardown_captures_graceful_failure_before_force(monkeypatch):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    seen: list[str] = []
+
+    def fake_mesh_read(runner, command, *, max_len=0):  # noqa: ANN001
+        seen.append(command)
+        return {
+            "ok": True,
+            "stdout": json.dumps(
+                {
+                    "stopped": True,
+                    "pid": 17416,
+                    "forced": True,
+                    "graceful_output": "can only be terminated forcefully",
+                    "force_output": "SUCCESS",
+                    "residue": [],
+                }
+            ),
+        }
+
+    monkeypatch.setattr(dispatch, "_mesh_read", fake_mesh_read)
+
+    out = dispatch._stop_remote_collector_tree(
+        dispatch.Runner(dry_run=False),
+        run_id="20260818T234238Z-p1",
+        pass_num=1,
+    )
+
+    assert out["stopped"] is True
+    assert out["forced"] is True
+    assert "taskkill /PID $pid /T" in seen[0]
+    assert "taskkill /PID $pid /T /F" in seen[0]
+
+
+def test_remote_collector_teardown_mesh_failure_preserves_diagnostics(monkeypatch):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+
+    monkeypatch.setattr(
+        dispatch,
+        "_mesh_read",
+        lambda runner, command, *, max_len=0: {
+            "ok": False,
+            "error": "dispatch timeout",
+            "stdout": "out",
+            "stderr": "err",
+            "raw_status": "failed",
+        },
+    )
+
+    out = dispatch._stop_remote_collector_tree(dispatch.Runner(dry_run=False), run_id="r1")
+
+    assert out == {
+        "stopped": False,
+        "reason": "dispatch timeout",
+        "stdout": "out",
+        "stderr": "err",
+        "raw_status": "failed",
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 4 — scope-safe deletion: unsafe shapes FAIL CLOSED
 # ─────────────────────────────────────────────────────────────────────────────

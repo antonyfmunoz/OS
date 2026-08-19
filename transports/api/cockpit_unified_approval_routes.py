@@ -131,21 +131,22 @@ def _build_router() -> Any:
                 source_type=req.source_type,
                 decided_by=req.decided_by,
             )
-            emit_mutation_audit(
-                "approvals",
-                "approve",
-                req.approval_id,
-                actor=req.decided_by,
-                new_value={"source_type": req.source_type},
-            )
-            try:
-                from transports.api.cockpit_core_routes import push_mutation_event
-
-                if push_mutation_event is not None:
-                    push_mutation_event("approvals", "approved", {"id": req.approval_id})
-            except Exception:
-                pass
             captured.update(action.to_dict())
+            if captured.get("action") == "approved":
+                emit_mutation_audit(
+                    "approvals",
+                    "approve",
+                    req.approval_id,
+                    actor=req.decided_by,
+                    new_value={"source_type": req.source_type},
+                )
+                try:
+                    from transports.api.cockpit_core_routes import push_mutation_event
+
+                    if push_mutation_event is not None:
+                        push_mutation_event("approvals", "approved", {"id": req.approval_id})
+                except Exception:
+                    pass
             return f"approved {req.approval_id}", True
 
         if _source_owns_governed_decision(req.source_type):
