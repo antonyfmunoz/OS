@@ -396,6 +396,8 @@ class NodeMeshServer:
                                     "binary-frame heartbeat refused: %s not in registry",
                                     node_id,
                                 )
+                            else:
+                                await self._pump_durable_requests(node_id, ws)
                     continue
 
                 msg = json.loads(raw)
@@ -769,6 +771,7 @@ class NodeMeshServer:
                         }
                     )
                 )
+                self._durable_store.mark_delivered(req.request_id)
             except Exception as exc:
                 logger.warning("durable request delivery failed for %s: %s", req.request_id, exc)
                 return
@@ -791,15 +794,19 @@ class NodeMeshServer:
             if req is None or req.node_id != node_id:
                 error = "request not found for node"
             elif state == "RUNNING":
-                self._durable_store.mark_running(
+                updated = self._durable_store.mark_running(
                     request_id, claim_id=claim_id, process_tree=process_tree
                 )
-                ok = True
+                ok = updated.lifecycle_state == "RUNNING" and updated.claim_id == claim_id
+                if not ok:
+                    error = f"claim rejected into {updated.lifecycle_state}"
             else:
-                self._durable_store.mark_claimed(
+                updated = self._durable_store.mark_claimed(
                     request_id, claim_id=claim_id, process_tree=process_tree
                 )
-                ok = True
+                ok = updated.lifecycle_state == "CLAIMED" and updated.claim_id == claim_id
+                if not ok:
+                    error = f"claim rejected into {updated.lifecycle_state}"
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
         if msg_id is not None:
@@ -825,6 +832,11 @@ class NodeMeshServer:
         state = str(params.get("state", "FAILED")).upper()
         result = dict(params.get("result") or {})
         cleanup = dict(params.get("cleanup") or {})
+        from substrate.execution.durable_remote_transport import sha256_json
+
+        incoming_digest = sha256_json(
+            {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
+        )
         ok = False
         error = ""
         try:
@@ -839,7 +851,18 @@ class NodeMeshServer:
                     result=result,
                     cleanup=cleanup,
                 )
-                ok = updated.lifecycle_state == state
+                if (
+                    updated.lifecycle_state == "RECONCILIATION_REQUIRED"
+                    and not updated.diagnostics.get("cancel_without_cleanup")
+                    and not updated.diagnostics.get("terminal_cancel_cleanup_conflict")
+                ):
+                    updated = self._durable_store.reconcile_request(
+                        request_id,
+                        reason="server_result_ingestion_reconciliation",
+                    )
+                ok = updated.lifecycle_state == state and self._durable_store.result_was_accepted(
+                    request_id, incoming_digest
+                )
                 if not ok:
                     error = f"result rejected into {updated.lifecycle_state}"
         except Exception as exc:  # noqa: BLE001
@@ -1075,6 +1098,15 @@ class NodeMeshServer:
         """Periodically check for stale nodes."""
         while True:
             await asyncio.sleep(30)
+            try:
+                for req in self._durable_store.reconcile_due_requests():
+                    logger.info(
+                        "durable request reconciled by health loop: %s -> %s",
+                        req.request_id,
+                        req.lifecycle_state,
+                    )
+            except Exception as exc:
+                logger.warning("durable request reconciliation sweep failed: %s", exc)
             stale = self._registry.stale_nodes()
             for node_id in stale:
                 node = self._registry.get(node_id)

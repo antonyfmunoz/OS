@@ -13,16 +13,16 @@ import hashlib
 import json
 import os
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 from uuid import uuid4
 
 
-TERMINAL_STATES = frozenset(
-    {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED", "RECONCILIATION_REQUIRED"}
-)
+TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"})
 ACTIVE_STATES = frozenset({"QUEUED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"})
+RECOVERY_STATES = frozenset({"RECONCILIATION_REQUIRED"})
 
 
 def default_controller_root() -> Path:
@@ -78,11 +78,19 @@ class DurableRemoteRequest:
     expires_at: float = 0.0
     payload_digest: str = ""
     lifecycle_state: str = "QUEUED"
+    delivered_at: float = 0.0
+    delivery_attempts: int = 0
     claim_id: str = ""
     lease_expires_at: float = 0.0
     process_tree: dict[str, Any] = field(default_factory=dict)
     result_digest: str = ""
     cancellation_requested_at: float = 0.0
+    cancellation_deadline_at: float = 0.0
+    cancellation_acknowledged_at: float = 0.0
+    reconciliation_requested_at: float = 0.0
+    reconciliation_deadline_at: float = 0.0
+    terminalized_at: float = 0.0
+    updated_at: float = 0.0
     cleanup: dict[str, Any] = field(default_factory=dict)
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
@@ -118,11 +126,19 @@ class DurableRemoteRequest:
             "expires_at": self.expires_at,
             "payload_digest": self.payload_digest,
             "lifecycle_state": self.lifecycle_state,
+            "delivered_at": self.delivered_at,
+            "delivery_attempts": self.delivery_attempts,
             "claim_id": self.claim_id,
             "lease_expires_at": self.lease_expires_at,
             "process_tree": self.process_tree,
             "result_digest": self.result_digest,
             "cancellation_requested_at": self.cancellation_requested_at,
+            "cancellation_deadline_at": self.cancellation_deadline_at,
+            "cancellation_acknowledged_at": self.cancellation_acknowledged_at,
+            "reconciliation_requested_at": self.reconciliation_requested_at,
+            "reconciliation_deadline_at": self.reconciliation_deadline_at,
+            "terminalized_at": self.terminalized_at,
+            "updated_at": self.updated_at,
             "cleanup": self.cleanup,
             "diagnostics": self.diagnostics,
         }
@@ -145,11 +161,19 @@ class DurableRemoteRequest:
             expires_at=float(data.get("expires_at", 0.0) or 0.0),
             payload_digest=str(data.get("payload_digest", "")),
             lifecycle_state=str(data.get("lifecycle_state", "QUEUED")),
+            delivered_at=float(data.get("delivered_at", 0.0) or 0.0),
+            delivery_attempts=int(data.get("delivery_attempts", 0) or 0),
             claim_id=str(data.get("claim_id", "")),
             lease_expires_at=float(data.get("lease_expires_at", 0.0) or 0.0),
             process_tree=dict(data.get("process_tree") or {}),
             result_digest=str(data.get("result_digest", "")),
             cancellation_requested_at=float(data.get("cancellation_requested_at", 0.0) or 0.0),
+            cancellation_deadline_at=float(data.get("cancellation_deadline_at", 0.0) or 0.0),
+            cancellation_acknowledged_at=float(data.get("cancellation_acknowledged_at", 0.0) or 0.0),
+            reconciliation_requested_at=float(data.get("reconciliation_requested_at", 0.0) or 0.0),
+            reconciliation_deadline_at=float(data.get("reconciliation_deadline_at", 0.0) or 0.0),
+            terminalized_at=float(data.get("terminalized_at", 0.0) or 0.0),
+            updated_at=float(data.get("updated_at", 0.0) or 0.0),
             cleanup=dict(data.get("cleanup") or {}),
             diagnostics=dict(data.get("diagnostics") or {}),
         )
@@ -172,6 +196,42 @@ class DurableRemoteStore:
     def _result_path(self, request_id: str) -> Path:
         return self.results_dir / f"{request_id}.json"
 
+    def _rejected_result_path(self, request_id: str, digest: str) -> Path:
+        return self.results_dir / f"{request_id}.rejected-{digest[:16]}-{uuid4().hex[:8]}.json"
+
+    def _lock_path(self, request_id: str) -> Path:
+        return self.root / "locks" / f"{request_id}.lock"
+
+    @contextmanager
+    def _request_lock(self, request_id: str, *, timeout_s: float = 10.0) -> Iterator[None]:
+        lock_path = self._lock_path(request_id)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        deadline = now_s() + timeout_s
+        fd: int | None = None
+        while fd is None:
+            try:
+                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                os.write(fd, f"{os.getpid()} {now_s()}\n".encode("ascii"))
+            except FileExistsError:
+                try:
+                    if now_s() - lock_path.stat().st_mtime > timeout_s:
+                        lock_path.unlink()
+                        continue
+                except FileNotFoundError:
+                    continue
+                if now_s() >= deadline:
+                    raise TimeoutError(f"timed out acquiring durable request lock: {request_id}")
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            if fd is not None:
+                os.close(fd)
+            try:
+                lock_path.unlink()
+            except FileNotFoundError:
+                pass
+
     def _event(self, request_id: str, event: str, data: dict[str, Any] | None = None) -> None:
         self.events_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -184,48 +244,257 @@ class DurableRemoteStore:
             fh.write(json.dumps(payload, sort_keys=True) + "\n")
 
     def put_request(self, request: DurableRemoteRequest) -> DurableRemoteRequest:
-        existing = self.get_request(request.request_id)
-        if existing is not None:
-            if existing.idempotency_key != request.idempotency_key:
-                raise ValueError("request_id exists with different idempotency key")
-            if existing.payload_digest != request.payload_digest:
-                raise ValueError("request_id exists with different payload digest")
-            return existing
-        _atomic_write_json(self._request_path(request.request_id), request.to_dict())
-        self._event(request.request_id, "QUEUED", {"node_id": request.node_id})
-        return request
+        with self._request_lock(request.request_id):
+            existing = self._get_request_raw(request.request_id)
+            if existing is not None:
+                if existing.idempotency_key != request.idempotency_key:
+                    raise ValueError("request_id exists with different idempotency key")
+                if existing.payload_digest != request.payload_digest:
+                    raise ValueError("request_id exists with different payload digest")
+                return existing
+            self._update_request_locked(
+                request,
+                "QUEUED",
+                event_data={"node_id": request.node_id},
+            )
+            return request
 
-    def get_request(self, request_id: str) -> DurableRemoteRequest | None:
+    def _get_request_raw(self, request_id: str) -> DurableRemoteRequest | None:
         data = _read_json(self._request_path(request_id))
         if not data:
             return None
         return DurableRemoteRequest.from_dict(data)
 
+    def get_request(self, request_id: str) -> DurableRemoteRequest | None:
+        req = self._get_request_raw(request_id)
+        if req is None:
+            return None
+        if req.lifecycle_state in TERMINAL_STATES:
+            return req
+        if not self._recovery_due(req) and self.result_for(request_id) is None:
+            return req
+        with self._request_lock(request_id):
+            current = self._get_request_raw(request_id)
+            if current is None:
+                return None
+            return self._maybe_converge_recovery_locked(current)
+
     def update_request(self, request: DurableRemoteRequest, event: str = "") -> None:
+        with self._request_lock(request.request_id):
+            current = self._get_request_raw(request.request_id)
+            if current is not None and (
+                current.lifecycle_state in TERMINAL_STATES
+                or current.lifecycle_state in RECOVERY_STATES
+            ):
+                return
+            self._update_request_locked(request, event)
+
+    def _update_request_locked(
+        self,
+        request: DurableRemoteRequest,
+        event: str = "",
+        *,
+        event_data: dict[str, Any] | None = None,
+    ) -> None:
+        request.updated_at = now_s()
+        if request.lifecycle_state in TERMINAL_STATES and not request.terminalized_at:
+            request.terminalized_at = request.updated_at
         _atomic_write_json(self._request_path(request.request_id), request.to_dict())
         if event:
-            self._event(request.request_id, event, {"state": request.lifecycle_state})
+            data = {"state": request.lifecycle_state}
+            if event_data:
+                data.update(event_data)
+            self._event(request.request_id, event, data)
+
+    def _has_process_residue_diagnostic(self, req: DurableRemoteRequest) -> bool:
+        return bool(
+            req.diagnostics.get("cancel_without_cleanup")
+            or req.diagnostics.get("terminal_cancel_cleanup_conflict")
+            or req.cleanup.get("process_residue")
+        )
+
+    def _converge_existing_result_locked(
+        self, req: DurableRemoteRequest
+    ) -> DurableRemoteRequest:
+        existing = self.result_for(req.request_id)
+        if not existing or req.lifecycle_state in TERMINAL_STATES:
+            return req
+        state = str(existing.get("state", ""))
+        if state not in TERMINAL_STATES:
+            return req
+        if existing.get("request_id") != req.request_id:
+            return req
+        if existing.get("correlation_id") != req.correlation_id:
+            return req
+        if existing.get("node_id") != req.node_id:
+            return req
+        if existing.get("candidate_sha") != req.candidate_sha:
+            return req
+        claim_id = str(existing.get("claim_id", ""))
+        if not claim_id or req.claim_id != claim_id:
+            req.diagnostics.setdefault("unclaimed_terminal_result_ignored", []).append(
+                {
+                    "result_claim_id": claim_id,
+                    "request_claim_id": req.claim_id,
+                    "result_digest": existing.get("result_digest", ""),
+                }
+            )
+            self._update_request_locked(req, "UNCLAIMED_TERMINAL_RESULT_IGNORED")
+            return req
+        req.lifecycle_state = state
+        req.result_digest = str(existing.get("result_digest", req.result_digest))
+        req.cleanup = dict(existing.get("cleanup") or {})
+        req.diagnostics.setdefault("recovered_terminal_result", True)
+        self._update_request_locked(req, "TERMINAL_RESULT_RECOVERED")
+        return req
+
+    def result_was_accepted(self, request_id: str, result_digest: str) -> bool:
+        existing = self.result_for(request_id)
+        return bool(existing and existing.get("result_digest") == result_digest)
+
+    def _enter_reconciliation(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        reason: str,
+        deadline_seconds: float = 15.0,
+    ) -> DurableRemoteRequest:
+        req.lifecycle_state = "RECONCILIATION_REQUIRED"
+        req.diagnostics.setdefault("reconciliation_reasons", []).append(reason)
+        if not req.reconciliation_requested_at:
+            req.reconciliation_requested_at = now_s()
+        req.reconciliation_deadline_at = max(
+            req.reconciliation_deadline_at,
+            req.reconciliation_requested_at + max(0.0, deadline_seconds),
+        )
+        self._update_request_locked(req, "RECONCILIATION_REQUIRED")
+        return req
+
+    def _recovery_due(self, req: DurableRemoteRequest) -> bool:
+        current = now_s()
+        return (
+            req.lifecycle_state == "CANCEL_REQUESTED"
+            and req.cancellation_deadline_at
+            and current >= req.cancellation_deadline_at
+        ) or (
+            req.lifecycle_state == "RECONCILIATION_REQUIRED"
+            and req.reconciliation_deadline_at
+            and current >= req.reconciliation_deadline_at
+        )
+
+    def _maybe_converge_recovery_locked(self, req: DurableRemoteRequest) -> DurableRemoteRequest:
+        req = self._converge_existing_result_locked(req)
+        current = now_s()
+        if (
+            req.lifecycle_state == "CANCEL_REQUESTED"
+            and req.cancellation_deadline_at
+            and current >= req.cancellation_deadline_at
+        ):
+            req = self._enter_reconciliation(
+                req,
+                reason="cancellation_ack_deadline_expired",
+                deadline_seconds=0,
+            )
+        if (
+            req.lifecycle_state == "RECONCILIATION_REQUIRED"
+            and req.reconciliation_deadline_at
+            and current >= req.reconciliation_deadline_at
+        ):
+            if self._has_process_residue_diagnostic(req):
+                req.diagnostics.setdefault("residue_reconciliation_pending", True)
+                self._update_request_locked(req, "RESIDUE_RECONCILIATION_PENDING")
+                return req
+            req = self._reconcile_request_locked(
+                req,
+                reason="reconciliation_deadline_expired",
+            )
+        return req
+
+    def _maybe_converge_recovery(self, req: DurableRemoteRequest) -> DurableRemoteRequest:
+        if not self._recovery_due(req):
+            return req
+        with self._request_lock(req.request_id):
+            current = self._get_request_raw(req.request_id)
+            if current is None:
+                return req
+            return self._maybe_converge_recovery_locked(current)
 
     def requests_for_node(self, node_id: str) -> list[DurableRemoteRequest]:
         out: list[DurableRemoteRequest] = []
         for path in sorted(self.requests_dir.glob("*.json")):
-            req = DurableRemoteRequest.from_dict(_read_json(path))
+            req = self._get_request_raw(path.stem)
+            if req is None:
+                continue
             if req.node_id == node_id:
+                req = self._maybe_converge_recovery(req)
                 out.append(req)
         return out
 
-    def deliverable_for_node(self, node_id: str, *, limit: int = 1) -> list[DurableRemoteRequest]:
+    def reconcile_due_requests(self) -> list[DurableRemoteRequest]:
+        """Advance bounded recovery deadlines without requiring node traffic."""
+        updated: list[DurableRemoteRequest] = []
+        for path in sorted(self.requests_dir.glob("*.json")):
+            req = self._get_request_raw(path.stem)
+            if req is None:
+                continue
+            before = req.lifecycle_state
+            req = self._maybe_converge_recovery(req)
+            if req.lifecycle_state != before:
+                updated.append(req)
+        return updated
+
+    def deliverable_for_node(
+        self,
+        node_id: str,
+        *,
+        limit: int = 1,
+        redelivery_after_s: float = 2.0,
+    ) -> list[DurableRemoteRequest]:
         current = now_s()
         chosen: list[DurableRemoteRequest] = []
         for req in self.requests_for_node(node_id):
             if req.expires_at and current > req.expires_at and req.lifecycle_state in ACTIVE_STATES:
-                req.lifecycle_state = "EXPIRED"
-                self.update_request(req, "EXPIRED")
-            if req.lifecycle_state in {"QUEUED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
+                with self._request_lock(req.request_id):
+                    locked = self._get_request_raw(req.request_id)
+                    if locked is None:
+                        continue
+                    if locked.lifecycle_state in TERMINAL_STATES or locked.lifecycle_state in RECOVERY_STATES:
+                        req = self._maybe_converge_recovery_locked(locked)
+                    elif locked.lifecycle_state == "QUEUED":
+                        locked.lifecycle_state = "EXPIRED"
+                        locked.diagnostics.setdefault("expired_before_claim", True)
+                        self._update_request_locked(locked, "EXPIRED")
+                        req = locked
+                    else:
+                        locked.lifecycle_state = "CANCEL_REQUESTED"
+                        if not locked.cancellation_requested_at:
+                            locked.cancellation_requested_at = current
+                        if not locked.cancellation_deadline_at:
+                            locked.cancellation_deadline_at = current + 30.0
+                        locked.diagnostics.setdefault("expired_during_owned_execution", True)
+                        self._update_request_locked(locked, "CANCEL_REQUESTED")
+                        req = self._maybe_converge_recovery_locked(locked)
+            else:
+                req = self._maybe_converge_recovery(req)
+            if req.lifecycle_state in {"QUEUED", "CANCEL_REQUESTED"}:
+                if req.delivered_at and current - req.delivered_at < redelivery_after_s:
+                    continue
                 chosen.append(req)
             if len(chosen) >= limit:
                 break
         return chosen
+
+    def mark_delivered(self, request_id: str) -> DurableRemoteRequest:
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            req = self._maybe_converge_recovery_locked(req)
+            if req.lifecycle_state in {"QUEUED", "CANCEL_REQUESTED"}:
+                req.delivered_at = now_s()
+                req.delivery_attempts += 1
+                self._update_request_locked(req, "DELIVERED")
+            return req
 
     def mark_claimed(
         self,
@@ -235,50 +504,155 @@ class DurableRemoteStore:
         lease_seconds: int = 300,
         process_tree: dict[str, Any] | None = None,
     ) -> DurableRemoteRequest:
-        req = self.get_request(request_id)
-        if req is None:
-            raise KeyError(request_id)
-        if req.lifecycle_state in TERMINAL_STATES:
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            req = self._maybe_converge_recovery_locked(req)
+            if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
+                return req
+            if req.claim_id and req.claim_id != claim_id:
+                req.diagnostics["claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
+                return self._enter_reconciliation(req, reason="claim_conflict")
+            req.claim_id = claim_id
+            req.lease_expires_at = now_s() + lease_seconds
+            req.lifecycle_state = "CLAIMED"
+            if process_tree is not None:
+                req.process_tree = process_tree
+            self._update_request_locked(req, "CLAIMED")
             return req
-        if req.claim_id and req.claim_id != claim_id:
-            req.lifecycle_state = "RECONCILIATION_REQUIRED"
-            req.diagnostics["claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
-            self.update_request(req, "RECONCILIATION_REQUIRED")
-            return req
-        req.claim_id = claim_id
-        req.lease_expires_at = now_s() + lease_seconds
-        req.lifecycle_state = "CLAIMED"
-        if process_tree is not None:
-            req.process_tree = process_tree
-        self.update_request(req, "CLAIMED")
-        return req
 
     def mark_running(
         self, request_id: str, *, claim_id: str, process_tree: dict[str, Any] | None = None
     ) -> DurableRemoteRequest:
-        req = self.get_request(request_id)
-        if req is None:
-            raise KeyError(request_id)
-        if req.claim_id and req.claim_id != claim_id:
-            req.lifecycle_state = "RECONCILIATION_REQUIRED"
-            self.update_request(req, "RECONCILIATION_REQUIRED")
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            req = self._maybe_converge_recovery_locked(req)
+            if req.claim_id and req.claim_id != claim_id:
+                req.diagnostics["running_claim_conflict"] = {
+                    "existing": req.claim_id,
+                    "incoming": claim_id,
+                }
+                return self._enter_reconciliation(req, reason="running_claim_conflict")
+            if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
+                req.claim_id = claim_id
+                req.lifecycle_state = "RUNNING"
+                if process_tree is not None:
+                    req.process_tree = process_tree
+                self._update_request_locked(req, "RUNNING")
             return req
-        if req.lifecycle_state not in TERMINAL_STATES:
-            req.claim_id = claim_id
-            req.lifecycle_state = "RUNNING"
-            if process_tree is not None:
-                req.process_tree = process_tree
-            self.update_request(req, "RUNNING")
-        return req
 
     def request_cancel(self, request_id: str) -> DurableRemoteRequest:
-        req = self.get_request(request_id)
-        if req is None:
-            raise KeyError(request_id)
-        if req.lifecycle_state not in TERMINAL_STATES:
-            req.lifecycle_state = "CANCEL_REQUESTED"
-            req.cancellation_requested_at = now_s()
-            self.update_request(req, "CANCEL_REQUESTED")
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            req = self._maybe_converge_recovery_locked(req)
+            if req.lifecycle_state in RECOVERY_STATES:
+                return req
+            if req.lifecycle_state not in TERMINAL_STATES:
+                req.lifecycle_state = "CANCEL_REQUESTED"
+                if not req.cancellation_requested_at:
+                    req.cancellation_requested_at = now_s()
+                if not req.cancellation_deadline_at:
+                    req.cancellation_deadline_at = req.cancellation_requested_at + 30.0
+                self._update_request_locked(req, "CANCEL_REQUESTED")
+            return req
+
+    def _write_result_record(
+        self,
+        request: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        state: str,
+        result: dict[str, Any],
+        cleanup: dict[str, Any] | None = None,
+    ) -> str:
+        digest = sha256_json(
+            {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup or {}}
+        )
+        _atomic_write_json(
+            self._result_path(request.request_id),
+            {
+                "request_id": request.request_id,
+                "correlation_id": request.correlation_id,
+                "node_id": request.node_id,
+                "candidate_sha": request.candidate_sha,
+                "claim_id": claim_id,
+                "state": state,
+                "result": result,
+                "result_digest": digest,
+                "cleanup_digest": sha256_json(cleanup or {}),
+                "cleanup": cleanup or {},
+                "published_at": now_s(),
+            },
+        )
+        return digest
+
+    def _write_rejected_result_record(
+        self,
+        request: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        state: str,
+        result: dict[str, Any],
+        reason: str,
+        cleanup: dict[str, Any] | None = None,
+    ) -> str:
+        digest = sha256_json(
+            {
+                "state": state,
+                "claim_id": claim_id,
+                "result": result,
+                "cleanup": cleanup or {},
+                "reason": reason,
+            }
+        )
+        _atomic_write_json(
+            self._rejected_result_path(request.request_id, digest),
+            {
+                "request_id": request.request_id,
+                "correlation_id": request.correlation_id,
+                "node_id": request.node_id,
+                "candidate_sha": request.candidate_sha,
+                "claim_id": claim_id,
+                "state": state,
+                "result": result,
+                "result_digest": digest,
+                "cleanup_digest": sha256_json(cleanup or {}),
+                "cleanup": cleanup or {},
+                "rejected_reason": reason,
+                "rejected_at": now_s(),
+            },
+        )
+        return digest
+
+    def _terminalize(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        state: str,
+        result: dict[str, Any],
+        cleanup: dict[str, Any] | None = None,
+        event: str | None = None,
+    ) -> DurableRemoteRequest:
+        req.claim_id = claim_id
+        req.lifecycle_state = state
+        req.result_digest = self._write_result_record(
+            req,
+            claim_id=claim_id,
+            state=state,
+            result=result,
+            cleanup=cleanup,
+        )
+        if cleanup is not None:
+            req.cleanup = cleanup
+        if state == "CANCELLED" and not req.cancellation_acknowledged_at:
+            req.cancellation_acknowledged_at = now_s()
+        self._update_request_locked(req, event or state)
         return req
 
     def publish_result(
@@ -292,60 +666,233 @@ class DurableRemoteStore:
     ) -> DurableRemoteRequest:
         if state not in {"SUCCEEDED", "FAILED", "CANCELLED"}:
             raise ValueError(f"invalid terminal state: {state}")
-        req = self.get_request(request_id)
+        with self._request_lock(request_id):
+            return self._publish_result_locked(
+                request_id,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+            )
+
+    def _publish_result_locked(
+        self,
+        request_id: str,
+        *,
+        claim_id: str,
+        state: str,
+        result: dict[str, Any],
+        cleanup: dict[str, Any] | None = None,
+    ) -> DurableRemoteRequest:
+        req = self._get_request_raw(request_id)
         if req is None:
             raise KeyError(request_id)
-        if req.claim_id and req.claim_id != claim_id:
-            req.lifecycle_state = "RECONCILIATION_REQUIRED"
-            req.diagnostics["result_claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
-            self.update_request(req, "RECONCILIATION_REQUIRED")
-            return req
+        req = self._maybe_converge_recovery_locked(req)
+        if not req.claim_id:
+            self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="result_without_claim",
+            )
+            req.diagnostics["result_without_claim"] = {"incoming": claim_id}
+            return self._enter_reconciliation(req, reason="result_without_claim")
         if req.lifecycle_state in TERMINAL_STATES:
             existing = self.result_for(request_id)
-            incoming_digest = sha256_json(result)
+            incoming_digest = sha256_json(
+                {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup or {}}
+            )
             if (
                 existing
                 and existing.get("state") == state
+                and existing.get("claim_id") == claim_id
                 and existing.get("result_digest") == incoming_digest
             ):
                 return req
-            existing_state = req.lifecycle_state
-            req.lifecycle_state = "RECONCILIATION_REQUIRED"
-            req.diagnostics["terminal_result_conflict"] = {
-                "existing_state": existing_state,
-                "incoming_state": state,
-            }
-            self.update_request(req, "RECONCILIATION_REQUIRED")
+            self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="terminal_result_conflict",
+            )
+            req.diagnostics.setdefault("rejected_late_results", []).append(
+                {"existing_state": req.lifecycle_state, "incoming_state": state, "digest": incoming_digest}
+            )
+            self._update_request_locked(req, "LATE_RESULT_REJECTED")
             return req
-        if req.lifecycle_state in {"CANCEL_REQUESTED", "EXPIRED"} and state == "SUCCEEDED":
-            req.lifecycle_state = "RECONCILIATION_REQUIRED"
-            req.diagnostics["late_success_rejected"] = True
-            self.update_request(req, "RECONCILIATION_REQUIRED")
+        if req.claim_id != claim_id:
+            self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="result_claim_conflict",
+            )
+            req.diagnostics["result_claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
+            return self._enter_reconciliation(req, reason="result_claim_conflict")
+        if req.lifecycle_state in RECOVERY_STATES:
+            digest = self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="reconciliation_pending",
+            )
+            req.diagnostics.setdefault("rejected_during_reconciliation", []).append(
+                {"incoming_state": state, "digest": digest}
+            )
+            self._update_request_locked(req, "LATE_RESULT_REJECTED")
             return req
-        req.claim_id = claim_id
-        req.lifecycle_state = state
-        req.result_digest = sha256_json(result)
-        if cleanup is not None:
+        if state == "CANCELLED" and cleanup and cleanup.get("process_residue"):
+            self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="cancel_without_cleanup",
+            )
             req.cleanup = cleanup
-        _atomic_write_json(
-            self._result_path(request_id),
-            {
-                "request_id": request_id,
-                "claim_id": claim_id,
-                "state": state,
-                "result": result,
-                "result_digest": req.result_digest,
-                "published_at": now_s(),
-            },
+            req.diagnostics["cancel_without_cleanup"] = cleanup.get("process_residue")
+            return self._enter_reconciliation(req, reason="cancel_without_cleanup")
+        if req.lifecycle_state == "CANCEL_REQUESTED" and state == "SUCCEEDED":
+            if req.cancellation_acknowledged_at:
+                self._write_rejected_result_record(
+                    req,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                    reason="late_success_after_cancel_ack",
+                )
+                req.diagnostics["late_success_rejected"] = True
+                self._update_request_locked(req, "LATE_RESULT_REJECTED")
+                return req
+            if req.expires_at and now_s() > req.expires_at:
+                self._write_rejected_result_record(
+                    req,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                    reason="late_success_after_expiry",
+                )
+                req.diagnostics["late_success_after_expiry"] = True
+                return self._enter_reconciliation(req, reason="late_success_after_expiry")
+            req.diagnostics["success_after_cancel_requested"] = {
+                "cancellation_requested_at": req.cancellation_requested_at,
+                "resolution": "success_won_before_acknowledged_cancellation",
+            }
+        if req.lifecycle_state == "EXPIRED" and state == "SUCCEEDED":
+            self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="late_success_after_expiry",
+            )
+            req.diagnostics["late_success_after_expiry"] = True
+            return self._enter_reconciliation(req, reason="late_success_after_expiry")
+        return self._terminalize(
+            req,
+            claim_id=claim_id,
+            state=state,
+            result=result,
+            cleanup=cleanup,
         )
-        self.update_request(req, state)
-        return req
+
+    def reconcile_request(self, request_id: str, *, reason: str = "bounded_reconciliation") -> DurableRemoteRequest:
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            return self._reconcile_request_locked(req, reason=reason)
+
+    def _reconcile_request_locked(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        reason: str = "bounded_reconciliation",
+    ) -> DurableRemoteRequest:
+        if req.lifecycle_state in TERMINAL_STATES:
+            return req
+        if req.lifecycle_state != "RECONCILIATION_REQUIRED":
+            return req
+        if self._has_process_residue_diagnostic(req):
+            req.diagnostics.setdefault("residue_reconciliation_pending", True)
+            self._update_request_locked(req, "RESIDUE_RECONCILIATION_PENDING")
+            return req
+        req.diagnostics["reconciled_fail_closed"] = {
+            "reason": reason,
+            "prior_state": "RECONCILIATION_REQUIRED",
+            "process_tree": req.process_tree,
+            "cleanup": req.cleanup,
+        }
+        return self._terminalize(
+            req,
+            claim_id=req.claim_id or "unclaimed",
+            state="FAILED",
+            result={
+                "success": False,
+                "error": "durable remote reconciliation failed closed",
+                "reason": reason,
+            },
+            cleanup=req.cleanup,
+            event="RECONCILED_FAILED",
+        )
+
+    def fail_unresolved_request(
+        self, request_id: str, *, reason: str = "unresolved_timeout"
+    ) -> DurableRemoteRequest:
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            req = self._maybe_converge_recovery_locked(req)
+            if req.lifecycle_state in TERMINAL_STATES:
+                return req
+            if req.lifecycle_state == "RECONCILIATION_REQUIRED":
+                if self._has_process_residue_diagnostic(req):
+                    return req
+                return self._reconcile_request_locked(req, reason=reason)
+            req.diagnostics["unresolved_failed_closed"] = {
+                "reason": reason,
+                "prior_state": req.lifecycle_state,
+                "process_tree": req.process_tree,
+                "cleanup": req.cleanup,
+            }
+            return self._terminalize(
+                req,
+                claim_id=req.claim_id or "unclaimed",
+                state="FAILED",
+                result={
+                    "success": False,
+                    "error": "durable remote unresolved request failed closed",
+                    "reason": reason,
+                },
+                cleanup=req.cleanup,
+                event="UNRESOLVED_FAILED",
+            )
 
     def result_for(self, request_id: str) -> dict[str, Any] | None:
         data = _read_json(self._result_path(request_id))
         return data or None
 
-    def remove_request(self, request_id: str) -> None:
+    def remove_request(self, request_id: str, *, force_terminal: bool = False) -> None:
+        current = self.get_request(request_id)
+        if (
+            current is not None
+            and current.lifecycle_state in TERMINAL_STATES
+            and not force_terminal
+        ):
+            raise ValueError("refusing to remove terminal durable request without force_terminal")
         for path in (self._request_path(request_id), self._result_path(request_id)):
             try:
                 path.unlink()

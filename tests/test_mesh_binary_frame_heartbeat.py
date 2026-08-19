@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import socket
 import struct
 import time
 
 import pytest
 
 from substrate.execution.executor import WorkPacketExecutor
+from substrate.execution.durable_remote_transport import DurableRemoteStore, make_request
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.outcome_socket import OutcomeSocket
 from substrate.sockets.signal_socket import SignalSocket
@@ -57,9 +59,26 @@ def _frame(meta: dict, jpeg: bytes = b"\xff\xd8\xff\xe0JPEGBODY") -> bytes:
     return struct.pack(">I", len(mb)) + mb + jpeg
 
 
+def _free_port_pair() -> int:
+    """Return a websocket port whose adjacent HTTP relay port is also free."""
+    for _ in range(100):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as first:
+            first.bind(("127.0.0.1", 0))
+            port = int(first.getsockname()[1])
+        if port >= 65535:
+            continue
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as second:
+            try:
+                second.bind(("127.0.0.1", port + 1))
+            except OSError:
+                continue
+        return port
+    raise RuntimeError("could not allocate free adjacent mesh test ports")
+
+
 def _server(**cfg) -> NodeMeshServer:
     config = MeshConfig(
-        port=cfg.pop("port", 19191),
+        port=cfg.pop("port", _free_port_pair()),
         heartbeat_timeout_s=cfg.pop("heartbeat_timeout_s", 5),
         max_nodes=4,
         node_tokens={"n1": NodeTokenEntry(node_id="n1", token="tok-n1")},
@@ -179,7 +198,7 @@ async def _live_malformed_does_not_sustain() -> dict:
     """
     import websockets
 
-    s = _server(port=19195, heartbeat_timeout_s=2)
+    s = _server(heartbeat_timeout_s=2)
     s.start()
     await asyncio.sleep(1.0)
     out: dict = {}
@@ -216,8 +235,7 @@ async def _live_malformed_does_not_sustain() -> dict:
         out["stale_after_malformed"] = "n1" in s._registry.stale_nodes()
         await ws.close()
     finally:
-        s._shutdown_event.set()
-        await asyncio.sleep(0.5)
+        s.stop()
     return out
 
 
@@ -239,7 +257,7 @@ async def _live_zero_bytes_do_not_sustain() -> dict:
     """
     import websockets
 
-    s = _server(port=19197, heartbeat_timeout_s=2)
+    s = _server(heartbeat_timeout_s=2)
     s.start()
     await asyncio.sleep(1.0)
     out: dict = {}
@@ -275,8 +293,7 @@ async def _live_zero_bytes_do_not_sustain() -> dict:
         out["stale_after_zero_bytes"] = "n1" in s._registry.stale_nodes()
         await ws.close()
     finally:
-        s._shutdown_event.set()
-        await asyncio.sleep(0.5)
+        s.stop()
     return out
 
 
@@ -302,7 +319,7 @@ async def _live_cross_node_isolation() -> dict:
     import websockets
 
     config = MeshConfig(
-        port=19196,
+        port=_free_port_pair(),
         heartbeat_timeout_s=2,
         max_nodes=4,
         node_tokens={
@@ -365,8 +382,7 @@ async def _live_cross_node_isolation() -> dict:
         await ws1.close()
         await ws2.close()
     finally:
-        s._shutdown_event.set()
-        await asyncio.sleep(0.5)
+        s.stop()
     return out
 
 
@@ -429,7 +445,7 @@ async def _live_binary_only_survives() -> dict:
     """Real server, real WS. Node sends ONLY binary frames across >3 windows."""
     import websockets
 
-    s = _server(port=19193, heartbeat_timeout_s=2)
+    s = _server(heartbeat_timeout_s=2)
     s.start()
     await asyncio.sleep(1.0)
     out: dict = {}
@@ -474,8 +490,7 @@ async def _live_binary_only_survives() -> dict:
         await asyncio.sleep(0.5)
         out["unregistered_on_close"] = s._registry.get("n1") is None
     finally:
-        s._shutdown_event.set()
-        await asyncio.sleep(0.5)
+        s.stop()
     return out
 
 
@@ -490,11 +505,165 @@ def test_live_node_streaming_binary_only_survives_three_windows():
     assert r.get("unregistered_on_close") is True, "requirement 8: cleanup intact"
 
 
+async def _live_binary_liveness_pumps_durable_requests(tmp_path) -> dict:
+    """A media-heavy node must not starve queued durable work until a text heartbeat."""
+    import websockets
+
+    s = _server(heartbeat_timeout_s=5)
+    s._durable_store = DurableRemoteStore(tmp_path)
+    s.start()
+    await asyncio.sleep(1.0)
+    out: dict = {}
+    try:
+        ws = await websockets.connect(
+            f"ws://127.0.0.1:{s._config.port}/ws",
+            additional_headers={"Authorization": "Bearer tok-n1"},
+        )
+        await ws.send(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "method": "node.hello",
+                    "params": {
+                        "node_id": "n1",
+                        "hostname": "H",
+                        "os": "windows",
+                        "capabilities": [],
+                        "peripherals": [],
+                    },
+                    "id": 1,
+                }
+            )
+        )
+        await asyncio.wait_for(ws.recv(), timeout=5)
+        req = make_request(
+            correlation_id="binary-pump-test",
+            candidate_sha="sha",
+            node_id="n1",
+            operation_type="unit",
+            capability="shell",
+            params={"command": "hostname"},
+            ttl_seconds=60,
+        )
+        s._durable_store.put_request(req)
+
+        await ws.send(_frame({"source": "desktop"}))
+        delivered = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+        out["method"] = delivered.get("method")
+        out["request_id"] = delivered.get("params", {}).get("request_id")
+        out["node_id"] = delivered.get("params", {}).get("node_id")
+        await ws.send(_frame({"source": "desktop"}))
+        try:
+            duplicate = await asyncio.wait_for(ws.recv(), timeout=0.5)
+            out["immediate_duplicate"] = duplicate
+        except asyncio.TimeoutError:
+            out["immediate_duplicate"] = None
+        await ws.close()
+    finally:
+        s.stop()
+    return out
+
+
+def test_live_binary_liveness_pumps_durable_requests(tmp_path):
+    r = asyncio.run(_live_binary_liveness_pumps_durable_requests(tmp_path))
+    assert r.get("method") == "durable_command.request"
+    assert r.get("node_id") == "n1"
+    assert r.get("request_id")
+    assert r.get("immediate_duplicate") is None
+
+
+async def _claim_conflict_ack_reports_rejection(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-conflict-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claimed(
+        "n1",
+        {"request_id": req.request_id, "claim_id": "claim-2", "state": "CLAIMED"},
+        99,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claim_conflict_ack_reports_rejection(tmp_path):
+    result = asyncio.run(_claim_conflict_ack_reports_rejection(tmp_path))
+    assert result["ok"] is False
+    assert "RECONCILIATION_REQUIRED" in result["error"]
+
+
+async def _duplicate_terminal_result_ack_reports_rejection(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="result-conflict-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    s._durable_store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "first"},
+    )
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_result(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "claim_id": "foreign",
+            "state": "SUCCEEDED",
+            "result": {"success": True, "stdout": "foreign"},
+        },
+        100,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_duplicate_terminal_result_ack_reports_rejection(tmp_path):
+    result = asyncio.run(_duplicate_terminal_result_ack_reports_rejection(tmp_path))
+    assert result["ok"] is False
+    assert "SUCCEEDED" in result["error"]
+
+
 async def _unauthenticated_binary_rejected() -> dict:
     """Requirement 5: binary before/without auth never reaches the registry."""
     import websockets
 
-    s = _server(port=19194, heartbeat_timeout_s=5)
+    s = _server(heartbeat_timeout_s=5)
     s.start()
     await asyncio.sleep(1.0)
     out: dict = {}
@@ -525,8 +694,7 @@ async def _unauthenticated_binary_rejected() -> dict:
         out["no_registration_without_hello"] = s._registry.node_count() == 0
         await ws2.close()
     finally:
-        s._shutdown_event.set()
-        await asyncio.sleep(0.5)
+        s.stop()
     return out
 
 

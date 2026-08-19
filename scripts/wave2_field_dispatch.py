@@ -2188,35 +2188,123 @@ def _durable_remote_shell(
         ttl_seconds=max(dispatch_timeout + 60, command_timeout + 60),
     )
     store.put_request(request)
+    terminal_states = {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}
+
+    def _requires_residue_reconciliation(current: object) -> bool:
+        diagnostics = getattr(current, "diagnostics", {})
+        return bool(
+            isinstance(diagnostics, dict)
+            and (
+                diagnostics.get("cancel_without_cleanup")
+                or diagnostics.get("terminal_cancel_cleanup_conflict")
+            )
+        )
+
+    def _terminal_output(current: object) -> dict[str, object]:
+        result = store.result_for(request.request_id) or {}
+        data = result.get("result", {}) if isinstance(result, dict) else {}
+        state = getattr(current, "lifecycle_state", "")
+        success = bool(data.get("success")) and state == "SUCCEEDED"
+        out: dict[str, object] = {
+            "ok": success,
+            "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(data.get("stdout", ""))[:max_len]),
+            "stderr": _SECRET_REDACT_RE.sub("<redacted>", str(data.get("stderr", ""))[:max_len]),
+            "error": _SECRET_REDACT_RE.sub(
+                "<redacted>", str(data.get("error", ""))[:max_len]
+            ),
+            "raw_status": state,
+            "request_id": request.request_id,
+            "result_digest": getattr(current, "result_digest", ""),
+        }
+        return out
+
+    def _recovery_output(current: object) -> dict[str, object]:
+        diagnostics = getattr(current, "diagnostics", {})
+        reason = "durable remote request requires governed residue reconciliation"
+        if isinstance(diagnostics, dict):
+            if diagnostics.get("cancel_without_cleanup"):
+                reason = "durable remote cancellation left process residue"
+            elif diagnostics.get("terminal_cancel_cleanup_conflict"):
+                reason = "durable remote terminal replay reported process residue"
+        return {
+            "ok": False,
+            "stdout": "",
+            "stderr": "",
+            "error": reason,
+            "raw_status": getattr(current, "lifecycle_state", ""),
+            "request_id": request.request_id,
+            "result_digest": getattr(current, "result_digest", ""),
+        }
+
     deadline = time.time() + dispatch_timeout
     last_state = "QUEUED"
     while time.time() < deadline:
         current = store.get_request(request.request_id)
         if current is not None:
             last_state = current.lifecycle_state
-            if current.lifecycle_state in {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}:
-                result = store.result_for(request.request_id) or {}
-                data = result.get("result", {}) if isinstance(result, dict) else {}
-                success = bool(data.get("success")) and current.lifecycle_state == "SUCCEEDED"
-                out = {
-                    "ok": success,
-                    "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(data.get("stdout", ""))[:max_len]),
-                    "stderr": _SECRET_REDACT_RE.sub("<redacted>", str(data.get("stderr", ""))[:max_len]),
-                    "error": _SECRET_REDACT_RE.sub(
-                        "<redacted>", str(data.get("error", ""))[:max_len]
-                    ),
-                    "raw_status": current.lifecycle_state,
-                    "request_id": request.request_id,
-                    "result_digest": current.result_digest,
-                }
-                try:
-                    store.remove_request(request.request_id)
-                except Exception:
-                    out["cleanup_warning"] = "durable request cleanup failed"
-                return out
+            if current.lifecycle_state in terminal_states:
+                return _terminal_output(current)
+            if current.lifecycle_state == "RECONCILIATION_REQUIRED":
+                if _requires_residue_reconciliation(current):
+                    last_state = current.lifecycle_state
+                    time.sleep(1)
+                    continue
+                reconciled = store.reconcile_request(
+                    request.request_id,
+                    reason="client_poll_observed_reconciliation_required",
+                )
+                if reconciled.lifecycle_state in terminal_states:
+                    return _terminal_output(reconciled)
         time.sleep(1)
     try:
         store.request_cancel(request.request_id)
+    except Exception:
+        pass
+    cancel_deadline = time.time() + min(max(command_timeout + 5, 10), 45)
+    while time.time() < cancel_deadline:
+        current = store.get_request(request.request_id)
+        if current is not None:
+            last_state = current.lifecycle_state
+            if current.lifecycle_state in terminal_states:
+                return _terminal_output(current)
+            if current.lifecycle_state == "RECONCILIATION_REQUIRED":
+                if _requires_residue_reconciliation(current):
+                    last_state = current.lifecycle_state
+                    time.sleep(1)
+                    continue
+                reconciled = store.reconcile_request(
+                    request.request_id,
+                    reason="client_timeout_reconciliation",
+                )
+                if reconciled.lifecycle_state in terminal_states:
+                    return _terminal_output(reconciled)
+        time.sleep(1)
+    try:
+        current = store.get_request(request.request_id)
+        if (
+            current is not None
+            and current.lifecycle_state == "RECONCILIATION_REQUIRED"
+            and not _requires_residue_reconciliation(current)
+        ):
+            reconciled = store.reconcile_request(
+                request.request_id,
+                reason="client_timeout_reconciliation_deadline",
+            )
+            if reconciled.lifecycle_state in terminal_states:
+                return _terminal_output(reconciled)
+    except Exception:
+        pass
+    try:
+        failed = store.fail_unresolved_request(
+            request.request_id,
+            reason=f"client_timeout_after_cancel_state_{last_state}",
+        )
+        if failed.lifecycle_state == "RECONCILIATION_REQUIRED" and _requires_residue_reconciliation(failed):
+            return _recovery_output(failed)
+        if failed.lifecycle_state in terminal_states:
+            if _requires_residue_reconciliation(failed):
+                return _recovery_output(failed)
+            return _terminal_output(failed)
     except Exception:
         pass
     return {
