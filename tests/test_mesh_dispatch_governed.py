@@ -15,6 +15,7 @@ Run: pytest tests/test_mesh_dispatch_governed.py -q
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 
@@ -282,6 +283,60 @@ def _bare_node_client(node_id: str = "node-a"):
     return client
 
 
+class _DurableAckWs:
+    def __init__(self, client, claim_acks: list[dict[str, object]] | None = None) -> None:
+        self.client = client
+        self.claim_acks = list(claim_acks or [])
+        self.sent: list[dict[str, object]] = []
+
+    async def send(self, raw: str) -> None:
+        msg = json.loads(raw)
+        self.sent.append(msg)
+        if msg.get("method") != "durable_command.claimed":
+            return
+        result = self.claim_acks.pop(0) if self.claim_acks else {"ok": True, "error": ""}
+
+        async def _respond() -> None:
+            await self.client._handle_message(
+                json.dumps({"jsonrpc": "2.0", "result": result, "id": msg.get("id")})
+            )
+
+        asyncio.create_task(_respond())
+
+
+def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
+    from nodes.windows.umh_node.client import NodeClient
+    from nodes.windows.umh_node.config import NodeConfig
+    from substrate.execution.durable_remote_transport import DurableRemoteStore
+
+    client = object.__new__(NodeClient)
+    client._config = NodeConfig(node_id=node_id)
+    client._connected = True
+    client._msg_id = 0
+    client._pending_rpc = {}
+    client._durable_store = DurableRemoteStore(tmp_path)
+    client._durable_processes = {}
+    client._adapters = {}
+    return client
+
+
+def _durable_request(**overrides):
+    from substrate.execution.durable_remote_transport import make_request
+
+    data = {
+        "correlation_id": "unit-durable",
+        "candidate_sha": "abc123",
+        "node_id": "windows-desktop",
+        "operation_type": "transport_unit",
+        "capability": "shell",
+        "params": {"command": "echo ok", "timeout": 5},
+        "risk_class": "read_only",
+        "ttl_seconds": 60,
+    }
+    data.update(overrides)
+    return make_request(**data)
+
+
 def test_node_rejects_write_class_without_verdict(monkeypatch):
     monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
     client = _bare_node_client("node-a")
@@ -358,6 +413,234 @@ def test_node_rejects_risk_downgrade_attack(monkeypatch):
     ok, reason = client._validate_verdict("shell.execute", "read_only", "")
     assert ok is False
     assert "verdict" in reason.lower()
+
+
+def test_durable_node_does_not_execute_when_controller_rejects_claim(tmp_path, monkeypatch):
+    client = _durable_node_client(tmp_path)
+    ws = _DurableAckWs(client, claim_acks=[{"ok": False, "error": "claim rejected"}])
+    client._ws = ws
+    called = False
+
+    async def _execute(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        return {"success": True, "stdout": "should not run"}
+
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+    req = _durable_request()
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert called is False
+    assert [msg.get("method") for msg in ws.sent] == ["durable_command.claimed"]
+    assert client._durable_store.result_for(req.request_id) is None
+
+
+def test_durable_node_does_not_run_adapter_when_running_ack_is_rejected(tmp_path):
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    client = _durable_node_client(tmp_path)
+    ws = _DurableAckWs(
+        client,
+        claim_acks=[
+            {"ok": True, "error": ""},
+            {"ok": False, "error": "running rejected"},
+        ],
+    )
+    client._ws = ws
+    client._config.capabilities = {
+        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    executed = False
+
+    class _Adapter:
+        def execute(self, *_args, **_kwargs):
+            nonlocal executed
+            executed = True
+            return {"success": True}
+
+    client._adapters = {"dummy": _Adapter()}
+    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert executed is False
+    methods = [msg.get("method") for msg in ws.sent]
+    assert methods == [
+        "durable_command.claimed",
+        "durable_command.claimed",
+        "durable_command.result",
+    ]
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert "running acknowledgement rejected" in result["result"]["error"]
+
+
+def test_durable_shell_does_not_start_when_running_ack_is_rejected(tmp_path):
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    marker = tmp_path / "marker.txt"
+    client = _durable_node_client(tmp_path / "store")
+    ws = _DurableAckWs(
+        client,
+        claim_acks=[
+            {"ok": True, "error": ""},
+            {"ok": False, "error": "running rejected"},
+        ],
+    )
+    client._ws = ws
+    client._config.capabilities = {
+        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    client._adapters = {"shell": object()}
+    req = _durable_request(
+        params={
+            "argv": [
+                sys.executable,
+                "-c",
+                f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+            ],
+            "timeout": 5,
+        },
+        risk_class="read_only",
+    )
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert marker.exists() is False
+    methods = [msg.get("method") for msg in ws.sent]
+    assert methods == [
+        "durable_command.claimed",
+        "durable_command.claimed",
+        "durable_command.result",
+    ]
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert "running acknowledgement rejected" in result["result"]["error"]
+
+
+def test_durable_shell_post_start_running_update_is_not_an_execution_gate(tmp_path):
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    marker = tmp_path / "marker.txt"
+    client = _durable_node_client(tmp_path / "store")
+    ws = _DurableAckWs(
+        client,
+        claim_acks=[
+            {"ok": True, "error": ""},
+            {"ok": True, "error": ""},
+            {"ok": False, "error": "late running update rejected"},
+        ],
+    )
+    client._ws = ws
+    client._config.capabilities = {
+        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    client._adapters = {"shell": object()}
+    req = _durable_request(
+        params={
+            "argv": [
+                sys.executable,
+                "-c",
+                f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+            ],
+            "timeout": 5,
+        },
+        risk_class="read_only",
+    )
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert marker.read_text(encoding="utf-8") == "ran"
+    methods = [msg.get("method") for msg in ws.sent]
+    assert methods == [
+        "durable_command.claimed",
+        "durable_command.claimed",
+        "durable_command.claimed",
+        "durable_command.result",
+    ]
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "SUCCEEDED"
+
+
+def test_durable_node_sends_original_terminal_state_when_local_store_needs_reconciliation(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path)
+    ws = _DurableAckWs(client)
+    client._ws = ws
+
+    async def _execute(*_args, **_kwargs):
+        return {
+            "success": False,
+            "error": "timed out",
+            "cleanup": {"process_residue": [{"pid": 123, "state": "still_alive"}]},
+        }
+
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+    req = _durable_request()
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    result_msg = ws.sent[-1]
+    assert result_msg["method"] == "durable_command.result"
+    assert result_msg["params"]["state"] == "FAILED"
+    assert result_msg["params"]["cleanup"]["process_residue"][0]["pid"] == 123
+    local = client._durable_store.get_request(req.request_id)
+    assert local is not None
+    assert local.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+
+def test_durable_node_replays_terminal_result_with_original_cleanup(tmp_path):
+    client = _durable_node_client(tmp_path)
+    ws = _DurableAckWs(client)
+    client._ws = ws
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    client._durable_store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": [], "cancel_reason": "unit"},
+    )
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert len(ws.sent) == 1
+    replay = ws.sent[0]
+    assert replay["method"] == "durable_command.result"
+    assert replay["params"]["cleanup"] == {
+        "process_residue": [],
+        "cancel_reason": "unit",
+    }
+    assert replay["params"]["idempotent_replay"] is True
 
 
 # ── Governed remote dispatch routes through the right mutation ─────────────

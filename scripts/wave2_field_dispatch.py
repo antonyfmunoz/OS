@@ -2196,6 +2196,8 @@ def _durable_remote_shell(
             isinstance(diagnostics, dict)
             and (
                 diagnostics.get("cancel_without_cleanup")
+                or diagnostics.get("failed_without_cleanup")
+                or diagnostics.get("success_without_cleanup")
                 or diagnostics.get("terminal_cancel_cleanup_conflict")
             )
         )
@@ -2224,6 +2226,10 @@ def _durable_remote_shell(
         if isinstance(diagnostics, dict):
             if diagnostics.get("cancel_without_cleanup"):
                 reason = "durable remote cancellation left process residue"
+            elif diagnostics.get("failed_without_cleanup"):
+                reason = "durable remote failure left process residue"
+            elif diagnostics.get("success_without_cleanup"):
+                reason = "durable remote success left process residue"
             elif diagnostics.get("terminal_cancel_cleanup_conflict"):
                 reason = "durable remote terminal replay reported process residue"
         return {

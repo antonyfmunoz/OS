@@ -23,6 +23,17 @@ from uuid import uuid4
 TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"})
 ACTIVE_STATES = frozenset({"QUEUED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"})
 RECOVERY_STATES = frozenset({"RECONCILIATION_REQUIRED"})
+STATE_ORDER = {
+    "QUEUED": 0,
+    "CLAIMED": 1,
+    "RUNNING": 2,
+    "CANCEL_REQUESTED": 3,
+    "RECONCILIATION_REQUIRED": 4,
+    "EXPIRED": 5,
+    "FAILED": 5,
+    "CANCELLED": 5,
+    "SUCCEEDED": 5,
+}
 
 
 def default_controller_root() -> Path:
@@ -269,9 +280,11 @@ class DurableRemoteStore:
         req = self._get_request_raw(request_id)
         if req is None:
             return None
-        if req.lifecycle_state in TERMINAL_STATES:
-            return req
-        if not self._recovery_due(req) and self.result_for(request_id) is None:
+        if (
+            req.lifecycle_state not in TERMINAL_STATES
+            and not self._recovery_due(req)
+            and self.result_for(request_id) is None
+        ):
             return req
         with self._request_lock(request_id):
             current = self._get_request_raw(request_id)
@@ -285,6 +298,9 @@ class DurableRemoteStore:
             if current is not None and (
                 current.lifecycle_state in TERMINAL_STATES
                 or current.lifecycle_state in RECOVERY_STATES
+                or STATE_ORDER.get(request.lifecycle_state, -1)
+                < STATE_ORDER.get(current.lifecycle_state, -1)
+                or bool(current.claim_id and request.claim_id != current.claim_id)
             ):
                 return
             self._update_request_locked(request, event)
@@ -309,6 +325,8 @@ class DurableRemoteStore:
     def _has_process_residue_diagnostic(self, req: DurableRemoteRequest) -> bool:
         return bool(
             req.diagnostics.get("cancel_without_cleanup")
+            or req.diagnostics.get("failed_without_cleanup")
+            or req.diagnostics.get("success_without_cleanup")
             or req.diagnostics.get("terminal_cancel_cleanup_conflict")
             or req.cleanup.get("process_residue")
         )
@@ -317,7 +335,9 @@ class DurableRemoteStore:
         self, req: DurableRemoteRequest
     ) -> DurableRemoteRequest:
         existing = self.result_for(req.request_id)
-        if not existing or req.lifecycle_state in TERMINAL_STATES:
+        if not existing:
+            return req
+        if req.lifecycle_state in RECOVERY_STATES and self._has_process_residue_diagnostic(req):
             return req
         state = str(existing.get("state", ""))
         if state not in TERMINAL_STATES:
@@ -331,6 +351,48 @@ class DurableRemoteStore:
         if existing.get("candidate_sha") != req.candidate_sha:
             return req
         claim_id = str(existing.get("claim_id", ""))
+        result = dict(existing.get("result") or {})
+        cleanup = dict(existing.get("cleanup") or {})
+        result_digest = sha256_json(
+            {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
+        )
+        cleanup_digest = sha256_json(cleanup)
+        if existing.get("result_digest") != result_digest or existing.get(
+            "cleanup_digest"
+        ) != cleanup_digest:
+            req.diagnostics.setdefault("terminal_result_digest_mismatch", []).append(
+                {
+                    "stored_result_digest": existing.get("result_digest", ""),
+                    "expected_result_digest": result_digest,
+                    "stored_cleanup_digest": existing.get("cleanup_digest", ""),
+                    "expected_cleanup_digest": cleanup_digest,
+                }
+            )
+            return self._enter_reconciliation(req, reason="terminal_result_digest_mismatch")
+        if cleanup.get("process_residue"):
+            reason_by_state = {
+                "CANCELLED": "cancel_without_cleanup",
+                "FAILED": "failed_without_cleanup",
+                "SUCCEEDED": "success_without_cleanup",
+            }
+            reason = reason_by_state.get(state, "terminal_without_cleanup")
+            req.cleanup = cleanup
+            req.diagnostics[reason] = cleanup.get("process_residue")
+            return self._enter_reconciliation(req, reason=reason)
+        if (
+            state == "CANCELLED"
+            and claim_id == "unclaimed"
+            and req.lifecycle_state == "QUEUED"
+            and not req.claim_id
+        ):
+            req.claim_id = claim_id
+            req.lifecycle_state = state
+            req.result_digest = str(existing.get("result_digest", req.result_digest))
+            req.cleanup = cleanup
+            req.diagnostics.setdefault("recovered_terminal_result", True)
+            req.diagnostics.setdefault("cancelled_before_claim", True)
+            self._update_request_locked(req, "TERMINAL_RESULT_RECOVERED")
+            return req
         if not claim_id or req.claim_id != claim_id:
             req.diagnostics.setdefault("unclaimed_terminal_result_ignored", []).append(
                 {
@@ -340,6 +402,8 @@ class DurableRemoteStore:
                 }
             )
             self._update_request_locked(req, "UNCLAIMED_TERMINAL_RESULT_IGNORED")
+            return req
+        if req.lifecycle_state in TERMINAL_STATES:
             return req
         req.lifecycle_state = state
         req.result_digest = str(existing.get("result_digest", req.result_digest))
@@ -411,7 +475,7 @@ class DurableRemoteStore:
         return req
 
     def _maybe_converge_recovery(self, req: DurableRemoteRequest) -> DurableRemoteRequest:
-        if not self._recovery_due(req):
+        if not self._recovery_due(req) and self.result_for(req.request_id) is None:
             return req
         with self._request_lock(req.request_id):
             current = self._get_request_raw(req.request_id)
@@ -511,6 +575,8 @@ class DurableRemoteStore:
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
                 return req
+            if req.lifecycle_state == "CANCEL_REQUESTED":
+                return req
             if req.claim_id and req.claim_id != claim_id:
                 req.diagnostics["claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
                 return self._enter_reconciliation(req, reason="claim_conflict")
@@ -536,6 +602,8 @@ class DurableRemoteStore:
                     "incoming": claim_id,
                 }
                 return self._enter_reconciliation(req, reason="running_claim_conflict")
+            if req.lifecycle_state == "CANCEL_REQUESTED":
+                return req
             if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
                 req.claim_id = claim_id
                 req.lifecycle_state = "RUNNING"
@@ -550,6 +618,22 @@ class DurableRemoteStore:
             if req is None:
                 raise KeyError(request_id)
             req = self._maybe_converge_recovery_locked(req)
+            if req.lifecycle_state == "QUEUED" and not req.claim_id:
+                req.lifecycle_state = "CANCELLED"
+                if not req.cancellation_requested_at:
+                    req.cancellation_requested_at = now_s()
+                req.diagnostics.setdefault("cancelled_before_claim", True)
+                return self._terminalize(
+                    req,
+                    claim_id="unclaimed",
+                    state="CANCELLED",
+                    result={
+                        "success": False,
+                        "error": "durable remote request cancelled before claim",
+                    },
+                    cleanup={"process_residue": []},
+                    event="CANCELLED_BEFORE_CLAIM",
+                )
             if req.lifecycle_state in RECOVERY_STATES:
                 return req
             if req.lifecycle_state not in TERMINAL_STATES:
@@ -704,6 +788,23 @@ class DurableRemoteStore:
             incoming_digest = sha256_json(
                 {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup or {}}
             )
+            if cleanup and cleanup.get("process_residue"):
+                self._write_rejected_result_record(
+                    req,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                    reason="terminal_cancel_cleanup_conflict",
+                )
+                req.cleanup = cleanup
+                req.diagnostics["terminal_cancel_cleanup_conflict"] = cleanup.get(
+                    "process_residue"
+                )
+                return self._enter_reconciliation(
+                    req,
+                    reason="terminal_cancel_cleanup_conflict",
+                )
             if (
                 existing
                 and existing.get("state") == state
@@ -749,18 +850,24 @@ class DurableRemoteStore:
             )
             self._update_request_locked(req, "LATE_RESULT_REJECTED")
             return req
-        if state == "CANCELLED" and cleanup and cleanup.get("process_residue"):
+        if state in TERMINAL_STATES and cleanup and cleanup.get("process_residue"):
+            reason_by_state = {
+                "CANCELLED": "cancel_without_cleanup",
+                "FAILED": "failed_without_cleanup",
+                "SUCCEEDED": "success_without_cleanup",
+            }
+            reason = reason_by_state.get(state, "terminal_without_cleanup")
             self._write_rejected_result_record(
                 req,
                 claim_id=claim_id,
                 state=state,
                 result=result,
                 cleanup=cleanup,
-                reason="cancel_without_cleanup",
+                reason=reason,
             )
             req.cleanup = cleanup
-            req.diagnostics["cancel_without_cleanup"] = cleanup.get("process_residue")
-            return self._enter_reconciliation(req, reason="cancel_without_cleanup")
+            req.diagnostics[reason] = cleanup.get("process_residue")
+            return self._enter_reconciliation(req, reason=reason)
         if req.lifecycle_state == "CANCEL_REQUESTED" and state == "SUCCEEDED":
             if req.cancellation_acknowledged_at:
                 self._write_rejected_result_record(

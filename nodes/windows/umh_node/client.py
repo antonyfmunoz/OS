@@ -69,6 +69,7 @@ class NodeClient:
         self._connected = False
         self._shutdown = asyncio.Event()
         self._msg_id = 0
+        self._pending_rpc: dict[Any, asyncio.Future[dict[str, Any]]] = {}
 
         self._adapters: dict[str, Any] = {}
         self._init_adapters()
@@ -469,9 +470,20 @@ class NodeClient:
         elif method == "outcome.notify":
             logger.info("outcome received: %s", msg.get("params", {}).get("summary", ""))
         elif "result" in msg or "error" in msg:
-            pass
+            self._handle_rpc_response(msg)
         else:
             logger.debug("unhandled message method: %s", method)
+
+    def _handle_rpc_response(self, msg: dict[str, Any]) -> None:
+        msg_id = msg.get("id")
+        future = self._pending_rpc.pop(msg_id, None)
+        if future is None or future.done():
+            return
+        if "error" in msg:
+            future.set_result({"ok": False, "error": msg.get("error")})
+            return
+        result = msg.get("result", {})
+        future.set_result(result if isinstance(result, dict) else {"ok": False, "error": result})
 
     def _effective_write_class(self, cap_name: str, wire_risk_class: str) -> bool:
         """Decide whether a capability is write-class for verdict purposes.
@@ -564,19 +576,38 @@ class NodeClient:
         except Exception as exc:  # noqa: BLE001
             logger.error("durable command handler crashed: %s", exc, exc_info=True)
 
-    async def _send_durable_event(self, method: str, payload: dict[str, Any]) -> None:
+    async def _send_durable_event(
+        self,
+        method: str,
+        payload: dict[str, Any],
+        *,
+        expect_ack: bool = False,
+        timeout_s: float = _CONTROL_TIMEOUT_S,
+    ) -> dict[str, Any] | None:
         if not self._connected or self._ws is None:
-            return
+            return {"ok": False, "error": "node websocket not connected"} if expect_ack else None
+        msg_id = self._next_id()
+        future: asyncio.Future[dict[str, Any]] | None = None
+        if expect_ack:
+            future = asyncio.get_running_loop().create_future()
+            self._pending_rpc[msg_id] = future
         await self._ws.send(
             json.dumps(
                 {
                     "jsonrpc": "2.0",
                     "method": method,
                     "params": payload,
-                    "id": self._next_id(),
+                    "id": msg_id,
                 }
             )
         )
+        if not expect_ack or future is None:
+            return None
+        try:
+            return await asyncio.wait_for(future, timeout=timeout_s)
+        except asyncio.TimeoutError:
+            self._pending_rpc.pop(msg_id, None)
+            return {"ok": False, "error": f"{method} acknowledgement timed out"}
 
     async def _handle_durable_command(self, msg: dict[str, Any]) -> None:
         params = msg.get("params", {})
@@ -594,7 +625,8 @@ class NodeClient:
                     "claim_id": existing.get("claim_id", ""),
                     "state": existing.get("state", "FAILED"),
                     "result": existing.get("result", {}),
-                    "cleanup": {"idempotent_replay": True},
+                    "cleanup": existing.get("cleanup", {}),
+                    "idempotent_replay": True,
                 },
             )
             return
@@ -626,13 +658,14 @@ class NodeClient:
                     "state": req.lifecycle_state,
                     "process_tree": req.process_tree,
                 },
+                expect_ack=True,
             )
             return
 
         claim_id = f"{self._config.node_id}-{uuid4().hex[:12]}"
         process_tree = {"node_pid": os.getpid(), "claimed_at": time.time()}
         self._durable_store.mark_claimed(req.request_id, claim_id=claim_id, process_tree=process_tree)
-        await self._send_durable_event(
+        ack = await self._send_durable_event(
             "durable_command.claimed",
             {
                 "request_id": req.request_id,
@@ -640,7 +673,15 @@ class NodeClient:
                 "state": "CLAIMED",
                 "process_tree": process_tree,
             },
+            expect_ack=True,
         )
+        if not ack or not ack.get("ok"):
+            logger.warning(
+                "durable claim rejected for %s: %s",
+                req.request_id,
+                (ack or {}).get("error", "missing acknowledgement"),
+            )
+            return
 
         result = await self._execute_capability_for_durable(
             req,
@@ -661,7 +702,7 @@ class NodeClient:
             {
                 "request_id": req.request_id,
                 "claim_id": claim_id,
-                "state": terminal.lifecycle_state,
+                "state": state,
                 "result": result,
                 "cleanup": cleanup,
             },
@@ -673,9 +714,9 @@ class NodeClient:
         *,
         claim_id: str,
         process_tree: dict[str, Any],
-    ) -> None:
+    ) -> dict[str, Any]:
         self._durable_store.mark_running(req.request_id, claim_id=claim_id, process_tree=process_tree)
-        await self._send_durable_event(
+        ack = await self._send_durable_event(
             "durable_command.claimed",
             {
                 "request_id": req.request_id,
@@ -683,7 +724,9 @@ class NodeClient:
                 "state": "RUNNING",
                 "process_tree": process_tree,
             },
+            expect_ack=True,
         )
+        return ack or {"ok": False, "error": "missing acknowledgement"}
 
     async def _cancel_durable_request(
         self,
@@ -785,7 +828,16 @@ class NodeClient:
                 process_tree=process_tree,
                 timeout=timeout,
             )
-        await self._announce_durable_running(req, claim_id=claim_id, process_tree=process_tree)
+        running_ack = await self._announce_durable_running(
+            req,
+            claim_id=claim_id,
+            process_tree=process_tree,
+        )
+        if not running_ack.get("ok"):
+            return {
+                "success": False,
+                "error": f"running acknowledgement rejected: {running_ack.get('error', '')}",
+            }
         try:
             if hasattr(adapter, "execute_async") and callable(adapter.execute_async):
                 return await asyncio.wait_for(adapter.execute_async(cap_name, cap_params), timeout=timeout)
@@ -825,6 +877,25 @@ class NodeClient:
             return {"success": False, "error": "no command or argv provided"}
 
         try:
+            pre_start_tree = dict(process_tree)
+            pre_start_tree.update(
+                {
+                    "command_digest": req.payload_digest,
+                    "root_pid": None,
+                    "pre_start_containment": True,
+                }
+            )
+            running_ack = await self._announce_durable_running(
+                req,
+                claim_id=claim_id,
+                process_tree=pre_start_tree,
+            )
+            if not running_ack.get("ok"):
+                return {
+                    "success": False,
+                    "error": f"running acknowledgement rejected: {running_ack.get('error', '')}",
+                }
+
             extra: dict[str, Any] = {}
             if sys.platform == "win32":
                 extra["creationflags"] = subprocess.CREATE_NO_WINDOW
@@ -842,7 +913,20 @@ class NodeClient:
             self._durable_processes[req.request_id] = proc
             process_tree = dict(process_tree)
             process_tree.update({"root_pid": proc.pid, "command_digest": req.payload_digest})
-            await self._announce_durable_running(req, claim_id=claim_id, process_tree=process_tree)
+            self._durable_store.mark_running(
+                req.request_id,
+                claim_id=claim_id,
+                process_tree=process_tree,
+            )
+            await self._send_durable_event(
+                "durable_command.claimed",
+                {
+                    "request_id": req.request_id,
+                    "claim_id": claim_id,
+                    "state": "RUNNING",
+                    "process_tree": process_tree,
+                },
+            )
 
             deadline = time.time() + timeout
             while proc.poll() is None:

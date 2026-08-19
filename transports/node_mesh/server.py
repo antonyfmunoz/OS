@@ -854,6 +854,8 @@ class NodeMeshServer:
                 if (
                     updated.lifecycle_state == "RECONCILIATION_REQUIRED"
                     and not updated.diagnostics.get("cancel_without_cleanup")
+                    and not updated.diagnostics.get("failed_without_cleanup")
+                    and not updated.diagnostics.get("success_without_cleanup")
                     and not updated.diagnostics.get("terminal_cancel_cleanup_conflict")
                 ):
                     updated = self._durable_store.reconcile_request(
