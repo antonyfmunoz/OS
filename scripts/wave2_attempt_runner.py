@@ -768,6 +768,11 @@ def main() -> int:
         or os.environ.get("CODEX_ACCESS_TOKEN")
         or None
     )
+    # Wave 2's active production policy is Codex/Spark. The provider-neutral
+    # executor contract still owns invocation and proof binding; this only pins
+    # runtime selection before any worker subprocess is admitted.
+    os.environ.setdefault("UMH_MODEL_EXECUTOR_PROVIDER", "codex")
+    os.environ.setdefault("UMH_CODEX_MODEL", "gpt-5.3-codex-spark")
     return run_loop(
         spool_root=args.spool_root,
         secret=secret,

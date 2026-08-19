@@ -7,11 +7,16 @@ import os
 from substrate.execution.attempts.model_executor_contract import ModelExecutor
 
 _DEFAULT_PROVIDER = "codex"
+_DEFAULT_CODEX_MODEL = "gpt-5.3-codex-spark"
 _TEST_ONLY_PROVIDERS = {"deterministic", "conformance"}
 
 
 def selected_provider_name() -> str:
     return (os.environ.get("UMH_MODEL_EXECUTOR_PROVIDER") or _DEFAULT_PROVIDER).strip().lower()
+
+
+def selected_codex_model() -> str:
+    return (os.environ.get("UMH_CODEX_MODEL") or _DEFAULT_CODEX_MODEL).strip()
 
 
 def build_model_executor(provider: str | None = None) -> ModelExecutor:
@@ -34,4 +39,4 @@ def build_model_executor(provider: str | None = None) -> ModelExecutor:
     raise ValueError(f"unsupported model executor provider: {name}")
 
 
-__all__ = ["build_model_executor", "selected_provider_name"]
+__all__ = ["build_model_executor", "selected_codex_model", "selected_provider_name"]

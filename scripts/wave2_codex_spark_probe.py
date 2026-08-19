@@ -24,7 +24,50 @@ from substrate.execution.attempts.worker_credential_boundary import (
 )
 
 
-def run_probe(*, sha: str, worktree: str, model: str, timeout: int) -> dict:
+def _validate_probe_result(result: dict, *, expected_model: str, expected_version: str) -> list[str]:
+    failures: list[str] = []
+    executor = result.get("executor_identity") or {}
+    terminal = result.get("result_identity") or {}
+    expected = {
+        "provider": "codex",
+        "model": expected_model,
+        "version": expected_version,
+        "adapter": "CodexModelExecutor",
+    }
+    for key, value in expected.items():
+        if executor.get(key) != value:
+            failures.append(f"executor_identity.{key}={executor.get(key)!r} expected {value!r}")
+        if terminal.get(key) != value:
+            failures.append(f"result_identity.{key}={terminal.get(key)!r} expected {value!r}")
+    required_true = (
+        "readiness_ok",
+        "readiness_authenticated",
+        "result_ok",
+        "has_real_content",
+        "attempt_private_codex_home",
+        "credential_paths_inside_attempt_home",
+    )
+    for key in required_true:
+        if result.get(key) is not True:
+            failures.append(f"{key} is not true")
+    required_false = ("attempt_home_exists_after_close", "run_root_exists_after_cleanup")
+    for key in required_false:
+        if result.get(key) is not False:
+            failures.append(f"{key} is not false")
+    if result.get("status") != "succeeded":
+        failures.append(f"status={result.get('status')!r} expected 'succeeded'")
+    if result.get("exit_code") != 0:
+        failures.append(f"exit_code={result.get('exit_code')!r} expected 0")
+    if result.get("timed_out"):
+        failures.append("timed_out is true")
+    if ("Deterministic" + "Conformance" + "Executor") in json.dumps(result, sort_keys=True):
+        failures.append("deterministic conformance adapter appeared in probe evidence")
+    if ("Clau" + "de") in json.dumps(result, sort_keys=True):
+        failures.append("legacy provider fallback appeared in probe evidence")
+    return failures
+
+
+def run_probe(*, sha: str, worktree: str, model: str, timeout: int, expected_version: str) -> dict:
     os.environ["UMH_MODEL_EXECUTOR_PROVIDER"] = "codex"
     os.environ["UMH_CODEX_MODEL"] = model
 
@@ -85,6 +128,9 @@ def run_probe(*, sha: str, worktree: str, model: str, timeout: int) -> dict:
         shutil.rmtree(run_root, ignore_errors=True)
         out["attempt_home_exists_after_close"] = residue_before_root_cleanup
         out["run_root_exists_after_cleanup"] = Path(run_root).exists()
+    failures = _validate_probe_result(out, expected_model=model, expected_version=expected_version)
+    out["ok"] = not failures
+    out["failure_reasons"] = failures
     return out
 
 
@@ -93,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sha", required=True)
     parser.add_argument("--worktree", default=str(Path.cwd()))
     parser.add_argument("--model", default="gpt-5.3-codex-spark")
+    parser.add_argument("--expected-version", default="codex-cli 0.147.0")
     parser.add_argument("--timeout", type=int, default=120)
     args = parser.parse_args(argv)
 
@@ -101,9 +148,10 @@ def main(argv: list[str] | None = None) -> int:
         worktree=args.worktree,
         model=args.model,
         timeout=args.timeout,
+        expected_version=args.expected_version,
     )
     print(json.dumps(result, indent=2))
-    return 0 if result.get("result_ok") and result.get("has_real_content") else 2
+    return 0 if result.get("ok") else 2
 
 
 if __name__ == "__main__":

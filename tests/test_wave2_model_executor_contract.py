@@ -11,6 +11,7 @@ from substrate.execution.attempts.host_isolation import scrub_worker_env
 from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
 from substrate.execution.attempts.model_executor_selection import (
     build_model_executor,
+    selected_codex_model,
     selected_provider_name,
 )
 from substrate.execution.attempts.model_executors.codex import CodexModelExecutor
@@ -57,8 +58,10 @@ def test_deterministic_adapter_satisfies_terminal_contract(tmp_path):
 
 def test_provider_selection_defaults_to_codex_and_can_select_deterministic(monkeypatch):
     monkeypatch.delenv("UMH_MODEL_EXECUTOR_PROVIDER", raising=False)
+    monkeypatch.delenv("UMH_CODEX_MODEL", raising=False)
     monkeypatch.delenv("UMH_ALLOW_TEST_MODEL_EXECUTOR", raising=False)
     assert selected_provider_name() == "codex"
+    assert selected_codex_model() == "gpt-5.3-codex-spark"
     assert type(build_model_executor()).__name__ == "CodexModelExecutor"
 
     monkeypatch.setenv("UMH_MODEL_EXECUTOR_PROVIDER", "deterministic")
@@ -70,6 +73,8 @@ def test_provider_selection_defaults_to_codex_and_can_select_deterministic(monke
         raise AssertionError("deterministic executor must not be selectable without a test-only gate")
     monkeypatch.setenv("UMH_ALLOW_TEST_MODEL_EXECUTOR", "1")
     assert isinstance(build_model_executor(), DeterministicConformanceExecutor)
+    monkeypatch.setenv("UMH_CODEX_MODEL", "gpt-local-policy")
+    assert selected_codex_model() == "gpt-local-policy"
 
 
 def test_scrub_worker_env_explicitly_denies_codex_credentials_by_default():
@@ -255,6 +260,55 @@ def test_codex_adapter_rejects_multiple_terminal_events(tmp_path, monkeypatch):
     assert "multiple terminal" in result.stderr
 
 
+def test_codex_adapter_rejects_missing_terminal_model_identity(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"real content"}}\n'
+                '{"type":"turn.completed","usage":{}}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "missing terminal model identity" in result.stderr
+    assert result.identity is not None
+    assert result.identity.model == ""
+
+
+def test_codex_adapter_rejects_terminal_model_mismatch(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"real content"}}\n'
+                '{"type":"turn.completed","usage":{},"model":"gpt-other"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "terminal model identity mismatch" in result.stderr
+    assert "gpt-other" in result.stderr
+    assert result.identity is not None
+    assert result.identity.model == "gpt-other"
+
+
 def test_codex_adapter_rejects_wrong_json_field_shapes_without_crashing(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
@@ -394,7 +448,7 @@ def test_terminal_result_binds_executor_identity_and_proof_metadata(tmp_path, mo
         ),
     )
     packet = _packet(tmp_path)
-    result = CodexModelExecutor(model="gpt-test").invoke(packet, env={})
+    result = CodexModelExecutor(model="gpt-proof").invoke(packet, env={})
     assert result.ok
     assert result.identity is not None
     assert result.identity.proof_metadata()["provider"] == "codex"

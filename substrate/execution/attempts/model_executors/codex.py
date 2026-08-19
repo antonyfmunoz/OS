@@ -17,8 +17,8 @@ from substrate.execution.attempts.model_executor_contract import (
     ModelTerminalResult,
     ModelWorkPacketInput,
 )
+from substrate.execution.attempts.model_executor_selection import selected_codex_model
 
-_DEFAULT_MODEL = "gpt-5.5"
 _ERROR_SIGNATURES = (
     "auth",
     "login",
@@ -148,7 +148,7 @@ class CodexModelExecutor:
         # UMH's outer bwrap sandbox is the authoritative write/credential/process
         # boundary. Codex's nested workspace-write sandbox makes .git read-only,
         # which prevents legitimate attempt commits (`.git/index.lock`).
-        self.model = model or os.environ.get("UMH_CODEX_MODEL", _DEFAULT_MODEL)
+        self.model = model or selected_codex_model()
         self.sandbox = sandbox
         self.identity = ModelExecutorIdentity(
             provider="codex",
@@ -231,6 +231,12 @@ class CodexModelExecutor:
             )
         proc = completed
         parsed, usage, model_seen, parse_errors = _parse_jsonl(getattr(proc, "stdout", "") or "")
+        if not model_seen:
+            parse_errors.append("missing terminal model identity")
+        elif model_seen != self.model:
+            parse_errors.append(
+                f"terminal model identity mismatch: expected {self.model!r}, got {model_seen!r}"
+            )
         stdout = parsed or _sanitize(getattr(proc, "stdout", "") or "")
         stderr = _sanitize(getattr(proc, "stderr", "") or "")
         if parse_errors:
@@ -251,7 +257,7 @@ class CodexModelExecutor:
             cost={"amount_usd": None, "status": "unavailable"},
             identity=ModelExecutorIdentity(
                 provider="codex",
-                model=model_seen or self.model,
+                model=model_seen,
                 version=self.identity.version,
                 adapter=type(self).__name__,
             ),
