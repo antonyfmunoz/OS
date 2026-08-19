@@ -170,7 +170,9 @@ def test_codex_adapter_invokes_exec_with_prompt_on_stdin(tmp_path, monkeypatch):
 
     cmd, kwargs = calls[-1]
     assert cmd[:3] == ["/usr/bin/codex", "exec", "--json"]
+    assert "--ignore-user-config" in cmd
     assert cmd[cmd.index("--sandbox") + 1] == "danger-full-access"
+    assert cmd[cmd.index("-m") + 1] == "gpt-test"
     assert cmd[-1] == "-"
     assert "secret-free prompt" not in cmd
     assert kwargs["input"] == "secret-free prompt"
@@ -260,7 +262,72 @@ def test_codex_adapter_rejects_multiple_terminal_events(tmp_path, monkeypatch):
     assert "multiple terminal" in result.stderr
 
 
-def test_codex_adapter_rejects_missing_terminal_model_identity(tmp_path, monkeypatch):
+def test_codex_adapter_rejects_turn_failed_event(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout='{"type":"turn.failed","message":"provider refused"}\n',
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "turn.failed event" in result.stderr
+    assert result.execution_identity["terminal_status"] == "failed"
+
+
+def test_codex_adapter_rejects_terminal_error_event(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout='{"type":"error","message":"transport error"}\n',
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "error event" in result.stderr
+    assert result.execution_identity["terminal_status"] == "error"
+
+
+def test_codex_adapter_rejects_missing_usage_metadata(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        lambda *a, **k: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"real content"}}\n'
+                '{"type":"turn.completed"}\n'
+            ),
+            stderr="",
+        ),
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+    assert not result.ok
+    assert result.retry_class == "malformed_output"
+    assert "missing terminal usage metadata" in result.stderr
+    assert result.execution_identity["usage_present"] is False
+
+
+def test_codex_adapter_accepts_unobservable_terminal_model_when_exact_selector_passed(
+    tmp_path, monkeypatch
+):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
         lambda: "/usr/bin/codex",
@@ -277,11 +344,16 @@ def test_codex_adapter_rejects_missing_terminal_model_identity(tmp_path, monkeyp
         ),
     )
     result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
-    assert not result.ok
-    assert result.retry_class == "malformed_output"
-    assert "missing terminal model identity" in result.stderr
+    assert result.ok
     assert result.identity is not None
-    assert result.identity.model == ""
+    assert result.identity.model == "gpt-test"
+    assert result.execution_identity["model_requested"] == "gpt-test"
+    assert result.execution_identity["explicit_model_argument_present"] is True
+    assert result.execution_identity["user_config_ignored"] is True
+    assert result.execution_identity["model_resolution_observable"] is False
+    assert result.execution_identity["trusted_model_resolved"] == ""
+    assert result.execution_identity["invocation_accepted"] is True
+    assert result.execution_identity["usage_present"] is True
 
 
 def test_codex_adapter_rejects_terminal_model_mismatch(tmp_path, monkeypatch):
@@ -303,10 +375,12 @@ def test_codex_adapter_rejects_terminal_model_mismatch(tmp_path, monkeypatch):
     result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
     assert not result.ok
     assert result.retry_class == "malformed_output"
-    assert "terminal model identity mismatch" in result.stderr
+    assert "trusted terminal model identity mismatch" in result.stderr
     assert "gpt-other" in result.stderr
     assert result.identity is not None
-    assert result.identity.model == "gpt-other"
+    assert result.identity.model == "gpt-test"
+    assert result.execution_identity["trusted_model_resolved"] == "gpt-other"
+    assert result.execution_identity["model_resolution_observable"] is True
 
 
 def test_codex_adapter_rejects_wrong_json_field_shapes_without_crashing(tmp_path, monkeypatch):

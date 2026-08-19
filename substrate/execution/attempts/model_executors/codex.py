@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import hashlib
 import shutil
 import subprocess
 import time
@@ -93,12 +94,31 @@ def _classify_failure(*, timed_out: bool, returncode: int | None, stderr: str, s
     return "malformed_output"
 
 
-def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str]]:
+def _argv_digest(argv: list[str]) -> str:
+    payload = json.dumps(argv, ensure_ascii=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _explicit_model_argument(argv: list[str], expected_model: str) -> bool:
+    for i, arg in enumerate(argv):
+        if arg in ("-m", "--model") and i + 1 < len(argv) and argv[i + 1] == expected_model:
+            return True
+        if arg.startswith("--model=") and arg.split("=", 1)[1] == expected_model:
+            return True
+    return False
+
+
+def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str], dict[str, object]]:
     parts: list[str] = []
     usage = {"input_tokens": 0, "output_tokens": 0}
     model = ""
     errors: list[str] = []
     terminal_events = 0
+    failed_events = 0
+    error_events = 0
+    terminal_status = "missing"
+    usage_present = False
+    event_types: list[str] = []
     for n, line in enumerate((stdout or "").splitlines(), start=1):
         if not line.strip():
             continue
@@ -111,6 +131,7 @@ def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str]]:
             errors.append(f"line {n}: json event is not an object")
             continue
         typ = str(event.get("type", ""))
+        event_types.append(typ)
         if typ == "item.completed":
             item = _object_field(event, "item", n, errors)
             text = item.get("text", "")
@@ -121,13 +142,23 @@ def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str]]:
                 parts.append(_sanitize(text))
         elif typ == "turn.completed":
             terminal_events += 1
+            terminal_status = "completed"
             raw = _object_field(event, "usage", n, errors)
+            usage_present = "usage" in event and isinstance(raw, dict)
             try:
                 usage["input_tokens"] = int(raw.get("input_tokens", 0) or 0)
                 usage["output_tokens"] = int(raw.get("output_tokens", 0) or 0)
             except (TypeError, ValueError):
                 errors.append(f"line {n}: usage token counts are not integers")
             model = str(event.get("model") or model)
+        elif typ == "turn.failed":
+            failed_events += 1
+            terminal_status = "failed"
+            errors.append(f"line {n}: turn.failed event")
+        elif typ == "error":
+            error_events += 1
+            terminal_status = "error"
+            errors.append(f"line {n}: error event")
         elif typ == "agent_message":
             msg = _object_field(event, "message", n, errors)
             text = msg.get("content", "")
@@ -140,7 +171,18 @@ def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str]]:
         errors.append("missing terminal turn.completed event")
     elif terminal_events > 1:
         errors.append("multiple terminal turn.completed events")
-    return "\n".join(parts).strip(), usage, model, errors
+    meta = {
+        "event_types": event_types,
+        "terminal_status": terminal_status,
+        "usage_present": usage_present,
+        "terminal_completed_count": terminal_events,
+        "turn_failed_count": failed_events,
+        "error_event_count": error_events,
+        "trusted_model_resolved": model,
+        "trusted_model_resolution_source": "turn.completed.model" if model else "",
+        "model_resolution_observable": bool(model),
+    }
+    return "\n".join(parts).strip(), usage, model, errors, meta
 
 
 class CodexModelExecutor:
@@ -204,6 +246,7 @@ class CodexModelExecutor:
             "exec",
             "--json",
             "--ephemeral",
+            "--ignore-user-config",
             "--skip-git-repo-check",
             "--sandbox",
             self.sandbox,
@@ -230,18 +273,56 @@ class CodexModelExecutor:
                 duration_seconds=duration_seconds,
             )
         proc = completed
-        parsed, usage, model_seen, parse_errors = _parse_jsonl(getattr(proc, "stdout", "") or "")
-        if not model_seen:
-            parse_errors.append("missing terminal model identity")
-        elif model_seen != self.model:
+        invocation = self.build_invocation(packet)
+        argv = invocation.argv
+        parsed, usage, model_seen, parse_errors, parse_meta = _parse_jsonl(
+            getattr(proc, "stdout", "") or ""
+        )
+        explicit_model_argument_present = _explicit_model_argument(argv, self.model)
+        if not explicit_model_argument_present:
+            parse_errors.append("missing exact explicit Codex model argument")
+        if model_seen and model_seen != self.model:
             parse_errors.append(
-                f"terminal model identity mismatch: expected {self.model!r}, got {model_seen!r}"
+                f"trusted terminal model identity mismatch: expected {self.model!r}, got {model_seen!r}"
             )
         stdout = parsed or _sanitize(getattr(proc, "stdout", "") or "")
         stderr = _sanitize(getattr(proc, "stderr", "") or "")
         if parse_errors:
             stderr = "\n".join([stderr, *parse_errors]).strip()
         returncode = getattr(proc, "returncode", None)
+        usage_present = bool(parse_meta.get("usage_present"))
+        if not usage_present:
+            parse_errors.append("missing terminal usage metadata")
+            stderr = "\n".join([stderr, "missing terminal usage metadata"]).strip()
+        invocation_accepted = (
+            returncode == 0
+            and parse_meta.get("terminal_status") == "completed"
+            and not parse_meta.get("turn_failed_count")
+            and not parse_meta.get("error_event_count")
+        )
+        execution_identity = {
+            "provider_requested": "codex",
+            "provider_adapter": type(self).__name__,
+            "model_requested": self.model,
+            "model_selector_source": "explicit_argument",
+            "executable_path": argv[0] if argv else "",
+            "executable_version": self.identity.version,
+            "invocation_argv_digest": _argv_digest(argv) if argv else "",
+            "explicit_model_argument_present": explicit_model_argument_present,
+            "user_config_ignored": "--ignore-user-config" in argv,
+            "invocation_accepted": invocation_accepted,
+            "terminal_status": str(parse_meta.get("terminal_status") or ""),
+            "trusted_model_resolved": str(parse_meta.get("trusted_model_resolved") or ""),
+            "trusted_model_resolution_source": str(
+                parse_meta.get("trusted_model_resolution_source") or ""
+            ),
+            "model_resolution_observable": bool(parse_meta.get("model_resolution_observable")),
+            "output_content_present": bool(parsed.strip()),
+            "usage_present": usage_present,
+            "credential_isolation_verified": False,
+            "workspace_integrity_verified": False,
+            "event_types": list(parse_meta.get("event_types") or []),
+        }
         terminal = ModelTerminalResult(
             ok=returncode == 0 and bool(parsed.strip()) and not parse_errors,
             status="succeeded"
@@ -257,10 +338,11 @@ class CodexModelExecutor:
             cost={"amount_usd": None, "status": "unavailable"},
             identity=ModelExecutorIdentity(
                 provider="codex",
-                model=model_seen,
+                model=self.model,
                 version=self.identity.version,
                 adapter=type(self).__name__,
             ),
+            execution_identity=execution_identity,
             proof_binding=packet.proof_binding,
         )
         if not terminal.ok:

@@ -72,6 +72,7 @@ class ModelTerminalResult:
     usage: dict[str, Any] = field(default_factory=dict)
     cost: dict[str, Any] = field(default_factory=dict)
     identity: ModelExecutorIdentity | None = None
+    execution_identity: dict[str, Any] = field(default_factory=dict)
     proof_binding: dict[str, Any] = field(default_factory=dict)
 
     @property
