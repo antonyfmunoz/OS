@@ -1148,6 +1148,7 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
 
     out["authority_contract_probe"] = _authority_contract_probe(runner)
     out["activation_rehearsal"] = activation_rehearsal(runner, sha, iterations=3)
+    out["codex_spark_probe"] = _beast_codex_spark_probe(runner, sha)
 
     # PREFLIGHT VERDICT (finding SEC-C3): mesh relay, the executor daemon in an
     # interactive session, and Beast->origin reachability are all REQUIRED. A
@@ -1160,6 +1161,7 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
         "query_session",
         "authority_contract_probe",
         "activation_rehearsal",
+        "codex_spark_probe",
     )
     failed = [k for k in required if isinstance(out.get(k), dict) and out[k].get("ok") is False]
     mesh = out.get("mesh_health") or {}
@@ -1169,6 +1171,34 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
     if failed:
         out["failure_reason"] = f"preflight checks failed: {sorted(set(failed))}"
     return out
+
+
+def _beast_codex_spark_probe(runner: Runner, sha: str) -> dict[str, Any]:
+    """Run the exact Beast Codex/Spark production-path probe as a preflight gate."""
+    if runner.dry_run:
+        return {"dry_run": True, "ok": True}
+    cmd = (
+        f"python {_BEAST_WT}\\scripts\\wave2_codex_spark_probe.py "
+        f"--sha {sha} "
+        f"--worktree {_BEAST_WT} "
+        "--model gpt-5.3-codex-spark "
+        '--expected-version "codex-cli 0.147.0" '
+        "--timeout 180"
+    )
+    result = _mesh_read(runner, cmd, max_len=65536)
+    parsed: dict[str, Any] | None = None
+    if result.get("stdout"):
+        try:
+            parsed = json.loads(str(result["stdout"]))
+        except json.JSONDecodeError as exc:
+            result["parse_error"] = str(exc)
+    ok = bool(result.get("ok")) and isinstance(parsed, dict) and parsed.get("ok") is True
+    return {
+        "ok": ok,
+        "mesh": result,
+        "probe": parsed,
+        "failure_reason": None if ok else "real Beast Codex/Spark production path not proven",
+    }
 
 
 def _authority_contract_probe(runner: Runner) -> dict[str, Any]:

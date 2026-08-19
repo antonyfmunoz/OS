@@ -455,6 +455,7 @@ def test_preflight_requires_deployed_activation_rehearsal(monkeypatch) -> None:
     monkeypatch.setattr(dispatch, "_shell_summary", lambda *_a, **_kw: {"returncode": 0})
     monkeypatch.setattr(runner, "shell", lambda *_a, **_kw: object())
     monkeypatch.setattr(dispatch, "_authority_contract_probe", lambda _runner: {"ok": True})
+    monkeypatch.setattr(dispatch, "_beast_codex_spark_probe", lambda _runner, sha: {"ok": True})
     monkeypatch.setattr(
         dispatch,
         "activation_rehearsal",
@@ -470,6 +471,54 @@ def test_preflight_requires_deployed_activation_rehearsal(monkeypatch) -> None:
     assert result["ok"] is False
     assert "activation_rehearsal" in result["failure_reason"]
     assert result["activation_rehearsal"]["sha"] == "sha-under-test"
+
+
+def test_preflight_requires_real_beast_codex_spark_probe(monkeypatch) -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+
+    monkeypatch.setattr(dispatch, "_mesh_read", lambda *_a, **_kw: {"ok": True})
+    monkeypatch.setattr(dispatch, "_shell_summary", lambda *_a, **_kw: {"returncode": 0})
+    monkeypatch.setattr(runner, "shell", lambda *_a, **_kw: object())
+    monkeypatch.setattr(dispatch, "_authority_contract_probe", lambda _runner: {"ok": True})
+    monkeypatch.setattr(
+        dispatch,
+        "activation_rehearsal",
+        lambda _runner, sha, *, iterations: {"ok": True, "sha": sha, "iterations": iterations},
+    )
+    monkeypatch.setattr(
+        dispatch,
+        "_beast_codex_spark_probe",
+        lambda _runner, sha: {"ok": False, "sha": sha, "failure_reason": "model mismatch"},
+    )
+
+    result = dispatch.preflight(runner, "sha-under-test")
+
+    assert result["ok"] is False
+    assert "codex_spark_probe" in result["failure_reason"]
+    assert result["codex_spark_probe"]["sha"] == "sha-under-test"
+
+
+def test_beast_codex_spark_probe_fails_closed_on_bad_mesh_or_bad_probe(monkeypatch) -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+
+    monkeypatch.setattr(dispatch, "_mesh_read", lambda *_a, **_kw: {"ok": True, "stdout": "{}"})
+    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+    assert result["ok"] is False
+    assert result["failure_reason"] == "real Beast Codex/Spark production path not proven"
+
+    monkeypatch.setattr(
+        dispatch,
+        "_mesh_read",
+        lambda *_a, **_kw: {"ok": True, "stdout": '{"ok":true,"result_identity":{"model":"gpt-5.3-codex-spark"}}'},
+    )
+    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+    assert result["ok"] is True
 
 
 def test_preflight_authority_contract_probe_fails_if_route_rewraps_source_decisions(
