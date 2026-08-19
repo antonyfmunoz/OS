@@ -89,6 +89,7 @@ def test_task_supervisor_verifies_job_and_descendant_containment() -> None:
     assert "waits_for_launcher = $true" in body
     assert "supervisor_parent_pid = $PID" in body
     assert "WaitForSingleObject($launcherWaitHandle" in body
+    assert "$INFINITE = [uint32]::MaxValue" in body
     assert "WaitForSingleObject($procInfo.hProcess" not in body
 
 
