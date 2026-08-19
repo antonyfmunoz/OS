@@ -455,7 +455,6 @@ def test_preflight_requires_deployed_activation_rehearsal(monkeypatch) -> None:
     monkeypatch.setattr(dispatch, "_shell_summary", lambda *_a, **_kw: {"returncode": 0})
     monkeypatch.setattr(runner, "shell", lambda *_a, **_kw: object())
     monkeypatch.setattr(dispatch, "_authority_contract_probe", lambda _runner: {"ok": True})
-    monkeypatch.setattr(dispatch, "_candidate_sha", lambda _runner: "sha-under-test")
     monkeypatch.setattr(
         dispatch,
         "activation_rehearsal",
@@ -466,10 +465,11 @@ def test_preflight_requires_deployed_activation_rehearsal(monkeypatch) -> None:
         },
     )
 
-    result = dispatch.preflight(runner)
+    result = dispatch.preflight(runner, "sha-under-test")
 
     assert result["ok"] is False
     assert "activation_rehearsal" in result["failure_reason"]
+    assert result["activation_rehearsal"]["sha"] == "sha-under-test"
 
 
 def test_preflight_authority_contract_probe_fails_if_route_rewraps_source_decisions(

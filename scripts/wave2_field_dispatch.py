@@ -1111,7 +1111,7 @@ def _wait_candidate_ready(
 # ─────────────────────────────────────────────────────────────────────────────
 # preflight
 # ─────────────────────────────────────────────────────────────────────────────
-def preflight(runner: Runner) -> dict[str, Any]:
+def preflight(runner: Runner, sha: str) -> dict[str, Any]:
     """Relay health + nodes, mesh reachability, Beast→origin, echo start shape."""
     out: dict[str, Any] = {}
 
@@ -1147,7 +1147,6 @@ def preflight(runner: Runner) -> dict[str, Any]:
     print(f"  {out['start_command_shape']}")
 
     out["authority_contract_probe"] = _authority_contract_probe(runner)
-    sha = _candidate_sha(runner)
     out["activation_rehearsal"] = activation_rehearsal(runner, sha, iterations=3)
 
     # PREFLIGHT VERDICT (finding SEC-C3): mesh relay, the executor daemon in an
@@ -3849,7 +3848,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "preflight":
         _ensure_mesh_secrets()
-        out = preflight(runner)
+        out = preflight(runner, sha)
     elif args.cmd == "deploy-candidate":
         out = deploy_candidate(runner, sha)
         write_manifest(runner, sha)
