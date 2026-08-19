@@ -28,6 +28,7 @@ from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
 from substrate.sockets.signal_socket import SignalSocket
 from substrate.sockets.envelopes import ViewFrame
 from substrate.sockets.view_socket import ViewSocket
+from substrate.execution.durable_remote_transport import DurableRemoteStore
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,7 @@ class NodeMeshServer:
         self._thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
         self._health_task: asyncio.Task[None] | None = None
+        self._durable_store = DurableRemoteStore()
 
     @property
     def node_registry(self) -> NodeRegistry:
@@ -405,6 +407,10 @@ class NodeMeshServer:
                     node_id = await self._handle_hello(ws, params, msg_id, token)
                 elif method == "node.heartbeat" and node_id:
                     await self._handle_heartbeat(node_id, params, msg_id, ws)
+                elif method == "durable_command.claimed" and node_id:
+                    await self._handle_durable_claimed(node_id, params, msg_id, ws)
+                elif method == "durable_command.result" and node_id:
+                    await self._handle_durable_result(node_id, params, msg_id, ws)
                 elif method == "node.capabilities_changed" and node_id:
                     await self._handle_capabilities_changed(node_id, params, ws)
                 elif method == "node.peripherals_changed" and node_id:
@@ -516,9 +522,6 @@ class NodeMeshServer:
             payload["image_base64"] = _b64.b64encode(jpeg_bytes).decode("ascii")
             loop = asyncio.get_running_loop()
             loop.run_in_executor(None, self._frame_callback, node_id, payload)
-
-        # The frame parsed and was routed (or dropped as queue backpressure —
-        # still a VALID frame from a live node, which is what liveness means).
         return True
 
     def _resolve_pending_dispatch(self, msg: dict[str, Any]) -> None:
@@ -695,6 +698,7 @@ class NodeMeshServer:
             node.hostname,
             len(node.peripherals),
         )
+        await self._pump_durable_requests(node_id, ws)
         return node_id
 
     async def _handle_heartbeat(
@@ -740,6 +744,112 @@ class NodeMeshServer:
                     {
                         "jsonrpc": "2.0",
                         "result": {"ack": True},
+                        "id": msg_id,
+                    }
+                )
+            )
+        await self._pump_durable_requests(node_id, ws)
+
+    async def _pump_durable_requests(self, node_id: str, ws: ServerConnection) -> None:
+        """Deliver persisted remote requests to a connected node.
+
+        Delivery is deliberately idempotent: the node owns claim/execution
+        deduplication by request_id, and the controller store remains the source
+        of truth if the socket drops before a terminal result is observed.
+        """
+        for req in self._durable_store.deliverable_for_node(node_id, limit=1):
+            try:
+                await ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "method": "durable_command.request",
+                            "params": req.to_dict(),
+                            "id": f"durable-{req.request_id}",
+                        }
+                    )
+                )
+            except Exception as exc:
+                logger.warning("durable request delivery failed for %s: %s", req.request_id, exc)
+                return
+
+    async def _handle_durable_claimed(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+        msg_id: Any,
+        ws: ServerConnection,
+    ) -> None:
+        request_id = str(params.get("request_id", ""))
+        claim_id = str(params.get("claim_id", ""))
+        state = str(params.get("state", "CLAIMED")).upper()
+        process_tree = dict(params.get("process_tree") or {})
+        ok = False
+        error = ""
+        try:
+            req = self._durable_store.get_request(request_id)
+            if req is None or req.node_id != node_id:
+                error = "request not found for node"
+            elif state == "RUNNING":
+                self._durable_store.mark_running(
+                    request_id, claim_id=claim_id, process_tree=process_tree
+                )
+                ok = True
+            else:
+                self._durable_store.mark_claimed(
+                    request_id, claim_id=claim_id, process_tree=process_tree
+                )
+                ok = True
+        except Exception as exc:  # noqa: BLE001
+            error = str(exc)
+        if msg_id is not None:
+            await ws.send(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "result": {"ok": ok, "error": error},
+                        "id": msg_id,
+                    }
+                )
+            )
+
+    async def _handle_durable_result(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+        msg_id: Any,
+        ws: ServerConnection,
+    ) -> None:
+        request_id = str(params.get("request_id", ""))
+        claim_id = str(params.get("claim_id", ""))
+        state = str(params.get("state", "FAILED")).upper()
+        result = dict(params.get("result") or {})
+        cleanup = dict(params.get("cleanup") or {})
+        ok = False
+        error = ""
+        try:
+            req = self._durable_store.get_request(request_id)
+            if req is None or req.node_id != node_id:
+                error = "request not found for node"
+            else:
+                updated = self._durable_store.publish_result(
+                    request_id,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                )
+                ok = updated.lifecycle_state == state
+                if not ok:
+                    error = f"result rejected into {updated.lifecycle_state}"
+        except Exception as exc:  # noqa: BLE001
+            error = str(exc)
+        if msg_id is not None:
+            await ws.send(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "result": {"ok": ok, "error": error},
                         "id": msg_id,
                     }
                 )

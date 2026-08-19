@@ -16,13 +16,17 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import platform
 import socket
+import subprocess
 import struct
+import sys
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
+from uuid import uuid4
 
 import websockets
 
@@ -39,6 +43,11 @@ from nodes.windows.umh_node.governance import validate_request
 from nodes.windows.umh_node.metrics import collect_metrics
 from nodes.windows.umh_node.peripheral_scanner import scan_all_peripherals, get_scan_age_s
 from nodes.windows.umh_node.workspace import collect_workstation_state, _state_hash
+from substrate.execution.durable_remote_transport import (
+    DurableRemoteRequest,
+    DurableRemoteStore,
+    default_node_root,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +77,8 @@ class NodeClient:
         self._on_workspace_change: Callable[[dict[str, Any]], None] | None = None
         self._camera_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="cam")
         self._capability_semaphore = asyncio.Semaphore(8)
+        self._durable_store = DurableRemoteStore(default_node_root())
+        self._durable_processes: dict[str, subprocess.Popen[str]] = {}
 
         # Media plane: bounded frame queue — stream thread pushes, drain task sends
         self._media_queue: deque[str] = deque(maxlen=_MEDIA_QUEUE_MAX)
@@ -453,6 +464,8 @@ class NodeClient:
 
         if method == "capability.execute":
             asyncio.create_task(self._safe_handle_capability(msg))
+        elif method == "durable_command.request":
+            asyncio.create_task(self._safe_handle_durable_command(msg))
         elif method == "outcome.notify":
             logger.info("outcome received: %s", msg.get("params", {}).get("summary", ""))
         elif "result" in msg or "error" in msg:
@@ -544,6 +557,322 @@ class NodeClient:
                     )
                 except Exception:
                     pass
+
+    async def _safe_handle_durable_command(self, msg: dict[str, Any]) -> None:
+        try:
+            await self._handle_durable_command(msg)
+        except Exception as exc:  # noqa: BLE001
+            logger.error("durable command handler crashed: %s", exc, exc_info=True)
+
+    async def _send_durable_event(self, method: str, payload: dict[str, Any]) -> None:
+        if not self._connected or self._ws is None:
+            return
+        await self._ws.send(
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "method": method,
+                    "params": payload,
+                    "id": self._next_id(),
+                }
+            )
+        )
+
+    async def _handle_durable_command(self, msg: dict[str, Any]) -> None:
+        params = msg.get("params", {})
+        delivered_req = DurableRemoteRequest.from_dict(params if isinstance(params, dict) else {})
+        if not delivered_req.request_id or delivered_req.node_id != self._config.node_id:
+            return
+
+        req = self._durable_store.put_request(delivered_req)
+        existing = self._durable_store.result_for(req.request_id)
+        if existing:
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": req.request_id,
+                    "claim_id": existing.get("claim_id", ""),
+                    "state": existing.get("state", "FAILED"),
+                    "result": existing.get("result", {}),
+                    "cleanup": {"idempotent_replay": True},
+                },
+            )
+            return
+
+        if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
+            terminal = await self._cancel_durable_request(
+                req,
+                claim_id=req.claim_id or f"{self._config.node_id}-{uuid4().hex[:12]}",
+                reason="cancel requested by controller",
+            )
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": req.request_id,
+                    "claim_id": terminal.claim_id,
+                    "state": terminal.lifecycle_state,
+                    "result": {"success": False, "error": "cancel requested by controller"},
+                    "cleanup": terminal.cleanup,
+                },
+            )
+            return
+
+        if req.lifecycle_state in {"CLAIMED", "RUNNING"} and req.claim_id:
+            await self._send_durable_event(
+                "durable_command.claimed",
+                {
+                    "request_id": req.request_id,
+                    "claim_id": req.claim_id,
+                    "state": req.lifecycle_state,
+                    "process_tree": req.process_tree,
+                },
+            )
+            return
+
+        claim_id = f"{self._config.node_id}-{uuid4().hex[:12]}"
+        process_tree = {"node_pid": os.getpid(), "claimed_at": time.time()}
+        self._durable_store.mark_claimed(req.request_id, claim_id=claim_id, process_tree=process_tree)
+        await self._send_durable_event(
+            "durable_command.claimed",
+            {
+                "request_id": req.request_id,
+                "claim_id": claim_id,
+                "state": "CLAIMED",
+                "process_tree": process_tree,
+            },
+        )
+
+        result = await self._execute_capability_for_durable(
+            req,
+            claim_id=claim_id,
+            process_tree=process_tree,
+        )
+        state = "SUCCEEDED" if result.get("success") else "FAILED"
+        cleanup = dict(result.get("cleanup") or {"process_residue": []})
+        terminal = self._durable_store.publish_result(
+            req.request_id,
+            claim_id=claim_id,
+            state=state,
+            result=result,
+            cleanup=cleanup,
+        )
+        await self._send_durable_event(
+            "durable_command.result",
+            {
+                "request_id": req.request_id,
+                "claim_id": claim_id,
+                "state": terminal.lifecycle_state,
+                "result": result,
+                "cleanup": cleanup,
+            },
+        )
+
+    async def _announce_durable_running(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        process_tree: dict[str, Any],
+    ) -> None:
+        self._durable_store.mark_running(req.request_id, claim_id=claim_id, process_tree=process_tree)
+        await self._send_durable_event(
+            "durable_command.claimed",
+            {
+                "request_id": req.request_id,
+                "claim_id": claim_id,
+                "state": "RUNNING",
+                "process_tree": process_tree,
+            },
+        )
+
+    async def _cancel_durable_request(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        reason: str,
+    ) -> DurableRemoteRequest:
+        proc = self._durable_processes.get(req.request_id)
+        cleanup = {"process_residue": [], "cancel_reason": reason}
+        if proc is not None and proc.poll() is None:
+            cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+        return self._durable_store.publish_result(
+            req.request_id,
+            claim_id=claim_id,
+            state="CANCELLED",
+            result={"success": False, "error": reason},
+            cleanup=cleanup,
+        )
+
+    async def _terminate_durable_process_tree(
+        self, proc: subprocess.Popen[str], *, graceful_timeout: float
+    ) -> dict[str, Any]:
+        pid = proc.pid
+        cleanup: dict[str, Any] = {
+            "root_pid": pid,
+            "graceful_attempted": True,
+            "forced": False,
+            "process_residue": [],
+        }
+        try:
+            if sys.platform == "win32":
+                first = subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/T"],
+                    capture_output=True,
+                    text=True,
+                    timeout=max(1.0, graceful_timeout),
+                )
+                cleanup["graceful_exit_code"] = first.returncode
+                cleanup["graceful_stdout"] = first.stdout[-2000:]
+                cleanup["graceful_stderr"] = first.stderr[-2000:]
+            else:
+                proc.terminate()
+            try:
+                proc.wait(timeout=graceful_timeout)
+            except subprocess.TimeoutExpired:
+                cleanup["forced"] = True
+                if sys.platform == "win32":
+                    forced = subprocess.run(
+                        ["taskkill", "/PID", str(pid), "/T", "/F"],
+                        capture_output=True,
+                        text=True,
+                        timeout=max(1.0, graceful_timeout),
+                    )
+                    cleanup["force_exit_code"] = forced.returncode
+                    cleanup["force_stdout"] = forced.stdout[-2000:]
+                    cleanup["force_stderr"] = forced.stderr[-2000:]
+                else:
+                    proc.kill()
+                try:
+                    proc.wait(timeout=graceful_timeout)
+                except subprocess.TimeoutExpired:
+                    cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"}]
+        except Exception as exc:  # noqa: BLE001
+            cleanup["process_residue"] = [{"pid": pid, "error": f"{type(exc).__name__}: {exc}"}]
+        return cleanup
+
+    async def _execute_capability_for_durable(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        process_tree: dict[str, Any],
+    ) -> dict[str, Any]:
+        cap_name = req.capability
+        cap_params = dict(req.params)
+        risk_class = req.risk_class
+        verdict_token = str(cap_params.pop("governance_verdict_id", ""))
+        verdict_ok, verdict_reason = self._validate_verdict(cap_name, risk_class, verdict_token)
+        if not verdict_ok:
+            return {"success": False, "error": f"node verdict rejected: {verdict_reason}"}
+        adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
+        cap_config = self._config.capabilities.get(adapter_key)
+        if cap_config is None and adapter_key in self._adapters:
+            cap_config = CapabilityConfig()
+        allowed, reason = validate_request(cap_name, cap_params, risk_class, cap_config)
+        if not allowed:
+            return {"success": False, "error": f"node governance denied: {reason}"}
+        adapter = self._adapters.get(adapter_key)
+        if adapter is None:
+            return {"success": False, "error": f"adapter not available: {adapter_key}"}
+        timeout = max(1.0, min(float(cap_params.get("timeout", 30)), 300.0))
+        if adapter_key == "shell":
+            return await self._execute_shell_for_durable(
+                req,
+                cap_name=cap_name,
+                cap_params=cap_params,
+                claim_id=claim_id,
+                process_tree=process_tree,
+                timeout=timeout,
+            )
+        await self._announce_durable_running(req, claim_id=claim_id, process_tree=process_tree)
+        try:
+            if hasattr(adapter, "execute_async") and callable(adapter.execute_async):
+                return await asyncio.wait_for(adapter.execute_async(cap_name, cap_params), timeout=timeout)
+            loop = asyncio.get_event_loop()
+            executor = self._camera_executor if adapter_key == "camera" else None
+            return await asyncio.wait_for(
+                loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            return {"success": False, "error": f"{cap_name} timed out after {timeout:.0f}s"}
+
+    async def _execute_shell_for_durable(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        cap_name: str,
+        cap_params: dict[str, Any],
+        claim_id: str,
+        process_tree: dict[str, Any],
+        timeout: float,
+    ) -> dict[str, Any]:
+        argv = cap_params.get("argv")
+        command = cap_params.get("command", "")
+        cwd = cap_params.get("cwd")
+        if argv and isinstance(argv, list):
+            args: list[str] | str = [str(a) for a in argv]
+            use_shell = False
+        elif command:
+            if cap_name == "shell.powershell" and sys.platform == "win32":
+                args = ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
+                use_shell = False
+            else:
+                args = command
+                use_shell = True
+        else:
+            return {"success": False, "error": "no command or argv provided"}
+
+        try:
+            extra: dict[str, Any] = {}
+            if sys.platform == "win32":
+                extra["creationflags"] = subprocess.CREATE_NO_WINDOW
+            else:
+                extra["start_new_session"] = True
+            proc = subprocess.Popen(
+                args,
+                cwd=cwd,
+                shell=use_shell,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                **extra,
+            )
+            self._durable_processes[req.request_id] = proc
+            process_tree = dict(process_tree)
+            process_tree.update({"root_pid": proc.pid, "command_digest": req.payload_digest})
+            await self._announce_durable_running(req, claim_id=claim_id, process_tree=process_tree)
+
+            deadline = time.time() + timeout
+            while proc.poll() is None:
+                local = self._durable_store.get_request(req.request_id)
+                if local and local.lifecycle_state == "CANCEL_REQUESTED":
+                    cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                    return {
+                        "success": False,
+                        "error": "cancel requested during execution",
+                        "cleanup": cleanup,
+                    }
+                if time.time() >= deadline:
+                    cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                    return {
+                        "success": False,
+                        "error": f"{cap_name} timed out after {timeout:.0f}s",
+                        "cleanup": cleanup,
+                    }
+                await asyncio.sleep(0.5)
+            stdout, stderr = proc.communicate(timeout=1)
+            return {
+                "success": proc.returncode == 0,
+                "stdout": stdout[-10000:],
+                "stderr": stderr[-5000:],
+                "exit_code": proc.returncode,
+            }
+        except Exception as exc:  # noqa: BLE001
+            return {"success": False, "error": f"{type(exc).__name__}: {exc}"}
+        finally:
+            self._durable_processes.pop(req.request_id, None)
 
     async def _handle_capability(self, msg: dict[str, Any]) -> None:
         async with self._capability_semaphore:

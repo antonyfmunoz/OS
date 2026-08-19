@@ -2139,26 +2139,91 @@ def _mesh_read(
     """
     if runner.dry_run:
         print(
-            f"[dry-run] mesh_dispatch(shell, signed verdict) node={_MESH_NODE_ID} cmd={command!r}"
+            f"[dry-run] durable_remote(shell, signed verdict) node={_MESH_NODE_ID} cmd={command!r}"
         )
         return {"dry_run": True, "command": command}
-    sys.path.insert(0, str(_ROOT))
-    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
+    return _durable_remote_shell(
+        command,
+        max_len=max_len,
+        command_timeout=command_timeout,
+        dispatch_timeout=dispatch_timeout,
+        operation_type="wave2_read",
+    )
 
-    result = mesh_dispatch(
+
+def _durable_remote_shell(
+    command: str,
+    *,
+    max_len: int = 400,
+    command_timeout: int = 60,
+    dispatch_timeout: int = 90,
+    operation_type: str = "wave2_shell",
+    correlation_id: str = "wave2-preflight",
+    candidate_sha: str = "",
+) -> dict[str, Any]:
+    """Submit a request-bound shell command through durable remote transport."""
+    _ensure_mesh_secrets()
+    from substrate.execution.durable_remote_transport import DurableRemoteStore, make_request
+    from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
+
+    if not get_verdict_secret():
+        return {"ok": False, "error": "mesh verdict secret unset", "raw_status": "verdict_secret_unset"}
+
+    store = DurableRemoteStore()
+    verdict = sign_verdict(
+        verdict_id=uuid4().hex,
         node_id=_MESH_NODE_ID,
         capability="shell",
-        params={"command": command, "timeout": command_timeout},
-        risk_class="reversible_write",  # mints the signed verdict the node validates
-        timeout=dispatch_timeout,
+        risk_class="reversible_write",
+        ttl_seconds=max(command_timeout, dispatch_timeout) + 60,
     )
-    rd = result.get("result_data", {}) if isinstance(result, dict) else {}
+    request = make_request(
+        correlation_id=correlation_id,
+        candidate_sha=candidate_sha or _candidate_sha(""),
+        node_id=_MESH_NODE_ID,
+        operation_type=operation_type,
+        capability="shell",
+        params={"command": command, "timeout": command_timeout, "governance_verdict_id": verdict},
+        risk_class="reversible_write",
+        ttl_seconds=max(dispatch_timeout + 60, command_timeout + 60),
+    )
+    store.put_request(request)
+    deadline = time.time() + dispatch_timeout
+    last_state = "QUEUED"
+    while time.time() < deadline:
+        current = store.get_request(request.request_id)
+        if current is not None:
+            last_state = current.lifecycle_state
+            if current.lifecycle_state in {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}:
+                result = store.result_for(request.request_id) or {}
+                data = result.get("result", {}) if isinstance(result, dict) else {}
+                success = bool(data.get("success")) and current.lifecycle_state == "SUCCEEDED"
+                out = {
+                    "ok": success,
+                    "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(data.get("stdout", ""))[:max_len]),
+                    "stderr": _SECRET_REDACT_RE.sub("<redacted>", str(data.get("stderr", ""))[:max_len]),
+                    "error": _SECRET_REDACT_RE.sub(
+                        "<redacted>", str(data.get("error", ""))[:max_len]
+                    ),
+                    "raw_status": current.lifecycle_state,
+                    "request_id": request.request_id,
+                    "result_digest": current.result_digest,
+                }
+                try:
+                    store.remove_request(request.request_id)
+                except Exception:
+                    out["cleanup_warning"] = "durable request cleanup failed"
+                return out
+        time.sleep(1)
+    try:
+        store.request_cancel(request.request_id)
+    except Exception:
+        pass
     return {
-        "ok": bool(result.get("ok")),
-        "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stdout", ""))[:max_len]),
-        "stderr": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stderr", ""))[:max_len]),
-        "error": _SECRET_REDACT_RE.sub("<redacted>", str(result.get("error", ""))[:max_len]),
-        "raw_status": result.get("status"),
+        "ok": False,
+        "error": f"durable remote request timed out in state {last_state}",
+        "raw_status": last_state,
+        "request_id": request.request_id,
     }
 
 
@@ -2280,22 +2345,27 @@ def _dispatch_collector(
         candidate_commit=sha,
     )
     if runner.dry_run:
-        print(f"[dry-run] mesh_dispatch(shell, write-class) node={_MESH_NODE_ID}")
+        print(f"[dry-run] durable_remote(shell, write-class) node={_MESH_NODE_ID}")
         print(f"[dry-run]   detached start: {_SECRET_REDACT_RE.sub('<redacted>', command)}")
         return {"ok": True, "dry_run": True, "run_id": run_id, "pass_num": pass_num}
 
-    sys.path.insert(0, str(_ROOT))
-    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
-
-    result = mesh_dispatch(
-        node_id=_MESH_NODE_ID,
-        capability="shell",
-        params={"command": command, "timeout": 60},
-        risk_class="reversible_write",
-        timeout=90,
+    result = _durable_remote_shell(
+        command,
+        max_len=32768,
+        command_timeout=60,
+        dispatch_timeout=90,
+        operation_type="wave2_collector_launch",
+        correlation_id=f"w2-{run_id}-p{pass_num}",
+        candidate_sha=sha,
     )
     if not result.get("ok"):
-        return {"ok": False, "error": result.get("error"), "run_id": run_id, "pass_num": pass_num}
+        return {
+            "ok": False,
+            "error": result.get("error"),
+            "run_id": run_id,
+            "pass_num": pass_num,
+            "transport": result,
+        }
     return {"ok": True, "run_id": run_id, "pass_num": pass_num}
 
 
@@ -2628,21 +2698,13 @@ def _mesh_read_fast(runner: Runner, command: str, *, max_len: int = 65536) -> di
     """
     if runner.dry_run:
         return {"dry_run": True, "command": command, "ok": True, "stdout": "{}"}
-    sys.path.insert(0, str(_ROOT))
-    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
-
-    result = mesh_dispatch(
-        node_id=_MESH_NODE_ID,
-        capability="shell",
-        params={"command": command, "timeout": 10},
-        risk_class="reversible_write",
-        timeout=15,
+    return _durable_remote_shell(
+        command,
+        max_len=max_len,
+        command_timeout=10,
+        dispatch_timeout=15,
+        operation_type="wave2_fast_read",
     )
-    rd = result.get("result_data", {}) if isinstance(result, dict) else {}
-    return {
-        "ok": bool(result.get("ok")),
-        "stdout": _SECRET_REDACT_RE.sub("<redacted>", str(rd.get("stdout", ""))[:max_len]),
-    }
 
 
 def _wait_collector_authorization(
