@@ -54,6 +54,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from uuid import uuid4
 
 _ROOT = Path(os.environ.get("UMH_ROOT", "/opt/OS"))
 _WORKTREE = Path(__file__).resolve().parent.parent  # the candidate source worktree
@@ -1173,31 +1174,324 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
     return out
 
 
-def _beast_codex_spark_probe(runner: Runner, sha: str) -> dict[str, Any]:
+def _codex_probe_request_id() -> str:
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return f"codex-spark-{ts}-{uuid4().hex[:8]}"
+
+
+def _codex_probe_dir(request_id: str) -> str:
+    return rf"{_BEAST_EVIDENCE_DIR}\{request_id}"
+
+
+def _codex_probe_launch_command(*, sha: str, request_id: str) -> str:
+    """Launch the real Codex/Spark probe asynchronously on Beast.
+
+    The synchronous mesh shell path is intentionally short-lived: it only writes
+    a manifest and starts a wrapper. The wrapper owns the long Codex invocation
+    and publishes status/result files atomically for read-only polling.
+    """
+    probe_dir = _codex_probe_dir(request_id)
+    wrapper_path = rf"{probe_dir}\run_probe.ps1"
+    manifest_path = rf"{probe_dir}\manifest.json"
+    status_path = rf"{probe_dir}\status.json"
+    result_path = rf"{probe_dir}\result.json"
+    stdout_path = rf"{probe_dir}\stdout.jsonl"
+    stderr_path = rf"{probe_dir}\stderr.log"
+    probe_script = rf"{_BEAST_WT}\scripts\wave2_codex_spark_probe.py"
+    model = "gpt-5.3-codex-spark"
+    version = "codex-cli 0.147.0"
+    wrapper = rf"""
+$ErrorActionPreference = 'Continue'
+$requestId = '{request_id}'
+$sha = '{sha}'
+$worktree = '{_BEAST_WT}'
+$probeScript = '{probe_script}'
+$statusPath = '{status_path}'
+$resultPath = '{result_path}'
+$stdoutPath = '{stdout_path}'
+$stderrPath = '{stderr_path}'
+$model = '{model}'
+$expectedVersion = '{version}'
+function Write-AtomicJson([string]$Path, [object]$Obj) {{
+  $tmp = "$Path.tmp"
+  $Obj | ConvertTo-Json -Compress -Depth 32 | Set-Content -LiteralPath $tmp -Encoding UTF8
+  Move-Item -LiteralPath $tmp -Destination $Path -Force
+}}
+function FileSha256([string]$Path) {{
+  if (Test-Path -LiteralPath $Path) {{
+    return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+  }}
+  return ""
+}}
+Write-AtomicJson $statusPath ([ordered]@{{
+  request_id=$requestId; candidate_sha=$sha; state='starting';
+  started_at=(Get-Date).ToUniversalTime().ToString('o')
+}})
+try {{
+  $argv = @(
+    $probeScript, '--sha', $sha, '--worktree', $worktree,
+    '--model', $model, '--expected-version', $expectedVersion,
+    '--timeout', '180', '--request-id', $requestId
+  )
+  $proc = Start-Process -FilePath 'python' -ArgumentList $argv -WorkingDirectory $worktree `
+    -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath `
+    -WindowStyle Hidden -PassThru
+  Start-Sleep -Milliseconds 250
+  $procMeta = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$proc.Id)
+  Write-AtomicJson $statusPath ([ordered]@{{
+    request_id=$requestId; candidate_sha=$sha; state='running';
+    pid=$proc.Id; process=$procMeta; stdout_path=$stdoutPath; stderr_path=$stderrPath;
+    started_at=(Get-Date).ToUniversalTime().ToString('o')
+  }})
+  $proc.WaitForExit()
+  $rawOut = ''
+  $rawErr = ''
+  if (Test-Path -LiteralPath $stdoutPath) {{ $rawOut = Get-Content -Raw -LiteralPath $stdoutPath }}
+  if (Test-Path -LiteralPath $stderrPath) {{ $rawErr = Get-Content -Raw -LiteralPath $stderrPath }}
+  $probe = $null
+  $parseError = ''
+  try {{ if ($rawOut) {{ $probe = $rawOut | ConvertFrom-Json }} }} catch {{ $parseError = [string]$_ }}
+  $probeOk = $false
+  if ($null -ne $probe -and $probe.ok -eq $true) {{ $probeOk = $true }}
+  $state = 'failed'
+  if ($proc.ExitCode -eq 0 -and $probeOk) {{ $state = 'succeeded' }}
+  $result = [ordered]@{{
+    request_id=$requestId; candidate_sha=$sha; state=$state; exit_code=$proc.ExitCode;
+    probe=$probe; parse_error=$parseError; raw_stdout=$rawOut; raw_stderr=$rawErr;
+    raw_stdout_sha256=(FileSha256 $stdoutPath); raw_stderr_sha256=(FileSha256 $stderrPath);
+    ended_at=(Get-Date).ToUniversalTime().ToString('o')
+  }}
+  Write-AtomicJson $resultPath $result
+  Write-AtomicJson $statusPath ([ordered]@{{
+    request_id=$requestId; candidate_sha=$sha; state=$state; pid=$proc.Id;
+    exit_code=$proc.ExitCode; result_path=$resultPath; stdout_path=$stdoutPath;
+    stderr_path=$stderrPath; ended_at=(Get-Date).ToUniversalTime().ToString('o')
+  }})
+}} catch {{
+  $err = [string]$_
+  Write-AtomicJson $resultPath ([ordered]@{{
+    request_id=$requestId; candidate_sha=$sha; state='failed'; error=$err;
+    ended_at=(Get-Date).ToUniversalTime().ToString('o')
+  }})
+  Write-AtomicJson $statusPath ([ordered]@{{
+    request_id=$requestId; candidate_sha=$sha; state='failed'; error=$err;
+    ended_at=(Get-Date).ToUniversalTime().ToString('o')
+  }})
+}}
+"""
+    wrapper_b64 = base64.b64encode(wrapper.encode("utf-8")).decode("ascii")
+    launch = rf"""
+$ErrorActionPreference = 'Stop'
+$requestId = '{request_id}'
+$probeDir = '{probe_dir}'
+$wrapperPath = '{wrapper_path}'
+$manifestPath = '{manifest_path}'
+New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+$wrapper = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{wrapper_b64}'))
+Set-Content -LiteralPath $wrapperPath -Value $wrapper -Encoding UTF8
+$cliPath = (Get-Command codex -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source)
+$cliVersion = ''
+try {{ $cliVersion = (codex --version 2>&1 | Out-String).Trim() }} catch {{ $cliVersion = [string]$_ }}
+$wrapperProc = Start-Process -FilePath 'powershell' `
+  -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$wrapperPath) `
+  -WorkingDirectory '{_BEAST_WT}' -WindowStyle Hidden -PassThru
+$manifest = [ordered]@{{
+  request_id=$requestId; candidate_sha='{sha}'; provider='codex';
+  model='gpt-5.3-codex-spark'; expected_version='codex-cli 0.147.0';
+  wrapper_pid=$wrapperProc.Id; wrapper_path=$wrapperPath; status_path='{status_path}';
+  result_path='{result_path}'; stdout_path='{stdout_path}'; stderr_path='{stderr_path}';
+  worktree='{_BEAST_WT}'; probe_script='{probe_script}'; cli_path=$cliPath;
+  cli_version=$cliVersion; launched_at=(Get-Date).ToUniversalTime().ToString('o')
+}}
+$manifest | ConvertTo-Json -Compress -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+$manifest | ConvertTo-Json -Compress -Depth 8
+"""
+    return _powershell_encoded_command(launch)
+
+
+def _codex_probe_read_command(request_id: str) -> str:
+    probe_dir = _codex_probe_dir(request_id)
+    ps = rf"""
+$ErrorActionPreference = 'Continue'
+$dir = '{probe_dir}'
+$manifestPath = Join-Path $dir 'manifest.json'
+$statusPath = Join-Path $dir 'status.json'
+$resultPath = Join-Path $dir 'result.json'
+$manifest = $null
+$status = $null
+$result = $null
+if (Test-Path -LiteralPath $manifestPath) {{ $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json }}
+if (Test-Path -LiteralPath $statusPath) {{ $status = Get-Content -Raw -LiteralPath $statusPath | ConvertFrom-Json }}
+if (Test-Path -LiteralPath $resultPath) {{ $result = Get-Content -Raw -LiteralPath $resultPath | ConvertFrom-Json }}
+$pids = @()
+if ($null -ne $manifest -and $manifest.wrapper_pid) {{ $pids += [int]$manifest.wrapper_pid }}
+if ($null -ne $status -and $status.pid) {{ $pids += [int]$status.pid }}
+$processes = @()
+foreach ($pid in ($pids | Select-Object -Unique)) {{
+  $p = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$pid)
+  if ($null -ne $p) {{
+    $processes += ($p | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,SessionId)
+  }}
+}}
+$broad = @(Get-CimInstance Win32_Process | Where-Object {{
+  ([string]$_.CommandLine) -like "*{request_id}*" -or
+  ([string]$_.CommandLine) -like "*wave2_codex_spark_probe.py*"
+}} | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,SessionId)
+[pscustomobject]@{{
+  request_id='{request_id}'; manifest=$manifest; status=$status; result=$result;
+  processes=$processes; broad_residue=$broad
+}} | ConvertTo-Json -Compress -Depth 32
+"""
+    return _powershell_encoded_command(ps)
+
+
+def _codex_probe_cleanup_command(request_id: str) -> str:
+    probe_dir = _codex_probe_dir(request_id)
+    ps = rf"""
+$ErrorActionPreference = 'Continue'
+$dir = '{probe_dir}'
+$manifestPath = Join-Path $dir 'manifest.json'
+$statusPath = Join-Path $dir 'status.json'
+$ids = @()
+if (Test-Path -LiteralPath $manifestPath) {{
+  $m = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
+  if ($m.wrapper_pid) {{ $ids += [int]$m.wrapper_pid }}
+}}
+if (Test-Path -LiteralPath $statusPath) {{
+  $s = Get-Content -Raw -LiteralPath $statusPath | ConvertFrom-Json
+  if ($s.pid) {{ $ids += [int]$s.pid }}
+}}
+$before = @()
+$terminated = @()
+$errors = @()
+foreach ($pid in ($ids | Select-Object -Unique)) {{
+  $p = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$pid)
+  if ($null -ne $p) {{
+    $before += ($p | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,SessionId)
+    $cmd = [string]$p.CommandLine
+    if ($cmd -like "*{request_id}*" -or $cmd -like "*{probe_dir}*" -or $cmd -like "*wave2_codex_spark_probe.py*") {{
+      $out = (& cmd.exe /c "taskkill /PID $pid /T" 2>&1 | Out-String)
+      Start-Sleep -Seconds 3
+      $alive = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$pid)
+      $forced = $false
+      if ($null -ne $alive) {{
+        $cmd2 = [string]$alive.CommandLine
+        if ($cmd2 -like "*{request_id}*" -or $cmd2 -like "*{probe_dir}*" -or $cmd2 -like "*wave2_codex_spark_probe.py*") {{
+          $out = $out + (& cmd.exe /c "taskkill /PID $pid /T /F" 2>&1 | Out-String)
+          $forced = $true
+        }} else {{
+          $errors += "pid identity changed before force: $pid"
+        }}
+      }}
+      $terminated += [pscustomobject]@{{pid=$pid; forced=$forced; output=$out}}
+    }} else {{
+      $errors += "pid identity mismatch: $pid"
+    }}
+  }}
+}}
+Start-Sleep -Seconds 1
+$residue = @(Get-CimInstance Win32_Process | Where-Object {{
+  ([string]$_.CommandLine) -like "*{request_id}*" -or
+  ([string]$_.CommandLine) -like "*wave2_codex_spark_probe.py*"
+}} | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,SessionId)
+$removed = $false
+if ($residue.Count -eq 0 -and (Test-Path -LiteralPath $dir)) {{
+  Remove-Item -LiteralPath $dir -Recurse -Force
+  $removed = $true
+}}
+[pscustomobject]@{{
+  request_id='{request_id}'; before=$before; terminated=$terminated;
+  residue=$residue; removed=$removed; ok=($errors.Count -eq 0 -and $residue.Count -eq 0);
+  errors=$errors
+}} | ConvertTo-Json -Compress -Depth 16
+"""
+    return _powershell_encoded_command(ps)
+
+
+def _beast_codex_spark_probe(
+    runner: Runner, sha: str, *, poll_timeout_seconds: int = 260, poll_interval_seconds: int = 5
+) -> dict[str, Any]:
     """Run the exact Beast Codex/Spark production-path probe as a preflight gate."""
     if runner.dry_run:
         return {"dry_run": True, "ok": True}
-    cmd = (
-        f"python {_BEAST_WT}\\scripts\\wave2_codex_spark_probe.py "
-        f"--sha {sha} "
-        f"--worktree {_BEAST_WT} "
-        "--model gpt-5.3-codex-spark "
-        '--expected-version "codex-cli 0.147.0" '
-        "--timeout 180"
+    request_id = _codex_probe_request_id()
+    launched = _mesh_read(
+        runner,
+        _codex_probe_launch_command(sha=sha, request_id=request_id),
+        max_len=32768,
+        command_timeout=30,
+        dispatch_timeout=45,
     )
-    result = _mesh_read(runner, cmd, max_len=65536)
-    parsed: dict[str, Any] | None = None
-    if result.get("stdout"):
-        try:
-            parsed = json.loads(str(result["stdout"]))
-        except json.JSONDecodeError as exc:
-            result["parse_error"] = str(exc)
-    ok = bool(result.get("ok")) and isinstance(parsed, dict) and parsed.get("ok") is True
+    if not launched.get("ok"):
+        return {
+            "ok": False,
+            "request_id": request_id,
+            "launch": launched,
+            "failure_reason": "real Beast Codex/Spark probe launch not acknowledged",
+        }
+    deadline = time.time() + poll_timeout_seconds
+    last: dict[str, Any] = {}
+    while time.time() < deadline:
+        read = _mesh_read(
+            runner,
+            _codex_probe_read_command(request_id),
+            max_len=262144,
+            command_timeout=30,
+            dispatch_timeout=45,
+        )
+        last = {"mesh": read}
+        if read.get("ok"):
+            try:
+                observed = json.loads(read.get("stdout", "") or "{}")
+            except ValueError as exc:
+                last["parse_error"] = str(exc)
+            else:
+                last["observed"] = observed
+                state = ((observed.get("status") or {}).get("state") or "").lower()
+                if state in {"succeeded", "failed"}:
+                    cleanup = _mesh_read(
+                        runner,
+                        _codex_probe_cleanup_command(request_id),
+                        max_len=65536,
+                        command_timeout=45,
+                        dispatch_timeout=60,
+                    )
+                    probe = ((observed.get("result") or {}).get("probe") or {})
+                    cleanup_ok = False
+                    cleanup_parsed: dict[str, Any] | None = None
+                    if cleanup.get("ok"):
+                        try:
+                            cleanup_parsed = json.loads(cleanup.get("stdout", "") or "{}")
+                            cleanup_ok = bool(cleanup_parsed.get("ok"))
+                        except ValueError:
+                            cleanup_ok = False
+                    ok = state == "succeeded" and isinstance(probe, dict) and probe.get("ok") is True and cleanup_ok
+                    return {
+                        "ok": ok,
+                        "request_id": request_id,
+                        "launch": launched,
+                        "observed": observed,
+                        "probe": probe if isinstance(probe, dict) else None,
+                        "cleanup": cleanup_parsed or cleanup,
+                        "failure_reason": None
+                        if ok
+                        else "real Beast Codex/Spark production path not proven",
+                    }
+        time.sleep(poll_interval_seconds)
+    cleanup = _mesh_read(
+        runner,
+        _codex_probe_cleanup_command(request_id),
+        max_len=65536,
+        command_timeout=45,
+        dispatch_timeout=60,
+    )
     return {
-        "ok": ok,
-        "mesh": result,
-        "probe": parsed,
-        "failure_reason": None if ok else "real Beast Codex/Spark production path not proven",
+        "ok": False,
+        "request_id": request_id,
+        "launch": launched,
+        "last": last,
+        "cleanup": cleanup,
+        "failure_reason": "real Beast Codex/Spark probe timed out before terminal result",
     }
 
 
@@ -1823,7 +2117,14 @@ def _ensure_mesh_secrets() -> None:
         print(f"[warn] mesh secret resolution failed: {exc}")
 
 
-def _mesh_read(runner: Runner, command: str, *, max_len: int = 400) -> dict[str, Any]:
+def _mesh_read(
+    runner: Runner,
+    command: str,
+    *,
+    max_len: int = 400,
+    command_timeout: int = 60,
+    dispatch_timeout: int = 90,
+) -> dict[str, Any]:
     """Read-only shell command over the governed mesh.
 
     The NODE treats the shell capability as write-class regardless of the
@@ -1847,9 +2148,9 @@ def _mesh_read(runner: Runner, command: str, *, max_len: int = 400) -> dict[str,
     result = mesh_dispatch(
         node_id=_MESH_NODE_ID,
         capability="shell",
-        params={"command": command, "timeout": 60},
+        params={"command": command, "timeout": command_timeout},
         risk_class="reversible_write",  # mints the signed verdict the node validates
-        timeout=90,
+        timeout=dispatch_timeout,
     )
     rd = result.get("result_data", {}) if isinstance(result, dict) else {}
     return {

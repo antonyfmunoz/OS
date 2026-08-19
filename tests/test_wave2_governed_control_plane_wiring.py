@@ -507,18 +507,153 @@ def test_beast_codex_spark_probe_fails_closed_on_bad_mesh_or_bad_probe(monkeypat
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
 
-    monkeypatch.setattr(dispatch, "_mesh_read", lambda *_a, **_kw: {"ok": True, "stdout": "{}"})
+    monkeypatch.setattr(dispatch, "_mesh_read", lambda *_a, **_kw: {"ok": False, "error": "mesh down"})
     result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
     assert result["ok"] is False
+    assert result["failure_reason"] == "real Beast Codex/Spark probe launch not acknowledged"
+
+
+def test_beast_codex_spark_probe_async_lifecycle_succeeds(monkeypatch) -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-test")
+
+    calls = {"n": 0}
+
+    def _mesh(_runner, command, **_kw):  # noqa: ANN001
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"ok": True, "stdout": '{"request_id":"codex-spark-test","wrapper_pid":101}'}
+        if calls["n"] == 2:
+            observed = {
+                "status": {"state": "succeeded"},
+                "result": {
+                    "probe": {
+                        "ok": True,
+                        "execution_identity": {
+                            "model_requested": "gpt-5.3-codex-spark",
+                            "explicit_model_argument_present": True,
+                        },
+                    }
+                },
+            }
+            return {"ok": True, "stdout": __import__("json").dumps(observed)}
+        return {"ok": True, "stdout": '{"ok":true,"residue":[],"removed":true}'}
+
+    monkeypatch.setattr(dispatch, "_mesh_read", _mesh)
+
+    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+
+    assert result["ok"] is True
+    assert result["request_id"] == "codex-spark-test"
+    assert result["probe"]["ok"] is True
+    assert result["cleanup"]["ok"] is True
+
+
+def test_beast_codex_spark_probe_timeout_performs_exact_cleanup(monkeypatch) -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-timeout")
+    monkeypatch.setattr(dispatch, "_codex_probe_cleanup_command", lambda _request_id: "CLEANUP")
+
+    cleanup_seen = {"value": False}
+
+    def _mesh(_runner, command, **_kw):  # noqa: ANN001
+        if command == "CLEANUP":
+            cleanup_seen["value"] = True
+            return {"ok": True, "stdout": '{"ok":true,"residue":[],"removed":true}'}
+        return {"ok": True, "stdout": "{}"}
+
+    monkeypatch.setattr(dispatch, "_mesh_read", _mesh)
+
+    result = dispatch._beast_codex_spark_probe(
+        runner, "sha-under-test", poll_timeout_seconds=0, poll_interval_seconds=0
+    )
+
+    assert result["ok"] is False
+    assert result["failure_reason"] == "real Beast Codex/Spark probe timed out before terminal result"
+    assert cleanup_seen["value"] is True
+
+
+def test_beast_codex_spark_probe_fails_closed_on_jsonl_error_event(monkeypatch) -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-error")
+
+    calls = {"n": 0}
+
+    def _mesh(_runner, command, **_kw):  # noqa: ANN001
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"ok": True, "stdout": '{"request_id":"codex-spark-error","wrapper_pid":101}'}
+        if calls["n"] == 2:
+            observed = {
+                "status": {"state": "failed"},
+                "result": {
+                    "probe": {
+                        "ok": False,
+                        "failure_reasons": ["result_ok is not true"],
+                        "execution_identity": {
+                            "event_types": [
+                                "thread.started",
+                                "turn.started",
+                                "error",
+                                "item.completed",
+                                "turn.completed",
+                            ],
+                            "terminal_status": "completed",
+                        },
+                    }
+                },
+            }
+            return {"ok": True, "stdout": __import__("json").dumps(observed)}
+        return {"ok": True, "stdout": '{"ok":true,"residue":[],"removed":true}'}
+
+    monkeypatch.setattr(dispatch, "_mesh_read", _mesh)
+
+    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+
+    assert result["ok"] is False
     assert result["failure_reason"] == "real Beast Codex/Spark production path not proven"
+    assert result["probe"]["execution_identity"]["event_types"][2] == "error"
+
+
+def test_beast_codex_spark_probe_fails_if_cleanup_leaves_residue(monkeypatch) -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-residue")
+    monkeypatch.setattr(dispatch, "_codex_probe_cleanup_command", lambda _request_id: "CLEANUP")
+
+    calls = {"n": 0}
+
+    def _mesh(_runner, command, **_kw):  # noqa: ANN001
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return {"ok": True, "stdout": '{"request_id":"codex-spark-residue","wrapper_pid":101}'}
+        if calls["n"] == 2:
+            return {
+                "ok": True,
+                "stdout": '{"status":{"state":"succeeded"},"result":{"probe":{"ok":true}}}',
+            }
+        assert command == "CLEANUP"
+        return {"ok": True, "stdout": '{"ok":false,"residue":[{"ProcessId":9}]}'}
 
     monkeypatch.setattr(
         dispatch,
         "_mesh_read",
-        lambda *_a, **_kw: {"ok": True, "stdout": '{"ok":true,"result_identity":{"model":"gpt-5.3-codex-spark"}}'},
+        _mesh,
     )
     result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
-    assert result["ok"] is True
+    assert result["ok"] is False
+    assert result["failure_reason"] == "real Beast Codex/Spark production path not proven"
 
 
 def test_preflight_authority_contract_probe_fails_if_route_rewraps_source_decisions(

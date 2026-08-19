@@ -156,7 +156,15 @@ def _validate_probe_result(result: dict, *, expected_model: str, expected_versio
     return failures
 
 
-def run_probe(*, sha: str, worktree: str, model: str, timeout: int, expected_version: str) -> dict:
+def run_probe(
+    *,
+    sha: str,
+    worktree: str,
+    model: str,
+    timeout: int,
+    expected_version: str,
+    request_id: str = "",
+) -> dict:
     os.environ["UMH_MODEL_EXECUTOR_PROVIDER"] = "codex"
     os.environ["UMH_CODEX_MODEL"] = model
 
@@ -187,6 +195,7 @@ def run_probe(*, sha: str, worktree: str, model: str, timeout: int, expected_ver
             proof_binding={
                 "candidate_sha": sha,
                 "probe": "beast_codex_spark_production_path",
+                "request_id": request_id,
             },
         )
         invocation = executor.build_invocation(packet)
@@ -225,6 +234,7 @@ def run_probe(*, sha: str, worktree: str, model: str, timeout: int, expected_ver
         out = {
             "readiness_ok": ready.ok,
             "readiness_authenticated": ready.authenticated,
+            "request_id": request_id,
             "executor_identity": ready.identity.proof_metadata(),
             "result_ok": result.ok,
             "status": result.status,
@@ -271,6 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default="gpt-5.3-codex-spark")
     parser.add_argument("--expected-version", default="codex-cli 0.147.0")
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument("--request-id", default="")
     args = parser.parse_args(argv)
 
     result = run_probe(
@@ -279,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
         model=args.model,
         timeout=args.timeout,
         expected_version=args.expected_version,
+        request_id=args.request_id,
     )
     print(json.dumps(result, indent=2))
     return 0 if result.get("ok") else 2
