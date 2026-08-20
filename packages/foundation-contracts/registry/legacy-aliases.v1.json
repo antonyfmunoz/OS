@@ -1,0 +1,91 @@
+{
+  "$schema": "https://schemas.umh.dev/foundation/registry/legacy-aliases.v1.schema.json",
+  "registryName": "UMH Foundation Legacy Aliases",
+  "registryVersion": "1.0.0",
+  "aliases": [
+    {
+      "legacyName": "Contact",
+      "canonicalName": "Person",
+      "domain": "identity",
+      "status": "migration-alias-only",
+      "rule": "A Contact may migrate to Person plus ContactPoint and Relationship; Contact is not a canonical object type."
+    },
+    {
+      "legacyName": "CreateContact.v1",
+      "canonicalName": "CreatePerson.v1",
+      "domain": "identity",
+      "status": "migration-alias-only",
+      "rule": "Only use when the legacy object represents a human identity; organization and relationship data must split into canonical objects."
+    },
+    {
+      "legacyName": "ContactCreated.v1",
+      "canonicalName": "PersonCreated.v1",
+      "domain": "identity",
+      "status": "migration-alias-only",
+      "rule": "Event identity must remain stable after migration."
+    },
+    {
+      "legacyName": "LogInteraction.v1",
+      "canonicalName": "RecordInteraction.v1",
+      "domain": "identity",
+      "status": "migration-alias-only",
+      "rule": "RecordInteraction is the canonical command; LogInteraction may be accepted only by explicit migration mapping."
+    },
+    {
+      "legacyName": "InteractionLogged.v1",
+      "canonicalName": "InteractionRecorded.v1",
+      "domain": "identity",
+      "status": "migration-alias-only",
+      "rule": "InteractionRecorded is the canonical event."
+    },
+    {
+      "legacyName": "DeleteFile.v1",
+      "canonicalName": "TrashFile.v1",
+      "domain": "files",
+      "status": "migration-alias-only",
+      "rule": "Only map to TrashFile when legacy DeleteFile meant reversible soft deletion. Do not use DeleteFile as a canonical reversible command."
+    },
+    {
+      "legacyName": "FileDeleted.v1",
+      "canonicalName": "FileTrashed.v1",
+      "domain": "files",
+      "status": "migration-alias-only",
+      "rule": "Only map to FileTrashed when legacy FileDeleted meant reversible soft deletion. Irreversible deletion is reserved for FilePermanentlyDeleted."
+    },
+    {
+      "legacyName": "ArchiveFile.v1",
+      "canonicalName": "TrashFile.v1",
+      "domain": "files",
+      "status": "migration-alias-only",
+      "rule": "Only map when legacy archive moved the file to reversible trash. Retention archive remains a distinct File status."
+    },
+    {
+      "legacyName": "SubmitDocumentReview.v1",
+      "canonicalName": "RequestDocumentReview.v1",
+      "domain": "docs",
+      "status": "migration-alias-only",
+      "rule": "RequestDocumentReview asks for review; reviewer decisions use SubmitReviewDecision."
+    },
+    {
+      "legacyName": "CompleteDocumentReview.v1",
+      "canonicalName": "SubmitReviewDecision.v1",
+      "domain": "docs",
+      "status": "migration-alias-only",
+      "rule": "Reviewer decision submission is distinct from review request."
+    },
+    {
+      "legacyName": "DocumentReviewSubmitted.v1",
+      "canonicalName": "DocumentReviewRequested.v1",
+      "domain": "docs",
+      "status": "migration-alias-only",
+      "rule": "Use only when legacy submitted meant review request, not reviewer decision."
+    },
+    {
+      "legacyName": "DocumentReviewCompleted.v1",
+      "canonicalName": "ReviewDecisionSubmitted.v1",
+      "domain": "docs",
+      "status": "migration-alias-only",
+      "rule": "Reviewer decision submission is canonical."
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json",
+  "title": "ObjectRef",
+  "description": "Canonical reference to an object aggregate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["objectType", "objectId"],
+  "properties": {
+    "objectType": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "x-umh": {
+    "contractName": "ObjectRef",
+    "contractVersion": "1.0.0",
+    "compatibility": "minor-additive"
+  }
+}

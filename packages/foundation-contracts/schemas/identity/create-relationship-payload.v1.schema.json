@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/create-relationship-payload.v1.schema.json",
+  "title": "CreateRelationshipPayload",
+  "description": "Payload for CreateRelationship.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject_ref", "object_ref", "relationship_class", "source"],
+  "properties": {
+    "subject_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "object_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "relationship_class": {"type": "string", "minLength": 1},
+    "lifecycle_stage": {"type": "string"},
+    "owner_actor_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json"},
+    "source": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {"contractName": "CreateRelationshipPayload", "contractVersion": "1.0.0", "commandType": "CreateRelationship.v1", "compatibility": "minor-additive"}
+}

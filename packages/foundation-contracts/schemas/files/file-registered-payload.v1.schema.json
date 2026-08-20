@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/files/file-registered-payload.v1.schema.json",
+  "title": "FileRegisteredPayload",
+  "description": "Payload for FileRegistered.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["file"],
+  "properties": {
+    "file": {"$ref": "https://schemas.umh.dev/foundation/files/file.v1.schema.json"}
+  },
+  "x-umh": {"contractName": "FileRegisteredPayload", "contractVersion": "1.0.0", "eventType": "FileRegistered.v1", "compatibility": "minor-additive"}
+}

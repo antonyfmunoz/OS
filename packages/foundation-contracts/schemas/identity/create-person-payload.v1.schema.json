@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/create-person-payload.v1.schema.json",
+  "title": "CreatePersonPayload",
+  "description": "Payload for CreatePerson.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["display_name"],
+  "properties": {
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "given_name": {
+      "type": "string"
+    },
+    "family_name": {
+      "type": "string"
+    },
+    "preferred_name": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {
+    "contractName": "CreatePersonPayload",
+    "contractVersion": "1.0.0",
+    "commandType": "CreatePerson.v1",
+    "compatibility": "minor-additive"
+  }
+}

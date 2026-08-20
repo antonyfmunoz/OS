@@ -1,0 +1,15 @@
+{
+  "commandId": "cmd_missing_authority",
+  "commandType": "CreatePerson.v1",
+  "contractVersion": "1.0.0",
+  "actor": {
+    "actorType": "agent",
+    "actorId": "agent_foundation"
+  },
+  "target": null,
+  "payload": {
+    "display_name": "No Authority"
+  },
+  "issuedAt": "2026-08-19T18:00:00Z",
+  "correlationId": "corr_missing_authority"
+}

@@ -1,0 +1,39 @@
+{
+  "aliasRegistry": "registry/legacy-aliases.v1.json",
+  "artifactManifest": "generated/artifact-manifest.v1.json",
+  "canonicalSchemaRoot": "schemas",
+  "commandRegistry": "registry/commands.v1.json",
+  "compatibilityRegistry": "registry/compatibility.v1.json",
+  "consumerRequirements": {
+    "aliasesAreMigrationInputOnly": true,
+    "doNotUseLatest": true,
+    "gitSubmoduleDependency": false,
+    "pinExactPackageVersionAndDigest": true,
+    "preserveCanonicalNouns": true,
+    "rejectIncompatibleVersion": true
+  },
+  "eventRegistry": "registry/events.v1.json",
+  "generatedPython": {
+    "models": "generated/python/foundation_contracts/models.py",
+    "package": "generated/python/foundation_contracts"
+  },
+  "generatedTypeScriptZod": {
+    "runtime": "generated/typescript/index.mjs",
+    "source": "generated/typescript/index.ts"
+  },
+  "packageName": "@umh/foundation-contracts",
+  "packageVersion": "0.1.0",
+  "qualificationManifest": "generated/qualification.v1.json",
+  "qualifiedScope": [
+    "Identity / CRM",
+    "Messages",
+    "Docs",
+    "Files",
+    "Databases",
+    "Forms",
+    "Calendar",
+    "Finance"
+  ],
+  "releaseManifestVersion": "1.0.0",
+  "standaloneVendoringAllowed": true
+}

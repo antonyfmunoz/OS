@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/relationship.v1.schema.json",
+  "title": "Relationship",
+  "description": "Directional canonical relationship between entity refs. Facets carry contextual roles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "subject_ref", "object_ref", "relationship_class", "status", "source", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "Relationship"},
+    "schema_version": {"const": "1.0.0"},
+    "subject_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "object_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "relationship_class": {"type": "string", "minLength": 1},
+    "lifecycle_stage": {"type": "string"},
+    "status": {"type": "string", "enum": ["active", "blocked", "archived"]},
+    "owner_actor_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json"},
+    "source": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "ended_at": {"type": "string", "format": "date-time"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {
+    "contractName": "Relationship",
+    "contractVersion": "1.0.0",
+    "domain": "identity",
+    "compatibility": "minor-additive",
+    "stateMachine": {
+      "states": ["active", "blocked", "archived"],
+      "legalTransitions": [["active", "blocked"], ["active", "archived"], ["blocked", "active"], ["blocked", "archived"], ["archived", "active"]]
+    }
+  }
+}

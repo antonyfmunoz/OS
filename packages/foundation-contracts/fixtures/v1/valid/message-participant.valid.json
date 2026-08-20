@@ -1,0 +1,1 @@
+{"id":"mp_001","objectType":"Participant","schema_version":"1.0.0","conversation_id":"conv_001","external_identity_ref":{"objectType":"ExternalIdentity","objectId":"ext_email_001","version":1},"role":"recipient","status":"provisional","joined_at":"2026-08-20T10:00:00Z","created_at":"2026-08-20T10:00:00Z","updated_at":"2026-08-20T10:00:00Z","version":1}

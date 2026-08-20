@@ -1,0 +1,46 @@
+{
+  "commandId": "cmd_record_interaction_001",
+  "commandType": "RecordInteraction.v1",
+  "contractVersion": "1.0.0",
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator",
+    "roleId": "relationship_manager"
+  },
+  "authorityContext": {
+    "organizationId": "org_umh",
+    "projectionId": "umh",
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "projectionId": "umh",
+      "serviceName": "os-discord",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["identity.interaction.record"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "target": {
+    "objectType": "Relationship",
+    "objectId": "rel_01HZY900000000000000000001",
+    "version": 1
+  },
+  "payload": {
+    "relationship_id": "rel_01HZY900000000000000000001",
+    "interaction_type": "call",
+    "occurred_at": "2026-08-19T18:10:00Z",
+    "direction": "outbound",
+    "channel": "voice",
+    "summary": "Discussed initial qualification scope.",
+    "source_object_refs": [
+      {
+        "objectType": "Message",
+        "objectId": "msg_source_001"
+      }
+    ]
+  },
+  "issuedAt": "2026-08-19T18:10:05Z",
+  "idempotencyKey": "record-interaction:rel_01HZY900000000000000000001:2026-08-19T18:10:00Z",
+  "correlationId": "corr_relationship_interaction_001",
+  "expectedAggregateVersion": 1
+}

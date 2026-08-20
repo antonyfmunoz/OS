@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/organization.v1.schema.json",
+  "title": "Organization",
+  "description": "Canonical institution, company, team, legal, or operating organization identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "display_name", "status", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "Organization"},
+    "schema_version": {"const": "1.0.0"},
+    "display_name": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["active", "archived", "merged"]},
+    "legal_name": {"type": "string"},
+    "organization_kind": {"type": "string"},
+    "website": {"type": "string"},
+    "locale": {"type": "string"},
+    "timezone": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {
+    "contractName": "Organization",
+    "contractVersion": "1.0.0",
+    "domain": "identity",
+    "compatibility": "minor-additive",
+    "stateMachine": {
+      "states": ["active", "archived", "merged"],
+      "terminalStates": ["merged"],
+      "legalTransitions": [["active", "archived"], ["archived", "active"]]
+    }
+  }
+}

@@ -1,0 +1,201 @@
+{
+  "$schema": "https://schemas.umh.dev/foundation/registry/commands.v1.schema.json",
+  "registryName": "UMH Foundation Commands",
+  "registryVersion": "1.0.0",
+  "distribution": {
+    "canonicalSource": "OS/packages/foundation-contracts",
+    "model": "language-neutral registry in OS; generated versioned artifacts consumed or vendored by projections",
+    "constitutionalDependencyMechanism": "package-release-or-vendored-artifact",
+    "disallowedMechanism": "git-submodule"
+  },
+  "commands": [
+    {
+      "commandType": "CreatePerson.v1",
+      "domain": "identity",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/identity/create-person-payload.v1.schema.json",
+      "expectedEventTypes": ["PersonCreated.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "identity.person.create", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["CreateContact.v1"]
+    },
+    {
+      "commandType": "CreateRelationship.v1",
+      "domain": "identity",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/identity/create-relationship-payload.v1.schema.json",
+      "expectedEventTypes": ["RelationshipCreated.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "identity.relationship.create", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "RecordInteraction.v1",
+      "domain": "identity",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/identity/record-interaction-payload.v1.schema.json",
+      "expectedEventTypes": ["InteractionRecorded.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "identity.interaction.record", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["LogInteraction.v1"]
+    },
+    {
+      "commandType": "RegisterFile.v1",
+      "domain": "files",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/files/register-file-payload.v1.schema.json",
+      "expectedEventTypes": ["FileRegistered.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "files.file.register", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "TrashFile.v1",
+      "domain": "files",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/files/trash-file-payload.v1.schema.json",
+      "expectedEventTypes": ["FileTrashed.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "files.file.trash", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["DeleteFile.v1", "ArchiveFile.v1"]
+    },
+    {
+      "commandType": "RestoreFile.v1",
+      "domain": "files",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/files/restore-file-payload.v1.schema.json",
+      "expectedEventTypes": ["FileRestored.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "files.file.restore", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "QueueMessage.v1",
+      "domain": "messages",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/messages/queue-message-payload.v1.schema.json",
+      "expectedEventTypes": ["MessageQueued.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "messages.message.queue", "approvalRequired": "policy-dependent"},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "RequestDocumentReview.v1",
+      "domain": "docs",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/docs/request-document-review-payload.v1.schema.json",
+      "expectedEventTypes": ["DocumentReviewRequested.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "docs.review.request", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["SubmitDocumentReview.v1"]
+    },
+    {
+      "commandType": "SubmitReviewDecision.v1",
+      "domain": "docs",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/docs/submit-review-decision-payload.v1.schema.json",
+      "expectedEventTypes": ["ReviewDecisionSubmitted.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "docs.review.decide", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["CompleteDocumentReview.v1"]
+    },
+    {
+      "commandType": "CreateDatabase.v1",
+      "domain": "databases",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/databases/create-database-payload.v1.schema.json",
+      "expectedEventTypes": ["DatabaseCreated.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "databases.database.create", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "CreateRecord.v1",
+      "domain": "databases",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/databases/create-record-payload.v1.schema.json",
+      "expectedEventTypes": ["RecordCreated.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "databases.record.create", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "SubmitForm.v1",
+      "domain": "forms",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/forms/submit-form-payload.v1.schema.json",
+      "expectedEventTypes": ["FormSubmitted.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "forms.form.submit", "approvalRequired": "privacy-policy-dependent"},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "CreateReservation.v1",
+      "domain": "calendar",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/calendar/create-reservation-payload.v1.schema.json",
+      "expectedEventTypes": ["ReservationCreated.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "calendar.reservation.create", "approvalRequired": false},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "PostTransaction.v1",
+      "domain": "finance",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/finance/post-transaction-payload.v1.schema.json",
+      "expectedEventTypes": ["TransactionPosted.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "finance.transaction.post", "approvalRequired": "policy-dependent"},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "commandType": "IssueInvoice.v1",
+      "domain": "finance",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/finance/issue-invoice-payload.v1.schema.json",
+      "expectedEventTypes": ["InvoiceIssued.v1"],
+      "idempotency": "required-for-external-retry",
+      "authority": {"permission": "finance.invoice.issue", "approvalRequired": "policy-dependent"},
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    }
+  ],
+  "reservedCommands": [
+    {
+      "commandType": "PermanentlyDeleteFile.v1",
+      "domain": "files",
+      "status": "reserved-not-implemented",
+      "reason": "Irreversible destruction requires separate authority and retention policy."
+    }
+  ]
+}

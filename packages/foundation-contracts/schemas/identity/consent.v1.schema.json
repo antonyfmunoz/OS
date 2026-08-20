@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/consent.v1.schema.json",
+  "title": "Consent",
+  "description": "Canonical consent state. Consent cannot be inferred from message delivery or relationship existence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "subject_ref", "scope", "state", "captured_at", "source", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "Consent"},
+    "schema_version": {"const": "1.0.0"},
+    "subject_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "scope": {"type": "string", "minLength": 1},
+    "channel": {"type": "string"},
+    "purpose": {"type": "string"},
+    "state": {"type": "string", "enum": ["granted", "denied", "revoked", "expired"]},
+    "basis": {"type": "string"},
+    "captured_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "revoked_at": {"type": "string", "format": "date-time"},
+    "source": {"type": "string", "minLength": 1},
+    "evidence_refs": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.umh.dev/foundation/envelopes/evidence-ref.v1.schema.json"}
+    },
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {
+    "contractName": "Consent",
+    "contractVersion": "1.0.0",
+    "domain": "identity",
+    "compatibility": "minor-additive",
+    "stateMachine": {
+      "states": ["granted", "denied", "revoked", "expired"],
+      "terminalStates": ["revoked", "expired"],
+      "legalTransitions": [["granted", "revoked"], ["granted", "expired"]]
+    }
+  }
+}

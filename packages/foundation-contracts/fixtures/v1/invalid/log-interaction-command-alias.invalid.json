@@ -1,0 +1,29 @@
+{
+  "commandId": "cmd_log_interaction_alias",
+  "commandType": "LogInteraction.v1",
+  "contractVersion": "1.0.0",
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator"
+  },
+  "authorityContext": {
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["identity.interaction.record"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "target": {
+    "objectType": "Relationship",
+    "objectId": "rel_01HZY900000000000000000001"
+  },
+  "payload": {
+    "relationship_id": "rel_01HZY900000000000000000001",
+    "interaction_type": "call",
+    "occurred_at": "2026-08-19T18:10:00Z"
+  },
+  "issuedAt": "2026-08-19T18:10:05Z",
+  "correlationId": "corr_alias_misuse"
+}

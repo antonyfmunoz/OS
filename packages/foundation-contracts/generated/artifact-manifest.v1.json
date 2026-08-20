@@ -1,0 +1,639 @@
+{
+  "aliasCount": 12,
+  "commandCount": 15,
+  "contractPackageVersion": "0.1.0",
+  "eventCount": 15,
+  "generatedArtifacts": {
+    "pythonInit": "41a1bfb4d137bb4fe3377bb88018fdfe5ff973c017449ba3e4a8753d01f097b7",
+    "pythonModels": "40c54c8a80d2bc2848537b4d2ec7e613f6ba6f9642117be1c7ed51db5238dec7",
+    "typescriptRuntime": "87858f6a130950dde9636c16da76d448e53286db574fe8c8f413f8524b4901db",
+    "typescriptSource": "17cfb8466cf89c6969b17264aefd9ea8db2133e65573dc72c04969888e4aa52f"
+  },
+  "generatorSourceDigest": "f0eb3a9853d95987e70e352490685051d5269e9f256c84d7137f69da6b64575c",
+  "generatorVersion": "1.1.1",
+  "manifestVersion": "1.0.0",
+  "registryDigests": {
+    "commands": "29fb49990f334b2c261cf69a446c03b260e22f1f4fde8eb6a1a01a7d3bf41226",
+    "events": "bd934a299a0c35490124311d82a87c67cc8364c85720a2fb46b565a7bf8c2ce7",
+    "legacyAliases": "ff007a7bbb38d3365d189dd231c7c0b3a5467977e80e969b03d0980bd4489709"
+  },
+  "schemaCount": 88,
+  "schemas": [
+    {
+      "canonicalName": "AvailabilityRule",
+      "digest": "781298421382395ecf946ca341a029fba4ea09a695a01afdf22316322261ca92",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/availability-rule.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/availability-rule.v1.schema.json"
+    },
+    {
+      "canonicalName": "Calendar",
+      "digest": "36e269a556b14af0949811754d63a9681efe913ee32a77bf74871af1bf87ac9d",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/calendar.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/calendar.v1.schema.json"
+    },
+    {
+      "canonicalName": "CreateReservationPayload",
+      "digest": "cccf716b33f4fcd2e07daaf6801cbc3833ab995e032fb747eace8cb968187159",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/create-reservation-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/create-reservation-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "CalendarEvent",
+      "digest": "40256a56c9704f4f5eb55e980c79889f825a88094d93ea72af84f62fa4d479a1",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/event.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/calendar-event.v1.schema.json"
+    },
+    {
+      "canonicalName": "CalendarParticipant",
+      "digest": "6f4d411ee0e072f8d2abe5e04214dcdf4678feea80b44e818efc87c437f6a2ca",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/participant.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/calendar-participant.v1.schema.json"
+    },
+    {
+      "canonicalName": "RecurrenceRule",
+      "digest": "d24a7b57118b0e17f3143cdfe218c0b181a0a2e39cbef0de402a2dbeb848694b",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/recurrence-rule.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/recurrence-rule.v1.schema.json"
+    },
+    {
+      "canonicalName": "ReservationCreatedPayload",
+      "digest": "04af289aaeda618ebd402937eb69ef89c57324d9dc53507b85a41c21a0a70909",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/reservation-created-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/reservation-created-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Reservation",
+      "digest": "57185a1e80f9fc1135c8225c50c71b50524d916f32e347c575972c5d6e56521e",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/reservation.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/reservation.v1.schema.json"
+    },
+    {
+      "canonicalName": "CalendarResource",
+      "digest": "d04b2f1714c31a81cb13c39713a6ba0012b4e27407aabf7a65b0b21138b04f07",
+      "schemaId": "https://schemas.umh.dev/foundation/calendar/resource.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/calendar/resource.v1.schema.json"
+    },
+    {
+      "canonicalName": "CreateDatabasePayload",
+      "digest": "51f2f674b8ed743b412a76ff7b36ab1ef597207301a0e977eb7607bf96d4587d",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/create-database-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/create-database-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "CreateRecordPayload",
+      "digest": "ebd1d61a556abba277c6326cc2a2ef62dba04ad204513e12131928045633444f",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/create-record-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/create-record-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "DatabaseCreatedPayload",
+      "digest": "39d29b45090b106ddc854a732cef43116bf2485485e902b0c92aeaa246af0718",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/database-created-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/database-created-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Database",
+      "digest": "a789037081450678e275e072cb1155fa9b89fd14f1b2329412561d33e1204084",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/database.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/database.v1.schema.json"
+    },
+    {
+      "canonicalName": "FieldDefinition",
+      "digest": "9edb9d84071d03b130f1979aa5249f7b0c5fefb06ca9227bf2213833dbead3e3",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/field-definition.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/field-definition.v1.schema.json"
+    },
+    {
+      "canonicalName": "FieldValue",
+      "digest": "1d2b0789e9170d3645e78fc27612ee8a502a285e4a9ef5e477b1bf010fc2df00",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/field-value.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/field-value.v1.schema.json"
+    },
+    {
+      "canonicalName": "RecordCreatedPayload",
+      "digest": "72d27fb09f5b65d557c843fc6bd6a7226cc6fd12e06a14141a003ef1cf1d0207",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/record-created-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/record-created-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "DatabaseRecord",
+      "digest": "d0f7f23cb0d67eac924f153034f917973b67f1becee23593d28307045b06ec0e",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/record.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/database-record.v1.schema.json"
+    },
+    {
+      "canonicalName": "Table",
+      "digest": "defa91f50d360c9664cfd02c0e1ac8d2302b954f48a18b4a207f193d8b396ffc",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/table.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/table.v1.schema.json"
+    },
+    {
+      "canonicalName": "ViewDefinition",
+      "digest": "a4fb01183d26294d36752bf099da463e527f8ad6477f7e84afbac48213686256",
+      "schemaId": "https://schemas.umh.dev/foundation/databases/view-definition.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/databases/view-definition.v1.schema.json"
+    },
+    {
+      "canonicalName": "DocumentReviewRequest",
+      "digest": "46ff3157ac1fff2501b52cfcadee554bd3cff6f59a4ef5a1dac77b8aa8774374",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/document-review-request.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/document-review-request.v1.schema.json"
+    },
+    {
+      "canonicalName": "DocumentReviewRequestedPayload",
+      "digest": "e1ad75a054cd7a6f502162bde51acfa11599af2bd2312b4870e5bdd1f844f9db",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/document-review-requested-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/document-review-requested-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "DocumentRevision",
+      "digest": "397604e7adf53c5ec2dcc2c77242f963f8bf2158a443a0e9b5fdff7aa4bd7ea9",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/document-revision.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/document-revision.v1.schema.json"
+    },
+    {
+      "canonicalName": "Document",
+      "digest": "95d295c62458d8469b3003a100f47ad580e9c46fb70a866e43dc43bf97151518",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/document.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/document.v1.schema.json"
+    },
+    {
+      "canonicalName": "PublicationRecord",
+      "digest": "e327f8c99bc197e28f93e6949ac2148d909c3507212e22f11617535c770ae042",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/publication-record.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/publication-record.v1.schema.json"
+    },
+    {
+      "canonicalName": "RequestDocumentReviewPayload",
+      "digest": "8c801f9d9e2d3bef9ab72eecc4c374d71510ab1035aca248364ed2db8d5ff62a",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/request-document-review-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/request-document-review-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "ReviewDecisionSubmittedPayload",
+      "digest": "8da593f1e28464217efa548b5044e93221751f0f839c384be31d1799a6fc582c",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/review-decision-submitted-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/review-decision-submitted-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "ReviewDecision",
+      "digest": "852021408fba5dbe60117e88defefbb32ca197fac7ed3a58a5b15d4504af0b65",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/review-decision.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/review-decision.v1.schema.json"
+    },
+    {
+      "canonicalName": "SubmitReviewDecisionPayload",
+      "digest": "6da9fb192e1e28c65ea6e608f5bbe386df5088b308f714dca5abce93809f2f48",
+      "schemaId": "https://schemas.umh.dev/foundation/docs/submit-review-decision-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/docs/submit-review-decision-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "ActorRef",
+      "digest": "31da15fffed55f792ce14b1efa5b31344e35485c6f923ce8093505aa129d454b",
+      "schemaId": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/envelopes/actor-ref.v1.schema.json"
+    },
+    {
+      "canonicalName": "AuthorityContext",
+      "digest": "e991f55395c44ec7629880dec17e5026795dcdcd22b99958b2a96fbc2a41b0b7",
+      "schemaId": "https://schemas.umh.dev/foundation/envelopes/authority-context.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/envelopes/authority-context.v1.schema.json"
+    },
+    {
+      "canonicalName": "CommandEnvelope",
+      "digest": "cab62b432539d78ef4546b03e6ae107326e72e7766506d418f0a1413b7b4cbfd",
+      "schemaId": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/envelopes/command-envelope.v1.schema.json"
+    },
+    {
+      "canonicalName": "EventEnvelope",
+      "digest": "852987811e4778b2d63e0069e498fa8306b11aad44333417e439465e83645d61",
+      "schemaId": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/envelopes/event-envelope.v1.schema.json"
+    },
+    {
+      "canonicalName": "EvidenceRef",
+      "digest": "20441accfaaa9c9fc9ea9ab5e2f3cd2865662851ab38bcf1a29805645351a2b9",
+      "schemaId": "https://schemas.umh.dev/foundation/envelopes/evidence-ref.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/envelopes/evidence-ref.v1.schema.json"
+    },
+    {
+      "canonicalName": "ObjectRef",
+      "digest": "1d84a45f54dd0b34f4a97ce0c45b83996cb2f94e7b6bb6c66ea05af4f21f2e3e",
+      "schemaId": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/envelopes/object-ref.v1.schema.json"
+    },
+    {
+      "canonicalName": "RuntimeBinding",
+      "digest": "c4aa4157f6b0c58723dd8d6a2a81608aef7107844fb77aad85fb274622520098",
+      "schemaId": "https://schemas.umh.dev/foundation/envelopes/runtime-binding.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/envelopes/runtime-binding.v1.schema.json"
+    },
+    {
+      "canonicalName": "FileRegisteredPayload",
+      "digest": "b610230f15a57eb0371ce2784b3df72cc5e6dd0734d4b4f0ff117ab33041dd73",
+      "schemaId": "https://schemas.umh.dev/foundation/files/file-registered-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/files/file-registered-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "FileRestoredPayload",
+      "digest": "70955add0eaa434c0f8dd5de0e29a304306ff5f75ccd3cbaae8798e25efa2ab7",
+      "schemaId": "https://schemas.umh.dev/foundation/files/file-restored-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/files/file-restored-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "FileTrashedPayload",
+      "digest": "3a264e6b3764c7e69b9d5b091784f121f0b7d694fe29cadc84aa8a3c5ce322f2",
+      "schemaId": "https://schemas.umh.dev/foundation/files/file-trashed-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/files/file-trashed-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "File",
+      "digest": "8a9479c17c2fd5f7ca320d9016b4711e96908c14223def7712be41081db84872",
+      "schemaId": "https://schemas.umh.dev/foundation/files/file.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/files/file.v1.schema.json"
+    },
+    {
+      "canonicalName": "RegisterFilePayload",
+      "digest": "c9ae0906810e5a30430016be73338fca9d8dd037374c94b75ae2d1000c0c5794",
+      "schemaId": "https://schemas.umh.dev/foundation/files/register-file-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/files/register-file-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "RestoreFilePayload",
+      "digest": "a2f25b0e1b31b84dae48383eb609836708040cb85603dfe1de61314e52e8cb54",
+      "schemaId": "https://schemas.umh.dev/foundation/files/restore-file-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/files/restore-file-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "TrashFilePayload",
+      "digest": "0915b2b8bf0757b6422ca510c45e1d6733fe5ef303a21bf2030cee0080bb1cb6",
+      "schemaId": "https://schemas.umh.dev/foundation/files/trash-file-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/files/trash-file-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "FinancialAccount",
+      "digest": "2e00cac1641f971fd4920136b64578c1be3fb66d3d068bd4853f3e2ba39c6fb2",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/account.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/financial-account.v1.schema.json"
+    },
+    {
+      "canonicalName": "Allocation",
+      "digest": "dcf51b2f97e69c9a0504c2da75448ae419f38619f784f518e96c09819d3f64db",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/allocation.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/allocation.v1.schema.json"
+    },
+    {
+      "canonicalName": "FinancialPeriod",
+      "digest": "9fd8fff60c0481fb9af0acf418435fbea87c1b835a3d4ee005ad8aa34d6c834b",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/financial-period.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/financial-period.v1.schema.json"
+    },
+    {
+      "canonicalName": "InvoiceIssuedPayload",
+      "digest": "5782bfd5d20a51386388694a4c3e5c83c3f0bf30a4dab3d11ba72207f04940d2",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/invoice-issued-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/invoice-issued-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Invoice",
+      "digest": "833f6d482aa6678a0b7ca31915e019a6d94c3db8253441c1e4a8342641e45eb0",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/invoice.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/invoice.v1.schema.json"
+    },
+    {
+      "canonicalName": "IssueInvoicePayload",
+      "digest": "32046d195d4f4dcc1c86fd452059f513055a118b151a89c93a482f3cda22b275",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/issue-invoice-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/issue-invoice-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "PostTransactionPayload",
+      "digest": "08e285897912ef3d62775e497afba75ffbfdf1bfdf0ce79e12b3a56454d6ed4a",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/post-transaction-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/post-transaction-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Statement",
+      "digest": "ccfe14f41530a08da330d58edf6557e014dc15e0ce387724ce0bc16ce24b1f5c",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/statement.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/statement.v1.schema.json"
+    },
+    {
+      "canonicalName": "TransactionLine",
+      "digest": "42e1655c2158ef0f1f541e33b398e25e838e8c59d342205963e3a4b9fb3f23d7",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/transaction-line.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/transaction-line.v1.schema.json"
+    },
+    {
+      "canonicalName": "TransactionPostedPayload",
+      "digest": "7dae14cd433acc78ddbb358b51295dde83868c107286f8a6baaa2d59a60bd44e",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/transaction-posted-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/transaction-posted-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Transaction",
+      "digest": "45620954bd50deb203a1eb6b3fb5a27a1d5a41777bb938f4a654dc8e6e3bfb8e",
+      "schemaId": "https://schemas.umh.dev/foundation/finance/transaction.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/finance/transaction.v1.schema.json"
+    },
+    {
+      "canonicalName": "FormDestinationBinding",
+      "digest": "0b52fca96b7abf2856201563814e15a7b9573260520a97af45fe970e3ebded82",
+      "schemaId": "https://schemas.umh.dev/foundation/forms/form-destination-binding.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/forms/form-destination-binding.v1.schema.json"
+    },
+    {
+      "canonicalName": "FormField",
+      "digest": "e7dbb6ab7dec2762e9b6440ca6be55e5cd289b5d827a8589663b8d1d7cb7fd37",
+      "schemaId": "https://schemas.umh.dev/foundation/forms/form-field.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/forms/form-field.v1.schema.json"
+    },
+    {
+      "canonicalName": "FormSubmission",
+      "digest": "a9246b5db9a04ab26cc98485d79125093c15f62fd034ea83ba81c287211aba81",
+      "schemaId": "https://schemas.umh.dev/foundation/forms/form-submission.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/forms/form-submission.v1.schema.json"
+    },
+    {
+      "canonicalName": "FormSubmittedPayload",
+      "digest": "fad1d766290b366624e663048557425df6615424590f4e19de0e839b095a055a",
+      "schemaId": "https://schemas.umh.dev/foundation/forms/form-submitted-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/forms/form-submitted-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Form",
+      "digest": "7f393dad40c38dd0df13ebfa3b4ced29b71bc9dbe2ca87ed0cd3dca6d4e8b26d",
+      "schemaId": "https://schemas.umh.dev/foundation/forms/form.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/forms/form.v1.schema.json"
+    },
+    {
+      "canonicalName": "SubmissionValue",
+      "digest": "4288ce907d91f339de4bc8195226125bb531ac8a499a961355d3fb195879b058",
+      "schemaId": "https://schemas.umh.dev/foundation/forms/submission-value.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/forms/submission-value.v1.schema.json"
+    },
+    {
+      "canonicalName": "SubmitFormPayload",
+      "digest": "f733331902bf848e04d3492fea25422bf1fb44cda593351a5c63cdd5160ee514",
+      "schemaId": "https://schemas.umh.dev/foundation/forms/submit-form-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/forms/submit-form-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Consent",
+      "digest": "aa0583607ea0e7cf1d5c678eaec75a9b733df37afeb952206cd87d17aa5394e8",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/consent.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/consent.v1.schema.json"
+    },
+    {
+      "canonicalName": "ContactPoint",
+      "digest": "0ad47c12cf3079db4101b2d068f86d819b2299f64d14e26454608b6da9fb7970",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/contact-point.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/contact-point.v1.schema.json"
+    },
+    {
+      "canonicalName": "CreatePersonPayload",
+      "digest": "cea886b70bc4d68b546624332a0df7cb90b78a7e40a61896811268312a98ff2b",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/create-person-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/create-person-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "CreateRelationshipPayload",
+      "digest": "bc71e008b27628d2d67c4a40fbe3a58c7039369a82c9cd0bfc49f5474fbd390f",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/create-relationship-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/create-relationship-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "ExternalIdentity",
+      "digest": "912a237c6c82934e97b92770d5e01bcc8754879e85bb94f5f8f19641d1a0b59d",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/external-identity.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/external-identity.v1.schema.json"
+    },
+    {
+      "canonicalName": "Facet",
+      "digest": "9675fed4e430706a5f244a9bca675c37933cb233106bec7293fe68a0f15c8ec7",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/facet.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/facet.v1.schema.json"
+    },
+    {
+      "canonicalName": "FollowUp",
+      "digest": "c6ea82a30d6dd25540435879f74aba2a56c8bd37c3f5c3299adc57fa65b67dc8",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/follow-up.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/follow-up.v1.schema.json"
+    },
+    {
+      "canonicalName": "InteractionRecordedPayload",
+      "digest": "b5721d1216589194571ba39e7f69e8021374188a07f575535b44ec4cf69be44d",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/interaction-recorded-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/interaction-recorded-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Interaction",
+      "digest": "3b13f1b239c77e823630ca1f32fe73edb9716fac19351826d23fc3502498b7e4",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/interaction.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/interaction.v1.schema.json"
+    },
+    {
+      "canonicalName": "Opportunity",
+      "digest": "d0a49f474879ced3a5662f3c31041b0321fad2494b953c40e27280904efe44d9",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/opportunity.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/opportunity.v1.schema.json"
+    },
+    {
+      "canonicalName": "Organization",
+      "digest": "3df19e4f9dc1dff06b8636e0ab51a205898541974f32cf8624a8171cf6a866c2",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/organization.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/organization.v1.schema.json"
+    },
+    {
+      "canonicalName": "PersonCreatedPayload",
+      "digest": "ed0bb69cbc49383af871ef778a0de02115352fa65c287493dc2cc4c53d0f4fe5",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/person-created-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/person-created-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Person",
+      "digest": "fa414320a1866a3585e3f0eb843846e95fa6354fe11a774114ec95d389271ecb",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/person.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/person.v1.schema.json"
+    },
+    {
+      "canonicalName": "Pipeline",
+      "digest": "f12f0e9639cc3c21c2375a070dd32e4338bd2310720b0bb29c4ea220a263cbe4",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/pipeline.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/pipeline.v1.schema.json"
+    },
+    {
+      "canonicalName": "RecordInteractionPayload",
+      "digest": "79f39a8eb031062f754cb304148e631f61da90274c2ee6d792aaf960e7993a68",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/record-interaction-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/record-interaction-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "RelationshipCreatedPayload",
+      "digest": "edeabf20b524083d8dad47d27be36d12baf316367a9d92ab1ed5fcdea4eda321",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/relationship-created-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/relationship-created-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Relationship",
+      "digest": "8a4f3589d9058637bc2912a6bfd7496a9413134599562296ede444156c10ab29",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/relationship.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/relationship.v1.schema.json"
+    },
+    {
+      "canonicalName": "Stage",
+      "digest": "899a850d7241a4a39f372dc4b3673103f1d956041f4718d1c21484795cf9cf90",
+      "schemaId": "https://schemas.umh.dev/foundation/identity/stage.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/identity/stage.v1.schema.json"
+    },
+    {
+      "canonicalName": "Assignment",
+      "digest": "cded0e35da64baf31325f7e9b424f63ebb5c751a7b2495df74fe4771b4238e89",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/assignment.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/assignment.v1.schema.json"
+    },
+    {
+      "canonicalName": "MessageAttachment",
+      "digest": "55331dad866ea2143327fd18f07914d2b179a61858c8f1a4b892f6167966c488",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/attachment.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/message-attachment.v1.schema.json"
+    },
+    {
+      "canonicalName": "ChannelBinding",
+      "digest": "744b037b6b5c8dec69e1768bee168425492afbe858478ca7c89a0705c2fbd0b4",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/channel-binding.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/channel-binding.v1.schema.json"
+    },
+    {
+      "canonicalName": "Conversation",
+      "digest": "cdcf466ff50b3c64e5a68658fba1b9e5a8f4dbf191190d03f22dd3348943293d",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/conversation.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/conversation.v1.schema.json"
+    },
+    {
+      "canonicalName": "DeliveryReceipt",
+      "digest": "9fda27466eb3630be6bf48b05863f102c2b829e0fd7ddef1d6bcfc18da5bee00",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/delivery-receipt.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/delivery-receipt.v1.schema.json"
+    },
+    {
+      "canonicalName": "InternalNote",
+      "digest": "afa54db9c6ac65331a056bb30da700a5bf570f4f888ca7a652170a33018a7760",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/internal-note.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/internal-note.v1.schema.json"
+    },
+    {
+      "canonicalName": "MessageQueuedPayload",
+      "digest": "87c1fe1f34a096a6c7d39c0a32ad1edff95a7b56113ecc338be5cf45bb5bae4c",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/message-queued-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/message-queued-payload.v1.schema.json"
+    },
+    {
+      "canonicalName": "Message",
+      "digest": "3c49be3f36bcad2bf8fb7e7761be3d2b10c63522cddfd237d2d20ef5bd9ab92b",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/message.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/message.v1.schema.json"
+    },
+    {
+      "canonicalName": "MessageParticipant",
+      "digest": "03267bf148f808ea1e113afdb997fa49d6256ba5c00ca189e60485195dd40e92",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/participant.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/message-participant.v1.schema.json"
+    },
+    {
+      "canonicalName": "QueueMessagePayload",
+      "digest": "5e5b9142bf30615f5c2b865bc02a352e98932a5e4c09a70f526093f4563f6507",
+      "schemaId": "https://schemas.umh.dev/foundation/messages/queue-message-payload.v1.schema.json",
+      "semanticVersion": "1.0.0",
+      "sourcePath": "schemas/messages/queue-message-payload.v1.schema.json"
+    }
+  ]
+}

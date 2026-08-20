@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/person.v1.schema.json",
+  "title": "Person",
+  "description": "Canonical human identity. Relationship facets carry customer, employee, candidate, friend, audience, sponsor, and similar context.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "display_name", "status", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objectType": {
+      "const": "Person"
+    },
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "archived", "merged"]
+    },
+    "given_name": {
+      "type": "string"
+    },
+    "family_name": {
+      "type": "string"
+    },
+    "preferred_name": {
+      "type": "string"
+    },
+    "locale": {
+      "type": "string"
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "avatar_file_id": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {
+    "contractName": "Person",
+    "contractVersion": "1.0.0",
+    "domain": "identity",
+    "compatibility": "minor-additive",
+    "stateMachine": {
+      "states": ["active", "archived", "merged"],
+      "terminalStates": ["merged"],
+      "legalTransitions": [["active", "archived"], ["archived", "active"]]
+    }
+  }
+}

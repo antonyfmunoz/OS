@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/stage.v1.schema.json",
+  "title": "Stage",
+  "description": "Canonical opportunity stage belonging to a Pipeline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "pipeline_id", "name", "ordinal", "terminal_kind", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "Stage"},
+    "schema_version": {"const": "1.0.0"},
+    "pipeline_id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "ordinal": {"type": "integer", "minimum": 0},
+    "terminal_kind": {"type": "string", "enum": ["none", "won", "lost"]},
+    "entry_policy": {"type": "object", "additionalProperties": true},
+    "exit_policy": {"type": "object", "additionalProperties": true},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1}
+  },
+  "x-umh": {"contractName": "Stage", "contractVersion": "1.0.0", "domain": "identity", "compatibility": "minor-additive"}
+}

@@ -1,0 +1,165 @@
+{
+  "$schema": "https://schemas.umh.dev/foundation/registry/events.v1.schema.json",
+  "registryName": "UMH Foundation Events",
+  "registryVersion": "1.0.0",
+  "events": [
+    {
+      "eventType": "PersonCreated.v1",
+      "domain": "identity",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/identity/person-created-payload.v1.schema.json",
+      "aggregateObjectType": "Person",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["ContactCreated.v1"]
+    },
+    {
+      "eventType": "RelationshipCreated.v1",
+      "domain": "identity",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/identity/relationship-created-payload.v1.schema.json",
+      "aggregateObjectType": "Relationship",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "InteractionRecorded.v1",
+      "domain": "identity",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/identity/interaction-recorded-payload.v1.schema.json",
+      "aggregateObjectType": "Interaction",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["InteractionLogged.v1"]
+    },
+    {
+      "eventType": "FileRegistered.v1",
+      "domain": "files",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/files/file-registered-payload.v1.schema.json",
+      "aggregateObjectType": "File",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "FileTrashed.v1",
+      "domain": "files",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/files/file-trashed-payload.v1.schema.json",
+      "aggregateObjectType": "File",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["FileDeleted.v1", "FileArchived.v1"]
+    },
+    {
+      "eventType": "FileRestored.v1",
+      "domain": "files",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/files/file-restored-payload.v1.schema.json",
+      "aggregateObjectType": "File",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "MessageQueued.v1",
+      "domain": "messages",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/messages/message-queued-payload.v1.schema.json",
+      "aggregateObjectType": "Message",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "DocumentReviewRequested.v1",
+      "domain": "docs",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/docs/document-review-requested-payload.v1.schema.json",
+      "aggregateObjectType": "Document",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["DocumentReviewSubmitted.v1"]
+    },
+    {
+      "eventType": "ReviewDecisionSubmitted.v1",
+      "domain": "docs",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/docs/review-decision-submitted-payload.v1.schema.json",
+      "aggregateObjectType": "Document",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": ["DocumentReviewCompleted.v1"]
+    },
+    {
+      "eventType": "DatabaseCreated.v1",
+      "domain": "databases",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/databases/database-created-payload.v1.schema.json",
+      "aggregateObjectType": "Database",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "RecordCreated.v1",
+      "domain": "databases",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/databases/record-created-payload.v1.schema.json",
+      "aggregateObjectType": "Record",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "FormSubmitted.v1",
+      "domain": "forms",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/forms/form-submitted-payload.v1.schema.json",
+      "aggregateObjectType": "FormSubmission",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "ReservationCreated.v1",
+      "domain": "calendar",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/calendar/reservation-created-payload.v1.schema.json",
+      "aggregateObjectType": "Reservation",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "TransactionPosted.v1",
+      "domain": "finance",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/finance/transaction-posted-payload.v1.schema.json",
+      "aggregateObjectType": "Transaction",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    },
+    {
+      "eventType": "InvoiceIssued.v1",
+      "domain": "finance",
+      "semanticVersion": "1.0.0",
+      "envelopeSchema": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+      "payloadSchema": "https://schemas.umh.dev/foundation/finance/invoice-issued-payload.v1.schema.json",
+      "aggregateObjectType": "Invoice",
+      "compatibility": {"additiveUntil": "1.x", "breakingRequires": "2.0.0"},
+      "aliases": []
+    }
+  ],
+  "reservedEvents": [
+    {
+      "eventType": "FilePermanentlyDeleted.v1",
+      "domain": "files",
+      "status": "reserved-not-implemented",
+      "reason": "Irreversible destruction requires separate authority and retention policy."
+    }
+  ]
+}

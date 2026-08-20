@@ -1,0 +1,85 @@
+{
+  "aliasCount": 12,
+  "artifactManifestDigest": "ee5aaef0b5ce6374e20eca69f4ad39e7d4d161ca4996273df80ca3bc8aafbbe4",
+  "artifactManifestPath": "generated/artifact-manifest.v1.json",
+  "artifactManifestVersion": "1.0.0",
+  "canonicalSourceRepository": {
+    "branch": "feat/foundation-contracts-schema-generation",
+    "gitCommitSha": "EXTERNAL_RELEASE_HANDOFF_AFTER_COMMIT",
+    "gitCommitShaMode": "non-circular-external-release-handoff",
+    "packagePath": "packages/foundation-contracts",
+    "preCommitHead": "c9ac682254b779d55b7fbaad381d48a44564cbae",
+    "repository": "OS",
+    "sourceKind": "VERSIONED_GIT_CANDIDATE"
+  },
+  "commandCount": 15,
+  "digests": {
+    "aliasRegistry": "f6c62295f501884813d7c655f545a03a4eab93f1a2f4cb4a7575df34720a7101",
+    "artifactManifest": "ee5aaef0b5ce6374e20eca69f4ad39e7d4d161ca4996273df80ca3bc8aafbbe4",
+    "commandRegistry": "882e1cbeddd146da24091a0006dea82ce00c5b639698191456677674daada8f9",
+    "compatibilityRegistry": "71cee48dafc8a4128183e85c0c6acb727bac8e14653f2de8d9d0387f27d2d178",
+    "eventRegistry": "ddad67173503166f62dc54f91742add97e644a7ad9ac0fb4e95b2260eaa4f333",
+    "generatedPythonInit": "41a1bfb4d137bb4fe3377bb88018fdfe5ff973c017449ba3e4a8753d01f097b7",
+    "generatedPythonModels": "40c54c8a80d2bc2848537b4d2ec7e613f6ba6f9642117be1c7ed51db5238dec7",
+    "generatedTypeScriptRuntime": "87858f6a130950dde9636c16da76d448e53286db574fe8c8f413f8524b4901db",
+    "generatedTypeScriptSource": "17cfb8466cf89c6969b17264aefd9ea8db2133e65573dc72c04969888e4aa52f",
+    "generatorSource": "f0eb3a9853d95987e70e352490685051d5269e9f256c84d7137f69da6b64575c"
+  },
+  "eventCount": 15,
+  "generatedArtifacts": {
+    "pythonInit": "generated/python/foundation_contracts/__init__.py",
+    "pythonModels": "generated/python/foundation_contracts/models.py",
+    "typescriptRuntime": "generated/typescript/index.mjs",
+    "typescriptSource": "generated/typescript/index.ts"
+  },
+  "generatorVersion": "1.1.1",
+  "packageName": "@umh/foundation-contracts",
+  "packageVersion": "0.1.0",
+  "qualificationResults": [
+    {
+      "command": "npm run generate",
+      "result": "PASS",
+      "summary": "generated 88 schemas"
+    },
+    {
+      "command": "pytest -q tests/test_conformance.py",
+      "result": "PASS",
+      "summary": "13 passed"
+    },
+    {
+      "command": "npm run validate:valid",
+      "result": "PASS",
+      "summary": "valid Zod fixture suite PASS (75)"
+    },
+    {
+      "command": "npm run validate:invalid",
+      "result": "PASS",
+      "summary": "invalid Zod fixture suite PASS (17)"
+    },
+    {
+      "command": "deterministic regeneration",
+      "result": "PASS",
+      "summary": "two consecutive generations produced identical artifact hashes"
+    }
+  ],
+  "qualificationSchemaVersion": "1.0.0",
+  "qualificationScope": [
+    "Identity / CRM",
+    "Messages",
+    "Docs",
+    "Files",
+    "Databases",
+    "Forms",
+    "Calendar",
+    "Finance"
+  ],
+  "qualificationStatus": "QUALIFIED",
+  "qualificationTestSuites": [
+    "tests/test_conformance.py",
+    "fixtures/v1/fixture-suite.v1.json",
+    "scripts/validate_zod_suite.mjs",
+    "scripts/verify_release_candidate.py"
+  ],
+  "schemaCount": 88,
+  "schemaRegistryVersion": "1.0.0"
+}

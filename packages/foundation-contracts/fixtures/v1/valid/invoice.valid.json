@@ -1,0 +1,1 @@
+{"id":"inv_001","objectType":"Invoice","schema_version":"1.0.0","invoice_number":"INV-001","status":"issued","bill_to_ref":{"objectType":"Organization","objectId":"org_customer","version":1},"currency":"USD","total_amount":100,"issued_at":"2026-08-20T14:05:00Z","due_at":"2026-09-20T14:05:00Z","version":1}

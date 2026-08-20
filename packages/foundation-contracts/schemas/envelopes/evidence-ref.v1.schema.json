@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/envelopes/evidence-ref.v1.schema.json",
+  "title": "EvidenceRef",
+  "description": "Bounded provenance reference. Raw evidence remains in the source system.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["evidenceId", "sourceRuntime", "observedAt"],
+  "properties": {
+    "evidenceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidenceType": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceRuntime": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/runtime-binding.v1.schema.json"
+    },
+    "objectRef": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"
+    },
+    "uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contentHash": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "x-umh": {
+    "contractName": "EvidenceRef",
+    "contractVersion": "1.0.0",
+    "compatibility": "minor-additive",
+    "existingUmhMapping": "substrate.contracts.work_context.EvidenceRef"
+  }
+}

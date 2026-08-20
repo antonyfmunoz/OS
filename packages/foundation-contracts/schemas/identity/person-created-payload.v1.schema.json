@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/person-created-payload.v1.schema.json",
+  "title": "PersonCreatedPayload",
+  "description": "Payload for PersonCreated.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["person"],
+  "properties": {
+    "person": {
+      "$ref": "https://schemas.umh.dev/foundation/identity/person.v1.schema.json"
+    }
+  },
+  "x-umh": {
+    "contractName": "PersonCreatedPayload",
+    "contractVersion": "1.0.0",
+    "eventType": "PersonCreated.v1",
+    "compatibility": "minor-additive"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/files/trash-file-payload.v1.schema.json",
+  "title": "TrashFilePayload",
+  "description": "Payload for TrashFile.v1. This is reversible soft deletion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["file_ref", "reason"],
+  "properties": {
+    "file_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "reason": {"type": "string", "minLength": 1},
+    "evidence_refs": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.umh.dev/foundation/envelopes/evidence-ref.v1.schema.json"}
+    }
+  },
+  "x-umh": {"contractName": "TrashFilePayload", "contractVersion": "1.0.0", "commandType": "TrashFile.v1", "compatibility": "minor-additive"}
+}

@@ -1,0 +1,1 @@
+{"id":"reviewreq_001","objectType":"DocumentReviewRequest","schema_version":"1.0.0","document_id":"doc_001","revision_id":"docrev_002","reviewer_ref":{"actorType":"human","actorId":"reviewer_001","roleId":"reviewer"},"status":"requested","requested_at":"2026-08-20T09:31:00Z","version":1}

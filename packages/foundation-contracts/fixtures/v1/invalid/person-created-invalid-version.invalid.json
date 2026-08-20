@@ -1,0 +1,45 @@
+{
+  "eventId": "evt_bad_version",
+  "eventType": "PersonCreated.v1",
+  "contractVersion": "1.0.0",
+  "aggregate": {
+    "objectType": "Person",
+    "objectId": "person_bad_version",
+    "version": 0
+  },
+  "aggregateVersion": 0,
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator"
+  },
+  "authorityContext": {
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["identity.person.create"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "occurredAt": "2026-08-19T18:00:01Z",
+  "sourceRuntime": {
+    "runtimeId": "runtime_umh_vps",
+    "runtimeKind": "umh-native",
+    "contractVersion": "1.0.0"
+  },
+  "correlationId": "corr_bad_version",
+  "causationId": "cmd_bad_version",
+  "evidenceRefs": [],
+  "payload": {
+    "person": {
+      "id": "person_bad_version",
+      "objectType": "Person",
+      "schema_version": "1.0.0",
+      "display_name": "Bad Version",
+      "status": "active",
+      "created_at": "2026-08-19T18:00:00Z",
+      "updated_at": "2026-08-19T18:00:00Z",
+      "version": 1
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/files/register-file-payload.v1.schema.json",
+  "title": "RegisterFilePayload",
+  "description": "Payload for RegisterFile.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "kind", "storage_binding", "owner_ref"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "mime_type": {"type": "string"},
+    "size_bytes": {"type": "integer", "minimum": 0},
+    "storage_binding": {"type": "object", "additionalProperties": true},
+    "owner_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {"contractName": "RegisterFilePayload", "contractVersion": "1.0.0", "commandType": "RegisterFile.v1", "compatibility": "minor-additive"}
+}
