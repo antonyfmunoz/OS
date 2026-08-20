@@ -12,23 +12,23 @@ import json
 import logging
 import os
 import threading
-import time
 from typing import Any, Callable
+from uuid import uuid4
 
 import websockets
 from websockets.asyncio.server import ServerConnection
 
+from substrate.execution.durable_remote_transport import DurableRemoteStore
 from substrate.execution.executor import WorkPacketExecutor
+from substrate.sockets.capability_socket import CapabilitySocket
+from substrate.sockets.envelopes import ViewFrame
+from substrate.sockets.outcome_socket import OutcomeSocket
+from substrate.sockets.registry import IntegrationRegistry
+from substrate.sockets.signal_socket import SignalSocket
+from substrate.sockets.view_socket import ViewSocket
 from transports.node_mesh.config import MeshConfig
 from transports.node_mesh.metrics_buffer import MetricsBuffer, MetricsSnapshot
 from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry, Peripheral
-from substrate.sockets.capability_socket import CapabilitySocket
-from substrate.sockets.outcome_socket import OutcomeSocket
-from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
-from substrate.sockets.signal_socket import SignalSocket
-from substrate.sockets.envelopes import ViewFrame
-from substrate.sockets.view_socket import ViewSocket
-from substrate.execution.durable_remote_transport import DurableRemoteStore
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,6 @@ class NodeMeshServer:
 
         Same protocol as _frame_relay_ws_loop but drains _desktop_frame_queue.
         """
-        import struct as _struct
 
         assert self._desktop_frame_queue is not None
         assert self._desktop_relay_url is not None
@@ -342,6 +341,7 @@ class NodeMeshServer:
     async def _handle_connection(self, ws: ServerConnection) -> None:
         """Handle a single node WebSocket connection."""
         node_id: str | None = None
+        connection_id = uuid4().hex
         try:
             token = self._extract_token(ws)
             if not self._authenticate(token):
@@ -391,13 +391,15 @@ class NodeMeshServer:
                         # handler. Forwarding tolerance alone is NOT proof of
                         # life — b"\x00" * 7 forwards fine but proves nothing.
                         if proves_liveness and forwarded:
-                            if not self._registry.update_heartbeat(node_id):
+                            if not self._registry.update_heartbeat(
+                                node_id, connection_id=connection_id
+                            ):
                                 logger.warning(
                                     "binary-frame heartbeat refused: %s not in registry",
                                     node_id,
                                 )
                             else:
-                                await self._pump_durable_requests(node_id, ws)
+                                await self._pump_durable_requests(node_id, ws, connection_id)
                     continue
 
                 msg = json.loads(raw)
@@ -406,19 +408,27 @@ class NodeMeshServer:
                 msg_id = msg.get("id")
 
                 if method == "node.hello":
-                    node_id = await self._handle_hello(ws, params, msg_id, token)
+                    node_id = await self._handle_hello(
+                        ws, params, msg_id, token, connection_id
+                    )
                 elif method == "node.heartbeat" and node_id:
-                    await self._handle_heartbeat(node_id, params, msg_id, ws)
+                    await self._handle_heartbeat(node_id, params, msg_id, ws, connection_id)
                 elif method == "durable_command.claimed" and node_id:
-                    await self._handle_durable_claimed(node_id, params, msg_id, ws)
+                    await self._handle_durable_claimed(
+                        node_id, params, msg_id, ws, connection_id
+                    )
                 elif method == "durable_command.result" and node_id:
-                    await self._handle_durable_result(node_id, params, msg_id, ws)
+                    await self._handle_durable_result(
+                        node_id, params, msg_id, ws, connection_id
+                    )
                 elif method == "node.capabilities_changed" and node_id:
-                    await self._handle_capabilities_changed(node_id, params, ws)
+                    await self._handle_capabilities_changed(
+                        node_id, params, ws, connection_id
+                    )
                 elif method == "node.peripherals_changed" and node_id:
-                    await self._handle_peripherals_changed(node_id, params)
+                    await self._handle_peripherals_changed(node_id, params, connection_id)
                 elif method == "signal.emit" and node_id:
-                    await self._handle_signal(node_id, params, msg_id, ws)
+                    await self._handle_signal(node_id, params, msg_id, ws, connection_id)
                 elif not method and ("result" in msg or "error" in msg):
                     self._resolve_pending_dispatch(msg)
                 else:
@@ -442,7 +452,7 @@ class NodeMeshServer:
             logger.error("node connection error: %s", exc)
         finally:
             if node_id:
-                self._unregister_node(node_id)
+                self._unregister_node(node_id, connection_id=connection_id)
 
     @staticmethod
     def _frame_proves_liveness(raw: bytes) -> bool:
@@ -596,6 +606,7 @@ class NodeMeshServer:
         params: dict[str, Any],
         msg_id: Any,
         token: str = "",
+        connection_id: str = "",
     ) -> str:
         node_id = params.get("node_id", "unknown")
 
@@ -642,7 +653,11 @@ class NodeMeshServer:
                 return node_id
 
         if self._registry.get(node_id) is not None:
-            self._unregister_node(node_id)
+            existing = self._registry.get(node_id)
+            self._unregister_node(
+                node_id,
+                connection_id=existing.connection_id if existing is not None else None,
+            )
 
         caps = [
             NodeCapability(
@@ -665,6 +680,7 @@ class NodeMeshServer:
             daemon_version=params.get("daemon_version", "0.0.0"),
             tailscale_ip=params.get("tailscale_ip", ""),
             ws=ws,
+            connection_id=connection_id,
             peripherals=peripherals,
         )
 
@@ -700,7 +716,7 @@ class NodeMeshServer:
             node.hostname,
             len(node.peripherals),
         )
-        await self._pump_durable_requests(node_id, ws)
+        await self._pump_durable_requests(node_id, ws, connection_id)
         return node_id
 
     async def _handle_heartbeat(
@@ -709,9 +725,22 @@ class NodeMeshServer:
         params: dict[str, Any],
         msg_id: Any,
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
         metrics = params.get("metrics", {})
-        self._registry.update_heartbeat(node_id, metrics)
+        if not self._registry.update_heartbeat(node_id, metrics, connection_id=connection_id):
+            logger.warning("heartbeat refused: %s not owned by this connection", node_id)
+            if msg_id is not None:
+                await ws.send(
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "result": {"ack": False, "error": "stale node connection"},
+                            "id": msg_id,
+                        }
+                    )
+                )
+            return
 
         if self._runtime_graph_hook is not None:
             try:
@@ -750,15 +779,20 @@ class NodeMeshServer:
                     }
                 )
             )
-        await self._pump_durable_requests(node_id, ws)
+        await self._pump_durable_requests(node_id, ws, connection_id)
 
-    async def _pump_durable_requests(self, node_id: str, ws: ServerConnection) -> None:
+    async def _pump_durable_requests(
+        self, node_id: str, ws: ServerConnection, connection_id: str = ""
+    ) -> None:
         """Deliver persisted remote requests to a connected node.
 
         Delivery is deliberately idempotent: the node owns claim/execution
         deduplication by request_id, and the controller store remains the source
         of truth if the socket drops before a terminal result is observed.
         """
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("durable delivery refused: %s not owned by this connection", node_id)
+            return
         for req in self._durable_store.deliverable_for_node(node_id, limit=1):
             try:
                 await ws.send(
@@ -782,6 +816,7 @@ class NodeMeshServer:
         params: dict[str, Any],
         msg_id: Any,
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
         request_id = str(params.get("request_id", ""))
         claim_id = str(params.get("claim_id", ""))
@@ -790,6 +825,9 @@ class NodeMeshServer:
         ok = False
         error = ""
         try:
+            if connection_id and not self._registry.owns(node_id, connection_id):
+                error = "stale node connection"
+                raise RuntimeError(error)
             req = self._durable_store.get_request(request_id)
             if req is None or req.node_id != node_id:
                 error = "request not found for node"
@@ -826,6 +864,7 @@ class NodeMeshServer:
         params: dict[str, Any],
         msg_id: Any,
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
         request_id = str(params.get("request_id", ""))
         claim_id = str(params.get("claim_id", ""))
@@ -840,6 +879,9 @@ class NodeMeshServer:
         ok = False
         error = ""
         try:
+            if connection_id and not self._registry.owns(node_id, connection_id):
+                error = "stale node connection"
+                raise RuntimeError(error)
             req = self._durable_store.get_request(request_id)
             if req is None or req.node_id != node_id:
                 error = "request not found for node"
@@ -885,7 +927,11 @@ class NodeMeshServer:
         node_id: str,
         params: dict[str, Any],
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("capabilities update refused: %s stale connection", node_id)
+            return
         node = self._registry.get(node_id)
         if node is None:
             return
@@ -909,7 +955,11 @@ class NodeMeshServer:
         self,
         node_id: str,
         params: dict[str, Any],
+        connection_id: str = "",
     ) -> None:
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("peripherals update refused: %s stale connection", node_id)
+            return
         node = self._registry.get(node_id)
         if node is None:
             return
@@ -924,7 +974,11 @@ class NodeMeshServer:
         params: dict[str, Any],
         msg_id: Any,
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("signal refused: %s stale connection", node_id)
+            return
         signal_class = params.get("signal_class", "event")
 
         if signal_class == "telemetry":
@@ -1026,8 +1080,11 @@ class NodeMeshServer:
         self._executor.unregister_adapter(integration_id)
         logger.info("node adapter unregistered: %s", integration_id)
 
-    def _unregister_node(self, node_id: str) -> None:
+    def _unregister_node(self, node_id: str, *, connection_id: str | None = None) -> None:
         node = self._registry.get(node_id)
+        if connection_id is not None and node is not None and node.connection_id != connection_id:
+            logger.info("node unregister skipped: %s owned by a newer connection", node_id)
+            return
 
         if self._runtime_graph_hook is not None:
             try:
@@ -1036,7 +1093,9 @@ class NodeMeshServer:
                 logger.warning("runtime graph hook (disconnect) failed: %s", exc)
 
         self._unregister_integration(node_id)
-        self._registry.remove(node_id)
+        removed = self._registry.remove(node_id, connection_id=connection_id)
+        if removed is None and connection_id is not None:
+            return
         if node:
             node.status = "disconnected"
             self._emit_mesh_event("mesh.node_disconnected", node)
@@ -1058,8 +1117,9 @@ class NodeMeshServer:
         Remote node metrics come from heartbeats.
         """
         try:
-            import psutil
             from datetime import datetime, timezone
+
+            import psutil
 
             out: dict[str, Any] = {}
             # VPS self-metrics (always present — this IS the VPS)
@@ -1117,7 +1177,7 @@ class NodeMeshServer:
                     age = node.heartbeat_age_s()
                     if age > self._config.heartbeat_timeout_s * 2:
                         logger.warning("node %s timed out (%.0fs), unregistering", node_id, age)
-                        self._unregister_node(node_id)
+                        self._unregister_node(node_id, connection_id=node.connection_id)
                         try:
                             await node.ws.close(4002, "heartbeat timeout")
                         except Exception:

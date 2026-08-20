@@ -10,7 +10,11 @@ import time
 from pathlib import Path
 from typing import Any
 
-from transports.node_mesh.integration.types import ConnectedNode, NodeCapability, Peripheral  # noqa: F401 — re-exported
+from transports.node_mesh.integration.types import (  # noqa: F401 — re-exported
+    ConnectedNode,
+    NodeCapability,
+    Peripheral,
+)
 
 _SNAPSHOT_PATH = Path("/opt/OS/data/runtime/mesh_nodes.json")
 
@@ -31,8 +35,19 @@ class NodeRegistry:
         logger.info("node registered: %s (%s %s)", node.node_id, node.os, node.hostname)
         self._write_snapshot()
 
-    def remove(self, node_id: str) -> ConnectedNode | None:
+    def owns(self, node_id: str, connection_id: str) -> bool:
         with self._lock:
+            node = self._nodes.get(node_id)
+            return bool(node is not None and node.connection_id == connection_id)
+
+    def remove(self, node_id: str, *, connection_id: str | None = None) -> ConnectedNode | None:
+        with self._lock:
+            node = self._nodes.get(node_id)
+            if node is None:
+                return None
+            if connection_id is not None and node.connection_id != connection_id:
+                logger.info("node remove skipped: %s owned by a newer connection", node_id)
+                return None
             node = self._nodes.pop(node_id, None)
         if node:
             logger.info("node removed: %s", node_id)
@@ -47,10 +62,18 @@ class NodeRegistry:
         with self._lock:
             return list(self._nodes.values())
 
-    def update_heartbeat(self, node_id: str, metrics: dict[str, Any] | None = None) -> bool:
+    def update_heartbeat(
+        self,
+        node_id: str,
+        metrics: dict[str, Any] | None = None,
+        *,
+        connection_id: str | None = None,
+    ) -> bool:
         with self._lock:
             node = self._nodes.get(node_id)
             if node is None:
+                return False
+            if connection_id is not None and node.connection_id != connection_id:
                 return False
             node.update_heartbeat(metrics)
         self._write_snapshot()
