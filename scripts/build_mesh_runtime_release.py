@@ -16,24 +16,7 @@ ALLOWLIST_PATHS = (
     "requirements.txt",
     "scripts/op_run.sh",
     "services/mesh.env.tpl",
-    "substrate/__init__.py",
-    "substrate/types.py",
-    "substrate/execution/__init__.py",
-    "substrate/execution/cpu_gate.py",
-    "substrate/execution/durable_remote_transport.py",
-    "substrate/execution/executor.py",
-    "substrate/execution/mesh_verdict.py",
-    "substrate/execution/proof_generator.py",
-    "substrate/governance/__init__.py",
-    "substrate/governance/risk_classes.py",
-    "substrate/sockets/__init__.py",
-    "substrate/sockets/capability_socket.py",
-    "substrate/sockets/envelopes.py",
-    "substrate/sockets/outcome_socket.py",
-    "substrate/sockets/protocols.py",
-    "substrate/sockets/registry.py",
-    "substrate/sockets/signal_socket.py",
-    "substrate/sockets/view_socket.py",
+    "substrate",
     "transports/__init__.py",
     "transports/node_mesh",
 )
@@ -62,9 +45,19 @@ EXCLUDED_PARTS = {
     "data",
     "evidence",
     "preservation",
-    "runtime",
 }
 MAX_RELEASE_BYTES = 512 * 1024 * 1024
+
+
+def _excluded_path(rel_parts: tuple[str, ...]) -> bool:
+    if any(part in EXCLUDED_PARTS for part in rel_parts):
+        return True
+    if rel_parts and rel_parts[0] in {"data", "evidence", "preservation", "runtime"}:
+        return True
+    # The mesh transport runtime package has no code directory named runtime.
+    # If one appears there, treat it as node-local mutable state until explicitly
+    # reviewed into the dependency closure.
+    return len(rel_parts) >= 3 and rel_parts[:2] == ("transports", "node_mesh") and "runtime" in rel_parts
 
 
 def _sha256_file(path: Path) -> str:
@@ -86,8 +79,24 @@ def _source_sha(source_root: Path) -> str:
         raise SystemExit(f"could not resolve source git SHA: {exc}") from exc
 
 
+def _tracked_files(source_root: Path) -> set[Path] | None:
+    try:
+        output = subprocess.check_output(
+            ["git", "-C", str(source_root), "ls-files", "-z"],
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        return None
+    tracked: set[Path] = set()
+    for raw in output.split(b"\0"):
+        if raw:
+            tracked.add((source_root / raw.decode("utf-8")).resolve())
+    return tracked
+
+
 def _iter_included_files(source_root: Path) -> list[Path]:
     files: list[Path] = []
+    tracked = _tracked_files(source_root)
     for rel in ALLOWLIST_PATHS:
         path = source_root / rel
         if not path.exists():
@@ -95,11 +104,12 @@ def _iter_included_files(source_root: Path) -> list[Path]:
         if path.is_symlink():
             raise SystemExit(f"refusing symlink in mesh runtime release: {rel}")
         if path.is_file():
-            files.append(path)
+            if tracked is None or path.resolve() in tracked:
+                files.append(path)
             continue
         for child in path.rglob("*"):
             rel_parts = child.relative_to(source_root).parts
-            if any(part in EXCLUDED_PARTS for part in rel_parts):
+            if _excluded_path(rel_parts):
                 continue
             if child.is_symlink():
                 raise SystemExit(
@@ -107,6 +117,8 @@ def _iter_included_files(source_root: Path) -> list[Path]:
                     f"{child.relative_to(source_root)}"
                 )
             if child.is_file():
+                if tracked is not None and child.resolve() not in tracked:
+                    continue
                 files.append(child)
     return sorted(files)
 

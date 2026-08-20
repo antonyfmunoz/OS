@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -163,6 +166,43 @@ def test_mesh_runtime_release_excludes_generic_mutable_state_dirs(tmp_path):
     assert not any("/credentials/" in path for path in included)
 
 
+def test_mesh_runtime_release_uses_tracked_source_closure(tmp_path):
+    module = _builder_module()
+    source = tmp_path / "source"
+    output = tmp_path / "runtime" / "releases"
+    source.mkdir()
+    _write_minimal_source(source)
+    subprocess.run(["git", "init"], cwd=source, check=True, stdout=subprocess.PIPE)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.invalid"],
+        cwd=source,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=source,
+        check=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=source, check=True)
+    subprocess.run(["git", "commit", "-m", "fixture"], cwd=source, check=True, stdout=subprocess.PIPE)
+    (source / "substrate/tmp_token.txt").write_text("untracked-secret-like", encoding="utf-8")
+    (source / "substrate/state/session/live.json").parent.mkdir(parents=True, exist_ok=True)
+    (source / "substrate/state/session/live.json").write_text('{"mutable":true}', encoding="utf-8")
+
+    release = module.build_release(
+        source_root=source,
+        output_root=output,
+        source_sha="abc123",
+        max_bytes=1024 * 1024,
+    )
+
+    manifest = json.loads((release / "MANIFEST.json").read_text(encoding="utf-8"))
+    included = {item["path"] for item in manifest["files"]}
+    assert "substrate/tmp_token.txt" not in included
+    assert "substrate/state/session/live.json" not in included
+    assert "substrate/execution/durable_remote_transport.py" in included
+
+
 def test_mesh_runtime_release_builds_against_real_worktree(tmp_path):
     module = _builder_module()
     source = SCRIPT.parents[1]
@@ -179,7 +219,31 @@ def test_mesh_runtime_release_builds_against_real_worktree(tmp_path):
     assert "transports/node_mesh/run.py" in included
     assert "transports/node_mesh/server.py" in included
     assert "substrate/execution/durable_remote_transport.py" in included
+    assert "substrate/self_model.py" in included
+    assert "substrate/execution/runtime/execution_spine.py" in included
     assert "scripts/op_run.sh" in included
     assert "services/mesh.env.tpl" in included
     assert "services/cost_log.json" not in included
     assert not any(path.startswith("data/") for path in included)
+
+    env = {**os.environ, "PYTHONPATH": str(release), "UMH_ROOT": str(release)}
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "from substrate.execution.durable_remote_transport import DurableRemoteStore; "
+                "from transports.node_mesh.server import NodeMeshServer; "
+                "print(DurableRemoteStore.__name__, NodeMeshServer.__name__)"
+            ),
+        ],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "DurableRemoteStore NodeMeshServer" in result.stdout
