@@ -18,6 +18,8 @@ import json
 import logging
 import os
 import platform
+import re
+import signal
 import socket
 import subprocess
 import struct
@@ -53,6 +55,55 @@ logger = logging.getLogger(__name__)
 
 _MEDIA_QUEUE_MAX = 4
 _CONTROL_TIMEOUT_S = 8.0
+_DURABLE_TIMEOUT_STDOUT_LIMIT = 20000
+_DURABLE_TIMEOUT_STDERR_LIMIT = 20000
+_DURABLE_TIMEOUT_DRAIN_SECONDS = 1.0
+_SECRET_PATTERNS = (
+    re.compile(r"(?i)(authorization:\s*bearer\s+)[^\s]+"),
+    re.compile(r"(?i)(api[_-]?key\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(token\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(password\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(secret(?:[_-]?key)?\s*[:=]\s*)[^\s]+"),
+    re.compile(r"(?i)(credential\s*[:=]\s*)[^\s]+"),
+    re.compile(r"op" + r"://[^\s\"')]+"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
+)
+
+
+def _redact_durable_output(text: str) -> str:
+    redacted: list[str] = []
+    for line in (text or "").splitlines():
+        lowered = line.lower()
+        if any(
+            marker in lowered
+            for marker in (
+                "authorization",
+                "api_key",
+                "apikey",
+                "password",
+                "secret",
+                "credential",
+                "op://",
+            )
+        ):
+            redacted.append("[redacted credential-bearing line]")
+            continue
+        clean = line
+        for pattern in _SECRET_PATTERNS:
+            clean = pattern.sub(lambda m: (m.group(1) if m.groups() else "") + "[redacted]", clean)
+        redacted.append(clean)
+    return "\n".join(redacted)
+
+
+def _tail_with_limit(text: str, limit: int) -> tuple[str, bool]:
+    if len(text) <= limit:
+        return text, False
+    marker = "\n[...durable output truncated...]\n"
+    if limit <= len(marker):
+        return text[:limit], True
+    head_len = (limit - len(marker)) // 2
+    tail_len = limit - len(marker) - head_len
+    return f"{text[:head_len]}{marker}{text[-tail_len:]}", True
 
 
 class NodeClient:
@@ -804,7 +855,14 @@ class NodeClient:
                 cleanup["graceful_stdout"] = first.stdout[-2000:]
                 cleanup["graceful_stderr"] = first.stderr[-2000:]
             else:
-                proc.terminate()
+                try:
+                    os.killpg(pid, signal.SIGTERM)
+                    cleanup["graceful_stdout"] = f"sent SIGTERM to process group {pid}"
+                except ProcessLookupError:
+                    cleanup["graceful_stdout"] = "process group already absent"
+                except Exception as exc:  # noqa: BLE001
+                    cleanup["graceful_stderr"] = f"process group SIGTERM failed: {exc}"
+                    proc.terminate()
             try:
                 proc.wait(timeout=graceful_timeout)
             except subprocess.TimeoutExpired:
@@ -820,7 +878,14 @@ class NodeClient:
                     cleanup["force_stdout"] = forced.stdout[-2000:]
                     cleanup["force_stderr"] = forced.stderr[-2000:]
                 else:
-                    proc.kill()
+                    try:
+                        os.killpg(pid, signal.SIGKILL)
+                        cleanup["force_stdout"] = f"sent SIGKILL to process group {pid}"
+                    except ProcessLookupError:
+                        cleanup["force_stdout"] = "process group already absent"
+                    except Exception as exc:  # noqa: BLE001
+                        cleanup["force_stderr"] = f"process group SIGKILL failed: {exc}"
+                        proc.kill()
                 try:
                     proc.wait(timeout=graceful_timeout)
                 except subprocess.TimeoutExpired:
@@ -828,6 +893,48 @@ class NodeClient:
         except Exception as exc:  # noqa: BLE001
             cleanup["process_residue"] = [{"pid": pid, "error": f"{type(exc).__name__}: {exc}"}]
         return cleanup
+
+    def _capture_timed_out_process_output(self, proc: subprocess.Popen[str]) -> dict[str, Any]:
+        captured: dict[str, Any] = {
+            "stdout": "",
+            "stderr": "",
+            "output_capture": {
+                "attempted": True,
+                "drain_timeout_seconds": _DURABLE_TIMEOUT_DRAIN_SECONDS,
+                "stdout_truncated": False,
+                "stderr_truncated": False,
+                "timed_out": False,
+            },
+        }
+        try:
+            stdout, stderr = proc.communicate(timeout=_DURABLE_TIMEOUT_DRAIN_SECONDS)
+        except subprocess.TimeoutExpired as exc:
+            captured["output_capture"]["timed_out"] = True
+            stdout = getattr(exc, "output", "") or ""
+            stderr = getattr(exc, "stderr", "") or ""
+        except Exception as exc:  # noqa: BLE001
+            captured["output_capture"]["error"] = f"{type(exc).__name__}: {exc}"
+            stdout = ""
+            stderr = ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode("utf-8", errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode("utf-8", errors="replace")
+        stdout_text, stdout_truncated = _tail_with_limit(
+            _redact_durable_output(str(stdout or "")),
+            _DURABLE_TIMEOUT_STDOUT_LIMIT,
+        )
+        stderr_text, stderr_truncated = _tail_with_limit(
+            _redact_durable_output(str(stderr or "")),
+            _DURABLE_TIMEOUT_STDERR_LIMIT,
+        )
+        captured["stdout"] = stdout_text
+        captured["stderr"] = stderr_text
+        captured["output_capture"]["stdout_truncated"] = stdout_truncated
+        captured["output_capture"]["stderr_truncated"] = stderr_truncated
+        captured["output_capture"]["stdout_limit_bytes"] = _DURABLE_TIMEOUT_STDOUT_LIMIT
+        captured["output_capture"]["stderr_limit_bytes"] = _DURABLE_TIMEOUT_STDERR_LIMIT
+        return captured
 
     async def _execute_capability_for_durable(
         self,
@@ -968,19 +1075,23 @@ class NodeClient:
                 local = self._durable_store.get_request(req.request_id)
                 if local and local.lifecycle_state == "CANCEL_REQUESTED":
                     cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                    captured = self._capture_timed_out_process_output(proc)
                     cleanup["cancel_reason"] = "cancel requested during execution"
                     cleanup.update(local.cancellation_identity(claim_id=claim_id))
                     return {
                         "success": False,
                         "error": "cancel requested during execution",
                         "cleanup": cleanup,
+                        **captured,
                     }
                 if time.time() >= deadline:
                     cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                    captured = self._capture_timed_out_process_output(proc)
                     return {
                         "success": False,
                         "error": f"{cap_name} timed out after {timeout:.0f}s",
                         "cleanup": cleanup,
+                        **captured,
                     }
                 await asyncio.sleep(0.5)
             stdout, stderr = proc.communicate(timeout=1)

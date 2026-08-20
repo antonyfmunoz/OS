@@ -736,6 +736,120 @@ def test_codex_windows_timeout_returns_after_forced_drain_stays_blocked(monkeypa
     assert "codex process still alive" in str(exc.value.stderr)
 
 
+def test_codex_process_tree_emits_timeout_authority_phases(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    phases: list[tuple[str, dict[str, object]]] = []
+    calls: list[tuple[int, bool]] = []
+
+    class FakeProc:
+        pid = 24601
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            if self.communicate_calls == 1:
+                raise subprocess.TimeoutExpired(
+                    cmd=["codex"],
+                    timeout=timeout,
+                    output='{"schema":"phase","phase":"fake_cli_started"}\n',
+                    stderr="partial stderr",
+                )
+            self.returncode = -15
+            return "", ""
+
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+
+    def fake_taskkill(pid: int, *, force: bool):
+        calls.append((pid, force))
+        return SimpleNamespace(returncode=0, stdout=f"killed {pid} force={force}", stderr="")
+
+    monkeypatch.setattr(codex_mod, "_taskkill_tree", fake_taskkill)
+
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.01,
+            input="prompt",
+            capture_output=True,
+            text=True,
+            phase_callback=lambda phase, extra: phases.append((phase, dict(extra))),
+        )
+
+    names = [phase for phase, _extra in phases]
+    assert names[:3] == [
+        "codex_process_spawn_started",
+        "codex_process_spawned",
+        "inner_deadline_armed",
+    ]
+    assert "inner_timeout_fired" in names
+    assert "process_tree_termination_started" in names
+    assert "process_tree_termination_completed" in names
+    assert "stream_drain_started" in names
+    assert "stream_drain_completed" in names
+    assert phases[1][1]["pid"] == 24601
+    assert phases[2][1]["timeout_seconds"] == 0.01
+    assert calls == [(24601, False)]
+    assert exc.value.output == '{"schema":"phase","phase":"fake_cli_started"}\n'
+
+
+def test_codex_timeout_drain_preserves_later_stdout(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    class FakeProc:
+        pid = 1357
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            if self.communicate_calls == 1:
+                raise subprocess.TimeoutExpired(
+                    cmd=["codex"],
+                    timeout=timeout,
+                    output="early phase\n",
+                    stderr="early stderr",
+                )
+            self.returncode = -15
+            return "late phase\n", "late stderr"
+
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+    monkeypatch.setattr(
+        codex_mod,
+        "_taskkill_tree",
+        lambda pid, *, force: SimpleNamespace(returncode=0, stdout="terminated", stderr=""),
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.01,
+            input="prompt",
+            capture_output=True,
+            text=True,
+        )
+
+    assert "early phase" in str(exc.value.output)
+    assert "late phase" in str(exc.value.output)
+    assert "early stderr" in str(exc.value.stderr)
+    assert "late stderr" in str(exc.value.stderr)
+
+
 def test_codex_nonwindows_timeout_owns_process_group(monkeypatch):
     from substrate.execution.attempts.model_executors import codex as codex_mod
 

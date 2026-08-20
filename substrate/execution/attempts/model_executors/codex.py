@@ -10,6 +10,7 @@ import shutil
 import signal
 import subprocess
 import time
+from collections.abc import Callable
 
 from substrate.execution.attempts.model_executor_contract import (
     ModelExecutorIdentity,
@@ -137,6 +138,17 @@ def _append_stream(base: str, extra: object) -> str:
     return "\n".join((base, text))
 
 
+def _append_timeout_stream(base: str, extra: object) -> str:
+    text = _decode_timeout_stream(extra)
+    if not text:
+        return base
+    if not base:
+        return text
+    if text in base:
+        return base
+    return "\n".join((base, text))
+
+
 def _taskkill_tree(pid: int, *, force: bool) -> subprocess.CompletedProcess[str]:
     cmd = ["taskkill", "/PID", str(pid), "/T"]
     if force:
@@ -187,6 +199,7 @@ def _run_codex_process_tree(
     *,
     caller: str,
     timeout: float,
+    phase_callback: Callable[[str, dict[str, object]], None] | None = None,
     **kwargs: object,
 ) -> subprocess.CompletedProcess[str] | None:
     """Run Codex with an owned timeout.
@@ -214,14 +227,50 @@ def _run_codex_process_tree(
     else:
         popen_kwargs.setdefault("start_new_session", True)
 
+    def _phase(phase: str, **extra: object) -> None:
+        if phase_callback is None:
+            return
+        try:
+            phase_callback(phase, extra)
+        except Exception:
+            return
+
     started_at = time.monotonic()
+    deadline_at = started_at + float(timeout)
+    _phase(
+        "codex_process_spawn_started",
+        caller=caller,
+        timeout_seconds=float(timeout),
+        deadline_monotonic=deadline_at,
+        argv_digest=_argv_digest(cmd),
+    )
     proc = gated_popen(cmd, caller=caller, **popen_kwargs)
     if proc is None:
         return None
+    _phase(
+        "codex_process_spawned",
+        caller=caller,
+        pid=getattr(proc, "pid", None),
+        timeout_seconds=float(timeout),
+        deadline_monotonic=deadline_at,
+    )
+    _phase(
+        "inner_deadline_armed",
+        caller=caller,
+        timeout_seconds=float(timeout),
+        deadline_monotonic=deadline_at,
+    )
     try:
         stdout, stderr = proc.communicate(input=input_text, timeout=timeout)
         return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
     except subprocess.TimeoutExpired as exc:
+        _phase(
+            "inner_timeout_fired",
+            caller=caller,
+            pid=getattr(proc, "pid", None),
+            timeout_seconds=float(timeout),
+            elapsed_seconds=time.monotonic() - started_at,
+        )
         stdout = _decode_timeout_stream(getattr(exc, "output", ""))
         stderr = _decode_timeout_stream(getattr(exc, "stderr", ""))
         cleanup_lines: list[str] = [
@@ -233,18 +282,45 @@ def _run_codex_process_tree(
 
         def _bounded_drain(label: str, drain_timeout: float) -> bool:
             nonlocal stdout, stderr
+            _phase(
+                "stream_drain_started",
+                caller=caller,
+                pid=getattr(proc, "pid", None),
+                label=label,
+                drain_timeout_seconds=drain_timeout,
+            )
             try:
                 more_out, more_err = proc.communicate(timeout=drain_timeout)
-                stdout = stdout or _decode_timeout_stream(more_out)
+                stdout = _append_timeout_stream(stdout, more_out)
                 stderr = _append_stream(stderr, more_err)
                 cleanup_lines.append(f"{label} drain completed within {drain_timeout:.3f}s")
+                _phase(
+                    "stream_drain_completed",
+                    caller=caller,
+                    pid=getattr(proc, "pid", None),
+                    label=label,
+                    timed_out=False,
+                )
                 return True
             except subprocess.TimeoutExpired as drain_exc:
-                stdout = stdout or _decode_timeout_stream(getattr(drain_exc, "output", ""))
+                stdout = _append_timeout_stream(stdout, getattr(drain_exc, "output", ""))
                 stderr = _append_stream(stderr, getattr(drain_exc, "stderr", ""))
                 cleanup_lines.append(f"{label} drain timed out after {drain_timeout:.3f}s")
+                _phase(
+                    "stream_drain_completed",
+                    caller=caller,
+                    pid=getattr(proc, "pid", None),
+                    label=label,
+                    timed_out=True,
+                )
                 return False
 
+        _phase(
+            "process_tree_termination_started",
+            caller=caller,
+            pid=getattr(proc, "pid", None),
+            graceful=True,
+        )
         try:
             graceful = (
                 _taskkill_tree(proc.pid, force=False)
@@ -257,8 +333,20 @@ def _run_codex_process_tree(
             )
         except Exception as cleanup_exc:  # noqa: BLE001
             cleanup_lines.append(f"graceful tree termination failed: {cleanup_exc}")
+        _phase(
+            "process_tree_termination_completed",
+            caller=caller,
+            pid=getattr(proc, "pid", None),
+            graceful=True,
+        )
 
         if not _bounded_drain("post-graceful", _CODEX_GRACEFUL_DRAIN_SECONDS):
+            _phase(
+                "process_tree_termination_started",
+                caller=caller,
+                pid=getattr(proc, "pid", None),
+                graceful=False,
+            )
             try:
                 forced = (
                     _taskkill_tree(proc.pid, force=True)
@@ -271,6 +359,12 @@ def _run_codex_process_tree(
                 )
             except Exception as cleanup_exc:  # noqa: BLE001
                 cleanup_lines.append(f"forced tree termination failed: {cleanup_exc}")
+            _phase(
+                "process_tree_termination_completed",
+                caller=caller,
+                pid=getattr(proc, "pid", None),
+                graceful=False,
+            )
             _bounded_drain("post-force", _CODEX_FORCE_DRAIN_SECONDS)
         if getattr(proc, "poll", lambda: None)() is None:
             cleanup_lines.append("codex process still alive after forced termination")

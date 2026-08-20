@@ -12,7 +12,92 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import UTC, datetime
 from pathlib import Path
+
+_PHASE_SCHEMA_VERSION = "wave2_codex_spark_probe.phase.v1"
+_PHASE_EVENTS: list[dict[str, object]] = []
+
+
+def _initial_arg_value(name: str) -> str:
+    try:
+        idx = sys.argv.index(name)
+    except ValueError:
+        return ""
+    if idx + 1 >= len(sys.argv):
+        return ""
+    return sys.argv[idx + 1]
+
+
+def _initial_timeout() -> float | None:
+    raw = _initial_arg_value("--timeout")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
+def _phase_timestamp() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _redact_phase_value(value: object) -> object:
+    if isinstance(value, str):
+        lowered = value.lower()
+        if any(
+            marker in lowered
+            for marker in (
+                "authorization",
+                "api_key",
+                "apikey",
+                "password",
+                "secret",
+                "credential",
+                "token",
+                "op://",
+            )
+        ):
+            return "[redacted]"
+    return value
+
+
+def _emit_phase(
+    phase: str,
+    *,
+    request_id: str = "",
+    configured_inner_timeout: float | None = None,
+    deadline_monotonic: float | None = None,
+    **extra: object,
+) -> dict[str, object]:
+    now = time.monotonic()
+    rid = request_id or _initial_arg_value("--request-id")
+    timeout_value = configured_inner_timeout
+    if timeout_value is None:
+        timeout_value = _initial_timeout()
+    event: dict[str, object] = {
+        "schema": _PHASE_SCHEMA_VERSION,
+        "version": 1,
+        "request_id": rid,
+        "correlation_id": rid,
+        "probe_id": rid,
+        "phase": phase,
+        "timestamp_utc": _phase_timestamp(),
+        "monotonic": now,
+        "configured_inner_timeout": timeout_value,
+        "remaining_inner_budget": max(0.0, deadline_monotonic - now)
+        if deadline_monotonic is not None
+        else None,
+        "pid": os.getpid(),
+    }
+    event.update({k: _redact_phase_value(v) for k, v in extra.items()})
+    _PHASE_EVENTS.append(event)
+    print(json.dumps(event, ensure_ascii=True, separators=(",", ":")), file=sys.stderr, flush=True)
+    return event
+
+
+_emit_phase("interpreter_entered")
 
 _WORKTREE = Path(__file__).resolve().parent.parent
 if str(_WORKTREE) not in sys.path:
@@ -175,6 +260,14 @@ def run_probe(
     def mark(phase: str, **extra: object) -> None:
         timeline.append({"phase": phase, "monotonic": time.monotonic(), **extra})
 
+    def phase(phase_name: str, **extra: object) -> None:
+        _emit_phase(
+            phase_name,
+            request_id=request_id,
+            configured_inner_timeout=float(timeout),
+            **extra,
+        )
+
     run_parent = Path(os.environ.get("UMH_RUN_ROOT", tempfile.gettempdir()))
     run_parent.mkdir(parents=True, exist_ok=True)
     run_root = tempfile.mkdtemp(prefix="umh_codex_spark_probe_", dir=str(run_parent))
@@ -183,6 +276,12 @@ def run_probe(
     try:
         mark("executor_construct_start")
         executor = build_model_executor()
+        phase(
+            "executor_constructed",
+            provider=executor.identity.provider,
+            adapter=executor.identity.adapter,
+            version=executor.identity.version,
+        )
         mark(
             "executor_construct_end",
             provider=executor.identity.provider,
@@ -198,6 +297,7 @@ def run_probe(
         env = scrub_worker_env(dict(os.environ))
         env.update(home.env_overrides())
         mark("readiness_start")
+        phase("readiness_started")
         try:
             ready = executor.readiness(env=env)
         except Exception as exc:  # noqa: BLE001
@@ -246,6 +346,7 @@ def run_probe(
                 ),
             }
             return out
+        phase("readiness_completed", ok=ready.ok, authenticated=ready.authenticated)
         mark(
             "readiness_end",
             ok=ready.ok,
@@ -315,10 +416,26 @@ def run_probe(
         mark("invocation_build_start")
         invocation = executor.build_invocation(packet)
         mark("invocation_build_end", argv_digest=_argv_digest(invocation.argv), cwd=invocation.cwd)
+        phase(
+            "invocation_prepared",
+            argv_digest=_argv_digest(invocation.argv),
+            cwd=invocation.cwd,
+        )
         start = time.monotonic()
         timed_out = False
         try:
             mark("cli_process_start", timeout_seconds=packet.timeout_seconds)
+            deadline_monotonic = time.monotonic() + float(packet.timeout_seconds)
+
+            def _process_phase(phase_name: str, extra: dict[str, object]) -> None:
+                _emit_phase(
+                    phase_name,
+                    request_id=request_id,
+                    configured_inner_timeout=float(packet.timeout_seconds),
+                    deadline_monotonic=float(extra.get("deadline_monotonic") or deadline_monotonic),
+                    **{k: v for k, v in extra.items() if k != "deadline_monotonic"},
+                )
+
             completed = _run_codex_process_tree(
                 invocation.argv,
                 caller="wave2_codex_spark_probe",
@@ -328,6 +445,7 @@ def run_probe(
                 input=invocation.stdin,
                 capture_output=True,
                 text=True,
+                phase_callback=_process_phase,
             )
         except subprocess.TimeoutExpired as exc:
             mark("executor_timeout", timeout_seconds=packet.timeout_seconds)
@@ -449,6 +567,7 @@ def run_probe(
         out["attempt_home_exists_after_close"] = residue_before_root_cleanup
         out["run_root_exists_after_cleanup"] = Path(run_root).exists()
         out.setdefault("timeline", timeline)
+        out["phase_events"] = list(_PHASE_EVENTS)
     failures = _validate_probe_result(out, expected_model=model, expected_version=expected_version)
     out["ok"] = not failures
     out["failure_reasons"] = failures
@@ -464,6 +583,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=int, default=120)
     parser.add_argument("--request-id", default="")
     args = parser.parse_args(argv)
+    _emit_phase(
+        "arguments_parsed",
+        request_id=args.request_id,
+        configured_inner_timeout=float(args.timeout),
+        sha=args.sha,
+        worktree=args.worktree,
+        model=args.model,
+    )
 
     result = run_probe(
         sha=args.sha,
@@ -473,7 +600,34 @@ def main(argv: list[str] | None = None) -> int:
         expected_version=args.expected_version,
         request_id=args.request_id,
     )
-    print(json.dumps(result, indent=2), flush=True)
+    _emit_phase(
+        "terminal_result_serialization_started",
+        request_id=args.request_id,
+        configured_inner_timeout=float(args.timeout),
+    )
+    result["phase_events"] = list(_PHASE_EVENTS)
+    payload = json.dumps(result, indent=2)
+    _emit_phase(
+        "terminal_result_serialized",
+        request_id=args.request_id,
+        configured_inner_timeout=float(args.timeout),
+    )
+    result["phase_events"] = list(_PHASE_EVENTS)
+    payload = json.dumps(result, indent=2)
+    _emit_phase(
+        "terminal_result_flush_started",
+        request_id=args.request_id,
+        configured_inner_timeout=float(args.timeout),
+    )
+    result["phase_events"] = list(_PHASE_EVENTS)
+    payload = json.dumps(result, indent=2)
+    print(payload, flush=True)
+    _emit_phase(
+        "terminal_result_flushed",
+        request_id=args.request_id,
+        configured_inner_timeout=float(args.timeout),
+    )
+    _emit_phase("probe_exit", request_id=args.request_id, configured_inner_timeout=float(args.timeout))
     return 0 if result.get("ok") else 2
 
 

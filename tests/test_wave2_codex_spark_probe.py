@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -327,7 +328,57 @@ def test_probe_returns_structured_readiness_timeout(tmp_path, monkeypatch) -> No
 
 def test_probe_main_flushes_terminal_json() -> None:
     body = SCRIPT.read_text(encoding="utf-8")
-    assert "print(json.dumps(result, indent=2), flush=True)" in body
+    assert "payload = json.dumps(result, indent=2)" in body
+    assert "print(payload, flush=True)" in body
+
+
+def test_probe_main_emits_request_bound_phase_events_to_stderr(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    module = _probe_module()
+
+    result = _valid_probe_result()
+    result["ok"] = True
+    monkeypatch.setattr(module, "run_probe", lambda **_kwargs: dict(result))
+
+    code = module.main(
+        [
+            "--sha",
+            "sha",
+            "--worktree",
+            str(tmp_path),
+            "--model",
+            "gpt-5.3-codex-spark",
+            "--expected-version",
+            "codex-cli 0.147.0",
+            "--timeout",
+            "1",
+            "--request-id",
+            "probe-phase-test",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 0
+    stdout_payload = json.loads(captured.out)
+    assert stdout_payload["ok"] is True
+    stdout_phase_names = [event["phase"] for event in stdout_payload["phase_events"]]
+    assert "terminal_result_serialization_started" in stdout_phase_names
+    assert "terminal_result_serialized" in stdout_phase_names
+    assert "terminal_result_flush_started" in stdout_phase_names
+    phases = [json.loads(line) for line in captured.err.splitlines() if line.strip()]
+    names = [event["phase"] for event in phases]
+    assert "arguments_parsed" in names
+    assert "terminal_result_serialization_started" in names
+    assert "terminal_result_flushed" in names
+    assert "probe_exit" in names
+    for event in phases:
+        assert event["schema"] == "wave2_codex_spark_probe.phase.v1"
+        assert event["request_id"] in {"", "probe-phase-test"}
+        assert event["configured_inner_timeout"] in {None, 1.0}
+        assert "timestamp_utc" in event
+        assert "monotonic" in event
+        assert "pid" in event
 
 
 def test_probe_validation_fails_closed_on_readiness_or_cleanup_gap() -> None:

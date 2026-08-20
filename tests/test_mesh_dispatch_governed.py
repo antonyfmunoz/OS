@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 import sys
 from collections import deque
 
@@ -1208,6 +1209,107 @@ def test_durable_shell_cancel_during_execution_includes_request_bound_generation
     assert result["cleanup"]["cancellation_requested_at"] == current.cancellation_requested_at
     assert result["cleanup"]["cancellation_deadline_at"] == current.cancellation_deadline_at
     assert result["cleanup"]["claim_id"] == "claim-1"
+
+
+def test_durable_shell_timeout_preserves_bounded_redacted_partial_output(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path)
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class _Proc:
+        pid = 7777
+        returncode = None
+
+        def poll(self):
+            return None
+
+        def communicate(self, *, timeout=None):
+            return (
+                "phase-line\n" + ("x" * 25000),
+                "Authorization: Bearer secret-token\n"
+                + "stderr phase\n"
+                + ("y" * 25000),
+            )
+
+    async def _terminate(_proc, *, graceful_timeout):
+        return {"root_pid": _proc.pid, "process_residue": []}
+
+    async def _running_ack(*_args, **_kwargs):
+        return {"ok": True}
+
+    async def _send_event(*_args, **_kwargs):
+        return {"ok": True}
+
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(client, "_terminate_durable_process_tree", _terminate)
+    monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo ok"},
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=0.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "shell timed out after 0s"
+    assert result["cleanup"]["process_residue"] == []
+    assert len(result["stdout"]) <= client_mod._DURABLE_TIMEOUT_STDOUT_LIMIT
+    assert len(result["stderr"]) <= client_mod._DURABLE_TIMEOUT_STDERR_LIMIT
+    assert "secret-token" not in result["stderr"]
+    assert "[redacted credential-bearing line]" in result["stderr"]
+    assert result["output_capture"]["attempted"] is True
+    assert result["output_capture"]["stdout_truncated"] is True
+    assert result["output_capture"]["stderr_truncated"] is True
+    assert result["output_capture"]["timed_out"] is False
+
+
+def test_durable_process_cleanup_targets_posix_process_group(tmp_path, monkeypatch):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path)
+    signaled: list[tuple[int, int]] = []
+
+    class _Proc:
+        pid = 8888
+
+        def __init__(self):
+            self.wait_calls = 0
+
+        def wait(self, *, timeout=None):
+            self.wait_calls += 1
+            if self.wait_calls == 1:
+                raise subprocess.TimeoutExpired(cmd=["fake"], timeout=timeout)
+            return 0
+
+        def kill(self):
+            raise AssertionError("root-only kill must not be used for process-group cleanup")
+
+        def terminate(self):
+            raise AssertionError("root-only terminate must not be used for process-group cleanup")
+
+    proc = _Proc()
+    monkeypatch.setattr(client_mod.sys, "platform", "linux")
+    monkeypatch.setattr(
+        client_mod.os,
+        "killpg",
+        lambda pid, sig: signaled.append((pid, sig)),
+    )
+
+    cleanup = asyncio.run(client._terminate_durable_process_tree(proc, graceful_timeout=0.01))
+
+    assert signaled == [(8888, client_mod.signal.SIGTERM), (8888, client_mod.signal.SIGKILL)]
+    assert cleanup["forced"] is True
+    assert cleanup["process_residue"] == []
 
 
 # ── Governed remote dispatch routes through the right mutation ─────────────
