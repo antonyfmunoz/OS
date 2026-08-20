@@ -130,6 +130,9 @@ def _powershell_command(script: str) -> str:
     return "powershell -NoProfile -Command " + json.dumps(compact)
 
 
+_UNCLAIMED_CANCEL_ERROR = "durable remote request cancelled before claim"
+
+
 # Network + origin are module globals used by the inherited wave1 call sites as
 # bare names. They are resolved LAZILY at command entry (see `_resolve_env()`
 # called from `main()`), NOT at import — so importing this module for a helper
@@ -1127,7 +1130,11 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
     out["mesh_health"] = _shell_summary(runner, r)
 
     # Read-only mesh dispatch: schtasks + query session on the executor.
-    out["schtasks_query"] = _mesh_read(runner, 'schtasks /query /tn "UMH Node Daemon" /v /fo LIST')
+    out["schtasks_query"] = _preflight_observation_read(
+        runner,
+        'schtasks /query /tn "UMH Node Daemon" /v /fo LIST',
+        gate="schtasks_query",
+    )
     # query.exe/qwinsta are absent from the daemon shell's (WOW64) PATH —
     # probe the session id directly; the collector does the full
     # WTSGetActiveConsoleSessionId proof itself.
@@ -1177,6 +1184,25 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
 def _codex_probe_request_id() -> str:
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     return f"codex-spark-{ts}-{uuid4().hex[:8]}"
+
+
+def _codex_probe_argv(*, sha: str, request_id: str) -> list[str]:
+    return [
+        "python",
+        rf"{_BEAST_WT}\scripts\wave2_codex_spark_probe.py",
+        "--sha",
+        sha,
+        "--worktree",
+        _BEAST_WT,
+        "--model",
+        "gpt-5.3-codex-spark",
+        "--expected-version",
+        "codex-cli 0.147.0",
+        "--timeout",
+        "180",
+        "--request-id",
+        request_id,
+    ]
 
 
 def _codex_probe_dir(request_id: str) -> str:
@@ -1415,83 +1441,49 @@ def _beast_codex_spark_probe(
     if runner.dry_run:
         return {"dry_run": True, "ok": True}
     request_id = _codex_probe_request_id()
-    launched = _mesh_read(
-        runner,
-        _codex_probe_launch_command(sha=sha, request_id=request_id),
-        max_len=32768,
-        command_timeout=30,
-        dispatch_timeout=45,
+    argv = _codex_probe_argv(sha=sha, request_id=request_id)
+    command_digest = hashlib.sha256(
+        json.dumps(argv, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    out = _durable_remote_shell(
+        "",
+        argv=argv,
+        cwd=_BEAST_WT,
+        max_len=262144,
+        command_timeout=220,
+        dispatch_timeout=poll_timeout_seconds,
+        operation_type="wave2_codex_spark_probe",
+        correlation_id=f"codex-spark-{request_id}",
+        candidate_sha=sha,
     )
-    if not launched.get("ok"):
-        return {
-            "ok": False,
-            "request_id": request_id,
-            "launch": launched,
-            "failure_reason": "real Beast Codex/Spark probe launch not acknowledged",
-        }
-    deadline = time.time() + poll_timeout_seconds
-    last: dict[str, Any] = {}
-    while time.time() < deadline:
-        read = _mesh_read(
-            runner,
-            _codex_probe_read_command(request_id),
-            max_len=262144,
-            command_timeout=30,
-            dispatch_timeout=45,
-        )
-        last = {"mesh": read}
-        if read.get("ok"):
-            try:
-                observed = json.loads(read.get("stdout", "") or "{}")
-            except ValueError as exc:
-                last["parse_error"] = str(exc)
-            else:
-                last["observed"] = observed
-                state = ((observed.get("status") or {}).get("state") or "").lower()
-                if state in {"succeeded", "failed"}:
-                    cleanup = _mesh_read(
-                        runner,
-                        _codex_probe_cleanup_command(request_id),
-                        max_len=65536,
-                        command_timeout=45,
-                        dispatch_timeout=60,
-                    )
-                    probe = ((observed.get("result") or {}).get("probe") or {})
-                    cleanup_ok = False
-                    cleanup_parsed: dict[str, Any] | None = None
-                    if cleanup.get("ok"):
-                        try:
-                            cleanup_parsed = json.loads(cleanup.get("stdout", "") or "{}")
-                            cleanup_ok = bool(cleanup_parsed.get("ok"))
-                        except ValueError:
-                            cleanup_ok = False
-                    ok = state == "succeeded" and isinstance(probe, dict) and probe.get("ok") is True and cleanup_ok
-                    return {
-                        "ok": ok,
-                        "request_id": request_id,
-                        "launch": launched,
-                        "observed": observed,
-                        "probe": probe if isinstance(probe, dict) else None,
-                        "cleanup": cleanup_parsed or cleanup,
-                        "failure_reason": None
-                        if ok
-                        else "real Beast Codex/Spark production path not proven",
-                    }
-        time.sleep(poll_interval_seconds)
-    cleanup = _mesh_read(
-        runner,
-        _codex_probe_cleanup_command(request_id),
-        max_len=65536,
-        command_timeout=45,
-        dispatch_timeout=60,
+    probe: dict[str, Any] | None = None
+    parse_error = ""
+    try:
+        parsed = json.loads(str(out.get("stdout") or "{}"))
+        if isinstance(parsed, dict):
+            probe = parsed
+    except ValueError as exc:
+        parse_error = str(exc)
+    cleanup = out.get("cleanup") if isinstance(out.get("cleanup"), dict) else {}
+    cleanup_ok = cleanup.get("process_residue") == [] if isinstance(cleanup, dict) else False
+    ok = (
+        out.get("raw_status") == "SUCCEEDED"
+        and out.get("ok") is True
+        and isinstance(probe, dict)
+        and probe.get("ok") is True
+        and cleanup_ok
     )
     return {
-        "ok": False,
+        "ok": ok,
         "request_id": request_id,
-        "launch": launched,
-        "last": last,
+        "argv": argv,
+        "argv_digest": command_digest,
+        "launcher_command_chars": sum(len(part) for part in argv),
+        "transport": out,
+        "probe": probe,
         "cleanup": cleanup,
-        "failure_reason": "real Beast Codex/Spark probe timed out before terminal result",
+        "parse_error": parse_error,
+        "failure_reason": None if ok else "real Beast Codex/Spark production path not proven",
     }
 
 
@@ -2151,9 +2143,69 @@ def _mesh_read(
     )
 
 
+def _is_cancelled_before_claim(out: dict[str, Any]) -> bool:
+    return out.get("raw_status") == "CANCELLED" and _UNCLAIMED_CANCEL_ERROR in str(
+        out.get("error", "")
+    )
+
+
+def _preflight_observation_read(
+    runner: Runner,
+    command: str,
+    *,
+    gate: str,
+    max_attempts: int = 2,
+    retry_delay_s: float = 3.0,
+    max_len: int = 400,
+    command_timeout: int = 60,
+    dispatch_timeout: int = 90,
+) -> dict[str, Any]:
+    """Run a side-effect-free preflight observation with bounded unclaimed retry.
+
+    A durable request cancelled before claim proves no remote command started.
+    For preflight-only observations such as ``schtasks /query`` that is a safe
+    retry boundary: the original request stays terminal and preserved, and the
+    same logical gate gets one bounded replacement request. Any claimed,
+    failed, ambiguous, or exhausted attempt still fails closed.
+    """
+    attempts: list[dict[str, Any]] = []
+    last: dict[str, Any] = {}
+    for attempt in range(1, max_attempts + 1):
+        last = _mesh_read(
+            runner,
+            command,
+            max_len=max_len,
+            command_timeout=command_timeout,
+            dispatch_timeout=dispatch_timeout,
+        )
+        attempts.append(
+            {
+                "attempt": attempt,
+                "request_id": last.get("request_id", ""),
+                "ok": last.get("ok"),
+                "raw_status": last.get("raw_status", ""),
+                "error": last.get("error", ""),
+                "result_digest": last.get("result_digest", ""),
+            }
+        )
+        if not _is_cancelled_before_claim(last):
+            break
+        if attempt < max_attempts:
+            time.sleep(retry_delay_s)
+    if len(attempts) > 1 or _is_cancelled_before_claim(last):
+        last = dict(last)
+        last["logical_gate"] = gate
+        last["attempts"] = attempts
+        last["preclaim_retry_attempted"] = len(attempts) > 1
+        last["preclaim_retry_exhausted"] = _is_cancelled_before_claim(last)
+    return last
+
+
 def _durable_remote_shell(
     command: str,
     *,
+    argv: list[str] | None = None,
+    cwd: str | None = None,
     max_len: int = 400,
     command_timeout: int = 60,
     dispatch_timeout: int = 90,
@@ -2183,7 +2235,13 @@ def _durable_remote_shell(
         node_id=_MESH_NODE_ID,
         operation_type=operation_type,
         capability="shell",
-        params={"command": command, "timeout": command_timeout, "governance_verdict_id": verdict},
+        params={
+            "command": command if argv is None else "",
+            "argv": argv or [],
+            "cwd": cwd or "",
+            "timeout": command_timeout,
+            "governance_verdict_id": verdict,
+        },
         risk_class="reversible_write",
         ttl_seconds=max(dispatch_timeout + 60, command_timeout + 60),
     )
@@ -2218,6 +2276,8 @@ def _durable_remote_shell(
             "request_id": request.request_id,
             "result_digest": getattr(current, "result_digest", ""),
         }
+        if isinstance(result, dict):
+            out["cleanup"] = result.get("cleanup", {})
         return out
 
     def _recovery_output(current: object) -> dict[str, object]:

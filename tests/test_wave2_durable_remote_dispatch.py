@@ -53,6 +53,71 @@ def test_fast_read_uses_durable_request_not_synchronous_mesh(monkeypatch) -> Non
     assert calls[0]["dispatch_timeout"] == 15
 
 
+def test_preflight_observation_retries_only_unclaimed_cancellation(monkeypatch) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+    calls: list[str] = []
+    responses = iter(
+        [
+            {
+                "ok": False,
+                "raw_status": "CANCELLED",
+                "request_id": "drc-first",
+                "error": "durable remote request cancelled before claim",
+                "result_digest": "",
+            },
+            {
+                "ok": True,
+                "raw_status": "SUCCEEDED",
+                "request_id": "drc-second",
+                "stdout": "TaskName: UMH Node Daemon",
+                "result_digest": "digest",
+            },
+        ]
+    )
+
+    def fake_mesh(_runner, command, **_kwargs):  # noqa: ANN001
+        calls.append(command)
+        return next(responses)
+
+    monkeypatch.setattr(dispatch, "_mesh_read", fake_mesh)
+    monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
+
+    out = dispatch._preflight_observation_read(runner, "schtasks /query", gate="schtasks_query")
+
+    assert out["ok"] is True
+    assert out["request_id"] == "drc-second"
+    assert out["logical_gate"] == "schtasks_query"
+    assert out["preclaim_retry_attempted"] is True
+    assert out["preclaim_retry_exhausted"] is False
+    assert [attempt["request_id"] for attempt in out["attempts"]] == ["drc-first", "drc-second"]
+    assert calls == ["schtasks /query", "schtasks /query"]
+
+
+def test_preflight_observation_does_not_retry_claimed_or_ambiguous_failure(monkeypatch) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    runner = dispatch.Runner(dry_run=False)
+    calls: list[str] = []
+
+    def fake_mesh(_runner, command, **_kwargs):  # noqa: ANN001
+        calls.append(command)
+        return {
+            "ok": False,
+            "raw_status": "FAILED",
+            "request_id": "drc-claimed",
+            "error": "claimed request failed",
+        }
+
+    monkeypatch.setattr(dispatch, "_mesh_read", fake_mesh)
+
+    out = dispatch._preflight_observation_read(runner, "schtasks /query", gate="schtasks_query")
+
+    assert out["ok"] is False
+    assert out["request_id"] == "drc-claimed"
+    assert "attempts" not in out
+    assert calls == ["schtasks /query"]
+
+
 def test_collector_launch_uses_run_bound_durable_transport(monkeypatch) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
     calls: list[dict[str, object]] = []
@@ -91,6 +156,61 @@ def test_collector_launch_uses_run_bound_durable_transport(monkeypatch) -> None:
     ]
 
 
+def test_durable_remote_shell_preserves_argv_payload_shape(monkeypatch, tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    store = DurableRemoteStore(tmp_path)
+
+    monkeypatch.setenv("UMH_DURABLE_REMOTE_ROOT", str(tmp_path))
+    monkeypatch.setattr(dispatch, "_ensure_mesh_secrets", lambda: None)
+    monkeypatch.setattr(dispatch, "_candidate_sha", lambda _default: "sha")
+    monkeypatch.setattr(dispatch, "_MESH_NODE_ID", "windows-desktop")
+    monkeypatch.setattr(dispatch, "uuid4", lambda: type("U", (), {"hex": "a" * 32})())
+
+    import substrate.execution.durable_remote_transport as durable
+    import substrate.execution.mesh_verdict as mesh_verdict
+
+    monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
+    monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
+    monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
+    monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
+    ticks = iter([100.0] * 20 + [101.0] * 20)
+    monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
+
+    original_put = store.put_request
+
+    def put_and_succeed(req):
+        original_put(req)
+        store.mark_claimed(req.request_id, claim_id="claim-1")
+        return store.publish_result(
+            req.request_id,
+            claim_id="claim-1",
+            state="SUCCEEDED",
+            result={"success": True, "stdout": "ok", "stderr": "", "exit_code": 0},
+            cleanup={"process_residue": []},
+        )
+
+    monkeypatch.setattr(store, "put_request", put_and_succeed)
+
+    out = dispatch._durable_remote_shell(
+        "",
+        argv=["python", "script.py", "--payload", "x" * 9000],
+        cwd=r"C:\dev\wave2_wt",
+        command_timeout=1,
+        dispatch_timeout=5,
+        operation_type="unit",
+        correlation_id="corr",
+        candidate_sha="sha",
+    )
+
+    req = store.get_request(out["request_id"])
+    assert out["ok"] is True
+    assert req is not None
+    assert req.params["command"] == ""
+    assert req.params["argv"] == ["python", "script.py", "--payload", "x" * 9000]
+    assert req.params["cwd"] == r"C:\dev\wave2_wt"
+    assert req.params["timeout"] == 1
+
+
 def test_dispatcher_no_longer_imports_mesh_dispatch_port_for_remote_reads() -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
 
@@ -122,7 +242,7 @@ def test_durable_remote_shell_timeout_waits_for_cancel_terminalization(
     original_request_cancel = store.request_cancel
 
     def cancelling(request_id: str):
-        req = original_request_cancel(request_id)
+        original_request_cancel(request_id)
         store.mark_claimed(request_id, claim_id="node-claim")
         return store.publish_result(
             request_id,
@@ -164,8 +284,8 @@ def test_durable_remote_shell_reconciles_observed_reconciliation_required(
     monkeypatch.setattr(dispatch, "_candidate_sha", lambda _default: "sha")
     monkeypatch.setattr(dispatch, "_MESH_NODE_ID", "windows-desktop")
 
-    import substrate.execution.mesh_verdict as mesh_verdict
     import substrate.execution.durable_remote_transport as durable
+    import substrate.execution.mesh_verdict as mesh_verdict
 
     monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
@@ -215,8 +335,8 @@ def test_durable_remote_shell_does_not_immediately_reconcile_process_residue(
     monkeypatch.setattr(dispatch, "_candidate_sha", lambda _default: "sha")
     monkeypatch.setattr(dispatch, "_MESH_NODE_ID", "windows-desktop")
 
-    import substrate.execution.mesh_verdict as mesh_verdict
     import substrate.execution.durable_remote_transport as durable
+    import substrate.execution.mesh_verdict as mesh_verdict
 
     monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")

@@ -19,6 +19,7 @@ cockpit_spine_router accessor). These tests pin both halves.
 from __future__ import annotations
 
 import ast
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -507,76 +508,95 @@ def test_beast_codex_spark_probe_fails_closed_on_bad_mesh_or_bad_probe(monkeypat
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
 
-    monkeypatch.setattr(dispatch, "_mesh_read", lambda *_a, **_kw: {"ok": False, "error": "mesh down"})
+    monkeypatch.setattr(
+        dispatch,
+        "_durable_remote_shell",
+        lambda *_a, **_kw: {"ok": False, "raw_status": "FAILED", "error": "mesh down"},
+    )
     result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
     assert result["ok"] is False
-    assert result["failure_reason"] == "real Beast Codex/Spark probe launch not acknowledged"
+    assert result["failure_reason"] == "real Beast Codex/Spark production path not proven"
 
 
-def test_beast_codex_spark_probe_async_lifecycle_succeeds(monkeypatch) -> None:
+def test_beast_codex_spark_probe_uses_bounded_argv_lifecycle(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
     monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-test")
 
-    calls = {"n": 0}
+    calls: list[dict[str, object]] = []
+    probe = {
+        "ok": True,
+        "execution_identity": {
+            "provider_requested": "codex",
+            "model_requested": "gpt-5.3-codex-spark",
+            "explicit_model_argument_present": True,
+            "terminal_status": "completed",
+            "output_content_present": True,
+            "usage_present": True,
+        },
+    }
 
-    def _mesh(_runner, command, **_kw):  # noqa: ANN001
-        calls["n"] += 1
-        if calls["n"] == 1:
-            return {"ok": True, "stdout": '{"request_id":"codex-spark-test","wrapper_pid":101}'}
-        if calls["n"] == 2:
-            observed = {
-                "status": {"state": "succeeded"},
-                "result": {
-                    "probe": {
-                        "ok": True,
-                        "execution_identity": {
-                            "model_requested": "gpt-5.3-codex-spark",
-                            "explicit_model_argument_present": True,
-                        },
-                    }
-                },
-            }
-            return {"ok": True, "stdout": __import__("json").dumps(observed)}
-        return {"ok": True, "stdout": '{"ok":true,"residue":[],"removed":true}'}
+    def _durable(command: str, **kwargs: object) -> dict[str, object]:
+        calls.append({"command": command, **kwargs})
+        return {
+            "ok": True,
+            "raw_status": "SUCCEEDED",
+            "stdout": json.dumps(probe),
+            "stderr": "",
+            "cleanup": {"process_residue": []},
+        }
 
-    monkeypatch.setattr(dispatch, "_mesh_read", _mesh)
+    monkeypatch.setattr(dispatch, "_durable_remote_shell", _durable)
 
     result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
 
     assert result["ok"] is True
     assert result["request_id"] == "codex-spark-test"
     assert result["probe"]["ok"] is True
-    assert result["cleanup"]["ok"] is True
+    assert result["cleanup"]["process_residue"] == []
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["command"] == ""
+    assert call["cwd"] == dispatch._BEAST_WT
+    assert call["operation_type"] == "wave2_codex_spark_probe"
+    assert call["correlation_id"] == "codex-spark-codex-spark-test"
+    assert call["candidate_sha"] == "sha-under-test"
+    assert call["command_timeout"] == 220
+    assert call["argv"] == result["argv"]
+    argv = result["argv"]
+    assert "--model" in argv
+    assert argv[argv.index("--model") + 1] == "gpt-5.3-codex-spark"
+    assert "--request-id" in argv
+    assert argv[argv.index("--request-id") + 1] == "codex-spark-test"
+    assert all("EncodedCommand" not in part for part in argv)
+    assert result["launcher_command_chars"] < 1000
 
 
-def test_beast_codex_spark_probe_timeout_performs_exact_cleanup(monkeypatch) -> None:
+def test_beast_codex_spark_probe_fails_closed_on_nonterminal_transport(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
-    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-timeout")
-    monkeypatch.setattr(dispatch, "_codex_probe_cleanup_command", lambda _request_id: "CLEANUP")
-
-    cleanup_seen = {"value": False}
-
-    def _mesh(_runner, command, **_kw):  # noqa: ANN001
-        if command == "CLEANUP":
-            cleanup_seen["value"] = True
-            return {"ok": True, "stdout": '{"ok":true,"residue":[],"removed":true}'}
-        return {"ok": True, "stdout": "{}"}
-
-    monkeypatch.setattr(dispatch, "_mesh_read", _mesh)
-
-    result = dispatch._beast_codex_spark_probe(
-        runner, "sha-under-test", poll_timeout_seconds=0, poll_interval_seconds=0
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-cancelled")
+    monkeypatch.setattr(
+        dispatch,
+        "_durable_remote_shell",
+        lambda *_a, **_kw: {
+            "ok": False,
+            "raw_status": "CANCELLED",
+            "stdout": "{}",
+            "error": "durable remote request cancelled before claim",
+            "cleanup": {"process_residue": []},
+        },
     )
 
+    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+
     assert result["ok"] is False
-    assert result["failure_reason"] == "real Beast Codex/Spark probe timed out before terminal result"
-    assert cleanup_seen["value"] is True
+    assert result["transport"]["raw_status"] == "CANCELLED"
+    assert result["cleanup"]["process_residue"] == []
 
 
 def test_beast_codex_spark_probe_fails_closed_on_jsonl_error_event(monkeypatch) -> None:
@@ -586,36 +606,31 @@ def test_beast_codex_spark_probe_fails_closed_on_jsonl_error_event(monkeypatch) 
     runner = dispatch.Runner(dry_run=False)
     monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-error")
 
-    calls = {"n": 0}
+    observed = {
+        "ok": False,
+        "failure_reasons": ["result_ok is not true"],
+        "execution_identity": {
+            "event_types": [
+                "thread.started",
+                "turn.started",
+                "error",
+                "item.completed",
+                "turn.completed",
+            ],
+            "terminal_status": "completed",
+        },
+    }
 
-    def _mesh(_runner, command, **_kw):  # noqa: ANN001
-        calls["n"] += 1
-        if calls["n"] == 1:
-            return {"ok": True, "stdout": '{"request_id":"codex-spark-error","wrapper_pid":101}'}
-        if calls["n"] == 2:
-            observed = {
-                "status": {"state": "failed"},
-                "result": {
-                    "probe": {
-                        "ok": False,
-                        "failure_reasons": ["result_ok is not true"],
-                        "execution_identity": {
-                            "event_types": [
-                                "thread.started",
-                                "turn.started",
-                                "error",
-                                "item.completed",
-                                "turn.completed",
-                            ],
-                            "terminal_status": "completed",
-                        },
-                    }
-                },
-            }
-            return {"ok": True, "stdout": __import__("json").dumps(observed)}
-        return {"ok": True, "stdout": '{"ok":true,"residue":[],"removed":true}'}
-
-    monkeypatch.setattr(dispatch, "_mesh_read", _mesh)
+    monkeypatch.setattr(
+        dispatch,
+        "_durable_remote_shell",
+        lambda *_a, **_kw: {
+            "ok": True,
+            "raw_status": "SUCCEEDED",
+            "stdout": json.dumps(observed),
+            "cleanup": {"process_residue": []},
+        },
+    )
 
     result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
 
@@ -630,26 +645,16 @@ def test_beast_codex_spark_probe_fails_if_cleanup_leaves_residue(monkeypatch) ->
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
     monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-residue")
-    monkeypatch.setattr(dispatch, "_codex_probe_cleanup_command", lambda _request_id: "CLEANUP")
-
-    calls = {"n": 0}
-
-    def _mesh(_runner, command, **_kw):  # noqa: ANN001
-        calls["n"] += 1
-        if calls["n"] == 1:
-            return {"ok": True, "stdout": '{"request_id":"codex-spark-residue","wrapper_pid":101}'}
-        if calls["n"] == 2:
-            return {
-                "ok": True,
-                "stdout": '{"status":{"state":"succeeded"},"result":{"probe":{"ok":true}}}',
-            }
-        assert command == "CLEANUP"
-        return {"ok": True, "stdout": '{"ok":false,"residue":[{"ProcessId":9}]}'}
 
     monkeypatch.setattr(
         dispatch,
-        "_mesh_read",
-        _mesh,
+        "_durable_remote_shell",
+        lambda *_a, **_kw: {
+            "ok": True,
+            "raw_status": "SUCCEEDED",
+            "stdout": '{"ok":true}',
+            "cleanup": {"process_residue": [{"ProcessId": 9}]},
+        },
     )
     result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
     assert result["ok"] is False
