@@ -801,6 +801,171 @@ def test_codex_process_tree_emits_timeout_authority_phases(monkeypatch):
     assert exc.value.output == '{"schema":"phase","phase":"fake_cli_started"}\n'
 
 
+def test_codex_timeout_rejects_invalid_budget_before_spawn(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    spawned = False
+
+    def fake_popen(*_args, **_kwargs):
+        nonlocal spawned
+        spawned = True
+        raise AssertionError("popen must not run for invalid timeout")
+
+    monkeypatch.setattr(codex_mod, "gated_popen", fake_popen)
+
+    with pytest.raises(ValueError):
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0,
+            capture_output=True,
+            text=True,
+        )
+
+    assert spawned is False
+
+
+def test_codex_watchdog_owns_deadline_when_phase_sink_blocks(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    calls: list[tuple[int, bool]] = []
+
+    class FakeProc:
+        pid = 3456
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            self.returncode = 0
+            return "late success", ""
+            return "", ""
+
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+
+    def fake_taskkill(pid: int, *, force: bool):
+        calls.append((pid, force))
+        return SimpleNamespace(returncode=0, stdout=f"killed {pid} force={force}", stderr="")
+
+    monkeypatch.setattr(codex_mod, "_taskkill_tree", fake_taskkill)
+
+    def blocking_phase(phase, extra):
+        if phase == "codex_process_spawned":
+            time.sleep(0.12)
+
+    started = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.02,
+            input="prompt",
+            capture_output=True,
+            text=True,
+            phase_callback=blocking_phase,
+        )
+
+    assert time.monotonic() - started < 5
+    assert calls and calls[0] == (3456, False)
+    assert "owner=watchdog" in str(exc.value.stderr)
+    assert "late success" in str(exc.value.output)
+
+
+def test_codex_phase_sink_exception_cannot_defeat_timeout(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    calls: list[tuple[int, bool]] = []
+
+    class FakeProc:
+        pid = 4567
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            if self.communicate_calls == 1:
+                raise subprocess.TimeoutExpired(
+                    cmd=["codex"],
+                    timeout=timeout,
+                    output="partial",
+                    stderr="",
+                )
+            self.returncode = -15
+            return "", ""
+
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+    monkeypatch.setattr(
+        codex_mod,
+        "_taskkill_tree",
+        lambda pid, *, force: calls.append((pid, force))
+        or SimpleNamespace(returncode=0, stdout="terminated", stderr=""),
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.01,
+            input="prompt",
+            capture_output=True,
+            text=True,
+            phase_callback=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("sink failed")),
+        )
+
+    assert exc.value.output == "partial"
+    assert calls == [(4567, False)]
+
+
+def test_codex_communicate_uses_remaining_deadline_after_spawn_observation(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    observed_timeouts: list[float] = []
+
+    class FakeProc:
+        pid = 5678
+        returncode = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            observed_timeouts.append(float(timeout))
+            return "{}", ""
+
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+
+    def slow_observer(phase, extra):
+        if phase == "codex_process_spawned":
+            time.sleep(0.02)
+
+    completed = codex_mod._run_codex_process_tree(
+        ["codex", "exec"],
+        caller="unit",
+        timeout=0.2,
+        input="prompt",
+        capture_output=True,
+        text=True,
+        phase_callback=slow_observer,
+    )
+
+    assert completed is not None
+    assert completed.returncode == 0
+    assert observed_timeouts
+    assert 0 < observed_timeouts[0] < 0.2
+
+
 def test_codex_timeout_drain_preserves_later_stdout(monkeypatch):
     from substrate.execution.attempts.model_executors import codex as codex_mod
 
@@ -848,6 +1013,111 @@ def test_codex_timeout_drain_preserves_later_stdout(monkeypatch):
     assert "late phase" in str(exc.value.output)
     assert "early stderr" in str(exc.value.stderr)
     assert "late stderr" in str(exc.value.stderr)
+
+
+def test_codex_forces_recorded_descendant_after_graceful_root_exit(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    forced: list[int] = []
+    alive_checks = [[2222], []]
+
+    class FakeProc:
+        pid = 1111
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            if self.communicate_calls == 1:
+                raise subprocess.TimeoutExpired(cmd=["codex"], timeout=timeout, output="", stderr="")
+            self.returncode = -15
+            return "", ""
+
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+    monkeypatch.setattr(codex_mod, "_owned_process_tree_pids", lambda pid: [pid, 2222])
+    monkeypatch.setattr(codex_mod, "_alive_owned_pids", lambda _pids: alive_checks.pop(0))
+
+    def fake_taskkill(pid: int, *, force: bool):
+        return SimpleNamespace(returncode=0, stdout=f"tree kill {pid} force={force}", stderr="")
+
+    monkeypatch.setattr(codex_mod, "_taskkill_tree", fake_taskkill)
+    monkeypatch.setattr(
+        codex_mod,
+        "_force_exact_owned_pids",
+        lambda pids: forced.extend(pids) or [f"forced exact {','.join(map(str, pids))}"],
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.01,
+            input="prompt",
+            capture_output=True,
+            text=True,
+        )
+
+    assert forced == [2222]
+    stderr = str(exc.value.stderr)
+    assert "post-graceful drain completed" in stderr
+    assert "owned process residue after graceful cleanup=2222" in stderr
+    assert "forced exact 2222" in stderr
+
+
+def test_codex_timeout_sends_first_kill_before_tree_snapshot(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    order: list[str] = []
+
+    class FakeProc:
+        pid = 3333
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            if self.communicate_calls == 1:
+                raise subprocess.TimeoutExpired(cmd=["codex"], timeout=timeout, output="", stderr="")
+            self.returncode = -15
+            return "", ""
+
+        def poll(self):
+            return self.returncode
+
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+
+    def fake_tree_pids(pid):
+        order.append("snapshot")
+        return [pid]
+
+    def fake_taskkill(pid: int, *, force: bool):
+        order.append("force" if force else "graceful")
+        return SimpleNamespace(returncode=0, stdout="terminated", stderr="")
+
+    monkeypatch.setattr(codex_mod, "_owned_process_tree_pids", fake_tree_pids)
+    monkeypatch.setattr(codex_mod, "_alive_owned_pids", lambda _pids: [])
+    monkeypatch.setattr(codex_mod, "_taskkill_tree", fake_taskkill)
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.01,
+            input="prompt",
+            capture_output=True,
+            text=True,
+        )
+
+    assert order[:2] == ["graceful", "snapshot"]
 
 
 def test_codex_nonwindows_timeout_owns_process_group(monkeypatch):

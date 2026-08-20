@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
 import signal
 import subprocess
+import threading
 import time
 from collections.abc import Callable
 
@@ -47,6 +49,7 @@ _CODEX_TREE_TERMINATE_SECONDS = 3.0
 _CODEX_GRACEFUL_DRAIN_SECONDS = 3.0
 _CODEX_TREE_KILL_SECONDS = 3.0
 _CODEX_FORCE_DRAIN_SECONDS = 3.0
+_CODEX_PHASE_CALLBACK_SECONDS = 0.05
 _CODEX_CLEANUP_MARGIN_SECONDS = (
     _CODEX_TREE_TERMINATE_SECONDS
     + _CODEX_GRACEFUL_DRAIN_SECONDS
@@ -194,6 +197,221 @@ def _posix_signal_tree(pid: int, *, force: bool) -> subprocess.CompletedProcess[
     )
 
 
+def _owned_process_tree_pids(root_pid: int) -> list[int]:
+    if root_pid <= 0:
+        return []
+    if os.name == "nt":
+        script = (
+            "$root="
+            + str(root_pid)
+            + ";"
+            + "$procs=Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId;"
+            + "$ids=New-Object 'System.Collections.Generic.HashSet[int]';"
+            + "[void]$ids.Add([int]$root);"
+            + "do{$changed=$false;foreach($p in $procs){"
+            + "if($ids.Contains([int]$p.ParentProcessId) -and -not $ids.Contains([int]$p.ProcessId)){"
+            + "[void]$ids.Add([int]$p.ProcessId);$changed=$true}}}while($changed);"
+            + "$ids | Sort-Object"
+        )
+        result = gated_subprocess_run(
+            ["powershell", "-NoProfile", "-Command", script],
+            caller="codex_executor_tree_snapshot",
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result and result.returncode == 0:
+            pids: list[int] = []
+            for line in (result.stdout or "").splitlines():
+                try:
+                    pids.append(int(line.strip()))
+                except ValueError:
+                    continue
+            return sorted(set(pids)) or [root_pid]
+        return [root_pid]
+    result = gated_subprocess_run(
+        ["ps", "-o", "pid=", "-g", str(root_pid)],
+        caller="codex_executor_tree_snapshot",
+        capture_output=True,
+        text=True,
+        timeout=2,
+    )
+    if result and result.returncode == 0:
+        pids = []
+        for line in (result.stdout or "").splitlines():
+            try:
+                pids.append(int(line.strip()))
+            except ValueError:
+                continue
+        return sorted(set(pids)) or [root_pid]
+    return [root_pid]
+
+
+def _alive_owned_pids(pids: list[int]) -> list[int]:
+    alive: list[int] = []
+    for pid in sorted(set(pids)):
+        if pid <= 0:
+            continue
+        if os.name == "nt":
+            result = gated_subprocess_run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                caller="codex_executor_tree_verify",
+                capture_output=True,
+                text=True,
+                timeout=1,
+            )
+            if result and result.returncode == 0 and str(pid) in (result.stdout or ""):
+                alive.append(pid)
+            continue
+        try:
+            os.kill(pid, 0)
+            alive.append(pid)
+        except ProcessLookupError:
+            continue
+        except PermissionError:
+            alive.append(pid)
+    return alive
+
+
+def _force_exact_owned_pids(pids: list[int]) -> list[str]:
+    lines: list[str] = []
+    for pid in sorted(set(pids), reverse=True):
+        if pid <= 0:
+            continue
+        if os.name == "nt":
+            result = gated_subprocess_run(
+                ["taskkill", "/PID", str(pid), "/F"],
+                caller="codex_executor_exact_pid_cleanup",
+                capture_output=True,
+                text=True,
+                timeout=_CODEX_TREE_KILL_SECONDS,
+            )
+            if result is None:
+                lines.append(f"exact pid force cleanup blocked: {pid}")
+            else:
+                lines.append(
+                    f"exact pid force cleanup pid={pid} rc={result.returncode}: "
+                    f"{(result.stdout or result.stderr or '').strip()}"
+                )
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+            lines.append(f"sent SIGKILL to owned pid {pid}")
+        except ProcessLookupError:
+            lines.append(f"owned pid already absent {pid}")
+        except Exception as exc:  # noqa: BLE001
+            lines.append(f"exact pid force cleanup failed pid={pid}: {type(exc).__name__}: {exc}")
+    return lines
+
+
+def _extend_unique(lines: list[str], extra: str) -> None:
+    seen = set(lines)
+    for line in extra.splitlines():
+        clean = line.strip()
+        if clean and clean not in seen:
+            lines.append(clean)
+            seen.add(clean)
+
+
+class _CodexTimeoutOwner:
+    """Owns the single timeout decision for one Codex subprocess tree."""
+
+    def __init__(self, proc: subprocess.Popen[str], *, deadline_at: float, timeout: float) -> None:
+        self.proc = proc
+        self.deadline_at = deadline_at
+        self.timeout = timeout
+        self._done = threading.Event()
+        self._lock = threading.Lock()
+        self._cleanup_lines: list[str] = []
+        self._tree_pids: list[int] = [getattr(proc, "pid", 0)]
+        self._timeout_enforced = False
+        self._watchdog = threading.Thread(
+            target=self._watch,
+            name=f"codex-timeout-owner-{getattr(proc, 'pid', 'unknown')}",
+            daemon=True,
+        )
+        self._watchdog.start()
+
+    def remaining(self) -> float:
+        return max(0.0, self.deadline_at - time.monotonic())
+
+    @property
+    def timeout_enforced(self) -> bool:
+        return self._timeout_enforced
+
+    def cleanup_text(self) -> str:
+        with self._lock:
+            return "\n".join(line.strip() for line in self._cleanup_lines if line.strip())
+
+    def finish(self) -> None:
+        self._done.set()
+
+    def _watch(self) -> None:
+        while not self._done.is_set():
+            remaining = self.remaining()
+            if remaining <= 0.0:
+                self.enforce_timeout(source="watchdog")
+                return
+            self._done.wait(min(remaining, 0.05))
+
+    def enforce_timeout(self, *, source: str) -> str:
+        with self._lock:
+            if self._timeout_enforced:
+                return "\n".join(line.strip() for line in self._cleanup_lines if line.strip())
+            self._timeout_enforced = True
+            elapsed = max(0.0, self.timeout - self.remaining())
+            self._cleanup_lines.append(
+                "codex executor deadline expired "
+                f"after {elapsed:.3f}s; timeout={self.timeout:.3f}s; owner={source}"
+            )
+            try:
+                graceful = (
+                    _taskkill_tree(self.proc.pid, force=False)
+                    if os.name == "nt"
+                    else _posix_signal_tree(self.proc.pid, force=False)
+                )
+                self._cleanup_lines.append(
+                    f"graceful tree termination rc={graceful.returncode}: "
+                    f"{(graceful.stdout or graceful.stderr or '').strip()}"
+                )
+            except Exception as cleanup_exc:  # noqa: BLE001
+                self._cleanup_lines.append(f"graceful tree termination failed: {cleanup_exc}")
+            self._tree_pids = _owned_process_tree_pids(self.proc.pid)
+            self._cleanup_lines.append(
+                "owned process tree pids=" + ",".join(str(pid) for pid in self._tree_pids)
+            )
+            return "\n".join(line.strip() for line in self._cleanup_lines if line.strip())
+
+    def force_timeout(self, *, exact_pids: list[int] | None = None) -> str:
+        with self._lock:
+            try:
+                forced = (
+                    _taskkill_tree(self.proc.pid, force=True)
+                    if os.name == "nt"
+                    else _posix_signal_tree(self.proc.pid, force=True)
+                )
+                self._cleanup_lines.append(
+                    f"forced tree termination rc={forced.returncode}: "
+                    f"{(forced.stdout or forced.stderr or '').strip()}"
+                )
+            except Exception as cleanup_exc:  # noqa: BLE001
+                self._cleanup_lines.append(f"forced tree termination failed: {cleanup_exc}")
+            if exact_pids:
+                self._cleanup_lines.extend(_force_exact_owned_pids(exact_pids))
+            alive = _alive_owned_pids(self._tree_pids)
+            if alive:
+                self._cleanup_lines.append(
+                    "owned process residue after force tree cleanup="
+                    + ",".join(str(pid) for pid in alive)
+                )
+                self._cleanup_lines.extend(_force_exact_owned_pids(alive))
+            return "\n".join(line.strip() for line in self._cleanup_lines if line.strip())
+
+    def alive_owned_pids(self) -> list[int]:
+        with self._lock:
+            return _alive_owned_pids(self._tree_pids)
+
+
 def _run_codex_process_tree(
     cmd: list[str],
     *,
@@ -210,6 +428,10 @@ def _run_codex_process_tree(
     the whole tree. Wave 2 needs the model-executor timeout to win first, so the
     Windows path owns the process tree explicitly.
     """
+
+    timeout_value = float(timeout)
+    if not math.isfinite(timeout_value) or timeout_value <= 0.0:
+        raise ValueError("codex executor timeout must be finite and greater than zero")
 
     popen_kwargs = dict(kwargs)
     input_text = popen_kwargs.pop("input", None)
@@ -230,55 +452,72 @@ def _run_codex_process_tree(
     def _phase(phase: str, **extra: object) -> None:
         if phase_callback is None:
             return
-        try:
-            phase_callback(phase, extra)
-        except Exception:
-            return
+        done = threading.Event()
+
+        def _invoke() -> None:
+            try:
+                phase_callback(phase, extra)
+            except Exception:
+                pass
+            finally:
+                done.set()
+
+        thread = threading.Thread(target=_invoke, name=f"codex-phase-{phase}", daemon=True)
+        thread.start()
+        done.wait(_CODEX_PHASE_CALLBACK_SECONDS)
 
     started_at = time.monotonic()
-    deadline_at = started_at + float(timeout)
+    deadline_at = started_at + timeout_value
     _phase(
         "codex_process_spawn_started",
         caller=caller,
-        timeout_seconds=float(timeout),
+        timeout_seconds=timeout_value,
         deadline_monotonic=deadline_at,
         argv_digest=_argv_digest(cmd),
     )
     proc = gated_popen(cmd, caller=caller, **popen_kwargs)
     if proc is None:
         return None
+    timeout_owner = _CodexTimeoutOwner(proc, deadline_at=deadline_at, timeout=timeout_value)
     _phase(
         "codex_process_spawned",
         caller=caller,
         pid=getattr(proc, "pid", None),
-        timeout_seconds=float(timeout),
+        timeout_seconds=timeout_value,
         deadline_monotonic=deadline_at,
     )
     _phase(
         "inner_deadline_armed",
         caller=caller,
-        timeout_seconds=float(timeout),
+        timeout_seconds=timeout_value,
         deadline_monotonic=deadline_at,
     )
     try:
-        stdout, stderr = proc.communicate(input=input_text, timeout=timeout)
+        remaining = timeout_owner.remaining()
+        if remaining <= 0.0:
+            raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout_value, output="", stderr="")
+        stdout, stderr = proc.communicate(input=input_text, timeout=remaining)
+        if timeout_owner.timeout_enforced:
+            stderr = _append_stream(stderr, timeout_owner.cleanup_text())
+            raise subprocess.TimeoutExpired(
+                cmd=cmd,
+                timeout=timeout_value,
+                output=stdout,
+                stderr=stderr,
+            )
+        timeout_owner.finish()
         return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
     except subprocess.TimeoutExpired as exc:
         _phase(
             "inner_timeout_fired",
             caller=caller,
             pid=getattr(proc, "pid", None),
-            timeout_seconds=float(timeout),
+            timeout_seconds=timeout_value,
             elapsed_seconds=time.monotonic() - started_at,
         )
         stdout = _decode_timeout_stream(getattr(exc, "output", ""))
         stderr = _decode_timeout_stream(getattr(exc, "stderr", ""))
-        cleanup_lines: list[str] = [
-            (
-                "codex executor deadline expired "
-                f"after {time.monotonic() - started_at:.3f}s; timeout={timeout:.3f}s"
-            )
-        ]
+        cleanup_lines: list[str] = []
 
         def _bounded_drain(label: str, drain_timeout: float) -> bool:
             nonlocal stdout, stderr
@@ -321,18 +560,8 @@ def _run_codex_process_tree(
             pid=getattr(proc, "pid", None),
             graceful=True,
         )
-        try:
-            graceful = (
-                _taskkill_tree(proc.pid, force=False)
-                if os.name == "nt"
-                else _posix_signal_tree(proc.pid, force=False)
-            )
-            cleanup_lines.append(
-                f"graceful tree termination rc={graceful.returncode}: "
-                f"{(graceful.stdout or graceful.stderr or '').strip()}"
-            )
-        except Exception as cleanup_exc:  # noqa: BLE001
-            cleanup_lines.append(f"graceful tree termination failed: {cleanup_exc}")
+        cleanup = timeout_owner.enforce_timeout(source="communicate")
+        _extend_unique(cleanup_lines, cleanup)
         _phase(
             "process_tree_termination_completed",
             caller=caller,
@@ -340,25 +569,22 @@ def _run_codex_process_tree(
             graceful=True,
         )
 
-        if not _bounded_drain("post-graceful", _CODEX_GRACEFUL_DRAIN_SECONDS):
+        graceful_drain_completed = _bounded_drain("post-graceful", _CODEX_GRACEFUL_DRAIN_SECONDS)
+        alive_after_graceful = timeout_owner.alive_owned_pids()
+        if alive_after_graceful:
+            cleanup_lines.append(
+                "owned process residue after graceful cleanup="
+                + ",".join(str(pid) for pid in alive_after_graceful)
+            )
+        if not graceful_drain_completed or alive_after_graceful:
             _phase(
                 "process_tree_termination_started",
                 caller=caller,
                 pid=getattr(proc, "pid", None),
                 graceful=False,
             )
-            try:
-                forced = (
-                    _taskkill_tree(proc.pid, force=True)
-                    if os.name == "nt"
-                    else _posix_signal_tree(proc.pid, force=True)
-                )
-                cleanup_lines.append(
-                    f"forced tree termination rc={forced.returncode}: "
-                    f"{(forced.stdout or forced.stderr or '').strip()}"
-                )
-            except Exception as cleanup_exc:  # noqa: BLE001
-                cleanup_lines.append(f"forced tree termination failed: {cleanup_exc}")
+            cleanup = timeout_owner.force_timeout(exact_pids=alive_after_graceful)
+            _extend_unique(cleanup_lines, cleanup)
             _phase(
                 "process_tree_termination_completed",
                 caller=caller,
@@ -371,6 +597,7 @@ def _run_codex_process_tree(
         cleanup = "\n".join(line.strip() for line in cleanup_lines if line.strip())
         if cleanup:
             stderr = "\n".join(x for x in [stderr, cleanup] if x)
+        timeout_owner.finish()
         raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout, output=stdout, stderr=stderr)
 
 
