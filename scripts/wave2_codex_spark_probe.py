@@ -170,21 +170,88 @@ def run_probe(
 ) -> dict:
     os.environ["UMH_MODEL_EXECUTOR_PROVIDER"] = "codex"
     os.environ["UMH_CODEX_MODEL"] = model
+    timeline: list[dict[str, object]] = []
+
+    def mark(phase: str, **extra: object) -> None:
+        timeline.append({"phase": phase, "monotonic": time.monotonic(), **extra})
 
     run_parent = Path(os.environ.get("UMH_RUN_ROOT", tempfile.gettempdir()))
     run_parent.mkdir(parents=True, exist_ok=True)
     run_root = tempfile.mkdtemp(prefix="umh_codex_spark_probe_", dir=str(run_parent))
     out: dict = {}
-    executor = build_model_executor()
-    home = open_attempt_credential_home(
-        attempt_id="beast-spark-production-probe",
-        run_root=run_root,
-        provider=executor.identity.provider,
-    )
+    home = None
     try:
+        mark("executor_construct_start")
+        executor = build_model_executor()
+        mark(
+            "executor_construct_end",
+            provider=executor.identity.provider,
+            adapter=executor.identity.adapter,
+            version=executor.identity.version,
+        )
+        home = open_attempt_credential_home(
+            attempt_id="beast-spark-production-probe",
+            run_root=run_root,
+            provider=executor.identity.provider,
+        )
+        mark("credential_home_opened", codex_home=home.codex_dir)
         env = scrub_worker_env(dict(os.environ))
         env.update(home.env_overrides())
-        ready = executor.readiness(env=env)
+        mark("readiness_start")
+        try:
+            ready = executor.readiness(env=env)
+        except Exception as exc:  # noqa: BLE001
+            mark("readiness_exception", exception=type(exc).__name__)
+            exc_text = _sanitize(
+                getattr(exc, "stderr", "") or getattr(exc, "output", "") or str(exc)
+            )
+            out = {
+                "ok": False,
+                "status": "failed",
+                "failure_reasons": [f"readiness raised {type(exc).__name__}: {exc_text}"],
+                "readiness_ok": False,
+                "readiness_authenticated": False,
+                "request_id": request_id,
+                "executor_identity": executor.identity.proof_metadata(),
+                "result_ok": False,
+                "result_identity": executor.identity.proof_metadata(),
+                "exit_code": None,
+                "timed_out": isinstance(exc, subprocess.TimeoutExpired),
+                "retry_class": "external_transient"
+                if isinstance(exc, subprocess.TimeoutExpired)
+                else "adapter_or_worker",
+                "execution_identity": {
+                    "provider_requested": "codex",
+                    "provider_adapter": type(executor).__name__,
+                    "model_requested": model,
+                    "model_selector_source": "explicit_argument",
+                    "executable_version": executor.identity.version,
+                    "invocation_accepted": False,
+                    "terminal_status": "readiness_failed",
+                    "credential_isolation_verified": env.get("CODEX_HOME") == home.codex_dir,
+                    "workspace_integrity_verified": True,
+                },
+                "identity_field_classification": _identity_field_classification(),
+                "raw_stdout_jsonl": "",
+                "raw_stdout_sha256": _sha256_text(""),
+                "raw_stderr": exc_text,
+                "raw_stderr_sha256": _sha256_text(exc_text),
+                "raw_event_summary": _event_summary(""),
+                "stdout_excerpt": "",
+                "stderr_excerpt": exc_text[:220],
+                "attempt_private_codex_home": env.get("CODEX_HOME") == home.codex_dir,
+                "credential_file_count": len(home.credential_files),
+                "credential_paths_inside_attempt_home": all(
+                    str(p).startswith(home.home_path) for p in home.credential_files
+                ),
+            }
+            return out
+        mark(
+            "readiness_end",
+            ok=ready.ok,
+            authenticated=ready.authenticated,
+            reason=ready.reason[-120:] if ready.reason else "",
+        )
         packet = ModelWorkPacketInput(
             prompt=(
                 "Return a compact JSON object with keys probe and content. "
@@ -201,10 +268,57 @@ def run_probe(
                 "request_id": request_id,
             },
         )
+        if not ready.ok or not ready.authenticated:
+            out = {
+                "ok": False,
+                "status": "failed",
+                "failure_reasons": [f"readiness failed: {_sanitize(ready.reason)}"],
+                "readiness_ok": ready.ok,
+                "readiness_authenticated": ready.authenticated,
+                "request_id": request_id,
+                "executor_identity": ready.identity.proof_metadata(),
+                "result_ok": False,
+                "result_identity": ready.identity.proof_metadata(),
+                "exit_code": None,
+                "timed_out": "timed out" in (ready.reason or "").lower(),
+                "retry_class": "external_transient"
+                if "timed out" in (ready.reason or "").lower()
+                else "owner_auth_or_provider",
+                "usage": {},
+                "proof_binding": packet.proof_binding,
+                "execution_identity": {
+                    "provider_requested": "codex",
+                    "provider_adapter": type(executor).__name__,
+                    "model_requested": model,
+                    "model_selector_source": "explicit_argument",
+                    "executable_version": executor.identity.version,
+                    "invocation_accepted": False,
+                    "terminal_status": "readiness_failed",
+                    "credential_isolation_verified": env.get("CODEX_HOME") == home.codex_dir,
+                    "workspace_integrity_verified": True,
+                },
+                "identity_field_classification": _identity_field_classification(),
+                "raw_stdout_jsonl": "",
+                "raw_stdout_sha256": _sha256_text(""),
+                "raw_stderr": _sanitize(ready.reason),
+                "raw_stderr_sha256": _sha256_text(_sanitize(ready.reason)),
+                "raw_event_summary": _event_summary(""),
+                "stdout_excerpt": "",
+                "stderr_excerpt": _sanitize(ready.reason)[:220],
+                "attempt_private_codex_home": env.get("CODEX_HOME") == home.codex_dir,
+                "credential_file_count": len(home.credential_files),
+                "credential_paths_inside_attempt_home": all(
+                    str(p).startswith(home.home_path) for p in home.credential_files
+                ),
+            }
+            return out
+        mark("invocation_build_start")
         invocation = executor.build_invocation(packet)
+        mark("invocation_build_end", argv_digest=_argv_digest(invocation.argv), cwd=invocation.cwd)
         start = time.monotonic()
         timed_out = False
         try:
+            mark("cli_process_start", timeout_seconds=packet.timeout_seconds)
             completed = _run_codex_process_tree(
                 invocation.argv,
                 caller="wave2_codex_spark_probe",
@@ -216,6 +330,7 @@ def run_probe(
                 text=True,
             )
         except subprocess.TimeoutExpired as exc:
+            mark("executor_timeout", timeout_seconds=packet.timeout_seconds)
             completed = None
             timed_out = True
             raw_stdout = _sanitize(
@@ -230,6 +345,7 @@ def run_probe(
             )
         duration = time.monotonic() - start
         if completed is None:
+            mark("collect_timeout_result_start")
             result = executor.collect_result(packet, None, duration_seconds=duration)
             if timed_out:
                 result.timed_out = True
@@ -238,10 +354,13 @@ def run_probe(
             if not timed_out:
                 raw_stdout = ""
                 raw_stderr = "subprocess skipped by CPU gate or unavailable"
+            mark("collect_timeout_result_end", duration_seconds=duration)
         else:
             raw_stdout = completed.stdout or ""
             raw_stderr = completed.stderr or ""
+            mark("collect_result_start", returncode=completed.returncode)
             result = executor.collect_result(packet, completed, duration_seconds=duration)
+            mark("collect_result_end", duration_seconds=duration, ok=result.ok)
         event_summary = _event_summary(raw_stdout)
         execution_identity = dict(result.execution_identity or {})
         execution_identity["credential_isolation_verified"] = env.get("CODEX_HOME") == home.codex_dir
@@ -271,18 +390,65 @@ def run_probe(
             "raw_event_summary": event_summary,
             "stdout_excerpt": result.stdout[:220],
             "stderr_excerpt": result.stderr[:220],
+            "timeline": timeline,
             "attempt_private_codex_home": env.get("CODEX_HOME") == home.codex_dir,
             "credential_file_count": len(home.credential_files),
             "credential_paths_inside_attempt_home": all(
                 str(p).startswith(home.home_path) for p in home.credential_files
             ),
         }
+    except Exception as exc:  # noqa: BLE001
+        mark("probe_exception", exception=type(exc).__name__)
+        out = {
+            "ok": False,
+            "status": "failed",
+            "failure_reasons": [f"probe failed before terminal result: {type(exc).__name__}: {_sanitize(str(exc))}"],
+            "readiness_ok": False,
+            "readiness_authenticated": False,
+            "request_id": request_id,
+            "executor_identity": None,
+            "result_ok": False,
+            "result_identity": None,
+            "exit_code": None,
+            "timed_out": isinstance(exc, subprocess.TimeoutExpired),
+            "retry_class": "external_transient"
+            if isinstance(exc, subprocess.TimeoutExpired)
+            else "adapter_or_worker",
+            "usage": {},
+            "proof_binding": {"candidate_sha": sha, "request_id": request_id},
+            "execution_identity": {
+                "provider_requested": "codex",
+                "provider_adapter": "",
+                "model_requested": model,
+                "model_selector_source": "explicit_argument",
+                "invocation_accepted": False,
+                "terminal_status": "probe_exception",
+                "credential_isolation_verified": False,
+                "workspace_integrity_verified": True,
+            },
+            "identity_field_classification": _identity_field_classification(),
+            "raw_stdout_jsonl": "",
+            "raw_stdout_sha256": _sha256_text(""),
+            "raw_stderr": _sanitize(str(exc)),
+            "raw_stderr_sha256": _sha256_text(_sanitize(str(exc))),
+            "raw_event_summary": _event_summary(""),
+            "stdout_excerpt": "",
+            "stderr_excerpt": _sanitize(str(exc))[:220],
+            "timeline": timeline,
+            "attempt_private_codex_home": False,
+            "credential_file_count": 0,
+            "credential_paths_inside_attempt_home": False,
+        }
     finally:
-        close_attempt_credential_home(home)
-        residue_before_root_cleanup = Path(home.home_path).exists()
+        if home is not None:
+            close_attempt_credential_home(home)
+            residue_before_root_cleanup = Path(home.home_path).exists()
+        else:
+            residue_before_root_cleanup = False
         shutil.rmtree(run_root, ignore_errors=True)
         out["attempt_home_exists_after_close"] = residue_before_root_cleanup
         out["run_root_exists_after_cleanup"] = Path(run_root).exists()
+        out.setdefault("timeline", timeline)
     failures = _validate_probe_result(out, expected_model=model, expected_version=expected_version)
     out["ok"] = not failures
     out["failure_reasons"] = failures
@@ -307,7 +473,7 @@ def main(argv: list[str] | None = None) -> int:
         expected_version=args.expected_version,
         request_id=args.request_id,
     )
-    print(json.dumps(result, indent=2))
+    print(json.dumps(result, indent=2), flush=True)
     return 0 if result.get("ok") else 2
 
 

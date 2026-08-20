@@ -233,7 +233,11 @@ def test_probe_returns_structured_timeout_before_outer_transport(tmp_path, monke
 
     monkeypatch.setattr(module, "build_model_executor", lambda: FakeExecutor())
     monkeypatch.setattr(module, "open_attempt_credential_home", lambda **_kw: fake_home)
-    monkeypatch.setattr(module, "close_attempt_credential_home", lambda _home: None)
+    monkeypatch.setattr(
+        module,
+        "close_attempt_credential_home",
+        lambda _home: __import__("shutil").rmtree(home_root, ignore_errors=True),
+    )
     monkeypatch.setattr(module, "_run_codex_process_tree", timeout)
 
     result = module.run_probe(
@@ -256,6 +260,74 @@ def test_probe_returns_structured_timeout_before_outer_transport(tmp_path, monke
     assert "[redacted credential-bearing line]" not in result["raw_stdout_jsonl"]
     assert result["raw_event_summary"]["event_types"] == ["thread.started", "turn.completed"]
     assert result["run_root_exists_after_cleanup"] is False
+
+
+def test_probe_returns_structured_readiness_timeout(tmp_path, monkeypatch) -> None:
+    module = _probe_module()
+    identity = ModelExecutorIdentity(
+        provider="codex",
+        model="gpt-5.3-codex-spark",
+        version="codex-cli 0.147.0",
+        adapter="CodexModelExecutor",
+    )
+
+    class FakeExecutor:
+        def __init__(self):
+            self.identity = identity
+
+        def readiness(self, *, env=None):
+            raise subprocess.TimeoutExpired(
+                cmd=["codex", "login", "status"],
+                timeout=20,
+                stderr="codex status pipe never closed",
+            )
+
+    home_root = tmp_path / "home"
+    codex_dir = home_root / ".codex"
+    codex_dir.mkdir(parents=True)
+    fake_home = SimpleNamespace(
+        home_path=str(home_root),
+        codex_dir=str(codex_dir),
+        credential_files=[],
+        env_overrides=lambda: {"CODEX_HOME": str(codex_dir)},
+    )
+
+    monkeypatch.setattr(module, "build_model_executor", lambda: FakeExecutor())
+    monkeypatch.setattr(module, "open_attempt_credential_home", lambda **_kw: fake_home)
+    monkeypatch.setattr(
+        module,
+        "close_attempt_credential_home",
+        lambda _home: __import__("shutil").rmtree(home_root, ignore_errors=True),
+    )
+
+    result = module.run_probe(
+        sha="sha",
+        worktree=str(tmp_path),
+        model=identity.model,
+        timeout=180,
+        expected_version=identity.version,
+        request_id="probe-readiness-timeout",
+    )
+
+    assert result["ok"] is False
+    assert result["timed_out"] is True
+    assert result["status"] == "failed"
+    assert result["execution_identity"]["terminal_status"] == "readiness_failed"
+    assert "codex status pipe never closed" in result["raw_stderr"]
+    assert result["attempt_home_exists_after_close"] is False
+    assert result["run_root_exists_after_cleanup"] is False
+    assert [item["phase"] for item in result["timeline"]] == [
+        "executor_construct_start",
+        "executor_construct_end",
+        "credential_home_opened",
+        "readiness_start",
+        "readiness_exception",
+    ]
+
+
+def test_probe_main_flushes_terminal_json() -> None:
+    body = SCRIPT.read_text(encoding="utf-8")
+    assert "print(json.dumps(result, indent=2), flush=True)" in body
 
 
 def test_probe_validation_fails_closed_on_readiness_or_cleanup_gap() -> None:

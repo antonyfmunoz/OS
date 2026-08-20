@@ -161,7 +161,7 @@ def test_codex_adapter_invokes_exec_with_prompt_on_stdin(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         fake_run,
     )
     adapter = CodexModelExecutor(model="gpt-test")
@@ -189,7 +189,7 @@ def test_codex_adapter_rejects_empty_output(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(returncode=0, stdout="", stderr=""),
     )
     result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
@@ -203,7 +203,7 @@ def test_codex_adapter_rejects_malformed_jsonl_even_with_content(tmp_path, monke
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -226,7 +226,7 @@ def test_codex_adapter_rejects_truncated_jsonl_without_terminal_event(tmp_path, 
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout='{"type":"item.completed","item":{"text":"real content"}}\n',
@@ -245,7 +245,7 @@ def test_codex_adapter_rejects_multiple_terminal_events(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -268,7 +268,7 @@ def test_codex_adapter_rejects_turn_failed_event(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout='{"type":"turn.failed","message":"provider refused"}\n',
@@ -288,7 +288,7 @@ def test_codex_adapter_rejects_terminal_error_event(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout='{"type":"error","message":"transport error"}\n',
@@ -308,7 +308,7 @@ def test_codex_adapter_rejects_missing_usage_metadata(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -333,7 +333,7 @@ def test_codex_adapter_accepts_unobservable_terminal_model_when_exact_selector_p
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -362,7 +362,7 @@ def test_codex_adapter_rejects_terminal_model_mismatch(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -389,7 +389,7 @@ def test_codex_adapter_rejects_wrong_json_field_shapes_without_crashing(tmp_path
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -414,7 +414,7 @@ def test_codex_adapter_rejects_non_string_message_content(tmp_path, monkeypatch)
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -438,7 +438,7 @@ def test_codex_adapter_sanitizes_credential_bearing_output(tmp_path, monkeypatch
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=1,
             stdout="",
@@ -457,7 +457,7 @@ def test_codex_adapter_sanitizes_successful_model_content(tmp_path, monkeypatch)
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -488,7 +488,7 @@ def test_codex_adapter_sanitizes_common_secret_shapes(tmp_path, monkeypatch, sec
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -510,7 +510,7 @@ def test_terminal_result_binds_executor_identity_and_proof_metadata(tmp_path, mo
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         lambda *a, **k: SimpleNamespace(
             returncode=0,
             stdout=(
@@ -540,7 +540,7 @@ def test_codex_adapter_classifies_timeout(tmp_path, monkeypatch):
         lambda: "/usr/bin/codex",
     )
     monkeypatch.setattr(
-        "substrate.execution.attempts.model_executors.codex.gated_subprocess_run",
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
         timeout,
     )
     result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
@@ -571,6 +571,63 @@ def test_codex_adapter_preserves_timeout_stdout_stderr_evidence(tmp_path, monkey
     assert result.retry_class == "external_transient"
     assert result.stdout == '{"type":"thread.started"}'
     assert "not logged in" in result.stderr
+
+
+def test_codex_version_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
+    calls: list[tuple[list[str], str, float]] = []
+
+    def timeout(cmd, *, caller, timeout, **_kwargs):
+        calls.append((cmd, caller, timeout))
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout, stderr="wrapper hung")
+
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
+        timeout,
+    )
+
+    adapter = CodexModelExecutor(model="gpt-test")
+
+    assert adapter.identity.version == ""
+    assert calls == [(["/usr/bin/codex", "--version"], "codex_executor_version", 10.0)]
+
+
+def test_codex_readiness_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
+    calls: list[tuple[list[str], str, float]] = []
+
+    def run(cmd, *, caller, timeout, **_kwargs):
+        calls.append((cmd, caller, timeout))
+        if cmd[-1:] == ["--version"]:
+            return SimpleNamespace(returncode=0, stdout="codex-cli 0.test\n", stderr="")
+        raise subprocess.TimeoutExpired(
+            cmd=cmd,
+            timeout=timeout,
+            output="",
+            stderr="codex.cmd descendant retained stdio",
+        )
+
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
+        run,
+    )
+
+    ready = CodexModelExecutor(model="gpt-test").readiness(env={"CODEX_HOME": "attempt-home"})
+
+    assert not ready.ok
+    assert not ready.authenticated
+    assert "timed out after 20s" in ready.reason
+    assert "descendant retained stdio" in ready.reason
+    assert calls == [
+        (["/usr/bin/codex", "--version"], "codex_executor_version", 10.0),
+        (["/usr/bin/codex", "login", "status"], "codex_executor_readiness", 20.0),
+    ]
 
 
 def test_codex_windows_timeout_terminates_complete_process_tree(monkeypatch):
@@ -628,6 +685,110 @@ def test_codex_windows_timeout_terminates_complete_process_tree(monkeypatch):
     assert "stdio still open" in str(exc.value.stderr)
     assert "force=True" in str(exc.value.stderr)
     assert popen_kwargs["stdin"] is codex_mod.subprocess.PIPE
+
+
+def test_codex_windows_timeout_returns_after_forced_drain_stays_blocked(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    calls: list[tuple[int, bool]] = []
+
+    class FakeProc:
+        pid = 4321
+        returncode = None
+
+        def communicate(self, *, input=None, timeout=None):
+            raise subprocess.TimeoutExpired(
+                cmd=["codex"],
+                timeout=timeout,
+                output="partial jsonl",
+                stderr="stdio handle retained",
+            )
+
+        def poll(self):
+            return None
+
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+
+    def fake_taskkill(pid: int, *, force: bool):
+        calls.append((pid, force))
+        return SimpleNamespace(returncode=0, stdout=f"killed {pid} force={force}", stderr="")
+
+    monkeypatch.setattr(codex_mod, "_taskkill_tree", fake_taskkill)
+
+    started = time.monotonic()
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.01,
+            cwd=".",
+            env={},
+            input="prompt",
+            capture_output=True,
+            text=True,
+        )
+
+    assert time.monotonic() - started < 10
+    assert calls == [(4321, False), (4321, True)]
+    assert exc.value.output == "partial jsonl"
+    assert "post-force drain timed out" in str(exc.value.stderr)
+    assert "codex process still alive" in str(exc.value.stderr)
+
+
+def test_codex_nonwindows_timeout_owns_process_group(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    signaled: list[tuple[int, int]] = []
+    popen_kwargs = {}
+
+    class FakeProc:
+        pid = 2468
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            if self.communicate_calls <= 2:
+                raise subprocess.TimeoutExpired(
+                    cmd=["codex"],
+                    timeout=timeout,
+                    output="partial",
+                    stderr="open pipe",
+                )
+            self.returncode = -15
+            return "", ""
+
+        def poll(self):
+            return self.returncode
+
+    def fake_popen(*_args, **kwargs):
+        popen_kwargs.update(kwargs)
+        return FakeProc()
+
+    monkeypatch.setattr(codex_mod.os, "name", "posix")
+    monkeypatch.setattr(codex_mod, "gated_popen", fake_popen)
+    monkeypatch.setattr(
+        codex_mod.os,
+        "killpg",
+        lambda pid, sig: signaled.append((pid, sig)),
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=0.01,
+            input="prompt",
+            capture_output=True,
+            text=True,
+        )
+
+    assert popen_kwargs["start_new_session"] is True
+    assert signaled == [(2468, codex_mod.signal.SIGTERM), (2468, codex_mod.signal.SIGKILL)]
+    assert "sent SIGTERM to process group 2468" in str(exc.value.stderr)
 
 
 def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, monkeypatch):

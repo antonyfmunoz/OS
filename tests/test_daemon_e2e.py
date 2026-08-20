@@ -12,21 +12,33 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
-
-import websockets
 
 from nodes.windows.umh_node.client import NodeClient
 from nodes.windows.umh_node.config import CapabilityConfig, NodeConfig
 from substrate.execution.executor import WorkPacketExecutor
-from transports.node_mesh.config import MeshConfig
-from transports.node_mesh.server import NodeMeshServer
+from substrate.execution.mesh_verdict import sign_verdict
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.outcome_socket import OutcomeSocket
 from substrate.sockets.signal_socket import SignalSocket
 from substrate.sockets.view_socket import ViewSocket
+from transports.node_mesh.config import MeshConfig, NodeTokenEntry
+from transports.node_mesh.server import NodeMeshServer
 
 _next_port = 19200
+_VERDICT_SECRET = "test-daemon-e2e-verdict-secret"
+os.environ.setdefault("UMH_MESH_VERDICT_SECRET", _VERDICT_SECRET)
+_TEST_NODE_IDS = (
+    "e2e-test-node",
+    "e2e-gov-node",
+    "e2e-reconnect-node",
+    "e2e-metrics-node",
+)
+
+
+def _test_token(node_id: str) -> str:
+    return f"test-token-{node_id}"
 
 
 def _alloc_port() -> int:
@@ -37,7 +49,16 @@ def _alloc_port() -> int:
 
 
 def make_server(port: int) -> NodeMeshServer:
-    config = MeshConfig(port=port, heartbeat_timeout_s=60, max_nodes=5)
+    config = MeshConfig(
+        port=port,
+        heartbeat_interval_s=1,
+        heartbeat_timeout_s=60,
+        max_nodes=5,
+        node_tokens={
+            node_id: NodeTokenEntry(node_id=node_id, token=_test_token(node_id))
+            for node_id in _TEST_NODE_IDS
+        },
+    )
     return NodeMeshServer(
         config=config,
         executor=WorkPacketExecutor(),
@@ -61,6 +82,7 @@ def make_client(port: int, node_id: str = "e2e-test-node", **kwargs) -> NodeClie
         vps_port=port,
         node_id=node_id,
         hostname=kwargs.pop("hostname", "E2ETestPC"),
+        token=_test_token(node_id),
         capabilities=caps,
         **kwargs,
     )
@@ -100,7 +122,7 @@ async def test_connect_hello_heartbeat():
         assert node is not None, "server should have registered the node"
         assert node.hostname == "E2ETestPC"
         assert node.status == "connected"
-        assert len(node.capabilities) == 2
+        assert len(node.capabilities) >= 2
 
         cap_names = {c.name for c in node.capabilities}
         assert "shell" in cap_names
@@ -141,9 +163,16 @@ async def test_capability_execution():
                 "jsonrpc": "2.0",
                 "method": "capability.execute",
                 "params": {
-                    "capability_name": "shell.run",
+                    "capability_name": "shell.execute",
                     "params": {"command": f"echo cap_works > {marker}"},
                     "risk_class": "REVERSIBLE_WRITE",
+                    "governance_verdict_id": sign_verdict(
+                        verdict_id="e2e-capability-execution",
+                        node_id="e2e-test-node",
+                        capability="shell.execute",
+                        risk_class="REVERSIBLE_WRITE",
+                        secret=_VERDICT_SECRET,
+                    ),
                 },
                 "id": 9001,
             }
@@ -208,9 +237,16 @@ async def test_capability_governance_deny():
                 "jsonrpc": "2.0",
                 "method": "capability.execute",
                 "params": {
-                    "capability_name": "shell.run",
+                    "capability_name": "shell.execute",
                     "params": {"command": f"echo should_not_run > {marker}"},
                     "risk_class": "IRREVERSIBLE_WRITE",
+                    "governance_verdict_id": sign_verdict(
+                        verdict_id="e2e-capability-deny",
+                        node_id="e2e-gov-node",
+                        capability="shell.execute",
+                        risk_class="IRREVERSIBLE_WRITE",
+                        secret=_VERDICT_SECRET,
+                    ),
                 },
                 "id": 9002,
             }

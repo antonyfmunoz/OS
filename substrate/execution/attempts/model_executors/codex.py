@@ -7,6 +7,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import time
 
@@ -38,6 +39,18 @@ _SECRET_PATTERNS = (
     re.compile(r"(?i)(credential\s*[:=]\s*)[^\s]+"),
     re.compile(r"op" + r"://[^\s\"')]+"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
+)
+_CODEX_METADATA_TIMEOUT_SECONDS = 10.0
+_CODEX_READINESS_TIMEOUT_SECONDS = 20.0
+_CODEX_TREE_TERMINATE_SECONDS = 3.0
+_CODEX_GRACEFUL_DRAIN_SECONDS = 3.0
+_CODEX_TREE_KILL_SECONDS = 3.0
+_CODEX_FORCE_DRAIN_SECONDS = 3.0
+_CODEX_CLEANUP_MARGIN_SECONDS = (
+    _CODEX_TREE_TERMINATE_SECONDS
+    + _CODEX_GRACEFUL_DRAIN_SECONDS
+    + _CODEX_TREE_KILL_SECONDS
+    + _CODEX_FORCE_DRAIN_SECONDS
 )
 
 
@@ -115,6 +128,15 @@ def _decode_timeout_stream(value: object) -> str:
     return str(value)
 
 
+def _append_stream(base: str, extra: object) -> str:
+    text = _decode_timeout_stream(extra)
+    if not text:
+        return base
+    if not base:
+        return text
+    return "\n".join((base, text))
+
+
 def _taskkill_tree(pid: int, *, force: bool) -> subprocess.CompletedProcess[str]:
     cmd = ["taskkill", "/PID", str(pid), "/T"]
     if force:
@@ -124,13 +146,39 @@ def _taskkill_tree(pid: int, *, force: bool) -> subprocess.CompletedProcess[str]
         caller="codex_executor_timeout_cleanup",
         capture_output=True,
         text=True,
-        timeout=10,
+        timeout=_CODEX_TREE_KILL_SECONDS if force else _CODEX_TREE_TERMINATE_SECONDS,
     )
     return result or subprocess.CompletedProcess(
         cmd,
         127,
         "",
         "cleanup command blocked by CPU gate or unavailable",
+    )
+
+
+def _posix_signal_tree(pid: int, *, force: bool) -> subprocess.CompletedProcess[str]:
+    signum = signal.SIGKILL if force else signal.SIGTERM
+    try:
+        os.killpg(pid, signum)
+    except ProcessLookupError:
+        return subprocess.CompletedProcess(
+            ["killpg", str(pid)],
+            0,
+            "",
+            "process group already absent",
+        )
+    except Exception as exc:  # noqa: BLE001
+        return subprocess.CompletedProcess(
+            ["killpg", str(pid)],
+            1,
+            "",
+            f"process group signal failed: {type(exc).__name__}: {exc}",
+        )
+    return subprocess.CompletedProcess(
+        ["killpg", str(pid)],
+        0,
+        f"sent {'SIGKILL' if force else 'SIGTERM'} to process group {pid}",
+        "",
     )
 
 
@@ -150,9 +198,6 @@ def _run_codex_process_tree(
     Windows path owns the process tree explicitly.
     """
 
-    if os.name != "nt":
-        return gated_subprocess_run(cmd, caller=caller, timeout=timeout, **kwargs)
-
     popen_kwargs = dict(kwargs)
     input_text = popen_kwargs.pop("input", None)
     if input_text is not None:
@@ -161,11 +206,15 @@ def _run_codex_process_tree(
         popen_kwargs.setdefault("stdout", subprocess.PIPE)
         popen_kwargs.setdefault("stderr", subprocess.PIPE)
     popen_kwargs.setdefault("text", True)
-    creationflags = int(popen_kwargs.pop("creationflags", 0) or 0)
-    creationflags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
-    creationflags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
-    popen_kwargs["creationflags"] = creationflags
+    if os.name == "nt":
+        creationflags = int(popen_kwargs.pop("creationflags", 0) or 0)
+        creationflags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        creationflags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        popen_kwargs["creationflags"] = creationflags
+    else:
+        popen_kwargs.setdefault("start_new_session", True)
 
+    started_at = time.monotonic()
     proc = gated_popen(cmd, caller=caller, **popen_kwargs)
     if proc is None:
         return None
@@ -175,32 +224,79 @@ def _run_codex_process_tree(
     except subprocess.TimeoutExpired as exc:
         stdout = _decode_timeout_stream(getattr(exc, "output", ""))
         stderr = _decode_timeout_stream(getattr(exc, "stderr", ""))
-        cleanup_lines: list[str] = []
+        cleanup_lines: list[str] = [
+            (
+                "codex executor deadline expired "
+                f"after {time.monotonic() - started_at:.3f}s; timeout={timeout:.3f}s"
+            )
+        ]
+
+        def _bounded_drain(label: str, drain_timeout: float) -> bool:
+            nonlocal stdout, stderr
+            try:
+                more_out, more_err = proc.communicate(timeout=drain_timeout)
+                stdout = stdout or _decode_timeout_stream(more_out)
+                stderr = _append_stream(stderr, more_err)
+                cleanup_lines.append(f"{label} drain completed within {drain_timeout:.3f}s")
+                return True
+            except subprocess.TimeoutExpired as drain_exc:
+                stdout = stdout or _decode_timeout_stream(getattr(drain_exc, "output", ""))
+                stderr = _append_stream(stderr, getattr(drain_exc, "stderr", ""))
+                cleanup_lines.append(f"{label} drain timed out after {drain_timeout:.3f}s")
+                return False
+
         try:
-            graceful = _taskkill_tree(proc.pid, force=False)
-            cleanup_lines.append(graceful.stdout or graceful.stderr or "")
+            graceful = (
+                _taskkill_tree(proc.pid, force=False)
+                if os.name == "nt"
+                else _posix_signal_tree(proc.pid, force=False)
+            )
+            cleanup_lines.append(
+                f"graceful tree termination rc={graceful.returncode}: "
+                f"{(graceful.stdout or graceful.stderr or '').strip()}"
+            )
         except Exception as cleanup_exc:  # noqa: BLE001
             cleanup_lines.append(f"graceful tree termination failed: {cleanup_exc}")
-        try:
-            more_out, more_err = proc.communicate(timeout=5)
-            stdout = stdout or _decode_timeout_stream(more_out)
-            stderr = "\n".join(x for x in [stderr, _decode_timeout_stream(more_err)] if x)
-        except subprocess.TimeoutExpired:
+
+        if not _bounded_drain("post-graceful", _CODEX_GRACEFUL_DRAIN_SECONDS):
             try:
-                forced = _taskkill_tree(proc.pid, force=True)
-                cleanup_lines.append(forced.stdout or forced.stderr or "")
+                forced = (
+                    _taskkill_tree(proc.pid, force=True)
+                    if os.name == "nt"
+                    else _posix_signal_tree(proc.pid, force=True)
+                )
+                cleanup_lines.append(
+                    f"forced tree termination rc={forced.returncode}: "
+                    f"{(forced.stdout or forced.stderr or '').strip()}"
+                )
             except Exception as cleanup_exc:  # noqa: BLE001
                 cleanup_lines.append(f"forced tree termination failed: {cleanup_exc}")
-            try:
-                more_out, more_err = proc.communicate(timeout=5)
-                stdout = stdout or _decode_timeout_stream(more_out)
-                stderr = "\n".join(x for x in [stderr, _decode_timeout_stream(more_err)] if x)
-            except subprocess.TimeoutExpired:
-                cleanup_lines.append("process tree stdio did not close after forced termination")
+            _bounded_drain("post-force", _CODEX_FORCE_DRAIN_SECONDS)
+        if getattr(proc, "poll", lambda: None)() is None:
+            cleanup_lines.append("codex process still alive after forced termination")
         cleanup = "\n".join(line.strip() for line in cleanup_lines if line.strip())
         if cleanup:
             stderr = "\n".join(x for x in [stderr, cleanup] if x)
         raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout, output=stdout, stderr=stderr)
+
+
+def _run_codex_metadata_command(
+    cmd: list[str],
+    *,
+    caller: str,
+    timeout: float,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str] | None:
+    """Run Codex metadata commands under the same owned timeout discipline."""
+
+    return _run_codex_process_tree(
+        cmd,
+        caller=caller,
+        timeout=timeout,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
 
 
 def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str], dict[str, object]]:
@@ -299,7 +395,11 @@ class CodexModelExecutor:
         if not cli:
             return ""
         try:
-            r = gated_subprocess_run([cli, "--version"], caller="codex_executor", timeout=10)
+            r = _run_codex_metadata_command(
+                [cli, "--version"],
+                caller="codex_executor_version",
+                timeout=_CODEX_METADATA_TIMEOUT_SECONDS,
+            )
         except Exception:
             return ""
         return (r.stdout or r.stderr or "").strip() if r else ""
@@ -309,13 +409,19 @@ class CodexModelExecutor:
         if not cli:
             return ModelExecutorReadiness(False, self.identity, "codex CLI not found", False)
         try:
-            status = gated_subprocess_run(
+            status = _run_codex_metadata_command(
                 [cli, "login", "status"],
                 caller="codex_executor_readiness",
-                timeout=20,
-                capture_output=True,
-                text=True,
+                timeout=_CODEX_READINESS_TIMEOUT_SECONDS,
                 env=env,
+            )
+        except subprocess.TimeoutExpired as exc:
+            stderr = _sanitize(_decode_timeout_stream(getattr(exc, "stderr", "")) or str(exc))
+            return ModelExecutorReadiness(
+                False,
+                self.identity,
+                f"codex status timed out after {_CODEX_READINESS_TIMEOUT_SECONDS:.0f}s: {stderr[-240:]}",
+                False,
             )
         except Exception as exc:  # noqa: BLE001
             return ModelExecutorReadiness(False, self.identity, f"codex status failed: {exc}", False)
