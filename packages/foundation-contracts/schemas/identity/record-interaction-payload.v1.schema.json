@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/record-interaction-payload.v1.schema.json",
+  "title": "RecordInteractionPayload",
+  "description": "Payload for RecordInteraction.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["relationship_id", "interaction_type", "occurred_at"],
+  "properties": {
+    "relationship_id": {"type": "string", "minLength": 1},
+    "interaction_type": {"type": "string", "minLength": 1},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "direction": {"type": "string", "enum": ["inbound", "outbound", "internal", "unknown"]},
+    "channel": {"type": "string"},
+    "summary": {"type": "string"},
+    "source_object_refs": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"}
+    },
+    "actor_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json"},
+    "evidence_refs": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.umh.dev/foundation/envelopes/evidence-ref.v1.schema.json"}
+    },
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {"contractName": "RecordInteractionPayload", "contractVersion": "1.0.0", "commandType": "RecordInteraction.v1", "compatibility": "minor-additive"}
+}

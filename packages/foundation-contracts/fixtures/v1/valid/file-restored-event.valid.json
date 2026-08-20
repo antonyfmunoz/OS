@@ -1,0 +1,68 @@
+{
+  "eventId": "evt_file_restored_001",
+  "eventType": "FileRestored.v1",
+  "contractVersion": "1.0.0",
+  "aggregate": {
+    "objectType": "File",
+    "objectId": "file_01HZY920000000000000000001",
+    "version": 3
+  },
+  "aggregateVersion": 3,
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator",
+    "roleId": "file_manager"
+  },
+  "authorityContext": {
+    "organizationId": "org_umh",
+    "projectionId": "umh",
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "projectionId": "umh",
+      "serviceName": "os-discord",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["files.file.restore"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "occurredAt": "2026-08-19T18:30:01Z",
+  "sourceRuntime": {
+    "runtimeId": "runtime_umh_vps",
+    "runtimeKind": "umh-native",
+    "projectionId": "umh",
+    "serviceName": "os-discord",
+    "contractVersion": "1.0.0"
+  },
+  "correlationId": "corr_file_lifecycle_002",
+  "causationId": "cmd_restore_file_001",
+  "evidenceRefs": [],
+  "payload": {
+    "file": {
+      "id": "file_01HZY920000000000000000001",
+      "objectType": "File",
+      "schema_version": "1.0.0",
+      "name": "proposal.pdf",
+      "kind": "document",
+      "mime_type": "application/pdf",
+      "size_bytes": 2048,
+      "status": "ready",
+      "storage_binding": {
+        "provider": "local",
+        "storage_key": "fixtures/proposal.pdf"
+      },
+      "owner_ref": {
+        "objectType": "Organization",
+        "objectId": "org_umh"
+      },
+      "created_by": {
+        "actorType": "human",
+        "actorId": "user_operator"
+      },
+      "created_at": "2026-08-19T18:20:00Z",
+      "updated_at": "2026-08-19T18:30:01Z",
+      "current_version_id": "filever_001",
+      "version": 3
+    }
+  }
+}

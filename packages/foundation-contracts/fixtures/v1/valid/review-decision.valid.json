@@ -1,0 +1,1 @@
+{"id":"reviewdecision_001","objectType":"ReviewDecision","schema_version":"1.0.0","review_request_id":"reviewreq_001","document_id":"doc_001","revision_id":"docrev_002","reviewer_ref":{"actorType":"human","actorId":"reviewer_001","roleId":"reviewer"},"decision":"approved","comments":"Approved for publication workflow.","decided_at":"2026-08-20T10:00:00Z","version":1}

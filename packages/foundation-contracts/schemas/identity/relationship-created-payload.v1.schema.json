@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/relationship-created-payload.v1.schema.json",
+  "title": "RelationshipCreatedPayload",
+  "description": "Payload for RelationshipCreated.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["relationship"],
+  "properties": {
+    "relationship": {"$ref": "https://schemas.umh.dev/foundation/identity/relationship.v1.schema.json"}
+  },
+  "x-umh": {"contractName": "RelationshipCreatedPayload", "contractVersion": "1.0.0", "eventType": "RelationshipCreated.v1", "compatibility": "minor-additive"}
+}

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/files/file.v1.schema.json",
+  "title": "File",
+  "description": "Canonical stored artifact. Provider storage IDs are bindings, not canonical file identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "name", "kind", "status", "storage_binding", "owner_ref", "created_by", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "File"},
+    "schema_version": {"const": "1.0.0"},
+    "name": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "mime_type": {"type": "string"},
+    "size_bytes": {"type": "integer", "minimum": 0},
+    "status": {"type": "string", "enum": ["uploading", "processing", "ready", "quarantined", "archived", "trashed", "deleted"]},
+    "storage_binding": {"type": "object", "additionalProperties": true},
+    "owner_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "created_by": {"$ref": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "current_version_id": {"type": "string"},
+    "visibility": {"type": "string"},
+    "authority_scope": {"type": "object", "additionalProperties": true},
+    "provenance": {"type": "object", "additionalProperties": true},
+    "version": {"type": "integer", "minimum": 1},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {
+    "contractName": "File",
+    "contractVersion": "1.0.0",
+    "domain": "files",
+    "compatibility": "minor-additive",
+    "stateMachine": {
+      "states": ["uploading", "processing", "ready", "quarantined", "archived", "trashed", "deleted"],
+      "legalTransitions": [["uploading", "processing"], ["processing", "ready"], ["processing", "quarantined"], ["ready", "archived"], ["ready", "trashed"], ["quarantined", "archived"], ["archived", "ready"], ["archived", "trashed"], ["trashed", "ready"], ["trashed", "deleted"]]
+    }
+  }
+}

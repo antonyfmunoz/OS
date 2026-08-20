@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/files/file-restored-payload.v1.schema.json",
+  "title": "FileRestoredPayload",
+  "description": "Payload for FileRestored.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["file"],
+  "properties": {
+    "file": {"$ref": "https://schemas.umh.dev/foundation/files/file.v1.schema.json"}
+  },
+  "x-umh": {"contractName": "FileRestoredPayload", "contractVersion": "1.0.0", "eventType": "FileRestored.v1", "compatibility": "minor-additive"}
+}

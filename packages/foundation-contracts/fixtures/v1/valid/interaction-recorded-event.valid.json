@@ -1,0 +1,61 @@
+{
+  "eventId": "evt_interaction_recorded_001",
+  "eventType": "InteractionRecorded.v1",
+  "contractVersion": "1.0.0",
+  "aggregate": {
+    "objectType": "Interaction",
+    "objectId": "interaction_01HZY910000000000000000001",
+    "version": 1
+  },
+  "aggregateVersion": 1,
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator",
+    "roleId": "relationship_manager"
+  },
+  "authorityContext": {
+    "organizationId": "org_umh",
+    "projectionId": "umh",
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "projectionId": "umh",
+      "serviceName": "os-discord",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["identity.interaction.record"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "occurredAt": "2026-08-19T18:10:06Z",
+  "sourceRuntime": {
+    "runtimeId": "runtime_umh_vps",
+    "runtimeKind": "umh-native",
+    "projectionId": "umh",
+    "serviceName": "os-discord",
+    "contractVersion": "1.0.0"
+  },
+  "correlationId": "corr_relationship_interaction_001",
+  "causationId": "cmd_record_interaction_001",
+  "evidenceRefs": [],
+  "payload": {
+    "interaction": {
+      "id": "interaction_01HZY910000000000000000001",
+      "objectType": "Interaction",
+      "schema_version": "1.0.0",
+      "relationship_id": "rel_01HZY900000000000000000001",
+      "interaction_type": "call",
+      "occurred_at": "2026-08-19T18:10:00Z",
+      "direction": "outbound",
+      "channel": "voice",
+      "summary": "Discussed initial qualification scope.",
+      "source_object_refs": [
+        {
+          "objectType": "Message",
+          "objectId": "msg_source_001"
+        }
+      ],
+      "created_at": "2026-08-19T18:10:06Z",
+      "version": 1
+    }
+  }
+}

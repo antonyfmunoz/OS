@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/files/restore-file-payload.v1.schema.json",
+  "title": "RestoreFilePayload",
+  "description": "Payload for RestoreFile.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["file_ref", "restore_to_status", "reason"],
+  "properties": {
+    "file_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "restore_to_status": {"type": "string", "enum": ["ready", "archived"]},
+    "reason": {"type": "string", "minLength": 1},
+    "evidence_refs": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.umh.dev/foundation/envelopes/evidence-ref.v1.schema.json"}
+    }
+  },
+  "x-umh": {"contractName": "RestoreFilePayload", "contractVersion": "1.0.0", "commandType": "RestoreFile.v1", "compatibility": "minor-additive"}
+}

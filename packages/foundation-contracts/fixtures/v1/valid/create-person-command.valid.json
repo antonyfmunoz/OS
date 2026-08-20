@@ -1,0 +1,32 @@
+{
+  "commandId": "cmd_01HZY7TV3E0PZBT3V51PCE1P5B",
+  "commandType": "CreatePerson.v1",
+  "contractVersion": "1.0.0",
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator",
+    "roleId": "identity_admin"
+  },
+  "authorityContext": {
+    "organizationId": "org_umh",
+    "projectionId": "umh",
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "projectionId": "umh",
+      "serviceName": "os-discord",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["identity.person.create"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "target": null,
+  "payload": {
+    "display_name": "Avery Jordan",
+    "given_name": "Avery",
+    "family_name": "Jordan"
+  },
+  "issuedAt": "2026-08-19T18:00:00Z",
+  "idempotencyKey": "create-person:Avery-Jordan:2026-08-19",
+  "correlationId": "corr_foundation_contracts_001"
+}

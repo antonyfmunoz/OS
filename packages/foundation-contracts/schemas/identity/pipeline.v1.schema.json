@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/pipeline.v1.schema.json",
+  "title": "Pipeline",
+  "description": "Canonical opportunity pipeline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "name", "status", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "Pipeline"},
+    "schema_version": {"const": "1.0.0"},
+    "name": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["active", "archived"]},
+    "projection_namespace": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1}
+  },
+  "x-umh": {"contractName": "Pipeline", "contractVersion": "1.0.0", "domain": "identity", "compatibility": "minor-additive"}
+}

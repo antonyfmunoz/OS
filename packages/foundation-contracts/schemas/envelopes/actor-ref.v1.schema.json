@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json",
+  "title": "ActorRef",
+  "description": "Canonical actor reference for humans, agents, services, and systems.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actorType", "actorId"],
+  "properties": {
+    "actorType": {
+      "type": "string",
+      "enum": ["human", "agent", "service", "system"]
+    },
+    "actorId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roleId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "delegatedBy": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json"
+    }
+  },
+  "x-umh": {
+    "contractName": "ActorRef",
+    "contractVersion": "1.0.0",
+    "compatibility": "minor-additive"
+  }
+}

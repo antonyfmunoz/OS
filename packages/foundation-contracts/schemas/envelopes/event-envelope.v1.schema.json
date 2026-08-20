@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/envelopes/event-envelope.v1.schema.json",
+  "title": "EventEnvelope",
+  "description": "Canonical event envelope. Events record accepted state changes with causation, correlation, authority, and evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "eventId",
+    "eventType",
+    "contractVersion",
+    "aggregate",
+    "aggregateVersion",
+    "actor",
+    "authorityContext",
+    "occurredAt",
+    "sourceRuntime",
+    "correlationId",
+    "causationId",
+    "evidenceRefs",
+    "payload"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "eventType": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]+\\.v[0-9]+$"
+    },
+    "contractVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "aggregate": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"
+    },
+    "aggregateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "actor": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json"
+    },
+    "authorityContext": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/authority-context.v1.schema.json"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceRuntime": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/runtime-binding.v1.schema.json"
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "https://schemas.umh.dev/foundation/envelopes/evidence-ref.v1.schema.json"
+      }
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "x-umh": {
+    "contractName": "EventEnvelope",
+    "contractVersion": "1.0.0",
+    "compatibility": "minor-additive"
+  }
+}

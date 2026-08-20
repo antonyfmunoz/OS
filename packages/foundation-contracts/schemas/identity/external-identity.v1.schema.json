@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/external-identity.v1.schema.json",
+  "title": "ExternalIdentity",
+  "description": "Provider identity binding. Provider IDs never become canonical identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "owner_ref", "provider", "provider_subject_id", "status", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "ExternalIdentity"},
+    "schema_version": {"const": "1.0.0"},
+    "owner_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "provider": {"type": "string", "minLength": 1},
+    "provider_subject_id": {"type": "string", "minLength": 1},
+    "handle": {"type": "string"},
+    "profile_url": {"type": "string"},
+    "status": {"type": "string", "enum": ["active", "unverified", "revoked", "archived"]},
+    "verified_at": {"type": "string", "format": "date-time"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {"contractName": "ExternalIdentity", "contractVersion": "1.0.0", "domain": "identity", "compatibility": "minor-additive"}
+}

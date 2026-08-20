@@ -1,0 +1,1 @@
+{"commandId":"cmd_msg_bad","commandType":"QueueMessage.v1","contractVersion":"1.0.0","actor":{"actorType":"human","actorId":"user_operator"},"target":{"objectType":"Conversation","objectId":"conv_001","version":1},"payload":{"conversation_id":"conv_001","body":"Missing authority.","body_format":"plain"},"issuedAt":"2026-08-20T10:02:00Z","correlationId":"corr_msg_bad"}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/contact-point.v1.schema.json",
+  "title": "ContactPoint",
+  "description": "Canonical contact method owned by a Person or Organization ref.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "objectType", "schema_version", "owner_ref", "kind", "value", "verification_state", "provenance", "created_at", "updated_at", "version"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "objectType": {"const": "ContactPoint"},
+    "schema_version": {"const": "1.0.0"},
+    "owner_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "kind": {"type": "string", "enum": ["email", "phone", "social", "messaging-address", "website"]},
+    "value": {"type": "string", "minLength": 1},
+    "label": {"type": "string"},
+    "is_primary": {"type": "boolean"},
+    "verification_state": {"type": "string", "enum": ["unverified", "pending", "verified", "failed"]},
+    "consent_ref": {"$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"},
+    "provenance": {"type": "object", "additionalProperties": true},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "version": {"type": "integer", "minimum": 1},
+    "extensions": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$"},
+      "additionalProperties": true
+    }
+  },
+  "x-umh": {"contractName": "ContactPoint", "contractVersion": "1.0.0", "domain": "identity", "compatibility": "minor-additive"}
+}

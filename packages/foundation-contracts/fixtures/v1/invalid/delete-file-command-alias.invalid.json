@@ -1,0 +1,31 @@
+{
+  "commandId": "cmd_delete_file_alias",
+  "commandType": "DeleteFile.v1",
+  "contractVersion": "1.0.0",
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator"
+  },
+  "authorityContext": {
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["files.file.trash"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "target": {
+    "objectType": "File",
+    "objectId": "file_01HZY920000000000000000001"
+  },
+  "payload": {
+    "file_ref": {
+      "objectType": "File",
+      "objectId": "file_01HZY920000000000000000001"
+    },
+    "reason": "Legacy alias should not be canonical."
+  },
+  "issuedAt": "2026-08-19T18:25:00Z",
+  "correlationId": "corr_file_alias_misuse"
+}

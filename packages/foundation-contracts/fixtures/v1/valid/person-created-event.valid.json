@@ -1,0 +1,73 @@
+{
+  "eventId": "evt_01HZY7WDJ9ZDYH0K2MZHV8C9HA",
+  "eventType": "PersonCreated.v1",
+  "contractVersion": "1.0.0",
+  "aggregate": {
+    "objectType": "Person",
+    "objectId": "person_01HZY7R3P7K7JQZ7N4W3V5Z9A1",
+    "version": 1
+  },
+  "aggregateVersion": 1,
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator",
+    "roleId": "identity_admin"
+  },
+  "authorityContext": {
+    "organizationId": "org_umh",
+    "projectionId": "umh",
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "projectionId": "umh",
+      "serviceName": "os-discord",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["identity.person.create"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "occurredAt": "2026-08-19T18:00:01Z",
+  "sourceRuntime": {
+    "runtimeId": "runtime_umh_vps",
+    "runtimeKind": "umh-native",
+    "projectionId": "umh",
+    "serviceName": "os-discord",
+    "contractVersion": "1.0.0"
+  },
+  "correlationId": "corr_foundation_contracts_001",
+  "causationId": "cmd_01HZY7TV3E0PZBT3V51PCE1P5B",
+  "evidenceRefs": [
+    {
+      "evidenceId": "evref_01HZY80Q8S3N9BCYHQ3JEJ4NJ9",
+      "evidenceType": "operator-command",
+      "sourceRuntime": {
+        "runtimeId": "runtime_umh_vps",
+        "runtimeKind": "umh-native",
+        "projectionId": "umh",
+        "serviceName": "os-discord",
+        "contractVersion": "1.0.0"
+      },
+      "observedAt": "2026-08-19T18:00:00Z",
+      "contentHash": "sha256:foundation-contract-fixture"
+    }
+  ],
+  "payload": {
+    "person": {
+      "id": "person_01HZY7R3P7K7JQZ7N4W3V5Z9A1",
+      "objectType": "Person",
+      "schema_version": "1.0.0",
+      "display_name": "Avery Jordan",
+      "given_name": "Avery",
+      "family_name": "Jordan",
+      "status": "active",
+      "created_at": "2026-08-19T18:00:00Z",
+      "updated_at": "2026-08-19T18:00:00Z",
+      "version": 1,
+      "extensions": {
+        "lyfeos.relationship.v1": {
+          "private_context_available": true
+        }
+      }
+    }
+  }
+}

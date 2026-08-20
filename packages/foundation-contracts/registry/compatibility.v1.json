@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schemas.umh.dev/foundation/registry/compatibility.v1.schema.json",
+  "registryName": "UMH Foundation Compatibility",
+  "registryVersion": "1.0.0",
+  "policy": {
+    "minorPatchRule": "Patch and minor changes may add optional fields or compatible enum behavior only.",
+    "breakingRule": "Breaking semantic or state changes require a new major contract version.",
+    "unknownRequiredSemantics": "fail-closed",
+    "runtimeNegotiation": "Runtimes advertise supported contract ranges before exchanging mutable state."
+  },
+  "supportedRanges": [
+    {
+      "contract": "foundation.envelopes",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.identity",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.files",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.messages",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.docs",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.databases",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.forms",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.calendar",
+      "range": ">=1.0.0 <2.0.0"
+    },
+    {
+      "contract": "foundation.finance",
+      "range": ">=1.0.0 <2.0.0"
+    }
+  ],
+  "extensionNamespaces": {
+    "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*\\.v[0-9]+$",
+    "rule": "Projection extensions must be namespaced and removable without changing base object meaning."
+  }
+}

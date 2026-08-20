@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/identity/interaction-recorded-payload.v1.schema.json",
+  "title": "InteractionRecordedPayload",
+  "description": "Payload for InteractionRecorded.v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["interaction"],
+  "properties": {
+    "interaction": {"$ref": "https://schemas.umh.dev/foundation/identity/interaction.v1.schema.json"}
+  },
+  "x-umh": {"contractName": "InteractionRecordedPayload", "contractVersion": "1.0.0", "eventType": "InteractionRecorded.v1", "compatibility": "minor-additive"}
+}

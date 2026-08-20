@@ -1,0 +1,1 @@
+{"id":"assign_001","objectType":"Assignment","schema_version":"1.0.0","conversation_id":"conv_001","actor_ref":{"actorType":"human","actorId":"agent_001","roleId":"support_agent"},"queue":"support","status":"active","assigned_at":"2026-08-20T10:06:00Z","created_at":"2026-08-20T10:06:00Z","updated_at":"2026-08-20T10:06:00Z","version":1}

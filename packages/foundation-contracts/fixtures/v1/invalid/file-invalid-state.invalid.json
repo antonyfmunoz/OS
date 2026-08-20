@@ -1,0 +1,23 @@
+{
+  "id": "file_bad_state",
+  "objectType": "File",
+  "schema_version": "1.0.0",
+  "name": "bad.txt",
+  "kind": "text",
+  "status": "removed",
+  "storage_binding": {
+    "provider": "local",
+    "storage_key": "bad.txt"
+  },
+  "owner_ref": {
+    "objectType": "Organization",
+    "objectId": "org_umh"
+  },
+  "created_by": {
+    "actorType": "human",
+    "actorId": "user_operator"
+  },
+  "created_at": "2026-08-19T18:20:00Z",
+  "updated_at": "2026-08-19T18:20:00Z",
+  "version": 1
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/envelopes/command-envelope.v1.schema.json",
+  "title": "CommandEnvelope",
+  "description": "Canonical command envelope. Commands express intent and require runtime authority evaluation before mutation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "commandId",
+    "commandType",
+    "contractVersion",
+    "actor",
+    "authorityContext",
+    "target",
+    "payload",
+    "issuedAt",
+    "correlationId"
+  ],
+  "properties": {
+    "commandId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "commandType": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]+\\.v[0-9]+$"
+    },
+    "contractVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "actor": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/actor-ref.v1.schema.json"
+    },
+    "authorityContext": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/authority-context.v1.schema.json"
+    },
+    "target": {
+      "oneOf": [
+        {
+          "$ref": "https://schemas.umh.dev/foundation/envelopes/object-ref.v1.schema.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "causationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expectedAggregateVersion": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "x-umh": {
+    "contractName": "CommandEnvelope",
+    "contractVersion": "1.0.0",
+    "compatibility": "minor-additive"
+  }
+}

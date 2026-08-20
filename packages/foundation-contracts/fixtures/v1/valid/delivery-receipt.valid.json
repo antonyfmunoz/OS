@@ -1,0 +1,1 @@
+{"id":"receipt_001","objectType":"DeliveryReceipt","schema_version":"1.0.0","message_id":"msg_001","delivery_attempt_id":"attempt_001","provider":"email-adapter","state":"failed","occurred_at":"2026-08-20T10:04:00Z","failure_code":"temporary-provider-error","version":1}

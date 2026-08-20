@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/envelopes/authority-context.v1.schema.json",
+  "title": "AuthorityContext",
+  "description": "Authority and policy context carried by commands and events. Validation is not authorization.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runtimeBinding", "permissionSet", "policyVersion"],
+  "properties": {
+    "organizationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtimeBinding": {
+      "$ref": "https://schemas.umh.dev/foundation/envelopes/runtime-binding.v1.schema.json"
+    },
+    "permissionSet": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "policyVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approvalId": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "x-umh": {
+    "contractName": "AuthorityContext",
+    "contractVersion": "1.0.0",
+    "compatibility": "minor-additive"
+  }
+}

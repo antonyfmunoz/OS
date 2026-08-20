@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.umh.dev/foundation/envelopes/runtime-binding.v1.schema.json",
+  "title": "RuntimeBinding",
+  "description": "Runtime identity and contract support advertised by a local or federated runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runtimeId", "runtimeKind", "contractVersion"],
+  "properties": {
+    "runtimeId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runtimeKind": {
+      "type": "string",
+      "enum": ["umh-native", "projection-local", "connected-federated", "adapter"]
+    },
+    "projectionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "serviceName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contractVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    }
+  },
+  "x-umh": {
+    "contractName": "RuntimeBinding",
+    "contractVersion": "1.0.0",
+    "compatibility": "minor-additive"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "commandId": "cmd_trash_file_001",
+  "commandType": "TrashFile.v1",
+  "contractVersion": "1.0.0",
+  "actor": {
+    "actorType": "human",
+    "actorId": "user_operator",
+    "roleId": "file_manager"
+  },
+  "authorityContext": {
+    "organizationId": "org_umh",
+    "projectionId": "umh",
+    "runtimeBinding": {
+      "runtimeId": "runtime_umh_vps",
+      "runtimeKind": "umh-native",
+      "projectionId": "umh",
+      "serviceName": "os-discord",
+      "contractVersion": "1.0.0"
+    },
+    "permissionSet": ["files.file.trash"],
+    "policyVersion": "foundation-policy.v1"
+  },
+  "target": {
+    "objectType": "File",
+    "objectId": "file_01HZY920000000000000000001",
+    "version": 1
+  },
+  "payload": {
+    "file_ref": {
+      "objectType": "File",
+      "objectId": "file_01HZY920000000000000000001",
+      "version": 1
+    },
+    "reason": "User-requested reversible removal."
+  },
+  "issuedAt": "2026-08-19T18:25:00Z",
+  "idempotencyKey": "trash-file:file_01HZY920000000000000000001:001",
+  "correlationId": "corr_file_lifecycle_001",
+  "expectedAggregateVersion": 1
+}
