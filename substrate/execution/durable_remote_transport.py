@@ -170,6 +170,19 @@ class DurableRemoteRequest:
             "diagnostics": self.diagnostics,
         }
 
+    def cancellation_identity(self, *, claim_id: str | None = None) -> dict[str, Any]:
+        identity = {
+            "request_id": self.request_id,
+            "correlation_id": self.correlation_id,
+            "node_id": self.node_id,
+            "claim_id": claim_id if claim_id is not None else self.claim_id,
+            "cancellation_generation": self.cancellation_requested_at,
+            "cancellation_requested_at": self.cancellation_requested_at,
+            "cancellation_deadline_at": self.cancellation_deadline_at,
+        }
+        identity["cancellation_envelope_digest"] = sha256_json(identity)
+        return identity
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "DurableRemoteRequest":
         return cls(
@@ -347,6 +360,27 @@ class DurableRemoteStore:
             or req.cleanup.get("process_residue")
         )
 
+    def _cancellation_ack_rejection_reason(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        cleanup: dict[str, Any] | None,
+    ) -> str:
+        if claim_id == "unclaimed" and req.diagnostics.get("cancelled_before_claim"):
+            return ""
+        if not req.cancellation_requested_at or not req.cancellation_deadline_at:
+            return "cancel_ack_without_active_cancellation"
+        if cleanup is None:
+            return "cancel_ack_missing_cleanup"
+        if cleanup.get("process_residue") != []:
+            return "cancel_ack_without_zero_residue"
+        expected = req.cancellation_identity(claim_id=claim_id)
+        for key, value in expected.items():
+            if cleanup.get(key) != value:
+                return f"cancel_ack_identity_mismatch:{key}"
+        return ""
+
     def _converge_existing_result_locked(
         self, req: DurableRemoteRequest
     ) -> DurableRemoteRequest:
@@ -409,6 +443,18 @@ class DurableRemoteStore:
             req.diagnostics.setdefault("cancelled_before_claim", True)
             self._update_request_locked(req, "TERMINAL_RESULT_RECOVERED")
             return req
+        if state == "CANCELLED":
+            reason = self._cancellation_ack_rejection_reason(
+                req,
+                claim_id=claim_id,
+                cleanup=cleanup,
+            )
+            if reason:
+                req.cleanup = cleanup
+                req.diagnostics.setdefault("cancel_ack_rejected", []).append(
+                    {"reason": reason, "claim_id": claim_id}
+                )
+                return self._enter_reconciliation(req, reason=reason)
         if not claim_id or req.claim_id != claim_id:
             req.diagnostics.setdefault("unclaimed_terminal_result_ignored", []).append(
                 {
@@ -913,8 +959,11 @@ class DurableRemoteStore:
                 and req.cancellation_deadline_at
                 and cleanup is not None
                 and cleanup.get("process_residue") == []
-                and cleanup.get("cancellation_generation") == req.cancellation_requested_at
-                and cleanup.get("cancellation_deadline_at") == req.cancellation_deadline_at
+                and not self._cancellation_ack_rejection_reason(
+                    req,
+                    claim_id=claim_id,
+                    cleanup=cleanup,
+                )
                 and not self._has_process_residue_diagnostic(req)
             )
             if (
@@ -968,6 +1017,26 @@ class DurableRemoteStore:
             req.cleanup = cleanup
             req.diagnostics[reason] = cleanup.get("process_residue")
             return self._enter_reconciliation(req, reason=reason)
+        if state == "CANCELLED":
+            reason = self._cancellation_ack_rejection_reason(
+                req,
+                claim_id=claim_id,
+                cleanup=cleanup,
+            )
+            if reason:
+                self._write_rejected_result_record(
+                    req,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                    reason=reason,
+                )
+                req.cleanup = cleanup or {}
+                req.diagnostics.setdefault("cancel_ack_rejected", []).append(
+                    {"reason": reason, "claim_id": claim_id}
+                )
+                return self._enter_reconciliation(req, reason=reason)
         if req.lifecycle_state == "CANCEL_REQUESTED" and state == "SUCCEEDED":
             if req.cancellation_acknowledged_at:
                 self._write_rejected_result_record(

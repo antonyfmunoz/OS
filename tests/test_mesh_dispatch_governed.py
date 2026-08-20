@@ -23,9 +23,9 @@ from collections import deque
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _REPO_ROOT)
 
-import pytest
+import pytest  # noqa: E402
 
-from substrate.execution.mesh_verdict import (
+from substrate.execution.mesh_verdict import (  # noqa: E402
     is_write_class,
     sign_verdict,
     verify_verdict,
@@ -1046,12 +1046,18 @@ def test_durable_node_replays_terminal_result_with_original_cleanup(tmp_path):
     client._ws = ws
     req = client._durable_store.put_request(_durable_request())
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    req = client._durable_store.request_cancel(req.request_id)
+    cleanup = {
+        "process_residue": [],
+        "cancel_reason": "unit",
+        **req.cancellation_identity(claim_id="claim-1"),
+    }
     client._durable_store.publish_result(
         req.request_id,
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={"process_residue": [], "cancel_reason": "unit"},
+        cleanup=cleanup,
     )
 
     asyncio.run(
@@ -1063,10 +1069,7 @@ def test_durable_node_replays_terminal_result_with_original_cleanup(tmp_path):
     assert len(ws.sent) == 1
     replay = ws.sent[0]
     assert replay["method"] == "durable_command.result"
-    assert replay["params"]["cleanup"] == {
-        "process_residue": [],
-        "cancel_reason": "unit",
-    }
+    assert replay["params"]["cleanup"] == cleanup
     assert replay["params"]["idempotent_replay"] is True
 
 
@@ -1090,7 +1093,69 @@ def test_durable_cancel_ack_includes_request_bound_generation(tmp_path):
     assert terminal.cleanup["process_residue"] == []
     assert terminal.cleanup["cancel_reason"] == "cancel requested by controller"
     assert terminal.cleanup["cancellation_generation"] == req.cancellation_requested_at
+    assert terminal.cleanup["cancellation_requested_at"] == req.cancellation_requested_at
     assert terminal.cleanup["cancellation_deadline_at"] == req.cancellation_deadline_at
+    assert terminal.cleanup["claim_id"] == "claim-1"
+    assert terminal.cleanup["cancellation_envelope_digest"] == req.cancellation_identity(
+        claim_id="claim-1"
+    )["cancellation_envelope_digest"]
+
+
+def test_durable_cancel_delivery_after_claim_uses_delivered_cancellation_identity(tmp_path):
+    client = _durable_node_client(tmp_path)
+    ws = _DurableAckWs(client)
+    client._ws = ws
+    original = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(original.request_id, claim_id="claim-1")
+    client._durable_store.mark_running(original.request_id, claim_id="claim-1")
+    delivered = client._durable_store.get_request(original.request_id)
+    assert delivered is not None
+    delivered.lifecycle_state = "CANCEL_REQUESTED"
+    delivered.cancellation_requested_at = 1234.5
+    delivered.cancellation_deadline_at = 1300.5
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": delivered.to_dict()}
+        )
+    )
+
+    result = client._durable_store.result_for(original.request_id)
+    assert result is not None
+    assert result["state"] == "CANCELLED"
+    cleanup = result["cleanup"]
+    assert cleanup["process_residue"] == []
+    assert cleanup["cancellation_generation"] == 1234.5
+    assert cleanup["cancellation_requested_at"] == 1234.5
+    assert cleanup["cancellation_deadline_at"] == 1300.5
+    assert cleanup["claim_id"] == "claim-1"
+    assert cleanup["cancellation_envelope_digest"] == delivered.cancellation_identity(
+        claim_id="claim-1"
+    )["cancellation_envelope_digest"]
+
+
+def test_durable_cancel_delivery_missing_identity_does_not_terminalize(tmp_path):
+    client = _durable_node_client(tmp_path)
+    ws = _DurableAckWs(client)
+    client._ws = ws
+    original = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(original.request_id, claim_id="claim-1")
+    delivered = client._durable_store.get_request(original.request_id)
+    assert delivered is not None
+    delivered.lifecycle_state = "CANCEL_REQUESTED"
+    delivered.cancellation_requested_at = 0.0
+    delivered.cancellation_deadline_at = 0.0
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": delivered.to_dict()}
+        )
+    )
+
+    assert client._durable_store.result_for(original.request_id) is None
+    current = client._durable_store.get_request(original.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "CLAIMED"
 
 
 def test_durable_shell_cancel_during_execution_includes_request_bound_generation(
@@ -1140,7 +1205,9 @@ def test_durable_shell_cancel_during_execution_includes_request_bound_generation
     assert result["cleanup"]["process_residue"] == []
     assert result["cleanup"]["cancel_reason"] == "cancel requested during execution"
     assert result["cleanup"]["cancellation_generation"] == current.cancellation_requested_at
+    assert result["cleanup"]["cancellation_requested_at"] == current.cancellation_requested_at
     assert result["cleanup"]["cancellation_deadline_at"] == current.cancellation_deadline_at
+    assert result["cleanup"]["claim_id"] == "claim-1"
 
 
 # ── Governed remote dispatch routes through the right mutation ─────────────

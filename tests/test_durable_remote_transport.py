@@ -106,12 +106,17 @@ def test_cancel_ack_rejects_late_success_but_preserves_evidence(tmp_path) -> Non
     req = store.put_request(_request())
     store.mark_claimed(req.request_id, claim_id="claim-1")
     store.request_cancel(req.request_id)
+    current = store.get_request(req.request_id)
+    assert current is not None
     cancelled = store.publish_result(
         req.request_id,
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={"process_residue": []},
+        cleanup={
+            "process_residue": [],
+            **current.cancellation_identity(claim_id="claim-1"),
+        },
     )
     assert cancelled.lifecycle_state == "CANCELLED"
 
@@ -125,6 +130,107 @@ def test_cancel_ack_rejects_late_success_but_preserves_evidence(tmp_path) -> Non
     assert final.lifecycle_state == "CANCELLED"
     assert final.diagnostics["rejected_late_results"][0]["incoming_state"] == "SUCCEEDED"
     assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+
+
+def test_cancel_ack_zero_generation_rejected_before_terminal_cancelled(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [],
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "node_id": req.node_id,
+            "claim_id": "claim-1",
+            "cancellation_generation": 0.0,
+            "cancellation_requested_at": 0.0,
+            "cancellation_deadline_at": cancelled.cancellation_deadline_at,
+            "cancellation_envelope_digest": "wrong",
+        },
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.cancellation_acknowledged_at == 0.0
+    assert rejected.diagnostics["cancel_ack_rejected"][0]["reason"].startswith(
+        "cancel_ack_identity_mismatch"
+    )
+    assert store.result_for(req.request_id) is None
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+
+
+def test_cancel_ack_cleanup_proof_without_identity_rejected(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.cancellation_acknowledged_at == 0.0
+    assert rejected.diagnostics["cancel_ack_rejected"][0]["reason"].startswith(
+        "cancel_ack_identity_mismatch"
+    )
+    assert store.result_for(req.request_id) is None
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("cancellation_generation", None),
+        ("cancellation_generation", 0.0),
+        ("cancellation_generation", 99.0),
+        ("cancellation_generation", 101.0),
+        ("cancellation_requested_at", None),
+        ("cancellation_deadline_at", None),
+        ("cancellation_deadline_at", 0.0),
+        ("claim_id", "other-claim"),
+        ("request_id", "other-request"),
+        ("correlation_id", "other-correlation"),
+        ("cancellation_envelope_digest", "wrong"),
+    ],
+)
+def test_cancel_ack_identity_fields_must_match_active_cancellation(
+    tmp_path, monkeypatch, field, value
+) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+    cleanup = {"process_residue": [], **cancelled.cancellation_identity(claim_id="claim-1")}
+    if value is None:
+        cleanup.pop(field)
+    else:
+        cleanup[field] = value
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup=cleanup,
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.cancellation_acknowledged_at == 0.0
+    assert rejected.diagnostics["cancel_ack_rejected"]
+    assert store.result_for(req.request_id) is None
 
 
 def test_unclaimed_result_is_rejected_and_cannot_terminalize(tmp_path) -> None:
@@ -499,7 +605,10 @@ def test_cancelled_with_process_residue_requires_reconciliation(tmp_path) -> Non
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+        cleanup={
+            "process_residue": [{"pid": 123, "state": "still_alive"}],
+            **store.get_request(req.request_id).cancellation_identity(claim_id="claim-1"),
+        },
     )
 
     assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
@@ -559,7 +668,10 @@ def test_residue_bearing_reconciliation_does_not_terminalize_without_cleanup(
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+        cleanup={
+            "process_residue": [{"pid": 123, "state": "still_alive"}],
+            **store.get_request(req.request_id).cancellation_identity(claim_id="claim-1"),
+        },
     )
 
     monkeypatch.setattr(durable, "now_s", lambda: 200.0)
@@ -671,6 +783,7 @@ def test_cancellation_ack_recovery_requires_matching_generation_and_deadline(
         cleanup={
             "process_residue": [],
             "cancellation_generation": cancelled.cancellation_requested_at - 1,
+            "cancellation_requested_at": cancelled.cancellation_requested_at - 1,
             "cancellation_deadline_at": cancelled.cancellation_deadline_at,
         },
     )
@@ -683,8 +796,7 @@ def test_cancellation_ack_recovery_requires_matching_generation_and_deadline(
         result={"success": False, "error": "cancelled"},
         cleanup={
             "process_residue": [],
-            "cancellation_generation": cancelled.cancellation_requested_at,
-            "cancellation_deadline_at": cancelled.cancellation_deadline_at,
+            **cancelled.cancellation_identity(claim_id="claim-1"),
         },
     )
 
@@ -805,12 +917,18 @@ def test_terminal_replay_with_cleanup_conflict_does_not_get_dropped(tmp_path) ->
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
     store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+    current = store.get_request(req.request_id)
+    assert current is not None
     first = store.publish_result(
         req.request_id,
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={"process_residue": []},
+        cleanup={
+            "process_residue": [],
+            **current.cancellation_identity(claim_id="claim-1"),
+        },
     )
     assert first.lifecycle_state == "CANCELLED"
 

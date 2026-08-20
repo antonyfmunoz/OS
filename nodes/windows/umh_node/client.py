@@ -631,6 +631,18 @@ class NodeClient:
             return
 
         req = self._durable_store.put_request(delivered_req)
+        if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
+            if (
+                not delivered_req.cancellation_requested_at
+                or not delivered_req.cancellation_deadline_at
+            ):
+                logger.error(
+                    "durable cancel missing identity for %s; refusing cancellation ack",
+                    delivered_req.request_id,
+                )
+                return
+            self._durable_store.update_request(delivered_req, "CANCEL_REQUESTED")
+            req = self._durable_store.get_request(delivered_req.request_id) or delivered_req
         existing = self._durable_store.result_for(req.request_id)
         if existing:
             await self._send_durable_event(
@@ -750,18 +762,18 @@ class NodeClient:
         claim_id: str,
         reason: str,
     ) -> DurableRemoteRequest:
+        if not req.cancellation_requested_at or not req.cancellation_deadline_at:
+            raise ValueError(f"cancel identity missing for durable request {req.request_id}")
         proc = self._durable_processes.get(req.request_id)
         cleanup = {
             "process_residue": [],
             "cancel_reason": reason,
-            "cancellation_generation": req.cancellation_requested_at,
-            "cancellation_deadline_at": req.cancellation_deadline_at,
+            **req.cancellation_identity(claim_id=claim_id),
         }
         if proc is not None and proc.poll() is None:
             cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
             cleanup["cancel_reason"] = reason
-            cleanup["cancellation_generation"] = req.cancellation_requested_at
-            cleanup["cancellation_deadline_at"] = req.cancellation_deadline_at
+            cleanup.update(req.cancellation_identity(claim_id=claim_id))
         return self._durable_store.publish_result(
             req.request_id,
             claim_id=claim_id,
@@ -957,8 +969,7 @@ class NodeClient:
                 if local and local.lifecycle_state == "CANCEL_REQUESTED":
                     cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
                     cleanup["cancel_reason"] = "cancel requested during execution"
-                    cleanup["cancellation_generation"] = local.cancellation_requested_at
-                    cleanup["cancellation_deadline_at"] = local.cancellation_deadline_at
+                    cleanup.update(local.cancellation_identity(claim_id=claim_id))
                     return {
                         "success": False,
                         "error": "cancel requested during execution",

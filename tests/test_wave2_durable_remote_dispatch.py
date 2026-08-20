@@ -300,12 +300,17 @@ def test_durable_remote_shell_timeout_waits_for_cancel_terminalization(
     def cancelling(request_id: str):
         original_request_cancel(request_id)
         store.mark_claimed(request_id, claim_id="node-claim")
+        current = store.get_request(request_id)
+        assert current is not None
         return store.publish_result(
             request_id,
             claim_id="node-claim",
             state="CANCELLED",
             result={"success": False, "error": "cancel requested by controller"},
-            cleanup={"process_residue": []},
+            cleanup={
+                "process_residue": [],
+                **current.cancellation_identity(claim_id="node-claim"),
+            },
         )
 
     monkeypatch.setattr(dispatch, "DurableRemoteStore", lambda: store, raising=False)
@@ -452,8 +457,7 @@ def test_same_claim_cancel_ack_can_recover_reconciliation_window(monkeypatch, tm
         cleanup={
             "process_residue": [],
             "cancel_reason": "cancel requested by controller",
-            "cancellation_generation": current.cancellation_requested_at,
-            "cancellation_deadline_at": current.cancellation_deadline_at,
+            **current.cancellation_identity(claim_id="node-claim"),
         },
     )
 
