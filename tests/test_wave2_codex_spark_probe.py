@@ -1,8 +1,16 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
+from substrate.execution.attempts.model_executor_contract import (
+    ModelExecutorIdentity,
+    ModelExecutorReadiness,
+    ModelInvocation,
+    ModelTerminalResult,
+)
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "wave2_codex_spark_probe.py"
 
@@ -169,6 +177,85 @@ def test_probe_validation_ignores_model_generated_identity_claims() -> None:
         expected_model="gpt-5.3-codex-spark",
         expected_version="codex-cli 0.147.0",
     ) == []
+
+
+def test_probe_returns_structured_timeout_before_outer_transport(tmp_path, monkeypatch) -> None:
+    module = _probe_module()
+    identity = ModelExecutorIdentity(
+        provider="codex",
+        model="gpt-5.3-codex-spark",
+        version="codex-cli 0.147.0",
+        adapter="CodexModelExecutor",
+    )
+
+    class FakeExecutor:
+        def readiness(self, *, env=None):
+            return ModelExecutorReadiness(True, identity, authenticated=True)
+
+        def build_invocation(self, packet):
+            return ModelInvocation(
+                argv=["codex", "exec", "--json", "-m", identity.model, "-"],
+                stdin=packet.prompt,
+                cwd=packet.worktree_path,
+            )
+
+        def collect_result(self, packet, completed, *, duration_seconds):
+            return ModelTerminalResult(
+                ok=False,
+                status="failed",
+                identity=identity,
+                duration_seconds=duration_seconds,
+                proof_binding=packet.proof_binding,
+            )
+
+    FakeExecutor.identity = identity
+
+    home_root = tmp_path / "home"
+    codex_dir = home_root / ".codex"
+    codex_dir.mkdir(parents=True)
+    fake_home = SimpleNamespace(
+        home_path=str(home_root),
+        codex_dir=str(codex_dir),
+        credential_files=[],
+        env_overrides=lambda: {"CODEX_HOME": str(codex_dir)},
+    )
+
+    def timeout(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(
+            cmd=["codex"],
+            timeout=3,
+            output=(
+                '{"type":"thread.started"}\n'
+                '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":2}}\n'
+            ),
+            stderr="Authorization: Bearer secret-token\ncodex process tree terminated",
+        )
+
+    monkeypatch.setattr(module, "build_model_executor", lambda: FakeExecutor())
+    monkeypatch.setattr(module, "open_attempt_credential_home", lambda **_kw: fake_home)
+    monkeypatch.setattr(module, "close_attempt_credential_home", lambda _home: None)
+    monkeypatch.setattr(module, "_run_codex_process_tree", timeout)
+
+    result = module.run_probe(
+        sha="sha",
+        worktree=str(tmp_path),
+        model=identity.model,
+        timeout=3,
+        expected_version=identity.version,
+        request_id="probe-timeout",
+    )
+
+    assert result["ok"] is False
+    assert result["timed_out"] is True
+    assert result["retry_class"] == "external_transient"
+    assert "codex process tree terminated" in result["raw_stderr"]
+    assert "secret-token" not in result["raw_stderr"]
+    assert "[redacted credential-bearing line]" in result["raw_stderr"]
+    assert "input_tokens" in result["raw_stdout_jsonl"]
+    assert "output_tokens" in result["raw_stdout_jsonl"]
+    assert "[redacted credential-bearing line]" not in result["raw_stdout_jsonl"]
+    assert result["raw_event_summary"]["event_types"] == ["thread.started", "turn.completed"]
+    assert result["run_root_exists_after_cleanup"] is False
 
 
 def test_probe_validation_fails_closed_on_readiness_or_cleanup_gap() -> None:

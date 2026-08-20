@@ -18,11 +18,14 @@ _WORKTREE = Path(__file__).resolve().parent.parent
 if str(_WORKTREE) not in sys.path:
     sys.path.insert(0, str(_WORKTREE))
 
-from substrate.execution.cpu_gate import gated_subprocess_run
-from substrate.execution.attempts.host_isolation import scrub_worker_env
-from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
-from substrate.execution.attempts.model_executor_selection import build_model_executor
-from substrate.execution.attempts.worker_credential_boundary import (
+from substrate.execution.attempts.host_isolation import scrub_worker_env  # noqa: E402
+from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput  # noqa: E402
+from substrate.execution.attempts.model_executor_selection import build_model_executor  # noqa: E402
+from substrate.execution.attempts.model_executors.codex import (  # noqa: E402
+    _run_codex_process_tree,
+    _sanitize,
+)
+from substrate.execution.attempts.worker_credential_boundary import (  # noqa: E402
     close_attempt_credential_home,
     open_attempt_credential_home,
 )
@@ -202,7 +205,7 @@ def run_probe(
         start = time.monotonic()
         timed_out = False
         try:
-            completed = gated_subprocess_run(
+            completed = _run_codex_process_tree(
                 invocation.argv,
                 caller="wave2_codex_spark_probe",
                 timeout=packet.timeout_seconds,
@@ -215,11 +218,23 @@ def run_probe(
         except subprocess.TimeoutExpired as exc:
             completed = None
             timed_out = True
-            raw_stdout = ""
-            raw_stderr = str(exc)
+            raw_stdout = _sanitize(
+                exc.output.decode("utf-8", errors="replace")
+                if isinstance(exc.output, bytes)
+                else str(exc.output or "")
+            )
+            raw_stderr = _sanitize(
+                exc.stderr.decode("utf-8", errors="replace")
+                if isinstance(exc.stderr, bytes)
+                else str(exc.stderr or exc)
+            )
         duration = time.monotonic() - start
         if completed is None:
             result = executor.collect_result(packet, None, duration_seconds=duration)
+            if timed_out:
+                result.timed_out = True
+                result.stderr = raw_stderr
+                result.retry_class = "external_transient"
             if not timed_out:
                 raw_stdout = ""
                 raw_stderr = "subprocess skipped by CPU gate or unavailable"

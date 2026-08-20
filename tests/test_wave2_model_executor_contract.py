@@ -8,7 +8,13 @@ from types import SimpleNamespace
 import pytest
 
 from substrate.execution.attempts.host_isolation import scrub_worker_env
-from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
+from substrate.execution.attempts.model_executor_contract import (
+    ModelExecutorIdentity,
+    ModelExecutorReadiness,
+    ModelInvocation,
+    ModelTerminalResult,
+    ModelWorkPacketInput,
+)
 from substrate.execution.attempts.model_executor_selection import (
     build_model_executor,
     selected_codex_model,
@@ -21,12 +27,6 @@ from substrate.execution.attempts.model_executors.deterministic import (
 from substrate.execution.attempts.worker_credential_boundary import (
     close_attempt_credential_home,
     open_attempt_credential_home,
-)
-from substrate.execution.attempts.model_executor_contract import (
-    ModelExecutorIdentity,
-    ModelExecutorReadiness,
-    ModelInvocation,
-    ModelTerminalResult,
 )
 
 
@@ -546,6 +546,88 @@ def test_codex_adapter_classifies_timeout(tmp_path, monkeypatch):
     result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
     assert result.timed_out
     assert result.retry_class == "external_transient"
+
+
+def test_codex_adapter_preserves_timeout_stdout_stderr_evidence(tmp_path, monkeypatch):
+    def timeout(*_args, **_kwargs):
+        raise subprocess.TimeoutExpired(
+            cmd=["codex"],
+            timeout=1,
+            output='{"type":"thread.started"}\n',
+            stderr="provider reported not logged in before timeout",
+        )
+
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: "/usr/bin/codex",
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
+        timeout,
+    )
+    result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
+
+    assert result.timed_out
+    assert result.retry_class == "external_transient"
+    assert result.stdout == '{"type":"thread.started"}'
+    assert "not logged in" in result.stderr
+
+
+def test_codex_windows_timeout_terminates_complete_process_tree(monkeypatch):
+    from substrate.execution.attempts.model_executors import codex as codex_mod
+
+    calls: list[tuple[int, bool]] = []
+
+    class FakeProc:
+        pid = 1234
+        returncode = None
+
+        def __init__(self):
+            self.communicate_calls = 0
+
+        def communicate(self, *, input=None, timeout=None):
+            self.communicate_calls += 1
+            if self.communicate_calls <= 2:
+                raise subprocess.TimeoutExpired(
+                    cmd=["codex"],
+                    timeout=timeout,
+                    output="partial jsonl",
+                    stderr="stdio still open",
+                )
+            return "", ""
+
+    proc = FakeProc()
+    monkeypatch.setattr(codex_mod.os, "name", "nt")
+    popen_kwargs = {}
+
+    def fake_popen(*_args, **kwargs):
+        popen_kwargs.update(kwargs)
+        return proc
+
+    monkeypatch.setattr(codex_mod, "gated_popen", fake_popen)
+
+    def fake_taskkill(pid: int, *, force: bool):
+        calls.append((pid, force))
+        return SimpleNamespace(returncode=0, stdout=f"killed {pid} force={force}", stderr="")
+
+    monkeypatch.setattr(codex_mod, "_taskkill_tree", fake_taskkill)
+
+    with pytest.raises(subprocess.TimeoutExpired) as exc:
+        codex_mod._run_codex_process_tree(
+            ["codex", "exec"],
+            caller="unit",
+            timeout=1,
+            cwd=".",
+            env={},
+            input="prompt",
+            capture_output=True,
+            text=True,
+        )
+
+    assert calls == [(1234, False), (1234, True)]
+    assert "stdio still open" in str(exc.value.stderr)
+    assert "force=True" in str(exc.value.stderr)
+    assert popen_kwargs["stdin"] is codex_mod.subprocess.PIPE
 
 
 def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, monkeypatch):

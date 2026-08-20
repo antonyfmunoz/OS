@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
-import hashlib
 import shutil
 import subprocess
 import time
 
-from substrate.execution.cpu_gate import gated_subprocess_run
 from substrate.execution.attempts.model_executor_contract import (
     ModelExecutorIdentity,
     ModelExecutorReadiness,
@@ -19,6 +18,7 @@ from substrate.execution.attempts.model_executor_contract import (
     ModelWorkPacketInput,
 )
 from substrate.execution.attempts.model_executor_selection import selected_codex_model
+from substrate.execution.cpu_gate import gated_popen, gated_subprocess_run
 
 _ERROR_SIGNATURES = (
     "auth",
@@ -55,7 +55,6 @@ def _sanitize(text: str) -> str:
                 "authorization",
                 "api_key",
                 "apikey",
-                "token",
                 "password",
                 "secret",
                 "credential",
@@ -106,6 +105,102 @@ def _explicit_model_argument(argv: list[str], expected_model: str) -> bool:
         if arg.startswith("--model=") and arg.split("=", 1)[1] == expected_model:
             return True
     return False
+
+
+def _decode_timeout_stream(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
+
+
+def _taskkill_tree(pid: int, *, force: bool) -> subprocess.CompletedProcess[str]:
+    cmd = ["taskkill", "/PID", str(pid), "/T"]
+    if force:
+        cmd.append("/F")
+    result = gated_subprocess_run(
+        cmd,
+        caller="codex_executor_timeout_cleanup",
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    return result or subprocess.CompletedProcess(
+        cmd,
+        127,
+        "",
+        "cleanup command blocked by CPU gate or unavailable",
+    )
+
+
+def _run_codex_process_tree(
+    cmd: list[str],
+    *,
+    caller: str,
+    timeout: float,
+    **kwargs: object,
+) -> subprocess.CompletedProcess[str] | None:
+    """Run Codex with an owned timeout.
+
+    On Windows, a direct subprocess timeout can hit the ``codex.cmd`` wrapper
+    while a descendant still owns inherited stdio handles.
+    The caller then waits past its own deadline until an outer transport kills
+    the whole tree. Wave 2 needs the model-executor timeout to win first, so the
+    Windows path owns the process tree explicitly.
+    """
+
+    if os.name != "nt":
+        return gated_subprocess_run(cmd, caller=caller, timeout=timeout, **kwargs)
+
+    popen_kwargs = dict(kwargs)
+    input_text = popen_kwargs.pop("input", None)
+    if input_text is not None:
+        popen_kwargs.setdefault("stdin", subprocess.PIPE)
+    if popen_kwargs.pop("capture_output", False):
+        popen_kwargs.setdefault("stdout", subprocess.PIPE)
+        popen_kwargs.setdefault("stderr", subprocess.PIPE)
+    popen_kwargs.setdefault("text", True)
+    creationflags = int(popen_kwargs.pop("creationflags", 0) or 0)
+    creationflags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    creationflags |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    popen_kwargs["creationflags"] = creationflags
+
+    proc = gated_popen(cmd, caller=caller, **popen_kwargs)
+    if proc is None:
+        return None
+    try:
+        stdout, stderr = proc.communicate(input=input_text, timeout=timeout)
+        return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+    except subprocess.TimeoutExpired as exc:
+        stdout = _decode_timeout_stream(getattr(exc, "output", ""))
+        stderr = _decode_timeout_stream(getattr(exc, "stderr", ""))
+        cleanup_lines: list[str] = []
+        try:
+            graceful = _taskkill_tree(proc.pid, force=False)
+            cleanup_lines.append(graceful.stdout or graceful.stderr or "")
+        except Exception as cleanup_exc:  # noqa: BLE001
+            cleanup_lines.append(f"graceful tree termination failed: {cleanup_exc}")
+        try:
+            more_out, more_err = proc.communicate(timeout=5)
+            stdout = stdout or _decode_timeout_stream(more_out)
+            stderr = "\n".join(x for x in [stderr, _decode_timeout_stream(more_err)] if x)
+        except subprocess.TimeoutExpired:
+            try:
+                forced = _taskkill_tree(proc.pid, force=True)
+                cleanup_lines.append(forced.stdout or forced.stderr or "")
+            except Exception as cleanup_exc:  # noqa: BLE001
+                cleanup_lines.append(f"forced tree termination failed: {cleanup_exc}")
+            try:
+                more_out, more_err = proc.communicate(timeout=5)
+                stdout = stdout or _decode_timeout_stream(more_out)
+                stderr = "\n".join(x for x in [stderr, _decode_timeout_stream(more_err)] if x)
+            except subprocess.TimeoutExpired:
+                cleanup_lines.append("process tree stdio did not close after forced termination")
+        cleanup = "\n".join(line.strip() for line in cleanup_lines if line.strip())
+        if cleanup:
+            stderr = "\n".join(x for x in [stderr, cleanup] if x)
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout, output=stdout, stderr=stderr)
 
 
 def _parse_jsonl(stdout: str) -> tuple[str, dict[str, int], str, list[str], dict[str, object]]:
@@ -364,8 +459,10 @@ class CodexModelExecutor:
             )
         start = time.monotonic()
         timed_out = False
+        stdout = ""
+        stderr = ""
         try:
-            proc = gated_subprocess_run(
+            proc = _run_codex_process_tree(
                 invocation.argv,
                 caller="wave2_model_executor_codex",
                 timeout=packet.timeout_seconds,
@@ -378,12 +475,14 @@ class CodexModelExecutor:
         except subprocess.TimeoutExpired as exc:
             proc = None
             timed_out = True
-            stderr = _sanitize(str(exc))
+            stdout = _sanitize(_decode_timeout_stream(getattr(exc, "output", "")))
+            stderr = _sanitize(_decode_timeout_stream(getattr(exc, "stderr", "")) or str(exc))
         duration = time.monotonic() - start
         if proc is None:
             return ModelTerminalResult(
                 ok=False,
                 status="failed",
+                stdout=stdout if timed_out else "",
                 stderr=stderr if timed_out else "",
                 timed_out=timed_out,
                 duration_seconds=duration,
