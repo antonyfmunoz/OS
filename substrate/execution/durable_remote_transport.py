@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
 
-
 TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"})
 ACTIVE_STATES = frozenset({"QUEUED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"})
 RECOVERY_STATES = frozenset({"RECONCILIATION_REQUIRED"})
@@ -34,6 +33,23 @@ STATE_ORDER = {
     "CANCELLED": 5,
     "SUCCEEDED": 5,
 }
+
+
+def _request_budget(
+    req: "DurableRemoteRequest",
+    key: str,
+    default: float,
+    *,
+    minimum: float = 0.0,
+    maximum: float = 3600.0,
+) -> float:
+    budgets = req.params.get("budgets") if isinstance(req.params, dict) else {}
+    raw = budgets.get(key, default) if isinstance(budgets, dict) else default
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(value, maximum))
 
 
 def default_controller_root() -> Path:
@@ -457,7 +473,13 @@ class DurableRemoteStore:
             req = self._enter_reconciliation(
                 req,
                 reason="cancellation_ack_deadline_expired",
-                deadline_seconds=0,
+                deadline_seconds=_request_budget(
+                    req,
+                    "reconciliation_timeout_s",
+                    15.0,
+                    minimum=1.0,
+                    maximum=300.0,
+                ),
             )
         if (
             req.lifecycle_state == "RECONCILIATION_REQUIRED"
@@ -534,7 +556,29 @@ class DurableRemoteStore:
                         if not locked.cancellation_requested_at:
                             locked.cancellation_requested_at = current
                         if not locked.cancellation_deadline_at:
-                            locked.cancellation_deadline_at = current + 30.0
+                            locked.cancellation_deadline_at = current + (
+                                _request_budget(
+                                    locked,
+                                    "cancellation_delivery_timeout_s",
+                                    30.0,
+                                    minimum=1.0,
+                                    maximum=300.0,
+                                )
+                                + _request_budget(
+                                    locked,
+                                    "process_termination_timeout_s",
+                                    15.0,
+                                    minimum=1.0,
+                                    maximum=300.0,
+                                )
+                                + _request_budget(
+                                    locked,
+                                    "cancellation_ack_timeout_s",
+                                    30.0,
+                                    minimum=1.0,
+                                    maximum=300.0,
+                                )
+                            )
                         locked.diagnostics.setdefault("expired_during_owned_execution", True)
                         self._update_request_locked(locked, "CANCEL_REQUESTED")
                         req = self._maybe_converge_recovery_locked(locked)
@@ -585,6 +629,7 @@ class DurableRemoteStore:
             req.lifecycle_state = "CLAIMED"
             if process_tree is not None:
                 req.process_tree = process_tree
+                req.process_tree.setdefault("claimed_at", now_s())
             self._update_request_locked(req, "CLAIMED")
             return req
 
@@ -609,6 +654,7 @@ class DurableRemoteStore:
                 req.lifecycle_state = "RUNNING"
                 if process_tree is not None:
                     req.process_tree = process_tree
+                    req.process_tree.setdefault("running_at", now_s())
                 self._update_request_locked(req, "RUNNING")
             return req
 
@@ -641,7 +687,29 @@ class DurableRemoteStore:
                 if not req.cancellation_requested_at:
                     req.cancellation_requested_at = now_s()
                 if not req.cancellation_deadline_at:
-                    req.cancellation_deadline_at = req.cancellation_requested_at + 30.0
+                    req.cancellation_deadline_at = req.cancellation_requested_at + (
+                        _request_budget(
+                            req,
+                            "cancellation_delivery_timeout_s",
+                            30.0,
+                            minimum=1.0,
+                            maximum=300.0,
+                        )
+                        + _request_budget(
+                            req,
+                            "process_termination_timeout_s",
+                            15.0,
+                            minimum=1.0,
+                            maximum=300.0,
+                        )
+                        + _request_budget(
+                            req,
+                            "cancellation_ack_timeout_s",
+                            30.0,
+                            minimum=1.0,
+                            maximum=300.0,
+                        )
+                    )
                 self._update_request_locked(req, "CANCEL_REQUESTED")
             return req
 
@@ -837,6 +905,38 @@ class DurableRemoteStore:
             req.diagnostics["result_claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
             return self._enter_reconciliation(req, reason="result_claim_conflict")
         if req.lifecycle_state in RECOVERY_STATES:
+            reconciliation_reasons = req.diagnostics.get("reconciliation_reasons")
+            is_cancellation_ack_recovery = (
+                isinstance(reconciliation_reasons, list)
+                and set(reconciliation_reasons) == {"cancellation_ack_deadline_expired"}
+                and req.cancellation_requested_at
+                and req.cancellation_deadline_at
+                and cleanup is not None
+                and cleanup.get("process_residue") == []
+                and cleanup.get("cancellation_generation") == req.cancellation_requested_at
+                and cleanup.get("cancellation_deadline_at") == req.cancellation_deadline_at
+                and not self._has_process_residue_diagnostic(req)
+            )
+            if (
+                req.claim_id == claim_id
+                and state in {"CANCELLED", "FAILED"}
+                and is_cancellation_ack_recovery
+            ):
+                req.diagnostics.setdefault("recovered_from_reconciliation_result", []).append(
+                    {
+                        "incoming_state": state,
+                        "claim_id": claim_id,
+                        "cleanup_digest": sha256_json(cleanup or {}),
+                    }
+                )
+                return self._terminalize(
+                    req,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                    event="RECONCILIATION_RESULT_RECOVERED",
+                )
             digest = self._write_rejected_result_record(
                 req,
                 claim_id=claim_id,

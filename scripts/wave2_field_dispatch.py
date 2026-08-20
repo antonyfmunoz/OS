@@ -2229,6 +2229,33 @@ def _durable_remote_shell(
         risk_class="reversible_write",
         ttl_seconds=max(command_timeout, dispatch_timeout) + 60,
     )
+    queue_delivery_timeout_s = max(float(dispatch_timeout), 1.0)
+    execution_timeout_s = max(float(command_timeout), 1.0)
+    cancellation_delivery_timeout_s = 30.0
+    process_termination_timeout_s = 15.0
+    cancellation_ack_timeout_s = 30.0
+    result_ingestion_timeout_s = 30.0
+    reconciliation_timeout_s = 15.0
+    caller_wait_timeout_s = (
+        queue_delivery_timeout_s
+        + execution_timeout_s
+        + result_ingestion_timeout_s
+        + cancellation_delivery_timeout_s
+        + process_termination_timeout_s
+        + cancellation_ack_timeout_s
+        + reconciliation_timeout_s
+    )
+    budgets = {
+        "queue_delivery_timeout_s": queue_delivery_timeout_s,
+        "claim_timeout_s": queue_delivery_timeout_s,
+        "execution_timeout_s": execution_timeout_s,
+        "cancellation_delivery_timeout_s": cancellation_delivery_timeout_s,
+        "process_termination_timeout_s": process_termination_timeout_s,
+        "cancellation_ack_timeout_s": cancellation_ack_timeout_s,
+        "result_ingestion_timeout_s": result_ingestion_timeout_s,
+        "reconciliation_timeout_s": reconciliation_timeout_s,
+        "caller_wait_timeout_s": caller_wait_timeout_s,
+    }
     request = make_request(
         correlation_id=correlation_id,
         candidate_sha=candidate_sha or _candidate_sha(""),
@@ -2240,10 +2267,11 @@ def _durable_remote_shell(
             "argv": argv or [],
             "cwd": cwd,
             "timeout": command_timeout,
+            "budgets": budgets,
             "governance_verdict_id": verdict,
         },
         risk_class="reversible_write",
-        ttl_seconds=max(dispatch_timeout + 60, command_timeout + 60),
+        ttl_seconds=int(caller_wait_timeout_s + 60),
     )
     store.put_request(request)
     terminal_states = {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}
@@ -2280,6 +2308,32 @@ def _durable_remote_shell(
             out["cleanup"] = result.get("cleanup", {})
         return out
 
+    def _reconciliation_due(current: object) -> bool:
+        deadline_at = float(getattr(current, "reconciliation_deadline_at", 0.0) or 0.0)
+        return bool(deadline_at and time.time() >= deadline_at)
+
+    def _current_poll_deadline(current: object | None) -> float:
+        base = request.created_at + queue_delivery_timeout_s
+        if current is None:
+            return base
+        state = getattr(current, "lifecycle_state", "")
+        if state in {"CLAIMED", "RUNNING", "CANCEL_REQUESTED", "RECONCILIATION_REQUIRED"}:
+            process_tree = getattr(current, "process_tree", {})
+            if isinstance(process_tree, dict):
+                started_at = float(
+                    process_tree.get("running_at")
+                    or process_tree.get("claimed_at")
+                    or getattr(current, "created_at", request.created_at)
+                    or request.created_at
+                )
+            else:
+                started_at = float(getattr(current, "created_at", request.created_at) or request.created_at)
+            return max(
+                base,
+                started_at + execution_timeout_s + result_ingestion_timeout_s,
+            )
+        return base
+
     def _recovery_output(current: object) -> dict[str, object]:
         diagnostics = getattr(current, "diagnostics", {})
         reason = "durable remote request requires governed residue reconciliation"
@@ -2302,9 +2356,8 @@ def _durable_remote_shell(
             "result_digest": getattr(current, "result_digest", ""),
         }
 
-    deadline = time.time() + dispatch_timeout
     last_state = "QUEUED"
-    while time.time() < deadline:
+    while True:
         current = store.get_request(request.request_id)
         if current is not None:
             last_state = current.lifecycle_state
@@ -2313,20 +2366,30 @@ def _durable_remote_shell(
             if current.lifecycle_state == "RECONCILIATION_REQUIRED":
                 if _requires_residue_reconciliation(current):
                     last_state = current.lifecycle_state
+                    if time.time() >= _current_poll_deadline(current):
+                        break
                     time.sleep(1)
                     continue
-                reconciled = store.reconcile_request(
-                    request.request_id,
-                    reason="client_poll_observed_reconciliation_required",
-                )
-                if reconciled.lifecycle_state in terminal_states:
-                    return _terminal_output(reconciled)
+                if _reconciliation_due(current):
+                    reconciled = store.reconcile_request(
+                        request.request_id,
+                        reason="client_poll_observed_reconciliation_required",
+                    )
+                    if reconciled.lifecycle_state in terminal_states:
+                        return _terminal_output(reconciled)
+        if time.time() >= _current_poll_deadline(current):
+            break
         time.sleep(1)
     try:
         store.request_cancel(request.request_id)
     except Exception:
         pass
-    cancel_deadline = time.time() + min(max(command_timeout + 5, 10), 45)
+    cancel_deadline = time.time() + (
+        cancellation_delivery_timeout_s
+        + process_termination_timeout_s
+        + cancellation_ack_timeout_s
+        + reconciliation_timeout_s
+    )
     while time.time() < cancel_deadline:
         current = store.get_request(request.request_id)
         if current is not None:
@@ -2336,14 +2399,17 @@ def _durable_remote_shell(
             if current.lifecycle_state == "RECONCILIATION_REQUIRED":
                 if _requires_residue_reconciliation(current):
                     last_state = current.lifecycle_state
+                    if time.time() >= cancel_deadline:
+                        break
                     time.sleep(1)
                     continue
-                reconciled = store.reconcile_request(
-                    request.request_id,
-                    reason="client_timeout_reconciliation",
-                )
-                if reconciled.lifecycle_state in terminal_states:
-                    return _terminal_output(reconciled)
+                if _reconciliation_due(current):
+                    reconciled = store.reconcile_request(
+                        request.request_id,
+                        reason="client_timeout_reconciliation",
+                    )
+                    if reconciled.lifecycle_state in terminal_states:
+                        return _terminal_output(reconciled)
         time.sleep(1)
     try:
         current = store.get_request(request.request_id)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from itertools import chain, repeat
+
 from substrate.execution.durable_remote_transport import DurableRemoteStore
 from tests.wave2_script_import import load_wave2_script
 
@@ -173,7 +175,7 @@ def test_durable_remote_shell_preserves_argv_payload_shape(monkeypatch, tmp_path
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
     monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
     monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
-    ticks = iter([100.0] * 20 + [101.0] * 20)
+    ticks = chain([100.0] * 20, repeat(101.0))
     monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
 
     original_put = store.put_request
@@ -230,7 +232,7 @@ def test_durable_remote_shell_omits_empty_cwd_for_default_shell_requests(
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
     monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
     monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
-    ticks = iter([100.0] * 20 + [101.0] * 20)
+    ticks = chain([100.0] * 20, [200.0] * 20, repeat(400.0))
     monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
 
     original_put = store.put_request
@@ -290,7 +292,7 @@ def test_durable_remote_shell_timeout_waits_for_cancel_terminalization(
     monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
     monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
-    ticks = iter([100.0] * 20 + [101.0] * 20)
+    ticks = chain([100.0] * 20, repeat(200.0))
     monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
 
     original_request_cancel = store.request_cancel
@@ -327,6 +329,139 @@ def test_durable_remote_shell_timeout_waits_for_cancel_terminalization(
     assert out["raw_status"] == "CANCELLED"
 
 
+def test_durable_remote_shell_execution_budget_starts_after_claim(
+    monkeypatch, tmp_path
+) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    store = DurableRemoteStore(tmp_path)
+
+    monkeypatch.setenv("UMH_DURABLE_REMOTE_ROOT", str(tmp_path))
+    monkeypatch.setattr(dispatch, "_ensure_mesh_secrets", lambda: None)
+    monkeypatch.setattr(dispatch, "_candidate_sha", lambda _default: "sha")
+    monkeypatch.setattr(dispatch, "_MESH_NODE_ID", "windows-desktop")
+    monkeypatch.setattr(dispatch, "uuid4", lambda: type("U", (), {"hex": "q" * 32})())
+
+    import substrate.execution.durable_remote_transport as durable
+    import substrate.execution.mesh_verdict as mesh_verdict
+
+    monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
+    monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
+    monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
+
+    clock = {"t": 100.0}
+    state = {"request_id": ""}
+
+    monkeypatch.setattr(dispatch.time, "time", lambda: clock["t"])
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
+
+    original_put = store.put_request
+
+    def remember_request(req):
+        state["request_id"] = req.request_id
+        return original_put(req)
+
+    def sleep_and_advance(seconds: float) -> None:
+        clock["t"] += seconds
+        request_id = state["request_id"]
+        if not request_id:
+            return
+        req = store.get_request(request_id)
+        if req is None:
+            return
+        if clock["t"] >= 160.0 and req.lifecycle_state == "QUEUED":
+            store.mark_claimed(
+                request_id,
+                claim_id="node-claim",
+                process_tree={"node_pid": 1, "claimed_at": clock["t"]},
+            )
+            store.mark_running(
+                request_id,
+                claim_id="node-claim",
+                process_tree={"node_pid": 1, "root_pid": 2, "running_at": clock["t"]},
+            )
+        if clock["t"] >= 220.0 and req.lifecycle_state == "RUNNING":
+            store.publish_result(
+                request_id,
+                claim_id="node-claim",
+                state="SUCCEEDED",
+                result={"success": True, "stdout": "ok", "stderr": "", "exit_code": 0},
+                cleanup={"process_residue": []},
+            )
+
+    monkeypatch.setattr(store, "put_request", remember_request)
+    monkeypatch.setattr(dispatch.time, "sleep", sleep_and_advance)
+
+    out = dispatch._durable_remote_shell(
+        "hostname",
+        command_timeout=70,
+        dispatch_timeout=65,
+        operation_type="unit",
+        correlation_id="corr",
+        candidate_sha="sha",
+    )
+
+    assert out["ok"] is True
+    assert out["raw_status"] == "SUCCEEDED"
+    req = store.get_request(out["request_id"])
+    assert req is not None
+    assert req.cancellation_requested_at == 0.0
+    assert req.params["budgets"]["execution_timeout_s"] == 70.0
+
+
+def test_same_claim_cancel_ack_can_recover_reconciliation_window(monkeypatch, tmp_path) -> None:
+    import substrate.execution.durable_remote_transport as durable
+    from substrate.execution.durable_remote_transport import make_request
+
+    clock = {"t": 100.0}
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
+    store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="corr",
+        candidate_sha="sha",
+        node_id="windows-desktop",
+        operation_type="unit",
+        capability="shell",
+        params={
+            "command": "sleep",
+            "timeout": 60,
+            "budgets": {
+                "cancellation_delivery_timeout_s": 1,
+                "process_termination_timeout_s": 1,
+                "cancellation_ack_timeout_s": 1,
+                "reconciliation_timeout_s": 10,
+            },
+        },
+        risk_class="read_only",
+        ttl_seconds=120,
+    )
+    store.put_request(req)
+    store.mark_claimed(req.request_id, claim_id="node-claim")
+    store.mark_running(req.request_id, claim_id="node-claim")
+    store.request_cancel(req.request_id)
+
+    clock["t"] = 104.0
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    recovered = store.publish_result(
+        req.request_id,
+        claim_id="node-claim",
+        state="CANCELLED",
+        result={"success": False, "error": "cancel requested by controller"},
+        cleanup={
+            "process_residue": [],
+            "cancel_reason": "cancel requested by controller",
+            "cancellation_generation": current.cancellation_requested_at,
+            "cancellation_deadline_at": current.cancellation_deadline_at,
+        },
+    )
+
+    assert recovered.lifecycle_state == "CANCELLED"
+    assert recovered.cancellation_acknowledged_at == clock["t"]
+    assert store.result_for(req.request_id)["state"] == "CANCELLED"
+
+
 def test_durable_remote_shell_reconciles_observed_reconciliation_required(
     monkeypatch, tmp_path
 ) -> None:
@@ -345,7 +480,7 @@ def test_durable_remote_shell_reconciles_observed_reconciliation_required(
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
     monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
     monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
-    ticks = iter([100.0] * 20 + [100.1] * 20)
+    ticks = chain([100.0] * 20, [116.0] * 20, repeat(200.0))
     monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
 
     original_put = store.put_request
@@ -378,7 +513,7 @@ def test_durable_remote_shell_reconciles_observed_reconciliation_required(
     assert store.get_request(out["request_id"]) is not None
 
 
-def test_durable_remote_shell_does_not_immediately_reconcile_process_residue(
+def test_durable_remote_shell_returns_bounded_recovery_for_process_residue(
     monkeypatch, tmp_path
 ) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
@@ -392,38 +527,41 @@ def test_durable_remote_shell_does_not_immediately_reconcile_process_residue(
     import substrate.execution.durable_remote_transport as durable
     import substrate.execution.mesh_verdict as mesh_verdict
 
+    clock = {"t": 100.0}
+    sleeps = {"count": 0}
+    monkeypatch.setattr(dispatch.time, "time", lambda: clock["t"])
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
     monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
     monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
-    monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
-    ticks = iter([100.0] * 100 + [111.0] * 100)
-    monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
 
+    def sleep_and_advance(seconds: float) -> None:
+        sleeps["count"] += 1
+        clock["t"] += seconds
+        if sleeps["count"] > 160:
+            raise AssertionError("durable shell residue recovery loop did not terminate")
+
+    monkeypatch.setattr(dispatch.time, "sleep", sleep_and_advance)
     original_put = store.put_request
 
-    def put_and_report_residue(req):
+    def put_and_create_residue(req):
         out = original_put(req)
         store.mark_claimed(req.request_id, claim_id="claim-1")
-        store.request_cancel(req.request_id)
         store.publish_result(
             req.request_id,
             claim_id="claim-1",
-            state="CANCELLED",
-            result={"success": False, "error": "cancelled"},
+            state="FAILED",
+            result={"success": False, "error": "residue"},
             cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
         )
         return out
 
-    def forbidden_reconcile(*_args, **_kwargs):
-        raise AssertionError("residue-bearing recovery must not reconcile immediately")
-
-    monkeypatch.setattr(store, "put_request", put_and_report_residue)
-    monkeypatch.setattr(store, "reconcile_request", forbidden_reconcile)
+    monkeypatch.setattr(store, "put_request", put_and_create_residue)
 
     out = dispatch._durable_remote_shell(
         "hostname",
         command_timeout=1,
-        dispatch_timeout=0,
+        dispatch_timeout=5,
         operation_type="unit",
         correlation_id="corr",
         candidate_sha="sha",
@@ -431,5 +569,48 @@ def test_durable_remote_shell_does_not_immediately_reconcile_process_residue(
 
     assert out["ok"] is False
     assert out["raw_status"] == "RECONCILIATION_REQUIRED"
-    assert "process residue" in out["error"]
-    assert store.get_request(out["request_id"]) is not None
+    assert out["error"] == "durable remote failure left process residue"
+    current = store.get_request(out["request_id"])
+    assert current is not None
+    assert current.cleanup["process_residue"][0]["pid"] == 123
+    assert sleeps["count"] < 140
+
+
+def test_durable_store_does_not_immediately_reconcile_process_residue(
+    monkeypatch, tmp_path
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+
+    import substrate.execution.durable_remote_transport as durable
+    from substrate.execution.durable_remote_transport import make_request
+
+    clock = {"t": 100.0}
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
+
+    req = make_request(
+        correlation_id="corr",
+        candidate_sha="sha",
+        node_id="windows-desktop",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "sleep", "timeout": 60},
+        risk_class="read_only",
+        ttl_seconds=120,
+    )
+    store.put_request(req)
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+    current = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.diagnostics["cancel_without_cleanup"] == [{"pid": 123, "state": "still_alive"}]
+    clock["t"] = 1000.0
+    unresolved = store.fail_unresolved_request(req.request_id)
+    assert unresolved.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert unresolved.diagnostics["residue_reconciliation_pending"] is True

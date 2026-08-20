@@ -190,7 +190,8 @@ def test_update_request_cannot_regress_active_state_or_drop_claim(tmp_path) -> N
     assert final is not None
     assert final.lifecycle_state == "RUNNING"
     assert final.claim_id == "claim-1"
-    assert final.process_tree == {"pid": 11}
+    assert final.process_tree["pid"] == 11
+    assert final.process_tree["running_at"] >= running.process_tree["running_at"]
 
 
 def test_existing_terminal_result_recovers_active_request_after_crash_split(tmp_path) -> None:
@@ -573,7 +574,7 @@ def test_residue_bearing_reconciliation_does_not_terminalize_without_cleanup(
     assert store.result_for(req.request_id) is None
 
 
-def test_reconciliation_required_cannot_be_overwritten_by_late_lifecycle_events(tmp_path) -> None:
+def test_reconciliation_required_rejects_unrelated_same_claim_terminal_cleanup(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
     store.mark_claimed(req.request_id, claim_id="claim-1")
@@ -590,18 +591,105 @@ def test_reconciliation_required_cannot_be_overwritten_by_late_lifecycle_events(
         store.mark_claimed(req.request_id, claim_id="claim-1").lifecycle_state
         == "RECONCILIATION_REQUIRED"
     )
-    assert (
-        store.publish_result(
-            req.request_id,
-            claim_id="claim-1",
-            state="FAILED",
-            result={"success": False, "error": "late"},
-        ).lifecycle_state
-        == "RECONCILIATION_REQUIRED"
+    still_reconciling = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="FAILED",
+        result={"success": False, "error": "late"},
+        cleanup={
+            "process_residue": [],
+            "cancellation_generation": 100.0,
+            "cancellation_deadline_at": 200.0,
+        },
     )
+    assert still_reconciling.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert "recovered_from_reconciliation_result" not in still_reconciling.diagnostics
 
     rejected = list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
     assert len(rejected) >= 2
+
+
+def test_reconciliation_required_rejects_same_claim_without_cleanup_proof(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    conflict = store.publish_result(
+        req.request_id,
+        claim_id="foreign",
+        state="SUCCEEDED",
+        result={"success": True},
+    )
+    assert conflict.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    still_reconciling = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="FAILED",
+        result={"success": False, "error": "late"},
+    )
+
+    assert still_reconciling.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert "recovered_from_reconciliation_result" not in still_reconciling.diagnostics
+    rejected = list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert len(rejected) >= 2
+
+
+def test_cancellation_ack_recovery_requires_matching_generation_and_deadline(
+    tmp_path, monkeypatch
+) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(
+        _request(
+            params={
+                "command": "sleep",
+                "timeout": 60,
+                "budgets": {
+                    "cancellation_delivery_timeout_s": 1,
+                    "process_termination_timeout_s": 1,
+                    "cancellation_ack_timeout_s": 1,
+                    "reconciliation_timeout_s": 10,
+                },
+            }
+        )
+    )
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+
+    monkeypatch.setattr(durable, "now_s", lambda: 104.0)
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    wrong_generation = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [],
+            "cancellation_generation": cancelled.cancellation_requested_at - 1,
+            "cancellation_deadline_at": cancelled.cancellation_deadline_at,
+        },
+    )
+    assert wrong_generation.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    recovered = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [],
+            "cancellation_generation": cancelled.cancellation_requested_at,
+            "cancellation_deadline_at": cancelled.cancellation_deadline_at,
+        },
+    )
+
+    assert recovered.lifecycle_state == "CANCELLED"
+    assert recovered.diagnostics["recovered_from_reconciliation_result"][0]["claim_id"] == "claim-1"
 
 
 def test_cancel_requested_eventually_fails_closed_if_not_acknowledged(tmp_path, monkeypatch) -> None:
@@ -613,10 +701,16 @@ def test_cancel_requested_eventually_fails_closed_if_not_acknowledged(tmp_path, 
     store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
     store.request_cancel(req.request_id)
 
-    monkeypatch.setattr(durable, "now_s", lambda: 131.0)
+    monkeypatch.setattr(durable, "now_s", lambda: 176.0)
     out = store.deliverable_for_node("windows-desktop")
 
     assert out == []
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["reconciliation_reasons"] == ["cancellation_ack_deadline_expired"]
+
+    monkeypatch.setattr(durable, "now_s", lambda: 191.0)
     final = store.get_request(req.request_id)
     assert final is not None
     assert final.lifecycle_state == "FAILED"
@@ -632,9 +726,15 @@ def test_get_request_converges_overdue_cancel_without_node_delivery(tmp_path, mo
     store.mark_claimed(req.request_id, claim_id="claim-1")
     store.request_cancel(req.request_id)
 
-    monkeypatch.setattr(durable, "now_s", lambda: 131.0)
+    monkeypatch.setattr(durable, "now_s", lambda: 176.0)
     final = store.get_request(req.request_id)
 
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["reconciliation_reasons"] == ["cancellation_ack_deadline_expired"]
+
+    monkeypatch.setattr(durable, "now_s", lambda: 191.0)
+    final = store.get_request(req.request_id)
     assert final is not None
     assert final.lifecycle_state == "FAILED"
     assert final.diagnostics["reconciled_fail_closed"]["reason"] == "reconciliation_deadline_expired"
@@ -669,7 +769,15 @@ def test_reconcile_due_requests_advances_without_node_delivery(tmp_path, monkeyp
     store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
     store.request_cancel(req.request_id)
 
-    monkeypatch.setattr(durable, "now_s", lambda: 131.0)
+    monkeypatch.setattr(durable, "now_s", lambda: 176.0)
+    updated = store.reconcile_due_requests()
+
+    assert [item.request_id for item in updated] == [req.request_id]
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    monkeypatch.setattr(durable, "now_s", lambda: 191.0)
     updated = store.reconcile_due_requests()
 
     assert [item.request_id for item in updated] == [req.request_id]

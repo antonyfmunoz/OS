@@ -1070,6 +1070,79 @@ def test_durable_node_replays_terminal_result_with_original_cleanup(tmp_path):
     assert replay["params"]["idempotent_replay"] is True
 
 
+def test_durable_cancel_ack_includes_request_bound_generation(tmp_path):
+    client = _durable_node_client(tmp_path)
+    ws = _DurableAckWs(client)
+    client._ws = ws
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    req = client._durable_store.request_cancel(req.request_id)
+
+    terminal = asyncio.run(
+        client._cancel_durable_request(
+            req,
+            claim_id="claim-1",
+            reason="cancel requested by controller",
+        )
+    )
+
+    assert terminal.lifecycle_state == "CANCELLED"
+    assert terminal.cleanup["process_residue"] == []
+    assert terminal.cleanup["cancel_reason"] == "cancel requested by controller"
+    assert terminal.cleanup["cancellation_generation"] == req.cancellation_requested_at
+    assert terminal.cleanup["cancellation_deadline_at"] == req.cancellation_deadline_at
+
+
+def test_durable_shell_cancel_during_execution_includes_request_bound_generation(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path)
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class _Proc:
+        pid = 12345
+
+        def poll(self):
+            return None
+
+    async def _terminate(_proc, *, graceful_timeout):
+        return {"process_residue": []}
+
+    async def _running_ack(*_args, **_kwargs):
+        client._durable_store.request_cancel(req.request_id)
+        return {"ok": True}
+
+    async def _send_event(*_args, **_kwargs):
+        return {"ok": True}
+
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(client, "_terminate_durable_process_tree", _terminate)
+    monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo ok"},
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=5.0,
+        )
+    )
+
+    assert result["success"] is False
+    current = client._durable_store.get_request(req.request_id)
+    assert current is not None
+    assert result["cleanup"]["process_residue"] == []
+    assert result["cleanup"]["cancel_reason"] == "cancel requested during execution"
+    assert result["cleanup"]["cancellation_generation"] == current.cancellation_requested_at
+    assert result["cleanup"]["cancellation_deadline_at"] == current.cancellation_deadline_at
+
+
 # ── Governed remote dispatch routes through the right mutation ─────────────
 
 

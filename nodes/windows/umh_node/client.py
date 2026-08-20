@@ -751,9 +751,17 @@ class NodeClient:
         reason: str,
     ) -> DurableRemoteRequest:
         proc = self._durable_processes.get(req.request_id)
-        cleanup = {"process_residue": [], "cancel_reason": reason}
+        cleanup = {
+            "process_residue": [],
+            "cancel_reason": reason,
+            "cancellation_generation": req.cancellation_requested_at,
+            "cancellation_deadline_at": req.cancellation_deadline_at,
+        }
         if proc is not None and proc.poll() is None:
             cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+            cleanup["cancel_reason"] = reason
+            cleanup["cancellation_generation"] = req.cancellation_requested_at
+            cleanup["cancellation_deadline_at"] = req.cancellation_deadline_at
         return self._durable_store.publish_result(
             req.request_id,
             claim_id=claim_id,
@@ -948,6 +956,9 @@ class NodeClient:
                 local = self._durable_store.get_request(req.request_id)
                 if local and local.lifecycle_state == "CANCEL_REQUESTED":
                     cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                    cleanup["cancel_reason"] = "cancel requested during execution"
+                    cleanup["cancellation_generation"] = local.cancellation_requested_at
+                    cleanup["cancellation_deadline_at"] = local.cancellation_deadline_at
                     return {
                         "success": False,
                         "error": "cancel requested during execution",
