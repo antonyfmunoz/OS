@@ -211,6 +211,60 @@ def test_durable_remote_shell_preserves_argv_payload_shape(monkeypatch, tmp_path
     assert req.params["timeout"] == 1
 
 
+def test_durable_remote_shell_omits_empty_cwd_for_default_shell_requests(
+    monkeypatch, tmp_path
+) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    store = DurableRemoteStore(tmp_path)
+
+    monkeypatch.setenv("UMH_DURABLE_REMOTE_ROOT", str(tmp_path))
+    monkeypatch.setattr(dispatch, "_ensure_mesh_secrets", lambda: None)
+    monkeypatch.setattr(dispatch, "_candidate_sha", lambda _default: "sha")
+    monkeypatch.setattr(dispatch, "_MESH_NODE_ID", "windows-desktop")
+    monkeypatch.setattr(dispatch, "uuid4", lambda: type("U", (), {"hex": "b" * 32})())
+
+    import substrate.execution.durable_remote_transport as durable
+    import substrate.execution.mesh_verdict as mesh_verdict
+
+    monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
+    monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
+    monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
+    monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
+    ticks = iter([100.0] * 20 + [101.0] * 20)
+    monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
+
+    original_put = store.put_request
+
+    def put_and_succeed(req):
+        original_put(req)
+        store.mark_claimed(req.request_id, claim_id="claim-1")
+        return store.publish_result(
+            req.request_id,
+            claim_id="claim-1",
+            state="SUCCEEDED",
+            result={"success": True, "stdout": "ok", "stderr": "", "exit_code": 0},
+            cleanup={"process_residue": []},
+        )
+
+    monkeypatch.setattr(store, "put_request", put_and_succeed)
+
+    out = dispatch._durable_remote_shell(
+        "hostname",
+        command_timeout=1,
+        dispatch_timeout=5,
+        operation_type="unit",
+        correlation_id="corr",
+        candidate_sha="sha",
+    )
+
+    req = store.get_request(out["request_id"])
+    assert out["ok"] is True
+    assert req is not None
+    assert req.params["command"] == "hostname"
+    assert req.params["argv"] == []
+    assert req.params["cwd"] is None
+
+
 def test_dispatcher_no_longer_imports_mesh_dispatch_port_for_remote_reads() -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
 

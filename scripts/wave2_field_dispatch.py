@@ -2238,7 +2238,7 @@ def _durable_remote_shell(
         params={
             "command": command if argv is None else "",
             "argv": argv or [],
-            "cwd": cwd or "",
+            "cwd": cwd,
             "timeout": command_timeout,
             "governance_verdict_id": verdict,
         },
