@@ -56,6 +56,12 @@ def _write_minimal_source(root: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("# runtime file\n", encoding="utf-8")
     (root / "transports/__init__.py").write_text("", encoding="utf-8")
+    (root / "scripts").mkdir()
+    (root / "scripts/op_run.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    (root / "services").mkdir()
+    (root / "services/mesh.env.tpl").write_text(
+        "UMH_MESH_RELAY_SECRET=op://vault/item/password\n", encoding="utf-8"
+    )
     (root / "pyproject.toml").write_text("[project]\nname='umh-test'\n", encoding="utf-8")
 
 
@@ -83,6 +89,8 @@ def test_mesh_runtime_release_excludes_mutable_runtime_state(tmp_path):
     assert not (release / ".codex").exists()
     manifest = json.loads((release / "MANIFEST.json").read_text(encoding="utf-8"))
     included = {item["path"] for item in manifest["files"]}
+    assert "scripts/op_run.sh" in included
+    assert "services/mesh.env.tpl" in included
     assert "transports/node_mesh/run.py" in included
     assert "substrate/execution/durable_remote_transport.py" in included
     assert "data/runtime/organism/learning/signal_feed.jsonl" not in included
@@ -171,5 +179,7 @@ def test_mesh_runtime_release_builds_against_real_worktree(tmp_path):
     assert "transports/node_mesh/run.py" in included
     assert "transports/node_mesh/server.py" in included
     assert "substrate/execution/durable_remote_transport.py" in included
+    assert "scripts/op_run.sh" in included
+    assert "services/mesh.env.tpl" in included
     assert "services/cost_log.json" not in included
     assert not any(path.startswith("data/") for path in included)

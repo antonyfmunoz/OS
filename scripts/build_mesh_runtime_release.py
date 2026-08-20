@@ -14,6 +14,8 @@ from pathlib import Path
 ALLOWLIST_PATHS = (
     "pyproject.toml",
     "requirements.txt",
+    "scripts/op_run.sh",
+    "services/mesh.env.tpl",
     "substrate/__init__.py",
     "substrate/types.py",
     "substrate/execution/__init__.py",
@@ -36,6 +38,8 @@ ALLOWLIST_PATHS = (
     "transports/node_mesh",
 )
 REQUIRED_RELATIVE_PATHS = (
+    "scripts/op_run.sh",
+    "services/mesh.env.tpl",
     "transports/node_mesh/run.py",
     "transports/node_mesh/server.py",
     "substrate/execution/durable_remote_transport.py",
