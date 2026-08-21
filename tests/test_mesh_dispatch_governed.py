@@ -19,6 +19,7 @@ import json
 import os
 import subprocess
 import sys
+import textwrap
 from collections import deque
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1211,6 +1212,70 @@ def test_durable_shell_cancel_during_execution_includes_request_bound_generation
     assert result["cleanup"]["claim_id"] == "claim-1"
 
 
+def test_durable_shell_cancel_reader_timeout_fails_closed_without_known_descendant(
+    tmp_path,
+    monkeypatch,
+):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path / "store")
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class _Proc:
+        pid = 6161
+
+        def poll(self):
+            return None
+
+    class _Collector:
+        @property
+        def has_readers(self):
+            return True
+
+        def snapshot(self, *, join_timeout):
+            return {
+                "stdout": "partial",
+                "stderr": "",
+                "output_capture": {"timed_out": True, "concurrent_drain": True},
+            }
+
+    async def _terminate(_proc, *, graceful_timeout):
+        return {"root_pid": _proc.pid, "process_residue": []}
+
+    async def _running_ack(*_args, **_kwargs):
+        client._durable_store.request_cancel(req.request_id)
+        return {"ok": True}
+
+    async def _send_event(*_args, **_kwargs):
+        return {"ok": True}
+
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
+    monkeypatch.setattr(client_mod, "_durable_owned_process_tree_pids", lambda _pid: [6161])
+    monkeypatch.setattr(client_mod, "_durable_alive_pids", lambda _pids: [])
+    monkeypatch.setattr(client, "_terminate_durable_process_tree", _terminate)
+    monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo ok"},
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=5.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["cleanup"]["reader_timeout_after_termination"] is True
+    assert result["cleanup"]["process_residue"] == [
+        {"state": "reader_timeout_descendant_identity_unknown"}
+    ]
+
+
 def test_durable_shell_timeout_preserves_bounded_redacted_partial_output(
     tmp_path, monkeypatch
 ):
@@ -1271,6 +1336,508 @@ def test_durable_shell_timeout_preserves_bounded_redacted_partial_output(
     assert result["output_capture"]["stdout_truncated"] is True
     assert result["output_capture"]["stderr_truncated"] is True
     assert result["output_capture"]["timed_out"] is False
+
+
+def test_durable_shell_timeout_reader_timeout_fails_closed_without_known_descendant(
+    tmp_path,
+    monkeypatch,
+):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path / "store")
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class _Proc:
+        pid = 6262
+
+        def poll(self):
+            return None
+
+    class _Collector:
+        @property
+        def has_readers(self):
+            return True
+
+        def snapshot(self, *, join_timeout):
+            return {
+                "stdout": "partial",
+                "stderr": "",
+                "output_capture": {"timed_out": True, "concurrent_drain": True},
+            }
+
+    async def _terminate(_proc, *, graceful_timeout):
+        return {"root_pid": _proc.pid, "process_residue": []}
+
+    async def _running_ack(*_args, **_kwargs):
+        return {"ok": True}
+
+    async def _send_event(*_args, **_kwargs):
+        return {"ok": True}
+
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
+    monkeypatch.setattr(client_mod, "_durable_owned_process_tree_pids", lambda _pid: [6262])
+    monkeypatch.setattr(client_mod, "_durable_alive_pids", lambda _pids: [])
+    monkeypatch.setattr(client, "_terminate_durable_process_tree", _terminate)
+    monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo ok"},
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=0.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "shell timed out after 0s"
+    assert result["cleanup"]["reader_timeout_after_termination"] is True
+    assert result["cleanup"]["process_residue"] == [
+        {"state": "reader_timeout_descendant_identity_unknown"}
+    ]
+
+
+def test_durable_shell_drains_large_stdout_and_stderr_while_running(tmp_path):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = client._durable_store.put_request(
+        _durable_request(
+            params={
+                "argv": [
+                    sys.executable,
+                    "-c",
+                    textwrap.dedent(
+                        """
+                        import json, sys
+                        sys.stdout.write('out-start\\n' + ('O' * 262144) + '\\n')
+                        sys.stdout.write(json.dumps({'status':'terminal','stream':'stdout'}) + '\\n')
+                        sys.stdout.flush()
+                        sys.stderr.write('Authorization: Bearer secret-token\\n')
+                        sys.stderr.write('err-start\\n' + ('E' * 262144) + '\\n')
+                        sys.stderr.write('terminal_result_flushed\\n')
+                        sys.stderr.flush()
+                        """
+                    ),
+                ],
+                "timeout": 10,
+            },
+            risk_class="read_only",
+        )
+    )
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params=req.params,
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=10.0,
+        )
+    )
+
+    assert result["success"] is True
+    assert result["exit_code"] == 0
+    assert "terminal" in result["stdout"]
+    assert "terminal_result_flushed" in result["stderr"]
+    assert "secret-token" not in result["stderr"]
+    assert "[redacted credential-bearing line]" in result["stderr"]
+    capture = result["output_capture"]
+    assert capture["concurrent_drain"] is True
+    assert capture["stdout_bytes_seen"] > client_mod._DURABLE_TIMEOUT_STDOUT_LIMIT
+    assert capture["stderr_bytes_seen"] > client_mod._DURABLE_TIMEOUT_STDERR_LIMIT
+    assert capture["stdout_truncated"] is True
+    assert capture["stderr_truncated"] is True
+    assert capture["total_truncated"] is True
+    assert capture["redacted"] is True
+
+
+def test_durable_shell_timeout_captures_phase_tail_and_cleans_descendant(tmp_path):
+    child = tmp_path / "pipe_holder.py"
+    child.write_text(
+        "import sys,time\n"
+        "print('descendant_retaining_stdout', flush=True)\n"
+        "print('descendant_retaining_stderr', file=sys.stderr, flush=True)\n"
+        "time.sleep(60)\n"
+    )
+    probe = tmp_path / "fake_probe.py"
+    probe.write_text(
+        "import subprocess,sys,time,json\n"
+        "print('interpreter_entered', file=sys.stderr, flush=True)\n"
+        "print('codex_process_spawned', file=sys.stderr, flush=True)\n"
+        "print('inner_deadline_armed', file=sys.stderr, flush=True)\n"
+        f"subprocess.Popen([sys.executable, {str(child)!r}], stdout=sys.stdout, stderr=sys.stderr)\n"
+        "deadline=time.time()+0.2\n"
+        "while time.time()<deadline: time.sleep(0.01)\n"
+        "print('inner_timeout_fired', file=sys.stderr, flush=True)\n"
+        "print(json.dumps({'status':'TIMEOUT','phase':'terminal_result_flushed'}), flush=True)\n"
+        "time.sleep(60)\n"
+    )
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = client._durable_store.put_request(
+        _durable_request(
+            params={"argv": [sys.executable, str(probe)], "timeout": 1},
+            risk_class="read_only",
+        )
+    )
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params=req.params,
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=1.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "shell timed out after 1s"
+    assert result["cleanup"]["process_residue"] == []
+    assert "inner_deadline_armed" in result["stderr"]
+    assert "inner_timeout_fired" in result["stderr"]
+    assert "terminal_result_flushed" in result["stdout"]
+    assert result["output_capture"]["concurrent_drain"] is True
+    assert result["output_capture"]["timed_out"] is False
+
+
+def test_durable_pipe_collector_reader_join_is_bounded(monkeypatch):
+    from nodes.windows.umh_node.client import _DurablePipeCollector
+
+    class _BlockingStream:
+        def read(self, _size):
+            import time
+
+            time.sleep(60)
+            return ""
+
+        def close(self):
+            return None
+
+    class _Proc:
+        pid = 9999
+        stdout = _BlockingStream()
+        stderr = _BlockingStream()
+
+    collector = _DurablePipeCollector(_Proc())
+    snapshot = collector.snapshot(join_timeout=0.01)
+
+    assert snapshot["output_capture"]["timed_out"] is True
+    assert snapshot["output_capture"]["concurrent_drain"] is True
+
+
+def test_durable_pipe_buffer_redacts_long_split_credential_line():
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(client_mod._DURABLE_TIMEOUT_STDERR_LIMIT)
+    buf.append("Authorization: Bearer ")
+    buf.append("secret-token-fragment" * 5000)
+    buf.append("\nterminal_result_flushed\n")
+    text = buf.text()
+
+    assert "secret-token-fragment" not in text
+    assert "[redacted credential-bearing line]" in text
+    assert "terminal_result_flushed" in text
+    assert len(text.encode("utf-8")) <= client_mod._DURABLE_TIMEOUT_STDERR_LIMIT
+
+
+def test_durable_pipe_buffer_redacts_credential_marker_split_across_chunks():
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(20000)
+    buf.append("Authoriz")
+    buf.append("ation: Bearer tok_abc123\nterminal_result_flushed\n")
+    text = buf.text()
+
+    assert "tok_abc123" not in text
+    assert "[redacted credential-bearing line]" in text
+    assert "terminal_result_flushed" in text
+    assert buf.redacted is True
+
+
+def test_durable_pipe_buffer_redacts_long_regex_token_line():
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(20000)
+    buf.append("token=")
+    buf.append("secret-fragment" * 5000)
+    buf.append("\nterminal_result_flushed\n")
+    text = buf.text()
+
+    assert "secret-fragment" not in text
+    assert "[redacted credential-bearing line]" in text
+    assert "terminal_result_flushed" in text
+    assert buf.redacted is True
+
+
+@pytest.mark.parametrize("prefix", ["api_key=", "password=", "secret=", "credential="])
+def test_durable_pipe_buffer_redacts_long_secret_key_lines(prefix):
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(20000)
+    buf.append(prefix)
+    buf.append("secret-fragment" * 5000)
+    buf.append("\nterminal_result_flushed\n")
+    text = buf.text()
+
+    assert "secret-fragment" not in text
+    assert "[redacted credential-bearing line]" in text
+    assert "terminal_result_flushed" in text
+    assert buf.redacted is True
+
+
+def test_durable_pipe_buffer_redacts_long_bare_openai_key_line():
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(20000)
+    buf.append("prefix ")
+    buf.append("sk-" + ("A" * 50000))
+    buf.append("\nterminal_result_flushed\n")
+    text = buf.text()
+
+    assert "sk-" not in text
+    assert "AAAAAA" not in text
+    assert "[redacted credential-bearing line]" in text
+    assert "terminal_result_flushed" in text
+    assert buf.redacted is True
+
+
+def test_durable_pipe_buffer_redacts_regex_token_marker_split_across_chunks():
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(20000)
+    buf.append("prefix " + ("x" * 100) + "tok")
+    buf.append("en=secret-fragment" * 4000)
+    buf.append("\nterminal_result_flushed\n")
+    text = buf.text()
+
+    assert "secret-fragment" not in text
+    assert "[redacted credential-bearing line]" in text
+    assert "terminal_result_flushed" in text
+    assert buf.redacted is True
+
+
+def test_durable_pipe_buffer_pending_line_is_bounded_without_newline():
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(client_mod._DURABLE_TIMEOUT_STDOUT_LIMIT)
+    buf.append("x" * 120000)
+
+    assert len(buf._pending_line) <= client_mod._DURABLE_SECRET_SCAN_TAIL_CHARS
+    assert buf.truncated is True
+    assert buf.bytes_seen == 120000
+    assert len(buf.text().encode("utf-8")) <= client_mod._DURABLE_TIMEOUT_STDOUT_LIMIT
+
+
+def test_durable_pipe_buffer_enforces_byte_limit_for_non_ascii_output():
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.client import _BoundedStreamBuffer
+
+    buf = _BoundedStreamBuffer(client_mod._DURABLE_TIMEOUT_STDOUT_LIMIT)
+    buf.append("é" * 30000)
+    text = buf.text()
+
+    assert buf.truncated is True
+    assert buf.bytes_seen == len(("é" * 30000).encode("utf-8"))
+    assert len(text.encode("utf-8")) <= client_mod._DURABLE_TIMEOUT_STDOUT_LIMIT
+
+
+def test_durable_pipe_collector_redaction_metadata_false_for_clean_output():
+    from nodes.windows.umh_node.client import _DurablePipeCollector
+
+    class _Stream:
+        def __init__(self, chunks):
+            self._chunks = list(chunks)
+
+        def read(self, _size):
+            if self._chunks:
+                return self._chunks.pop(0)
+            return ""
+
+        def close(self):
+            return None
+
+    class _Proc:
+        pid = 4343
+        stdout = _Stream(["clean output\n"])
+        stderr = _Stream(["clean stderr\n"])
+
+    snapshot = _DurablePipeCollector(_Proc()).snapshot(join_timeout=1.0)
+
+    assert snapshot["stdout"] == "clean output\n"
+    assert snapshot["stderr"] == "clean stderr\n"
+    assert snapshot["output_capture"]["redacted"] is False
+
+
+def test_durable_pipe_collector_does_not_redact_clean_policy_words():
+    from nodes.windows.umh_node.client import _DurablePipeCollector
+
+    class _Stream:
+        def __init__(self, chunks):
+            self._chunks = list(chunks)
+
+        def read(self, _size):
+            if self._chunks:
+                return self._chunks.pop(0)
+            return ""
+
+        def close(self):
+            return None
+
+    class _Proc:
+        pid = 4444
+        stdout = _Stream(["authorization required by policy\n"])
+        stderr = _Stream(["no credential material here\n"])
+
+    snapshot = _DurablePipeCollector(_Proc()).snapshot(join_timeout=1.0)
+
+    assert snapshot["stdout"] == "authorization required by policy\n"
+    assert snapshot["stderr"] == "no credential material here\n"
+    assert snapshot["output_capture"]["redacted"] is False
+
+
+def test_durable_shell_reader_timeout_after_root_exit_fails_closed(tmp_path, monkeypatch):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path / "store")
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class _Proc:
+        pid = 4242
+        returncode = 0
+
+        def poll(self):
+            return 0
+
+    class _Collector:
+        def snapshot(self, *, join_timeout):
+            return {
+                "stdout": "partial",
+                "stderr": "",
+                "output_capture": {"timed_out": True, "concurrent_drain": True},
+            }
+
+    async def _running_ack(*_args, **_kwargs):
+        return {"ok": True}
+
+    async def _send_event(*_args, **_kwargs):
+        return {"ok": True}
+
+    async def _terminate(_proc, *, graceful_timeout):
+        return {"root_pid": _proc.pid, "process_residue": []}
+
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
+    monkeypatch.setattr(client_mod, "_durable_owned_process_tree_pids", lambda _pid: [4242])
+    monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    monkeypatch.setattr(client, "_terminate_durable_process_tree", _terminate)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo ok"},
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=5.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "durable output readers timed out after process exit"
+    assert result["cleanup"]["process_residue"] == [
+        {"state": "reader_timeout_descendant_identity_unknown"}
+    ]
+
+
+def test_durable_shell_reader_timeout_after_root_exit_force_cleans_known_tree(
+    tmp_path,
+    monkeypatch,
+):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path / "store")
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    forced: list[list[int]] = []
+    alive_calls = 0
+
+    class _Proc:
+        pid = 4242
+        returncode = 0
+
+        def poll(self):
+            return 0
+
+    class _Collector:
+        @property
+        def has_readers(self):
+            return True
+
+        def snapshot(self, *, join_timeout):
+            return {
+                "stdout": "partial",
+                "stderr": "",
+                "output_capture": {"timed_out": True, "concurrent_drain": True},
+            }
+
+    async def _running_ack(*_args, **_kwargs):
+        return {"ok": True}
+
+    async def _send_event(*_args, **_kwargs):
+        return {"ok": True}
+
+    async def _terminate(_proc, *, graceful_timeout):
+        return {"root_pid": _proc.pid, "process_residue": []}
+
+    def _alive(pids):
+        nonlocal alive_calls
+        alive_calls += 1
+        if alive_calls == 1:
+            return [4343]
+        return []
+
+    def _force(pids):
+        forced.append(list(pids))
+        return [f"exact pid force cleanup pid={pid}" for pid in pids]
+
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
+    monkeypatch.setattr(client_mod, "_durable_owned_process_tree_pids", lambda _pid: [4242, 4343])
+    monkeypatch.setattr(client_mod, "_durable_alive_pids", _alive)
+    monkeypatch.setattr(client_mod, "_durable_force_exact_pids", _force)
+    monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    monkeypatch.setattr(client, "_terminate_durable_process_tree", _terminate)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo ok"},
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=5.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "durable output readers timed out after process exit"
+    assert forced == [[4343]]
+    assert result["cleanup"]["process_residue"] == []
 
 
 def test_durable_process_cleanup_targets_posix_process_group(tmp_path, monkeypatch):

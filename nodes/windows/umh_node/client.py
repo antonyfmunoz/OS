@@ -24,6 +24,7 @@ import socket
 import subprocess
 import struct
 import sys
+import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
@@ -57,7 +58,11 @@ _MEDIA_QUEUE_MAX = 4
 _CONTROL_TIMEOUT_S = 8.0
 _DURABLE_TIMEOUT_STDOUT_LIMIT = 20000
 _DURABLE_TIMEOUT_STDERR_LIMIT = 20000
+_DURABLE_TIMEOUT_TOTAL_LIMIT = (
+    _DURABLE_TIMEOUT_STDOUT_LIMIT + _DURABLE_TIMEOUT_STDERR_LIMIT
+)
 _DURABLE_TIMEOUT_DRAIN_SECONDS = 1.0
+_DURABLE_SECRET_SCAN_TAIL_CHARS = 64
 _SECRET_PATTERNS = (
     re.compile(r"(?i)(authorization:\s*bearer\s+)[^\s]+"),
     re.compile(r"(?i)(api[_-]?key\s*[:=]\s*)[^\s]+"),
@@ -66,6 +71,16 @@ _SECRET_PATTERNS = (
     re.compile(r"(?i)(secret(?:[_-]?key)?\s*[:=]\s*)[^\s]+"),
     re.compile(r"(?i)(credential\s*[:=]\s*)[^\s]+"),
     re.compile(r"op" + r"://[^\s\"')]+"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
+)
+_SECRET_LINE_PATTERNS = (
+    re.compile(r"(?i)authorization\s*:\s*bearer\s+"),
+    re.compile(r"(?i)api[_-]?key\s*[:=]\s*"),
+    re.compile(r"(?i)token\s*[:=]\s*"),
+    re.compile(r"(?i)password\s*[:=]\s*"),
+    re.compile(r"(?i)secret(?:[_-]?key)?\s*[:=]\s*"),
+    re.compile(r"(?i)credential\s*[:=]\s*"),
+    re.compile(r"op" + r"://"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
 )
 
@@ -104,6 +119,322 @@ def _tail_with_limit(text: str, limit: int) -> tuple[str, bool]:
     head_len = (limit - len(marker)) // 2
     tail_len = limit - len(marker) - head_len
     return f"{text[:head_len]}{marker}{text[-tail_len:]}", True
+
+
+class _BoundedStreamBuffer:
+    def __init__(self, limit: int) -> None:
+        self._limit = max(0, int(limit))
+        self._marker = b"\n[...durable output truncated...]\n"
+        available = max(0, self._limit - len(self._marker))
+        self._head_limit = available // 2
+        self._tail_limit = available - self._head_limit
+        self._head = b""
+        self._tail = b""
+        self.bytes_seen = 0
+        self.truncated = False
+        self.redacted = False
+        self._pending_line = ""
+        self._discarding_secret_line = False
+
+    def _append_retained(self, text: str) -> None:
+        if not text:
+            return
+        data = text.encode("utf-8", errors="replace")
+        if self._limit <= 0:
+            self.truncated = True
+            return
+        if not self.truncated:
+            combined = self._head + data
+            if len(combined) <= self._limit:
+                self._head = combined
+                return
+            self.truncated = True
+            self._head = combined[: self._head_limit]
+            self._tail = combined[-self._tail_limit :] if self._tail_limit else b""
+            return
+        if self._tail_limit:
+            self._tail = (self._tail + data)[-self._tail_limit :]
+
+    def append(self, text: str) -> None:
+        if not text:
+            return
+        self.bytes_seen += len(text.encode("utf-8", errors="replace"))
+        self._pending_line += text
+        lines = self._pending_line.splitlines(keepends=True)
+        if lines and not lines[-1].endswith(("\n", "\r")):
+            self._pending_line = lines.pop()
+        else:
+            self._pending_line = ""
+        for piece in lines:
+            self._append_redacted_piece(piece)
+        if len(self._pending_line) > _DURABLE_SECRET_SCAN_TAIL_CHARS:
+            safe = self._pending_line[:-_DURABLE_SECRET_SCAN_TAIL_CHARS]
+            self._pending_line = self._pending_line[-_DURABLE_SECRET_SCAN_TAIL_CHARS:]
+            self._append_redacted_piece(safe)
+
+    def finish(self) -> None:
+        if self._pending_line:
+            pending = self._pending_line
+            self._pending_line = ""
+            self._append_redacted_piece(pending)
+
+    def _append_redacted_piece(self, piece: str) -> None:
+        ends_line = piece.endswith(("\n", "\r"))
+        if self._discarding_secret_line:
+            if ends_line:
+                self._discarding_secret_line = False
+            return
+        if any(pattern.search(piece) for pattern in _SECRET_LINE_PATTERNS) or any(
+            pattern.search(piece) for pattern in _SECRET_PATTERNS
+        ):
+            self.redacted = True
+            self._append_retained("[redacted credential-bearing line]\n")
+            self._discarding_secret_line = not ends_line
+            return
+        self._append_retained(piece)
+
+    def text(self) -> str:
+        self.finish()
+        if not self.truncated:
+            return self._head.decode("utf-8", errors="ignore")
+        return (self._head + self._marker + self._tail).decode("utf-8", errors="ignore")
+
+
+def _durable_owned_process_tree_pids(root_pid: int) -> list[int]:
+    if root_pid <= 0:
+        return []
+    if sys.platform == "win32":
+        script = (
+            "$root="
+            + str(root_pid)
+            + ";"
+            + "$procs=Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId;"
+            + "$ids=New-Object 'System.Collections.Generic.HashSet[int]';"
+            + "[void]$ids.Add([int]$root);"
+            + "do{$changed=$false;foreach($p in $procs){"
+            + "if($ids.Contains([int]$p.ParentProcessId) -and -not $ids.Contains([int]$p.ProcessId)){"
+            + "[void]$ids.Add([int]$p.ProcessId);$changed=$true}}}while($changed);"
+            + "$ids | Sort-Object"
+        )
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if result.returncode == 0:
+            pids: list[int] = []
+            for line in (result.stdout or "").splitlines():
+                try:
+                    pids.append(int(line.strip()))
+                except ValueError:
+                    continue
+            return sorted(set(pids)) or [root_pid]
+        return [root_pid]
+    result = subprocess.run(
+        ["ps", "-o", "pid=", "-g", str(root_pid)],
+        capture_output=True,
+        text=True,
+        timeout=2,
+    )
+    if result.returncode == 0:
+        pids = []
+        for line in (result.stdout or "").splitlines():
+            try:
+                pids.append(int(line.strip()))
+            except ValueError:
+                continue
+        return sorted(set(pids)) or [root_pid]
+    return [root_pid]
+
+
+def _durable_alive_pids(pids: list[int]) -> list[int]:
+    alive: list[int] = []
+    for pid in sorted(set(pids)):
+        if pid <= 0:
+            continue
+        if sys.platform == "win32":
+            result = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            if result.returncode == 0 and str(pid) in (result.stdout or ""):
+                alive.append(pid)
+        else:
+            try:
+                os.kill(pid, 0)
+                alive.append(pid)
+            except ProcessLookupError:
+                continue
+            except PermissionError:
+                alive.append(pid)
+    return alive
+
+
+def _durable_force_exact_pids(pids: list[int]) -> list[str]:
+    lines: list[str] = []
+    for pid in sorted(set(pids), reverse=True):
+        if pid <= 0:
+            continue
+        if sys.platform == "win32":
+            try:
+                result = subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/F"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+                lines.append(
+                    f"exact pid force cleanup pid={pid} rc={result.returncode}: "
+                    f"{(result.stdout or result.stderr or '').strip()}"
+                )
+            except Exception as exc:  # noqa: BLE001
+                lines.append(f"exact pid force cleanup failed pid={pid}: {type(exc).__name__}: {exc}")
+        else:
+            try:
+                os.kill(pid, signal.SIGKILL)
+                lines.append(f"sent SIGKILL to exact pid {pid}")
+            except ProcessLookupError:
+                lines.append(f"exact pid already absent {pid}")
+            except Exception as exc:  # noqa: BLE001
+                lines.append(f"exact pid force cleanup failed pid={pid}: {type(exc).__name__}: {exc}")
+    return lines
+
+
+def _durable_fail_closed_reader_timeout_cleanup(
+    proc: subprocess.Popen[str],
+    cleanup: dict[str, Any],
+    last_tree_pids: list[int],
+) -> dict[str, Any]:
+    try:
+        last_tree_pids = sorted(set(last_tree_pids + _durable_owned_process_tree_pids(proc.pid)))
+    except Exception:
+        last_tree_pids = sorted(set(last_tree_pids + [proc.pid]))
+    alive = _durable_alive_pids(last_tree_pids)
+    if alive:
+        cleanup.setdefault("force_stdout", "")
+        cleanup["force_stdout"] = "\n".join(
+            str(x)
+            for x in [
+                cleanup.get("force_stdout", ""),
+                *_durable_force_exact_pids(alive),
+            ]
+            if x
+        )
+        remaining = _durable_alive_pids(alive)
+        cleanup["process_residue"] = [
+            {"pid": pid, "state": "still_alive"} for pid in remaining
+        ]
+    elif not any(pid != proc.pid for pid in last_tree_pids):
+        cleanup["process_residue"] = [
+            {"state": "reader_timeout_descendant_identity_unknown"}
+        ]
+    else:
+        cleanup["process_residue"] = []
+    return cleanup
+
+
+class _DurablePipeCollector:
+    def __init__(self, proc: subprocess.Popen[str]) -> None:
+        self._lock = threading.Lock()
+        self._buffers = {
+            "stdout": _BoundedStreamBuffer(_DURABLE_TIMEOUT_STDOUT_LIMIT),
+            "stderr": _BoundedStreamBuffer(_DURABLE_TIMEOUT_STDERR_LIMIT),
+        }
+        self._reader_errors: dict[str, str] = {}
+        self._threads: list[threading.Thread] = []
+        self._streams: list[Any] = []
+        for name in ("stdout", "stderr"):
+            stream = getattr(proc, name, None)
+            if stream is None:
+                continue
+            self._streams.append(stream)
+            thread = threading.Thread(
+                target=self._drain_stream,
+                args=(name, stream),
+                name=f"durable-{name}-drain-{getattr(proc, 'pid', 'unknown')}",
+                daemon=True,
+            )
+            thread.start()
+            self._threads.append(thread)
+
+    def _drain_stream(self, name: str, stream: Any) -> None:
+        try:
+            while True:
+                chunk = stream.read(4096)
+                if not chunk:
+                    break
+                if isinstance(chunk, bytes):
+                    text = chunk.decode("utf-8", errors="replace")
+                else:
+                    text = str(chunk)
+                with self._lock:
+                    self._buffers[name].append(text)
+        except Exception as exc:  # noqa: BLE001
+            with self._lock:
+                self._reader_errors[name] = f"{type(exc).__name__}: {exc}"
+
+    @property
+    def has_readers(self) -> bool:
+        return bool(self._threads)
+
+    def snapshot(self, *, join_timeout: float) -> dict[str, Any]:
+        deadline = time.monotonic() + max(0.0, join_timeout)
+        for thread in self._threads:
+            remaining = max(0.0, deadline - time.monotonic())
+            thread.join(timeout=remaining)
+        if any(thread.is_alive() for thread in self._threads):
+            for stream in self._streams:
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+            for thread in self._threads:
+                remaining = max(0.0, deadline - time.monotonic())
+                thread.join(timeout=remaining)
+        reader_timed_out = any(thread.is_alive() for thread in self._threads)
+        with self._lock:
+            raw_stdout = self._buffers["stdout"].text()
+            raw_stderr = self._buffers["stderr"].text()
+            stdout = raw_stdout
+            stderr = raw_stderr
+            stdout, stdout_redaction_truncated = _tail_with_limit(
+                stdout,
+                _DURABLE_TIMEOUT_STDOUT_LIMIT,
+            )
+            stderr, stderr_redaction_truncated = _tail_with_limit(
+                stderr,
+                _DURABLE_TIMEOUT_STDERR_LIMIT,
+            )
+            stdout_truncated = self._buffers["stdout"].truncated or stdout_redaction_truncated
+            stderr_truncated = self._buffers["stderr"].truncated or stderr_redaction_truncated
+            stdout_bytes = self._buffers["stdout"].bytes_seen
+            stderr_bytes = self._buffers["stderr"].bytes_seen
+            redacted = self._buffers["stdout"].redacted or self._buffers["stderr"].redacted
+            errors = dict(self._reader_errors)
+        return {
+            "stdout": stdout,
+            "stderr": stderr,
+            "output_capture": {
+                "attempted": True,
+                "concurrent_drain": True,
+                "drain_timeout_seconds": join_timeout,
+                "stdout_truncated": stdout_truncated,
+                "stderr_truncated": stderr_truncated,
+                "total_truncated": stdout_truncated or stderr_truncated,
+                "stdout_limit_bytes": _DURABLE_TIMEOUT_STDOUT_LIMIT,
+                "stderr_limit_bytes": _DURABLE_TIMEOUT_STDERR_LIMIT,
+                "total_limit_bytes": _DURABLE_TIMEOUT_TOTAL_LIMIT,
+                "stdout_bytes_seen": stdout_bytes,
+                "stderr_bytes_seen": stderr_bytes,
+                "total_bytes_seen": stdout_bytes + stderr_bytes,
+                "redacted": redacted,
+                "timed_out": reader_timed_out,
+                "reader_errors": errors,
+            },
+        }
 
 
 class NodeClient:
@@ -894,47 +1225,75 @@ class NodeClient:
             cleanup["process_residue"] = [{"pid": pid, "error": f"{type(exc).__name__}: {exc}"}]
         return cleanup
 
-    def _capture_timed_out_process_output(self, proc: subprocess.Popen[str]) -> dict[str, Any]:
-        captured: dict[str, Any] = {
-            "stdout": "",
-            "stderr": "",
-            "output_capture": {
-                "attempted": True,
-                "drain_timeout_seconds": _DURABLE_TIMEOUT_DRAIN_SECONDS,
-                "stdout_truncated": False,
-                "stderr_truncated": False,
-                "timed_out": False,
-            },
-        }
-        try:
-            stdout, stderr = proc.communicate(timeout=_DURABLE_TIMEOUT_DRAIN_SECONDS)
-        except subprocess.TimeoutExpired as exc:
-            captured["output_capture"]["timed_out"] = True
-            stdout = getattr(exc, "output", "") or ""
-            stderr = getattr(exc, "stderr", "") or ""
-        except Exception as exc:  # noqa: BLE001
-            captured["output_capture"]["error"] = f"{type(exc).__name__}: {exc}"
-            stdout = ""
-            stderr = ""
-        if isinstance(stdout, bytes):
-            stdout = stdout.decode("utf-8", errors="replace")
-        if isinstance(stderr, bytes):
-            stderr = stderr.decode("utf-8", errors="replace")
-        stdout_text, stdout_truncated = _tail_with_limit(
-            _redact_durable_output(str(stdout or "")),
-            _DURABLE_TIMEOUT_STDOUT_LIMIT,
-        )
-        stderr_text, stderr_truncated = _tail_with_limit(
-            _redact_durable_output(str(stderr or "")),
-            _DURABLE_TIMEOUT_STDERR_LIMIT,
-        )
-        captured["stdout"] = stdout_text
-        captured["stderr"] = stderr_text
-        captured["output_capture"]["stdout_truncated"] = stdout_truncated
-        captured["output_capture"]["stderr_truncated"] = stderr_truncated
-        captured["output_capture"]["stdout_limit_bytes"] = _DURABLE_TIMEOUT_STDOUT_LIMIT
-        captured["output_capture"]["stderr_limit_bytes"] = _DURABLE_TIMEOUT_STDERR_LIMIT
-        return captured
+    def _capture_timed_out_process_output(
+        self,
+        proc: subprocess.Popen[str],
+        collector: _DurablePipeCollector | None = None,
+    ) -> dict[str, Any]:
+        if collector is not None and collector.has_readers:
+            return collector.snapshot(join_timeout=_DURABLE_TIMEOUT_DRAIN_SECONDS)
+        if collector is None:
+            collector = _DurablePipeCollector(proc)
+        if not collector.has_readers:
+            captured: dict[str, Any] = {
+                "stdout": "",
+                "stderr": "",
+                "output_capture": {
+                    "attempted": True,
+                    "concurrent_drain": False,
+                    "drain_timeout_seconds": _DURABLE_TIMEOUT_DRAIN_SECONDS,
+                    "stdout_truncated": False,
+                    "stderr_truncated": False,
+                    "total_truncated": False,
+                    "timed_out": False,
+                },
+            }
+            try:
+                stdout, stderr = proc.communicate(timeout=_DURABLE_TIMEOUT_DRAIN_SECONDS)
+            except subprocess.TimeoutExpired as exc:
+                captured["output_capture"]["timed_out"] = True
+                stdout = getattr(exc, "output", "") or ""
+                stderr = getattr(exc, "stderr", "") or ""
+            except Exception as exc:  # noqa: BLE001
+                captured["output_capture"]["error"] = f"{type(exc).__name__}: {exc}"
+                stdout = ""
+                stderr = ""
+            if isinstance(stdout, bytes):
+                stdout = stdout.decode("utf-8", errors="replace")
+            if isinstance(stderr, bytes):
+                stderr = stderr.decode("utf-8", errors="replace")
+            stdout_text, stdout_truncated = _tail_with_limit(
+                _redact_durable_output(str(stdout or "")),
+                _DURABLE_TIMEOUT_STDOUT_LIMIT,
+            )
+            stderr_text, stderr_truncated = _tail_with_limit(
+                _redact_durable_output(str(stderr or "")),
+                _DURABLE_TIMEOUT_STDERR_LIMIT,
+            )
+            captured["stdout"] = stdout_text
+            captured["stderr"] = stderr_text
+            captured["output_capture"]["stdout_truncated"] = stdout_truncated
+            captured["output_capture"]["stderr_truncated"] = stderr_truncated
+            captured["output_capture"]["total_truncated"] = stdout_truncated or stderr_truncated
+            captured["output_capture"]["stdout_limit_bytes"] = _DURABLE_TIMEOUT_STDOUT_LIMIT
+            captured["output_capture"]["stderr_limit_bytes"] = _DURABLE_TIMEOUT_STDERR_LIMIT
+            captured["output_capture"]["total_limit_bytes"] = _DURABLE_TIMEOUT_TOTAL_LIMIT
+            captured["output_capture"]["stdout_bytes_seen"] = len(
+                str(stdout or "").encode("utf-8", errors="replace")
+            )
+            captured["output_capture"]["stderr_bytes_seen"] = len(
+                str(stderr or "").encode("utf-8", errors="replace")
+            )
+            captured["output_capture"]["total_bytes_seen"] = (
+                captured["output_capture"]["stdout_bytes_seen"]
+                + captured["output_capture"]["stderr_bytes_seen"]
+            )
+            captured["output_capture"]["redacted"] = (
+                str(stdout or "") != _redact_durable_output(str(stdout or ""))
+                or str(stderr or "") != _redact_durable_output(str(stderr or ""))
+            )
+            return captured
+        return collector.snapshot(join_timeout=_DURABLE_TIMEOUT_DRAIN_SECONDS)
 
     async def _execute_capability_for_durable(
         self,
@@ -1052,7 +1411,12 @@ class NodeClient:
                 text=True,
                 **extra,
             )
+            output_collector = _DurablePipeCollector(proc)
             self._durable_processes[req.request_id] = proc
+            try:
+                last_tree_pids = _durable_owned_process_tree_pids(proc.pid)
+            except Exception:
+                last_tree_pids = [proc.pid]
             process_tree = dict(process_tree)
             process_tree.update({"root_pid": proc.pid, "command_digest": req.payload_digest})
             self._durable_store.mark_running(
@@ -1072,12 +1436,24 @@ class NodeClient:
 
             deadline = time.time() + timeout
             while proc.poll() is None:
+                try:
+                    observed = _durable_owned_process_tree_pids(proc.pid)
+                    last_tree_pids = sorted(set(last_tree_pids + observed))
+                except Exception:
+                    last_tree_pids = sorted(set(last_tree_pids + [proc.pid]))
                 local = self._durable_store.get_request(req.request_id)
                 if local and local.lifecycle_state == "CANCEL_REQUESTED":
                     cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
-                    captured = self._capture_timed_out_process_output(proc)
+                    captured = self._capture_timed_out_process_output(proc, output_collector)
                     cleanup["cancel_reason"] = "cancel requested during execution"
                     cleanup.update(local.cancellation_identity(claim_id=claim_id))
+                    if captured["output_capture"].get("timed_out"):
+                        cleanup["reader_timeout_after_termination"] = True
+                        cleanup = _durable_fail_closed_reader_timeout_cleanup(
+                            proc,
+                            cleanup,
+                            last_tree_pids,
+                        )
                     return {
                         "success": False,
                         "error": "cancel requested during execution",
@@ -1086,7 +1462,14 @@ class NodeClient:
                     }
                 if time.time() >= deadline:
                     cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
-                    captured = self._capture_timed_out_process_output(proc)
+                    captured = self._capture_timed_out_process_output(proc, output_collector)
+                    if captured["output_capture"].get("timed_out"):
+                        cleanup["reader_timeout_after_termination"] = True
+                        cleanup = _durable_fail_closed_reader_timeout_cleanup(
+                            proc,
+                            cleanup,
+                            last_tree_pids,
+                        )
                     return {
                         "success": False,
                         "error": f"{cap_name} timed out after {timeout:.0f}s",
@@ -1094,12 +1477,27 @@ class NodeClient:
                         **captured,
                     }
                 await asyncio.sleep(0.5)
-            stdout, stderr = proc.communicate(timeout=1)
+            captured = output_collector.snapshot(join_timeout=_DURABLE_TIMEOUT_DRAIN_SECONDS)
+            if captured["output_capture"].get("timed_out"):
+                cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                cleanup["reader_timeout_after_exit"] = True
+                cleanup = _durable_fail_closed_reader_timeout_cleanup(
+                    proc,
+                    cleanup,
+                    last_tree_pids,
+                )
+                return {
+                    "success": False,
+                    "error": "durable output readers timed out after process exit",
+                    "cleanup": cleanup,
+                    **captured,
+                }
             return {
                 "success": proc.returncode == 0,
-                "stdout": stdout[-10000:],
-                "stderr": stderr[-5000:],
+                "stdout": captured["stdout"],
+                "stderr": captured["stderr"],
                 "exit_code": proc.returncode,
+                "output_capture": captured["output_capture"],
             }
         except Exception as exc:  # noqa: BLE001
             return {"success": False, "error": f"{type(exc).__name__}: {exc}"}
