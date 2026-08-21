@@ -582,7 +582,11 @@ class FieldControlPlaneDriver:
 
     def _dispatch_fn(self) -> Callable[..., None]:
         from substrate.execution.attempts.field_failure_policy import disallowed_tools_for
+        from substrate.execution.attempts.model_executor_selection import selected_provider_name
         from substrate.execution.attempts.spool import DispatchEnvelope
+        from substrate.execution.attempts.worker_model_executor import (
+            capability_policy_for_disallowed_tools,
+        )
 
         def dispatch(
             *, attempt: Any, assignment: Any, lease: Any, package: Any, grant: Any
@@ -597,6 +601,22 @@ class FieldControlPlaneDriver:
                 task_id=getattr(attempt, "task_id", ""),
                 attempt_number=int(getattr(attempt, "attempt_number", 1) or 1),
             )
+            operation_identity = dict(getattr(package, "operation_identity", {}) or {})
+            operation_identity.setdefault("task_id", getattr(attempt, "task_id", ""))
+            operation_identity.setdefault("attempt_id", getattr(attempt, "attempt_id", ""))
+            operation_identity.setdefault(
+                "execution_authorization_ref", getattr(grant, "decision_ref", "")
+            )
+            policy, policy_error = capability_policy_for_disallowed_tools(
+                provider=selected_provider_name(),
+                disallowed_tools=list(revoked),
+                operation_identity=operation_identity,
+            )
+            if policy_error:
+                raise RuntimeError(
+                    f"unsupported worker capability policy for attempt "
+                    f"{getattr(attempt, 'attempt_id', '')}: {policy_error}"
+                )
             # Unique per DISPATCH, not per attempt (review W6). `d-<attempt_id>`
             # collided whenever an attempt was re-dispatched, and the spool
             # filename is `<sequence>-<dispatch_id>.json` written with os.replace
@@ -639,6 +659,7 @@ class FieldControlPlaneDriver:
                     # so B was quarantined while A held the full 600s.
                     expires_at=time.time() + _CLAIM_BUDGET_SECONDS,
                     disallowed_tools=list(revoked),
+                    capability_policy=policy,
                     max_turns=int(getattr(attempt, "max_turns", 30) or 30),
                     timeout_seconds=int(getattr(attempt, "timeout_seconds", 600) or 600),
                     payload_hash=getattr(package, "package_hash", ""),
@@ -665,15 +686,47 @@ class FieldControlPlaneDriver:
 
     def _build_scheduler(self) -> Any:
         from substrate.execution.attempts.dispatch import compile_attempt_package
+        from substrate.execution.attempts.field_failure_policy import disallowed_tools_for
+        from substrate.execution.attempts.model_executor_selection import selected_provider_name
         from substrate.execution.attempts.placement import place_attempt
         from substrate.execution.attempts.scheduler import AttemptScheduler
+        from substrate.execution.attempts.worker_model_executor import (
+            capability_policy_for_disallowed_tools,
+        )
+
+        def compile_with_capability_validation(**kwargs: Any) -> Any:
+            attempt = kwargs.get("attempt")
+            grant = kwargs.get("grant")
+            package = compile_attempt_package(**kwargs)
+            revoked = disallowed_tools_for(
+                targets_dir=self._targets_dir,
+                task_id=getattr(attempt, "task_id", ""),
+                attempt_number=int(getattr(attempt, "attempt_number", 1) or 1),
+            )
+            operation_identity = dict(getattr(package, "operation_identity", {}) or {})
+            operation_identity.setdefault("task_id", getattr(attempt, "task_id", ""))
+            operation_identity.setdefault("attempt_id", getattr(attempt, "attempt_id", ""))
+            operation_identity.setdefault(
+                "execution_authorization_ref", getattr(grant, "decision_ref", "")
+            )
+            _policy, policy_error = capability_policy_for_disallowed_tools(
+                provider=selected_provider_name(),
+                disallowed_tools=list(revoked),
+                operation_identity=operation_identity,
+            )
+            if policy_error:
+                raise RuntimeError(
+                    f"unsupported worker capability policy for attempt "
+                    f"{getattr(attempt, 'attempt_id', '')}: {policy_error}"
+                )
+            return package
 
         return AttemptScheduler(
             self._store,
             work_queue=self._queue,
             placement_fn=place_attempt,
             lease_manager=self._lease_manager(),
-            compile_fn=compile_attempt_package,
+            compile_fn=compile_with_capability_validation,
             dispatch_fn=self._dispatch_fn(),
             max_concurrency=2,
             mutation_runner=self._mutation_runner,

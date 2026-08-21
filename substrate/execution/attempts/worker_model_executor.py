@@ -17,9 +17,11 @@ from typing import Any
 
 from substrate.execution.attempts.field_task_scope import (
     ScopeResolutionError,
-    paths_outside as _paths_outside,
     prepare_attempt_git_capability,
     readonly_binds_for_scope,
+)
+from substrate.execution.attempts.field_task_scope import (
+    paths_outside as _paths_outside,
 )
 from substrate.execution.attempts.host_isolation import (
     IsolationProfile,
@@ -29,10 +31,9 @@ from substrate.execution.attempts.host_isolation import (
 )
 from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
 from substrate.execution.attempts.model_executor_selection import build_model_executor
-from substrate.execution.attempts.worker_credential_boundary import (
-    CredentialBoundaryError,
-    close_attempt_credential_home,
-    open_attempt_credential_home,
+from substrate.execution.attempts.scope_contract import (
+    TRUSTED_PROJECTION_PATHS,
+    sealed_writable_scope,
 )
 
 # Reuse the audited Wave 2 substrate mechanics. These helpers are not Claude
@@ -49,15 +50,17 @@ from substrate.execution.attempts.worker_claude_cli import (  # noqa: E402
     project_task_local_objective,
     render_prompt,
 )
-from substrate.execution.attempts.scope_contract import (
-    TRUSTED_PROJECTION_PATHS,
-    sealed_writable_scope,
+from substrate.execution.attempts.worker_credential_boundary import (
+    CredentialBoundaryError,
+    close_attempt_credential_home,
+    open_attempt_credential_home,
 )
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT = 600.0
 _DEFAULT_MAX_TURNS = 30
+_SOURCE_MUTATION_DENIAL_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"})
 
 
 def _run_isolated_with_tree_timeout(
@@ -125,6 +128,7 @@ class WorkerResult:
     usage: dict[str, Any] = field(default_factory=dict)
     retry_class: str = "unknown"
     proof_binding: dict[str, Any] = field(default_factory=dict)
+    capability_policy: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         d = dict(self.__dict__)
@@ -148,6 +152,52 @@ def _credential_env_key(provider: str) -> str:
     if provider == "codex":
         return "CODEX_ACCESS_TOKEN"
     return "MODEL_EXECUTOR_TOKEN"
+
+
+def capability_policy_for_disallowed_tools(
+    *,
+    provider: str,
+    disallowed_tools: list[str] | None,
+    operation_identity: dict[str, Any],
+) -> tuple[dict[str, Any], str]:
+    """Translate run-bound tool revocations into enforceable capabilities.
+
+    The field-injection vocabulary is historical and CLI-shaped, but the
+    enforcement must be provider-neutral. Today the only supported non-empty
+    policy is "deny source mutation": it maps to a read-only worktree mount,
+    below model behavior and below provider tool naming.
+    """
+
+    requested = tuple(str(t) for t in (disallowed_tools or ()) if str(t))
+    base = {
+        "schema_version": 1,
+        "provider": provider,
+        "requested_disallowed_tools": list(requested),
+        "run_id": str(operation_identity.get("run_id", "") or ""),
+        "task_id": str(operation_identity.get("task_id", "") or ""),
+        "attempt_id": str(operation_identity.get("attempt_id", "") or ""),
+        "grant_ref": str(operation_identity.get("execution_authorization_ref", "") or ""),
+        "mode": "normal",
+        "enforced": False,
+        "enforcement": "",
+    }
+    if not requested:
+        return base, ""
+    requested_set = frozenset(requested)
+    if requested_set == _SOURCE_MUTATION_DENIAL_TOOLS:
+        base.update(
+            {
+                "mode": "source_mutation_denied",
+                "enforced": True,
+                "enforcement": "worktree_readonly_mount",
+            }
+        )
+        return base, ""
+    return (
+        base,
+        "unsupported execution capability restriction: "
+        f"requested={sorted(requested_set)!r}; supported={sorted(_SOURCE_MUTATION_DENIAL_TOOLS)!r}",
+    )
 
 
 def run_worker_in_lease(
@@ -301,6 +351,21 @@ def run_worker_in_lease(
         operation_identity=dict(getattr(package, "operation_identity", None) or {}),
         proof_binding=binding,
     )
+    policy, policy_error = capability_policy_for_disallowed_tools(
+        provider=readiness.identity.provider,
+        disallowed_tools=list(disallowed_tools or []),
+        operation_identity=packet.operation_identity,
+    )
+    if policy_error:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=policy_error,
+            executor=readiness.identity.proof_metadata(),
+            retry_class="configuration",
+            trusted_base=base_commit,
+            proof_binding=binding,
+            capability_policy=policy,
+        )
     try:
         invocation = executor.build_invocation(packet)
         if not invocation.argv:
@@ -310,7 +375,13 @@ def run_worker_in_lease(
                 executor=readiness.identity.proof_metadata(),
                 retry_class="owner_auth_or_provider",
                 trusted_base=base_commit,
+                proof_binding=binding,
+                capability_policy=policy,
             )
+        if policy.get("mode") == "source_mutation_denied":
+            profile.worktree_readonly = True
+            profile.readonly_subpaths = []
+            profile.writable_subpaths = []
         cmd = build_isolated_command(invocation.argv, profile)
         isolated = True
     except IsolationUnavailable as exc:
@@ -371,9 +442,15 @@ def run_worker_in_lease(
             usage=dict(terminal.usage),
             retry_class=terminal.retry_class,
             proof_binding=dict(terminal.proof_binding or binding),
+            capability_policy=policy,
         )
     finally:
         close_attempt_credential_home(attempt_home)
 
 
-__all__ = ["WorkerResult", "run_worker_in_lease", "render_prompt"]
+__all__ = [
+    "WorkerResult",
+    "capability_policy_for_disallowed_tools",
+    "run_worker_in_lease",
+    "render_prompt",
+]

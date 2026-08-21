@@ -79,6 +79,9 @@ class IsolationProfile:
     # True when readonly_subpaths was derived from a real declared scope. A
     # profile built without a scope must never silently run unconstrained.
     scope_enforced: bool = False
+    # Stronger run-bound capability denial used by failure qualification: the
+    # assigned source worktree is readable but no source mutation is possible.
+    worktree_readonly: bool = False
 
 
 class IsolationUnavailable(RuntimeError):
@@ -111,6 +114,12 @@ def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list
     state, and all other credential stores are simply not bound, so they do not
     exist inside the sandbox.
     """
+    if profile.worktree_readonly and profile.writable_subpaths:
+        raise IsolationUnavailable(
+            "worktree_readonly profiles cannot re-open writable worktree subpaths; "
+            "refusing a capability-denial sandbox with contradictory binds"
+        )
+
     cmd: list[str] = [
         "bwrap",
         "--unshare-all",
@@ -127,8 +136,14 @@ def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list
         cmd += ["--share-net"]
     for ro in profile.ro_paths or _default_ro_paths():
         cmd += ["--ro-bind-try", ro, ro]
-    # Writable worktree.
-    cmd += ["--bind", profile.worktree_path, profile.worktree_path]
+    # Worktree source. Normal workers get a writable worktree with per-path
+    # read-only overlays. A run-bound capability denial mounts the whole
+    # worktree read-only so neither shell nor direct file APIs can mutate it.
+    cmd += [
+        "--ro-bind" if profile.worktree_readonly else "--bind",
+        profile.worktree_path,
+        profile.worktree_path,
+    ]
     # HARD WRITE-SCOPE ENFORCEMENT. Order matters: bwrap applies binds
     # left-to-right, so these read-only binds must come AFTER the rw worktree
     # bind to mask it. Each entry is an absolute path inside the worktree that
@@ -189,12 +204,19 @@ def build_isolated_command(inner_cmd: list[str], profile: IsolationProfile) -> l
     # for WRITE-SCOPE enforcement: a barrier that silently becomes advisory is
     # worse than one that is absent, because the absence is visible. Fail closed
     # and say exactly which primitive could not honor the binds.
-    if profile.scope_enforced or profile.readonly_subpaths or profile.writable_subpaths:
+    if (
+        profile.worktree_readonly
+        or profile.scope_enforced
+        or profile.readonly_subpaths
+        or profile.writable_subpaths
+    ):
         raise IsolationUnavailable(
             f"host-isolation primitive {prim!r} cannot enforce per-path write scope "
+            f"or capability denial "
             f"({len(profile.readonly_subpaths)} read-only, "
-            f"{len(profile.writable_subpaths)} writable binds required) — only bwrap "
-            "can. Refusing to run a worker whose declared scope would be unenforced."
+            f"{len(profile.writable_subpaths)} writable binds required, "
+            f"worktree_readonly={profile.worktree_readonly}) — only bwrap can. "
+            "Refusing to run a worker whose declared capability policy would be unenforced."
         )
     if prim == "systemd-run":
         # Transient unit with a private tmp + restricted home; a coarser fallback.

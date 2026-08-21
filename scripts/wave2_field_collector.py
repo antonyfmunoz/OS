@@ -2015,6 +2015,81 @@ class FieldCollector:
         self.shot(page, "w14_hud_exec_row")
         self.dom(page, "w14_hud_exec_row")
 
+    def _durable_execution_authorized(self, page: Any, ctx: dict[str, Any]) -> tuple[bool, str]:
+        """Reconstruct w15 authorization from canonical durable grant/binding facts.
+
+        The HUD click is the intended operator action, but a completed graph can
+        race the observer after the click. The durable invariant is the one the
+        runner admits on: an ACTIVE run-correlated grant and/or an attempt bound
+        to that exact authorization before admission.
+        """
+        ref = str(ctx.get("execution_decision_ref") or self._execution_decision_ref or "")
+        plan_id = str(ctx.get("plan_record_id") or self._last_plan_id or "")
+        auths, auths_ok, auths_status = self._read_authorizations_checked(page)
+        attempts, attempts_ok, attempts_status = self._read_attempts_checked(page, plan_id)
+
+        def _matches_ref(row: dict[str, Any]) -> bool:
+            row_ref = str(
+                row.get("decision_ref")
+                or row.get("execution_authorization_ref")
+                or row.get("authorization_ref")
+                or ""
+            )
+            if ref:
+                return row_ref == ref
+            return bool(plan_id) and str(row.get("plan_record_id", "")) == plan_id
+
+        active_grants = [
+            a
+            for a in auths
+            if _matches_ref(a)
+            and str(a.get("status") or a.get("state") or "").lower() == "active"
+        ]
+
+        admitted_statuses = {"leased", "dispatched", "running", "verifying"}
+        terminal_statuses = {"succeeded", "failed", "cancelled", "rolled_back"}
+
+        def _has_admission_binding(row: dict[str, Any]) -> bool:
+            return any(
+                str(row.get(k, "") or "")
+                for k in ("assignment_id", "lease_id", "worker_identity", "proof_id")
+            )
+
+        def _detail_has_admitted_transition(attempt_id: str) -> bool:
+            detail = self._attempt_detail(page, attempt_id)
+            transitions = detail.get("transitions") if isinstance(detail, dict) else None
+            if not isinstance(transitions, list):
+                return False
+            for t in transitions:
+                to_status = str(t.get("to_status", "")).lower()
+                from_status = str(t.get("from_status", "")).lower()
+                if to_status in admitted_statuses or from_status in admitted_statuses:
+                    return True
+            return False
+
+        def _attempt_proves_admission(row: dict[str, Any]) -> bool:
+            status = str(row.get("status") or row.get("phase") or "").lower()
+            if status in admitted_statuses:
+                return _has_admission_binding(row)
+            if status in terminal_statuses:
+                if _has_admission_binding(row):
+                    return True
+                return _detail_has_admitted_transition(str(row.get("attempt_id", "") or ""))
+            return False
+
+        admitted_attempts = [
+            a
+            for a in attempts
+            if _matches_ref(a) and _attempt_proves_admission(a)
+        ]
+        ok = auths_ok and attempts_ok and (bool(active_grants) or bool(admitted_attempts))
+        detail = (
+            f"durable_authorized={ok} ref={ref[:32]} plan={plan_id[:16]} "
+            f"active_grants={len(active_grants)} admitted_bindings={len(admitted_attempts)} "
+            f"auth_read={auths_ok}/{auths_status} attempt_read={attempts_ok}/{attempts_status}"
+        )
+        return ok, detail
+
     # ── w15 — authorize execution in the HUD ──────────────────────────────────
     def _w15_authorize_execution(self, page: Any, ctx: dict[str, Any]) -> None:
         """Click Authorize on the execution-authorization row (anchored by
@@ -2074,11 +2149,16 @@ class FieldCollector:
                 status_body = f"no-response ({str(exc)[:80]})"
         else:
             status_body = "approve-button-never-appeared"
-        ctx["execution_authorized"] = clicked
+        durable_ok, durable_detail = self._durable_execution_authorized(page, ctx)
+        authorized = clicked or durable_ok
+        ctx["execution_authorized"] = authorized
         self.stage(
             "w15_authorize_execution",
-            clicked,
-            f"authorized={clicked} decision_response={status_body[:120]}",
+            authorized,
+            (
+                f"authorized={authorized} hud_authorized={clicked} "
+                f"decision_response={status_body[:120]} {durable_detail}"
+            ),
         )
         self.shot(page, "w15_authorized")
         self.dom(page, "w15_authorized")

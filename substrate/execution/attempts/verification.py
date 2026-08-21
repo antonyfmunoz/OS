@@ -712,6 +712,9 @@ def _persist_proof(
                     "usage": dict(getattr(worker_result, "usage", {}) or {}),
                     "proof_binding": dict(getattr(worker_result, "proof_binding", {}) or {}),
                     "retry_class": str(getattr(worker_result, "retry_class", "") or ""),
+                    "capability_policy": dict(
+                        getattr(worker_result, "capability_policy", {}) or {}
+                    ),
                 },
             )
         )

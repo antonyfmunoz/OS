@@ -247,6 +247,7 @@ class ControlPlanePoller:
                 updates={
                     "files_changed": list(worker_result.files_changed)[:_MAX_REPORTED_ITEMS],
                     "commits": list(worker_result.commits)[:_MAX_REPORTED_ITEMS],
+                    "capability_policy": dict(worker_result.capability_policy),
                 },
             )
             report.transitioned_verifying.append(attempt_id)
@@ -688,6 +689,11 @@ class _WorkerResultView:
     @property
     def retry_class(self) -> str:
         return str(self._d.get("retry_class", "") or "")
+
+    @property
+    def capability_policy(self) -> dict[str, Any]:
+        raw = self._d.get("capability_policy", {}) or {}
+        return dict(raw) if isinstance(raw, dict) else {}
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self._d)

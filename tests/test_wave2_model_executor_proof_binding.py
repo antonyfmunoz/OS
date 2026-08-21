@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import subprocess
 from types import SimpleNamespace
 
@@ -56,6 +55,17 @@ def test_executor_metadata_is_persisted_in_attempt_proof(tmp_path):
             "executor_provider": "codex",
         },
         retry_class="not_retryable",
+        capability_policy={
+            "schema_version": 1,
+            "provider": "codex",
+            "mode": "source_mutation_denied",
+            "enforced": True,
+            "enforcement": "worktree_readonly_mount",
+            "run_id": "run-proof",
+            "task_id": "wp-proof",
+            "attempt_id": "ea-proof",
+            "grant_ref": "objective_plan:opr:execution_authorization:v1",
+        },
     )
     verdict = verify_attempt(
         attempt=attempt,
@@ -80,3 +90,6 @@ def test_executor_metadata_is_persisted_in_attempt_proof(tmp_path):
     assert artifact.data["usage"] == {"input_tokens": 10, "output_tokens": 20}
     assert artifact.data["proof_binding"]["authorized_base"] == base
     assert artifact.data["retry_class"] == "not_retryable"
+    assert artifact.data["capability_policy"]["mode"] == "source_mutation_denied"
+    assert artifact.data["capability_policy"]["enforced"] is True
+    assert artifact.data["capability_policy"]["attempt_id"] == "ea-proof"

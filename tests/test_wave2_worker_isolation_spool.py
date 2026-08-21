@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 
 import pytest
 
@@ -14,7 +15,6 @@ from substrate.execution.attempts.host_isolation import (
     scrub_worker_env,
 )
 from substrate.execution.attempts.spool import DispatchEnvelope, DispatchSpool
-
 
 # ── Host isolation (clause 4) ────────────────────────────────────────────────
 
@@ -72,6 +72,47 @@ def test_isolated_command_wraps_inner(tmp_path):
     # The inner command is wrapped by the isolation primitive.
     assert cmd[0] in ("bwrap", "systemd-run", "nsjail")
     assert "echo" in cmd and "hi" in cmd
+
+
+@pytest.mark.skipif(isolation_primitive() != "bwrap", reason="bwrap-specific capability denial")
+def test_worktree_readonly_capability_denial_blocks_shell_writes(tmp_path):
+    wt = tmp_path / "wt"
+    home = tmp_path / "home"
+    wt.mkdir()
+    home.mkdir()
+    target = wt / "app.py"
+    target.write_text("original\n", encoding="utf-8")
+
+    profile = IsolationProfile(
+        worktree_path=str(wt),
+        worker_home=str(home),
+        worktree_readonly=True,
+    )
+    cmd = build_isolated_command(
+        ["sh", "-c", f"set -e; printf hacked > {target}; cat {target}"],
+        profile,
+    )
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+    assert proc.returncode != 0
+    assert target.read_text(encoding="utf-8") == "original\n"
+
+
+@pytest.mark.skipif(isolation_primitive() != "bwrap", reason="bwrap-specific capability denial")
+def test_worktree_readonly_capability_denial_rejects_writable_reopen(tmp_path):
+    wt = tmp_path / "wt"
+    home = tmp_path / "home"
+    wt.mkdir()
+    home.mkdir()
+    profile = IsolationProfile(
+        worktree_path=str(wt),
+        worker_home=str(home),
+        worktree_readonly=True,
+        writable_subpaths=[str(wt / ".git" / "refs" / "attempt" / "ea-1")],
+    )
+
+    with pytest.raises(Exception, match="worktree_readonly profiles cannot re-open"):
+        build_isolated_command(["true"], profile)
 
 
 # ── Signed dispatch spool (clause 3) ─────────────────────────────────────────

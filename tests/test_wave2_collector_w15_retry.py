@@ -73,3 +73,26 @@ def test_w15_requires_approved_action_not_only_2xx_response() -> None:
     src = _method_source("W2FieldCollector", "_w15_authorize_execution")
     assert 'action == "approved"' in src
     assert "resp.status < 300 and action" in src
+
+
+def test_w15_uses_durable_authorization_and_binding_evidence() -> None:
+    """A fast completed graph must not fail w15 because the UI instant moved on."""
+    helper = _method_source("W2FieldCollector", "_durable_execution_authorized")
+    w15 = _method_source("W2FieldCollector", "_w15_authorize_execution")
+    assert helper, "w15 must have a durable authorization reconstruction helper"
+    assert "_durable_execution_authorized" in w15
+    assert "_read_authorizations_checked" in helper
+    assert "_read_attempts_checked" in helper
+    assert '"active"' in helper
+    assert "decision_ref" in helper
+    assert "execution_authorization_ref" in helper
+    assert "admitted_attempts" in helper
+    assert "durable_authorized" in helper
+
+
+def test_w15_does_not_count_pre_admission_blocked_attempts() -> None:
+    helper = _method_source("W2FieldCollector", "_durable_execution_authorized")
+    assert "admitted_statuses" in helper
+    assert '"blocked"' not in helper.split("admitted_statuses", 1)[1].split("}", 1)[0]
+    assert "_has_admission_binding" in helper
+    assert "_detail_has_admitted_transition" in helper

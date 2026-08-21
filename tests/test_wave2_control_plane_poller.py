@@ -232,6 +232,13 @@ def test_dispatched_result_drives_to_succeeded_with_proof(store):
                     "files_changed": ["app/main.py"],
                     "commits": ["abc add search"],
                     "isolated": True,
+                    "capability_policy": {
+                        "schema_version": 1,
+                        "mode": "normal",
+                        "enforced": False,
+                        "task_id": a.task_id,
+                        "attempt_id": a.attempt_id,
+                    },
                 },
             }
         ]
@@ -260,6 +267,8 @@ def test_dispatched_result_drives_to_succeeded_with_proof(store):
     assert final.verifier_identity.startswith("verifier:")
     # worker files/commits were recorded on the attempt
     assert final.files_changed == ["app/main.py"]
+    assert final.capability_policy["mode"] == "normal"
+    assert final.capability_policy["attempt_id"] == a.attempt_id
     # scheduler re-run after transitions (next frontier gets a chance to dispatch)
     assert sched.passes == 1
 

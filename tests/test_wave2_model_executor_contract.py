@@ -1266,6 +1266,233 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
     assert seen_home["kwargs"]["provider"] == "fake"
 
 
+def test_codex_tools_revoked_a_becomes_enforced_readonly_policy(tmp_path, monkeypatch):
+    from substrate.execution.attempts import worker_model_executor as worker
+
+    seen = {}
+
+    class FakeExecutor:
+        identity = ModelExecutorIdentity("codex", "gpt-5.3-codex-spark", "v", "FakeCodex")
+
+        def readiness(self, *, env=None):
+            return ModelExecutorReadiness(True, self.identity, authenticated=True)
+
+        def build_invocation(self, packet):
+            seen["packet_disallowed"] = list(packet.disallowed_tools)
+            return ModelInvocation(argv=["codex", "exec"], stdin=packet.prompt)
+
+        def collect_result(self, packet, completed, *, duration_seconds):
+            code = getattr(completed, "returncode", 1)
+            return ModelTerminalResult(
+                ok=code == 0,
+                status="succeeded" if code == 0 else "failed",
+                stdout="real content",
+                stderr=getattr(completed, "stderr", ""),
+                exit_code=code,
+                duration_seconds=duration_seconds,
+                identity=self.identity,
+                proof_binding=packet.proof_binding,
+            )
+
+    class FakeHome:
+        def __init__(self):
+            self.home_path = str(tmp_path / "home")
+            self.tmp_path = str(tmp_path / "tmp")
+
+        def env_overrides(self):
+            return {"HOME": self.home_path, "CODEX_HOME": str(tmp_path / "home" / ".codex")}
+
+    monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
+    monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
+    monkeypatch.setattr(worker, "open_attempt_credential_home", lambda **kw: FakeHome())
+    monkeypatch.setattr(worker, "close_attempt_credential_home", lambda home: None)
+    monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
+    monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True})
+    monkeypatch.setattr(worker, "_mark_projection_execution_context", lambda path, projection: None)
+    monkeypatch.setattr(worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs"))
+    monkeypatch.setattr(worker, "readonly_binds_for_scope", lambda scope, lease_root: [str(tmp_path / "wt" / "secret.txt")])
+    monkeypatch.setattr(worker, "_capture_git", lambda path, base: ([], [], ""))
+
+    def fake_wrap(inner, profile):
+        seen["worktree_readonly"] = profile.worktree_readonly
+        seen["readonly_subpaths"] = list(profile.readonly_subpaths)
+        seen["writable_subpaths"] = list(profile.writable_subpaths)
+        return ["sandbox", *inner]
+
+    def fake_run(cmd, **kwargs):
+        code = 1 if seen["worktree_readonly"] else 0
+        return SimpleNamespace(returncode=code, stdout="", stderr="Read-only file system")
+
+    monkeypatch.setattr(worker, "build_isolated_command", fake_wrap)
+    monkeypatch.setattr(worker, "_run_isolated_with_tree_timeout", fake_run)
+
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    package = SimpleNamespace(
+        governance_constraints=["writable_path_scope=['app/main.py']"],
+        operation_identity={
+            "run_id": "run-1",
+            "task_id": "wp-a",
+            "attempt_id": "ea-a1",
+            "execution_authorization_ref": "objective_plan:opr:execution_authorization:v1",
+        },
+        package_hash="ph",
+    )
+    result = worker.run_worker_in_lease(
+        package=package,
+        lease=SimpleNamespace(worktree_path=str(wt), snapshot_ref="base"),
+        attempt_id="ea-a1",
+        run_root=str(tmp_path / "run"),
+        provider="codex",
+        disallowed_tools=["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"],
+    )
+
+    assert result.ok is False
+    assert result.status == "failed"
+    assert result.commits == []
+    assert result.files_changed == []
+    assert result.capability_policy["mode"] == "source_mutation_denied"
+    assert result.capability_policy["enforced"] is True
+    assert result.capability_policy["run_id"] == "run-1"
+    assert result.capability_policy["task_id"] == "wp-a"
+    assert result.capability_policy["attempt_id"] == "ea-a1"
+    assert seen["packet_disallowed"] == ["Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"]
+    assert seen["worktree_readonly"] is True
+    assert seen["readonly_subpaths"] == []
+    assert seen["writable_subpaths"] == []
+
+
+def test_codex_rejects_unsupported_capability_restrictions_before_invocation(tmp_path, monkeypatch):
+    from substrate.execution.attempts import worker_model_executor as worker
+
+    invoked = {"build": False}
+
+    class FakeExecutor:
+        identity = ModelExecutorIdentity("codex", "gpt-5.3-codex-spark", "v", "FakeCodex")
+
+        def readiness(self, *, env=None):
+            return ModelExecutorReadiness(True, self.identity, authenticated=True)
+
+        def build_invocation(self, packet):
+            invoked["build"] = True
+            return ModelInvocation(argv=["codex", "exec"], stdin=packet.prompt)
+
+    class FakeHome:
+        def __init__(self):
+            self.home_path = str(tmp_path / "home")
+            self.tmp_path = str(tmp_path / "tmp")
+
+        def env_overrides(self):
+            return {"HOME": self.home_path}
+
+    monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
+    monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
+    monkeypatch.setattr(worker, "open_attempt_credential_home", lambda **kw: FakeHome())
+    monkeypatch.setattr(worker, "close_attempt_credential_home", lambda home: None)
+    monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
+    monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True})
+    monkeypatch.setattr(worker, "_mark_projection_execution_context", lambda path, projection: None)
+    monkeypatch.setattr(worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs"))
+    monkeypatch.setattr(worker, "readonly_binds_for_scope", lambda scope, lease_root: [])
+
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    package = SimpleNamespace(
+        governance_constraints=["writable_path_scope=['app/main.py']"],
+        operation_identity={"run_id": "run-1", "task_id": "wp-a", "attempt_id": "ea-a1"},
+        package_hash="ph",
+    )
+    result = worker.run_worker_in_lease(
+        package=package,
+        lease=SimpleNamespace(worktree_path=str(wt), snapshot_ref="base"),
+        attempt_id="ea-a1",
+        run_root=str(tmp_path / "run"),
+        provider="codex",
+        disallowed_tools=["Write"],
+    )
+
+    assert result.ok is False
+    assert result.retry_class == "configuration"
+    assert "unsupported execution capability restriction" in result.error
+    assert invoked["build"] is False
+    assert result.capability_policy["enforced"] is False
+
+
+def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkeypatch):
+    from substrate.execution.attempts import worker_model_executor as worker
+
+    seen = {}
+
+    class FakeExecutor:
+        identity = ModelExecutorIdentity("codex", "gpt-5.3-codex-spark", "v", "FakeCodex")
+
+        def readiness(self, *, env=None):
+            return ModelExecutorReadiness(True, self.identity, authenticated=True)
+
+        def build_invocation(self, packet):
+            return ModelInvocation(argv=["codex", "exec"], stdin=packet.prompt)
+
+        def collect_result(self, packet, completed, *, duration_seconds):
+            return ModelTerminalResult(
+                ok=True,
+                status="succeeded",
+                stdout="real content",
+                exit_code=0,
+                duration_seconds=duration_seconds,
+                identity=self.identity,
+                proof_binding=packet.proof_binding,
+            )
+
+    class FakeHome:
+        def __init__(self):
+            self.home_path = str(tmp_path / "home")
+            self.tmp_path = str(tmp_path / "tmp")
+
+        def env_overrides(self):
+            return {"HOME": self.home_path}
+
+    monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
+    monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
+    monkeypatch.setattr(worker, "open_attempt_credential_home", lambda **kw: FakeHome())
+    monkeypatch.setattr(worker, "close_attempt_credential_home", lambda home: None)
+    monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
+    monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True})
+    monkeypatch.setattr(worker, "_mark_projection_execution_context", lambda path, projection: None)
+    monkeypatch.setattr(worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs"))
+    monkeypatch.setattr(worker, "readonly_binds_for_scope", lambda scope, lease_root: [str(tmp_path / "wt" / "secret.txt")])
+    monkeypatch.setattr(worker, "_capture_git", lambda path, base: (["app/main.py"], ["abc commit"], "diff"))
+    monkeypatch.setattr(worker, "_run_isolated_with_tree_timeout", lambda cmd, **kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""))
+
+    def fake_wrap(inner, profile):
+        seen["worktree_readonly"] = profile.worktree_readonly
+        seen["writable_subpaths"] = list(profile.writable_subpaths)
+        return ["sandbox", *inner]
+
+    monkeypatch.setattr(worker, "build_isolated_command", fake_wrap)
+
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    package = SimpleNamespace(
+        governance_constraints=["writable_path_scope=['app/main.py']"],
+        operation_identity={"run_id": "run-1", "task_id": "wp-a", "attempt_id": "ea-a2"},
+        package_hash="ph",
+    )
+    result = worker.run_worker_in_lease(
+        package=package,
+        lease=SimpleNamespace(worktree_path=str(wt), snapshot_ref="base"),
+        attempt_id="ea-a2",
+        run_root=str(tmp_path / "run"),
+        provider="codex",
+        disallowed_tools=[],
+    )
+
+    assert result.ok is True
+    assert result.capability_policy["mode"] == "normal"
+    assert result.capability_policy["enforced"] is False
+    assert seen["worktree_readonly"] is False
+    assert seen["writable_subpaths"], "normal workers retain their attempt-local git ref write bind"
+
+
 def test_worker_env_preserves_windows_process_runtime_without_user_profile() -> None:
     from substrate.execution.attempts.host_isolation import scrub_worker_env
 

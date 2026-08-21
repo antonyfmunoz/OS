@@ -333,6 +333,10 @@ class ExecutionAttempt:
     error: str = ""
     files_changed: list[str] = field(default_factory=list)
     commits: list[str] = field(default_factory=list)
+    # Canonical provider-neutral capability policy evidence requested and
+    # enforced for this attempt. This is control-plane/adapter evidence, not a
+    # model claim, and is required for deliberate failure-injection qualification.
+    capability_policy: dict[str, Any] = field(default_factory=dict)
 
     # ── Budget / cost truth (Amendment v1 clause 8) ───────────────────────
     # cost_usd is recorded ONLY when a trustworthy provider usage figure is

@@ -213,6 +213,7 @@ def _stub_worker_drain(spool, *, fail_tasks=None):
                     "files_changed": [] if revoked else [f"app/{env.task_id}.py"],
                     "commits": [] if revoked else [f"c-{env.task_id} implement"],
                     "isolated": True,
+                    "capability_policy": dict(env.capability_policy or {}),
                 },
             },
         )
@@ -512,11 +513,36 @@ def test_driver_dispatch_fn_consults_failure_marker(store, queue, tmp_path):
     a = next(iter(store.attempts_for_task("A")))
     b = next(iter(store.attempts_for_task("B")))
     assert a.status == _S.FAILED.value and not a.proof_id, "A genuinely failed, no false proof"
+    assert a.capability_policy["mode"] == "source_mutation_denied"
+    assert a.capability_policy["enforced"] is True
+    assert a.capability_policy["task_id"] == "A"
     assert b.status == _S.SUCCEEDED.value and b.proof_id, "B still succeeded"
+    assert b.capability_policy["mode"] == "normal"
     c = [x for x in store.active_attempts() if x.task_id == "C"]
     assert not any(x.status in (_S.RUNNING.value, _S.SUCCEEDED.value) for x in c), (
         "C stays blocked while A has no AttemptProof"
     )
+
+
+def test_driver_rejects_unsupported_capability_policy_before_spool_dispatch(
+    store, queue, tmp_path, monkeypatch
+):
+    _add_approved_packet(queue, "A")
+    _seed_active_grant(store, _grant(["A"]))
+    spool = DispatchSpool(str(tmp_path / "spool"), _RUN_SECRET)
+    driver = _driver(store, queue, spool, tmp_path)
+
+    import substrate.execution.attempts.field_failure_policy as failure_policy
+
+    monkeypatch.setattr(failure_policy, "disallowed_tools_for", lambda **kw: ["Write"])
+
+    driver.run_cycle()
+
+    assert spool.claim_next() is None
+    attempts = store.attempts_for_task("A")
+    assert len(attempts) == 1
+    assert attempts[0].status == _S.BLOCKED.value
+    assert "unsupported worker capability policy" in attempts[0].blocked_reason
 
 
 def test_driver_reloads_packets_written_after_construction(store, queue, tmp_path):

@@ -63,6 +63,9 @@ class DispatchEnvelope:
     # what caused B to be quarantined while A held the whole 600s.
     expires_at: float = 0.0
     disallowed_tools: list[str] = field(default_factory=list)
+    # Provider-neutral capability policy expected for this dispatch. Signed
+    # transport evidence; the worker also reports what it actually enforced.
+    capability_policy: dict[str, Any] = field(default_factory=dict)
     max_turns: int = 30
     timeout_seconds: int = 600
     payload_hash: str = ""  # sha256 of the sealed ModelExecutionPackage
