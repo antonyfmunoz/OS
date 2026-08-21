@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402
 """UMH Operator Workstation API — FastAPI backend for the operator UI."""
 
 import faulthandler
@@ -19,7 +20,6 @@ import concurrent.futures
 import json
 import logging
 import subprocess
-import tempfile
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -40,12 +40,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from transports.api.governed import governed_mutation
-
-load_dotenv("/opt/OS/services/.env")
-load_dotenv("/opt/OS/.env", override=False)
-
 UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
+sys.path.insert(0, str(UMH_ROOT))
+
+from substrate.state.runtime_paths import runtime_state_dir, runtime_state_path  # noqa: E402
+from transports.api.governed import governed_mutation  # noqa: E402
+
+load_dotenv(UMH_ROOT / "services" / ".env")
+load_dotenv(UMH_ROOT / ".env", override=False)
+
 API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "")
 
 logger = logging.getLogger("operator_api")
@@ -348,7 +351,9 @@ async def health():
 
 
 # ─── Knowledge endpoints ───────────────────────────────────────────────────────
-MEMORIES_PATH = UMH_ROOT / "data" / "runtime" / "canonical_memory_store" / "memories.jsonl"
+MEMORIES_PATH = runtime_state_path(
+    "memory/canonical_memory_store", "memories.jsonl", create_parent=False
+)
 
 
 def _load_memories() -> list[dict[str, Any]]:
@@ -411,7 +416,7 @@ async def knowledge_search(q: str = "") -> dict[str, Any]:
 
 
 # ─── System endpoints ──────────────────────────────────────────────────────────
-COST_LOG_PATH = UMH_ROOT / "services" / "cost_log.json"
+COST_LOG_PATH = runtime_state_path("logs", "cost_log.json", create_parent=False)
 
 
 @app.get("/api/system/costs", dependencies=[Depends(verify_api_key)])
@@ -451,7 +456,7 @@ async def system_containers() -> dict[str, Any]:
 @app.get("/api/system/ingestion-status", dependencies=[Depends(verify_api_key)])
 async def system_ingestion_status() -> dict[str, Any]:
     """Read latest ingestion status from proofs directory."""
-    proofs_dir = UMH_ROOT / "data" / "runtime" / "canonical_memory_store" / "proofs"
+    proofs_dir = runtime_state_dir("memory/canonical_memory_store/proofs", create=False)
     if not proofs_dir.exists():
         return {"available": False, "message": "No proofs directory"}
     # List proof directories sorted by name (date-prefixed)
@@ -535,7 +540,7 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
 
 # ─── Voice-first helpers ──────────────────────────────────────────────────────
 
-_VOICE_ACK_DIR = UMH_ROOT / "data" / "voice_acks"
+_VOICE_ACK_DIR = runtime_state_dir("voice_acks", create=False)
 
 
 # P4S31 Voice Convergence: the rival voice runtime (the espeak TTS helper, the

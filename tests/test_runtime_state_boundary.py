@@ -8,12 +8,12 @@ Covers the three mechanisms of the runtime/source separation:
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import subprocess
 import sys
 import tempfile
-import importlib
 from pathlib import Path
 
 import pytest
@@ -135,6 +135,42 @@ class TestRuntimePathResolver:
         assert signals.SIGNALS_ROOT == str(state_dir / "logs" / "signals")
         assert loop.HEARTBEAT_PATH == str(state_dir / "logs" / "orchestrator_heartbeat.json")
         assert not (app_root / "data" / "runtime" / "canonical_memory_store").exists()
+
+    def test_operator_api_mutable_paths_resolve_under_state_dir(self, tmp_path):
+        """The live os-operator entrypoint must not write into read-only source."""
+        app_root = tmp_path / "immutable-app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        state_dir.mkdir(parents=True)
+        env = dict(os.environ)
+        env["PYTHONPATH"] = REPO_ROOT
+        env["UMH_ROOT"] = str(app_root)
+        env["UMH_STATE_DIR"] = str(state_dir)
+        script = """
+import json
+import services.operator_api as api
+print(json.dumps({
+    "memories": str(api.MEMORIES_PATH),
+    "cost_log": str(api.COST_LOG_PATH),
+    "voice_ack_dir": str(api._VOICE_ACK_DIR),
+}))
+"""
+        res = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+        assert res.returncode == 0, res.stdout + res.stderr
+        paths = json.loads(res.stdout.strip().splitlines()[-1])
+        assert paths == {
+            "memories": str(state_dir / "memory" / "canonical_memory_store" / "memories.jsonl"),
+            "cost_log": str(state_dir / "logs" / "cost_log.json"),
+            "voice_ack_dir": str(state_dir / "voice_acks"),
+        }
+        assert not (app_root / "data").exists()
+        assert not (app_root / "services" / "cost_log.json").exists()
 
 
 def _run_migrate(args: list[str], repo: Path, backup: Path) -> subprocess.CompletedProcess:
