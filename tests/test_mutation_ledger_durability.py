@@ -1,0 +1,390 @@
+import importlib
+import json
+import os
+import subprocess
+import sys
+import threading
+import time
+from pathlib import Path
+
+import pytest
+
+
+def _reload_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path))
+    return importlib.reload(importlib.import_module("transports.api.cockpit_audit"))
+
+
+def _ledger_path(tmp_path: Path) -> Path:
+    return tmp_path / "audit" / "mutation_ledger.jsonl"
+
+
+def _event(request_id: str, *, target: str = "objective_plan:opr-1:plan_acceptance:v1"):
+    return {
+        "request_id": request_id,
+        "timestamp": "2026-08-20T01:37:47.255500+00:00",
+        "actor": "field",
+        "domain": "approvals",
+        "surface": "cockpit",
+        "action": "approve",
+        "target": target,
+        "old_value": None,
+        "new_value": {"source_type": "objective_plan"},
+        "persisted": True,
+        "constraint_warnings": [],
+    }
+
+
+def _line(obj: dict) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":")) + "\n"
+
+
+def test_emit_mutation_audit_writes_fsync_validated_records(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+
+    out = audit.emit_mutation_audit(
+        "approvals",
+        "approve",
+        "objective_plan:opr-1:plan_acceptance:v1",
+        actor="field",
+        new_value={"source_type": "objective_plan"},
+    )
+
+    rows = audit.read_mutation_ledger()
+    assert rows["parse_ok"] is True
+    assert rows["integrity_ok"] is True
+    assert rows["records"][0]["request_id"] == out["request_id"]
+    assert rows["records"][0]["_ledger"]["schema_version"] == "mutation-ledger-v2"
+    assert rows["records"][0]["_ledger"]["record_type"] == "mutation_audit"
+    assert len(rows["records"][0]["_ledger"]["payload_sha256"]) == 64
+
+
+def test_concurrent_mutation_writers_do_not_interleave(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+
+    def write_one(i: int) -> None:
+        audit.emit_mutation_audit("execution", "start", f"packet-{i}", new_value={"i": i})
+
+    threads = [threading.Thread(target=write_one, args=(i,)) for i in range(40)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+        assert not t.is_alive()
+
+    rows = audit.read_mutation_ledger()
+    assert rows["parse_ok"] is True
+    assert rows["integrity_ok"] is True
+    assert len(rows["records"]) == 40
+    assert len({r["request_id"] for r in rows["records"]}) == 40
+
+
+def test_incomplete_object_plus_recoverable_object_repairs_to_truth_gap(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    before = _event("before")
+    after = _event("after")
+    recovered_obj = _event(recovered)
+    damaged = (
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(recovered_obj, sort_keys=True)
+        + "\n"
+    )
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(_line(before) + damaged + _line(after), encoding="utf-8")
+    original_digest = audit.file_sha256(ledger)
+
+    invalid = audit.read_mutation_ledger()
+    assert invalid["parse_ok"] is False
+    assert invalid["malformed"][0]["line"] == 2
+
+    result = audit.repair_mutation_ledger_truth_gap(
+        expected_original_sha256=original_digest,
+        malformed_line=2,
+        unresolved_request_id=unresolved,
+        recoverable_request_id=recovered,
+        preservation_dir=tmp_path / "preserve",
+        repair_authority="unit-test",
+    )
+
+    assert result["ok"] is True
+    rows = audit.read_mutation_ledger()
+    assert rows["parse_ok"] is True
+    assert rows["integrity_ok"] is True
+    assert [r["request_id"] for r in rows["records"]] == [before["request_id"], unresolved, recovered, after["request_id"]]
+    gap = rows["records"][1]
+    assert gap["_ledger"]["record_type"] == "integrity_gap"
+    assert gap["resolution_status"] == "unresolved"
+    assert gap["authority_disposition"] == "fail_closed"
+    assert gap["replay_prohibited"] is True
+    assert gap["unknown_fields"]
+    assert rows["records"][2]["request_id"] == recovered
+    assert rows["records"][2]["action"] == recovered_obj["action"]
+    assert audit.request_authority_disposition(unresolved)["authority_disposition"] == "fail_closed"
+
+
+def test_repair_refuses_wrong_original_digest(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text('{"request_id":"x","timestamp":"2026-08-20T0{"request_id":"y"}\n')
+
+    with pytest.raises(audit.MutationLedgerRepairError):
+        audit.repair_mutation_ledger_truth_gap(
+            expected_original_sha256="0" * 64,
+            malformed_line=1,
+            unresolved_request_id="x",
+            recoverable_request_id="y",
+            preservation_dir=tmp_path / "preserve",
+            repair_authority="unit-test",
+        )
+
+
+def test_repair_replay_is_idempotent_and_refuses_changed_source(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    original_digest = audit.file_sha256(ledger)
+    kwargs = {
+        "expected_original_sha256": original_digest,
+        "malformed_line": 1,
+        "unresolved_request_id": unresolved,
+        "recoverable_request_id": recovered,
+        "preservation_dir": tmp_path / "preserve",
+        "repair_authority": "unit-test",
+    }
+    first = audit.repair_mutation_ledger_truth_gap(**kwargs)
+    second = audit.repair_mutation_ledger_truth_gap(**kwargs)
+    assert second["ok"] is True
+    assert second["replayed"] is True
+    assert second["repaired_sha256"] == first["repaired_sha256"]
+
+    ledger.write_text(ledger.read_text() + _line(_event("new")), encoding="utf-8")
+    with pytest.raises(audit.MutationLedgerRepairError):
+        audit.repair_mutation_ledger_truth_gap(**kwargs)
+
+
+def test_reader_fails_closed_when_authority_references_truth_gap(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    gap = audit.build_integrity_gap_record(
+        unresolved_request_id="gap-1",
+        original_file_sha256="a" * 64,
+        malformed_line_sha256="b" * 64,
+        byte_range=[10, 20],
+        preserved_fragment_path="preserve/fragment.raw",
+        preserved_fragment_sha256="c" * 64,
+        visible_fields={"request_id": "gap-1"},
+        unknown_fields=["action", "target", "outcome"],
+        repair_id="repair-1",
+        repair_authority="unit-test",
+        recovered_second_object_sha256="d" * 64,
+    )
+    audit._append_mutation_record(gap)
+
+    disposition = audit.request_authority_disposition("gap-1")
+    assert disposition["authority_disposition"] == "fail_closed"
+    assert disposition["may_derive_authority"] is False
+    assert disposition["may_replay"] is False
+
+
+def test_gap_record_is_non_authoritative_for_legacy_readers(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    gap = audit.build_integrity_gap_record(
+        unresolved_request_id="gap-legacy",
+        original_file_sha256="a" * 64,
+        malformed_line_sha256="b" * 64,
+        byte_range=[10, 20],
+        preserved_fragment_path="preserve/fragment.raw",
+        preserved_fragment_sha256="c" * 64,
+        visible_fields={"request_id": "gap-legacy"},
+        unknown_fields=["action", "target", "outcome"],
+        repair_id="repair-legacy",
+        repair_authority="unit-test",
+        recovered_second_object_sha256="d" * 64,
+    )
+    audit._append_mutation_record(gap)
+
+    raw = json.loads(_ledger_path(tmp_path).read_text())
+    assert raw["persisted"] is False
+    assert raw["authority_disposition"] == "fail_closed"
+    assert raw["may_derive_authority"] is False
+
+
+def test_record_type_tampering_is_detected(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    gap = audit.build_integrity_gap_record(
+        unresolved_request_id="gap-tamper",
+        original_file_sha256="a" * 64,
+        malformed_line_sha256="b" * 64,
+        byte_range=[10, 20],
+        preserved_fragment_path="preserve/fragment.raw",
+        preserved_fragment_sha256="c" * 64,
+        visible_fields={"request_id": "gap-tamper"},
+        unknown_fields=["action", "target", "outcome"],
+        repair_id="repair-tamper",
+        repair_authority="unit-test",
+        recovered_second_object_sha256="d" * 64,
+    )
+    audit._append_mutation_record(gap)
+    row = json.loads(_ledger_path(tmp_path).read_text())
+    row["_ledger"]["record_type"] = "mutation_audit"
+    _ledger_path(tmp_path).write_text(json.dumps(row, sort_keys=True) + "\n", encoding="utf-8")
+
+    rows = audit.read_mutation_ledger()
+    assert rows["integrity_ok"] is False
+    assert rows["integrity_errors"][0]["error"] == "integrity_sha256 mismatch"
+    assert audit.request_authority_disposition("gap-tamper")["may_derive_authority"] is False
+
+
+def test_duplicate_request_id_degrades_ledger_and_fails_closed(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    audit._append_mutation_record(_event("dupe"))
+    audit._append_mutation_record(_event("dupe", target="other"))
+
+    rows = audit.read_mutation_ledger()
+    assert rows["integrity_ok"] is False
+    assert rows["duplicate_request_ids"] == ["dupe"]
+    disposition = audit.request_authority_disposition("dupe")
+    assert disposition["may_derive_authority"] is False
+    assert disposition["may_replay"] is False
+
+
+def test_repair_lock_prevents_concurrent_append_loss(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    original_digest = audit.file_sha256(ledger)
+    original_write = audit._write_preserved_bytes
+    append_started = threading.Event()
+    append_done = threading.Event()
+    append_errors: list[BaseException] = []
+    append_thread: threading.Thread | None = None
+
+    def slow_write(path, data, mode=0o600):
+        nonlocal append_thread
+        if str(path).endswith(".original.jsonl"):
+            def append_later() -> None:
+                append_started.set()
+                try:
+                    audit.emit_mutation_audit("execution", "start", "late-append")
+                except BaseException as exc:  # pragma: no cover - assertion reports below
+                    append_errors.append(exc)
+                finally:
+                    append_done.set()
+
+            append_thread = threading.Thread(target=append_later)
+            append_thread.start()
+            time.sleep(0.2)
+            original_write(path, data, mode)
+            return
+        original_write(path, data, mode)
+
+    monkeypatch.setattr(audit, "_write_preserved_bytes", slow_write)
+    result = audit.repair_mutation_ledger_truth_gap(
+        expected_original_sha256=original_digest,
+        malformed_line=1,
+        unresolved_request_id=unresolved,
+        recoverable_request_id=recovered,
+        preservation_dir=tmp_path / "preserve",
+        repair_authority="unit-test",
+    )
+    assert result["ok"] is True
+    assert append_started.is_set()
+    assert append_thread is not None
+    append_thread.join(timeout=5)
+    assert append_done.is_set()
+    assert not append_errors
+    records = audit.read_mutation_ledger()["records"]
+    assert records[-1]["target"] == "late-append"
+
+
+def test_repair_refuses_to_promote_if_manifest_write_fails(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    original_digest = audit.file_sha256(ledger)
+    original_write = audit._write_preserved_text
+
+    def fail_manifest(path, text, mode=0o600):
+        if str(path).endswith(".manifest.json"):
+            raise OSError("manifest fsync failed")
+        return original_write(path, text, mode)
+
+    monkeypatch.setattr(audit, "_write_preserved_text", fail_manifest)
+    with pytest.raises(OSError):
+        audit.repair_mutation_ledger_truth_gap(
+            expected_original_sha256=original_digest,
+            malformed_line=1,
+            unresolved_request_id=unresolved,
+            recoverable_request_id=recovered,
+            preservation_dir=tmp_path / "preserve",
+            repair_authority="unit-test",
+        )
+    assert audit.file_sha256(ledger) == original_digest
+
+
+def test_short_write_or_fsync_failure_does_not_ack_success(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    real_fsync = os.fsync
+
+    def fail_fsync(_fd):
+        raise OSError("fsync refused")
+
+    monkeypatch.setattr(audit.os, "fsync", fail_fsync)
+    with pytest.raises(audit.MutationLedgerDurabilityError):
+        audit.emit_mutation_audit("execution", "start", "packet-x")
+    monkeypatch.setattr(audit.os, "fsync", real_fsync)
+
+    rows = audit.read_mutation_ledger()
+    assert rows["parse_ok"] is True
+    assert rows["records"] == []
+
+
+def test_writer_death_during_append_leaves_reader_degraded_not_silent(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    ledger.parent.mkdir(parents=True)
+    script = (
+        "from pathlib import Path; import os; "
+        f"p=Path({str(ledger)!r}); p.open('ab').write(b'{{\"request_id\":\"dead\"'); os._exit(9)"
+    )
+    subprocess.run([sys.executable, "-c", script], check=False, timeout=5)
+
+    rows = audit.read_mutation_ledger()
+    assert rows["parse_ok"] is False
+    assert rows["degraded"] is True
+    assert rows["malformed"][0]["line"] == 1
