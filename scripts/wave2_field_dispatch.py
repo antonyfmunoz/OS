@@ -2546,11 +2546,93 @@ def _poll_status(
         except (json.JSONDecodeError, TypeError):
             # mesh healthy but status.json absent/partial — keep polling.
             last = {"raw": raw[:200]}
-        if last.get("state") in ("passed", "failed"):
+        if last.get("state") == "evidence_preservation_failed":
+            return last
+        if last.get("state") in ("passed", "failed") and last.get("evidence_receipt"):
             return last
         time.sleep(30)
     last["timed_out"] = True
     return last
+
+
+_EVIDENCE_TRANSACTION_STATES = {"execution_complete", "evidence_finalizing", "evidence_shipping"}
+
+
+def _read_collector_status(runner: Runner, *, run_id: str, pass_num: int = 1) -> dict[str, Any]:
+    status_path = f"{_BEAST_EVIDENCE_DIR}\\{run_id}\\pass{pass_num}\\status.json"
+    res = _mesh_read(runner, f"type {status_path}", max_len=65536)
+    if runner.dry_run:
+        return {"state": "dry_run", "status_path": status_path}
+    if not res.get("ok", False):
+        return {
+            "state": "unknown",
+            "status_path": status_path,
+            "read_ok": False,
+            "error": res.get("error") or "mesh status read failed",
+        }
+    raw = res.get("stdout", "")
+    try:
+        parsed = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return {
+            "state": "unknown",
+            "status_path": status_path,
+            "read_ok": True,
+            "raw": raw[:200],
+        }
+    if isinstance(parsed, dict):
+        parsed.setdefault("status_path", status_path)
+        parsed["read_ok"] = True
+        return parsed
+    return {"state": "unknown", "status_path": status_path, "read_ok": True}
+
+
+def _wait_for_evidence_transaction_clear(
+    runner: Runner,
+    *,
+    run_id: str,
+    pass_num: int = 1,
+    timeout_s: float = 600.0,
+    poll_s: float = 10.0,
+) -> dict[str, Any]:
+    """Prevent teardown from racing collector evidence publication."""
+    deadline = time.time() + timeout_s
+    observations: list[dict[str, Any]] = []
+    while True:
+        status = _read_collector_status(runner, run_id=run_id, pass_num=pass_num)
+        state = status.get("state")
+        observations.append(
+            {
+                "state": state,
+                "read_ok": status.get("read_ok"),
+                "has_receipt": bool(status.get("evidence_receipt")),
+                "timed_out": status.get("timed_out"),
+            }
+        )
+        if state == "evidence_preservation_failed":
+            return {"ok": True, "terminal": status, "observations": observations}
+        if state in ("passed", "failed") and status.get("evidence_receipt"):
+            return {"ok": True, "terminal": status, "observations": observations}
+        if state in ("unknown", ""):
+            if time.time() >= deadline:
+                return {
+                    "ok": False,
+                    "reason": "collector status unavailable during teardown guard",
+                    "terminal": status,
+                    "observations": observations,
+                }
+            time.sleep(poll_s)
+            continue
+        if state not in _EVIDENCE_TRANSACTION_STATES:
+            return {"ok": True, "terminal": status, "observations": observations}
+        if time.time() >= deadline:
+            return {
+                "ok": False,
+                "reason": "evidence publication still active",
+                "terminal": status,
+                "observations": observations,
+            }
+        time.sleep(poll_s)
 
 
 def _dispatch_collector(
@@ -3441,14 +3523,17 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         rj = pass_dir / "result.json"
         if not rj.exists():
             continue
+        receipt = _verified_evidence_receipt(pass_dir, sha)
+        if receipt is None:
+            continue
         try:
             r = json.loads(rj.read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001
             continue
         if r.get("candidate_commit") == sha[:12] and r.get("scenario") == "full":
-            candidate_passes.append(pass_dir)
+            candidate_passes.append((pass_dir, receipt))
 
-    for pass_dir in candidate_passes:
+    for pass_dir, receipt in candidate_passes:
         result_json = pass_dir / "result.json"
         network_jsonl = pass_dir / "network.jsonl"
         if not result_json.exists():
@@ -3493,11 +3578,13 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         all_gating_matched = all(
             transition_detail.get(s, {}).get("matched", False) for s in asserted
         )
-        passed = score >= 0.90 and not orphan_5xx and all_gating_matched
+        execution_passed = result.get("pass") is True and result.get("execution_passed", True) is not False
+        passed = execution_passed and score >= 0.90 and not orphan_5xx and all_gating_matched
 
         pass_result = {
             "pass_dir": str(pass_dir),
             "run_tag": run_tag,
+            "execution_passed": execution_passed,
             "total_api_requests": total_requests,
             "matched_requests": matched_requests,
             "asserted_transitions": asserted,
@@ -3506,6 +3593,7 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
             "orphan_5xx": [n["url"] for n in orphan_5xx],
             "score": round(score, 3),
             "passed": passed,
+            "evidence_receipt": receipt,
         }
         summary["passes"].append(pass_result)
         pass_num = result.get("pass_num", "x")
@@ -3518,6 +3606,84 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         json.dumps(summary, indent=2), encoding="utf-8"
     )
     return summary
+
+
+def _verified_evidence_receipt(pass_dir: Path, sha: str) -> dict[str, Any] | None:
+    receipt_path = pass_dir / "evidence_receipt.json"
+    manifest_path = pass_dir / "evidence_manifest.json"
+    if not receipt_path.is_file() or not manifest_path.is_file():
+        return None
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    if receipt.get("ok") is not True:
+        return None
+    pass_name = pass_dir.name
+    try:
+        pass_num = int(pass_name.removeprefix("pass"))
+    except ValueError:
+        return None
+    if manifest.get("run_id") != pass_dir.parent.name:
+        return None
+    if manifest.get("pass_id") != pass_name or manifest.get("pass_num") != pass_num:
+        return None
+    expected_shas = {sha, sha[:12]}
+    if manifest.get("candidate_sha") not in expected_shas or receipt.get("candidate_sha") not in expected_shas:
+        return None
+    if receipt.get("run_id") != manifest.get("run_id") or receipt.get("pass_num") != pass_num:
+        return None
+    manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    if receipt.get("manifest_sha256") != manifest_digest:
+        return None
+    sidecar = pass_dir / "evidence_manifest.sha256"
+    if sidecar.is_file():
+        try:
+            sidecar_digest = sidecar.read_text(encoding="utf-8").split()[0]
+        except IndexError:
+            return None
+        if sidecar_digest != manifest_digest:
+            return None
+    required_contract = ("result.json", "network.jsonl", "console.jsonl")
+    required = manifest.get("required_artifacts", [])
+    if not isinstance(required, list) or tuple(required) != required_contract:
+        return None
+    for rel in required_contract:
+        if not isinstance(rel, str) or not (pass_dir / rel).is_file():
+            return None
+    files = manifest.get("files", [])
+    if not isinstance(files, list):
+        return None
+    seen: set[str] = set()
+    for item in files:
+        if not isinstance(item, dict):
+            return None
+        rel = item.get("path")
+        if not isinstance(rel, str) or rel.startswith("/") or "\\" in rel:
+            return None
+        rel_path = Path(rel)
+        if any(part in ("", ".", "..") for part in rel_path.parts):
+            return None
+        if rel in seen:
+            return None
+        seen.add(rel)
+        path = pass_dir / rel
+        if not path.is_file():
+            return None
+        data = path.read_bytes()
+        if len(data) != int(item.get("size", -1)):
+            return None
+        if hashlib.sha256(data).hexdigest() != item.get("sha256"):
+            return None
+    if any(rel not in seen for rel in required_contract):
+        return None
+    return {
+        "receipt_id": receipt.get("receipt_id"),
+        "manifest_sha256": receipt.get("manifest_sha256"),
+        "canonical_path": receipt.get("canonical_path"),
+        "verified_at": receipt.get("verified_at"),
+    }
 
 
 def _read_state_records(sha: str) -> list[dict[str, Any]]:
@@ -3611,8 +3777,24 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
 
     stopped = {}
     collector_stopped = {"stopped": True, "note": "no run_id"}
+    evidence_guard: dict[str, Any] | None = None
     if run_id:
-        collector_stopped = _stop_remote_collector_tree(runner, run_id=run_id, pass_num=1)
+        evidence_guard = _wait_for_evidence_transaction_clear(runner, run_id=run_id, pass_num=1)
+        if not evidence_guard.get("ok"):
+            return {
+                "torn_down": [],
+                "collector": {
+                    "stopped": False,
+                    "reason": "evidence publication active; teardown refused",
+                },
+                "evidence_guard": evidence_guard,
+                "runner": {},
+                "homes_swept": {"ok": False, "reason": "teardown refused during evidence publication"},
+                "run_secret_shredded": False,
+                "serve_restored": False,
+            }
+        else:
+            collector_stopped = _stop_remote_collector_tree(runner, run_id=run_id, pass_num=1)
         stopped = stop_runner(runner, sha, run_id)
         # Give the runner's signal-driven teardown a moment to unwind and sweep
         # its own homes before we run the authoritative sweep below.
@@ -3627,6 +3809,7 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
     return {
         "torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER],
         "collector": collector_stopped,
+        "evidence_guard": evidence_guard,
         "runner": stopped,
         "homes_swept": homes_swept,
         "run_secret_shredded": secret_shredded,

@@ -32,15 +32,18 @@ from __future__ import annotations
 
 import argparse
 import ctypes
+import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 # Secret-hygiene redaction (identical to wave1_field_dispatch.py). Applied at
 # capture time to any 4xx/5xx response body + console/pageerror text, and again
@@ -553,7 +556,7 @@ class FieldCollector:
         self._last_nav_error = ""  # why the latest _goto_panel/goto failed (diagnosable detail)
 
     # ── heartbeat + status ──────────────────────────────────────────────────
-    def _status(self, state: str) -> None:
+    def _status(self, state: str, **extra: Any) -> None:
         payload = {
             "state": state,
             "run_id": self.run_id,
@@ -562,6 +565,7 @@ class FieldCollector:
             "stages_done": len(self.stages),
             "failed_stage": self.failed_stage,
         }
+        payload.update(extra)
         (self.pass_dir / "status.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def stage(self, name: str, ok: bool, detail: str = "") -> None:
@@ -2949,7 +2953,8 @@ class FieldCollector:
     def _finalize(self, page: Any) -> dict[str, Any]:
         # Gate on every stage EXCEPT the explicitly non-gating bonus mini-cases.
         gating_stages = [s for s in self.stages if s["stage"] not in self._NON_GATING_STAGES]
-        passed = self.error is None and all(s["ok"] for s in gating_stages)
+        execution_passed = self.error is None and all(s["ok"] for s in gating_stages)
+        self._status("execution_complete", execution_passed=execution_passed)
         bonus = {s["stage"]: s["ok"] for s in self.stages if s["stage"] in self._NON_GATING_STAGES}
         asset_files = sorted(
             {
@@ -2959,7 +2964,8 @@ class FieldCollector:
             }
         )
         result = {
-            "pass": passed,
+            "pass": execution_passed,
+            "execution_passed": execution_passed,
             "run_id": self.run_id,
             "pass_num": self.pass_num,
             "scenario": self.scenario,
@@ -2985,13 +2991,31 @@ class FieldCollector:
         (self.pass_dir / "console.jsonl").write_text(
             "\n".join(json.dumps(c) for c in self.console), encoding="utf-8"
         )
+        self._status("evidence_finalizing", execution_passed=execution_passed)
         # Final secret-hygiene pass over EVERY collected JSON/JSONL before it is
         # shipped — bodies/console are redacted at capture time, but this is the
         # belt-and-suspenders sweep so nothing unredacted can ever be scp'd into
         # the committed proof (review C1).
         self._redact_pass_dir()
-        self._status("passed" if passed else "failed")
-        self._ship()
+        self._status("evidence_shipping", execution_passed=execution_passed)
+        publication = self._publish_evidence(execution_passed)
+        result["evidence_publication"] = publication
+        if not publication.get("ok"):
+            result["pass"] = False
+            (self.pass_dir / "result.json").write_text(
+                json.dumps(result, indent=2), encoding="utf-8"
+            )
+            self._status(
+                "evidence_preservation_failed",
+                execution_passed=execution_passed,
+                preservation_error=str(publication.get("error", "evidence publication failed")),
+            )
+            return result
+        self._status(
+            "passed" if execution_passed else "failed",
+            execution_passed=execution_passed,
+            evidence_receipt=publication.get("receipt", {}),
+        )
         return result
 
     def _redact_pass_dir(self) -> None:
@@ -3010,8 +3034,318 @@ class FieldCollector:
                 except OSError as exc:
                     print(f"  redact rewrite failed for {p.name}: {exc}", file=sys.stderr)
 
+    def _artifact_inventory(self) -> list[dict[str, Any]]:
+        excluded = {
+            "status.json",
+            "evidence_manifest.json",
+            "evidence_manifest.sha256",
+            "evidence_receipt.json",
+        }
+        files: list[dict[str, Any]] = []
+        for path in sorted(self.pass_dir.rglob("*")):
+            if not path.is_file() or path.name in excluded:
+                continue
+            rel = path.relative_to(self.pass_dir).as_posix()
+            data = path.read_bytes()
+            files.append(
+                {
+                    "path": rel,
+                    "size": len(data),
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                }
+            )
+        return files
+
+    def _write_artifact_manifest(self) -> dict[str, Any]:
+        required = ("result.json", "network.jsonl", "console.jsonl")
+        files = self._artifact_inventory()
+        by_path = {f["path"] for f in files}
+        missing = [name for name in required if name not in by_path]
+        created_at = _utc_now()
+        manifest_path = self.pass_dir / "evidence_manifest.json"
+        if manifest_path.exists():
+            try:
+                previous = json.loads(manifest_path.read_text(encoding="utf-8"))
+                if (
+                    previous.get("schema_version") == 1
+                    and previous.get("campaign_id") == os.environ.get("UMH_WAVE2_CAMPAIGN_ID", "")
+                    and previous.get("run_id") == self.run_id
+                    and previous.get("pass_id") == f"pass{self.pass_num}"
+                    and previous.get("pass_num") == self.pass_num
+                    and previous.get("candidate_sha") == self.candidate_commit
+                    and previous.get("scenario") == self.scenario
+                    and previous.get("required_artifacts") == list(required)
+                    and previous.get("missing_required_artifacts") == missing
+                    and previous.get("files") == files
+                    and previous.get("created_at")
+                ):
+                    created_at = str(previous["created_at"])
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
+        manifest = {
+            "schema_version": 1,
+            "campaign_id": os.environ.get("UMH_WAVE2_CAMPAIGN_ID", ""),
+            "run_id": self.run_id,
+            "pass_id": f"pass{self.pass_num}",
+            "pass_num": self.pass_num,
+            "candidate_sha": self.candidate_commit,
+            "scenario": self.scenario,
+            "collector_identity": {
+                "pid": os.getpid(),
+                "hostname": os.environ.get("COMPUTERNAME", ""),
+            },
+            "created_at": created_at,
+            "required_artifacts": list(required),
+            "missing_required_artifacts": missing,
+            "files": files,
+        }
+        tmp = manifest_path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
+        tmp.replace(manifest_path)
+        manifest["manifest_sha256"] = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+        (self.pass_dir / "evidence_manifest.sha256").write_text(
+            f"{manifest['manifest_sha256']}  evidence_manifest.json\n",
+            encoding="utf-8",
+        )
+        return manifest
+
+    def _publish_evidence(self, execution_passed: bool) -> dict[str, Any]:
+        """Ship evidence through staging, remote verification and atomic promotion."""
+        manifest = self._write_artifact_manifest()
+        if manifest["missing_required_artifacts"]:
+            return {
+                "ok": False,
+                "error": f"missing required artifacts: {manifest['missing_required_artifacts']}",
+                "manifest": manifest,
+            }
+        if not self.ship_to:
+            return {"ok": False, "error": "ship_to unset", "manifest": manifest}
+        vps = os.environ.get("UMH_VPS_SSH", "")
+        if not vps:
+            return {"ok": False, "error": "UMH_VPS_SSH unset", "manifest": manifest}
+
+        dest = self.ship_to.rstrip("/")
+        attempt_id = uuid4().hex[:12]
+        run_root = f"{dest}/{self.run_id}"
+        staging = f"{run_root}/.staging-pass{self.pass_num}-{attempt_id}"
+        canonical = f"{run_root}/pass{self.pass_num}"
+        try:
+            prep = f"rm -rf {shlex.quote(staging)} && mkdir -p {shlex.quote(run_root)}"
+            prep_proc = subprocess.run(
+                ["ssh", vps, prep],
+                timeout=30,
+                capture_output=True,
+                text=True,
+                **_no_window(),
+            )
+            if prep_proc.returncode != 0:
+                return {
+                    "ok": False,
+                    "error": "staging preparation failed",
+                    "stderr": _redact(prep_proc.stderr or prep_proc.stdout or ""),
+                    "manifest": manifest,
+                }
+            scp_proc = subprocess.run(
+                ["scp", "-r", str(self.pass_dir), f"{vps}:{staging}"],
+                timeout=300,
+                capture_output=True,
+                text=True,
+                **_no_window(),
+            )
+            if scp_proc.returncode != 0:
+                return {
+                    "ok": False,
+                    "error": "staging transfer failed",
+                    "stderr": _redact(scp_proc.stderr or scp_proc.stdout or ""),
+                    "staging_path": staging,
+                    "manifest": manifest,
+                }
+            receipt = self._verify_and_promote(
+                vps, staging=staging, canonical=canonical, manifest=manifest
+            )
+            if not receipt.get("ok"):
+                return {
+                    "ok": False,
+                    "error": receipt.get("error", "destination verification failed"),
+                    "receipt": receipt,
+                    "manifest": manifest,
+                }
+            (self.pass_dir / "evidence_receipt.json").write_text(
+                json.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8"
+            )
+            return {"ok": True, "receipt": receipt, "manifest": manifest, "execution_passed": execution_passed}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": repr(exc), "manifest": manifest, "staging_path": staging}
+
+    def _verify_and_promote(
+        self,
+        vps: str,
+        *,
+        staging: str,
+        canonical: str,
+        manifest: dict[str, Any],
+    ) -> dict[str, Any]:
+        code = f"""
+import hashlib, json, os, shutil, sys, time
+from pathlib import Path
+staging = Path({json.dumps(staging)})
+canonical = Path({json.dumps(canonical)})
+required_artifacts = ('result.json', 'network.jsonl', 'console.jsonl')
+required_binding = {{
+  'run_id': {json.dumps(self.run_id)},
+  'pass_num': {self.pass_num},
+  'candidate_sha': {json.dumps(self.candidate_commit)},
+}}
+def fail(reason):
+    print(json.dumps({{
+      'ok': False,
+      'error': reason,
+      'staging_path': str(staging),
+      'canonical_path': str(canonical),
+    }}))
+    sys.exit(0)
+def fsync_dir(path):
+    try:
+        fd = os.open(str(path), os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except Exception:
+        pass
+def load_and_verify(root):
+    manifest_path = root / 'evidence_manifest.json'
+    if not manifest_path.is_file():
+        return None, '', 'missing evidence_manifest.json'
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+    for key, expected in required_binding.items():
+        if manifest.get(key) != expected:
+            return None, '', f'binding mismatch {{key}}'
+    if tuple(manifest.get('required_artifacts', [])) != required_artifacts:
+        return None, '', 'required artifact contract mismatch'
+    for rel in required_artifacts:
+        if not (root / rel).is_file():
+            return None, '', f'missing required artifact {{rel}}'
+    seen = set()
+    for item in manifest.get('files', []):
+        if not isinstance(item, dict):
+            return None, '', 'malformed manifest file entry'
+        rel = item.get('path')
+        if not isinstance(rel, str) or rel.startswith('/') or '\\\\' in rel:
+            return None, '', 'unsafe manifest path'
+        parts = Path(rel).parts
+        if any(part in ('', '.', '..') for part in parts):
+            return None, '', 'unsafe manifest path'
+        if rel in seen:
+            return None, '', 'duplicate manifest path'
+        seen.add(rel)
+        path = root / item['path']
+        if not path.is_file():
+            return None, '', f'missing manifest file {{item[\"path\"]}}'
+        data = path.read_bytes()
+        if len(data) != int(item['size']) or hashlib.sha256(data).hexdigest() != item['sha256']:
+            return None, '', f'digest mismatch {{item[\"path\"]}}'
+    missing_bound = [rel for rel in required_artifacts if rel not in seen]
+    if missing_bound:
+        return None, '', 'required artifact missing from hash inventory: ' + ','.join(missing_bound)
+    digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    sidecar = root / 'evidence_manifest.sha256'
+    if sidecar.is_file():
+        expected = sidecar.read_text(encoding='utf-8').split()[0]
+        if expected != digest:
+            return None, '', 'manifest sidecar digest mismatch'
+    return manifest, digest, ''
+def build_receipt(manifest, manifest_digest, recovered=False):
+    return {{
+      'ok': True,
+      'schema_version': 1,
+      'receipt_id': 'receipt-' + hashlib.sha256((str(canonical) + manifest_digest).encode()).hexdigest()[:16],
+      'run_id': manifest['run_id'],
+      'pass_id': manifest['pass_id'],
+      'pass_num': manifest['pass_num'],
+      'candidate_sha': manifest['candidate_sha'],
+      'artifact_count': len(manifest.get('files', [])),
+      'manifest_sha256': manifest_digest,
+      'canonical_path': str(canonical),
+      'verified_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+      'recovered_after_promotion': recovered,
+    }}
+def write_receipt(root, receipt):
+    tmp = root / 'evidence_receipt.json.tmp'
+    tmp.write_text(json.dumps(receipt, sort_keys=True), encoding='utf-8')
+    with tmp.open('rb') as fh:
+        os.fsync(fh.fileno())
+    os.replace(tmp, root / 'evidence_receipt.json')
+    fsync_dir(root)
+staging_manifest, staging_manifest_digest, staging_error = load_and_verify(staging)
+if staging_error:
+    fail(staging_error)
+if canonical.exists():
+    existing = canonical / 'evidence_receipt.json'
+    if existing.is_file():
+        prior = json.loads(existing.read_text(encoding='utf-8'))
+        canonical_manifest, canonical_digest, canonical_error = load_and_verify(canonical)
+        if canonical_error:
+            fail('canonical destination exists with invalid committed evidence: ' + canonical_error)
+        if (
+            prior.get('ok') is True
+            and prior.get('manifest_sha256') == canonical_digest
+            and canonical_digest == staging_manifest_digest
+            and prior.get('run_id') == canonical_manifest.get('run_id')
+            and prior.get('pass_num') == canonical_manifest.get('pass_num')
+            and prior.get('candidate_sha') == canonical_manifest.get('candidate_sha')
+        ):
+            shutil.rmtree(staging, ignore_errors=True)
+            prior['ok'] = True
+            prior['idempotent_replay'] = True
+            print(json.dumps(prior, sort_keys=True))
+            sys.exit(0)
+    canonical_manifest, canonical_digest, canonical_error = load_and_verify(canonical)
+    if canonical_error:
+        fail('canonical destination already exists with no receipt and invalid evidence: ' + canonical_error)
+    if canonical_digest != staging_manifest_digest:
+        fail('canonical destination already exists with divergent evidence')
+    receipt = build_receipt(canonical_manifest, canonical_digest, recovered=True)
+    write_receipt(canonical, receipt)
+    shutil.rmtree(staging, ignore_errors=True)
+    print(json.dumps(receipt, sort_keys=True))
+    sys.exit(0)
+canonical.parent.mkdir(parents=True, exist_ok=True)
+os.replace(staging, canonical)
+fsync_dir(canonical.parent)
+receipt = build_receipt(staging_manifest, staging_manifest_digest)
+write_receipt(canonical, receipt)
+print(json.dumps(receipt, sort_keys=True))
+"""
+        proc = subprocess.run(
+            ["ssh", vps, "python3 - <<'PY'\n" + code + "\nPY"],
+            timeout=120,
+            capture_output=True,
+            text=True,
+            **_no_window(),
+        )
+        if proc.returncode != 0:
+            return {
+                "ok": False,
+                "error": "remote verification command failed",
+                "stderr": _redact(proc.stderr or proc.stdout or ""),
+            }
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {
+                "ok": False,
+                "error": "remote verification returned non-json",
+                "stdout": _redact(proc.stdout[:1000]),
+            }
+
     def _ship(self) -> None:
-        """scp -r the pass dir to the VPS proof dir (best effort)."""
+        """Backward-compatible wrapper; field terminalization uses _publish_evidence."""
+        result = self._publish_evidence(False)
+        if not result.get("ok"):
+            print(f"  ship failed: {result.get('error')}", file=sys.stderr)
+        else:
+            print(f"  shipped pass{self.pass_num} → receipt {result.get('receipt', {}).get('receipt_id')}", file=sys.stderr)
         if not self.ship_to:
             return
         vps = os.environ.get("UMH_VPS_SSH", "")

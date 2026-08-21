@@ -21,8 +21,8 @@ gone afterward — driven entirely by the runner's own signal→finally→sweep 
 
 from __future__ import annotations
 
-import importlib
 import base64
+import importlib
 import json
 import os
 import signal
@@ -140,6 +140,11 @@ def test_dispatch_teardown_result_includes_collector_tree(monkeypatch):
             calls.append(f"collector:{run_id}:{pass_num}"),
             {"stopped": True, "pid": 1234},
         )[1],
+    )
+    monkeypatch.setattr(
+        dispatch,
+        "_wait_for_evidence_transaction_clear",
+        lambda runner, *, run_id, pass_num=1: {"ok": True, "terminal": {"state": "failed"}},
     )
     monkeypatch.setattr(dispatch, "stop_runner", lambda runner, sha, run_id: {"stopped": True})
     monkeypatch.setattr(dispatch, "_wait_for_runner_exit", lambda sha, run_id: None)
