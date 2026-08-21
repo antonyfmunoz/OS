@@ -55,6 +55,13 @@ def runtime_state_root() -> Path:
         if not root.is_absolute():
             raise ValueError("UMH_STATE_DIR must be an absolute path")
         return root
+    if os.environ.get("UMH_REQUIRE_STATE_DIR", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        raise ValueError("UMH_STATE_DIR is required when UMH_REQUIRE_STATE_DIR is enabled")
     umh_root = os.environ.get("UMH_ROOT") or _DEFAULT_ROOT
     return Path(umh_root).joinpath(*_STATE_SUBDIR)
 

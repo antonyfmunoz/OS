@@ -180,7 +180,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - ${UMH_ROOT:-/opt/OS}:/app
+      - ${UMH_ROOT:-/opt/OS}:/app:ro
+      - ${UMH_OPERATOR_STATE_DIR:-/var/lib/umh/operator/state/live}:/state/umh
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /root/.ssh/id_ed25519:/run/secrets/mesh_key:ro
       - /root/.ssh/known_hosts:/root/.ssh/known_hosts:ro
@@ -193,8 +194,11 @@ services:
     environment:
       - PYTHONPATH=/app
       - UMH_ROOT=/app
+      - UMH_STATE_DIR=/state/umh
+      - UMH_REQUIRE_STATE_DIR=1
       - TZ=America/Los_Angeles
       - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
       # This workspace's DECLARED writable-path authority (worktree-relative,
       # least-privilege). Every Task materialized here carries exactly this
       # scope on its contract, and verification enforces it. Materialization

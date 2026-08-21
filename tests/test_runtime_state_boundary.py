@@ -40,6 +40,13 @@ class TestRuntimePathResolver:
         monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         assert runtime_state_root() == tmp_path / "state"
 
+    def test_required_state_dir_fails_closed_without_override(self, monkeypatch):
+        monkeypatch.delenv("UMH_STATE_DIR", raising=False)
+        monkeypatch.setenv("UMH_REQUIRE_STATE_DIR", "1")
+        monkeypatch.setenv("UMH_ROOT", "/app")
+        with pytest.raises(ValueError, match="UMH_STATE_DIR is required"):
+            runtime_state_root()
+
     def test_empty_state_dir_rejected(self, monkeypatch):
         monkeypatch.setenv("UMH_STATE_DIR", "   ")
         with pytest.raises(ValueError):
@@ -171,6 +178,82 @@ print(json.dumps({
         }
         assert not (app_root / "data").exists()
         assert not (app_root / "services" / "cost_log.json").exists()
+
+    def test_operator_startup_dependency_defaults_resolve_under_state_dir(self, monkeypatch, tmp_path):
+        """Default operator-startup stores must not create checkout-relative data.
+
+        This pins the immutable operator cutover failure where the running
+        source was mounted read-only and a startup dependency attempted to
+        create ``data/umh/intelligence`` under the application root.
+        """
+        app_root = tmp_path / "immutable-app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        state_dir.mkdir(parents=True)
+        monkeypatch.setenv("UMH_ROOT", str(app_root))
+        monkeypatch.setenv("UMH_STATE_DIR", str(state_dir))
+
+        config_store = importlib.reload(
+            importlib.import_module("substrate.state.config.config_store")
+        )
+        intelligence = importlib.reload(importlib.import_module("substrate.intelligence.runtime"))
+        discovery = importlib.reload(
+            importlib.import_module("substrate.organism.tailscale_discovery")
+        )
+        daemon_mod = importlib.reload(importlib.import_module("substrate.organism.daemon"))
+
+        cfg = config_store.ConfigStore()
+        cfg.set("ai_name", "BoundaryTest", layer="system")
+        patterns = intelligence.PatternIntelligence()
+        decisions = intelligence.DecisionIntelligence()
+        tailscale = discovery.TailscaleDiscoveryTick()
+        daemon = daemon_mod.OrganismDaemon(graph=None)
+
+        assert cfg._layer_path("system") == state_dir / "config" / "system.json"
+        assert patterns._store_path == state_dir / "intelligence" / "patterns.json"
+        assert decisions._store_path == state_dir / "intelligence" / "decisions.jsonl"
+        assert (
+            Path(tailscale._discovered_peers_path)
+            == state_dir / "discovery" / "discovered_peers.json"
+        )
+        assert (
+            Path(daemon._tailscale_discovery._discovered_peers_path)
+            == state_dir / "discovery" / "discovered_peers.json"
+        )
+        assert not (app_root / "data").exists()
+
+    def test_intelligence_runtime_records_under_state_dir(self, monkeypatch, tmp_path):
+        app_root = tmp_path / "immutable-app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        monkeypatch.setenv("UMH_ROOT", str(app_root))
+        monkeypatch.setenv("UMH_STATE_DIR", str(state_dir))
+
+        intelligence = importlib.reload(importlib.import_module("substrate.intelligence.runtime"))
+        runtime = intelligence.IntelligenceRuntime()
+        runtime.learn_from_execution(
+            content="operator source-state boundary test",
+            action="route mutable state",
+            outcome="success",
+            success=True,
+            domain="wave2",
+        )
+
+        assert (state_dir / "intelligence" / "patterns.json").is_file()
+        assert (state_dir / "intelligence" / "decisions.jsonl").is_file()
+        assert not (app_root / "data").exists()
+
+    def test_os_operator_compose_declares_external_state_boundary(self):
+        compose = (Path(REPO_ROOT) / "docker-compose.yml").read_text()
+        start = compose.index("  os-operator:")
+        block = compose[start:]
+
+        assert "${UMH_ROOT:-/opt/OS}:/app:ro" in block
+        assert "${UMH_OPERATOR_STATE_DIR:-/var/lib/umh/operator/state/live}:/state/umh" in block
+        assert "UMH_ROOT=/app" in block
+        assert "UMH_STATE_DIR=/state/umh" in block
+        assert "UMH_REQUIRE_STATE_DIR=1" in block
+        assert "PYTHONDONTWRITEBYTECODE=1" in block
 
 
 def _run_migrate(args: list[str], repo: Path, backup: Path) -> subprocess.CompletedProcess:
