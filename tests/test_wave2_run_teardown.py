@@ -144,7 +144,10 @@ def test_dispatch_teardown_result_includes_collector_tree(monkeypatch):
     monkeypatch.setattr(
         dispatch,
         "_wait_for_evidence_transaction_clear",
-        lambda runner, *, run_id, pass_num=1: {"ok": True, "terminal": {"state": "failed"}},
+        lambda runner, *, run_id, pass_num=1, candidate_sha="": {
+            "ok": True,
+            "terminal": {"state": "failed"},
+        },
     )
     monkeypatch.setattr(dispatch, "stop_runner", lambda runner, sha, run_id: {"stopped": True})
     monkeypatch.setattr(dispatch, "_wait_for_runner_exit", lambda sha, run_id: None)

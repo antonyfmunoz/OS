@@ -2450,6 +2450,564 @@ def _durable_remote_shell(
 # ─────────────────────────────────────────────────────────────────────────────
 # collector dispatch (smoke / run)
 # ─────────────────────────────────────────────────────────────────────────────
+_REQUIRED_EVIDENCE_ARTIFACTS = ("result.json", "network.jsonl", "console.jsonl")
+_DESTINATION_COMMIT_FILES = {
+    "evidence_commit.json",
+    "evidence_commit.json.tmp",
+    "evidence_receipt.json",
+    "evidence_receipt.json.tmp",
+}
+
+
+def _fsync_dir(path: Path) -> None:
+    fd = os.open(str(path), os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _fsync_file(path: Path) -> None:
+    with path.open("rb") as fh:
+        os.fsync(fh.fileno())
+
+
+def _safe_manifest_path(rel: Any) -> str | None:
+    if not isinstance(rel, str) or not rel or rel.startswith("/") or "\\" in rel:
+        return None
+    rel_path = Path(rel)
+    if any(part in ("", ".", "..") for part in rel_path.parts):
+        return None
+    return rel
+
+
+def _safe_absolute_evidence_path(value: Any) -> Path | None:
+    if not isinstance(value, str) or not value:
+        return None
+    raw_parts = value.split("/")
+    if raw_parts[0] != "" or any(part in ("", ".", "..") for part in raw_parts[1:]):
+        return None
+    if "\\" in value:
+        return None
+    path = Path(value)
+    if not path.is_absolute():
+        return None
+    return path
+
+
+def _existing_symlink_under(root: Path, path: Path) -> Path | None:
+    try:
+        rel = path.relative_to(root)
+    except ValueError:
+        return path
+    current = root
+    if current.is_symlink():
+        return current
+    for part in rel.parts:
+        current = current / part
+        if current.is_symlink():
+            return current
+        if not current.exists():
+            break
+    return None
+
+
+def _is_full_candidate_sha(sha: str) -> bool:
+    return len(sha) == 40 and all(ch in "0123456789abcdef" for ch in sha)
+
+
+def _load_and_verify_evidence_bundle(
+    root: Path,
+    sha: str,
+    *,
+    expected_run_id: str | None = None,
+    expected_pass_num: int | None = None,
+    allow_destination_commit_files: bool = False,
+    allow_destination_tmp_files: bool = False,
+) -> tuple[dict[str, Any] | None, str, str]:
+    if root.is_symlink():
+        return None, "", "symlink evidence root"
+    if not allow_destination_commit_files:
+        for path in root.rglob("*"):
+            if path.is_symlink():
+                rel = path.relative_to(root).as_posix()
+                return None, "", f"symlink evidence path {rel}"
+            if path.is_file() and path.name in _DESTINATION_COMMIT_FILES:
+                rel = path.relative_to(root).as_posix()
+                return None, "", f"destination commit artifact not allowed in uploaded bundle: {rel}"
+    manifest_path = root / "evidence_manifest.json"
+    if not manifest_path.is_file():
+        return None, "", "missing evidence_manifest.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return None, "", f"manifest unreadable: {exc}"
+    if not isinstance(manifest, dict):
+        return None, "", "manifest is not an object"
+    if expected_run_id is not None and manifest.get("run_id") != expected_run_id:
+        return None, "", "binding mismatch run_id"
+    if expected_pass_num is not None and manifest.get("pass_num") != expected_pass_num:
+        return None, "", "binding mismatch pass_num"
+    pass_num = manifest.get("pass_num")
+    if manifest.get("pass_id") != f"pass{pass_num}":
+        return None, "", "binding mismatch pass_id"
+    candidate_sha = manifest.get("candidate_sha")
+    if not isinstance(candidate_sha, str) or candidate_sha != sha:
+        return None, "", "binding mismatch candidate_sha"
+    required_artifacts = manifest.get("required_artifacts")
+    if not isinstance(required_artifacts, list) or tuple(required_artifacts) != _REQUIRED_EVIDENCE_ARTIFACTS:
+        return None, "", "required artifact contract mismatch"
+    for rel in _REQUIRED_EVIDENCE_ARTIFACTS:
+        if not (root / rel).is_file():
+            return None, "", f"missing required artifact {rel}"
+    files = manifest.get("files", [])
+    if not isinstance(files, list):
+        return None, "", "manifest files is not a list"
+    seen: set[str] = set()
+    normalized_files: list[dict[str, Any]] = []
+    for item in files:
+        if not isinstance(item, dict):
+            return None, "", "malformed manifest file entry"
+        rel = _safe_manifest_path(item.get("path"))
+        if rel is None:
+            return None, "", "unsafe manifest path"
+        if rel in seen:
+            return None, "", "duplicate manifest path"
+        seen.add(rel)
+        path = root / rel
+        if path.is_symlink():
+            return None, "", f"symlink evidence path {rel}"
+        if not path.is_file():
+            return None, "", f"missing manifest file {rel}"
+        data = path.read_bytes()
+        try:
+            size = int(item.get("size", -1))
+        except (TypeError, ValueError):
+            return None, "", f"bad size {rel}"
+        digest = str(item.get("sha256", ""))
+        if len(data) != size or hashlib.sha256(data).hexdigest() != digest:
+            return None, "", f"digest mismatch {rel}"
+        normalized_files.append({"path": rel, "size": size, "sha256": digest})
+    missing_bound = [rel for rel in _REQUIRED_EVIDENCE_ARTIFACTS if rel not in seen]
+    if missing_bound:
+        return None, "", "required artifact missing from hash inventory: " + ",".join(missing_bound)
+    inventory_digest = hashlib.sha256(
+        json.dumps(normalized_files, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if manifest.get("inventory_sha256") != inventory_digest:
+        return None, "", "inventory digest mismatch"
+    allowed_files = set(seen) | {"evidence_manifest.json", "evidence_manifest.sha256", "upload_complete.json"}
+    if allow_destination_commit_files:
+        allowed_files.update({"evidence_commit.json", "evidence_receipt.json"})
+    if allow_destination_tmp_files:
+        allowed_files.update(_DESTINATION_COMMIT_FILES)
+    for path in root.rglob("*"):
+        if path.is_symlink():
+            rel = path.relative_to(root).as_posix()
+            return None, "", f"symlink evidence path {rel}"
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        if rel not in allowed_files:
+            return None, "", f"unmanifested evidence file {rel}"
+    manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    sidecar = root / "evidence_manifest.sha256"
+    if not sidecar.is_file():
+        return None, "", "missing evidence_manifest.sha256"
+    try:
+        expected_digest = sidecar.read_text(encoding="utf-8").split()[0]
+    except IndexError:
+        return None, "", "manifest sidecar malformed"
+    if expected_digest != manifest_digest:
+        return None, "", "manifest sidecar digest mismatch"
+    manifest["_computed_inventory_sha256"] = inventory_digest
+    return manifest, manifest_digest, ""
+
+
+def _load_and_verify_upload_marker(
+    root: Path,
+    *,
+    transaction_id: str | None,
+    manifest_digest: str,
+    inventory_digest: str,
+    sha: str,
+    run_id: str,
+    pass_num: int,
+    campaign_id: str,
+    staging_campaign_id: str,
+    staging: Path,
+    canonical: Path,
+) -> tuple[dict[str, Any] | None, str]:
+    marker_path = root / "upload_complete.json"
+    if not marker_path.is_file():
+        return None, "missing upload_complete marker"
+    try:
+        marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return None, f"upload_complete unreadable: {exc}"
+    if not isinstance(marker, dict):
+        return None, "upload_complete marker is not an object"
+    observed_transaction_id = marker.get("transaction_id")
+    if not isinstance(observed_transaction_id, str) or not observed_transaction_id:
+        return None, "upload_complete transaction missing"
+    if transaction_id is not None and observed_transaction_id != transaction_id:
+        return None, "upload_complete transaction mismatch"
+    if marker.get("run_id") != run_id or marker.get("pass_num") != pass_num:
+        return None, "upload_complete binding mismatch"
+    if marker.get("pass_id") != f"pass{pass_num}":
+        return None, "upload_complete pass_id mismatch"
+    if marker.get("campaign_id") != campaign_id:
+        return None, "upload_complete campaign mismatch"
+    if staging_campaign_id != campaign_id:
+        return None, "staging campaign mismatch"
+    marker_candidate_sha = marker.get("candidate_sha")
+    if not isinstance(marker_candidate_sha, str) or marker_candidate_sha != sha:
+        return None, "upload_complete candidate mismatch"
+    if marker.get("manifest_sha256") != manifest_digest:
+        return None, "upload_complete manifest digest mismatch"
+    if marker.get("inventory_sha256") != inventory_digest:
+        return None, "upload_complete inventory digest mismatch"
+    staging_path = marker.get("staging_path")
+    marker_staging = _safe_absolute_evidence_path(staging_path)
+    if marker_staging is None or marker_staging != staging:
+        return None, "upload_complete staging path mismatch"
+    canonical_path = marker.get("canonical_path")
+    marker_canonical = _safe_absolute_evidence_path(canonical_path)
+    if marker_canonical is None or marker_canonical != canonical:
+        return None, "upload_complete canonical path mismatch"
+    return marker, ""
+
+
+def _fsync_evidence_bundle(root: Path, manifest: dict[str, Any]) -> None:
+    paths: list[Path] = []
+    dirs: set[Path] = {root}
+    for item in manifest.get("files", []):
+        if isinstance(item, dict):
+            rel = _safe_manifest_path(item.get("path"))
+            if rel is not None:
+                path = root / rel
+                paths.append(path)
+                parent = path.parent
+                while root in (parent, *parent.parents):
+                    dirs.add(parent)
+                    if parent == root:
+                        break
+                    parent = parent.parent
+    paths.extend(
+        [
+            root / "evidence_manifest.json",
+            root / "evidence_manifest.sha256",
+            root / "upload_complete.json",
+            root / "evidence_commit.json",
+            root / "evidence_receipt.json",
+        ]
+    )
+    seen: set[Path] = set()
+    for path in paths:
+        if path in seen or not path.is_file():
+            continue
+        seen.add(path)
+        _fsync_file(path)
+    for directory in sorted(dirs, key=lambda p: len(p.parts), reverse=True):
+        if directory.is_dir():
+            _fsync_dir(directory)
+
+
+def _write_evidence_receipt(
+    root: Path,
+    *,
+    manifest: dict[str, Any],
+    manifest_digest: str,
+    transaction_id: str,
+    canonical: Path | None = None,
+    recovered: bool = False,
+) -> dict[str, Any]:
+    canonical_path = canonical or root
+    verified_at = _utc_now()
+    promoted_at = _utc_now()
+    commit_marker = {
+        "ok": True,
+        "schema_version": 1,
+        "commit_id": "commit-"
+        + hashlib.sha256((str(canonical_path) + manifest_digest + transaction_id).encode()).hexdigest()[:16],
+        "authority": "vps_destination_commit",
+        "campaign_id": manifest.get("campaign_id", ""),
+        "run_id": manifest["run_id"],
+        "pass_id": manifest["pass_id"],
+        "pass_num": manifest["pass_num"],
+        "candidate_sha": manifest["candidate_sha"],
+        "transaction_id": transaction_id,
+        "manifest_sha256": manifest_digest,
+        "inventory_sha256": manifest.get("_computed_inventory_sha256") or manifest.get("inventory_sha256"),
+        "canonical_path": str(canonical_path),
+        "verified_at": verified_at,
+        "promoted_at": promoted_at,
+        "recovered_after_promotion": recovered,
+    }
+    marker_tmp = root / "evidence_commit.json.tmp"
+    marker_tmp.write_text(json.dumps(commit_marker, indent=2, sort_keys=True), encoding="utf-8")
+    with marker_tmp.open("rb") as fh:
+        os.fsync(fh.fileno())
+    os.replace(marker_tmp, root / "evidence_commit.json")
+    _fsync_dir(root)
+    commit_marker_digest = hashlib.sha256((root / "evidence_commit.json").read_bytes()).hexdigest()
+    receipt = {
+        "ok": True,
+        "schema_version": 1,
+        "receipt_id": "receipt-"
+        + hashlib.sha256(
+            (str(canonical_path) + manifest_digest + transaction_id + commit_marker_digest).encode()
+        ).hexdigest()[:16],
+        "receipt_authority": "vps_destination_commit",
+        "campaign_id": manifest.get("campaign_id", ""),
+        "run_id": manifest["run_id"],
+        "pass_id": manifest["pass_id"],
+        "pass_num": manifest["pass_num"],
+        "candidate_sha": manifest["candidate_sha"],
+        "transaction_id": transaction_id,
+        "artifact_count": len(manifest.get("files", [])),
+        "manifest_sha256": manifest_digest,
+        "inventory_sha256": manifest.get("_computed_inventory_sha256") or manifest.get("inventory_sha256"),
+        "commit_marker_sha256": commit_marker_digest,
+        "canonical_path": str(canonical_path),
+        "verified_at": verified_at,
+        "promoted_at": promoted_at,
+        "recovered_after_promotion": recovered,
+        "destination_owned": True,
+    }
+    tmp = root / "evidence_receipt.json.tmp"
+    tmp.write_text(json.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8")
+    with tmp.open("rb") as fh:
+        os.fsync(fh.fileno())
+    os.replace(tmp, root / "evidence_receipt.json")
+    _fsync_dir(root)
+    return receipt
+
+
+def _commit_uploaded_evidence_transaction(
+    upload: dict[str, Any],
+    sha: str,
+    *,
+    run_id: str,
+    pass_num: int,
+) -> dict[str, Any]:
+    """VPS-owned verification, atomic promotion, and durable receipt commit."""
+    if not isinstance(sha, str) or not _is_full_candidate_sha(sha):
+        return {"ok": False, "error": "dispatcher candidate sha must be full 40-hex"}
+    raw_root = (_proof_root() / "raw").resolve()
+    transaction_id = str(upload.get("transaction_id") or "")
+    if not transaction_id:
+        return {"ok": False, "error": "missing transaction_id"}
+    staging = _safe_absolute_evidence_path(upload.get("staging_path"))
+    if staging is None:
+        return {"ok": False, "error": "bad transaction paths"}
+    canonical = (raw_root / run_id / f"pass{pass_num}").resolve()
+    if raw_root not in staging.parents or raw_root not in canonical.parents:
+        return {"ok": False, "error": "evidence paths escape raw proof root"}
+    try:
+        staging_parts = staging.relative_to(raw_root).parts
+    except ValueError:
+        staging_parts = ()
+    if (
+        len(staging_parts) != 5
+        or staging_parts[0] != ".incoming"
+        or not staging_parts[1]
+        or staging_parts[2] != run_id
+        or staging_parts[3] != f"pass{pass_num}"
+        or staging_parts[4] != transaction_id
+    ):
+        return {"ok": False, "error": "staging path does not match evidence transaction identity"}
+    if _existing_symlink_under(raw_root, staging) is not None:
+        return {"ok": False, "error": "staging path contains symlink"}
+    if _existing_symlink_under(raw_root, canonical) is not None:
+        return {"ok": False, "error": "canonical path contains symlink"}
+    upload_canonical = str(upload.get("canonical_path") or "")
+    if upload_canonical:
+        upload_canonical_path = _safe_absolute_evidence_path(upload_canonical)
+        if upload_canonical_path is None or upload_canonical_path != canonical:
+            return {"ok": False, "error": "status canonical path mismatch"}
+    effective_sha = sha
+    receipt_path = canonical / "evidence_receipt.json"
+    if receipt_path.is_file():
+        prior = _verified_evidence_receipt(canonical, effective_sha)
+        fresh = _fresh_process_verified_evidence_receipt(canonical, effective_sha)
+        if (
+            prior
+            and fresh
+            and prior.get("transaction_id") == transaction_id
+            and fresh.get("transaction_id") == transaction_id
+            and (not upload.get("manifest_sha256") or fresh.get("manifest_sha256") == upload.get("manifest_sha256"))
+        ):
+            try:
+                if staging.exists():
+                    shutil.rmtree(staging, ignore_errors=True)
+                    _fsync_dir(staging.parent)
+            except OSError as exc:
+                return {"ok": False, "error": f"evidence durability failure: {exc}"}
+            fresh["idempotent_replay"] = True
+            return {"ok": True, "receipt": fresh, "idempotent_replay": True}
+        return {"ok": False, "error": "canonical destination exists with divergent receipt"}
+    if canonical.exists():
+        manifest, manifest_digest, error = _load_and_verify_evidence_bundle(
+            canonical,
+            effective_sha,
+            expected_run_id=run_id,
+            expected_pass_num=pass_num,
+            allow_destination_commit_files=True,
+            allow_destination_tmp_files=True,
+        )
+        if error:
+            return {"ok": False, "error": "canonical destination exists without committed receipt"}
+        marker, marker_error = _load_and_verify_upload_marker(
+            canonical,
+            transaction_id=transaction_id,
+            manifest_digest=manifest_digest,
+            inventory_digest=manifest.get("_computed_inventory_sha256", ""),
+            sha=effective_sha,
+            run_id=run_id,
+            pass_num=pass_num,
+            campaign_id=str((manifest or {}).get("campaign_id", "")),
+            staging_campaign_id=str(staging_parts[1]),
+            staging=staging,
+            canonical=canonical,
+        )
+        if marker_error:
+            return {"ok": False, "error": "canonical destination exists without committed receipt"}
+        if upload.get("manifest_sha256") and upload.get("manifest_sha256") != manifest_digest:
+            return {"ok": False, "error": "canonical destination exists without committed receipt"}
+        try:
+            receipt = _write_evidence_receipt(
+                canonical,
+                manifest=manifest or {},
+                manifest_digest=manifest_digest,
+                transaction_id=transaction_id,
+                canonical=canonical,
+                recovered=True,
+            )
+            _fsync_evidence_bundle(canonical, manifest or {})
+        except OSError as exc:
+            return {"ok": False, "error": f"evidence durability failure: {exc}"}
+        fresh = _fresh_process_verified_evidence_receipt(canonical, effective_sha)
+        if not fresh:
+            return {"ok": False, "error": "fresh-process receipt verification failed"}
+        return {"ok": True, "receipt": receipt, "recovered_after_promotion": True}
+    manifest, manifest_digest, error = _load_and_verify_evidence_bundle(
+        staging,
+        effective_sha,
+        expected_run_id=run_id,
+        expected_pass_num=pass_num,
+    )
+    if error:
+        return {"ok": False, "error": error, "staging_path": str(staging)}
+    marker, marker_error = _load_and_verify_upload_marker(
+        staging,
+        transaction_id=transaction_id,
+        manifest_digest=manifest_digest,
+        inventory_digest=manifest.get("_computed_inventory_sha256", ""),
+        sha=effective_sha,
+        run_id=run_id,
+        pass_num=pass_num,
+        campaign_id=str((manifest or {}).get("campaign_id", "")),
+        staging_campaign_id=str(staging_parts[1]),
+        staging=staging,
+        canonical=canonical,
+    )
+    if marker_error:
+        return {"ok": False, "error": marker_error}
+    if upload.get("manifest_sha256") and upload.get("manifest_sha256") != manifest_digest:
+        return {"ok": False, "error": "status manifest digest mismatch"}
+    try:
+        canonical.parent.mkdir(parents=True, exist_ok=True)
+        if _existing_symlink_under(raw_root, canonical) is not None:
+            return {"ok": False, "error": "canonical path contains symlink"}
+        _fsync_dir(canonical.parent.parent)
+        _fsync_evidence_bundle(staging, manifest or {})
+        os.replace(staging, canonical)
+        _fsync_dir(staging.parent)
+        _fsync_dir(canonical.parent)
+        receipt = _write_evidence_receipt(
+            canonical,
+            manifest=manifest or {},
+            manifest_digest=manifest_digest,
+            transaction_id=transaction_id,
+            canonical=canonical,
+        )
+        _fsync_evidence_bundle(canonical, manifest or {})
+    except OSError as exc:
+        return {"ok": False, "error": f"evidence durability failure: {exc}"}
+    fresh = _fresh_process_verified_evidence_receipt(canonical, effective_sha)
+    if not fresh:
+        return {"ok": False, "error": "fresh-process receipt verification failed"}
+    return {"ok": True, "receipt": receipt}
+
+
+def _terminal_from_committed_evidence(receipt: dict[str, Any], sha: str) -> dict[str, Any]:
+    """Derive PASS/FAIL only from destination-verified canonical evidence."""
+    canonical_path = receipt.get("canonical_path")
+    if not isinstance(canonical_path, str) or not canonical_path:
+        return {"ok": False, "error": "receipt missing canonical path"}
+    pass_dir = Path(canonical_path)
+    verified = _fresh_process_verified_evidence_receipt(pass_dir, sha)
+    if not verified or verified.get("receipt_id") != receipt.get("receipt_id"):
+        return {"ok": False, "error": "fresh-process receipt verification failed"}
+    try:
+        result = json.loads((pass_dir / "result.json").read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": f"canonical result unreadable: {exc}"}
+    if result.get("candidate_commit") != sha:
+        return {"ok": False, "error": "canonical result candidate mismatch"}
+    pass_name = pass_dir.name
+    try:
+        pass_num = int(pass_name.removeprefix("pass"))
+    except ValueError:
+        return {"ok": False, "error": "canonical pass path malformed"}
+    if result.get("pass_num") != pass_num:
+        return {"ok": False, "error": "canonical result pass mismatch"}
+    execution_passed = result.get("execution_passed") is True
+    return {
+        "ok": True,
+        "state": "passed" if execution_passed else "failed",
+        "execution_passed": execution_passed,
+        "canonical_result": {
+            "candidate_commit": result.get("candidate_commit"),
+            "scenario": result.get("scenario"),
+            "pass_num": result.get("pass_num"),
+            "run_tag": result.get("run_tag"),
+        },
+    }
+
+
+def _fresh_process_verified_evidence_receipt(pass_dir: Path, sha: str) -> dict[str, Any] | None:
+    """Re-read receipt in a fresh interpreter so in-memory status cannot qualify."""
+    proof_root = str(_proof_root())
+    code = f"""
+import importlib.util, json, pathlib, sys
+spec = importlib.util.spec_from_file_location('wave2_field_dispatch_verify', {json.dumps(str(Path(__file__).resolve()))})
+mod = importlib.util.module_from_spec(spec)
+sys.modules['wave2_field_dispatch_verify'] = mod
+spec.loader.exec_module(mod)
+mod._proof_root = lambda: pathlib.Path({json.dumps(proof_root)})
+out = mod._verified_evidence_receipt(pathlib.Path({json.dumps(str(pass_dir))}), {json.dumps(sha)})
+print(json.dumps(out))
+"""
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except Exception:
+        return None
+    if proc.returncode != 0:
+        return None
+    try:
+        parsed = json.loads(proc.stdout or "null")
+    except json.JSONDecodeError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
 def _build_start_command(
     *, run_id: str, pass_num: int, scenario: str, url: str, candidate_commit: str
 ) -> str:
@@ -2506,6 +3064,7 @@ def _poll_status(
     pass_num: int,
     timeout_min: int = 30,
     max_mesh_failures: int = 5,
+    candidate_sha: str = "",
 ) -> dict[str, Any]:
     """Read-only 30s polls of the executor status.json until terminal.
 
@@ -2548,14 +3107,64 @@ def _poll_status(
             last = {"raw": raw[:200]}
         if last.get("state") == "evidence_preservation_failed":
             return last
+        if last.get("state") == "evidence_uploaded":
+            upload = last.get("evidence_upload")
+            if isinstance(upload, dict):
+                committed = _commit_uploaded_evidence_transaction(
+                    upload,
+                    candidate_sha,
+                    run_id=run_id,
+                    pass_num=pass_num,
+                )
+                if committed.get("ok"):
+                    receipt = committed.get("receipt", {})
+                    terminal = _terminal_from_committed_evidence(receipt, candidate_sha)
+                    if not terminal.get("ok"):
+                        return {
+                            **last,
+                            "state": "evidence_preservation_failed",
+                            "preservation_error": terminal.get("error", "canonical result verification failed"),
+                            "destination_commit": committed,
+                        }
+                    return {
+                        "state": terminal["state"],
+                        "run_id": run_id,
+                        "pass": pass_num,
+                        "execution_passed": terminal["execution_passed"],
+                        "evidence_receipt": receipt,
+                        "canonical_result": terminal.get("canonical_result", {}),
+                        "destination_commit": committed,
+                    }
+                last = {
+                    **last,
+                    "state": "evidence_preservation_failed",
+                    "preservation_error": committed.get("error", "destination evidence commit failed"),
+                    "destination_commit": committed,
+                }
+                return last
         if last.get("state") in ("passed", "failed") and last.get("evidence_receipt"):
-            return last
+            return {
+                **last,
+                "state": "evidence_preservation_failed",
+                "preservation_error": "collector terminal receipt is not destination-owned authority",
+            }
         time.sleep(30)
     last["timed_out"] = True
+    if last.get("state") in ("passed", "failed"):
+        return {
+            **last,
+            "state": "evidence_preservation_failed",
+            "preservation_error": "collector terminal state timed out without destination-owned receipt",
+        }
     return last
 
 
-_EVIDENCE_TRANSACTION_STATES = {"execution_complete", "evidence_finalizing", "evidence_shipping"}
+_EVIDENCE_TRANSACTION_STATES = {
+    "execution_complete",
+    "evidence_finalizing",
+    "evidence_shipping",
+    "evidence_uploaded",
+}
 
 
 def _read_collector_status(runner: Runner, *, run_id: str, pass_num: int = 1) -> dict[str, Any]:
@@ -2592,6 +3201,7 @@ def _wait_for_evidence_transaction_clear(
     *,
     run_id: str,
     pass_num: int = 1,
+    candidate_sha: str = "",
     timeout_s: float = 600.0,
     poll_s: float = 10.0,
 ) -> dict[str, Any]:
@@ -2611,8 +3221,53 @@ def _wait_for_evidence_transaction_clear(
         )
         if state == "evidence_preservation_failed":
             return {"ok": True, "terminal": status, "observations": observations}
-        if state in ("passed", "failed") and status.get("evidence_receipt"):
-            return {"ok": True, "terminal": status, "observations": observations}
+        if state in ("passed", "failed"):
+            return {
+                "ok": False,
+                "reason": "collector terminal state is not destination-owned authority",
+                "terminal": status,
+                "observations": observations,
+            }
+        if state == "evidence_uploaded":
+            upload = status.get("evidence_upload")
+            if isinstance(upload, dict):
+                committed = _commit_uploaded_evidence_transaction(
+                    upload,
+                    candidate_sha,
+                    run_id=run_id,
+                    pass_num=pass_num,
+                )
+                if committed.get("ok"):
+                    receipt = committed.get("receipt", {})
+                    terminal = _terminal_from_committed_evidence(receipt, candidate_sha)
+                    if not terminal.get("ok"):
+                        return {
+                            "ok": False,
+                            "reason": terminal.get("error", "canonical result verification failed"),
+                            "terminal": {**status, "destination_commit": committed},
+                            "observations": observations,
+                        }
+                    return {
+                        "ok": True,
+                        "terminal": {
+                            **status,
+                            "state": terminal["state"],
+                            "execution_passed": terminal["execution_passed"],
+                            "evidence_receipt": receipt,
+                            "canonical_result": terminal.get("canonical_result", {}),
+                            "destination_commit": committed,
+                        },
+                        "observations": observations,
+                    }
+                if time.time() >= deadline:
+                    return {
+                        "ok": False,
+                        "reason": committed.get("error", "destination evidence commit failed"),
+                        "terminal": {**status, "destination_commit": committed},
+                        "observations": observations,
+                    }
+                time.sleep(poll_s)
+                continue
         if state in ("unknown", ""):
             if time.time() >= deadline:
                 return {
@@ -3085,9 +3740,9 @@ def dispatch_pass(
     if not dispatched.get("ok"):
         return dispatched
     if runner.dry_run:
-        _poll_status(runner, run_id, pass_num)
+        _poll_status(runner, run_id, pass_num, candidate_sha=sha)
         return {"dry_run": True, "run_id": run_id, "pass_num": pass_num}
-    terminal = _poll_status(runner, run_id, pass_num)
+    terminal = _poll_status(runner, run_id, pass_num, candidate_sha=sha)
     return {"ok": terminal.get("state") == "passed", "terminal": terminal, "run_id": run_id}
 
 
@@ -3098,9 +3753,11 @@ def _verify_beast_collector_commit(runner: Runner, sha: str) -> dict[str, Any]:
     if runner.dry_run:
         print(f"[dry-run] would verify {_BEAST_WT} HEAD == {sha}")
         return {"ok": True, "dry_run": True}
-    probe = _mesh_read(runner, rf"git -C {_BEAST_WT} rev-parse --short=12 HEAD")
+    if not _is_full_candidate_sha(sha):
+        return {"ok": False, "error": "candidate sha must be full 40-hex", "candidate_sha": sha}
+    probe = _mesh_read(runner, rf"git -C {_BEAST_WT} rev-parse HEAD")
     beast_head = (probe.get("stdout") or "").strip()
-    ok = probe.get("ok", False) and beast_head.startswith(sha[:12])
+    ok = probe.get("ok", False) and beast_head == sha
     return {"ok": ok, "beast_worktree_head": beast_head, "candidate_sha": sha}
 
 
@@ -3283,7 +3940,7 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
 
             # Step 5: poll for collector completion
             try:
-                terminal = _poll_status(runner, run_id, i)
+                terminal = _poll_status(runner, run_id, i, candidate_sha=sha)
                 results.append(
                     {
                         "ok": terminal.get("state") == "passed",
@@ -3504,6 +4161,10 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
     """Score each pass: browser evidence vs candidate state + docker logs."""
     raw_root = _proof_root() / "raw"
     summary: dict[str, Any] = {"passes": [], "sha": sha}
+    if not _is_full_candidate_sha(sha):
+        summary["all_passed"] = False
+        summary["error"] = "candidate sha must be full 40-hex"
+        return summary
     if runner.dry_run:
         print(f"[dry-run] reconcile: scan {raw_root}/*/pass*/ vs candidate state + docker logs")
         print(f"[dry-run]   docker logs {_CANDIDATE_CONTAINER} --since <pass start>")
@@ -3523,14 +4184,14 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         rj = pass_dir / "result.json"
         if not rj.exists():
             continue
-        receipt = _verified_evidence_receipt(pass_dir, sha)
+        receipt = _fresh_process_verified_evidence_receipt(pass_dir, sha)
         if receipt is None:
             continue
         try:
             r = json.loads(rj.read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001
             continue
-        if r.get("candidate_commit") == sha[:12] and r.get("scenario") == "full":
+        if r.get("candidate_commit") == sha and r.get("scenario") == "full":
             candidate_passes.append((pass_dir, receipt))
 
     for pass_dir, receipt in candidate_passes:
@@ -3578,7 +4239,7 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
         all_gating_matched = all(
             transition_detail.get(s, {}).get("matched", False) for s in asserted
         )
-        execution_passed = result.get("pass") is True and result.get("execution_passed", True) is not False
+        execution_passed = result.get("execution_passed") is True
         passed = execution_passed and score >= 0.90 and not orphan_5xx and all_gating_matched
 
         pass_result = {
@@ -3609,80 +4270,123 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
 
 
 def _verified_evidence_receipt(pass_dir: Path, sha: str) -> dict[str, Any] | None:
+    if not _is_full_candidate_sha(sha):
+        return None
+    raw_root = (_proof_root() / "raw").resolve()
+    if _existing_symlink_under(raw_root, pass_dir) is not None:
+        return None
     receipt_path = pass_dir / "evidence_receipt.json"
-    manifest_path = pass_dir / "evidence_manifest.json"
-    if not receipt_path.is_file() or not manifest_path.is_file():
+    if not receipt_path.is_file():
         return None
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001
         return None
     if receipt.get("ok") is not True:
+        return None
+    if receipt.get("destination_owned") is not True:
+        return None
+    if not isinstance(receipt.get("transaction_id"), str) or not receipt.get("transaction_id"):
         return None
     pass_name = pass_dir.name
     try:
         pass_num = int(pass_name.removeprefix("pass"))
     except ValueError:
         return None
-    if manifest.get("run_id") != pass_dir.parent.name:
-        return None
-    if manifest.get("pass_id") != pass_name or manifest.get("pass_num") != pass_num:
-        return None
-    expected_shas = {sha, sha[:12]}
-    if manifest.get("candidate_sha") not in expected_shas or receipt.get("candidate_sha") not in expected_shas:
+    manifest, manifest_digest, error = _load_and_verify_evidence_bundle(
+        pass_dir,
+        sha,
+        expected_run_id=pass_dir.parent.name,
+        expected_pass_num=pass_num,
+        allow_destination_commit_files=True,
+    )
+    if error or manifest is None:
         return None
     if receipt.get("run_id") != manifest.get("run_id") or receipt.get("pass_num") != pass_num:
         return None
-    manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    if receipt.get("pass_id") != manifest.get("pass_id"):
+        return None
+    if receipt.get("campaign_id") != manifest.get("campaign_id"):
+        return None
+    if receipt.get("artifact_count") != len(manifest.get("files", [])):
+        return None
+    receipt_candidate_sha = receipt.get("candidate_sha")
+    if not isinstance(receipt_candidate_sha, str) or receipt_candidate_sha != sha:
+        return None
+    receipt_canonical = _safe_absolute_evidence_path(receipt.get("canonical_path"))
+    if receipt_canonical is None or receipt_canonical != pass_dir:
+        return None
     if receipt.get("manifest_sha256") != manifest_digest:
         return None
-    sidecar = pass_dir / "evidence_manifest.sha256"
-    if sidecar.is_file():
-        try:
-            sidecar_digest = sidecar.read_text(encoding="utf-8").split()[0]
-        except IndexError:
-            return None
-        if sidecar_digest != manifest_digest:
-            return None
-    required_contract = ("result.json", "network.jsonl", "console.jsonl")
-    required = manifest.get("required_artifacts", [])
-    if not isinstance(required, list) or tuple(required) != required_contract:
+    if receipt.get("inventory_sha256") != manifest.get("_computed_inventory_sha256"):
         return None
-    for rel in required_contract:
-        if not isinstance(rel, str) or not (pass_dir / rel).is_file():
-            return None
-    files = manifest.get("files", [])
-    if not isinstance(files, list):
+    commit_marker_path = pass_dir / "evidence_commit.json"
+    if not commit_marker_path.is_file():
         return None
-    seen: set[str] = set()
-    for item in files:
-        if not isinstance(item, dict):
-            return None
-        rel = item.get("path")
-        if not isinstance(rel, str) or rel.startswith("/") or "\\" in rel:
-            return None
-        rel_path = Path(rel)
-        if any(part in ("", ".", "..") for part in rel_path.parts):
-            return None
-        if rel in seen:
-            return None
-        seen.add(rel)
-        path = pass_dir / rel
-        if not path.is_file():
-            return None
-        data = path.read_bytes()
-        if len(data) != int(item.get("size", -1)):
-            return None
-        if hashlib.sha256(data).hexdigest() != item.get("sha256"):
-            return None
-    if any(rel not in seen for rel in required_contract):
+    try:
+        commit_marker = json.loads(commit_marker_path.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    if not isinstance(commit_marker, dict):
+        return None
+    if commit_marker.get("ok") is not True or commit_marker.get("authority") != "vps_destination_commit":
+        return None
+    if commit_marker.get("run_id") != manifest.get("run_id") or commit_marker.get("pass_num") != pass_num:
+        return None
+    if commit_marker.get("pass_id") != manifest.get("pass_id"):
+        return None
+    if commit_marker.get("campaign_id") != manifest.get("campaign_id"):
+        return None
+    if commit_marker.get("candidate_sha") != sha:
+        return None
+    if commit_marker.get("transaction_id") != receipt.get("transaction_id"):
+        return None
+    if commit_marker.get("manifest_sha256") != manifest_digest:
+        return None
+    if commit_marker.get("inventory_sha256") != manifest.get("_computed_inventory_sha256"):
+        return None
+    marker_canonical = _safe_absolute_evidence_path(commit_marker.get("canonical_path"))
+    if marker_canonical is None or marker_canonical != pass_dir:
+        return None
+    commit_marker_digest = hashlib.sha256(commit_marker_path.read_bytes()).hexdigest()
+    if receipt.get("commit_marker_sha256") != commit_marker_digest:
+        return None
+    expected_receipt_id = (
+        "receipt-"
+        + hashlib.sha256(
+            (str(pass_dir) + manifest_digest + str(receipt.get("transaction_id")) + commit_marker_digest).encode()
+        ).hexdigest()[:16]
+    )
+    if receipt.get("receipt_id") != expected_receipt_id:
+        return None
+    if receipt.get("receipt_authority") != "vps_destination_commit":
+        return None
+    campaign_id = str(manifest.get("campaign_id") or "")
+    transaction_id = str(receipt.get("transaction_id") or "")
+    expected_staging = pass_dir.parent.parent / ".incoming" / campaign_id / pass_dir.parent.name / pass_dir.name / transaction_id
+    marker, marker_error = _load_and_verify_upload_marker(
+        pass_dir,
+        transaction_id=transaction_id,
+        manifest_digest=manifest_digest,
+        inventory_digest=manifest.get("_computed_inventory_sha256", ""),
+        sha=sha,
+        run_id=pass_dir.parent.name,
+        pass_num=pass_num,
+        campaign_id=campaign_id,
+        staging_campaign_id=campaign_id,
+        staging=expected_staging,
+        canonical=pass_dir,
+    )
+    if marker_error or marker is None:
         return None
     return {
         "receipt_id": receipt.get("receipt_id"),
+        "transaction_id": receipt.get("transaction_id"),
         "manifest_sha256": receipt.get("manifest_sha256"),
+        "inventory_sha256": receipt.get("inventory_sha256"),
         "canonical_path": receipt.get("canonical_path"),
         "verified_at": receipt.get("verified_at"),
+        "destination_owned": receipt.get("destination_owned"),
     }
 
 
@@ -3779,7 +4483,12 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
     collector_stopped = {"stopped": True, "note": "no run_id"}
     evidence_guard: dict[str, Any] | None = None
     if run_id:
-        evidence_guard = _wait_for_evidence_transaction_clear(runner, run_id=run_id, pass_num=1)
+        evidence_guard = _wait_for_evidence_transaction_clear(
+            runner,
+            run_id=run_id,
+            pass_num=1,
+            candidate_sha=sha,
+        )
         if not evidence_guard.get("ok"):
             return {
                 "torn_down": [],
@@ -4593,7 +5302,7 @@ def _candidate_sha(explicit: str) -> str:
             text=True,
             timeout=15,
         )
-        return (r.stdout or "").strip()[:12] or "unknown"
+        return (r.stdout or "").strip() or "unknown"
     except Exception:  # noqa: BLE001
         return "unknown"
 

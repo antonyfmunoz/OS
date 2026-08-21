@@ -94,7 +94,7 @@ def _full_scenario_patches(dispatch_mod, **overrides):
             "started": True,
             "dry_run": True,
         },
-        "_poll_status": lambda runner, run_id, pass_num, timeout_min=30, max_mesh_failures=5: {
+        "_poll_status": lambda runner, run_id, pass_num, timeout_min=30, max_mesh_failures=5, candidate_sha="": {
             "state": "passed",
             "run_id": run_id,
             "stages_done": 36,

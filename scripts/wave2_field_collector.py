@@ -61,6 +61,10 @@ def _redact(text: str) -> str:
     return _SECRET_REDACT_RE.sub("<redacted>", text)
 
 
+def _campaign_id() -> str:
+    return os.environ.get("UMH_WAVE2_CAMPAIGN_ID", "uncampaigned") or "uncampaigned"
+
+
 # ── Chat input: the primary Cockpit chat rail input. RightRail.tsx renders it
 # with placeholder `Message <aiName>...` (aiName from get_ai_name()), so the
 # instance-agnostic prefix selector is the stable anchor — same one the proven
@@ -2964,8 +2968,8 @@ class FieldCollector:
             }
         )
         result = {
-            "pass": execution_passed,
             "execution_passed": execution_passed,
+            "collector_terminal_state": "evidence_uploaded" if execution_passed else "execution_failed",
             "run_id": self.run_id,
             "pass_num": self.pass_num,
             "scenario": self.scenario,
@@ -3001,7 +3005,7 @@ class FieldCollector:
         publication = self._publish_evidence(execution_passed)
         result["evidence_publication"] = publication
         if not publication.get("ok"):
-            result["pass"] = False
+            result["collector_terminal_state"] = "evidence_preservation_failed"
             (self.pass_dir / "result.json").write_text(
                 json.dumps(result, indent=2), encoding="utf-8"
             )
@@ -3011,10 +3015,14 @@ class FieldCollector:
                 preservation_error=str(publication.get("error", "evidence publication failed")),
             )
             return result
+        # The destination VPS owns verification, promotion, receipt creation,
+        # and canonical PASS reconciliation. Beast only proves that artifact
+        # writers are closed, the manifest is deterministic, and staging upload
+        # completed.
         self._status(
-            "passed" if execution_passed else "failed",
+            "evidence_uploaded",
             execution_passed=execution_passed,
-            evidence_receipt=publication.get("receipt", {}),
+            evidence_upload=publication.get("upload", {}),
         )
         return result
 
@@ -3038,8 +3046,15 @@ class FieldCollector:
         excluded = {
             "status.json",
             "evidence_manifest.json",
+            "evidence_manifest.json.tmp",
             "evidence_manifest.sha256",
+            "evidence_manifest.sha256.tmp",
+            "evidence_commit.json",
+            "evidence_commit.json.tmp",
             "evidence_receipt.json",
+            "evidence_receipt.json.tmp",
+            "upload_complete.json",
+            "upload_complete.json.tmp",
         }
         files: list[dict[str, Any]] = []
         for path in sorted(self.pass_dir.rglob("*")):
@@ -3068,7 +3083,7 @@ class FieldCollector:
                 previous = json.loads(manifest_path.read_text(encoding="utf-8"))
                 if (
                     previous.get("schema_version") == 1
-                    and previous.get("campaign_id") == os.environ.get("UMH_WAVE2_CAMPAIGN_ID", "")
+                    and previous.get("campaign_id") == _campaign_id()
                     and previous.get("run_id") == self.run_id
                     and previous.get("pass_id") == f"pass{self.pass_num}"
                     and previous.get("pass_num") == self.pass_num
@@ -3084,7 +3099,7 @@ class FieldCollector:
                 pass
         manifest = {
             "schema_version": 1,
-            "campaign_id": os.environ.get("UMH_WAVE2_CAMPAIGN_ID", ""),
+            "campaign_id": _campaign_id(),
             "run_id": self.run_id,
             "pass_id": f"pass{self.pass_num}",
             "pass_num": self.pass_num,
@@ -3099,6 +3114,9 @@ class FieldCollector:
             "missing_required_artifacts": missing,
             "files": files,
         }
+        manifest["inventory_sha256"] = hashlib.sha256(
+            json.dumps(files, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
         tmp = manifest_path.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
         tmp.replace(manifest_path)
@@ -3110,7 +3128,7 @@ class FieldCollector:
         return manifest
 
     def _publish_evidence(self, execution_passed: bool) -> dict[str, Any]:
-        """Ship evidence through staging, remote verification and atomic promotion."""
+        """Ship evidence to noncanonical VPS staging and signal upload completion."""
         manifest = self._write_artifact_manifest()
         if manifest["missing_required_artifacts"]:
             return {
@@ -3125,12 +3143,14 @@ class FieldCollector:
             return {"ok": False, "error": "UMH_VPS_SSH unset", "manifest": manifest}
 
         dest = self.ship_to.rstrip("/")
-        attempt_id = uuid4().hex[:12]
+        transaction_id = uuid4().hex[:12]
+        campaign = _campaign_id()
         run_root = f"{dest}/{self.run_id}"
-        staging = f"{run_root}/.staging-pass{self.pass_num}-{attempt_id}"
+        staging_parent = f"{dest}/.incoming/{campaign}/{self.run_id}/pass{self.pass_num}"
+        staging = f"{staging_parent}/{transaction_id}"
         canonical = f"{run_root}/pass{self.pass_num}"
         try:
-            prep = f"rm -rf {shlex.quote(staging)} && mkdir -p {shlex.quote(run_root)}"
+            prep = f"mkdir -p {shlex.quote(staging)} {shlex.quote(run_root)}"
             prep_proc = subprocess.run(
                 ["ssh", vps, prep],
                 timeout=30,
@@ -3145,230 +3165,99 @@ class FieldCollector:
                     "stderr": _redact(prep_proc.stderr or prep_proc.stdout or ""),
                     "manifest": manifest,
                 }
-            scp_proc = subprocess.run(
-                ["scp", "-r", str(self.pass_dir), f"{vps}:{staging}"],
-                timeout=300,
+            upload_files = ["evidence_manifest.json", "evidence_manifest.sha256"] + [
+                str(item["path"]) for item in manifest.get("files", []) if isinstance(item, dict)
+            ]
+            remote_dirs = sorted({str(Path(rel).parent).replace("\\", "/") for rel in upload_files if str(Path(rel).parent) != "."})
+            if remote_dirs:
+                mkdir_cmd = "mkdir -p " + " ".join(shlex.quote(f"{staging}/{rel}") for rel in remote_dirs)
+                mkdir_proc = subprocess.run(
+                    ["ssh", vps, mkdir_cmd],
+                    timeout=30,
+                    capture_output=True,
+                    text=True,
+                    **_no_window(),
+                )
+                if mkdir_proc.returncode != 0:
+                    return {
+                        "ok": False,
+                        "error": "staging subdirectory preparation failed",
+                        "stderr": _redact(mkdir_proc.stderr or mkdir_proc.stdout or ""),
+                        "staging_path": staging,
+                        "manifest": manifest,
+                    }
+            for rel in upload_files:
+                local_path = self.pass_dir / rel
+                remote_path = f"{vps}:{staging}/{rel}"
+                scp_proc = subprocess.run(
+                    ["scp", str(local_path), remote_path],
+                    timeout=300,
+                    capture_output=True,
+                    text=True,
+                    **_no_window(),
+                )
+                if scp_proc.returncode != 0:
+                    return {
+                        "ok": False,
+                        "error": "staging transfer failed",
+                        "stderr": _redact(scp_proc.stderr or scp_proc.stdout or ""),
+                        "staging_path": staging,
+                        "artifact": rel,
+                        "manifest": manifest,
+                    }
+            marker = {
+                "schema_version": 1,
+                "transaction_id": transaction_id,
+                "campaign_id": campaign,
+                "run_id": self.run_id,
+                "pass_id": f"pass{self.pass_num}",
+                "pass_num": self.pass_num,
+                "candidate_sha": self.candidate_commit,
+                "manifest_sha256": manifest["manifest_sha256"],
+                "inventory_sha256": manifest["inventory_sha256"],
+                "staging_path": staging,
+                "canonical_path": canonical,
+                "uploaded_at": _utc_now(),
+                "execution_passed": execution_passed,
+            }
+            marker_path = self.pass_dir / "upload_complete.json"
+            marker_path.write_text(json.dumps(marker, indent=2, sort_keys=True), encoding="utf-8")
+            marker_proc = subprocess.run(
+                ["scp", str(marker_path), f"{vps}:{staging}/upload_complete.json"],
+                timeout=60,
                 capture_output=True,
                 text=True,
                 **_no_window(),
             )
-            if scp_proc.returncode != 0:
+            if marker_proc.returncode != 0:
                 return {
                     "ok": False,
-                    "error": "staging transfer failed",
-                    "stderr": _redact(scp_proc.stderr or scp_proc.stdout or ""),
+                    "error": "upload-complete marker transfer failed",
+                    "stderr": _redact(marker_proc.stderr or marker_proc.stdout or ""),
                     "staging_path": staging,
                     "manifest": manifest,
                 }
-            receipt = self._verify_and_promote(
-                vps, staging=staging, canonical=canonical, manifest=manifest
-            )
-            if not receipt.get("ok"):
-                return {
-                    "ok": False,
-                    "error": receipt.get("error", "destination verification failed"),
-                    "receipt": receipt,
-                    "manifest": manifest,
-                }
-            (self.pass_dir / "evidence_receipt.json").write_text(
-                json.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8"
-            )
-            return {"ok": True, "receipt": receipt, "manifest": manifest, "execution_passed": execution_passed}
+            return {
+                "ok": True,
+                "state": "evidence_uploaded",
+                "upload": marker,
+                "manifest": manifest,
+                "execution_passed": execution_passed,
+            }
         except Exception as exc:  # noqa: BLE001
             return {"ok": False, "error": repr(exc), "manifest": manifest, "staging_path": staging}
 
-    def _verify_and_promote(
-        self,
-        vps: str,
-        *,
-        staging: str,
-        canonical: str,
-        manifest: dict[str, Any],
-    ) -> dict[str, Any]:
-        code = f"""
-import hashlib, json, os, shutil, sys, time
-from pathlib import Path
-staging = Path({json.dumps(staging)})
-canonical = Path({json.dumps(canonical)})
-required_artifacts = ('result.json', 'network.jsonl', 'console.jsonl')
-required_binding = {{
-  'run_id': {json.dumps(self.run_id)},
-  'pass_num': {self.pass_num},
-  'candidate_sha': {json.dumps(self.candidate_commit)},
-}}
-def fail(reason):
-    print(json.dumps({{
-      'ok': False,
-      'error': reason,
-      'staging_path': str(staging),
-      'canonical_path': str(canonical),
-    }}))
-    sys.exit(0)
-def fsync_dir(path):
-    try:
-        fd = os.open(str(path), os.O_DIRECTORY)
-        try:
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-    except Exception:
-        pass
-def load_and_verify(root):
-    manifest_path = root / 'evidence_manifest.json'
-    if not manifest_path.is_file():
-        return None, '', 'missing evidence_manifest.json'
-    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-    for key, expected in required_binding.items():
-        if manifest.get(key) != expected:
-            return None, '', f'binding mismatch {{key}}'
-    if tuple(manifest.get('required_artifacts', [])) != required_artifacts:
-        return None, '', 'required artifact contract mismatch'
-    for rel in required_artifacts:
-        if not (root / rel).is_file():
-            return None, '', f'missing required artifact {{rel}}'
-    seen = set()
-    for item in manifest.get('files', []):
-        if not isinstance(item, dict):
-            return None, '', 'malformed manifest file entry'
-        rel = item.get('path')
-        if not isinstance(rel, str) or rel.startswith('/') or '\\\\' in rel:
-            return None, '', 'unsafe manifest path'
-        parts = Path(rel).parts
-        if any(part in ('', '.', '..') for part in parts):
-            return None, '', 'unsafe manifest path'
-        if rel in seen:
-            return None, '', 'duplicate manifest path'
-        seen.add(rel)
-        path = root / item['path']
-        if not path.is_file():
-            return None, '', f'missing manifest file {{item[\"path\"]}}'
-        data = path.read_bytes()
-        if len(data) != int(item['size']) or hashlib.sha256(data).hexdigest() != item['sha256']:
-            return None, '', f'digest mismatch {{item[\"path\"]}}'
-    missing_bound = [rel for rel in required_artifacts if rel not in seen]
-    if missing_bound:
-        return None, '', 'required artifact missing from hash inventory: ' + ','.join(missing_bound)
-    digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
-    sidecar = root / 'evidence_manifest.sha256'
-    if sidecar.is_file():
-        expected = sidecar.read_text(encoding='utf-8').split()[0]
-        if expected != digest:
-            return None, '', 'manifest sidecar digest mismatch'
-    return manifest, digest, ''
-def build_receipt(manifest, manifest_digest, recovered=False):
-    return {{
-      'ok': True,
-      'schema_version': 1,
-      'receipt_id': 'receipt-' + hashlib.sha256((str(canonical) + manifest_digest).encode()).hexdigest()[:16],
-      'run_id': manifest['run_id'],
-      'pass_id': manifest['pass_id'],
-      'pass_num': manifest['pass_num'],
-      'candidate_sha': manifest['candidate_sha'],
-      'artifact_count': len(manifest.get('files', [])),
-      'manifest_sha256': manifest_digest,
-      'canonical_path': str(canonical),
-      'verified_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-      'recovered_after_promotion': recovered,
-    }}
-def write_receipt(root, receipt):
-    tmp = root / 'evidence_receipt.json.tmp'
-    tmp.write_text(json.dumps(receipt, sort_keys=True), encoding='utf-8')
-    with tmp.open('rb') as fh:
-        os.fsync(fh.fileno())
-    os.replace(tmp, root / 'evidence_receipt.json')
-    fsync_dir(root)
-staging_manifest, staging_manifest_digest, staging_error = load_and_verify(staging)
-if staging_error:
-    fail(staging_error)
-if canonical.exists():
-    existing = canonical / 'evidence_receipt.json'
-    if existing.is_file():
-        prior = json.loads(existing.read_text(encoding='utf-8'))
-        canonical_manifest, canonical_digest, canonical_error = load_and_verify(canonical)
-        if canonical_error:
-            fail('canonical destination exists with invalid committed evidence: ' + canonical_error)
-        if (
-            prior.get('ok') is True
-            and prior.get('manifest_sha256') == canonical_digest
-            and canonical_digest == staging_manifest_digest
-            and prior.get('run_id') == canonical_manifest.get('run_id')
-            and prior.get('pass_num') == canonical_manifest.get('pass_num')
-            and prior.get('candidate_sha') == canonical_manifest.get('candidate_sha')
-        ):
-            shutil.rmtree(staging, ignore_errors=True)
-            prior['ok'] = True
-            prior['idempotent_replay'] = True
-            print(json.dumps(prior, sort_keys=True))
-            sys.exit(0)
-    canonical_manifest, canonical_digest, canonical_error = load_and_verify(canonical)
-    if canonical_error:
-        fail('canonical destination already exists with no receipt and invalid evidence: ' + canonical_error)
-    if canonical_digest != staging_manifest_digest:
-        fail('canonical destination already exists with divergent evidence')
-    receipt = build_receipt(canonical_manifest, canonical_digest, recovered=True)
-    write_receipt(canonical, receipt)
-    shutil.rmtree(staging, ignore_errors=True)
-    print(json.dumps(receipt, sort_keys=True))
-    sys.exit(0)
-canonical.parent.mkdir(parents=True, exist_ok=True)
-os.replace(staging, canonical)
-fsync_dir(canonical.parent)
-receipt = build_receipt(staging_manifest, staging_manifest_digest)
-write_receipt(canonical, receipt)
-print(json.dumps(receipt, sort_keys=True))
-"""
-        proc = subprocess.run(
-            ["ssh", vps, "python3 - <<'PY'\n" + code + "\nPY"],
-            timeout=120,
-            capture_output=True,
-            text=True,
-            **_no_window(),
-        )
-        if proc.returncode != 0:
-            return {
-                "ok": False,
-                "error": "remote verification command failed",
-                "stderr": _redact(proc.stderr or proc.stdout or ""),
-            }
-        try:
-            return json.loads(proc.stdout)
-        except json.JSONDecodeError:
-            return {
-                "ok": False,
-                "error": "remote verification returned non-json",
-                "stdout": _redact(proc.stdout[:1000]),
-            }
-
     def _ship(self) -> None:
-        """Backward-compatible wrapper; field terminalization uses _publish_evidence."""
+        """Backward-compatible wrapper; uploads only to noncanonical staging."""
         result = self._publish_evidence(False)
         if not result.get("ok"):
             print(f"  ship failed: {result.get('error')}", file=sys.stderr)
         else:
-            print(f"  shipped pass{self.pass_num} → receipt {result.get('receipt', {}).get('receipt_id')}", file=sys.stderr)
-        if not self.ship_to:
-            return
-        vps = os.environ.get("UMH_VPS_SSH", "")
-        if not vps:
-            print("  UMH_VPS_SSH unset — skipping ship", file=sys.stderr)
-            return
-        dest = self.ship_to.rstrip("/")
-        try:
-            subprocess.run(
-                ["ssh", vps, f"mkdir -p {dest}/{self.run_id}"],
-                timeout=30,
-                check=False,
-                **_no_window(),
+            print(
+                f"  uploaded pass{self.pass_num} → transaction "
+                f"{result.get('upload', {}).get('transaction_id')}",
+                file=sys.stderr,
             )
-            subprocess.run(
-                ["scp", "-r", str(self.pass_dir), f"{vps}:{dest}/{self.run_id}/"],
-                timeout=300,
-                check=False,
-                **_no_window(),
-            )
-            print(f"  shipped pass{self.pass_num} → {vps}:{dest}/{self.run_id}/", file=sys.stderr)
-        except Exception as exc:  # noqa: BLE001
-            print(f"  ship failed: {exc}", file=sys.stderr)
 
 
 def _run_id_default() -> str:
@@ -3401,7 +3290,8 @@ def main(argv: list[str] | None = None) -> int:
         print(
             json.dumps(
                 {
-                    "pass": False,
+                    "state": "collector_failed",
+                    "execution_passed": False,
                     "error": "credentials not injected (op run env missing)",
                     "run_id": args.run_id,
                     "pass_num": args.pass_num,
@@ -3421,9 +3311,19 @@ def main(argv: list[str] | None = None) -> int:
         fixture_url=args.fixture_url,
     )
     result = collector.run()
-    # result.json is the durable artifact; stdout carries the terminal verdict.
-    print(json.dumps({"pass": result["pass"], "failed_stage": result.get("failed_stage")}))
-    return 0 if result["pass"] else 1
+    # result.json is the durable artifact; stdout carries only collector state.
+    # Canonical PASS is owned by VPS destination receipt reconciliation.
+    state = result.get("collector_terminal_state", "collector_failed")
+    print(
+        json.dumps(
+            {
+                "state": state,
+                "execution_passed": result.get("execution_passed") is True,
+                "failed_stage": result.get("failed_stage"),
+            }
+        )
+    )
+    return 0 if state == "evidence_uploaded" else 1
 
 
 if __name__ == "__main__":
