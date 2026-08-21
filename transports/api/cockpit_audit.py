@@ -415,6 +415,39 @@ def _replay_manifest_if_valid(
     return manifest
 
 
+def _validate_append_tail(
+    tail: bytes,
+    *,
+    unresolved_request_id: str,
+    recoverable_request_id: str,
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    seen_tail: set[str] = set()
+    for line_no, raw in enumerate(tail.splitlines(keepends=True), 1):
+        stripped = raw.strip()
+        if not stripped:
+            continue
+        try:
+            record = json.loads(stripped.decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            raise MutationLedgerRepairError("append tail failed validation") from exc
+        if not isinstance(record, dict):
+            raise MutationLedgerRepairError("append tail failed validation")
+        ok, reason = _validate_ledger_record(record)
+        if not ok:
+            raise MutationLedgerRepairError(f"append tail failed validation: {reason}")
+        request_id = record.get("request_id")
+        if isinstance(request_id, str):
+            if request_id in seen_tail or request_id in {
+                unresolved_request_id,
+                recoverable_request_id,
+            }:
+                raise MutationLedgerRepairError("append tail conflicts with repaired request ids")
+            seen_tail.add(request_id)
+        records.append(record)
+    return records
+
+
 def repair_mutation_ledger_truth_gap(
     *,
     expected_original_sha256: str,
@@ -423,9 +456,16 @@ def repair_mutation_ledger_truth_gap(
     recoverable_request_id: str,
     preservation_dir: str | os.PathLike[str],
     repair_authority: str,
+    preserved_original_path: str | os.PathLike[str] | None = None,
+    expected_current_sha256: str | None = None,
+    expected_malformed_line_sha256: str | None = None,
 ) -> dict[str, Any]:
     ledger = Path(_MUTATION_LEDGER_PATH)
-    repair_id = f"mutation-ledger-repair-{expected_original_sha256[:16]}-line-{malformed_line}"
+    repair_binding = expected_current_sha256 or expected_original_sha256
+    repair_id = (
+        f"mutation-ledger-repair-{expected_original_sha256[:16]}-"
+        f"{repair_binding[:16]}-line-{malformed_line}"
+    )
     preservation = Path(preservation_dir)
     preservation.mkdir(parents=True, exist_ok=True)
     replay = _replay_manifest_if_valid(
@@ -444,14 +484,54 @@ def repair_mutation_ledger_truth_gap(
             try:
                 original_bytes = ledger.read_bytes()
                 current_sha = hashlib.sha256(original_bytes).hexdigest()
-                if current_sha != expected_original_sha256:
+                append_extension = expected_current_sha256 is not None
+                if append_extension:
+                    if current_sha != expected_current_sha256:
+                        raise MutationLedgerRepairError("frozen current digest mismatch")
+                    if preserved_original_path is None:
+                        raise MutationLedgerRepairError("preserved original path required")
+                    preserved_original = Path(preserved_original_path).read_bytes()
+                    preserved_sha = hashlib.sha256(preserved_original).hexdigest()
+                    if preserved_sha != expected_original_sha256:
+                        raise MutationLedgerRepairError("preserved original digest mismatch")
+                    if not original_bytes.startswith(preserved_original):
+                        raise MutationLedgerRepairError(
+                            "ledger is not a strict append-only extension"
+                        )
+                    tail = original_bytes[len(preserved_original) :]
+                    _validate_append_tail(
+                        tail,
+                        unresolved_request_id=unresolved_request_id,
+                        recoverable_request_id=recoverable_request_id,
+                    )
+                    prefix_sha = preserved_sha
+                    frozen_sha = current_sha
+                    tail_sha = hashlib.sha256(tail).hexdigest()
+                elif current_sha != expected_original_sha256:
                     raise MutationLedgerRepairError("mutation ledger digest changed before repair")
+                else:
+                    preserved_original = original_bytes
+                    tail = b""
+                    prefix_sha = expected_original_sha256
+                    frozen_sha = current_sha
+                    tail_sha = hashlib.sha256(tail).hexdigest()
                 original_copy = preservation / f"{repair_id}.original.jsonl"
                 _write_preserved_bytes(original_copy, original_bytes)
+                prefix_copy = preservation / f"{repair_id}.preserved-prefix.jsonl"
+                _write_preserved_bytes(prefix_copy, preserved_original)
+                if append_extension:
+                    tail_copy = preservation / f"{repair_id}.append-tail.jsonl"
+                    _write_preserved_bytes(tail_copy, tail)
                 raw_lines = original_bytes.splitlines(keepends=True)
                 if malformed_line < 1 or malformed_line > len(raw_lines):
                     raise MutationLedgerRepairError("malformed line out of range")
                 raw_line = raw_lines[malformed_line - 1]
+                raw_line_sha = hashlib.sha256(raw_line).hexdigest()
+                if (
+                    expected_malformed_line_sha256 is not None
+                    and raw_line_sha != expected_malformed_line_sha256
+                ):
+                    raise MutationLedgerRepairError("malformed line digest mismatch")
                 raw_body = raw_line.rstrip(b"\r\n")
                 split, recovered_raw, recovered = _find_recoverable_json_object(
                     raw_body, recoverable_request_id
@@ -478,8 +558,8 @@ def repair_mutation_ledger_truth_gap(
                     visible["timestamp_prefix"] = text.rsplit('"timestamp":', 1)[-1].strip()
                 gap = build_integrity_gap_record(
                     unresolved_request_id=unresolved_request_id,
-                    original_file_sha256=expected_original_sha256,
-                    malformed_line_sha256=hashlib.sha256(raw_line).hexdigest(),
+                    original_file_sha256=prefix_sha,
+                    malformed_line_sha256=raw_line_sha,
                     byte_range=[
                         starts[malformed_line - 1],
                         starts[malformed_line - 1] + len(raw_line),
@@ -530,8 +610,15 @@ def repair_mutation_ledger_truth_gap(
                         "repair_id": repair_id,
                         "ledger_path": str(ledger),
                         "original_sha256": expected_original_sha256,
+                        "append_extension": append_extension,
+                        "frozen_current_sha256": frozen_sha,
+                        "prefix_sha256": prefix_sha,
+                        "prefix_path": str(prefix_copy),
+                        "tail_sha256": tail_sha,
+                        "tail_size": len(tail),
                         "repaired_sha256": repaired_sha,
                         "malformed_line": malformed_line,
+                        "malformed_line_sha256": raw_line_sha,
                         "unresolved_request_id": unresolved_request_id,
                         "recoverable_request_id": recoverable_request_id,
                         "fragment_path": str(fragment_path),
