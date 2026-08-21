@@ -39,6 +39,16 @@ def _line(obj: dict) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":")) + "\n"
 
 
+def _transitional_line(audit, obj: dict, *, schema_version: str = "mutation-ledger-v2") -> str:
+    record = dict(obj)
+    record["_ledger"] = {
+        "schema_version": schema_version,
+        "record_type": "mutation_audit",
+        "payload_sha256": audit._payload_sha256(record),
+    }
+    return json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+
+
 def test_emit_mutation_audit_writes_fsync_validated_records(tmp_path, monkeypatch):
     audit = _reload_audit(tmp_path, monkeypatch)
 
@@ -190,6 +200,233 @@ def test_repair_accepts_strict_append_extension_and_preserves_tail(tmp_path, mon
     assert rows["integrity_ok"] is True
     assert [r["request_id"] for r in rows["records"]][-2:] == ["tail-1", "tail-2"]
     assert ledger.read_bytes().endswith(tail_bytes)
+
+
+def test_repair_migrates_valid_transitional_append_tail(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    transitional = [_event("tail-transitional-1"), _event("tail-transitional-2")]
+    current = audit._with_ledger_metadata(_event("tail-current"), "mutation_audit")
+    ledger.parent.mkdir(parents=True)
+    original = (
+        _line(_event("before"))
+        + '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n"
+    )
+    ledger.write_text(original, encoding="utf-8")
+    preserved_original = tmp_path / "preserved-original.jsonl"
+    preserved_original.write_bytes(ledger.read_bytes())
+    original_digest = audit.file_sha256(ledger)
+    tail_text = "".join(_transitional_line(audit, event) for event in transitional) + _line(current)
+    ledger.write_text(original + tail_text, encoding="utf-8")
+    frozen_digest = audit.file_sha256(ledger)
+    malformed_line_sha = audit.hashlib.sha256(
+        preserved_original.read_bytes().splitlines(keepends=True)[1]
+    ).hexdigest()
+
+    result = audit.repair_mutation_ledger_truth_gap(
+        expected_original_sha256=original_digest,
+        malformed_line=2,
+        unresolved_request_id=unresolved,
+        recoverable_request_id=recovered,
+        preservation_dir=tmp_path / "preserve",
+        repair_authority="unit-test",
+        preserved_original_path=preserved_original,
+        expected_current_sha256=frozen_digest,
+        expected_malformed_line_sha256=malformed_line_sha,
+        migrate_transitional_tail_records=True,
+    )
+
+    assert result["ok"] is True
+    migrations = result["transitional_tail_migrations"]
+    assert [m["request_id"] for m in migrations] == [
+        "tail-transitional-1",
+        "tail-transitional-2",
+    ]
+    assert all(len(m["computed_integrity_sha256"]) == 64 for m in migrations)
+    rows = audit.read_mutation_ledger()
+    assert rows["parse_ok"] is True
+    assert rows["integrity_ok"] is True
+    tail_records = rows["records"][-3:]
+    assert [r["request_id"] for r in tail_records] == [
+        "tail-transitional-1",
+        "tail-transitional-2",
+        "tail-current",
+    ]
+    assert all("integrity_sha256" in r["_ledger"] for r in tail_records)
+    assert result["migrated_tail_record_count"] == 2
+
+
+def test_repair_refuses_transitional_tail_without_explicit_migration(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    original = (
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n"
+    )
+    preserved_original = tmp_path / "preserved-original.jsonl"
+    preserved_original.write_text(original, encoding="utf-8")
+    ledger.write_text(
+        original + _transitional_line(audit, _event("tail-transitional")),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(audit.MutationLedgerRepairError, match="missing integrity_sha256"):
+        audit.repair_mutation_ledger_truth_gap(
+            expected_original_sha256=audit.hashlib.sha256(original.encode("utf-8")).hexdigest(),
+            malformed_line=1,
+            unresolved_request_id=unresolved,
+            recoverable_request_id=recovered,
+            preservation_dir=tmp_path / "preserve",
+            repair_authority="unit-test",
+            preserved_original_path=preserved_original,
+            expected_current_sha256=audit.file_sha256(ledger),
+        )
+
+
+def test_repair_refuses_transitional_tail_payload_digest_mismatch(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    original = (
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n"
+    )
+    bad = json.loads(_transitional_line(audit, _event("tail-transitional")))
+    bad["_ledger"]["payload_sha256"] = "0" * 64
+    preserved_original = tmp_path / "preserved-original.jsonl"
+    preserved_original.write_text(original, encoding="utf-8")
+    ledger.write_text(original + _line(bad), encoding="utf-8")
+
+    with pytest.raises(audit.MutationLedgerRepairError, match="payload_sha256 mismatch"):
+        audit.repair_mutation_ledger_truth_gap(
+            expected_original_sha256=audit.hashlib.sha256(original.encode("utf-8")).hexdigest(),
+            malformed_line=1,
+            unresolved_request_id=unresolved,
+            recoverable_request_id=recovered,
+            preservation_dir=tmp_path / "preserve",
+            repair_authority="unit-test",
+            preserved_original_path=preserved_original,
+            expected_current_sha256=audit.file_sha256(ledger),
+            migrate_transitional_tail_records=True,
+        )
+
+
+def test_repair_refuses_transitional_tail_unknown_schema(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    original = (
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n"
+    )
+    preserved_original = tmp_path / "preserved-original.jsonl"
+    preserved_original.write_text(original, encoding="utf-8")
+    ledger.write_text(
+        original
+        + _transitional_line(audit, _event("tail-transitional"), schema_version="future"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(audit.MutationLedgerRepairError, match="unsupported mutation ledger schema"):
+        audit.repair_mutation_ledger_truth_gap(
+            expected_original_sha256=audit.hashlib.sha256(original.encode("utf-8")).hexdigest(),
+            malformed_line=1,
+            unresolved_request_id=unresolved,
+            recoverable_request_id=recovered,
+            preservation_dir=tmp_path / "preserve",
+            repair_authority="unit-test",
+            preserved_original_path=preserved_original,
+            expected_current_sha256=audit.file_sha256(ledger),
+            migrate_transitional_tail_records=True,
+        )
+
+
+def test_repair_refuses_transitional_tail_missing_required_metadata(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    original = (
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n"
+    )
+    missing = json.loads(_transitional_line(audit, _event("tail-transitional")))
+    missing["_ledger"].pop("record_type")
+    preserved_original = tmp_path / "preserved-original.jsonl"
+    preserved_original.write_text(original, encoding="utf-8")
+    ledger.write_text(original + _line(missing), encoding="utf-8")
+
+    with pytest.raises(audit.MutationLedgerRepairError, match="unsupported mutation ledger record_type"):
+        audit.repair_mutation_ledger_truth_gap(
+            expected_original_sha256=audit.hashlib.sha256(original.encode("utf-8")).hexdigest(),
+            malformed_line=1,
+            unresolved_request_id=unresolved,
+            recoverable_request_id=recovered,
+            preservation_dir=tmp_path / "preserve",
+            repair_authority="unit-test",
+            preserved_original_path=preserved_original,
+            expected_current_sha256=audit.file_sha256(ledger),
+            migrate_transitional_tail_records=True,
+        )
+
+
+def test_repair_refuses_transitional_tail_extra_metadata(tmp_path, monkeypatch):
+    audit = _reload_audit(tmp_path, monkeypatch)
+    ledger = _ledger_path(tmp_path)
+    unresolved = "568b9c5c-2455-4854-8efd-79eaf24419a0"
+    recovered = "db337aeb-3eda-449e-a91e-e02f682c944c"
+    ledger.parent.mkdir(parents=True)
+    original = (
+        '{"request_id": "'
+        + unresolved
+        + '", "timestamp": "2026-08-20T0'
+        + json.dumps(_event(recovered), sort_keys=True)
+        + "\n"
+    )
+    extra = json.loads(_transitional_line(audit, _event("tail-transitional")))
+    extra["_ledger"]["unexpected"] = "metadata"
+    preserved_original = tmp_path / "preserved-original.jsonl"
+    preserved_original.write_text(original, encoding="utf-8")
+    ledger.write_text(original + _line(extra), encoding="utf-8")
+
+    with pytest.raises(audit.MutationLedgerRepairError, match="transitional metadata not exact"):
+        audit.repair_mutation_ledger_truth_gap(
+            expected_original_sha256=audit.hashlib.sha256(original.encode("utf-8")).hexdigest(),
+            malformed_line=1,
+            unresolved_request_id=unresolved,
+            recoverable_request_id=recovered,
+            preservation_dir=tmp_path / "preserve",
+            repair_authority="unit-test",
+            preserved_original_path=preserved_original,
+            expected_current_sha256=audit.file_sha256(ledger),
+            migrate_transitional_tail_records=True,
+        )
 
 
 def test_repair_refuses_changed_prefix_for_append_extension(tmp_path, monkeypatch):

@@ -420,12 +420,16 @@ def _validate_append_tail(
     *,
     unresolved_request_id: str,
     recoverable_request_id: str,
-) -> list[dict[str, Any]]:
+    migrate_transitional_records: bool = False,
+) -> dict[str, Any]:
     records: list[dict[str, Any]] = []
     seen_tail: set[str] = set()
+    repaired_tail_parts: list[bytes] = []
+    migrations: list[dict[str, Any]] = []
     for line_no, raw in enumerate(tail.splitlines(keepends=True), 1):
         stripped = raw.strip()
         if not stripped:
+            repaired_tail_parts.append(raw)
             continue
         try:
             record = json.loads(stripped.decode("utf-8"))
@@ -435,7 +439,27 @@ def _validate_append_tail(
             raise MutationLedgerRepairError("append tail failed validation")
         ok, reason = _validate_ledger_record(record)
         if not ok:
-            raise MutationLedgerRepairError(f"append tail failed validation: {reason}")
+            if reason != "missing integrity_sha256" or not migrate_transitional_records:
+                raise MutationLedgerRepairError(f"append tail failed validation: {reason}")
+            migrated = _migrate_transitional_tail_record(record)
+            ok, reason = _validate_ledger_record(migrated)
+            if not ok:
+                raise MutationLedgerRepairError(f"append tail failed validation: {reason}")
+            migrated_raw = (_canonical_json(migrated) + "\n").encode("utf-8")
+            migrations.append(
+                {
+                    "tail_line": line_no,
+                    "request_id": migrated.get("request_id"),
+                    "original_record_sha256": hashlib.sha256(raw).hexdigest(),
+                    "migrated_record_sha256": hashlib.sha256(migrated_raw).hexdigest(),
+                    "recorded_payload_sha256": record["_ledger"]["payload_sha256"],
+                    "recomputed_payload_sha256": _payload_sha256(record),
+                    "computed_integrity_sha256": migrated["_ledger"]["integrity_sha256"],
+                }
+            )
+            record = migrated
+            raw = migrated_raw
+        repaired_tail_parts.append(raw)
         request_id = record.get("request_id")
         if isinstance(request_id, str):
             if request_id in seen_tail or request_id in {
@@ -445,7 +469,36 @@ def _validate_append_tail(
                 raise MutationLedgerRepairError("append tail conflicts with repaired request ids")
             seen_tail.add(request_id)
         records.append(record)
-    return records
+    return {
+        "records": records,
+        "tail_bytes": b"".join(repaired_tail_parts),
+        "migrations": migrations,
+    }
+
+
+def _migrate_transitional_tail_record(record: dict[str, Any]) -> dict[str, Any]:
+    meta = record.get("_ledger")
+    if not isinstance(meta, dict):
+        raise MutationLedgerRepairError("append tail failed validation: ledger metadata is not an object")
+    if set(meta) != {"schema_version", "record_type", "payload_sha256"}:
+        raise MutationLedgerRepairError("append tail failed validation: transitional metadata not exact")
+    if meta.get("schema_version") != _MUTATION_LEDGER_SCHEMA:
+        raise MutationLedgerRepairError("append tail failed validation: unsupported mutation ledger schema")
+    if meta.get("record_type") not in {"mutation_audit", "integrity_gap"}:
+        raise MutationLedgerRepairError(
+            "append tail failed validation: unsupported mutation ledger record_type"
+        )
+    expected = meta.get("payload_sha256")
+    if not isinstance(expected, str) or len(expected) != 64:
+        raise MutationLedgerRepairError("append tail failed validation: missing payload_sha256")
+    actual = _payload_sha256(record)
+    if actual != expected:
+        raise MutationLedgerRepairError("append tail failed validation: payload_sha256 mismatch")
+    migrated = dict(record)
+    migrated_meta = dict(meta)
+    migrated["_ledger"] = migrated_meta
+    migrated_meta["integrity_sha256"] = _integrity_sha256(migrated)
+    return migrated
 
 
 def repair_mutation_ledger_truth_gap(
@@ -459,6 +512,7 @@ def repair_mutation_ledger_truth_gap(
     preserved_original_path: str | os.PathLike[str] | None = None,
     expected_current_sha256: str | None = None,
     expected_malformed_line_sha256: str | None = None,
+    migrate_transitional_tail_records: bool = False,
 ) -> dict[str, Any]:
     ledger = Path(_MUTATION_LEDGER_PATH)
     repair_binding = expected_current_sha256 or expected_original_sha256
@@ -499,14 +553,17 @@ def repair_mutation_ledger_truth_gap(
                             "ledger is not a strict append-only extension"
                         )
                     tail = original_bytes[len(preserved_original) :]
-                    _validate_append_tail(
+                    tail_validation = _validate_append_tail(
                         tail,
                         unresolved_request_id=unresolved_request_id,
                         recoverable_request_id=recoverable_request_id,
+                        migrate_transitional_records=migrate_transitional_tail_records,
                     )
                     prefix_sha = preserved_sha
                     frozen_sha = current_sha
                     tail_sha = hashlib.sha256(tail).hexdigest()
+                    repaired_tail = tail_validation["tail_bytes"]
+                    tail_migrations = tail_validation["migrations"]
                 elif current_sha != expected_original_sha256:
                     raise MutationLedgerRepairError("mutation ledger digest changed before repair")
                 else:
@@ -515,6 +572,8 @@ def repair_mutation_ledger_truth_gap(
                     prefix_sha = expected_original_sha256
                     frozen_sha = current_sha
                     tail_sha = hashlib.sha256(tail).hexdigest()
+                    repaired_tail = tail
+                    tail_migrations = []
                 original_copy = preservation / f"{repair_id}.original.jsonl"
                 _write_preserved_bytes(original_copy, original_bytes)
                 prefix_copy = preservation / f"{repair_id}.preserved-prefix.jsonl"
@@ -583,8 +642,18 @@ def repair_mutation_ledger_truth_gap(
                     recovered_second_object_sha256=hashlib.sha256(recovered_raw).hexdigest(),
                 )
                 replacement = _canonical_json(gap).encode("utf-8") + b"\n" + recovered_raw + b"\n"
+                replacement_by_line: dict[int, bytes] = {malformed_line - 1: replacement}
+                if append_extension and tail_migrations:
+                    preserved_line_count = len(preserved_original.splitlines(keepends=True))
+                    tail_lines = repaired_tail.splitlines(keepends=True)
+                    original_tail_lines = tail.splitlines(keepends=True)
+                    if len(tail_lines) != len(original_tail_lines):
+                        raise MutationLedgerRepairError("transitional tail migration changed line count")
+                    for migration in tail_migrations:
+                        tail_index = int(migration["tail_line"]) - 1
+                        replacement_by_line[preserved_line_count + tail_index] = tail_lines[tail_index]
                 repaired = b"".join(
-                    replacement if i == malformed_line - 1 else line
+                    replacement_by_line.get(i, line)
                     for i, line in enumerate(raw_lines)
                 )
                 fd, tmp_name = tempfile.mkstemp(prefix=f".{ledger.name}.repair.", dir=str(ledger.parent))
@@ -616,6 +685,9 @@ def repair_mutation_ledger_truth_gap(
                         "prefix_path": str(prefix_copy),
                         "tail_sha256": tail_sha,
                         "tail_size": len(tail),
+                        "repaired_tail_sha256": hashlib.sha256(repaired_tail).hexdigest(),
+                        "transitional_tail_migrations": tail_migrations,
+                        "migrated_tail_record_count": len(tail_migrations),
                         "repaired_sha256": repaired_sha,
                         "malformed_line": malformed_line,
                         "malformed_line_sha256": raw_line_sha,
