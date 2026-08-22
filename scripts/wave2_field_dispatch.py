@@ -556,6 +556,42 @@ def _proof_root() -> Path:
     return _ROOT / "data" / "audits" / "proof" / f"{_date_slug()}_wave2_field"
 
 
+def _evidence_raw_root_from_path(path: Path) -> Path | None:
+    """Return the run-date raw proof root for a staging/canonical evidence path."""
+    try:
+        resolved = path.resolve()
+    except OSError:
+        resolved = path
+    proof_base = (_ROOT / "data" / "audits" / "proof").resolve()
+    parts = resolved.parts
+    if ".incoming" in parts:
+        idx = parts.index(".incoming")
+        raw_root = Path(*parts[:idx])
+    elif len(parts) >= 2 and parts[-1].startswith("pass"):
+        raw_root = resolved.parent.parent
+    else:
+        return None
+    try:
+        raw_root.relative_to(proof_base)
+    except ValueError:
+        return None
+    if raw_root.name != "raw" or not raw_root.parent.name.endswith("_wave2_field"):
+        return None
+    return raw_root.resolve()
+
+
+def _evidence_raw_root_for_upload(upload: dict[str, Any]) -> Path | None:
+    staging = _safe_absolute_evidence_path(upload.get("staging_path"))
+    if staging is not None:
+        raw_root = _evidence_raw_root_from_path(staging)
+        if raw_root is not None:
+            return raw_root
+    canonical = _safe_absolute_evidence_path(upload.get("canonical_path"))
+    if canonical is not None:
+        return _evidence_raw_root_from_path(canonical)
+    return None
+
+
 def _state_dir(sha: str) -> Path:
     return Path("/var/lib/umh/candidates/wave2") / sha / "state" / "umh"
 
@@ -1147,10 +1183,16 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
     out["beast_to_origin"] = _mesh_read(runner, f"curl -sS -o NUL -w %{{http_code}} {_ORIGIN}")
 
     # Echo (never execute) the powershell Start-Process command shape.
-    start_shape = _build_start_command(
-        run_id="RUNID", pass_num=1, scenario="full", url=_ORIGIN, candidate_commit="SHA"
-    )
-    out["start_command_shape"] = _SECRET_REDACT_RE.sub("<redacted>", start_shape)
+    try:
+        start_shape = _build_start_command(
+            run_id="RUNID", pass_num=1, scenario="full", url=_ORIGIN or "", candidate_commit="SHA"
+        )
+        out["start_command_shape"] = {
+            "ok": True,
+            "command": _SECRET_REDACT_RE.sub("<redacted>", start_shape),
+        }
+    except ValueError as exc:
+        out["start_command_shape"] = {"ok": False, "error": str(exc)}
     print("start-command shape (echo only):")
     print(f"  {out['start_command_shape']}")
 
@@ -1170,6 +1212,7 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
         "authority_contract_probe",
         "activation_rehearsal",
         "codex_spark_probe",
+        "start_command_shape",
     )
     failed = [k for k in required if isinstance(out.get(k), dict) and out[k].get("ok") is False]
     mesh = out.get("mesh_health") or {}
@@ -2794,7 +2837,7 @@ def _commit_uploaded_evidence_transaction(
     """VPS-owned verification, atomic promotion, and durable receipt commit."""
     if not isinstance(sha, str) or not _is_full_candidate_sha(sha):
         return {"ok": False, "error": "dispatcher candidate sha must be full 40-hex"}
-    raw_root = (_proof_root() / "raw").resolve()
+    raw_root = _evidence_raw_root_for_upload(upload) or (_proof_root() / "raw").resolve()
     transaction_id = str(upload.get("transaction_id") or "")
     if not transaction_id:
         return {"ok": False, "error": "missing transaction_id"}
@@ -2979,7 +3022,8 @@ def _terminal_from_committed_evidence(receipt: dict[str, Any], sha: str) -> dict
 
 def _fresh_process_verified_evidence_receipt(pass_dir: Path, sha: str) -> dict[str, Any] | None:
     """Re-read receipt in a fresh interpreter so in-memory status cannot qualify."""
-    proof_root = str(_proof_root())
+    raw_root = _evidence_raw_root_from_path(pass_dir) or (_proof_root() / "raw").resolve()
+    proof_root = str(raw_root.parent)
     code = f"""
 import importlib.util, json, pathlib, sys
 spec = importlib.util.spec_from_file_location('wave2_field_dispatch_verify', {json.dumps(str(Path(__file__).resolve()))})
@@ -3017,6 +3061,8 @@ def _build_start_command(
     transit the mesh dispatch payload. Start-Process detaches it so the mesh
     call returns immediately; we then poll status.json read-only.
     """
+    if not isinstance(url, str) or not url.strip() or url.strip().lower() == "none":
+        raise ValueError("collector origin is unresolved")
     ship_to = f"{_proof_root()}/raw"
     collector = (
         f"python {_BEAST_COLLECTOR} "
@@ -3196,6 +3242,27 @@ def _read_collector_status(runner: Runner, *, run_id: str, pass_num: int = 1) ->
     return {"state": "unknown", "status_path": status_path, "read_ok": True}
 
 
+def _find_committed_evidence_receipt(sha: str, *, run_id: str, pass_num: int) -> dict[str, Any] | None:
+    """Find an already committed VPS-owned receipt for a run/pass across run-date roots."""
+    proof_base = (_ROOT / "data" / "audits" / "proof").resolve()
+    pass_name = f"pass{pass_num}"
+    for raw_root in sorted(proof_base.glob("*_wave2_field/raw")):
+        pass_dir = (raw_root / run_id / pass_name).resolve()
+        try:
+            pass_dir.relative_to(raw_root.resolve())
+        except ValueError:
+            continue
+        receipt = _fresh_process_verified_evidence_receipt(pass_dir, sha)
+        if (
+            receipt
+            and receipt.get("run_id") == run_id
+            and receipt.get("pass_num") == pass_num
+            and receipt.get("candidate_sha") == sha
+        ):
+            return receipt
+    return None
+
+
 def _wait_for_evidence_transaction_clear(
     runner: Runner,
     *,
@@ -3270,6 +3337,27 @@ def _wait_for_evidence_transaction_clear(
                 continue
         if state in ("unknown", ""):
             if time.time() >= deadline:
+                receipt = _find_committed_evidence_receipt(
+                    candidate_sha,
+                    run_id=run_id,
+                    pass_num=pass_num,
+                )
+                if receipt:
+                    terminal = _terminal_from_committed_evidence(receipt, candidate_sha)
+                    if terminal.get("ok"):
+                        return {
+                            "ok": True,
+                            "terminal": {
+                                **status,
+                                "state": terminal["state"],
+                                "execution_passed": terminal["execution_passed"],
+                                "evidence_receipt": receipt,
+                                "canonical_result": terminal.get("canonical_result", {}),
+                                "destination_commit": {"ok": True, "receipt": receipt, "receipt_recovered": True},
+                            },
+                            "observations": observations,
+                            "receipt_recovered_after_status_loss": True,
+                        }
                 return {
                     "ok": False,
                     "reason": "collector status unavailable during teardown guard",
@@ -3294,13 +3382,21 @@ def _dispatch_collector(
     runner: Runner, *, run_id: str, pass_num: int, scenario: str, sha: str
 ) -> dict[str, Any]:
     """Dispatch the collector to Beast (non-blocking). Returns dispatch result."""
-    command = _build_start_command(
-        run_id=run_id,
-        pass_num=pass_num,
-        scenario=scenario,
-        url=_ORIGIN,
-        candidate_commit=sha,
-    )
+    if _ORIGIN is None:
+        try:
+            _resolve_env()
+        except SystemExit as exc:
+            return {"ok": False, "error": f"candidate origin unresolved: {exc}", "run_id": run_id, "pass_num": pass_num}
+    try:
+        command = _build_start_command(
+            run_id=run_id,
+            pass_num=pass_num,
+            scenario=scenario,
+            url=_ORIGIN or "",
+            candidate_commit=sha,
+        )
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc), "run_id": run_id, "pass_num": pass_num}
     if runner.dry_run:
         print(f"[dry-run] durable_remote(shell, write-class) node={_MESH_NODE_ID}")
         print(f"[dry-run]   detached start: {_SECRET_REDACT_RE.sub('<redacted>', command)}")
@@ -3670,6 +3766,7 @@ def _wait_collector_authorization(
     pass_num: int,
     *,
     timeout_min: int = 25,
+    candidate_sha: str = "",
 ) -> bool:
     """Poll status.json until the collector reaches w15 (execution authorized).
 
@@ -3708,6 +3805,31 @@ def _wait_collector_authorization(
                     print(f"[runner-gate] collector reached stage {stages} — starting runner")
                     return True
                 state = status.get("state", "")
+                if state == "evidence_uploaded":
+                    upload = status.get("evidence_upload")
+                    if isinstance(upload, dict) and candidate_sha:
+                        committed = _commit_uploaded_evidence_transaction(
+                            upload,
+                            candidate_sha,
+                            run_id=run_id,
+                            pass_num=pass_num,
+                        )
+                        print(
+                            "[runner-gate] collector uploaded terminal evidence before w15 "
+                            f"(commit_ok={bool(committed.get('ok'))}) — aborting runner start"
+                        )
+                    else:
+                        print(
+                            "[runner-gate] collector uploaded terminal evidence before w15 "
+                            "— aborting runner start"
+                        )
+                    return False
+                if state == "evidence_preservation_failed":
+                    print(
+                        "[runner-gate] collector evidence preservation failed before w15 "
+                        "— aborting runner start"
+                    )
+                    return False
                 if state in ("passed", "failed"):
                     print(
                         f"[runner-gate] collector terminal ({state}) before w15 — aborting runner start"
@@ -3850,7 +3972,7 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
                 continue
 
             # Step 3: wait for collector to reach w15 before starting workers
-            if not _wait_collector_authorization(runner, run_id, i):
+            if not _wait_collector_authorization(runner, run_id, i, candidate_sha=sha):
                 results.append(
                     {
                         "ok": False,
@@ -4272,7 +4394,7 @@ def reconcile(runner: Runner, sha: str) -> dict[str, Any]:
 def _verified_evidence_receipt(pass_dir: Path, sha: str) -> dict[str, Any] | None:
     if not _is_full_candidate_sha(sha):
         return None
-    raw_root = (_proof_root() / "raw").resolve()
+    raw_root = _evidence_raw_root_from_path(pass_dir) or (_proof_root() / "raw").resolve()
     if _existing_symlink_under(raw_root, pass_dir) is not None:
         return None
     receipt_path = pass_dir / "evidence_receipt.json"

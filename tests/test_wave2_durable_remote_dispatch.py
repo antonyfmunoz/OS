@@ -124,6 +124,7 @@ def test_collector_launch_uses_run_bound_durable_transport(monkeypatch) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
     calls: list[dict[str, object]] = []
 
+    dispatch._ORIGIN = "https://candidate.example:10443"
     monkeypatch.setattr(
         dispatch,
         "_build_start_command",
@@ -156,6 +157,57 @@ def test_collector_launch_uses_run_bound_durable_transport(monkeypatch) -> None:
             "candidate_sha": "257f4104a086bad0292f721cfbb9815ed6abdc1d",
         }
     ]
+
+
+def test_collector_launch_resolves_origin_before_durable_dispatch(monkeypatch) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    calls: list[dict[str, object]] = []
+    dispatch._ORIGIN = None
+
+    def fake_resolve() -> None:
+        dispatch._ORIGIN = "https://candidate.example:10443"
+
+    monkeypatch.setattr(dispatch, "_resolve_env", fake_resolve)
+    monkeypatch.setattr(
+        dispatch,
+        "_durable_remote_shell",
+        lambda command, **kwargs: calls.append({"command": command, **kwargs})
+        or {"ok": True, "stdout": "started"},
+    )
+
+    out = dispatch._dispatch_collector(
+        dispatch.Runner(dry_run=False),
+        run_id="20260819T000000Z",
+        pass_num=1,
+        scenario="tools-revoked-a",
+        sha="257f4104a086bad0292f721cfbb9815ed6abdc1d",
+    )
+
+    assert out["ok"] is True
+    assert "--url https://candidate.example:10443" in calls[0]["command"]
+    assert "--url None" not in calls[0]["command"]
+
+
+def test_collector_launch_refuses_unresolved_origin_without_dispatch(monkeypatch) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dispatch._ORIGIN = None
+    monkeypatch.setattr(dispatch, "_resolve_env", lambda: None)
+    monkeypatch.setattr(
+        dispatch,
+        "_durable_remote_shell",
+        lambda *_a, **_kw: (_ for _ in ()).throw(AssertionError("must not dispatch")),
+    )
+
+    out = dispatch._dispatch_collector(
+        dispatch.Runner(dry_run=False),
+        run_id="20260819T000000Z",
+        pass_num=1,
+        scenario="tools-revoked-a",
+        sha="257f4104a086bad0292f721cfbb9815ed6abdc1d",
+    )
+
+    assert out["ok"] is False
+    assert out["error"] == "collector origin is unresolved"
 
 
 def test_durable_remote_shell_preserves_argv_payload_shape(monkeypatch, tmp_path) -> None:

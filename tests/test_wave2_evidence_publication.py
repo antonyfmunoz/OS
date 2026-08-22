@@ -2660,6 +2660,113 @@ def test_evidence_transaction_guard_commits_uploaded_before_teardown(monkeypatch
     assert committed_calls == [(status["evidence_upload"], FULL_SHA, "run-1", 1)]
 
 
+def test_teardown_guard_recovers_existing_committed_receipt_when_status_unavailable(monkeypatch):
+    dispatch = _load_dispatch()
+    monkeypatch.setattr(
+        dispatch,
+        "_read_collector_status",
+        lambda *_a, **_kw: {"state": "unknown", "read_ok": False, "error": "mesh read failed"},
+    )
+    monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
+    times = iter([0.0, 0.0, 2.0, 2.0])
+    monkeypatch.setattr(dispatch.time, "time", lambda: next(times, 2.0))
+    receipt = {
+        "receipt_id": "receipt-1",
+        "run_id": "run-1",
+        "pass_num": 1,
+        "candidate_sha": FULL_SHA,
+    }
+    monkeypatch.setattr(
+        dispatch,
+        "_find_committed_evidence_receipt",
+        lambda sha, *, run_id, pass_num: receipt
+        if (sha, run_id, pass_num) == (FULL_SHA, "run-1", 1)
+        else None,
+    )
+    monkeypatch.setattr(
+        dispatch,
+        "_terminal_from_committed_evidence",
+        lambda got, sha: {"ok": True, "state": "failed", "execution_passed": False}
+        if got == receipt and sha == FULL_SHA
+        else {"ok": False},
+    )
+
+    out = dispatch._wait_for_evidence_transaction_clear(
+        dispatch.Runner(dry_run=False),
+        run_id="run-1",
+        pass_num=1,
+        candidate_sha=FULL_SHA,
+        timeout_s=1,
+        poll_s=0,
+    )
+
+    assert out["ok"] is True
+    assert out["receipt_recovered_after_status_loss"] is True
+    assert out["terminal"]["state"] == "failed"
+    assert out["terminal"]["evidence_receipt"] == receipt
+
+
+def test_destination_commit_uses_upload_run_date_root_not_current_date(tmp_path, monkeypatch):
+    dispatch = _load_dispatch()
+    monkeypatch.setattr(dispatch, "_ROOT", tmp_path)
+    run_root = tmp_path / "data" / "audits" / "proof" / "2026-08-21_wave2_field"
+    current_root = tmp_path / "data" / "audits" / "proof" / "2026-08-22_wave2_field"
+    staging, digest = _write_valid_staging_bundle(dispatch, run_root)
+    canonical = run_root / "raw" / "run-1" / "pass1"
+    monkeypatch.setattr(dispatch, "_proof_root", lambda: current_root)
+
+    out = dispatch._commit_uploaded_evidence_transaction(
+        {
+            "transaction_id": "tx-1",
+            "staging_path": str(staging),
+            "canonical_path": str(canonical),
+            "manifest_sha256": digest,
+        },
+        FULL_SHA,
+        run_id="run-1",
+        pass_num=1,
+    )
+
+    assert out["ok"] is True
+    assert canonical.is_dir()
+    assert not staging.exists()
+    assert out["receipt"]["canonical_path"] == str(canonical)
+    assert dispatch._verified_evidence_receipt(canonical, FULL_SHA) is not None
+
+
+def test_wait_collector_authorization_commits_uploaded_failure_before_w15(monkeypatch):
+    dispatch = _load_dispatch()
+    status = {
+        "state": "evidence_uploaded",
+        "stages_done": 2,
+        "execution_passed": False,
+        "evidence_upload": {"transaction_id": "tx-failed"},
+    }
+    committed_calls: list[tuple[dict, str, str, int]] = []
+    monkeypatch.setattr(
+        dispatch,
+        "_mesh_read_fast",
+        lambda *_a, **_kw: {"ok": True, "stdout": json.dumps(status)},
+    )
+    monkeypatch.setattr(
+        dispatch,
+        "_commit_uploaded_evidence_transaction",
+        lambda upload, sha, *, run_id, pass_num: committed_calls.append((upload, sha, run_id, pass_num))
+        or {"ok": True, "receipt": {"receipt_id": "receipt-failed"}},
+    )
+
+    out = dispatch._wait_collector_authorization(
+        dispatch.Runner(dry_run=False),
+        "run-1",
+        1,
+        timeout_min=25,
+        candidate_sha=FULL_SHA,
+    )
+
+    assert out is False
+    assert committed_calls == [(status["evidence_upload"], FULL_SHA, "run-1", 1)]
+
+
 def test_evidence_transaction_guard_rejects_terminal_without_receipt(monkeypatch):
     dispatch = _load_dispatch()
     monkeypatch.setattr(

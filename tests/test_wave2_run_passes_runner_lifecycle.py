@@ -81,7 +81,7 @@ def _full_scenario_patches(dispatch_mod, **overrides):
             "run_id": run_id,
             "pass_num": pass_num,
         },
-        "_wait_collector_authorization": lambda runner, run_id, pass_num, timeout_min=25: True,
+        "_wait_collector_authorization": lambda runner, run_id, pass_num, timeout_min=25, **_kw: True,
         "_wait_for_bindable_grant": lambda runner, *, sha, run_id, timeout_s=300.0, interval_s=3.0: (
             object(),
             "",
