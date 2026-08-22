@@ -56,6 +56,8 @@ logger = logging.getLogger(__name__)
 
 _MEDIA_QUEUE_MAX = 4
 _CONTROL_TIMEOUT_S = 8.0
+_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S = 30.0
+_DURABLE_CLAIM_RETRY_SLEEP_S = 1.0
 _DURABLE_TIMEOUT_STDOUT_LIMIT = 20000
 _DURABLE_TIMEOUT_STDERR_LIMIT = 20000
 _DURABLE_TIMEOUT_TOTAL_LIMIT = (
@@ -463,6 +465,7 @@ class NodeClient:
         self._capability_semaphore = asyncio.Semaphore(8)
         self._durable_store = DurableRemoteStore(default_node_root())
         self._durable_processes: dict[str, subprocess.Popen[str]] = {}
+        self._durable_execution_locks: dict[str, asyncio.Lock] = {}
 
         # Media plane: bounded frame queue — stream thread pushes, drain task sends
         self._media_queue: deque[str] = deque(maxlen=_MEDIA_QUEUE_MAX)
@@ -1058,6 +1061,52 @@ class NodeClient:
             )
             return
 
+        if req.lifecycle_state == "CLAIMED" and req.claim_id and not req.process_tree.get("root_pid"):
+            ack = await self._acquire_durable_claim(
+                req,
+                claim_id=req.claim_id,
+                process_tree=req.process_tree,
+            )
+            if not ack.get("ok"):
+                logger.warning(
+                    "durable claim unresolved for %s: %s",
+                    req.request_id,
+                    ack.get("error", "missing acknowledgement"),
+                )
+                return
+            current = self._durable_store.get_request(req.request_id) or req
+            if current.lifecycle_state == "CANCEL_REQUESTED":
+                terminal = await self._cancel_durable_request(
+                    current,
+                    claim_id=req.claim_id,
+                    reason="cancel requested by controller",
+                )
+                await self._send_durable_event(
+                    "durable_command.result",
+                    {
+                        "request_id": current.request_id,
+                        "claim_id": terminal.claim_id,
+                        "state": terminal.lifecycle_state,
+                        "result": {"success": False, "error": "cancel requested by controller"},
+                        "cleanup": terminal.cleanup,
+                    },
+                )
+                return
+            if current.lifecycle_state != "CLAIMED" or current.claim_id != req.claim_id:
+                logger.warning(
+                    "durable claim no longer executable for %s: state=%s claim=%s",
+                    req.request_id,
+                    current.lifecycle_state,
+                    current.claim_id,
+                )
+                return
+            await self._execute_accepted_durable_claim(
+                current,
+                claim_id=req.claim_id,
+                process_tree=current.process_tree,
+            )
+            return
+
         if req.lifecycle_state in {"CLAIMED", "RUNNING"} and req.claim_id:
             await self._send_durable_event(
                 "durable_command.claimed",
@@ -1074,48 +1123,166 @@ class NodeClient:
         claim_id = f"{self._config.node_id}-{uuid4().hex[:12]}"
         process_tree = {"node_pid": os.getpid(), "claimed_at": time.time()}
         self._durable_store.mark_claimed(req.request_id, claim_id=claim_id, process_tree=process_tree)
-        ack = await self._send_durable_event(
-            "durable_command.claimed",
-            {
-                "request_id": req.request_id,
-                "claim_id": claim_id,
-                "state": "CLAIMED",
-                "process_tree": process_tree,
-            },
-            expect_ack=True,
-        )
-        if not ack or not ack.get("ok"):
-            logger.warning(
-                "durable claim rejected for %s: %s",
-                req.request_id,
-                (ack or {}).get("error", "missing acknowledgement"),
-            )
-            return
-
-        result = await self._execute_capability_for_durable(
+        ack = await self._acquire_durable_claim(
             req,
             claim_id=claim_id,
             process_tree=process_tree,
         )
-        state = "SUCCEEDED" if result.get("success") else "FAILED"
-        cleanup = dict(result.get("cleanup") or {"process_residue": []})
-        terminal = self._durable_store.publish_result(
-            req.request_id,
+        if not ack.get("ok"):
+            logger.warning(
+                "durable claim rejected for %s: %s",
+                req.request_id,
+                ack.get("error", "missing acknowledgement"),
+            )
+            return
+
+        current = self._durable_store.get_request(req.request_id) or req
+        if current.lifecycle_state == "CANCEL_REQUESTED":
+            terminal = await self._cancel_durable_request(
+                current,
+                claim_id=claim_id,
+                reason="cancel requested by controller",
+            )
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": current.request_id,
+                    "claim_id": terminal.claim_id,
+                    "state": terminal.lifecycle_state,
+                    "result": {"success": False, "error": "cancel requested by controller"},
+                    "cleanup": terminal.cleanup,
+                },
+            )
+            return
+        if current.lifecycle_state != "CLAIMED" or current.claim_id != claim_id:
+            logger.warning(
+                "durable claim no longer executable for %s: state=%s claim=%s",
+                req.request_id,
+                current.lifecycle_state,
+                current.claim_id,
+            )
+            return
+
+        await self._execute_accepted_durable_claim(
+            current,
             claim_id=claim_id,
-            state=state,
-            result=result,
-            cleanup=cleanup,
+            process_tree=current.process_tree,
         )
-        await self._send_durable_event(
-            "durable_command.result",
-            {
-                "request_id": req.request_id,
-                "claim_id": claim_id,
-                "state": state,
-                "result": result,
-                "cleanup": cleanup,
-            },
-        )
+
+    async def _execute_accepted_durable_claim(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        process_tree: dict[str, Any],
+    ) -> None:
+        lock = self._durable_execution_locks.setdefault(req.request_id, asyncio.Lock())
+        async with lock:
+            existing = self._durable_store.result_for(req.request_id)
+            if existing:
+                await self._send_durable_event(
+                    "durable_command.result",
+                    {
+                        "request_id": req.request_id,
+                        "claim_id": existing.get("claim_id", ""),
+                        "state": existing.get("state", "FAILED"),
+                        "result": existing.get("result", {}),
+                        "cleanup": existing.get("cleanup", {}),
+                        "idempotent_replay": True,
+                    },
+                )
+                return
+            current = self._durable_store.get_request(req.request_id) or req
+            if current.lifecycle_state != "CLAIMED" or current.claim_id != claim_id:
+                logger.warning(
+                    "durable claim refused execution for %s: state=%s claim=%s",
+                    req.request_id,
+                    current.lifecycle_state,
+                    current.claim_id,
+                )
+                return
+            result = await self._execute_capability_for_durable(
+                current,
+                claim_id=claim_id,
+                process_tree=current.process_tree or process_tree,
+            )
+            state = "SUCCEEDED" if result.get("success") else "FAILED"
+            cleanup = dict(result.get("cleanup") or {"process_residue": []})
+            self._durable_store.publish_result(
+                current.request_id,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+            )
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": current.request_id,
+                    "claim_id": claim_id,
+                    "state": state,
+                    "result": result,
+                    "cleanup": cleanup,
+                },
+            )
+
+    async def _acquire_durable_claim(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        process_tree: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Prove this exact claim was accepted before executing the request."""
+        payload = {
+            "request_id": req.request_id,
+            "claim_id": claim_id,
+            "state": "CLAIMED",
+            "process_tree": process_tree,
+        }
+        deadline = time.monotonic() + _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S
+        attempts: list[dict[str, Any]] = []
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return {
+                    "ok": False,
+                    "error": "claim acknowledgement unresolved before acquisition deadline",
+                    "attempts": attempts,
+                    "claim_id": claim_id,
+                }
+            try:
+                ack = await self._send_durable_event(
+                    "durable_command.claimed",
+                    payload,
+                    expect_ack=True,
+                    timeout_s=min(_CONTROL_TIMEOUT_S, remaining),
+                )
+            except Exception as exc:  # noqa: BLE001
+                ack = {"ok": False, "error": f"{type(exc).__name__}: {exc}", "retryable": True}
+            ack = ack or {"ok": False, "error": "missing acknowledgement"}
+            attempts.append(
+                {
+                    "ok": bool(ack.get("ok")),
+                    "error": str(ack.get("error", "")),
+                }
+            )
+            if ack.get("ok"):
+                return {"ok": True, "attempts": attempts, "claim_id": claim_id}
+            error = str(ack.get("error", ""))
+            retryable = bool(ack.get("retryable")) or (
+                "timed out" in error or "missing acknowledgement" in error
+            )
+            if not retryable:
+                return {
+                    "ok": False,
+                    "error": error or "claim rejected",
+                    "attempts": attempts,
+                    "claim_id": claim_id,
+                }
+            await asyncio.sleep(
+                min(_DURABLE_CLAIM_RETRY_SLEEP_S, max(0.0, deadline - time.monotonic()))
+            )
 
     async def _announce_durable_running(
         self,
@@ -1124,7 +1291,16 @@ class NodeClient:
         claim_id: str,
         process_tree: dict[str, Any],
     ) -> dict[str, Any]:
-        self._durable_store.mark_running(req.request_id, claim_id=claim_id, process_tree=process_tree)
+        updated = self._durable_store.mark_running(
+            req.request_id,
+            claim_id=claim_id,
+            process_tree=process_tree,
+        )
+        if updated.lifecycle_state != "RUNNING" or updated.claim_id != claim_id:
+            return {
+                "ok": False,
+                "error": f"running rejected into {updated.lifecycle_state}",
+            }
         ack = await self._send_durable_event(
             "durable_command.claimed",
             {
@@ -1395,6 +1571,23 @@ class NodeClient:
                 return {
                     "success": False,
                     "error": f"running acknowledgement rejected: {running_ack.get('error', '')}",
+                }
+            current = self._durable_store.get_request(req.request_id)
+            if current and current.lifecycle_state == "CANCEL_REQUESTED":
+                cleanup = {
+                    "process_residue": [],
+                    "cancel_reason": "cancel requested before process start",
+                    **current.cancellation_identity(claim_id=claim_id),
+                }
+                return {
+                    "success": False,
+                    "error": "cancel requested before process start",
+                    "cleanup": cleanup,
+                }
+            if current and (current.lifecycle_state != "RUNNING" or current.claim_id != claim_id):
+                return {
+                    "success": False,
+                    "error": f"running state changed before process start: {current.lifecycle_state}",
                 }
 
             extra: dict[str, Any] = {}
